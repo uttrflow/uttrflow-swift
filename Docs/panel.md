@@ -251,13 +251,16 @@ method and it never arrives.
 `PanelComposition.panelMayTake(_:whileComposing:)` holds the rule for both panel keys and
 resolved key decisions, including command chord intents. `send` in `QuickPanelView` applies it to
 relayed keys, and the chord handler applies it before performing an intent, so the search field
-and the sheet's field share one ownership policy. Marked text is also not reported through the `text:` binding, so the
+and the sheet's field share one ownership policy. Row chords reach `QuickPanel.performKeyEquivalent`
+before the application menu: while marked text is open, or when no row takes the chord, it returns
+false so the chord is passed on rather than swallowed. Marked text is also not reported through the `text:` binding, so the
 query holds only what was committed; a panel that took Return during composition would paste the
 top row of the *unfiltered* list.
 
 Whether a composition is open is the one part a key handler cannot read from the key: the view
-asks the field editor, `(NSApp.keyWindow?.firstResponder as? NSTextView)?.hasMarkedText()`. That
-read is in `QuickPanelView`, which is excluded from coverage, so it is checked by hand:
+asks the field editor through `QuickPanel.isComposing(in:)`, which reads `hasMarkedText()` on the
+window's first responder. The view passes `NSApp.keyWindow`, and `QuickPanelView` is excluded from
+coverage, so the keys it handles are checked by hand:
 
 1. Add Japanese – Romaji in System Settings › Keyboard › Text Input.
 2. Copy two pieces of text, one containing 日本.
@@ -282,7 +285,7 @@ before pasting. An unrevealed secret does not show the count.
 
 ## Names and Unicode confusables
 
-Two names are one name when they are equal under the search comparison, after whitespace and the leading slash are dropped, or when their Unicode confusable skeletons are equal. The search comparison folds case, accents and width, so a Devanagari nukta is ignored and an Arabic hamza is kept. The skeleton keeps every mark: normalize to NFD, replace each code point with its Unicode confusable prototype, and normalize to NFD again. The skeleton is only a comparison key and is never shown or stored. The packaged Unicode 18.0.0 confusables, Scripts, ScriptExtensions and PropertyValueAliases data make the result consistent across macOS ICU versions. If any table is missing or unreadable, saving a name is disabled and the sheet says why.
+Two names are one name when they are equal under the search comparison, after whitespace and the leading slash are dropped, or when either name keeps a non-ASCII character after that folding and their Unicode confusable skeletons are equal. Names that fold to ASCII compare by spelling alone, so `m1` and `ml`, or `rn` and `m`, stay distinct. The search comparison folds case, accents and width, so a Devanagari nukta is ignored and an Arabic hamza is kept. The skeleton keeps every mark: normalize to NFD, replace each code point with its Unicode confusable prototype, and normalize to NFD again. The skeleton is only a comparison key and is never shown or stored. The packaged Unicode 18.0.0 confusables, Scripts, ScriptExtensions and PropertyValueAliases data make the result consistent across macOS ICU versions. If any table is missing or unreadable, saving a name is disabled and the sheet says why.
 
 The script check intersects each alphabetic character's Script_Extensions set, falling back to Script when no extension set is listed. Common and inherited letters do not constrain the set. An empty intersection means the name mixes scripts, except that Japanese names may combine Han with Hiragana or Katakana, and Korean names may combine Han with Hangul. Other mixed-script combinations remain refused. Unicode data is distributed under the [Unicode terms of use](https://www.unicode.org/terms_of_use.html); the source tables identify their version and copyright.
 

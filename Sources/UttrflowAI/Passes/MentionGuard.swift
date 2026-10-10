@@ -98,9 +98,12 @@ public enum MentionGuard {
         ) {
             return true
         }
-        let sentenceEnd = draft.sentenceRun(from: position, in: live).upperBound
-        return next < sentenceEnd && draft.shape(at: live[next]).key == "of"
-            && !closesDashPair(at: position, in: live, of: draft)
+        guard next < live.count, draft.shape(at: live[next]).key == "of" else { return false }
+        // Only the words up to `of` can end the sentence first, so only they are read.
+        guard !(position..<next).contains(where: { draft.shape(at: live[$0]).endsSentence }) else {
+            return false
+        }
+        return !closesDashPair(at: position, in: live, of: draft)
     }
 
     /// Verbs that press a key, so a mark name after the modifier keys they press is the chord's key.
@@ -122,12 +125,18 @@ public enum MentionGuard {
 
     /// Whether a subject pronoun stands right after the mark or one word on, so the words before it end a clause rather than modify the mark.
     private static func opensClause(at next: Int, in live: [Int], of draft: Draft) -> Bool {
-        let run = draft.sentenceRun(from: max(next - 1, 0), in: live)
-        guard run.contains(next) else { return false }
-        let words = run.map { draft.shape(at: live[$0]).key }
+        let start = max(next - 1, 0)
+        guard next < live.count else { return false }
+        let end = min(next + 2, live.count)
+        var boundedEnd = end
+        for index in start..<end where draft.shape(at: live[index]).endsSentence {
+            boundedEnd = index + 1
+            break
+        }
+        guard boundedEnd > next else { return false }
+        let words = live[start..<boundedEnd].map { draft.shape(at: $0).key }
         let tags = LexicalClass.tags(ofWords: words)
-        let start = next - run.lowerBound
-        return tags[start...].prefix(2).contains(.pronoun)
+        return tags[(next - start)...].prefix(2).contains(.pronoun)
     }
 
     /// Whether a dash written earlier in this sentence is still open, so the mark here closes the pair.

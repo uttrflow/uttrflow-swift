@@ -143,6 +143,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | Page | What it covers |
 |---|---|
 | [offline.md](offline.md) | Dictating with no network |
+| [network-transport.md](network-transport.md) | Where requests are counted and how failed requests remain visible |
 | [logging.md](logging.md) | What the unified log may carry |
 | [diagnostics-export.md](diagnostics-export.md) | What "Copy diagnostics" may carry |
 | [entitlements.md](entitlements.md) | What somebody is allowed to do, and how that is known offline |

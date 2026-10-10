@@ -37,6 +37,9 @@ struct Complete: AsyncParsableCommand {
     @Option(name: .long, help: "Write every fixture's result and the summary as JSON to this path.")
     var json: String?
 
+    @Option(name: .long, help: "Fail when hit rate or precision falls below this saved fixture report.")
+    var baseline: String?
+
     @Flag(
         name: .long, help: "Record how each pass ended and every word the model wrote, so a miss can be read."
     )
@@ -63,21 +66,51 @@ struct Complete: AsyncParsableCommand {
         if let limit, limit < 1 {
             throw ValidationError("--limit must be at least 1.")
         }
+        if baseline != nil, json == nil {
+            throw ValidationError("--baseline requires --json so the measured report is saved.")
+        }
+        if baseline != nil, !fixtures, !sources {
+            throw ValidationError("--baseline applies only to a fixture run.")
+        }
+        try Self.validateOutputPaths(baseline: baseline, json: json)
+    }
+
+    /// Refuses a `--json` path that names the baseline, through a symbolic link or otherwise.
+    internal static func validateOutputPaths(baseline: String?, json: String?) throws {
+        guard let baseline, let json else { return }
+        let baselineURL = URL(fileURLWithPath: baseline).resolvingSymlinksInPath().standardizedFileURL
+        let jsonURL = URL(fileURLWithPath: json).resolvingSymlinksInPath().standardizedFileURL
+        guard baselineURL != jsonURL else {
+            throw ValidationError("--json must not overwrite the --baseline report.")
+        }
+    }
+
+    /// A run judged against a baseline fails when it could not measure, rather than passing unmeasured.
+    internal static func ensureMeasurementAllowed(_ baseline: FixtureReport?) throws {
+        if baseline != nil { throw ExitCode.failure }
     }
 
     func run() async throws {
+        let baselineReport: FixtureReport?
+        if let baseline {
+            baselineReport = try FixtureReport.load(from: baseline)
+        } else {
+            baselineReport = nil
+        }
         let generator: any CandidateGenerating
         if model == "apple" {
             // Apple's model is bundled with the system and loads itself; there is nothing to download or warm.
             let apple = AppleCandidateGenerator()
             guard await apple.isReady else {
                 print("Apple's on-device model is not available: turn on Apple Intelligence and try again")
+                try Self.ensureMeasurementAllowed(baselineReport)
                 return
             }
             generator = apple
         } else {
             guard let chosen = Self.model(named: model) else {
                 print("no such model: \(model)")
+                try Self.ensureMeasurementAllowed(baselineReport)
                 return
             }
             let scorer = MLXCandidateScorer(model: chosen)
@@ -88,7 +121,7 @@ struct Complete: AsyncParsableCommand {
             generator = scorer
         }
         if fixtures || sources {
-            try await measure(with: generator)
+            try await measure(with: generator, baseline: baselineReport)
         } else {
             await complete(typed ?? "", with: generator)
         }
@@ -113,7 +146,9 @@ struct Complete: AsyncParsableCommand {
     }
 
     /// Every chosen fixture in turn, each timed, then the rates that decide whether a phase held and the failures.
-    private func measure(with scorer: any CandidateGenerating) async throws {
+    private func measure(
+        with scorer: any CandidateGenerating, baseline baselineReport: FixtureReport?
+    ) async throws {
         let catalogue = sources ? SourceFixtures.all : Fixture.all
         var chosen = catalogue.filter {
             only.map($0.name.hasPrefix) ?? true
@@ -121,6 +156,7 @@ struct Complete: AsyncParsableCommand {
         if let failedIn {
             guard let missed = Self.misses(recordedIn: failedIn) else {
                 print("could not read the earlier run at \(failedIn)")
+                try Self.ensureMeasurementAllowed(baselineReport)
                 return
             }
             chosen = chosen.filter { missed.contains($0.name) }
@@ -138,26 +174,89 @@ struct Complete: AsyncParsableCommand {
             results.append(result)
             print(result.row)
         }
+        let configuration = FixtureReport.Configuration(
+            model: model, sources: sources, only: only, limit: limit, failedIn: failedIn != nil,
+            raw: raw, judge: judge, secondOpinion: secondOpinion)
         let report = FixtureReport(
-            results: results,
+            results: results, configuration: configuration,
             fixtureCatalogueCount: catalogue.count,
             fullFixtureCatalogue: !sources && only == nil && failedIn == nil && limit == nil)
         report.printSummary()
         report.printFloors()
         report.printFailures()
-        // An errored pass fails the run so the gate that protects the correct-or-not-shown promise is not passed by a broken model.
-        if report.summary.errors > 0 {
-            FileHandle.standardError.write(
-                Data("\n\(report.summary.errors) error(s); run exits non-zero.\n".utf8))
-            throw ExitCode.failure
+        try Self.finish(report, writingTo: json, baseline: baselineReport)
+    }
+
+    /// Saves the evidence before returning a failure for a broken or regressed run.
+    internal static func finish(
+        _ report: FixtureReport, writingTo path: String?, baseline: FixtureReport?
+    ) throws {
+        if let path {
+            try report.write(to: path)
+            print("\nwritten to \(path)")
         }
-        guard let json else { return }
-        do {
-            try report.write(to: json)
-            print("\nwritten to \(json)")
-        } catch {
-            print("\ncould not write \(json): \(error)")
+        if let baseline { try requireNoRegression(report, against: baseline) }
+        guard report.summary.errors > 0 else { return }
+        FileHandle.standardError.write(
+            Data("\n\(report.summary.errors) error(s); run exits non-zero.\n".utf8))
+        throw ExitCode.failure
+    }
+
+    /// Fails when the same fixture set scores below its saved hit rate or judged precision.
+    internal static func requireNoRegression(_ current: FixtureReport, against baseline: FixtureReport) throws
+    {
+        try requireComparable(current, baseline)
+        let metrics = regressedMetrics(current, baseline)
+        guard !metrics.isEmpty else { return }
+        FileHandle.standardError.write(
+            Data("\nBake-off \(metrics.joined(separator: " and ")) fell below the saved baseline.\n".utf8))
+        throw ExitCode.failure
+    }
+
+    private static func requireComparable(_ current: FixtureReport, _ baseline: FixtureReport) throws {
+        guard current.configuration == baseline.configuration else {
+            throw ValidationError("The current report and --baseline must use the same run options.")
         }
+        let currentNames = current.results.map(\.name)
+        let baselineNames = baseline.results.map(\.name)
+        guard Set(currentNames).count == currentNames.count,
+            Set(baselineNames).count == baselineNames.count
+        else {
+            throw ValidationError("Fixture reports cannot contain duplicate names.")
+        }
+        let currentByName = Dictionary(uniqueKeysWithValues: current.results.map { ($0.name, $0) })
+        let baselineByName = Dictionary(uniqueKeysWithValues: baseline.results.map { ($0.name, $0) })
+        guard Set(currentByName.keys) == Set(baselineByName.keys),
+            current.results.allSatisfy({ result in
+                guard let previous = baselineByName[result.name] else { return false }
+                return result.category == previous.category && result.typed == previous.typed
+                    && result.judged == previous.judged
+                    && result.fixtureIdentity != nil
+                    && result.fixtureIdentity == previous.fixtureIdentity
+            })
+        else {
+            throw ValidationError("The current report and --baseline must contain the same fixtures.")
+        }
+    }
+
+    private static func regressedMetrics(_ current: FixtureReport, _ baseline: FixtureReport) -> [String] {
+        let currentSummary = FixtureSummary(current.results)
+        let baselineSummary = FixtureSummary(baseline.results)
+        let hitRateFell =
+            Self.rate(currentSummary.hits, of: currentSummary.total)
+            < Self.rate(baselineSummary.hits, of: baselineSummary.total)
+        let precisionFell =
+            baselineSummary.shown > 0
+            && Self.rate(currentSummary.right, of: currentSummary.shown)
+                < Self.rate(baselineSummary.right, of: baselineSummary.shown)
+        return [
+            hitRateFell ? "hit rate" : nil,
+            precisionFell ? "precision" : nil,
+        ].compactMap { $0 }
+    }
+
+    private static func rate(_ count: Int, of total: Int) -> Double {
+        total == 0 ? 0 : Double(count) / Double(total)
     }
 
     /// Run the measurement loop over the given fixtures and return the per-fixture results alongside the count of errored fixtures; the unit a test exercises when it runs the bake-off with a generator that throws.
@@ -294,7 +393,8 @@ struct Complete: AsyncParsableCommand {
             error: failure,
             gate: FixtureResult.Gate(
                 confidence: confidence, held: held, hitIfDrawn: fixture.hits(completions),
-                judgeScore: judgeScore, judgeMs: judgeMs))
+                judgeScore: judgeScore, judgeMs: judgeMs),
+            fixtureIdentity: fixture.identity)
     }
 
     /// Runs the shared coordinator selection, session ranking, verifier, and model fallback for one seeded fixture.

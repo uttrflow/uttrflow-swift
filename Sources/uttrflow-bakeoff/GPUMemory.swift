@@ -69,7 +69,8 @@ struct GPUMemory: AsyncParsableCommand {
                         state: .suggestionsPassPeak, label: "pass \(pass)",
                         footprintBytes: peak.footprintBytes))
             }
-            if let settled = MemoryFootprint.current() {
+            let settled = MemoryFootprint.current()
+            if let settled {
                 readings.append(
                     .init(
                         state: .suggestionsBetweenPasses, label: "after pass \(pass)", footprintBytes: settled
@@ -79,7 +80,10 @@ struct GPUMemory: AsyncParsableCommand {
             let kind = cancelled ? "cancelled" : "complete "
             let label =
                 "pass \(String(pass).leftPadded(to: 3)) \(kind) \(String(elapsed).leftPadded(to: 5)) ms"
-            print("\(label)  cpu \(String(spent).leftPadded(to: 5)) ms  \(Self.row(GPUBufferCache.reading))")
+            print(
+                Self.passLine(
+                    label: label, processorMilliseconds: spent, memory: Self.row(GPUBufferCache.reading),
+                    footprintBytes: settled))
             if show, !cancelled { print("  " + lines.debugDescription) }
         }
         try? await Task.sleep(for: .seconds(5))
@@ -150,6 +154,15 @@ struct GPUMemory: AsyncParsableCommand {
     /// The process's footprint, which is what Activity Monitor shows.
     private static func footprint() -> String {
         "footprint \(String((MemoryFootprint.current() ?? 0) / 1_048_576).leftPadded(to: 6)) MB"
+    }
+
+    /// One pass's MLX counters and already-sampled settled process footprint.
+    static func passLine(
+        label: String, processorMilliseconds: Int, memory: String, footprintBytes: Int64?
+    ) -> String {
+        let footprint = footprintBytes.map { "\($0 / 1_048_576) MB" } ?? "unavailable"
+        return
+            "\(label)  cpu \(String(processorMilliseconds).leftPadded(to: 5)) ms  \(memory)  footprint \(footprint)"
     }
 
     /// Active, cache and peak memory in megabytes, in fixed columns.

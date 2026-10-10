@@ -180,7 +180,7 @@ public actor ClipboardStore {
         let existing = loaded()
         let clip = secrecy.applied(to: clip)
         let previous = Self.previous(for: clip, in: existing)
-        var arrival = previous.map { inheriting($0, from: clip) } ?? clip
+        var arrival = previous.map { Self.inheriting($0, from: clip) } ?? clip
         if let alias = arrival.alias,
             existing.contains(where: { $0.id != arrival.id && $0.alias == alias })
         {
@@ -223,7 +223,7 @@ public actor ClipboardStore {
             let clips = try settled([deleted] + existing, keeping: retention)
             return ClipboardRestoreResult(clips: clips, aliasWasAlreadyInUse: aliasConflict)
         }
-        let restored = restoring(deleted, over: matching)
+        let restored = Self.restoring(deleted, over: matching)
         let updated = existing.map { $0.id == matching.id ? restored : $0 }
         let clips = try settled(updated, keeping: retention)
         return ClipboardRestoreResult(clips: clips, aliasWasAlreadyInUse: aliasConflict)
@@ -621,75 +621,59 @@ public actor ClipboardStore {
             image == nil
             ? ClipKindDetector.classification(of: text)
             : ClipClassification(kind: .image, language: nil)
-        return Clip(
-            id: clip.id, text: text, kind: classified.kind, copiedAt: clip.copiedAt,
-            source: clip.source, origin: clip.origin, dictations: clip.dictations,
+        return clip.with {
+            $0.text = text
+            $0.kind = classified.kind
+            $0.language = classified.language
+            $0.richText = richText
+            $0.image = image
             // An unlinked dictation copy keeps its first words, the only thing deleting its dictation can match.
-            dictatedText: clip.dictatedText ?? (clip.isUnlinkedDictationCopy ? clip.text : nil),
-            lastUsedAt: clip.lastUsedAt,
-            lastUsedOrder: clip.lastUsedOrder,
-            language: classified.language, richText: richText, image: image,
-            alias: clip.alias, tags: clip.tags, category: clip.category, isPinned: clip.isPinned,
-            timesCopied: clip.timesCopied)
+            $0.dictatedText = clip.dictatedText ?? (clip.isUnlinkedDictationCopy ? clip.text : nil)
+        }
     }
 
     /// The same clip, copying only `dictations`.
     static func relinking(_ clip: Clip, to dictations: [UUID]) -> Clip {
-        Clip(
-            id: clip.id, text: clip.text, kind: clip.kind, copiedAt: clip.copiedAt,
-            source: clip.source, origin: clip.origin, dictations: dictations,
-            dictatedText: clip.dictatedText, lastUsedAt: clip.lastUsedAt,
-            lastUsedOrder: clip.lastUsedOrder,
-            language: clip.language, richText: clip.richText, image: clip.image,
-            alias: clip.alias, tags: clip.tags, category: clip.category, isPinned: clip.isPinned,
-            timesCopied: clip.timesCopied)
+        clip.with { $0.dictations = dictations }
     }
 
     /// Carries what the user chose about a clip onto the copy that has just replaced it.
-    private func inheriting(_ previous: Clip, from arrival: Clip) -> Clip {
+    static func inheriting(_ previous: Clip, from arrival: Clip) -> Clip {
         // A kept clip the user chose to keep on disk is never made a memory-only secret by a repeat of the same text.
         let staysKept = previous.isKept && Self.isPersistable(previous) && !Self.isPersistable(arrival)
         let classified = staysKept ? previous : arrival
-        return Clip(
-            id: previous.id, text: arrival.text, kind: classified.kind, copiedAt: arrival.copiedAt,
-            source: arrival.source,
-            // Named rather than defaulted, so a repeat cannot quietly become a ⌘C.
-            origin: previous.origin,
+        // Built on the previous clip, so its identity, origin and everything the user decided stay with it.
+        return previous.with {
+            $0.text = arrival.text
+            $0.kind = classified.kind
+            $0.copiedAt = arrival.copiedAt
+            $0.source = arrival.source
             // Both dictations, so the clip goes only once neither of them is left.
-            dictations: previous.dictations
-                + arrival.dictations.filter {
-                    !previous.dictations.contains($0)
-                },
-            dictatedText: previous.dictatedText,
+            $0.dictations += arrival.dictations.filter { !previous.dictations.contains($0) }
             // Copying something again is reaching for it, so the eviction clock moves too.
-            lastUsedAt: arrival.copiedAt,
+            $0.lastUsedAt = arrival.copiedAt
             // Detected from the text recorded now and from this pasteboard, unless the kind stayed the kept clip's.
-            language: classified.language,
+            $0.language = classified.language
             // A plain repeat keeps the clip's rich text, which may be a note the user wrote in the panel.
-            richText: arrival.richText ?? previous.richText,
+            $0.richText = arrival.richText ?? previous.richText
             // The file already on disk, not the one just written; the arrival's would strand it.
-            image: previous.image ?? arrival.image,
-            // Everything the user decided stays with the clip they decided it about.
-            alias: previous.alias, tags: previous.tags, category: previous.category,
-            isPinned: previous.isPinned,
+            $0.image = previous.image ?? arrival.image
             // One more time, not a new clip; saturates at Int.max instead of trapping.
-            timesCopied: previous.timesCopied == .max ? .max : previous.timesCopied + 1)
+            $0.timesCopied = previous.timesCopied == .max ? .max : previous.timesCopied + 1
+        }
     }
 
     /// Restoring a duplicate revives the deleted clip's choices without rewinding the newer copy.
-    private func restoring(_ deleted: Clip, over newer: Clip) -> Clip {
-        Clip(
-            id: newer.id, text: newer.text, kind: newer.kind, copiedAt: newer.copiedAt,
-            source: newer.source, origin: newer.origin,
-            dictations: newer.dictations
-                + deleted.dictations.filter { !newer.dictations.contains($0) },
-            dictatedText: newer.dictatedText ?? deleted.dictatedText,
-            lastUsedAt: newer.lastUsedAt, lastUsedOrder: newer.lastUsedOrder,
-            language: newer.language, richText: newer.richText, image: newer.image,
-            alias: newer.alias ?? deleted.alias, tags: newer.tags.isEmpty ? deleted.tags : newer.tags,
-            category: newer.category ?? deleted.category,
-            isPinned: newer.isPinned || deleted.isPinned,
-            timesCopied: newer.timesCopied == .max ? .max : newer.timesCopied + 1)
+    static func restoring(_ deleted: Clip, over newer: Clip) -> Clip {
+        newer.with {
+            $0.dictations += deleted.dictations.filter { !newer.dictations.contains($0) }
+            $0.dictatedText = newer.dictatedText ?? deleted.dictatedText
+            $0.alias = newer.alias ?? deleted.alias
+            $0.tags = newer.tags.isEmpty ? deleted.tags : newer.tags
+            $0.category = newer.category ?? deleted.category
+            $0.isPinned = newer.isPinned || deleted.isPinned
+            $0.timesCopied = newer.timesCopied == .max ? .max : newer.timesCopied + 1
+        }
     }
 
     /// Applies one edit to one clip, then the retention rules, then writes.

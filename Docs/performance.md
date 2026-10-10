@@ -567,6 +567,20 @@ make perf-budget                                      # the source audit
 make perf-budget-models                               # the memory budget, with both models installed
 ```
 
+For a five-thousand-pass Release soak, build the bake-off product in Release explicitly; the
+`make bakeoff` recipe builds Debug. The runtime `--release` flag releases and reloads the model
+after the passes, not the build configuration. Each pass line reports MLX active/cache/peak
+memory and the already-sampled settled process footprint; `/usr/bin/time -l` reports the process
+peak across the whole run.
+
+```bash
+xcodebuild -scheme uttrflow-bakeoff -configuration Release \
+  -destination 'platform=macOS,arch=arm64' -derivedDataPath .build/xcode \
+  -skipPackagePluginValidation -skipMacroValidation -quiet build
+/usr/bin/time -l ./.build/xcode/Build/Products/Release/uttrflow-bakeoff \
+  gpu-memory --passes 5000 --release
+```
+
 The speech model must already be installed (`uttrflow-dev models install`). Audio is synthesised
 on the first run and cached; a changed passage or voice is spoken again. Every figure printed is
 read off a `PerformanceReport` built by `PerformanceProfiler`, where the phase order, the leak

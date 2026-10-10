@@ -25,6 +25,9 @@ struct PredictCorpus: SuggestionCorpus {
 
     /// How many lines each application taught, or none when the corpus was never created or will not open.
     func learnedSuggestions() async -> [String: Int] {
+        if let loop = await running() {
+            return (try? await loop.store.entryCountsByApplication()) ?? [:]
+        }
         guard let store = try? existingStore() else { return [:] }
         return (try? await store.entryCountsByApplication()) ?? [:]
     }

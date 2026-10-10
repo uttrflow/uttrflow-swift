@@ -645,6 +645,18 @@ struct DiagnosticsReportTests {
         #expect(report.contains("On disk"))
     }
 
+    @Test("lines capture did not learn are counted by reason on the page and in the report, never quoted")
+    func captureSkipsAreCountedByReason() {
+        let snapshot = DiagnosticsSnapshot(captureSkips: [.unmatchedKeys: 2, .insertedText: 1])
+        let report = DiagnosticsPresenter.report(for: snapshot, locale: DiagnosticsFixture.locale)
+        let page = DiagnosticsPresenter.page(for: snapshot, locale: DiagnosticsFixture.locale)
+
+        #expect(page.captureSkips.map(\.title) == ["Text not typed", "Text did not match typed keys"])
+        #expect(report.contains("Suggestion lines not learned"))
+        #expect(report.contains("Text did not match typed keys: 2 lines"))
+        #expect(report.contains("Text not typed: 1 line"))
+    }
+
     @Test("a report with nothing measured says so rather than showing a blank")
     func reportWithoutMeasurements() {
         let report = DiagnosticsPresenter.report(
@@ -689,6 +701,16 @@ struct DiagnosticsRecorderTests {
         let recorded = await recorder.recorded
         #expect(recorded.map(\.stage) == [.transcription, .insertion])
         #expect(recorded.map(\.succeeded) == [true, false])
+    }
+
+    @Test("capture skip counts keep only their closed reason")
+    func recordsCaptureSkipCounts() async {
+        let recorder = DiagnosticsRecorder()
+        await recorder.recordCaptureSkip(.unmatchedKeys)
+        await recorder.recordCaptureSkip(.unmatchedKeys)
+        await recorder.recordCaptureSkip(.insertedText)
+
+        #expect(await recorder.recordedCaptureSkips == [.unmatchedKeys: 2, .insertedText: 1])
     }
 
     /// Bounded, because a file about the user's habits must not grow without limit.

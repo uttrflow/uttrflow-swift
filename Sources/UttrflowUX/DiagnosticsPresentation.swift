@@ -173,6 +173,8 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
     public let hasDefaultInputDevice: Bool?
     /// Every stage timing recorded since the app started.
     public let measurements: [StageMeasurement]
+    /// Counts of suggestion lines capture excluded, by closed reason.
+    public let captureSkips: [CaptureSkipReason: Int]
     /// The words the active recogniser last kept in its prompt, from the local recorder.
     public let vocabularyPrompt: [String]
     /// The bounded per-piece decode effort recorded since the app started.
@@ -218,6 +220,7 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         dictationShortcutArmed: Bool? = nil,
         hasDefaultInputDevice: Bool? = nil,
         measurements: [StageMeasurement] = [],
+        captureSkips: [CaptureSkipReason: Int] = [:],
         vocabularyPrompt: [String] = [],
         decoding: [DecodeEffort] = [],
         segmentReliability: [SegmentReliability] = [],
@@ -245,6 +248,7 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         self.dictationShortcutArmed = dictationShortcutArmed
         self.hasDefaultInputDevice = hasDefaultInputDevice
         self.measurements = measurements
+        self.captureSkips = captureSkips
         self.vocabularyPrompt = vocabularyPrompt
         self.decoding = decoding
         self.segmentReliability = segmentReliability
@@ -299,6 +303,8 @@ public struct DiagnosticsPresentation: Sendable, Equatable {
     public let decoding: [DiagnosticsRow]
     /// The wait after key-up per dictation, and how often each cause made it run past the target.
     public let waits: [DiagnosticsRow]
+    /// Why suggestion lines were not learned, counted without keeping their words.
+    public let captureSkips: [DiagnosticsRow]
     /// How many kept dictations reached a field, by arrival. Empty until History holds one.
     public let arrivals: [DiagnosticsRow]
     /// The speech model's last loads, newest first, each saying whether a recompile explains it.
@@ -332,6 +338,7 @@ public struct DiagnosticsPresentation: Sendable, Equatable {
         reliability: [MainStatistic],
         decoding: [DiagnosticsRow],
         waits: [DiagnosticsRow] = [],
+        captureSkips: [DiagnosticsRow] = [],
         speechModelLoads: [DiagnosticsRow] = [],
         arrivals: [DiagnosticsRow] = [],
         engines: [DiagnosticsRow],
@@ -352,6 +359,7 @@ public struct DiagnosticsPresentation: Sendable, Equatable {
         self.reliability = reliability
         self.decoding = decoding
         self.waits = waits
+        self.captureSkips = captureSkips
         self.speechModelLoads = speechModelLoads
         self.arrivals = arrivals
         self.engines = engines
@@ -399,6 +407,7 @@ public enum DiagnosticsPresenter {
             decoding: decodingRows(
                 for: snapshot.decoding, segments: snapshot.segmentReliability, locale: locale),
             waits: waitRows(for: snapshot.waits, locale: locale),
+            captureSkips: captureSkipRows(for: snapshot.captureSkips),
             speechModelLoads: speechModelLoadRows(for: snapshot.speechModelLoads, locale: locale),
             arrivals: arrivalRows(for: snapshot.arrivals),
             engines: engines,
@@ -419,6 +428,20 @@ public enum DiagnosticsPresenter {
             footnote: footnote,
             copyAction: MainAction(
                 title: "Copy Diagnostics", intent: .copy(report(for: snapshot, locale: locale))))
+    }
+
+    /// Names only the fixed detector reasons, never the line that was skipped.
+    static func captureSkipRows(for counts: [CaptureSkipReason: Int]) -> [DiagnosticsRow] {
+        CaptureSkipReason.allCases.compactMap { reason in
+            guard let count = counts[reason], count > 0 else { return nil }
+            let title: String
+            switch reason {
+            case .insertedText: title = "Text not typed"
+            case .unmatchedKeys: title = "Text did not match typed keys"
+            }
+            return DiagnosticsRow(
+                title: title, detail: MainFormatting.count(count, "line", "lines"), state: .unknown)
+        }
     }
 
     // MARK: - Models
@@ -1173,6 +1196,12 @@ public enum DiagnosticsPresenter {
         if !waits.isEmpty {
             lines += ["", "Wait after release (\(snapshot.waits.count) dictations)"]
             lines += waits.map { "  \($0.title): \($0.detail)" }
+        }
+
+        let captureSkips = captureSkipRows(for: snapshot.captureSkips)
+        if !captureSkips.isEmpty {
+            lines += ["", "Suggestion lines not learned"]
+            lines += captureSkips.map { "  \($0.title): \($0.detail)" }
         }
 
         let arrivals = arrivalRows(for: snapshot.arrivals)

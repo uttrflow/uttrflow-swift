@@ -595,6 +595,32 @@ struct ContinuationLengthTests {
 
 @Suite("A sign-off is signed only with a name the person wrote", .bug(id: 5966))
 struct SignOffTests {
+    @Test("a closing word inside ordinary prose does not begin a signature")
+    func embeddedClosingStaysInProse() {
+        #expect(
+            SignOff.unsigned(
+                "Hi Sam, thanks, Sarah is coming", typed: "Hi Sam, ", ownLines: [])
+                == "Hi Sam, thanks, Sarah is coming")
+        #expect(
+            SignOff.unsigned("I said, thanks, Priya will drive", typed: "I said, ", ownLines: [])
+                == "I said, thanks, Priya will drive")
+    }
+
+    @Test("newline closings and lowercase signatures keep their distinct behavior")
+    func newlineAndLowercaseSignatures() {
+        #expect(
+            SignOff.unsigned("Kind regards,\nJohn", typed: "Kind reg", ownLines: [])
+                == "Kind regards,")
+        #expect(SignOff.unsigned("Thanks\nJohn", typed: "Thanks\n", ownLines: []) == "Thanks\nJohn")
+        #expect(SignOff.unsigned("thanks, john", typed: "", ownLines: []) == "thanks, john")
+        #expect(
+            SignOff.unsigned("Got it.\nThanks, Sarah is coming", typed: "Got it.\n", ownLines: [])
+                == "Got it.\nThanks,")
+        #expect(
+            SignOff.unsigned("See you then. Thanks, Sarah", typed: "See you then. ", ownLines: [])
+                == "See you then. Thanks,")
+    }
+
     @Test("A name followed by a farewell, a title or more names is cut from a prose suggestion")
     func trailingWordsDoNotHideAnInventedName() {
         let mail = GenerationSituation(application: "Mail", isMultiline: true)

@@ -1260,6 +1260,8 @@
       "documentName": "Dev"
     },
     "destination": "messaging",
+    "mustBeginWith": "Let's",
+    "mustEndWith": "place",
     "addedFor": 2264
   },
   {
@@ -1274,6 +1276,8 @@
       "documentName": "Dev"
     },
     "destination": "messaging",
+    "mustBeginWith": "I'm",
+    "mustEndWith": "home",
     "addedFor": 2264
   },
   {
@@ -1282,7 +1286,14 @@
     "expected": "At Sam, can you take a look?",
     "mustKeep": ["At", "look"],
     "mustNotAdd": ["@"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Project plan"
+    },
     "destination": "document",
+    "mustBeginWith": "At",
+    "mustEndWith": "?",
     "addedFor": 2264
   },
   {
@@ -1508,7 +1519,9 @@
       "applicationName": "Pages",
       "bundleIdentifier": "com.apple.iWork.Pages"
     },
-    "destination": "document"
+    "destination": "document",
+    "mustBeginWith": "The budget (",
+    "mustEndWith": "Friday."
   },
   {
     "id": "dictation-keeps-markdown-words-heading-one",
@@ -1813,6 +1826,8 @@
       "documentName": "Untitled"
     },
     "destination": "document",
+    "mustBeginWith": "It",
+    "mustEndWith": "night.",
     "classes": ["per-destination"],
     "addedFor": 6586
   },
@@ -1828,6 +1843,8 @@
       "documentName": "Notes"
     },
     "destination": "document",
+    "mustBeginWith": "Dinner",
+    "mustEndWith": "home.",
     "classes": ["per-destination"],
     "addedFor": 6586
   },
@@ -1843,6 +1860,8 @@
       "documentName": "Re: lunch"
     },
     "destination": "email",
+    "mustBeginWith": "The",
+    "mustEndWith": "lunch.",
     "classes": ["per-destination"],
     "addedFor": 6586
   },
@@ -1858,6 +1877,8 @@
       "documentName": "general"
     },
     "destination": "messaging",
+    "mustBeginWith": "She",
+    "mustEndWith": "today",
     "classes": ["per-destination"],
     "addedFor": 6586
   },
@@ -1873,6 +1894,8 @@
       "documentName": "README.md"
     },
     "destination": "codeEditor",
+    "mustBeginWith": "The",
+    "mustEndWith": "startup.",
     "classes": ["per-destination"],
     "addedFor": 6586
   },
@@ -1888,6 +1911,8 @@
       "documentName": "zsh"
     },
     "destination": "terminal",
+    "mustBeginWith": "the",
+    "mustEndWith": "peak",
     "classes": ["per-destination"],
     "addedFor": 6586
   },
@@ -1903,6 +1928,8 @@
       "documentName": "Notes"
     },
     "destination": "document",
+    "mustBeginWith": "My",
+    "mustEndWith": "office.",
     "classes": ["per-destination"],
     "addedFor": 6586
   },
@@ -1917,6 +1944,8 @@
       "documentName": "Untitled"
     },
     "destination": "document",
+    "mustBeginWith": "My",
+    "mustEndWith": "sam@example.com.",
     "classes": ["per-destination"],
     "addedFor": 6586
   },
@@ -1931,6 +1960,8 @@
       "documentName": "Re: lunch"
     },
     "destination": "email",
+    "mustBeginWith": "You",
+    "mustEndWith": "priya.shah@example.com.",
     "classes": ["per-destination"],
     "addedFor": 6586
   },
@@ -1945,6 +1976,8 @@
       "documentName": "general"
     },
     "destination": "messaging",
+    "mustBeginWith": "Send",
+    "mustEndWith": "ops-team@example.org",
     "classes": ["per-destination"],
     "addedFor": 6586
   },
@@ -1959,6 +1992,8 @@
       "documentName": "Notes"
     },
     "destination": "document",
+    "mustBeginWith": "My",
+    "mustEndWith": "jane@example.net.",
     "classes": ["per-destination"],
     "addedFor": 6586
   },
