@@ -92,6 +92,14 @@ final class SlowFields: Sendable {
         rest.length == .zero ? firstRest : min(rest.length * 2, longestRest)
     }
 
+    /// Forgets every resting field and quieted application, for the reset path that empties every cache.
+    func forgetEverything() {
+        state.withLock { state in
+            state.rests.forgetEverything()
+            state.quiet = [:]
+        }
+    }
+
     /// Records a read of this field that kept to its budget, which ends any backing off.
     func answered(_ key: Key) {
         state.withLock { state in
