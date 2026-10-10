@@ -360,7 +360,7 @@ struct DictationPipelineStateTests {
         let inserted = DictationOutcome(
             text: tidied, method: .accessibility, cleanedBy: .foundationModels,
             insertedInto: "Slack", insertedIntoIdentifier: "com.tinyspeck.slackmacgap",
-            spokenFor: .zero, changes: AppliedChanges(spokenWords: 10))
+            spokenFor: .zero, changes: AppliedChanges(spokenWords: 10, heard: spoken))
         // Inserting is its own state because the application takes its own time to show the words.
         #expect(
             await next(6, from: states) == [

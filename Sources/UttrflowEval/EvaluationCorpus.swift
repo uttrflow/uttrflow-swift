@@ -8,7 +8,7 @@ public enum EvaluationCorpus {
         + hostileCaretText + hostileReading + hostileDictatedLine + multilingual
         + contextual + codeToken + grammar + secondLanguage + oneLineField + bareLiteral + formatting
         + codeMixing + commandInput + segments + longInput + developerGenre + dictionary + webDestination
-        + homophone + hinglishReply
+        + homophone + hinglishReply + sourceNotation
 
     public static func cases(in category: EvaluationCase.Category) -> [EvaluationCase] {
         all.filter { $0.category == category }
@@ -143,6 +143,11 @@ public enum EvaluationCorpus {
 
     /// Invented prose full of notation words, each sentence dictated at every region of its technical app.
     public static let abstention: [EvaluationCase] = CorpusFile.cases(in: .technical, set: "abstention")
+
+    // MARK: Source notation. See Docs/adapters.md.
+
+    /// Operators and brackets dictated in Swift, Python, JavaScript and TypeScript, as each language writes them.
+    static let sourceNotation: [EvaluationCase] = CorpusFile.cases(in: .technical, set: "sourceNotation")
 
     // MARK: Command mentions. See Docs/commands.md.
 

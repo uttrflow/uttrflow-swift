@@ -3,7 +3,7 @@ acronym-whole-word	Check the API and JSON, deploy through ecs over HTTPS, call t
 acronyms	The API returns a JSON payload over HTTPS.
 actually-between-numbers	Let's get coffee at three.
 actually-make-it-as-arriving-kept	We did not actually make it to the party.
-actually-make-it-between-amounts	The budget is 12 k.
+actually-make-it-between-amounts	The budget is 12k.
 actually-ordinary-adverb-sales	Sales actually grew last quarter.
 actually-ordinary-adverb-server	The server actually crashed again.
 actually-ordinary-adverb-team	The team actually shipped the release.
@@ -44,7 +44,7 @@ bec1	I stayed home because it was raining.
 but1	I wanted to come, but my train was cancelled.
 calendar-title-keeps-question-mark	Should we move the dentist appointment to 11:30?
 card-group-repeated-digits	The test card number starts 42424242.
-caret-before-bracket-note	We leave at dawn.
+caret-before-bracket-note	We leave at dawn
 caret-before-comma	After the rain stopped
 caret-before-line-break	The gate is fixed.
 caret-before-lowercase-after-question-word	when the shop opens
@@ -52,19 +52,19 @@ caret-before-lowercase-both-joined	the blue
 caret-before-lowercase-joined	The bridge reopened
 caret-before-lowercase-mid-sentence	two spare tyres
 caret-before-lowercase-spaced	The kettle boiled
-caret-before-open-quote	The label reads.
+caret-before-open-quote	The label reads
 caret-before-paragraph	The hens laid six eggs.
 caret-before-paragraph-asks	Can you bring the trailer?
 caret-before-paragraph-lowercase	The pump needs a new washer.
 caret-before-paragraph-mid-note	We ran out of nails.
-caret-before-parenthetical	The market opens at eight.
-caret-before-parenthetical-joined	The cottage has two rooms.
-caret-before-parenthetical-mid-sentence	the long trail.
+caret-before-parenthetical	The market opens at eight
+caret-before-parenthetical-joined	The cottage has two rooms
+caret-before-parenthetical-mid-sentence	the long trail
 caret-before-question-mark	Did the parcel arrive
 caret-before-stop-joined-word	the lantern is cracked
 caret-before-stop-mid-sentence	the ferry was delayed
 caret-before-stop-new-sentence	The orchard needs pruning
-caret-inside-curly-quotes	back by noon.
+caret-inside-curly-quotes	back by noon
 caret-inside-parentheses	about 40 minutes
 caret-inside-parentheses-after-space	the old one
 caret-inside-parentheses-end-of-sentence	weather permitting
@@ -85,7 +85,7 @@ code-editor-command-keeps-case-ls	ls -l
 code-editor-command-keeps-case-npm	npm run build
 code-editor-comment-gets-a-stop	The comment explains why the cache clears.
 code-editor-comment-keeps-its-stop	The retry count resets after a failure.
-code-editor-identifier-from-screen	Call fetch invoices before the sheet appears
+code-editor-identifier-from-screen	Call fetchInvoices before the sheet appears
 code-editor-large-number-ungrouped	let limit = 12000
 code-editor-line-break-preserved	Retry the request\nLog the failure
 code-editor-numeral-no-stop	Bump the retry count to 20
@@ -155,7 +155,7 @@ coordination-kept-not-restatement	Coffee with milk with sugar please.
 correction-after-new-paragraph	Thanks for the update.\n\nMeet at five.
 correction-as-a-noun-kept	The correction was small.
 correction-between-amounts	The total is $50.
-correction-between-amounts-spoken	The budget is 12 k.
+correction-between-amounts-spoken	The budget is 12k.
 correction-between-commas	Send the file to Sam before lunch.
 correction-between-percentages	The fee is 50%.
 count-before-modified-noun-kept-apart	Take three 15 minute breaks.
@@ -171,7 +171,7 @@ demonstrative-opening-this-is-good-idea	This is a really good idea for us.
 demonstrative-subject-spoken-period	That is it.
 determiner-opening-report-is-idea-control	The report is a good idea.
 dev-bug-report-steps	Title: export hangs on large projects.\n\nSteps to reproduce:\n1. Open a project with more than 2000 files\n2. Choose export from the file menu\n3. Pick the zip format\n\nExpected: the export finishes in under a minute\nActual: the progress bar stops at 99%.
-dev-changelog-entry	Version 1.8.0\n\nAdded\n- A --dry-run flag for the migrate command\n- Retries for timeouts when uploading to s three\n\nFixed\n- The progress bar no longer jumps past 100%
+dev-changelog-entry	Version 1.8.0\n\nAdded\n- A --dry-run flag for the migrate command\n- Retries for timeouts when uploading to S3\n\nFixed\n- The progress bar no longer jumps past 100%
 dev-commit-message	Return the default config when the file is empty.\n\nThe parser read the first line before checking the length so an empty file threw an index error. It now returns the default config and logs one warning. Closes issue 412.
 dev-decision-record	Decision: we will store sessions in redis instead of the main database.\n\nContext: session reads are about 40% of all queries at peak.\n\nConsequences: logins need redis to be up so we add a health check and a fallback that signs people out cleanly.
 dev-design-note-acronyms	The client talks to the gateway over gRPC and the gateway calls each service over HTTP/2. We end TLS at the load balancer and use mTLS only between services. The p99 budget is 200 MS for reads and the SLO is 99.9% over 30 days.
@@ -181,7 +181,7 @@ dev-feature-flag-rollout	The new checkout flag is on for 5% of users in the EU r
 dev-force-push-correction	Run git push --force-with-lease so you do not overwrite anything someone else pushed to the branch
 dev-hotfix-handoff	Handing over the hotfix. The patch is commit a4c9e1 on the release branch and it only touches the rate limiter. QA signed off an hour ago if the error budget drops below 90% overnight roll back with the runbook in the wiki.
 dev-incident-note	Update on the outage: error rates are back under 1% since 14:20 UTC. The cause was a config push that set the pool size to five instead of 50. We rolled it back and will add a check to the deploy pipeline.
-dev-letter-run-beside-number	The API returns a 404 for v one but the v two route works. We saw it on build 347 and on the CI runner with 8 GB of ram.
+dev-letter-run-beside-number	The API returns a 404 for v1 but the v2 route works. We saw it on build 347 and on the CI runner with 8 GB of ram.
 dev-library-pin	We pin the parser library at version 4.2 because 4.3 changed how it handles tabs. The upgrade is tracked in issue 981 and needs about two days of work. Until then the bot will keep opening the same PR so please close it.
 dev-migration-plan	Migration plan for the user table:\n1. Add the new column as nullable\n2. Backfill it in batches of 10,000 rows\n3. Make it not null once the backfill reports zero missing\n\nEach step ships in its own release.
 dev-onboarding-message	Welcome aboard. Your first task is in the tracker under the label good first task. The docs are at docs.example.com/start if you get stuck write to dev-help@example.com.
@@ -214,6 +214,16 @@ dictation-keeps-markdown-words-italic	The title goes in italic in the reference 
 dictation-keeps-markdown-words-italics	Put the book names in italics please.
 dictionary-entry-case-2302	eBay listings were up again YoY and the Docker image is smaller.
 dictionary-four-word-entry-2342	The quarterly report goes to Harbour Street Credit Union on Friday.
+dictionary-lower-case-after-line-document-4290	The service restarted\nnginx serves the page again.
+dictionary-lower-case-after-stop-code-4290	The cache is warm. jq filters the output.
+dictionary-lower-case-after-stop-document-4290	The build passed. pnpm install is next.
+dictionary-lower-case-after-stop-email-4290	Thanks for the notes. tmux keeps the session open.
+dictionary-lower-case-nginx-code-4290	nginx proxies the socket.
+dictionary-lower-case-pnpm-code-4290	pnpm runs the tests first.
+dictionary-lower-case-start-code-4290	kubectl rollout restarts the pods.
+dictionary-lower-case-start-document-4290	kubectl apply reads the new config.
+dictionary-lower-case-start-messaging-4290	ffmpeg cut the clip in two seconds
+dictionary-lower-case-zsh-code-4290	zsh loads the profile on start.
 dictionary-symbol-only-entry-2343	The loop adds one to the counter each time it runs.
 document-at-name-stays	At Sam, can you take a look?
 document-bullet-caret-capitalises	The migration finished overnight
@@ -256,10 +266,10 @@ doubled-place-name-kept	We flew to bora bora last year for the wedding.
 doubtful-word-from-window	We should clear the cash before the deploy
 doubtful-word-heard-word-stands	We should clear the cash before the deploy.
 doubtful-word-with-nothing-on-screen	The migration ran twice on the reader last night.
-editor-identifier-casing	The crash only happens in payment sheet after the card scanner closes.
-editor-identifier-then-prose	We call set user prefs at launch so the settings page never has to set user prefs again.
+editor-identifier-casing	The crash only happens in PaymentSheet after the card scanner closes.
+editor-identifier-then-prose	We call setUserPrefs at launch so the settings page never has to set user prefs again.
 editor-ordinary-question	Can you remind me to renew the parking permit before the end of the month?
-editor-selected-identifier	Let's rename set user prefs before the release nobody knows what it does.
+editor-selected-identifier	Let's rename setUserPrefs before the release nobody knows what it does.
 ellipsis-glued-fillers	The...the invoice is...overdue.
 email-continues-mid-sentence	the quote you sent last week.
 email-greeting-kept	Hi meera just confirming the venue for the offsite is booked.
@@ -417,7 +427,10 @@ hindi-translation-refused	Meeting 4 baje hai, nahi nahi, 5 baje hai.
 hindi-worked-example-refused	Matlab main kal aayega, haan, accha to phir milte hain.
 hinglish-apology-kept	Main late hoon sorry main abhi aata hoon.
 hinglish-correction-nahi-nahi	Meeting 5 baje hai.
+hinglish-correction-paused-nahi	4 baje milte hain.
+hinglish-correction-replaced-head	Parso ki meeting cancel hai.
 hinglish-false-start	Yaar wo wo bug bahut weird hai mujhe samajh nahi aa raha.
+hinglish-galat-bola-kept	Usne mujhe galat bola.
 hinglish-interjections-not-letters	Are o bhai sun.
 hinglish-jay-jay-not-letters	Jay jay ho.
 hinglish-kaunsa-question	Kaunsa option better hai?
@@ -429,6 +442,7 @@ hinglish-mera-matlab-kept	Aap samjhe mera matlab.
 hinglish-na-question-tag	Tum kal aa rahe ho na?
 hinglish-nahi-nahi-answer-kept	Kya aap thak gaye ho nahi nahi main bilkul theek hoon?
 hinglish-negation-kept	Mujhe yeh build thik nahi lag raha.
+hinglish-paused-nahi-kept	Do log nahi, sab log aayenge.
 hinglish-question	Kya tum aaj ka PR review kar sakte ho?
 hinglish-question-after-verb	Report bhej di kya?
 hinglish-question-word-after-subject	Meeting kab hai?
@@ -437,6 +451,7 @@ hinglish-reply-haan-2371	Haan.
 hinglish-reply-theek-hai-2371	Theek hai.
 hinglish-request	Arre suno zara wo report bhej dena.
 hinglish-romanised-respelling-2377	Kal ki meeting nahi hai main ghar se kaam karunga.
+hinglish-sorry-sorry-kept	Sorry sorry main bhool gaya.
 hinglish-spoken-colon-before-kal	Note: kal chutti hai.
 hinglish-spoken-comma-before-aur	Chai, aur biscuit.
 hinglish-trailing-english	Mujhe kal morning mein doctor ke paas jaana hai so I'll be offline.
@@ -506,6 +521,10 @@ literal-prose-path-sentence	The page is example.com/docs
 literal-prose-ten-percent	10%.
 literal-prose-version-sentence	We shipped 2.3.1 today.
 lone-article-after-pause-2319	Please update. The documentation for the API.
+long-input-2351	The team met this morning to go over the plan for the next release most of the work on the new settings screen is finished and tested we still need to decide how the export button should behave on small windows the designers want a single menu while the engineers prefer two separate buttons we agreed to try the single menu first and see what people say the second topic was the backlog of support requests from last month many of those requests ask for a way to undo a deleted note an undo button would cover most of them without any new settings the support lead will sort the rest of the requests by how often they come up after that we talked about the slow start on older laptops the profile showed that loading every note at launch takes most of the time loading only the recent notes first should make the window appear much sooner the older notes can then load quietly in the background we also need better tests for the sync code before we change it the current tests only cover the happy path and miss most of the failures each engineer will write tests for the part of the sync code they know best the release date stays the same unless the tests turn up something serious marketing asked for a short video that shows the new settings screen the video should be ready a week before the release goes out the documentation team will update the help pages at the same time there was a short discussion about moving the weekly meeting to the afternoon most people would rather keep it in the morning so nothing changes for now the next meeting will review the test results and the support list please send any questions to the team channel before the end of the week thanks everyone for the careful work on this release so far the last item was the budget for new test devices we can buy two older laptops and one small tablet this quarter the finance team will confirm the numbers by the end of the month until then we will borrow devices from the support team that covers everything we planned to discuss today.
+long-input-email-2349	Hello everyone I wanted to give you a full update on the move to the new office before the end of the month the lease for the new building was signed last week and the keys arrive on Monday the removal company will pack the shared rooms first and leave the desks until the very last day each of you should pack your own desk on the Thursday before the move boxes and labels will be in the kitchen from Wednesday morning please write your name and your new room on every box you pack anything without a label will go into the storage room and may take a while to find the network team will move the printers and the phones over the weekend they expect everything to work by Monday morning but they asked for some patience on the first day if your laptop cannot reach the network in the new building call the help desk rather than trying to fix it yourself parking at the new building is limited so please use the train or the bus where you can the station is a short walk from the front door and there is a covered path most of the way we will hand out the new access cards at reception on Monday bring your old card with you so the security team can switch it off the kitchen on the second floor will not be ready until the following week until then there is a small kitchen next to the meeting rooms on the ground floor the cleaners will take away anything left in the old office after Friday so please check your drawers twice old paper files should go into the locked bins rather than the normal recycling if you have questions about the move send them to the office manager by Wednesday she will collect them and answer the common ones in a short note to everyone thank you all for your help with this and I look forward to seeing you in the new space kind regards from the whole facilities team.
+long-input-meeting-notes-2350	Notes from the planning meeting on Tuesday the meeting started a little late because the room was still booked by another team we began with the budget for the next quarter which is lower than we hoped travel will be cut back and most visits to customers will happen over video instead the hiring plan stays the same with two engineers and one designer joining before the summer the designer will work on the mobile app first and then move to the website next we looked at the support numbers from last month the number of requests went down for the third month in a row most of the remaining requests are about passwords and billing and both should get easier with the new settings page the support lead asked for a clearer way to tag requests so the reports are easier to read we agreed to try a short list of tags for one month and then review it after that we talked about the release schedule the next release is planned for the end of the month and the one after that six weeks later the team wants to ship smaller releases more often but the testing still takes too long two people will spend the next sprint making the slow tests faster if that works we will move to a release every three weeks from the autumn then there was a long discussion about the data export feature customers keep asking for it but the first version was harder to build than expected we decided to ship a simple export that covers the common cases and leave the rest for later the product manager will write a short note explaining what the first version does and does not do finally we looked at the office plants which nobody has watered for a fortnight a volunteer offered to take care of them on mondays and thursdays the next planning meeting is in four weeks and the agenda will go out a few days before.
+long-input-paused-2351	We finally walked the empty lot behind the library this weekend. The soil looks better than we feared. Most of the ground is flat and gets sun for most of the day. The north corner stays wet after rain. We should keep that corner for the compost bins. The water tap near the fence still works. Someone will need to buy a longer hose before the spring. The council agreed to lend us the lot for a whole year. They want a simple plan for the beds and the paths first. We sketched the raised beds in neat rows. Each family can sign up for a share of a bed. The school asked for some beds of their own. The children want to grow beans and sunflowers. A wide path down the middle will let a wheelbarrow through. The narrow paths between the beds can stay as grass. We still have to decide how to share the tools. A locked shed would keep them dry over the winter. The hardware shop offered us a small discount on timber. The builders on the next street may give us their spare bricks. We will need help on the first building day. Please ask your neighbours if they can bring gloves and a spade. The bakery will send bread and tea for the volunteers. After the beds are built we will fill them with soil and compost. The first planting can start once the frost is over. We also talked about a small budget for seeds and repairs. Each family could pay a little at the start of the season. Nobody should be turned away because they cannot pay. The money will be kept in a jar at the library desk. The librarian will write down every amount that goes in or out. The next meeting is in the library hall after work. Bring any ideas for the name of the garden. Thank you all for coming out in the cold to look at the lot.
 long-sentence	Can you let the team know that the release is delayed until next week because we found a regression in the payment flow?
 look-at-a-domain-as-words	Look at example.com when you have a minute.
 lowercase-start-after-answer-stops	Yes. No. Maybe.
@@ -545,10 +564,6 @@ messaging-search-telegram	flight confirmation
 messaging-search-whatsapp	wifi password
 messaging-spoken-email-with-dash	Send it to ops-team@example.org
 met-at-the-office-as-words	We met at the office at five.
-long-input-2351	The team met this morning to go over the plan for the next release most of the work on the new settings screen is finished and tested we still need to decide how the export button should behave on small windows the designers want a single menu while the engineers prefer two separate buttons we agreed to try the single menu first and see what people say the second topic was the backlog of support requests from last month many of those requests ask for a way to undo a deleted note an undo button would cover most of them without any new settings the support lead will sort the rest of the requests by how often they come up after that we talked about the slow start on older laptops the profile showed that loading every note at launch takes most of the time loading only the recent notes first should make the window appear much sooner the older notes can then load quietly in the background we also need better tests for the sync code before we change it the current tests only cover the happy path and miss most of the failures each engineer will write tests for the part of the sync code they know best the release date stays the same unless the tests turn up something serious marketing asked for a short video that shows the new settings screen the video should be ready a week before the release goes out the documentation team will update the help pages at the same time there was a short discussion about moving the weekly meeting to the afternoon most people would rather keep it in the morning so nothing changes for now the next meeting will review the test results and the support list please send any questions to the team channel before the end of the week thanks everyone for the careful work on this release so far the last item was the budget for new test devices we can buy two older laptops and one small tablet this quarter the finance team will confirm the numbers by the end of the month until then we will borrow devices from the support team that covers everything we planned to discuss today.
-long-input-email-2349	Hello everyone I wanted to give you a full update on the move to the new office before the end of the month the lease for the new building was signed last week and the keys arrive on Monday the removal company will pack the shared rooms first and leave the desks until the very last day each of you should pack your own desk on the Thursday before the move boxes and labels will be in the kitchen from Wednesday morning please write your name and your new room on every box you pack anything without a label will go into the storage room and may take a while to find the network team will move the printers and the phones over the weekend they expect everything to work by Monday morning but they asked for some patience on the first day if your laptop cannot reach the network in the new building call the help desk rather than trying to fix it yourself parking at the new building is limited so please use the train or the bus where you can the station is a short walk from the front door and there is a covered path most of the way we will hand out the new access cards at reception on Monday bring your old card with you so the security team can switch it off the kitchen on the second floor will not be ready until the following week until then there is a small kitchen next to the meeting rooms on the ground floor the cleaners will take away anything left in the old office after Friday so please check your drawers twice old paper files should go into the locked bins rather than the normal recycling if you have questions about the move send them to the office manager by Wednesday she will collect them and answer the common ones in a short note to everyone thank you all for your help with this and I look forward to seeing you in the new space kind regards from the whole facilities team.
-long-input-meeting-notes-2350	Notes from the planning meeting on Tuesday the meeting started a little late because the room was still booked by another team we began with the budget for the next quarter which is lower than we hoped travel will be cut back and most visits to customers will happen over video instead the hiring plan stays the same with two engineers and one designer joining before the summer the designer will work on the mobile app first and then move to the website next we looked at the support numbers from last month the number of requests went down for the third month in a row most of the remaining requests are about passwords and billing and both should get easier with the new settings page the support lead asked for a clearer way to tag requests so the reports are easier to read we agreed to try a short list of tags for one month and then review it after that we talked about the release schedule the next release is planned for the end of the month and the one after that six weeks later the team wants to ship smaller releases more often but the testing still takes too long two people will spend the next sprint making the slow tests faster if that works we will move to a release every three weeks from the autumn then there was a long discussion about the data export feature customers keep asking for it but the first version was harder to build than expected we decided to ship a simple export that covers the common cases and leave the rest for later the product manager will write a short note explaining what the first version does and does not do finally we looked at the office plants which nobody has watered for a fortnight a volunteer offered to take care of them on mondays and thursdays the next planning meeting is in four weeks and the agenda will go out a few days before.
-long-input-paused-2351	We finally walked the empty lot behind the library this weekend. The soil looks better than we feared. Most of the ground is flat and gets sun for most of the day. The north corner stays wet after rain. We should keep that corner for the compost bins. The water tap near the fence still works. Someone will need to buy a longer hose before the spring. The council agreed to lend us the lot for a whole year. They want a simple plan for the beds and the paths first. We sketched the raised beds in neat rows. Each family can sign up for a share of a bed. The school asked for some beds of their own. The children want to grow beans and sunflowers. A wide path down the middle will let a wheelbarrow through. The narrow paths between the beds can stay as grass. We still have to decide how to share the tools. A locked shed would keep them dry over the winter. The hardware shop offered us a small discount on timber. The builders on the next street may give us their spare bricks. We will need help on the first building day. Please ask your neighbours if they can bring gloves and a spade. The bakery will send bread and tea for the volunteers. After the beds are built we will fill them with soil and compost. The first planting can start once the frost is over. We also talked about a small budget for seeds and repairs. Each family could pay a little at the start of the season. Nobody should be turned away because they cannot pay. The money will be kept in a jar at the library desk. The librarian will write down every amount that goes in or out. The next meeting is in the library hall after work. Bring any ideas for the name of the garden. Thank you all for coming out in the cold to look at the lot.
 mid-sentence-brand-name-case	We use Slack and Zoom and Figma daily.
 mid-sentence-continues-lower-case	the deployment script timed out.
 mid-sentence-mixed-case-brand	The eBay listing sold on YouTube this morning.
@@ -583,7 +598,7 @@ mix-en-number-end-nau	The class starts at nau.
 mix-en-number-middle-aath	Book a table for aath people.
 mix-en-number-middle-do	We need do more chairs in here.
 mix-en-number-middle-saat	The shop opens at saat in the morning.
-mix-en-number-middle-sau	It costs about 100 rupees each.
+mix-en-number-middle-sau	It costs about sau rupees each.
 mix-en-number-start-char	Char tickets are left for Sunday.
 mix-en-number-start-das	Das minutes and I will be there.
 mix-en-number-start-paanch	Paanch people are coming tonight.
@@ -660,22 +675,22 @@ mix-hi-number-start-eight	Eight copies print kar dena.
 mix-hi-number-start-five	Five minute mein pahunch raha hoon.
 mix-hi-number-start-seven	Seven log aa rahe hain dinner pe.
 mix-hi-number-start-three	Three din se baarish ho rahi hai.
-mix-hi-particle-end-actually-end	Main nahi aa paunga actually.
-mix-hi-particle-end-anyway-end	Phir milte hain anyway.
-mix-hi-particle-end-obviously	Woh aayega hi nahi obviously.
-mix-hi-particle-end-though	Khana achha tha though
+mix-hi-particle-end-actually-end	Main nahi aa paunga, actually.
+mix-hi-particle-end-anyway-end	Phir milte hain, anyway.
+mix-hi-particle-end-obviously	Woh aayega hi nahi, obviously.
+mix-hi-particle-end-though	Khana achha tha, though.
 mix-hi-particle-middle-actually-mid	Main actually kal aa raha hoon.
 mix-hi-particle-middle-anyway-mid	Khana thanda ho gaya anyway hum kha lenge.
 mix-hi-particle-middle-basically-mid	Yeh plan basically fail ho gaya.
 mix-hi-particle-middle-seriously	Mujhe bhi seriously samajh nahi aaya.
-mix-hi-particle-start-actually	Actually mujhe aaj nahi aana.
-mix-hi-particle-start-anyway	Anyway chhodo woh baat.
-mix-hi-particle-start-basically	Basically humein naya server chahiye.
-mix-hi-particle-start-so	So kal ka kya plan hai.
-mix-hi-question-tag-end-isnt-it	Yeh wahi restaurant hai isn't it?
-mix-hi-question-tag-end-no-end	Tumne mera message dekha no.
-mix-hi-question-tag-end-okay-end	Report kal tak bhej doge okay.
-mix-hi-question-tag-end-right-end	Tum kal aa rahe ho right.
+mix-hi-particle-start-actually	Actually, mujhe aaj nahi aana.
+mix-hi-particle-start-anyway	Anyway, chhodo woh baat.
+mix-hi-particle-start-basically	Basically, humein naya server chahiye.
+mix-hi-particle-start-so	So, kal ka kya plan hai?
+mix-hi-question-tag-end-isnt-it	Yeh wahi restaurant hai, isn't it?
+mix-hi-question-tag-end-no-end	Tumne mera message dekha, no?
+mix-hi-question-tag-end-okay-end	Report kal tak bhej doge, okay?
+mix-hi-question-tag-end-right-end	Tum kal aa rahe ho, right?
 mix-hi-question-tag-middle-no-mid	Yeh tumhara bag hai no toh le jao.
 mix-hi-question-tag-middle-okay-mid	Meeting shaam ko hai okay toh time pe aana.
 mix-hi-question-tag-middle-right-mid	Tum kal aa rahe ho right toh charger bhi le aana.
@@ -700,6 +715,26 @@ money	The taxi cost 5 dollars.
 money-billion	We raised 2,000,000,000 dollars.
 name-opening-is-the-one-statement	Maria is the one who called.
 name-opening-is-the-owner-statement	Ravi is the owner of the account.
+negated-option-cache-code-editor	docker build --no-cache
+negated-option-cache-prose	Build the image with --no-cache.
+negated-option-cache-terminal	docker build --no-cache
+negated-option-color-code-editor	ls --no-color
+negated-option-color-prose	Pipe ls --no-color into the file.
+negated-option-color-terminal	ls --no-color
+negated-option-control-answer	No, the board will not proceed.
+negated-option-control-correction	Let's meet on Thursday.
+negated-option-edit-code-editor	git commit --amend --no-edit
+negated-option-edit-prose	Amend it with git commit --amend --no-edit.
+negated-option-edit-terminal	git commit --amend --no-edit
+negated-option-ff-code-editor	git merge --no-ff
+negated-option-ff-prose	Run git merge --no-ff to keep the merge commit.
+negated-option-ff-terminal	git merge --no-ff
+negated-option-pager-code-editor	git --no-pager log
+negated-option-pager-prose	Run git --no-pager log for plain output.
+negated-option-pager-terminal	git --no-pager log
+negated-option-verify-code-editor	git commit --no-verify
+negated-option-verify-prose	Commit with --no-verify only when the hooks are down.
+negated-option-verify-terminal	git commit --no-verify
 new-line-after-a-modifier-kept	Our best new line got a laugh.
 new-paragraph	Thanks for the update.\n\nThe second issue is the login timeout.
 new-paragraph-after-modifier-kept-2353	His first new paragraph was long.
@@ -806,22 +841,22 @@ probe-http-status	A post to /api/v2/orders returns 201 created and a get to the 
 probe-laugh-then-question	Ha ha that is the best excuse I have heard all week I am stealing it\nCan you send me the photo of the whiteboard and put a laughing face emoji at the end?
 probe-log-call	Log dot info ("user percent s logged in from percent s", user id, ip)
 probe-meeting-notes	Meeting notes: product sync\nAction item: priya to send the revised budget by Friday the 10th of October\nAction item: omar to book the review room for the fourteenth\nDecision: we ship the beta on the twentieth and hold the announcement until the docs are ready.
-probe-meeting-time-zones	Team retro on Tuesday the 14th of October at 10:30 am pacific time which is one 30 PM eastern join at meet.example.com/retro-team — one two three and bring your notes.
+probe-meeting-time-zones	Team retro on Tuesday the 14th of October at 10:30 am Pacific time which is 1:30 pm eastern join at meet.example.com/retro-team — one two three and bring your notes.
 probe-option-pricing	Option a is a fixed fee of 12,500 dollars with delivery in four weeks while option b is 18,000 dollars with delivery in two weeks and includes training for up to 10 staff.
-probe-phone-and-address	Call me on 4155550132 or come to flat 12B maple road springfield pin code 400001 after six PM
+probe-phone-and-address	Call me on 4155550132 or come to flat 12B maple road springfield pin code 400001 after 6 pm
 probe-protocol-names	We should keep the public API as rest with JSON but use gRPC between internal services o auth two for the browser and a service account for CICD jobs the K8S cluster stays in one region.
 probe-quote-unquote	She called it "the final version" but it still had three open comments and one missing chart so we are not ready
 probe-quoted-citation	Harlow argues that habits shape outcomes and writes "small steps compound quietly" (harlow 1998)\nThis suggests that daily practice matters more than talent.
 probe-recipe-quantities	Preheat the oven to 375 degrees fahrenheit mix one and a half cups of flour with a quarter teaspoon of salt and bake for 25 to 30 minutes.
 probe-regex-pattern	The pattern is caret [a dash z] plus at [a dash z] plus dollar
-probe-repro-steps	Steps to reproduce: one open the app two press command, three switch to the privacy tab\nExpected: the tab opens\nActual: the app quits on mac OS 14.
+probe-repro-steps	Steps to reproduce: one open the app two press command comma three switch to the privacy tab\nExpected: the tab opens\nActual: the app quits on mac OS 14.
 probe-retry-bullets	This change moves retry handling into the HTTP client:\n- Adds a max retries option\n- Respects the retry after header\n- Removes the old backoff helper\n\nTested locally with the unit suite.
 probe-revenue-figures	Q3 revenue was 1.2 million dollars up 8% on the previous quarter and churn fell from 4.1% to 3.6% we closed 42 new accounts against a target of 50 and support tickets dropped by 30%.
 probe-shell-pipeline	cat access dot log | grep -v health | sort | uniq -c | sort -rn | head -20
 probe-short-hash	revert A3F9C2 because it broke the nightly build
 probe-short-verse	Roses are red\nViolets are blue\nSugar is sweet\nAnd so are you.\n\nThe moon is bright\nThe stars are near\nI wish that you were here.
 probe-spoken-correction	No wait Thursday works better for the board.
-probe-sql-join	Select o dot id, c dot name, p dot title from orders o join customers c on c dot id equals o dot customer id join products p on p dot id equals o dot product id where o dot created at is after 2026 -10 -oh 1.
+probe-sql-join	SELECT o.id, c.name, p.title FROM orders o JOIN customers c ON c.id = o.customer id JOIN products p ON p.id = o.product id WHERE o.created at IS after 2026 -10 -oh 1.
 probe-stack-frame	At main dot run (main dot go colon 42).
 probe-support-email	Hi priya, thanks for getting in touch about the delayed order.\n\nI have checked with our warehouse and your parcel left the depot this morning it should reach you by Thursday the ninth of October.\n\nIf it has not arrived by Friday please reply to this email and I will send a replacement at no cost.\n\nThanks again for your patience,\nDana.
 probe-ticket-and-units	Yesterday I finished proj dash 1423 and opened APR. the p95 latency dropped to 200 MS which is about three x better and I am blocked on review from priya
@@ -1015,13 +1050,140 @@ signed-temperature	Temperature fell to -5 degrees overnight.
 single-word-self-correction	The green.
 slack-name-spelling	Thanks marcy I'll pick up the printer quote this afternoon.
 sounds-like-a-prompt	Summarise the meeting notes in three bullet points.
+source-javascript-arrow-callback	items map (item => item)
+source-javascript-arrow-function	const square = (value) => value times value
+source-javascript-arrow-identity	const same = (value) => value
+source-javascript-divide-equals	width /= 2
+source-javascript-double-equals	if count == 0 {
+source-javascript-fat-arrow	const twice = value => value
+source-javascript-greater-or-equal	if score >= 90 {
+source-javascript-greater-than	if count > limit {
+source-javascript-less-or-equal	if age <= 12 {
+source-javascript-less-than	while index < end {
+source-javascript-logical-and	if ready && visible {
+source-javascript-logical-or	const label = name || fallback
+source-javascript-minus-equals	remaining -= 1
+source-javascript-not-equals	if name != null {
+source-javascript-plus-equals	total += price
+source-javascript-power	const area = side ** 2
+source-javascript-strict-not-equals	if left !== right {
+source-javascript-times-equals	scale *= 2
+source-javascript-triple-equals	if left === right {
+source-python-arrow-float	) -> float:
+source-python-arrow-fragment	) -> int:
+source-python-arrow-list	) -> list:
+source-python-arrow-self	(self) -> str:
+source-python-brace-dict	config = {}
+source-python-compare-chain	if low <= mid:
+source-python-divide-equals	width /= 2
+source-python-double-equals	if count == 0:
+source-python-double-equals-string	if status == ready:
+source-python-equals-assign	limit = 10
+source-python-fat-arrow-stays-literal	mapping = key => value
+source-python-greater-or-equal	if score >= 90:
+source-python-greater-than	if count > limit:
+source-python-greater-than-zero	if balance > 0:
+source-python-less-or-equal	if age <= 12:
+source-python-less-than	while index < end:
+source-python-logical-and-not-python	if ready logical and visible:
+source-python-logical-or-not-python	if empty logical or hidden:
+source-python-minus-equals	remaining -= 1
+source-python-not-equals	if name != none:
+source-python-not-equals-default	if mode != default:
+source-python-not-equals-end	while chunk != end:
+source-python-not-equals-zero	if remainder != 0:
+source-python-plus-equals	total += price
+source-python-plus-equals-count	count += 1
+source-python-power	area = side ** 2
+source-python-power-assign	cube = side ** 3
+source-python-times-equals	scale *= 2
+source-python-times-equals-rate	price *= rate
+source-python-triple-equals-not-python	if left triple = right:
+source-swift-arrow-closure	{ value -> bool in
+source-swift-arrow-return	let handler: () -> void
+source-swift-arrow-throws	) throws -> data {
+source-swift-brace-close	}
+source-swift-compare-chain	if low <= mid && mid < high
+source-swift-divide-equals	width /= 2
+source-swift-double-equals	if count == 0 {
+source-swift-double-equals-string	if status == ready
+source-swift-equals-assign	let limit = 10
+source-swift-fat-arrow-stays-literal	let mapping = key => value
+source-swift-greater-or-equal	if score >= 90
+source-swift-greater-than	if count > limit
+source-swift-greater-than-zero	guard balance > 0 else {
+source-swift-identity-check	return lhs === rhs
+source-swift-less-or-equal	if age <= 12
+source-swift-less-than	while index < end {
+source-swift-logical-and	if ready && visible
+source-swift-logical-or	if empty || hidden
+source-swift-logical-or-guard	guard first || second else {
+source-swift-minus-equals	remaining -= 1
+source-swift-minus-equals-offset	offset -= step
+source-swift-not-equals	guard index != end else {
+source-swift-not-equals-nil	if delegate != nil {
+source-swift-plus-equals	total += price
+source-swift-plus-equals-count	count += 1
+source-swift-power-not-swift	let area = side double star 2
+source-swift-strict-not-equals	if left !== right
+source-swift-times-equals	scale *= 2
+source-swift-triple-equals	if lhs === rhs {
+source-swift-triple-equals-guard	guard lhs === rhs else {
+source-typescript-arrow-handler	const handle = (event) => {
+source-typescript-arrow-return	const total = () => 0
+source-typescript-close-brace	}
+source-typescript-compare-chain	if low <= mid && mid < high {
+source-typescript-equals-assign	let limit = 10
+source-typescript-logical-and	return ready && loaded
+source-typescript-logical-or	return first || second
+source-typescript-not-triple-equals	if user !== undefined {
+source-typescript-plus-equals	count += 1
+source-typescript-power	const cube = side ** 3
+source-typescript-triple-equals	if status === ready {
 spelled-acronym-ending-in-a	QA signed off an hour ago.
 spelled-acronym-ending-in-a-mid-sentence	The SLA covers weekends.
 spelled-apr	Open APR for it.
 spelled-asap	We need it ASAP.
 spelled-eg	Bring snacks e.g. chips.
 spelled-initialism-lexicon-casing	The services talk over gRPC and use mTLS only.
+spelled-letters-after-number-not-a-unit	Gate 4BQ is closed.
 spelled-short-commit-hash	The patch is commit a4c9e1.
+spelled-unit-letters-after-a-word	The GB team won.
+spelled-unit-letters-without-number	The MG badge is on the grille.
+spelled-unit-symbol-bpm	Her pulse was 72 bpm.
+spelled-unit-symbol-cm	The cut is 3 cm long.
+spelled-unit-symbol-digits-mg	Take 81 mg with food.
+spelled-unit-symbol-dl	The jug holds 4 dL of water.
+spelled-unit-symbol-fps	The game holds 60 fps.
+spelled-unit-symbol-gb	The phone has 16 GB of storage.
+spelled-unit-symbol-ghz	The router uses 5 GHz.
+spelled-unit-symbol-hz	The hum is 60 Hz.
+spelled-unit-symbol-iu	Take 400 IU daily.
+spelled-unit-symbol-kb	The icon is 12 KB.
+spelled-unit-symbol-kcal	The bar has 200 kcal.
+spelled-unit-symbol-kg	She weighs 62 kg today.
+spelled-unit-symbol-khz	The tone sits at 4 kHz.
+spelled-unit-symbol-km	We ran 5 km this morning.
+spelled-unit-symbol-kph	Drive at 60 kph.
+spelled-unit-symbol-kw	The heater draws 3 kW.
+spelled-unit-symbol-kwh	We used 30 kWh last week.
+spelled-unit-symbol-mah	The battery is 3000 mAh.
+spelled-unit-symbol-mb	The file is 40 MB.
+spelled-unit-symbol-mcg	Give 50 mcg of levothyroxine each morning.
+spelled-unit-symbol-meq	Add 20 mEq of potassium.
+spelled-unit-symbol-mg	Start aspirin 81 mg by mouth.
+spelled-unit-symbol-mhz	The clock runs at 800 MHz.
+spelled-unit-symbol-ml	Draw up 10 mL of saline.
+spelled-unit-symbol-mm	Use a 10 mm drill bit.
+spelled-unit-symbol-mmhg	The cuff read 90 mmHg.
+spelled-unit-symbol-mmol	The glucose reading is 7 mmol.
+spelled-unit-symbol-mph	The limit is 40 mph.
+spelled-unit-symbol-mv	The signal peaks at 50 mV.
+spelled-unit-symbol-ng	The level was 9 ng.
+spelled-unit-symbol-ppm	The reading was 400 ppm.
+spelled-unit-symbol-psi	Inflate the tyres to 32 psi.
+spelled-unit-symbol-rpm	The fan spins at 900 rpm.
+spelled-unit-symbol-tb	The drive holds 2 TB of photos.
 spoken-absolute-path	The path is /users/sam/notes.
 spoken-ampersand	Salt & pepper on the side.
 spoken-ampersand-between-names	We hired smith & jones.
@@ -1082,7 +1244,7 @@ spreadsheet-search-utilities	utilities
 spreadsheet-two-word-label	shipping cost
 sql-editor-comment-sentence	This view replaces the old weekly summary.
 sql-editor-filler-dropped	The index speeds up lookups by customer.
-sql-editor-identifier-from-screen	The order totals view is stale after midnight.
+sql-editor-identifier-from-screen	The orderTotals view is stale after midnight.
 sql-editor-large-number-ungrouped	Where total is greater than 12000.
 sql-editor-numerals	Retention is 90 days for audit rows.
 sql-editor-one-line-bookmark	Customer support snapshot
@@ -1106,6 +1268,46 @@ sql-editor-search-sequelace	shipping address
 sql-editor-search-tableplus	order items
 sql-editor-totals	Add up the invoices grouped by currency and sort by the total.
 sql-editor-two-sentences	The job runs hourly. It skips weekends.
+sql-statement-alias	SELECT title AS name FROM books.
+sql-statement-and	SELECT id FROM orders WHERE status = paid AND total > 50.
+sql-statement-at-least	SELECT title FROM books WHERE year >= 2000.
+sql-statement-at-most	SELECT name FROM products WHERE price <= 20.
+sql-statement-between	SELECT name FROM products WHERE price BETWEEN 10 AND 20.
+sql-statement-between-ratings	SELECT title FROM books WHERE rating BETWEEN 1 AND 5.
+sql-statement-comma-list	SELECT name, email FROM customers.
+sql-statement-delete	DELETE FROM orders WHERE status = cancelled.
+sql-statement-delete-less-than	DELETE FROM loans WHERE due < 20.
+sql-statement-distinct	SELECT DISTINCT city FROM customers.
+sql-statement-dot	SELECT orders.id FROM orders.
+sql-statement-equals	SELECT * FROM orders WHERE status = paid.
+sql-statement-everything	SELECT * FROM orders.
+sql-statement-greater-or-equal	SELECT name FROM products WHERE stock >= 5.
+sql-statement-greater-than	SELECT id FROM orders WHERE total > 100.
+sql-statement-group-by	SELECT status, total FROM orders GROUP BY status.
+sql-statement-having	SELECT genre FROM books GROUP BY genre HAVING genre <> poetry.
+sql-statement-in-numbers	SELECT name FROM products WHERE id IN (1, 2, 3).
+sql-statement-in-words	SELECT title FROM books WHERE genre IN (poetry, drama).
+sql-statement-inner-join	SELECT loans.due FROM loans INNER JOIN members ON loans.member = members.id.
+sql-statement-insert-columns	INSERT INTO tags (name) VALUES (drama).
+sql-statement-insert-values	INSERT INTO books VALUES (7, poetry).
+sql-statement-is-not-null	SELECT name FROM customers WHERE email IS NOT NULL.
+sql-statement-is-null	SELECT name FROM customers WHERE email IS NULL.
+sql-statement-join	SELECT books.title, authors.name FROM books JOIN authors ON books.author = authors.id.
+sql-statement-left-join	SELECT members.name FROM members LEFT JOIN loans ON members.id = loans.member.
+sql-statement-less-or-equal	SELECT name FROM products WHERE stock <= 3.
+sql-statement-less-than	SELECT title FROM books WHERE year < 2000.
+sql-statement-like	SELECT title FROM books WHERE title LIKE mystery.
+sql-statement-not	SELECT id FROM orders WHERE NOT status = paid.
+sql-statement-not-equals	SELECT email FROM customers WHERE status <> closed.
+sql-statement-null-and	SELECT * FROM loans WHERE due IS NULL AND member = 4.
+sql-statement-or	SELECT id FROM orders WHERE status = paid OR status = shipped.
+sql-statement-order-asc-limit	SELECT title FROM books ORDER BY year ASC LIMIT 10.
+sql-statement-order-by	SELECT name FROM products ORDER BY price.
+sql-statement-order-by-desc	SELECT name FROM products ORDER BY price DESC.
+sql-statement-range	SELECT id FROM orders WHERE total > 50 AND total < 90.
+sql-statement-star	SELECT * FROM customers.
+sql-statement-update	UPDATE products SET price = 10 WHERE id = 4.
+sql-statement-update-rating	UPDATE books SET rating = 5 WHERE id = 2.
 sql-terms	Select everything from the user table and sort by name.
 standalone-pronoun-i	So I think.
 strike-that-as-an-order-kept	Strike that match and light the candle.
@@ -1141,3 +1343,25 @@ web-chat-message-2280	Sounds good I will join the call in 5 minutes
 web-mail-compose-2280	Hi sam thanks for the update I will review the draft tomorrow.
 web-search-field-2280	cheap flights to lisbon in may
 weekday-and-month-casing	Can we push the demo to Thursday instead of Wednesday in August?
+zone-central-european-4031	The webinar is at four Central European Time.
+zone-central-time-slot-kept-4031	The central time slot works for me.
+zone-coordinated-universal-4031	Log every event in Coordinated Universal Time.
+zone-eastern-standard-4031	The review is at 9:30 Eastern Standard Time.
+zone-eastern-time-4031	We can talk at four Eastern time.
+zone-est-fragment-kept-4031	That is our best estimate.
+zone-gmt-letters-after-pm-4031	The deploy runs at 5 pm GMT.
+zone-gmt-offset-minus-4031	Our office is on GMT-8.
+zone-gmt-offset-three-quarter-4031	Set the zone to GMT+5:45.
+zone-greenwich-mean-4031	The report is due at noon Greenwich Mean Time.
+zone-india-standard-4031	The call starts at eight India Standard Time.
+zone-letters-after-am-4031	Meet at 10:30 am PST.
+zone-letters-after-pm-4031	The call is at 3 pm EST.
+zone-pacific-daylight-4031	Send it by five Pacific Daylight Time.
+zone-pacific-time-4031	The launch is at 10:30 Pacific time.
+zone-pacific-time-zone-4031	The team works in the Pacific time zone.
+zone-pdt-letters-4031	The sale ends at 9:30 pm PDT.
+zone-plus-points-kept-4031	The team got plus five points.
+zone-standard-time-limit-kept-4031	The standard time limit is one hour.
+zone-utc-offset-half-hour-4031	The server clock is set to UTC+4:30.
+zone-utc-offset-plus-hour-4031	The window opens in UTC+9.
+zone-utc-word-offset-4031	The offset is UTC-3.

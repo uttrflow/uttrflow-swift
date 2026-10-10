@@ -149,7 +149,8 @@ struct Complete: AsyncParsableCommand {
     private func measure(
         with scorer: any CandidateGenerating, baseline baselineReport: FixtureReport?
     ) async throws {
-        var chosen = (sources ? SourceFixtures.all : Fixture.all).filter {
+        let catalogue = sources ? SourceFixtures.all : Fixture.all
+        var chosen = catalogue.filter {
             only.map($0.name.hasPrefix) ?? true
         }
         if let failedIn {
@@ -176,7 +177,10 @@ struct Complete: AsyncParsableCommand {
         let configuration = FixtureReport.Configuration(
             model: model, sources: sources, only: only, limit: limit, failedIn: failedIn != nil,
             raw: raw, judge: judge, secondOpinion: secondOpinion)
-        let report = FixtureReport(results: results, configuration: configuration)
+        let report = FixtureReport(
+            results: results, configuration: configuration,
+            fixtureCatalogueCount: catalogue.count,
+            fullFixtureCatalogue: !sources && only == nil && failedIn == nil && limit == nil)
         report.printSummary()
         report.printFloors()
         report.printFailures()

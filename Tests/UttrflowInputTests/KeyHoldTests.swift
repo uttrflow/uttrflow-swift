@@ -19,6 +19,30 @@ struct KeyHoldTests {
         events.map { $0.getIntegerValueField(.keyboardEventKeycode) }
     }
 
+    @Test("a concurrent release cannot remove the suppression from a new live hold")
+    func suppressionSurvivesConcurrentRelease() {
+        let clock = PausingClock(pauseOnRead: 3)
+        let hold = KeyHold(clock: clock)
+        hold.begin()
+        let beginFinished = DispatchSemaphore(value: 0)
+        DispatchQueue.global().async {
+            hold.begin(suppressingUnarmedTab: true)
+            beginFinished.signal()
+        }
+
+        let reachedPause = clock.paused.wait(timeout: .now() + .seconds(2)) == .success
+        #expect(reachedPause)
+        hold.release()
+        clock.resume.signal()
+        #expect(beginFinished.wait(timeout: .now() + .seconds(2)) == .success)
+
+        #expect(hold.isHolding)
+        #expect(hold.isHoldingBareTabAccept)
+        hold.release()
+        #expect(!hold.isHolding)
+        #expect(!hold.isHoldingBareTabAccept)
+    }
+
     @Test("nothing is held back until a keystroke is taken")
     func passesWhenIdle() throws {
         let clock = ManualClock()
@@ -149,5 +173,36 @@ struct KeyHoldTests {
         var replayedAgain: [Int64] = []
         hold.release { replayedAgain.append($0.getIntegerValueField(.keyboardEventKeycode)) }
         #expect(replayedAgain.isEmpty)
+    }
+}
+
+/// Pauses the rearm's clock read so a concurrent release can finish before it publishes a new hold.
+private final class PausingClock: Clock, Sendable {
+    typealias Instant = ManualClock.Instant
+
+    private let reads = Mutex(0)
+    private let clock = ManualClock()
+    private let pauseOnRead: Int
+    let paused = DispatchSemaphore(value: 0)
+    let resume = DispatchSemaphore(value: 0)
+
+    init(pauseOnRead: Int) { self.pauseOnRead = pauseOnRead }
+
+    var now: Instant {
+        let read = reads.withLock { reads -> Int in
+            reads += 1
+            return reads
+        }
+        if read == pauseOnRead {
+            paused.signal()
+            resume.wait()
+        }
+        return clock.now
+    }
+
+    var minimumResolution: Duration { clock.minimumResolution }
+
+    func sleep(until deadline: Instant, tolerance: Duration?) async throws {
+        try await clock.sleep(until: deadline, tolerance: tolerance)
     }
 }

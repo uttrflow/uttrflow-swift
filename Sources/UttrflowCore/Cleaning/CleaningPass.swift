@@ -37,6 +37,8 @@ public protocol CleaningPass: Sendable {
     static var removes: RemovalGrant { get }
     /// The laws the pass keeps; every pass states them, an empty set included, so none is left unchecked.
     static var laws: Set<PassLaw> { get }
+    /// The passes it may run before or after with the same result, which the property suite checks pair by pair.
+    static var orderIndependentWith: Set<PassID> { get }
     func apply(_ draft: Draft) -> Draft
 }
 
@@ -57,6 +59,12 @@ extension CleaningPass {
 
     /// The pass's laws, reachable from a value as well as from the type.
     public var laws: Set<PassLaw> { Self.laws }
+
+    /// A pass claims no order independence unless it names the passes; the pipeline's order then stands.
+    public static var orderIndependentWith: Set<PassID> { [] }
+
+    /// The passes it commutes with, reachable from a value as well as from the type.
+    public var orderIndependentWith: Set<PassID> { Self.orderIndependentWith }
 }
 
 /// An ordered list of passes, run one after another over the same draft.

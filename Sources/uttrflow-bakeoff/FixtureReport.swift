@@ -204,11 +204,20 @@ struct FixtureReport: Codable {
     let results: [FixtureResult]
     let summary: FixtureSummary
     let configuration: Configuration?
+    /// The unfiltered fixture count used by this command, when written from a catalogue run.
+    let fixtureCatalogueCount: Int?
+    /// True only when the default full generation catalogue ran without a selection filter.
+    let fullFixtureCatalogue: Bool
 
-    init(results: [FixtureResult], configuration: Configuration? = nil) {
+    init(
+        results: [FixtureResult], configuration: Configuration? = nil,
+        fixtureCatalogueCount: Int? = nil, fullFixtureCatalogue: Bool = false
+    ) {
         self.results = results
         summary = FixtureSummary(results)
         self.configuration = configuration
+        self.fixtureCatalogueCount = fixtureCatalogueCount
+        self.fullFixtureCatalogue = fullFixtureCatalogue
     }
 
     /// A rate as a percentage to two figures, since the last of them is what a trustworthy feature is judged on.

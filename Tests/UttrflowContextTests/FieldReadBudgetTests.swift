@@ -52,6 +52,23 @@ struct SlowFieldsTests {
         #expect(!slow.isResting(field))
     }
 
+    @Test("Ending a rest frees the field at once, and its next run over rests it for double")
+    func endingARestKeepsItsLength() {
+        let clock = ManualClock()
+        let slow = SlowFields(clock: clock)
+        slow.ranOver(field)
+        slow.ranOver(field)
+        #expect(slow.isResting(field))
+        slow.endRest(field)
+        #expect(!slow.isResting(field))
+        #expect(!slow.isQuiet(field.process))
+        slow.ranOver(field)
+        clock.advance(by: SlowFields.firstRest * 2 - tick)
+        #expect(slow.isResting(field))
+        slow.endRest(other)
+        #expect(slow.isResting(field))
+    }
+
     @Test("Each further run over doubles the rest, up to the longest")
     func doublesUpToTheLongest() {
         let clock = ManualClock()
@@ -154,5 +171,17 @@ struct SlowFieldsTests {
         slow.ranOver(field)
         slow.answered(other)
         #expect(!slow.isQuiet(field.process))
+    }
+
+    @Test("Forgetting everything ends every rest and quiet, and the next run over is forgiven again")
+    func forgettingEndsEveryRest() {
+        let slow = SlowFields(clock: ManualClock())
+        slow.ranOver(field)
+        slow.ranOver(field)
+        slow.forgetEverything()
+        #expect(!slow.isQuiet(field.process))
+        #expect(!slow.isResting(field))
+        slow.ranOver(field)
+        #expect(!slow.isResting(field))
     }
 }

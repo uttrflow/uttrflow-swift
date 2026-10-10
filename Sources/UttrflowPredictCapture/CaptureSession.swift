@@ -431,9 +431,9 @@ public actor CaptureSession {
     private func write(
         _ commit: Commit, from reading: FieldReading, at moment: Date
     ) async throws -> CaptureOutcome {
-        if let refusal = CaptureGate.refusal(
-            toRecord: commit.text, from: reading, given: preferences)
-        {
+        // An emptied line records nothing, so the gate judges the draft it retires.
+        let judged = commit.text.isEmpty ? (commit.supersedes ?? "") : commit.text
+        if let refusal = CaptureGate.refusal(toRecord: judged, from: reading, given: preferences) {
             // Forgotten, so a refused value is never later handed to the sink as the one replaced.
             detector.forgetLastIdleCommit()
             return .refused(refusal)
@@ -446,7 +446,9 @@ public actor CaptureSession {
         }
         let unwritten = UnwrittenCommit(
             text: commit.text, surface: surface, superseded: superseded,
-            previous: claimLast(commit.text, in: surface), moment: moment)
+            previous: commit.text.isEmpty
+                ? retireLast(commit.supersedes, in: surface) : claimLast(commit.text, in: surface),
+            moment: moment)
         do {
             try await write(unwritten)
         } catch let failure as CommitWriteFailure {
@@ -460,13 +462,19 @@ public actor CaptureSession {
             }
             throw failure.underlying
         }
-        return .recorded(commit.text)
+        return if commit.text.isEmpty { .nothing } else { .recorded(commit.text) }
     }
 
     /// Makes this value the surface's last line and answers with the one it follows.
     private func claimLast(_ text: String, in surface: Surface) -> String? {
         defer { lastRecorded[surface] = text }
         return lastRecorded[surface]
+    }
+
+    /// Drops a retired draft as the surface's last line, so the next value does not follow a line that was deleted.
+    private func retireLast(_ text: String?, in surface: Surface) -> String? {
+        if lastRecorded[surface] == text { lastRecorded[surface] = nil }
+        return nil
     }
 
     /// Gives back a failed claim, unless a later write has already taken the surface's last line.

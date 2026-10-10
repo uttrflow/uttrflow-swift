@@ -159,6 +159,25 @@ struct PanelShortcutsTests {
         #expect(PanelRowAction.copy.chord.label == "⌘⇧C")
         #expect(PanelRowAction.delete.chord.label == "⌘⇧⌫")
     }
+
+    @Test("the shortcut guide covers every row action")
+    func shortcutGuideCoversActions() {
+        let globalEntries = PanelShortcutCatalog.entries.prefix(10)
+        #expect(
+            globalEntries.map(\.title) == [
+                "Move selection", "Move farther", "Paste selected clip or save",
+                "Paste without formatting", "Undo the last deletion",
+                "Clear search; close sheet, panel, or guide", "Choose a collection",
+                "Rename collection", "Delete collection", "Show this guide",
+            ])
+        #expect(
+            globalEntries.map(\.chord) == [
+                "↑ / ↓", "Page Up / Page Down / Home / End", "Return", "⌘ Return", "⌘ Z", "Esc",
+                "⌘ 1–9", "⇧ ⌘ R", "⇧ ⌘ Delete", "? (empty search) / ⌘ /",
+            ])
+        let rowEntries = PanelShortcutCatalog.entries.suffix(PanelRowAction.allCases.count)
+        #expect(rowEntries.map(\.chord) == PanelRowAction.allCases.map(\.chord.label))
+    }
 }
 
 @Suite("The panel's long moves through the list")

@@ -17,10 +17,11 @@ extension HistoryFixture {
         minutesAgo: Int = 0,
         daysAgo: Int = 0,
         application: String? = "Slack",
-        isUndone: Bool = false
+        isUndone: Bool = false,
+        entry: UUID = UUID()
     ) -> Correction {
         Correction(
-            dictation: dictation, heard: heard, wrote: wrote, reason: reason,
+            dictation: dictation, entryID: entry, heard: heard, wrote: wrote, reason: reason,
             when: now.addingTimeInterval(Double(-minutesAgo) * 60 + Double(-daysAgo) * 86_400),
             applicationName: application, isUndone: isUndone)
     }

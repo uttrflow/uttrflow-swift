@@ -190,6 +190,8 @@ struct PanelNoResultsTests {
 
         #expect(page.rows.isEmpty)
         #expect(page.emptyState?.message.contains("pgprod") == true)
+        #expect(page.hint == "esc to clear search")
+        #expect(page.shortcutsHint == "⌘/ shortcuts")
     }
 
     @Test("and offers to keep it")

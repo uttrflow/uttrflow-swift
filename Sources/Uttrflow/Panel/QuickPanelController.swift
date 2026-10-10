@@ -287,7 +287,7 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
 
     /// Reports keys to the app; the resolved panel outcome decides whether Escape closes the window.
     private func relay(_ key: PanelKey) {
-        onKey?(key, caretOwner)
+        PanelShortcutHelpWindow.route(key, relativeTo: panel, relay: onKey, caretOwner: caretOwner)
     }
 
     /// Deliberately empty: losing key is not the user leaving, and a notification banner takes key too.
