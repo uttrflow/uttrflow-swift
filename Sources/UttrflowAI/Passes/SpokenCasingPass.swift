@@ -44,9 +44,7 @@ public struct SpokenCasingPass: PieceCleaningPass {
                 let style = Style(rawValue: row.text)
             else { continue }
             let start = position + row.words.count
-            if row.reach != .clause,
-                MentionGuard.namesCasing(at: position, spanning: row.words.count, in: live, of: draft)
-            {
+            if MentionGuard.namesCasing(at: position, spanning: row.words.count, in: live, of: draft) {
                 return nil
             }
             guard let (covered, closing) = Self.reach(of: row, from: start, in: live, of: draft) else {

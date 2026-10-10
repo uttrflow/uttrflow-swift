@@ -20,7 +20,9 @@ struct ApplicabilityTests {
         #expect(applicability.cues == [.caretInCode])
     }
 
-    @Test("is ruled out by any cue against, whatever speaks for it", arguments: [AdapterCue.caretInProse, .proseWord])
+    @Test(
+        "is ruled out by any cue against, whatever speaks for it",
+        arguments: [AdapterCue.caretInProse, .proseWord])
     func cueAgainstRulesOut(against: AdapterCue) {
         let applicability = Applicability(cues: [.commandLine]).adding([against])
         #expect(applicability == .ruledOut(by: against))

@@ -15,6 +15,10 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
     /// Which passes the user has left on; where they run is the request's to say, not this value's.
     private let steps: CleaningSteps
     private let doubtful: DoubtfulWords
+    /// How fast this model has recently answered, which sizes the next request's allowance.
+    private let throughput: ModelThroughput
+    /// What an answer's time is measured against; injected so a test need not wait out a slow model.
+    private let clock: any Clock<Duration>
 
     /// The passes run before the model are built per request, so the destination's own policies reach them.
     public init(
@@ -23,7 +27,9 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
         prompts: PromptBuilder = .standard,
         meaningGuard: MeaningPreservationGuard = MeaningPreservationGuard(),
         steps: CleaningSteps = .default,
-        doubtful: DoubtfulWords = .standard
+        doubtful: DoubtfulWords = .standard,
+        throughput: ModelThroughput = ModelThroughput(),
+        clock: any Clock<Duration> = ContinuousClock()
     ) {
         self.kind = kind
         self.model = model
@@ -31,6 +37,8 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
         self.meaningGuard = meaningGuard
         self.steps = steps
         self.doubtful = doubtful
+        self.throughput = throughput
+        self.clock = clock
     }
 
     /// Passes the model's own verdict on the spoken language straight through.
@@ -48,10 +56,15 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
         await warm(for: situation)
     }
 
-    /// Gives short requests a short turn and prevents oversized input from spending the full engine allowance.
+    /// Gives short requests a short turn, a longer one on a Mac measured answering slowly, and never the full engine allowance.
     public func budget(for request: TransformationRequest) -> Duration {
         FoundationModelRequestBudget.allowance(
-            for: WordTokens.tokens(request.transcription.text, .display).count)
+            for: Self.wordCount(request), timePerWord: throughput.timePerWord)
+    }
+
+    /// The words a request's allowance and its measured pace are both counted in.
+    private static func wordCount(_ request: TransformationRequest) -> Int {
+        WordTokens.tokens(request.transcription.text, .display).count
     }
 
     /// Rewrites, unwraps and tidies, then throws `outputRejected` when the meaning guard refuses.
@@ -67,7 +80,7 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
         {
             return floor
         }
-        let rewritten = try await answer(request, prepared)
+        let rewritten = try await timedAnswer(request, prepared)
 
         // Models echo the shape of the worked examples, so the answer is unwrapped before it is judged.
         let unwrapped = ResponseUnwrapper.unwrap(rewritten, spoken: draft.text)
@@ -117,6 +130,26 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
     /// What the passes before the model made of one request, under the steps and readings this engine was built with.
     private func prepare(_ request: TransformationRequest) async -> ModelDraft {
         await ModelDraft(request, steps: steps, doubtful: doubtful)
+    }
+
+    /// The model's answer, with how long it took counted towards the next request's allowance.
+    private func timedAnswer(
+        _ request: TransformationRequest, _ prepared: ModelDraft
+    ) async throws(TransformationError) -> String {
+        let (rewritten, elapsed) = try await Self.timed(on: clock) { () async throws(TransformationError) in
+            try await answer(request, prepared)
+        }
+        throughput.record(words: Self.wordCount(request), elapsed: elapsed)
+        return rewritten
+    }
+
+    /// `work`'s result and how long it took on `clock`.
+    private static func timed<C: Clock<Duration>>(
+        on clock: C, _ work: () async throws(TransformationError) -> String
+    ) async throws(TransformationError) -> (String, Duration) {
+        let started = clock.now
+        let value = try await work()
+        return (value, started.duration(to: clock.now))
     }
 
     /// The model's raw answer to the prepared draft.

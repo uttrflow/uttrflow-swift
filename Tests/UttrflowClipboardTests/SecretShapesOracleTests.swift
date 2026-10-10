@@ -300,11 +300,23 @@ enum BacktrackingPatterns {
             let raw = String(match.quoted ?? match.bare ?? "")
             let isQuoted = raw.count >= 2 && (raw.hasPrefix("\"") || raw.hasPrefix("'"))
             let value = isQuoted ? String(raw.dropFirst().dropLast()) : raw
+            // `pwd` prints where a shell is, so a path after it is not a credential (#2051).
+            if !isQuoted, keyword(of: text[match.range]) == "pwd", opensLikeAPath(value) { return false }
             let hasDigit = value.contains { $0.isASCII && $0.isNumber }
             let isLatin = value.allSatisfy(\.isLatinScript)
             return isQuoted || hasDigit
                 || (value.count >= 12 && isLatin && !isReference(value))
         }
+    }
+
+    /// The keyword a named-secret match opens with, lowercased.
+    private static func keyword(of match: Substring) -> String {
+        String(match.prefix { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" }).lowercased()
+    }
+
+    /// Whether a value opens like a path, the way `pwd` prints the working directory.
+    private static func opensLikeAPath(_ value: String) -> Bool {
+        value.hasPrefix("/") || value.hasPrefix("~/") || value.hasPrefix("./")
     }
 
     /// Whether a name starting after `before` is a query or fragment parameter's in a web address, which the bearer-address reader judges instead.

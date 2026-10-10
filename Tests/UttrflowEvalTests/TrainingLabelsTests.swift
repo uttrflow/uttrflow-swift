@@ -67,8 +67,11 @@ struct TrainingLabelsTests {
             #expect(excluded.count == 1)
             switch deviation {
             case .skipped(let index):
-                #expect(excluded.first == LabelledSpan(
-                    label: .dropped("p\(number)w\(index)"), passageIndex: index, reliability: .unreliable))
+                #expect(
+                    excluded.first
+                        == LabelledSpan(
+                            label: .dropped("p\(number)w\(index)"), passageIndex: index,
+                            reliability: .unreliable))
             case .repeated(let index):
                 #expect(excluded.first?.label == .inserted("p\(number)w\(index)"))
             case .swapped(let index):

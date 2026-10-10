@@ -47,7 +47,8 @@ enum TimeZones {
         var written: [Int: String] = [:]
         var position = 0
         while position < keys.count {
-            guard let name = names.first(where: { matches($0, at: position, keys: keys, shapes: shapes) }) else {
+            guard let name = names.first(where: { matches($0, at: position, keys: keys, shapes: shapes) })
+            else {
                 position += 1
                 continue
             }
@@ -58,9 +59,13 @@ enum TimeZones {
     }
 
     /// Whether `name` is heard at `position` with no punctuation inside it.
-    private static func matches(_ name: [String], at position: Int, keys: [String], shapes: [WordShape]) -> Bool {
+    private static func matches(
+        _ name: [String], at position: Int, keys: [String], shapes: [WordShape]
+    ) -> Bool {
         let end = position + name.count
-        guard end <= keys.count, Array(keys[position..<end]) == name.map({ $0.lowercased() }) else { return false }
+        guard end <= keys.count, Array(keys[position..<end]) == name.map({ $0.lowercased() }) else {
+            return false
+        }
         return (position + 1..<end).allSatisfy { shapes[$0 - 1].suffix.isEmpty && shapes[$0].prefix.isEmpty }
     }
 }

@@ -20,15 +20,20 @@ struct NotationEvidenceTests {
                 NotationEvidence.applicability(destination: .codeEditor, region: region)
                     == .ruledOut(by: .caretInProse))
         }
-        #expect(NotationEvidence.applicability(destination: .codeEditor, region: .unrecognised) == .noEvidence)
+        #expect(
+            NotationEvidence.applicability(destination: .codeEditor, region: .unrecognised) == .noEvidence)
         #expect(NotationEvidence.applicability(destination: .sqlEditor, region: .code) == .noEvidence)
     }
 
     @Test("rules the notation out when the speech holds a prose word")
     func speechCues() {
         let screen = Applicability(cues: [.caretInCode])
-        #expect(NotationEvidence.applicability(of: ["the", "dot", "product"], given: screen) == .ruledOut(by: .proseWord))
-        #expect(NotationEvidence.applicability(of: ["our", "costs", "dot"], given: screen) == .ruledOut(by: .proseWord))
+        #expect(
+            NotationEvidence.applicability(of: ["the", "dot", "product"], given: screen)
+                == .ruledOut(by: .proseWord))
+        #expect(
+            NotationEvidence.applicability(of: ["our", "costs", "dot"], given: screen)
+                == .ruledOut(by: .proseWord))
         #expect(NotationEvidence.applicability(of: ["this", "dot", "count"], given: screen) == screen)
         #expect(NotationEvidence.applicability(of: ["x", "equals", "one"], given: screen) == screen)
     }

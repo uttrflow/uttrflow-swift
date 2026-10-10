@@ -219,6 +219,7 @@ struct SnippetEditorView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+            ApplicationScopeRow(line: editor.scope, applications: applications)
             PageEditorFooter(
                 problem: editor.problem, cancel: editor.cancel, save: save,
                 canSave: editor.canSave, onIntent: onIntent)
@@ -242,19 +243,36 @@ struct SnippetEditorView: View {
         MainAction(
             title: editor.save.title,
             intent: .saveSnippet(
-                trigger: draft.trigger, text: draft.text, replacing: editor.editing))
+                trigger: draft.trigger, text: draft.text, applications: draft.applications,
+                replacing: editor.editing))
     }
 
     private var trigger: Binding<String> {
         Binding(
             get: { draft.trigger },
-            set: { draft = SnippetDraft(editing: draft.editing, trigger: $0, text: draft.text) })
+            set: {
+                draft = SnippetDraft(
+                    editing: draft.editing, trigger: $0, text: draft.text, applications: draft.applications)
+            })
     }
 
     private var text: Binding<String> {
         Binding(
             get: { draft.text },
-            set: { draft = SnippetDraft(editing: draft.editing, trigger: draft.trigger, text: $0) })
+            set: {
+                draft = SnippetDraft(
+                    editing: draft.editing, trigger: draft.trigger, text: $0, applications: draft.applications
+                )
+            })
+    }
+
+    private var applications: Binding<[String]> {
+        Binding(
+            get: { draft.applications },
+            set: {
+                draft = SnippetDraft(
+                    editing: draft.editing, trigger: draft.trigger, text: draft.text, applications: $0)
+            })
     }
 }
 

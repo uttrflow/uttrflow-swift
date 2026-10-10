@@ -222,7 +222,10 @@ struct FirstWordPassTests {
             ("we use coordinated universal time", "We use Coordinated Universal Time"),
             ("the pacific time zone", "The Pacific time zone"),
             ("eastern time works", "Eastern time works"),
-            ("we leave at noon australian eastern standard time", "We leave at noon Australian Eastern Standard Time"),
+            (
+                "we leave at noon australian eastern standard time",
+                "We leave at noon Australian Eastern Standard Time"
+            ),
         ]
     )
     func writesZoneNames(input: String, expected: String) {

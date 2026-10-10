@@ -1890,6 +1890,126 @@
     "addedFor": 3781
   },
   {
+    "id": "abstain-source-dot-product-code",
+    "spoken": "the dot product equals the sum of the products",
+    "expected": "The dot product equals the sum of the products.",
+    "mustKeep": ["dot", "product", "equals", "sum", "products"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3888
+  },
+  {
+    "id": "abstain-source-dot-product-comment",
+    "spoken": "the dot product equals the sum of the products",
+    "expected": "The dot product equals the sum of the products.",
+    "mustKeep": ["dot", "product", "equals", "sum", "products"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3888
+  },
+  {
+    "id": "abstain-source-dot-product-string",
+    "spoken": "the dot product equals the sum of the products",
+    "expected": "The dot product equals the sum of the products.",
+    "mustKeep": ["dot", "product", "equals", "sum", "products"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3888
+  },
+  {
+    "id": "abstain-source-dot-product-docstring",
+    "spoken": "the dot product equals the sum of the products",
+    "expected": "The dot product equals the sum of the products.",
+    "mustKeep": ["dot", "product", "equals", "sum", "products"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3888
+  },
+  {
+    "id": "abstain-source-all-caps-code",
+    "spoken": "all caps is shouting so avoid it",
+    "expected": "All caps is shouting so avoid it.",
+    "mustKeep": ["all", "caps", "shouting", "avoid"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3888
+  },
+  {
+    "id": "abstain-source-all-caps-comment",
+    "spoken": "all caps is shouting so avoid it",
+    "expected": "All caps is shouting so avoid it.",
+    "mustKeep": ["all", "caps", "shouting", "avoid"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3888
+  },
+  {
+    "id": "abstain-source-all-caps-string",
+    "spoken": "all caps is shouting so avoid it",
+    "expected": "All caps is shouting so avoid it.",
+    "mustKeep": ["all", "caps", "shouting", "avoid"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3888
+  },
+  {
+    "id": "abstain-source-all-caps-docstring",
+    "spoken": "all caps is shouting so avoid it",
+    "expected": "All caps is shouting so avoid it.",
+    "mustKeep": ["all", "caps", "shouting", "avoid"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3888
+  },
+  {
     "id": "abstain-shell-pipe-sink-code",
     "spoken": "the plumber fixed the pipe under the kitchen sink",
     "expected": "The plumber fixed the pipe under the kitchen sink.",
