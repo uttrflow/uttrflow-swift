@@ -1,6 +1,7 @@
 // Turns onboarding state into the card the window draws, plus permission wording and keycaps.
 internal import UttrflowAccount
 public import UttrflowCore
+public import UttrflowSettings
 
 /// Turns where the user is into what the window draws; the one place the approved designs live.
 public enum OnboardingPresenter {
@@ -8,10 +9,13 @@ public enum OnboardingPresenter {
     public static func page(
         for state: OnboardingState, hotkey: HotkeyBinding, activation: HotkeyActivation = .holdToTalk,
         shortcuts: ShortcutSet = .default,
-        signsInAsStandIn: Bool = false, sharesUsageStatistics: Bool = false
+        signsInAsStandIn: Bool = false, sharesUsageStatistics: Bool = false,
+        clipboardEnabled: Bool = true,
+        clipboardRetentionDays: Int = Settings.defaultRetentionDays
     ) -> OnboardingPage {
         switch state.step {
         case .signIn: signIn(state, standIn: signsInAsStandIn, sharesUsageStatistics: sharesUsageStatistics)
+        case .clipboard: clipboard(state, isEnabled: clipboardEnabled, days: clipboardRetentionDays)
         case .microphone: permission(.microphone, state)
         case .accessibility: permission(.accessibility, state)
         case .setup: setup(state)
@@ -49,12 +53,12 @@ public enum OnboardingPresenter {
                 state, mood: .brand, picture: .waveform(.talking, badge: nil), title: "Just talk.",
                 providers: providers,
                 buttons: [
-                    sharesUsageStatistics
-                        ? .plain("Keep off", "hand.raised", .setUsageStatistics(false))
-                        : .prominent("Keep off", "hand.raised", .setUsageStatistics(false)),
-                    sharesUsageStatistics
-                        ? .prominent("Share", "chart.bar", .setUsageStatistics(true))
-                        : .plain("Share", "chart.bar", .setUsageStatistics(true)),
+                    .choice(
+                        "Keep off", "hand.raised", .setUsageStatistics(false),
+                        isSelected: !sharesUsageStatistics),
+                    .choice(
+                        "Share", "chart.bar", .setUsageStatistics(true),
+                        isSelected: sharesUsageStatistics),
                 ],
                 hint: standIn ? standInHint : nil, showsTerms: true,
                 explanation: pitch + " Usage statistics are off unless you choose to share them.")
@@ -114,11 +118,41 @@ public enum OnboardingPresenter {
     /// What the page after the welcome asks for, finishing "Next: …".
     static func nextStep(_ step: OnboardingStep) -> String {
         switch step {
+        case .clipboard: "choose whether copies are kept"
         case .signIn, .microphone: "allow the microphone"
         case .accessibility: "let Uttrflow type for you"
         case .setup: "download the speech model"
         case .ready: "try your first dictation"
         }
+    }
+
+    // MARK: The clipboard
+
+    /// Says that copies are kept, for how long and where, with the choice to keep them or not.
+    private static func clipboard(_ state: OnboardingState, isEnabled: Bool, days: Int) -> OnboardingPage {
+        let period = days == 1 ? "1 day" : "\(days) days"
+        let off = "Copies are not kept while this is off. Turn it on in Settings › General."
+        return page(
+            state, mood: .brand, picture: .waveform(.still, badge: .symbol("list.clipboard", .neutral)),
+            title: "Keep what you copy?",
+            buttons: [
+                .choice("Keep", "list.clipboard", .setClipboardEnabled(true), isSelected: isEnabled),
+                .choice("Turn off", "hand.raised", .setClipboardEnabled(false), isSelected: !isEnabled),
+                .prominent("Continue", "arrow.right", .advance),
+            ],
+            hint: isEnabled
+                ? """
+                Uttrflow keeps what you copy for up to \(period). It stays on this Mac. \
+                Change it in Settings › General.
+                """
+                : off,
+            explanation: isEnabled
+                ? """
+                Uttrflow keeps what you copy for up to \(period), so you can paste it again from the \
+                Clipboard panel. Clips you pin, name or put in a collection have no time limit. Turn it \
+                off, or exclude apps, in Settings › General.
+                """
+                : off)
     }
 
     // MARK: Permissions
@@ -235,8 +269,11 @@ public enum OnboardingPresenter {
         let lit = OnboardingKeys.corner(of: hotkey)
         let holds = activation == .holdToTalk
         let named = OnboardingKeys.spoken(keys)
+        let suggestionsCaption =
+            "AI suggestions finish your line as you type in another app. Off by default; turn on in Settings › AI suggestions."
         let skip = OnboardingAction(
-            title: "Skip to dashboard", intent: .finish, isProminent: false, countdown: nil, caption: nil)
+            title: "Skip to dashboard", intent: .finish, isProminent: false, countdown: nil,
+            caption: suggestionsCaption)
         let copies = state.detail.readiness == .pastesManually
         let clipboardHint =
             shortcuts.first(for: .clipboard).map {
@@ -423,8 +460,9 @@ private struct PermissionWording {
         askHint: "Words land where your cursor is",
         paneName: "Accessibility",
         why: """
-            macOS asks for this because Uttrflow types into apps you have open. It only ever \
-            inserts at your cursor — it never reads or changes anything else.
+            macOS asks for this because Uttrflow types into apps you have open. To format your \
+            words, it reads the app's name, its window title and the text around your cursor. \
+            Settings, Privacy can limit it to the app's name.
             """,
         refused: """
             Until this is on, Uttrflow cannot type into another app. It will put your words on \

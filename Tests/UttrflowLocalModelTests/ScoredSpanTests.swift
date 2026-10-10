@@ -108,6 +108,8 @@ struct ScoredSpanTests {
         #expect(scores[1] == -0.5)
         #expect(ScoredSpan.conditioned([-1], onMass: -2) == [0])
         #expect(ScoredSpan.conditioned([-10, -0.5], onMass: nil) == [-10, -0.5])
+        #expect(ScoredSpan.conditioned([-0.25], onMass: .nan) == [-Double.infinity])
+        #expect(ScoredSpan.conditioned([-0.25], onMass: .infinity) == [-Double.infinity])
         #expect(ScoredSpan.conditioned([], onMass: -1).isEmpty)
         #expect(ScoredSpan.logSumExp([]) == nil)
         #expect(ScoredSpan.logSumExp([-.infinity]) == nil)

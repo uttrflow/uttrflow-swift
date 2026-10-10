@@ -55,16 +55,16 @@ public final class InputDeviceSession: Sendable {
 
     private let device: any InputDevice
     private let schedule: ReopenSchedule
-    private let pause: @Sendable (Duration) async throws -> Void
+    private let clock: any Clock<Duration>
     private let state = Mutex(State())
 
     public init(
         device: any InputDevice, schedule: ReopenSchedule = .standard,
-        pause: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
+        clock: any Clock<Duration> = ContinuousClock()
     ) {
         self.device = device
         self.schedule = schedule
-        self.pause = pause
+        self.clock = clock
     }
 
     /// What the device is doing right now.
@@ -133,7 +133,7 @@ public final class InputDeviceSession: Sendable {
     private func reopen() async {
         for delay in schedule.delays {
             // Waiting first: the device that just went is not back yet, and nothing else times this.
-            guard (try? await pause(delay)) != nil, !Task.isCancelled else { return }
+            guard (try? await clock.sleep(for: delay)) != nil, !Task.isCancelled else { return }
             guard state.withLock(\.health) == .reopening else { return }
             do {
                 try device.open()

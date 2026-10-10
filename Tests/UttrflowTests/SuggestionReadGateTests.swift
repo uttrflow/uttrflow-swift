@@ -26,6 +26,21 @@ struct SuggestionReadGateTests {
             !SuggestionCoordinator.shouldRead(
                 front: "com.example.notes", own: "com.example.self", preferences: preferences,
                 at: Self.now))
+        #expect(
+            !SuggestionCoordinator.shouldProcessActivityEvent(
+                front: "com.example.notes", own: "com.example.self", preferences: preferences,
+                at: Self.now))
+    }
+
+    @Test("unknown front applications do not schedule activity")
+    func unknownApplicationDoesNotScheduleActivity() {
+        #expect(
+            !SuggestionCoordinator.shouldProcessActivityEvent(
+                front: nil, own: "com.example.self", preferences: Self.on, at: Self.now))
+        #expect(
+            SuggestionCoordinator.shouldProcessActivityEvent(
+                front: "com.example.notes", own: "com.example.self", preferences: Self.on,
+                at: Self.now))
     }
 
     @Test("an application that ships off is not read")
@@ -116,6 +131,6 @@ struct SuggestionReadGateTests {
         let body = source[redraw.lowerBound..<end.lowerBound]
 
         #expect(body.contains("Self.readForFreshDraw("))
-        #expect(body.contains("read: { await FocusedFieldReader.read() }"))
+        #expect(body.contains("read: focusedFieldReader)"))
     }
 }

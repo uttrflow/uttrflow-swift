@@ -105,6 +105,14 @@ struct CleaningRecordTests {
         #expect(!CleaningRecord.Change(step: .fillers, removedCount: 3).isEmpty)
     }
 
+    @Test("a dictation done in pieces keeps each piece's model answer, in order, through a refusal")
+    func mergesModelAnswers() {
+        let first = CleaningRecord(changes: [], modelAnswers: ["one"])
+            .refused([.init(engine: "localModel", reason: "r", kind: .lostWord)])
+        let merged = CleaningRecord.merging([first, CleaningRecord(changes: [], modelAnswers: ["two"])])
+        #expect(merged.modelAnswers == ["one", "two"])
+    }
+
     @Test("a dictation done in pieces reports one account, step by step")
     func merging() {
         var first = Draft(text: "um yes")

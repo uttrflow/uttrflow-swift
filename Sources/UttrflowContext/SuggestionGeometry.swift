@@ -40,9 +40,10 @@ public enum SuggestionGeometry {
         let width = min(size.width, room)
         let lowerY = max(screen.minY, window?.minY ?? screen.minY)
         let upperY = min(screen.maxY, window?.maxY ?? screen.maxY)
-        let height = min(size.height, max(upperY - lowerY, 0))
         let baselineTop = firstLineTop(caret: caret, ascent: fontAscent, descent: fontDescent)
-        let top = min(max(baselineTop, lowerY + height), upperY)
+        let top = min(max(baselineTop, lowerY), upperY)
+        let height = min(size.height, max(top - lowerY, 0))
+        guard height > 0 else { return nil }
         return SuggestionAnchor(
             placement: .inlineGhost,
             frame: CGRect(

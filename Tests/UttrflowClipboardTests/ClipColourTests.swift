@@ -4,7 +4,7 @@ import Testing
 
 @testable import UttrflowClipboard
 
-@Suite("Which colour a colour clip is")
+@Suite("Which colour a colour clip is", .bug(id: 4424))
 struct ClipColourTests {
     /// A tenth of a byte: HSL goes through a division by thirty, so it misses hex by a few ulps.
     private static let tolerance = 1.0 / 2550
@@ -33,7 +33,7 @@ struct ClipColourTests {
     @Test("reads hex")
     func hex() {
         expect("#fff", is: ClipColour(red: 1, green: 1, blue: 1, alpha: 1))
-        expect("#000", is: ClipColour(red: 0, green: 0, blue: 0, alpha: 1))
+        expect("#000000", is: ClipColour(red: 0, green: 0, blue: 0, alpha: 1))
         expect("#f0a", is: ClipColour(red: 1, green: 0, blue: 170 / 255, alpha: 1))
         expect("#ff00aa", is: ClipColour(red: 1, green: 0, blue: 170 / 255, alpha: 1))
         expect("#FF00AA", is: ClipColour(red: 1, green: 0, blue: 170 / 255, alpha: 1))
@@ -69,6 +69,7 @@ struct ClipColourTests {
     func modernSyntax() {
         expect("rgb(0 128 255 / 0.5)", is: ClipColour(red: 0, green: 128 / 255, blue: 1, alpha: 0.5))
         expect("rgb(0 128 255 / 50%)", is: ClipColour(red: 0, green: 128 / 255, blue: 1, alpha: 0.5))
+        expect("rgb(1 20% 3)", is: ClipColour(red: 1 / 255, green: 0.2, blue: 3 / 255, alpha: 1))
         expect("hsl(120 100% 50% / 0.25)", is: ClipColour(red: 0, green: 1, blue: 0, alpha: 0.25))
     }
 
@@ -94,28 +95,41 @@ struct ClipColourTests {
         expect("hsl(120, 100, 50)", is: ClipColour(red: 0, green: 1, blue: 0, alpha: 1))
     }
 
-    /// The same hue by three names; a tool that subtracts from a hue produces the negative form.
-    @Test("wraps the hue into one turn")
+    /// The endpoint of a full turn is red, and values inside it retain their hue.
+    @Test("reads hues inside one turn")
     func hueWrapping() {
         let magenta = ClipColour(red: 1, green: 0, blue: 170 / 255, alpha: 1)
         expect("hsl(320, 100%, 50%)", is: magenta)
-        expect("hsl(-40, 100%, 50%)", is: magenta)
-        expect("hsl(680, 100%, 50%)", is: magenta)
-        expect("hsl(-400, 100%, 50%)", is: magenta)
+        expect("hsl(320deg, 100%, 50%)", is: magenta)
         expect("hsl(360, 100%, 50%)", is: ClipColour(red: 1, green: 0, blue: 0, alpha: 1))
+    }
+
+    @Test("converts CSS hue units before checking their range")
+    func hueUnits() {
+        let cyan = ClipColour(red: 0, green: 1, blue: 1, alpha: 1)
+        expect("hsl(180deg 100% 50%)", is: cyan)
+        expect("hsl(200grad 100% 50%)", is: cyan)
+        expect("hsl(3.141592653589793rad 100% 50%)", is: cyan)
+        expect("hsl(0.5turn 100% 50%)", is: cyan)
+        expect("hsl(400grad 100% 50%)", is: ClipColour(red: 1, green: 0, blue: 0, alpha: 1))
     }
 
     // MARK: - Out of range
 
-    /// `rgb(300, 0, 0)` is a colour and it is red, as a browser reads it.
-    @Test("clamps rather than rejects")
-    func clamping() {
-        expect("rgb(300, 0, 0)", is: ClipColour(red: 1, green: 0, blue: 0, alpha: 1))
-        expect("rgb(-20, 0, 0)", is: ClipColour(red: 0, green: 0, blue: 0, alpha: 1))
-        expect("rgb(0, 0, 0, 4)", is: ClipColour(red: 0, green: 0, blue: 0, alpha: 1))
-        expect("rgb(0, 0, 0, -1)", is: ClipColour(red: 0, green: 0, blue: 0, alpha: 0))
-        expect("hsl(0, 400%, 50%)", is: ClipColour(red: 1, green: 0, blue: 0, alpha: 1))
-        #expect(ClipKindDetector.kind(of: "rgb(300, 0, 0)") == .colour)
+    /// Invalid ranges have no swatch and no colour kind.
+    @Test(
+        "rejects out-of-range and incomplete values",
+        arguments: [
+            "rgb(300,0,0)", "rgb(-1,0,0)", "rgb(255,0)", "rgb(a,b,c)",
+            "hsl(400,100%,50%)", "hsl(401grad 100% 50%)", "hsl(7rad 100% 50%)",
+            "hsl(1.1turn 100% 50%)", "rgb(1,,2,3)", "rgb(1, 20%, 3)", "rgb(0 0 0 /)",
+            "rgb(0 0 0 0.5)", "rgb(0, 0, 0 / 0.5)",
+            "hsl(-1,100%,50%)", "hsl(0,101%,50%)", "hsl(0,100%,-1%)",
+            "rgb(0,0,0,2)", "rgb(0,0,0,-1)",
+        ])
+    func invalidRange(_ text: String) {
+        #expect(ClipKindDetector.colour(in: text) == nil)
+        #expect(ClipKindDetector.kind(of: text) != .colour)
     }
 
     /// Not-a-number would clamp to a confident, arbitrary colour, so it is refused.
@@ -162,7 +176,6 @@ struct ClipColourTests {
             "#zzz",
             "#hashtag",
             "#include <stdio.h>",
-            "color: #fff;",
             "The brand colour is #fff and the accent is #000.",
             "#ff0000 #00ff00",
             "rgb(0, 128)",
@@ -171,7 +184,6 @@ struct ClipColourTests {
             "hsl(a, b, c)",
             "rgb()",
             "translate(10, 20)",
-            "background: rgb(0, 128, 255);",
         ])
     func unreadable(_ text: String) {
         #expect(ClipKindDetector.colour(in: text) == nil)
@@ -196,7 +208,7 @@ struct ClipColourTests {
         "reads a colour only out of clips the panel calls colours",
         arguments: [
             "#fff", "#f0a8", "#ff00aa", "#ff00aacc", "rgb(0, 128, 255)",
-            "rgba(0, 128, 255, 0.5)", "rgb(0 128 255 / 50%)", "rgb(300, 0, 0)",
+            "rgba(0, 128, 255, 0.5)", "rgb(0 128 255 / 50%)",
             "hsl(320, 100%, 50%)", "hsla(120deg, 100%, 50%, 0.25)", "  #ff00aa \n",
         ])
     func agreement(_ text: String) {
@@ -210,4 +222,40 @@ struct ClipColourTests {
         #expect(ClipKindDetector.colour(in: "#ff00aa") == ClipKindDetector.colour(in: "#f0a"))
         #expect(ClipKindDetector.colour(in: "#ff00aa") != ClipKindDetector.colour(in: "#ff00aacc"))
     }
+
+    @Test(
+        "reads values in common declarations",
+        arguments: [
+            ("color: #fff;", ClipColour(red: 1, green: 1, blue: 1, alpha: 1)),
+            ("color: #000;", ClipColour(red: 0, green: 0, blue: 0, alpha: 1)),
+            ("--brand: #0000;", ClipColour(red: 0, green: 0, blue: 0, alpha: 0)),
+            ("color: #abc;", ClipColour(red: 170 / 255, green: 187 / 255, blue: 204 / 255, alpha: 1)),
+            ("color: #123;", ClipColour(red: 17 / 255, green: 34 / 255, blue: 51 / 255, alpha: 1)),
+            ("--brand: #add;", ClipColour(red: 170 / 255, green: 221 / 255, blue: 221 / 255, alpha: 1)),
+            ("color: #1234;", ClipColour(red: 17 / 255, green: 34 / 255, blue: 51 / 255, alpha: 68 / 255)),
+            ("--brand: #ff5733;", ClipColour(red: 1, green: 87 / 255, blue: 51 / 255, alpha: 1)),
+            ("fill=\"#ff0000\"", ClipColour(red: 1, green: 0, blue: 0, alpha: 1)),
+            ("color: rgb(255, 0, 0);", ClipColour(red: 1, green: 0, blue: 0, alpha: 1)),
+            ("background-color: rgb(255, 0, 0);", ClipColour(red: 1, green: 0, blue: 0, alpha: 1)),
+            ("color: red;", ClipColour(red: 1, green: 0, blue: 0, alpha: 1)),
+            ("red", ClipColour(red: 1, green: 0, blue: 0, alpha: 1)),
+            ("tomato", ClipColour(red: 1, green: 99 / 255, blue: 71 / 255, alpha: 1)),
+            ("transparent", ClipColour(red: 0, green: 0, blue: 0, alpha: 0)),
+            ("background-color: tomato;", ClipColour(red: 1, green: 99 / 255, blue: 71 / 255, alpha: 1)),
+            ("color: rebeccapurple;", ClipColour(red: 102 / 255, green: 51 / 255, blue: 153 / 255, alpha: 1)),
+            ("background-color: transparent;", ClipColour(red: 0, green: 0, blue: 0, alpha: 0)),
+        ])
+    func declarations(_ input: (String, ClipColour)) {
+        expect(input.0, is: input.1)
+        #expect(ClipKindDetector.kind(of: input.0) == .colour)
+    }
+
+    @Test(
+        "requires context for ambiguous short or word-like hashes",
+        arguments: ["#123", "#1234", "#000", "#0000", "#fab", "#add", "#decade", "#deadbeef"])
+    func ambiguousHash(_ text: String) {
+        #expect(ClipKindDetector.colour(in: text) == nil)
+        #expect(ClipKindDetector.kind(of: text) != .colour)
+    }
+
 }

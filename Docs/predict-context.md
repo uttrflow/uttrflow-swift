@@ -11,7 +11,7 @@ the two constraints every choice here is measured against.
 
 | Piece | Where |
 |---|---|
-| Field and surroundings read | `Sources/UttrflowContext/FocusedFieldReader+System.swift`, `Sources/UttrflowContext/Surroundings.swift` |
+| Field and surroundings read | `Sources/UttrflowContext/FocusedFieldReader+Snapshot.swift`, `Sources/UttrflowContext/Surroundings.swift` |
 | What the model is told | `GenerationSituation` in `Sources/UttrflowPredict/CandidateGeneration.swift`, mapped by `SuggestionMoment` in `Sources/Uttrflow/Suggestion/SuggestionMoment.swift` |
 | Register | `Register` in `Sources/UttrflowPredict/Register.swift` |
 | Prompt | `CompletionPromptBuilder` in `Sources/UttrflowLocalModel/CompletionPromptBuilder.swift`, run by `MLXCandidateScorer` |
@@ -59,19 +59,22 @@ messages, headings, links, cells and other fields.
 
 | Bound | Constant | Value |
 |---|---|---|
-| Walk time | `Surroundings.budgetInMilliseconds` | 60 ms |
+| Walk time | `Surroundings.budgetInMilliseconds` | 60 ms, counted from before the focus lookup |
 | Elements | `Surroundings.maximumElements` | 400 |
 | Characters per element | `Surroundings.maximumCharactersPerElement` | 400 |
 | Characters in all | `Surroundings.maximumCharacters` | 1,200 (the walk stops the moment they are gathered) |
-| One Accessibility message | `FocusedFieldReader.elementTimeoutInSeconds` | 50 ms |
+| One Accessibility message | `FocusedFieldReader.elementTimeoutInSeconds` | 50 ms, or the walk time left if less (`WalkBudget.messageTimeoutInSeconds`); none is sent once it is spent |
 | How long the turn waits for the walk | `FocusedFieldReader.surroundingsAllowance` | 200 ms, then goes on without it |
 | How long one window's walk is reused | `SuggestionContextCache.surroundingsLifetime` | 1 s |
 
-The walk runs on its own queue. `SuggestionContextCache` reuses a built `GenerationSituation` for
-the same turn, so the alternatives pass asks the machine nothing a second time, and reuses one
-window's surroundings for a second, so a burst of passes over an unchanged window walks it once. A
-walk that times out is not kept. In a chat this is the last few messages and who they are from; in
-Mail the quoted thread; in a browser the page heading and the field's label.
+The walk runs on its own queue. Cancelling the only turn waiting on it invalidates its queue ticket,
+and the collector checks that ticket between Accessibility messages; another waiting turn keeps the
+shared walk alive. `SuggestionContextCache` reuses a built `GenerationSituation` for the same turn,
+so the alternatives pass asks the machine nothing a second time, and reuses one window's surroundings
+for a second, so a burst of passes over an unchanged window walks it once. A successful walk's
+one-second lifetime starts when the walk finishes; a walk that times out or is cancelled is not kept.
+In a chat this is the last few messages and who they are from; in Mail the quoted thread; in a browser
+the page heading and the field's label.
 `uttrflow-dev context --bundle <id> --surroundings` prints exactly what this read hands the model.
 
 ### 2. Read the person
@@ -97,15 +100,22 @@ their real commands; in Notes their own phrasing.
 | `isConversational` | At least `conversationLines` (3) non-blank screen lines, at least 60% of them under `conversationLineLength` (200) characters, and either people taking turns (at least three lines opening with a short speaker name and a colon, two or more speakers, one speaking twice) or a field named as a message composer ("Type a message", "Message #platform", never a mail's body or subject) beside at least `timedTurns` (2) lines stamped with a time of day. A web page's short menu lines alone are not a conversation |
 | `symbolShare` | The share of visible characters, emoji left out, that are neither letters nor digits, over `preceding`, the typed text and the recent lines, excluding punctuation in prose; on lines with a flag or path separator, quotes and dots count as command evidence, and those structured lines give evidence below 8 visible characters, which other samples do not; shell lines sit near 0.14 and prose under 0.06, so `symbolicShare` is 0.10 |
 | `usesSentenceCase` | Whether at least half the person's lines here start upper-case and end with sentence punctuation; nothing when they have written nothing here |
-| `writesAddresses` | Whether at least half the person's lines here are shaped like web addresses, or with none of their own, whether the field's own accessibility name says it takes one |
-| `isSearchField` | Whether the field's own accessibility name says it searches or finds |
+| `writesAddresses` | Whether the text being typed or at least half the person's recent lines here are shaped like web addresses; never at a terminal's command line |
+| `isSearchField` | Whether Accessibility reports the structural role `AXSearchField` |
 | `isCodeDestination` | Whether the destination table classifies the application as a SQL or code editor |
+| `isCommandLine` | Whether `TerminalApplications` names the application |
+| `isSingleLineField` | Whether Accessibility reports `AXTextField`, `AXComboBox` or `AXSearchField` |
 
 `writesAddresses` and `isSearchField` together decide `answersFromHistoryAlone`: such a field's
-line comes only from what this person entered there before, never from generation. The register
+line comes only from what this person entered there before, never from generation. A page-controlled
+field label remains prompt context and never establishes either gate. The register
 turns into short hints the prompt carries (`Register.hints`), a `kind` named at the line (web
 address, command, reply, line), a token budget, and a length limit
 ([predict-precision.md](predict-precision.md)).
+
+A symbol share over `symbolicShare` makes the line code-like only outside a conversation: links and
+emoticons in a chat leave it a reply, with the reply's sentence end and length limit. A field the
+destination table classifies as a code editor stays code-like either way.
 
 Emotion and tone are the model's job, not a classifier's: given the last messages and this person's
 earlier replies, the model infers register.
@@ -124,9 +134,18 @@ included; the fixed parts and the line itself sit outside it and are never cut.
 - A text or single screen line that exceeds its allowance keeps only complete whitespace-delimited
   words; a word too large to fit is omitted, and whitespace without a word is dropped.
 - Once the field's own text fills `ownTextSufficesInTokens` (64), the screen is left out.
-- The window title and the leading suggestion the alternatives pass excludes are quoted. Screen
-  text, recent lines, preceding text and typed text each use a backtick fence longer than any
-  backtick run inside, so a block cannot close its own boundary.
+- Inline dynamic values are scrubbed by `PromptText.promptValue` before they enter the prompt:
+  line breaks are written as `\n`, other control characters are replaced with spaces, bidi controls
+  and unsafe invisible formatting characters are removed, and joiners used in words or emoji are
+  kept. Inline labels replace double quotes; fenced text preserves them. Machine supplied choices
+  are shown and constrained only when scrubbing leaves each value unchanged; a changed choice blocks
+  that constrained pass.
+- The screen, recent lines and preceding text use `PromptText.blockValue` inside a backtick fence longer
+  than any run inside the scrubbed value. This preserves actual line breaks for the model while
+  control characters, bidi controls and unsafe invisible formatting characters stay removed; the
+  longer fence keeps an untrusted line from closing its boundary. Typed text uses `promptValue` in
+  its fence and also opens the model's turn; when scrubbing would change that line, no model pass is
+  started.
 - Where the screen, the title or the text before the line holds another script, the prompt adds
   `LatinOnlyInstruction.text` ([predict.md](predict.md)).
 

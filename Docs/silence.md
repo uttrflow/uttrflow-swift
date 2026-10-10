@@ -43,8 +43,10 @@ is compared against is a constant:
 let noSpeechProb: Float = 0 // TODO: implement no speech prob
 ```
 
-`0 > 0.6` is never true, so the gate is dead in both places. Passing a different threshold
-changes nothing: there is no value that works, so silence is not fixed by tuning the decoder.
+`0 > 0.6` is never true, so in the library loop the gate is dead in both places. The shipping
+path decodes through `DecodeSession`, which computes the probability for real (see
+[decode-session.md](decode-session.md)), so the gate is live there; the loudness test below still
+runs first.
 
 ## How speech is found
 
@@ -106,8 +108,8 @@ what the same speech costs with no padding at all.
 
 ## Recording conditions the loudness measure does not separate
 
-The measure is plain RMS over the whole spectrum, and the floor is one 10th percentile for the
-whole recording. Probed with `VoiceActivityConditionTests` (`swift test --filter
+The measure is each frame's RMS about its own mean, over the whole spectrum, and the floor is one
+10th percentile for the whole recording. Probed with `VoiceActivityConditionTests` (`swift test --filter
 VoiceActivityConditionTests`, which prints one `TRIMGRID` line per cell): ten seconds of room noise
 at −65 dBFS, two 2-second phrases (a 180 Hz tone with a 3 Hz swell) at 2–4 s and 6–8 s, and one
 added condition each. "Clip" is speech cut off; "over" is audio kept beyond speech plus `margin`.
@@ -115,18 +117,35 @@ added condition each. "Clip" is speech cut off; "over" is audio kept beyond spee
 | Speech level | clean | DC offset 0.01 | 60 Hz rumble at −30 dBFS | noise up 15 dB at 5 s |
 |---|---|---|---|---|
 | −25 dBFS | 0 / 0 ms | 0 / 0 ms | 0 / 0 ms | over 1800 ms |
-| −40 dBFS | 0 / 0 ms | **rejected** | **rejected** | over 1800 ms |
-| −55 dBFS | 0 / 0 ms | **rejected** | **rejected** | over 1800 ms |
+| −40 dBFS | 0 / 0 ms | 0 / 0 ms | **rejected** | over 1800 ms |
+| −55 dBFS | 0 / 0 ms | 0 / 0 ms | **rejected** | over 1800 ms |
 
-A DC offset or rumble lifts every frame, so the 95th percentile no longer stands three times above
-the 10th and the whole dictation is refused as nothing heard. A floor that steps up mid-recording
+Taking each frame's mean out before its RMS removes a DC offset without touching anything that
+moves: before it, the DC cells at −40 and −55 dBFS were rejected, and no other cell changed.
+Rumble still lifts every frame, so the 95th percentile no longer stands three times above the 10th
+and the whole dictation is refused as nothing heard. A floor that steps up mid-recording
 keeps the louder second half's noise as speech to the end of the recording.
 
 The same grid run through a first- or second-order high-pass at 100 Hz before the measure fixes
 DC offset at −40 dBFS but not rumble at either level, and loses −55 dBFS speech that passes
 unfiltered (660 ms clipped at first order, rejected at second), because the probe's voice sits at
-180 Hz, inside the filter's skirt. Neither filter touches the stepped floor. The measure is
-unchanged until a real-speech grid decides between the two candidate changes.
+180 Hz, inside the filter's skirt. Neither filter touches the stepped floor, so neither is used.
+
+The two remaining candidates were then run on real speech: one sentence read by three `say`
+voices, one of them a low male voice, placed in the same room noise at the same three levels with
+the same three conditions. Neither is used, because each trades the cell it fixes for clipped
+speech, and clipped speech loses words without saying so, where a refusal is shown and the extra
+noise only costs decoding time:
+
+| Candidate | Fixes | Costs |
+|---|---|---|
+| Eighth-order high-pass at 120 Hz before the measure | rumble at every level, every voice | the low voice at −55 dBFS clean clipped by 2069 ms; the measured quiet after the last phrase moves by 40 ms, past its one-frame tolerance, and the test for a pause cut before the early window is ready fails |
+| Floor taken over the trailing 3 s, never below the whole recording's | stepped floor: 1800 ms over-included becomes 0 | speech that continues after the step clipped by 314–749 ms at −40 and −55 dBFS; rumble still rejected |
+
+The 60 Hz hum and a low voice's fundamental sit too close for the filter to separate at −55 dBFS, and a floor that follows a louder room also follows speech that is quieter than
+the new room. So the measure stays each frame's RMS about its own mean over the whole spectrum,
+with one floor per recording: a recording under steady hum louder than its speech is refused as
+nothing heard, and a room that gets louder mid-recording keeps its noise to the end.
 
 ## The bracketed markers
 
@@ -202,6 +221,23 @@ read by `say`, which is the trailing pause after real speech.
 Both are gated: the command exits non-zero when either rate is above `--max-insertion-rate` or
 `--max-loop-rate`, both 0 by default. `nothingHeard` counts as nothing typed.
 
+Measured with the defaults (3 seeds, 4 s tails, no vocabulary) and the shipping model, release
+build, twice, with fallback windows drawn from a fixed seed
+([decode-session.md](decode-session.md#fallback-windows-draw-from-a-fixed-seed)):
+
+| Clips per run | Inserted, each run | Looped, each run |
+|---|---|---|
+| each kind alone, 18 | 0, 0 | 0, 0 |
+| each kind after a sentence, 48 | 0, 0 | 0, 0 |
+
+Both runs gave the same count for every kind, so both ceilings are set at the measured rate, 0,
+which is the default. The release gate in
+[accuracy-targets.md](accuracy-targets.md#the-release-gate) runs the command with its defaults.
+
+0 insertions in 18 silent inputs bounds the silence-insertion rate below about 15% at one-sided
+95% (`1 - 0.05^(1/18)`); certifying the target of 0 at 1 in 1,000 needs 2,995 silent inputs. The
+gate is therefore a regression check against the last release, not a measurement of the target.
+
 ## Trim error against known speech boundaries
 
 Probed with `VoiceActivityOnsetGridTests` (`swift test --filter VoiceActivityOnsetGridTests`, one
@@ -242,3 +278,69 @@ shows a second line, "Can't hear you. Check the microphone.", and VoiceOver says
 recording carries on, and the line clears on the first reading that reaches the floor. A quiet
 room sits near −55 dBFS, far above the −90 dBFS floor, so a natural pause never trips it, and
 neither does quiet speech. Only a muted, zeroed or dead input does. Too-loud input is not its job.
+
+## The quiet after the last word
+
+`VoiceActivity.trailingSilence(in:sampleRate:)` says how long a stretch of audio has been quiet
+since its last voiced run, with the same 20 ms frames, room floor (the 10th-percentile frame),
+`signalToNoise` margin and `minimumSpeech` burst as the trim. A burst shorter than a word does not
+end the quiet, and audio with no voiced run has no quiet to measure: `nil`, never a length.
+
+`SilenceStop` turns that into "the person has finished": quiet at least as long as a chosen wait
+(`SilenceStop.choices`: 2, 4 or 8 s), checked every `SilenceStop.poll` (500 ms) on the wait plus
+five seconds of the newest audio, so the last word is inside every window that could stop it.
+
+`uttrflow-eval silence-stop` speaks the six long-form cases with `say` (their written pauses are
+one second), mixes seeded room noise under them and a quiet tail after them, and checks each clip
+every poll exactly as a live recording is read:
+
+| Room | Wait | False stops | Longest quiet mid-speech | Stop after the end of the clip |
+|---|---|---|---|---|
+| −60 dBFS | 2, 4, 8 s | 0 of 6 | 1.34 s | wait +0.1 to +0.3 s |
+| −45 dBFS | 2, 4, 8 s | 0 of 6 | 1.46 s | wait −0.2 to +0.3 s |
+| −35 dBFS | 2, 4, 8 s | 0 of 6 | 1.48 s | wait −0.2 to +0.3 s |
+
+The clip ends a little after the last word, so a stop can land slightly before the wait measured
+from there. Synthesised pauses are shorter than a person thinking mid-sentence, so the margin at
+2 s (0.5 s over the longest quiet here) is the one most likely to be crossed by real speech.
+
+## A second voice after the last word is not trimmed
+
+Everything the microphone hears while the key is held is transcribed, so a short reply from
+someone nearby after the user's last word ("yeah okay") is typed as the user's own words. A trim
+of that reply was probed with level and spectrum signals only (no speaker-embedding model, no new
+dependency) and rejected: no rule found tells a different voice from the user's own quieter
+afterthought without cutting the user's words.
+
+**The set.** Eight `say` voices (five female, three male) read the eight `SpokenClips` sentences,
+then a pause of 0.3, 0.6 or 1.0 s, then one of four short replies at 0, −6, −10 or −20 dB relative
+to the sentence, over low-passed room noise at −60 dBFS: 1536 clips per half with the reply in a
+different voice, 1536 with it in the **same** voice, plus each sentence alone and two of a voice's
+sentences joined by a pause. Thresholds were fitted on sentences 0–3 and scored on sentences 4–7.
+
+**The rule.** The recording is framed as `VoiceActivity` frames it; voiced runs closer than
+0.25 s are one stretch, and only the last stretch after a pause may go, cut at most 0.2 s after
+the speech before it. It goes when it differs from everything before it in median pitch
+(autocorrelation, in semitones), in the shape of its average spectrum (24 log bands from 100 Hz
+to 7 kHz, level removed) or in spectral centroid by more than a threshold. The thresholds were
+the ones that cut no user speech on the fitted half while removing the most replies.
+
+**The bar**, set before measuring: no clip with any audio before the end of the user's speech cut,
+and the foreign reply removed in more than half of the foreign-reply clips.
+
+| Held-out half | Result |
+|---|---|
+| foreign reply removed | 453 of 1536 (29.5%): 426 of 888 across sexes, 27 of 648 within one sex |
+| user's own reply cut | 4 of 1536, all one male voice at −20 dB, 8 semitones from its own sentence |
+| joined sentences or sentence alone cut | 0 of 224 |
+
+Both halves of the bar fail. The reply's level carries nothing: the user's own afterthought drops
+just as far, and removal was flat from 0 to −20 dB. Even a linear score over all four signals,
+fitted on the held-out half itself, removes only 34.6% before its first cut into the user's own
+reply. A voice reads a two-word reply at a pitch and spectrum of its own, as far from its
+sentence as another voice of the same sex is. Synthetic voices vary less than people, so real
+speech would separate worse, not better.
+
+The measurement is a one-off script outside the repository, since it needs `numpy`, which
+`Scripts/` does not allow ([python-scripts.md](python-scripts.md)); its row is in
+[probe-log.md](probe-log.md).

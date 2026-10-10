@@ -40,6 +40,13 @@ struct ModelPassTests {
         #expect(pass.plan(for: query("git", in: other), at: nil) == .ask)
     }
 
+    @Test("A remembered answer is reused when the typed line matches it only under the shared case fold.")
+    func reuseUsesTheSharedFold() {
+        var pass = ModelPass()
+        pass.remember(["Straße is long"], for: query("ST"), at: nil, scores: ["Straße is long": -0.4])
+        #expect(pass.plan(for: query("STRASSE"), at: nil) == .reuse(["Straße is long"], listed: []))
+    }
+
     @Test("Identical completions keep their own field's score on reuse.")
     func scoresStayWithTheirField() {
         var first = ModelPass()

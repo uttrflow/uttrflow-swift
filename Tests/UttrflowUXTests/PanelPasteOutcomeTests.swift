@@ -69,7 +69,12 @@ struct PanelPasteOutcomeTests {
             return
         }
         #expect(text == "the words")
-        #expect(notice == PanelInsertionObstacle.nothingFocused.notice)
+        let expected = PanelInsertionObstacle.nothingFocused.notice
+        #expect(
+            notice
+                == PanelNotice(
+                    symbolName: expected.symbolName, message: expected.message, action: expected.action,
+                    announcementID: notice.announcementID))
         #expect(quit.state.insertion == .clipboardOnly(.nothingFocused))
 
         let alive = Self.panel(.atCaret).applying(key, caretOwnerHasQuit: false)

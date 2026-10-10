@@ -3,6 +3,8 @@ public import UttrflowCore
 /// Removes a run of two to four words said twice in a row, keeping the second: "so I was I was thinking".
 public struct RepeatedPhrasePass: PieceCleaningPass {
     public static let id: PassID = .repeatedPhrase
+    public static let laws: Set<PassLaw> = [.idempotent, .addsNoWords, .latinOnly]
+    public static let orderIndependentWith: Set<PassID> = [.stammers]
     public static let removes: RemovalGrant = .repetition
 
     static let lengths = 2...4
@@ -55,12 +57,20 @@ public struct RepeatedPhrasePass: PieceCleaningPass {
     /// Whether the run is said twice on purpose: one word, a name, a spelled code, or a familiar chain.
     private static func isDeliberate(_ keys: [String]) -> Bool {
         Set(keys).count == 1 || keys.allSatisfy(FunctionWords.isContent) || keys.allSatisfy(isCodeSymbol)
-            || keys.indices.contains { deliberateChains.contains(Array(keys[$0...] + keys[..<$0])) }
+            || deliberateChains.contains { repeatsCycle(of: $0, keys) }
+    }
+
+    /// Whether `keys` is whole turns of `chain` starting from any of its words: "and on and on" turns "on and".
+    private static func repeatsCycle(of chain: [String], _ keys: [String]) -> Bool {
+        guard keys.count.isMultiple(of: chain.count) else { return false }
+        return chain.indices.contains { offset in
+            keys.indices.allSatisfy { keys[$0] == chain[(offset + $0) % chain.count] }
+        }
     }
 
     /// A single letter or a number, the symbols a spelled code repeats by design: "one a one a".
     private static func isCodeSymbol(_ key: String) -> Bool {
-        key.count == 1 && SpelledInitialismPass.letterNames[key] != nil || NumberWords.isNumber(key)
+        key.count == 1 && LetterRun.isLetterName(key) || NumberWords.isNumber(key)
     }
 }
 

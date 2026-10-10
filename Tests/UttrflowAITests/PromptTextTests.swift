@@ -34,6 +34,15 @@ struct PromptTextTests {
         #expect(PromptText.quoted("hi \(family) ka\u{200C}r") == "hi \(family) ka\u{200C}r")
     }
 
+    @Test(
+        "escapes line breaks and drops invisible format hazards while keeping ordinary text", .bug(id: 5047))
+    func promptValueScrubsOneSlot() {
+        let family = "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}"
+        let value = "café \(family) first\r\nsecond\u{2028}third\u{202E}\u{2060}\u{FEFF}\u{00AD} \"quoted\""
+
+        #expect(PromptText.promptValue(value) == "café \(family) first\\nsecond\\nthird \"quoted\"")
+    }
+
     @Test("gives every prompt line built from a hostile value exactly one physical line", arguments: hostile)
     func everyEntryPointKeepsItsLine(value: String) {
         let span = DoubtfulSpan(heard: value, confidence: 0.3, candidates: [Reading(value)])
@@ -52,6 +61,33 @@ struct PromptTextTests {
     func spokenKeepsItsBreaksAsLineFeeds() {
         #expect(PromptText.spoken("one\r\ntwo\u{2028}three\u{85}four\rfive") == "one\ntwo\nthree\nfour\nfive")
         #expect(PromptText.spoken("say \u{201C}hi\u{201D}\u{202E}\tnow") == "say 'hi' now")
+    }
+
+    @Test("writes the spoken text on one line, each line break a marker")
+    func marksEachLineBreak() {
+        let marker = PromptText.lineMarker
+        #expect(PromptText.markedLines("one\ntwo\n\nthree") == "one \(marker) two \(marker)  \(marker) three")
+        #expect(PromptText.markedLines("one line") == "one line")
+    }
+
+    @Test("puts back a line break for every marker the model copied, wherever it left it")
+    func restoresMarkedLineBreaks() {
+        let marker = PromptText.lineMarker
+        #expect(PromptText.restoringLineBreaks(in: "One. \(marker) Two.", from: "one.\ntwo.") == "One.\nTwo.")
+        #expect(
+            PromptText.restoringLineBreaks(in: "One.\n\(marker) Two.", from: "one.\ntwo.") == "One.\nTwo.")
+        #expect(
+            PromptText.restoringLineBreaks(in: "One. \(marker)  \(marker) Two.", from: "one.\n\ntwo.")
+                == "One.\n\nTwo.")
+        #expect(PromptText.restoringLineBreaks(in: "One.\nTwo.", from: "one.\ntwo.") == "One.\nTwo.")
+        #expect(PromptText.restoringLineBreaks(in: "a \(marker) b", from: "a \(marker) b") == "a \(marker) b")
+    }
+
+    @Test("preserves safe block line breaks, quotes and horizontal spacing")
+    func blockValuePreservesStructure() {
+        #expect(
+            PromptText.blockValue("  first  \r\n  \"quoted\"\u{202E}last\u{2028}end  ")
+                == "  first  \n  \"quoted\"last\nend  ")
     }
 
     @Test("caps a value at a word boundary with an ellipsis")

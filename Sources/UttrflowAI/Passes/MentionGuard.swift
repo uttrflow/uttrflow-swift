@@ -87,17 +87,67 @@ public enum MentionGuard {
     ) -> Bool {
         // An opening mark goes on the word after it, so a text beginning with one is using it, not naming it.
         guard position > 0 else { return !kind.attachesAfter }
+        if namesChordKey(at: position, in: live, of: draft) { return true }
         if kind == .closing, isOpenQuotation(before: position, in: live, of: draft) { return false }
+        let next = position + length
         if opensThePhrase(
             ending: position, reaching: reach, in: live, of: draft, bridgedBy: bridging,
-            finalMark: kind == .trailing && position + length == live.count, opening: kind.attachesAfter,
-            corroboratedByLayout: corroboratedByLayout
+            finalMark: kind == .trailing && next == live.count, opening: kind.attachesAfter,
+            corroboratedByLayout: corroboratedByLayout,
+            clauseFollows: opensClause(at: next, in: live, of: draft)
         ) {
             return true
         }
-        let next = position + length
-        let sentenceEnd = draft.sentenceRun(from: position, in: live).upperBound
-        return next < sentenceEnd && draft.shape(at: live[next]).key == "of"
+        guard next < live.count, draft.shape(at: live[next]).key == "of" else { return false }
+        // Only the words up to `of` can end the sentence first, so only they are read.
+        guard !(position..<next).contains(where: { draft.shape(at: live[$0]).endsSentence }) else {
+            return false
+        }
+        return !closesDashPair(at: position, in: live, of: draft)
+    }
+
+    /// Verbs that press a key, so a mark name after the modifier keys they press is the chord's key.
+    private static let keyVerbs: Set<String> = ["press", "hit", "tap", "hold"]
+
+    /// The spoken names of the modifier keys a chord holds.
+    private static let modifierNames = Set(HotkeyModifier.allCases.map(\.rawValue))
+
+    /// Whether the mark name at `position` is the key of a chord a key verb presses: "press command comma".
+    static func namesChordKey(at position: Int, in live: [Int], of draft: Draft) -> Bool {
+        var back = position - 1
+        while back >= 0, modifierNames.contains(draft.shape(at: live[back]).key),
+            !draft.shape(at: live[back]).endsClause
+        {
+            back -= 1
+        }
+        return back >= 0 && back < position - 1 && keyVerbs.contains(draft.shape(at: live[back]).key)
+    }
+
+    /// Whether a subject pronoun stands right after the mark or one word on, so the words before it end a clause rather than modify the mark.
+    private static func opensClause(at next: Int, in live: [Int], of draft: Draft) -> Bool {
+        let start = max(next - 1, 0)
+        guard next < live.count else { return false }
+        let end = min(next + 2, live.count)
+        var boundedEnd = end
+        for index in start..<end where draft.shape(at: live[index]).endsSentence {
+            boundedEnd = index + 1
+            break
+        }
+        guard boundedEnd > next else { return false }
+        let words = live[start..<boundedEnd].map { draft.shape(at: $0).key }
+        let tags = LexicalClass.tags(ofWords: words)
+        return tags[(next - start)...].prefix(2).contains(.pronoun)
+    }
+
+    /// Whether a dash written earlier in this sentence is still open, so the mark here closes the pair.
+    private static func closesDashPair(at position: Int, in live: [Int], of draft: Draft) -> Bool {
+        var open = false
+        for back in stride(from: position - 1, through: 0, by: -1) {
+            let shape = draft.shape(at: live[back])
+            if shape.endsSentence { break }
+            if shape.suffix.contains("\u{2014}") { open.toggle() }
+        }
+        return open
     }
 
     /// Whether a quotation opened earlier in this sentence is still open, so a closing mark here closes it.
@@ -115,7 +165,8 @@ public enum MentionGuard {
     /// Whether a determiner opens the phrase the mark word heads; given `bridging`, only those words may stand between.
     private static func opensThePhrase(
         ending position: Int, reaching reach: Int, in live: [Int], of draft: Draft,
-        bridgedBy bridging: Set<String>?, finalMark: Bool, opening: Bool, corroboratedByLayout: Bool
+        bridgedBy bridging: Set<String>?, finalMark: Bool, opening: Bool, corroboratedByLayout: Bool,
+        clauseFollows: Bool
     ) -> Bool {
         // A hyphen joins the two words around it, so it heads no phrase and only the word before it speaks.
         let far = draft.shape(at: live[position]).key == "hyphen" ? 1 : reach
@@ -135,9 +186,14 @@ public enum MentionGuard {
                 if !bridging.contains(shape.key) || markNames.contains(shape.key) { return false }
             } else if !isModifier(
                 shape.key, before: draft.shape(at: live[position]).key, finalMark: finalMark,
+                clauseFollows: clauseFollows,
                 after: back < position ? draft.shape(at: live[position - back - 1]).key : nil
             ) {
                 return false
+            } else if back == 1, finalMark, nounHeads.contains(draft.shape(at: live[position]).key),
+                finalPeriodCompoundModifiers.contains(shape.key)
+            {
+                return true
             }
         }
         return false
@@ -145,13 +201,15 @@ public enum MentionGuard {
 
     /// Recognizes local modifiers, ordinal numbers and cardinals before a period or dash.
     private static func isModifier(
-        _ word: String, before head: String, finalMark: Bool, after preceding: String?
+        _ word: String, before head: String, finalMark: Bool, clauseFollows: Bool, after preceding: String?
     ) -> Bool {
         if NumberFormsPass.ordinalUnits[word] != nil
             || (nounHeads.contains(head) && NumberWords.isNumber(word))
         {
             return true
         }
+        // A clause opening after the mark says the word before it closes a clause: "the branch dash it fixes the bug".
+        if clauseFollows && nounHeads.contains(head) { return false }
         let phrase = "the \(word) \(head)"
         guard let wordRange = phrase.range(of: word) else { return false }
         let lexicalClass = LexicalClass.tag(at: wordRange.lowerBound, in: phrase)

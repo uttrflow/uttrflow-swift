@@ -185,6 +185,45 @@ struct DictationPipelineStateTests {
         #expect(await metrics.measurements.contains { $0.stage == .capture } == false)
     }
 
+    @Test("describes each finished recording's audio to the metrics, once")
+    func measuresTheRecordingsQuality() async throws {
+        let metrics = RecordingMetricsRecorder()
+        let holes = CaptureGaps(holes: 1, milliseconds: 21, lostBuffers: 1)
+        let silent = AudioSamples.silence(seconds: 1)
+        let recording = AudioSamples.canonical(silent.samples, gaps: holes)
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(recording)),
+            speech: FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: spoken))),
+            cleaner: FakeTranscriptCleaner(answering: tidiedAnswer),
+            context: FakeContextEngine(context: .fixture()),
+            inserter: FakeTextInserter(), metrics: metrics, clock: ManualClock())
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        let expected = try #require(
+            CaptureQuality.measure(samples: recording.samples, sampleRate: recording.sampleRate, gaps: holes))
+        #expect(await metrics.captureQualities == [expected])
+    }
+
+    @Test("tells the metrics when the chosen input was missing for the recording")
+    func reportsAMissingChosenInput() async {
+        let metrics = RecordingMetricsRecorder()
+        let silent = AudioSamples.silence(seconds: 1)
+        let recording = AudioSamples.canonical(silent.samples, chosenInputMissing: true)
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(recording)),
+            speech: FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: spoken))),
+            cleaner: FakeTranscriptCleaner(answering: tidiedAnswer),
+            context: FakeContextEngine(context: .fixture()),
+            inserter: FakeTextInserter(), metrics: metrics, clock: ManualClock())
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        #expect(await metrics.captureQualities.map(\.chosenInputMissing) == [true])
+    }
+
     @Test("ignores a second start while it is already recording")
     func startWhileRecordingIsIgnored() async {
         let capture = FakeAudioCaptureEngine()
@@ -339,11 +378,11 @@ struct DictationPipelineStateTests {
         let inserted = DictationOutcome(
             text: tidied, method: .accessibility, cleanedBy: .foundationModels,
             insertedInto: "Slack", insertedIntoIdentifier: "com.tinyspeck.slackmacgap",
-            spokenFor: .zero, changes: AppliedChanges(spokenWords: 10))
+            spokenFor: .zero, changes: AppliedChanges(spokenWords: 10, heard: spoken))
         // Inserting is its own state because the application takes its own time to show the words.
         #expect(
             await next(6, from: states) == [
-                .idle, .recording, .transcribing, .tidying, .inserting(into: nil), .inserted(inserted),
+                .idle, .recording, .transcribing, .tidying, .inserting(into: "Slack"), .inserted(inserted),
             ])
     }
 
@@ -538,7 +577,9 @@ struct DictationPipelineStateTests {
         await pipeline.prepare()
 
         #expect(
-            await pipeline.currentState == .failed(DictationFailure(SpeechEngineError.modelNotInstalled)),
+            await pipeline.currentState
+                == .failed(
+                    DictationFailure(SpeechEngineError.modelNotInstalled, speechEngineKind: .whisperKit)),
             "a recogniser that cannot start must not be reported as ready")
     }
 
@@ -580,7 +621,7 @@ struct DictationPipelineStateTests {
 
         #expect(
             await pipeline.currentState
-                == .failed(DictationFailure(SpeechEngineError.audioTooShort)))
+                == .failed(DictationFailure(SpeechEngineError.audioTooShort, speechEngineKind: .whisperKit)))
     }
 
     /// "um" tidies to nothing, and inserting nothing over a selection deletes it.

@@ -15,7 +15,7 @@ struct PredictStoreCountsTests {
         let moment = Date(timeIntervalSince1970: 1_800_000_000)
 
         try await store.record("typed line", in: terminal, at: moment)
-        try await store.record("accepted line", in: terminal, selfSourced: true, at: moment)
+        try await store.record("accepted line", in: terminal, as: .suggestion, at: moment)
         try await store.record("another line", in: editor, at: moment)
         try await store.recordAccepted("accepted line", in: terminal)
         try await store.recordRejected("typed line", in: terminal)

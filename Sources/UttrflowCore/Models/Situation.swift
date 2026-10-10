@@ -52,4 +52,7 @@ extension AppContext {
     public var insertionPoint: InsertionPoint {
         InsertionPoint(precedingText: precedingText, followingText: followingText)
     }
+
+    /// What recognition is conditioned on before the caret: never from a secure field, never stored past the dictation.
+    public var recognitionContext: String? { isSecure ? nil : insertionPoint.recognitionContext }
 }

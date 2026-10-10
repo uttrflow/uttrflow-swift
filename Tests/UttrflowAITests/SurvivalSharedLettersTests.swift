@@ -39,9 +39,9 @@ struct SurvivalSharedLettersTests {
         #expect(!survives("running", as: "run"))
     }
 
-    /// Tense/number/person repairs the rewrite makes are a meaning change, not a tidy.
+    /// Tense, number and person repaired in a destination that repairs grammar change only a said word's form.
     @Test(
-        "rejects a grammar repair the formatter used to make",
+        "accepts a grammar repair the formatter makes, as Docs/cleanup.md allows",
         arguments: [
             ("yesterday i try to fix the build", "Yesterday I tried to fix the build."),
             ("we apply the patch last week", "We applied the patch last week."),
@@ -53,8 +53,8 @@ struct SurvivalSharedLettersTests {
             ("they was use the old build", "They were using the old build."),
         ]
     )
-    func rejectsAFormRepair(kept: String, rewritten: String) {
-        #expect(!MeaningPreservationGuard.grammarVerdict(kept: kept, rewritten: rewritten).isAccepted)
+    func acceptsAFormRepair(kept: String, rewritten: String) {
+        #expect(MeaningPreservationGuard.grammarVerdict(kept: kept, rewritten: rewritten).isAccepted)
     }
 
     /// A y-stem or a dropped "e" is a spelling change English makes before an ending, so it is still a different word.

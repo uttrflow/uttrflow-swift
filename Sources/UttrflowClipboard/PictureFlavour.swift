@@ -45,7 +45,9 @@ enum PictureFlavour {
         else { return .unreadable }
         guard fits(size, within: budget) else { return .refused(width: size.width, height: size.height) }
         let options = [kCGImageSourceShouldCacheImmediately: true] as CFDictionary
-        guard CGImageSourceCreateImageAtIndex(source, 0, options) != nil else { return .unreadable }
+        // ImageIO hands back an image for a truncated pixel stream; only its decoded pixels prove it reads.
+        guard let image = CGImageSourceCreateImageAtIndex(source, 0, options), image.dataProvider?.data != nil
+        else { return .unreadable }
         return .kept((data, size.width, size.height))
     }
 

@@ -1,6 +1,5 @@
-public import Foundation
+import Foundation
 import OSLog
-private import Synchronization
 private import UttrflowCore
 
 /// Runs the gates in order, remembers what they decided, and never makes a keystroke wait.
@@ -15,8 +14,8 @@ public actor Verifier {
     private let supersession: (any SupersessionRecording)?
     /// How long the model has to judge one keystroke's candidates, held so a test need not wait it out.
     private let budgetInMilliseconds: Int
-    /// Starts one budget on the clock supplied at initialization.
-    private let startBudget: @Sendable (Duration) -> Budget
+    /// The clock every keystroke's deadline is set on.
+    private let clock: any Clock<Duration>
     /// The verdicts already reached, so most keystrokes cost nothing at all.
     private var cache = VerdictCache()
     /// Invalidates verdicts still being computed when a forget action arrives.
@@ -47,12 +46,12 @@ public actor Verifier {
         self.scoring = scoring
         self.supersession = supersession
         self.budgetInMilliseconds = budgetInMilliseconds
-        self.startBudget = { Budget.starting($0, on: clock) }
+        self.clock = clock
     }
 
     /// Every candidate the gates allow, in the form they allow it, the wrong ones dropped.
     public func verified(
-        _ candidates: [Candidate], in surface: Surface, typed: String, now: Date
+        _ candidates: [Candidate], in surface: Surface, typed: String, now: ContinuousClock.Instant
     ) async -> [Candidate] {
         let generation = forgetGeneration
         await retryPendingSupersessions()
@@ -67,7 +66,8 @@ public actor Verifier {
             let allowed = await allowed(candidate, in: surface, typed: typed, now: now, before: deadline)
             guard generation == forgetGeneration else { return [] }
             guard let allowed else { continue }
-            if let same = kept.firstIndex(where: { $0.text == allowed.text }) {
+            let key = TextMatching.caseFoldedKey(allowed.text)
+            if let same = kept.firstIndex(where: { TextMatching.caseFoldedKey($0.text) == key }) {
                 kept[same] = Self.combine(kept[same], allowed)
             } else {
                 kept.append(allowed)
@@ -76,13 +76,14 @@ public actor Verifier {
         return kept
     }
 
-    /// A converged text sums its evidence and keeps the nearest source, favoring the first on a tie.
+    /// A converged text sums its evidence, keeps the nearest source and the machine's confirmation, and is spelled as the machine spells it.
     private static func combine(_ first: Candidate, _ second: Candidate) -> Candidate {
         let nearest = first.editDistance <= second.editDistance ? first : second
+        let text = second.source == .environment && first.source != .environment ? second.text : first.text
         let evidence: Entry?
         if let firstEvidence = first.evidence, let secondEvidence = second.evidence {
             evidence = Entry(
-                text: first.text, count: firstEvidence.count + secondEvidence.count,
+                text: text, count: firstEvidence.count + secondEvidence.count,
                 accepted: firstEvidence.accepted + secondEvidence.accepted,
                 rejected: firstEvidence.rejected + secondEvidence.rejected,
                 selfSourced: firstEvidence.selfSourced + secondEvidence.selfSourced,
@@ -91,21 +92,22 @@ public actor Verifier {
             evidence = first.evidence ?? second.evidence
         }
         return Candidate(
-            text: first.text, source: nearest.source, evidence: evidence,
-            editDistance: nearest.editDistance, isIrreversible: nearest.isIrreversible)
+            text: text, source: nearest.source, evidence: evidence,
+            editDistance: nearest.editDistance, isIrreversible: nearest.isIrreversible,
+            isConfirmedByEnvironment: first.isConfirmedByEnvironment || second.isConfirmedByEnvironment)
     }
 
     /// The verdict on one candidate, taken from the cache whenever the gates have already reached it.
     public func verdict(
-        for candidate: Candidate, in surface: Surface, typed: String, now: Date
+        for candidate: Candidate, in surface: Surface, typed: String, now: ContinuousClock.Instant
     ) async -> Verdict {
         await verdict(for: candidate, in: surface, typed: typed, now: now, before: deadline())
     }
 
     /// The same verdict, against a budget one keystroke's whole set of candidates has to share.
     private func verdict(
-        for candidate: Candidate, in surface: Surface, typed: String, now: Date,
-        before deadline: Budget
+        for candidate: Candidate, in surface: Surface, typed: String, now: ContinuousClock.Instant,
+        before deadline: Deadline
     ) async -> Verdict {
         let generation = forgetGeneration
         let key = VerdictCache.Key(
@@ -126,13 +128,13 @@ public actor Verifier {
             }
             complete = complete && lookupComplete
             let caseSensitive = lookup.kinds.contains(where: Self.requiresCaseSensitiveMatch)
-            guard !Verification.attests(lookup.word, known, caseSensitive: caseSensitive) else {
+            // Each kind attests under its own case rule, so a branch lookup cannot make a file name case-sensitive.
+            guard !(await attests(lookup, in: surface, now: now)) else {
                 if generation == forgetGeneration { cache.remember(.attested, for: key) }
                 return .attested
             }
             if judged == nil { judged = (lookup.word, lookup.prefix, known, caseSensitive) }
         }
-        guard complete else { return .plausible }
 
         let plausibility = await self.plausibility(
             of: candidate.text, following: typed, before: deadline)
@@ -145,7 +147,8 @@ public actor Verifier {
                 modelObjects: Verification.objects(to: plausibility),
                 caseSensitive: judged?.caseSensitive ?? false),
             on: candidate.text, leading: token.leading + (judged?.prefix ?? ""), in: surface,
-            forGood: judged != nil && Verification.isClosedVocabulary(for: token),
+            // A listing still unanswered may yet hold the word, so the verdict stands this time only and is not cached.
+            forGood: complete && judged != nil && Verification.isClosedVocabulary(for: token),
             generation: generation)
         if complete, generation == forgetGeneration { cache.remember(verdict, for: key) }
         return verdict
@@ -278,13 +281,7 @@ public actor Verifier {
 
     /// Names an error type and case without exposing a text payload.
     private static func failure(_ error: any Error) -> String {
-        let type = String(describing: Swift.type(of: error))
-        let mirror = Mirror(reflecting: error)
-        if mirror.displayStyle == .enum, let label = mirror.children.first?.label {
-            return "\(type).\(label)"
-        }
-        let bridged = error as NSError
-        return "\(type) domain=\(bridged.domain) code=\(bridged.code)"
+        ErrorLog.failure(error)
     }
 
     /// Forgets verifier state and runs the corpus clear before new persistence may begin.
@@ -320,8 +317,8 @@ public actor Verifier {
 
     /// One candidate as the gates leave it, absent when they refuse it.
     private func allowed(
-        _ candidate: Candidate, in surface: Surface, typed: String, now: Date,
-        before deadline: Budget
+        _ candidate: Candidate, in surface: Surface, typed: String, now: ContinuousClock.Instant,
+        before deadline: Deadline
     ) async -> Candidate? {
         guard !candidate.isIrreversible, await admits(candidate.text, in: surface, now: now) else {
             return nil
@@ -341,7 +338,7 @@ public actor Verifier {
     }
 
     /// What the next word may be, from the machine: anything, one of the values here that begin the way it does, or nothing.
-    public func options(for typed: String, in surface: Surface, now: Date) async -> ArgumentOptions {
+    public func options(for typed: String, in surface: Surface, now: ContinuousClock.Instant) async -> ArgumentOptions {
         guard EnvironmentSource.workingDirectory(of: surface) != nil else { return .open }
         let token = CompletionToken(typed) ?? CompletionToken(leading: typed, token: "")
         guard let choices = Verification.choices(for: token) else { return .open }
@@ -384,7 +381,7 @@ public actor Verifier {
 
     /// The model's whole lines whose every word past the typing the machine can stand behind; a line naming what this machine does not have is dropped.
     public func standing(
-        _ completions: [String], after typed: String, in surface: Surface, now: Date
+        _ completions: [String], after typed: String, in surface: Surface, now: ContinuousClock.Instant
     ) async -> [String] {
         var standing: [String] = []
         for completion in completions {
@@ -407,7 +404,7 @@ public actor Verifier {
 
     /// Whether every word the model added is one the machine names, or one no listing could deny; a listing not yet answered vouches for nothing.
     private func stands(
-        _ completion: String, after typed: String, in surface: Surface, now: Date
+        _ completion: String, after typed: String, in surface: Surface, now: ContinuousClock.Instant
     ) async -> Bool {
         guard await admits(completion, in: surface, now: now) else { return false }
         // A field that is not a directory has no listings, so nothing it holds is looked up.
@@ -430,9 +427,10 @@ public actor Verifier {
     }
 
     /// Whether a whole line may be shown at all: never when it destroys, and in a terminal only when everything it names exists from there. See `Docs/predict-terminal-paths.md`.
-    private func admits(_ line: String, in surface: Surface, now: Date) async -> Bool {
+    private func admits(_ line: String, in surface: Surface, now: ContinuousClock.Instant) async -> Bool {
         let terminal = TerminalApplications.contains(surface.bundleIdentifier)
-        guard !DestructiveCommand.matches(line, failClosedOnUnresolved: terminal) else { return false }
+        // Fails closed in every field, as the corpus and environment classify their lines, so the model is never held to a weaker check.
+        guard !DestructiveCommand.matches(line, failClosedOnUnresolved: true) else { return false }
         guard terminal else { return true }
         // A remote session's files are on another machine, so nothing this disk could say stands behind the line.
         guard !RemoteSession.names(surface.scope) else { return false }
@@ -443,13 +441,13 @@ public actor Verifier {
 
     /// Everything the machine vouches for among these kinds here, absent when none has answered yet or the field is not a directory.
     private func known(
-        of kinds: [EnvironmentKind], in surface: Surface, now: Date
+        of kinds: [EnvironmentKind], in surface: Surface, now: ContinuousClock.Instant
     ) async -> Set<String>? {
         await knownAndComplete(of: kinds, in: surface, now: now)?.known
     }
 
     /// Git names are case-sensitive even on a case-insensitive filesystem.
-    private func attests(_ lookup: Verification.Lookup, in surface: Surface, now: Date) async -> Bool {
+    private func attests(_ lookup: Verification.Lookup, in surface: Surface, now: ContinuousClock.Instant) async -> Bool {
         for kind in lookup.kinds {
             guard let known = await known(of: [kind], in: surface, now: now) else { continue }
             if Verification.attests(
@@ -471,7 +469,7 @@ public actor Verifier {
 
     /// The same union, plus whether every kind asked has actually answered, so a still-refreshing kind is never read as a "no".
     private func knownAndComplete(
-        of kinds: [EnvironmentKind], in surface: Surface, now: Date
+        of kinds: [EnvironmentKind], in surface: Surface, now: ContinuousClock.Instant
     ) async -> (known: Set<String>, complete: Bool)? {
         guard let directory = EnvironmentSource.workingDirectory(of: surface) else { return nil }
         var known: Set<String>?
@@ -489,42 +487,28 @@ public actor Verifier {
 
     /// What the model says, silent when it is not up and over budget when it did not answer in time.
     private func plausibility(
-        of candidate: String, following context: String, before deadline: Budget
+        of candidate: String, following context: String, before deadline: Deadline
     ) async -> Plausibility {
         guard let scoring, await scoring.isReady else { return .silent }
-        guard !deadline.hasRunOut() else { return .overBudget }
+        guard !deadline.isSpent else { return .overBudget }
         return await Self.raced(candidate, following: context, by: scoring, before: deadline)
     }
 
-    /// The model against the clock: the scorer is signalled, not awaited, so a noncooperative one cannot hold up the verdict.
+    /// The model against the clock: the scorer is cancelled, not awaited, so a noncooperative one cannot hold up the verdict.
     private static func raced(
         _ candidate: String, following context: String, by scoring: any CandidateScoring,
-        before deadline: Budget
+        before deadline: Deadline
     ) async -> Plausibility {
-        let race = PlausibilityRace()
-        var scorer: Task<Void, Never>?
-        await withCheckedContinuation { continuation in
-            // Armed before either racer exists, so neither can arrive at an empty race.
-            race.arm(continuation)
-            scorer = Task {
-                guard let score = await scoring.logLikelihood(of: candidate, following: context) else {
-                    return race.finish(.silent)
-                }
-                race.finish(.scored(score))
-            }
-            Task {
-                await deadline.runsOut()
-                race.finish(.overBudget)
-            }
+        let answer = try? await deadline.race {
+            await scoring.logLikelihood(of: candidate, following: context)
         }
-        // Not awaited: whatever GPU work is already in flight keeps the model alive on its own past this return.
-        scorer?.cancel()
-        return race.result()
+        guard let answer else { return .overBudget }
+        return answer.map(Plausibility.scored) ?? .silent
     }
 
     /// When this keystroke's whole set of candidates has to have been judged by.
-    private func deadline() -> Budget {
-        startBudget(.milliseconds(budgetInMilliseconds))
+    private func deadline() -> Deadline {
+        Deadline(.milliseconds(budgetInMilliseconds), clock: clock)
     }
 
     /// What a verdict is remembered against, which is this field and what has been typed into it.
@@ -549,50 +533,4 @@ private struct PendingSupersession: Sendable {
 private struct RefusedCandidate: Hashable, Sendable {
     let text: String
     let surface: Surface
-}
-
-/// One keystroke's budget on the verifier's clock: whether it has run out, and a wait until it does.
-struct Budget: Sendable {
-    let hasRunOut: @Sendable () -> Bool
-    let runsOut: @Sendable () async -> Void
-
-    /// A budget of `duration` from now, on `clock`.
-    static func starting<C: Clock<Duration>>(_ duration: Duration, on clock: C) -> Budget {
-        let end = clock.now.advanced(by: duration)
-        return Budget(
-            hasRunOut: { clock.now >= end },
-            runsOut: { try? await clock.sleep(until: end, tolerance: nil) })
-    }
-}
-
-/// Whichever of the model and the deadline answers a keystroke's plausibility first.
-private final class PlausibilityRace: Sendable {
-    /// The waiting caller and the first answer, kept together under one lock.
-    private struct State {
-        var waiting: CheckedContinuation<Void, Never>?
-        var outcome: Plausibility?
-    }
-
-    private let state = Mutex(State())
-
-    /// Parks the caller until the first answer.
-    func arm(_ continuation: CheckedContinuation<Void, Never>) {
-        state.withLock { $0.waiting = continuation }
-    }
-
-    /// Records an answer, and wakes the caller for the first one only.
-    func finish(_ outcome: Plausibility) {
-        let waiting = state.withLock { state -> CheckedContinuation<Void, Never>? in
-            guard state.outcome == nil else { return nil }
-            state.outcome = outcome
-            defer { state.waiting = nil }
-            return state.waiting
-        }
-        waiting?.resume()
-    }
-
-    /// The winner's answer, silent if somehow reached before either racer finished.
-    func result() -> Plausibility {
-        state.withLock { $0.outcome } ?? .silent
-    }
 }

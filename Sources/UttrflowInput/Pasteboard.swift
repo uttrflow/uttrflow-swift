@@ -55,6 +55,13 @@ public protocol Pasteboard: Sendable {
 public protocol KeystrokeSender: Sendable {
     /// Presses ⌘V, refusing with ``TextInsertionError/accessibilityDenied`` where macOS forbids it.
     func sendPaste() throws(TextInsertionError)
+    /// Whether macOS lets this app post the paste key, asked before the clipboard is taken for it.
+    func maySendPaste() -> Bool
+}
+
+extension KeystrokeSender {
+    /// A sender that cannot tell beforehand answers at the key itself.
+    public func maySendPaste() -> Bool { true }
 }
 
 extension Pasteboard {

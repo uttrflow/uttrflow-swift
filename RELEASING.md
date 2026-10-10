@@ -38,13 +38,26 @@ offers every installed copy a downgrade.
 **Two.** Update `CHANGELOG.md`: move everything under `## [Unreleased]` into a new
 version heading with today's date.
 
+Run `make accuracy-report VERSION=<version>` and commit the report it writes under
+`Docs/accuracy-reports/` with the new line of `Docs/accuracy-history.json`; the release notes link
+that report ([`Docs/measuring-accuracy.md`](Docs/measuring-accuracy.md#the-release-report)).
+
 Add `Tests/Fixtures/stores/<tag>/` with each covered store's file as the release writes it
 (invented content only) and add the tag to `releases` in `ReleasedStoreFixtureTests`; see
 [`Tests/Fixtures/stores/README.md`](Tests/Fixtures/stores/README.md).
 
 **Three.** Land all of it through a pull request, like everything else.
 
-**Four.** Tag a candidate and let it soak:
+**Four.** Run the quality gate on the commit to be tagged, and attach the file it writes to the
+candidate's release notes:
+
+```bash
+make release-quality BAKEOFF_BASELINE=<saved bake-off result> RUN=<uttrflow-dev bench run>
+```
+
+It exits non-zero when any gate fails or has no verdict, and `dist/release-quality.md` names
+which ([`Docs/releasing.md`](Docs/releasing.md#the-gate-before-a-release)). Then tag a candidate
+and let it soak:
 
 ```bash
 git checkout main && git pull
@@ -67,6 +80,9 @@ tag the release:
 | Crash-free sessions in the opt-in report | at or above the previous release | the release-health view described in [`Docs/crash-reporting.md`](Docs/crash-reporting.md) |
 | `make verify` on the tagged commit | exit 0 | the release workflow's verify step for the `-rc` tag |
 | Transcription accuracy against `Scripts/accuracy_baseline.json` | no slice worse | `make accuracy-gate` on the tagged commit, with the shipping model installed |
+| Live-model suites (`*LiveModelTests`) on a Mac with Apple Intelligence | 0 skipped, 0 failed | `make verify` prints `live-model tests: N run, 0 skipped` |
+| The candidate's bundle launches, draws every settings pane and quits cleanly | exit 0 | `make uitest` against the candidate's `Uttrflow.app` ([`Docs/ui-tests.md`](Docs/ui-tests.md)) |
+| Heap growth over a used session with suggestions on | no class whose count only rises, and a clean quit | `make soak` against the running candidate, then quit it ([`Docs/soak.md`](Docs/soak.md)) |
 
 A new candidate restarts the soak time. A criterion with no data, such as a candidate
 nobody has run yet, is not met.

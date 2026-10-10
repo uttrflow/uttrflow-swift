@@ -45,9 +45,14 @@ public enum PanelAlias {
         .folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: locale)
     }
 
-    /// Whether two reduced aliases spell the same name under the search comparison.
+    /// Whether two aliases are one name: equal under the search comparison, which ignores a nukta, or
+    /// confusable when either handle holds a non-ASCII character, so `m1` and `ml` stay distinct.
     static func matches(_ first: String, _ second: String, locale: Locale) -> Bool {
         guard case .success(let rules) = AliasUnicodeRules.loaded else { return false }
+        let firstHandle = handle(first, locale: locale)
+        let secondHandle = handle(second, locale: locale)
+        if firstHandle.equals(secondHandle, ignoringCaseAndAccentsIn: locale) { return true }
+        guard !(firstHandle + secondHandle).unicodeScalars.allSatisfy(\.isASCII) else { return false }
         return rules.skeleton(first, locale: locale) == rules.skeleton(second, locale: locale)
     }
 
@@ -64,10 +69,8 @@ public enum PanelAlias {
                 takenBy: nil, canCompareUnicodeNames: false)
         }
         let mixesScripts = rules.mixesScripts(typed)
-        let typedSkeleton = rules.skeleton(typed, locale: locale)
         let holder = clips.first {
-            $0.id != clip
-                && $0.alias.map { rules.skeleton($0, locale: locale) == typedSkeleton } == true
+            $0.id != clip && $0.alias.map { matches($0, typed, locale: locale) } == true
         }
         return AliasProposal(
             corrected: corrected,

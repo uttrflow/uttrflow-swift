@@ -1,5 +1,8 @@
 /// Recognises command lines that destroy data or the machine, so they are never learned or auto-offered.
 public enum DestructiveCommand {
+    /// A producer's known text, an uncertain output, or a command that cannot contribute to the pipe model.
+    private enum PipedOutput { case known(String), unresolved }
+
     /// Whether taking this line as a completion could do irreversible harm, judged conservatively.
     public static func matches(_ text: String, failClosedOnUnresolved: Bool = false) -> Bool {
         matches(text, failClosedOnUnresolved: failClosedOnUnresolved, files: defaultFileSystem)
@@ -20,8 +23,23 @@ public enum DestructiveCommand {
         {
             return true
         }
-        guard let clauses = ShellWords.commands(in: text, home: "") else { return failClosedOnUnresolved }
-        return clauses.contains { clause in
+        // Which shell will run the line is unknown, so a `#` is read both as bash's comment and as zsh's word.
+        let readings = text.contains("#") ? [true, false] : [true]
+        return readings.contains { hashComments in
+            // A line only the word reading cannot settle, as `ls # it's` is, is one zsh would not run.
+            guard let clauses = ShellWords.commands(in: text, home: "", hashComments: hashComments) else {
+                return hashComments && failClosedOnUnresolved
+            }
+            return destroys(clauses, failClosedOnUnresolved: failClosedOnUnresolved, files: files)
+        }
+    }
+
+    /// Whether any of one reading's simple commands destroys data.
+    private static func destroys(
+        _ clauses: [SimpleCommand], failClosedOnUnresolved: Bool, files: (any FileSystemProbing)?
+    ) -> Bool {
+        clauses.indices.contains { index in
+            let clause = clauses[index]
             if failClosedOnUnresolved,
                 (clause.words + clause.inputs).contains(where: \.isUnresolved)
             {
@@ -29,7 +47,118 @@ public enum DestructiveCommand {
             }
             if clause.overwrites.contains(where: { !harmlessOutputs.contains($0.text) }) { return true }
             return destroys(clause.words, failClosedOnUnresolved: failClosedOnUnresolved, files: files)
+                || pipedSQLIsDestructive(
+                    at: index, in: clauses, failClosedOnUnresolved: failClosedOnUnresolved, files: files)
         }
+    }
+
+    /// Whether the words carried by a pipe reach a SQL or Mongo client as destructive input.
+    private static func pipedSQLIsDestructive(
+        at index: Int, in clauses: [SimpleCommand], failClosedOnUnresolved: Bool,
+        files: (any FileSystemProbing)?
+    ) -> Bool {
+        guard index > 0,
+            case .named(let receiver, let arguments) = command(in: clauses[index].words),
+            sqlClients.contains(receiver) || receiver == "mongo" || receiver == "mongosh"
+        else { return false }
+        var start = index
+        while start > 0, clauses[start - 1].separator == .pipe { start -= 1 }
+        guard start < index else { return false }
+        var input = ""
+        for producer in clauses[start..<index] {
+            switch pipedOutput(of: producer, previous: input, files: files) {
+            case .known(let output): input = output
+            case .unresolved: return true
+            case nil: return failClosedOnUnresolved
+            }
+        }
+        // Keep the client's own options in argv order; stdin follows them as SQL text.
+        let tokens = [ShellWord(receiver)] + arguments.map { ShellWord($0) } + [ShellWord(input)]
+        return destroys(tokens, failClosedOnUnresolved: failClosedOnUnresolved, files: files)
+    }
+
+    /// The text a small set of known pipeline producers actually emits, if it can be read without running them.
+    private static func pipedOutput(
+        of producer: SimpleCommand, previous: String, files: (any FileSystemProbing)?
+    ) -> PipedOutput? {
+        if !producer.overwrites.isEmpty { return .known("") }
+        guard !producer.words.contains(where: \.isUnresolved),
+            !producer.inputs.contains(where: \.isUnresolved),
+            case .named(let name, let arguments) = command(in: producer.words)
+        else { return nil }
+        switch name {
+        case "echo":
+            return .known(arguments.drop(while: { ["-n", "-e", "-E"].contains($0) }).joined(separator: " "))
+        case "printf":
+            guard let format = arguments.first,
+                let output = printfOutput(format: format, arguments: Array(arguments.dropFirst()))
+            else { return .unresolved }
+            return .known(output)
+        case "cat":
+            let operands = arguments.filter { $0 == "-" || (!$0.hasPrefix("-") && $0 != "--") }
+            let paths = operands.filter { $0 != "-" }
+            let inputPaths = producer.inputs.map(\.text)
+            let catOptions: Set<String> = ["-A", "-b", "-e", "-E", "-n", "-s", "-t", "-T", "-u", "-v"]
+            guard
+                arguments.allSatisfy({
+                    $0 == "--" || $0 == "-" || $0.hasPrefix("/") || catOptions.contains($0)
+                }),
+                (paths + inputPaths).allSatisfy({ $0.hasPrefix("/") })
+            else { return .unresolved }
+            let readsStandardInput = operands.isEmpty || operands.contains("-")
+            let redirectedInput =
+                readsStandardInput ? inputPaths.last.flatMap { pipedFile($0, files: files) } : nil
+            if readsStandardInput, let inputPath = inputPaths.last, redirectedInput == nil {
+                if case .missing = files?.kind(atPath: inputPath) { return .known("") }
+                return .unresolved
+            }
+            let standardInput = redirectedInput ?? previous
+            guard !operands.isEmpty else {
+                return standardInput.isEmpty ? .unresolved : .known(standardInput)
+            }
+            var output = ""
+            for operand in operands {
+                if operand == "-" {
+                    output += standardInput
+                } else if let contents = pipedFile(operand, files: files) {
+                    output += contents
+                } else if case .missing = files?.kind(atPath: operand) {
+                    continue
+                } else {
+                    return .unresolved
+                }
+            }
+            return .known(output)
+        default:
+            return nil
+        }
+    }
+
+    /// Reads a known local text file without treating an unreadable file as empty.
+    private static func pipedFile(_ path: String, files: (any FileSystemProbing)?) -> String? {
+        files?.contents(ofFile: path, limit: 16_384)
+    }
+
+    /// A bounded `printf` model for literal text, `%%`, and `%s` substitutions.
+    private static func printfOutput(format: String, arguments: [String]) -> String? {
+        var output = ""
+        var rest = format[...]
+        var values = arguments[...]
+        while let marker = rest.firstIndex(of: "%") {
+            output += rest[..<marker]
+            rest = rest[rest.index(after: marker)...]
+            guard let conversion = rest.first else { return nil }
+            rest = rest.dropFirst()
+            if conversion == "%" {
+                output += "%"
+            } else if conversion == "s", let value = values.popFirst() {
+                output += value
+            } else {
+                return nil
+            }
+        }
+        output += rest
+        return values.isEmpty ? output : nil
     }
 
     /// Devices a `>` writes to without emptying any file.
@@ -77,31 +206,92 @@ public enum DestructiveCommand {
         return targetDirectory ? operands : Array(operands.dropLast())
     }
 
-    /// A word that runs the command after it: its flags that take a value, and how many plain words of its own precede the command.
+    /// A word that runs the command after it: its flags that take a value, its flags that take none, and how many plain words of its own precede the command.
     private struct Wrapper {
         let valued: Set<String>
+        var flags: Set<String> = []
         var operands = 0
         /// Flags whose appearance anywhere in the wrapper's body means the rest of the line is the carried command.
         var carryFlags: Set<String>? = nil
+        /// Whether a bare number such as `nice -10` is one of its flags.
+        var numericFlags = false
     }
 
     /// Words that run the command after them, each read past before the command is judged.
     private static let wrappers: [String: Wrapper] = [
-        "sudo": Wrapper(valued: ["-u", "-g", "-h", "-p", "-C", "-D", "-r", "-t", "-U", "-T"]),
-        "doas": Wrapper(valued: ["-u", "-C"]), "env": Wrapper(valued: ["-u", "-S", "-P"]),
-        "nice": Wrapper(valued: ["-n"]), "nohup": Wrapper(valued: []), "time": Wrapper(valued: []),
-        "command": Wrapper(valued: []), "builtin": Wrapper(valued: []), "exec": Wrapper(valued: ["-a"]),
+        "sudo": Wrapper(
+            valued: [
+                "-u", "-g", "-h", "-p", "-C", "-D", "-R", "-r", "-t", "-U", "-T",
+                "--user", "--group", "--host", "--prompt", "--close-from", "--chdir", "--chroot", "--role",
+                "--type", "--other-user", "--command-timeout",
+            ],
+            flags: [
+                "-A", "-B", "-b", "-E", "-e", "-H", "-i", "-K", "-k", "-l", "-N", "-n", "-P", "-S", "-s",
+                "-V", "-v", "--askpass", "--bell", "--background", "--preserve-env", "--edit", "--set-home",
+                "--help", "--login", "--remove-timestamp", "--reset-timestamp", "--list", "--no-update",
+                "--non-interactive", "--preserve-groups", "--stdin", "--shell", "--version", "--validate",
+            ]),
+        "doas": Wrapper(valued: ["-u", "-C"], flags: ["-n", "-s", "-L"]),
+        "env": Wrapper(
+            valued: ["-u", "-S", "-P", "-C", "--unset", "--split-string", "--chdir"],
+            flags: [
+                "-i", "-0", "-v", "--ignore-environment", "--null", "--debug", "--block-signal",
+                "--default-signal", "--ignore-signal", "--list-signal-handling",
+            ]),
+        "nice": Wrapper(valued: ["-n", "--adjustment"], numericFlags: true),
+        "nohup": Wrapper(valued: []),
+        "time": Wrapper(
+            valued: ["-o", "--output", "-f", "--format"],
+            flags: ["-p", "-a", "-l", "-h", "-v", "-q", "--append", "--verbose", "--quiet", "--portability"]),
+        "command": Wrapper(valued: [], flags: ["-p"]), "builtin": Wrapper(valued: []),
+        "exec": Wrapper(valued: ["-a"], flags: ["-c", "-l"]),
         "noglob": Wrapper(valued: []), "nocorrect": Wrapper(valued: []),
-        "xargs": Wrapper(valued: ["-I", "-J", "-L", "-n", "-P", "-s", "-E", "-R", "-S", "-d"]),
-        "timeout": Wrapper(valued: ["-s", "--signal", "-k", "--kill-after"], operands: 1),
-        "gtimeout": Wrapper(valued: ["-s", "--signal", "-k", "--kill-after"], operands: 1),
-        "caffeinate": Wrapper(valued: ["-t", "-w"]), "watch": Wrapper(valued: ["-n", "--interval"]),
-        "ionice": Wrapper(valued: ["-c", "-n", "-p", "-P", "-u"]), "chronic": Wrapper(valued: []),
-        "unbuffer": Wrapper(valued: []), "stdbuf": Wrapper(valued: ["-i", "-o", "-e"]),
-        "taskpolicy": Wrapper(valued: ["-c", "-d", "-g", "-t", "-l"]), "arch": Wrapper(valued: ["-arch"]),
-        "flock": Wrapper(valued: ["-w", "--timeout", "-E", "--conflict-exit-code"], operands: 1),
-        "chroot": Wrapper(valued: ["-u", "-g", "-G"], operands: 1), "pkexec": Wrapper(valued: ["--user"]),
-        "setsid": Wrapper(valued: []),
+        "xargs": Wrapper(
+            valued: [
+                "-I", "-J", "-L", "-n", "-P", "-s", "-E", "-R", "-S", "-d", "-a", "--arg-file", "--delimiter",
+                "--max-args", "--max-procs", "--max-chars", "--max-lines", "--eof", "--replace",
+                "--process-slot-var",
+            ],
+            flags: [
+                "-0", "-o", "-p", "-r", "-t", "-x", "-e", "-i", "-l", "--null", "--no-run-if-empty",
+                "--verbose", "--interactive", "--exit", "--open-tty", "--show-limits",
+            ]),
+        "timeout": Wrapper(
+            valued: ["-s", "--signal", "-k", "--kill-after"],
+            flags: ["-v", "--verbose", "--preserve-status", "--foreground", "-f", "-p"], operands: 1),
+        "gtimeout": Wrapper(
+            valued: ["-s", "--signal", "-k", "--kill-after"],
+            flags: ["-v", "--verbose", "--preserve-status", "--foreground"], operands: 1),
+        "caffeinate": Wrapper(valued: ["-t", "-w"], flags: ["-d", "-i", "-m", "-s", "-u"]),
+        "watch": Wrapper(
+            valued: ["-n", "--interval", "-q", "--equexit"],
+            flags: [
+                "-d", "--differences", "-t", "--no-title", "-b", "--beep", "-e", "--errexit", "-g", "--chgexit",
+                "-c", "--color", "-C", "--no-color", "-x", "--exec", "-p", "--precise", "-w", "--no-wrap",
+                "-r", "--no-rerun",
+            ]),
+        "ionice": Wrapper(
+            valued: ["-c", "-n", "-p", "-P", "-u", "--class", "--classdata", "--pid", "--pgid", "--uid"],
+            flags: ["-t", "--ignore"]),
+        "chronic": Wrapper(valued: [], flags: ["-e", "-v"]),
+        "unbuffer": Wrapper(valued: [], flags: ["-p"]),
+        "stdbuf": Wrapper(valued: ["-i", "-o", "-e", "--input", "--output", "--error"]),
+        "taskpolicy": Wrapper(
+            valued: ["-c", "-d", "-g", "-t", "-l", "-S", "-m", "-j", "-p"], flags: ["-a", "-b", "-B", "-s"]),
+        "arch": Wrapper(
+            valued: ["-arch", "-d", "-e"],
+            flags: ["-32", "-64", "-c", "-h", "-x86_64", "-x86_64h", "-arm64", "-arm64e", "-i386"]),
+        "flock": Wrapper(
+            valued: ["-w", "--timeout", "-E", "--conflict-exit-code"],
+            flags: [
+                "-s", "--shared", "-x", "-e", "--exclusive", "-u", "--unlock", "-n", "--nb", "--nonblock",
+                "-o", "--close", "-F", "--no-fork", "--verbose",
+            ],
+            operands: 1),
+        "chroot": Wrapper(
+            valued: ["-u", "-g", "-G", "--userspec", "--groups"], flags: ["--skip-chdir"], operands: 1),
+        "pkexec": Wrapper(valued: ["--user"], flags: ["--disable-internal-agent", "--keep-cwd"]),
+        "setsid": Wrapper(valued: [], flags: ["-c", "--ctty", "-f", "--fork", "-w", "--wait"]),
         "parallel": Wrapper(valued: [
             "-j", "--jobs", "--max-procs",
             "-N", "--max-args",
@@ -134,17 +324,34 @@ public enum DestructiveCommand {
             "--cleanup",
             "--env",
             "--eta",
+            "--halt", "--delay", "-I", "-E", "-d", "--delimiter", "--return", "--sshloginfile", "--slf",
+            "--nice", "-L", "--max-lines", "-s", "--max-chars",
+        ], flags: [
+            "--citation", "--will-cite", "-k", "--keep-order", "--dry-run", "--dryrun", "-u", "--ungroup",
+            "--group", "--line-buffer", "--lb", "-v", "--verbose", "-q", "--quote", "-0", "--null", "-X",
+            "--xargs", "-m", "--tag", "--progress", "--nonall", "--onall", "--pipe", "--pipepart",
+            "--no-notice", "--version", "--help", "--plus", "-r", "--no-run-if-empty", "--shuf", "--resume",
+            "--resume-failed", "--retry-failed", "--transfer", "--silent",
         ]),
         "ssh": Wrapper(
             valued: [
                 "-i", "-p", "-l", "-o", "-E", "-F", "-L", "-R", "-D", "-W", "-J", "-c", "-m", "-S",
-                "-O", "-Q", "-b", "-B", "-I",
+                "-O", "-Q", "-b", "-B", "-I", "-e", "-w", "-P",
+            ],
+            flags: [
+                "-4", "-6", "-A", "-a", "-C", "-f", "-G", "-g", "-K", "-k", "-M", "-N", "-n", "-q", "-s",
+                "-T", "-t", "-V", "-v", "-X", "-x", "-Y", "-y",
             ],
             operands: 1,
         ),
         "mosh": Wrapper(
             valued: [
                 "--client", "--server", "--predict", "--port", "-p", "--ssh", "--family",
+                "--bind-server", "--experimental-remote-ip",
+            ],
+            flags: [
+                "-a", "-n", "-4", "-6", "--no-init", "--local", "--no-ssh-pty", "--predict-overwrite",
+                "--help", "--version",
             ],
             operands: 1,
         ),
@@ -154,6 +361,15 @@ public enum DestructiveCommand {
                 "-E", "--exclude", "-S", "--size", "--changed-within", "--changed-before",
                 "-o", "--owner", "-c", "--color", "-j", "--threads", "--search-path",
                 "--max-results", "--ignore-file", "--base-directory",
+                "--exact-depth", "--and", "--format", "--path-separator", "--batch-size",
+            ],
+            flags: [
+                "-H", "--hidden", "-I", "--no-ignore", "-u", "--unrestricted", "-s", "--case-sensitive", "-i",
+                "--ignore-case", "-g", "--glob", "--regex", "-F", "--fixed-strings", "-a", "--absolute-path",
+                "-L", "--follow", "-p", "--full-path", "-0", "--print0", "--prune", "-q", "--quiet",
+                "--show-errors", "--one-file-system", "--mount", "--xdev", "--no-ignore-vcs",
+                "--no-ignore-parent", "--no-require-git", "--no-global-ignore-file", "--strip-cwd-prefix",
+                "--list-details", "-1", "--hyperlink",
             ],
             operands: 0,
             carryFlags: ["-x", "-X", "--exec", "--exec-batch", "--run"],
@@ -168,7 +384,7 @@ public enum DestructiveCommand {
     /// Commands with their own argument semantics, which the carrier failsafe must not reinterpret.
     private static let judgedCommands: Set<String> = [
         "chmod", "chown", "chgrp", "git", "hg", "svn", "find", "diskutil",
-        "terraform", "tofu", "redis-cli", "valkey-cli", "keydb-cli", "mongo", "mongosh",
+        "terraform", "tofu", "mongo", "mongosh",
         "crontab", "sh", "bash", "zsh", "dash", "ksh", "fish", "su", "runuser",
         "eval", "mv", "cp", "killall", "pkill", "kill", "rsync", "tee",
         "echo", "man", "which", "tldr", "type", "help", "info", "whatis", "apropos",
@@ -179,7 +395,7 @@ public enum DestructiveCommand {
     private static let destroyers: Set<String> = [
         "rm", "rmdir", "shred", "srm", "unlink", "dd", "mkfs", "fdisk", "parted", "shutdown", "reboot",
         "halt",
-        "poweroff", "dropdb", "dropuser",
+        "poweroff", "dropdb", "dropuser", "userdel",
     ]
 
     /// `find` action flags whose clauses run an inner command terminated by `;` or `+`.
@@ -189,18 +405,26 @@ public enum DestructiveCommand {
         case none
         case unresolved
         case named(String, [String])
+        /// A quoted word in the program's place, which ssh, parallel and similar runners hand to a shell as a line.
+        case line(String)
     }
 
     /// The program a parsed clause runs, read past assignments, reserved words and every wrapper.
     private static func command(in tokens: [ShellWord]) -> Command {
         var rest = tokens[...]
         while let first = rest.first {
-            guard !first.isUnresolved else { return .unresolved }
-            let name = programName(first.text)
-            if TerminalLineCheck.isAssignment(first.text) || reservedWords.contains(name), rest.count > 1 {
+            // An assignment's value is never run, so its quoting or expansion says nothing about the command.
+            if TerminalLineCheck.isAssignment(first.text) || reservedWords.contains(programName(first.text)),
+                rest.count > 1
+            {
                 rest.removeFirst()
                 continue
             }
+            guard !first.isUnresolved else { return .unresolved }
+            if first.text.contains(where: \.isWhitespace) {
+                return .line(rest.map(\.text).joined(separator: " "))
+            }
+            let name = programName(first.text)
             // `command -v` and `command -V` inspect a name; they do not run the name as a command.
             let commandOptions = rest.dropFirst().prefix(while: { $0.text.hasPrefix("-") })
             if name == "command", commandOptions.contains(where: { $0.text == "-v" || $0.text == "-V" }) {
@@ -213,11 +437,34 @@ public enum DestructiveCommand {
             while let flag = rest.first, flag.text.count > 1, flag.text.hasPrefix("-") {
                 guard !flag.isUnresolved else { return .unresolved }
                 rest.removeFirst()
-                if wrapper.valued.contains(flag.text), !rest.isEmpty { rest.removeFirst() }
+                if flag.text == "--" { break }
+                // A flag the wrapper is not known to take may take the next word, so the command cannot be told.
+                guard let taken = wordsTaken(by: flag.text, of: wrapper) else { return .unresolved }
+                if taken > 0, !rest.isEmpty { rest.removeFirst() }
             }
             rest = rest.dropFirst(wrapper.operands)
         }
         return .none
+    }
+
+    /// How many following words a wrapper's option takes, or nil when the wrapper has no such option.
+    private static func wordsTaken(by option: String, of wrapper: Wrapper) -> Int? {
+        let known = wrapper.flags.union(wrapper.carryFlags ?? [])
+        if option.hasPrefix("--") {
+            let name = option.split(separator: "=", maxSplits: 1).first.map(String.init) ?? option
+            if wrapper.valued.contains(name) { return option.contains("=") ? 0 : 1 }
+            return known.contains(name) ? 0 : nil
+        }
+        if wrapper.valued.contains(option) { return 1 }
+        if known.contains(option) { return 0 }
+        if wrapper.numericFlags, option.dropFirst().allSatisfy(\.isNumber) { return 0 }
+        // A cluster of one-letter flags, whose last valued letter takes the next word or carries its value attached.
+        for (offset, letter) in option.dropFirst().enumerated() {
+            let single = "-\(letter)"
+            if wrapper.valued.contains(single) { return offset == option.count - 2 ? 1 : 0 }
+            guard known.contains(single) else { return nil }
+        }
+        return 0
     }
 
     /// Whether the line begins with a carrier whose trigger appears anywhere in its body, and the carried command destroys.
@@ -231,7 +478,7 @@ public enum DestructiveCommand {
             }
             if carryFlags.contains(candidate.text) {
                 let carried = Array(tokens.dropFirst(index + 1))
-                let text = carried.map(\.text).joined(separator: " ")
+                let text = shellQuoted(carried.map(\.text))
                 guard let clauses = ShellWords.commands(in: text, home: "") else { return false }
                 return clauses.contains { destroys($0.words, failClosedOnUnresolved: false) }
             }
@@ -245,6 +492,28 @@ public enum DestructiveCommand {
         /// Whether the tool's positional words, then all its arguments, both lowercased, name an irreversible deletion.
         let destroys: @Sendable (_ positionals: [String], _ arguments: [String]) -> Bool
     }
+
+    /// The Redis command line and its forks: a flush is the command after the options, or any word after a Lua script.
+    private static let redisCLI = VerbTool(
+        valued: [
+            "-h", "--host", "-p", "--port", "-s", "--socket", "-a", "--pass", "--password", "--user", "-u",
+            "--uri", "-r", "-i", "-n", "--dbnum", "-t", "--name", "-d", "--sni", "--cacert", "--cacertdir",
+            "--cert", "--key", "--tls-ciphers", "--tls-ciphersuites", "--show-pushes",
+            "--latency-percentiles",
+            "--lru-test", "--rdb", "--functions-rdb", "--pipe-timeout", "--memkeys-samples",
+            "--keystats-samples",
+            "--cursor", "--top", "--pattern", "--count", "--quoted-pattern", "--intrinsic-latency", "--eval",
+        ],
+        destroys: { positionals, arguments in
+            let flushes: Set<String> = ["flushall", "flushdb"]
+            if arguments.contains("--eval") { return positionals.contains(where: flushes.contains) }
+            // `--cluster call <host> <command>` runs the command on every node.
+            let calls = arguments.contains("--cluster") && positionals.first == "call"
+            return (calls ? positionals.dropFirst(2).first : positionals.first).map(flushes.contains) ?? false
+        })
+
+    /// The programs judged by their verbs, so a test can hold a sample line for each.
+    static var verbToolNames: Set<String> { Set(verbTools.keys) }
 
     /// Cluster, cloud, hosting, container and system tools, each judged by the verbs its option flags leave.
     private static let verbTools: [String: VerbTool] = [
@@ -281,22 +550,27 @@ public enum DestructiveCommand {
                         || (operation == "sync" && arguments.contains("--delete"))
                 }
                 return awsDestructiveOperations.contains(operation)
-                    || operation.hasPrefix("delete-") || operation.hasPrefix("terminate-")
-                    || operation.hasPrefix("deregister-") || operation.hasPrefix("purge-")
-                    || operation.hasPrefix("remove-")
+                    || operation.hasPrefix("delete-") || operation.hasPrefix("batch-delete-")
+                    || operation.hasPrefix("terminate-") || operation.hasPrefix("deregister-")
+                    || operation.hasPrefix("purge-") || operation.hasPrefix("remove-")
             }),
         "gcloud": VerbTool(
             valued: [
                 "--project", "--account", "--configuration", "--format", "--verbosity", "--zone", "--region",
                 "--impersonate-service-account", "--billing-project", "--filter", "--flatten",
             ],
-            destroys: { positionals, _ in positionals.contains("delete") }),
+            destroys: { positionals, _ in
+                positionals.contains("delete") || positionals.contains("rm") || positionals.contains("purge")
+            }),
         "az": VerbTool(
             valued: [
                 "--subscription", "-g", "--resource-group", "-n", "--name", "-o", "--output", "--query", "-l",
                 "--location",
             ],
-            destroys: { positionals, _ in positionals.contains("delete") }),
+            destroys: { positionals, _ in
+                positionals.contains("delete") || positionals.contains("rm") || positionals.contains("purge")
+                    || positionals.contains("delete-batch")
+            }),
         "gsutil": VerbTool(
             valued: ["-o", "-h", "-u"],
             destroys: { positionals, arguments in
@@ -346,6 +620,43 @@ public enum DestructiveCommand {
             destroys: { positionals, _ in positionals.first == "yank" }),
         "pip": pipTool,
         "pip3": pipTool,
+        "oc": VerbTool(
+            valued: [
+                "-n", "--namespace", "--context", "--kubeconfig", "--cluster", "--user", "-s", "--server",
+                "--token", "--as", "--request-timeout", "--loglevel",
+            ],
+            destroys: { positionals, _ in positionals.first == "delete" }),
+        "defaults": VerbTool(
+            valued: ["-host"],
+            destroys: { positionals, _ in positionals.first == "delete" }),
+        "redis-cli": redisCLI, "valkey-cli": redisCLI, "keydb-cli": redisCLI,
+        "mysqladmin": VerbTool(
+            valued: ["-u", "--user", "-h", "--host", "--port", "-s", "--socket"],
+            destroys: { positionals, _ in positionals.first == "drop" }),
+        "pulumi": VerbTool(
+            valued: ["-s", "--stack", "-c", "--cwd"],
+            destroys: { positionals, _ in
+                let verb = positionals.dropFirst().first
+                return positionals.first == "destroy"
+                    || (positionals.first == "stack" && (verb == "rm" || verb == "remove"))
+            }),
+        "heroku": VerbTool(
+            valued: ["-a", "--app", "-c", "--confirm", "-r", "--remote"],
+            destroys: { positionals, _ in
+                ["apps:destroy", "destroy", "addons:destroy", "pg:reset"].contains(positionals.first)
+            }),
+        "vercel": VerbTool(
+            valued: ["--scope", "-s", "--token", "-t", "--cwd"],
+            destroys: { positionals, _ in ["rm", "remove"].contains(positionals.first) }),
+        "firebase": VerbTool(
+            valued: ["--project", "-p", "--token"],
+            destroys: { positionals, _ in
+                guard let verb = positionals.first else { return false }
+                return verb.hasSuffix(":delete") || verb.hasSuffix(":remove") || verb == "hosting:disable"
+            }),
+        "sysadminctl": VerbTool(
+            valued: [],
+            destroys: { _, arguments in arguments.contains("-deleteuser") }),
         "brew": VerbTool(
             valued: brewValued,
             destroys: { positionals, arguments in
@@ -457,14 +768,16 @@ public enum DestructiveCommand {
         } || arguments.contains { $0 == "-xdelete" || $0 == "--method=delete" }
     }
 
-    /// A parsed command word as the program it names, lowercased.
+    /// A parsed command word as the program it names, lowercased; zsh expands a leading `=` to the command's path.
     private static func programName(_ word: String) -> String {
-        (word.split(separator: "/").last.map(String.init) ?? word).lowercased()
+        let path = word.count > 1 && word.hasPrefix("=") ? String(word.dropFirst()) : word
+        return (path.split(separator: "/").last.map(String.init) ?? path).lowercased()
     }
 
-    /// The flags a `docker exec` / `docker run` line takes within its subcommand, whose values the parser must skip.
+    /// The flags a `docker exec` / `docker run` line takes, matched case-sensitively since `-p` takes a port and `-P` nothing.
     private static let containerSubcommandValued: Set<String> = [
         "-u", "--user", "-w", "--workdir", "-e", "--env", "--env-file",
+        "-v", "-m", "-l", "-h", "-a", "-p", "-c", "--attach", "--cpu-shares", "--index",
         "--cap-add", "--cap-drop", "--cgroup-parent", "--device", "--device-cgroup-rule",
         "--dns", "--dns-opt", "--dns-search", "--domainname", "--entrypoint",
         "--expose", "--group-add", "--health-cmd", "--health-interval", "--health-retries",
@@ -482,52 +795,67 @@ public enum DestructiveCommand {
         "-c", "--container", "-p", "--pod", "--filename",
     ]
 
-    /// The text of the command `docker exec [opts] container [cmd]`, `docker run [opts] image [cmd]` or `kubectl exec [opts] pod -- cmd` runs, or nil.
+    /// Whether a flag as written is in a valued set: a single-letter flag by its exact case, a long one by its lowercase.
+    private static func takesValue(_ flag: String, in valued: Set<String>) -> Bool {
+        flag.hasPrefix("--") ? valued.contains(flag.lowercased()) : valued.contains(flag)
+    }
+
+    /// The command a `docker`/`container`/`compose` exec or run, or a `kubectl exec ... --`, runs; nil otherwise.
     private static func verbToolSubcommandCarrier(command: String, arguments: [String]) -> String? {
-        let subcommands: Set<String>
         let valued: Set<String>
         let globalValued: Set<String>
-        let operands: Int
         let terminator: String?
+        var isCompose = command == "docker-compose" || command == "podman-compose"
         switch command {
-        case "docker", "podman":
-            subcommands = ["exec", "run"]
+        case "docker", "podman", "docker-compose", "podman-compose":
             valued = containerSubcommandValued
-            globalValued = containerGlobalFlags
-            operands = 1
+            globalValued = isCompose ? composeValued : containerGlobalFlags
             terminator = nil
         case "kubectl":
-            subcommands = ["exec"]
             valued = kubectlExecValued
             globalValued = kubectlGlobalFlags
-            operands = 1
             terminator = "--"
         default:
             return nil
         }
-        var rest = arguments
+        var rest = arguments[...]
         // Skip the tool's global flags that can appear in front of the subcommand.
-        while let head = rest.first, head.hasPrefix("-"), head.count > 1, head != "--" {
-            rest.removeFirst()
-            if globalValued.contains(head), !rest.isEmpty { rest.removeFirst() }
+        func skipFlags(_ flags: Set<String>, caseExact: Bool) {
+            while let head = rest.first, head.hasPrefix("-"), head.count > 1, head != "--" {
+                rest.removeFirst()
+                let takes = caseExact ? takesValue(head, in: flags) : flags.contains(head.lowercased())
+                if takes, !rest.isEmpty { rest.removeFirst() }
+            }
         }
-        guard rest.count >= operands + 1, subcommands.contains(rest[0]) else { return nil }
+        skipFlags(globalValued, caseExact: false)
+        if terminator == nil, !isCompose, let group = rest.first?.lowercased(),
+            group == "container" || group == "compose"
+        {
+            rest.removeFirst()
+            isCompose = group == "compose"
+            if isCompose { skipFlags(composeValued, caseExact: false) }
+        }
+        let subcommands: Set<String> = terminator == nil ? ["exec", "run"] : ["exec"]
+        guard rest.count >= 2, let verb = rest.first?.lowercased(), subcommands.contains(verb) else {
+            return nil
+        }
         rest.removeFirst()
         // Skip the subcommand's valued flags and their values.
-        while let head = rest.first, head.hasPrefix("-"), head.count > 1, head != "--" {
-            rest.removeFirst()
-            if valued.contains(head), !rest.isEmpty { rest.removeFirst() }
-        }
-        // Skip the required operand (container, image, or pod).
-        guard rest.count >= operands else { return nil }
-        rest.removeFirst(operands)
+        skipFlags(valued, caseExact: true)
+        // Skip the required operand (container, service, image, or pod).
+        guard !rest.isEmpty else { return nil }
+        rest.removeFirst()
         if let term = terminator {
             // The carried command begins after the `--` terminator.
             guard let termIndex = rest.firstIndex(of: term) else { return nil }
-            rest = Array(rest.dropFirst(termIndex + 1))
-            return rest.isEmpty ? nil : rest.joined(separator: " ")
+            rest = rest[(termIndex + 1)...]
         }
-        return rest.isEmpty ? nil : rest.joined(separator: " ")
+        return rest.isEmpty ? nil : shellQuoted(rest.map { $0.lowercased() })
+    }
+
+    /// Parsed words joined back into a line the parser reads as the same words, so a quoted script stays one argument.
+    private static func shellQuoted(_ words: [String]) -> String {
+        words.map { "'" + $0.replacingOccurrences(of: "'", with: "'\\''") + "'" }.joined(separator: " ")
     }
 
     /// The global flags docker and podman take before any subcommand, with their values, lowercased.
@@ -554,6 +882,9 @@ public enum DestructiveCommand {
         if let carrier = carriesDestructive(tokens) { return carrier }
         let parsed = command(in: tokens)
         if case .unresolved = parsed { return failClosedOnUnresolved }
+        if case .line(let line) = parsed {
+            return matches(line, failClosedOnUnresolved: failClosedOnUnresolved, files: files)
+        }
         guard case .named(let command, let arguments) = parsed else { return false }
         let lowered = arguments.map { $0.lowercased() }
         if destroyers.contains(command) || command.hasPrefix("mkfs.") { return true }
@@ -564,7 +895,7 @@ public enum DestructiveCommand {
             let pipArguments = Array(lowered.dropFirst(module + 2))
             if pipUninstall(positionals(pipArguments, valued: pipValued), pipArguments) { return true }
         }
-        if let carrier = verbToolSubcommandCarrier(command: command, arguments: lowered) {
+        if let carrier = verbToolSubcommandCarrier(command: command, arguments: arguments) {
             if matches(carrier, failClosedOnUnresolved: failClosedOnUnresolved) { return true }
         }
         if let tool = verbTools[command], tool.destroys(positionals(lowered, valued: tool.valued), lowered) {
@@ -605,14 +936,12 @@ public enum DestructiveCommand {
             }
         case "diskutil":
             let verbs = [
-                "erase", "zerodisk", "randomdisk", "securerase", "partitiondisk", "reformat", "deletevolume",
+                "erase", "zerodisk", "randomdisk", "secureerase", "partitiondisk", "reformat", "deletevolume",
                 "deletecontainer",
             ]
             if lowered.contains(where: { word in verbs.contains(where: word.hasPrefix) }) { return true }
         case "terraform", "tofu":
             if lowered.contains("destroy") || lowered.contains("-destroy") { return true }
-        case "redis-cli", "valkey-cli", "keydb-cli":
-            if lowered.contains(where: { $0 == "flushall" || $0 == "flushdb" }) { return true }
         case "mongo", "mongosh":
             let script = lowered.joined(separator: " ")
             if mongoDeletions.contains(where: script.contains) { return true }
@@ -676,7 +1005,7 @@ public enum DestructiveCommand {
             }
             return false
         }
-        return SQLDestructiveCommand.matches(command: command, arguments: lowered)
+        return SQLDestructiveCommand.matches(command: command, arguments: arguments)
     }
 
     /// Calls in a MongoDB shell script that drop a database or a collection, or delete its documents.
@@ -693,7 +1022,7 @@ public enum DestructiveCommand {
     }
 
     /// SQL verbs that begin a statement typed straight into a database prompt.
-    private static let sqlVerbs: Set<String> = ["drop", "truncate", "alter", "delete"]
+    private static let sqlVerbs: Set<String> = ["drop", "truncate", "alter", "delete", "update"]
 
     /// Programs that run the SQL they are given.
     private static let sqlClients: Set<String> = [

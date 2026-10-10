@@ -5,6 +5,8 @@ import UttrflowDictionary
 /// Capitalises each sentence and the pronoun "I", then cases the first word the way the formatter and the caret say.
 public struct FirstWordPass: WholeTextCleaningPass {
     public static let id: PassID = .firstWord
+    public static let laws: Set<PassLaw> = [.addsNoWords, .idempotent, .keepsDigits, .latinOnly]
+    public static let orderIndependentWith: Set<PassID> = ["commentMarker"]
 
     public let policy: FirstWordPolicy
     public let state: InsertionPoint.SentenceState
@@ -16,34 +18,34 @@ public struct FirstWordPass: WholeTextCleaningPass {
     public let capitaliseCalendarWords: Bool
     /// Each word of the user's dictionary entries for this dictation, lower-cased; a capital on one of them is kept.
     public let ownWords: Set<String>
-    /// The user's own words that start with a lower-case letter, keyed in lower case; a sentence start keeps that spelling.
+    /// Known spellings that start with a lower-case letter, keyed in lower case; a sentence start keeps that spelling.
     public let pinnedSpellings: [String: String]
+    /// Whether a line opening with a program typed at a prompt keeps its heard case, as source does.
+    public let keepsCommandCase: Bool
+    /// Every term the lexicon, the screen or the user's dictionary writes its own way, keyed in lower case.
+    let namedForms: [String: String]
+    /// Contextual technical names that the casing pass identified in this draft.
+    let casing: AcronymCasingPass
 
     public init(
         policy: FirstWordPolicy = .fromInsertionPoint, state: InsertionPoint.SentenceState = .unknown,
         onScreen: [String] = [], heard: String? = nil, capitaliseCalendarWords: Bool = true,
-        vocabulary: [String] = []
+        vocabulary: [String] = [], casing: AcronymCasingPass? = nil, keepsCommandCase: Bool = false
     ) {
+        self.keepsCommandCase = keepsCommandCase
         self.policy = policy
         self.state = state
         self.onScreen = onScreen
         self.heard = heard
         self.capitaliseCalendarWords = capitaliseCalendarWords
         self.ownWords = Set(
-            vocabulary.flatMap { $0.split(whereSeparator: \.isWhitespace) }.map {
-                WordShape(String($0)).core.lowercased()
+            vocabulary.flatMap { WordTokens.words($0, .display) }.map {
+                WordShape($0).core.lowercased()
             })
-        self.pinnedSpellings = Self.pinned(in: vocabulary)
-    }
-
-    /// Entry words that start with a lower-case letter and are not ordinary English, so their case is the user's choice.
-    static func pinned(in vocabulary: [String]) -> [String: String] {
-        let cores = vocabulary.flatMap { $0.split(whereSeparator: \.isWhitespace) }
-            .map { WordShape(String($0)).core }
-        let lowered = cores.filter { core in
-            core.first(where: \.isLetter)?.isLowercase == true && !GeneralVocabulary.isOrdinary(core)
-        }
-        return Dictionary(lowered.map { ($0.lowercased(), $0) }, uniquingKeysWith: { first, _ in first })
+        let casing = casing ?? AcronymCasingPass(vocabulary: vocabulary)
+        self.pinnedSpellings = casing.lowerCaseForms
+        self.namedForms = casing.forms
+        self.casing = casing
     }
 
     /// The word in the user's own spelling when that spelling starts lower case; otherwise unchanged.
@@ -54,21 +56,31 @@ public struct FirstWordPass: WholeTextCleaningPass {
     }
 
     public func apply(_ draft: Draft) -> Draft {
-        var draft = draft
+        var draft = policy == .fromInsertionPoint ? unshouted(draft) : draft
         let text = draft.text
         let heardWords =
-            heard.map { $0.split(whereSeparator: \.isWhitespace).map(String.init) }
+            heard.map { WordTokens.words($0, .display) }
             ?? draft.words.map(\.heard).filter { !$0.isEmpty }
         var startOfSentence = true
         var isFirst = true
         var afterPause = false
         let present = draft.presentIndices
         let datedMonths = NumberFormsPass.datedMonths(in: present.map { draft.shape(at: $0) })
+        let zoneNames = TimeZones.nameWords(in: present.map { draft.shape(at: $0) })
         for (order, index) in present.enumerated() {
             let word = draft.words[index]
             guard !word.isLayoutMark else {
                 // Every layout mark starts a new sentence.
                 startOfSentence = true
+                continue
+            }
+            // A Markdown line mark that opens the text leaves the first-word slot to the word after it.
+            if isFirst, Self.lineMarks.contains(word.text) { continue }
+            if WordShape(word.text).isOption {
+                // An option's letters are what the shell reads, so no casing rule touches them.
+                startOfSentence = false
+                afterPause = false
+                isFirst = false
                 continue
             }
             let letterAdjacent = Self.hasLetterNameBesideI(at: order, in: present, of: draft)
@@ -87,9 +99,11 @@ public struct FirstWordPass: WholeTextCleaningPass {
             if isFirst {
                 // The case is read from where this word stands, so a word a pass dropped cannot decide it.
                 let spokenBefore = draft.words[..<index].filter { !$0.heard.isEmpty }.count
-                cased = firstWord(
+                let opening = withoutRecogniserCapital(
                     undoingOpeningContraction(cased, heard: word.heard),
-                    in: text, heard: Array(heardWords.dropFirst(spokenBefore)))
+                    heard: Array(heardWords.dropFirst(spokenBefore)), opensTranscript: spokenBefore == 0,
+                    in: text)
+                cased = firstWord(opening.word, in: text, heard: opening.heard)
                 cased = keepingPinnedCase(cased)
             } else if startOfSentence {
                 cased = keepingPinnedCase(WordShape.capitalised(cased))
@@ -102,10 +116,13 @@ public struct FirstWordPass: WholeTextCleaningPass {
                 !Self.looksLikeName(cased, in: [Self.otherText(excluding: index, in: draft)] + onScreen)
             {
                 cased = WordShape.lowercased(cased)
+            } else if capitaliseCalendarWords, let written = zoneNames[order] {
+                cased = WordShape(cased).replacingCore(with: written)
             } else if capitaliseCalendarWords, datedMonths.contains(order) {
                 cased = WordShape(cased).replacingCore(with: WordShape.capitalised(WordShape(cased).core))
             } else if capitaliseCalendarWords {
-                let unstrayed = afterPause ? cased : strayCapitalLowered(cased, in: text)
+                let versionedLanguage = casing.versionedLanguageForm(cased, at: index, in: draft) != nil
+                let unstrayed = afterPause || versionedLanguage ? cased : strayCapitalLowered(cased, in: text)
                 cased = Self.properNameCapitalised(
                     Self.titleCapitalised(Self.calendarWordCapitalised(unstrayed)), in: text)
                 cased = Self.kinshipCased(cased, at: order, in: present, of: draft)
@@ -121,6 +138,28 @@ public struct FirstWordPass: WholeTextCleaningPass {
         }
         return draft
     }
+
+    /// Lowers every unedited word of a transcript the decoder returns all in capitals; a known term keeps its form.
+    func unshouted(_ draft: Draft) -> Draft {
+        let spoken = draft.presentIndices.filter { !draft.words[$0].heard.isEmpty }
+        let lettered = spoken.map { WordShape(draft.words[$0].heard).core.filter(\.isLetter) }.filter {
+            $0.count >= 2
+        }
+        guard lettered.count >= Self.minimumShoutedWords,
+            lettered.allSatisfy({ $0.allSatisfy(\.isUppercase) })
+        else { return draft }
+        var draft = draft
+        for index in spoken where draft.words[index].text == draft.words[index].heard {
+            let shape = WordShape(draft.words[index].text)
+            let key = shape.core.lowercased()
+            let lowered = shape.replacingCore(with: namedForms[key] ?? key)
+            if lowered != draft.words[index].text { draft.replace(at: index, with: lowered, by: Self.id) }
+        }
+        return draft
+    }
+
+    /// Words of two letters or more a transcript needs, all in capitals, before its capitals are read as the decoder's.
+    static let minimumShoutedWords = 3
 
     private static func followsDemotedSentenceEnd(at position: Int, in live: [Int], of draft: Draft) -> Bool {
         guard position > 0 else { return false }
@@ -145,19 +184,52 @@ public struct FirstWordPass: WholeTextCleaningPass {
 
     /// The first word under the policy: a capital, the case it was heard in, or lower-case after a mid-sentence caret.
     private func firstWord(_ word: String, in text: String, heard: [String]) -> String {
+        if keepsCommandCase, TechnicalLexicon.opensCommandLine(heard) {
+            return Self.matchingHeardCase(word, heard: heard)
+        }
         switch policy {
         case .alwaysCapital:
             return WordShape.capitalised(word)
         case .asSpoken:
             return Self.matchingHeardCase(word, heard: heard)
         case .fromInsertionPoint:
-            guard state == .midSentence, !Self.keepsCapital(word),
-                !(capitaliseCalendarWords && Self.isCalendarWord(word)),
-                !Self.isProperName(word, in: text),
-                !Self.looksLikeName(word, in: [text] + onScreen)
-            else { return WordShape.capitalised(word) }
+            guard state == .midSentence, !holdsCapital(word, in: text) else {
+                return WordShape.capitalised(word)
+            }
             return WordShape.lowercased(word)
         }
+    }
+
+    /// Whether a first word keeps a capital its place does not give it: "I", an acronym, a name or a calendar word.
+    private func holdsCapital(_ word: String, in text: String) -> Bool {
+        Self.keepsCapital(word)
+            || (capitaliseCalendarWords && (Self.isCalendarWord(word) || Self.isMonthOpeningAPiece(word)))
+            || Self.isProperName(word, in: text) || Self.looksLikeName(word, in: [text] + onScreen)
+    }
+
+    /// The opening word and the transcript as if heard in lower case, when the capital is the one the recogniser cases a sentence with.
+    private func withoutRecogniserCapital(
+        _ word: String, heard: [String], opensTranscript: Bool, in text: String
+    ) -> (word: String, heard: [String]) {
+        // A transcript the recogniser closed as a sentence was cased as one, so its opening capital says nothing.
+        guard opensTranscript, heard.last.map({ WordShape($0).endsSentence }) == true,
+            let spoken = heard.first, Self.opensOnOnlyCapital(spoken), !holdsCapital(spoken, in: text)
+        else { return (word, heard) }
+        // A word a pass recased, as "CD" for "cd", owes its capitals to that pass.
+        let written = Self.opensOnOnlyCapital(word) ? Self.openingLowered(word) : word
+        return (written, [Self.openingLowered(spoken)] + heard.dropFirst())
+    }
+
+    /// Whether a word's first letter is a capital and none of its other letters is.
+    private static func opensOnOnlyCapital(_ word: String) -> Bool {
+        let core = WordShape(word).core
+        return core.first?.isUppercase == true && !WordShape.hasInternalCapital(core)
+    }
+
+    /// The word with its first letter lowered, a technical token's included.
+    private static func openingLowered(_ word: String) -> String {
+        let shape = WordShape(word)
+        return shape.replacingCore(with: shape.core.prefix(1).lowercased() + shape.core.dropFirst())
     }
 
     /// The heard "id" or "ill" back in place of "I'd" or "I'll" mid-sentence, where its capital only opened the piece.
@@ -184,17 +256,16 @@ public struct FirstWordPass: WholeTextCleaningPass {
         guard WordShape(draft.words[index].text).key == "i" else {
             return false
         }
-        let names = SpelledInitialismPass.letterNamesForCasing
         let previousIsLetter =
             position > 0
             && live[position - 1] + 1 == index
             && !draft.shape(at: live[position - 1]).endsClause
-            && names.contains(draft.shape(at: live[position - 1]).key)
+            && LetterRun.isLetterName(draft.shape(at: live[position - 1]).key)
         let nextIsLetter =
             position + 1 < live.count
             && live[position + 1] == index + 1
             && !draft.shape(at: index).endsClause
-            && names.contains(draft.shape(at: live[position + 1]).key)
+            && LetterRun.isLetterName(draft.shape(at: live[position + 1]).key)
         return previousIsLetter || nextIsLetter
     }
 
@@ -221,15 +292,15 @@ public struct FirstWordPass: WholeTextCleaningPass {
         return shape.replacingCore(with: WordShape.capitalised(shape.core))
     }
 
-    static func isProperName(_ text: String, in context: String) -> Bool {
+    static func isProperName(_ text: String, in context: @autoclosure () -> String) -> Bool {
         let key = WordShape(text).key.lowercased()
         return properNames.contains(key) || isNewYorkWord(key, in: context)
     }
 
     /// Recognises each half of the fixed city name without capitalising ordinary uses of "new" or "york".
-    private static func isNewYorkWord(_ key: String, in context: String) -> Bool {
+    private static func isNewYorkWord(_ key: String, in context: () -> String) -> Bool {
         guard key == "new" || key == "york" else { return false }
-        let words = context.lowercased().split(whereSeparator: { !$0.isLetter }).map(String.init)
+        let words = WordTokens.words(context().lowercased(), .letters)
         return zip(words, words.dropFirst()).contains { $0 == "new" && $1 == "york" }
     }
 
@@ -242,8 +313,8 @@ public struct FirstWordPass: WholeTextCleaningPass {
             english.localizedString(forRegionCode: $0.identifier)
         }
         let systemNames = (languages + regions).flatMap { name in
-            let words = name.split(whereSeparator: { !$0.isLetter })
-            return words.count == 1 ? [String(words[0]).lowercased()] : []
+            let words = WordTokens.words(name, .letters)
+            return words.count == 1 ? [words[0].lowercased()] : []
         }
         return Set(
             systemNames + [
@@ -274,6 +345,18 @@ public struct FirstWordPass: WholeTextCleaningPass {
         calendarWords.contains(WordShape(text).key.lowercased())
     }
 
+    /// Whether a piece opens on "March" the recogniser capitalised: the month, since the verb rarely opens one, while "May" stays a modal.
+    static func isMonthOpeningAPiece(_ word: String) -> Bool {
+        let core = WordShape(word).core
+        return core.first?.isUppercase == true && core.lowercased() == "march"
+    }
+
+    /// The marks a Markdown line command writes at a line's start, such as a heading's `#`.
+    static let lineMarks = Set(
+        SpokenCommands.markdown.filter { $0.action == .lineMark }.map {
+            $0.text.trimmingCharacters(in: .whitespaces)
+        })
+
     private static let calendarWords: Set<String> = [
         "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
         "january", "february", "april", "june", "july", "august", "september", "october", "november",
@@ -284,16 +367,58 @@ public struct FirstWordPass: WholeTextCleaningPass {
     func strayCapitalLowered(_ word: String, in text: String) -> String {
         let core = WordShape(word).core
         guard policy == .fromInsertionPoint, core.first?.isUppercase == true, !Self.keepsCapital(word),
-            GeneralVocabulary.isOrdinary(core), !ownWords.contains(core.lowercased()),
+            LexicalClass.isKnownEnglishWord(core.lowercased()) || Self.isHinglishWord(core, in: text),
+            !LexicalClass.isNameInDictionary(core.lowercased()),
+            !ownWords.contains(core.lowercased()),
+            namedForms[core.lowercased()] == nil, !LexicalClass.isNamed(core, in: text),
             !Self.isCalendarWord(word), !Self.isProperName(word, in: text),
-            !Self.looksLikeName(word, in: onScreen)
+            !Self.looksLikeName(word, in: onScreen), !Self.isListedBesideName(core, in: text)
         else { return word }
         return WordShape.lowercased(word)
+    }
+
+    /// Whether a capital stands in a list beside a name, "Slack and Zoom": joined by a comma or a word the tagger reads as a conjunction.
+    static func isListedBesideName(_ core: String, in text: String) -> Bool {
+        let words = WordTokens.words(text, .display)
+        let tags = LexicalClass.tags(ofWords: words)
+        let joins = { (index: Int) in tags.indices.contains(index) && tags[index] == .conjunction }
+        let listedAfterComma = { (index: Int) in
+            words.indices.contains(index) && WordShape(words[index]).suffix.hasSuffix(",")
+        }
+        return words.indices.filter { WordShape(words[$0]).core == core }.contains { index in
+            let members = [
+                joins(index - 1) ? index - 2 : nil, joins(index + 1) ? index + 2 : nil,
+                listedAfterComma(index - 1) ? index - 1 : nil, listedAfterComma(index) ? index + 1 : nil,
+            ]
+            return members.compactMap { $0 }.filter(words.indices.contains).contains { member in
+                isName(WordShape(words[member]).core, in: text)
+            }
+        }
+    }
+
+    /// A capitalised word no English dictionary form explains, or one the tagger reads as a name: "Figma", "Slack".
+    private static func isName(_ core: String, in text: String) -> Bool {
+        guard core.first?.isUppercase == true else { return false }
+        return !LexicalClass.isKnownEnglishWord(core.lowercased()) || LexicalClass.isNamed(core, in: text)
+    }
+
+    /// A romanised Hindi word in a Hinglish text: two Hindi words besides English small words, one of them not English; a kinship word keeps its own casing.
+    static func isHinglishWord(_ core: String, in text: String) -> Bool {
+        let key = core.lowercased()
+        guard LoanwordRestoration.isRomanisedHindi(key), !KinshipWords.holds(key) else { return false }
+        let hindi = Set(
+            WordTokens.words(text, .display).map { WordShape($0).core.lowercased() }.filter {
+                LoanwordRestoration.isRomanisedHindi($0)
+                    && (HindiWords.functionWords.contains($0) || !FunctionWords.holds($0))
+            })
+        return hindi.count >= 2 && hindi.contains { !LexicalClass.isKnownEnglishWord($0) }
     }
 
     /// Whether a word keeps its case mid-sentence: "I" and its contractions, an acronym, or a technical token.
     static func keepsCapital(_ word: String) -> Bool {
         let core = WordShape(word).core
+        // A mention or an address is written as its owner spells it.
+        if word.contains("@") { return true }
         if core == "I" || core.hasPrefix("I'") || core.hasPrefix("I\u{2019}") { return true }
         let letters = core.filter(\.isLetter)
         if core.contains(where: \.isNumber) && letters.contains(where: \.isUppercase) { return true }
@@ -314,14 +439,13 @@ public struct FirstWordPass: WholeTextCleaningPass {
         let wanted = bareWord(word[...]).lowercased()
         guard !wanted.isEmpty else { return false }
         return texts.contains { text in
-            let lines = text.split(whereSeparator: \.isNewline)
-                .map { $0.split(whereSeparator: \.isWhitespace) }
-            guard lines.joined().contains(where: { bareWord($0).first?.isLowercase ?? false }) else {
+            let lines = WordTokens.words(text, .line).map { WordTokens.words($0, .display) }
+            guard lines.joined().contains(where: { bareWord($0[...]).first?.isLowercase ?? false }) else {
                 return false
             }
             return lines.contains { line in
                 zip(line, line.dropFirst()).contains { previous, token in
-                    let candidate = bareWord(token)
+                    let candidate = bareWord(token[...])
                     let startsSentence = previous.last.map(SentenceMarks.ends.contains) ?? false
                     return (candidate.first?.isUppercase ?? false) && candidate.lowercased() == wanted
                         && !startsSentence

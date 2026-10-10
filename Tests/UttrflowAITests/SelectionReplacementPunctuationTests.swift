@@ -10,7 +10,7 @@ struct SelectionReplacementPunctuationTests {
 
     @Test(
         "replacing Monday keeps the existing following text",
-        arguments: [(".", "friday"), (" and then…", "friday")]
+        arguments: [(".", "Friday"), (" and then…", "Friday")]
     )
     func replacementKeepsFollowingText(_ followingText: String, expected: String) {
         let app = AppContext(

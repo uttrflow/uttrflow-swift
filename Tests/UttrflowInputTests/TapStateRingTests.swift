@@ -3,6 +3,7 @@ import Dispatch
 import Foundation
 import Synchronization
 import Testing
+import UttrflowCore
 import UttrflowPredict
 
 @testable import UttrflowInput

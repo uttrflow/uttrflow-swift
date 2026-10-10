@@ -12,7 +12,8 @@ extension EvaluationCorpus {
             expected:
                 "Yesterday I finished PROJ-1423 and opened a PR. The p95 latency dropped to 200 ms, which is about 3x better, and I am blocked on review from Priya.",
             context: AppContext(applicationName: "Messages", bundleIdentifier: "com.apple.MobileSMS"),
-            destination: .messaging, classes: [.capitalisationAndTokens, .numbers, .perDestination],
+            destination: .messaging, mustBeginWith: "Yesterday", mustEndWith: "Priya.",
+            classes: [.capitalisationAndTokens, .numbers, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -22,7 +23,7 @@ extension EvaluationCorpus {
             expected:
                 "This change moves retry handling into the HTTP client:\n- Adds a max retries option\n- Respects the Retry-After header\n- Removes the old backoff helper\n\nTested locally with the unit suite.",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
-            destination: .document,
+            destination: .document, mustBeginWith: "This", mustEndWith: "suite.",
             classes: [.capitalisationAndTokens, .lists, .paragraphs, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
@@ -33,7 +34,7 @@ extension EvaluationCorpus {
             expected:
                 "Can we rename `user_id` to `account_id` in the billing module? `user_id` shows up in three places.",
             context: AppContext(applicationName: "Messages", bundleIdentifier: "com.apple.MobileSMS"),
-            destination: .messaging,
+            destination: .messaging, mustBeginWith: "Can", mustEndWith: "places.",
             classes: [.questions, .quotesAndBrackets, .numbers, .perDestination, .codeAndMarkdown],
             origin: .reportRewrite, addedFor: 4447
         ),
@@ -42,7 +43,8 @@ extension EvaluationCorpus {
             spoken: "revert a three f nine c two because it broke the nightly build",
             expected: "revert a3f9c2 because it broke the nightly build",
             context: AppContext(applicationName: "Terminal", bundleIdentifier: "com.apple.Terminal"),
-            destination: .terminal, classes: [.numbers, .perDestination, .codeAndMarkdown],
+            destination: .terminal, mustBeginWith: "revert", mustEndWith: "build",
+            classes: [.numbers, .perDestination, .codeAndMarkdown],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -52,7 +54,7 @@ extension EvaluationCorpus {
             expected:
                 "Steps to reproduce:\n1. Open the app\n2. Press Command-comma\n3. Switch to the Privacy tab\nExpected: the tab opens\nActual: the app quits on macOS 14",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
-            destination: .document,
+            destination: .document, mustBeginWith: "Steps", mustEndWith: "14",
             classes: [.capitalisationAndTokens, .numbers, .lists, .paragraphs, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
@@ -62,7 +64,7 @@ extension EvaluationCorpus {
                 "docker run dash dash rm dash p eight thousand colon eight thousand dash v tilde slash projects slash app colon slash app node colon twenty alpine",
             expected: "docker run --rm -p 8000:8000 -v ~/projects/app:/app node:20-alpine",
             context: AppContext(applicationName: "Terminal", bundleIdentifier: "com.apple.Terminal"),
-            destination: .terminal,
+            destination: .terminal, mustBeginWith: "docker", mustEndWith: "node:20-alpine",
             classes: [.capitalisationAndTokens, .numbers, .perDestination, .codeAndMarkdown],
             origin: .reportRewrite, addedFor: 4447
         ),
@@ -73,7 +75,7 @@ extension EvaluationCorpus {
             expected:
                 "SELECT o.id, c.name, p.title\nFROM orders o\nJOIN customers c ON c.id = o.customer_id\nJOIN products p ON p.id = o.product_id\nWHERE o.created_at > '2026-10-01'",
             context: AppContext(applicationName: "Postico", bundleIdentifier: "at.eggerapps.Postico"),
-            destination: .sqlEditor,
+            destination: .sqlEditor, mustBeginWith: "SELECT", mustEndWith: "'2026-10-01'",
             classes: [.capitalisationAndTokens, .numbers, .perDestination, .codeAndMarkdown],
             origin: .reportRewrite, addedFor: 4447
         ),
@@ -83,7 +85,7 @@ extension EvaluationCorpus {
                 "the pattern is caret open bracket a dash z close bracket plus at open bracket a dash z close bracket plus dollar",
             expected: "^[a-z]+@[a-z]+$",
             context: AppContext(applicationName: "Xcode", bundleIdentifier: "com.apple.dt.Xcode"),
-            destination: .codeEditor,
+            destination: .codeEditor, mustBeginWith: "^[a-z]+@[a-z]+$", mustEndWith: "^[a-z]+@[a-z]+$",
             classes: [.quotesAndBrackets, .capitalisationAndTokens, .perDestination, .codeAndMarkdown],
             origin: .reportRewrite, addedFor: 4447
         ),
@@ -93,7 +95,8 @@ extension EvaluationCorpus {
                 "set replicas colon three and image colon registry dot example dot com slash api colon one point four point two",
             expected: "replicas: 3\nimage: registry.example.com/api:1.4.2",
             context: AppContext(applicationName: "Xcode", bundleIdentifier: "com.apple.dt.Xcode"),
-            destination: .codeEditor,
+            destination: .codeEditor, mustBeginWith: "replicas:",
+            mustEndWith: "registry.example.com/api:1.4.2",
             classes: [.capitalisationAndTokens, .numbers, .lists, .perDestination, .codeAndMarkdown],
             origin: .reportRewrite, addedFor: 4447
         ),
@@ -102,7 +105,8 @@ extension EvaluationCorpus {
             spoken: "todo colon at sam replace this polling loop with a webhook once the vendor ships it",
             expected: "// TODO: @sam replace this polling loop with a webhook once the vendor ships it",
             context: AppContext(applicationName: "Xcode", bundleIdentifier: "com.apple.dt.Xcode"),
-            destination: .codeEditor, classes: [.capitalisationAndTokens, .perDestination, .codeAndMarkdown],
+            destination: .codeEditor, mustBeginWith: "//", mustEndWith: "it",
+            classes: [.capitalisationAndTokens, .perDestination, .codeAndMarkdown],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -111,7 +115,7 @@ extension EvaluationCorpus {
                 "log dot info open paren quote user percent s logged in from percent s close quote comma user id comma ip close paren",
             expected: "log.info(\"user %s logged in from %s\", userId, ip)",
             context: AppContext(applicationName: "Xcode", bundleIdentifier: "com.apple.dt.Xcode"),
-            destination: .codeEditor,
+            destination: .codeEditor, mustBeginWith: "log.info(\"user", mustEndWith: "ip)",
             classes: [.quotesAndBrackets, .capitalisationAndTokens, .perDestination, .codeAndMarkdown],
             origin: .reportRewrite, addedFor: 4447
         ),
@@ -122,7 +126,8 @@ extension EvaluationCorpus {
             expected:
                 "A POST to /api/v2/orders returns 201 Created, and a GET to the same path returns 200 OK or 404.",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
-            destination: .document, classes: [.capitalisationAndTokens, .numbers, .perDestination],
+            destination: .document, mustBeginWith: "A", mustEndWith: "404.",
+            classes: [.capitalisationAndTokens, .numbers, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -131,7 +136,8 @@ extension EvaluationCorpus {
                 "bump the client from one point four point two to one point five point zero and pin node to twenty two",
             expected: "Bump the client from 1.4.2 to 1.5.0 and pin Node to 22.",
             context: AppContext(applicationName: "Messages", bundleIdentifier: "com.apple.MobileSMS"),
-            destination: .messaging, classes: [.numbers, .perDestination],
+            destination: .messaging, mustBeginWith: "Bump", mustEndWith: "22.",
+            classes: [.numbers, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -140,7 +146,7 @@ extension EvaluationCorpus {
                 "cat access dot log pipe grep dash v health pipe sort pipe uniq dash c pipe sort dash r n pipe head dash twenty",
             expected: "cat access.log | grep -v health | sort | uniq -c | sort -rn | head -20",
             context: AppContext(applicationName: "Terminal", bundleIdentifier: "com.apple.Terminal"),
-            destination: .terminal,
+            destination: .terminal, mustBeginWith: "cat", mustEndWith: "-20",
             classes: [.capitalisationAndTokens, .numbers, .perDestination, .codeAndMarkdown],
             origin: .reportRewrite, addedFor: 4447
         ),
@@ -149,7 +155,7 @@ extension EvaluationCorpus {
             spoken: "from node colon twenty dash alpine as build",
             expected: "FROM node:20-alpine AS build",
             context: AppContext(applicationName: "Xcode", bundleIdentifier: "com.apple.dt.Xcode"),
-            destination: .codeEditor,
+            destination: .codeEditor, mustBeginWith: "FROM", mustEndWith: "build",
             classes: [.capitalisationAndTokens, .numbers, .perDestination, .codeAndMarkdown],
             origin: .reportRewrite, addedFor: 4447
         ),
@@ -159,7 +165,8 @@ extension EvaluationCorpus {
                 "run git fetch then git rebase origin slash main then git push dash dash force dash with dash lease",
             expected: "Run git fetch, then git rebase origin/main, then git push --force-with-lease.",
             context: AppContext(applicationName: "Messages", bundleIdentifier: "com.apple.MobileSMS"),
-            destination: .messaging, classes: [.capitalisationAndTokens, .perDestination],
+            destination: .messaging, mustBeginWith: "Run", mustEndWith: "--force-with-lease.",
+            classes: [.capitalisationAndTokens, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -167,7 +174,7 @@ extension EvaluationCorpus {
             spoken: "at main dot run open paren main dot go colon forty two close paren",
             expected: "at main.run(main.go:42)",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
-            destination: .document,
+            destination: .document, mustBeginWith: "at", mustEndWith: "main.run(main.go:42)",
             classes: [.quotesAndBrackets, .capitalisationAndTokens, .numbers, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
@@ -178,7 +185,8 @@ extension EvaluationCorpus {
             expected:
                 "We should keep the public API as REST with JSON, but use gRPC between internal services, OAuth 2 for the browser, and a service account for CI/CD jobs. The k8s cluster stays in one region.",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
-            destination: .document, classes: [.numbers, .perDestination],
+            destination: .document, mustBeginWith: "We", mustEndWith: "region.",
+            classes: [.numbers, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -186,7 +194,8 @@ extension EvaluationCorpus {
             spoken: "config dot yaml is missing the timeout key so the client falls back to thirty seconds",
             expected: "config.yaml is missing the timeout key, so the client falls back to 30 seconds.",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
-            destination: .document, classes: [.capitalisationAndTokens, .numbers, .perDestination],
+            destination: .document, mustBeginWith: "config.yaml", mustEndWith: "seconds.",
+            classes: [.capitalisationAndTokens, .numbers, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -194,7 +203,8 @@ extension EvaluationCorpus {
             spoken: "crash when opening settings on mac os fourteen",
             expected: "Crash when opening settings on macOS 14",
             context: AppContext(applicationName: "Messages", bundleIdentifier: "com.apple.MobileSMS"),
-            destination: .messaging, classes: [.sentenceBoundaries, .commas, .perDestination],
+            destination: .messaging, mustBeginWith: "Crash", mustEndWith: "14",
+            classes: [.sentenceBoundaries, .commas, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -204,7 +214,8 @@ extension EvaluationCorpus {
             expected:
                 "- Added dark mode support for the sidebar\n- Fixed a crash when the cache is empty\n- Removed the --legacy-sync flag",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
-            destination: .document, classes: [.capitalisationAndTokens, .lists, .perDestination],
+            destination: .document, mustBeginWith: "-", mustEndWith: "flag",
+            classes: [.capitalisationAndTokens, .lists, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -214,7 +225,8 @@ extension EvaluationCorpus {
             expected:
                 "We decided to store sessions in Redis rather than Postgres because the read volume is high and the data is disposable. The trade off is that a restart logs everyone out, so we will enable append only persistence.",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
-            destination: .document, classes: [.sentenceBoundaries, .commas, .perDestination],
+            destination: .document, mustBeginWith: "We", mustEndWith: "persistence.",
+            classes: [.sentenceBoundaries, .commas, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -222,7 +234,7 @@ extension EvaluationCorpus {
             spoken: "git commit dash dash no dash verify dash m quote wip quote",
             expected: "git commit --no-verify -m \"wip\"",
             context: AppContext(applicationName: "Terminal", bundleIdentifier: "com.apple.Terminal"),
-            destination: .terminal,
+            destination: .terminal, mustBeginWith: "git", mustEndWith: "\"wip\"",
             classes: [.quotesAndBrackets, .capitalisationAndTokens, .perDestination, .codeAndMarkdown],
             origin: .reportRewrite, addedFor: 4447
         ),
@@ -231,7 +243,8 @@ extension EvaluationCorpus {
             spoken: "docker build dash dash no dash cache dot",
             expected: "docker build --no-cache .",
             context: AppContext(applicationName: "Terminal", bundleIdentifier: "com.apple.Terminal"),
-            destination: .terminal, classes: [.capitalisationAndTokens, .perDestination, .codeAndMarkdown],
+            destination: .terminal, mustBeginWith: "docker", mustEndWith: ".",
+            classes: [.capitalisationAndTokens, .perDestination, .codeAndMarkdown],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -239,7 +252,8 @@ extension EvaluationCorpus {
             spoken: "no wait thursday works better for the board",
             expected: "No wait, Thursday works better for the board.",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
-            destination: .document, classes: [.corrections, .perDestination],
+            destination: .document, mustBeginWith: "No", mustEndWith: "board.",
+            classes: [.corrections, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -249,7 +263,8 @@ extension EvaluationCorpus {
             expected:
                 "Hi Priya,\n\nThanks for getting in touch about the delayed order.\n\nI have checked with our warehouse and your parcel left the depot this morning. It should reach you by Thursday the 9th of October.\n\nIf it has not arrived by Friday, please reply to this email and I will send a replacement at no cost.\n\nThanks again for your patience,\nDana",
             context: AppContext(applicationName: "Mail", bundleIdentifier: "com.apple.mail"),
-            destination: .email, classes: [.capitalisationAndTokens, .paragraphs, .perDestination],
+            destination: .email, mustBeginWith: "Hi", mustEndWith: "Dana",
+            classes: [.capitalisationAndTokens, .paragraphs, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -259,7 +274,8 @@ extension EvaluationCorpus {
             expected:
                 "Ha ha, that is the best excuse I have heard all week. I am stealing it\nCan you send me the photo of the whiteboard and put a laughing face emoji at the end",
             context: AppContext(applicationName: "Messages", bundleIdentifier: "com.apple.MobileSMS"),
-            destination: .messaging, classes: [.capitalisationAndTokens, .paragraphs, .perDestination],
+            destination: .messaging, mustBeginWith: "Ha", mustEndWith: "end",
+            classes: [.capitalisationAndTokens, .paragraphs, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -269,7 +285,8 @@ extension EvaluationCorpus {
             expected:
                 "Meeting notes: product sync\nAction item: Priya to send the revised budget by Friday the 10th of October\nAction item: Omar to book the review room for the 14th\nDecision: we ship the beta on the 20th and hold the announcement until the docs are ready",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
-            destination: .document, classes: [.capitalisationAndTokens, .paragraphs, .perDestination],
+            destination: .document, mustBeginWith: "Meeting", mustEndWith: "ready",
+            classes: [.capitalisationAndTokens, .paragraphs, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -279,7 +296,8 @@ extension EvaluationCorpus {
             expected:
                 "Q3 revenue was $1.2 million, up 8% on the previous quarter, and churn fell from 4.1% to 3.6%. We closed 42 new accounts against a target of 50, and support tickets dropped by 30%.",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
-            destination: .document, classes: [.numbers, .perDestination],
+            destination: .document, mustBeginWith: "Q3", mustEndWith: "30%.",
+            classes: [.numbers, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -289,7 +307,8 @@ extension EvaluationCorpus {
             expected:
                 "Option A is a fixed fee of $12,500 with delivery in four weeks, while Option B is $18,000 with delivery in two weeks and includes training for up to 10 staff.",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
-            destination: .document, classes: [.numbers, .perDestination],
+            destination: .document, mustBeginWith: "Option", mustEndWith: "staff.",
+            classes: [.numbers, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -299,7 +318,8 @@ extension EvaluationCorpus {
             expected:
                 "I am so sorry about missing your call yesterday. I had my phone on silent during the workshop and did not see it until late. I will call you tomorrow at 10 am if that works for you.",
             context: AppContext(applicationName: "Messages", bundleIdentifier: "com.apple.MobileSMS"),
-            destination: .messaging, classes: [.capitalisationAndTokens, .numbers, .perDestination],
+            destination: .messaging, mustBeginWith: "I", mustEndWith: "you.",
+            classes: [.capitalisationAndTokens, .numbers, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -309,7 +329,8 @@ extension EvaluationCorpus {
             expected:
                 "Dear Ms Alvarez,\n\nI am writing to apply for the senior analyst position advertised on your careers page.\n\nIn my current role I lead a team of six analysts and reduced reporting time by 30%.\n\nI would welcome the chance to discuss my application,\nYours sincerely,\nAsha Verma",
             context: AppContext(applicationName: "Mail", bundleIdentifier: "com.apple.mail"),
-            destination: .email, classes: [.numbers, .paragraphs, .perDestination],
+            destination: .email, mustBeginWith: "Dear", mustEndWith: "Verma",
+            classes: [.numbers, .paragraphs, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -319,7 +340,8 @@ extension EvaluationCorpus {
             expected:
                 "Team retro on Tuesday the 14th of October at 10:30 a.m. Pacific time, which is 1:30 p.m. Eastern. Join at meet.example.com/retro-team-123 and bring your notes.",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
-            destination: .document, classes: [.capitalisationAndTokens, .numbers, .perDestination],
+            destination: .document, mustBeginWith: "Team", mustEndWith: "notes.",
+            classes: [.capitalisationAndTokens, .numbers, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -329,7 +351,8 @@ extension EvaluationCorpus {
             expected:
                 "Preheat the oven to 375 degrees Fahrenheit. Mix one and a half cups of flour with a quarter teaspoon of salt and bake for 25 to 30 minutes.",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
-            destination: .document, classes: [.numbers, .perDestination],
+            destination: .document, mustBeginWith: "Preheat", mustEndWith: "minutes.",
+            classes: [.numbers, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -339,7 +362,8 @@ extension EvaluationCorpus {
             expected:
                 "We fly on flight UA 472 from JFK to Heathrow on Friday the 3rd of October, departing at 6:45 a.m. from Gate B12 and landing at 6:10 p.m. local time at Terminal 5.",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
-            destination: .document, classes: [.capitalisationAndTokens, .numbers, .perDestination],
+            destination: .document, mustBeginWith: "We", mustEndWith: "5.",
+            classes: [.capitalisationAndTokens, .numbers, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -349,7 +373,8 @@ extension EvaluationCorpus {
             expected:
                 "Patient is a 52 year old with chest tightness for two days. Blood pressure 140 over 90, heart rate 72 bpm, temperature 98.6, SpO2 98% on room air. Start aspirin 81 mg by mouth once daily and recheck in two weeks.",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
-            destination: .document, classes: [.numbers, .perDestination],
+            destination: .document, mustBeginWith: "Patient", mustEndWith: "weeks.",
+            classes: [.numbers, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -359,7 +384,8 @@ extension EvaluationCorpus {
             expected:
                 "Clause 9.1 The supplier shall\n(a) deliver within 30 days of the order\n(b) replace any damaged goods at its own cost and\n(c) keep records for six years.",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
-            destination: .document, classes: [.capitalisationAndTokens, .numbers, .lists, .perDestination],
+            destination: .document, mustBeginWith: "Clause", mustEndWith: "years.",
+            classes: [.capitalisationAndTokens, .numbers, .lists, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -369,7 +395,8 @@ extension EvaluationCorpus {
             expected:
                 "Harlow argues that habits shape outcomes and writes \"small steps compound quietly\" (Harlow 1998).\nThis suggests that daily practice matters more than talent.",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
-            destination: .document, classes: [.quotesAndBrackets, .numbers, .paragraphs, .perDestination],
+            destination: .document, mustBeginWith: "Harlow", mustEndWith: "talent.",
+            classes: [.quotesAndBrackets, .numbers, .paragraphs, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -379,7 +406,8 @@ extension EvaluationCorpus {
             expected:
                 "Roses are red\nViolets are blue\nSugar is sweet\nAnd so are you.\n\nThe moon is bright\nThe stars are near\nI wish that you were here.",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
-            destination: .document, classes: [.paragraphs, .perDestination],
+            destination: .document, mustBeginWith: "Roses", mustEndWith: "here.",
+            classes: [.paragraphs, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -388,7 +416,8 @@ extension EvaluationCorpus {
                 "we are live hashtag spring launch and a big thank you to at maya underscore designs for the photos",
             expected: "We are live #springlaunch and a big thank you to @maya_designs for the photos.",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
-            destination: .document, classes: [.capitalisationAndTokens, .perDestination],
+            destination: .document, mustBeginWith: "We", mustEndWith: "photos.",
+            classes: [.capitalisationAndTokens, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -398,7 +427,8 @@ extension EvaluationCorpus {
             expected:
                 "Call me on 4155550132 or come to flat 12B Maple Road, Springfield, pin code 400001 after 6 p.m.",
             context: AppContext(applicationName: "Messages", bundleIdentifier: "com.apple.MobileSMS"),
-            destination: .messaging, classes: [.numbers, .perDestination],
+            destination: .messaging, mustBeginWith: "Call", mustEndWith: "p.m.",
+            classes: [.numbers, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -407,7 +437,7 @@ extension EvaluationCorpus {
                 "can we meet at four no sorry at five actually make it half past six on wednesday no thursday if that suits you",
             expected: "Can we meet at half past six on Thursday if that suits you?",
             context: AppContext(applicationName: "Messages", bundleIdentifier: "com.apple.MobileSMS"),
-            destination: .messaging,
+            destination: .messaging, mustBeginWith: "Can", mustEndWith: "you?",
             classes: [.questions, .capitalisationAndTokens, .numbers, .corrections, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
@@ -418,7 +448,8 @@ extension EvaluationCorpus {
             expected:
                 "So about the offsite, I think we should book the venue by the end of the month. The budget is still open though, and finance needs a number by Friday.\n\nOn a different note, the onboarding doc is out of date, so I will rewrite the first three sections this week and then ask Rohit to review it.\n\nOh, and one more thing: the printer on the second floor is jammed again.",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
-            destination: .document, classes: [.numbers, .perDestination],
+            destination: .document, mustBeginWith: "So", mustEndWith: "again.",
+            classes: [.numbers, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
         .init(
@@ -428,7 +459,7 @@ extension EvaluationCorpus {
             expected:
                 "Kal ka deployment fail ho gaya tha. Pipeline mein timeout aa raha hai, toh pehle rollback karna padega, phir API ka rate limit check karenge. Kya aap review kar sakte ho?",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
-            destination: .document,
+            destination: .document, mustBeginWith: "Kal", mustEndWith: "ho?",
             classes: [.sentenceBoundaries, .commas, .questions, .perDestination, .hinglish],
             origin: .reportRewrite, addedFor: 4447
         ),
@@ -439,7 +470,8 @@ extension EvaluationCorpus {
             expected:
                 "She called it \"the final version\" but it still had three open comments and one missing chart, so we are not ready.",
             context: AppContext(applicationName: "Messages", bundleIdentifier: "com.apple.MobileSMS"),
-            destination: .messaging, classes: [.quotesAndBrackets, .numbers, .perDestination],
+            destination: .messaging, mustBeginWith: "She", mustEndWith: "ready.",
+            classes: [.quotesAndBrackets, .numbers, .perDestination],
             origin: .reportRewrite, addedFor: 4447
         ),
     ]

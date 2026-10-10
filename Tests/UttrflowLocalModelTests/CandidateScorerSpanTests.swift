@@ -17,6 +17,11 @@ struct CandidateScorerSpanTests {
         #expect(CompletionText.typedPart(of: "Git status", following: "git s") == "Git s")
     }
 
+    @Test("A typed opening folding to another length, as SS against ß, is still found.")
+    func typedPartUsesTheSharedFold() {
+        #expect(CompletionText.typedPart(of: "Straße is", following: "STRASSE") == "Straße")
+    }
+
     @Test("A candidate that does not carry what was typed is judged whole, with nothing taken as typed.")
     func fuzzyCandidateHasNoTypedPart() {
         #expect(CompletionText.typedPart(of: "git status", following: "gti s").isEmpty)
@@ -79,6 +84,16 @@ struct MLXCandidateScorerJudgementCacheTests {
         _ = await scorer.judgedTokens(of: "please send the memo", following: "pl")
         #expect(await scorer.judgementCacheMisses == 2)
         #expect(await scorer.judgementCacheHits == 1)
+    }
+
+    @Test("Forgetting the prefix index after a release leaves the scorer usable")
+    func forgettingThePrefixIndexKeepsTheScorerUsable() async {
+        let scorer = MLXCandidateScorer(
+            model: .gemma3, maximumTokens: 16, bufferCache: Self.noOpCache)
+        await scorer.release()
+        scorer.forgetPrefixIndex()
+        _ = await scorer.judgedTokens(of: "please send the report", following: "p")
+        #expect(await scorer.judgementCacheMisses == 1)
     }
 
     @Test("A release empties the cache, so a re-loaded scorer starts cold")

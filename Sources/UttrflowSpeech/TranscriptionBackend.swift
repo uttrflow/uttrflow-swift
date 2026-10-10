@@ -8,34 +8,20 @@ public struct RawWord: Sendable, Equatable {
     public let end: Double
     /// How sure the recogniser was, 0 to 1.
     public let probability: Double
+    /// The decoder's evidence for each of the word's tokens; empty when not reported.
+    package let tokens: [TokenEvidence]
 
     public init(text: String, start: Double, end: Double, probability: Double) {
+        self.init(text: text, start: start, end: end, probability: probability, tokens: [])
+    }
+
+    /// A word with the decoder's evidence for each of its tokens.
+    package init(text: String, start: Double, end: Double, probability: Double, tokens: [TokenEvidence]) {
         self.text = text
         self.start = start
         self.end = end
         self.probability = probability
-    }
-}
-
-/// How the recogniser's decoder judged one segment, as it computed it while decoding.
-public struct SegmentReliability: Sendable, Equatable {
-    /// The sampling temperature of the decode that was kept; above 0 means hotter retries ran.
-    public let temperature: Double
-    /// The mean log-probability of the segment's tokens.
-    public let averageLogProbability: Double
-    /// The decoder's probability that the segment holds no speech, 0 to 1.
-    public let noSpeechProbability: Double
-    /// How much the segment's text compresses; a high ratio means repetition.
-    public let compressionRatio: Double
-
-    public init(
-        temperature: Double, averageLogProbability: Double, noSpeechProbability: Double,
-        compressionRatio: Double
-    ) {
-        self.temperature = temperature
-        self.averageLogProbability = averageLogProbability
-        self.noSpeechProbability = noSpeechProbability
-        self.compressionRatio = compressionRatio
+        self.tokens = tokens
     }
 }
 
@@ -123,6 +109,12 @@ public protocol TranscriptionBackend: Sendable {
     func transcribe(
         _ samples: [Float], languageHint: LanguageCode?, biasedTowards vocabulary: [String]
     ) async throws(SpeechEngineError) -> RawTranscript
+
+    /// Recognises as if continuing `precedingText`, the text before the caret; defaulted to ignore it.
+    func transcribe(
+        _ samples: [Float], languageHint: LanguageCode?, biasedTowards vocabulary: [String],
+        after precedingText: String?
+    ) async throws(SpeechEngineError) -> RawTranscript
 }
 
 extension TranscriptionBackend {
@@ -137,5 +129,13 @@ extension TranscriptionBackend {
         _ samples: [Float], languageHint: LanguageCode?, biasedTowards vocabulary: [String]
     ) async throws(SpeechEngineError) -> RawTranscript {
         try await transcribe(samples, languageHint: languageHint)
+    }
+
+    /// Ignores the text before the caret, which only conditions a recogniser that reads a prompt.
+    public func transcribe(
+        _ samples: [Float], languageHint: LanguageCode?, biasedTowards vocabulary: [String],
+        after precedingText: String?
+    ) async throws(SpeechEngineError) -> RawTranscript {
+        try await transcribe(samples, languageHint: languageHint, biasedTowards: vocabulary)
     }
 }

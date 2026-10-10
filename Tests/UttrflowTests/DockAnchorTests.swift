@@ -141,4 +141,27 @@ struct DockAnchorTests {
         let origin = DockPlacement.origin(for: .rightEdge, panelSize: tall, in: short)
         #expect(origin.y == short.minY)
     }
+
+    // MARK: - Display
+
+    @Test("The panel stays on the display it is on while that display exists")
+    func keepsItsDisplay() {
+        let chosen = DockPlacement.screen(
+            current: leftScreen, main: mainScreen, among: [mainScreen, leftScreen])
+        #expect(chosen == leftScreen)
+    }
+
+    @Test("A panel whose display was unplugged moves to the main display")
+    func unpluggedDisplayFallsBackToMain() {
+        let chosen = DockPlacement.screen(
+            current: leftScreen, main: mainScreen, among: [mainScreen])
+        #expect(chosen == mainScreen)
+    }
+
+    @Test("With neither display attached the first remaining one is used, and none gives nil")
+    func noKnownDisplay() {
+        #expect(
+            DockPlacement.screen(current: leftScreen, main: nil, among: [mainScreen]) == mainScreen)
+        #expect(DockPlacement.screen(current: leftScreen, main: mainScreen, among: [CGRect]()) == nil)
+    }
 }

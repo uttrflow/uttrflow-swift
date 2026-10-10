@@ -202,7 +202,8 @@ struct AccessibilityTextInsertionEngineTests {
     @Test("writes into an application that has a process but no bundle identifier")
     func writesIntoUnbundledApplication() async throws {
         let field = FakeTextField()
-        let target = InsertionDestination(applicationName: "tool", bundleIdentifier: nil, processIdentifier: 4242)
+        let target = InsertionDestination(
+            applicationName: "tool", bundleIdentifier: nil, processIdentifier: 4242)
         let engine = AccessibilityTextInsertionEngine(
             focus: TargetRaceFocus(field: field, applications: [target]))
 
@@ -214,8 +215,10 @@ struct AccessibilityTextInsertionEngineTests {
     @Test("refuses when an unbundled application is replaced by another process of the same name")
     func refusesWhenUnbundledProcessChanges() async {
         let field = FakeTextField()
-        let target = InsertionDestination(applicationName: "tool", bundleIdentifier: nil, processIdentifier: 4242)
-        let other = InsertionDestination(applicationName: "tool", bundleIdentifier: nil, processIdentifier: 4343)
+        let target = InsertionDestination(
+            applicationName: "tool", bundleIdentifier: nil, processIdentifier: 4242)
+        let other = InsertionDestination(
+            applicationName: "tool", bundleIdentifier: nil, processIdentifier: 4343)
         let engine = AccessibilityTextInsertionEngine(
             focus: TargetRaceFocus(field: field, applications: [other]))
 

@@ -3,7 +3,7 @@
 Speech accuracy is measured by reading a fixed set of passages aloud once, then running every
 speech-engine change over the same recordings and comparing word error rates against a stored
 baseline. The passages are `TranscriptionCorpus` (`Sources/UttrflowEval/TranscriptionCorpus.swift`),
-the scorer is `TranscriptionScorer` and the gate is `AccuracyBaseline` and `RegressionTolerance`
+the scorer is `TranscriptionScorer` and the gate is `AccuracyBaseline` and `PairedBootstrap`
 (`Sources/UttrflowEval/`), and the command is `uttrflow-eval` (`Sources/uttrflow-eval/`). How each
 measurement decision is made is in [`eval-methodology.md`](eval-methodology.md); the edit distance
 itself is in [`core-word-error-rate.md`](core-word-error-rate.md). To pick the command a given
@@ -18,7 +18,7 @@ held to are in [accuracy-targets.md](accuracy-targets.md).
 | A scorer that enforces `mustKeep` | `TranscriptionScorer` |
 | Recording, offline | `uttrflow-eval record` |
 | Scoring, offline | `uttrflow-eval transcribe` |
-| A regression gate | `transcribe --baseline … --fail-on-regression --tolerance` |
+| A regression gate | `transcribe --baseline … --fail-on-regression` |
 
 No recordings are committed. Each contributor records their own (below).
 
@@ -72,8 +72,9 @@ uttrflow-eval transcribe --corpus-path ./corpus \
 
 ## What the gate says
 
-`--fail-on-regression` exits non-zero when any slice has got worse by more than `--tolerance`
-percentage points (default 0.5). Results are reported by language, by stressor and by cohort and
+`--fail-on-regression` exits non-zero when any slice's 95% paired-bootstrap interval for the change
+in rate lies wholly above zero. Every slice prints its interval and the smallest change its sample
+can detect; a slice whose interval holds zero reports "no change detectable". Results are reported by language, by stressor and by cohort and
 never pooled: an engine that improves on English and regresses on Hinglish has not improved.
 
 A run the gate cannot judge also exits non-zero, because no verdict is not "no regression": a
@@ -94,12 +95,26 @@ them with the installed shipping model and compares with `Scripts/accuracy_basel
 needs no recordings, so every Mac with the model can run it; a Mac without the model stops at
 "is not installed". The baseline's label names the model variant, and each passage's
 `recordingIdentity` pins the synthesised audio, so a macOS release that changes the voice reports
-"unverifiable", not a pass. Its 305 words judge the overall rate; every smaller slice reports as
-too small to judge. Recorded speech is not in this baseline.
+"unverifiable", not a pass. Each slice with at least two shared passages gets an interval; a slice of one
+passage reports as too few utterances to judge. Recorded speech is not in this baseline.
 
 Measured on an Apple M5 Pro, 48 GB, macOS 26.5.1, with
 `openai_whisper-large-v3-v20240930_turbo_632MB`: 3.6% word error rate over 6 passages, two runs
 identical. A baseline is replaced only through `--save-baseline` in the change that moves it.
+
+## The release report
+
+`make accuracy-report VERSION=<version>` renders `Scripts/accuracy_baseline.json` as
+`Docs/accuracy-reports/<version>.md` and records the baseline as one line of
+`Docs/accuracy-history.json`, so the next release's report compares with it. The report gives the
+rate per language, stressor and cohort, never pooled, each with its case count, reference words and
+95% interval; a slice under 100 reference words, or of one case, prints as "too small to judge".
+It names the recogniser, the normalisation rules, a digest of the exact recordings, and its own
+limits. It ends with the user's-words accuracy on each fallback rung, copied from the generated
+[degraded-path matrix](degraded-path-matrix.md); the command fails if that page has no such table.
+`Scripts/release_notes.sh` links the report for the version it renders. The renderer is
+`AccuracyReport` in `Sources/UttrflowEval/AccuracyReport.swift`, which compares releases with the
+same paired bootstrap as the gate.
 
 ## The recogniser's version is pinned
 

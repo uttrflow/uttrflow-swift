@@ -73,7 +73,8 @@ jobs:
         run: echo "VERIFY_START=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Verify
-        run: make verify
+        # Keep independent checks visible while preserving a failing job for any failed prerequisite.
+        run: make --keep-going verify
 
       # The delivery budget in Docs/performance.md is read from this line, run by run.
       - name: Record verify time

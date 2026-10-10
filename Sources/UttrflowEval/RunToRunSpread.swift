@@ -1,6 +1,6 @@
 // How far repeated runs of one recogniser over the same audio disagree with each other.
 
-/// The noise floor a regression tolerance has to sit above, measured from repeated runs of one configuration.
+/// The noise floor a regression verdict has to sit above, measured from repeated runs of one configuration.
 public struct RunToRunSpread: Sendable, Equatable {
     /// One passage across every run that transcribed it.
     public struct Passage: Sendable, Equatable {
@@ -15,7 +15,7 @@ public struct RunToRunSpread: Sendable, Equatable {
         public let lowestRate: Double?
         public let highestRate: Double?
 
-        /// Highest minus lowest rate, in percentage points, the unit ``RegressionTolerance`` uses.
+        /// Highest minus lowest rate, in percentage points, the unit a comparison's interval is printed in.
         public var spreadPercentagePoints: Double? {
             guard let lowestRate, let highestRate else { return nil }
             return (highestRate - lowestRate) * 100
@@ -54,6 +54,29 @@ public struct RunToRunSpread: Sendable, Equatable {
         let rates = overallRates.compactMap(\.self)
         guard let lowest = rates.min(), let highest = rates.max() else { return nil }
         return (highest - lowest) * 100
+    }
+
+    /// The row `Docs/eval-methodology.md` records, so the table is pasted from a run rather than typed.
+    public func tableRow(on machine: MachineDescription) -> String {
+        let identical = identicalPassageRate.map {
+            "\(passages.count - differing.count) of \(passages.count) (\(Self.percent($0)))"
+        }
+        let spread = overallSpreadPercentagePoints.map { Self.points($0) }
+        let names = differing.isEmpty ? "none" : differing.map(\.id).joined(separator: ", ")
+        let cells = [
+            machine.chip, machine.operatingSystem, "\(overallRates.count)", identical ?? "n/a",
+            spread ?? "n/a",
+            names,
+        ]
+        return "| " + cells.joined(separator: " | ") + " |"
+    }
+
+    private static func percent(_ share: Double) -> String {
+        "\((share * 1000).rounded() / 10)%"
+    }
+
+    private static func points(_ value: Double) -> String {
+        "\((value * 100).rounded() / 100)"
     }
 
     private static func passage(id: String, scores: [PassageScore]) -> Passage {

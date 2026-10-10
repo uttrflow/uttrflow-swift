@@ -28,7 +28,12 @@ struct DestinationClassifierTests {
             ("com.apple.dt.Xcode", .codeEditor),
             ("com.todesktop.230313mzl4w4u92", .codeEditor),
             ("com.microsoft.VSCode", .codeEditor),
+            ("com.microsoft.VSCodeInsiders", .codeEditor),
+            ("com.vscodium", .codeEditor),
+            ("com.visualstudio.code.oss", .codeEditor),
+            ("com.exafunction.windsurf", .codeEditor),
             ("dev.zed.Zed", .codeEditor),
+            ("com.jetbrains.intellij", .codeEditor),
             ("com.jetbrains.pycharm", .codeEditor),
             ("com.jetbrains.goland", .codeEditor),
             ("com.jetbrains.rider", .codeEditor),
@@ -38,6 +43,7 @@ struct DestinationClassifierTests {
             ("com.jetbrains.clion", .codeEditor),
             ("com.jetbrains.appcode", .codeEditor),
             ("com.jetbrains.mps", .codeEditor),
+            ("com.google.antigravity", .codeEditor),
             ("com.apple.Terminal", .terminal),
             ("com.googlecode.iterm2", .terminal),
             ("com.tinyspeck.slackmacgap", .messaging),
@@ -61,6 +67,8 @@ struct DestinationClassifierTests {
             ("com.mongodb.compass", Destination.sqlEditor, "com.mongodb.atlas"),
             ("org.RedisLabs.RedisInsight-V2", .sqlEditor, "org.RedisLabs.RedisStack"),
             ("com.google.antigravity", .codeEditor, "com.google.drivefs"),
+            ("com.vscodium", .codeEditor, "com.apple.TextEdit"),
+            ("com.google.android.studio", .codeEditor, "com.google.Chrome"),
         ]
     )
     func classifiesProbedBundles(bundle: String, expected: Destination, sibling: String) {
@@ -169,7 +177,7 @@ struct DestinationClassifierTests {
     func ruleDefaults() {
         let rule = DestinationRule(titleContains: ["Docs"], destination: .document)
         #expect(rule.bundlePrefixes.isEmpty)
-        #expect(rule.matches(app(title: "My Docs")))
+        #expect(rule.matches(app(title: "Plan - Docs")))
         #expect(!rule.matches(app("com.example")))
     }
 

@@ -29,9 +29,11 @@ public enum ClauseSegmenter {
 
     /// Clause starts in `words`; `pauses[i]` is the silence after word `i`, or `nil` when no timing is known.
     public static func boundaries(in words: [String], pauses: [TimeInterval?] = []) -> [Boundary] {
-        let tags = LexicalClass.tags(ofWords: words)
+        let shapes = words.map(WordShape.init)
+        let tags = LexicalClass.tags(ofWords: shapes.map(\.core))
+        let held = heldWhole(shapes)
         var result: [Boundary] = []
-        for index in words.indices.dropFirst() {
+        for index in words.indices.dropFirst() where !held.contains(index) {
             if let evidence = lexicalEvidence(before: index, tags: tags) {
                 result.append(Boundary(index: index, evidence: evidence))
             } else if pauses.indices.contains(index - 1), let pause = pauses[index - 1],
@@ -41,6 +43,36 @@ public enum ClauseSegmenter {
             }
         }
         return result
+    }
+
+    /// Words a clause may not start at: inside a quote or bracket, or a number or the word joining two numbers.
+    private static func heldWhole(_ shapes: [WordShape]) -> Set<Int> {
+        var held = Set<Int>()
+        var open: [Character] = []
+        for (index, shape) in shapes.enumerated() {
+            if !open.isEmpty { held.insert(index) }
+            for mark in shape.prefix where isOpener(mark) { open.append(mark) }
+            for mark in shape.suffix where isCloser(mark) && !open.isEmpty { open.removeLast() }
+        }
+        let numbers = shapes.map { isNumber($0.core) }
+        for index in shapes.indices where numbers[index] {
+            held.insert(index)
+            if index >= 2, numbers[index - 2] { held.insert(index - 1) }
+        }
+        return held
+    }
+
+    private static func isOpener(_ mark: Character) -> Bool {
+        WordShape.openingQuotes.contains(mark) || WordShape.bracketOpeners.values.contains(mark)
+    }
+
+    private static func isCloser(_ mark: Character) -> Bool {
+        mark == "\"" || mark == "'" || mark == "\u{201D}" || mark == "\u{2019}" || mark == "\u{00BB}"
+            || WordShape.bracketOpeners.keys.contains(mark)
+    }
+
+    private static func isNumber(_ core: String) -> Bool {
+        core.first?.isNumber == true && core.allSatisfy { $0.isNumber || $0 == "." || $0 == "," }
     }
 
     private static func lexicalEvidence(before index: Int, tags: [NLTag?]) -> Evidence? {

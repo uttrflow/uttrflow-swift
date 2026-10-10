@@ -50,7 +50,7 @@ public struct NGramModel: Sendable {
         ids[word] ?? ids[Self.unknownToken]
     }
 
-    private func backedOff(_ word: UInt32, _ history: [UInt32]) -> Float {
+    func backedOff(_ word: UInt32, _ history: [UInt32]) -> Float {
         var history = history
         var backoff: Float = 0
         while true {

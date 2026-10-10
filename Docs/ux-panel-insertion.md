@@ -34,7 +34,8 @@ differs:
 that owned the caret has quit behind the panel (`PanelSnapshot.applying(_:caretOwnerHasQuit:)`). None of them says "failed": the words are on the clipboard in every case,
 so the paste became a manual one, which is a smaller thing than the word suggests. The
 Accessibility notice is shown as the panel opens rather than after Return, when there is nowhere
-left to say it.
+left to say it; once Return has copied the clip, it is prefixed with "Copied — press ⌘V."
+(`PanelInsertionObstacle.copiedNotice`).
 
 A write the disk refused (`PanelNotice.writeFailed`) is said rather than swallowed: a sheet that
 closes and changes nothing looks exactly like success.

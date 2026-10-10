@@ -53,8 +53,8 @@ public enum PromptLineTags {
         PromptLineTag(nil, "- remove fillers", .formats([.corrections])),
         PromptLineTag(nil, "- when a speaker explicitly corrects", .formats([.corrections])),
         PromptLineTag(
-            nil, "- fix punctuation, capitalisation",
-            .repairsWords([.sentenceBoundaries, .commas, .capitalisationAndTokens])),
+            nil, "- place commas, fix capitalisation",
+            .repairsWords([.commas, .capitalisationAndTokens])),
         PromptLineTag(nil, "- keep every other word said", .keepsWords),
         PromptLineTag(nil, "- keep technical terms and units", .formats([.capitalisationAndTokens])),
         PromptLineTag(nil, "- Write only English in the Latin alphabet", .formats([.hinglish])),
@@ -85,15 +85,14 @@ public enum PromptLineTags {
         PromptLineTag("terminal", "- no full stop at the end", .formats([.perDestination])),
 
         PromptLineTag("messaging", "- commas and capitals", .formats([.commas, .perDestination])),
-        PromptLineTag("messaging", "- a question still ends", .formats([.questions])),
         PromptLineTag("messaging", "- keep the greeting", .formats([.perDestination, .paragraphs])),
 
-        PromptLineTag("email", "- full stops for body paragraphs", .formats([.perDestination, .commas])),
+        PromptLineTag("email", "- leave a greeting paragraph", .formats([.perDestination, .commas])),
         PromptLineTag("email", "- at the end only", .formats([.perDestination])),
         PromptLineTag("email", "- fix a grammar slip", .repairsWords([])),
         PromptLineTag("email", "- change a word's form", .keepsWords),
 
-        PromptLineTag("plain", "- full sentences; end with", .formats([.sentenceBoundaries, .questions])),
+        PromptLineTag("plain", "- an exclamation mark only", .formats([.sentenceBoundaries])),
         PromptLineTag("plain", "- keep every line break", .formats([.paragraphs])),
         PromptLineTag("plain", "- fix a grammar slip", .repairsWords([.capitalisationAndTokens])),
         PromptLineTag("plain", "- change a word's form", .keepsWords),
