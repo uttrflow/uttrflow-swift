@@ -211,7 +211,15 @@ public enum Romaniser {
             let next = isLast ? nil : syllables[index + 1]
             let isClosed = next.map { $0.vowel.isEmpty || $0.consonants.count > 1 } ?? false
             var vowel = syllable.vowel
-            let consonants = cluster(syllable.consonants, before: vowel)
+            // A nasal "aa" before a lone "v" is said "aon", and the "v" is that "o": "gaon", "gaonon".
+            if syllable.isNasal, vowel == "aa", next?.consonants == [Consonant(base: va, hasNukta: false)] {
+                written += cluster(syllable.consonants, before: vowel) + "aon"
+                continue
+            }
+            let saidAfterAon =
+                index > 0 && syllables[index - 1].isNasal && syllables[index - 1].vowel == "aa"
+                && syllable.consonants == [Consonant(base: va, hasNukta: false)]
+            let consonants = saidAfterAon ? "" : cluster(syllable.consonants, before: vowel)
             switch vowel {
             case "aa":
                 vowel = longA(syllable, isFirst: isFirst, isLast: isLast, isClosed: isClosed, next: next)
@@ -249,6 +257,8 @@ public enum Romaniser {
         if syllable.isIndependent { return "aa" }
         if syllable.isNasal { return isLast ? "a" : "aa" }
         if isLast || (next.map { $0.consonants.isEmpty } ?? false) { return "a" }
+        // Before a cluster that ends in "y" it is typed single: "karya", "manya".
+        if let last = next?.consonants.last, next?.consonants.count ?? 0 > 1, last.base == ya { return "a" }
         return isFirst || isClosed ? "aa" : "a"
     }
 
@@ -267,16 +277,16 @@ public enum Romaniser {
                     continue
                 }
             }
-            written += sound(of: letter, before: following == nil ? vowel : "")
+            written += sound(of: letter, before: following == nil ? vowel : nil)
             index += 1
         }
         return written
     }
 
-    /// One consonant's sound; "v" is written "w" except before an "i" or an "e", as in "wala" and "vikram".
-    static func sound(of letter: Consonant, before vowel: String) -> String {
+    /// One consonant's sound; "v" is written "w" except before an "i" or an "e" or closing a syllable, as in "wala", "vikram" and "gaav".
+    static func sound(of letter: Consonant, before vowel: String?) -> String {
         if letter.hasNukta, let changed = nuktaSounds[letter.base] { return changed }
-        if letter.base == va { return ["i", "ii", "e"].contains(vowel) ? "v" : "w" }
+        if letter.base == va { return vowel.map { ["i", "ii", "e", ""].contains($0) } == true ? "v" : "w" }
         return consonants[letter.base] ?? ""
     }
 
@@ -312,6 +322,7 @@ public enum Romaniser {
     static let na: Unicode.Scalar = "\u{0928}"
     static let ma: Unicode.Scalar = "\u{092E}"
     static let va: Unicode.Scalar = "\u{0935}"
+    static let ya: Unicode.Scalar = "\u{092F}"
 
     /// The danda, the double danda and the abbreviation sign, each written as a full stop.
     static let stops: Set<Unicode.Scalar> = ["\u{0964}", "\u{0965}", "\u{0970}"]

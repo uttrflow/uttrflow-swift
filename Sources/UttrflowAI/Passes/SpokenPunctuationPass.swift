@@ -311,20 +311,28 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         literalHyphens && value == "\u{2014}" ? "-" : value
     }
 
-    /// The lexicon's programs, whose name starts a command, so every dash after it in the sentence is one of its options.
-    private static let commands = TechnicalLexicon.terms.filter { $0.category == .command }
+    /// The lexicon's programs, whose name starts a command so every dash after it is an option, filed under each word that can open the name.
+    private static let commands: [String: [(term: TechnicalTerm, written: Bool, spoken: [[String]])]] = {
+        var opening: [String: [(term: TechnicalTerm, written: Bool, spoken: [[String]])]] = [:]
+        for term in TechnicalLexicon.terms where term.category == .command {
+            let phrases = term.spoken.map { $0.split(separator: " ").map(String.init) }
+            let written = term.id.lowercased()
+            let openers = [written] + phrases.compactMap(\.first)
+            for key in Set(openers) {
+                opening[key, default: []].append(
+                    (term, key == written, phrases.filter { $0.first == key }))
+            }
+        }
+        return opening
+    }()
 
     /// Whether a program the lexicon knows is named at `position`, by its written form or a spoken one.
     private func namesCommand(at position: Int, in live: [Int], of draft: Draft) -> Bool {
+        // Only a name opening on this word can match, so the rest are not read word by word.
         let key = draft.shape(at: live[position]).key
-        return Self.commands.contains { term in
-            term.applies(in: destination)
-                && (term.id.lowercased() == key
-                    || term.spoken.contains {
-                        // Only a phrase opening on this word can match, so the rest are not read word by word.
-                        $0.split(separator: " ").first.map(String.init) == key
-                            && draft.spells($0.split(separator: " ").map(String.init), at: position, in: live)
-                    })
+        return (Self.commands[key] ?? []).contains { entry in
+            entry.term.applies(in: destination)
+                && (entry.written || entry.spoken.contains { draft.spells($0, at: position, in: live) })
         }
     }
 
@@ -527,10 +535,15 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         live.removeSubrange((position + 1)..<after)
     }
 
+    /// The marks said by name, filed under the word each name opens on and kept in file order, so a longer name is still tried first.
+    private static let marksByOpening = Dictionary(
+        grouping: SpokenCommands.marks.filter { !$0.words.isEmpty }, by: { $0.words[0] })
+
     /// How many words name a mark already written on the word before, as a model writes ", comma,"; nil when none does.
     private func echoedName(at position: Int, in live: [Int], of draft: Draft) -> Int? {
         guard position > 0,
-            let found = SpokenCommands.marks.first(where: { draft.spells($0.words, at: position, in: live) }),
+            let found = Self.marksByOpening[draft.shape(at: live[position]).key]?
+                .first(where: { draft.spells($0.words, at: position, in: live) }),
             !found.placement.attachesAfter, found.placement != .standalone,
             draft.shape(at: live[position - 1]).suffix.hasSuffix(found.text)
         else { return nil }

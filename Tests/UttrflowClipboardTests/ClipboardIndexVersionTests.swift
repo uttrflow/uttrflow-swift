@@ -245,4 +245,18 @@ struct ClipboardIndexVersionTests {
         }
         #expect(!FileManager.default.fileExists(atPath: history.path))
     }
+
+    @Test("a current index hands back a clip it cannot decode as the exact bytes it was written with")
+    func currentIndexRejectsRawBytes() throws {
+        let unreadable = #"{ "text" : "no id here", "kind" : "text", "copiedAt" : 1700000060.0 }"#
+        let readable =
+            #"{"id":"00000000-0000-4000-8000-000000000431","text":"row","kind":"text","copiedAt":1.0}"#
+        let index = Data(
+            #"{"version":2, "classifierVersion":1, "clips":[\#(readable), \#(unreadable)]}"#.utf8)
+
+        let (value, rejected) = try ClipboardIndex.decodeEachElement(from: index)
+
+        #expect((value as? ClipboardIndex)?.clips.map(\.text) == ["row"])
+        #expect(rejected == [Data(unreadable.utf8)])
+    }
 }
