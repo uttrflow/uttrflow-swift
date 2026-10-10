@@ -43,8 +43,10 @@ is compared against is a constant:
 let noSpeechProb: Float = 0 // TODO: implement no speech prob
 ```
 
-`0 > 0.6` is never true, so the gate is dead in both places. Passing a different threshold
-changes nothing: there is no value that works, so silence is not fixed by tuning the decoder.
+`0 > 0.6` is never true, so in the library loop the gate is dead in both places. The shipping
+path decodes through `DecodeSession`, which computes the probability for real (see
+[decode-session.md](decode-session.md)), so the gate is live there; the loudness test below still
+runs first.
 
 ## How speech is found
 

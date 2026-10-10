@@ -4,6 +4,7 @@ public import UttrflowCore
 public struct StammersPass: PieceCleaningPass {
     public static let id: PassID = .stammers
     public static let laws: Set<PassLaw> = [.idempotent, .addsNoWords, .latinOnly]
+    public static let orderIndependentWith: Set<PassID> = [.selfCorrection]
     public static let removes: RemovalGrant = .repetition
 
     /// Function words English doubles on purpose: a past perfect, a doubled relative, a conjunction, a comforting.

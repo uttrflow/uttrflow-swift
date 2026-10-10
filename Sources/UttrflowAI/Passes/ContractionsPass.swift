@@ -4,6 +4,7 @@ public import UttrflowCore
 public struct ContractionsPass: PieceCleaningPass {
     public static let id: PassID = .contractions
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    public static let orderIndependentWith: Set<PassID> = [.spacing]
 
     /// Whole words that are a contraction and nothing else, so no sentence can want them as they stand.
     static let unambiguous: [String: String] = [

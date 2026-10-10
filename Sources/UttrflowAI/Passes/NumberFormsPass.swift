@@ -5,7 +5,8 @@ public import UttrflowCore
 /// Writes spoken numbers as numerals, as many of them as the place asks for. See `Docs/cleanup.md`.
 public struct NumberFormsPass: PieceCleaningPass {
     public static let id: PassID = .numberForms
-    public static let laws: Set<PassLaw> = [.idempotent, .addsNoWords, .latinOnly]
+    public static let laws: Set<PassLaw> = [.idempotent, .latinOnly]
+    public static let orderIndependentWith: Set<PassID> = [.contractions]
 
     /// Which spoken numbers this place wants as numerals.
     let policy: NumberPolicy
@@ -17,6 +18,7 @@ public struct NumberFormsPass: PieceCleaningPass {
     static let contextWords: Set<String> = [
         "port", "version", "extension", "page", "chapter", "step", "number", "line", "section", "figure",
         "table", "level", "room", "floor", "route", "flight", "interstate", "highway", "bus", "gate",
+        "grade", "size", "model",
     ]
     /// The spoken currency words, bar those read with the `measures` ("yen").
     static let currencies = Set(Quantities.currencyWords.keys).subtracting(measures)
