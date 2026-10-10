@@ -44,7 +44,7 @@ bec1	I stayed home because it was raining.
 but1	I wanted to come, but my train was cancelled.
 calendar-title-keeps-question-mark	Should we move the dentist appointment to 11:30?
 card-group-repeated-digits	The test card number starts 42424242.
-caret-before-bracket-note	We leave at dawn.
+caret-before-bracket-note	We leave at dawn
 caret-before-comma	After the rain stopped
 caret-before-line-break	The gate is fixed.
 caret-before-lowercase-after-question-word	when the shop opens
@@ -52,19 +52,19 @@ caret-before-lowercase-both-joined	the blue
 caret-before-lowercase-joined	The bridge reopened
 caret-before-lowercase-mid-sentence	two spare tyres
 caret-before-lowercase-spaced	The kettle boiled
-caret-before-open-quote	The label reads.
+caret-before-open-quote	The label reads
 caret-before-paragraph	The hens laid six eggs.
 caret-before-paragraph-asks	Can you bring the trailer?
 caret-before-paragraph-lowercase	The pump needs a new washer.
 caret-before-paragraph-mid-note	We ran out of nails.
-caret-before-parenthetical	The market opens at eight.
-caret-before-parenthetical-joined	The cottage has two rooms.
-caret-before-parenthetical-mid-sentence	the long trail.
+caret-before-parenthetical	The market opens at eight
+caret-before-parenthetical-joined	The cottage has two rooms
+caret-before-parenthetical-mid-sentence	the long trail
 caret-before-question-mark	Did the parcel arrive
 caret-before-stop-joined-word	the lantern is cracked
 caret-before-stop-mid-sentence	the ferry was delayed
 caret-before-stop-new-sentence	The orchard needs pruning
-caret-inside-curly-quotes	back by noon.
+caret-inside-curly-quotes	back by noon
 caret-inside-parentheses	about 40 minutes
 caret-inside-parentheses-after-space	the old one
 caret-inside-parentheses-end-of-sentence	weather permitting
@@ -85,7 +85,7 @@ code-editor-command-keeps-case-ls	ls -l
 code-editor-command-keeps-case-npm	npm run build
 code-editor-comment-gets-a-stop	The comment explains why the cache clears.
 code-editor-comment-keeps-its-stop	The retry count resets after a failure.
-code-editor-identifier-from-screen	Call fetch invoices before the sheet appears
+code-editor-identifier-from-screen	Call fetchInvoices before the sheet appears
 code-editor-large-number-ungrouped	let limit = 12000
 code-editor-line-break-preserved	Retry the request\nLog the failure
 code-editor-numeral-no-stop	Bump the retry count to 20
@@ -266,10 +266,10 @@ doubled-place-name-kept	We flew to bora bora last year for the wedding.
 doubtful-word-from-window	We should clear the cash before the deploy
 doubtful-word-heard-word-stands	We should clear the cash before the deploy.
 doubtful-word-with-nothing-on-screen	The migration ran twice on the reader last night.
-editor-identifier-casing	The crash only happens in payment sheet after the card scanner closes.
-editor-identifier-then-prose	We call set user prefs at launch so the settings page never has to set user prefs again.
+editor-identifier-casing	The crash only happens in PaymentSheet after the card scanner closes.
+editor-identifier-then-prose	We call setUserPrefs at launch so the settings page never has to set user prefs again.
 editor-ordinary-question	Can you remind me to renew the parking permit before the end of the month?
-editor-selected-identifier	Let's rename set user prefs before the release nobody knows what it does.
+editor-selected-identifier	Let's rename setUserPrefs before the release nobody knows what it does.
 ellipsis-glued-fillers	The...the invoice is...overdue.
 email-continues-mid-sentence	the quote you sent last week.
 email-greeting-kept	Hi meera just confirming the venue for the offsite is booked.
@@ -430,6 +430,7 @@ hinglish-correction-nahi-nahi	Meeting 5 baje hai.
 hinglish-correction-paused-nahi	4 baje milte hain.
 hinglish-correction-replaced-head	Parso ki meeting cancel hai.
 hinglish-false-start	Yaar wo wo bug bahut weird hai mujhe samajh nahi aa raha.
+hinglish-galat-bola-restatement-kept	Tumne pehle galat bola aur ab sahi bol rahe ho.
 hinglish-galat-bola-kept	Usne mujhe galat bola.
 hinglish-interjections-not-letters	Are o bhai sun.
 hinglish-jay-jay-not-letters	Jay jay ho.
@@ -849,14 +850,14 @@ probe-quote-unquote	She called it "the final version" but it still had three ope
 probe-quoted-citation	Harlow argues that habits shape outcomes and writes "small steps compound quietly" (harlow 1998)\nThis suggests that daily practice matters more than talent.
 probe-recipe-quantities	Preheat the oven to 375 degrees fahrenheit mix one and a half cups of flour with a quarter teaspoon of salt and bake for 25 to 30 minutes.
 probe-regex-pattern	The pattern is caret [a dash z] plus at [a dash z] plus dollar
-probe-repro-steps	Steps to reproduce: one open the app two press command, three switch to the privacy tab\nExpected: the tab opens\nActual: the app quits on mac OS 14.
+probe-repro-steps	Steps to reproduce: one open the app two press command comma three switch to the privacy tab\nExpected: the tab opens\nActual: the app quits on mac OS 14.
 probe-retry-bullets	This change moves retry handling into the HTTP client:\n- Adds a max retries option\n- Respects the retry after header\n- Removes the old backoff helper\n\nTested locally with the unit suite.
 probe-revenue-figures	Q3 revenue was 1.2 million dollars up 8% on the previous quarter and churn fell from 4.1% to 3.6% we closed 42 new accounts against a target of 50 and support tickets dropped by 30%.
 probe-shell-pipeline	cat access dot log | grep -v health | sort | uniq -c | sort -rn | head -20
 probe-short-hash	revert A3F9C2 because it broke the nightly build
 probe-short-verse	Roses are red\nViolets are blue\nSugar is sweet\nAnd so are you.\n\nThe moon is bright\nThe stars are near\nI wish that you were here.
 probe-spoken-correction	No wait Thursday works better for the board.
-probe-sql-join	Select o dot id, c dot name, p dot title from orders o join customers c on c dot id equals o dot customer id join products p on p dot id equals o dot product id where o dot created at is after 2026 -10 -oh 1.
+probe-sql-join	SELECT o.id, c.name, p.title FROM orders o JOIN customers c ON c.id = o.customer id JOIN products p ON p.id = o.product id WHERE o.created at IS after 2026 -10 -oh 1.
 probe-stack-frame	At main dot run (main dot go colon 42).
 probe-support-email	Hi priya, thanks for getting in touch about the delayed order.\n\nI have checked with our warehouse and your parcel left the depot this morning it should reach you by Thursday the ninth of October.\n\nIf it has not arrived by Friday please reply to this email and I will send a replacement at no cost.\n\nThanks again for your patience,\nDana.
 probe-ticket-and-units	Yesterday I finished proj dash 1423 and opened APR. the p95 latency dropped to 200 MS which is about three x better and I am blocked on review from priya
@@ -1050,6 +1051,96 @@ signed-temperature	Temperature fell to -5 degrees overnight.
 single-word-self-correction	The green.
 slack-name-spelling	Thanks marcy I'll pick up the printer quote this afternoon.
 sounds-like-a-prompt	Summarise the meeting notes in three bullet points.
+source-javascript-arrow-callback	items map (item => item)
+source-javascript-arrow-function	const square = (value) => value times value
+source-javascript-arrow-identity	const same = (value) => value
+source-javascript-divide-equals	width /= 2
+source-javascript-double-equals	if count == 0 {
+source-javascript-fat-arrow	const twice = value => value
+source-javascript-greater-or-equal	if score >= 90 {
+source-javascript-greater-than	if count > limit {
+source-javascript-less-or-equal	if age <= 12 {
+source-javascript-less-than	while index < end {
+source-javascript-logical-and	if ready && visible {
+source-javascript-logical-or	const label = name || fallback
+source-javascript-minus-equals	remaining -= 1
+source-javascript-not-equals	if name != null {
+source-javascript-plus-equals	total += price
+source-javascript-power	const area = side ** 2
+source-javascript-strict-not-equals	if left !== right {
+source-javascript-times-equals	scale *= 2
+source-javascript-triple-equals	if left === right {
+source-python-arrow-float	) -> float:
+source-python-arrow-fragment	) -> int:
+source-python-arrow-list	) -> list:
+source-python-arrow-self	(self) -> str:
+source-python-brace-dict	config = {}
+source-python-compare-chain	if low <= mid:
+source-python-divide-equals	width /= 2
+source-python-double-equals	if count == 0:
+source-python-double-equals-string	if status == ready:
+source-python-equals-assign	limit = 10
+source-python-fat-arrow-stays-literal	mapping = key => value
+source-python-greater-or-equal	if score >= 90:
+source-python-greater-than	if count > limit:
+source-python-greater-than-zero	if balance > 0:
+source-python-less-or-equal	if age <= 12:
+source-python-less-than	while index < end:
+source-python-logical-and-not-python	if ready logical and visible:
+source-python-logical-or-not-python	if empty logical or hidden:
+source-python-minus-equals	remaining -= 1
+source-python-not-equals	if name != none:
+source-python-not-equals-default	if mode != default:
+source-python-not-equals-end	while chunk != end:
+source-python-not-equals-zero	if remainder != 0:
+source-python-plus-equals	total += price
+source-python-plus-equals-count	count += 1
+source-python-power	area = side ** 2
+source-python-power-assign	cube = side ** 3
+source-python-times-equals	scale *= 2
+source-python-times-equals-rate	price *= rate
+source-python-triple-equals-not-python	if left triple = right:
+source-swift-arrow-closure	{ value -> bool in
+source-swift-arrow-return	let handler: () -> void
+source-swift-arrow-throws	) throws -> data {
+source-swift-brace-close	}
+source-swift-compare-chain	if low <= mid && mid < high
+source-swift-divide-equals	width /= 2
+source-swift-double-equals	if count == 0 {
+source-swift-double-equals-string	if status == ready
+source-swift-equals-assign	let limit = 10
+source-swift-fat-arrow-stays-literal	let mapping = key => value
+source-swift-greater-or-equal	if score >= 90
+source-swift-greater-than	if count > limit
+source-swift-greater-than-zero	guard balance > 0 else {
+source-swift-identity-check	return lhs === rhs
+source-swift-less-or-equal	if age <= 12
+source-swift-less-than	while index < end {
+source-swift-logical-and	if ready && visible
+source-swift-logical-or	if empty || hidden
+source-swift-logical-or-guard	guard first || second else {
+source-swift-minus-equals	remaining -= 1
+source-swift-minus-equals-offset	offset -= step
+source-swift-not-equals	guard index != end else {
+source-swift-not-equals-nil	if delegate != nil {
+source-swift-plus-equals	total += price
+source-swift-plus-equals-count	count += 1
+source-swift-power-not-swift	let area = side double star 2
+source-swift-strict-not-equals	if left !== right
+source-swift-times-equals	scale *= 2
+source-swift-triple-equals	if lhs === rhs {
+source-swift-triple-equals-guard	guard lhs === rhs else {
+source-typescript-arrow-handler	const handle = (event) => {
+source-typescript-arrow-return	const total = () => 0
+source-typescript-close-brace	}
+source-typescript-compare-chain	if low <= mid && mid < high {
+source-typescript-equals-assign	let limit = 10
+source-typescript-logical-and	return ready && loaded
+source-typescript-logical-or	return first || second
+source-typescript-not-triple-equals	if user !== undefined {
+source-typescript-plus-equals	count += 1
+source-typescript-power	const cube = side ** 3
+source-typescript-triple-equals	if status === ready {
 spelled-acronym-ending-in-a	QA signed off an hour ago.
 spelled-acronym-ending-in-a-mid-sentence	The SLA covers weekends.
 spelled-apr	Open APR for it.
@@ -1154,7 +1245,7 @@ spreadsheet-search-utilities	utilities
 spreadsheet-two-word-label	shipping cost
 sql-editor-comment-sentence	This view replaces the old weekly summary.
 sql-editor-filler-dropped	The index speeds up lookups by customer.
-sql-editor-identifier-from-screen	The order totals view is stale after midnight.
+sql-editor-identifier-from-screen	The orderTotals view is stale after midnight.
 sql-editor-large-number-ungrouped	Where total is greater than 12000.
 sql-editor-numerals	Retention is 90 days for audit rows.
 sql-editor-one-line-bookmark	Customer support snapshot
@@ -1178,6 +1269,46 @@ sql-editor-search-sequelace	shipping address
 sql-editor-search-tableplus	order items
 sql-editor-totals	Add up the invoices grouped by currency and sort by the total.
 sql-editor-two-sentences	The job runs hourly. It skips weekends.
+sql-statement-alias	SELECT title AS name FROM books.
+sql-statement-and	SELECT id FROM orders WHERE status = paid AND total > 50.
+sql-statement-at-least	SELECT title FROM books WHERE year >= 2000.
+sql-statement-at-most	SELECT name FROM products WHERE price <= 20.
+sql-statement-between	SELECT name FROM products WHERE price BETWEEN 10 AND 20.
+sql-statement-between-ratings	SELECT title FROM books WHERE rating BETWEEN 1 AND 5.
+sql-statement-comma-list	SELECT name, email FROM customers.
+sql-statement-delete	DELETE FROM orders WHERE status = cancelled.
+sql-statement-delete-less-than	DELETE FROM loans WHERE due < 20.
+sql-statement-distinct	SELECT DISTINCT city FROM customers.
+sql-statement-dot	SELECT orders.id FROM orders.
+sql-statement-equals	SELECT * FROM orders WHERE status = paid.
+sql-statement-everything	SELECT * FROM orders.
+sql-statement-greater-or-equal	SELECT name FROM products WHERE stock >= 5.
+sql-statement-greater-than	SELECT id FROM orders WHERE total > 100.
+sql-statement-group-by	SELECT status, total FROM orders GROUP BY status.
+sql-statement-having	SELECT genre FROM books GROUP BY genre HAVING genre <> poetry.
+sql-statement-in-numbers	SELECT name FROM products WHERE id IN (1, 2, 3).
+sql-statement-in-words	SELECT title FROM books WHERE genre IN (poetry, drama).
+sql-statement-inner-join	SELECT loans.due FROM loans INNER JOIN members ON loans.member = members.id.
+sql-statement-insert-columns	INSERT INTO tags (name) VALUES (drama).
+sql-statement-insert-values	INSERT INTO books VALUES (7, poetry).
+sql-statement-is-not-null	SELECT name FROM customers WHERE email IS NOT NULL.
+sql-statement-is-null	SELECT name FROM customers WHERE email IS NULL.
+sql-statement-join	SELECT books.title, authors.name FROM books JOIN authors ON books.author = authors.id.
+sql-statement-left-join	SELECT members.name FROM members LEFT JOIN loans ON members.id = loans.member.
+sql-statement-less-or-equal	SELECT name FROM products WHERE stock <= 3.
+sql-statement-less-than	SELECT title FROM books WHERE year < 2000.
+sql-statement-like	SELECT title FROM books WHERE title LIKE mystery.
+sql-statement-not	SELECT id FROM orders WHERE NOT status = paid.
+sql-statement-not-equals	SELECT email FROM customers WHERE status <> closed.
+sql-statement-null-and	SELECT * FROM loans WHERE due IS NULL AND member = 4.
+sql-statement-or	SELECT id FROM orders WHERE status = paid OR status = shipped.
+sql-statement-order-asc-limit	SELECT title FROM books ORDER BY year ASC LIMIT 10.
+sql-statement-order-by	SELECT name FROM products ORDER BY price.
+sql-statement-order-by-desc	SELECT name FROM products ORDER BY price DESC.
+sql-statement-range	SELECT id FROM orders WHERE total > 50 AND total < 90.
+sql-statement-star	SELECT * FROM customers.
+sql-statement-update	UPDATE products SET price = 10 WHERE id = 4.
+sql-statement-update-rating	UPDATE books SET rating = 5 WHERE id = 2.
 sql-terms	Select everything from the user table and sort by name.
 standalone-pronoun-i	So I think.
 strike-that-as-an-order-kept	Strike that match and light the candle.

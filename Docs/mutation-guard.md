@@ -13,6 +13,23 @@ acknowledged case the guard now accepts fails it too, so the list only falls.
 swift test --filter MeaningGuardRefusalRateTests
 ```
 
+## False accepts over a model-error set
+
+The mirror question is how many wrong rewrites the guard lets through. `ModelErrorClass`
+(`Sources/UttrflowEval/ModelErrors.swift`) turns every expected text the guard accepts into
+wrong ones, one class of model error each: a dropped content word, an added negation, two
+swapped words, a changed number, an appended clause, an answer in place of the tidy-up, a
+translation, a label wrapped round the text, and a word moved across a sentence. Each should
+be refused. `MeaningGuardFalseAcceptTests` judges `perClass` mutations of each class, spread
+evenly over the corpus, prints how many of each class the guard accepts,
+names every one, and fails when a class's count differs from its `baseline`, so a fix lowers
+the baseline in the same change and a regression cannot raise it. `make bakeoff` prints the
+same counts beside the false refusals.
+
+```bash
+swift test --filter MeaningGuardFalseAcceptTests
+```
+
 Every failure of `MeaningPreservationGuard` is an acceptance, and an acceptance leaves no
 trace. Line coverage says which checks ran; it does not say whether any test would fail if
 a check were wrong. `Scripts/mutation_probe.py` answers the second question.
@@ -132,3 +149,13 @@ neighbour. `MeaningPreservationGuardTests` pins this with a word `SpacingPass` s
 **DestructiveCommand.** The survivors sit in the `/dev/` substring checks, `cp` flag parsing,
 `aws s3`, `gh api` DELETE, `find -exec`, and git push and branch flags. Several are beside
 cases the suite already lists, so a second rule likely decides the same line.
+
+For `dd if=disk.img of=/dev/nvme0n1`, removing the `/dev/` fast path does not change the result:
+`dd` is itself in `DestructiveCommand.destroyers`, and `destroys` returns true before considering
+its arguments. The reciprocal removal of `dd` from `destroyers` also leaves the case matched by
+the `/dev/` fast path, so those rules overlap on that direct invocation. The same is true of
+`busybox dd if=disk.img of=/dev/nvme0n1`: the unknown-carrier fallback sees `dd` among its
+arguments and classifies the command before testing the destination. Neither case isolates
+`of=/dev/`. Separate `cp disk.img` cases targeting `/dev/sdb`, `/dev/disk4` and `/dev/rdisk4`
+do isolate the three device-path alternatives: the `cp` fallback does not treat these block-device
+destinations as destructive on its own.

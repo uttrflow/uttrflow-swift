@@ -80,7 +80,7 @@ struct SnippetStoreTests {
         let store = SnippetStore(file: sandbox.file)
         let kept = try await store.save(
             trigger: "  my address ", expansion: "Flat 402\nLondon", replacing: nil,
-            created: snippetEpoch)
+            created: snippetEpoch, applications: [])
 
         #expect(kept.map(\.trigger) == ["my address"])
         // Verbatim: trimming the expansion would be Uttrflow editing the user's own writing.
@@ -93,7 +93,7 @@ struct SnippetStoreTests {
         let sandbox = Sandbox()
         let store = SnippetStore(file: sandbox.file)
         let kept = try await store.save(
-            trigger: "greeting", expansion: "हाँ ठीक है", replacing: nil, created: snippetEpoch)
+            trigger: "greeting", expansion: "हाँ ठीक है", replacing: nil, created: snippetEpoch, applications: [])
 
         #expect(kept.map(\.expansion) == ["हाँ ठीक है"])
         #expect(sandbox.onDisk()?.map(\.expansion) == ["हाँ ठीक है"])
@@ -111,7 +111,8 @@ struct SnippetStoreTests {
 
         let later = snippetEpoch.addingTimeInterval(86_400 * 700)
         let kept = try await store.save(
-            trigger: "my address", expansion: "Flat 402", replacing: original.id, created: later)
+            trigger: "my address", expansion: "Flat 402", replacing: original.id, created: later,
+            applications: [])
 
         #expect(kept.count == 1)
         #expect(kept[0].id == original.id)
@@ -128,7 +129,7 @@ struct SnippetStoreTests {
         let store = SnippetStore(file: sandbox.file)
         let later = snippetEpoch.addingTimeInterval(60)
         let kept = try await store.save(
-            trigger: "my address", expansion: "Flat 402", replacing: UUID(), created: later)
+            trigger: "my address", expansion: "Flat 402", replacing: UUID(), created: later, applications: [])
 
         #expect(kept.count == 1)
         #expect(kept[0].created == later)
@@ -141,7 +142,7 @@ struct SnippetStoreTests {
         let store = SnippetStore(file: sandbox.file)
         await #expect(throws: SnippetStoreError.triggerHasNoWords) {
             try await store.save(
-                trigger: "  ", expansion: "Flat 402", replacing: nil, created: snippetEpoch)
+                trigger: "  ", expansion: "Flat 402", replacing: nil, created: snippetEpoch, applications: [])
         }
         #expect(await store.snippets().isEmpty)
     }
@@ -391,10 +392,10 @@ struct SnippetStoreTests {
         let store = SnippetStore(file: sandbox.file)
         try await store.save(makeSnippet(trigger: "my address", expansion: "Flat 402"))
 
-        #expect(await store.expander().expand("My address.").text == "Flat 402.")
+        #expect(await store.expander(in: nil).expand("My address.").text == "Flat 402.")
 
         try await store.deleteEverything()
-        #expect(await store.expander().expand("My address.").text == "My address.")
+        #expect(await store.expander(in: nil).expand("My address.").text == "My address.")
     }
 
     // MARK: When the file is not what we left
@@ -542,5 +543,27 @@ struct SnippetSetAsideTests {
         await #expect(throws: SnippetStoreError.couldNotWrite) {
             try await SnippetStore(file: sandbox.file).deleteEverything()
         }
+    }
+}
+
+@Suite("Keeping where a snippet fires")
+struct SnippetScopeStoreTests {
+    @Test("the editor's applications are kept across an edit, and the matcher fires only there")
+    func keepsApplicationsAndScopesTheMatcher() async throws {
+        let sandbox = Sandbox()
+        let store = SnippetStore(file: sandbox.file)
+        let saved = try await store.save(
+            trigger: "sign off", expansion: "Kind regards", replacing: nil, created: snippetEpoch,
+            applications: ["com.example.Mail"])
+        let id = try #require(saved.first?.id)
+        try await store.recordUse(of: [id], at: snippetEpoch)
+        #expect(sandbox.onDisk()?.first?.applications == ["com.example.Mail"])
+        #expect(await store.expander(in: "com.example.Mail").expand("sign off").text == "Kind regards")
+        #expect(await store.expander(in: "com.example.Chat").expand("sign off").text == "sign off")
+
+        try await store.save(
+            trigger: "sign off", expansion: "Kind regards", replacing: id, created: snippetEpoch,
+            applications: [])
+        #expect(await store.expander(in: "com.example.Chat").expand("sign off").text == "Kind regards")
     }
 }

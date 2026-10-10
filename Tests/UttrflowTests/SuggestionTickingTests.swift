@@ -128,6 +128,20 @@ struct SuggestionTickingTests {
         #expect(ticking.tick(at: activity.addingTimeInterval(1), ghostIsVisible: true) == .wake)
     }
 
+    @Test("checks the caret every 200 ms while active and every 5 s once a visible ghost is idle")
+    func selectionCadenceFollowsThePhase() {
+        var ticking = SuggestionTicking()
+        _ = ticking.noteActivity(at: noon)
+        #expect(ticking.selectionInterval == 0.2)
+
+        let later = noon.addingTimeInterval(SuggestionTicking.window + 0.5)
+        _ = ticking.tick(at: later, ghostIsVisible: true)
+        #expect(ticking.selectionInterval == 5)
+
+        _ = ticking.noteActivity(at: later.addingTimeInterval(1))
+        #expect(ticking.selectionInterval == 0.2)
+    }
+
     @Test("a tick after the clock stopped wakes nothing")
     func aStrayTickIsIgnored() {
         var copy = SuggestionTicking()
@@ -221,6 +235,21 @@ struct SuggestionCoordinatorClockTests {
         #expect(text.contains("watchScrolls()"))
         #expect(text.contains("guard panel.isShowing else { return stopWatchingScrolls() }"))
         #expect(!text.contains("if let scrolls { monitors.append(scrolls) }"))
+    }
+
+    @Test("a scroll or a key that keeps focus drops the field's kept frames")
+    func keysAndScrollsDropKeptFieldAnswers() throws {
+        let text = try source
+        let scrolled = try #require(text.components(separatedBy: "private func scrolled() {").last)
+        let scrollBody = try #require(scrolled.components(separatedBy: "\n    }").first)
+        #expect(scrollBody.contains("FocusedFieldReader.fieldMayHaveChanged()"))
+        let keys = try #require(
+            text.components(
+                separatedBy: "if Self.mayMoveFocus(keyCode: event.keyCode, modifiers: event.modifierFlags) {"
+            )
+            .last)
+        let branch = try #require(keys.components(separatedBy: "self.keyPressed(").first)
+        #expect(branch.contains("} else {\n                    FocusedFieldReader.fieldMayHaveChanged()"))
     }
 
     @Test("withdraws on mouse-up and rereads after a drop reaches the field")

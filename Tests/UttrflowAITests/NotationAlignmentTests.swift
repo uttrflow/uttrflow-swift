@@ -37,7 +37,7 @@ struct NotationAlignmentTests {
     @Test("a notation mark with no name said for it is unexplained")
     func inventedMarks() {
         #expect(unsourced("x y", "x = y") == ["="])
-        #expect(unsourced("let limit equals twelve", "let limit == 12") == ["="])
+        #expect(unsourced("let limit equals twelve", "let limit == 12") == ["=="])
         #expect(unsourced("cat log grep error", "cat log | grep error") == ["|"])
         #expect(unsourced("ls all", "ls --all") == ["--"])
         #expect(unsourced("if ready return", "if ready { return }") == ["{", "}"])
@@ -53,6 +53,14 @@ struct NotationAlignmentTests {
         #expect(aligned("cat log | grep error >> out", "cat log grep error out") == ["|", ">>"])
         #expect(aligned("let limit = 12", "let limit equals 12").isEmpty)
         #expect(aligned("we shipped it; then we rested.", "we shipped it then we rested").isEmpty)
+    }
+
+    @Test("an underscore joining two said words into one identifier is no invented mark")
+    func underscoreJoinsIdentifier() {
+        #expect(unsourced("rename user id to account id", "rename `user_id` to `account_id`").isEmpty)
+        #expect(unsourced("call get user", "call get_user") == [])
+        #expect(unsourced("user id", "user _ id") == ["_"])
+        #expect(unsourced("user id", "user_ id") == ["_"])
     }
 
     @Test("each name answers for one mark, in the order it was said")

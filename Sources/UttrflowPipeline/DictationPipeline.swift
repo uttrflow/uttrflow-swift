@@ -609,12 +609,9 @@ public actor DictationPipeline {
             let start = early.cut
             let end = early.cut - lead + cut
 
-            // A leftover tidy is folded in only once there is a next piece to recognise.
-            if let earlyTidyTask = early.tidyTask?.task {
-                let piece = await earlyTidyTask.value
-                guard state == .recording, generation == mine, !wasCancelled(mine), !Task.isCancelled
-                else { return }
-                early.spans.append(.done(piece, span: early.tidyTask?.span))
+            // Keep the previous tidy in its span while the next piece is recognised.
+            if let earlyTidy = early.tidyTask {
+                early.spans.append(.tidying(earlyTidy))
                 early.tidyTask = nil
             }
 
@@ -650,9 +647,19 @@ public actor DictationPipeline {
             if let heard {
                 // The piece before is read as heard, which every path has once it is recognised.
                 let preceding = early.spans.last?.heard
+                let previousTidy = early.spans.reversed().compactMap { span in
+                    if case .tidying(let tidying) = span { return tidying.task }
+                    return nil
+                }.first
                 let span = UUID()
                 let tidy = Task {
-                    await Self.$tidiedSpan.withValue(span) {
+                    if let previousTidy { _ = await previousTidy.value }
+                    guard !Task.isCancelled else {
+                        return Piece(
+                            heard: heard, corrected: .unchanged(heard.text),
+                            cleaned: TransformationResult(text: heard.text, producedBy: .untidied))
+                    }
+                    return await Self.$tidiedSpan.withValue(span) {
                         await self.finish(
                             heard, seeing: seeing, correctionSeeing: seeing, after: preceding,
                             recording: NoOpMetricsRecorder(), for: mine)

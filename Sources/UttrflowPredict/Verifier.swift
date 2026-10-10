@@ -429,7 +429,8 @@ public actor Verifier {
     /// Whether a whole line may be shown at all: never when it destroys, and in a terminal only when everything it names exists from there. See `Docs/predict-terminal-paths.md`.
     private func admits(_ line: String, in surface: Surface, now: Date) async -> Bool {
         let terminal = TerminalApplications.contains(surface.bundleIdentifier)
-        guard !DestructiveCommand.matches(line, failClosedOnUnresolved: terminal) else { return false }
+        // Fails closed in every field, as the corpus and environment classify their lines, so the model is never held to a weaker check.
+        guard !DestructiveCommand.matches(line, failClosedOnUnresolved: true) else { return false }
         guard terminal else { return true }
         // A remote session's files are on another machine, so nothing this disk could say stands behind the line.
         guard !RemoteSession.names(surface.scope) else { return false }

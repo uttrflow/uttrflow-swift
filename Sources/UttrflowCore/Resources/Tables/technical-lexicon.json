@@ -352,6 +352,7 @@
         {"id": "HTTP/1.1", "category": "joined", "spoken": ["h t t p one point one"]},
         {"id": "HTTP/2", "category": "joined", "spoken": ["h t t p two"]},
         {"id": "HTTP/3", "category": "joined", "spoken": ["h t t p three"]},
-        {"id": "A/B", "category": "joined", "spoken": ["a slash b"]}
+        {"id": "A/B", "category": "joined", "spoken": ["a slash b"]},
+        {"id": "USB-C", "category": "joined", "spoken": ["usb c", "u s b c"]}
     ]
 }

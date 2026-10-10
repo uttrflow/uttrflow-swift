@@ -1146,6 +1146,7 @@ struct NumberWordsTests {
             ("about two point five k", "about 2.5k"),
             ("an eight k b page", "an 8 k b page"),
             ("seat twelve k", "seat 12 k"),
+            ("watch it in four k", "watch it in four k"),
             ("plan k", "plan k"),
         ]
     )

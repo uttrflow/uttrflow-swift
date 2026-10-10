@@ -226,6 +226,42 @@ struct DictionaryRetirementTests {
         #expect(!row.actions[0].isDestructive)
     }
 
+    /// The undone corrections are the cause; a row that names them says what Restore alone will not fix.
+    @Test("a retired word lists the heard spellings it was undone for, with counts")
+    func undoneFor() throws {
+        let entry = HistoryFixture.word("Nikhil", used: 10, reverted: 7)
+        let undone = { (heard: String, minutesAgo: Int) in
+            HistoryFixture.correction(
+                heard: heard, wrote: "Nikhil", minutesAgo: minutesAgo, isUndone: true, entry: entry.id)
+        }
+        let corrections = [
+            undone("nicole", 1), undone("nickel", 2), undone("nickel", 3),
+            // Kept, or made for another word: neither is why this one retired.
+            HistoryFixture.correction(heard: "nickle", wrote: "Nikhil", entry: entry.id),
+            HistoryFixture.correction(heard: "nicky", wrote: "Nicky", isUndone: true),
+        ]
+        let row = HistoryFixture.dictionary(entries: [entry], corrections: corrections).rows[0]
+        let reason = try #require(row.undoneFor)
+        #expect(reason.text == "Undone for: \u{2018}nickel\u{2019} (2), \u{2018}nicole\u{2019} (1)")
+        #expect(reason.spoken == "Undone where it replaced nickel 2 times; nicole 1 time")
+    }
+
+    @Test("a word that has not retired lists nothing it was undone for")
+    func notRetiredListsNothing() {
+        let entry = HistoryFixture.word("Nikhil", used: 15, reverted: 1)
+        let correction = HistoryFixture.correction(
+            heard: "nickel", wrote: "Nikhil", isUndone: true, entry: entry.id)
+        let row = HistoryFixture.dictionary(entries: [entry], corrections: [correction]).rows[0]
+        #expect(row.undoneFor == nil)
+    }
+
+    /// History is kept for a while only, so a retired word may have nothing left to show.
+    @Test("a retired word whose undone corrections have aged out lists nothing")
+    func agedOut() {
+        let row = HistoryFixture.dictionary(entries: [HistoryFixture.word(used: 10, reverted: 7)]).rows[0]
+        #expect(row.undoneFor == nil)
+    }
+
     /// Explaining a state nothing is in teaches the user to skip the small print.
     @Test("retirement is explained only when something has retired")
     func footnote() {
@@ -350,7 +386,8 @@ struct DictionaryEditorTests {
             ).editor)
         #expect(editor.canSave)
         #expect(editor.problem == nil)
-        #expect(editor.save.intent == .saveWord(word: "Uttrflow", pronunciation: "utter-flow"))
+        #expect(
+            editor.save.intent == .saveWord(word: "Uttrflow", pronunciation: "utter-flow", applications: []))
     }
 
     /// The second field is genuinely optional — most words are spelt as they sound.
@@ -414,7 +451,8 @@ struct DictionaryEditorTests {
         #expect(editor.badge.text == "Editing")
         #expect(editor.replace == nil)
         #expect(
-            editor.save.intent == .replaceWord(held.id, word: "Uttrflow", pronunciation: "utter flow"))
+            editor.save.intent
+                == .replaceWord(held.id, word: "Uttrflow", pronunciation: "utter flow", applications: []))
     }
 
     @Test("editing a word into another held word's spelling is still refused")
@@ -437,7 +475,9 @@ struct DictionaryEditorTests {
         let named = "\u{2018}Open AI\u{2019} is already in your dictionary as \u{2018}OpenAI\u{2019}."
         #expect(editor.problem == named)
         #expect(!editor.canSave)
-        #expect(editor.replace?.intent == .replaceWord(held.id, word: "Open AI", pronunciation: ""))
+        #expect(
+            editor.replace?.intent
+                == .replaceWord(held.id, word: "Open AI", pronunciation: "", applications: []))
     }
 
     @Test("two spellings of one word are flagged as sounding alike and offered a merge")

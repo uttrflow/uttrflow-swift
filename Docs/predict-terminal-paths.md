@@ -33,9 +33,10 @@ Two rules decide what runs where:
 
 1. **A destructive line is never offered, in any field.** `DestructiveCommand.matches` reads the
    same parsed commands as the terminal path check and is asked of every line, whatever its evidence.
-   Unresolved shell syntax is refused in terminals; ordinary editor prose is not parsed as a terminal
-   command. The same test keeps destructive lines out of the corpus (`CaptureGate`), so here it
-   closes the lines the model writes and any older line already in the corpus.
+   Unresolved shell syntax is refused in every field, so a line the model writes is held to the same
+   test as a learned or machine line; ordinary editor prose without shell syntax is not parsed as a
+   terminal command. The same test keeps destructive lines out of the corpus (`CaptureGate`), so
+   here it closes the lines the model writes and any older line already in the corpus.
 2. **The path check runs only in a terminal**, meaning an application `TerminalApplications`
    names. An editor's document also has a directory for a scope, but its lines are prose, and a
    shell grammar would refuse all of them.

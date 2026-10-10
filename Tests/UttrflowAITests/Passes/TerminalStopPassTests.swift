@@ -89,6 +89,37 @@ struct TerminalStopPassTests {
         #expect(cleaned("buy milk", by: pass(before: "Details (see above) ")) == "buy milk.")
     }
 
+    @Test(
+        "leaves the words unfinished when an aside opens after the caret",
+        arguments: [
+            " (on weekdays).", "(and a loft).", " [weather allowing].", " \u{201C}keep dry\u{201D}.",
+            " \"keep dry\".", " \u{00AB}and back\u{00BB}.",
+        ])
+    func asideAfterCaret(following: String) {
+        let formatter = DestinationFormatter.standard(for: .plain)
+        let pass = TerminalStopPass(
+            policy: formatter.terminalStop, layout: formatter.layout,
+            insertionPoint: InsertionPoint(precedingText: "", followingText: following))
+        #expect(cleaned("the market opens at eight", by: pass) == "the market opens at eight")
+        #expect(cleaned("the market opens at eight.", by: pass) == "the market opens at eight")
+    }
+
+    @Test("leaves the words unfinished inside a quotation opened on the caret's line, not one closed there")
+    func openQuotationBeforeCaret() {
+        let formatter = DestinationFormatter.standard(for: .plain)
+        func pass(before: String) -> TerminalStopPass {
+            TerminalStopPass(
+                policy: formatter.terminalStop, layout: formatter.layout,
+                insertionPoint: InsertionPoint(precedingText: before))
+        }
+
+        #expect(cleaned("back by noon", by: pass(before: "The sign said \u{201C}")) == "back by noon")
+        #expect(cleaned("back by noon", by: pass(before: "She wrote \u{00AB}")) == "back by noon")
+        let closed = pass(before: "The sign said \u{201C}shut\u{201D}. ")
+        #expect(cleaned("back by noon", by: closed) == "back by noon.")
+        #expect(cleaned("back by noon", by: pass(before: "\u{201C}Shut\n")) == "back by noon.")
+    }
+
     /// An unpunctuated question is finished as one, on the rules path and after a model that left it bare. Issue #2177.
     @Test(
         "finishes a sentence that asks a question with a question mark",

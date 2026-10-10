@@ -512,7 +512,7 @@ struct RetriedDictationPresentationTests {
         let failure = DictationFailure(message: "Lost it.", recovery: .retry, severity: .recoverable)
         let offered = failure.offering(.retryFromRecording)
         #expect(offered.recovery == .retryFromRecording)
-        #expect(offered.message == failure.message)
+        #expect(offered.message == "Lost it. Your recording is kept on this Mac.")
         #expect(offered.severity == failure.severity)
     }
 }

@@ -116,32 +116,24 @@ public enum PanelResize {
 
         return held(
             CGRect(origin: origin, size: CGSize(width: width, height: height)),
-            dragging: edge, minimum: minimum, within: visible)
+            dragging: edge, within: visible)
     }
 
-    /// Keeps a resized frame on the usable screen, pulling back only the dragged edges.
+    /// Fits a resized frame on the usable screen while preserving the opposite edges when possible.
     private static func held(
-        _ frame: CGRect, dragging edge: PanelEdge, minimum: CGSize, within visible: CGRect?
+        _ frame: CGRect, dragging edge: PanelEdge, within visible: CGRect?
     ) -> CGRect {
         guard let visible else { return frame }
-        // The anchors are read before anything changes, since shrinking the width moves `maxX`.
-        let (right, top) = (frame.maxX, frame.maxY)
-        var frame = frame
+        let right = min(max(frame.maxX, visible.minX), visible.maxX)
+        let top = min(max(frame.maxY, visible.minY), visible.maxY)
+        let left = min(max(frame.minX, visible.minX), visible.maxX)
+        let bottom = min(max(frame.minY, visible.minY), visible.maxY)
+        let width = min(frame.width, edge.movesOrigin.x ? right - visible.minX : visible.maxX - left)
+        let height =
+            min(frame.height, edge.movesOrigin.y ? top - visible.minY : visible.maxY - bottom)
+        let x = edge.movesOrigin.x ? right - width : left
+        let y = edge.movesOrigin.y ? top - height : bottom
 
-        if edge.movesOrigin.x, frame.minX < visible.minX {
-            frame.size.width = max(right - visible.minX, minimum.width)
-            frame.origin.x = right - frame.width
-        }
-        if !edge.movesOrigin.x, edge.changesWidth, right > visible.maxX {
-            frame.size.width = max(visible.maxX - frame.minX, minimum.width)
-        }
-        if edge.movesOrigin.y, frame.minY < visible.minY {
-            frame.size.height = max(top - visible.minY, minimum.height)
-            frame.origin.y = top - frame.height
-        }
-        if !edge.movesOrigin.y, edge.changesHeight, top > visible.maxY {
-            frame.size.height = max(visible.maxY - frame.minY, minimum.height)
-        }
-        return frame
+        return CGRect(x: x, y: y, width: width, height: height)
     }
 }

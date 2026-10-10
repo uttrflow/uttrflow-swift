@@ -118,5 +118,18 @@ silence), decodes each clip once whole and once in the pieces the live path cuts
 scores the raw piece texts against the one-pass text with `SeamScore`. It prints a row per clip and
 the sum, the score one build earns, and fails when any clip counts more of any artefact than the
 baseline the target names. The baseline is written only by `uttrflow-eval seam-score
---save-baseline`; until one is recorded the run reports and does not fail. It needs the installed
-model, so it is not in `make verify`.
+--save-baseline` (`Scripts/seam_score_baseline.json`). It needs the installed model, so it is not in
+`make verify`; `make release-quality` runs it for every release.
+
+Measured with the shipping model, Apple M5 Pro: 12 seams over the six clips, and 0 stray stops,
+wrong capitals, doubled or dropped words in the raw decodes. The recogniser stops where the
+speaker paused at a sentence end, so the raw pieces match the one-pass text at every seam.
+
+## Seam score of the written text
+
+`SeamScore(whole:written:pieces:)` scores the one text the pieces were joined into, with each seam
+found where the cleaned pieces met in it. `LongFormSeamTests` cuts each paused long-form case at
+its pauses, cleans and joins the pieces with the rules engine, and scores the written text against
+the case cleaned as one piece. Two cases fail today, recorded as known issues: the join ends a
+piece in a stop, and capitalises the next, where the one-piece text runs on. A fix that clears a
+case removes it from the test's `failingToday`.

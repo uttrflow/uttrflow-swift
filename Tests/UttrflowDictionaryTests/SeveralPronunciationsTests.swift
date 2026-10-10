@@ -74,7 +74,8 @@ struct SeveralPronunciationsStoreTests {
         let added = try await store.add(word: "Zentrova", pronunciation: "zen trova, jen trova", at: noon)
         let entry = try #require(added.first)
         #expect(entry.pronunciations == ["zen trova", "jen trova"])
-        let replaced = try await store.replace(entry.id, word: "Zentrova", pronunciation: "jen trova")
+        let replaced = try await store.replace(
+            entry.id, word: "Zentrova", pronunciation: "jen trova", applications: [])
         #expect(replaced.first?.pronunciations == ["jen trova"])
     }
 

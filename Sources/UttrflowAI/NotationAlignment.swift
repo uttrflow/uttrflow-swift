@@ -17,14 +17,14 @@ struct NotationAlignment: Sendable {
     let unsourced: [String]
     /// The marks only notation writes that the spoken side already held, in order, and the rewrite left out.
     let dropped: [String]
-    /// Every spoken name, in the order it was said.
+    /// Every spoken name, in spoken order.
     let names: [Name]
 
     /// The rows that write a mark in place of its spoken name: prose punctuation, code symbols and flags.
     static let notationRows = SpokenCommands.all.filter { row in
         switch row.action {
         case .mark, .codeSymbol, .flag: true
-        case .layout, .casing, .leadIn, .replace, .lineMark, .spanMark, .emoji, .key: false
+        case .layout, .casing, .keyword, .leadIn, .replace, .lineMark, .spanMark, .emoji, .key: false
         }
     }
 
@@ -52,7 +52,9 @@ struct NotationAlignment: Sendable {
         let landed = WordErrorRate.measure(reference: said.map(\.key), hypothesis: wrote.map(\.key))
             .matchedColumns
         let matched = Set(landed.compactMap { $0 })
-        let unsourced = wrote.indices.filter { !matched.contains($0) && lexicon.isJudged(wrote[$0]) }
+        let unsourced = wrote.indices.filter {
+            !matched.contains($0) && lexicon.isJudged(wrote[$0]) && !joinsIdentifier(wrote, at: $0)
+        }
         let dropped = said.indices.filter { landed[$0] == nil && lexicon.isJudged(said[$0]) }
         let names = said.indices.compactMap { index in
             said[index].name.map {
@@ -61,6 +63,13 @@ struct NotationAlignment: Sendable {
         }
         return NotationAlignment(
             unsourced: unsourced.map { wrote[$0].text }, dropped: dropped.map { said[$0].text }, names: names)
+    }
+
+    /// Whether the mark at `index` is an underscore hard between two words, which writes them as one identifier as a camel hump does: `user_id`.
+    private static func joinsIdentifier(_ units: [NotationLexicon.Unit], at index: Int) -> Bool {
+        units[index].text == "_" && units[index].touches.before && units[index].touches.after
+            && index > 0 && index + 1 < units.count
+            && units[index - 1].mark == nil && units[index + 1].mark == nil
     }
 
     /// The kept words of each name the rewrite writes, found in order, so the survival check does not look for them as words.
@@ -87,7 +96,7 @@ private struct NotationLexicon: Sendable {
         let key: String
         let text: String
         let mark: Int?
-        /// The spoken words this mark was read from, when it was said rather than written.
+        /// The spoken words this mark was read from, when spoken rather than written.
         let name: [String]?
         /// Whether the mark is written hard against what stands before it, and against what follows.
         var touches: (before: Bool, after: Bool) = (true, true)

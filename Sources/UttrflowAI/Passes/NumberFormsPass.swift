@@ -15,11 +15,7 @@ public struct NumberFormsPass: PieceCleaningPass {
     let digits: DigitGrouping
 
     /// Words after which a lone digit is a numeral, digit groups run together, and no separator is used.
-    static let contextWords: Set<String> = [
-        "port", "version", "extension", "page", "chapter", "step", "number", "line", "section", "figure",
-        "table", "level", "room", "floor", "route", "flight", "interstate", "highway", "bus", "gate",
-        "grade", "size", "model",
-    ]
+    static let contextWords = NumberCues.words(for: .designator)
     /// The spoken currency words, bar those read with the `measures` ("yen").
     static let currencies = Set(Quantities.currencyWords.keys).subtracting(measures)
     static let meridiems: Set<String> = ["am", "pm", "a.m", "p.m"]
@@ -443,12 +439,7 @@ public struct NumberFormsPass: PieceCleaningPass {
         at position: Int, keys: [String], shapes: [WordShape], policy: NumberPolicy, digits: DigitGrouping
     ) -> Phrase? {
         guard let item = item(at: position, keys: keys, shapes: shapes) else { return nil }
-        let contextPosition =
-            position > 0 && ["negative", "minus"].contains(keys[position - 1])
-            ? position - 2 : position - 1
-        let inContext =
-            contextPosition >= 0 && !startsASentence(position, shapes)
-            && contextWords.contains(keys[contextPosition])
+        let inContext = hasLabelCue(at: position, keys: keys, shapes: shapes)
         if let measured = decimalAndPercent(item, at: position, keys: keys, shapes: shapes) {
             return measured
         }
@@ -486,7 +477,9 @@ public struct NumberFormsPass: PieceCleaningPass {
         if let percent = percentWords(at: end, keys: keys, shapes: shapes) {
             text += "%"
             end += percent
-        } else if thousandsMark(at: end, after: position, keys: keys, shapes: shapes) {
+        } else if thousandsMark(at: end, after: position, keys: keys, shapes: shapes),
+            LetterRun.knownCodes[text + keys[end]] == nil
+        {
             text += shapes[end].core
             end += 1
         }
@@ -1006,6 +999,21 @@ public struct NumberFormsPass: PieceCleaningPass {
 
     /// Words before a digit run that say it is a code or a number to dial, not a count.
     static let digitCues = contextWords.union(NumberCues.words(for: .digitRun))
+
+    /// Whether a label word cues the number, across a sign and function words such as "to".
+    static func hasLabelCue(at position: Int, keys: [String], shapes: [WordShape]) -> Bool {
+        guard position > 0, !startsASentence(position, shapes) else { return false }
+        var cuePosition = position - 1
+        if ["negative", "minus"].contains(keys[cuePosition]) { cuePosition -= 1 }
+        while cuePosition >= 0 {
+            if shapes[cuePosition].endsSentence { return false }
+            let word = keys[cuePosition]
+            if contextWords.contains(word) { return true }
+            if FunctionWords.isContent(word) { return false }
+            cuePosition -= 1
+        }
+        return false
+    }
 
     /// Whether the digits step up or down by one each time, as a count-off or countdown does.
     private static func isCount(_ digits: String) -> Bool {

@@ -121,9 +121,20 @@ public enum FocusedFieldReader {
     /// The full Accessibility trees the suggestion loop turned on, kept so stopping the loop turns them off.
     private static let fullTree = FullTreeSwitch()
 
-    /// Turns off every browser engine's full tree the suggestion loop turned on.
+    /// Gives a restarted suggestion loop a generation newer than any queued release.
+    package static func beginFullTreeSession() { fullTree.beginSession() }
+
+    /// Runs releases in order, away from the caller, so an older release cannot undo a newer one.
+    private static let fullTreeReleaseQueue = DispatchQueue(
+        label: "com.uttrflow.full-tree-release", qos: .utility)
+
+    /// Invalidates earlier reads now and turns off owned trees on the release queue, never on the caller's thread.
     public static func releaseFullTrees(except processIdentifier: Int32? = nil) {
-        fullTree.switchOffEverything(except: processIdentifier, host: fullTreeHost)
+        let generation = fullTree.invalidatePendingReads()
+        fullTreeReleaseQueue.async {
+            fullTree.switchOffEverything(
+                except: processIdentifier, generation: generation, host: fullTreeHost)
+        }
     }
 
     /// One application's full-tree switches, each message capped so a stalled application cannot hold the caller.
@@ -156,12 +167,21 @@ public enum FocusedFieldReader {
     /// What is on screen around the focused field, or `nil` when nothing usable is focused or the wait ran out.
     public static func surroundings() async -> Surroundings? {
         guard let app = await frontmostApp() else { return nil }
-        // A walk that does not answer in time is left to finish; a newer walk replaces one still queued.
-        return await surroundingsQueue.run(within: surroundingsAllowance) { _ in surroundings(of: app) }
+        // The queue ticket reaches the collector so a cancelled turn stops between Accessibility messages.
+        return await surroundingsQueue.run(within: surroundingsAllowance) { isWanted in
+            surroundings(of: app, while: isWanted)
+        }
     }
 
     /// The same read synchronously, for an application front or not, which is what a probe shows the operator.
     public static func surroundings(of app: FrontmostApp) -> Surroundings? {
+        surroundings(of: app, while: { true })
+    }
+
+    /// The same synchronous read, stopping before its next Accessibility message when its queue ticket is invalidated.
+    private static func surroundings(
+        of app: FrontmostApp, while isWanted: @escaping @Sendable () -> Bool
+    ) -> Surroundings? {
         // A field with no window, or a window focused as a whole, has nothing around it worth a walk.
         guard AXIsProcessTrusted(), !slowFields.isQuiet(app.processIdentifier),
             let field = SurfaceProbe.focusedField(of: app.processIdentifier),
@@ -172,7 +192,8 @@ public enum FocusedFieldReader {
         else { return nil }
         let answers = AXNode(window).answers
         return Surroundings.collect(
-            around: AXNode(field), in: AXElementTree(), windowTitle: answers.title, windowFrame: answers.frame
+            around: AXNode(field), in: AXElementTree(), windowTitle: answers.title,
+            windowFrame: answers.frame, isWanted: isWanted
         )
     }
 
@@ -187,6 +208,11 @@ public enum FocusedFieldReader {
     /// Lets an application quieted by a resting field be asked again, for a click, a switch or a key that may move focus.
     public static func focusMayHaveMoved() {
         slowFields.focusMayHaveMoved()
+        fieldMayHaveChanged()
+    }
+
+    /// Drops the kept field and window answers, for a key or a scroll that can move the caret, grow the field or move its window.
+    public static func fieldMayHaveChanged() {
         stableSnapshot.clear()
     }
 
@@ -231,9 +257,12 @@ public enum FocusedFieldReader {
         let key = { (window: AXNode?) in
             StableSnapshotKey(processIdentifier: app.processIdentifier, field: field, window: window?.element)
         }
+        // Taken before any question, so answers read across a key or a scroll are not kept for the next read.
+        let generation = stableSnapshot.generation
         return SnapshotSources(
             app: app, decode: .capping, cached: { stableSnapshot.value(for: key($0)) },
-            keep: { stableSnapshot.insert($0, for: key($1)) }, elementHash: { CFHash($0.element) },
+            keep: { stableSnapshot.insert($0, for: key($1), readSince: generation) },
+            elementHash: { CFHash($0.element) },
             windowNumber: { windowNumber(of: $0.element) },
             primaryScreenMaxY: { cachedPrimaryScreenMaxY.withLock { $0 } },
             inputSourceKind: CompositionProbe.inputSourceKind,

@@ -113,12 +113,16 @@ struct EndToEndWordSurvivalTests {
     /// One dictation of `input`, spoken in its parts, into the app its destination names.
     private func run(_ input: Input) async -> [LostWord] {
         let dictation = await ScenarioDriver.run(
-            Scenario(pieces: input.parts.map { ScriptedPiece($0) }, context: Self.app(for: input.destination)))
+            Scenario(pieces: input.parts.map { ScriptedPiece($0) }, context: Self.app(for: input.destination))
+        )
         guard dictation.heard.map(\.text) == input.parts else {
             return [LostWord(word: input.text, stage: "recognition: \(dictation.heard.map(\.text))")]
         }
         guard dictation.writes.count == 1 else {
-            return [LostWord(word: input.text, stage: "write: \(dictation.writes.count) writes, \(dictation.state)")]
+            return [
+                LostWord(
+                    word: input.text, stage: "write: \(dictation.writes.count) writes, \(dictation.state)")
+            ]
         }
         let stages = await dictation.stages()
         let reportWords = Set(input.text.split(whereSeparator: \.isWhitespace).map(String.init))

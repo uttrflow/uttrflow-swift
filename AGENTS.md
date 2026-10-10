@@ -39,8 +39,9 @@ make hooks                       # install the commit-msg and pre-push gates, on
 ```
 
 `swift build` does not build the app bundle; `make app-preflight` does. Run `make verify` before
-every push; CI runs the same command. Commands in these files write the base branch as
-`origin/main`; in a fork, use the remote that points at this repository.
+every push; CI runs it as `make --keep-going verify`, so one failing check does not hide the
+rest. Commands in these files write the base branch as `origin/main`; in a fork, use the remote
+that points at this repository.
 
 ## Layout
 

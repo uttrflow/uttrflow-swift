@@ -33,6 +33,11 @@ swift build --product uttrflow-eval
 `--compute gpu` leaves the Neural Engine alone when other model loads are queued on it; the words
 are the same model's.
 
+Each run is compared with the per-shape counts in `Scripts/digit_string_baseline.json`, written by
+`--save-baseline`. A shape with fewer exact cases than the baseline, raw or final, is named;
+`--fail-on-regression` makes that exit non-zero. A run with a different model, compute plan, voice
+list or case count is not compared.
+
 ## Result
 
 81 cases in six macOS voices (Samantha, Daniel, Karen, Rishi, Moira, Tessa), shipping model on

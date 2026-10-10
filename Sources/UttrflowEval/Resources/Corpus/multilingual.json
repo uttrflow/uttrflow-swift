@@ -75,6 +75,14 @@
     "mustNotAdd": ["theek lag raha hai"]
   },
   {
+    "id": "hinglish-galat-bola-restatement-kept",
+    "note": "\"galat bola\" has the restatedNumber evidence, so without a number repeated after it the phrase is kept as ordinary words.",
+    "language": "hi",
+    "spoken": "tumne pehle galat bola aur ab sahi bol rahe ho",
+    "expected": "Tumne pehle galat bola, aur ab sahi bol rahe ho.",
+    "mustKeep": ["galat", "bola", "sahi"]
+  },
+  {
     "id": "hinglish-question",
     "language": "hi",
     "spoken": "क्या तुम आज का PR review कर सकते हो",

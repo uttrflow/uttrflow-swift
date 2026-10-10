@@ -95,7 +95,7 @@ enum PersonaProfile {
             }
             return PersonaItem(
                 fact: .style(destination),
-                title: "Writing in \(lowercasedFirst(SettingsDestinations.title(of: destination)))",
+                title: "Writing in \(SettingsDestinations.phrase(of: destination))",
                 detail: parts.joined(separator: ", "))
         }
     }
@@ -116,10 +116,5 @@ enum PersonaProfile {
 
     private static func counted(_ count: Int, _ singular: String, _ plural: String) -> String {
         "\(count) \(count == 1 ? singular : plural)"
-    }
-
-    private static func lowercasedFirst(_ text: String) -> String {
-        guard let first = text.first else { return text }
-        return first.lowercased() + text.dropFirst()
     }
 }
