@@ -395,6 +395,10 @@ fmt-number-count	We need 12 chairs.
 fmt-number-money	The ticket costs 40 dollars.
 fmt-number-one-as-pronoun	This one is better.
 fmt-number-percent	Sales grew by 15%.
+fmt-number-repeated-port-at-end	Set the port to 8080.
+fmt-number-repeated-port-followed-by-clause	Set the port to 8080 and restart.
+fmt-number-repeated-port-followed-by-quantity	Set the port to 8080 and the timeout to 21 seconds.
+fmt-number-repeated-port-with-listener-cue	The server listens on port 8080.
 fmt-number-time	The call is at 4:30.
 fmt-paragraph-new-line	Dear team\nThe office is closed on Friday.
 fmt-paragraph-new-paragraph	The trip is booked.\n\nThe hotel is near the station.
