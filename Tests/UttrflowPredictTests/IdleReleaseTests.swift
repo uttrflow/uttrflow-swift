@@ -8,6 +8,7 @@ import UttrflowTestSupport
 /// A model that records every load and release, and can be told to fail its next load.
 private actor RecordingModel: ReleasableModel {
     private(set) var steps: [String] = []
+    private(set) var prefixIndexForgets = 0
     private var isLoaded = false
     private var nextFailure: (any Error)?
 
@@ -55,6 +56,8 @@ private actor RecordingModel: ReleasableModel {
     func confidence(ofGenerated line: String) async -> Double? { -0.5 }
 
     func forgetEverything() async { steps.append("forget") }
+
+    func forgetPrefixIndex() { prefixIndexForgets += 1 }
 }
 
 /// A reload that could not find the memory to read the weights in.
@@ -330,6 +333,17 @@ struct IdleReleaseTests {
         await model.pendingWork?.value
         #expect(await inner.steps == ["load", "release"])
         #expect(await model.releaseIfIdle(at: .seconds(700)) == false)
+    }
+
+    @Test("a release the caller asked for empties the prefix index, and an idle release keeps it")
+    func explicitReleaseForgetsThePrefixIndex() async throws {
+        let inner = RecordingModel()
+        let model = IdleReleasingModel(model: inner, idleAfter: .seconds(600), clock: ManualClock())
+        try await model.prepare(onProgress: { _ in })
+        #expect(await model.releaseIfIdle(at: .seconds(601)) == false)
+        #expect(await inner.prefixIndexForgets == 0)
+        await model.release()
+        #expect(await inner.prefixIndexForgets == 1)
     }
 
     @Test("a model never loaded is not released for idling")

@@ -369,8 +369,25 @@ public struct MeaningPreservationGuard: Sendable {
 
     /// How many words in `tokens` turn a sentence's meaning around.
     static func negators(in tokens: [GrammarToken]) -> Int {
-        tokens.filter { isNegation($0.matching) }.count
+        tokens.indices.filter { isNegation(at: $0, in: tokens) }.count
     }
+
+    /// Whether the word at `index` reverses its sentence; "no" between a subject and a determiner ("I no the") is a misheard "know".
+    static func isNegation(at index: Int, in tokens: [GrammarToken]) -> Bool {
+        let token = tokens[index]
+        guard isNegation(token.matching) else { return false }
+        guard token.matching == "no", !token.startsSentence, index > 0, index + 1 < tokens.count else { return true }
+        return !(knowSubjects.contains(tokens[index - 1].matching)
+            && knowObjectDeterminers.contains(tokens[index + 1].matching))
+    }
+
+    /// Subject pronouns that "know" follows; "no" after one of them never negates.
+    private static let knowSubjects: Set<String> = ["i", "you", "we", "they", "he", "she"]
+
+    /// Determiners that open the object of "know"; "no" never stands directly before one.
+    private static let knowObjectDeterminers: Set<String> = [
+        "the", "a", "an", "this", "that", "these", "those", "my", "your", "his", "her", "its", "our", "their",
+    ]
 
     /// Whether a word reverses a sentence, read without its apostrophes so "doesn't" and "doesnt" are one negation.
     static func isNegation(_ word: String) -> Bool {

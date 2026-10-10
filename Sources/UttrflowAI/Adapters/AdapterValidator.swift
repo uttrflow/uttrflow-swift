@@ -12,10 +12,7 @@ enum AdapterValidator {
             following: situation.insertion.followingText ?? "")
     }
 
-    /// Whether `output` closes only what is open and leaves no quote of its own open, given the text around the caret.
-    ///
-    /// A bracket left open is a fragment the next words may close, so it is accepted; a closer with no opener,
-    /// a closer of the wrong kind, or a quote the answer opened and nothing after the caret closes is refused.
+    /// Whether `output` closes only what is open, accepting an open bracket and refusing a stray closer or unclosed quote.
     static func balance(of output: String, preceding: String, following: String) -> AdapterVerdict {
         var scan = BalanceScan()
         scan.read(preceding, asContext: true)
@@ -43,8 +40,7 @@ private struct BalanceScan {
     /// Whether that quote was opened by the text read last.
     var openedHere = false
 
-    /// Reads `text` on from the current state, returning the first fault; context is read for state alone, its
-    /// faults ignored and its quotes ended at a line break, since it may begin mid-line or mid-string.
+    /// Reads `text` on from the current state, returning the first fault; context only sets state and ends quotes at a line break.
     @discardableResult
     mutating func read(_ text: String, asContext: Bool) -> String? {
         let characters = Array(text)

@@ -244,7 +244,8 @@ extension MeaningPreservationGuard {
     /// Spoken punctuation names whose written marks join the words on either side.
     static let symbolNames: [String: String] = [
         "dot": ".", "period": ".", "underscore": "_", "slash": "/", "backslash": "\\",
-        "at": "@", "hyphen": "-", "dash": "-", "plus": "+", "hash": "#", "backtick": "`",
+        "at": "@", "hyphen": "-", "dash": "-", "plus": "+", "hash": "#", "backtick": "`", "caret": "^",
+        "dollar": "$",
     ]
 
     /// Maps every spelling accepted by `survives` to its token positions, preserving their original order.
@@ -305,6 +306,17 @@ extension MeaningPreservationGuard {
 
         func occurrences(of word: String) -> [Int] { places[word] ?? [] }
 
+        /// The first unused token at or after `lowerBound` whose own joined parts open `parts`, with how many it spells.
+        private func joinedToken(
+            spelling parts: ArraySlice<String>, from lowerBound: Int, excluding used: Set<Int>
+        ) -> (place: Int, width: Int)? {
+            for place in tokens.indices where place >= lowerBound && !used.contains(place) {
+                let own = MeaningPreservationGuard.identifierParts(tokens[place].text)
+                if own.count > 1, parts.starts(with: own) { return (place, own.count) }
+            }
+            return nil
+        }
+
         func firstOccurrence(of word: String, atOrAfter lowerBound: Int) -> Int? {
             guard let candidates = places[word] else { return nil }
             var low = 0
@@ -330,13 +342,24 @@ extension MeaningPreservationGuard {
             if parts.count > 1 {
                 var next = 0
                 var matched: [Int] = []
-                for part in parts {
+                var start = 0
+                while start < parts.count {
                     // The first occurrence still unused, so an identifier written twice takes the words said twice.
+                    let unused = occurrences(of: parts[start]).first { $0 >= next && !used.contains($0) }
+                    if let place = unused {
+                        matched.append(place)
+                        next = place + 1
+                        start += 1
+                        continue
+                    }
+                    // A token the draft already wrote joined, run on by a mark: "1.4.2" inside `api:1.4.2`.
                     guard
-                        let place = occurrences(of: part).first(where: { $0 >= next && !used.contains($0) })
+                        let (place, width) = joinedToken(
+                            spelling: parts[start...], from: next, excluding: used)
                     else { matched.removeAll(); break }
                     matched.append(place)
                     next = place + 1
+                    start += width
                 }
                 if !matched.isEmpty { return matched }
             }

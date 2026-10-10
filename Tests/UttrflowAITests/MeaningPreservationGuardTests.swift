@@ -1690,6 +1690,20 @@ struct GuardMatchStrengthTests {
         #expect(!verdict("let limit equals twelve", "let limit 12").isAccepted)
     }
 
+    @Test("accepts a caret or dollar the draft left named written as its mark, and refuses it dropped")
+    func anchorNamesWrittenAsMarks() {
+        let draft = "The pattern is caret [a dash z] plus at [a dash z] plus dollar"
+        #expect(verdict(draft, "The pattern is ^[a-z]+@[a-z]+$").isAccepted)
+        #expect(!verdict(draft, "The pattern is ^[a-z]+@[a-z]+").isAccepted)
+    }
+
+    @Test("accepts a token the draft wrote joined, run onto a word by a mark, and refuses one never said")
+    func joinedTokenRunOnByAMark() {
+        let draft = "Set replicas: 3 and image: registry.example.com/api: 1.4.2"
+        #expect(verdict(draft, "Set replicas: 3 and image: registry.example.com/api:1.4.2").isAccepted)
+        #expect(!verdict(draft, "Set replicas: 3 and image: registry.example.com/api:1.5.2").isAccepted)
+    }
+
     @Test("refuses a spoken symbol name left inside an identifier")
     func refusesSymbolNameInsideIdentifier() {
         #expect(
