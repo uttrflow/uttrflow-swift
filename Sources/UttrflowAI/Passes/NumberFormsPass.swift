@@ -790,11 +790,7 @@ public struct NumberFormsPass: PieceCleaningPass {
             || NumberWords.scales[previous] != nil
     }
 
-    /// The written magnitude for a lone "k", "m" or "b" at `index`, or nil when it is a unit, a code or a name.
-    ///
-    /// "k" counts thousands and stays lower case; "m" and "b" are millions and billions, written "M" and "B".
-    /// "m" and "b" are also a metre and a label, so they count only with a decimal before them or a noun or currency
-    /// word after them: "two point five m", "ten b dollars", but not "five m long".
+    /// The written magnitude of a lone "k", "m" or "b" at `index`: "m" and "b" count only after a decimal or before a noun, else nil.
     private static func magnitudeMark(
         at index: Int, after position: Int, decimal: Bool, keys: [String], shapes: [WordShape]
     ) -> String? {

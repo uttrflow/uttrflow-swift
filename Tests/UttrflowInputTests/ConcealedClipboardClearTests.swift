@@ -9,7 +9,7 @@ import Testing
 struct ConcealedClipboardClearTests {
     private static let secret = "sk-live-abcdef123456"
 
-    /// A clock that never waits, and records how long it was asked to.
+    /// A clock that never waits, and records each duration it is asked to wait.
     private final class Waits: Sendable {
         private let asked = Mutex<[Duration]>([])
         var durations: [Duration] { asked.withLock { $0 } }
