@@ -428,6 +428,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// A clipboard index that failed to persist remains unsaved until a later write succeeds.
     private(set) var clipboardWriteFailure: ClipboardStoreError?
     private var panelTarget: InsertionDestination?
+    /// The field a hidden-paste question was asked about, so agreeing is checked against it.
+    private var hiddenPasteDestination: HiddenPasteDestination?
     /// Counts Format presses, so only the latest run's result may open its sheet.
     private var formatterRuns = 0
     /// Counts the store reads the panel has asked for, so an older list never replaces a newer one.
@@ -2243,9 +2245,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             closeQuickPanel()
             insert(text, targeting: destination, used: used, forPanel: true)
         case .closeAndInsertConcealed(let text, let used):
-            let destination = panelTarget ?? InsertionDestination(applicationName: nil, bundleIdentifier: nil)
-            closeQuickPanel()
-            insert(text, concealed: true, targeting: destination, used: used, forPanel: true)
+            askBeforeHiddenPaste(text, used: used)
+        case .closeAndInsertConfirmedConcealed(let text, let used):
+            pasteConfirmedHiddenClip(text, used: used)
         case .copyAndSay(let text, let notice, let used):
             // Stays open: the panel is the only surface left to say this on.
             let copied = putOnClipboard(text, used: used)
@@ -2580,6 +2582,53 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
     }
 
+    /// Pastes a hidden clip at once into a secure field, and otherwise asks in the panel while the field keeps focus.
+    private func askBeforeHiddenPaste(_ text: String, used: Clip.ID) {
+        guard settings.confirmsHiddenClipPaste else {
+            insertHiddenClipFromPanel(text, used: used)
+            return
+        }
+        let owner = PanelLateRequest(opens: quickPanel.opens, sheet: panel?.sheet)
+        Task { [weak self, focus] in
+            let destination = await HiddenPasteDestination.read(from: focus)
+            guard let self, owner.stillOwns(panel, opens: quickPanel.opens) else { return }
+            guard destination.needsConfirmation else {
+                insertHiddenClipFromPanel(text, used: used)
+                return
+            }
+            hiddenPasteDestination = destination
+            let original = panel?.clips.first { $0.id == used }?.text
+            panel = panel?.askingBeforeHiddenPaste(
+                of: used, cleaned: original != text, unclassified: destination.field == .unclassified)
+            if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
+        }
+    }
+
+    /// Pastes an agreed hidden clip only while the focus is still on the field that was asked about.
+    private func pasteConfirmedHiddenClip(_ text: String, used: Clip.ID) {
+        let asked = hiddenPasteDestination
+        hiddenPasteDestination = nil
+        let owner = PanelLateRequest(opens: quickPanel.opens, sheet: panel?.sheet)
+        Task { [weak self, focus] in
+            let unchanged = await asked?.isUnchanged(on: focus) ?? false
+            guard let self, owner.stillOwns(panel, opens: quickPanel.opens) else { return }
+            guard unchanged else {
+                panel?.notice = PanelNotice(
+                    symbolName: "eye.slash", message: "Not pasted — the cursor moved to another field")
+                if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
+                closeAfterReading()
+                return
+            }
+            insertHiddenClipFromPanel(text, used: used)
+        }
+    }
+
+    private func insertHiddenClipFromPanel(_ text: String, used: Clip.ID) {
+        let destination = panelTarget ?? InsertionDestination(applicationName: nil, bundleIdentifier: nil)
+        closeQuickPanel()
+        insert(text, concealed: true, targeting: destination, used: used, forPanel: true)
+    }
+
     /// Notes a clip was reached for, from the three methods that place one so no path can forget.
     private func markUsed(_ id: Clip.ID?) {
         guard let id else { return }
@@ -2796,6 +2845,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         quickPanel.hide()
         panel = nil
         panelTarget = nil
+        hiddenPasteDestination = nil
         // The quiet minute an update waits for starts here, not at the next window event.
         updates.refresh()
     }

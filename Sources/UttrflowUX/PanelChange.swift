@@ -49,14 +49,23 @@ public enum PanelSheet: Sendable, Equatable {
     case reindenting(Clip.ID, formatted: String)
     /// Editing a clip's text; `draft` is the whole text as it now stands in the field.
     case editing(Clip.ID, draft: String)
+    /// Asks before a hidden clip goes into a field not known to hide what is typed; `cleaned` keeps the chosen form.
+    case confirmingHiddenPaste(Clip.ID, cleaned: Bool, unclassified: Bool)
 
     /// Whether this sheet has a field to type into; one that has none keeps the list behind it still (#946).
     public var takesTyping: Bool {
         switch self {
         case .aliasing, .moving, .renamingCategory, .editing: true
-        case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting:
+        case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting,
+            .confirmingHiddenPaste:
             false
         }
+    }
+
+    /// Whether this is the question a hidden clip's paste asks, which only means something at once.
+    public var isHiddenPasteQuestion: Bool {
+        if case .confirmingHiddenPaste = self { return true }
+        return false
     }
 
     /// The clip this sheet is about; `nil` for the two sheets that are about a collection.
@@ -64,7 +73,8 @@ public enum PanelSheet: Sendable, Equatable {
         switch self {
         case .aliasing(let id, _), .moving(let id, _), .confirmingDelete(let id),
             .confirmingMakeNote(let id),
-            .formatting(let id, _), .reindenting(let id, _), .editing(let id, _):
+            .formatting(let id, _), .reindenting(let id, _), .editing(let id, _),
+            .confirmingHiddenPaste(let id, _, _):
             id
         case .renamingCategory, .deletingCategory: nil
         }
@@ -76,7 +86,7 @@ public enum PanelSheet: Sendable, Equatable {
         case .renamingCategory(let name, _), .deletingCategory(let name, _):
             name
         case .aliasing, .moving, .confirmingDelete, .formatting, .reindenting, .editing: nil
-        case .confirmingMakeNote: nil
+        case .confirmingMakeNote, .confirmingHiddenPaste: nil
         }
     }
 
@@ -86,7 +96,8 @@ public enum PanelSheet: Sendable, Equatable {
         case .aliasing(_, let draft), .moving(_, let draft), .renamingCategory(_, let draft),
             .editing(_, let draft):
             draft
-        case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting:
+        case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting,
+            .confirmingHiddenPaste:
             ""
         }
     }
@@ -149,6 +160,13 @@ extension PanelSnapshot {
                 state: closingSheet(),
                 outcome: .change(.setRichText(id, NotePromotion.note(from: clip.text))))
 
+        case .confirmingHiddenPaste(let id, let cleaned, _):
+            guard let clip = clip(id), clip.kind == .secret else {
+                return PanelResponse(state: closingSheet(), outcome: .open)
+            }
+            return PanelResponse(
+                state: closingSheet(), outcome: .insertConfirmedHidden(clip, cleaned: cleaned))
+
         case .formatting(let id, let formatted), .reindenting(let id, let formatted):
             return committingRewrite(id, to: formatted)
 
@@ -204,10 +222,17 @@ extension PanelSnapshot {
             // A warning holds only for the text it is shown for, so new text is judged again.
             next.hasWarnedOfUnsavedSecret = false
         case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting,
-            .none:
+            .confirmingHiddenPaste, .none:
             return self
         }
         return next
+    }
+
+    /// Opens the question a hidden clip's paste asks when the field is not known to hide what is typed.
+    public func askingBeforeHiddenPaste(
+        of id: Clip.ID, cleaned: Bool, unclassified: Bool
+    ) -> PanelSnapshot {
+        opening(.confirmingHiddenPaste(id, cleaned: cleaned, unclassified: unclassified)).state
     }
 
     /// Tidies a code clip, checking again at the moment it acts because the clip may have changed.

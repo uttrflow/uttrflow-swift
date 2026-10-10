@@ -119,7 +119,8 @@ struct PanelUseReportingTests {
         case .closeAndInsertFormatted(_, _, let used): used
         case .copyAndSay(_, _, let used): used
         case .closeAndCopy(_, _, let used): used
-        case .closeAndInsertConcealed(_, let used), .copyConcealedAndSay(_, _, let used),
+        case .closeAndInsertConcealed(_, let used), .closeAndInsertConfirmedConcealed(_, let used),
+            .copyConcealedAndSay(_, _, let used),
             .closeAndCopyConcealed(_, let used):
             used
         case .closeAndInsertImage(let clip), .copyImageAndSay(let clip, _), .closeAndCopyImage(let clip):

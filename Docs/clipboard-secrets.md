@@ -23,6 +23,16 @@ Visible placeholders and published example keys are not credentials. Named-secre
 password is `password`, `pass` or `secret` remain searchable and are not masked; generated values
 under secret names and in connection strings remain masked.
 
+## Pasting a hidden clip
+
+Choosing a secret in the panel pastes it at once only when the focused field hides what is typed.
+In any other field, or one that cannot be classified, the panel asks first and takes Return to paste
+or Esc to cancel; cancelling inserts nothing and writes nothing to the clipboard. The field is read
+again after the answer and the paste is refused if the focus moved. The question never shows the
+clip, and the switch "Confirm hidden clips" in Settings turns it off. The detection is
+`HiddenPasteDestination` in `Sources/UttrflowInput/`; it is separate from the arrival check that
+`ConcealingPasteboard` routes use.
+
 ## What a password manager marks
 
 Password managers commonly mark what they copy with the nspasteboard.org types, and

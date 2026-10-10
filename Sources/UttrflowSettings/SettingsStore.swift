@@ -105,6 +105,9 @@ public struct Settings: Sendable, Equatable, Codable {
     /// How many days an unkept clip survives; a clip with an alias, category or pin has no clock.
     public var clipboardRetentionDays: Int
 
+    /// Whether pasting a hidden clip into a field not known to hide what is typed asks first.
+    public var confirmsHiddenClipPaste: Bool
+
     /// Everything the user has decided about tab-to-complete.
     public var suggestions: SuggestionPreferences
 
@@ -148,6 +151,7 @@ public struct Settings: Sendable, Equatable, Codable {
         keepsNoTranscripts: Bool = false,
         historyExcludedApplications: [String] = [],
         clipboardRetentionDays: Int = Settings.defaultRetentionDays,
+        confirmsHiddenClipPaste: Bool = true,
         suggestions: SuggestionPreferences = .default,
         microphoneUID: String? = nil,
         contextLevel: ContextLevel = .nearCaret,
@@ -183,6 +187,7 @@ public struct Settings: Sendable, Equatable, Codable {
         self.keepsNoTranscripts = keepsNoTranscripts
         self.historyExcludedApplications = historyExcludedApplications
         self.clipboardRetentionDays = clipboardRetentionDays
+        self.confirmsHiddenClipPaste = confirmsHiddenClipPaste
         self.suggestions = suggestions
         self.microphoneUID = microphoneUID
         self.contextLevel = contextLevel
@@ -263,6 +268,7 @@ extension Settings {
         case keepsNoTranscripts
         case historyExcludedApplications
         case clipboardRetentionDays
+        case confirmsHiddenClipPaste
         case suggestions
         case microphoneUID
         case contextLevel
@@ -351,6 +357,8 @@ extension Settings {
                 ),
                 default: fallback.clipboardRetentionDays
             ),
+            confirmsHiddenClipPaste: container.value(
+                forKey: .confirmsHiddenClipPaste, default: fallback.confirmsHiddenClipPaste),
             suggestions: container.value(forKey: .suggestions, default: fallback.suggestions),
             microphoneUID: (try? container.decodeIfPresent(String.self, forKey: .microphoneUID)) ?? nil,
             contextLevel: container.value(forKey: .contextLevel, default: fallback.contextLevel),

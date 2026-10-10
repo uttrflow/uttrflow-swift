@@ -348,6 +348,13 @@ public enum SettingsPresenter {
                             explanation: "Copies attributed to these apps are skipped.",
                             control: .action(title: "Manage…", change: .manageClipboardExclusions),
                             icon: .symbol("hand.raised", .amber)),
+                        toggleRow(
+                            .confirmsHiddenClipPaste,
+                            label: "Confirm hidden clips",
+                            explanation:
+                                "Ask before a hidden clip is pasted into a field that may show it. Hidden fields still paste at once.",
+                            settings, capabilities
+                        ).with(icon: .symbol("eye.slash", .amber)),
                         SettingsRow(
                             id: "clipboard-pause", label: "Clipboard capture",
                             explanation: capabilities.clipboardCapturePaused
@@ -1171,6 +1178,7 @@ public enum SettingsPresenter {
         case .suggestionsEnabled: settings.suggestions.isEnabled
         case .quietSuggestions: settings.suggestions.isQuiet
         case .learnsFromDictation: settings.learnsFromDictation
+        case .confirmsHiddenClipPaste: settings.confirmsHiddenClipPaste
         }
     }
 }
