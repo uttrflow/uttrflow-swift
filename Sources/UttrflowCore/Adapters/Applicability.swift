@@ -10,12 +10,14 @@ public enum AdapterCue: String, Sendable, Equatable, CaseIterable {
     case caretInProse
     /// The speech holds a word code is never dictated with, such as an article.
     case proseWord
+    /// Plain prose is set for this app, so no notation is written whatever the screen shows.
+    case proseByChoice
 
     /// How much the cue counts toward activation when it speaks for the notation.
     public var weight: Double {
         switch self {
         case .caretInCode, .commandLine, .queryStatement: 1
-        case .caretInProse, .proseWord: 0
+        case .caretInProse, .proseWord, .proseByChoice: 0
         }
     }
 }

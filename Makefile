@@ -444,7 +444,8 @@ endif
 EVAL_SUITES := UttrflowEvalTests|EndToEndWordSurvivalTests/wordsSurviveEveryStage|LoanwordRestorationProbeTests/probeTable|HomophonePolicyProbeTests|LearningDynamicsSimulatorTests
 BENCH_SUITES := HeavyClipScans|PromptSizeGuaranteeTests|BIP39RecoveryPhraseScalingTests|ClipboardStoreClassifierVersionTests/firstListBenchmark|$\
 	SuggestionStoreStartupTests/largeLegacyCorpusMigratesOffMainThreadWithinBudget|$\
-	DoubtfulWordsLocatingTests/placingStaysCheap|PasteboardWatcherTests/deeplyNestedHTMLKeepsItsBoundedPlainForm
+	DoubtfulWordsLocatingTests/placingStaysCheap|PasteboardWatcherTests/deeplyNestedHTMLKeepsItsBoundedPlainForm|$\
+	LaunchBudgetTests
 # The commit `eval` compares with: where this branch left main.
 EVAL_BASE ?= $(shell git merge-base HEAD origin/main 2>/dev/null)
 SCORECARD := .build/rules-scorecard.json
