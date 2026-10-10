@@ -119,10 +119,19 @@ final class PanelThumbnails {
             let source = self.source
             let maxPixel = Self.maxPixel
             let task = Task.detached(priority: .utility) { [weak self] in
-                let image = source.load(next, maxPixel)
-                await self?.record(next, bytes: Loaded(image: image))
+                let loaded = await Self.decoding { Loaded(image: source.load(next, maxPixel)) }
+                await self?.record(next, bytes: loaded)
             }
             inflight[next] = task
+        }
+    }
+
+    /// Runs a decode on a serial queue of its own, which gets a thread on busy cores, never on the cooperative pool it would block.
+    private nonisolated static func decoding(_ decode: @escaping @Sendable () -> Loaded) async -> Loaded {
+        await withCheckedContinuation { continuation in
+            DispatchQueue(label: "com.uttrflow.panel-thumbnail-decode", qos: .utility).async {
+                continuation.resume(returning: decode())
+            }
         }
     }
 

@@ -60,7 +60,10 @@ struct TapStateHoldTests {
         let applied = Mutex<[Bool]>([])
         let secondFoundLockUnavailable = Mutex<Bool>(false)
 
-        DispatchQueue.global().async {
+        // Queues of their own: a serial queue gets a thread even when a loaded run has the shared pool busy.
+        let first = DispatchQueue(label: "test.tap-hold.first-update")
+        let second = DispatchQueue(label: "test.tap-hold.second-update")
+        first.async {
             _ = state.arm(.tab) { listening in
                 applied.withLock { $0.append(listening) }
                 firstUpdateEntered.signal()
@@ -69,7 +72,7 @@ struct TapStateHoldTests {
         }
         #expect(firstUpdateEntered.wait(timeout: .now() + 5) == .success)
 
-        DispatchQueue.global().async {
+        second.async {
             secondFoundLockUnavailable.withLock { $0 = !state.listeningControlIsAvailableForTesting() }
             secondObservedControlLock.signal()
             _ = state.arm([]) { listening in

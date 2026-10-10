@@ -139,6 +139,23 @@ struct CorpusFileTests {
         #expect(only.codeMix == CodeMixCell(.hindi, .questionTag, .end))
     }
 
+    @Test func anAdapterNameReachesTheCaseAndSurvivesTheRecogniserShape() throws {
+        let json = #"[{"id": "d", "spoken": "select star", "expected": "SELECT *", "adapter": "sql"}]"#
+        let only = try #require(try decode(json).first)
+        #expect(only.adapter == AdapterID(rawValue: "sql"))
+        #expect(only.shaped(.recogniser).adapter == AdapterID(rawValue: "sql"))
+        let absent = try #require(
+            try decode(#"[{"id": "e", "spoken": "hello", "expected": "Hello."}]"#).first)
+        #expect(absent.adapter == nil)
+    }
+
+    @Test func anEmptyOrPaddedAdapterNameIsRefusedByName() {
+        for name in ["", " sql"] {
+            let json = #"[{"id": "f", "spoken": "a", "expected": "A", "adapter": "\#(name)"}]"#
+            #expect(failure(json)?.caseID == "f", "adapter \"\(name)\"")
+        }
+    }
+
     @Test func aDuplicateIdIsRefusedByName() {
         let json =
             #"[{"id": "x", "spoken": "a", "expected": "A"}, {"id": "x", "spoken": "b", "expected": "B"}]"#

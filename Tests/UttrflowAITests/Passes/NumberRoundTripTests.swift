@@ -44,7 +44,7 @@ enum RoundTripCorpus {
                 return RoundTripCase(
                     bucket: "currency/" + currency,
                     spoken: "it costs \(NumberVerbaliser.cardinal(value)) \(currency)",
-                    expected: "it costs \(NumberVerbaliser.numeral(value)) \(currency)")
+                    expected: "it costs \(NumberVerbaliser.numeral(value, isAmount: true)) \(currency)")
             }
         }
         for word in ["percent", "per cent"] {
