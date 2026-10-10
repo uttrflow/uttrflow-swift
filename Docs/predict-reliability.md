@@ -69,14 +69,15 @@ destructor) after writing its JSON; it does not affect the app or the results.
 
 ## Scoring a run
 
-A fixture whose expectation takes any continuation (`Determinacy.any`, the default for chat, notes
-and mail) has nothing to check a hit against, so the report counts its hits as *unjudged*, prints
-them apart, and reads precision over judged fixtures only. An address or search fixture expects
-`<none>`, since the generator refuses there by design. `make predict-accuracy` runs the full
-Release fixture set through the local precision ratchet;
-`Scripts/predict_scorecard.py run.json --compare-run old.json` lists fixture-level changes for a
-reviewed comparison. A terminal fixture stands on a substitute machine and records `invented`
-lines ([predict-agent.md](predict-agent.md)).
+Hit rules and the distinction between judged and unjudged fixtures are defined in
+[`predict-precision.md`](predict-precision.md#precision-and-coverage). A fixture whose expectation
+takes any continuation (`Determinacy.any`, the default for chat, notes and mail) has nothing to
+check a hit against, so the report counts its hits as *unjudged*, prints them apart, and reads
+precision over judged fixtures only. An address or search fixture expects `<none>`, since the
+generator refuses there by design. `make predict-accuracy` runs the full Release fixture set
+through the local precision ratchet; `Scripts/predict_scorecard.py new.json [--compare-run old.json]`
+compares two runs. A terminal fixture stands on a substitute machine and records `invented` lines
+([predict-agent.md](predict-agent.md)).
 
 ## How to run one cycle
 

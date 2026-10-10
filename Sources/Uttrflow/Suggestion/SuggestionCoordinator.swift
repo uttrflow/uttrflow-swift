@@ -133,6 +133,8 @@ final class SuggestionCoordinator {
     /// Whether a held mouse button can still move the focused window under a ghost.
     private var isPointerGestureActive = false
     private var ticker: Timer?
+    /// Polls secure keyboard entry while it pauses suggestions, since no key or field event arrives to end the pause.
+    private var secureInputRecheck: Timer?
     /// Whether field observation is active or kept alive by a visible ghost.
     private var ticking = SuggestionTicking()
     private var swallowed: Task<Void, Never>?
@@ -142,6 +144,7 @@ final class SuggestionCoordinator {
     private(set) var armedOffer: String?
     var isSelectionPolling: Bool { stopSelectionChecks != nil }
     var isTickerScheduled: Bool { ticker != nil }
+    var isSecureInputRecheckScheduled: Bool { secureInputRecheck != nil }
     private var lastKeystroke = Date.distantPast
     private var lastFluentKeystroke = Date.distantPast
     /// The last observed key-down, used to distinguish typing from edits made without a key.
@@ -184,6 +187,13 @@ final class SuggestionCoordinator {
     var onTapRestRestarting: (() -> Void)?
     var onSecureInputChanged: ((Bool) -> Void)?
 
+    /// Runs synchronous store opening away from the main actor before the suggestion loop is assembled.
+    nonisolated static func startupFileWorkOffMain<T: Sendable>(
+        _ operation: @escaping @Sendable () throws -> T
+    ) async throws -> T {
+        try await Task.detached(priority: .utility, operation: operation).value
+    }
+
     /// Opens the corpus, or reports why it could not; the scorer, when given, is the model that validates.
     init(
         container: URL, preferences: SuggestionPreferences,
@@ -207,7 +217,7 @@ final class SuggestionCoordinator {
         scheduleSelectionChecks: @escaping SelectionCheckScheduling = SuggestionCoordinator.selectionTimer,
         panel: SuggestionPanelController = .shared,
         editHeard: @escaping @Sendable (EditedSpan) async -> Void = { _ in }
-    ) throws(PredictStoreError) {
+    ) async throws {
         self.preferences = preferences
         self.processActivity = processActivity
         self.secureInput = secureInput
@@ -218,9 +228,14 @@ final class SuggestionCoordinator {
         self.scheduleSelectionChecks = scheduleSelectionChecks
         self.panel = panel
         self.focusedFieldValueObserver = focusedFieldValueObserver ?? FocusedFieldValueObserver()
-        let store = try PredictStore(
-            path: PredictStore.defaultFile(in: container).path(percentEncoded: false),
-            encryptedStore: encryptedStore)
+        let storePath = PredictStore.defaultFile(in: container).path(percentEncoded: false)
+        let preferencesPath =
+            CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false)
+        let (store, capturePreferences) = try await Self.startupFileWorkOffMain {
+            let store = try PredictStore(path: storePath, encryptedStore: encryptedStore)
+            let preferences = CapturePreferencesFile(path: preferencesPath).load()
+            return (store, preferences)
+        }
         self.store = store
         rejectedSuggestionRecorder = RejectedSuggestionRecorder(store: store)
         // Lines learned before the credential rules last widened are removed once, off the typing path.
@@ -234,6 +249,7 @@ final class SuggestionCoordinator {
             sink: captureSink ?? EditHearingSink(store: store, heard: editHeard),
             preferencesFile: CapturePreferencesFile(
                 path: CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false)),
+            initialPreferences: capturePreferences,
             // A line that was never sent was not a value: a shell and a chat composer learn on Return alone.
             policy: .whereReturnSends, onCommitSkipped: onCaptureSkipped)
         self.capture = capture
@@ -423,7 +439,9 @@ final class SuggestionCoordinator {
             interceptor.stop()
             onSecureInputBlockingChanged?(true)
             panel.announce(SecureInputWatch.suggestionNotice)
+            scheduleSecureInputRecheck()
         } else {
+            stopSecureInputRecheck()
             onSecureInputChanged?(false)
             onSecureInputBlockingChanged?(false)
             switch startInterceptor() {
@@ -433,8 +451,24 @@ final class SuggestionCoordinator {
         }
     }
 
+    /// Rechecks secure keyboard entry on a timer, so the pause lifts in the same app without an activation.
+    private func scheduleSecureInputRecheck() {
+        guard secureInputRecheck == nil, !wakeState.isStopped else { return }
+        let timer = Timer.scheduledTimer(withTimeInterval: SuggestionTicking.interval, repeats: true) {
+            [weak self] _ in MainActor.assumeIsolated { self?.checkSecureInput() }
+        }
+        timer.tolerance = SuggestionTicking.tolerance
+        secureInputRecheck = timer
+    }
+
+    private func stopSecureInputRecheck() {
+        secureInputRecheck?.invalidate()
+        secureInputRecheck = nil
+    }
+
     /// Takes the surface away, disarms the tap and stops watching.
     func stop() {
+        stopSecureInputRecheck()
         processActivity.end()
         wakeState.stop()
         turns.abandon()
@@ -968,6 +1002,9 @@ final class SuggestionCoordinator {
 
     /// Runs one turn, or notes that another is wanted, so two never run at once and a stuck one never ends the loop.
     private func wake(_ reason: SuggestionReason) {
+        // Secure keyboard entry can start inside the same app, where no activation rechecks it.
+        checkSecureInput()
+        guard !secureInput.isBlocking else { return }
         guard activityIsAllowed() else {
             stopTicker()
             cancelPendingWake()
@@ -1509,8 +1546,11 @@ final class SuggestionCoordinator {
 
     /// Arms the tap first and draws second, so no key is claimed that nothing is offering.
     func draw(_ update: SuggestionUpdate, in snapshot: FocusedFieldSnapshot?) {
-        // A stopped loop, a held pointer gesture, or a stale read draws nothing and claims no key.
-        guard !wakeState.isStopped, !isPointerGestureActive, !nativeMenuIsOpen, session.isCurrent else {
+        checkSecureInput()
+        // A stopped loop, secure keyboard entry, a held pointer gesture, or a stale read draws nothing and claims no key.
+        guard !wakeState.isStopped, !isPointerGestureActive, !nativeMenuIsOpen, !secureInput.isBlocking,
+            session.isCurrent
+        else {
             stopWatchingSelection()
             interceptor.arm([])
             panel.hide()

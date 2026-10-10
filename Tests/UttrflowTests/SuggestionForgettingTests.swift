@@ -182,7 +182,7 @@ struct SuggestionForgettingTests {
     func runningLoopDoesNotWriteAForgottenLineBack() async throws {
         let container = Container()
         try FileManager.default.createDirectory(at: container.url, withIntermediateDirectories: true)
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container.url, preferences: SuggestionPreferences(isEnabled: true))
         let reading = FieldReading(bundleIdentifier: terminal.bundleIdentifier, role: "AXTextArea")
         let surface = try #require(reading.surface)
@@ -206,7 +206,7 @@ struct SuggestionForgettingTests {
     func forgetDrainsPendingAcceptance() async throws {
         let container = Container()
         try FileManager.default.createDirectory(at: container.url, withIntermediateDirectories: true)
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container.url, preferences: SuggestionPreferences(isEnabled: true))
         let reading = FieldReading(bundleIdentifier: terminal.bundleIdentifier, role: "AXTextArea")
         try await coordinator.capture.record(.allowed, for: terminal.bundleIdentifier)
@@ -228,7 +228,7 @@ struct SuggestionForgettingTests {
         let container = Container()
         try FileManager.default.createDirectory(at: container.url, withIntermediateDirectories: true)
         let scorer = ResettableScoring()
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container.url, preferences: SuggestionPreferences(isEnabled: true), scoring: scorer)
 
         await scorer.remember("forgotten app line", confidence: -0.25)

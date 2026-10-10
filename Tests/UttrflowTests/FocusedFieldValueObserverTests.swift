@@ -1,8 +1,10 @@
 import AppKit
 import Dispatch
 import Foundation
+import Synchronization
 import Testing
 import UttrflowContext
+import UttrflowInput
 import UttrflowPredict
 
 @testable import Uttrflow
@@ -410,7 +412,7 @@ struct FocusedFieldValueObserverTests {
     }
 
     @Test("an AX SetValue change disarms and hides the current offer")
-    func axValueChangeWithdrawsTheOffer() throws {
+    func axValueChangeWithdrawsTheOffer() async throws {
         let container = FileManager.default.temporaryDirectory.appending(
             path: "ax-value-change-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
@@ -418,7 +420,7 @@ struct FocusedFieldValueObserverTests {
 
         let observer = FakeFocusedFieldValueObserver()
         let panel = SuggestionPanelController()
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
             focusedFieldValueObserver: observer, focusedFieldReader: { nil },
             frontmostBundleIdentifier: { "com.example.editor" }, panel: panel)
@@ -449,8 +451,94 @@ struct FocusedFieldValueObserverTests {
         #expect(!panel.isShowing)
     }
 
+    @Test("secure keyboard entry starting in the same app draws no ghost, without an activation")
+    func secureInputStartingWithoutActivationDrawsNothing() throws {
+        let container = FileManager.default.temporaryDirectory.appending(
+            path: "secure-input-starts-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: container) }
+
+        let secure = Mutex(false)
+        let panel = SuggestionPanelController()
+        let coordinator = try SuggestionCoordinator(
+            container: container, preferences: SuggestionPreferences(isEnabled: true),
+            secureInput: SecureInputWatch(isSecureInputOn: { secure.withLock { $0 } }),
+            focusedFieldReader: { nil }, frontmostBundleIdentifier: { "com.example.editor" },
+            panel: panel)
+        defer {
+            coordinator.stop()
+            panel.hide()
+        }
+        let snapshot = try Self.editorSnapshot()
+        let update = SuggestionUpdate(suggestion: .certain("meet later"), armed: .tab, silence: nil)
+
+        coordinator.draw(update, in: snapshot)
+        #expect(coordinator.armedOffer == "meet later" && panel.isShowing)
+
+        secure.withLock { $0 = true }
+        coordinator.draw(update, in: snapshot)
+
+        #expect(coordinator.isSecureInputBlocking)
+        #expect(coordinator.armedOffer == nil)
+        #expect(!panel.isShowing)
+        #expect(coordinator.isSecureInputRecheckScheduled)
+    }
+
+    @Test("secure keyboard entry ending in the same app lifts the pause, without an activation")
+    func secureInputEndingWithoutActivationLiftsThePause() async throws {
+        let container = FileManager.default.temporaryDirectory.appending(
+            path: "secure-input-ends-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: container) }
+
+        let secure = Mutex(true)
+        let panel = SuggestionPanelController()
+        let coordinator = try SuggestionCoordinator(
+            container: container, preferences: SuggestionPreferences(isEnabled: true),
+            secureInput: SecureInputWatch(isSecureInputOn: { secure.withLock { $0 } }),
+            focusedFieldReader: { nil }, frontmostBundleIdentifier: { "com.example.editor" },
+            panel: panel)
+        defer {
+            coordinator.stop()
+            panel.hide()
+        }
+        let (changes, changed) = AsyncStream.makeStream(of: Bool.self)
+        coordinator.onSecureInputChanged = { changed.yield($0) }
+        // A pause that never lifts ends the stream rather than hanging the suite.
+        let deadline = Task {
+            try await Task.sleep(for: .seconds(5))
+            changed.finish()
+        }
+        defer {
+            deadline.cancel()
+            changed.finish()
+        }
+
+        coordinator.draw(
+            SuggestionUpdate(suggestion: .certain("meet later"), armed: .tab, silence: nil),
+            in: try Self.editorSnapshot())
+        var heard = changes.makeAsyncIterator()
+        #expect(await heard.next() == true)
+
+        secure.withLock { $0 = false }
+
+        #expect(await heard.next() == false)
+        #expect(!coordinator.isSecureInputBlocking)
+        #expect(!coordinator.isSecureInputRecheckScheduled)
+    }
+
+    /// A field in an editor whose caret can anchor a ghost on the first screen.
+    private static func editorSnapshot() throws -> FocusedFieldSnapshot {
+        let screen = try #require(NSScreen.screens.first).visibleFrame
+        return FocusedFieldSnapshot(
+            bundleIdentifier: "com.example.editor", applicationName: "Editor", role: "AXTextField",
+            value: "meet", selection: NSRange(location: 4, length: 0),
+            caret: CGRect(x: screen.minX + 200, y: screen.midY - 5, width: 0, height: 17),
+            window: screen, field: CGRect(x: screen.minX + 100, y: screen.midY - 10, width: 500, height: 24))
+    }
+
     @Test("an AX menu opening withdraws the offer before its Tab gesture")
-    func axMenuOpeningWithdrawsTheOffer() throws {
+    func axMenuOpeningWithdrawsTheOffer() async throws {
         let container = FileManager.default.temporaryDirectory.appending(
             path: "ax-menu-open-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
@@ -458,7 +546,7 @@ struct FocusedFieldValueObserverTests {
 
         let observer = FakeFocusedFieldValueObserver()
         let panel = SuggestionPanelController()
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
             focusedFieldValueObserver: observer, focusedFieldReader: { nil },
             frontmostBundleIdentifier: { "com.example.editor" }, panel: panel)

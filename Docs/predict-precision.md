@@ -18,10 +18,20 @@ precision to two decimal places, and the count of wrong lines, per category;
 `Scripts/predict_scorecard.py new.json [--compare-run old.json]` reads its `--json` output and
 compares two runs.
 
-A fixture whose expectation takes any continuation (`Determinacy.any`, the default for chat, notes
-and mail) has nothing to check a hit against, so the report counts its hits as *unjudged*, prints
-them apart (`hits judged … unjudged …`), and computes precision over judged fixtures only. An
-address or search fixture, where the generator refuses by design, expects `<none>`.
+Only the leading completion is considered; a later alternative cannot rescue it. The typed-prefix
+check and named-answer comparison are case-insensitive and canonically equivalent. For a named
+expectation, after its typed prefix is removed, the non-empty continuation must equal a named
+answer or be a whole-word prefix of it. A prefix must end at a whole-word boundary within the
+answer; text added after the full answer is not a hit. A shorter fragment within a word, an empty
+continuation or a match in a later alternative is not a hit. With no typed text, the leader must
+therefore equal an answer or end at a whole-word boundary within it. Unicode letters, numbers,
+combining marks and connector punctuation continue a word; any other scalar is a boundary.
+
+An expectation that takes any continuation (`Determinacy.any`, the default for chat, notes and mail)
+has no named answer to judge. Any drawn line contributes to coverage but not judged precision.
+Separately, the hit count is true only when the leader continues the typed prefix with a non-empty
+tail; the report prints those hits as *unjudged* (`hits judged … unjudged …`). An address or search
+fixture, where the generator refuses by design, expects `<none>`.
 
 `complete --fixtures` measures the model alone. `complete --sources --json run.json` exercises the
 app's choice between remembered, machine and model candidates — shared session ranking,

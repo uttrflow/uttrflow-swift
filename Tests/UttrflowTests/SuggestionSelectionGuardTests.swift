@@ -161,7 +161,7 @@ struct SuggestionCoordinatorSelectionPollingTests {
         let container = FileManager.default.temporaryDirectory
             .appending(path: "uttrflow-2648-\(UUID().uuidString)", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
             focusedSelectionReader: { await reader.read() },
             frontmostBundleIdentifier: { "com.example.editor" },
@@ -200,7 +200,7 @@ struct SuggestionCoordinatorSelectionPollingTests {
             .appending(
                 path: "uttrflow-unavailable-selection-\(UUID().uuidString)", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
             focusedSelectionReader: { await reader.read() },
             frontmostBundleIdentifier: { "com.example.editor" },

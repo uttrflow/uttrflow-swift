@@ -28,8 +28,14 @@ Related pages: [predict-accept.md](predict-accept.md) (keys and insertion),
 Settings → AI suggestions → **Turn on AI suggestions**. It is off until the user turns it on, and
 the app builds the loop the moment the switch is thrown and takes it away when it goes off. The
 switch writes `suggestions.isEnabled` in the settings (`SuggestionPreferences`), the one answer to
-"is this on". Accessibility must be granted: the loop reads the focused field, watches the
-keyboard and writes the completion into the field.
+"is this on". The corpus is opened and migrated off the main actor; the loop attaches when that
+work is ready. The regression suite builds a 20,000-entry encrypted legacy corpus and verifies its
+migration finishes within two seconds while a synthetic main-actor heartbeat continues to run. A
+separate launch test verifies the launch handler returns within two seconds after updating the
+initial menu-bar model with that same corpus present; it snapshots the menu immediately after the
+handler returns. These synthetic limits do not claim a host-specific launch time.
+Accessibility must be granted: the loop reads the focused field, watches the keyboard and writes the
+completion into the field.
 Trust is checked again whenever Uttrflow returns to the foreground. If Accessibility is missing,
 the menu and Settings name it; granting access and returning restarts suggestions.
 
@@ -330,6 +336,10 @@ application switch that arrives during a turn is kept and run afterwards.
   accepts only that immediately previous position for 500 ms, then requires the advanced caret.
   This covers the reported 300 ms terminal echo plus one 200 ms selection-poll interval; any other
   caret position still withdraws the ghost.
+- **A continuation does not repeat the word at its join.** `SuggestionSession.resolve` removes
+  repeated join words from remembered candidates before ranking and after verification corrections;
+  `SuggestionSession.drawable` applies the same rule to generated candidates and alternatives.
+  Words are split at whitespace and compared ignoring case, so `-m` after `m` is still drawn.
 - **A timed-out selection read keeps the offer armed** for its next poll. A completed read that
   cannot identify a focused selection still withdraws it.
 - **A model line keeps the typed case**, so the ghost only adds to the line and Tab never re-cases

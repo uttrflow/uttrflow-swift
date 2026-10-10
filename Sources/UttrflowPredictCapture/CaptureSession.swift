@@ -63,14 +63,15 @@ public actor CaptureSession {
 
     /// A session writing to this sink, remembering its answers in this file, and told why a finished line was not learned.
     public init(
-        sink: any CaptureSink, preferencesFile: CapturePreferencesFile, policy: CommitPolicy = .everyEnding,
+        sink: any CaptureSink, preferencesFile: CapturePreferencesFile,
+        initialPreferences: CapturePreferences? = nil, policy: CommitPolicy = .everyEnding,
         onCommitSkipped: (@Sendable (CaptureSkipReason) async -> Void)? = nil
     ) {
         self.sink = sink
         self.preferencesFile = preferencesFile
         self.policy = policy
         self.onCommitSkipped = onCommitSkipped
-        preferences = preferencesFile.load()
+        preferences = initialPreferences ?? preferencesFile.load()
     }
 
     /// Takes one event in one field and answers with what it came to.

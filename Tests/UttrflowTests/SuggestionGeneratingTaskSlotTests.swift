@@ -15,7 +15,7 @@ struct SuggestionGeneratingTaskSlotTests {
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: container) }
 
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true))
         defer { coordinator.stop() }
 

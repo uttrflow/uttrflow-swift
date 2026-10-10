@@ -22,6 +22,11 @@ extension MeaningPreservationGuard {
         if policy == .asSpoken, case .rejected(let reason, let kind) = asSpokenFormVerdict(alignment) {
             return .rejected(reason: reason, kind: kind)
         }
+        if policy == .asSpoken,
+            case .rejected(let reason, let kind) = asSpokenSmallWordVerdict(alignment, restoring: restored)
+        {
+            return .rejected(reason: reason, kind: kind)
+        }
         let keptTokens = alignment.kept
         let rewrittenTokens = alignment.rewritten
         let echoTokens = grammarTokens(echoed)
@@ -121,6 +126,42 @@ extension MeaningPreservationGuard {
                     && WordForms.sameForm(kept.matching, rewritten.matching)
                 {
                     return .rejected(reason: "the rewrite changed a kept word's form", kind: .lostWord)
+                }
+            }
+        }
+        return .accepted
+    }
+
+    /// Refuses a small word an as-spoken rewrite wrote that the speaker did not say there, so "buy new laptop" never gains its "a".
+    static func asSpokenSmallWordVerdict(
+        _ alignment: RewriteAlignment, restoring restored: [GrammarToken] = []
+    ) -> GuardVerdict {
+        // A draft the checks cannot read romanises into words with no counterpart here, as `inventionVerdict` says.
+        guard alignment.kept.allSatisfy(\.isPlain) else { return .accepted }
+        // A word a pass took out beyond its grant was said, so writing it back is not an addition.
+        var putBack: [String: Int] = [:]
+        for token in restored where token.isPlain && !isContent(token) {
+            putBack[token.lookup, default: 0] += 1
+        }
+        for change in alignment.changes {
+            var spoken: [String: Int] = [:]
+            for token in alignment.kept[change.kept] where token.isPlain && !isContent(token) {
+                spoken[token.lookup, default: 0] += 1
+            }
+            let joined = Set(alignment.kept[change.kept].map(\.matching))
+            for index in change.rewritten {
+                let token = alignment.rewritten[index]
+                guard token.isPlain, !isContent(token) else { continue }
+                // A letter the draft closed up into a spelled word ("a p r" kept as "APR") is said when written apart.
+                let next =
+                    index + 1 < change.rewritten.upperBound ? alignment.rewritten[index + 1].matching : ""
+                if !next.isEmpty, joined.contains(token.matching + next) { continue }
+                if let left = spoken[token.lookup], left > 0 {
+                    spoken[token.lookup] = left - 1
+                } else if let left = putBack[token.lookup], left > 0 {
+                    putBack[token.lookup] = left - 1
+                } else {
+                    return .rejected(reason: "the rewrite added '\(token.text)'", kind: .inventedWord)
                 }
             }
         }

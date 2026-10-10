@@ -77,8 +77,8 @@ struct SeamRecleaningTests {
     /// Units no pass reads as one even in a single piece, so the seam's stop is judged without them.
     static let unreadUnitCuts: [SeamCut] = [
         SeamCut(
-            pieces: ["the meeting is on march", "third at ten"], whole: "the meeting is on march third at ten"
-        ),
+            pieces: ["the meeting is on march", "third at ten"],
+            whole: "the meeting is on march third at ten")
     ]
 
     @Test(
