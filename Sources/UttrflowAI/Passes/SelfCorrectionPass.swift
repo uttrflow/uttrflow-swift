@@ -119,13 +119,21 @@ public struct SelfCorrectionPass: PieceCleaningPass {
         }
     }
 
-    /// Whether a restart that opens on a spoken long option marker takes back from that same marker, so a lone dash is not its anchor.
+    /// Whether a restart takes back a spoken long option marker only with that same marker, so a lone dash is neither its anchor nor anchored inside one.
     private func restatesWholeOption(from start: Int, restart: Int, in live: [Int], of draft: Draft) -> Bool {
+        let markers = SpokenCommands.flags.filter { $0.words.count > 1 }
         guard
-            let marker = SpokenCommands.flags.first(where: {
-                $0.words.count > 1 && draft.spells($0.words, at: restart, in: live, acrossSentences: true)
+            let marker = markers.first(where: {
+                draft.spells($0.words, at: restart, in: live, acrossSentences: true)
             })
-        else { return true }
+        else {
+            return !markers.contains { marker in
+                (0..<marker.words.count).contains { offset in
+                    start >= offset
+                        && draft.spells(marker.words, at: start - offset, in: live, acrossSentences: true)
+                }
+            }
+        }
         return draft.spells(marker.words, at: start, in: live, acrossSentences: true)
     }
 
