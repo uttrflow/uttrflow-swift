@@ -60,7 +60,7 @@ struct TerminalStopPassTests {
     @Test(
         "stops a dictation that ends on \"though\", which closes its clause as an adverb",
         arguments: [
-            ("khana achha tha though", "khana achha tha though."),
+            ("khana achha tha though", "khana achha tha, though."),
             ("it was good though", "it was good though."),
         ])
     func closingThough(input: String, expected: String) {
