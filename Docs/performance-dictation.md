@@ -295,13 +295,14 @@ they can exceed the wait.
 ### Naming a slow wait in the app
 
 Every dictation from the microphone times its wait from key-up to the words placed and splits it by
-cause (`DictationWait`): fallback seconds from `DecodeEffort`, a tidy that timed out, the
+cause (`DictationWait`): from `DecodeEffort`, fallback seconds, the wait for the speech model to
+load (`BackedSpeechEngine`) and the time spent decoding a piece again after a capped or empty decode
+(`CappedDecodeRetry` and the pipeline's unprompted second decode); then a tidy that timed out, the
 insertion, and screen reads made after key-up; the rest is "other". The target,
 `DictationWait.target`, is 4 s, the spoken-reply p95 in the table above. A wait past it is named by
 the cause furthest past its median over the last 100 dictations (`DictationWaits`). The cause is kept
 on the History record on this Mac; Diagnostics shows p50 and p95 per dictation and the count per
-cause. Model load, the capped-decode retry and a cold tidier session have no separate timing yet, so
-their time falls under "other".
+cause. A cold tidier session has no separate timing yet, so its time falls under "other".
 
 ### What the recognising time is made of
 

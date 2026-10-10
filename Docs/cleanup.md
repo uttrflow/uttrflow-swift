@@ -349,6 +349,9 @@ the bundle identifier costs no permission at all.
   `SpokenPunctuationPass` runs before `LayoutWordsPass` so "question mark new line" becomes
   `?` and then a break. The piece pipeline takes no `FirstWordPolicy` and no
   `TerminalStopPolicy`, so it cannot decide either.
+- Spoken commands run in the cleaning passes, before snippet expansion, and a snippet whose
+  trigger says a command never fires, whatever the pass order: the command wins
+  ([`ai-snippet-store.md`](ai-snippet-store.md)).
 - `CleaningPipeline.message(for:situation:heard:)` — `SentenceBoundaryPass`, `FirstWordPass`,
   `TerminalStopPass` — runs once over the joined message; those two passes carry the
   `DestinationFormatter` policies and are the only place either decision is made.
