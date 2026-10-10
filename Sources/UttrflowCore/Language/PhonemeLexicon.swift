@@ -164,7 +164,10 @@ public struct PhonemeLexicon: Sendable {
         guard cap >= 0 else { return [] }
         var reached: Set<Int32> = []
         for sound in heard {
-            for key in Self.indexKeys(for: sound, classes: classes) {
+            // Under one full-cost edit only near substitutions fit, and they keep the class sequence, the one key to probe.
+            let keys: Set<Sound> =
+                cap < 2 ? [sound.map { classes[Int($0)] }] : Self.indexKeys(for: sound, classes: classes)
+            for key in keys {
                 for number in index[key] ?? [] { reached.insert(number) }
             }
         }

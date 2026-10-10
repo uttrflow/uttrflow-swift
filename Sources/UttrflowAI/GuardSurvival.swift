@@ -64,11 +64,13 @@ extension MeaningPreservationGuard {
                     continue
                 }
             }
+            // Looked up once per word, not once per place: a phoneme lookup costs more than the rest of the check.
+            let soundAlikes = GeneralVocabulary.soundAlikes(of: token.matching)
             let matchingPlaces = written.indices.filter {
                 survives(
                     token.matching, as: written[$0],
                     allowingRomanisedHindiSpellings: allowingRomanisedHindiSpellings,
-                    allowingFormRepairs: allowingFormRepairs)
+                    allowingFormRepairs: allowingFormRepairs, soundAlikes: soundAlikes)
             }
             let nearest = matchingPlaces.first(where: { $0 >= reached })
             // Words written as one identifier, or a joined acronym written apart, count only where nothing nearer stands for the word.
@@ -448,7 +450,7 @@ extension MeaningPreservationGuard {
     /// Whether a rewritten word preserves the kept word as a listed form, numeral, homophone, identifier spelling, or contracted auxiliary.
     static func survives(
         _ word: String, as candidate: GrammarToken, allowingRomanisedHindiSpellings: Bool = false,
-        allowingFormRepairs: Bool = false
+        allowingFormRepairs: Bool = false, soundAlikes: [String]? = nil
     ) -> Bool {
         if WordForms.sameForm(
             word, candidate.matching, allowingRegularInflections: allowingFormRepairs,
@@ -461,7 +463,8 @@ extension MeaningPreservationGuard {
         if meridiemSpellings(of: word).contains(candidate.matching) { return true }
         if ordinalNumerals[word] == candidate.matching { return true }
         // A misheard sound-alike respelled is the same spoken word: the lexicon lists one pronunciation for both.
-        if GeneralVocabulary.soundAlikes(of: word).contains(candidate.matching) { return true }
+        let alikes = soundAlikes ?? GeneralVocabulary.soundAlikes(of: word)
+        if alikes.contains(candidate.matching) { return true }
         // A word spelled into an identifier — "invoices" inside "fetchInvoices" — is still there.
         if symbolNames[word] == nil, WordForms.spelledInto(word, candidate.text) { return true }
         // A numeral run into a unit or a letter — "3" in `3x` — is the number said.
