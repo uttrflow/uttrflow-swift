@@ -72,9 +72,11 @@ struct CleaningPassScalingTests {
         let formatter = DestinationFormatter.standard(for: destination)
         let standard = CleaningPipeline.standard(for: formatter, situation: situation)
         let afterModel = CleaningPipeline.afterModel(for: formatter, situation: situation)
+        let message = CleaningPipeline.message(for: formatter, situation: situation)
         return [
             ("\(destination.rawValue) standard", standard),
             ("\(destination.rawValue) after model", afterModel),
+            ("\(destination.rawValue) message", message),
         ]
     }
 

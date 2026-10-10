@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 import UttrflowAI
 import UttrflowCore
@@ -125,5 +126,20 @@ struct SentenceBoundaryPassTests {
                 == "We finished the report. I sent it to Maria.")
         #expect(cleaned("I sent it to. Paris yesterday") == "I sent it to Paris yesterday.")
         #expect(cleaned("We need the. Monday version") == "We need the Monday version.")
+    }
+
+    @Test("a long dictation of stopped sentences is finished as a message inside the rules budget")
+    func longStoppedDictation() {
+        let text = String(
+            repeating: "my manager. wants the slides by noon. we finished the report and sent it today. ",
+            count: 200)
+        let message = CleaningPipeline.message(for: .standard(for: .document), situation: .unknown)
+        // The work is the CPU time of this thread, which other processes on a loaded machine do not add to.
+        let start = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)
+        let finished = message.run(Draft(text: text)).text
+        let spent = Duration.nanoseconds(Int64(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - start))
+        #expect(spent < StageTimeout.rules)
+        #expect(finished.split(whereSeparator: \.isWhitespace).count == 3_000)
+        #expect(finished.hasPrefix("My manager wants the slides by noon. We finished the report"))
     }
 }

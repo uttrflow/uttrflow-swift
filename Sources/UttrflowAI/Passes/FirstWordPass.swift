@@ -292,15 +292,15 @@ public struct FirstWordPass: WholeTextCleaningPass {
         return shape.replacingCore(with: WordShape.capitalised(shape.core))
     }
 
-    static func isProperName(_ text: String, in context: String) -> Bool {
+    static func isProperName(_ text: String, in context: @autoclosure () -> String) -> Bool {
         let key = WordShape(text).key.lowercased()
         return properNames.contains(key) || isNewYorkWord(key, in: context)
     }
 
     /// Recognises each half of the fixed city name without capitalising ordinary uses of "new" or "york".
-    private static func isNewYorkWord(_ key: String, in context: String) -> Bool {
+    private static func isNewYorkWord(_ key: String, in context: () -> String) -> Bool {
         guard key == "new" || key == "york" else { return false }
-        let words = WordTokens.words(context.lowercased(), .letters)
+        let words = WordTokens.words(context().lowercased(), .letters)
         return zip(words, words.dropFirst()).contains { $0 == "new" && $1 == "york" }
     }
 

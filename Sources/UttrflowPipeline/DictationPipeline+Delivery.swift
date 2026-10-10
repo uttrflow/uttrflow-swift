@@ -6,11 +6,11 @@ import struct Foundation.UUID
 extension DictationPipeline {
     /// Joins the pieces, re-cases them for where the caret is now, inserts or copies them, then counts and learns.
     func deliver(
-        _ pieces: [Piece], from audio: AudioSamples, read appContext: AppContext?,
+        _ message: RunningMessage, from audio: AudioSamples, read appContext: AppContext?,
         recording tally: StageTally, delivery: Delivery, for mine: Int
     ) async {
         // Silence is not a fault, but returning quietly to idle would look like a broken app.
-        guard !pieces.isEmpty else {
+        guard !message.pieces.isEmpty else {
             await reportCleaning(for: delivery)
             await fail(Self.silence(missedPieces > 0 ? .speechWithoutWords : .nothingHeard, in: audio))
             return
@@ -23,7 +23,7 @@ extension DictationPipeline {
             ?? SituationResolver.resolve(from: seen, overrides: runningOverrides)
         // Inserting a blank would delete the user's selection, so it is refused like silence.
         let joinedPieces = await join(
-            pieces, going: joining, seeing: seen, vocabulary: rankedWords, recording: tally, for: mine)
+            message, going: joining, seeing: seen, vocabulary: rankedWords, recording: tally, for: mine)
         guard !wasCancelled(mine) else { return }
         // After the join, so a seam correction or snippet expansion that gave up is in the account.
         await reportCleaning(for: delivery)
