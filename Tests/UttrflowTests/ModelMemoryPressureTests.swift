@@ -91,6 +91,8 @@ private actor PressureModel: ReleasableModel {
     func confidence(ofGenerated line: String) async -> Double? { nil }
 
     func forgetEverything() async {}
+
+    func forgetPrefixIndex() {}
 }
 
 /// A reload that could not find the memory to read the weights in.
