@@ -35,6 +35,8 @@ struct RestatementTests {
             ("pick the red one strike that the blue one", 4, 6, 1),
             ("tea or rather coffee", 1, 3, 0),
             ("ten k actually make it twelve k", 2, 5, 0),
+            ("please order twenty no make it thirty boxes", 3, 6, 2),
+            ("book the blue room actually make that the green room", 4, 7, 1),
         ]
     )
     func spokenCorrectionPhrasesAreTriggers(text: String, trigger: Int, restart: Int, start: Int) {
@@ -48,6 +50,8 @@ struct RestatementTests {
         arguments: [
             ("the correction was small", 1, 2),
             ("would you like to stay or rather not", 5, 7),
+            ("i did not actually make that cake", 3, 6),
+            ("we said no make it yourself", 2, 5),
         ]
     )
     func ordinaryUsesStay(text: String, trigger: Int, restart: Int) {
@@ -230,6 +234,8 @@ struct RestatementTests {
             ("it costs forty dollars sorry fifty dollars", 4, 5, 2),
             ("invite ten people no wait twelve people", 3, 5, 1),
             ("we need twenty five boxes i mean thirty boxes", 5, 7, 2),
+            ("send it to twelve elm road sorry twenty one elm road", 6, 7, 3),
+            ("we need ten boxes of paper i mean twelve boxes of paper", 6, 8, 2),
         ])
     func numberWithItsUnit(text: String, trigger: Int, restart: Int, start: Int) {
         let (draft, live) = reading(text)
@@ -252,6 +258,10 @@ struct RestatementTests {
             ("boxes no wait twelve boxes", 1, 3),
             ("i counted ten. boxes sorry twelve boxes", 4, 5),
             ("we need ten boxes i mean twelve. boxes", 4, 6),
+            ("send it to twelve elm road sorry twenty one oak road", 6, 7),
+            ("ten boxes of paper no wait twelve boxes", 4, 6),
+            ("i counted ten. elm road sorry twelve elm road", 5, 6),
+            ("send it to twelve elm road sorry twenty one elm. road", 6, 7),
         ])
     func numberWithAnotherUnit(text: String, trigger: Int, restart: Int) {
         let (draft, live) = reading(text)
