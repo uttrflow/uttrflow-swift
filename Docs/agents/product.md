@@ -108,6 +108,7 @@ on ignores it. Pieces and measurements: `Docs/predict.md`, `Docs/predict-precisi
 
 | Rule | Limit |
 |---|---|
+| Access | Uttrflow is free and open source, with no subscriptions or paid tiers; sign-in is required before app access |
 | Offline second launch | what a person may do is decided from the copy on this Mac; 0 network calls needed |
 | Entitlement | only `Entitlement` (account, plan, expiry) is signed, Ed25519 over a length-prefixed payload; everything around it is displayed and never enforced (`Docs/entitlements.md`) |
 | Network users | `UttrflowAccount`, model-asset downloads, Sparkle update checks, and opt-in scrubbed crash and hang reports from `UttrflowDiagnostics`; any other use is a product decision with a privacy page, not a refactor |

@@ -208,8 +208,9 @@ Worth saying early, because it is the question every reader of a client reposito
 Dictation is on-device. The clipboard, history, dictionary and snippets live in Application
 Support and are never sent anywhere. The released app asks you to sign in before anything
 else opens; a development build signs in against an in-process stand-in, so its sign-in
-needs no network and no account of ours. An account buys the things that genuinely need
-one: carrying a dictionary between Macs, and a subscription to bill.
+needs no network and no account of ours. Uttrflow is free and open source, with no
+subscriptions or paid tiers. Sign-in identifies the account and its signed-in Macs;
+it is required even though dictation runs locally.
 
 So a clone builds, tests and runs, complete. See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
@@ -264,7 +265,7 @@ Sources/
   UttrflowHistory      What was dictated, kept between launches and aged out on a clock.
   UttrflowDictionary   Words you say that a general model does not know, found by sound.
   UttrflowDiagnostics  Opt-in crash and hang reports. The only module that links the crash reporter.
-  UttrflowAccount      Who is signed in, and what their subscription allows.
+  UttrflowAccount      Who is signed in, and how their account is validated offline.
   UttrflowClipboard    Clipboard history, classification and storage; panel UI lives in Uttrflow/Panel.
   UttrflowPredict      Finishing a line you have typed before: the turn, the gates, the ranking.
   UttrflowPredictStore The corpus of what you have typed, on this Mac, in SQLite.

@@ -6,6 +6,10 @@ anybody. The code is in `Sources/UttrflowAccount/` (`Profile.swift`, `Entitlemen
 `EntitlementGate.swift`, `ProfileCache.swift`) and `Sources/UttrflowUX/SessionGate.swift`; the
 app shell applies it in `AppDelegate.show` and `AppDelegate.followSession`.
 
+Uttrflow is free and open source. Sign-in is required; there are no subscriptions or paid
+tiers. The existing `plan` and `subscription` fields are legacy backend-contract data, not
+payment requirements. Their wire names remain part of the signed-profile contract.
+
 ## Only the entitlement is signed
 
 `Entitlement` (the account, the plan and the expiry) carries an Ed25519 signature from the
@@ -35,9 +39,9 @@ when the document names the signed account. Nothing in the app reads `profile.su
 
 `Profile.isInternallyConsistent` does **not** enforce this. It checks one thing: that the
 document names the account the entitlement was signed for, which stops somebody pairing their
-own document with a stranger's entitlement. **It does not compare the plans**, so a free
-entitlement inside a document claiming a paid plan passes it and verifies. A gate written on
-`subscription.effectivePlan` would therefore be an escalation anybody could perform with a text
+own document with a stranger's entitlement. **It does not compare the plans**, so an
+entitlement inside a document claiming a different legacy plan passes it and verifies. A
+gate written on `subscription.effectivePlan` would therefore be an escalation anybody could perform with a text
 editor and a restart.
 
 `UnsignedHalfTests` builds exactly that tampered document and checks that the answer does not
@@ -48,8 +52,8 @@ move.
 `Ed25519EntitlementVerifier.releasePublicKeyBytes` decodes `releasePublicKeyBase64`, and is
 empty, **not 32 zero bytes**, when that is not a key. The all-zero Ed25519 public key decodes to
 a point of order four and CryptoKit verifies without the cofactor, so an all-zero *signature*
-satisfies the equation against it for roughly one message in four: a subscription for anybody
-willing to try their account identifier a few times.
+satisfies the equation against it for roughly one message in four: a forged signed profile
+for anybody willing to try their account identifier a few times.
 
 Bytes that are not a key verify nothing, which is the only safe thing for a placeholder to be.
 `rejectsTheDegenerateKeyThatWouldAcceptAForgery` in `EntitlementSignatureTests` keeps it that way.

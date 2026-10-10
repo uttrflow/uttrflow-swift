@@ -15,7 +15,7 @@ private import Synchronization
 
 /// Runs the real shape of sign-in against no server, signing with a per-process Ed25519 key.
 public final class InMemoryAuthenticationService: AuthenticationService {
-    /// A month: the backstop that stops a cancelled subscription running for ever, not a session timeout.
+    /// A month of validity for the signed account record, separate from the session timeout.
     public static let defaultLifetime: TimeInterval = 30 * 24 * 60 * 60
 
     /// A host in the reserved `.invalid` domain, so the challenge's address resolves nowhere if anything opens it.

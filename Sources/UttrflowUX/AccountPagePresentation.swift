@@ -103,7 +103,7 @@ public struct AccountPagePresentation: Sendable, Equatable {
     public let actionHelp: String?
     /// Deleting the account on the server, beside ``action``; absent when nobody is signed in.
     public let deletion: MainAction?
-    /// A quiet note when the subscription could not be re-checked. Never a door.
+    /// A quiet note when the account could not be re-checked. Never a door.
     public let notice: MainCallout?
     /// The promise about what stays on this Mac, drawn beside the invitation to sign in.
     public let callout: MainCallout
@@ -262,12 +262,12 @@ public enum AccountPagePresenter {
         }
     }
 
-    // MARK: - When the subscription could not be checked
+    // MARK: - When the account could not be checked
 
     /// A note, never a door: both aged-out states permit dictation, so neither blocks the user.
     static func notice(for access: DictationAccess) -> MainCallout? {
         switch access {
-        // Nothing to say: one is a current subscription, the other a page that explains itself.
+        // Nothing to say: one is a current account record, the other a page that explains itself.
         case .allowed, .refused:
             nil
         case .allowedAwaitingNetwork:
@@ -275,7 +275,7 @@ public enum AccountPagePresenter {
                 symbolName: "wifi.slash",
                 tone: .neutral,
                 message: """
-                    Uttrflow could not re-check your subscription, and has carried on without it. \
+                    Uttrflow could not re-check your account, and has carried on offline. \
                     It will try again when there is a connection.
                     """)
         case .allowedPendingSignIn:
@@ -283,7 +283,7 @@ public enum AccountPagePresenter {
                 symbolName: "arrow.clockwise",
                 tone: .warning,
                 message: """
-                    Your subscription needs re-checking. Dictation carries on either way — sign \
+                    Your account needs re-checking. Dictation carries on either way — sign \
                     in again when it suits you.
                     """)
         }

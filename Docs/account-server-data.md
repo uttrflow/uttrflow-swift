@@ -6,6 +6,9 @@ signed-in Macs work. This page lists that record from the backend's schema and r
 answer to "and what does leave my Mac?" has one home. What the app itself sends is in
 [account-telemetry.md](account-telemetry.md) and [account-transport.md](account-transport.md).
 
+Uttrflow is free and open source, requires sign-in, and has no subscriptions or paid tiers.
+The backend still carries legacy plan records; their existence does not imply billing.
+
 ## What is stored per account
 
 | Data | Fields | Why | Kept until |
@@ -14,8 +17,8 @@ answer to "and what does leave my Mac?" has one home. What the app itself sends 
 | Provider identity | the sign-in provider's stable id for the person, first and last seen | find the account at the next sign-in | deleted with the account |
 | Sessions | a hash of each refresh token, issue, expiry and revocation times, the device it belongs to | keep the app signed in | refresh token expires after 90 days; revoked on sign-out; deleted with the account |
 | Devices | a typed device name, platform, app version, first and last seen | the list of signed-in Macs | removed when forgotten; deleted with the account |
-| Subscription | plan, status, end of the current period | entitlement | kept: accounting record |
-| Entitlement issuances | issue and expiry time of each signed entitlement | accounting | kept: accounting record |
+| Legacy plan record | plan, status, end of the current period | compatibility with the existing signed-profile contract | retained by the current backend after account deletion |
+| Entitlement issuances | issue and expiry time of each signed entitlement | account-validation issuance history | retained by the current backend after account deletion |
 | Usage statistics (opt-in) | counts and timings only, see [account-telemetry.md](account-telemetry.md) | product measurement | kept; detached from the account on deletion |
 
 Short-lived sign-in records (authorization codes, device codes, pending authorizations,
@@ -26,7 +29,7 @@ copied to the server.
 
 ## How a person sees it
 
-`GET v1/me` returns the whole account document: account fields, subscription and limits,
+`GET v1/me` returns the whole account document: account fields, legacy `subscription` metadata and limits,
 and every device with its name, app version, first and last seen. The app reads it through
 `HTTPAuthenticationService` (`Sources/UttrflowAccount/HTTPAuthenticationService.swift`).
 
@@ -38,9 +41,10 @@ and every device with its name, app version, first and last seen. The app reads 
 | `DELETE v1/me` | deletes the account, answers `204` |
 
 Deleting the account clears name, email and avatar, removes provider identities, sessions
-and devices, and detaches usage statistics. Subscription and entitlement rows stay as
-accounting records with nothing that names the person. Signing in again afterwards creates a
-new account: neither the provider identity nor the email address can find the old one.
+and devices, and detaches usage statistics. Legacy plan and entitlement rows remain under
+the current backend retention behavior, with nothing that names the person. Signing in
+again afterwards creates a new account: neither the provider identity nor the email address
+can find the old one.
 
 In the app, **Delete account** on the Account page asks once, then calls `DELETE v1/me`
 through `HTTPAuthenticationService.deleteAccount()`: two actions from the Account page. This Mac

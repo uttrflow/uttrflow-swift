@@ -6,7 +6,7 @@ public enum DictationAccess: Sendable, Equatable, CaseIterable {
     /// Nobody signed in: the one answer that stops a dictation and every surface but sign-in.
     case refused
 
-    /// Signed in, subscription current. Nothing to say.
+    /// Signed in, with a current account-validation record. Nothing to say.
     case allowed
 
     /// Aged out with no connection to renew on, and dictation continues. See `Docs/entitlements.md`.

@@ -200,9 +200,9 @@ struct AccountFactsTests {
     }
 }
 
-@Suite("Account when the subscription could not be checked")
+@Suite("Account when the account could not be checked")
 struct AccountNoticeTests {
-    @Test("a current subscription has nothing to say")
+    @Test("a current account record has nothing to say")
     func quiet() {
         #expect(HistoryFixture.accountPage(access: .allowed).notice == nil)
     }

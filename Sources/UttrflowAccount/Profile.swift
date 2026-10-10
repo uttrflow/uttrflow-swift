@@ -85,7 +85,7 @@ public struct Profile: Sendable, Equatable, Codable {
 }
 
 extension Profile {
-    /// What the subscription allows, as numbers; `nil` means unlimited, which differs from zero.
+    /// Legacy backend limits; `nil` means unlimited, which differs from zero.
     public struct Limits: Sendable, Equatable, Codable {
         /// Minutes of dictation a month, or `nil` for unlimited.
         public let monthlyMinutes: Int?
@@ -124,7 +124,7 @@ extension Profile {
         /// What the plan allows.
         public let limits: Limits
 
-        /// Assembles a subscription as the server produced it.
+        /// Preserves the legacy subscription-shaped metadata in the server contract.
         public init(
             plan: Plan, status: Status, currentPeriodEnd: Date?, effectivePlan: Plan,
             limits: Limits

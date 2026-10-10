@@ -20,7 +20,7 @@ public enum SignInProvider: String, Sendable, Equatable, CaseIterable, Codable {
     }
 }
 
-/// Who is signed in: only enough to greet the person and name which account a subscription belongs to.
+/// Who is signed in: only enough to greet the person and identify the signed-in account.
 public struct Account: Sendable, Equatable, Codable {
     /// The backend's identifier for this account.
     public let identifier: String
@@ -78,7 +78,7 @@ public struct Account: Sendable, Equatable, Codable {
     }
 }
 
-/// What the subscription allows.
+/// The signed account-validation record received from the backend.
 public enum Plan: String, Sendable, Equatable, CaseIterable, Codable {
     case free
     case pro
@@ -90,7 +90,7 @@ public struct Entitlement: Sendable, Equatable, Codable {
     public let account: Account
     /// What they may do.
     public let plan: Plan
-    /// A backstop against a cancelled subscription running for ever, not a session timeout.
+    /// The validity of the signed account record, not the session timeout.
     public let expiresAt: Date
     /// Checked against a public key compiled into the binary, so a cached entitlement is trusted offline.
     public let signature: String
