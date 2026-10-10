@@ -191,6 +191,9 @@ and the class that moved, never alone.
   configuration over the same audio into the numbers a verdict must sit above: per passage,
   the identical-text rate (transcripts compared character for character) and the rate spread; over
   the corpus, the share of passages every run agreed on and the headline spread between runs.
+  `uttrflow-eval transcribe --repeat 8` runs the corpus eight times with one model load and prints
+  the differing passages and this table's row, with the chip and OS build read from the machine.
+  `--repeat` refuses `--baseline` and `--summarise`: spread is the gate's floor, not its subject.
 - A verdict counts only when its interval clears the measured spread, and the baseline records chip and OS
   build. Until a second machine reproduces the table, the gate runs only on the machine that
   recorded the baseline.
