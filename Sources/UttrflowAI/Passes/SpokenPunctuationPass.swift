@@ -351,7 +351,9 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             literal.contains(live[end + 1]),
             draft.shape(at: live[end + 2]).key != "dash",
             // A dash before spelled letters or a number opens the next short option: `--rm -p 80`.
-            letterCluster(after: end + 1, in: live, of: draft) == nil,
+            // A name that is only a negation is never whole, so its next segment joins however short: `--no-ff`.
+            letterCluster(after: end + 1, in: live, of: draft) == nil
+                || (end == start && Self.negations.contains(draft.shape(at: live[start]).key)),
             numericOption(after: end + 1, in: live, of: draft) == nil
         {
             option += "-" + draft.words[live[end + 2]].text
@@ -359,6 +361,9 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         }
         return (option, end)
     }
+
+    /// Option name segments that negate the option named after them, so they never end a name.
+    static let negations: Set<String> = ["no"]
 
     /// The most letters one spoken short-option cluster joins: `tar -xzvf` and a little more.
     static let clusterLimit = 6
