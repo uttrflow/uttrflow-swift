@@ -143,6 +143,21 @@ thread, synthetic rows of 20 features:
 
 The largest fit is under one minute, against a ten-minute limit on a 16 GB Mac.
 
+### What a calibration was fitted under
+
+Each threshold in the recognition chain reads the scores of the layer before it: the fallback plan
+reads the recogniser's log-probabilities, which the phrase bias and the conditioning prompt move;
+the certainty threshold reads the scores after fallback; the override margin reads which words the
+threshold lets through. `CalibrationRecord` (`Sources/UttrflowCore/Models/`) holds one calibrated
+value with the corpus and metric it was fitted on and the revision of every earlier layer it reads.
+`CalibrationRecord.Layer` numbers the layers in the one order they are fitted in, and a record may
+only read layers before its own. `CalibrationGraph.findings` lists every record whose value or
+upstream revision differs from the code as it ships, and every record above a stale one.
+
+The shipping ledger is `ShippingCalibrationTests` (`Tests/UttrflowSpeechTests/`): it fails when a
+layer moves, and passes again only once each dependent calibration is refitted and its record
+re-recorded with the new revisions.
+
 ## Training labels
 
 A passage read aloud is the label only where the reader said it. `TrainingLabels.label`
