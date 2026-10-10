@@ -146,8 +146,8 @@ public enum EvaluationCorpus {
 
     // MARK: Source notation. See Docs/adapters.md.
 
-    /// Operators and brackets dictated in Swift, Python, JavaScript and TypeScript, each written as that language writes it.
-    public static let sourceNotation: [EvaluationCase] = CorpusFile.cases(in: .technical, set: "sourceNotation")
+    /// Operators and brackets dictated in Swift, Python, JavaScript and TypeScript, as each language writes them.
+    static let sourceNotation: [EvaluationCase] = CorpusFile.cases(in: .technical, set: "sourceNotation")
 
     // MARK: Command mentions. See Docs/commands.md.
 

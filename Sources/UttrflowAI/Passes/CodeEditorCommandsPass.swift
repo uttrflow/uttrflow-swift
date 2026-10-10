@@ -24,7 +24,7 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
         while position < draft.presentIndices.count {
             let live = draft.presentIndices
             guard position < live.count else { break }
-            // Empty parentheses joined onto the word before leave the next word where this one stood.
+            // Empty parentheses join the word before, so the next word takes this one's place.
             if let symbol = symbol(at: position, in: live, of: draft),
                 apply(symbol, at: position, in: live, to: &draft) == .joinedBefore
             {
@@ -50,7 +50,7 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
         text.lowercased().trimmingCharacters(in: .letters.inverted)
     }
 
-    /// Where a written symbol went: onto its own first word, or onto the word before it.
+    /// Where a written symbol goes: onto its own first word, or onto the word before it.
     private enum Written { case inPlace, joinedBefore }
 
     private func apply(

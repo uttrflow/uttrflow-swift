@@ -97,10 +97,8 @@ struct CodeEditorCommandsPassTests {
     }
 
     /// The words a code editor's rules write for `spoken` when the caret sits in code in `documentName`.
-    private static func written(_ spoken: String, in documentName: String, after precedingText: String = "    ")
-        -> String
-    {
-        let app = AppContext(documentName: documentName, precedingText: precedingText)
+    private static func written(_ spoken: String, in documentName: String) -> String {
+        let app = AppContext(documentName: documentName, precedingText: "    ")
         let situation = Situation(app: app, insertion: app.insertionPoint, destination: .codeEditor)
         return CleaningPipeline.beforeModel(for: .standard(for: .codeEditor), situation: situation)
             .run(Draft(text: spoken)).text

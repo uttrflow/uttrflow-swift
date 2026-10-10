@@ -47,7 +47,9 @@ struct SpokenCommandsTests {
     func languageRows() {
         let arrows = SpokenCommands.codeSymbols.filter { $0.words == ["arrow"] }
         #expect(Set(arrows.map(\.text)) == ["->", "=>"])
-        let written = { (language: CodeLanguage?) in arrows.filter { $0.isEnabled(for: language) }.map(\.text) }
+        let written = { (language: CodeLanguage?) in
+            arrows.filter { $0.isEnabled(for: language) }.map(\.text)
+        }
         #expect(written(.swift) == ["->"])
         #expect(written(.python) == ["->"])
         #expect(written(.javascript) == ["=>"])
