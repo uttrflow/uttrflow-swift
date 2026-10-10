@@ -129,7 +129,7 @@ public struct SuggestionPreferences: Sendable, Equatable, Codable {
     /// The applications the user switched back on, which is the only way out of ``SuggestionApplications/offByDefault``.
     public var turnedOn: Set<String>
 
-    /// The accept key the user chose per application, over the shipped answer.
+    /// The accept key the user chose per application, keyed by bare lowercased bundle identifier alone, so an identifier reused by another app inherits it.
     public var chosenAcceptKeys: [String: AcceptKey]
 
     /// Whether only a completion it is sure of may be drawn, never a list to choose from.

@@ -71,6 +71,9 @@ final class SuggestionPanelController {
     }
     private var appearanceObserver: (any NSObjectProtocol)?
     private var screenParametersObserver: (any NSObjectProtocol)?
+    private var occlusionObserver: (any NSObjectProtocol)?
+    /// Whether the system has taken the panel off screen, as Mission Control and App Exposé do; a test swaps it.
+    var systemHidesPanel: @MainActor () -> Bool = { false }
     private var announcer = SuggestionAnnouncer()
     var announcementCoalescer = SuggestionAnnouncementCoalescer()
     private var announcementTask: Task<Void, Never>?
@@ -99,6 +102,8 @@ final class SuggestionPanelController {
             onDesiredSize: { [weak self] size in self?.resize(to: size) })
         observeAppearance()
         observeScreenParameters()
+        systemHidesPanel = { [panel] in !panel.occlusionState.contains(.visible) }
+        observeOcclusion()
     }
 
     isolated deinit {
@@ -106,6 +111,7 @@ final class SuggestionPanelController {
         if let screenParametersObserver {
             NotificationCenter.default.removeObserver(screenParametersObserver)
         }
+        if let occlusionObserver { NotificationCenter.default.removeObserver(occlusionObserver) }
     }
 
     /// Says what to draw and what to draw it against, answering whether the offer is on screen whole; `.silent` takes the surface away.
@@ -369,6 +375,22 @@ final class SuggestionPanelController {
                 self.onWithdrawnUnasked?()
             }
         }
+    }
+
+    /// Gives up a drawn ghost the system has hidden, so Tab cannot take words the person cannot see.
+    private func observeOcclusion() {
+        occlusionObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didChangeOcclusionStateNotification, object: panel, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.withdrawIfHiddenBySystem() }
+        }
+    }
+
+    /// Withdraws the ghost, and lets its keys go, when it is meant to be showing but the system took the panel off screen.
+    func withdrawIfHiddenBySystem() {
+        guard isActuallyShowing, systemHidesPanel() else { return }
+        hide()
+        onWithdrawnUnasked?()
     }
 
     /// The view measures itself and reports what it wants; the panel follows and stays on screen.
