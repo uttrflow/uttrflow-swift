@@ -8,20 +8,20 @@ import UttrflowCore
 
 @Suite("HomophoneClassTable")
 struct HomophoneClassTableTests {
-    static let cases = HomophoneCaseSet.cases(classes: Homophones.groups)
+    static let cases = HomophoneCaseSet.cases(classes: HomophoneCarriers.classes)
     static let identity = HomophoneStage("raw") { $0 }
 
     @Test func everyClassWithCarriersHasOneRowAndEveryCaseIsCounted() {
         let rows = HomophoneClassTable.rows(
-            cases: Self.cases, classOf: { Homophones.group(containing: $0) }, stages: [Self.identity])
-        #expect(rows.count == Homophones.groups.count)
+            cases: Self.cases, classOf: { HomophoneCarriers.group(containing: $0) }, stages: [Self.identity])
+        #expect(rows.count == HomophoneCarriers.classes.count)
         #expect(rows.map(\.cases).reduce(0, +) == Self.cases.count)
         #expect(Set(rows.map(\.members)).count == rows.count)
     }
 
     @Test func rawLeavesEveryGeneratedCaseWrong() {
         let rows = HomophoneClassTable.rows(
-            cases: Self.cases, classOf: { Homophones.group(containing: $0) }, stages: [Self.identity])
+            cases: Self.cases, classOf: { HomophoneCarriers.group(containing: $0) }, stages: [Self.identity])
         #expect(rows.allSatisfy { $0.errors == [$0.cases] })
     }
 
@@ -30,7 +30,7 @@ struct HomophoneClassTableTests {
             Self.cases.map { ($0.input, $0.expected) }, uniquingKeysWith: { first, _ in first })
         let oracle = HomophoneStage("oracle") { byInput[$0] ?? $0 }
         let rows = HomophoneClassTable.rows(
-            cases: Self.cases, classOf: { Homophones.group(containing: $0) }, stages: [oracle])
+            cases: Self.cases, classOf: { HomophoneCarriers.group(containing: $0) }, stages: [oracle])
         #expect(byInput.count == Self.cases.count)
         #expect(rows.allSatisfy { $0.errors == [0] })
     }
@@ -59,7 +59,8 @@ struct HomophoneClassTableTests {
     @Test func theStandardRulesStageRuns() {
         let rules = HomophoneStage("rules") { CleaningPipeline.standard.run(Draft(text: $0)).text }
         let rows = HomophoneClassTable.rows(
-            cases: Self.cases, classOf: { Homophones.group(containing: $0) }, stages: [Self.identity, rules])
+            cases: Self.cases, classOf: { HomophoneCarriers.group(containing: $0) },
+            stages: [Self.identity, rules])
         #expect(rows.allSatisfy { $0.errors[1] <= $0.cases })
     }
 }

@@ -6,13 +6,13 @@ import Testing
 
 @Suite("HomophoneCaseSet")
 struct HomophoneCaseSetTests {
-    static let cases = HomophoneCaseSet.cases(classes: Homophones.groups)
+    static let cases = HomophoneCaseSet.cases(classes: HomophoneCarriers.classes)
 
     @Test func everySpellingOfEveryClassHasTwoCarriers() {
-        for spelling in Homophones.groups.joined() {
+        for spelling in HomophoneCarriers.classes.joined() {
             #expect(HomophoneCarriers.all.count { $0.spelling == spelling } == 2, "\(spelling)")
         }
-        let spellings = Set(Homophones.groups.joined())
+        let spellings = Set(HomophoneCarriers.classes.joined())
         for carrier in HomophoneCarriers.all {
             #expect(spellings.contains(carrier.spelling), "\(carrier.spelling)")
         }
@@ -22,7 +22,7 @@ struct HomophoneCaseSetTests {
         for carrier in HomophoneCarriers.all {
             let words = carrier.template.split(separator: " ").map(String.init)
             #expect(words.count { $0 == "_" } == 1, "\(carrier.template)")
-            let members = Homophones.group(containing: carrier.spelling) ?? []
+            let members = HomophoneCarriers.group(containing: carrier.spelling) ?? []
             #expect(words.allSatisfy { !members.contains($0) }, "\(carrier.template)")
         }
     }
@@ -30,7 +30,9 @@ struct HomophoneCaseSetTests {
     @Test func eachCaseSwapsOnlyTheSlot() {
         for item in Self.cases {
             #expect(item.input != item.expected)
-            #expect(Homophones.share(item.meant, item.heard), "\(item.expected)")
+            #expect(
+                HomophoneCarriers.group(containing: item.meant)?.contains(item.heard) == true,
+                "\(item.expected)")
             let input = item.input.split(separator: " ")
             let expected = item.expected.split(separator: " ")
             #expect(input.count == expected.count)
@@ -43,9 +45,9 @@ struct HomophoneCaseSetTests {
 
     @Test func theSetCoversEveryClassAndCountsItsCases() {
         let meant = Set(Self.cases.map(\.meant))
-        #expect(meant == Set(Homophones.groups.joined()))
+        #expect(meant == Set(HomophoneCarriers.classes.joined()))
         let carriersWithOthers = HomophoneCarriers.all.map { carrier in
-            (Homophones.group(containing: carrier.spelling)?.count ?? 1) - 1
+            (HomophoneCarriers.group(containing: carrier.spelling)?.count ?? 1) - 1
         }
         #expect(Self.cases.count == carriersWithOthers.reduce(0, +))
         #expect(Self.cases.count >= 250)
@@ -54,12 +56,12 @@ struct HomophoneCaseSetTests {
         }
     }
 
-    static let lexiconClasses = Homophones.groups + HomophoneLexiconClasses.all
+    static let lexiconClasses = HomophoneCarriers.classes + HomophoneLexiconClasses.all
     static let lexiconCases = HomophoneCaseSet.cases(
         classes: lexiconClasses, carriers: HomophoneCarriers.all + HomophoneCarriers.lexicon)
 
     @Test func lexiconClassesShareNoSpellingWithTheHandKeptOnes() {
-        let kept = Set(Homophones.groups.joined())
+        let kept = Set(HomophoneCarriers.classes.joined())
         let added = HomophoneLexiconClasses.all.joined()
         #expect(added.allSatisfy { !kept.contains($0) })
         #expect(Set(added).count == added.count)

@@ -102,8 +102,8 @@ struct DictionaryVocabularyTests {
         let better = entry("color", timesUsed: 40)
         let duplicate = entry("colour")
         let distinct = entry("invoice", timesUsed: 2)
-        let betterKeys = Set(DoubleMetaphone.code(for: better.soundsLike).keys)
-        let duplicateKeys = Set(DoubleMetaphone.code(for: duplicate.soundsLike).keys)
+        let betterKeys = Set(WordSound(of: better.soundsLike).keys)
+        let duplicateKeys = Set(WordSound(of: duplicate.soundsLike).keys)
         #expect(!betterKeys.isDisjoint(with: duplicateKeys))
 
         let words = await source(limit: 3, entries: [duplicate, distinct, better])

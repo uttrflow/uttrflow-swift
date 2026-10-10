@@ -270,7 +270,12 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
     /// Made once, so every root the panel draws carries the same callbacks.
     private lazy var keyRelay: (PanelKey) -> Void = { [weak self] key in self?.relay(key) }
     private lazy var intentRelay: (PanelIntent) -> Void = { [weak self] intent in
-        self?.onIntent?(intent, self?.caretOwner)
+        guard let self else { return }
+        PanelIntentRouting.forward(intent, through: presentation.sheet) {
+            [weak self] intent in
+            guard let self else { return }
+            self.onIntent?(intent, self.caretOwner)
+        }
     }
 
     private func postNewAnnouncements(_ presentation: PanelPresentation) {
