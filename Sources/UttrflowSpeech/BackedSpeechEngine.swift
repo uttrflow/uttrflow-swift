@@ -51,6 +51,9 @@ public actor BackedSpeechEngine: SpeechEngine {
     /// The idle watch, which ends once it lets the recogniser go; internal so a test can wait for it.
     var watching: Task<Void, Never>? { watch }
 
+    /// Calls queued behind the one inside the recogniser; internal so a test can wait for one.
+    nonisolated var callsWaitingForTheRecogniser: Int { turn.waitingCount }
+
     public func prepare() async throws(SpeechEngineError) {
         guard !isLoaded else { return }
         try await turn.take()
