@@ -76,11 +76,11 @@ why.
 
 ## An address for every entry
 
-Double Metaphone emits nothing for any character outside A–Z, so a spelling written in
+`WordSound` reads nothing but Latin letters, so a spelling written in
 Devanagari, CJK, Cyrillic or digits alone has no sound key — and an entry with no key is never
 looked up, offered or learnt from, with nothing to say why.
 
-`PronunciationCoder` is what the index keys on. It asks Double Metaphone first, and where that
+`PronunciationCoder` is what the index keys on. It asks `WordSound` first, and where that
 is silent it keys the spelling itself, folded for case and accents with marks dropped. So such a
 word is matched *exactly* rather than not at all, which is the honest ceiling for a script the coder
 cannot speak: the recogniser has to produce the same spelling. A pronunciation still beats both, and
@@ -161,7 +161,7 @@ An empty dictionary cannot help with the word most likely to be dictated while s
 launch, off the launch's own path.
 
 Matching is by sound, so one entry covers a family: "Uttrflow", "utter flow", "utterflow",
-"otter flow" and "udder flow" all carry the double metaphone code `ATRFL`, so any of them resolves
+"otter flow" and "udder flow" all carry one sound key (a vowel, then T, R, F, L), so any of them resolves
 to the shipped spelling. That is also the limit of what seeding buys — a mishearing that codes to
 something else is not reached by it, and the fix for those is a different mechanism, not a longer
 list.

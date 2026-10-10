@@ -266,9 +266,7 @@ extension MeaningPreservationGuard {
                 if let numeral = MeaningPreservationGuard.ordinalNumerals[token.matching] {
                     spellings.insert(numeral)
                 }
-                if let homophones = Homophones.group(containing: token.matching) {
-                    spellings.formUnion(homophones)
-                }
+                spellings.formUnion(GeneralVocabulary.soundAlikes(of: token.matching))
                 spellings.formUnion(MeaningPreservationGuard.meridiemSpellings(of: token.matching))
                 if MeaningPreservationGuard.auxContractionRoots.contains(token.matching) {
                     spellings.insert("\(token.matching)nt")
@@ -439,8 +437,8 @@ extension MeaningPreservationGuard {
         if numberWords[candidate.matching] == word { return true }
         if meridiemSpellings(of: word).contains(candidate.matching) { return true }
         if ordinalNumerals[word] == candidate.matching { return true }
-        // A misheard sound-alike respelled is the same spoken word, and only the hand-kept table says which are.
-        if Homophones.share(word, candidate.matching) { return true }
+        // A misheard sound-alike respelled is the same spoken word: the lexicon lists one pronunciation for both.
+        if GeneralVocabulary.soundAlikes(of: word).contains(candidate.matching) { return true }
         // A word spelled into an identifier — "invoices" inside "fetchInvoices" — is still there.
         if symbolNames[word] == nil, WordForms.spelledInto(word, candidate.text) { return true }
         // A numeral run into a unit or a letter — "3" in `3x` — is the number said.

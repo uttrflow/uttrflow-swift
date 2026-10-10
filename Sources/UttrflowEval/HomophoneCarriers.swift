@@ -1,7 +1,33 @@
-// Invented carrier sentences for every spelling of the hand-kept homophone classes; written for this repository, copied from no list.
+// Homophone classes kept for evaluation, and invented carrier sentences for every spelling of them; written for this repository, copied from no list.
 
 /// Two carriers for each spelling, so every member of a class is both a meant word and a misreading.
 public enum HomophoneCarriers {
+    /// The classes these carriers are written for, most frequent first; evaluation only, since the repair path reads the pronunciation lexicon.
+    public static let classes: [[String]] = [
+        ["allowed", "aloud"], ["bored", "board"], ["brake", "break"], ["capital", "capitol"],
+        ["by", "buy", "bye"], ["cache", "cash"], ["cell", "sell"], ["sent", "cent", "scent"],
+        ["site", "sight", "cite"], ["complement", "compliment"], ["die", "dye"],
+        ["fair", "fare"], ["ate", "eight"], ["flew", "flu"], ["flour", "flower"],
+        ["for", "four"], ["hear", "here"], ["hole", "whole"], ["hour", "our"],
+        ["its", "it's"], ["lets", "let's"], ["knew", "new"], ["knight", "night"], ["know", "no"],
+        ["mail", "male"], ["made", "maid"], ["meat", "meet"], ["need", "knead"],
+        ["one", "won"], ["pain", "pane"], ["pair", "pear"], ["peace", "piece"], ["peak", "peek"],
+        ["plain", "plane"], ["principal", "principle"], ["rain", "reign", "rein"],
+        ["road", "rode"], ["root", "route"], ["role", "roll"], ["sail", "sale"], ["scene", "seen"],
+        ["sea", "see"], ["son", "sun"], ["stationary", "stationery"], ["steal", "steel"],
+        ["tail", "tale"], ["there", "their", "they're"], ["threw", "through"], ["to", "too", "two"],
+        ["toe", "tow"], ["vain", "vein"], ["wait", "weight"], ["way", "weigh"],
+        ["wear", "where"], ["weather", "whether"], ["weak", "week"],
+        ["wood", "would"], ["right", "write", "rite"],
+        ["your", "you're"],
+    ]
+
+    /// The class holding this spelling, case folded; nil when no class does.
+    public static func group(containing spelling: String) -> [String]? {
+        let folded = String(spelling.lowercased().map { $0 == "\u{2019}" ? "'" : $0 })
+        return classes.first { $0.contains(folded) }
+    }
+
     /// Every carrier.
     public static let all: [HomophoneCarrier] = [
         .init("allowed", .role, "dogs are not _ in the shop"),

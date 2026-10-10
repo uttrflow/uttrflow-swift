@@ -417,7 +417,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
 
     /// Prints each error's linguistic class beside the rate, so effort follows the largest share.
     private func printErrorClasses(_ report: TranscriptionReport) {
-        let rows = report.errorClasses(by: ErrorClassifier(sameSound: Homophones.share))
+        let rows = report.errorClasses(by: ErrorClassifier(sameSound: PhonemeLexicon.shared.soundsSame))
         guard !rows.isEmpty else { return }
         print("\nerror class".padded(to: 18) + "count".padded(to: 8) + "share")
         for row in rows {

@@ -142,7 +142,7 @@ live-tally-test: ## Prove a skipped live-model suite is counted as skipped, not 
 	@python3 Scripts/live_model_tally_test.py
 
 .PHONY: pre-push-test
-pre-push-test: ## Prove the pre-push hook uses the disclosure audit paired with the hook, not the worktree's copy. Needs no build.
+pre-push-test: ## Prove the pre-push hook uses the disclosure audit paired with the hook, and refuses a bundled file pushed without its manifest entry. Needs no build.
 	@python3 Scripts/pre_push_hook_test.py
 
 .PHONY: pre-push-lock-test

@@ -47,6 +47,65 @@ struct DecodeSessionSignalTests {
         #expect(result.noSpeechProb > 0.99)
     }
 
+    static func session() throws -> DecodeSession {
+        let decoder = ScriptedDecoder(script: [:])
+        return try DecodeSession(
+            decoder: decoder,
+            window: .init(
+                encoderOutput: try ScriptedDecoder.array([1, 3, 1, 1]),
+                inputs: try decoder.prepareDecoderInputs(withPrompt: DecodeSessionTests.opening),
+                options: options()))
+    }
+
+    @Test("reports a no-speech probability that is high on silence and low on speech")
+    func noSpeechVaries() async throws {
+        let silent = try await DecodeSessionTests.decode(
+            ScriptedDecoder(script: [Self.startOfTranscriptPosition: Self.special.noSpeechToken, 3: 50]),
+            options: Self.options())
+        let speech = try await DecodeSessionTests.decode(
+            ScriptedDecoder(script: [3: 5, 4: 50]), options: Self.options())
+
+        #expect(silent.noSpeechProb > 0.99)
+        #expect(speech.noSpeechProb < 0.01)
+        #expect(silent.fallback?.fallbackReason == "silence")
+        #expect(speech.fallback?.fallbackReason != "silence")
+    }
+
+    @Test("reads the no-speech probability before any filter suppresses the token")
+    func noSpeechIgnoresFilters() async throws {
+        var options = Self.options()
+        options.suppressTokens = [Self.special.noSpeechToken]
+        options.suppressBlank = true
+
+        let result = try await DecodeSessionTests.decode(
+            ScriptedDecoder(script: [Self.startOfTranscriptPosition: Self.special.noSpeechToken, 3: 50]),
+            options: options)
+
+        #expect(result.noSpeechProb > 0.99)
+    }
+
+    @Test("averages log-probabilities over sampled tokens only, so piece length does not dilute it")
+    func meanOverSampledTokens() throws {
+        let session = try Self.session()
+        let forced = Array(repeating: Float(0), count: DecodeSessionTests.opening.count)
+        let short = DecodeSession.Progress(tokens: [], logProbs: forced + [-1, -2], nextToken: 0)
+        let long = DecodeSession.Progress(
+            tokens: [], logProbs: forced + [-1, -2, -1, -2, -1, -2], nextToken: 0)
+
+        #expect(session.sampledMean(of: short) == -1.5)
+        #expect(session.sampledMean(of: long) == -1.5)
+    }
+
+    @Test("averages to zero when nothing was sampled")
+    func meanOfNothing() throws {
+        let session = try Self.session()
+        let forced = Array(repeating: Float(0), count: DecodeSessionTests.opening.count)
+
+        let progress = DecodeSession.Progress(tokens: [], logProbs: forced, nextToken: 0)
+
+        #expect(session.sampledMean(of: progress) == 0)
+    }
+
     @Test("gives no probability to a token outside the vocabulary")
     func probabilityOutOfRange() throws {
         let logits = try ScriptedDecoder.array([1, 1, 4], dominant: 0)
