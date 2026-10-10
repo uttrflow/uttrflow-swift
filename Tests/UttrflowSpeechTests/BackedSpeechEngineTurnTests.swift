@@ -75,9 +75,9 @@ struct BackedSpeechEngineTurnTests {
     private let speech = AudioSamples.canonical(
         (0..<AudioSamples.canonicalSampleRate).map { 0.1 * Float(sin(Double($0) * 0.07)) })
 
-    /// Yields until `condition` holds or the attempts run out, for what must not happen.
-    private func briefly(_ condition: () -> Bool) async {
-        for _ in 0..<20_000 where !condition() { await Task.yield() }
+    /// Waits until `count` calls are parked in the engine's queue, where none can reach the recogniser.
+    private func queued(_ count: Int, on engine: BackedSpeechEngine) async throws {
+        try await eventually { engine.callsWaitingForTheRecogniser == count }
     }
 
     /// An engine whose recogniser has already loaded, with the backend holding calls again.
@@ -98,7 +98,7 @@ struct BackedSpeechEngineTurnTests {
         let first = Task { try await engine.transcribe(speech, options: .automatic) }
         try await eventually { backend.held == 1 }
         let second = Task { try await engine.transcribe(speech, options: .automatic) }
-        await briefly { backend.transcriptions == 2 }
+        try await queued(1, on: engine)
 
         #expect(backend.transcriptions == 1, "the second call must not reach the recogniser yet")
         backend.releaseOne()
@@ -119,10 +119,10 @@ struct BackedSpeechEngineTurnTests {
         let first = Task { try await engine.transcribe(speech, options: .automatic) }
         try await eventually { backend.held == 1 }
         let abandoned = Task { try await engine.transcribe(speech, options: .automatic) }
-        await briefly { backend.transcriptions == 2 }
+        try await queued(1, on: engine)
         abandoned.cancel()
         let outcome = Task { await abandoned.result }
-        for _ in 0..<2_000 { await Task.yield() }
+        try await queued(0, on: engine)
         backend.open()
 
         guard case .failure = await outcome.value else {
@@ -157,7 +157,7 @@ struct BackedSpeechEngineTurnTests {
         let loading = Task { try await engine.prepare() }
         try await eventually { backend.held == 1 }
         let transcribing = Task { try await engine.transcribe(speech, options: .automatic) }
-        await briefly { backend.loads == 2 }
+        try await queued(1, on: engine)
 
         #expect(backend.loads == 1, "the overlapping call must wait for the load in flight")
         backend.open()
@@ -176,7 +176,7 @@ struct BackedSpeechEngineTurnTests {
         let first = Task { try await engine.prepare() }
         try await eventually { backend.held == 1 }
         let second = Task { try await engine.prepare() }
-        await briefly { backend.loads == 2 }
+        try await queued(1, on: engine)
         backend.open()
         try await first.value
         try await second.value
