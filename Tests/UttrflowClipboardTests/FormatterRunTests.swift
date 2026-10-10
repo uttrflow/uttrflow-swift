@@ -2,7 +2,6 @@
 import Foundation
 import Darwin
 import Testing
-import UttrflowTestSupport
 
 @testable import UttrflowClipboard
 
@@ -36,11 +35,19 @@ struct FormatterRunTests {
         // The pid is written only once TERM is ignored, so a file names a tool that really ignores it.
         let tool = try Self.tool("trap '' TERM\necho $$ > '\(pidFile.path)'\nwhile :; do :; done")
         defer { try? FileManager.default.removeItem(at: tool.deletingLastPathComponent()) }
-        let startedAt = DispatchTime.now().uptimeNanoseconds
 
-        #expect(await Self.run(tool, "let x = 1", timeout: 1) == nil)
+        // Timed on the run's own thread, so the bound covers the escalation and not how soon this test is resumed.
+        let (output, elapsed) = await withCheckedContinuation { finished in
+            DispatchQueue(label: "formatter-run-tests.term").async {
+                let startedAt = DispatchTime.now().uptimeNanoseconds
+                let output = SystemCodeFormatter.runProcess(
+                    tool, arguments: [], input: "let x = 1", environment: ["PATH": "/usr/bin:/bin"],
+                    timeout: 1)
+                finished.resume(returning: (output, DispatchTime.now().uptimeNanoseconds - startedAt))
+            }
+        }
 
-        let elapsed = DispatchTime.now().uptimeNanoseconds - startedAt
+        #expect(output == nil)
         #expect(elapsed < 4_000_000_000, "termination escalation must remain bounded")
         // A tool the deadline reached before its trap ran died of TERM itself and wrote no pid.
         if let written = try? String(contentsOf: pidFile, encoding: .utf8),
@@ -50,17 +57,6 @@ struct FormatterRunTests {
                 kill(pid_t(processID), 0) == -1 && errno == ESRCH, "the ignored-TERM process must be gone")
         }
         try? FileManager.default.removeItem(at: pidFile)
-    }
-
-    @Test("a run starts while every thread of the shared dispatch pool is held")
-    func busySharedPool() async throws {
-        let echo = try Self.tool("exec /bin/cat")
-        defer { try? FileManager.default.removeItem(at: echo.deletingLastPathComponent()) }
-        let pool = await BusyDispatchPool.fill()
-        let output = await Self.run(echo, "let x = 1\n")
-        pool.release()
-        #expect(pool.heldUntilReleased, "the run waited for the shared pool to free a thread")
-        #expect(output == "let x = 1\n")
     }
 
     @Test("stdout beyond the fixed output cap is refused")

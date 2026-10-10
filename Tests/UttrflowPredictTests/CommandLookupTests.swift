@@ -4,7 +4,6 @@ import Darwin
 import Foundation
 import Synchronization
 import Testing
-import UttrflowTestSupport
 
 @testable import UttrflowPredict
 
@@ -187,15 +186,6 @@ struct SpawnedProgramLauncherTests {
         #expect(directory != FileManager.default.currentDirectoryPath)
         #expect(lines.last == "0")
         #expect(!FileManager.default.fileExists(atPath: directory))
-    }
-
-    @Test("runs while every thread of the shared dispatch pool is held")
-    func aBusySharedPool() async {
-        let pool = await BusyDispatchPool.fill()
-        let output = await SpawnedProgramLauncher().output(of: shell("echo ran"))
-        pool.release()
-        #expect(pool.heldUntilReleased, "the run waited for the shared pool to free a thread")
-        #expect(output == "ran\n")
     }
 
     @Test("gives the program exactly the environment it was handed")

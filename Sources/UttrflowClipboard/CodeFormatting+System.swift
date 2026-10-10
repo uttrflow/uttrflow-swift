@@ -62,8 +62,8 @@ public struct SystemCodeFormatter: CodeFormatting {
         }
     }
 
-    /// Pumps one subprocess without blocking on a pipe read or write.
-    private static func runProcess(
+    /// Pumps one subprocess without blocking on a pipe read or write; it blocks its caller until the run ends.
+    static func runProcess(
         _ tool: URL, arguments: [String], input: String, environment: [String: String],
         timeout: TimeInterval
     ) -> String? {
