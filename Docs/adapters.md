@@ -12,7 +12,10 @@ promise it serves is [cleanup.md](cleanup.md): an accurate transcript, never a r
 **Status: proposed design.** `FormatAdapter`, `AdapterRegistry`, and the other adapter types
 described below are not implemented yet, except `Applicability` and its `AdapterCue` values
 (`Sources/UttrflowCore/Adapters/Applicability.swift`) and the one evidence rule for spoken code
-symbols, `NotationEvidence` (`Sources/UttrflowAI/NotationEvidence.swift`). The “Today” columns and
+symbols, `NotationEvidence` (`Sources/UttrflowAI/NotationEvidence.swift`). SQL notation is rows of
+`spoken-commands.json` enabled in `sqlEditor` (operators as `codeSymbol` rows, keywords as
+`keyword` rows), written by `CodeEditorCommandsPass` only when the speech opens a statement outside
+a comment or string; `SQLNotationTests` holds its corpus cases to their exact statement. The “Today” columns and
 references to existing source files describe current behavior; the “With the adapter” columns
 describe the planned design.
 
@@ -125,8 +128,8 @@ public struct AdapterSelection: Sendable {
    candidates; an unknown language is `nil`, never a guess.
 3. **Each candidate's `applies(to:)`.** The highest `.evidenced` confidence at or above the
    registry's single activation threshold wins. Its value is a named constant,
-   `NotationEvidence.activationThreshold`, and nowhere else. It is 1: a command line or a caret
-   in code reaches it, a cue against (a comment, a prose body, an article in the speech) rules
+   `NotationEvidence.activationThreshold`, and nowhere else. It is 1: a command line, a caret
+   in code or a statement opened in a query editor reaches it, a cue against (a comment, a prose body, an article in the speech) rules
    the notation out, and no speech cue alone reaches it. Measured under the rules: 0 misfires on
    the abstention corpus, and the code-symbol cases `NotationRecallTests` counts are written
    exactly 3 of 3 in a code editor and 1 of 2 at a command line, which are its floors.
