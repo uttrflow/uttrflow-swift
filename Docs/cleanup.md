@@ -90,8 +90,10 @@ phoneme, stress marks ignored and no vowel reduced. "then" (`DH EH1 N`) and "tha
 too, and would pass only if unstressed vowels were reduced, which the definition does not do.
 "affect" (`AH0 F EH1 K T`) and "effect" (third listing `AH0 F EH1 K T`) pass it. Doubt and the
 homophone source ask `GeneralVocabulary.homophones`, which keeps a pair only when both words are
-ordinary, because the lexicon also lists rare spellings and surnames ("thee", "appel") that are no
-reading of a confidently heard word.
+ordinary and the partner is an everyday English word, no name, and at most 100 times rarer by
+recogniser rank, because the lexicon also lists rare spellings and surnames ("thee", "appel") that
+are no reading of a confidently heard word. Every word the recogniser spells is ordinary, so
+ordinary alone keeps both.
 
 ### Sound key against phoneme distance
 
