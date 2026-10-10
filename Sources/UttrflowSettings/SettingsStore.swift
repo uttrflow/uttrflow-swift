@@ -108,6 +108,9 @@ public struct Settings: Sendable, Equatable, Codable {
     /// How much of the front application a dictation reads: its name only, or the text around the caret too.
     public var contextLevel: ContextLevel
 
+    /// Applications read at a level of their own instead of ``contextLevel``.
+    public var contextLevelOverrides: ContextLevelOverrides
+
     /// Takes the shipped default for anything the caller does not choose.
     public init(
         engines: EngineConfiguration = .default,
@@ -139,7 +142,8 @@ public struct Settings: Sendable, Equatable, Codable {
         clipboardRetentionDays: Int = Settings.defaultRetentionDays,
         suggestions: SuggestionPreferences = .default,
         microphoneUID: String? = nil,
-        contextLevel: ContextLevel = .nearCaret
+        contextLevel: ContextLevel = .nearCaret,
+        contextLevelOverrides: ContextLevelOverrides = .none
     ) {
         self.engines = engines
         self.profile = profile
@@ -172,6 +176,7 @@ public struct Settings: Sendable, Equatable, Codable {
         self.suggestions = suggestions
         self.microphoneUID = microphoneUID
         self.contextLevel = contextLevel
+        self.contextLevelOverrides = contextLevelOverrides
     }
 
     /// A week: how long an unkept clip lives unless the user chooses otherwise.
@@ -249,6 +254,7 @@ extension Settings {
         case suggestions
         case microphoneUID
         case contextLevel
+        case contextLevelOverrides
     }
 
     /// Decodes field by field, defaulting anything missing or unreadable. See `Docs/settings-decoding.md`.
@@ -331,7 +337,9 @@ extension Settings {
             ),
             suggestions: container.value(forKey: .suggestions, default: fallback.suggestions),
             microphoneUID: (try? container.decodeIfPresent(String.self, forKey: .microphoneUID)) ?? nil,
-            contextLevel: container.value(forKey: .contextLevel, default: fallback.contextLevel)
+            contextLevel: container.value(forKey: .contextLevel, default: fallback.contextLevel),
+            contextLevelOverrides: container.value(
+                forKey: .contextLevelOverrides, default: fallback.contextLevelOverrides)
         )
     }
 
