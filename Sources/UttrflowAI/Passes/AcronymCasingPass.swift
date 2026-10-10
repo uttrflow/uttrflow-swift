@@ -5,6 +5,7 @@ import UttrflowDictionary
 public struct AcronymCasingPass: WholeTextCleaningPass {
     public static let id: PassID = .acronymCasing
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    public static let orderIndependentWith: Set<PassID> = ["sentenceBoundary"]
 
     /// Each known written form, keyed by its lower-cased letters; an ordinary word is a key only as the screen writes it.
     public let forms: [String: String]

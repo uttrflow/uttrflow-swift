@@ -356,24 +356,31 @@ public enum Restatement {
         return suffix.contains(".") && !suffix.contains(where: { "?!".contains($0) })
     }
 
-    /// The last word of the number taken back, stepping over a unit the restatement repeats ("twelve boxes i mean fifteen boxes").
+    /// The last word of the number taken back, stepping over a unit phrase the restatement repeats ("twelve boxes i mean fifteen boxes", "twelve elm road sorry twenty one elm road").
     private static func numberEnd(
         before trigger: Int, after restart: Int, in live: [Int], of draft: Draft
     ) -> Int? {
-        let unit = trigger - 1
-        let unitKey = draft.shape(at: live[unit]).key
-        if isHindiOrDigitNumber(unitKey) { return unit }
-        guard unit > 0, isHindiOrDigitNumber(draft.shape(at: live[unit - 1]).key),
-            !endsSentence(unit - 1, in: live, of: draft)
-        else { return nil }
+        let key = { (position: Int) in draft.shape(at: live[position]).key }
+        if isHindiOrDigitNumber(key(trigger - 1)) { return trigger - 1 }
+        // The unit runs back from the trigger to the nearest number, inside one sentence and within reach.
+        var number = trigger - 1
+        while number > max(0, trigger - reach), !isHindiOrDigitNumber(key(number)) {
+            number -= 1
+            guard !endsSentence(number, in: live, of: draft) else { return nil }
+        }
+        guard number < trigger - 1, isHindiOrDigitNumber(key(number)) else { return nil }
+        let unit = (number + 1..<trigger).map(key)
         var next = restart
-        while next < live.count, isHindiOrDigitNumber(draft.shape(at: live[next]).key) {
+        while next < live.count, isHindiOrDigitNumber(key(next)) {
             // A unit past a stop belongs to the next sentence, not to this restatement.
             guard !endsSentence(next, in: live, of: draft) else { return nil }
             next += 1
         }
-        guard next < live.count, draft.shape(at: live[next]).key == unitKey else { return nil }
-        return unit - 1
+        let restated = next..<(next + unit.count)
+        guard restated.upperBound <= live.count, restated.map(key) == unit,
+            !restated.dropLast().contains(where: { endsSentence($0, in: live, of: draft) })
+        else { return nil }
+        return number
     }
 
     /// The first word of the number ending at `end`, reading a spoken "oh" between digits as the zero it stands for.

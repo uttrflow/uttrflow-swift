@@ -70,12 +70,26 @@ struct TranscribeCorpus: AsyncParsableCommand {
     @Flag(name: .long, help: "Exit non-zero when any slice has got worse. For CI.")
     var failOnRegression = false
 
+    /// Measures the noise floor a regression verdict has to clear. See Docs/eval-methodology.md.
+    @Option(
+        name: .customLong("repeat"),
+        help: "Run the corpus this many times and print how far the runs disagree.")
+    var runs = 1
+
     func validate() throws {
         if findings < 0 {
             throw ValidationError("--findings must be zero or greater.")
         }
         if passageLimit < 0 {
             throw ValidationError("--passage-limit must be zero or greater.")
+        }
+        if runs < 1 {
+            throw ValidationError("--repeat must be one or greater.")
+        }
+        // One run is the gate's subject; several are its noise floor, and a gate on either alone misleads.
+        if runs > 1, summarise || baseline != nil {
+            throw ValidationError(
+                "--repeat measures spread; it cannot be combined with --summarise or --baseline.")
         }
         if saveBaseline || failOnRegression, baseline == nil {
             throw ValidationError("--save-baseline and --fail-on-regression need --baseline <path>.")
@@ -112,23 +126,47 @@ struct TranscribeCorpus: AsyncParsableCommand {
         let metrics = CollectingMetricsRecorder()
         let clock = ContinuousClock()
 
-        print("Measuring \(recordings.count) passages with \(label(model))…")
-        let measured = await TranscriptionRunner().run(
-            label: label(model),
-            recogniser: recogniser(model),
-            over: recordings,
-            onScore: { score in
-                Terminal.show(".")
-                do { try results.save(score) } catch { print("\n  ! could not save \(score.id): \(error)") }
-            }
-        ) { recording in
-            await measure(
-                recording, with: speech, router: router, metrics: metrics, clock: clock,
-                audioAt: source.audioURL)
+        var measured: [TranscriptionReport] = []
+        for run in 1...runs {
+            let pass = runs > 1 ? " (run \(run) of \(runs))" : ""
+            print("Measuring \(recordings.count) passages with \(label(model))\(pass)…")
+            measured.append(
+                await TranscriptionRunner().run(
+                    label: label(model),
+                    recogniser: recogniser(model),
+                    over: recordings,
+                    onScore: { score in
+                        Terminal.show(".")
+                        do { try results.save(score) } catch {
+                            print("\n  ! could not save \(score.id): \(error)")
+                        }
+                    }
+                ) { recording in
+                    await measure(
+                        recording, with: speech, router: router, metrics: metrics, clock: clock,
+                        audioAt: source.audioURL)
+                })
+            Terminal.clearLine()
         }
-        Terminal.clearLine()
 
-        try compare(reporting: measured)
+        guard let first = measured.first else { return }
+        try compare(reporting: first)
+        if runs > 1 { printSpread(RunToRunSpread(runs: measured)) }
+    }
+
+    /// Prints how far repeated runs disagree, ending with the row the methodology table records.
+    private func printSpread(_ spread: RunToRunSpread) {
+        print(
+            "\nrun-to-run".padded(to: 23) + "identical".padded(to: 11) + "transcripts".padded(to: 13)
+                + "spread")
+        for passage in spread.differing {
+            print(
+                passage.id.padded(to: 22) + percent(passage.identicalTextRate).padded(to: 11)
+                    + "\(passage.distinctTranscripts)".padded(to: 13)
+                    + (passage.spreadPercentagePoints.map { String(format: "%.1f pts", $0) } ?? "n/a"))
+        }
+        if spread.differing.isEmpty { print("  every run gave every passage the same transcript") }
+        print("\nFor Docs/eval-methodology.md:\n" + spread.tableRow(on: .current()))
     }
 
     // MARK: Where the audio comes from
