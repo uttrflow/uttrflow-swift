@@ -138,7 +138,8 @@ extension CleaningPipeline {
                 ),
                 TerminalStopPass(
                     policy: terminalStop(formatter, in: situation), layout: formatter.layout,
-                    insertionPoint: situation.insertion, destination: formatter.destination),
+                    insertionPoint: situation.insertion, destination: formatter.destination,
+                    region: situation.intent.region),
             ])
     }
 

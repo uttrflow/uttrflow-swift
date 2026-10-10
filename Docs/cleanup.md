@@ -583,6 +583,28 @@ step is assumed, not run.
 The five function-word sentences no longer offered are the negation, number and apostrophe swaps above;
 they stay as heard.
 
+## Who owns each homophone class
+
+`HomophoneOwnership` gives every class in `HomophoneCarriers` and `HomophoneLexiconClasses` exactly one
+owner, read from the decider tags of its carriers ([the generated cases](eval-methodology.md#generated-homophone-repair-cases-homophonecaseset)):
+
+| Owner | Classes | Why |
+|---|---|---|
+| model | any class with a role or sense carrier (their/there/they're, to/too/two, its/it's, your/you're, then/than, lose/loose, and the rest) | grammar or meaning decides it; the rules repair 0 of 292 generated cases |
+| place | a class only the app or field decides | the personal dictionary and the screen offer the reading |
+| none | a class nothing in a sentence decides | a repair is a guess, so the word stays as heard |
+
+The guard judges every swap (see above) and owns no class; the rules own none, since they repair none.
+Part-of-speech tagging does not earn a rule: tagging the slot with `NLTagger` and picking the member whose
+other carriers carry that tag chose a member for 144 of 210 role cases and was right for 142 (98.6%,
+below the 99% bar, and with the other carriers of the same class as its training data), so the role classes stay with the
+model and the guard. `HomophoneOwnershipTests` holds the owners and fails if the tagger reaches 99%.
+
+Not measured here: the raw rate of the recogniser itself, which needs audio of the carriers, and the
+model's per-class repair, which needs the Metal build from `make bakeoff`. No spelling was added to the
+repair path: the list the issue names is gone, the path reads the pronunciation lexicon, and a gap there
+is added only for a class the recogniser's own output shows wrong.
+
 ## How the number grammar chooses between readings
 
 `NumberFormsPass.phrase` tries its readers in a fixed order and the first that matches wins:

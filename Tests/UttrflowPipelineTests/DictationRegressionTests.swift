@@ -245,8 +245,10 @@ private func makeGestureHarness(startGate: RegressionGate? = nil) -> GestureHarn
         controller: DictationController(
             pipeline: pipeline,
             monitor: RegressionMonitor(),
-            activation: .holdToTalk,
-            clock: SteppingClock()
+            clock: SteppingClock(),
+            options: .init(
+                activation: .holdToTalk
+            )
         ),
         pipeline: pipeline,
         capture: capture,
@@ -299,8 +301,13 @@ struct DictationRegressionTests {
             context: FakeContextEngine(context: .fixture()), inserter: inserter,
             clock: ManualClock())
         let controller = DictationController(
-            pipeline: pipeline, monitor: OwingMonitor(), activation: .holdToTalk,
-            clock: SteppingClock())
+            pipeline: pipeline,
+            monitor: OwingMonitor(),
+            clock: SteppingClock(),
+            options: .init(
+                activation: .holdToTalk
+            )
+        )
         let states = await pipeline.states()
 
         // A key, not a modifier hold: this clock never lets a modifier press settle.

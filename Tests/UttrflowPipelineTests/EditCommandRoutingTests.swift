@@ -110,8 +110,14 @@ private func makeHarness(
     let commandMonitor = RoutingMonitor()
     let clock = ManualClock()
     let controller = DictationController(
-        pipeline: pipeline, monitor: dictationMonitor, commandMonitor: commandMonitor,
-        activation: activation, clock: clock)
+        pipeline: pipeline,
+        monitor: dictationMonitor,
+        commandMonitor: commandMonitor,
+        clock: clock,
+        options: .init(
+            activation: activation
+        )
+    )
     return RoutingHarness(
         controller: controller, pipeline: pipeline, dictationMonitor: dictationMonitor,
         commandMonitor: commandMonitor, inserter: inserter, clock: clock)
