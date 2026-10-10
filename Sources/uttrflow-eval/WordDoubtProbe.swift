@@ -1,16 +1,18 @@
 // The `word-doubt` command: how well each word-level doubt feature flags a recognised word that differs from the reading.
 import ArgumentParser
 private import Foundation
+private import UttrflowAI
 private import UttrflowAudio
 private import UttrflowCore
 private import UttrflowEval
 private import UttrflowSpeech
 
-/// Decodes the English passages and the homophone carriers in synthetic voices, then scores every doubt feature.
+/// Decodes the English passages and the homophone carriers in synthetic voices, then scores every doubt feature as a calibrated flag.
 struct WordDoubtProbe: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "word-doubt",
-        abstract: "Measure AUROC and recall at precision for each word-level doubt feature."
+        abstract:
+            "Measure each word-level doubt feature's AUROC, held-out precision and recall, and the candidate ceiling."
     )
 
     @Option(name: .long, help: "Where the generated clips are written.")
@@ -58,7 +60,7 @@ struct WordDoubtProbe: AsyncParsableCommand {
         print(
             "whisperKit \(model.variant); \(sentences.count) sentences; voices \(voices.joined(separator: ", ")); "
                 + "noise \(snrs.map(label).joined(separator: ", "))")
-        var scored: [String: [Stratum: [WordDoubtEvaluation.Scored]]] = [:]
+        var judged: [String: [Stratum: [DoubtDetector.Judged]]] = [:]
         var untokened = 0
         for (index, sentence) in sentences.enumerated() {
             Terminal.show("\r  sentence \(index + 1)/\(sentences.count)          ")
@@ -72,18 +74,35 @@ struct WordDoubtProbe: AsyncParsableCommand {
                     let heard = transcription.segments.flatMap(\.words).flatMap { word in
                         TextNormaliser.standard.words(word.text).map { (word: $0, tokens: word.tokens) }
                     }
-                    let wrong = WordDoubtAlignment.wrong(reference: reference, heard: heard.map(\.word))
-                    for (word, isWrong) in zip(heard, wrong) {
+                    let read = WordDoubtAlignment.read(reference: reference, heard: heard.map(\.word))
+                    var words: [(tokens: [TokenEvidence], isWrong: Bool, heardSurely: Bool, offered: Bool)] =
+                        []
+                    for (word, readWord) in zip(heard, read) {
                         guard !word.tokens.isEmpty else {
                             untokened += 1
                             continue
                         }
-                        for feature in WordDoubtFeature.allCases {
-                            guard let certainty = feature.certainty(of: word.tokens) else { continue }
-                            let item = WordDoubtEvaluation.Scored(
-                                certainty: certainty, isWrong: isWrong, cluster: voice)
-                            for stratum in [Stratum.all, .noise(label(snr)), .voice(voice)] {
-                                scored[feature.rawValue, default: [:]][stratum, default: []].append(item)
+                        let isWrong = readWord != word.word
+                        var offered = false
+                        if isWrong, let readWord { offered = await offers(readWord, for: word.word) }
+                        let mean = WordDoubtFeature.mean.certainty(of: word.tokens) ?? 0
+                        words.append(
+                            (word.tokens, isWrong, DoubtPolicy.isHeardSurely(mean), offered))
+                    }
+                    for feature in WordDoubtFeature.allCases {
+                        let certainties = words.map { feature.certainty(of: $0.tokens) ?? 0 }
+                        for (name, values) in [
+                            (feature.rawValue, certainties),
+                            ("\(feature.rawValue) relative", DoubtDetector.relativeToSentence(certainties)),
+                        ] {
+                            for (word, certainty) in zip(words, values) {
+                                let item = DoubtDetector.Judged(
+                                    scored: .init(
+                                        certainty: certainty, isWrong: word.isWrong, cluster: voice),
+                                    heardSurely: word.heardSurely, offered: word.offered)
+                                for stratum in [Stratum.all, .noise(label(snr)), .voice(voice)] {
+                                    judged[name, default: [:]][stratum, default: []].append(item)
+                                }
                             }
                         }
                     }
@@ -94,22 +113,61 @@ struct WordDoubtProbe: AsyncParsableCommand {
         if untokened > 0 { print("\(untokened) words carried no token evidence and were left out") }
         let strata =
             [Stratum.all] + snrs.map { Stratum.noise(label($0)) } + voices.map { Stratum.voice($0) }
+        let detectors = WordDoubtFeature.allCases.flatMap { [$0.rawValue, "\($0.rawValue) relative"] }
+        let required = "\(Int(precision * 100))%"
         print(
-            "\n| Feature | Stratum | Words | Wrong | AUROC (95% CI) | Recall at \(Int(precision * 100))% precision (95% CI) |"
+            "\n| Feature | Stratum | Words | Wrong | AUROC (95% CI) | Recall at \(required) precision (95% CI) |"
         )
         print("|---|---|---|---|---|---|")
-        for feature in WordDoubtFeature.allCases {
+        for detector in detectors {
             for stratum in strata {
-                let words = scored[feature.rawValue]?[stratum] ?? []
+                let words = (judged[detector]?[stratum] ?? []).map(\.scored)
                 let auroc = WordDoubtEvaluation.clustered(words) { WordDoubtEvaluation.auroc($0) }
                 let recall = WordDoubtEvaluation.clustered(words) {
                     WordDoubtEvaluation.recall($0, atPrecision: precision)
                 }
                 print(
-                    "| \(feature.rawValue) | \(stratum.name) | \(words.count) | \(words.count(where: \.isWrong)) | "
+                    "| \(detector) | \(stratum.name) | \(words.count) | \(words.count(where: \.isWrong)) | "
                         + "\(cell(auroc)) | \(cell(recall)) |")
             }
         }
+        print(
+            "\nFlag chosen at \(required) precision on all voices; recall and precision from flags chosen "
+                + "without the word's own voice.")
+        print(
+            "\n| Feature | Stratum | Threshold | Recall | Precision | Confident errors flagged | Ceiling | Reachable |"
+        )
+        print("|---|---|---|---|---|---|---|---|")
+        for detector in detectors {
+            for stratum in [Stratum.all] + voices.map({ Stratum.voice($0) }) {
+                let result = DoubtDetector.evaluate(judged[detector]?[stratum] ?? [], atPrecision: precision)
+                print(
+                    "| \(detector) | \(stratum.name) | \(result.threshold.map { String(format: "%.3f", $0) } ?? "–") | "
+                        + "\(share(result.recall)) | \(share(result.precision)) | \(share(result.confidentRecall)) | "
+                        + "\(share(result.ceiling)) | \(share(result.reachable)) |")
+            }
+        }
+    }
+
+    /// Whether the readings candidate generation offers for `heard`, as many as one span may carry, include `read`.
+    private func offers(_ read: String, for heard: String) async -> Bool {
+        let word = Draft.Word(text: heard, heard: heard, evidence: .score(0))
+        var readings: [String] = []
+        for source in DoubtfulWords.standard.sources {
+            for reading in await source.candidates(for: word, in: .unknown) {
+                let spelt = TextNormaliser.standard.words(reading.spelling).joined(separator: " ")
+                if spelt != heard, !readings.contains(spelt) { readings.append(spelt) }
+            }
+        }
+        return readings.prefix(DoubtfulWords.maximumCandidatesPerSpan).contains(read)
+    }
+
+    private func share(_ share: GroupCalibration.Share) -> String {
+        guard share.total > 0 else { return "–" }
+        let range = share.interval
+        return String(
+            format: "%d/%d (%.2f, %.2f–%.2f)", share.count, share.total, share.value, range.lowerBound,
+            range.upperBound)
     }
 
     /// The rows a feature is reported in.
