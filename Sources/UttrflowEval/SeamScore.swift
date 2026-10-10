@@ -2,7 +2,7 @@
 internal import UttrflowCore
 
 /// The artefacts one seam left: a stop the whole has not, a capital it has not, and words doubled or lost.
-public struct SeamTally: Sendable, Equatable {
+public struct SeamTally: Sendable, Equatable, Codable {
     /// The piece before the seam ends in `.`, `!` or `?` where the whole's matching word does not.
     public var strayStops = 0
     /// The first word after the seam differs from the whole's matching word only in its first letter's case.
@@ -16,6 +16,14 @@ public struct SeamTally: Sendable, Equatable {
 
     /// Every artefact counted, the number a seam must hold at zero.
     public var total: Int { strayStops + wrongCapitals + duplicated + dropped }
+
+    /// Each kind of artefact named, in a fixed order, for reports and baseline comparisons.
+    var kinds: [(name: String, count: Int)] {
+        [
+            ("stray stops", strayStops), ("wrong capitals", wrongCapitals), ("duplicated", duplicated),
+            ("dropped", dropped),
+        ]
+    }
 
     static func + (left: Self, right: Self) -> Self {
         var sum = left
