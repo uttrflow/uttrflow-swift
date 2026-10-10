@@ -634,4 +634,12 @@ struct FirstWordPassTests {
         let pass = FirstWordPass(vocabulary: ["okay", "Zorbix"])
         #expect(cleaned("okay then. zorbix is up", by: pass) == "Okay then. Zorbix is up")
     }
+
+    @Test("keeps a hashtag in the case it was written at a sentence start")
+    func keepsHashtagCase() {
+        #expect(
+            cleaned("thanks all. #halfmarathon #firstrace", by: sut) == "Thanks all. #halfmarathon #firstrace"
+        )
+        #expect(cleaned("#launchday is here", by: sut) == "#launchday is here")
+    }
 }

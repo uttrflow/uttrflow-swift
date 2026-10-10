@@ -23,6 +23,7 @@ struct FitFromTable: ParsableCommand {
         }
         let read = try FitTable.read(data)
         let layer = FittedLayer.spanReranker
+        print("excluded reader-deviation spans: \(read.excludedSpans.map(String.init) ?? "not recorded")")
         for cell in read.cellCounts {
             print(
                 "\(cell.split.rawValue) \(cell.language.rawValue): \(cell.right) right, \(cell.wrong) wrong")

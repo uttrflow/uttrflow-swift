@@ -73,10 +73,16 @@ public struct SayVoiceCatalogue: VoiceCatalogue {
 
 /// Invokes `/usr/bin/say`, writing 16 kHz mono WAV — what the recogniser wants, so nothing resamples twice.
 public struct SaySynthesizer: VoiceSynthesizer {
-    public init() {}
+    /// Words per minute, passed as `say -r`; `nil` keeps the voice's own rate.
+    package let rate: Int?
+
+    public init() { rate = nil }
+
+    package init(rate: Int?) { self.rate = rate }
 
     public func speak(_ text: String, voice: String?, to destination: URL) -> Bool {
         var arguments = voice.map { ["-v", $0] } ?? []
+        arguments += rate.map { ["-r", String($0)] } ?? []
         arguments += ["--data-format=LEI16@16000", "--file-format=WAVE", "-o", destination.path, text]
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/say")
