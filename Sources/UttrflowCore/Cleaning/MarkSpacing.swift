@@ -12,6 +12,11 @@ package enum MarkSpacing {
         return kind == .trailing || kind == .closing
     }
 
+    /// Whether a joining `mark` is set apart by a space on each side, as an em dash is, rather than glued between its words, as a hyphen is.
+    package static func spacesJoin(_ mark: Character) -> Bool {
+        spacedJoins.contains(mark)
+    }
+
     /// The bundled table; see `Docs/data-tables.md`.
     static let table = DataTable<Row>.load("mark-spacing", schema: 1, from: .module, fallback: [])
 
@@ -19,9 +24,14 @@ package enum MarkSpacing {
         table.rows.compactMap { row in row.id.count == 1 ? row.id.first.map { ($0, row.kind) } : nil },
         uniquingKeysWith: { first, _ in first })
 
+    private static let spacedJoins: Set<Character> = Set(
+        table.rows.compactMap { row in row.kind == .joining && row.spaced == true ? row.id.first : nil })
+
     /// One mark and the side it goes on.
     struct Row: DataTableRow {
         let id: String
         let kind: SpokenMarkKind
+        /// For a joining mark, whether a space goes on each side of it; nil for every other kind.
+        let spaced: Bool?
     }
 }
