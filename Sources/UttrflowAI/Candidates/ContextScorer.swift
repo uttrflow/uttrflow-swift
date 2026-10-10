@@ -85,3 +85,27 @@ public struct ContextScorer: Sendable {
         return scores[best] - runnerUp >= margin ? .prefers(best) : .undecided
     }
 }
+
+/// Ranks a span's readings in the sources' order, lifting first the one the words around the span prefer by the margin.
+public struct ContextSpanScorer: SpanScorer {
+    public let cost = SpanScorerCost.lookup
+    private let context: ContextScorer
+
+    public init(context: ContextScorer) {
+        self.context = context
+    }
+
+    public func scores(for set: HypothesisSet) -> [Double] {
+        var scores = SourceOrderScorer().scores(for: set)
+        let verdict = context.verdict(
+            on: set.hypotheses.map { Self.words([$0.reading.spelling]) },
+            between: Self.words(set.before), and: Self.words(set.after))
+        if case .prefers(let best) = verdict { scores[best] = 1 }
+        return scores
+    }
+
+    /// The words as the model holds them: lower-cased, without the marks around them.
+    static func words(_ texts: [String]) -> [String] {
+        texts.flatMap(WordShape.words).map { WordShape($0).key }.filter { !$0.isEmpty }
+    }
+}

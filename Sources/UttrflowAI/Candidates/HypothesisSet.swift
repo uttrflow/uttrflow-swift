@@ -24,11 +24,19 @@ public struct HypothesisSet: Sendable, Equatable {
     public let confidence: Double
     /// Every reading, the first source to offer a spelling keeping it, so a taught word keeps its entry.
     public let hypotheses: [Hypothesis]
+    /// The said words just before the span, nearest last, which a context scorer reads.
+    public let before: [String]
+    /// The said words just after the span, nearest first.
+    public let after: [String]
 
     /// Gathers each source's answer, given in the order the sources were asked; spellings are matched ignoring case.
-    public init(heard: String, confidence: Double, answers: [[Reading]]) {
+    public init(
+        heard: String, confidence: Double, answers: [[Reading]], before: [String] = [], after: [String] = []
+    ) {
         self.heard = heard
         self.confidence = confidence
+        self.before = before
+        self.after = after
         var order: [String] = []
         var found: [String: (reading: Reading, first: Int, sources: Set<Int>)] = [:]
         for (source, answer) in answers.enumerated() {

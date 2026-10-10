@@ -128,8 +128,17 @@ public struct DoubtfulWords: Sendable {
         let runs = UncertainSpan.spans(in: draft, apart: apart)
         guard !runs.isEmpty else { return [] }
 
+        let reach = NGramModel.maxOrder - 1
         let offered = await hypotheses(
             for: runs.map { Draft.Word(text: $0.text, heard: $0.text, evidence: .score($0.confidence)) },
+            around: runs.map { run in
+                let lower = min(run.range.lowerBound, said.count)
+                let upper = min(run.range.upperBound, said.count)
+                return (
+                    Array(said[max(lower - reach, 0)..<lower]),
+                    Array(said[upper..<min(upper + reach, said.count)])
+                )
+            },
             in: situation)
         var found: [DoubtfulSpan] = []
         var taken: [Range<Int>] = []
@@ -183,8 +192,11 @@ public struct DoubtfulWords: Sendable {
             .isAccepted
     }
 
-    /// Every source's answer for every run, the sources running beside each other because they share nothing.
-    public func hypotheses(for words: [Draft.Word], in situation: Situation) async -> [HypothesisSet] {
+    /// Every source's answer for every run, with the said words `around` it when given, the sources running beside each other because they share nothing.
+    public func hypotheses(
+        for words: [Draft.Word], around context: [(before: [String], after: [String])] = [],
+        in situation: Situation
+    ) async -> [HypothesisSet] {
         var answers: [[[Reading]]] = Array(repeating: [], count: sources.count)
         await withTaskGroup(of: (Int, [[Reading]]).self) { group in
             for (position, source) in sources.enumerated() {
@@ -192,10 +204,12 @@ public struct DoubtfulWords: Sendable {
             }
             for await (position, found) in group { answers[position] = found }
         }
-        return words.indices.map { index in
-            HypothesisSet(
+        return words.indices.map { index -> HypothesisSet in
+            let near: (before: [String], after: [String]) =
+                context.indices.contains(index) ? context[index] : ([], [])
+            return HypothesisSet(
                 heard: words[index].text, confidence: words[index].confidence,
-                answers: answers.map { $0[index] })
+                answers: answers.map { $0[index] }, before: near.before, after: near.after)
         }
     }
 
