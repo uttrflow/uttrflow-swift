@@ -109,6 +109,15 @@ struct DictionaryRowView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             columns
+            if let undoneFor = row.undoneFor {
+                Text(undoneFor.text)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(PagePalette.text.opacity(0.6))
+                    .lineLimit(2)
+                    .accessibilityLabel(undoneFor.spoken)
+                    .padding(.horizontal, PageMetrics.rowInset)
+                    .padding(.bottom, 10)
+            }
             if let trial = row.trial {
                 DictionaryTrialView(line: trial, onIntent: onIntent)
                     .padding(.horizontal, PageMetrics.rowInset)
