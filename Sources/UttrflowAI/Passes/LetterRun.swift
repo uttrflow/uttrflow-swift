@@ -60,7 +60,8 @@ enum LetterRun {
     static let knownCodes: [String: String] = [
         "q1": "Q1", "q2": "Q2", "q3": "Q3", "q4": "Q4", "h1": "H1", "h2": "H2",
         "p0": "P0", "p1": "P1", "p2": "P2", "p3": "P3", "p4": "P4",
-        "4k": "4K", "3d": "3D", "b12": "B12", "spo2": "SpO2",
+        "4k": "4K", "3d": "3D", "b12": "B12", "spo2": "SpO2", "a3": "A3", "a4": "A4", "a5": "A5",
+        "s3": "S3", "v1": "v1", "v2": "v2", "v3": "v3", "v4": "v4",
     ]
 
     /// The lexicon's acronyms as written, keyed by their lower-cased letters.

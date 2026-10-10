@@ -27,7 +27,15 @@ and reads the file again only when its stamp — inode, size and modification ti
 the one it was read at, so an edit made to the file outside the app is seen on the next read.
 `index()` keeps the `PhoneticIndex` built from those entries and rebuilds it only when the list's
 `generation` has moved. A successful write hands the cache what it wrote; a failed one makes it
-forget, so the next read goes back to the disk.
+forget, so the next read goes back to the disk. `index(in:)` answers for one application: the whole
+index while no entry is confined, otherwise one built from the entries `DictionaryEntry.applies(in:)`
+admits, kept for the application last asked about.
+
+An entry may list the applications it is offered in (`DictionaryEntry.applications`), chosen in the
+editor; empty, and every entry from before the list existed, means everywhere. Correction reads
+`index(in:)` for the dictation's application and the recogniser's word list (`WorkingSet.words`)
+leaves out entries confined elsewhere. `index()` stays whole, so the clean-up's guard still
+protects a confined word's spelling wherever it appears.
 
 Reads answer with nothing when there is nothing readable there. Absent, unreadable, truncated,
 hand-edited, or written by a build that knew a different shape all mean the same thing to a user,
@@ -103,7 +111,9 @@ refusal binds only inference — typing the word in again adds it as before.
 The refusals are written to `dictionary.v1.refused.json` beside the dictionary, oldest first
 and capped at the ledger's 512 (`SightingLedger.maximumRefused`), so a relaunch still refuses a word
 deleted before it. They are words the user already had in the dictionary and chose to remove, not
-terms read off the screen. `removeEverything()` deletes the record; `removeLearned()` keeps it.
+terms read off the screen. `removeEverything()` deletes the record; `removeLearned()` keeps it. The
+personal data archive carries the record to another Mac, where `importRefusals(_:)` adds it after
+that Mac's own refusals (`Docs/personal-data-archive.md`).
 
 **Not learning.** The record is not hidden: `refusedWords()` lists it newest first, in the
 user's own spelling, and the Dictionary page shows it under a "Not learning" disclosure with
@@ -113,7 +123,9 @@ the ledger and rewrites the record, after which three days of sightings teach th
 **Several words.** `remove(_:)` also takes a set of identifiers and is the one removal path: one
 word is a set of one. Every word in the set is refused, and the refusals and the dictionary are
 each written once. Past the 512 cap the oldest refusals lapse first, so a batch larger than the cap
-keeps the newest 512 refused.
+keeps the newest 512 refused. On the Dictionary page each row has a checkbox; Delete selected sends
+the ticked rows still listed to `remove(_:)` in one call, and Restore selected sends the ticked
+retired ones to `restore(_:)`. A ticked row that the search or a filter hides is left alone.
 
 **Everything.** `removeEverything()` is the blunt instrument and takes the user's own words too.
 It also removes the seed record and the refusals, so the next launch offers the shipped words as

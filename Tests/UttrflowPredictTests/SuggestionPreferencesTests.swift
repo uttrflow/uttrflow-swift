@@ -19,8 +19,27 @@ struct SuggestionPreferencesTests {
     }
 
     @Test(
-        "Ships switched off in the two editors that have suggestions of their own.",
-        arguments: ["com.microsoft.VSCode", "com.todesktop.230313mzl4w4u92"])
+        "Ships switched off in every editor with its own inline completions.",
+        arguments: [
+            "com.todesktop.230313mzl4w4u92",
+            "com.microsoft.VSCode",
+            "com.microsoft.VSCodeInsiders",
+            "com.vscodium",
+            "com.visualstudio.code.oss",
+            "com.exafunction.windsurf",
+            "dev.zed.Zed",
+            "com.jetbrains.intellij",
+            "com.jetbrains.pycharm",
+            "com.jetbrains.goland",
+            "com.jetbrains.rider",
+            "com.jetbrains.webstorm",
+            "com.jetbrains.phpstorm",
+            "com.jetbrains.rubymine",
+            "com.jetbrains.clion",
+            "com.jetbrains.datagrip",
+            "com.jetbrains.appcode",
+            "com.jetbrains.mps",
+        ])
     func editorsShipOff(bundleIdentifier: String) {
         let preferences = SuggestionPreferences(isEnabled: true)
         #expect(preferences.state(of: bundleIdentifier) == .offByDefault)
@@ -40,7 +59,9 @@ struct SuggestionPreferencesTests {
         }
     }
 
-    @Test("Ships switched on in every other editor.", arguments: ["com.apple.dt.Xcode", "dev.zed.Zed"])
+    @Test(
+        "Ships switched on in editors without competing inline completions.",
+        arguments: ["com.apple.dt.Xcode"])
     func otherEditorsShipOn(bundleIdentifier: String) {
         let preferences = SuggestionPreferences(isEnabled: true)
         #expect(preferences.state(of: bundleIdentifier) == .on)
@@ -175,7 +196,7 @@ struct SuggestionAcceptKeyChoiceTests {
 
 @Suite("Every application that has been switched off can be found again")
 struct SuggestionApplicationListTests {
-    @Test("Lists the four shipped editors before the user has touched anything.")
+    @Test("Lists every editor shipped with inline completions before the user has touched anything.")
     func theShippedEditorsAreListed() {
         let listed = SuggestionPreferences.default.knownApplications().map(\.bundleIdentifier)
         for editor in SuggestionApplications.offByDefault {
@@ -227,6 +248,8 @@ struct SuggestionApplicationListTests {
     func namesTheOnesItKnows() {
         #expect(SuggestionApplications.name(of: "com.apple.dt.Xcode") == "Xcode")
         #expect(SuggestionApplications.name(of: "com.microsoft.VSCode") == "Visual Studio Code")
+        #expect(SuggestionApplications.name(of: "com.vscodium") == "VSCodium")
+        #expect(SuggestionApplications.name(of: "com.visualstudio.code.oss") == "Code - OSS")
         #expect(SuggestionApplications.name(of: "com.todesktop.230313mzl4w4u92") == "Cursor")
         #expect(SuggestionApplications.name(of: "dev.zed.Zed") == "Zed")
     }

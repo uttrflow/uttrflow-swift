@@ -1,0 +1,48 @@
+{
+  "label" : "openai_whisper-large-v3-v20240930_turbo_632MB, gpu, Samantha Daniel Karen Rishi Moira Tessa",
+  "recordedAt" : "2026-10-10T08:27:58Z",
+  "shapes" : [
+    {
+      "cases" : 72,
+      "finalExact" : 72,
+      "rawExact" : 72,
+      "shape" : "long-string"
+    },
+    {
+      "cases" : 72,
+      "finalExact" : 70,
+      "rawExact" : 70,
+      "shape" : "alphanumeric"
+    },
+    {
+      "cases" : 72,
+      "finalExact" : 65,
+      "rawExact" : 65,
+      "shape" : "oh-for-zero"
+    },
+    {
+      "cases" : 66,
+      "finalExact" : 65,
+      "rawExact" : 65,
+      "shape" : "grouped"
+    },
+    {
+      "cases" : 72,
+      "finalExact" : 62,
+      "rawExact" : 51,
+      "shape" : "repeated"
+    },
+    {
+      "cases" : 66,
+      "finalExact" : 56,
+      "rawExact" : 28,
+      "shape" : "time"
+    },
+    {
+      "cases" : 66,
+      "finalExact" : 66,
+      "rawExact" : 66,
+      "shape" : "year-then-number"
+    }
+  ]
+}

@@ -72,7 +72,7 @@ struct ShortcutArmingTests {
     }
 
     @Test("does not retry unrelated arming failures")
-    func doesNotRetryOtherFailures() async throws {
+    func doesNotRetryOtherFailures() async {
         let attempts = Attempts()
         let arming = ShortcutArming(
             onChange: {}, accessibilityIsGranted: { true }, retryInterval: .milliseconds(10))
@@ -81,15 +81,15 @@ struct ShortcutArmingTests {
             attempts.count += 1
             throw .shortcutUnavailable
         }
-        try await Task.sleep(for: .milliseconds(30))
 
+        #expect(arming.retryTask == nil, "no retry is scheduled, so none can ever run")
         #expect(attempts.count == 1)
         #expect(arming.failure == .shortcutUnavailable)
         arming.disarm()
     }
 
     @Test("does not retry a refused tap while Accessibility still reads as granted")
-    func staleAccessibilityGrantDoesNotCauseAnEndlessRetry() async throws {
+    func staleAccessibilityGrantDoesNotCauseAnEndlessRetry() async {
         let attempts = Attempts()
         let arming = ShortcutArming(
             onChange: {}, accessibilityIsGranted: { true }, retryInterval: .milliseconds(10))
@@ -98,8 +98,8 @@ struct ShortcutArmingTests {
             attempts.count += 1
             throw .accessibilityNeedsRefresh
         }
-        try await Task.sleep(for: .milliseconds(30))
 
+        #expect(arming.retryTask == nil, "no retry is scheduled, so none can ever run")
         #expect(attempts.count == 1)
         #expect(arming.failure == .accessibilityNeedsRefresh)
         arming.disarm()
@@ -115,8 +115,10 @@ struct ShortcutArmingTests {
             attempts.count += 1
             throw .observationNotPermitted
         }
+        let retries = try #require(arming.retryTask)
         arming.disarm()
-        try await Task.sleep(for: .milliseconds(30))
+        try #require(retries.isCancelled, "a retry loop left running would retry forever")
+        await retries.value
 
         #expect(attempts.count == 1)
         #expect(arming.failure == nil)

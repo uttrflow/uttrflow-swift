@@ -202,6 +202,16 @@ against a whole prefill after the warm instructions:
   positions and hold the state a fresh prefill would compute, so this is rounding, not a stale
   read.
 
+### Cancellation between model chunks
+
+Prompt prefill and candidate scoring now use separate serialized model operations for chunks of at
+most 128 tokens. The next operation checks cancellation before it enters the model container, so a
+cancelled pass releases the shared slot after its current synchronous chunk finishes. This bounds
+the work that can remain ahead of a fresh keystroke to one model operation of at most 128 input
+tokens; its elapsed time remains model- and device-dependent. A controllable slow-chunk test holds
+one operation open, queues a fresh pass, then verifies that only the current chunk completes before
+the fresh pass acquires the slot.
+
 ## Low Power Mode and thermal pressure
 
 A model pass is the most expensive thing tab-to-complete does (0.17 processor-seconds here), and it is discretionary: the corpus still offers what it remembers without it. So

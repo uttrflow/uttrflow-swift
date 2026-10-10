@@ -100,6 +100,25 @@ struct SecretSweepTests {
         #expect(try await CaptureGate.sweepSecrets(from: store) == 0)
     }
 
+    @Test("A widened code-separator rule sweeps learned expiry dates and punctuated codes")
+    func sweepsPunctuatedCodes() async throws {
+        let scratch = Scratch()
+        let store = try PredictStore(path: scratch.path("predict.sqlite"))
+        #expect(
+            try await store.sweep(
+                "looksLikeSecret", version: CaptureGate.secretRulesVersion - 1,
+                removing: CaptureGate.looksLikeSecret) == 0)
+        for value in ["12/25", "(123456)", "123-456."] {
+            try await store.record(value, in: Self.browser, at: Self.moment)
+        }
+        try await store.record("3.14", in: Self.browser, at: Self.moment)
+        try await store.record("12/25", in: Self.terminal, at: Self.moment)
+
+        #expect(try await CaptureGate.sweepSecrets(from: store) == 3)
+        #expect(try await store.candidates(for: Self.browser, matching: "3").map(\.text) == ["3.14"])
+        #expect(try await store.candidates(for: Self.terminal, matching: "12").map(\.text) == ["12/25"])
+    }
+
     @Test("A widened numeric-shape rule keeps ordinary values but still sweeps code patterns")
     func sweepPreservesOrdinaryNumericShapes() async throws {
         let scratch = Scratch()

@@ -16,11 +16,13 @@ public struct Snippet: Sendable, Equatable, Identifiable, Codable {
     public var timesUsed: Int
     /// When it last fired, or `nil` if never; shown beside ``created`` so the list says which rows earn it.
     public var lastUsed: Date?
+    /// The bundle identifiers it fires in, as the person chose them; empty fires everywhere. See ``ApplicationScope``.
+    public let applications: [String]
 
     /// A snippet with fresh counters unless told otherwise.
     public init(
         id: UUID = UUID(), trigger: String, expansion: String, created: Date,
-        timesUsed: Int = 0, lastUsed: Date? = nil
+        timesUsed: Int = 0, lastUsed: Date? = nil, applications: [String] = []
     ) {
         self.id = id
         self.trigger = trigger
@@ -28,6 +30,36 @@ public struct Snippet: Sendable, Equatable, Identifiable, Codable {
         self.created = created
         self.timesUsed = timesUsed
         self.lastUsed = lastUsed
+        self.applications = ApplicationScope.normalised(applications)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, trigger, expansion, created, timesUsed, lastUsed, applications
+    }
+
+    /// Decodes a file from before scopes as a snippet that fires everywhere.
+    public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            id: try values.decode(UUID.self, forKey: .id),
+            trigger: try values.decode(String.self, forKey: .trigger),
+            expansion: try values.decode(String.self, forKey: .expansion),
+            created: try values.decode(Date.self, forKey: .created),
+            timesUsed: try values.decode(Int.self, forKey: .timesUsed),
+            lastUsed: try values.decodeIfPresent(Date.self, forKey: .lastUsed),
+            applications: try values.decodeIfPresent([String].self, forKey: .applications) ?? [])
+    }
+
+    /// Writes the scope only when there is one, so an unconfined snippet's record keeps the shape every build reads.
+    public func encode(to encoder: any Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(id, forKey: .id)
+        try values.encode(trigger, forKey: .trigger)
+        try values.encode(expansion, forKey: .expansion)
+        try values.encode(created, forKey: .created)
+        try values.encode(timesUsed, forKey: .timesUsed)
+        try values.encodeIfPresent(lastUsed, forKey: .lastUsed)
+        if !applications.isEmpty { try values.encode(applications, forKey: .applications) }
     }
 
     /// The same snippet one use later, saturating at `Int.max` so a maxed-out counter cannot trap.
@@ -35,7 +67,12 @@ public struct Snippet: Sendable, Equatable, Identifiable, Codable {
         let (nextCount, overflowed) = timesUsed.addingReportingOverflow(1)
         return Snippet(
             id: id, trigger: trigger, expansion: expansion, created: created,
-            timesUsed: overflowed ? Int.max : nextCount, lastUsed: when)
+            timesUsed: overflowed ? Int.max : nextCount, lastUsed: when, applications: applications)
+    }
+
+    /// Whether this snippet fires where `bundleIdentifier` is in front.
+    public func applies(in bundleIdentifier: String?) -> Bool {
+        ApplicationScope.admits(applications, in: bundleIdentifier)
     }
 
     /// The trigger as the matcher sees it: in Latin letters as dictation writes it, lower-cased runs of letters and digits.

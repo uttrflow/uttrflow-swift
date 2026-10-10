@@ -217,7 +217,7 @@ private let regressionOutcome = DictationOutcome(
     text: regressionTidied, method: .accessibility, cleanedBy: .foundationModels,
     insertedInto: "Slack", insertedIntoIdentifier: "com.tinyspeck.slackmacgap",
     spokenFor: .zero,
-    changes: AppliedChanges(spokenWords: 10))
+    changes: AppliedChanges(spokenWords: 10, heard: regressionSpoken))
 
 // MARK: - Harnesses
 

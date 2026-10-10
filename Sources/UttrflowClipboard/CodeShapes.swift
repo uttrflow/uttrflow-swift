@@ -219,62 +219,209 @@ enum CodeShapes {
 
     /// `isShellCommand` read character by character, which any clip can be.
     static func isShellCommandByCharacter(_ text: String) -> Bool {
-        guard !text.contains(where: \.isNewline) else { return false }
-        if text.hasPrefix("$ ") || text.hasPrefix("./") { return true }
-        var start = text.startIndex
-        while start <= text.endIndex {
-            let end = text[start...].firstIndex(where: { "|&;".contains($0) }) ?? text.endIndex
-            let segment = text[start..<end].drop(while: \.isWhitespace)
-            let word = segment.prefix(while: { !$0.isWhitespace })
-            let piped = end < text.endIndex && text[end] == "|"
-            if !word.isEmpty, isCommand(String(word), rest: segment[word.endIndex...], piped: piped) {
+        let lines = text.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }
+        guard !lines.isEmpty else { return false }
+        var foundCommand = false
+        var context = ShellControlContext()
+        for line in lines {
+            if context.consume(line) {
+                continue
+            }
+            if line.hasPrefix("$ ") || line.hasPrefix("./") {
+                foundCommand = true
+                continue
+            }
+            var foundLineCommand = false
+            var start = line.startIndex
+            while start <= line.endIndex {
+                let end = line[start...].firstIndex(where: { "|&;".contains($0) }) ?? line.endIndex
+                let segment = line[start..<end].drop(while: \.isWhitespace)
+                let word = segment.prefix(while: { !$0.isWhitespace })
+                let piped = end < line.endIndex && line[end] == "|"
+                if !word.isEmpty, isCommand(String(word), rest: segment[word.endIndex...], piped: piped) {
+                    foundLineCommand = true
+                    break
+                }
+                guard end < line.endIndex else { break }
+                start = line.index(after: end)
+            }
+            guard foundLineCommand else { return false }
+            foundCommand = true
+        }
+        return foundCommand
+    }
+
+    /// Tracks shell constructs so bare control words count only in a valid parser context.
+    private struct ShellControlContext {
+        private var loopDepth = 0
+        private var conditionalDepth = 0
+        private var pendingLoop = false
+        private var pendingConditional = false
+        private var pendingConditionalOpensBlock = false
+        private var insideCase = false
+
+        mutating func consume(_ line: String) -> Bool {
+            if line == "do", pendingLoop {
+                pendingLoop = false
+                loopDepth += 1
                 return true
             }
-            guard end < text.endIndex else { break }
-            start = text.index(after: end)
+            if line == "done", loopDepth > 0, !pendingLoop {
+                loopDepth -= 1
+                return true
+            }
+            if line == "then", pendingConditional {
+                pendingConditional = false
+                if pendingConditionalOpensBlock { conditionalDepth += 1 }
+                pendingConditionalOpensBlock = false
+                return true
+            }
+            if line == "else", conditionalDepth > 0, !pendingConditional { return true }
+            if line == "fi", conditionalDepth > 0, !pendingConditional {
+                conditionalDepth -= 1
+                return true
+            }
+            if line == "esac", insideCase {
+                insideCase = false
+                return true
+            }
+            if Self.isShellCaseHeader(line) {
+                insideCase = true
+                return true
+            }
+            if insideCase,
+                line == ";;" || line.range(of: #"^[\w*?@!|.\-]+\)$"#, options: .regularExpression) != nil
+            {
+                return true
+            }
+            if let kind = Self.loopHeader(line) {
+                if kind == .inline {
+                    loopDepth += 1
+                } else {
+                    pendingLoop = true
+                }
+                return true
+            }
+            if let kind = Self.conditionalHeader(line) {
+                let isElif = line.hasPrefix("elif ")
+                guard !isElif || conditionalDepth > 0 else { return false }
+                if kind == .inline {
+                    if !isElif { conditionalDepth += 1 }
+                } else {
+                    pendingConditional = true
+                    pendingConditionalOpensBlock = !isElif
+                }
+                return true
+            }
+            return false
         }
-        return false
+
+        private enum HeaderKind: Equatable { case inline, split }
+
+        private static func loopHeader(_ line: String) -> HeaderKind? {
+            if line.range(of: #"^for\s+\w+\s+in\s+.+;\s*do$"#, options: .regularExpression) != nil {
+                return .inline
+            }
+            if line.range(of: #"^(?:while|until)\s+.+;\s*do$"#, options: .regularExpression) != nil {
+                return .inline
+            }
+            if line.range(of: #"^for\s+\w+\s+in\s+.+$"#, options: .regularExpression) != nil
+                || line.range(
+                    of: #"^(?:while|until)\s+(?:\[\[?\s|test\s|command\s).+$"#, options: .regularExpression)
+                    != nil
+            {
+                return .split
+            }
+            return nil
+        }
+
+        private static func conditionalHeader(_ line: String) -> HeaderKind? {
+            if line.range(of: #"^if\s+.+;\s*then$"#, options: .regularExpression) != nil
+                || line.range(of: #"^elif\s+.+;\s*then$"#, options: .regularExpression) != nil
+            {
+                return .inline
+            }
+            if line.range(of: #"^if\s+(?:\[\[?\s|test\s|command\s).+$"#, options: .regularExpression) != nil {
+                return .split
+            }
+            if line.range(of: #"^elif\s+(?:\[\[?\s|test\s|command\s).+$"#, options: .regularExpression) != nil
+            {
+                return .split
+            }
+            return nil
+        }
+
+        private static func isShellCaseHeader(_ line: String) -> Bool {
+            line.range(of: #"^case\s+.+\s+in$"#, options: .regularExpression) != nil
+        }
     }
 
     /// `isShellCommand` read over the bytes of an ASCII clip, where a byte is a character; `nil` for any other clip.
     private static func asciiShellCommand(_ bytes: UnsafeBufferPointer<UInt8>) -> Bool? {
         guard ClipBytes.isASCII(bytes) else { return nil }
-        guard !bytes.contains(where: { (0x0A...0x0D).contains($0) }) else { return false }
-        if bytes.starts(with: "$ ".utf8) || bytes.starts(with: "./".utf8) { return true }
         func isSpace(_ byte: UInt8) -> Bool { byte == 0x20 || byte == 0x09 }
         func text(_ range: Range<Int>) -> String {
             String(decoding: UnsafeBufferPointer(rebasing: bytes[range]), as: UTF8.self)
         }
-        var start = 0
-        for offset in 0...bytes.count {
-            guard offset == bytes.count || "|&;".utf8.contains(bytes[offset]) else { continue }
-            var wordStart = start
-            while wordStart < offset, isSpace(bytes[wordStart]) { wordStart += 1 }
-            var wordEnd = wordStart
-            while wordEnd < offset, !isSpace(bytes[wordEnd]) { wordEnd += 1 }
-            // No command is longer than twelve letters, so a longer word is never copied to be looked up.
-            if wordEnd > wordStart, wordEnd - wordStart <= 12 {
-                let word = text(wordStart..<wordEnd)
-                let piped = offset < bytes.count && bytes[offset] == UInt8(ascii: "|")
-                // The rest is copied out only for a word that is also English, which needs it read.
-                if commands.contains(word),
-                    ambiguous[word] == nil
-                        || isCommand(word, rest: Substring(text(wordEnd..<offset)), piped: piped)
-                {
-                    return true
-                }
+        var foundCommand = false
+        var context = ShellControlContext()
+        var lineStart = 0
+        while lineStart <= bytes.count {
+            var lineEnd = lineStart
+            while lineEnd < bytes.count, !(0x0A...0x0D).contains(bytes[lineEnd]) { lineEnd += 1 }
+            var trimmedStart = lineStart
+            var trimmedEnd = lineEnd
+            while trimmedStart < trimmedEnd, isSpace(bytes[trimmedStart]) { trimmedStart += 1 }
+            while trimmedEnd > trimmedStart, isSpace(bytes[trimmedEnd - 1]) { trimmedEnd -= 1 }
+            guard trimmedStart < trimmedEnd else {
+                lineStart = lineEnd + 1
+                continue
             }
-            start = offset + 1
+            if context.consume(text(trimmedStart..<trimmedEnd)) {
+                lineStart = lineEnd + 1
+                continue
+            }
+            if bytes[trimmedStart..<trimmedEnd].starts(with: "$ ".utf8)
+                || bytes[trimmedStart..<trimmedEnd].starts(with: "./".utf8)
+            {
+                foundCommand = true
+                lineStart = lineEnd + 1
+                continue
+            }
+            var foundLineCommand = false
+            var start = lineStart
+            for offset in lineStart...lineEnd {
+                guard offset == lineEnd || "|&;".utf8.contains(bytes[offset]) else { continue }
+                var wordStart = start
+                while wordStart < offset, isSpace(bytes[wordStart]) { wordStart += 1 }
+                var wordEnd = wordStart
+                while wordEnd < offset, !isSpace(bytes[wordEnd]) { wordEnd += 1 }
+                // No command is longer than twelve letters, so a longer word is never copied to be looked up.
+                if wordEnd > wordStart, wordEnd - wordStart <= 12 {
+                    let word = text(wordStart..<wordEnd)
+                    let piped = offset < lineEnd && bytes[offset] == UInt8(ascii: "|")
+                    // The rest is copied out only for a word that is also English, which needs it read.
+                    if isCommand(word, rest: Substring(text(wordEnd..<offset)), piped: piped) {
+                        foundLineCommand = true
+                        break
+                    }
+                }
+                start = offset + 1
+            }
+            guard foundLineCommand else { return false }
+            foundCommand = true
+            lineStart = lineEnd + 1
         }
-        return false
+        return foundCommand
     }
 
     /// Whether a segment opening with `word` is a command; a word that is also English needs the rest to look like one.
     static func isCommand(_ word: String, rest: Substring, piped: Bool) -> Bool {
         guard commands.contains(word) else { return false }
+        let tokens = rest.split(whereSeparator: \.isWhitespace)
+        if tokens.first.map({ proseWords.contains($0.lowercased()) }) == true { return false }
         guard let subcommands = ambiguous[word] else { return true }
         if piped { return true }
-        let tokens = rest.split(whereSeparator: \.isWhitespace)
         if tokens.contains(where: looksLikeArgument) { return true }
         // `pip install requests` is a command and `pip install is slow today` is a sentence.
         guard let first = tokens.first, subcommands.contains(String(first)) else { return false }
@@ -285,7 +432,7 @@ enum CodeShapes {
     private static let proseWords: Set<String> = [
         "is", "are", "was", "were", "be", "been", "the", "a", "an", "to", "of", "and", "or", "but", "for",
         "with", "my", "me", "i", "you", "we", "it", "this", "that", "so", "too", "very", "not", "by", "in",
-        "on", "at", "again", "today",
+        "on", "at", "again", "today", "into",
     ]
 
     /// A flag, a path, an assignment, a redirect or a file name, which prose does not put after a word.
@@ -338,6 +485,16 @@ enum CodeShapes {
         "yarn": ["add", "install", "build", "dev", "start", "test", "run", "remove", "upgrade"],
         "curl": [],
         "yum": ["install", "update", "remove"],
+        "make": [
+            "all", "build", "check", "clean", "coverage", "format", "install", "lint", "release", "run",
+            "test", "verify",
+        ],
+        "go": [
+            "build", "env", "fmt", "generate", "get", "install", "list", "mod", "run", "test", "vet",
+            "version", "work",
+        ],
+        "python": [], "java": [],
+        "which": commands,
     ]
 
     static let commands: Set<String> = [
@@ -348,6 +505,7 @@ enum CodeShapes {
         "launchctl", "systemctl", "defaults", "codesign", "xcrun", "xcodebuild", "swift",
         "swiftc", "cargo", "rustc", "pip", "pip3", "python3", "node", "deno", "bun",
         "apt", "apt-get", "yum", "dnf", "pacman", "terraform", "aws", "gcloud", "psql",
+        "echo", "make", "go", "python", "java", "which",
     ]
 }
 
