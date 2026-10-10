@@ -58,8 +58,8 @@ leave a stale pass behind.
 | Main window | `Sources/Uttrflow/Main/DictionaryPageView.swift#Button#2` | Button | accessibilityLabel | unchecked |
 | Main window | `Sources/Uttrflow/Main/DictionaryPageView.swift#Button#3` | Button | expression | unchecked |
 | Main window | `Sources/Uttrflow/Main/DictionaryPageView.swift#Button#4` | Button | label view | unchecked |
-| Main window | `Sources/Uttrflow/Main/DictionaryPageView.swift#Button#5` | Button | expression | unchecked |
-| Main window | `Sources/Uttrflow/Main/DictionaryPageView.swift#Button#6` | Button | expression | unchecked |
+| Main window | `Sources/Uttrflow/Main/DictionarySelectionBar.swift#Button#1` | Button | expression | unchecked |
+| Main window | `Sources/Uttrflow/Main/DictionarySelectionBar.swift#Button#2` | Button | expression | unchecked |
 | Main window | `Sources/Uttrflow/Main/HistoryPageView.swift#Button#1` | Button | text " · \(notice.link.title)" | unchecked |
 | Main window | `Sources/Uttrflow/Main/HistoryPageView.swift#TextField#1` | TextField | expression | unchecked |
 | Main window | `Sources/Uttrflow/Main/HistoryRailRow.swift#Menu#1` | Menu | text "Fix Word" | unchecked |
