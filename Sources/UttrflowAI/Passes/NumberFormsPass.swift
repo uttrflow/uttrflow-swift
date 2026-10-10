@@ -363,8 +363,8 @@ public struct NumberFormsPass: PieceCleaningPass {
         digits: DigitGrouping = .thousands
     ) -> Phrase? {
         let fixedShapes: [(Int, [String], [WordShape]) -> Phrase?] = [
-            score, zoneOffset, signedDigitRun, numericDate, cuedYear, cuedClock, twentyFourHourClock,
-            dottedNumber, spokenDigitRun, leadingDecimal, decade,
+            score, readingOver, zoneOffset, signedDigitRun, numericDate, cuedYear, cuedClock,
+            twentyFourHourClock, dottedNumber, spokenDigitRun, leadingDecimal, decade,
         ]
         for reading in fixedShapes {
             if let found = reading(position, keys, shapes) { return found }
@@ -547,19 +547,34 @@ public struct NumberFormsPass: PieceCleaningPass {
     ) -> Phrase? {
         guard item.spoken, let value = item.value else { return nil }
         let end = position + item.count
+        let beforeWord =
+            joined(end, shapes) && (currencies.contains(keys[end]) || measures.contains(keys[end]))
         let beforeAmount =
-            joined(end, shapes)
-            && (currencies.contains(keys[end]) || measures.contains(keys[end])
-                || namesAUnit(at: end, keys: keys, shapes: shapes))
+            beforeWord || joined(end, shapes) && namesAUnit(at: end, keys: keys, shapes: shapes)
             || completesAmount(at: position, keys: keys, shapes: shapes)
         guard policy == .always || inContext || value >= 10 || beforeAmount else { return nil }
         guard
             inContext || beforeAmount || value != 1 || item.count != 1
                 || !headsItsOwnPhrase(at: position, keys: keys)
         else { return nil }
+        // A spelled unit symbol is a specification, "3000 mAh", so only a currency or measure word makes an amount.
+        let isAmount =
+            beforeWord || completesAmount(at: position, keys: keys, shapes: shapes)
+            || isRatioTerm(at: position, end: end, keys: keys, shapes: shapes)
         // The destination says whether digits are grouped; a context word still runs its own together.
         return Phrase(
-            text: NumberWords.render(value, grouping: inContext ? .none : digits), count: item.count)
+            text: NumberWords.render(value, grouping: inContext ? .none : digits, isAmount: isAmount),
+            count: item.count)
+    }
+
+    /// Whether the number is a term of "N out of M", an amount against its whole.
+    private static func isRatioTerm(at position: Int, end: Int, keys: [String], shapes: [WordShape]) -> Bool {
+        let leads =
+            joined(end, shapes) && keys[end] == "out" && joined(end + 1, shapes) && keys[end + 1] == "of"
+        let closes =
+            position > 1 && joined(position, shapes) && keys[position - 2] == "out"
+            && keys[position - 1] == "of" && joined(position - 1, shapes)
+        return leads || closes
     }
 
     /// Whether "one" is the pronoun of "no one", "this one" or "one another" rather than a count of what follows.
@@ -611,6 +626,31 @@ public struct NumberFormsPass: PieceCleaningPass {
         let after = position + hundred.count
         return joined(after, shapes) && keys[after] == "over" && joined(after + 1, shapes)
             && NumberWords.isNumber(keys[after + 1])
+    }
+
+    /// "one thirty eight over eighty six" or "one oh five over sixty": a reading of two values, such as a blood pressure, written "138/86".
+    private static func readingOver(at position: Int, keys: [String], shapes: [WordShape]) -> Phrase? {
+        guard let upper = spokenHundred(at: position, keys: keys, shapes: shapes) else { return nil }
+        let over = position + upper.count
+        guard joined(over, shapes), keys[over] == "over", joined(over + 1, shapes) else { return nil }
+        let words = unbroken(from: over + 1, keys: keys, shapes: shapes)
+        guard let lower = NumberWords.colloquialHundred(words) ?? NumberWords.cardinal(words)
+        else { return nil }
+        return Phrase(text: "\(upper.value)/\(lower.value)", count: upper.count + 1 + lower.count)
+    }
+
+    /// A hundred said as its digit then its tail, "one thirty eight", or with a spoken zero, "one oh five".
+    private static func spokenHundred(
+        at position: Int, keys: [String], shapes: [WordShape]
+    ) -> (value: Int, count: Int)? {
+        if let hundred = NumberWords.colloquialHundred(unbroken(from: position, keys: keys, shapes: shapes)) {
+            return hundred
+        }
+        guard let digit = NumberWords.units[keys[position]], digit > 0, joined(position + 1, shapes),
+            clockZeros.contains(keys[position + 1]), joined(position + 2, shapes),
+            let unit = NumberWords.units[keys[position + 2]], unit > 0
+        else { return nil }
+        return (digit * 100 + unit, 3)
     }
 
     /// A cued time whose minutes open with a spoken zero; a sentence end alone is no cue, so "extension three zero two" stays digits.
@@ -894,7 +934,8 @@ public struct NumberFormsPass: PieceCleaningPass {
             hindiMeasures.contains(keys[unit])
                 || shared && !isEnglishSentence(around: position, keys: keys, shapes: shapes)
         else { return nil }
-        return Phrase(text: NumberWords.render(read.value, grouping: digits), count: read.count)
+        return Phrase(
+            text: NumberWords.render(read.value, grouping: digits, isAmount: true), count: read.count)
     }
 
     /// Whether the sentence holding `position` has an English small word and no Hindi one, so a Hindi number in it is a borrowed word.
