@@ -2835,8 +2835,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             // A secure field's words are kept nowhere: not as the last transcript, in history, or as a clip.
             guard let record = DictationRecordMapping.record(for: state, when: Date(), id: UUID())
             else { break }
+            let previous = recents.entries.first
             keep(record)
             noteStyle(outcome)
+            noteRetry(of: previous, by: record, outcome)
         case .failed(let notice):
             Self.log.error(
                 """
@@ -2980,6 +2982,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let now = Date()
         let rows = StyleSignals.rows(for: outcome.text, into: destination, day: EvidenceRow.day(of: now))
         noteEvidence(rows, in: evidence, now: now)
+    }
+
+    /// Counts a re-dictation of the dictation before against the corrections it dropped; never the words themselves.
+    private func noteRetry(
+        of previous: DictationRecord?, by record: DictationRecord,
+        _ outcome: UttrflowPipeline.DictationOutcome
+    ) {
+        guard let evidence, let previous, !outcome.intoSecureField, !outcome.isFromRecording else { return }
+        noteEvidence(EvidenceSources.retried(previous, by: record), in: evidence)
     }
 
     /// Appends pairing rows before the refresh that follows reads them, so the Corrections page shows the veto at once.
