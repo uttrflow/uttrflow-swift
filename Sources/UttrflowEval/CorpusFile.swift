@@ -132,7 +132,8 @@ enum CorpusFile {
             if [expected, expectedExact].compactMap(\.self).contains(where: { Script.of($0) != .latin }) {
                 throw refuse("a reference is not in Latin letters")
             }
-            if let adapter, adapter.isEmpty || adapter != adapter.trimmingCharacters(in: .whitespacesAndNewlines) {
+            let trimmed = adapter?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let adapter, adapter.isEmpty || adapter != trimmed {
                 throw refuse("adapter is empty or padded with whitespace")
             }
             return EvaluationCase(
