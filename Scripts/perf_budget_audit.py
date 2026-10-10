@@ -35,10 +35,10 @@ WAKEUPS_ALLOWED = {
     ("Sources/Uttrflow/Settings/SettingsPauseCountdown.swift", ".seconds(min(60, remaining) + 0.5)"): (
         "the suggestion pause countdown, at most once a minute and only while a pause runs with Settings open"
     ),
-    ("Sources/UttrflowPipeline/DictationPipeline.swift", "PendingInsertionConfirmation.interval"): (
+    ("Sources/UttrflowPipeline/DictationPipeline+ScreenReads.swift", "PendingInsertionConfirmation.interval"): (
         "watches for a dictated insertion to land, bounded by PendingInsertionConfirmation.budget"
     ),
-    ("Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift", "0.2"): (
+    ("Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift", "SuggestionTicking.activeSelectionInterval"): (
         "checks the caret only while a drawn offer can be accepted, and stops when the offer is withdrawn"
     ),
     ("Sources/UttrflowPipeline/DictationController.swift", "start.advanced(by:elapsed)"): (
@@ -77,9 +77,6 @@ WAKEUPS_ALLOWED = {
     ("Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift", ".milliseconds(max(delay, 1))"): (
         "books one turn after a pause in typing, calling the other `wake` overload once; each keystroke replaces it"
     ),
-    ("Sources/UttrflowPipeline/DictionaryWordProbe.swift", "limit"): (
-        "one five-second listen for a dictionary try the person started, then the other `probe` overload once; no loop"
-    ),
     ("Sources/UttrflowPredict/IdleRelease.swift", "wait"): (
         "sleeps until the idle window can run out, never under a tenth of it (18 s), and ends once the model is let go"
     ),
@@ -94,7 +91,7 @@ WAKEUPS_BOUND_BY = {
     ("Sources/Uttrflow/UsageTelemetry.swift", "interval"): ("UsageTelemetry.flushInterval",),
     ("Sources/UttrflowPermissions/PermissionWatcher.swift", "self.interval"): ("PermissionWatcher.defaultInterval",),
     ("Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift", "interval"): (
-        "SuggestionTicking.interval", "SuggestionTicking.ghostInterval",
+        "SuggestionTicking.interval", "SuggestionTicking.ghostInterval", "SuggestionTicking.activeSelectionInterval",
     ),
 }
 
@@ -423,6 +420,9 @@ def check_wakeups(tree, findings, report):
                     value = seconds(tree, bound, path)
                     if value is None:
                         findings.fail("wakeups", path, line, f"{kind} bound by {bound}, which no longer resolves")
+                    elif value < WAKEUP_FLOOR and (path, bound) in WAKEUPS_ALLOWED:
+                        seen.add((path, bound))
+                        report.append(f"  ✓ {path}:{line} {kind} every {value:g} s via {bound}, allowed: {WAKEUPS_ALLOWED[(path, bound)]}")
                     elif value < WAKEUP_FLOOR:
                         findings.fail("wakeups", path, line, f"{kind} every {value:g} s via {bound}, under {WAKEUP_FLOOR:g} s", key)
                     else:
@@ -757,7 +757,7 @@ def check_suggestion_path(tree, findings, report):
     panel_path = "Sources/Uttrflow/Suggestion/SuggestionPanelController.swift"
     coordinator = tree.files.get(coordinator_path, "")
     panel = tree.files.get(panel_path, "")
-    turn_match = re.search(r"private func turn\([^)]*\) async\s*\{", coordinator)
+    turn_match = re.search(r"(?:private\s+)?func turn\([^)]*\) async\s*\{", coordinator)
     if turn_match:
         turn_opening = coordinator.find("{", turn_match.start())
         turn_body = coordinator[turn_opening : matching(coordinator, turn_opening) + 1]
@@ -805,7 +805,7 @@ def check_suggestion_path(tree, findings, report):
         report.append("  ✓ field-read duration starts before the cross-process read")
     else:
         findings.failures.append(f"suggestions: {coordinator_path} does not time the full field read")
-    callback_source = re.sub(r"FocusedFieldReader\.focusMayHaveMoved\(\)", "", monitor_body)
+    callback_source = re.sub(r"FocusedFieldReader\.(?:focusMayHaveMoved|fieldMayHaveChanged)\(\)", "", monitor_body)
     callback_allocations = re.sub(r"\.append\(text\)|\.append\(nil\)", "", callback_source)
     callback_allocations = re.sub(r"\[text\]", "", callback_allocations)
     if re.search(r"\b(?:FocusedFieldReader|focusedFieldReader|AXUIElementCopy|AXUIElementSet|AXTextMarker)", callback_source + body):
@@ -1203,8 +1203,8 @@ INJECTIONS = (
         "Sources/UttrflowLocalModel/MLXCandidateScorer.swift",
         "            // Only a call that reaches the model holds the process-wide cache; an unloaded scorer never does.\n"
         "            beginPass()\n            defer { endPass() }\n"
-        "            let result = await container.perform {",
-        "            let result = await container.perform {\n"
+        "            let request = await container.perform {",
+        "            let request = await container.perform {\n"
         "            beginPass()\n            defer { endPass() }\n           ",
         "cache",
     ),

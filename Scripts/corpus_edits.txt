@@ -685,4 +685,6 @@ actually-make-it-between-amounts a spoken k after a number is written joined to 
 sql-editor-identifier-from-screen the note says the rules bind the identifier on screen too (#4194)
 code-editor-identifier-from-screen the note says the rules bind the identifier on screen too (#4194)
 hinglish-galat-bola-restatement-kept distinguishes a repeated statement without a correction pair (#6419)
+probe-regex-pattern keeps the spoken lead-in "the pattern is" the reference dropped (#6403)
+probe-yaml-keys keeps the spoken "set" and "and" on one line instead of restructuring the keys (#6403)
 sentence-per-new-line a list laid out one item per line keeps its last item without the stop no other item has (#6685)

@@ -58,7 +58,6 @@ public enum GeneralVocabulary {
             \.word)
     }
 
-
     /// The ordinary words the lexicon lists as said exactly like this ordinary one: "here" for "hear". Both sides ordinary, because the lexicon also lists rare spellings and surnames ("thee", "appel") that are no reading of a confidently heard word; a single letter is its name, never a homophone.
     public static func homophones(of text: String) -> [String] {
         guard text.count > 1, isOrdinary(text) else { return [] }

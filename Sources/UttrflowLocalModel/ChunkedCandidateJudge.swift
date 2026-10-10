@@ -28,8 +28,12 @@ private struct CandidateScoringChunk: Sendable {
 enum ChunkedCandidateJudge {
     static func judge(
         _ candidate: String, following context: String,
-        vocabulary: TokenHealing.Vocabulary, in container: ModelContainer
+        vocabulary: TokenHealing.Vocabulary, in container: ModelContainer,
+        holding bufferCachePasses: BufferCachePasses
     ) async throws -> ChunkedCandidateJudgement {
+        // Taken here as well as by the caller, so the cap is held wherever the passes below run.
+        bufferCachePasses.begin()
+        defer { bufferCachePasses.end() }
         let input = await container.perform { modelContext in
             let tokens = MLXCandidateScorer.leadIn + candidate
             let whole = modelContext.tokenizer.encode(text: tokens)

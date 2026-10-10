@@ -338,7 +338,9 @@ public actor Verifier {
     }
 
     /// What the next word may be, from the machine: anything, one of the values here that begin the way it does, or nothing.
-    public func options(for typed: String, in surface: Surface, now: ContinuousClock.Instant) async -> ArgumentOptions {
+    public func options(
+        for typed: String, in surface: Surface, now: ContinuousClock.Instant
+    ) async -> ArgumentOptions {
         guard EnvironmentSource.workingDirectory(of: surface) != nil else { return .open }
         let token = CompletionToken(typed) ?? CompletionToken(leading: typed, token: "")
         guard let choices = Verification.choices(for: token) else { return .open }
@@ -447,7 +449,9 @@ public actor Verifier {
     }
 
     /// Git names are case-sensitive even on a case-insensitive filesystem.
-    private func attests(_ lookup: Verification.Lookup, in surface: Surface, now: ContinuousClock.Instant) async -> Bool {
+    private func attests(
+        _ lookup: Verification.Lookup, in surface: Surface, now: ContinuousClock.Instant
+    ) async -> Bool {
         for kind in lookup.kinds {
             guard let known = await known(of: [kind], in: surface, now: now) else { continue }
             if Verification.attests(

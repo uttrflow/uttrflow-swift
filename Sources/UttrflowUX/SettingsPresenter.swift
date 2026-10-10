@@ -592,7 +592,16 @@ public enum SettingsPresenter {
                 SettingsGroup(
                     id: "learned",
                     title: "What Uttrflow has picked up",
-                    rows: [learnedWordsRow(personalisation)]),
+                    rows: [
+                        toggleRow(
+                            .learnsFromDictation,
+                            label: "Learn from my dictation",
+                            explanation:
+                                "On in every app you have not turned off. Off, no new words are learned anywhere.",
+                            settings, capabilities
+                        ).with(icon: .symbol("brain", .amber)),
+                        learnedWordsRow(personalisation),
+                    ]),
                 personalDataTransferGroup,
                 pages,
             ].compactMap(\.self) + availabilityGroups,
@@ -1078,6 +1087,7 @@ public enum SettingsPresenter {
         case .sendsCrashReports: settings.sendsCrashReports
         case .suggestionsEnabled: settings.suggestions.isEnabled
         case .quietSuggestions: settings.suggestions.isQuiet
+        case .learnsFromDictation: settings.learnsFromDictation
         }
     }
 }
