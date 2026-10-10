@@ -64,4 +64,30 @@ struct PersonaPresentationTests {
         #expect(!SettingsReset.personaFact(.noticedWords).isConfirmed)
         #expect(SettingsEditor.unavailability(of: .personaFact(.noticedWords), given: personalisation) != nil)
     }
+
+    @Test("pairs and taught respellings are listed with their days and removed by their own rows")
+    func pairsAndRespellingsAreListed() {
+        let pair = ConfusionPairs.key(heard: "graph ana", meant: "Grafana")
+        let respelling = "kya>kyaa"
+        let gone = "nahi>nahin"
+        func at(_ kind: EvidenceRow.Kind, _ subject: String, day: Int) -> EvidenceRow {
+            EvidenceRow(kind: kind, subject: subject, day: day, provenance: .dictation)
+        }
+        let rows = [
+            at(.pairConfirmed, pair, day: 1), at(.pairConfirmed, pair, day: 2), at(.pairVetoed, pair, day: 3),
+            at(.spellingPreference, respelling, day: 1), at(.spellingPreference, respelling, day: 2),
+            at(.spellingPreference, gone, day: 1), at(.spellingPreferenceCleared, gone, day: 2),
+        ]
+        let items = PersonaProfile.items(from: rows, entries: [])
+        #expect(items.map(\.fact) == [.pair(pair), .spelling(respelling)])
+        #expect(items[0].title == "Heard graphana, meant Grafana")
+        #expect(items[0].detail == "Kept on 2 days, undone on 1 day")
+        #expect(items[1].title == "Writing kyaa for kya")
+        #expect(items[1].detail == "Seen on 2 days in your edits")
+
+        // Removing one fact deletes its rows and leaves the other fact and every unrelated row.
+        let fact = PersonaFact.pair(pair)
+        let remaining = rows.filter { $0.subject != fact.subject || !fact.kinds.contains($0.kind) }
+        #expect(PersonaProfile.items(from: remaining, entries: []).map(\.fact) == [.spelling(respelling)])
+    }
 }
