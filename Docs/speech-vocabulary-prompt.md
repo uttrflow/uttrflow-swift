@@ -61,6 +61,23 @@ words within `maximumLeadTokens`, and the vocabulary packs into what is left. A 
 back empty is retried with no prompt at all. The dictation bench's developer-vocabulary
 categories measure what a lead-in sentence is worth to recognition.
 
+### What text is fit to lead the prompt
+
+`Situation.recognitionContext` is the only producer of that lead-in. It takes the sentence or two
+`AppContext.recognitionContext` keeps and applies an eligibility rule, so a prompt carries prose
+or nothing:
+
+- Terminal, spreadsheet and SQL destinations give nothing. A terminal's input line is not told
+  apart from a command, so the conservative default is none.
+- A caret in executable source or a string literal gives nothing; in a code editor only a comment
+  gives text, and an unrecognised document gives none.
+- List, quotation, heading and comment marks are stripped. Shell prompts, formulas, lines with call
+  syntax or code operators, and lines that are mostly symbols are dropped line by line.
+- Secret-shaped runs and secure fields were already out; the hard cap is unchanged.
+
+Correction evidence keeps reading the unfiltered slice, since an identifier near the caret is
+evidence there. A bakeoff of framings is still owed; the rule above is the default until it runs.
+
 ## The sentence around the words is the surprise
 
 The words are offered inside `" The words used here are …"` (`VocabularyPrompt.opening`), closed
