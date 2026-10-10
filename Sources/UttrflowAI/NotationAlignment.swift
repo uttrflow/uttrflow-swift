@@ -53,7 +53,8 @@ struct NotationAlignment: Sendable {
             .matchedColumns
         let matched = Set(landed.compactMap { $0 })
         let unsourced = wrote.indices.filter {
-            !matched.contains($0) && lexicon.isJudged(wrote[$0]) && !joinsIdentifier(wrote, at: $0)
+            !matched.contains($0) && lexicon.isJudged(wrote[$0])
+                && !joinsIdentifier(wrote, at: $0, lexicon: lexicon)
         }
         let dropped = said.indices.filter { landed[$0] == nil && lexicon.isJudged(said[$0]) }
         let names = said.indices.compactMap { index in
@@ -65,11 +66,13 @@ struct NotationAlignment: Sendable {
             unsourced: unsourced.map { wrote[$0].text }, dropped: dropped.map { said[$0].text }, names: names)
     }
 
-    /// Whether the mark at `index` is an underscore hard between two words, which writes them as one identifier as a camel hump does: `user_id`.
-    private static func joinsIdentifier(_ units: [NotationLexicon.Unit], at index: Int) -> Bool {
+    /// Whether the mark at `index` is an underscore hard between two words, which writes them as one identifier as a camel hump does: `user_id`, and `created_at`, whose "at" is a word as written.
+    private static func joinsIdentifier(
+        _ units: [NotationLexicon.Unit], at index: Int, lexicon: NotationLexicon
+    ) -> Bool {
         units[index].text == "_" && units[index].touches.before && units[index].touches.after
             && index > 0 && index + 1 < units.count
-            && units[index - 1].mark == nil && units[index + 1].mark == nil
+            && lexicon.isWord(units[index - 1]) && lexicon.isWord(units[index + 1])
     }
 
     /// The kept words of each name the rewrite writes, found in order, so the survival check does not look for them as words.
@@ -159,6 +162,12 @@ private struct NotationLexicon: Sendable {
         case .standalone?: true
         case nil: unit.touches.before || unit.touches.after
         }
+    }
+
+    /// Whether a unit is a word: a plain one, or a prose word such as "at" that also names a mark no code row writes.
+    func isWord(_ unit: Unit) -> Bool {
+        guard let mark = unit.mark else { return true }
+        return unit.name != nil && !notationOnly.contains(mark)
     }
 
     /// Whether a unit is a mark as written, of a class only notation writes, so prose punctuation never adds or drops it.

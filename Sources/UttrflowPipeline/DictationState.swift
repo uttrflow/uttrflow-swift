@@ -139,6 +139,8 @@ public struct DictationOutcome: Sendable, Equatable {
     public let doubtful: DoubtfulWordsOutcome
     /// Why the wait after key-up runs past its target; `nil` when it keeps to it or is untimed.
     public let slowCause: SlowDictationCause?
+    /// What the meaning guard refused in the model answers dropped before the kept one, as kinds that name no word.
+    public let guardRefusals: [RefusalKind]
 
     public init(
         text: String, method: TextInsertionMethod, cleanedBy: TransformerKind,
@@ -146,7 +148,8 @@ public struct DictationOutcome: Sendable, Equatable {
         spokenFor: Duration? = nil, changes: AppliedChanges = .none, fromRecording: Bool = false,
         arrival: InsertionArrival = .notReported, intoSecureField: Bool = false, missedPieces: Int = 0,
         unavailableEngines: [CleaningRecord.UnavailableEngine] = [],
-        doubtful: DoubtfulWordsOutcome = .notAvailable, slowCause: SlowDictationCause? = nil
+        doubtful: DoubtfulWordsOutcome = .notAvailable, slowCause: SlowDictationCause? = nil,
+        guardRefusals: [RefusalKind] = []
     ) {
         self.text = text
         self.method = method
@@ -162,6 +165,7 @@ public struct DictationOutcome: Sendable, Equatable {
         self.unavailableEngines = unavailableEngines
         self.doubtful = doubtful
         self.slowCause = slowCause
+        self.guardRefusals = guardRefusals
     }
 
     /// The words Uttrflow may keep or show, which is none for a secure field or a credential.

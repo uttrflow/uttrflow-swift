@@ -870,7 +870,7 @@ struct PieceJoinerSeamTests {
     func joinsEveryScaleWithSmallerAmount() {
         let cases: [(String, String, String, String)] = [
             ("400", "four hundred", "and $20", "$420"),
-            ("2,000", "two thousand", "and $50", "$2050"),
+            ("2,000", "two thousand", "and $50", "$2,050"),
             ("3,000,000", "three million", "and $5", "$3,000,005"),
         ]
         for (number, heard, amount, sum) in cases {

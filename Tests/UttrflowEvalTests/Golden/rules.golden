@@ -840,7 +840,7 @@ probe-backtick-identifiers	Can we rename user id to account id in the billing mo
 probe-bug-title	Crash when opening settings on mac OS 14
 probe-chained-corrections	Can we meet at five actually make it half past six on Wednesday no Thursday if that suits you?
 probe-changelog-bullets	- Added dark mode support for the sidebar\n- Fixed a crash when the cache is empty\n- Removed the --legacy-sync flag
-probe-clinical-note	Patient is a 52 year old with chest tightness for two days blood pressure 140 over 90 heart rate 72 bpm temperature 98.6 SPO298 percent on room air start aspirin 81 mg by mouth once daily and recheck in two weeks.
+probe-clinical-note	Patient is a 52 year old with chest tightness for two days blood pressure 140/90 heart rate 72 bpm temperature 98.6 SPO298 percent on room air start aspirin 81 mg by mouth once daily and recheck in two weeks.
 probe-contract-clauses	Clause 9.1 the supplier shall item a deliver within 30 days of the order item b replace any damaged goods at its own cost and item c keep records for six years.
 probe-cover-letter	Dear ms alvarez,\n\nI am writing to apply for the senior analyst position advertised on your careers page.\n\nIn my current role I lead a team of six analysts and reduced reporting time by 30%.\n\nI would welcome the chance to discuss my application,\nYours sincerely,\nAsha verma.
 probe-decision-record	We decided to store sessions in redis rather than postgres because the read volume is high and the data is disposable the trade off is that a restart logs everyone out so we will enable append only persistence.
