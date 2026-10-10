@@ -8,16 +8,24 @@ public struct LoanwordRestoration: Sendable {
 
     /// The source is the shipped technical lexicon plus `personal`, the person's dictionary words; no other list.
     public init(personal: [String] = []) {
+        var seen: Set<String> = []
+        let own = Self.restorable(personal, unless: &seen).map { ReadingKey($0) }
+        english = [own, Self.shipped.filter { !seen.contains($0.closed) }]
+    }
+
+    /// The shipped terms a restoration may produce, each sound worked out once for the process rather than once per dictation.
+    static let shipped: [ReadingKey] = {
         // An acronym is said letter by letter, a command typed at a prompt and an annotation opens a comment, so none is a word said inside a sentence: "kal" is not "CLI".
         let said = TechnicalLexicon.terms.filter { ![.acronym, .command, .annotation].contains($0.category) }
         var seen: Set<String> = []
-        english = [personal, said.map(\.id)].map { written in
-            written.compactMap { spelling in
-                guard spelling.allSatisfy(\.isLetter), spelling.allSatisfy(\.isASCII),
-                    seen.insert(spelling.lowercased()).inserted
-                else { return nil }
-                return ReadingKey(spelling)
-            }
+        return restorable(said.map(\.id), unless: &seen).map { ReadingKey($0) }
+    }()
+
+    /// The spellings made of ASCII letters alone, each the first of its lower-cased form, recording what they take in `seen`.
+    private static func restorable(_ written: [String], unless seen: inout Set<String>) -> [String] {
+        written.filter { spelling in
+            spelling.allSatisfy(\.isLetter) && spelling.allSatisfy(\.isASCII)
+                && seen.insert(spelling.lowercased()).inserted
         }
     }
 
