@@ -496,30 +496,52 @@ enum PieceJoiner {
             let end = opening + 1 < starts.count ? starts[opening + 1] : draft.words.count
             let live = draft.presentIndices
             guard let position = livePosition(of: start, in: live) else { continue }
-            guard
-                let found = commands.first(where: { command in
+            // The command may begin in the piece before and end here: `heads` of its words close that piece.
+            var found: (command: (words: [String], mark: String, requiresLists: Bool), heads: Int)?
+            for heads in 0...(commands.map(\.words.count).max() ?? 0) where found == nil {
+                found = commands.first(where: { command in
                     (!command.requiresLists || formatter.layout.contains(.lists))
-                        && (command.requiresLists
-                            || formatter.layout.contains(.paragraphs)
+                        && (command.requiresLists || formatter.layout.contains(.paragraphs)
                             || formatter.layout.contains(.preserveNewlines))
-                        && position + command.words.count < live.count
-                        && live[position + command.words.count - 1] < end
-                        && zip(command.words, live[position..<position + command.words.count]).allSatisfy {
-                            $0 == draft.shape(at: $1).key
-                        }
-                })
-            else { continue }
-            let body = live[position + found.words.count]
+                        && heads <= command.words.count
+                        && commandMatches(
+                            command.words, heads: heads, at: position, live: live, draft: draft,
+                            pieceStart: starts[opening - 1], end: end)
+                }).map { ($0, heads) }
+            }
+            guard let found else { continue }
+            let last = position + found.command.words.count - found.heads
+            let body = live[last]
             if body < end {
                 let shape = draft.shape(at: body)
                 draft.replace(
                     at: body, with: shape.replacingCore(with: WordShape.capitalised(shape.core)), by: id)
             }
-            draft.replace(at: start, with: found.mark, by: id)
-            for index in live[(position + 1)..<(position + found.words.count)] {
+            let first = position - found.heads
+            // A command the cut split leaves the sentence before it unended, so it is ended as a seam ends it.
+            if found.heads > 0, first > 0, live[first - 1] >= starts[opening - 1] {
+                draft.replace(
+                    at: live[first - 1], with: WordShape.finished(draft.words[live[first - 1]].text),
+                    by: id)
+            }
+            draft.replace(at: live[first], with: found.command.mark, by: id)
+            for index in live[(first + 1)..<last] {
                 draft.remove(at: index, by: id)
             }
         }
+    }
+
+    /// Whether `words` are said across a seam: the last `heads` of them end the piece before, the rest open the piece at `position`.
+    private static func commandMatches(
+        _ words: [String], heads: Int, at position: Int, live: [Int], draft: Draft, pieceStart: Int, end: Int
+    ) -> Bool {
+        let first = position - heads
+        let last = position + words.count - heads
+        guard first >= 0, last < live.count, heads == 0 || live[first] >= pieceStart,
+            words.count == heads || live[last - 1] < end,
+            zip(words, live[first..<last]).allSatisfy({ $0 == draft.shape(at: $1).key })
+        else { return false }
+        return heads == 0 || !MentionGuard.namesLayout(at: first, spanning: words.count, in: draft)
     }
 
     /// Whether this place wants a blank line between topics at all.
