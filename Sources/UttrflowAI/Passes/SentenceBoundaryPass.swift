@@ -4,6 +4,7 @@ import UttrflowCore
 struct SentenceBoundaryPass: WholeTextCleaningPass {
     static let id: PassID = "sentenceBoundary"
     static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    static let orderIndependentWith: Set<PassID> = [.firstWord]
 
     func apply(_ draft: Draft) -> Draft {
         var draft = draft

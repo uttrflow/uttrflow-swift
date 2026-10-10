@@ -362,7 +362,8 @@ let package = Package(
         ),
         .testTarget(
             name: "UttrflowAITests",
-            dependencies: ["UttrflowAI", "UttrflowTestSupport"],
+            // The evaluation corpus supplies the real dictation the pass-law suite generates inputs from.
+            dependencies: ["UttrflowAI", "UttrflowEval", "UttrflowTestSupport"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(

@@ -11,7 +11,7 @@ struct Probe: AsyncParsableCommand {
         commandName: "probe",
         abstract: "Measure what tab-to-complete can rely on, before any of it is built.",
         subcommands: [
-            ProbeSurface.self, ProbeRetrieval.self, ProbeTap.self, ProbeIME.self, ProbeModifiers.self,
+            ProbeSurface.self, ProbeSnapshot.self, ProbeRetrieval.self, ProbeTap.self, ProbeIME.self, ProbeModifiers.self,
         ]
     )
 }
