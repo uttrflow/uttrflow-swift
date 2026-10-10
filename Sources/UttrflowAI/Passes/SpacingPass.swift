@@ -4,6 +4,7 @@ public import UttrflowCore
 public struct SpacingPass: PieceCleaningPass {
     public static let id: PassID = .spacing
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    public static let orderIndependentWith: Set<PassID> = [.pauseStop]
 
     public init() {}
 
