@@ -117,3 +117,66 @@ struct LineShapeTests {
         #expect(shape("git commit -m foo\\; gi") == LineShape(command: "git", kind: .free))
     }
 }
+
+@Suite("Reading a command line through the user's aliases")
+struct LineShapeAliasTests {
+    private let aliases: [String: [String]] = [
+        "g": ["git"], "gco": ["git", "checkout"], "gs": ["git", "status"], "loop": ["loop"], "a": ["b"],
+        "b": ["a"],
+    ]
+
+    private func shape(_ line: String) -> LineShape? {
+        CompletionToken(line).map { LineShape.of($0, aliases: aliases) }
+    }
+
+    @Test("An alias for a program takes that program's verbs.")
+    func aliasedProgram() {
+        #expect(shape("g chec") == LineShape(command: "git", kind: .subcommand(of: "git")))
+    }
+
+    @Test("An alias that carries a verb reads the words after it as that verb's arguments.")
+    func aliasedVerb() {
+        #expect(shape("gco fe") == LineShape(command: "git", kind: .branch))
+        #expect(shape("gs sta") == LineShape(command: "git", kind: .free))
+    }
+
+    @Test("An alias behind a wrapper is read too.")
+    func behindWrapper() {
+        #expect(shape("sudo g chec") == LineShape(command: "git", kind: .subcommand(of: "git")))
+    }
+
+    @Test("Aliases that name themselves or each other stop expanding.")
+    func cycle() {
+        #expect(shape("loop x") == LineShape(command: "loop", kind: .free))
+        #expect(shape("a x") != nil)
+    }
+
+    @Test("Without aliases a shorthand is an unknown program.")
+    func withoutAliases() {
+        #expect(CompletionToken("g chec").map(LineShape.of) == LineShape(command: "g", kind: .free))
+    }
+}
+
+@Suite("Reading what a shell's aliases run")
+struct ShellAliasExpansionTests {
+    @Test("A quoted body becomes the words it runs.")
+    func quotedBody() {
+        let text = "alias gs='git status'\nalias g=git\n  alias ll=\"ls -la\"\n"
+        #expect(
+            ShellAliases.expansions(in: text) == [
+                "gs": ["git", "status"], "g": ["git"], "ll": ["ls", "-la"],
+            ])
+    }
+
+    @Test("A body the shell must run to settle is left out.")
+    func unsettledBody() {
+        let text =
+            "alias a='git status | head'\nalias b='echo $(date)'\nalias c='ls; pwd'\nalias d='*'\nalias e=''\n"
+        #expect(ShellAliases.expansions(in: text).isEmpty)
+    }
+
+    @Test("A later declaration of a name replaces an earlier one.")
+    func later() {
+        #expect(ShellAliases.expansions(in: "alias g=svn\nalias g=git\n") == ["g": ["git"]])
+    }
+}

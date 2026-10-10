@@ -1313,6 +1313,16 @@
     "addedFor": 4200
   },
   {
+    "id": "sql-terminated-semicolon-said",
+    "spoken": "select id from orders semicolon",
+    "expected": "SELECT id FROM orders;",
+    "mustKeep": ["SELECT", ";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
+    "addedFor": 4193
+  },
+  {
     "id": "shell-redirect-spoken-greater-than",
     "spoken": "cat notes dot txt greater than copy dot txt",
     "expected": "cat notes.txt > copy.txt",

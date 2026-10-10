@@ -15,7 +15,13 @@ described below are not implemented yet, except `Applicability` and its `Adapter
 symbols, `NotationEvidence` (`Sources/UttrflowAI/NotationEvidence.swift`). SQL notation is rows of
 `spoken-commands.json` enabled in `sqlEditor` (operators as `codeSymbol` rows, keywords as
 `keyword` rows), written by `CodeEditorCommandsPass` only when the speech opens a statement outside
-a comment or string; `SQLNotationTests` holds its corpus cases to their exact statement. The bracket
+a comment or string; `SQLNotationTests` holds its corpus cases to their exact statement. `SQLPosition`
+(`Sources/UttrflowCore/Adapters/SQLPosition.swift`) reads the statement already before the caret: the
+open clause, the keyword case, the tables and aliases named, and whether a string or comment holds the
+caret; it answers `unknown` when its 300-character window may have cut the statement. It owns that
+detection: a caret inside a statement counts as evidence for notation and as mid-sentence for the first
+word (`SQLContinuationTests`), and the keyword-case stage of AD.10 reads `keywordCase` rather than
+detecting case itself. The bracket
 and quote balance check of section 5 uses `AdapterValidator` returning `AdapterVerdict`. The “Today”
 columns and
 references to existing source files describe current behavior; the “With the adapter” columns
@@ -134,8 +140,8 @@ public struct AdapterSelection: Sendable {
    in code or a statement opened in a query editor reaches it, a cue against (a comment, a prose body, an article in the speech) rules
    the notation out, and no speech cue alone reaches it. Measured under the rules: 0 misfires on
    the abstention corpus, and the notation cases `NotationRecallTests` counts are written
-   exactly 90 of 90 in a code editor, 3 of 4 at a command line and 0 of 22 in a query editor,
-   where every statement gains a full stop; each count is its floor.
+   exactly 90 of 90 in a code editor, 3 of 4 at a command line and 21 of 22 in a query editor,
+   where a statement takes no full stop and a `;` only when it was said; each count is its floor.
 4. **Otherwise the prose adapter for `situation.destination`**, which is today's behaviour
    exactly. Abstention is the default; a weak signal degrades to prose, never to a different
    notation adapter.

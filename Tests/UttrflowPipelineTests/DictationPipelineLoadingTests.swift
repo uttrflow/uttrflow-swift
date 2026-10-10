@@ -239,9 +239,17 @@ struct DictationPipelineLoadingTests {
         let cue = LoadingCueSpy()
         let warnings = Mutex(0)
         let controller = DictationController(
-            pipeline: pipeline, monitor: LoadingHotkeyMonitor(), cue: cue, clock: clock,
-            limit: DictationLimit(warnAfter: .seconds(1), stopAfter: .seconds(2)),
-            onWarning: { _ in warnings.withLock { $0 += 1 } })
+            pipeline: pipeline,
+            monitor: LoadingHotkeyMonitor(),
+            cue: cue,
+            clock: clock,
+            options: .init(
+                limit: DictationLimit(warnAfter: .seconds(1), stopAfter: .seconds(2))
+            ),
+            observers: .init(
+                onWarning: { _ in warnings.withLock { $0 += 1 } }
+            )
+        )
         try await controller.start(
             binding: HotkeyBinding(keyCode: 58, modifiers: [.option, .command, .control]))
 
