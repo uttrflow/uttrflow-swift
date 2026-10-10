@@ -382,12 +382,10 @@ public struct MeaningPreservationGuard: Sendable {
     }
 
     /// Subject pronouns that "know" follows; "no" after one of them never negates.
-    private static let knowSubjects: Set<String> = ["i", "you", "we", "they", "he", "she"]
+    private static let knowSubjects = QuestionShape.newSubjects.union(["you"])
 
     /// Determiners that open the object of "know"; "no" never stands directly before one.
-    private static let knowObjectDeterminers: Set<String> = [
-        "the", "a", "an", "this", "that", "these", "those", "my", "your", "his", "her", "its", "our", "their",
-    ]
+    private static let knowObjectDeterminers = FunctionWords.determiners
 
     /// Whether a word reverses a sentence, read without its apostrophes so "doesn't" and "doesnt" are one negation.
     static func isNegation(_ word: String) -> Bool {
