@@ -363,22 +363,32 @@ idle Mac with repeats, replaces this table; it is the same jobs file with `--rep
 
 ### Whole-text passes after release
 
-After key release the pieces are joined (`PieceJoiner.join`), the message-wide passes run once over
-the joined text (`CleaningPipeline.message`, from `TransformerRouter.finishMessage`), and the Latin
-check runs over the result. None has a deadline, and their cost grows with the dictation, not with
-the last piece. `WholeTextCostProbeTests` times them over invented 12-word pieces, one per 5 s of
-speech, document destination, median of 7 runs, and prints one `WHOLETEXT` line per length.
+After key release the pieces are joined: a pause that cut a spoken number, time or address is
+found by reading the words either side of each seam (`PieceJoiner.unitRunsAcross`), the pieces are
+laid end to end (`PieceJoiner.join`), the message-wide passes run once over the joined text
+(`CleaningPipeline.message`, from `TransformerRouter.finishMessage`), and the Latin check runs over
+the result. None has a deadline. A seam's verdict reads only the two pieces beside it, so
+`RunningMessage` decides each one while the key is held, as the early loop takes in each finished
+piece, and key-up decides only the seams beside the pieces it finishes itself.
+`WholeTextCostProbeTests` times each stage over invented 12-word pieces, one per 5 s of speech,
+document destination, as the median of 7 runs of the test thread's CPU time, and prints one
+`WHOLETEXT` line per length. "Seams held" is spread over the dictation, a seam per piece; every
+other column is spent after key-up.
 
-| speech | words | join ms | message passes ms | Latin check ms |
-|---|---|---|---|---|
-| 30 s | 73 | 13.4 | 11.7 | 0.13 |
-| 120 s | 292 | 44.9 | 46.5 | 0.20 |
-| 300 s | 730 | 75.7 | 145.5 | 0.47 |
+| speech | words | seams held ms | last seam ms | join ms | message passes ms | Latin check ms |
+|---|---|---|---|---|---|---|
+| 30 s | 73 | 44.0 | 11.8 | 8.2 | 5.8 | 0.14 |
+| 120 s | 292 | 248.3 | 13.7 | 33.2 | 22.2 | 0.54 |
+| 300 s | 730 | 677.4 | 10.7 | 81.1 | 54.2 | 1.29 |
 
 Measured on Apple M5 Pro, 48 GB, debug test build (`swift test --filter WholeTextCostProbe`), so the
-absolute figures overstate a release build; the growth with length is the finding. At 300 s the two
-whole-text stages add about 0.22 s after release, ten times the 30 s cost, so a new whole-text pass
-must keep running state across pieces rather than run once over everything at the end.
+absolute figures overstate a release build; the growth with length is the finding. The work after
+key-up is 26 ms at 30 s and 147 ms at 300 s. Before seams were decided while the key was held, and
+before the passes stopped rereading the text, it was 67 ms and 970 ms: every seam was read at
+key-up (678 ms at 300 s), and the message passes cost 196 ms, 28 times their 30 s cost, because the
+sentence-boundary pass read every word after each stop. What remains grows with the dictation
+because the joiner and the message passes each still read the whole joined text once;
+`CleaningPassScalingTests` holds every message pass to the growth bound it holds the piece passes to.
 
 ### The last piece at key-up
 

@@ -212,7 +212,7 @@ extension DictationPipeline {
                     for: generation + 1, correcting: corrector))
         }
         let joined = await join(
-            pieces, going: situation, seeing: appContext, vocabulary: vocabulary,
+            RunningMessage(pieces), going: situation, seeing: appContext, vocabulary: vocabulary,
             recording: NoOpMetricsRecorder(), correcting: corrector, for: generation + 1)
         return PieceTrace(
             pieces: pieces, joined: joined,
@@ -221,13 +221,15 @@ extension DictationPipeline {
 
     /// The pieces joined, corrected across their seams, finished as a message and expanded; nil when nothing is writable.
     func join(
-        _ pieces: [Piece], going situation: Situation, seeing appContext: AppContext, vocabulary: [String],
+        _ message: RunningMessage, going situation: Situation, seeing appContext: AppContext,
+        vocabulary: [String],
         recording metrics: any MetricsRecording, correcting corrector: (any WordCorrecting)? = nil,
         for mine: Int? = nil
     ) async -> JoinedDictation? {
         let formatter = DestinationFormatter.standard(for: situation)
         let pieces = await rejoiningUnits(
-            pieces, under: formatter, going: situation, seeing: appContext, recording: metrics, for: mine)
+            message.pieces, using: message, under: formatter, going: situation,
+            seeing: appContext, recording: metrics, for: mine)
         let grouping = situation.digits(for: formatter)
         let joined = PieceJoiner.join(
             pieces, under: formatter, grouping: grouping, steps: runningCleaner.cleaningSteps)
@@ -254,14 +256,14 @@ extension DictationPipeline {
 
     /// Pieces cut inside a spoken number, time, address or quotation, tidied again as one piece so the unit is read whole.
     func rejoiningUnits(
-        _ pieces: [Piece], under formatter: DestinationFormatter, going situation: Situation,
-        seeing appContext: AppContext, recording metrics: any MetricsRecording, for mine: Int?
+        _ pieces: [Piece], using message: RunningMessage, under formatter: DestinationFormatter,
+        going situation: Situation, seeing appContext: AppContext,
+        recording metrics: any MetricsRecording, for mine: Int?
     ) async -> [Piece] {
         var groups: [[Piece]] = []
         for piece in pieces {
             if let previous = groups.last?.last,
-                PieceJoiner.unitRunsAcross(
-                    previous.corrected.text, into: piece.corrected.text, under: formatter, going: situation)
+                message.unitRunsAcross(previous.corrected.text, into: piece.corrected.text, going: situation)
                     || PieceJoiner.quotationRunsAcross(previous.cleaned.text, into: piece.cleaned.text)
             {
                 groups[groups.count - 1].append(piece)

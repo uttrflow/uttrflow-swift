@@ -16,7 +16,7 @@ struct SentenceBoundaryPass: WholeTextCleaningPass {
             let shape = draft.shape(at: index)
             guard shape.suffix == ".", !draft.words[nextIndex].isLayoutMark else { continue }
             guard !Abbreviations.ownsStop(shape.core) else { continue }
-            let following = live[(position + 1)...].map { draft.words[$0].text }.joined(separator: " ")
+            let following = Self.sentenceAfter(position, in: live, of: draft)
             guard
                 SentenceBoundaryEvidence.sentenceRunsOn(
                     WordShape.withoutTrailingStop(draft.words[index].text), into: following
@@ -38,5 +38,21 @@ struct SentenceBoundaryPass: WholeTextCleaningPass {
             draft.replace(at: nextIndex, with: WordShape.lowercased(draft.words[nextIndex].text), by: Self.id)
         }
         return draft
+    }
+
+    /// The words after `position` through the next sentence end, at least two: all the boundary evidence reads.
+    private static func sentenceAfter(_ position: Int, in live: [Int], of draft: Draft) -> String {
+        var words: [String] = []
+        var tokens = 0
+        var ended = false
+        for index in live[(position + 1)...] {
+            let text = draft.words[index].text
+            let written = WordTokens.words(text, .display)
+            words.append(text)
+            tokens += written.count
+            ended = ended || written.contains { WordShape($0).endsSentence }
+            if ended, tokens > 1 { break }
+        }
+        return words.joined(separator: " ")
     }
 }

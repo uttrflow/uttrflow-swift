@@ -144,7 +144,11 @@ window holding genuine silence is skipped.
 ## How the pieces become one text
 
 `PieceJoiner` joins the pieces under the destination's formatter
-([`cleanup-design.md`](cleanup-design.md)). Corrections keep their word ranges by being shifted past
+([`cleanup-design.md`](cleanup-design.md)). Whether a spoken number, time or address runs across a
+seam is read from the two pieces beside it alone, so `RunningMessage` decides each seam while the
+key is held, as the early loop takes in each finished piece, and key-up decides only the seams
+beside pieces it finished itself, usually the last one's alone.
+Corrections keep their word ranges by being shifted past
 the words of the pieces before them, and a correction that crosses a seam is proposed again over
 the joined text. If any piece fell back to the rules, the whole dictation is reported as tidied by
 the rules, because "tidied by Apple's model" would be untrue of some of the words.

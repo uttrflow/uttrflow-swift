@@ -159,8 +159,9 @@ public enum SentenceBoundaryEvidence {
     ) -> Bool {
         let headStart = previous.dropLast().lastIndex(where: \.endsSentence).map { $0 + 1 } ?? 0
         let head = previous[headStart...]
+        guard head.count > 1 else { return false }
         let tags = LexicalClass.tags(ofWords: (head + following).map(\.core))
-        guard head.count > 1, tags.count > head.count, tags[head.count] == .verb,
+        guard tags.count > head.count, tags[head.count] == .verb,
             tags[0] != .preposition, tags[head.count - 1] == .noun
         else { return false }
         return !tags.prefix(head.count).contains(.verb)
