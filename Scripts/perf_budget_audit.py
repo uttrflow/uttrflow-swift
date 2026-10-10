@@ -907,8 +907,8 @@ def stage_samples(lines, corpus):
             if step.get("kind") == "asr":
                 for field in LATENCY_ASR_FIELDS:
                     samples.setdefault(f"asr:{field}", []).append(float(step[field]))
-            elif step.get("kind") == "clean":
-                samples.setdefault("clean", []).append(float(step["t1"]) - float(step["t0"]))
+            elif step.get("kind") in ("clean", "correct"):
+                samples.setdefault(step["kind"], []).append(float(step["t1"]) - float(step["t0"]))
     return samples
 
 
@@ -942,9 +942,9 @@ LAYER_STAGES = {
 
 # Layers whose stage has no measured row yet, each with its reason printed on every run; a measured one fails as stale.
 LAYERS_UNMEASURED = {
-    "candidate-generation": "runs in the dictionary's correction, which `uttrflow-dev bench` gives no dictionary to time",
-    "scoring": "runs in the dictionary's correction, which `uttrflow-dev bench` gives no dictionary to time",
-    "override-gate": "runs in the dictionary's correction, which `uttrflow-dev bench` gives no dictionary to time",
+    "candidate-generation": "runs in the dictionary's correction, which `uttrflow-dev bench` times as `correct` but no measured run has a row for yet",
+    "scoring": "runs in the dictionary's correction, which `uttrflow-dev bench` times as `correct` but no measured run has a row for yet",
+    "override-gate": "runs in the dictionary's correction, which `uttrflow-dev bench` times as `correct` but no measured run has a row for yet",
 }
 
 LAYER_CASE = re.compile(r"^\s*case\s+(\w+)(?:\s*=\s*\"([\w-]+)\")?\s*$", re.M)
@@ -993,7 +993,7 @@ STAGE_TIMEOUTS_UNMEASURED = {
     "rules": "`uttrflow-dev bench` never times the deterministic floor alone",
     "captureStop": "`uttrflow-dev bench` reads audio from a file, so it never stops a capture",
     "screenRead": "`uttrflow-dev bench` has no screen to read",
-    "correction": "`uttrflow-dev bench` gives no dictionary to time",
+    "correction": "`uttrflow-dev bench` times it as `correct`, but no measured run has a row for it yet",
     "expansion": "`uttrflow-dev bench` gives no snippets to time",
     "insertion": "`uttrflow-dev bench` inserts into no app",
     "speechModelLoad": "sized from the cold loads in Docs/startup.md, which bench runs after",
@@ -1066,8 +1066,11 @@ def latency_self_test(root):
                 corpus[clip_id] = {"category": category, "variant": "clean"}
                 wait = targets.get(f"wait:{category}", (0, 0))[1] * scale
                 asr = {f: str(targets.get(f"asr:{f}", (0, 0))[1] * scale) for f in LATENCY_ASR_FIELDS}
-                clean = targets.get("clean", (0, 0))[1] * scale
-                events = [dict(asr, kind="asr"), {"kind": "clean", "t0": "1.0", "t1": str(1.0 + clean)}]
+                timed = [
+                    {"kind": kind, "t0": "1.0", "t1": str(1.0 + targets.get(kind, (0, 0))[1] * scale)}
+                    for kind in ("correct", "clean")
+                ]
+                events = [dict(asr, kind="asr")] + timed
                 lines.append("BENCH " + json.dumps({
                     "event": "result", "id": clip_id, "mode": "rt", "cleaner": "shipping", "wait": wait, "events": events}))
         return stage_samples(lines, corpus)
