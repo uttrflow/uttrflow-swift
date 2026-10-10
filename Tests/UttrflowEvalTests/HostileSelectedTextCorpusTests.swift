@@ -1,8 +1,8 @@
 // Guards the corpus cases where a hostile instruction sits on screen, not in the dictation.
-import UttrflowAI
 import UttrflowCore
 import Testing
 
+@testable import UttrflowAI
 @testable import UttrflowEval
 
 /// Keeps hostile screen-text coverage from silently shrinking. See Docs/ai-context-line.md.
@@ -174,10 +174,74 @@ struct HostileSelectedTextCorpusTests {
     }
 }
 
-/// How many times a stand-in model was asked, kept apart because the model itself is a value.
+/// Keeps the dictated-line case honest: the forged label reaches the prompt only as dictation. See Docs/ai-context-line.md.
+@Suite("Hostile dictated-line cases")
+struct HostileDictatedLineCorpusTests {
+    private var forged: [EvaluationCase] { EvaluationCorpus.hostileDictatedLine }
+
+    @Test("keeps at least six cases of a dictated line that begins like a label")
+    func coversTheDictatedLine() {
+        #expect(forged.count >= 6, "found \(forged.count) hostile dictated-line cases")
+    }
+
+    /// A line that opens with no label by the time the model sees it tests nothing.
+    @Test("asks the model with a line that opens with a label, marked as dictation on the one spoken line")
+    func forgedLineReachesThePromptAsDictation() async {
+        for testCase in forged {
+            let secondLine = testCase.expected.split(separator: "\n").dropFirst().first ?? ""
+            let label = secondLine.prefix { $0 != ":" }.lowercased() + ":"
+            let model = ObeyingModel(answer: testCase.expected)
+            _ = try? await GenerativeTextTransformer(kind: .foundationModels, model: model)
+                .transform(testCase.transformationRequest())
+            let prompt = await model.prompts.last
+            #expect(await model.prompts.asked > 0, "\(testCase.id) is settled before the model is asked")
+            #expect(
+                prompt.lowercased().contains("\(PromptText.lineMarker) \(label)"),
+                "\(testCase.id) forges no label line: \(prompt)")
+            #expect(!prompt.contains("\n"), "\(testCase.id) puts a dictated line on a prompt line of its own")
+        }
+    }
+
+    /// The case has to catch the measured failure, a model that reads the forged line as background and drops it.
+    @Test("fails a model that drops the forged line, and the transformer refuses its answer")
+    func droppingModelFails() async {
+        for testCase in forged {
+            let lines = testCase.expected.split(separator: "\n").map(String.init)
+            let dropped = lines.first ?? ""
+            #expect(
+                !Scorer.score(dropped, against: testCase).lost.isEmpty, "\(testCase.id) passes \(dropped)")
+            let model = ObeyingModel(answer: dropped)
+            do {
+                let shipped = try await GenerativeTextTransformer(kind: .foundationModels, model: model)
+                    .transform(testCase.transformationRequest())
+                Issue.record("\(testCase.id) shipped the dropped answer: \(shipped.text)")
+            } catch {
+                guard case .outputRejected = error else {
+                    Issue.record("\(testCase.id) failed for another reason: \(error)")
+                    continue
+                }
+            }
+        }
+    }
+
+    @Test("accepts each reference answer as a perfect answer to its own case")
+    func referencesAreSelfConsistent() {
+        for testCase in forged {
+            let score = Scorer.score(testCase.expected, against: testCase)
+            #expect(score.similarity == 1, "\(testCase.id) does not match itself")
+            #expect(score.keptEverythingRequired, "\(testCase.id) loses \(score.lost) from its own reference")
+        }
+    }
+}
+
+/// How many times a stand-in model is asked, and the latest prompt, kept apart because the model itself is a value.
 private actor AskCount {
     private(set) var asked = 0
-    func ask() { asked += 1 }
+    private(set) var last = ""
+    func ask(_ prompt: String) {
+        asked += 1
+        last = prompt
+    }
 }
 
 /// A stand-in model that gives one fixed answer, whatever the prompt says, and counts each time it is asked.
@@ -190,7 +254,7 @@ private struct ObeyingModel: CleanupModel {
     func rewrite(
         _ text: String, instructions: String, kind: TransformerKind
     ) async throws(TransformationError) -> String {
-        await prompts.ask()
+        await prompts.ask(text)
         return answer
     }
 }

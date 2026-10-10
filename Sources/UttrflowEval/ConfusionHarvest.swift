@@ -133,10 +133,12 @@ public enum ConfusionHarvest {
 
     /// Whether `speaker` falls in the held-out half for `seed`, decided by a stable hash.
     public static func isHeldOut(speaker: String, seed: UInt64) -> Bool {
-        let value = speaker.utf8.reduce(14_695_981_039_346_656_037 ^ seed) {
-            ($0 ^ UInt64($1)) &* 1_099_511_628_211
-        }
-        return value % 2 == 1
+        stableHash(speaker, seed: seed) % 2 == 1
+    }
+
+    /// A hash of `text` that is the same on every run for the same `seed`, unlike `Hasher`.
+    static func stableHash(_ text: String, seed: UInt64) -> UInt64 {
+        text.utf8.reduce(14_695_981_039_346_656_037 ^ seed) { ($0 ^ UInt64($1)) &* 1_099_511_628_211 }
     }
 
     /// Each utterance's group, with groups read by fewer than `minimumSpeakers` speakers merged into `other`.
@@ -176,9 +178,26 @@ public enum ConfusionHarvest {
 
     /// The share of substitutions in `heldOut` whose word pair `table` holds, or `nil` with none.
     public static func coverage(of table: ConfusionTable, on heldOut: [HarvestUtterance]) -> Double? {
+        coverage(of: table, errors: heldOut.flatMap(substitutions))
+    }
+
+    /// The share of `errors`, as (reference word, recognised word), whose word pair `table` holds, or `nil` with none.
+    package static func coverage(of table: ConfusionTable, errors: [(String, String)]) -> Double? {
         let known = Set(table.pairs.map { [$0.reference, $0.recognised] })
-        let errors = heldOut.flatMap(substitutions)
         guard !errors.isEmpty else { return nil }
         return Double(errors.count { known.contains([$0.0, $0.1]) }) / Double(errors.count)
+    }
+
+    /// The substitutions the recogniser made on calibration-split passages in `scores`: the real errors a table is judged on.
+    package static func calibrationErrors(_ scores: [PassageScore]) -> [(String, String)] {
+        scores.filter { TranscriptionSplit.assignment[$0.caseID] == .calibration }.flatMap { score in
+            (score.wordErrorRate?.alignment ?? []).compactMap {
+                if case .substitution(let reference, let hypothesis) = $0 {
+                    (reference, hypothesis)
+                } else {
+                    nil
+                }
+            }
+        }
     }
 }

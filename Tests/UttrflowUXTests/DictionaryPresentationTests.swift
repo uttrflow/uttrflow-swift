@@ -226,6 +226,42 @@ struct DictionaryRetirementTests {
         #expect(!row.actions[0].isDestructive)
     }
 
+    /// The undone corrections are the cause; a row that names them says what Restore alone will not fix.
+    @Test("a retired word lists the heard spellings it was undone for, with counts")
+    func undoneFor() throws {
+        let entry = HistoryFixture.word("Nikhil", used: 10, reverted: 7)
+        let undone = { (heard: String, minutesAgo: Int) in
+            HistoryFixture.correction(
+                heard: heard, wrote: "Nikhil", minutesAgo: minutesAgo, isUndone: true, entry: entry.id)
+        }
+        let corrections = [
+            undone("nicole", 1), undone("nickel", 2), undone("nickel", 3),
+            // Kept, or made for another word: neither is why this one retired.
+            HistoryFixture.correction(heard: "nickle", wrote: "Nikhil", entry: entry.id),
+            HistoryFixture.correction(heard: "nicky", wrote: "Nicky", isUndone: true),
+        ]
+        let row = HistoryFixture.dictionary(entries: [entry], corrections: corrections).rows[0]
+        let reason = try #require(row.undoneFor)
+        #expect(reason.text == "Undone for: \u{2018}nickel\u{2019} (2), \u{2018}nicole\u{2019} (1)")
+        #expect(reason.spoken == "Undone where it replaced nickel 2 times; nicole 1 time")
+    }
+
+    @Test("a word that has not retired lists nothing it was undone for")
+    func notRetiredListsNothing() {
+        let entry = HistoryFixture.word("Nikhil", used: 15, reverted: 1)
+        let correction = HistoryFixture.correction(
+            heard: "nickel", wrote: "Nikhil", isUndone: true, entry: entry.id)
+        let row = HistoryFixture.dictionary(entries: [entry], corrections: [correction]).rows[0]
+        #expect(row.undoneFor == nil)
+    }
+
+    /// History is kept for a while only, so a retired word may have nothing left to show.
+    @Test("a retired word whose undone corrections have aged out lists nothing")
+    func agedOut() {
+        let row = HistoryFixture.dictionary(entries: [HistoryFixture.word(used: 10, reverted: 7)]).rows[0]
+        #expect(row.undoneFor == nil)
+    }
+
     /// Explaining a state nothing is in teaches the user to skip the small print.
     @Test("retirement is explained only when something has retired")
     func footnote() {
@@ -350,7 +386,8 @@ struct DictionaryEditorTests {
             ).editor)
         #expect(editor.canSave)
         #expect(editor.problem == nil)
-        #expect(editor.save.intent == .saveWord(word: "Uttrflow", pronunciation: "utter-flow"))
+        #expect(
+            editor.save.intent == .saveWord(word: "Uttrflow", pronunciation: "utter-flow", applications: []))
     }
 
     /// The second field is genuinely optional — most words are spelt as they sound.
@@ -414,7 +451,8 @@ struct DictionaryEditorTests {
         #expect(editor.badge.text == "Editing")
         #expect(editor.replace == nil)
         #expect(
-            editor.save.intent == .replaceWord(held.id, word: "Uttrflow", pronunciation: "utter flow"))
+            editor.save.intent
+                == .replaceWord(held.id, word: "Uttrflow", pronunciation: "utter flow", applications: []))
     }
 
     @Test("editing a word into another held word's spelling is still refused")
@@ -437,7 +475,9 @@ struct DictionaryEditorTests {
         let named = "\u{2018}Open AI\u{2019} is already in your dictionary as \u{2018}OpenAI\u{2019}."
         #expect(editor.problem == named)
         #expect(!editor.canSave)
-        #expect(editor.replace?.intent == .replaceWord(held.id, word: "Open AI", pronunciation: ""))
+        #expect(
+            editor.replace?.intent
+                == .replaceWord(held.id, word: "Open AI", pronunciation: "", applications: []))
     }
 
     @Test("two spellings of one word are flagged as sounding alike and offered a merge")
@@ -711,6 +751,25 @@ struct DictionaryTrialTests {
         #expect(editor?.trial == nil)
     }
 
+    @Test("the editor offers Say it once there is a spelling, and its result shows only under Say it like")
+    func editorOffersSayIt() {
+        #expect(page(draft: DictionaryDraft(), trial: nil).editor?.sayIt == nil)
+        let heard = page(
+            draft: DictionaryDraft(word: "Quillon"),
+            trial: DictionaryTrial(
+                subject: .draftPronunciation, phase: .result(line: "Heard as “quill on”", offer: nil))
+        ).editor
+        #expect(heard?.sayIt?.intent == .sayDraft(word: "Quillon"))
+        #expect(
+            heard?.sayItTrial == DictionaryTrialLine(text: "Heard as “quill on”", isBusy: false, offer: nil))
+        #expect(heard?.trial == nil)
+        let tried = page(
+            draft: DictionaryDraft(word: "Quillon"),
+            trial: DictionaryTrial(subject: .draft, phase: .listening)
+        ).editor
+        #expect(tried?.sayItTrial == nil)
+    }
+
     @Test("a running try says so, and a draft's try does not show on a row")
     func busy() {
         let word = HistoryFixture.word("Quillon")
@@ -751,5 +810,51 @@ struct DictionaryTrialTests {
             "nikkel", to: DictionaryDraft(word: "Nickel", pronunciation: "nick el"))
         #expect(DictionaryEntry.pronunciations(inField: both.pronunciation) == ["nick el", "nikkel"])
         #expect(both.word == "Nickel")
+    }
+}
+
+@Suite("Several dictionary words at once")
+struct DictionarySelectionTests {
+    @Test("nothing ticked draws no bar")
+    func nothingTicked() {
+        let rows = HistoryFixture.dictionary(entries: [HistoryFixture.word()]).rows
+        #expect(DictionaryPresenter.selection([], in: rows) == nil)
+    }
+
+    @Test("Delete selected removes every ticked word in one batch")
+    func deleteSelected() throws {
+        let entries = (1...20).map { HistoryFixture.word("Word\($0)", origin: .learned) }
+        let rows = HistoryFixture.dictionary(entries: entries).rows
+        let ticked = Set(entries.map(\.id))
+        let bar = try #require(DictionaryPresenter.selection(ticked, in: rows))
+        #expect(bar.count == "20 words selected")
+        #expect(bar.selectAll == nil)
+        #expect(bar.delete.intent == .forgetWords(ticked))
+        #expect(bar.delete.isDestructive)
+        #expect(bar.restore == nil)
+    }
+
+    @Test("Restore selected restores only the ticked words that retired")
+    func restoreSelected() throws {
+        let retired = HistoryFixture.word("Kestrel", used: 10, reverted: 7)
+        let kept = HistoryFixture.word("Osprey")
+        let rows = HistoryFixture.dictionary(entries: [retired, kept]).rows
+        let bar = try #require(DictionaryPresenter.selection([retired.id, kept.id], in: rows))
+        #expect(bar.restore?.intent == .restoreWords([retired.id]))
+        #expect(bar.restore?.isDestructive == false)
+        #expect(bar.delete.intent == .forgetWords([retired.id, kept.id]))
+    }
+
+    @Test("a ticked word the search hides is not acted on")
+    func hiddenRowsAreLeftAlone() throws {
+        let shown = HistoryFixture.word("Kestrel")
+        let hidden = HistoryFixture.word("Osprey")
+        let other = HistoryFixture.word("Kestrels")
+        let rows = HistoryFixture.dictionary(entries: [shown, hidden, other], query: "Kestrel").rows
+        let bar = try #require(DictionaryPresenter.selection([shown.id, hidden.id], in: rows))
+        #expect(bar.ids == [shown.id])
+        #expect(bar.count == "1 word selected")
+        #expect(bar.selectAll == "Select all 2")
+        #expect(DictionaryPresenter.selection([hidden.id], in: rows) == nil)
     }
 }

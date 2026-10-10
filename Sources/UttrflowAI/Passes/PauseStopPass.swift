@@ -4,6 +4,7 @@ public import UttrflowCore
 public struct PauseStopPass: PieceCleaningPass {
     public static let id: PassID = .pauseStop
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    public static let orderIndependentWith: Set<PassID> = [.spelledInitialism]
 
     /// The silence that ends a sentence: the pause that also ends a piece, so both boundaries agree.
     public static func sentencePause(for pauses: PauseLength) -> Duration {

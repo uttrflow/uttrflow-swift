@@ -173,6 +173,8 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
     public let hasDefaultInputDevice: Bool?
     /// Every stage timing recorded since the app started.
     public let measurements: [StageMeasurement]
+    /// Counts of suggestion lines capture excluded, by closed reason.
+    public let captureSkips: [CaptureSkipReason: Int]
     /// The words the active recogniser last kept in its prompt, from the local recorder.
     public let vocabularyPrompt: [String]
     /// The bounded per-piece decode effort recorded since the app started.
@@ -189,6 +191,10 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
     public let lastCleanedBy: TransformerKind?
     /// How the tidy route ended for recent pieces, per engine.
     public let tidyTally: TidyTally
+    /// Why the last dictation's screen read carried no field text, or `nil` when it did or none was read.
+    public let screenTextUnavailable: ContextUnavailableReason?
+    /// Which rung answered each screen read since launch, per application, without field text.
+    public let readRungs: ContextReadTally
     /// How far along the model AI suggestions need is.
     public let suggestionModel: SuggestionModelReadiness
     /// Which build is running.
@@ -214,6 +220,7 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         dictationShortcutArmed: Bool? = nil,
         hasDefaultInputDevice: Bool? = nil,
         measurements: [StageMeasurement] = [],
+        captureSkips: [CaptureSkipReason: Int] = [:],
         vocabularyPrompt: [String] = [],
         decoding: [DecodeEffort] = [],
         segmentReliability: [SegmentReliability] = [],
@@ -221,6 +228,8 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         speechModelLoads: [SpeechModelLoadRecord] = [],
         cleaning: CleaningRecord? = nil,
         tidyTally: TidyTally = TidyTally(),
+        screenTextUnavailable: ContextUnavailableReason? = nil,
+        readRungs: ContextReadTally = ContextReadTally(),
         lastCleanedBy: TransformerKind? = nil,
         suggestionModel: SuggestionModelReadiness = .notAsked,
         version: AppVersion = .unknown,
@@ -239,6 +248,7 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         self.dictationShortcutArmed = dictationShortcutArmed
         self.hasDefaultInputDevice = hasDefaultInputDevice
         self.measurements = measurements
+        self.captureSkips = captureSkips
         self.vocabularyPrompt = vocabularyPrompt
         self.decoding = decoding
         self.segmentReliability = segmentReliability
@@ -246,6 +256,8 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         self.speechModelLoads = speechModelLoads
         self.cleaning = cleaning
         self.tidyTally = tidyTally
+        self.screenTextUnavailable = screenTextUnavailable
+        self.readRungs = readRungs
         self.lastCleanedBy = lastCleanedBy
         self.suggestionModel = suggestionModel
         self.version = version
@@ -291,6 +303,8 @@ public struct DiagnosticsPresentation: Sendable, Equatable {
     public let decoding: [DiagnosticsRow]
     /// The wait after key-up per dictation, and how often each cause made it run past the target.
     public let waits: [DiagnosticsRow]
+    /// Why suggestion lines were not learned, counted without keeping their words.
+    public let captureSkips: [DiagnosticsRow]
     /// How many kept dictations reached a field, by arrival. Empty until History holds one.
     public let arrivals: [DiagnosticsRow]
     /// The speech model's last loads, newest first, each saying whether a recompile explains it.
@@ -324,6 +338,7 @@ public struct DiagnosticsPresentation: Sendable, Equatable {
         reliability: [MainStatistic],
         decoding: [DiagnosticsRow],
         waits: [DiagnosticsRow] = [],
+        captureSkips: [DiagnosticsRow] = [],
         speechModelLoads: [DiagnosticsRow] = [],
         arrivals: [DiagnosticsRow] = [],
         engines: [DiagnosticsRow],
@@ -344,6 +359,7 @@ public struct DiagnosticsPresentation: Sendable, Equatable {
         self.reliability = reliability
         self.decoding = decoding
         self.waits = waits
+        self.captureSkips = captureSkips
         self.speechModelLoads = speechModelLoads
         self.arrivals = arrivals
         self.engines = engines
@@ -391,10 +407,14 @@ public enum DiagnosticsPresenter {
             decoding: decodingRows(
                 for: snapshot.decoding, segments: snapshot.segmentReliability, locale: locale),
             waits: waitRows(for: snapshot.waits, locale: locale),
+            captureSkips: captureSkipRows(for: snapshot.captureSkips),
             speechModelLoads: speechModelLoadRows(for: snapshot.speechModelLoads, locale: locale),
             arrivals: arrivalRows(for: snapshot.arrivals),
             engines: engines,
-            cleanUp: cleanUpRows(for: snapshot.cleaning) + tidyTallyRows(for: snapshot.tidyTally),
+            cleanUp: cleanUpRows(for: snapshot.cleaning)
+                + screenTextRows(for: snapshot.screenTextUnavailable)
+                + readRungRows(for: snapshot.readRungs)
+                + tidyTallyRows(for: snapshot.tidyTally),
             vocabularyPrompt: DiagnosticsRow(
                 title: "Words in recogniser prompt",
                 detail: snapshot.vocabularyPrompt.isEmpty
@@ -408,6 +428,20 @@ public enum DiagnosticsPresenter {
             footnote: footnote,
             copyAction: MainAction(
                 title: "Copy Diagnostics", intent: .copy(report(for: snapshot, locale: locale))))
+    }
+
+    /// Names only the fixed detector reasons, never the line that was skipped.
+    static func captureSkipRows(for counts: [CaptureSkipReason: Int]) -> [DiagnosticsRow] {
+        CaptureSkipReason.allCases.compactMap { reason in
+            guard let count = counts[reason], count > 0 else { return nil }
+            let title: String
+            switch reason {
+            case .insertedText: title = "Text not typed"
+            case .unmatchedKeys: title = "Text did not match typed keys"
+            }
+            return DiagnosticsRow(
+                title: title, detail: MainFormatting.count(count, "line", "lines"), state: .unknown)
+        }
     }
 
     // MARK: - Models
@@ -537,6 +571,8 @@ public enum DiagnosticsPresenter {
             case .loading: ("Loading", .unknown)
             case .ready: ("Loaded", .good)
             case .releasedForMemory: ("Set aside for memory", .unknown)
+            case .insufficientSpace(let neededBytes):
+                ("Needs \(neededBytes.formatted(.byteCount(style: .file))) free", .attention)
             case .fetchFailed, .failed: ("Could not be fetched", .attention)
             case .loadFailed: ("Could not be loaded", .attention)
             }
@@ -933,6 +969,34 @@ public enum DiagnosticsPresenter {
         ]
     }
 
+    /// Why the last dictation read no field text, so a blank screen is never taken for an empty field.
+    static func screenTextRows(for unavailable: ContextUnavailableReason?) -> [DiagnosticsRow] {
+        guard let unavailable else { return [] }
+        return [
+            DiagnosticsRow(title: "Screen text", detail: "none (\(name(of: unavailable)))", state: .unknown)
+        ]
+    }
+
+    /// The reason as Diagnostics words it.
+    static func name(of unavailable: ContextUnavailableReason) -> String {
+        switch unavailable {
+        case .notTrusted: "not trusted"
+        case .noFocusedElement: "no focused field"
+        case .refused: "refused"
+        case .timedOut: "timed out"
+        case .secure: "secure"
+        case .notTextSurface: "no text surface"
+        case .restricted: "restricted by your setting"
+        }
+    }
+
+    /// One row per application counting which rung answered its screen reads; nothing before the first read.
+    static func readRungRows(for tally: ContextReadTally) -> [DiagnosticsRow] {
+        tally.entries.map {
+            DiagnosticsRow(title: "Screen reads, \($0.bundleIdentifier)", detail: $0.counts, state: .unknown)
+        }
+    }
+
     /// One row per engine counting how its last pieces ended; nothing while no piece was tidied.
     static func tidyTallyRows(for tally: TidyTally) -> [DiagnosticsRow] {
         guard !tally.outcomes.isEmpty else { return [] }
@@ -1134,6 +1198,12 @@ public enum DiagnosticsPresenter {
             lines += waits.map { "  \($0.title): \($0.detail)" }
         }
 
+        let captureSkips = captureSkipRows(for: snapshot.captureSkips)
+        if !captureSkips.isEmpty {
+            lines += ["", "Suggestion lines not learned"]
+            lines += captureSkips.map { "  \($0.title): \($0.detail)" }
+        }
+
         let arrivals = arrivalRows(for: snapshot.arrivals)
         lines += ["", arrivals.isEmpty ? "Arrival: no dictations kept" : "Arrival (kept dictations)"]
         lines += arrivals.map { "  \($0.title): \($0.detail)" }
@@ -1146,6 +1216,14 @@ public enum DiagnosticsPresenter {
         let counted = snapshot.cleaning.map(countedCleanUp) ?? []
         if !counted.isEmpty {
             lines += ["", "Clean-up steps, last dictation"] + counted
+        }
+        // The reason only, never the field: this string is pasted elsewhere.
+        if let screenText = screenTextRows(for: snapshot.screenTextUnavailable).first {
+            lines += ["", "\(screenText.title): \(screenText.detail)"]
+        }
+        // Summed across applications, never per app: this string is pasted elsewhere.
+        if !snapshot.readRungs.counts.isEmpty {
+            lines += ["", "Screen reads by rung, all apps: \(snapshot.readRungs.allApplications)"]
         }
         if !snapshot.tidyTally.outcomes.isEmpty {
             lines += ["", "Tidy outcomes, last \(snapshot.tidyTally.outcomes.count) pieces"]

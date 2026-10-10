@@ -13,15 +13,16 @@ struct CleanedDictationTests {
         word: "Uttrflow", pronunciation: "utter flow", origin: .added, firstSeen: .distantPast)
 
     private func pipeline(
-        knowing entries: [DictionaryEntry] = [], layers: QualityLayers = QualityLayers()
+        knowing entries: [DictionaryEntry] = [], layers: QualityLayers = QualityLayers(),
+        speechWords: @escaping @Sendable (AppContext) async -> [String] = { _ in [] }
     ) -> DictationPipeline {
         let index = PhoneticIndex(entries: entries)
         let router = TransformerRouter(
             engines: [RuleBasedTransformer()], preference: [.rules], rulesAlone: .shortReplies)
         return DictationPipeline(
             capture: FakeAudioCaptureEngine(), speech: FakeSpeechEngine(), cleaner: router,
-            context: FakeContextEngine(), inserter: FakeTextInserter(),
-            corrector: DictionaryCorrections { index }, layers: layers)
+            context: FakeContextEngine(), inserter: FakeTextInserter(), speechWords: speechWords,
+            corrector: DictionaryCorrections { _ in index }, layers: layers)
     }
 
     /// A transcript scored word by word, a word marked `?` doubted at the confidence the recogniser gives a guess.
@@ -61,7 +62,7 @@ struct CleanedDictationTests {
 
     @Test("the dictionary corrects a doubted run and leaves an unscored transcript alone")
     func dictionaryNeedsScores() async {
-        let corrector = DictionaryCorrections { PhoneticIndex(entries: [Self.entry]) }
+        let corrector = DictionaryCorrections { _ in PhoneticIndex(entries: [Self.entry]) }
 
         let said = "Uttrflow works offline and the whole point of ?utter ?flow is that nothing leaves the Mac"
         let heard = await corrector.corrections(for: scored(said), seeing: AppContext())
@@ -74,7 +75,7 @@ struct CleanedDictationTests {
 
     @Test("an unscored transcript still takes an entry's case, which weighs nothing")
     func unscoredTakesTheEntryCase() async {
-        let corrector = DictionaryCorrections { PhoneticIndex(entries: [Self.entry]) }
+        let corrector = DictionaryCorrections { _ in PhoneticIndex(entries: [Self.entry]) }
         let unscored = await corrector.corrections(
             for: Transcription(text: "the uttrflow build is green"), seeing: AppContext())
 
@@ -104,6 +105,14 @@ struct CleanedDictationTests {
 
         #expect(on.text?.contains("point of Uttrflow is") == true)
         #expect(off.text?.contains("point of utter flow is") == true)
+    }
+
+    @Test("the tidier is given the dictation's words, so a lower-case entry keeps its case at the start")
+    func tidierGetsTheDictationWords() async {
+        let cleaned = await pipeline(speechWords: { _ in ["qelvo"] }).clean(
+            [Transcription(text: "qelvo apply the manifest")], seeing: AppContext())
+
+        #expect(cleaned.text?.hasPrefix("qelvo apply") == true)
     }
 
     @Test("nothing writable is reported as no text, as a dictation refuses silence")

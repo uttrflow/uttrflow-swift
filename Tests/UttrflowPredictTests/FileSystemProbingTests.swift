@@ -6,11 +6,11 @@ import Testing
 
 /// A clock a test moves by hand.
 private final class HandClock: Sendable {
-    private let moment = Mutex(Date(timeIntervalSince1970: 1_800_000_000))
+    private let moment = Mutex(ContinuousClock.now)
 
-    var now: Date { moment.withLock { $0 } }
+    var now: ContinuousClock.Instant { moment.withLock { $0 } }
 
-    func advance(by seconds: Double) { moment.withLock { $0 = $0.addingTimeInterval(seconds) } }
+    func advance(by seconds: Double) { moment.withLock { $0 = $0.advanced(by: .seconds(seconds)) } }
 }
 
 /// A gate a blocked stat waits on until the test lets it go.

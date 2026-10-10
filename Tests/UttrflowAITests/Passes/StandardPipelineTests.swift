@@ -233,6 +233,34 @@ struct StandardPipelineTests {
         #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
     }
 
+    @Test(
+        "keeps repeated numbers after a digit cue through the rest of the sentence",
+        arguments: [
+            (
+                "set the port to eighty eighty and the timeout to twenty one seconds",
+                "Set the port to 8080 and the timeout to 21 seconds."
+            ),
+            ("set the port to eighty eighty and restart", "Set the port to 8080 and restart."),
+            ("set the port to eighty eighty", "Set the port to 8080."),
+            ("the server listens on port eighty eighty", "The server listens on port 8080."),
+        ]
+    )
+    func repeatedNumberAfterCue(input: String, expected: String) {
+        #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "leaves a repeated number with no digit cue as it read before",
+        arguments: [
+            ("twenty twenty", "2020"),
+            ("one one", "One one."),
+            ("six six six", "666"),
+        ]
+    )
+    func repeatedNumbersStay(input: String, expected: String) {
+        #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
     @Test("removes fillers glued to their neighbours by pause ellipses, keeping the ellipses between words")
     func removesGluedFillers() {
         #expect(

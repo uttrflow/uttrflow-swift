@@ -1,6 +1,7 @@
 // Validates and merges a local personal-data archive into the two stores.
 
 public import UttrflowDictionary
+import struct UttrflowCore.Snippet
 public import struct Foundation.Data
 public import struct Foundation.Date
 public import struct Foundation.URL
@@ -43,14 +44,31 @@ public enum PersonalDataTransfer {
                 return (merge.records, merge)
             }
         } catch {
-            let added = Set(snippetMerge.added.map(\.id))
-            try? await snippets.replaceAll { current in (current.filter { !added.contains($0.id) }, ()) }
+            await undo(snippetMerge.added, in: snippets)
+            throw error
+        }
+        // Refusals go last: they only bind learning, and adding words removes none of them.
+        let refusals: RefusalImport
+        do {
+            refusals = try await dictionary.importRefusals(archive.refused)
+        } catch {
+            let added = Set(words.outcome.added.map(\.id))
+            _ = try? await dictionary.replaceAll { current in (current.filter { !added.contains($0.id) }, ())
+            }
+            await undo(snippetMerge.added, in: snippets)
             throw error
         }
         return PersonalDataImportReport(
             duplicateWords: words.outcome.duplicates, duplicateSnippets: snippetMerge.duplicates,
             skippedInferredWords: words.outcome.records.count - words.kept.count,
-            snippetsSayingCommands: snippetMerge.added.count { $0.collidingCommand != nil })
+            snippetsSayingCommands: snippetMerge.added.count { $0.collidingCommand != nil },
+            refusedWords: refusals.added, lapsedRefusals: refusals.lapsed)
+    }
+
+    /// Removes the snippets an import appended, which is an exact undo because their merge only appends.
+    private static func undo(_ added: [Snippet], in snippets: SnippetStore) async {
+        let ids = Set(added.map(\.id))
+        try? await snippets.replaceAll { current in (current.filter { !ids.contains($0.id) }, ()) }
     }
 
     /// Reads a user-selected word list under the archive's byte ceiling, then adds every line the editor would accept.
@@ -102,4 +120,8 @@ public struct PersonalDataImportReport: Sendable, Equatable {
     public let skippedInferredWords: Int
     /// Snippets imported although their trigger says a spoken command, so they never fire and the command wins.
     public let snippetsSayingCommands: Int
+    /// Spellings the archive refused that this Mac now refuses too.
+    public let refusedWords: Int
+    /// Refusals dropped, oldest first, to stay within `PersonalDictionaryStore.maximumRefusedWords`.
+    public let lapsedRefusals: Int
 }

@@ -171,6 +171,19 @@ struct OnboardingSignInTests {
         #expect(harness.profiles.load() == nil)
     }
 
+    @Test("a profile this build cannot believe leaves every provider live for a fresh sign-in")
+    func anUnbelievableSessionCanBeSignedInAgain() async {
+        let harness = Harness(
+            signedIn: false, profiles: InMemoryProfileCache(refusesToSave: true))
+        await harness.flow.start()
+        #expect(await harness.choose(.google))
+
+        await harness.returnFromBrowser()
+        #expect(harness.page.hint == AccountError.sessionMalformed.userMessage)
+        #expect(harness.liveProviders == SignInProvider.offered)
+        #expect(harness.page.hasSomethingToPress)
+    }
+
     @Test("a provider that cannot even be reached lands on the offline page, not an error")
     func anUnreachableProviderLandsOffline() async {
         let harness = Harness(

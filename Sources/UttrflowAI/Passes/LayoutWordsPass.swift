@@ -4,7 +4,8 @@ public import UttrflowCore
 /// Turns "new line", "new paragraph", "bullet point" and "number one" into layout, between words only.
 public struct LayoutWordsPass: PieceCleaningPass {
     public static let id: PassID = .layoutWords
-    public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    public static let laws: Set<PassLaw> = [.idempotent, .addsNoWords, .latinOnly]
+    public static let orderIndependentWith: Set<PassID> = [.numberForms]
 
     private let layout: LayoutPolicy
     private let insertionState: InsertionPoint.SentenceState
@@ -54,8 +55,9 @@ public struct LayoutWordsPass: PieceCleaningPass {
                 live.removeSubrange(position..<position + found.length)
                 continue
             }
-            // A break with nothing to break from writes no mark, so its words go rather than leave an empty word.
+            // A break with nothing to break from writes an empty mark, then goes, so the audit reads a conversion.
             if found.mark.isEmpty {
+                draft.replace(at: live[position], with: found.mark, by: Self.id)
                 draft.remove(at: live[position], by: Self.id)
             } else {
                 draft.replace(at: live[position], with: found.mark, by: Self.id)

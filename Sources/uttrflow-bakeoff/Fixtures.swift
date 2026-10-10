@@ -38,7 +38,7 @@ struct Fixture {
             expectation: CompletionExpectation(acceptable: acceptable, band: band, forbidden: forbidden))
     }
 
-    /// Whether any of the completions continues the line the way the fixture expects.
+    /// Whether the leading completion continues the line the way the fixture expects.
     func hits(_ completions: [String]) -> Bool { expectation.hits(completions, typed: typed) }
 
     /// Whether a hit here is checked against a named answer rather than taken on any continuation.

@@ -35,7 +35,9 @@ private struct RecoveryFakeExpander: SnippetExpanding {
     var clock: ManualClock?
     var takes: Duration = .zero
 
-    func expand(_ text: String) async throws(DictationChangeError) -> ExpandedTranscript {
+    func expand(
+        _ text: String, in application: String?
+    ) async throws(DictationChangeError) -> ExpandedTranscript {
         clock?.advance(by: takes)
         guard !refuses else { throw .storeRefused }
         guard let replacing, text.contains(replacing.from) else { return .unchanged(text) }

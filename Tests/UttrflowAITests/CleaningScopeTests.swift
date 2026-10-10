@@ -67,13 +67,27 @@ struct CleaningScopeTests {
 
     @Test("a model's answer to a piece keeps its stop, and to a whole short chat message loses it")
     func modelLeavesAPieceUnfinished() async throws {
-        let sut = GenerativeTextTransformer(
-            kind: .foundationModels, model: FakeCleanupModel { _ in "On my way." })
+        let model = FakeCleanupModel { _ in "On my way, see you soon." }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
+
+        let piece = try await sut.transform(request("on my way comma see you soon", scope: .piece))
+        let whole = try await sut.transform(request("on my way comma see you soon", scope: .message))
+
+        #expect(model.calls.count == 2)
+        #expect(piece.text == "On my way, see you soon.")
+        #expect(whole.text == "On my way, see you soon")
+    }
+
+    @Test("a piece the rules settle is left to them unfinished, and the whole message takes its policy")
+    func rulesSettleAPieceWithoutTheModel() async throws {
+        let model = FakeCleanupModel { _ in "On my way." }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
         let piece = try await sut.transform(request("on my way", scope: .piece))
         let whole = try await sut.transform(request("on my way", scope: .message))
 
-        #expect(piece.text == "On my way.")
+        #expect(model.calls.isEmpty)
+        #expect(piece.text == "on my way")
         #expect(whole.text == "On my way")
     }
 

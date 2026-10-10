@@ -12,6 +12,15 @@ public enum SurfaceProbe {
         FocusedFieldReader.snapshot(app: app)?.capability
     }
 
+    /// The app's focused field and its window as a redacted fixture, or nothing when no field is focused.
+    public static func snapshot(of app: FrontmostApp, family: String) -> AccessibilitySnapshot? {
+        guard let field = focusedField(of: app.processIdentifier) else { return nil }
+        let window = element(field, kAXWindowAttribute).map { FocusedFieldReader.AXNode($0) }
+        return SnapshotRecorder.record(
+            family: family, field: FocusedFieldReader.AXNode(field), window: window,
+            in: FocusedFieldReader.AXElementTree(), clock: { DispatchTime.now().uptimeNanoseconds })
+    }
+
     /// Asks system-wide first and the application second, because apps answer only one. See `Docs/insertion.md`.
     static func focusedField(of processIdentifier: pid_t) -> AXUIElement? {
         guard processIdentifier != getpid() else { return nil }

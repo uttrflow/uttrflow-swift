@@ -11,9 +11,9 @@ struct EditHearingSink: CaptureSink {
     let heard: @Sendable (EditedSpan) async -> Void
 
     func record(
-        _ text: String, in surface: Surface, after previous: String?, selfSourced: Bool, at moment: Date
+        _ text: String, in surface: Surface, after previous: String?, as origin: LineOrigin, at moment: Date
     ) async throws {
-        try await store.record(text, in: surface, after: previous, selfSourced: selfSourced, at: moment)
+        try await store.record(text, in: surface, after: previous, as: origin, at: moment)
     }
 
     func supersede(_ text: String, with replacement: String, in surface: Surface) async throws {

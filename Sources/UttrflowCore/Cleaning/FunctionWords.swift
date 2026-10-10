@@ -20,6 +20,14 @@ public enum FunctionWords {
         return meaningBearing.contains(key)
     }
 
+    /// Whether a capital on this small word can name something, as "I", the month "May" and the name "Will" do, so the capital is the speaker's.
+    package static func isCaseSensitive(_ word: String) -> Bool {
+        caseSensitive.contains(word.lowercased().replacingOccurrences(of: "\u{2019}", with: "'"))
+    }
+
+    /// Small words a capital turns into a name or the pronoun "I".
+    static let caseSensitive = words(in: .caseSensitive)
+
     /// Pronouns, modals, copula and perfect aux, and prepositions that set a direction; their removal or substitution changes what was said.
     public static let meaningBearing = words(in: .meaningBearing)
 
@@ -53,7 +61,7 @@ public enum FunctionWords {
 
     /// The lists a small word belongs to.
     enum Role: String, Decodable, Sendable {
-        case function, leadsOn, meaningBearing, determiner, prose, subordinator, closingTag
+        case function, leadsOn, meaningBearing, caseSensitive, determiner, prose, subordinator, closingTag
     }
 
     /// One small word and the lists it belongs to.

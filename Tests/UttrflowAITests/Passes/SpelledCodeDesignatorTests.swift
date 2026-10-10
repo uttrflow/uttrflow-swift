@@ -43,6 +43,10 @@ struct SpelledCodeDesignatorTests {
             ("gate b twelve.", "Gate B12."),
             ("go to row twelve c", "Go to row 12C."),
             ("the code is b one", "The code is b one."),
+            ("retries when uploading to s three", "Retries when uploading to S3."),
+            ("so v one fails but the v two route works", "So v1 fails but the v2 route works."),
+            ("the a four paper and two of the a three", "The A4 paper and two of the A3."),
+            ("print these a five sheets", "Print these A5 sheets."),
         ])
     func joins(input: String, expected: String) {
         #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
@@ -62,6 +66,10 @@ struct SpelledCodeDesignatorTests {
             ("give me a two minute warning", "Give me a two minute warning."),
             ("seat a four year old", "Seat a four year old."),
             ("i two think so", "I two think so."),
+            ("we need a three", "We need a three."),
+            ("is this a four day trip", "Is this a four day trip?"),
+            ("tell her a three word answer", "Tell her a three word answer."),
+            ("s nine is not a bucket", "S nine is not a bucket."),
         ])
     func keeps(input: String, expected: String) {
         #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
