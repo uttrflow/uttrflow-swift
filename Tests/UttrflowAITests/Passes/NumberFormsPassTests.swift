@@ -534,6 +534,19 @@ struct NumberFormsPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test(
+        "reads a meridiem said as its two letters as the cue after a time of day",
+        arguments: [
+            ("which is one thirty p m eastern", "which is 1:30 p m eastern"),
+            ("the call is at three p m", "the call is at 3 p m"),
+            ("ten a m", "10 a m"),
+            ("one thirty a b", "one thirty a b"),
+        ]
+    )
+    func timesBeforeSpokenMeridiem(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     /// A relative clock phrase keeps every word; only the place's number policy reaches the numbers in it.
     @Test(
         "keeps the words of a relative clock phrase under either policy",
@@ -1122,5 +1135,36 @@ struct NumberWordsTests {
     )
     func hindiNumberInAnEnglishSentence(input: String, expected: String) {
         #expect(cleaned(input, by: NumberFormsPass()) == expected)
+    }
+
+    @Test(
+        "joins a spoken k after a number to it as one amount",
+        arguments: [
+            ("it is about six k so bring shoes", "it is about 6k so bring shoes"),
+            ("the last three k", "the last 3k"),
+            ("nothing for sixty k", "nothing for 60k"),
+            ("about two point five k", "about 2.5k"),
+            ("an eight k b page", "an 8 k b page"),
+            ("seat twelve k", "seat 12 k"),
+            ("plan k", "plan k"),
+        ]
+    )
+    func thousandsSuffix(input: String, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass(policy: .fromTen)) == expected)
+    }
+
+    @Test(
+        "writes a score out of ten with a slash unless ten counts a plural noun after it",
+        arguments: [
+            ("pain three out of ten down from seven", "pain 3/10 down from seven"),
+            ("I would give it eight out of ten", "I would give it 8/10"),
+            ("three out of ten people agreed", "three out of 10 people agreed"),
+            ("three out of ten patients in the trial", "three out of 10 patients in the trial"),
+            ("two out of three", "two out of three"),
+            ("out of ten", "out of 10"),
+        ]
+    )
+    func scoresOutOfTen(input: String, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass(policy: .fromTen)) == expected)
     }
 }

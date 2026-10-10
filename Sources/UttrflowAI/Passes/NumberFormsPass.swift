@@ -353,7 +353,7 @@ public struct NumberFormsPass: PieceCleaningPass {
         digits: DigitGrouping = .thousands
     ) -> Phrase? {
         let fixedShapes: [(Int, [String], [WordShape]) -> Phrase?] = [
-            zoneOffset, signedDigitRun, numericDate, cuedYear, cuedClock, twentyFourHourClock,
+            score, zoneOffset, signedDigitRun, numericDate, cuedYear, cuedClock, twentyFourHourClock,
             dottedNumber, spokenDigitRun, leadingDecimal, decade,
         ]
         for reading in fixedShapes {
@@ -471,7 +471,7 @@ public struct NumberFormsPass: PieceCleaningPass {
             digits: digits)
     }
 
-    /// Decimal places joined with "point", then "percent" or "per cent".
+    /// Decimal places joined with "point", then "percent" or "per cent", or a "k" for thousands.
     private static func decimalAndPercent(
         _ item: Item, at position: Int, keys: [String], shapes: [WordShape]
     ) -> Phrase? {
@@ -486,6 +486,9 @@ public struct NumberFormsPass: PieceCleaningPass {
         if let percent = percentWords(at: end, keys: keys, shapes: shapes) {
             text += "%"
             end += percent
+        } else if thousandsMark(at: end, after: position, keys: keys, shapes: shapes) {
+            text += shapes[end].core
+            end += 1
         }
         return end == position + item.count ? nil : Phrase(text: text, count: end - position)
     }
@@ -717,7 +720,7 @@ public struct NumberFormsPass: PieceCleaningPass {
             sentenceEndIsCue && (minuteEnd >= shapes.count || shapes[minuteEnd - 1].endsSentence)
         let hasAfterCue =
             minuteEnd < shapes.count && joined(minuteEnd, shapes)
-            && (meridiems.contains(keys[minuteEnd]) || keys[minuteEnd] == "o'clock")
+            && (isMeridiem(at: minuteEnd, keys: keys, shapes: shapes) || keys[minuteEnd] == "o'clock")
         return hasBeforeCue || hasAfterCue || endsTheSentence
     }
 
@@ -733,6 +736,35 @@ public struct NumberFormsPass: PieceCleaningPass {
         let previous = keys[position - 1]
         return NumberWords.digits(previous) != nil || NumberWords.cardinal([previous]) != nil
             || NumberWords.scales[previous] != nil
+    }
+
+    /// Whether a lone "k" at `index` counts thousands, not a unit ("k b") or a code ("seat twelve k").
+    private static func thousandsMark(
+        at index: Int, after position: Int, keys: [String], shapes: [WordShape]
+    ) -> Bool {
+        guard joined(index, shapes), keys[index] == "k" else { return false }
+        let letterFollows =
+            joined(index + 1, shapes) && keys[index + 1].count == 1 && keys[index + 1].allSatisfy(\.isLetter)
+        let designated = position > 0 && SpelledInitialismPass.designators[keys[position - 1]] != nil
+        return !letterFollows && !designated
+    }
+
+    /// "three out of ten": a score on a scale of ten, written "3/10" unless the ten counts a plural noun after it.
+    private static func score(at position: Int, keys: [String], shapes: [WordShape]) -> Phrase? {
+        guard let item = item(at: position, keys: keys, shapes: shapes), let value = item.value,
+            (0...10).contains(value)
+        else { return nil }
+        let out = position + item.count
+        let scale = out + 2
+        guard joined(scale, shapes), joined(out, shapes), keys[out] == "out", joined(out + 1, shapes),
+            keys[out + 1] == "of", ["ten", "10"].contains(keys[scale])
+        else { return nil }
+        // Ten counts a plural noun after it, "ten people"; a singular one such as "down" starts the next phrase.
+        let next = scale + 1
+        let countsANoun =
+            joined(next, shapes) && LexicalClass.tag(ofWordAt: next, in: keys) == .noun
+            && LexicalClass.lemma(ofWordAt: next, in: keys).map { $0 != keys[next] } == true
+        return countsANoun ? nil : Phrase(text: "\(value)/10", count: next - position)
     }
 
     /// The number of words of a spoken "percent" or "per cent" at `index`, if one is there.
@@ -787,6 +819,12 @@ public struct NumberFormsPass: PieceCleaningPass {
             return Item(value: shorter.value, text: String(shorter.value), count: shorter.count, spoken: true)
         }
         return Item(value: parsed.value, text: String(parsed.value), count: parsed.count, spoken: true)
+    }
+
+    /// Whether a meridiem stands at `index`, written as one word or said as its two letters, "p m".
+    private static func isMeridiem(at index: Int, keys: [String], shapes: [WordShape]) -> Bool {
+        if meridiems.contains(keys[index]) { return true }
+        return ["a", "p"].contains(keys[index]) && joined(index + 1, shapes) && keys[index + 1] == "m"
     }
 
     /// Whether the word at `index` follows its predecessor with no punctuation between them.
@@ -1125,7 +1163,9 @@ public struct NumberFormsPass: PieceCleaningPass {
         if let minutes = minutes(at: start, keys: keys, shapes: shapes) {
             return Phrase(text: "\(hour):\(minutes.text)", count: minutes.count)
         }
-        guard meridiems.contains(keys[start]) || keys[start] == "o'clock" else { return nil }
+        guard isMeridiem(at: start, keys: keys, shapes: shapes) || keys[start] == "o'clock" else {
+            return nil
+        }
         return Phrase(text: String(hour), count: 0)
     }
 
