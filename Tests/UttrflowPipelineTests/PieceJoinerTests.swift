@@ -881,6 +881,28 @@ struct PieceJoinerSeamTests {
         }
     }
 
+    @Test("writes an amount joined across a seam without grouping where the place parses its digits")
+    func joinedAmountFollowsThePlacesGrouping() {
+        let seamed = PieceJoiner.seamed(
+            ["cost = 3000000", "and $5"], heard: ["cost equals three million", "and $5"],
+            under: .standard(for: .sqlEditor))
+
+        #expect(seamed.first == "cost = $3000005")
+    }
+
+    @Test("writes an amount joined across a seam in the person's grouping")
+    func joinedAmountFollowsThePersonsGrouping() {
+        let formatter = DestinationFormatter.standard(for: .document)
+        let situation = Situation(
+            app: .unknown, insertion: .unknown, destination: .document,
+            numberStyle: NumberStyle(grouping: .indian))
+        let seamed = PieceJoiner.seamed(
+            ["It cost 1,00,000", "and ₹50,000"], heard: ["it cost one lakh", "and ₹50,000"],
+            under: formatter, grouping: situation.digits(for: formatter))
+
+        #expect(seamed.first == "It cost ₹1,50,000")
+    }
+
     @Test("keeps separate figures apart when the second number has no currency")
     func keepsSeparateFiguresApart() {
         let whole = PieceJoiner.join(

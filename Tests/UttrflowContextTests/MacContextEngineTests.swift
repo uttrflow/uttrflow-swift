@@ -59,6 +59,7 @@ private func makeEngine(
     ownBundleIdentifier: String? = uttrflowBundle,
     ownProcessIdentifier: Int32 = uttrflowProcess,
     clock: any Clock<Duration> = GatedClock(),
+    slowFields: SlowFields = SlowFields(),
     observeActivations: (@escaping @Sendable (FrontmostApplication) -> Void) -> any Sendable = { _ in () }
 ) -> MacContextEngine {
     MacContextEngine(
@@ -70,6 +71,7 @@ private func makeEngine(
         ownBundleIdentifier: ownBundleIdentifier,
         ownProcessIdentifier: ownProcessIdentifier,
         clock: clock,
+        slowFields: slowFields,
         observeActivations: observeActivations
     )
 }
@@ -851,5 +853,82 @@ struct MacContextEngineTests {
 
         #expect(cut.count == MacContextEngine.selectedTextLimit + 1)
         #expect(cut.hasPrefix("🇮🇳🇮🇳"))
+    }
+}
+
+/// An application that never answers inside the budget, counted so a test can see which reads asked it.
+private final class NeverAnswering: Sendable {
+    let asked = Mutex(0)
+    let hung = Gate()
+
+    func window(_: FrontmostApplication) async -> FocusedWindow? {
+        asked.withLock { $0 += 1 }
+        await hung.wait()
+        return FocusedWindow(title: "never arrives")
+    }
+}
+
+extension MacContextEngineTests {
+    @Test("rests an application whose reads ran over twice, so later dictations ask it nothing at all")
+    func restsAnApplicationThatNeverAnswers() async {
+        let clock = GatedClock()
+        let app = NeverAnswering()
+        let engine = makeEngine(frontmost: { slack }, window: app.window, clock: clock)
+        await clock.gate.open()
+        let first = await engine.currentContext()
+        let second = await engine.currentContext()
+
+        let started = ContinuousClock.now
+        let third = await engine.currentContext()
+        let took = ContinuousClock.now - started
+        let fourth = await engine.currentContext()
+        await app.hung.open()
+
+        #expect(first.unavailable == .timedOut)
+        #expect(second.unavailable == .timedOut)
+        #expect(app.asked.withLock { $0 } == 2, "a resting application must not be asked again")
+        #expect(third.applicationName == "Slack")
+        #expect(third.unavailable == .timedOut)
+        #expect(fourth.unavailable == .timedOut)
+        #expect(took < .milliseconds(5), "a rested read took \(took)")
+    }
+
+    @Test("ends an application's rest when the user switches to it")
+    func switchingToAnApplicationEndsItsRest() async {
+        let clock = GatedClock()
+        let app = NeverAnswering()
+        let report = Mutex<(@Sendable (FrontmostApplication) -> Void)?>(nil)
+        let engine = makeEngine(
+            frontmost: { slack }, window: app.window, clock: clock,
+            observeActivations: { callback in
+                report.withLock { $0 = callback }
+                return ()
+            })
+        await clock.gate.open()
+        _ = await engine.currentContext()
+        _ = await engine.currentContext()
+        _ = await engine.currentContext()
+        report.withLock { $0 }?(slack)
+        _ = await engine.currentContext()
+        await app.hung.open()
+
+        #expect(app.asked.withLock { $0 } == 3)
+    }
+
+    @Test("does not rest an application whose read kept to the budget")
+    func answeringApplicationIsAskedEveryTime() async {
+        let asked = Mutex(0)
+        let engine = makeEngine(
+            frontmost: { slack },
+            window: { _ in
+                asked.withLock { $0 += 1 }
+                return FocusedWindow(title: "general")
+            })
+        _ = await engine.currentContext()
+        let second = await engine.currentContext()
+
+        #expect(asked.withLock { $0 } == 2)
+        #expect(second.documentName == "general")
+        #expect(second.unavailable == nil)
     }
 }

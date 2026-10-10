@@ -41,6 +41,12 @@ struct HarvestConfusions: AsyncParsableCommand {
     @Option(name: .customLong("model"), help: "Model variant. Defaults to the shipping model.")
     var modelVariant: String?
 
+    /// Judges the table on real errors instead of a held-out half, so every clip builds it.
+    @Option(
+        name: .customLong("calibration-results"),
+        help: "A `transcribe` results folder; coverage is measured on its calibration-split errors.")
+    var calibrationResults: String?
+
     func run() async throws {
         let (engine, utterances) = try await ManifestDecoder.decode(
             manifest: manifest, modelVariant: modelVariant)
@@ -48,7 +54,13 @@ struct HarvestConfusions: AsyncParsableCommand {
             dataset: dataset, version: datasetVersion, licence: licence,
             engine: engine,
             seed: seed)
-        let built = utterances.filter { !ConfusionHarvest.isHeldOut(speaker: $0.speaker, seed: seed) }
+        let realErrors = try calibrationResults.map { path in
+            ConfusionHarvest.calibrationErrors(
+                try JSONRecordStore<PassageScore>(directory: URL(fileURLWithPath: path)).all())
+        }
+        let built = utterances.filter {
+            realErrors != nil || !ConfusionHarvest.isHeldOut(speaker: $0.speaker, seed: seed)
+        }
         let heldOut = utterances.filter { ConfusionHarvest.isHeldOut(speaker: $0.speaker, seed: seed) }
         let table = ConfusionHarvest.table(built, provenance: provenance, minimumSpeakers: minimumSpeakers)
         let encoder = JSONEncoder()
@@ -57,9 +69,14 @@ struct HarvestConfusions: AsyncParsableCommand {
         try FileManager.default.createDirectory(
             at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
         try encoder.encode(table).write(to: destination)
-        let coverage = ConfusionHarvest.coverage(of: table, on: heldOut)
+        func percent(_ share: Double?) -> String { share.map { String(format: "%.1f%%", $0 * 100) } ?? "–" }
         print("\(utterances.count) clips; \(table.pairs.count) pairs; digest \(table.digest)")
-        print("Held-out coverage: \(coverage.map { String(format: "%.1f%%", $0 * 100) } ?? "–")")
+        if let realErrors {
+            let coverage = ConfusionHarvest.coverage(of: table, errors: realErrors)
+            print("Coverage of \(realErrors.count) real calibration-split errors: \(percent(coverage))")
+        } else {
+            print("Held-out coverage: \(percent(ConfusionHarvest.coverage(of: table, on: heldOut)))")
+        }
         print("Wrote \(destination.path)")
     }
 }
@@ -67,7 +84,8 @@ struct HarvestConfusions: AsyncParsableCommand {
 /// Decodes a tab-separated manifest of local clips (audio path, reference, first-language group, speaker) with the shipping path.
 enum ManifestDecoder {
     static func decode(
-        manifest: String, modelVariant: String?
+        manifest: String, modelVariant: String?,
+        select: ([AccentSlice.Entry]) -> [AccentSlice.Entry] = { $0 }
     ) async throws -> (engine: String, utterances: [HarvestUtterance]) {
         let model =
             try modelVariant.map { name in
@@ -85,20 +103,18 @@ enum ManifestDecoder {
         try await speech.prepare()
 
         let base = URL(fileURLWithPath: manifest).deletingLastPathComponent()
-        let lines = try String(contentsOfFile: manifest, encoding: .utf8).split(separator: "\n")
+        let entries = select(AccentSlice.entries(try String(contentsOfFile: manifest, encoding: .utf8)))
         var utterances: [HarvestUtterance] = []
-        for (index, line) in lines.enumerated() {
-            let fields = line.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
-            guard fields.count >= 4 else { continue }
-            Terminal.show("\r  \(index + 1) of \(lines.count)          ")
-            let url = URL(fileURLWithPath: fields[0], relativeTo: base)
+        for (index, entry) in entries.enumerated() {
+            Terminal.show("\r  \(index + 1) of \(entries.count)          ")
+            let url = URL(fileURLWithPath: entry.audio, relativeTo: base)
             let audio = try AudioFileReader.read(contentsOf: url)
             let transcription = try await speech.transcribe(audio, options: .automatic)
             utterances.append(
                 HarvestUtterance(
-                    reference: TextNormaliser.standard.words(fields[1]),
-                    recognised: TextNormaliser.standard.words(transcription.text), group: fields[2],
-                    speaker: fields[3]))
+                    reference: TextNormaliser.standard.words(entry.reference),
+                    recognised: TextNormaliser.standard.words(transcription.text), group: entry.group,
+                    speaker: entry.speaker))
         }
         Terminal.clearLine()
         return ("whisperKit \(model.variant)", utterances)

@@ -414,6 +414,17 @@ struct PanelChromeTests {
         #expect(PanelFixture.page([]).hint == "esc to close")
     }
 
+    @Test("the footer points to the keyboard guide under the list, not under a sheet")
+    func shortcutsHint() {
+        let clip = PanelFixture.clip()
+        var snapshot = PanelFixture.panel([clip])
+        #expect(PanelPresenter.present(snapshot).shortcutsHint == "⌘/ shortcuts")
+        #expect(PanelFixture.page([]).shortcutsHint == "⌘/ shortcuts")
+
+        snapshot.sheet = .aliasing(clip.id, draft: "")
+        #expect(PanelPresenter.present(snapshot).shortcutsHint == nil)
+    }
+
     @Test("nothing copied yet says so")
     func nothingCopied() {
         let page = PanelFixture.page([])

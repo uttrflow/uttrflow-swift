@@ -227,7 +227,7 @@ struct SettingsDictationDesignTests {
     @Test("an app's own row carries its icon")
     func appIcons() {
         let last = SettingsApp(bundleIdentifier: "com.example.notes", name: "Notes")
-        let places = SettingsDestinations.places(.none, lastApp: last)
+        let places = SettingsDestinations.places(.none, recentApps: [last])
         #expect(places.rows.first?.icon == .application(bundleIdentifier: "com.example.notes", name: "Notes"))
     }
 }
@@ -285,6 +285,20 @@ struct DiagnosticsModelCardTests {
         let models = page(DiagnosticsSnapshot(suggestionModel: readiness)).models
         try #require(models.count == 3)
         #expect(models[2].status == status)
+    }
+
+    @Test("Diagnostics says how much free space the model needs")
+    func suggestionModelNeedsSpace() throws {
+        let readiness = SuggestionModelReadiness.insufficientSpace(neededBytes: 3_230_000_000)
+        let requiredSpace = try #require(readiness.requiredSpaceDescription)
+        let models = page(DiagnosticsSnapshot(suggestionModel: readiness)).models
+        try #require(models.count == 3)
+        let card = models[2]
+
+        #expect(requiredSpace.contains("3"))
+        #expect(requiredSpace.contains("GB"))
+        #expect(card.status == "Needs \(requiredSpace) free")
+        #expect(card.state == .attention)
     }
 
     @Test("this Mac lists the build and the machine only when they are known, and the report carries them")

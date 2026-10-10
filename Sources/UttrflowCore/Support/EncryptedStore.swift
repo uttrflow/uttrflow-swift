@@ -223,7 +223,15 @@ public struct EncryptedStore: Sendable {
     package func write<Value: Encodable & Sendable>(
         _ value: Value, to url: URL, preservingPreviousGeneration: Bool
     ) throws {
-        let data = try JSONEncoder().encode(value)
+        try write(
+            encoded: JSONEncoder().encode(value), to: url,
+            preservingPreviousGeneration: preservingPreviousGeneration)
+    }
+
+    /// Seals JSON a caller has already encoded, so a list is not encoded a second time to be sealed.
+    package func write(
+        encoded data: Data, to url: URL, preservingPreviousGeneration: Bool
+    ) throws {
         var key: SymmetricKey
         var previous: Data?
         do {
