@@ -30,7 +30,9 @@ inside and a one-line summary. `QualityLayers` resolves which are on from those 
 only by the local defaults key `QualityLayer.<name>` (`-QualityLayer.<name> NO` for one launch),
 never from a network source. `QualityLayers.ablation(only:without:)` builds the set a bake-off or
 eval run asks for, and refuses an unknown name. A new layer is added as a case with `defaultOn`
-false, measured, then turned on in a reviewed pull request.
+false, measured, then turned on in a reviewed pull request. `persona-vocabulary` is such a case inside
+recogniser bias: it ranks the prompt's words by the persona projection in
+[learned-state.md](learned-state.md#the-persona-projection).
 
 `DictationPipeline` takes the set as `layers` and a layer that is off leaves its stage's input as it
 came: recogniser bias off sends the recogniser no vocabulary; evidence capture, candidate
@@ -41,6 +43,19 @@ stored apart, and `--against` refuses a baseline run with other layers unless
 `--allow-difference layers`. Each layer's latency budget is the p95-plus-headroom row of the stage it
 runs in, mapped in `LAYER_STAGES` in `Scripts/perf_budget_audit.py`; the audit fails a layer with no
 stage or a stage with no row, and prints each layer still awaiting a measurement with its reason.
+`QualityLayer.inputs` names the layers each one reads; every default-on layer off alone, and with
+each layer it reads, must keep the corpus above the floor, as
+[degraded-path-matrix.md](degraded-path-matrix.md) reports.
+
+Each of those paths is also paired against the default set (`LayerContribution`,
+`Sources/UttrflowEval/LayerContribution.swift`): the change in failed-case rate and in invented,
+deleted and lost words with the layers off, each with its paired-bootstrap interval and minimum
+detectable change, the false overrides the layers make and the latency they add. A layer is kept
+only when an improvement's interval excludes zero and no measure's interval lies wholly below it;
+the override gate, which exists to prevent harm, is judged by the meaning-changing errors it
+prevents alone. Any other layer is listed for removal. The table without latency is generated into
+[degraded-path-matrix.md](degraded-path-matrix.md#each-layers-marginal-contribution); with latency,
+`make release-quality` adds it to `dist/release-quality.md`.
 
 ## Rules that hold across every layer
 
@@ -137,3 +152,134 @@ thread, synthetic rows of 20 features:
 | Bigram-shaped count table | 5,000,000 increments | 1.3 s |
 
 The largest fit is under one minute, against a ten-minute limit on a 16 GB Mac.
+
+### What a calibration was fitted under
+
+Each threshold in the recognition chain reads the scores of the layer before it: the fallback plan
+reads the recogniser's log-probabilities, which the phrase bias and the conditioning prompt move;
+the certainty threshold reads the scores after fallback; the override margin reads which words the
+threshold lets through. `CalibrationRecord` (`Sources/UttrflowCore/Models/`) holds one calibrated
+value with the corpus and metric it was fitted on and the revision of every earlier layer it reads.
+`CalibrationRecord.Layer` numbers the layers in the one order they are fitted in, and a record may
+only read layers before its own. `CalibrationGraph.findings` lists every record whose value or
+upstream revision differs from the code as it ships, and every record above a stale one.
+
+The shipping ledger is `ShippingCalibrationTests` (`Tests/UttrflowSpeechTests/`): it fails when a
+layer moves, and passes again only once each dependent calibration is refitted and its record
+re-recorded with the new revisions.
+
+## Training labels
+
+A passage read aloud is the label only where the reader said it. `TrainingLabels.label`
+(`Sources/UttrflowEval/TrainingLabels.swift`) labels each span of the `WordErrorRate` alignment
+`correct`, `substituted` (with the passage word), `dropped` or `inserted`, and marks an error
+unreliable when an independent decoding of the same speech (another engine, or another take by the
+same cohort) makes the same error at the same passage word: two decoders agreeing against the passage
+is a skipped, repeated or swapped word, not a recognition error. Unreliable spans never reach a fit
+row; the table records how many were kept out (`excludedSpans`) and `uttrflow-eval fit` prints it.
+Spelling variants are handled by the `TextNormaliser` the scorer uses, not by the labeller.
+
+## Fit tables
+
+The recordings are personal data and are not committed, so a fit is reproduced from a
+text-free table instead (`Sources/UttrflowEval/FitTable.swift`). A row holds a salted ordinal,
+the split, the language, a closed label class and the feature vector; the table names the
+feature spec version. `FitTable.read` refuses any field outside that schema, any string outside
+its closed set, rows of different widths, and any table over 5 MB. Only development rows are
+fitted.
+
+```bash
+uttrflow-eval fit --from-table <table.json> --expect <digest>   # exits 1 when the digest differs
+```
+
+`Tests/UttrflowEvalTests/FitTables/invented-linear.json` is an invented 240-row table
+(25,269 bytes) whose fit `FitTableTests` pins to a weights digest.
+
+Before committing a table, the reviewer checks:
+
+1. It reads with `FitTable.read` and its fit matches the digest committed beside the artifact.
+2. Rows per split, language and label group are stated in the pull request; 0 groups have
+   fewer than 5 rows, so no rare combination singles out a speaker.
+3. Ordinals were salted at reduction time and map to no recording or passage identifier.
+4. `make pii-audit` and `make disclosure-audit` pass with the table staged.
+
+## How much data a fit needs
+
+A fit below its data floor still prints numbers that look like results, so every fitted layer
+states its floor in `FittedLayer.floor` (`Sources/UttrflowEval/FitFloor.swift`). No fitted
+artifact is shipped below its floor; until it is met the layer ships dark, off by default (see
+"Turning a layer on and off"). A cell is one split
+(`development`, `heldout`) for one language; every cell of every language must meet the floor, so
+a layer never ships on one language's evidence.
+
+| Layer | Unit | Rows per parameter | Wrong rows per cell | Rows per cell | Parameters | Item |
+|---|---|---|---|---|---|---|
+| `span-reranker` | labelled span | 10 | 30 | 0 | one weight per feature, plus a bias | 1.2 |
+| `doubt-detector` | labelled span | 10 | 100 | 0 | one weight per feature, a bias and up to 10 calibration steps, each needing about 10 wrong spans | 1.9 |
+| `context-ngram` | text sentence | 0 | 0 | 2,000 | counts only, no labels | 1.11 |
+| `masked-scorer` | labelled span | 0 | 2,000 | 0 | about 20 million, so thousands of wrong spans per cell rather than a ratio | 1.12 |
+| `override-gate` | decision | 10 | 30 | 300 | a calibration temperature and a threshold; 300 decisions bound the false-override rate under 1 in 100 with zero failures, and certifying the 1 in 1,000 target takes the 2,995 in [accuracy-targets.md](accuracy-targets.md#the-targets) | 1.13 |
+| `person-offset` | decision | 10 | 0 | 0 | one bounded offset, learned per person from reverts and undos, so 10 of them before it moves | CM.33 |
+
+`uttrflow-eval fit` prints the right and wrong rows in every cell and, when any count is under the
+`span-reranker` floor, names each one with its shortfall and exits 1 without fitting:
+
+```text
+heldout english: 8 right, 8 wrong
+below the span-reranker floor in Docs/dictation-quality.md; not fitted:
+  wrong rows in heldout english: 8, needs 30 (22 short)
+```
+
+`FitFloorTests` checks that this table matches `FittedLayer.floor`.
+
+### What the corpus yields
+
+`LabelYield.measure` reads recogniser errors per 1,000 reference words from a baseline, per
+language, with the 95% interval from resampling whole passages. A word error is the most a
+passage can yield: a labelled wrong span may cover several errors, and a reranker row also needs
+the right word among the candidates. From the committed baseline (`Scripts/accuracy_baseline.json`,
+synthesised English, 6 passages):
+
+| Language | Errors | Words | Per 1,000 words | 95% interval |
+|---|---|---|---|---|
+| English | 11 | 305 | 36.1 | 6.9 to 71.2 |
+| Hindi | not measured: no committed baseline | | | |
+| Hinglish | not measured: no committed baseline | | | |
+
+At 120 words a minute (`LabelYield.wordsPerMinute`, the rate `TranscriptionCorpus` costs reading
+at), the minutes of English reading or synthesised audio each floor's wrong spans cost, over both
+splits, at the yield and at the interval's low end:
+
+| Layer | Wrong spans per language | Minutes at 36.1 | Minutes at 6.9 |
+|---|---|---|---|
+| `span-reranker`, `override-gate` | 60 | 14 | 73 |
+| `doubt-detector` | 200 | 46 | 242 |
+| `masked-scorer` | 4,000 | 924 | 4,833 |
+
+The whole corpus is 686 words, about 25 errors at this yield, so no fitted layer meets its floor
+from it today. `context-ngram`
+counts text and `person-offset` counts use, so neither is costed in reading.
+
+### Choosing the override gate's threshold
+
+A rate is never reported without the sample that bounds it: 0 wrong in 40 overrides does not
+show a rate under 1 in 1,000. `uttrflow-eval calibrate-gate` reads a `decision` fit table, one
+row per candidate the gate weighed with its score in one feature column and `wrong` marking a
+false override, and weighs only the held-out rows (`GateCalibration`,
+`Sources/UttrflowEval/GateCalibration.swift`):
+
+```bash
+uttrflow-eval calibrate-gate --from-table <table.json> --target 0.001 --confidence 0.95 --feature 0
+```
+
+Each distinct score is a threshold, strictest first; a threshold applies every candidate scored
+at or above it. The bound on its false-override rate is the one-sided Clopper-Pearson upper bound
+from its counts (`RiskBound`). Thresholds with fewer overrides than the target needs with none
+wrong (2,995 for 1 in 1,000 at 95%) are left out before any label is read, and the rest are tested
+in order: testing stops at the first whose bound is above the target, and the loosest one before
+it is certified, so the size of the grid cannot inflate the claim. When none is certified, the
+gate ships the strictest threshold and the report states the rate it is certified at instead.
+Every report prints the decisions weighed, each threshold's bound and the smallest target the
+split could certify. Today's gate thresholds the integer evidence margin of
+`DoubtPolicy.OverridePolicy` ([ai-correction-thresholds.md](ai-correction-thresholds.md)), so its
+grid is those margins; `GateCalibrationTests` checks the bound against published values.

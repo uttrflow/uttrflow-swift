@@ -114,7 +114,7 @@ extension CodeShapes {
                 index += 1
                 continue
             }
-            if awaitingValue {
+            if awaitingValue, !CharacterSet.whitespacesAndNewlines.contains(scalars[index]) {
                 hasValue = true
                 awaitingValue = false
             }

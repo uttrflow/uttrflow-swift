@@ -38,6 +38,8 @@ final class FakeSelectionField: SelectionAttributes, Sendable {
         var answersAfter: Duration = .zero
         var clock: ManualClock?
         var ignoresText = false
+        var defersText = false
+        var deferredText: String?
         var movesCaretOnly = false
         var refusesSelection = false
         var textWrites: [String] = []
@@ -92,6 +94,10 @@ final class FakeSelectionField: SelectionAttributes, Sendable {
             state.textWrites.append(text)
             guard !state.refusesText else { return .cannotComplete }
             guard !state.ignoresText else { return .success }
+            if state.defersText {
+                state.deferredText = text
+                return .success
+            }
             if state.movesCaretOnly {
                 state.location += text.utf16.count
                 state.length = 0
@@ -122,6 +128,17 @@ final class FakeSelectionField: SelectionAttributes, Sendable {
             state.location = range.location
             state.length = range.length
             return .success
+        }
+    }
+
+    func applyDeferredText() {
+        state.withLock { state in
+            guard let text = state.deferredText else { return }
+            let replaced = NSRange(location: state.location, length: state.length)
+            state.text = (state.text as NSString).replacingCharacters(in: replaced, with: text)
+            state.location += text.utf16.count
+            state.length = 0
+            state.deferredText = nil
         }
     }
 
@@ -240,13 +257,31 @@ struct SelectionWriterTests {
         #expect(error == .insertionRejected(description: "the field accepted the text and did not change"))
     }
 
-    @Test("does not claim a write landed when the field still reports its old value")
+    @Test("An unchanged write is unconfirmed without the settle delay", .bug(id: 5817))
     func acceptedButUnchangedIsAFailure() {
         let field = FakeSelectionField("Hello") { $0.ignoresText = true }
+        let clock = ContinuousClock()
+        let start = clock.now
+        let error = #expect(throws: TextInsertionError.self) {
+            try SelectionWriter(field: field).replaceSelection(with: " world")
+        }
+        let elapsed = start.duration(to: clock.now)
+        #expect(error == .insertionUnconfirmed)
+        #expect(error?.stopsFallback == true, "the typed route must not write the words a second time")
+        #expect(elapsed < .milliseconds(200))
+    }
+
+    @Test("A write that lands late is not retried", .bug(id: 5817))
+    func lateWriteStaysUnconfirmed() {
+        let field = FakeSelectionField("Hello") { $0.defersText = true }
         let error = #expect(throws: TextInsertionError.self) {
             try SelectionWriter(field: field).replaceSelection(with: " world")
         }
         #expect(error == .insertionUnconfirmed)
+        #expect(field.textWrites == [" world"])
+        field.applyDeferredText()
+        #expect(field.text == "Hello world")
+        #expect(field.textWrites == [" world"])
     }
 
     @Test("marks a successful write ambiguous when the resulting selection is unavailable")

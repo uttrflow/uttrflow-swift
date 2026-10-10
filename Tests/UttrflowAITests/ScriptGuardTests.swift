@@ -242,7 +242,7 @@ struct LatinOnlyEngineTests {
             let result = try await router.transform(hindi("मीटिंग चार बजे है, नहीं नहीं, पांच बजे है।"))
 
             #expect(result.producedBy == .rules)
-            #expect(result.text == "Meeting chaar baje hai, nahi nahi, paanch baje hai.")
+            #expect(result.text == "Meeting 4 baje hai, nahi nahi, 5 baje hai.")
         }
         let declining = FakeCleanupModel()
         declining.fail(with: .transformFailed(kind: .foundationModels, failure: .other))

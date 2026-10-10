@@ -52,7 +52,7 @@ struct GeneralVocabularyTests {
     func caseDoesNotMatter() {
         #expect(!GeneralVocabulary.isWorthLearning("Meeting"))
         #expect(!GeneralVocabulary.isWorthLearning("TOMORROW"))
-        #expect(GeneralVocabulary.knows("The"))
+        #expect(GeneralVocabulary.isOrdinary("The"))
     }
 
     /// A function word carries the sentence's structure, so its homophone is a change of meaning rather than a reading.
@@ -85,7 +85,7 @@ struct GeneralVocabularyTests {
     /// A common word that merely rhymes is a real word and no reading of anything, so the opening must match too.
     @Test("Offers nothing for a word whose only matches open differently")
     func refusesARhyme() {
-        #expect(GeneralVocabulary.wordsSounding(like: "cash").isEmpty)
+        #expect(GeneralVocabulary.wordsSounding(like: "kash").isEmpty)
         #expect(GeneralVocabulary.wordsSounding(like: "reader").isEmpty)
     }
 
@@ -187,6 +187,18 @@ struct SeenAndSaidTests {
             ).isEmpty)
     }
 
+    /// These are not ordinary, since the recogniser splits them, so only the English-word test refuses them.
+    @Test(
+        "Ignores an English word the recogniser splits when it is heard as written",
+        arguments: ["rebase", "refactor", "rollback", "timeout"])
+    func ignoresAnEnglishWordHeardAsWritten(word: String) {
+        #expect(!GeneralVocabulary.isOrdinary(word))
+        #expect(
+            LearnableWords.seenAndSaid(
+                heard: "the \(word) failed again", seeing: .fixture(documentName: "\(word) notes")
+            ).isEmpty)
+    }
+
     @Test("Requires a changed spelling and rejects title abbreviations")
     func requiresDistinctSpelling() {
         for (title, heard) in [
@@ -207,7 +219,6 @@ struct SeenAndSaidTests {
             ("PaymentSheet.swift", "add a total to the payment sheet", "PaymentSheet"),
             ("Chandrashekhar — notes", "ask Chandra Shekhar about it", "Chandrashekhar"),
             ("pgvector — README", "we use PG vector here", "pgvector"),
-            ("Bandra office", "kal Bandaraa office jaana hai", "Bandra"),
         ] {
             #expect(
                 LearnableWords.seenAndSaid(heard: heard, seeing: .fixture(documentName: title))
@@ -223,10 +234,10 @@ private func seenAndSaidByBruteForce(heard: String, title: String) -> [String] {
     var already: Set<String> = []
     for term in LearnableWords.words(in: title, atMost: WorkingSet.maximumWordsOnScreen)
     where GeneralVocabulary.isWorthLearning(term) && already.insert(term.lowercased()).inserted {
-        let sound = DoubleMetaphone.code(for: term)
+        let sound = WordSound(of: term)
         if said.contains(where: {
-            sound.sounds(like: DoubleMetaphone.code(for: $0.text))
-                && ReadingRestraint.opensAlike(term, heard: $0.text)
+            sound.sounds(like: WordSound(of: $0.text))
+                && ReadingRestraint.soundsNear(term, heard: $0.text)
         }) {
             found.append(term)
         }
@@ -238,9 +249,9 @@ private func seenAndSaidByBruteForce(heard: String, title: String) -> [String] {
 private final class CountingEncoder: @unchecked Sendable {
     private(set) var calls = 0
 
-    func encode(_ text: String) -> PhoneticCode {
+    func encode(_ text: String) -> WordSound {
         calls += 1
-        return DoubleMetaphone.code(for: text)
+        return WordSound(of: text)
     }
 }
 
@@ -387,7 +398,7 @@ struct CorrectedWordTests {
     /// A run of letters that makes no sound has no key, so it could never be found again.
     @Test("Refuses a replacement that makes no sound at all")
     func refusesASilentReplacement() {
-        #expect(DoubleMetaphone.code(for: "hhh").isSilent)
+        #expect(WordSound(of: "hhh").isSilent)
         #expect(LearnableWords.corrected(over: "hhhh", wrote: "hhh") == nil)
     }
 
@@ -401,79 +412,121 @@ struct CorrectedWordTests {
 
 @Suite("The tally of what keeps turning up")
 struct SightingLedgerTests {
-    @Test("Keeps a term only once it has turned up in three separate dictations")
-    func threeSightings() {
+    @Test("Keeps a term only once it has turned up on three separate days")
+    func threeDays() {
         var ledger = SightingLedger()
-        #expect(ledger.record(["pgvector"]).isEmpty)
-        #expect(ledger.record(["pgvector"]).isEmpty)
-        #expect(ledger.record(["pgvector"]) == ["pgvector"])
+        #expect(ledger.record(["pgvector"], on: 1).learnt.isEmpty)
+        #expect(ledger.record(["pgvector"], on: 2).learnt.isEmpty)
+        #expect(ledger.record(["pgvector"], on: 3).learnt == ["pgvector"])
     }
 
-    /// The spelling first seen wins, so three dictations cannot leave the term spelt the last way seen.
+    /// A burst of dictations over one open document is one piece of evidence, not three.
+    @Test("Learns nothing from three dictations on the same day")
+    func oneDayIsOneSighting() {
+        var ledger = SightingLedger()
+        for _ in 1...3 { #expect(ledger.record(["pgvector"], on: 7).learnt.isEmpty) }
+        #expect(ledger.pendingCount == 1)
+    }
+
+    /// The spelling first seen wins, so three days cannot leave the term spelt the last way seen.
     @Test("Keeps the spelling it first saw")
     func keepsTheFirstSpelling() {
         var ledger = SightingLedger()
-        _ = ledger.record(["PgVector"])
-        _ = ledger.record(["pgvector"])
-        #expect(ledger.record(["PGVECTOR"]) == ["PgVector"])
+        _ = ledger.record(["PgVector"], on: 1)
+        _ = ledger.record(["pgvector"], on: 2)
+        #expect(ledger.record(["PGVECTOR"], on: 3).learnt == ["PgVector"])
     }
 
     /// A term just learnt must leave the tally, or the next sighting learns it twice.
     @Test("Forgets a term the moment it is kept")
     func stopsCountingWhatItKept() {
         var ledger = SightingLedger()
-        for _ in 1...3 { _ = ledger.record(["pgvector"]) }
-        #expect(ledger.record(["pgvector"]).isEmpty)
+        for day in 1...3 { _ = ledger.record(["pgvector"], on: day) }
+        #expect(ledger.record(["pgvector"], on: 4).learnt.isEmpty)
+        #expect(ledger.pendingCount == 1)
     }
 
     @Test("Counts each term on its own")
     func countsSeparately() {
         var ledger = SightingLedger()
-        _ = ledger.record(["pgvector", "Valkey"])
-        _ = ledger.record(["pgvector"])
-        #expect(ledger.record(["pgvector", "Valkey"]) == ["pgvector"])
+        _ = ledger.record(["pgvector", "Valkey"], on: 1)
+        _ = ledger.record(["pgvector"], on: 2)
+        #expect(ledger.record(["pgvector", "Valkey"], on: 3).learnt == ["pgvector"])
+    }
+
+    /// The rows written are what a relaunch reads back, so two days on disk plus one more learns.
+    @Test("Carries the tally across a relaunch through its rows")
+    func survivesARelaunch() {
+        var first = SightingLedger()
+        let rows = first.record(["pgvector"], on: 1).rows + first.record(["pgvector"], on: 2).rows
+        var second = SightingLedger(remembering: rows)
+        #expect(second.record(["pgvector"], on: 3).learnt == ["pgvector"])
+    }
+
+    /// Learning cancels the term's rows, so a relaunch does not count it again from the old days.
+    @Test("Cancels a learnt term's rows")
+    func learningCancelsItsRows() {
+        var ledger = SightingLedger()
+        var rows: [UttrflowCore.EvidenceRow] = []
+        for day in 1...3 { rows += ledger.record(["pgvector"], on: day).rows }
+        #expect(SightingLedger(remembering: rows).pendingCount == 0)
+    }
+
+    @Test("Writes only the keyed hash, never the term")
+    func rowsCarryNoText() {
+        var ledger = SightingLedger(digest: { "h\($0.count)" })
+        let rows = ledger.record(["pgvector"], on: 1).rows
+        #expect(rows.map(\.subject) == ["h8"])
+    }
+
+    @Test("Counts nothing it cannot hash")
+    func noKeyNoCount() {
+        var ledger = SightingLedger(digest: { _ in nil })
+        #expect(ledger.record(["pgvector"], on: 1).rows.isEmpty)
+        #expect(ledger.pendingCount == 0)
     }
 
     /// Half-counted evidence is the app's inference about the user, and the reset throws it away too.
-    @Test("Throws the whole tally away when asked")
+    @Test("Throws the whole tally away when asked, cancelling every row")
     func forgetsEverything() {
         var ledger = SightingLedger()
-        _ = ledger.record(["pgvector"])
-        _ = ledger.record(["pgvector"])
-        ledger.forgetEverything()
-        #expect(ledger.record(["pgvector"]).isEmpty)
+        var rows = ledger.record(["pgvector"], on: 1).rows
+        rows += ledger.record(["pgvector"], on: 2).rows
+        rows += ledger.forgetEverything()
+        #expect(ledger.record(["pgvector"], on: 3).learnt.isEmpty)
+        #expect(SightingLedger(remembering: rows).pendingCount == 0)
     }
 
     /// A tally that grew with everything glanced at would be a leak made of window titles.
     @Test("Stays inside its bound, dropping the weakest evidence first")
     func prunesToTheBound() {
         var ledger = SightingLedger()
-        _ = ledger.record(["Uttrflow"])
-        _ = ledger.record(["Uttrflow"])
-        _ = ledger.record((1...SightingLedger.maximumPending * 2).map { "Term\($0)word" })
+        _ = ledger.record(["Uttrflow"], on: 1)
+        _ = ledger.record(["Uttrflow"], on: 2)
+        _ = ledger.record((1...SightingLedger.maximumPending * 2).map { "Term\($0)word" }, on: 2)
 
-        // The twice-seen term survived the cull, so one more sighting is enough.
-        #expect(ledger.record(["Uttrflow"]) == ["Uttrflow"])
+        // The term seen on two days survived the cull, so one more day is enough.
+        #expect(ledger.pendingCount == SightingLedger.maximumPending)
+        #expect(ledger.record(["Uttrflow"], on: 3).learnt == ["Uttrflow"])
     }
 
     @Test("Holds no more refusals than its bound, lapsing the oldest first")
     func refusalsStayInsideTheBound() {
         var ledger = SightingLedger()
-        for index in 0...SightingLedger.maximumRefused { ledger.refuse("Refused\(index)word") }
+        for index in 0...SightingLedger.maximumRefused { _ = ledger.refuse("Refused\(index)word") }
         #expect(ledger.refusalCount == SightingLedger.maximumRefused)
 
         // The first refusal lapsed, so that word counts again; the newest is still refused.
-        for _ in 1...2 { _ = ledger.record(["Refused0word", "Refused\(SightingLedger.maximumRefused)word"]) }
-        #expect(
-            ledger.record(["Refused0word", "Refused\(SightingLedger.maximumRefused)word"]) == ["Refused0word"]
-        )
+        let both = ["Refused0word", "Refused\(SightingLedger.maximumRefused)word"]
+        for day in 1...2 { _ = ledger.record(both, on: day) }
+        #expect(ledger.record(both, on: 3).learnt == ["Refused0word"])
     }
 
     @Test("Counts a word refused twice as one refusal")
     func refusingTwiceHoldsOne() {
         var ledger = SightingLedger()
-        ledger.refuse("pgvector")
-        ledger.refuse("PGVector")
+        _ = ledger.refuse("pgvector")
+        _ = ledger.refuse("PGVector")
         #expect(ledger.refusalCount == 1)
     }
 

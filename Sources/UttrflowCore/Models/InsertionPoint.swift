@@ -24,6 +24,50 @@ public struct InsertionPoint: Sendable, Equatable, Codable {
         self.followingText = followingText
     }
 
+    /// The same caret with secret-shaped runs taken out of its text, for word lists and prompts; casing reads `self`.
+    public var vocabulary: InsertionPoint {
+        InsertionPoint(
+            precedingText: precedingText.map(SecretShapes.vocabulary(of:)),
+            followingText: followingText.map(SecretShapes.vocabulary(of:)))
+    }
+
+    /// The most sentences before the caret offered to recognition and its scorer.
+    static let recognitionSentences = 2
+    /// The most UTF-16 units of those sentences kept, cut at a word.
+    static let recognitionLimit = 200
+
+    /// The last sentence or two before the caret, secret-shaped runs out; `nil` when nothing is written there.
+    public var recognitionContext: String? {
+        guard let text = vocabulary.precedingText else { return nil }
+        var body = Substring(text)
+        while let last = body.last, last.isWhitespace { body.removeLast() }
+        var start = body.startIndex
+        var boundaries = 0
+        var index = body.endIndex
+        while index > body.startIndex {
+            let before = body.index(before: index)
+            let isBoundary =
+                body[before].isNewline
+                || (index < body.endIndex && body[index].isWhitespace
+                    && SentenceMarks.ends.contains(body[before]))
+            if isBoundary {
+                boundaries += 1
+                if boundaries == Self.recognitionSentences {
+                    start = index
+                    break
+                }
+            }
+            index = before
+        }
+        var kept = body[start...].drop(while: \.isWhitespace)
+        if kept.utf16.count > Self.recognitionLimit {
+            while kept.utf16.count > Self.recognitionLimit { kept = kept.dropFirst() }
+            // A word cut by the limit is dropped whole, so the recogniser never reads half a word.
+            kept = kept.drop(while: { !$0.isWhitespace }).drop(while: \.isWhitespace)
+        }
+        return kept.isEmpty ? nil : String(kept)
+    }
+
     /// The insertion point of a field that says nothing about itself.
     public static let unknown = InsertionPoint()
 
@@ -36,12 +80,13 @@ public struct InsertionPoint: Sendable, Equatable, Codable {
     /// Whether the caret's line opens with a list marker, so added text stays an unfinished list item.
     public var isOnListItemLine: Bool {
         guard let precedingText else { return false }
-        return Self.listItemRemainder(in: CaretStructure.caretLine(of: precedingText)) != nil
+        return Self.listItemRemainder(in: CaretStructure.caretLine(of: Self.visibleText(precedingText)))
+            != nil
     }
 
     /// Reads the sentence state off the line the caret sits on, since a list marker is not a word.
     public static func sentenceState(before text: String?) -> SentenceState {
-        guard let text else { return .unknown }
+        guard let text = text.map(visibleText) else { return .unknown }
         let line = CaretStructure.caretLine(of: text)
         let body = withoutOpeningMarker(line)
         guard body.contains(where: { !$0.isWhitespace }) else {
@@ -109,7 +154,8 @@ public struct InsertionPoint: Sendable, Equatable, Codable {
     /// Pads `text` with a space at each caret edge where it would otherwise join a neighbouring word in `destination`.
     public func paddedBoundary(for text: String, in destination: Destination) -> String {
         // A field that hides its preceding text gets the dictated text unchanged.
-        guard let preceding = precedingText, let first = text.first, let last = text.last,
+        guard let preceding = precedingText.map(Self.visibleText), let first = text.first,
+            let last = text.last,
             !text.allSatisfy(\.isWhitespace)
         else {
             return text
@@ -125,7 +171,7 @@ public struct InsertionPoint: Sendable, Equatable, Codable {
             result += " "
         }
         result += text
-        if let next = followingText?.first,
+        if let next = followingText.map(Self.visibleText)?.first,
             CaretJoin.needsSpace(
                 between: CaretJoin.classify(last, after: text.dropLast().last ?? previous),
                 and: CaretJoin.classify(next, after: last), in: destination)
@@ -133,6 +179,21 @@ public struct InsertionPoint: Sendable, Equatable, Codable {
             result += " "
         }
         return result
+    }
+
+    /// The text as it reads: attachments, zero-width and bidi marks hold no letters, so no classifier counts them.
+    public static func visibleText(_ text: String) -> String {
+        guard text.unicodeScalars.contains(where: isInvisible) else { return text }
+        var visible = String.UnicodeScalarView()
+        visible.append(contentsOf: text.unicodeScalars.lazy.filter { !isInvisible($0) })
+        return String(visible)
+    }
+
+    /// An object replacement or a format character; a joiner and tag characters build an emoji, so they stay.
+    private static func isInvisible(_ scalar: Unicode.Scalar) -> Bool {
+        if scalar == "\u{FFFC}" { return true }
+        guard scalar.properties.generalCategory == .format else { return false }
+        return scalar != "\u{200D}" && !(0xE0000...0xE007F).contains(scalar.value)
     }
 
     /// Clitic spellings whose first character is not punctuation.

@@ -50,3 +50,35 @@ struct ClauseSegmenterTests {
         #expect(ClauseSegmenter.boundaries(in: ["hello"]).isEmpty)
     }
 }
+
+@Suite("Clause segmenter holds quotes, brackets and numbers whole")
+struct ClauseSegmenterEnclosureTests {
+    private static let clauses = [
+        "i called him but he did not answer", "we left early and then it rained",
+        "well i think we should go now",
+    ]
+
+    private static let wrappers: [(open: String, close: String)] = [
+        ("\"", "\""), ("\u{201C}", "\u{201D}"), ("(", ")"), ("[", "]"),
+    ]
+
+    @Test("no clause starts inside a quote or bracket", arguments: clauses)
+    func enclosed(clause: String) {
+        for wrapper in Self.wrappers {
+            var words = ["she", "said"] + clause.split(separator: " ").map(String.init) + ["today"]
+            words[2] = wrapper.open + words[2]
+            words[words.count - 2] += wrapper.close
+            let inside = 3..<(words.count - 1)
+            let found = ClauseSegmenter.boundaries(
+                in: words, pauses: Array(repeating: 0.9, count: words.count))
+            #expect(!found.contains { inside.contains($0.index) }, "\(words)")
+        }
+    }
+
+    @Test("no clause starts between the parts of a spoken number")
+    func number() {
+        let words = ["it", "costs", "3.5", "and", "1,200", "is", "the", "total"]
+        let found = ClauseSegmenter.boundaries(in: words, pauses: Array(repeating: 0.9, count: words.count))
+        #expect(!found.contains { $0.index == 3 || $0.index == 4 })
+    }
+}

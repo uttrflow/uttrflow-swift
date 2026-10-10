@@ -6,6 +6,8 @@ public import UttrflowClipboard
 public enum PanelMatchField: Int, Sendable, Equatable, CaseIterable {
     /// The name the user gave it.
     case alias
+    /// One of the tags the user gave it, whole or by its beginning.
+    case tag
     /// The collection it is filed in.
     case category
     /// The clip's own text.
@@ -34,6 +36,7 @@ public struct PanelResult: Sendable, Equatable, Identifiable {
 
 /// The rows the panel is showing, in the order it shows them, and which one is selected.
 public struct PanelResults: Sendable, Equatable {
+    let listID: UUID
     /// What is listed, in order.
     public let rows: [PanelResult]
     /// How many matches of each kind were left out of ``rows``; the cap decides what Return can reach.
@@ -45,6 +48,16 @@ public struct PanelResults: Sendable, Equatable {
     public init(
         rows: [PanelResult], selectedIndex: Int?, omitted: [PanelMatchField: Int] = [:]
     ) {
+        self.listID = UUID()
+        self.rows = rows
+        self.selectedIndex = selectedIndex
+        self.omitted = omitted
+    }
+
+    init(
+        rows: [PanelResult], selectedIndex: Int?, omitted: [PanelMatchField: Int], listID: UUID
+    ) {
+        self.listID = listID
         self.rows = rows
         self.selectedIndex = selectedIndex
         self.omitted = omitted
@@ -52,6 +65,10 @@ public struct PanelResults: Sendable, Equatable {
 
     /// What Return would insert.
     public var selected: Clip? { selectedIndex.map { rows[$0].clip } }
+
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.rows == rhs.rows && lhs.omitted == rhs.omitted && lhs.selectedIndex == rhs.selectedIndex
+    }
 }
 
 extension PanelSnapshot {
@@ -62,10 +79,12 @@ extension PanelSnapshot {
 
     /// What the panel is showing right now, found once for each list of clips, query and tab, so Return and an arrow key share the search.
     public var results: PanelResults {
-        let (rows, omitted) = searchMemo.rows(
-            for: PanelSearchMemo.View(self), scanning: matches(ruledIn:), ranking: ranked)
+        let view = PanelSearchMemo.View(self)
+        let (rows, omitted, listID) = searchMemo.rows(
+            for: view, scanning: matches(ruledIn:), ranking: ranked)
         return PanelResults(
-            rows: rows, selectedIndex: Self.index(of: selection, in: rows), omitted: omitted)
+            rows: rows, selectedIndex: searchMemo.index(of: selection, for: view),
+            omitted: omitted, listID: listID)
     }
 
     /// Every clip this view admits, and why it is here; `ruledIn` names the clips a shorter query found, whose text alone still has to be searched, and `nil` searches every clip's.
@@ -109,16 +128,23 @@ extension PanelSnapshot {
     /// The matches in the order they are drawn, and how many of each kind the cap left out.
     func ranked(_ matches: [PanelMatch]) -> ([PanelResult], [PanelMatchField: Int]) {
         let needle = self.needle
-        // A clip whose whole text is the query can never be narrowed to, so it leads its group.
-        let whole = Set(
-            matches.lazy.filter { $0.result.match == .content }.map(\.result.clip)
-                .filter { Self.isWhole(needle, of: $0, locale: self.locale) }.map(\.id))
+        // A clip whose whole text or whole tag is the query can never be narrowed to, so it leads its group.
+        let whole = Set(matches.lazy.map(\.result).filter { isWhole(needle, in: $0) }.map(\.id))
         let ordered = matches.sorted { Self.rank($0, whole: whole) < Self.rank($1, whole: whole) }
             .map(\.result)
         return Self.capping(ordered) { row in
             // A collection named exactly is asked for whole; there is nothing more to type to narrow it.
             row.match == .category
                 && row.clip.category?.equals(needle, ignoringCaseAndAccentsIn: self.locale) == true
+        }
+    }
+
+    /// Whether the query is all of the field this result matched on, for a tag or a clip's text.
+    private func isWhole(_ needle: String, in result: PanelResult) -> Bool {
+        switch result.match {
+        case .tag: PanelTags.match(needle, in: result.clip.tags, locale: locale) == .whole
+        case .content: Self.isWhole(needle, of: result.clip, locale: locale)
+        case .alias, .category, nil: false
         }
     }
 
@@ -142,7 +168,7 @@ extension PanelSnapshot {
             foldedNeedle, options: SearchFolding.comparisonOptions, locale: locale) == .orderedSame
     }
 
-    /// Match field, then exact alias or whole text, then pinned, then arrival order, so groups are contiguous for ↓.
+    /// Match field, then exact alias or whole tag or text, then pinned, then arrival order, so groups are contiguous for ↓.
     static func rank(_ entry: PanelMatch, whole: Set<Clip.ID>) -> (Int, Int, Int, Int) {
         (
             entry.result.match?.rawValue ?? 0,
@@ -181,17 +207,28 @@ extension PanelSnapshot {
         return selection.flatMap { id in rows.firstIndex { $0.id == id } } ?? 0
     }
 
-    /// The strongest part of a clip the query appears in: alias, then category, then content, the last searched only where an earlier query has not already ruled the clip out.
+    /// The strongest part of a clip the query appears in: alias, tag, category, then content, the last searched only where an earlier query has not already ruled the clip out.
     func field(
         matchingFolded needle: String, in clip: Clip, searchingText: Bool = true
     ) -> PanelMatchField? {
         let fields: [(PanelMatchField, String?)] = [
             (.alias, clip.alias.map { SearchFolding.folded($0) ?? $0 }),
+            (.tag, nil),
             (.category, clip.category.map { SearchFolding.folded($0) ?? $0 }),
             (.content, searchingText ? foldedTexts.text(of: clip) : nil),
         ]
-        return fields.first {
-            $0.1.map { SearchFolding.contains(needle, inFolded: $0, locale: locale) } == true
+        // An alias is matched by its handle, so "/pg" and "pg pr" find "pgprod" while it is typed.
+        let aliasNeedle = PanelAlias.handle(needle, locale: locale)
+        return fields.first { field, folded in
+            // A tag is matched only whole or by its beginning, so it never echoes a word inside the text.
+            if field == .tag { return PanelTags.match(needle, in: clip.tags, locale: locale) != nil }
+            guard let folded else { return false }
+            if field == .alias, !aliasNeedle.isEmpty,
+                PanelAlias.handle(folded, locale: locale).contains(aliasNeedle)
+            {
+                return true
+            }
+            return SearchFolding.contains(needle, inFolded: folded, locale: locale)
         }?.0
     }
 

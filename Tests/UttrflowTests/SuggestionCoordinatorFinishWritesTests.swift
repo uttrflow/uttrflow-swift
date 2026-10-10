@@ -17,8 +17,9 @@ struct SuggestionCoordinatorFinishWritesTests {
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: container) }
 
-        let coordinator = try SuggestionCoordinator(
-            container: container, preferences: SuggestionPreferences(isEnabled: true))
+        let coordinator = try await SuggestionCoordinator(
+            container: container, preferences: SuggestionPreferences(isEnabled: true),
+            focusedFieldReader: { nil }, frontmostBundleIdentifier: { "com.example.editor" })
         #expect(!coordinator.isActiveForUpdate)
         coordinator.noteActivity()
         #expect(coordinator.isActiveForUpdate)
@@ -33,7 +34,7 @@ struct SuggestionCoordinatorFinishWritesTests {
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: container) }
 
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true))
 
         let recorded = Mutex(false)

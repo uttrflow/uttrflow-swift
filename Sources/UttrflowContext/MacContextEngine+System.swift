@@ -2,7 +2,6 @@ import AppKit
 import ApplicationServices
 import Foundation
 import UttrflowCore
-import UttrflowPredict
 
 private import Synchronization
 
@@ -16,8 +15,20 @@ extension MacContextEngine {
             readFocusedWindow: { await MacContextEngine.focusedWindow(of: $0, into: $1) },
             ownBundleIdentifier: Bundle.main.bundleIdentifier,
             ownProcessIdentifier: ProcessInfo.processInfo.processIdentifier,
+            countInputs: { [inputs = InputCount(sinceLastInput: MacContextEngine.sinceKeyOrClick)] in
+                inputs.value
+            },
+            slowFields: FocusedFieldReader.slowFields,
             observeActivations: MacContextEngine.observeActivations
         )
+    }
+
+    /// How long ago the session last saw a key pressed or a mouse button go down, asked without a monitor.
+    static func sinceKeyOrClick() -> Duration {
+        let seconds = [CGEventType.keyDown, .leftMouseDown, .rightMouseDown].map {
+            CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: $0)
+        }
+        return .seconds(seconds.min() ?? 0)
     }
 
     /// Notes every other application's activation, so the one behind Uttrflow is never a stale read's guess.
@@ -85,12 +96,13 @@ extension MacContextEngine {
 
     /// Title and selection, from Accessibility on a thread of its own. See `Docs/context-budget.md`.
     static func focusedWindow(of application: FrontmostApplication, into sink: FocusedWindowSink) async {
-        guard AXIsProcessTrusted() else { return }
+        // Not gated on trust: without the grant the first batch answers `.notTrusted`, which the read banks.
         let expired = Expired()
+        let started = ContinuousClock.now
         await withTaskCancellationHandler {
             await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
                 readQueue.async {
-                    read(application, into: sink, while: { !expired.isSet })
+                    read(application, started: started, into: sink, while: { !expired.isSet })
                     continuation.resume()
                 }
             }
@@ -112,55 +124,47 @@ extension MacContextEngine {
 
     /// Banks each answer as it lands, so a read the budget cuts short keeps the part it finished.
     private static func read(
-        _ application: FrontmostApplication, into sink: FocusedWindowSink,
+        _ application: FrontmostApplication, started: ContinuousClock.Instant, into sink: FocusedWindowSink,
         while isWanted: @Sendable () -> Bool
     ) {
         // Skipped before the first message when the caller gave up while this read was still queued.
         guard isWanted() else { return }
-        let app = AXUIElementCreateApplication(application.processIdentifier)
-        // Caps each message so an abandoned read does not outlive the budget the dictation waited for.
-        _ = AXUIElementSetMessagingTimeout(app, budgetInSeconds)
+        let app = FocusedFieldReader.AXNode(
+            keepingTimeout: AXUIElementCreateApplication(application.processIdentifier))
         let isTerminal = application.bundleIdentifier.map(TerminalApplications.contains) == true
-        read(SystemFieldSource(app: app), isTerminal: isTerminal, into: sink, while: isWanted)
+        let source = TreeWindowSource(
+            tree: FocusedFieldReader.AXElementTree(), app: app, decode: .accessibility,
+            cap: { _ = AXUIElementSetMessagingTimeout($0.element, timeLeft(since: started)) },
+            identify: { node in
+                SurfaceProbe.owner(of: node.element).map {
+                    FieldIdentity(
+                        processIdentifier: $0,
+                        windowNumber: FocusedFieldReader.windowNumber(of: node.element),
+                        element: Int(bitPattern: CFHash(node.element)))
+                }
+            })
+        read(source, isTerminal: isTerminal, into: sink, while: isWanted)
     }
 }
 
-/// The dictation's window read over Accessibility, one message per answer.
-private struct SystemFieldSource: FocusedWindowSource {
-    let app: AXUIElement
+extension FieldAnswerDecoder<FocusedFieldReader.AXNode> {
+    /// Accessibility's answers, each element left at the timeout its caller sets.
+    static var accessibility: Self { decoding(as: FocusedFieldReader.AXNode.init(keepingTimeout:)) }
 
-    func windowTitle() -> String? {
-        SurfaceProbe.element(
-            app, kAXFocusedWindowAttribute, timeoutInSeconds: MacContextEngine.budgetInSeconds
-        )
-        .flatMap { SurfaceProbe.string($0, kAXTitleAttribute) }
-    }
+    /// Accessibility's answers, each element capped at the focused field's own timeout as it is decoded.
+    static var capping: Self { decoding(as: { FocusedFieldReader.AXNode($0) }) }
 
-    func focusedField() -> AXUIElement? {
-        SurfaceProbe.element(
-            app, kAXFocusedUIElementAttribute, timeoutInSeconds: MacContextEngine.budgetInSeconds)
-    }
-
-    func names(of field: AXUIElement) -> FieldNames { SurfaceProbe.names(of: field) }
-
-    func selection(of field: AXUIElement) -> AccessibilitySelection { SurfaceProbe.selection(field) }
-
-    func text(of field: AXUIElement, names: FieldNames, at range: CFRange?) -> FieldText {
-        SurfaceProbe.text(of: field, names: names, at: range)
-    }
-
-    func selectedText(of field: AXUIElement, at range: CFRange?) -> String? {
-        SurfaceProbe.selectedText(of: field, at: range)
-    }
-
-    func isMultiline(_ field: AXUIElement) -> Bool? { SurfaceProbe.boolean(field, "AXMultiline") }
-
-    func markedRange(of field: AXUIElement) -> CFRange? { CompositionProbe.markedRange(of: field) }
-
-    func identity(of field: AXUIElement) -> FieldIdentity? {
-        guard let processIdentifier = SurfaceProbe.owner(of: field) else { return nil }
-        return FieldIdentity(
-            processIdentifier: processIdentifier, windowNumber: FocusedFieldReader.windowNumber(of: field),
-            element: Int(bitPattern: CFHash(field)))
+    /// Checked by type ID, since `as?` on a Core Foundation type always succeeds.
+    private static func decoding(as node: @escaping (AXUIElement) -> FocusedFieldReader.AXNode) -> Self {
+        Self(
+            element: { value in
+                let object = value as AnyObject
+                guard CFGetTypeID(object) == AXUIElementGetTypeID() else { return nil }
+                return node(unsafeDowncast(object, to: AXUIElement.self))
+            },
+            range: { SurfaceProbe.unwrap($0 as AnyObject, .cfRange) },
+            point: { SurfaceProbe.unwrap($0 as AnyObject, .cgPoint) },
+            size: { SurfaceProbe.unwrap($0 as AnyObject, .cgSize) },
+            rect: { SurfaceProbe.unwrap($0 as AnyObject, .cgRect) })
     }
 }

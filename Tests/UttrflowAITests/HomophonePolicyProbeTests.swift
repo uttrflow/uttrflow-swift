@@ -85,8 +85,9 @@ struct HomophonePolicyProbeTests {
         let words = item.heard.split(separator: " ").map(String.init)
         let wrongIndex = words.lastIndex(of: item.wrong)
         return Draft(
-            words: words.indices.map { Draft.Word(words[$0], confidence: $0 == wrongIndex ? score : 0.95) },
-            confidencesAreReal: true)
+            words: words.indices.map {
+                Draft.Word(words[$0], evidence: .score($0 == wrongIndex ? score : 0.95))
+            })
     }
 
     /// Asks the shipping sources whether the meant word is offered, then judges the rewrite that takes it.
@@ -125,7 +126,7 @@ struct HomophonePolicyProbeTests {
         #expect(offeredThenRefused == Self.expectedOfferedThenRefused)
     }
 
-    /// Measured on the shipping sources and guard; the change that keeps one rule brings the second to 0.
-    static let expectedOffered = 120
-    static let expectedOfferedThenRefused = 87
+    /// Measured on the shipping sources and guard: a reading the guard would refuse is never offered.
+    static let expectedOffered = 35
+    static let expectedOfferedThenRefused = 0
 }

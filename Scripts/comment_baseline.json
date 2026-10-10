@@ -1,7 +1,8 @@
 {
   "files": {
+    "Sources/UttrflowCore/Cleaning/Restatement.swift": 1,
     "Tests/UttrflowEvalTests/DestinationCorpusTests.swift": 1
   },
-  "past_tense": 226,
-  "total": 1
+  "past_tense": 228,
+  "total": 2
 }

@@ -60,10 +60,16 @@ public protocol TextInserting: Sendable {
         _ text: String, richText: String?
     ) async throws(TextInsertionError)
         -> InsertionAttempt
+
+    /// Moves the caret `units` back into the words just inserted, answering whether it moved there.
+    func placeCaret(back units: Int) async -> Bool
 }
 
 /// The default for inserters that cannot carry formatting: insert the words.
 extension TextInserting {
+    /// Inserters that cannot find their last write again leave the caret after it.
+    public func placeCaret(back units: Int) async -> Bool { units == 0 }
+
     /// Inserters without destination checks keep their existing behavior.
     @discardableResult
     public func insert(

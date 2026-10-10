@@ -17,7 +17,9 @@ public enum TechnicalToken: Equatable, Sendable {
         guard core.contains(where: \.isLetter) || core.contains(where: \.isNumber) else { return nil }
         if isURL(core) { return .url }
         if isAddress(core) { return .address }
-        if isPath(shape.prefix.hasSuffix("/") ? "/" + core : core) { return .path }
+        // A root before the first slash, "/", "~/" or "./", is outside the core, as is a hidden name's dot.
+        if isPath(shape.prefix.contains("/") ? "/" + core : core) { return .path }
+        if shape.prefix == ".", isHiddenFile(core) { return .fileName }
         if let kind = dottedKind(core) { return kind }
         if isHost(core) { return .hostname }
         if isIdentifier(core) { return .identifier }
@@ -31,14 +33,33 @@ public enum TechnicalToken: Equatable, Sendable {
         "in", "uk", "us", "ca", "au", "de", "fr", "nl", "es", "it", "jp", "cn", "br", "ru", "ie", "nz",
     ]
 
-    /// File endings common enough that a dotted name ending on one is a file name.
-    public static let fileExtensions: Set<String> = [
+    /// File endings common enough that a dotted name ending on one is a file name; the lexicon's file formats add to them.
+    public static let fileExtensions = commonFileExtensions.union(lexiconExtensions)
+
+    /// Endings that make any word before them a file name, "out.txt", unlike a dot-file name, ".env".
+    package static let commonFileExtensions: Set<String> = [
         "json", "txt", "md", "swift", "py", "js", "ts", "html", "css", "xml", "csv", "pdf",
         "yaml", "yml", "toml", "sh", "rb", "go", "rs", "kt", "java", "png", "jpg", "zip",
     ]
 
+    /// The endings the lexicon lists as file formats written ".ending".
+    static var lexiconExtensions: [String] { endings(of: TechnicalLexicon.terms) }
+
     /// File endings that are also everyday spoken words, so "dot" before one needs a cue such as "open" to be a file name.
-    public static let wordLikeFileExtensions: Set<String> = ["swift", "go", "sh", "java", "zip"]
+    public static let wordLikeFileExtensions = Set(endings(of: TechnicalLexicon.terms.filter(\.isEveryday)))
+
+    private static func endings(of terms: [TechnicalTerm]) -> [String] {
+        terms.filter { $0.category == .fileFormat && $0.id.hasPrefix(".") }
+            .map { $0.id.dropFirst().lowercased() }
+            .filter { !$0.isEmpty && $0.allSatisfy { $0.isLetter || $0.isNumber } }
+    }
+
+    /// A hidden file's name after its leading dot, which opens on a known file ending: "env.example".
+    private static func isHiddenFile(_ core: String) -> Bool {
+        let segments = core.split(separator: ".", omittingEmptySubsequences: false)
+        return segments.first.map { fileExtensions.contains($0.lowercased()) } == true
+            && segments.allSatisfy { !$0.isEmpty && $0.allSatisfy { $0.isLetter || $0.isNumber } }
+    }
 
     /// An email address: one "@" between a mailbox and a host.
     private static func isAddress(_ core: String) -> Bool {

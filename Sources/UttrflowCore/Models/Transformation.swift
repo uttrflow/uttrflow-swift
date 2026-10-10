@@ -15,6 +15,8 @@ public struct TransformationRequest: Sendable, Equatable {
     public let scope: CleaningScope
     /// The user's own words this dictation is biased towards, whose written case the rules keep.
     public let vocabulary: [String]
+    /// The previous piece of this dictation as heard, read-only context that never reaches the output.
+    public let precedingPiece: String?
 
     /// A request; context and profile default to knowing nothing, and the transcript to being the whole message.
     public init(
@@ -23,7 +25,8 @@ public struct TransformationRequest: Sendable, Equatable {
         profile: UserProfile = .default,
         situation: Situation? = nil,
         scope: CleaningScope = .message,
-        vocabulary: [String] = []
+        vocabulary: [String] = [],
+        precedingPiece: String? = nil
     ) {
         self.transcription = transcription
         self.context = context
@@ -31,6 +34,7 @@ public struct TransformationRequest: Sendable, Equatable {
         self.situation = situation ?? SituationResolver.resolve(from: context)
         self.scope = scope
         self.vocabulary = vocabulary
+        self.precedingPiece = precedingPiece
     }
 
     /// The language to route on: what the engine heard, else the user's first preferred language.
@@ -57,22 +61,26 @@ public struct TransformationResult: Sendable, Equatable {
     public let cleaning: CleaningRecord?
     /// The dictionary entries whose spelling the model wrote for a doubtful run, counted used like a correction's.
     public let entriesTaken: [UUID]
+    /// Where each pass changed the written words, read from the draft's edit chains; nil where no draft was kept, as on the model path.
+    public let changeLedger: [ChangeLedgerEntry]?
 
     /// A result tagged with its producer and, where one was kept, the record of the steps.
     public init(
         text: String, producedBy: TransformerKind, cleaning: CleaningRecord? = nil,
-        entriesTaken: [UUID] = []
+        entriesTaken: [UUID] = [], changeLedger: [ChangeLedgerEntry]? = nil
     ) {
         self.text = text
         self.producedBy = producedBy
         self.cleaning = cleaning
         self.entriesTaken = entriesTaken
+        self.changeLedger = changeLedger
     }
 
     /// The same result, carrying a record that says what was refused on the way to it.
     public func recording(_ cleaning: CleaningRecord?) -> TransformationResult {
         TransformationResult(
-            text: text, producedBy: producedBy, cleaning: cleaning, entriesTaken: entriesTaken)
+            text: text, producedBy: producedBy, cleaning: cleaning, entriesTaken: entriesTaken,
+            changeLedger: changeLedger)
     }
 }
 

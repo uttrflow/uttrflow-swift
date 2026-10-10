@@ -174,7 +174,7 @@ public struct DestinationFormatter: Sendable, Equatable {
             promptBlock: "codeEditor"),
         .terminal: DestinationFormatter(
             destination: .terminal, firstWord: .asSpoken, terminalStop: .never,
-            layout: .preserveNewlines, grammar: .asSpoken, numbers: .always, digits: .none,
+            layout: .singleLine, grammar: .asSpoken, numbers: .always, digits: .none,
             promptBlock: "terminal", consequence: .executes),
         .messaging: DestinationFormatter(
             destination: .messaging, firstWord: .fromInsertionPoint,
@@ -188,6 +188,9 @@ public struct DestinationFormatter: Sendable, Equatable {
             destination: .plain, firstWord: .fromInsertionPoint, terminalStop: .always,
             layout: [.paragraphs, .lists], grammar: .repair, numbers: .fromTen, promptBlock: "plain"),
     ]
+
+    /// Whether a line opening with a program typed at a prompt keeps its heard case: source, never a comment's prose.
+    public var keepsCommandCase: Bool { destination == .codeEditor && !layout.contains(.paragraphs) }
 
     /// Whether this place's first-word or stop policy would still change `text`, so an answer returning it unchanged did no work.
     public func owesFormatting(_ text: String) -> Bool {
@@ -222,18 +225,17 @@ public struct DestinationFormatter: Sendable, Equatable {
     public static func standard(for situation: Situation) -> DestinationFormatter {
         let base = standard(for: situation.destination)
         let preceding = situation.insertion.precedingText
-        if situation.destination == .codeEditor,
-            CaretStructure.region(precedingText: preceding, documentName: situation.app.documentName)
-                == .prose
-        {
-            return proseInCodeEditor(base)
+        if situation.destination == .codeEditor {
+            let region = situation.intent.region
+            if region == .prose { return proseInCodeEditor(base) }
+            // A statement opens no sentence, so source takes its first word as spoken, as a terminal does.
+            if region.isCode, preceding != nil { return withFirstWord(.asSpoken, base) }
         }
-        let rule = DestinationClassifier.rule(for: situation.app)
-            .flatMap { $0.destination == situation.destination ? $0 : nil }
-        let ruleStop = rule?.terminalStop
-        let role = situation.app.accessibilityRole
-        let isSearch = role == "AXSearchField" || rule?.field == .search
-        let isSingleLine = situation.app.isMultiline == false || role == "AXTextField" || isSearch
+        let kind = fieldKind(of: situation)
+        if let header = emailHeader(kind, base) { return header }
+        let ruleStop = rule(for: situation)?.terminalStop
+        let isSearch = kind == .search
+        let isSingleLine = kind == .oneLine || isSearch
         guard ruleStop != nil || isSingleLine else { return base }
         return DestinationFormatter(
             destination: base.destination,
@@ -244,6 +246,54 @@ public struct DestinationFormatter: Sendable, Equatable {
             layout: isSingleLine ? .singleLine : base.layout,
             grammar: base.grammar, numbers: base.numbers, digits: base.digits,
             promptBlock: base.promptBlock, consequence: isSearch ? .navigates : base.consequence)
+    }
+
+    /// The kind of field the words go into, from its role, its line count and its app's row, in the order `standard(for:)` reads them.
+    public static func fieldKind(of situation: Situation) -> FieldKind {
+        if situation.destination == .email {
+            switch situation.intent.fieldRole {
+            case .recipient: return .recipient
+            case .subject: return .subject
+            default: break
+            }
+        }
+        let role = situation.app.accessibilityRole
+        if role == "AXSearchField" || rule(for: situation)?.field == .search { return .search }
+        if situation.app.isMultiline == false || role == "AXTextField" { return .oneLine }
+        return .primary
+    }
+
+    /// The app's row, when it routes to the situation's own destination rather than one the user chose instead.
+    private static func rule(for situation: Situation) -> DestinationRule? {
+        DestinationClassifier.rule(for: situation.app)
+            .flatMap { $0.destination == situation.destination ? $0 : nil }
+    }
+
+    /// A recipient or subject field's one-line, stopless formatter; `nil` keeps the email policy for any other field.
+    private static func emailHeader(_ kind: FieldKind, _ base: DestinationFormatter) -> DestinationFormatter?
+    {
+        let firstWord: FirstWordPolicy
+        switch kind {
+        case .recipient: firstWord = .asSpoken
+        case .subject: firstWord = base.firstWord
+        default: return nil
+        }
+        return DestinationFormatter(
+            destination: base.destination, firstWord: firstWord, terminalStop: .never,
+            layout: .singleLine, grammar: base.grammar, numbers: base.numbers, digits: base.digits,
+            promptBlock: base.promptBlock, consequence: base.consequence)
+    }
+
+    /// The same formatter with another first-word policy.
+    private static func withFirstWord(
+        _ firstWord: FirstWordPolicy, _ base: DestinationFormatter
+    )
+        -> DestinationFormatter
+    {
+        DestinationFormatter(
+            destination: base.destination, firstWord: firstWord, terminalStop: base.terminalStop,
+            layout: base.layout, grammar: base.grammar, numbers: base.numbers, digits: base.digits,
+            promptBlock: base.promptBlock, consequence: base.consequence)
     }
 
     /// A code editor's formatter with a document's stops and lists, for prose in a Markdown or text file.

@@ -74,6 +74,81 @@ struct DictationPipelineJoinTests {
     private static let mail = AppContext.fixture(
         applicationName: "Mail", bundleIdentifier: "com.apple.mail", documentName: "Draft")
 
+    @Test("every piece after the first is tidied knowing the previous piece as heard")
+    func tidierSeesThePreviousPiece() async {
+        let lines = ["we waited for the build", "because the runner was slow", "and then it passed"]
+        let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
+        await capture.setCaptured(Take.threePieces)
+        let cleaner = finishing()
+        let pipeline = DictationPipeline(
+            capture: capture, speech: reading(lines), cleaner: cleaner,
+            context: FakeContextEngine(context: Self.document), inserter: FakeTextInserter(),
+            windowing: quick, earlyPoll: .milliseconds(2))
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        let seen = Dictionary(
+            cleaner.requests.filter { $0.scope == .piece }.map { ($0.transcription.text, $0.precedingPiece) },
+            uniquingKeysWith: { first, _ in first })
+        let expected: [String: String?] = [lines[0]: nil, lines[1]: lines[0], lines[2]: lines[1]]
+        #expect(seen == expected)
+    }
+
+    /// The previous piece each piece was tidied with, keyed by the piece, for one recording run as `run` says.
+    private func precedingPieces(
+        _ lines: [String], run: (DictationPipeline) async -> Void, earlyPoll: Duration,
+        capture: FakeAudioCaptureEngine = FakeAudioCaptureEngine(),
+        recordings: FakeRecordingKeeper = FakeRecordingKeeper()
+    ) async -> [String: String?] {
+        let cleaner = finishing()
+        let pipeline = DictationPipeline(
+            capture: capture, speech: reading(lines), cleaner: cleaner,
+            context: FakeContextEngine(context: Self.document), inserter: FakeTextInserter(),
+            recordings: recordings, windowing: quick, earlyPoll: earlyPoll)
+        await run(pipeline)
+        return Dictionary(
+            cleaner.requests.filter { $0.scope == .piece }.map { ($0.transcription.text, $0.precedingPiece) },
+            uniquingKeysWith: { first, _ in first })
+    }
+
+    @Test("a piece reads the same previous piece whether decoded while the key is held, after release or on retry")
+    func previousPieceIsTheSameOnEveryPath() async {
+        let lines = ["we waited for the build", "because the runner was slow", "and then it passed"]
+        let expected: [String: String?] = [lines[0]: nil, lines[1]: lines[0], lines[2]: lines[1]]
+        let held = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
+        await held.setCaptured(Take.threePieces)
+        let released = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
+        let recording = KeptRecording(id: UUID(), when: Date(), duration: .seconds(5))
+        let kept = FakeRecordingKeeper(waiting: [recording], audioOutcome: .success(Take.threePieces))
+        let dictate: (DictationPipeline) async -> Void = {
+            await $0.startRecording()
+            await $0.finishRecording()
+        }
+
+        let early = await precedingPieces(lines, run: dictate, earlyPoll: .milliseconds(2), capture: held)
+        let release = await precedingPieces(lines, run: dictate, earlyPoll: .seconds(3600), capture: released)
+        let retry = await precedingPieces(
+            lines, run: { await $0.retry(recording.id) }, earlyPoll: .seconds(3600), recordings: kept)
+
+        #expect(early == expected)
+        #expect(release == expected)
+        #expect(retry == expected)
+    }
+
+    @Test("the pieces cleaned outside a dictation read the same previous piece")
+    func cleanedPiecesSeeThePreviousPiece() async {
+        let cleaner = finishing()
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(), speech: reading([]), cleaner: cleaner,
+            context: FakeContextEngine(context: Self.document), inserter: FakeTextInserter())
+        let heard = ["first piece", "second piece"].map { Transcription(text: $0) }
+
+        _ = await pipeline.clean(heard, seeing: Self.document)
+
+        #expect(cleaner.requests.filter { $0.scope == .piece }.map(\.precedingPiece) == [nil, "first piece"])
+    }
+
     @Test("a spoken sequence over three pieces of a real dictation becomes a list in a document")
     func listInADocument() async {
         let text = await dictate(
@@ -82,12 +157,12 @@ struct DictationPipelineJoinTests {
         #expect(text == "- We fix the build\n- We review the PR\n- We ship it")
     }
 
-    @Test("the same dictation into a chat window stays prose")
+    @Test("the same dictation into a chat window stays prose, on the one line Return would send")
     func listInAChatStaysProse() async {
         let text = await dictate(
             ["first we fix the build", "second we review the PR", "third we ship it"],
             seeing: .fixture())
-        #expect(text == "First we fix the build.\n\nSecond we review the PR.\n\nThird we ship it.")
+        #expect(text == "First we fix the build. Second we review the PR. Third we ship it.")
     }
 
     @Test("a topic word after a pause opens a paragraph in an email")
@@ -110,6 +185,6 @@ struct DictationPipelineJoinTests {
     func restatementAcrossAPause() async {
         let text = await dictate(
             ["let's meet at four", "no sorry at five", "in the small room"], seeing: Self.document)
-        #expect(text == "Let's meet at five. In the small room.")
+        #expect(text == "Let's meet at five in the small room.")
     }
 }

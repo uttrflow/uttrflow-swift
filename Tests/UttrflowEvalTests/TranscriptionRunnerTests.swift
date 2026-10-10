@@ -133,11 +133,7 @@ struct TranscriptionRunnerTests {
             label: "test", over: [recording(passage("one"))]
         ) { recorded in .transcribed(recorded.passage.romanised, stages: timings(1)) }
         #expect(report.latency(for: .capture) == nil)
-        #expect(
-            report.unmeasuredStages == [
-                .microphoneOpen, .capture, .drain, .correction, .transformation, .expansion,
-                .insertion,
-            ])
+        #expect(report.unmeasuredStages == PipelineStage.allCases.filter { $0 != .transcription })
     }
 
     @Test("counts what came back in Devanagari, and what had to be transliterated")

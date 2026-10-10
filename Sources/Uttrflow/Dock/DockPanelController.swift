@@ -60,6 +60,8 @@ final class DockPanelController {
     /// Where the microphone's level is pulled from on the main actor, keeping redraws off the audio thread.
     private var levelSource: (@Sendable () -> Float)?
     private var levelTimer: Timer?
+    /// Called once a recording's input has stayed below the floor long enough to tell the person.
+    var onInputSilent: () -> Void = {}
     private var appearanceObserver: (any NSObjectProtocol)?
 
     private let panel: DockPanel
@@ -179,7 +181,8 @@ final class DockPanelController {
         guard levelTimer == nil, let levelSource else { return }
         let timer = Timer(timeInterval: Self.meteringInterval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.model.meter(levelSource())
+                guard let self, self.model.meter(levelSource()) else { return }
+                self.onInputSilent()
             }
         }
         // `.common`, so a drag of the button to another corner does not freeze the meter.
@@ -248,10 +251,9 @@ final class DockPanelController {
     private var visibleFrame: CGRect {
         if let visibleFrame = visibleFrameProvider?() { return visibleFrame }
         // With no screen to place against, staying put beats moving somewhere arbitrary.
-        let screens = NSScreen.screens
-        let panelScreen = panel.screen.flatMap { current in screens.first { $0 == current } }
-        let mainScreen = NSScreen.main.flatMap { current in screens.first { $0 == current } }
-        return (panelScreen ?? mainScreen ?? screens.first)?.visibleFrame ?? panel.frame
+        let screen = DockPlacement.screen(
+            current: panel.screen, main: NSScreen.main, among: NSScreen.screens)
+        return screen?.visibleFrame ?? panel.frame
     }
 
     private func configurePanel() {

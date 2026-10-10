@@ -53,7 +53,7 @@ struct CaretCloserPassTests {
             pass.apply(Draft(keepingLineBreaks: "See the attached file. )")).text == "See the attached file.")
     }
 
-    @Test("runs after the model and before the formatter adds the sentence stop")
+    @Test("runs after the model, leaving the open bracket's sentence unstopped and lower-case")
     func pipelineRemovesCloserBeforeFinishing() {
         let context = AppContext(precedingText: "I told him (")
         let situation = Situation(app: context, insertion: context.insertionPoint, destination: .document)
@@ -62,6 +62,6 @@ struct CaretCloserPassTests {
             heard: "see the attached file", spoken: "see the attached file")
         #expect(
             pipeline.run(Draft(keepingLineBreaks: "see the attached file)\"")).text
-                == "See the attached file.")
+                == "see the attached file")
     }
 }

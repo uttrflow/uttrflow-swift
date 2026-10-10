@@ -16,22 +16,26 @@ struct WebFieldProbeTests {
     }
 
     private static let text = "Lorem ipsum dolor"
-    private static let read = Outcome(value: text, messages: 8, document: true)
-    private static let nothing = Outcome(value: nil, messages: 6, document: false)
+    /// One message per name, since the replay does not batch, then the caret.
+    private static let named = FocusedFieldRead.nameAttributes.count + 1
+    /// The names and caret, then the field's length and its value.
+    private static let valued = named + 2
+    private static let read = Outcome(value: text, messages: valued, document: true)
+    private static let nothing = Outcome(value: nil, messages: named, document: false)
 
     static let expected: [String: Outcome] = [
         "web-textarea-chromium-tree-on.json": read,
-        "web-textarea-chromium-tree-off.json": Outcome(value: text, messages: 8, document: false),
+        "web-textarea-chromium-tree-off.json": Outcome(value: text, messages: valued, document: false),
         "web-textarea-webkit-tree-on.json": read,
         "web-textarea-webkit-tree-off.json": read,
         "web-contenteditable-chromium-tree-on.json": read,
         "web-contenteditable-chromium-tree-off.json": nothing,
         "web-contenteditable-webkit-tree-on.json": read,
         "web-contenteditable-webkit-tree-off.json": read,
-        "web-rich-editor-chromium-tree-on.json": Outcome(value: "", messages: 8, document: true),
+        "web-rich-editor-chromium-tree-on.json": Outcome(value: "", messages: valued, document: true),
         "web-rich-editor-chromium-tree-off.json": nothing,
-        "web-rich-editor-webkit-tree-on.json": Outcome(value: "", messages: 8, document: true),
-        "web-rich-editor-webkit-tree-off.json": Outcome(value: "", messages: 8, document: true),
+        "web-rich-editor-webkit-tree-on.json": Outcome(value: "", messages: valued, document: true),
+        "web-rich-editor-webkit-tree-off.json": Outcome(value: "", messages: valued, document: true),
         "web-address-bar-chromium-tree-on.json": nothing,
         "web-address-bar-chromium-tree-off.json": nothing,
         "web-address-bar-webkit-tree-on.json": nothing,

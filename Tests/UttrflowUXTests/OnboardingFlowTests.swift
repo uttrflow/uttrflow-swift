@@ -33,6 +33,58 @@ struct OnboardingFlowTests {
         #expect(!harness.settingsStore.load().sharesUsageStatistics)
     }
 
+    // MARK: The clipboard
+
+    @Test("after sign-in, says copies are kept and saves Turn off at once, before the microphone")
+    func clipboardPageComesAfterSignIn() async {
+        let harness = Harness(hasAnsweredClipboard: false)
+        await harness.flow.start()
+
+        #expect(harness.step == .clipboard)
+        #expect(harness.buttonTitles == ["Keep", "Turn off", "Continue"])
+        #expect(await harness.press("Turn off"))
+        #expect(!harness.settingsStore.load().clipboardEnabled)
+        #expect(harness.page.buttons.map(\.isSelected) == [false, true, false])
+        #expect(!harness.record.hasAnsweredClipboard)
+
+        #expect(await harness.press("Keep"))
+        #expect(harness.settingsStore.load().clipboardEnabled)
+
+        #expect(await harness.press("Continue"))
+        #expect(harness.record.hasAnsweredClipboard)
+        #expect(harness.step == .microphone)
+    }
+
+    @Test("tells the running app about the clipboard choice as it is made")
+    func clipboardChoiceReachesTheApp() async {
+        let harness = Harness(hasAnsweredClipboard: false)
+        var told: [Bool] = []
+        harness.flow.onSettingsChange = { told.append($0.clipboardEnabled) }
+        await harness.flow.start()
+
+        #expect(await harness.press("Turn off"))
+        #expect(told == [false])
+    }
+
+    @Test("passes over the clipboard page once it has been answered")
+    func answeredClipboardPageIsPassedOver() async {
+        let harness = Harness(hasAnsweredClipboard: true)
+        await harness.flow.start()
+
+        #expect(harness.step == .microphone)
+        #expect(!harness.published.contains { $0.step == .clipboard })
+    }
+
+    @Test("ignores a clipboard choice sent from any other page")
+    func strayClipboardChoiceIsIgnored() async {
+        let harness = Harness()
+        await harness.flow.start()
+
+        await harness.flow.perform(.setClipboardEnabled(false))
+        #expect(harness.settingsStore.load().clipboardEnabled)
+        #expect(harness.step == .microphone)
+    }
+
     // MARK: Getting under way
 
     @Test("opens on the first page with something to ask, with a dot for every page there will be")
@@ -79,11 +131,33 @@ struct OnboardingFlowTests {
         #expect(!harness.published.contains { $0.step == .accessibility })
     }
 
+    @Test("introduces default-off suggestions on the first try page without a new consent choice")
+    func firstRunIntroducesSuggestions() async {
+        let caption =
+            "AI suggestions finish your line as you type in another app. Off by default; turn on in Settings › AI suggestions."
+        let harness = Harness(microphone: .granted, accessibility: .granted)
+        #expect(!harness.settingsStore.load().suggestions.isEnabled)
+
+        await harness.flow.start()
+
+        #expect(harness.step == .ready)
+        #expect(harness.page.action?.caption == caption)
+        #expect(harness.page.hint?.contains("AI suggestions") == false)
+        #expect(harness.page.buttons.isEmpty)
+        #expect(harness.settingsStore.load().suggestions.isEnabled == false)
+    }
+
     @Test("finishes manually when Accessibility is denied, and ready when it is granted")
     func finishingReflectsAccessibilityPermission() async {
         let denied = Harness(microphone: .granted, accessibility: .denied)
         await denied.flow.start()
+        #expect(denied.step == .accessibility)
+        #expect(denied.detail == .permission(.denied))
 
+        // Only a device policy lets the user past Accessibility without granting it.
+        await denied.accessibility.setStatus(.restricted)
+        await denied.flow.refresh()
+        #expect(await denied.press("Continue"))
         #expect(denied.step == .ready)
         #expect(denied.detail == .finishing(.pastesManually))
         await denied.flow.perform(.finish)
@@ -592,7 +666,7 @@ struct OnboardingFlowTests {
         await harness.flow.refresh()
 
         #expect(keys(of: harness.page) == ["⇧", "⌘", "Return"])
-        #expect(harness.page.subtitle?.hasPrefix("Press") == true)
+        #expect(harness.page.subtitle?.contains("then press shift, command and Return") == true)
     }
 
     @Test("a user who has finished is never onboarded again")

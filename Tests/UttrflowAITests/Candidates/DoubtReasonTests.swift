@@ -9,11 +9,11 @@ struct DoubtReasonTests {
     private func crowdedDraft() -> Draft {
         let text =
             "we will sail to the sale and see the whole hole near the principal office before the "
-            + "meeting where everyone agreed that the zebra plan was fine for now"
+            + "meeting where everyone agreed that the zebra plan was fine for now today"
         let words = text.split(separator: " ").map { word in
-            Draft.Word(String(word), confidence: word == "zebra" ? 0.2 : 0.95)
+            Draft.Word(String(word), evidence: .score(word == "zebra" ? 0.2 : 0.95))
         }
-        return Draft(words: words, confidencesAreReal: true)
+        return Draft(words: words)
     }
 
     @Test("the measured-low word is offered first, ahead of every surely heard group word")
@@ -43,11 +43,11 @@ struct DoubtReasonTests {
     @Test("a run with any low-scored word is a low-score run measured at its weakest word")
     func mixedRunIsLowScore() {
         let runs = UncertainSpan.spans(
-            in: [("the", 0.3), ("principal", 0.9)], below: WordCorrectionEngine.certaintyThreshold)
-        let both = runs.first { $0.text == "the principal" }
+            in: [("the", 0.3, false), ("write", 0.9, false)])
+        let both = runs.first { $0.text == "the write" }
         #expect(both?.reason == .lowScore)
         #expect(both?.confidence == 0.3)
-        #expect(runs.first { $0.text == "principal" }?.reason == .homophoneClass)
+        #expect(runs.first { $0.text == "write" }?.reason == .homophoneClass)
     }
 }
 

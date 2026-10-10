@@ -131,4 +131,27 @@ struct PictureFileOwnershipTests {
         #expect(after.names == [image.file])
         #expect(after.bytes == 2)
     }
+
+    @Test(
+        "a picture name that leaves the Images folder is never read, sealed or reported present",
+        arguments: ["../outside.txt", "..", ".", "", "a/../../outside.txt"])
+    func aNameOutsideTheFolderIsRefused(_ name: String) async throws {
+        let folder = try TemporaryFolder()
+        let images = await folder.store.imagesFolder
+        try FileManager.default.createDirectory(at: images, withIntermediateDirectories: true)
+        let outside = folder.url.appending(path: "outside.txt", directoryHint: .notDirectory)
+        let original = Data("not a picture".utf8)
+        try original.write(to: outside)
+        let image = ClipImage(file: name, width: 1, height: 1, bytes: original.count)
+
+        #expect(!ClipImage.isConfinedFileName(name))
+        #expect(await folder.store.imageData(for: image) == nil)
+        #expect(await !folder.store.hasImage(for: image))
+        #expect(try Data(contentsOf: outside) == original)
+    }
+
+    @Test("a plain file name stays a picture name")
+    func aPlainNameIsConfined() {
+        #expect(ClipImage.isConfinedFileName("\(UUID().uuidString).png"))
+    }
 }

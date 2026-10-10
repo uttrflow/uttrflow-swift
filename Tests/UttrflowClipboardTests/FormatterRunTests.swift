@@ -32,17 +32,23 @@ struct FormatterRunTests {
     @Test("a formatter that ignores TERM is killed and its bounded pipe pump returns")
     func termIgnoringToolIsKilled() async throws {
         let pidFile = FileManager.default.temporaryDirectory.appending(path: "formatter-pid-\(UUID())")
-        let tool = try Self.tool("echo $$ > '\(pidFile.path)'\ntrap '' TERM\nwhile :; do :; done")
+        // The pid is written only once TERM is ignored, so a file names a tool that really ignores it.
+        let tool = try Self.tool("trap '' TERM\necho $$ > '\(pidFile.path)'\nwhile :; do :; done")
         defer { try? FileManager.default.removeItem(at: tool.deletingLastPathComponent()) }
         let startedAt = DispatchTime.now().uptimeNanoseconds
 
         #expect(await Self.run(tool, "let x = 1", timeout: 1) == nil)
 
         let elapsed = DispatchTime.now().uptimeNanoseconds - startedAt
-        let processID = try #require(
-            Int(String(contentsOf: pidFile, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)))
         #expect(elapsed < 4_000_000_000, "termination escalation must remain bounded")
-        #expect(kill(pid_t(processID), 0) == -1 && errno == ESRCH, "the ignored-TERM process must be gone")
+        // A tool the deadline reached before its trap ran died of TERM itself and wrote no pid.
+        if let written = try? String(contentsOf: pidFile, encoding: .utf8),
+            let processID = Int(written.trimmingCharacters(in: .whitespacesAndNewlines))
+        {
+            #expect(
+                kill(pid_t(processID), 0) == -1 && errno == ESRCH, "the ignored-TERM process must be gone")
+        }
+        try? FileManager.default.removeItem(at: pidFile)
     }
 
     @Test("stdout beyond the fixed output cap is refused")

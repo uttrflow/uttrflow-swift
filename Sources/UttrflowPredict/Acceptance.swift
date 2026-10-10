@@ -55,7 +55,7 @@ public enum Acceptance {
     private static func rebaseAhead(_ edit: Edit, after typed: String, onto before: String) -> Edit? {
         let inserted = Array(edit.inserted)
         guard !inserted.isEmpty else { return nil }
-        for echoed in stride(from: inserted.count - 1, through: 1, by: -1) {
+        for echoed in stride(from: inserted.count, through: 1, by: -1) {
             let ahead = typed + String(inserted[..<echoed])
             if before.hasSuffix(ahead) {
                 return Edit(replaced: "", inserted: String(inserted[echoed...]))

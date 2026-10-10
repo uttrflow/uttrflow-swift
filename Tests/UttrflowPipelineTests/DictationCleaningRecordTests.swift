@@ -3,6 +3,7 @@ import Synchronization
 import Testing
 
 @testable import UttrflowCore
+import UttrflowDictionary
 @testable import UttrflowPipeline
 @testable import UttrflowTestSupport
 
@@ -46,7 +47,7 @@ private struct RefusingCleaner: TranscriptCleaning {
 }
 
 /// Keeps what the pipeline reported, in the order it reported it.
-private actor CollectingCleaningRecorder: CleaningRecording {
+actor CollectingCleaningRecorder: CleaningRecording {
     private(set) var records: [CleaningRecord] = []
 
     func record(_ record: CleaningRecord) async {
@@ -107,6 +108,28 @@ struct DictationCleaningRecordTests {
         #expect(records.count == 1)
         #expect(records.first?.changes.first?.removed == ["um"])
         #expect(records.first?.switchedOff == [.spacing])
+    }
+
+    @Test("the report names the dictionary revision every piece was corrected against")
+    func carriesTheDictionaryRevision() async {
+        let index = PhoneticIndex(entries: [
+            DictionaryEntry(
+                word: "Zorvex", pronunciation: "sore vex", origin: .added, firstSeen: .distantPast)
+        ])
+        let recorder = CollectingCleaningRecorder()
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(Self.audio)),
+            speech: FixedSpeechEngine(heard: "um we ship"),
+            cleaner: AccountingCleaner(record: account),
+            context: FakeContextEngine(context: .fixture()),
+            inserter: FakeTextInserter(),
+            corrector: DictionaryCorrections { _ in index },
+            cleaningRecorder: recorder)
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        #expect(await recorder.records.first?.dictionaryRevision == index.revision)
     }
 
     @Test("cleanup is reported as cleaning, not an undoable correction")

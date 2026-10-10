@@ -3,8 +3,12 @@ import Testing
 @testable import UttrflowContext
 
 struct FieldNamesTests {
-    private static func names(role: String? = "AXTextField", placeholder: String? = nil) -> FieldNames {
-        FieldNames(role: role, subrole: nil, identifier: nil, placeholder: placeholder, description: nil)
+    private static func names(
+        role: String? = "AXTextField", placeholder: String? = nil, title: String? = nil
+    ) -> FieldNames {
+        FieldNames(
+            role: role, subrole: nil, identifier: nil, placeholder: placeholder, description: nil,
+            title: title)
     }
 
     @Test func declaredSecureFieldIsSecureWithoutItsValueBeingRead() {
@@ -19,6 +23,7 @@ struct FieldNamesTests {
 
     @Test func fieldNamedForASecretIsDeclaredSecure() {
         #expect(Self.names(placeholder: "Password").isDeclaredSecure)
+        #expect(Self.names(title: "Card number").isDeclaredSecure)
     }
 
     @Test func undeclaredFieldIsSecureOnlyWhenItsValueIsMaskCharacters() {
@@ -56,6 +61,6 @@ struct FieldLabelTests {
             answers: ["AXRole": .value("AXTextField"), "AXTitle": .value("Subject")])
         let names = FocusedFieldRead.names(of: field, in: FakeTree(root: field, messages: log))
         #expect(names.title == "Subject")
-        #expect(log.asked == FocusedFieldRead.nameAttributes)
+        #expect(log.asked == [FocusedFieldRead.nameAttributes.joined(separator: "+")])
     }
 }

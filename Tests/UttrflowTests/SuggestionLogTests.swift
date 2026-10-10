@@ -51,7 +51,14 @@ struct SuggestionLogTests {
                 typed: typed, offered: 4, allowed: 1, elapsedMilliseconds: 2, firstCompletion: offered)
         ),
         ("accept", SuggestionLog.accept(text: offered, typed: typed, via: "accessibility")),
-        ("landedNowhere", SuggestionLog.landedNowhere(.noFocusedTextField, typed: typed)),
+        (
+            "landedNowhere",
+            SuggestionLog.landedNowhere(.insertionRejected(description: offered), typed: typed)
+        ),
+        (
+            "deliveryUnconfirmed",
+            SuggestionLog.deliveryUnconfirmed(.insertionInterrupted(typed: 2, total: 4), typed: typed)
+        ),
         (
             "refusedUnwritten",
             SuggestionLog.refusedUnwritten("the focused field cannot be read", typed: typed)
@@ -72,6 +79,9 @@ struct SuggestionLogTests {
         }
         #expect(Self.lines.first { $0.0 == "accept" }?.1.contains("chars=\(Self.offered.count) ") == true)
         #expect(Self.lines.first { $0.0 == "attest" }?.1.contains("dropped=2") == true)
+        #expect(
+            Self.lines.first { $0.0 == "deliveryUnconfirmed" }?.1.hasPrefix(
+                "completion delivery is unconfirmed: TextInsertionError.insertionInterrupted") == true)
     }
 
     @Test("a stall hides application identity unless debugging requests it")

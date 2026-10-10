@@ -4,7 +4,7 @@ import Testing
 @testable import UttrflowCore
 @testable import UttrflowPipeline
 
-/// Corrected words become certain while untouched words keep their recognition scores.
+/// Corrected words become settled, keeping the heard score, while untouched words keep theirs.
 @Suite("Transcription corrections keep word confidences")
 struct TranscriptionCorrectionTests {
     @Test("sorts reversed corrections and preserves every untouched confidence")
@@ -26,7 +26,22 @@ struct TranscriptionCorrectionTests {
             draft.words.map(\.text) == [
                 "alpha", "BetaName", "gamma", "delta", "epsilon", "ZetaName", "eta", "theta",
             ])
-        #expect(draft.words.map(\.confidence) == [0.91, 1, 0.86, 0.31, 0.77, 1, 0.68, 0.21])
+        #expect(draft.words.map(\.confidence) == [0.91, 0.2, 0.86, 0.31, 0.77, 0.2, 0.68, 0.21])
+        #expect(draft.words.map(\.settled) == [false, true, false, false, false, true, false, false])
+    }
+
+    @Test("an override is never written as confidence 1, whatever it replaced", .bug(id: 4519))
+    func overrideNeverBecomesCertain() {
+        let heard = Self.transcription("alpha beta gamma")
+        let corrected = CorrectedTranscript(
+            text: "alpha Beta Name gamma",
+            corrections: [Self.correction("beta", wrote: "Beta Name", over: 1..<2)])
+
+        let words = heard.saying(corrected).segments.flatMap(\.words)
+
+        #expect(words.filter(\.settled).map(\.text) == ["Beta", "Name"])
+        #expect(words.filter(\.settled).allSatisfy { $0.confidence == 0.2 })
+        #expect(!words.contains { $0.confidence == 1 })
     }
 
     @Test("falls back to plain text when correction ranges overlap")

@@ -1,5 +1,7 @@
 import Testing
 
+import UttrflowCore
+
 @testable import UttrflowPredictCapture
 
 private let allowed = CapturePreferences(
@@ -45,12 +47,20 @@ struct CaptureGateTests {
             CaptureGate.refusal(toRecord: "123456", from: otp, given: CapturePreferences()) == .secureField)
     }
 
-    @Test("An application nobody has been asked about is refused, and the refusal asks.")
-    func unknownApplicationAsks() {
-        let refusal = CaptureGate.refusal(
-            toRecord: "git status", from: field(), given: CapturePreferences())
-        #expect(refusal == .consentNotGiven)
-        #expect(refusal?.asksTheUser == true)
+    @Test(
+        "One consent rule on both paths: unasked and allowed are learned, declined is refused.",
+        arguments: [
+            (CapturePreferences(), nil),
+            (allowed, nil),
+            (
+                CapturePreferences(consent: ["com.example.terminal": .declined]),
+                CaptureRefusal.consentDeclined
+            ),
+        ] as [(CapturePreferences, CaptureRefusal?)])
+    func oneConsentRule(preferences: CapturePreferences, expected: CaptureRefusal?) {
+        let edit = EditedSpan(position: 0, old: ["tuesday"], new: ["thursday"])
+        #expect(CaptureGate.refusal(toRecord: "git status", from: field(), given: preferences) == expected)
+        #expect(CaptureGate.refusal(toHear: edit, from: field(), given: preferences) == expected)
     }
 
     @Test("An application the user said no to is refused without asking again.")
@@ -58,7 +68,6 @@ struct CaptureGateTests {
         let declined = CapturePreferences(consent: ["com.example.terminal": .declined])
         let refusal = CaptureGate.refusal(toRecord: "git status", from: field(), given: declined)
         #expect(refusal == .consentDeclined)
-        #expect(refusal?.asksTheUser == false)
     }
 
     /// The switch lowercases what it writes and the field reading does not, so the two must still meet (#668).
@@ -72,7 +81,6 @@ struct CaptureGateTests {
             toRecord: "git status", from: mixedCase, given: preferences)
 
         #expect(refusal == .consentDeclined)
-        #expect(refusal?.asksTheUser == false)
     }
 
     /// A file written before the two stores agreed holds both spellings, and the refusal is the one to keep.
@@ -109,16 +117,55 @@ struct CaptureGateTests {
     func shortNumericWebValuesAreRefused() {
         let browser = FieldReading(bundleIdentifier: "com.example.browser", role: "AXTextField")
 
-        for value in ["12", "1234", "123456", "01011990", "12 34", "123 456", "12-3456", "4111.1111"] {
+        for value in ["12", "1234", "123456", "01011990", "123 456", "12-3456", "4111.1111"] {
             #expect(CaptureGate.refusal(toRecord: value, from: browser, given: allowed) == .sensitiveValue)
         }
     }
 
-    @Test("Malformed groups and values over eight digits remain ordinary text.")
-    func malformedOrLongGroupedNumbersPass() {
-        for value in ["1--2", "-1234", "1234.", "1 2 3 4 5 6 7 8 9"] {
+    @Test("Ordinary decimals, ISO dates, and two-value pairs pass in non-terminal fields.")
+    func ordinaryNumericShapesPass() {
+        let browser = FieldReading(bundleIdentifier: "com.example.browser", role: "AXTextField")
+        for value in ["3.14", "10.5", "2026-10-03", "10 20", "12 34"] {
+            #expect(CaptureGate.refusal(toRecord: value, from: browser, given: allowed) == nil)
+        }
+    }
+
+    @Test(
+        "Identity, phone, account and card numbers of any length are refused, with or without separators.",
+        arguments: [
+            "123456789", "123 45 6789", "9876543210", "98765-43210", "123456789012", "1234 5678 9012",
+            "4000123412341234", "4000-1234-1234-1234", "1 2 3 4 5 6 7 8 9",
+        ])
+    func longNumericWebValuesAreRefused(value: String) {
+        let browser = FieldReading(bundleIdentifier: "com.example.browser", role: "AXTextField")
+        #expect(CaptureGate.refusal(toRecord: value, from: browser, given: allowed) == .sensitiveValue)
+    }
+
+    @Test(
+        "Expiry dates, times, punctuated and parenthesised codes are refused in non-terminal fields.",
+        arguments: [
+            "12/25", "12:34", "1234_5678", "1,234", "123-456.", "123456!", "(123456)", "(123) 456-7890",
+        ])
+    func punctuatedNumericWebValuesAreRefused(value: String) {
+        let browser = FieldReading(bundleIdentifier: "com.example.browser", role: "AXTextField")
+        #expect(CaptureGate.refusal(toRecord: value, from: browser, given: allowed) == .sensitiveValue)
+    }
+
+    @Test("Ordinary numeric shapes keep passing when written with trailing punctuation.")
+    func punctuatedOrdinaryNumericShapesPass() {
+        let browser = FieldReading(bundleIdentifier: "com.example.browser", role: "AXTextField")
+        for value in ["3.14.", "2026-10-03.", "10.5,"] {
+            #expect(CaptureGate.refusal(toRecord: value, from: browser, given: allowed) == nil)
+        }
+    }
+
+    @Test("Malformed digit groups remain ordinary text.")
+    func malformedGroupedNumbersPass() {
+        for value in ["1--2", "-1234"] {
             #expect(CaptureGate.refusal(toRecord: value, from: field(), given: allowed) == nil)
         }
+        // A number ending in a full stop alone is an ordered-list marker, refused as too short to be an item.
+        #expect(CaptureGate.refusal(toRecord: "1234.", from: field(), given: allowed) == .tooShort)
     }
 
     @Test(
@@ -126,6 +173,9 @@ struct CaptureGateTests {
     func shortNumericTerminalValuesPass() {
         let terminalAllowed = CapturePreferences(consent: ["com.apple.terminal": .allowed])
         #expect(CaptureGate.refusal(toRecord: "123456", from: terminalField(), given: terminalAllowed) == nil)
+        #expect(
+            CaptureGate.refusal(toRecord: "123456789012", from: terminalField(), given: terminalAllowed)
+                == nil)
     }
 
     @Test("A destructive command is refused, so it can never be stored to complete later.")
@@ -148,7 +198,7 @@ struct CaptureGateTests {
     @Test("A credential is refused by the same rules the clipboard hides one with.")
     func secretsAreRefused() {
         let secrets = [
-            "export AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMIK7MDENGbPxRfiCYEXAMPLEKEY",
+            "export AWS_SECRET_ACCESS_KEY=Qv7RkT2mXeL9pAz4NbHc8FwJdY3gS6uH",
             "-----BEGIN RSA PRIVATE KEY-----",
             "psql postgres://someone:s3cretpassword@db.example.com/records",
         ]
@@ -180,21 +230,42 @@ struct CaptureGateTests {
 
     @Test("The credential rules are the clipboard's, asked rather than copied.")
     func secretRuleIsShared() {
-        #expect(CaptureGate.looksLikeSecret("AKIAIOSFODNN7EXAMPLE"))
+        #expect(CaptureGate.looksLikeSecret("ASIAY34FZKBOKMUTVV7A"))
         #expect(!CaptureGate.looksLikeSecret("git commit -m 'fix the thing'"))
+    }
+
+    @Test(
+        "A credential on any line of a multi-line value is a secret, as it is on one line.",
+        arguments: [
+            ("docker run", "  -e DB=a8Kd93jfLq02xZpVnQ7r", "  img"),
+            ("curl https://api.example.com", "  -d a8Kd93jfLq02xZpVnQ7rT5", "  --fail"),
+            ("echo start", "Bearer a8Kd93jfLq02xZpVnQ7r", "echo done"),
+            ("echo start", "secret a8Kd93jfLq02xZpV", "echo done"),
+        ])
+    func continuationLineSecretIsRefused(lines: (String, String, String)) {
+        let oneLine = [lines.0, lines.1, lines.2].joined(separator: " ")
+        let continued = [lines.0, lines.1, lines.2].joined(separator: "\n")
+        #expect(CaptureGate.looksLikeSecret(oneLine))
+        #expect(CaptureGate.looksLikeSecret(continued))
+        #expect(CaptureGate.refusal(toRecord: continued, from: field(), given: allowed) == .looksLikeSecret)
+    }
+
+    @Test("A multi-line value with no credential on any line is not a secret.")
+    func multiLineOrdinaryValuePasses() {
+        #expect(!CaptureGate.looksLikeSecret("docker run \\\n  -e MODE=production \\\n  img"))
     }
 }
 
 @Suite("Asking an application's permission once")
 struct CapturePreferencesTests {
-    @Test("An application nobody has said anything about is unknown, and being unknown means asking.")
-    func unknownAsks() {
+    @Test("An application nobody has said anything about is unknown, and is learned from by default.")
+    func unknownProceeds() {
         let preferences = CapturePreferences()
         #expect(preferences.state(of: "com.example.app") == .unknown)
-        #expect(preferences.decision(for: "com.example.app") == .refuseAndAsk)
+        #expect(preferences.decision(for: "com.example.app") == .proceed)
     }
 
-    @Test("Opting in is the only answer that lets anything be learned.")
+    @Test("Opting in lets the application be learned from.")
     func allowedProceeds() {
         var preferences = CapturePreferences()
         preferences.record(.allowed, for: "com.example.app")
@@ -219,8 +290,8 @@ struct CapturePreferencesTests {
     @Test("One application's answer says nothing about another's.")
     func consentIsPerApplication() {
         var preferences = CapturePreferences()
-        preferences.record(.allowed, for: "com.example.terminal")
-        #expect(preferences.decision(for: "com.example.browser") == .refuseAndAsk)
+        preferences.record(.declined, for: "com.example.terminal")
+        #expect(preferences.decision(for: "com.example.browser") == .proceed)
     }
 
     @Test("Every state has a decision, so no application can fall through the rule.")

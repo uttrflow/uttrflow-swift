@@ -165,13 +165,14 @@ struct PanelDeleteSheetPresentationTests {
         #expect(Self.sheet(pinned)?.note == "It is pinned.")
     }
 
-    @Test("an ordinary clip has a clear question without an irrelevant note")
+    /// Only a kept clip asks; an ordinary one goes at once, and the undo offer pays for that.
+    @Test("an ordinary clip is deleted without a question")
     func ordinaryClipCopy() {
-        let sheet = Self.sheet(PanelFixture.clip("x", minutesAgo: 1))
+        let clip = PanelFixture.clip("x", minutesAgo: 1)
+        let response = PanelFixture.panel([clip]).applying(.delete(clip.id))
 
-        #expect(sheet?.title == "Delete this clip?")
-        #expect(sheet?.note == nil)
-        #expect(sheet?.confirmTitle == "Delete")
+        #expect(response.outcome == .change(.delete(clip.id)))
+        #expect(PanelPresenter.present(response.state).sheet == nil)
     }
 
     @Test("a masked credential's contents never appear in the delete note")
@@ -189,6 +190,27 @@ struct PanelDeleteSheetPresentationTests {
 
         #expect(sheet?.confirmTitle == "Delete")
         #expect(sheet?.kind == .confirmingDelete)
+    }
+}
+
+@Suite("Drawing the Make Note confirmation")
+struct PanelMakeNoteSheetPresentationTests {
+    /// A plain clip that can become a note.
+    static let clip = PanelFixture.clip("three things to do", minutesAgo: 1)
+
+    @Test("it names the action and says the plain text stays unchanged")
+    func itExplainsTheAction() {
+        let panel = PanelFixture.panel([Self.clip]).applying(.makeNote(Self.clip.id)).state
+        let sheet = PanelPresenter.present(panel).sheet
+
+        #expect(sheet?.kind == .confirmingMakeNote)
+        #expect(sheet?.title == "Make this clip a note?")
+        #expect(
+            sheet?.note
+                == "The original text stays unchanged. This note formatting cannot be undone.")
+        #expect(sheet?.confirmTitle == "Make note")
+        #expect(sheet?.isConfirmEnabled == true)
+        #expect(sheet?.isConfirmDestructive == false)
     }
 }
 

@@ -51,9 +51,8 @@ struct RomaniserCorpusTests {
     func rulesUnchangedOnEnglish() async throws {
         for testCase in EvaluationCorpus.all where testCase.language != .hindi {
             let request = testCase.transformationRequest()
-            let formatter = DestinationFormatter.standard(for: request.situation.destination)
             let unromanised = RuleBasedTransformer.audited(
-                .standard(for: formatter, situation: request.situation),
+                RuleBasedTransformer.pipeline(for: request, steps: .default),
                 over: Draft(transcription: request.transcription)
             ).draft.text
             #expect(try await RuleBasedTransformer().transform(request).text == unromanised, "\(testCase.id)")

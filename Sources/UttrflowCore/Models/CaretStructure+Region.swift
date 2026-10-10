@@ -29,6 +29,18 @@ extension CaretStructure {
         return precedingText.map { scan($0, markers: markers) } ?? .code
     }
 
+    /// Whether the caret stands where a comment's first word goes: in a comment, with no word after its opener on the caret's line.
+    package static func opensComment(precedingText: String?, documentName: String?) -> Bool {
+        guard region(precedingText: precedingText, documentName: documentName) == .comment,
+            let markers = fileExtension(from: documentName).flatMap(markers(forExtension:))
+        else { return false }
+        let line = caretLine(of: precedingText ?? "")
+        let afterLastWord = line.reversed().prefix { !$0.isLetter && !$0.isNumber }
+        guard afterLastWord.count < line.count else { return true }
+        let openers = markers.line + (markers.block.map { [$0.open] } ?? []) + markers.docstrings.map(\.open)
+        return openers.contains { String(afterLastWord.reversed()).contains($0) }
+    }
+
     private static let proseExtensions: Set<String> = ["md", "markdown", "txt"]
     private static let markdownExtensions: Set<String> = ["md", "markdown"]
 

@@ -10,16 +10,28 @@ public enum NumberCues {
         case coordinator
         /// A coordinator that joins only a rising pair, so "ten to six" stays a clock reading.
         case range
-        /// A larger unit that a smaller one may follow as one measure, as "hours" in "two hours thirty minutes".
+        /// A larger unit that a smaller one may follow as one measure.
         case measureLead
-        /// A smaller unit that closes a two-part measure, as "minutes" in "two hours thirty minutes".
+        /// A smaller unit that closes a two-part measure.
         case measureTail
+        /// An arithmetic operator; its `symbol` replaces it between numbers in arithmetic.
+        case `operator`
+        /// A word after which a lone digit is a numeral, digit groups run together, and no separator is used.
+        case designator
     }
 
     /// The cue words that say `cue`.
     public static func words(for cue: Cue) -> Set<String> {
         Set(table.rows.filter { $0.cues.contains(cue) }.map(\.id))
     }
+
+    /// Each spoken operator as its words, and the symbol that replaces it.
+    public static let operators: [[String]: String] = Dictionary(
+        table.rows.compactMap { row in
+            guard row.cues.contains(.operator), let symbol = row.symbol else { return nil }
+            return (row.id.split(separator: " ").map(String.init), symbol)
+        },
+        uniquingKeysWith: { first, _ in first })
 
     /// The bundled table; see `Docs/data-tables.md`.
     static let table = DataTable<Row>.load("number-cues", schema: 1, from: .module, fallback: [])
@@ -28,5 +40,7 @@ public enum NumberCues {
     struct Row: DataTableRow {
         let id: String
         let cues: Set<Cue>
+        /// The symbol that replaces an `operator` row.
+        let symbol: String?
     }
 }

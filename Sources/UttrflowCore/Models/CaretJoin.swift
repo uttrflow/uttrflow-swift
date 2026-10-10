@@ -1,5 +1,5 @@
 /// Whether a space separates two characters that meet at a caret edge, read from one table for both edges.
-enum CaretJoin {
+package enum CaretJoin {
     /// What one character is to the join beside it.
     enum CharacterClass: CaseIterable, Sendable {
         case word
@@ -52,6 +52,11 @@ enum CaretJoin {
             && joinedInCode.contains(Pair(before: before, after: after)))
     }
 
+    /// Whether `character` opens a bracket or quotation, read with the same classes as the caret join.
+    package static func opensDelimiter(_ character: Character, after previous: Character?) -> Bool {
+        [.openingBracket, .openingQuote].contains(classify(character, after: previous))
+    }
+
     /// Classifies `character`; a straight quote opens only at the start or after a space or an opener.
     static func classify(_ character: Character, after previous: Character?) -> CharacterClass {
         if character.isNewline { return .newline }
@@ -72,7 +77,10 @@ enum CaretJoin {
         case .openPunctuation: return .openingBracket
         case .closePunctuation: return .closingBracket
         case .currencySymbol: return .sign
-        default: return leadingSigns.contains(character) ? .sign : .symbol
+        default:
+            // A hash that closes a word, as in C#, is the end of that word, not a tag before the next one.
+            if character == "#", let previous, classify(previous, after: nil) == .word { return .word }
+            return leadingSigns.contains(character) ? .sign : .symbol
         }
     }
 

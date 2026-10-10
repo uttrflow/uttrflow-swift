@@ -3,7 +3,7 @@ import UttrflowCore
 /// The tables the corpus lives in, and the one place their shape is written down.
 enum Schema {
     /// What this build expects on disk; an older file is migrated to it and a newer one is refused.
-    static let version = 6
+    static let version = 8
 
     /// Everything a fresh database needs, in the order it must be created.
     static let statements = [
@@ -38,6 +38,7 @@ enum Schema {
           accepted     INTEGER NOT NULL DEFAULT 0,
           rejected     INTEGER NOT NULL DEFAULT 0,
           self_sourced INTEGER NOT NULL DEFAULT 0,
+          finished     INTEGER NOT NULL DEFAULT 0,
           last_used    REAL NOT NULL,
           superseded_by TEXT,
           UNIQUE (surface_id, text)
@@ -52,6 +53,20 @@ enum Schema {
           next       TEXT NOT NULL,
           count      INTEGER NOT NULL DEFAULT 1,
           PRIMARY KEY (surface_id, previous, next)
+        )
+        """,
+        // A forgotten line, kept only as its keyed digest so it stays forgotten without being kept.
+        """
+        CREATE TABLE IF NOT EXISTS forgotten (
+          surface_id INTEGER NOT NULL REFERENCES surface(id) ON DELETE CASCADE,
+          marker     TEXT NOT NULL,
+          PRIMARY KEY (surface_id, marker)
+        )
+        """,
+        // The secret those digests are keyed with when the corpus has no shared encryption key.
+        """
+        CREATE TABLE IF NOT EXISTS install_secret (
+          secret TEXT NOT NULL
         )
         """,
         // The version of each refusal rule the stored lines were last swept with.
@@ -100,6 +115,12 @@ enum Schema {
                     try migrateToSurfaceRecency(database)
                 }
             }
+            if current < 7 {
+                try database.transaction { () throws(PredictStoreError) in
+                    try migrateForgottenToMarkers(database)
+                }
+            }
+            if current < 8 { try migrateToFinishedLines(database) }
             if current < version {
                 try database.run("UPDATE schema_version SET version = ?") { $0.bind(1, Int64(version)) }
             }
@@ -117,16 +138,6 @@ enum Schema {
             $0.integer(0)
         }.first
         if schemaVersionBefore != schemaVersionAfter { try database.markSchemaChanged() }
-    }
-
-    /// Adds indexed scope recency and seeds it from the newest entry in each surface.
-    private static func migrateToSurfaceRecency(_ database: Database) throws(PredictStoreError) {
-        if !hasColumn("last_used", in: "surface", database) {
-            try database.execute("ALTER TABLE surface ADD COLUMN last_used REAL NOT NULL DEFAULT 0")
-        }
-        try database.execute(
-            "UPDATE surface SET last_used = COALESCE((SELECT MAX(last_used) FROM entry WHERE entry.surface_id = surface.id), 0)"
-        )
     }
 
     /// Adds the lowercased column an existing v1 file lacks, fills it, and moves the index onto it.
@@ -350,7 +361,7 @@ enum Schema {
     }
 
     /// Whether a table already has a column, so a migration does not add one twice.
-    private static func hasColumn(
+    static func hasColumn(
         _ column: String, in table: String, _ database: Database
     ) -> Bool {
         let names = (try? database.rows("PRAGMA table_info(\(table))", { _ in }) { $0.text(1) }) ?? []
