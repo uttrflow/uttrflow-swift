@@ -32,9 +32,17 @@ private actor NeverAnsweringSpeechEngine: SpeechEngine {
 }
 
 /// A ``SpeechEngine`` slower than real time, taking 0.8 s on `clock` for every second of audio.
-private struct SlowerThanRealTimeSpeechEngine: SpeechEngine {
+private final class SlowerThanRealTimeSpeechEngine: SpeechEngine, Sendable {
     let kind = SpeechEngineKind.whisperKit
     let clock: ManualClock
+    private let began = Mutex(false)
+
+    /// Whether a decode has fixed its end, so a test moves the clock only once there is something to move it for.
+    var hasBegun: Bool { began.withLock { $0 } }
+
+    init(clock: ManualClock) {
+        self.clock = clock
+    }
 
     func prepare() async throws(SpeechEngineError) {}
 
@@ -42,6 +50,7 @@ private struct SlowerThanRealTimeSpeechEngine: SpeechEngine {
         _ audio: AudioSamples, options: TranscriptionOptions
     ) async throws(SpeechEngineError) -> Transcription {
         let end = clock.now.advanced(by: audio.duration * 0.8)
+        began.withLock { $0 = true }
         do { try await clock.sleep(until: end, tolerance: nil) } catch { return .fixture() }
         return Transcription(text: "what I said")
     }
@@ -268,9 +277,10 @@ struct DictationStageTimeoutTests {
     func longRecordingOnASlowRecogniser() async {
         let clock = ManualClock()
         let inserter = TimeoutTestInserter()
+        let speech = SlowerThanRealTimeSpeechEngine(clock: clock)
         let pipeline = DictationPipeline(
             capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 240))),
-            speech: SlowerThanRealTimeSpeechEngine(clock: clock),
+            speech: speech,
             cleaner: TimeoutTestCleaner(),
             context: FakeContextEngine(),
             inserter: inserter,
@@ -278,7 +288,7 @@ struct DictationStageTimeoutTests {
 
         await pipeline.startRecording()
         let finishing = Task { await pipeline.finishRecording() }
-        while !(await pipeline.currentState).isStage(of: .transcribing) { await Task.yield() }
+        while !Task.isCancelled, !speech.hasBegun { await Task.yield() }
         // A second at a time past the 192 s the decode takes, never as far as the limit for 240 s of audio.
         for _ in 0..<300 where (await pipeline.currentState).isBusy {
             clock.advance(by: .seconds(1))
