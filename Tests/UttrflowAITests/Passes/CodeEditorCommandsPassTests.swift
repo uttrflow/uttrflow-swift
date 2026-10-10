@@ -95,4 +95,18 @@ struct CodeEditorCommandsPassTests {
         let pipeline = CleaningPipeline.beforeModel(for: .standard(for: .codeEditor), situation: situation)
         #expect(pipeline.run(Draft(text: "max retries equals five")).text == "max retries = 5")
     }
+
+    @Test("reads a casing phrase that a form of be follows as the subject of prose, at a code caret")
+    func casingPhraseAsSubject() {
+        for precedingText in ["let total = 0\n", "let message = \""] {
+            let app = AppContext(documentName: "notes.swift", precedingText: precedingText)
+            let situation = Situation(app: app, insertion: app.insertionPoint, destination: .codeEditor)
+            let pipeline = CleaningPipeline.beforeModel(
+                for: .standard(for: .codeEditor), situation: situation)
+            for spoken in ["all caps is shouting so avoid it", "camel case was the old style"] {
+                #expect(pipeline.run(Draft(text: spoken)).text == spoken, "\(precedingText)")
+            }
+            #expect(pipeline.run(Draft(text: "all caps max retries")).text == "MAX RETRIES")
+        }
+    }
 }
