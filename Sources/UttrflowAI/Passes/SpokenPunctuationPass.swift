@@ -311,8 +311,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         literalHyphens && value == "\u{2014}" ? "-" : value
     }
 
-    /// The lexicon's programs, whose name starts a command, so every dash after it in the sentence is one of its options.
-    /// The program names the lexicon knows, filed under each word that can open one: the written name, lower-cased, or the first word of a spoken form.
+    /// The lexicon's programs, whose name starts a command so every dash after it is an option, filed under each word that can open the name.
     private static let commands: [String: [(term: TechnicalTerm, written: Bool, spoken: [[String]])]] = {
         var opening: [String: [(term: TechnicalTerm, written: Bool, spoken: [[String]])]] = [:]
         for term in TechnicalLexicon.terms where term.category == .command {
@@ -537,9 +536,8 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     }
 
     /// The marks said by name, filed under the word each name opens on and kept in file order, so a longer name is still tried first.
-    private static let marksByOpening = Dictionary(grouping: SpokenCommands.marks.filter { !$0.words.isEmpty }) {
-        $0.words[0]
-    }
+    private static let marksByOpening = Dictionary(
+        grouping: SpokenCommands.marks.filter { !$0.words.isEmpty }, by: { $0.words[0] })
 
     /// How many words name a mark already written on the word before, as a model writes ", comma,"; nil when none does.
     private func echoedName(at position: Int, in live: [Int], of draft: Draft) -> Int? {
