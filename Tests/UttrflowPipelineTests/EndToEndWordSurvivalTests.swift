@@ -9,11 +9,13 @@ import UttrflowTestSupport
 struct EndToEndWordSurvivalTests {
     private static let seed: UInt64 = 0x2474_2026
     private static let inputCount = 400
-    private static let destinations: [Destination] = [.plain, .document, .email, .messaging]
-    private let router = TransformerRouter(
-        engines: [RuleBasedTransformer()], preference: [.rules])
+    /// Dictations running at once; each waits mostly on its own early-loop polls, not on the processor.
+    private static let inFlight = 16
+    private static let destinations: [Destination] = [
+        .plain, .document, .email, .messaging, .sqlEditor, .codeEditor, .terminal, .spreadsheet,
+    ]
 
-    @Test("reports every word's first loss through insertion padding")
+    @Test("reports every word's first loss, by stage, through the real pipeline to the write")
     func wordsSurviveEveryStage() async throws {
         let inputs = Self.dictations(count: Self.inputCount, seed: Self.seed)
         #expect(inputs.count == Self.inputCount)
@@ -25,11 +27,19 @@ struct EndToEndWordSurvivalTests {
                 inputs.count(where: { $0.destination == destination }) == Self.inputCount
                     / Self.destinations.count)
         }
-        var failures: [String] = []
-        for input in inputs {
-            let losses = try await run(input)
-            failures += losses.map {
-                "input \(input.index) [\(input.destination)]: '\($0.word)' first lost at \($0.stage)"
+        // Each dictation has its own pipeline, so they run side by side; the report keeps the inputs' order.
+        let losses = await withTaskGroup(of: (Int, [LostWord]).self) { group in
+            var found: [Int: [LostWord]] = [:]
+            for (position, input) in inputs.enumerated() {
+                if position >= Self.inFlight, let (done, lost) = await group.next() { found[done] = lost }
+                group.addTask { (position, await run(input)) }
+            }
+            for await (done, lost) in group { found[done] = lost }
+            return found
+        }
+        let failures = inputs.indices.flatMap { position in
+            (losses[position] ?? []).map {
+                "input \(inputs[position].index) [\(inputs[position].destination)]: '\($0.word)' first lost at \($0.stage)"
             }
         }
         #expect(failures.isEmpty, Comment(rawValue: failures.prefix(20).joined(separator: "\n")))
@@ -61,7 +71,7 @@ struct EndToEndWordSurvivalTests {
         let words = "my pin is two two four four".split(separator: " ").map(String.init)
         // The whole join, including the re-tidy of a number cut in two, is the pipeline's.
         let pipeline = DictationPipeline(
-            capture: FakeAudioCaptureEngine(), speech: FakeSpeechEngine(), cleaner: router,
+            capture: FakeAudioCaptureEngine(), speech: FakeSpeechEngine(), cleaner: ScenarioCleaners.rules,
             context: FakeContextEngine(), inserter: FakeTextInserter())
 
         for boundary in 1..<words.count {
@@ -78,39 +88,54 @@ struct EndToEndWordSurvivalTests {
         }
     }
 
-    private func run(_ input: Input) async throws -> [LostWord] {
-        let situation = Situation(
-            app: AppContext(), insertion: .unknown, destination: input.destination)
-        let formatter = DestinationFormatter.standard(for: situation)
-        var pieces: [Piece] = []
-        for part in input.parts {
-            let heard = Transcription(text: part)
-            let request = TransformationRequest(
-                transcription: heard, situation: situation, scope: .piece)
-            let cleaned = try await router.clean(request)
-            pieces.append(Piece(heard: heard, corrected: .unchanged(part), cleaned: cleaned))
+    @Test("a stage that drops a word inside the real pipeline is named as the stage that lost it")
+    func lossyStageInsideThePipelineIsNamed() async {
+        let dictation = await ScenarioDriver.run(
+            Scenario(
+                pieces: [ScriptedPiece("keep the secret"), ScriptedPiece("for the team")],
+                context: Self.app(for: .document), cleaner: DroppingFinish(word: "secret")))
+        let stages = await dictation.stages()
+
+        let found = Self.firstLostWords(
+            reference: "keep the secret for the team", stages: stages,
+            reportWords: ["keep", "secret", "team"])
+
+        #expect(found == [LostWord(word: "secret", stage: "message finish")])
+    }
+
+    @Test("each destination's app is classified by its bundle identifier, not named by the test")
+    func everyDestinationIsReachedByItsBundleIdentifier() {
+        for destination in Self.destinations {
+            #expect(DestinationClassifier.classify(Self.app(for: destination)) == destination)
         }
-        var stages: [(String, String)] = [
-            ("per-piece clean", pieces.map(\.cleaned.text).joined(separator: " "))
-        ]
-        let joined = PieceJoiner.join(pieces, under: formatter)
-        stages.append(("join", joined.cleaned.text))
-        let finishRequest = TransformationRequest(
-            transcription: joined.heard, situation: situation)
-        let finished = await router.finishMessage(joined.cleaned.text, for: finishRequest)
-        stages.append(("message finish", finished))
-        let latin = LatinScript.enforced(finished)
-        stages.append(("LatinScript enforcement", latin))
-        let expanded = SnippetExpander(snippets: []).expand(latin)
-        stages.append(("snippet expansion", expanded.text))
-        let padded = situation.insertion.paddedBoundary(for: expanded.text, in: situation.destination)
-        stages.append(("insertion padding", padded))
+    }
+
+    /// One dictation of `input`, spoken in its parts, into the app its destination names.
+    private func run(_ input: Input) async -> [LostWord] {
+        let dictation = await ScenarioDriver.run(
+            Scenario(pieces: input.parts.map { ScriptedPiece($0) }, context: Self.app(for: input.destination)))
+        guard dictation.heard.map(\.text) == input.parts else {
+            return [LostWord(word: input.text, stage: "recognition: \(dictation.heard.map(\.text))")]
+        }
+        guard dictation.writes.count == 1 else {
+            return [LostWord(word: input.text, stage: "write: \(dictation.writes.count) writes, \(dictation.state)")]
+        }
+        let stages = await dictation.stages()
         let reportWords = Set(input.text.split(whereSeparator: \.isWhitespace).map(String.init))
         return Self.firstLostWords(reference: input.text, stages: stages, reportWords: reportWords)
     }
 
+    /// An app the standard table files under `destination`, named only by its bundle identifier.
+    private static func app(for destination: Destination) -> AppContext {
+        let bundle =
+            DestinationRules.standard.first {
+                $0.destination == destination && !$0.bundlePrefixes.isEmpty
+            }?.bundlePrefixes.first ?? "com.example.unlisted"
+        return AppContext.fixture(applicationName: nil, bundleIdentifier: bundle, documentName: nil)
+    }
+
     private static func firstLostWords(
-        reference: String, stages: [(String, String)], reportWords: Set<String>
+        reference: String, stages: [(stage: String, text: String)], reportWords: Set<String>
     ) -> [LostWord] {
         let referenceWords = spokenWords(reference)
         var losses: [LostWord] = []
@@ -197,6 +222,21 @@ struct EndToEndWordSurvivalTests {
                 index: index + 1, text: text, parts: parts,
                 destination: destinations[index % destinations.count])
         }
+    }
+}
+
+/// The shipping rules, except that finishing the joined message drops one word, as a broken stage would.
+private struct DroppingFinish: TranscriptCleaning {
+    let word: String
+
+    func clean(_ request: TransformationRequest) async throws(TransformationError) -> TransformationResult {
+        try await ScenarioCleaners.rules.clean(request)
+    }
+
+    func finishMessage(_ text: String, for request: TransformationRequest) async -> String {
+        let finished = await ScenarioCleaners.rules.finishMessage(text, for: request)
+        return finished.split(separator: " ").filter { WordShape(String($0)).core.lowercased() != word }
+            .joined(separator: " ")
     }
 }
 
