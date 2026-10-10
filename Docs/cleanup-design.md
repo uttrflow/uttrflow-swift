@@ -241,8 +241,8 @@ separate, testable piece of data:
    into:" line, "Text before the caret: …" when the caret is mid-sentence, the
    doubtful-words line from §5, and the clean-up steps the user switched off.
 
-`PromptBuilderTests.instructionBudget` holds every destination's instructions within a fifth
-over the 2,889-character single prompt the layers replaced, because the bake-off shows
+`PromptBuilderTests.instructionBudget` holds every destination's instructions within two
+thirds over the 2,889-character single prompt the layers replaced, because the bake-off shows
 examples matter and size costs tenths of a second.
 
 **What the model is for, exactly.** It does the cleanings that need judgement — sentence
