@@ -18,6 +18,8 @@ public struct RepeatedPhrasePass: PieceCleaningPass {
     public func apply(_ draft: Draft) -> Draft {
         var draft = draft
         var live = draft.presentIndices
+        // A stammer is read past, so "it hai hai it hai" loses the same words before or after the stammers pass.
+        let stammered = Set(live).subtracting(StammersPass().apply(draft).presentIndices)
         var position = 0
         while position < live.count {
             if let length = FalseStartRestart.prefixLength(at: position, in: live, of: draft) {
@@ -27,7 +29,7 @@ public struct RepeatedPhrasePass: PieceCleaningPass {
                 live.removeSubrange(position..<position + length)
                 continue
             }
-            guard let length = repeatLength(at: position, in: live, of: draft) else {
+            guard let length = repeatLength(at: position, in: live, skipping: stammered, of: draft) else {
                 position += 1
                 continue
             }
@@ -39,17 +41,25 @@ public struct RepeatedPhrasePass: PieceCleaningPass {
         return draft
     }
 
-    /// The longest run at `position` repeated verbatim right after itself, with no punctuation inside.
-    private func repeatLength(at position: Int, in live: [Int], of draft: Draft) -> Int? {
-        for length in Self.lengths.reversed() where position + 2 * length <= live.count {
-            let first = live[position..<position + length]
-            let second = live[position + length..<position + 2 * length]
+    /// How many live words from `position` make a run repeated verbatim right after it, stammers read past, with no punctuation inside.
+    private func repeatLength(
+        at position: Int, in live: [Int], skipping stammered: Set<Int>, of draft: Draft
+    ) -> Int? {
+        guard !stammered.contains(live[position]) else { return nil }
+        let said = Array(
+            live[position...].lazy.filter { !stammered.contains($0) }.prefix(2 * Self.lengths.upperBound))
+        for length in Self.lengths.reversed() where 2 * length <= said.count {
+            let first = said[0..<length]
+            let second = said[length..<2 * length]
             let keys = first.map { draft.shape(at: $0).key }
             let sameWords = zip(first, second).allSatisfy {
                 draft.shape(at: $0).key == draft.shape(at: $1).key
             }
-            let unbroken = !(first + second.dropLast()).contains { draft.shape(at: $0).endsClause }
-            if sameWords, unbroken, !Self.isDeliberate(keys) { return length }
+            let spoken = live[position...].prefix { $0 < second[second.endIndex - 1] }
+            let unbroken = !spoken.contains { draft.shape(at: $0).endsClause }
+            if sameWords, unbroken, !Self.isDeliberate(keys) {
+                return live[position...].prefix { $0 < second[second.startIndex] }.count
+            }
         }
         return nil
     }
