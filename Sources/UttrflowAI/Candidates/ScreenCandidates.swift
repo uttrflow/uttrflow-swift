@@ -19,7 +19,7 @@ public struct ScreenCandidates: CandidateSource {
 
     /// Every run against one reading of the screen, so a page of selected text is read and coded once a piece.
     public func candidates(for words: [Draft.Word], in situation: Situation) async -> [[Reading]] {
-        let shown = Self.words(on: situation).map(ReadingKey.init)
+        let shown = Self.words(on: situation).map(ShownWord.init)
         return words.map { word in
             let found = IdentifierResolver.matches(for: ReadingKey(word.text), among: shown)
             return (found.spelled + found.sounded).prefix(Self.maximumOffered).map { Reading($0) }

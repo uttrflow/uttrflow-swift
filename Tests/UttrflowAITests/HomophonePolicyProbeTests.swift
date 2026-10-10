@@ -127,6 +127,6 @@ struct HomophonePolicyProbeTests {
     }
 
     /// Measured on the shipping sources and guard: a reading the guard would refuse is never offered.
-    static let expectedOffered = 35
+    static let expectedOffered = 99
     static let expectedOfferedThenRefused = 0
 }
