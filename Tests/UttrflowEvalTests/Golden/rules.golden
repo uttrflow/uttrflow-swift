@@ -715,6 +715,26 @@ money	The taxi cost 5 dollars.
 money-billion	We raised 2,000,000,000 dollars.
 name-opening-is-the-one-statement	Maria is the one who called.
 name-opening-is-the-owner-statement	Ravi is the owner of the account.
+negated-option-cache-code-editor	docker build --no-cache
+negated-option-cache-prose	Build the image with --no-cache.
+negated-option-cache-terminal	docker build --no-cache
+negated-option-color-code-editor	ls --no-color
+negated-option-color-prose	Pipe ls --no-color into the file.
+negated-option-color-terminal	ls --no-color
+negated-option-control-answer	No, the board will not proceed.
+negated-option-control-correction	Let's meet on Thursday.
+negated-option-edit-code-editor	git commit --amend --no-edit
+negated-option-edit-prose	Amend it with git commit --amend --no-edit.
+negated-option-edit-terminal	git commit --amend --no-edit
+negated-option-ff-code-editor	git merge --no-ff
+negated-option-ff-prose	Run git merge --no-ff to keep the merge commit.
+negated-option-ff-terminal	git merge --no-ff
+negated-option-pager-code-editor	git --no-pager log
+negated-option-pager-prose	Run git --no-pager log for plain output.
+negated-option-pager-terminal	git --no-pager log
+negated-option-verify-code-editor	git commit --no-verify
+negated-option-verify-prose	Commit with --no-verify only when the hooks are down.
+negated-option-verify-terminal	git commit --no-verify
 new-line-after-a-modifier-kept	Our best new line got a laugh.
 new-paragraph	Thanks for the update.\n\nThe second issue is the login timeout.
 new-paragraph-after-modifier-kept-2353	His first new paragraph was long.
