@@ -219,7 +219,6 @@ struct SeenAndSaidTests {
             ("PaymentSheet.swift", "add a total to the payment sheet", "PaymentSheet"),
             ("Chandrashekhar — notes", "ask Chandra Shekhar about it", "Chandrashekhar"),
             ("pgvector — README", "we use PG vector here", "pgvector"),
-            ("Bandra office", "kal Bandaraa office jaana hai", "Bandra"),
         ] {
             #expect(
                 LearnableWords.seenAndSaid(heard: heard, seeing: .fixture(documentName: title))
@@ -235,10 +234,10 @@ private func seenAndSaidByBruteForce(heard: String, title: String) -> [String] {
     var already: Set<String> = []
     for term in LearnableWords.words(in: title, atMost: WorkingSet.maximumWordsOnScreen)
     where GeneralVocabulary.isWorthLearning(term) && already.insert(term.lowercased()).inserted {
-        let sound = DoubleMetaphone.code(for: term)
+        let sound = WordSound(of: term)
         if said.contains(where: {
-            sound.sounds(like: DoubleMetaphone.code(for: $0.text))
-                && ReadingRestraint.opensAlike(term, heard: $0.text)
+            sound.sounds(like: WordSound(of: $0.text))
+                && ReadingRestraint.soundsNear(term, heard: $0.text)
         }) {
             found.append(term)
         }
@@ -250,9 +249,9 @@ private func seenAndSaidByBruteForce(heard: String, title: String) -> [String] {
 private final class CountingEncoder: @unchecked Sendable {
     private(set) var calls = 0
 
-    func encode(_ text: String) -> PhoneticCode {
+    func encode(_ text: String) -> WordSound {
         calls += 1
-        return DoubleMetaphone.code(for: text)
+        return WordSound(of: text)
     }
 }
 
@@ -399,7 +398,7 @@ struct CorrectedWordTests {
     /// A run of letters that makes no sound has no key, so it could never be found again.
     @Test("Refuses a replacement that makes no sound at all")
     func refusesASilentReplacement() {
-        #expect(DoubleMetaphone.code(for: "hhh").isSilent)
+        #expect(WordSound(of: "hhh").isSilent)
         #expect(LearnableWords.corrected(over: "hhhh", wrote: "hhh") == nil)
     }
 

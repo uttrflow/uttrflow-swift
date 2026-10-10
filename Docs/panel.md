@@ -18,6 +18,9 @@ the row mark; a detected perceptual colour without an sRGB conversion keeps the 
 Word-shaped hashes and issue-like short numbers need a colour declaration to disambiguate
 them. An exact standalone CSS named colour gets a swatch; a colour name within prose stays text.
 
+**Make a note asks first.** Confirming adds a rich form that has no undo path; the original plain text
+stays unchanged. Escape closes the question without changing the clip.
+
 One search field matches text and aliases. An alias is reduced the same way when it is saved
 and when it is matched, in `PanelAlias.handle` (no leading slash, no whitespace, case, accents
 and width folded), so two spellings of one name cannot drift apart.

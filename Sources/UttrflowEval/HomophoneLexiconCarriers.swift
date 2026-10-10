@@ -1,8 +1,8 @@
-// Homophone classes from common English words beyond the hand-kept ones, with invented carriers; written for this repository, copied from no list.
+// Homophone classes from common English words beyond those of `HomophoneCarriers`, with invented carriers; written for this repository, copied from no list.
 
 /// Classes of common words that sound the same or differ by one sound, kept for evaluation only; the repair path never reads them.
 enum HomophoneLexiconClasses {
-    /// Every class; none shares a spelling with `Homophones.groups`.
+    /// Every class; none shares a spelling with `HomophoneCarriers.classes`.
     static let all: [[String]] = [
         ["accept", "except"], ["affect", "effect"], ["then", "than"], ["lose", "loose"],
         ["advice", "advise"], ["quite", "quiet"], ["were", "we're"], ["desert", "dessert"],

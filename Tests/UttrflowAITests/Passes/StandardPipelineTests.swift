@@ -261,6 +261,13 @@ struct StandardPipelineTests {
         #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
     }
 
+    @Test("reads no English label cue across a Hindi function word, so a Hindi sentence keeps its number")
+    func hindiWordEndsLabelCue() {
+        #expect(
+            CleaningPipeline.standard.run(Draft(text: "mera lucky number hai seven")).text
+                == "Mera lucky number hai seven.")
+    }
+
     @Test("removes fillers glued to their neighbours by pause ellipses, keeping the ellipses between words")
     func removesGluedFillers() {
         #expect(

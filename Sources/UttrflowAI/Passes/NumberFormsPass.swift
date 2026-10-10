@@ -1000,7 +1000,7 @@ public struct NumberFormsPass: PieceCleaningPass {
     /// Words before a digit run that say it is a code or a number to dial, not a count.
     static let digitCues = contextWords.union(NumberCues.words(for: .digitRun))
 
-    /// Whether a label word cues the number, across a sign and function words such as "to".
+    /// Whether a label word cues the number, across a sign and English function words such as "to"; a Hindi one ends the walk.
     static func hasLabelCue(at position: Int, keys: [String], shapes: [WordShape]) -> Bool {
         guard position > 0, !startsASentence(position, shapes) else { return false }
         var cuePosition = position - 1
@@ -1010,6 +1010,7 @@ public struct NumberFormsPass: PieceCleaningPass {
             let word = keys[cuePosition]
             if contextWords.contains(word) { return true }
             if FunctionWords.isContent(word) { return false }
+            if HindiWords.functionWords.contains(word), !FunctionWords.english.contains(word) { return false }
             cuePosition -= 1
         }
         return false

@@ -55,11 +55,11 @@ struct HomophoneRepair: AsyncParsableCommand {
         }
     }
 
-    /// The hand-kept class of every carrier's spelling, once each.
+    /// The class of every carrier's spelling, once each.
     static func classes(of carriers: [HomophoneCarrier]) -> [[String]] {
         var seen: [[String]] = []
         for carrier in carriers {
-            if let group = Homophones.group(containing: carrier.spelling), !seen.contains(group) {
+            if let group = HomophoneCarriers.group(containing: carrier.spelling), !seen.contains(group) {
                 seen.append(group)
             }
         }
