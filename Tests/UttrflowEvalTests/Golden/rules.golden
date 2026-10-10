@@ -517,6 +517,12 @@ joined-q-and-a-few-kept	Invite q and a few others.
 joined-r-and-d	R&D owns the roadmap.
 joined-slash-and-burn-kept	They farm by slash and burn.
 joined-slash-key-kept	Press the slash key twice.
+key-go-to-the-end-in-a-sentence-stays-words	Go to the end of the page and sign it.
+key-go-to-the-start-in-a-sentence-stays-words	Go to the start of the chapter and read it again.
+key-press-enter-in-a-sentence-stays-words	Press enter to submit the form.
+key-press-escape-in-a-sentence-stays-words	Press escape to close the dialog
+key-press-return-in-a-sentence-stays-words	Press return when you are done.
+key-press-tab-in-a-sentence-stays-words	Press tab to move to the next field.
 kubernetes	The Kubernetes pod keeps restarting after the deploy.
 late-to-meeting	Hey john I'll probably be about 20 minutes late to the meeting because the deployment is still running.
 literal-prose-email-sentence	Write to sam@example.com.
@@ -1055,6 +1061,8 @@ segment-support-agent-templated-reply	Thanks for reaching out I have reset your 
 segment-support-agent-ticket-number	I have escalated ticket 4419 to the billing team.
 self-correction	Let's meet at five on Tuesday.
 sentence-per-new-line	Agenda\nOne intro\nTwo demo
+shell-append-spoken-double-greater-than	date >> log.txt
+shell-redirect-spoken-greater-than	cat notes.txt > copy.txt
 short-yes	Yes.
 signed-temperature	Temperature fell to -5 degrees overnight.
 single-word-self-correction	The green.

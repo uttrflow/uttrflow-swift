@@ -1430,5 +1430,89 @@
     "mustKeep": ["plus five points"],
     "mustNotAdd": ["+5"],
     "addedFor": 4031
+  },
+  {
+    "id": "key-press-enter-in-a-sentence-stays-words",
+    "note": "A key named inside a sentence is words; only a command said on its own presses the key.",
+    "spoken": "press enter to submit the form",
+    "expected": "Press enter to submit the form.",
+    "mustKeep": ["press enter"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages"
+    },
+    "destination": "document",
+    "expectedExact": "Press enter to submit the form.",
+    "addedFor": 7032
+  },
+  {
+    "id": "key-press-return-in-a-sentence-stays-words",
+    "note": "A key named inside a sentence is words; only a command said on its own presses the key.",
+    "spoken": "press return when you are done",
+    "expected": "Press return when you are done.",
+    "mustKeep": ["press return"],
+    "context": {
+      "applicationName": "Mail",
+      "bundleIdentifier": "com.apple.mail"
+    },
+    "destination": "email",
+    "expectedExact": "Press return when you are done.",
+    "addedFor": 7032
+  },
+  {
+    "id": "key-press-tab-in-a-sentence-stays-words",
+    "note": "A key named inside a sentence is words; only a command said on its own presses the key.",
+    "spoken": "press tab to move to the next field",
+    "expected": "Press tab to move to the next field.",
+    "mustKeep": ["press tab"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages"
+    },
+    "destination": "document",
+    "expectedExact": "Press tab to move to the next field.",
+    "addedFor": 7032
+  },
+  {
+    "id": "key-press-escape-in-a-sentence-stays-words",
+    "note": "A key named inside a sentence is words; only a command said on its own presses the key.",
+    "spoken": "press escape to close the dialog",
+    "expected": "Press escape to close the dialog",
+    "mustKeep": ["press escape"],
+    "context": {
+      "applicationName": "Messages",
+      "bundleIdentifier": "com.apple.MobileSMS"
+    },
+    "destination": "messaging",
+    "expectedExact": "Press escape to close the dialog",
+    "addedFor": 7032
+  },
+  {
+    "id": "key-go-to-the-end-in-a-sentence-stays-words",
+    "note": "A key named inside a sentence is words; only a command said on its own presses the key.",
+    "spoken": "go to the end of the page and sign it",
+    "expected": "Go to the end of the page and sign it.",
+    "mustKeep": ["go to the end"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages"
+    },
+    "destination": "document",
+    "expectedExact": "Go to the end of the page and sign it.",
+    "addedFor": 7032
+  },
+  {
+    "id": "key-go-to-the-start-in-a-sentence-stays-words",
+    "note": "A key named inside a sentence is words; only a command said on its own presses the key.",
+    "spoken": "go to the start of the chapter and read it again",
+    "expected": "Go to the start of the chapter and read it again.",
+    "mustKeep": ["go to the start"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages"
+    },
+    "destination": "document",
+    "expectedExact": "Go to the start of the chapter and read it again.",
+    "addedFor": 7032
   }
 ]
