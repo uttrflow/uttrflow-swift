@@ -1155,7 +1155,7 @@ public struct NumberFormsPass: PieceCleaningPass {
             return (ten + unit, 2)
         }
         if let cardinal = NumberWords.cardinal(unbroken(from: position, keys: keys, shapes: shapes)),
-            cardinal.value >= 20
+            let room = ordinalRoom(after: cardinal.value)
         {
             var ordinalPosition = position + cardinal.count
             var count = cardinal.count
@@ -1165,8 +1165,6 @@ public struct NumberFormsPass: PieceCleaningPass {
                 ordinalPosition += 1
                 count += 1
             }
-            // The tail fills the cardinal's empty places: under ten after a ten, under a hundred after a scale.
-            let room = cardinal.value % 100 == 0 ? 100 : cardinal.value % 10 == 0 ? 10 : 1
             if joined(ordinalPosition, shapes),
                 let tail = parseOrdinal(at: ordinalPosition, keys: keys, shapes: shapes), tail.value < room,
                 !isHouseNumber(endingAt: position + cardinal.count - 1, keys: keys, shapes: shapes)
@@ -1175,6 +1173,12 @@ public struct NumberFormsPass: PieceCleaningPass {
             }
         }
         return ordinalUnits[keys[position]].map { ($0, 1) }
+    }
+
+    /// The ordinal a cardinal of twenty or more can take after it, filling its empty places: under ten after a ten, under a hundred after a scale.
+    package static func ordinalRoom(after cardinal: Int) -> Int? {
+        guard cardinal >= 20 else { return nil }
+        return cardinal % 100 == 0 ? 100 : cardinal % 10 == 0 ? 10 : 1
     }
 
     /// Whether a number ending on a scale word is a house number, because a unit ordinal and a street word follow it.
