@@ -38,12 +38,15 @@ extension DictationPipeline {
     /// The screen as it was while the key was held, read once for every early piece.
     func earlyContextRead(_ mine: Int) async -> AppContext {
         if let seen = early.context { return seen }
-        let read: AppContext
+        var read: AppContext
+        // The wider walk overlaps the field read and the speaking, and has its own short deadline.
+        async let names = readOnScreenNames()
         if let pending = early.pendingInsertion {
             read = await contextAfterPendingInsertion(pending, for: mine)
         } else {
             read = await readContext()
         }
+        read = read.adding(onScreenNames: await names)
         // Counted before the decision below, which runs without a suspension, so a waiter sees it made.
         early.readsSettled += 1
         // A read the user cancelled belongs to no dictation: the one now under way read its own screen.
@@ -53,6 +56,16 @@ extension DictationPipeline {
         insertedIntoIdentifier = read.bundleIdentifier
         destinationIsSecure = read.isSecure
         return read
+    }
+
+    /// The names visible around the field, asked only while recording and within what the screen-read limit has left.
+    private func readOnScreenNames() async -> [String] {
+        let left = StageTimeout.screenRead - screenReads.cost.duration
+        guard left > .zero else { return [] }
+        let names = try? await withStageTimeout(left, clock: clock) { [context] in
+            await context.onScreenNames()
+        }
+        return names ?? []
     }
 
     /// Waits for a previous paste to reach the caret before the new dictation captures its context.

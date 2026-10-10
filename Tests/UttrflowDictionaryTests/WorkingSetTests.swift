@@ -221,4 +221,18 @@ struct WorkingSetTests {
         #expect(words == WorkingSet.words(from: entries, now: epoch, favouring: onScreen))
         #expect(tally.count < 10)
     }
+
+    @Test("a name seen only in the thread brings an old unused dictionary word into the prompt")
+    func onScreenNameMakesAWordRelevant() {
+        let entries = [word("Meera", saying: "Mira", from: .added, daysAgo: 60)]
+        #expect(WorkingSet.words(from: entries, now: epoch).isEmpty)
+        let seen = AppContext(applicationName: "Messages").adding(onScreenNames: ["Meera"])
+        #expect(WorkingSet.words(from: entries, now: epoch, favouring: seen) == ["Meera"])
+    }
+
+    @Test("a secure field carries no names")
+    func secureFieldDropsNames() {
+        let secure = AppContext(isSecure: true).adding(onScreenNames: ["Meera"])
+        #expect(secure.onScreenNames.isEmpty)
+    }
 }
