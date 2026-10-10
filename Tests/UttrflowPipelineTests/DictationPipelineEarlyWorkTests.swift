@@ -398,12 +398,14 @@ struct DictationPipelineEarlyWorkTests {
         recordings: any RecordingKeeper = RecordingsNotKept(),
         earlyPoll: Duration = .milliseconds(2),
         pollClock: any Clock<Duration> = ContinuousClock(),
+        clock: any Clock<Duration> = ContinuousClock(),
         speechWords: @escaping @Sendable (AppContext) async -> [String] = { _ in [] }
     ) -> DictationPipeline {
         DictationPipeline(
             capture: capture, speech: speech, cleaner: cleaner, context: context,
             inserter: inserter, speechWords: speechWords, corrector: corrector, metrics: metrics,
-            recordings: recordings, windowing: quick, earlyPoll: earlyPoll, pollClock: pollClock)
+            recordings: recordings, clock: clock, windowing: quick, earlyPoll: earlyPoll,
+            pollClock: pollClock)
     }
 
     /// Waits for the recogniser to have been asked `count` times.
@@ -658,7 +660,9 @@ struct DictationPipelineEarlyWorkTests {
         await capture.setCaptured(Take.threePieces)
         let speech = NumberingSpeechEngine()
         let inserter = FakeTextInserter()
-        let pipeline = makePipeline(capture: capture, speech: speech, inserter: inserter)
+        // A clock that stands still, so however slow the run, the take stays short of the restore threshold.
+        let pipeline = makePipeline(
+            capture: capture, speech: speech, inserter: inserter, clock: ManualClock())
 
         await pipeline.startRecording()
         try await waitForCalls(1, on: speech)
@@ -678,7 +682,8 @@ struct DictationPipelineEarlyWorkTests {
         let context = FakeContextEngine(
             context: .fixture(applicationName: "Keychain Access", isSecure: true))
         let pipeline = makePipeline(
-            capture: FakeAudioCaptureEngine(), cleaner: cleaner, context: context, recordings: recordings)
+            capture: FakeAudioCaptureEngine(), cleaner: cleaner, context: context, recordings: recordings,
+            clock: ManualClock())
 
         await pipeline.startRecording()
         try await eventually { await pipeline.earlyReadsSettled == 1 }
@@ -696,7 +701,8 @@ struct DictationPipelineEarlyWorkTests {
         await capture.setCaptured(Take.onePiece)
         let context = FakeContextEngine(
             context: .fixture(applicationName: "Keychain Access", isSecure: true))
-        let pipeline = makePipeline(capture: capture, context: context, earlyPoll: .seconds(60))
+        let pipeline = makePipeline(
+            capture: capture, context: context, earlyPoll: .seconds(60), clock: ManualClock())
 
         await pipeline.startRecording()
         try await eventually { await pipeline.earlyReadsSettled == 1 }
