@@ -866,7 +866,9 @@ struct SettingsSuggestionsTests {
         store.save(settings)
         let loaded = store.load()
         #expect(loaded.contextLevelOverrides == settings.contextLevelOverrides)
-        #expect(loaded.contextLevelOverrides.level(forBundleIdentifier: "com.example.vault", default: .nearCaret) == .identity)
+        #expect(
+            loaded.contextLevelOverrides.level(forBundleIdentifier: "com.example.vault", default: .nearCaret)
+                == .identity)
     }
 
     @Test("an unreadable context level entry costs only that entry")
