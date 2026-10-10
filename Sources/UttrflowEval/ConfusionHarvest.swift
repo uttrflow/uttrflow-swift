@@ -133,10 +133,12 @@ public enum ConfusionHarvest {
 
     /// Whether `speaker` falls in the held-out half for `seed`, decided by a stable hash.
     public static func isHeldOut(speaker: String, seed: UInt64) -> Bool {
-        let value = speaker.utf8.reduce(14_695_981_039_346_656_037 ^ seed) {
-            ($0 ^ UInt64($1)) &* 1_099_511_628_211
-        }
-        return value % 2 == 1
+        stableHash(speaker, seed: seed) % 2 == 1
+    }
+
+    /// A hash of `text` that is the same on every run for the same `seed`, unlike `Hasher`.
+    static func stableHash(_ text: String, seed: UInt64) -> UInt64 {
+        text.utf8.reduce(14_695_981_039_346_656_037 ^ seed) { ($0 ^ UInt64($1)) &* 1_099_511_628_211 }
     }
 
     /// Each utterance's group, with groups read by fewer than `minimumSpeakers` speakers merged into `other`.
