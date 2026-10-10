@@ -368,9 +368,34 @@ public struct FirstWordPass: WholeTextCleaningPass {
             !ownWords.contains(core.lowercased()),
             namedForms[core.lowercased()] == nil, !LexicalClass.isNamed(core, in: text),
             !Self.isCalendarWord(word), !Self.isProperName(word, in: text),
-            !Self.looksLikeName(word, in: onScreen)
+            !Self.looksLikeName(word, in: onScreen), !Self.isListedBesideName(core, in: text)
         else { return word }
         return WordShape.lowercased(word)
+    }
+
+    /// Whether a capital stands in a list beside a name, "Slack and Zoom": joined by a comma or a word the tagger reads as a conjunction.
+    static func isListedBesideName(_ core: String, in text: String) -> Bool {
+        let words = WordTokens.words(text, .display)
+        let tags = LexicalClass.tags(ofWords: words)
+        let joins = { (index: Int) in tags.indices.contains(index) && tags[index] == .conjunction }
+        let listedAfterComma = { (index: Int) in
+            words.indices.contains(index) && WordShape(words[index]).suffix.hasSuffix(",")
+        }
+        return words.indices.filter { WordShape(words[$0]).core == core }.contains { index in
+            let members = [
+                joins(index - 1) ? index - 2 : nil, joins(index + 1) ? index + 2 : nil,
+                listedAfterComma(index - 1) ? index - 1 : nil, listedAfterComma(index) ? index + 1 : nil,
+            ]
+            return members.compactMap { $0 }.filter(words.indices.contains).contains { member in
+                isName(WordShape(words[member]).core, in: text)
+            }
+        }
+    }
+
+    /// A capitalised word no English dictionary form explains, or one the tagger reads as a name: "Figma", "Slack".
+    private static func isName(_ core: String, in text: String) -> Bool {
+        guard core.first?.isUppercase == true else { return false }
+        return !LexicalClass.isKnownEnglishWord(core.lowercased()) || LexicalClass.isNamed(core, in: text)
     }
 
     /// A romanised Hindi word in a Hinglish text: two Hindi words besides English small words, one of them not English; a kinship word keeps its own casing.

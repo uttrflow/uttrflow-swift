@@ -548,6 +548,14 @@ struct FirstWordPassTests {
         #expect(cleaned("## Release notes", by: sut) == "## Release notes")
     }
 
+    @Test("keeps a capital listed beside a name, and lowers one listed beside ordinary words")
+    func keepsACapitalListedBesideAName() {
+        let listed = "we use Slack and Zoom and Figma daily"
+        #expect(cleaned(listed, by: sut) == "We use Slack and Zoom and Figma daily")
+        #expect(cleaned("we use Figma, Zoom daily", by: sut) == "We use Figma, Zoom daily")
+        #expect(cleaned("we use Report and Zoom daily", by: sut) == "We use report and zoom daily")
+    }
+
     @Test("keeps a mid-sentence capital the dictionary or the screen holds")
     func keepsAStrayCapitalWithEvidence() {
         let text = "I bought an Apple and a Bill."
