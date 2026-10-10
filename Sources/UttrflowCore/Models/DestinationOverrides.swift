@@ -117,7 +117,8 @@ public struct DestinationOverrides: Sendable, Equatable, Codable {
         return DestinationOverrides(
             [
                 DestinationOverride(
-                    bundleIdentifier: bundleIdentifier, applicationName: applicationName ?? kept?.applicationName,
+                    bundleIdentifier: bundleIdentifier,
+                    applicationName: applicationName ?? kept?.applicationName,
                     destination: kept?.destination ?? fallback, mode: mode)
             ] + overrides)
     }
