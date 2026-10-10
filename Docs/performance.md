@@ -249,9 +249,10 @@ interval comes from another file's caller. Only a measurement catches every shap
 `proc_pid_rusage` over `WINDOW_SECONDS` — no root needed — and fails above `WAKEUPS_PER_SECOND`
 or `CPU_PERCENT` in `Scripts/idle_wakeups.py`. It first proves itself on a 20 Hz loop whose sleep
 sits in a called function, which must fail, and a process that only sleeps, which must pass. It
-is not in `make verify`, which builds no bundle, and not yet in CI: the counters are the whole
-process's, AppKit's threads included, and a build of 7 September read 8.35 wakeups a second and
-0.77% of a core idle on an Apple M5 Pro, over a line drawn for the app's own timers. It measures
+is not in `make verify`, which builds no bundle. CI runs it after `make app-preflight` as a
+report that cannot fail the job: the counters are the whole process's, AppKit's threads included,
+and a build of 7 September read 8.35 wakeups a second and 0.77% of a core idle on an Apple M5 Pro,
+over a line drawn for the app's own timers. It measures
 the menu-bar state only, since no window can yet be opened without a display.
 
 Memory can only be read with the models loaded, so `make perf-budget-models` runs

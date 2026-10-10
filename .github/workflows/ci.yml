@@ -116,3 +116,8 @@ jobs:
       # none is available to a fork's pull request.
       - name: Build and verify the app bundle
         run: make app-preflight
+
+      # Reports the idle app's wakeups and processor time without failing the job until a whole-process line is agreed.
+      - name: Count the idle app's wakeups
+        continue-on-error: true
+        run: make idle-wakeups
