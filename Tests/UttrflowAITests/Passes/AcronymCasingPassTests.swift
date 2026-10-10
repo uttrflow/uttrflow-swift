@@ -108,6 +108,28 @@ struct AcronymCasingPassTests {
         #expect(rules.run(Draft(text: "the rust and the paint")).text == "The rust and the paint.")
     }
 
+    @Test(
+        "writes an everyday-word name in the lexicon's case where a head noun or a noun slot identifies it",
+        arguments: [
+            ("teesra android app mein dark mode", "Teesra Android app mein dark mode."),
+            ("build the android app first", "Build the Android app first."),
+            ("the warm white led gives a soft light", "The warm white LED gives a soft light."),
+            ("fit an led bulb", "Fit an LED bulb."),
+        ])
+    func framedEverydayName(input: String, expected: String) {
+        #expect(rules.run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "leaves an everyday-word name lower case where nothing identifies it",
+        arguments: [
+            "The android walked in.", "She led the team.", "The path that led here is long.",
+            "The man who led was tall.", "This led to a crash.",
+        ])
+    func unframedEverydayNameKept(input: String) {
+        #expect(rules.run(Draft(text: input.lowercased())).text == input)
+    }
+
     @Test("leaves an ordinary word that a lexicon name is spelled like")
     func ordinaryNameKept() {
         #expect(rules.run(Draft(text: "let it go now")).text == "Let it go now.")

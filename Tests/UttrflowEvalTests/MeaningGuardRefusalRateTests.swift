@@ -27,7 +27,6 @@ struct MeaningGuardRefusalRateTests {
     /// Whole-dictation genre references still refused, all owned by #5365; the list only falls.
     static let genreAcknowledged: Set<String> = [
         "genre-customer-email-account-question",
-        "genre-shopping-list-weekly-shop",
         "genre-shopping-list-hardware-run",
         "genre-recipe-lentil-soup",
         "genre-recipe-flatbreads",
