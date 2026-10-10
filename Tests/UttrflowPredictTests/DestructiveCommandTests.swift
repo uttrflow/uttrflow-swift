@@ -609,6 +609,53 @@ struct DestructiveCommandTests {
     }
 
     @Test(
+        "A wrapper's long, attached or clustered flag value is never read as the command it runs.",
+        arguments: [
+            "sudo --user root rm -rf build", "sudo --user=root rm -rf build", "sudo -uroot rm -rf build",
+            "sudo -Eu root rm -rf build", "sudo --chdir /tmp rm -rf x", "sudo -R /srv/jail rm -rf x",
+            "sudo --preserve-env rm -rf x", "sudo -- rm -rf x", "env -C /tmp rm -rf x",
+            "env --chdir /tmp rm -rf x", "env --chdir=/tmp rm -rf x", "env --unset FOO rm -rf x",
+            "env --split-string x rm -rf y", "doas -u root rm -rf x", "nice --adjustment 5 rm -rf x",
+            "nice -10 rm -rf x", "time -o out.txt rm -rf x", "time --output out.txt rm -rf x",
+            "exec -a name rm -rf x", "xargs --max-args 1 rm -rf", "xargs --delimiter , rm -rf",
+            "xargs -0n1 rm -rf", "timeout --signal KILL 60 rm -rf x", "timeout --kill-after=5 60 rm -rf x",
+            "gtimeout --signal KILL 60 rm -rf x", "watch --interval 5 rm -rf x",
+            "ionice --class 3 rm -rf x", "stdbuf --output L rm -rf x", "stdbuf --output=L rm -rf x",
+            "flock --timeout 5 /tmp/lock rm -rf x", "chroot --userspec root:wheel /srv/jail rm -rf x",
+            "pkexec --user root rm -rf x", "parallel --jobs 4 rm -rf /data", "parallel --halt now rm -rf /data",
+            "ssh -e none prod rm -rf /srv/app", "mosh --ssh ssh prod rm -rf /srv/app",
+            "caffeinate -t 600 rm -rf x", "taskpolicy -t 5 rm -rf x", "arch -d FOO rm -rf x",
+            "sudo --user root git reset --hard", "sudo --chdir /srv kubectl delete ns prod",
+            "env -C /tmp git clean -fdx", "env --unset FOO git reset --hard",
+            "timeout --signal KILL 60 git clean -fdx", "nice --adjustment 5 git reset --hard",
+            "xargs --max-args 1 git branch -D", "flock --timeout 5 /tmp/lock git clean -fdx",
+        ])
+    func wrapperLongFlagValuesAreSkipped(_ line: String) {
+        #expect(
+            DestructiveCommand.matches(line, failClosedOnUnresolved: true), "\(line) should be destructive")
+    }
+
+    @Test(
+        "A wrapper flag that is not known leaves the command unknown, which fails closed.",
+        arguments: [
+            "sudo --made-up root rm -rf build", "sudo -Z root ls", "env --made-up FOO ls",
+            "nohup --made-up x ls", "timeout --made-up x 60 ls",
+        ])
+    func unknownWrapperFlagFailsClosed(_ line: String) {
+        #expect(DestructiveCommand.matches(line, failClosedOnUnresolved: true), "\(line) should fail closed")
+    }
+
+    @Test(
+        "A wrapper's known long flags leave an ordinary command ordinary.",
+        arguments: [
+            "sudo --user root ls", "sudo --user=root -E ls", "env -C /tmp ls", "env --unset FOO make build",
+            "nice -10 make build", "timeout --signal KILL 60 make verify", "xargs -0n1 echo",
+        ])
+    func wrapperLongFlagsOnOrdinaryCommands(_ line: String) {
+        #expect(!DestructiveCommand.matches(line, failClosedOnUnresolved: true), "\(line) should be ordinary")
+    }
+
+    @Test(
         "Carriers that re-parse or pass through to the command they carry are judged by it.",
         arguments: [
             "eval \"rm -rf ~\"", "eval 'rm -rf ~/Documents'", "eval \"dd if=/dev/zero of=/dev/disk2\"",
