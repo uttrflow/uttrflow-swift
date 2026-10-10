@@ -1,4 +1,4 @@
-// Tests that building the app's stores stays inside the launch budget in Docs/startup.md.
+// Tests that the stores built at launch stay inside the budget in Docs/startup.md; `make bench` runs it.
 
 import AppKit
 import Foundation

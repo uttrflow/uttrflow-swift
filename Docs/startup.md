@@ -175,7 +175,7 @@ log show --last 10m --predicate 'subsystem == "com.uttrflow.Uttrflow" && categor
 
 ### The launch budget
 
-`LaunchBudgetTests` builds `AppDelegate` over a fresh container, which constructs the history,
+`LaunchBudgetTests`, a wall-clock check that runs in `make bench` and not in `make verify`, builds `AppDelegate` over a fresh container, which constructs the history,
 recordings, dictionary, snippet and clipboard stores, and fails when the fastest of three builds
 takes 100 ms or more. Measured on an Apple M5 Pro, 48 GB, debug build, the build took 15 ms, so a
 store whose setup adds about 85 ms trips it. Work that is not needed before the shortcut works
