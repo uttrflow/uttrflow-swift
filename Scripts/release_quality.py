@@ -17,6 +17,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_OUTPUT = ROOT / "dist" / "release-quality.md"
+LAYER_CONTRIBUTION = "dist/layer-contribution.md"
 PASS, FAIL, NO_VERDICT = "pass", "fail", "no verdict"
 NO_TESTS_RAN = "No matching test cases were run"
 
@@ -28,6 +29,7 @@ class Gate:
     command: list[str]
     missing: str = ""
     empty_marker: str = ""
+    appendix: str = ""
 
 
 @dataclass
@@ -35,6 +37,7 @@ class Result:
     gate: Gate
     verdict: str
     evidence: str
+    appendix: str = ""
 
 
 def swift_test(filter_pattern: str) -> list[str]:
@@ -66,6 +69,10 @@ def gates(bakeoff_baseline: str, bench_run: str) -> list[Gate]:
              swift_test(r"UttrflowEvalTests\.(ContaminationAudit|SourceLiteralContamination"
                         r"|CorpusSplit|TranscriptionSplit)Tests"),
              empty_marker=NO_TESTS_RAN),
+        Gate("layer contribution", "every degraded path above the floor; each layer's verdict is listed below",
+             ["env", f"UTTRFLOW_LAYER_CONTRIBUTION={ROOT / LAYER_CONTRIBUTION}",
+              *swift_test(r"UttrflowEvalTests\.DegradedPathMatrixTests")],
+             empty_marker=NO_TESTS_RAN, appendix=LAYER_CONTRIBUTION),
         Gate("disclosure history", "0 findings on every commit of every ref",
              [python, "Scripts/disclosure_audit.py", "--history"]),
     ]
@@ -86,6 +93,9 @@ def run(gate: Gate, cwd: Path) -> Result:
     if gate.missing:
         return Result(gate, NO_VERDICT, gate.missing)
     print(f"==> {gate.name}: {' '.join(gate.command)}", flush=True)
+    appendix = cwd / gate.appendix if gate.appendix else None
+    if appendix:
+        appendix.unlink(missing_ok=True)
     try:
         completed = subprocess.run(gate.command, cwd=cwd, stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT, text=True, check=False)
@@ -94,11 +104,14 @@ def run(gate: Gate, cwd: Path) -> Result:
     sys.stdout.write(completed.stdout)
     if gate.empty_marker and gate.empty_marker in completed.stdout:
         return Result(gate, NO_VERDICT, "the filter matched no tests")
+    if appendix and completed.returncode == 0 and not appendix.is_file():
+        return Result(gate, NO_VERDICT, f"passed without writing {gate.appendix}")
     verdict = PASS if completed.returncode == 0 else FAIL
     evidence = summary_line(completed.stdout, verdict == FAIL)
     if verdict == FAIL:
         evidence = f"exit {completed.returncode}: {evidence}"
-    return Result(gate, verdict, evidence)
+    text = appendix.read_text(encoding="utf-8") if appendix and appendix.is_file() else ""
+    return Result(gate, verdict, evidence, text)
 
 
 def table(results: list[Result]) -> str:
@@ -112,7 +125,8 @@ def table(results: list[Result]) -> str:
 def report(results: list[Result], commit: str) -> str:
     failed = [result.gate.name for result in results if result.verdict != PASS]
     summary = "Every gate passed." if not failed else "Not releasable: " + ", ".join(failed) + "."
-    return f"# Release quality\n\nCommit `{commit}`.\n\n{table(results)}\n\n{summary}\n"
+    appendices = "".join(f"\n{result.appendix.rstrip()}\n" for result in results if result.appendix)
+    return f"# Release quality\n\nCommit `{commit}`.\n\n{table(results)}\n\n{summary}\n{appendices}"
 
 
 def head_commit(cwd: Path) -> str:

@@ -76,6 +76,21 @@ struct DegradedPathMatrixTests {
         #expect(DegradedPathMatrix.writes("++", in: "Write C++ code."))
     }
 
+    @Test("pairs every degraded path against the default set and gives each a verdict")
+    func everyPathHasAContribution() async throws {
+        let matrix = await Self.matrix.value
+        #expect(matrix.contributions.map(\.off) == QualityLayers.degradedPaths)
+        let formatting = try #require(matrix.contributions.first { $0.off == [.formatting] })
+        #expect(formatting.verdict == .keep)
+        #expect(matrix.contributionReport.contains("Added latency"))
+        if let path = ProcessInfo.processInfo.environment[Self.reportVariable] {
+            try matrix.contributionReport.write(toFile: path, atomically: true, encoding: .utf8)
+        }
+    }
+
+    /// Where `make release-quality` asks for the contribution table with its measured latency.
+    static let reportVariable = "UTTRFLOW_LAYER_CONTRIBUTION"
+
     @Test("matches Docs/degraded-path-matrix.md, which is generated from the corpus")
     func pageMatchesCorpus() async throws {
         let generated = await Self.matrix.value.markdown

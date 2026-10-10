@@ -47,6 +47,8 @@ public struct DegradedPathMatrix: Sendable, Equatable {
 
     public let rows: [Row]
     public let rungs: [Rung]
+    /// Each degraded path paired against the default set, in the order of `rows` after the first.
+    package let contributions: [LayerContribution]
 
     /// Runs `cases` through the default set, then through each degraded path, tidied by `cleaner`.
     public static func measure(
@@ -54,9 +56,9 @@ public struct DegradedPathMatrix: Sendable, Equatable {
         building: @escaping Building
     ) async -> DegradedPathMatrix {
         let paths: [[QualityLayer]] = [[]] + QualityLayers.degradedPaths
-        let written = await withTaskGroup(of: (Int, [String]).self) { group in
+        let written = await withTaskGroup(of: (Int, [Written]).self) { group in
             var next = 0
-            var written = [[String]](repeating: [], count: cases.count)
+            var written = [[Written]](repeating: [], count: cases.count)
             func add() {
                 guard next < cases.count else { return }
                 let index = next
@@ -72,35 +74,49 @@ public struct DegradedPathMatrix: Sendable, Equatable {
             return written
         }
         let scores = paths.indices.map { path in
-            zip(written, cases).map { Scorer.score($0[path], against: $1) }
+            zip(written, cases).map { Scorer.score($0[path].text, against: $1) }
         }
         let heard = cases.map { Scorer.score($0.spoken, against: $0) }
         let rows = paths.indices.map { path in
             row(paths[path], scores: scores[path], reference: scores[0], heard: heard)
         }
         let rungs = [("rules", [QualityLayer]()), ("untidied", [.formatting])].map { name, off in
-            rung(name, outputs: written.map { $0[paths.firstIndex(of: off) ?? 0] }, cases: cases)
+            rung(name, outputs: written.map { $0[paths.firstIndex(of: off) ?? 0].text }, cases: cases)
         }
-        return DegradedPathMatrix(rows: rows, rungs: rungs)
+        let time = paths.indices.map { path in written.map { $0[path].time }.reduce(.zero, +) }
+        let contributions = paths.indices.dropFirst().map { path in
+            LayerContribution(
+                off: paths[path], scores: scores[path], reference: scores[0], cases: cases,
+                latency: (time[0] - time[path]) / max(1, cases.count))
+        }
+        return DegradedPathMatrix(rows: rows, rungs: rungs, contributions: contributions)
     }
 
     /// How many cases run at once, one per core.
     private static var width: Int { max(1, ProcessInfo.processInfo.activeProcessorCount) }
 
-    /// What one case writes on each path, all paths sharing one `RememberedCleaning`.
+    /// What one path wrote for one case, and how long it took.
+    struct Written: Sendable {
+        let text: String
+        let time: Duration
+    }
+
+    /// What one case writes on each path, sharing one `RememberedCleaning` warmed by an untimed default run.
     private static func outputs(
         of testCase: EvaluationCase, on paths: [[QualityLayer]], cleaner: any TranscriptCleaning,
         _ building: Building
-    ) async -> [String] {
+    ) async -> [Written] {
         let remembering = RememberedCleaning(cleaner)
-        var written: [String] = []
-        for off in paths {
+        let clock = ContinuousClock()
+        var written: [Written] = []
+        for off in [[]] + paths {
             let layers = QualityLayers(enabled: QualityLayers().enabled.subtracting(off))
             let pipeline = building(layers, corrector(for: testCase), speechWords(for: testCase), remembering)
+            let start = clock.now
             let cleaned = await pipeline.clean([testCase.transcription], seeing: testCase.context)
-            written.append(cleaned.text ?? "")
+            written.append(Written(text: cleaned.text ?? "", time: clock.now - start))
         }
-        return written
+        return Array(written.dropFirst())
     }
 
     /// The case's dictionary as the corrector sees it, every entry added by the user.
@@ -170,6 +186,26 @@ public struct DegradedPathMatrix: Sendable, Equatable {
         }
     }
 
+    private static let contributionHeading = "## Each layer's marginal contribution"
+
+    private static let contributionMethod = """
+        Each degraded path paired against the default set over the same cases, as the change with the layers \
+        off: the failed-case rate, and invented, deleted and lost words per reference word, in percentage \
+        points with the 95% paired-bootstrap interval and the minimum detectable change at 80% power. A \
+        false override is a case that fails with the layers on and passes with them off. A path is kept \
+        when an improvement's interval excludes zero and neither measure's interval lies wholly below it; \
+        the override gate exists to prevent harm, so the meaning-changing errors it prevents are its only \
+        measure. Every other path is listed for removal and stays dark until a change shows it pays.
+        """
+
+    /// The contribution table with its measured latency, as `make release-quality` adds it to its result.
+    package var contributionReport: String {
+        [
+            Self.contributionHeading, "", Self.contributionMethod, "",
+            LayerContribution.table(contributions, latency: true),
+        ].joined(separator: "\n") + "\n"
+    }
+
     /// The matrix as the Markdown page `Docs/degraded-path-matrix.md` holds.
     public var markdown: String {
         var lines = [
@@ -193,6 +229,10 @@ public struct DegradedPathMatrix: Sendable, Equatable {
                 "| \(row.name) | \(row.cases) | \(row.passed) | \(row.invented) | \(row.deleted) | \(row.lost) "
                     + "| \(row.brokeShape) | \(row.belowFloor.count) |")
         }
+        lines += [
+            "", Self.contributionHeading, "", Self.contributionMethod, "",
+            LayerContribution.table(contributions, latency: false),
+        ]
         lines += [
             "",
             "## The user's own words on each fallback rung",
