@@ -104,7 +104,8 @@ public struct SelfCorrectionPass: PieceCleaningPass {
             !followsOpeningMark(position, in: live, of: draft),
             let start = Restatement.discardedStart(
                 before: position, after: position + trigger, in: live, of: draft,
-                asksForLayout: LayoutWordsPass.asksForLayout)
+                asksForLayout: LayoutWordsPass.asksForLayout),
+            restatesWholeOption(from: start, restart: position + trigger, in: live, of: draft)
         else { return nil }
         let through = Restatement.standsAlone(position, before: position + trigger, in: live, of: draft)
         return (start..<(position + trigger), through)
@@ -116,6 +117,16 @@ public struct SelfCorrectionPass: PieceCleaningPass {
             let start = position - opening.words.count
             return start >= 0 && draft.spells(opening.words, at: start, in: live, acrossSentences: true)
         }
+    }
+
+    /// Whether a restart that opens on a spoken long option marker takes back from that same marker, so a lone dash is not its anchor.
+    private func restatesWholeOption(from start: Int, restart: Int, in live: [Int], of draft: Draft) -> Bool {
+        guard
+            let marker = SpokenCommands.flags.first(where: {
+                $0.words.count > 1 && draft.spells($0.words, at: restart, in: live, acrossSentences: true)
+            })
+        else { return true }
+        return draft.spells(marker.words, at: start, in: live, acrossSentences: true)
     }
 
     /// Lowers the restart's capital when the word it replaces was lower case, since only the stop gave it one.
