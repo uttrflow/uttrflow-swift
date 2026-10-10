@@ -62,6 +62,10 @@ struct SpokenPathTests {
             ("cd slash tmp", "cd /tmp"),
             ("cd slash users slash sam", "cd /users/sam"),
             ("cd tilde slash projects", "cd ~/projects"),
+            ("cat home dot ssh slash config", "cat home/.ssh/config"),
+            ("ls repo dot git slash hooks", "ls repo/.git/hooks"),
+            ("cd com dot apple dot terminal slash prefs", "cd com.apple.terminal/prefs"),
+            ("cat src slash webpack dot config dot js", "cat src/webpack.config.js"),
         ]
     )
     func writesCommandLinePaths(input: String, expected: String) {
