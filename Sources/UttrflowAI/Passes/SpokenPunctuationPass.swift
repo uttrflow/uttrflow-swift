@@ -5,6 +5,7 @@ public import UttrflowCore
 public struct SpokenPunctuationPass: PieceCleaningPass {
     public static let id: PassID = .spokenPunctuation
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    public static let orderIndependentWith: Set<PassID> = [.spokenCasing, .caretEcho]
     private let destination: Destination
     /// What the field holds without a word announcing it: addresses in a recipient field, paths at a command line.
     private let expected: SpokenAddress.Expectation
@@ -350,8 +351,9 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         while end + 2 < live.count, !draft.shape(at: live[end]).endsClause,
             literal.contains(live[end + 1]),
             draft.shape(at: live[end + 2]).key != "dash",
-            // A dash before spelled letters or a number opens the next short option: `--rm -p 80`.
-            letterCluster(after: end + 1, in: live, of: draft) == nil,
+            // A dash before spelled letters or a number opens the next short option (`--rm -p 80`), unless the name is only a negation (`--no-ff`).
+            letterCluster(after: end + 1, in: live, of: draft) == nil
+                || (end == start && Self.negations.contains(draft.shape(at: live[start]).key)),
             numericOption(after: end + 1, in: live, of: draft) == nil
         {
             option += "-" + draft.words[live[end + 2]].text
@@ -359,6 +361,9 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         }
         return (option, end)
     }
+
+    /// Option name segments that negate the option named after them, so they never end a name.
+    static let negations: Set<String> = ["no"]
 
     /// The most letters one spoken short-option cluster joins: `tar -xzvf` and a little more.
     static let clusterLimit = 6
