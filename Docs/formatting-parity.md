@@ -13,16 +13,16 @@ A refused answer falls back to the rules' text, as the router does.
 | questions | both | 9 | 6 | 1: `probe-hinglish-status` | 0 | 1 |
 | quotes-and-brackets | rules | 13 | 8 | 0 | 0 | 1 |
 | ellipses | rules | 5 | 4 | 0 | 0 | 0 |
-| capitalisation-and-tokens | both | 97 | 79 | 4: `probe-docker-run-flags`, `probe-todo-comment`, `probe-dockerfile-from`, `probe-apology-message` | 0 | 7 |
-| numbers | rules | 39 | 20 | 5: `fmt-list-count-not-list`, `fmt-hinglish-number`, `probe-docker-run-flags`, `probe-dockerfile-from`, `probe-apology-message` | 0 | 5 |
-| lists | both | 14 | 9 | 1: `fmt-list-count-not-list` | 0 | 2 |
-| paragraphs | rules | 13 | 7 | 0 | 0 | 1 |
+| capitalisation-and-tokens | both | 97 | 79 | 5: `probe-repro-steps`, `probe-docker-run-flags`, `probe-todo-comment`, `probe-dockerfile-from`, `probe-apology-message` | 0 | 6 |
+| numbers | rules | 39 | 20 | 6: `fmt-list-count-not-list`, `fmt-hinglish-number`, `probe-repro-steps`, `probe-docker-run-flags`, `probe-dockerfile-from`, `probe-apology-message` | 0 | 4 |
+| lists | both | 14 | 9 | 2: `fmt-list-count-not-list`, `probe-repro-steps` | 0 | 1 |
+| paragraphs | rules | 13 | 7 | 1: `probe-repro-steps` | 0 | 0 |
 | corrections | rules | 7 | 6 | 0 | 0 | 1 |
-| per-destination | both | 72 | 46 | 5: `probe-docker-run-flags`, `probe-todo-comment`, `probe-dockerfile-from`, `probe-apology-message`, `probe-hinglish-status` | 0 | 7 |
+| per-destination | both | 72 | 46 | 6: `probe-repro-steps`, `probe-docker-run-flags`, `probe-todo-comment`, `probe-dockerfile-from`, `probe-apology-message`, `probe-hinglish-status` | 0 | 6 |
 | code-and-markdown | both | 17 | 7 | 3: `probe-docker-run-flags`, `probe-todo-comment`, `probe-dockerfile-from` | 0 | 4 |
 | hinglish | model | 6 | 4 | 2: `fmt-hinglish-number`, `probe-hinglish-status` | 0 | 0 |
 | text-after-caret | rules | 30 | 24 | 0 | 0 | 0 |
-| abstention | model | 322 | 322 | 0 | 0 | 0 |
+| abstention | model | 330 | 330 | 0 | 0 | 0 |
 
 ## Model-only classes
 
