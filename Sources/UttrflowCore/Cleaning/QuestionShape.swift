@@ -295,7 +295,7 @@ public enum QuestionShape {
             if let first = tail.first, hindiCopulas.contains(first) { return tail.count == 1 }
             return !tail.isEmpty
         }
-        // After a possessive or a postposition "kya" is the thing asked about, closed by its verb: "kal ka kya plan hai".
+        // After a possessive or a postposition "kya" is the thing asked about, closed by its verb: "parso ka kya irada hai".
         if hindiArgumentMarkers.contains(clause[kya - 1]), clause.count - kya <= 3 {
             return hindiFiniteVerbs.contains(clause[clause.count - 1])
         }

@@ -13,8 +13,6 @@ struct LongFormLayoutCorpusTests {
         "long-form-hesitating-status-paragraph-at-a-pause",
         // Spoken ordinals ("first", "second", "finally") do not open a numbered list.
         "long-form-listing-steps-by-ordinal",
-        // "no actually make that" inside a list item keeps the replaced words.
-        "long-form-correcting-an-item-in-a-list",
     ]
 
     @Test("each case is three to eight sentences, laid out, and speaks for 30 seconds to 5 minutes")

@@ -1487,7 +1487,7 @@
     "UttrflowCore func spokenDigit": 1,
     "UttrflowCore func standard": 2,
     "UttrflowCore func standsAlone": 1,
-    "UttrflowCore func state": 2,
+    "UttrflowCore func state": 3,
     "UttrflowCore func step": 1,
     "UttrflowCore func stopped": 1,
     "UttrflowCore func stopwatch": 1,
@@ -1527,7 +1527,7 @@
     "UttrflowCore func writeOwnerOnlyAtomically": 1,
     "UttrflowCore func writesOnlyLatin": 1,
     "UttrflowCore func writtenWords": 1,
-    "UttrflowCore init init": 161,
+    "UttrflowCore init init": 162,
     "UttrflowCore let `default`": 6,
     "UttrflowCore let accessibilityRole": 1,
     "UttrflowCore let acronymCasing": 1,
@@ -2109,6 +2109,7 @@
     "UttrflowCore struct StageLatency": 1,
     "UttrflowCore struct StageMeasurement": 1,
     "UttrflowCore struct StyleSignals": 1,
+    "UttrflowCore struct SwitchedLearningConsent": 1,
     "UttrflowCore struct TechnicalTerm": 1,
     "UttrflowCore struct TextColor": 1,
     "UttrflowCore struct TidyOutcome": 1,
@@ -4215,6 +4216,7 @@
     "UttrflowPredict func firstUsable": 1,
     "UttrflowPredict func follow": 1,
     "UttrflowPredict func forgetEverything": 4,
+    "UttrflowPredict func forgetPrefixIndex": 1,
     "UttrflowPredict func freshStart": 1,
     "UttrflowPredict func generatedDecision": 1,
     "UttrflowPredict func infer": 1,
@@ -4674,6 +4676,7 @@
     "UttrflowSettings var hotkeyActivation": 1,
     "UttrflowSettings var installsUpdatesAutomatically": 1,
     "UttrflowSettings var isEnabled": 1,
+    "UttrflowSettings var learnsFromDictation": 1,
     "UttrflowSettings var microphoneUID": 1,
     "UttrflowSettings var minimisesWhileDictating": 1,
     "UttrflowSettings var opensAtLogin": 1,
@@ -6121,5 +6124,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 8666
+  "total": 8671
 }

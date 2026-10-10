@@ -46,7 +46,6 @@ struct SourceLiteralContaminationTests {
         "message-two-sentences-no-stop in Sources/UttrflowCore/Cleaning/QuestionShape.swift: are you around yet i should be there",
         "name-opening-is-the-owner-statement in Sources/UttrflowCore/Cleaning/QuestionShape.swift: ravi is the owner",
         "number-correction-with-unit in Sources/UttrflowCore/Cleaning/Restatement.swift: twelve boxes i mean fifteen boxes",
-        "probe-clinical-note in Sources/UttrflowAI/Passes/SpelledInitialismPass.swift: eighty one m g",
         "sql-editor-large-number-ungrouped in Sources/UttrflowAI/Passes/TerminalStopPass.swift: where total is greater than 12000",
     ]
 
