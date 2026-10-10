@@ -413,11 +413,15 @@ public struct NumberFormsPass: PieceCleaningPass {
     ) -> Phrase? {
         guard let limit = monthDays[keys[position]], joined(position + 1, shapes),
             let ordinal = parseOrdinal(at: position + 1, keys: keys, shapes: shapes),
-            ordinal.value <= limit, policy == .always || ordinal.value >= 10,
-            monthIsDated(at: position, keys: keys, shapes: shapes)
+            ordinal.value <= limit, monthIsDated(at: position, keys: keys, shapes: shapes)
         else { return nil }
+        // A day the number policy leaves in words is still part of the date, so the month is written as one: "March third".
+        let number =
+            policy == .always || ordinal.value >= 10
+            ? String(ordinal.value)
+            : shapes[(position + 1)..<(position + 1 + ordinal.count)].map(\.core).joined(separator: " ")
         let day = Phrase(
-            text: "\(WordShape.capitalised(keys[position])) \(ordinal.value)", count: ordinal.count + 1)
+            text: "\(WordShape.capitalised(keys[position])) \(number)", count: ordinal.count + 1)
         return withYear(day, at: position, order: .monthFirst, keys: keys, shapes: shapes)
     }
 
