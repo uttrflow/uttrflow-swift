@@ -603,12 +603,20 @@ refused rather than written to.
 |---|---|---|
 | Entries per surface, evicted by fragment status, acceptance, uses and age | `PredictStore.entriesPerSurface` | 2,000 |
 | Scopes kept per field, least recently used evicted | `PredictStore.surfacesPerField` | 64 |
+| Entries in the whole corpus, weakest evicted first by the same order | `PredictStore.entriesPerStore` | 20,000 |
 | Most recent scopes a lookup reads | `PredictStore.scopeLimit` | 8 |
 | Candidates a lookup returns | `PredictStore.candidateLimit` | 16 |
 
 An entry carries `count`, `accepted`, `rejected`, `self_sourced`, `finished` and `last_used`. A
 `superseded_by` value marks text the gates replaced or refused, and a superseded entry is never
 proposed again. Forgetting works at three sizes: one entry, one application, everything.
+
+**Age.** At start the store drops every entry whose own `Frecency.score` has fallen below
+`PredictionEngine.supportFloor` (0.15), because it can no longer be offered: about 46 days for
+one typed use, and longer with more uses. `PredictStore.expireStale(now:)` decides through
+`RetentionWindow.mayDelete`, so a clock that is wrong hides rather than deletes
+([retention-clock.md](retention-clock.md)). Superseded and refused lines are kept, since they
+withhold a line.
 
 A write protects its new entry and succession pair from its own eviction. Later pressure removes
 fragments first, then entries with fewer acceptances, fewer uses and older `last_used` values;
