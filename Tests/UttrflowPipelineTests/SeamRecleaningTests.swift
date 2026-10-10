@@ -140,6 +140,38 @@ struct SeamRecleaningTests {
         }
     }
 
+    @Test("a symbol pair or a number in code is read whole at every cut inside it")
+    func everyCodeSymbolCut() async {
+        let code = AppContext(
+            applicationName: "Xcode", bundleIdentifier: "com.apple.dt.Xcode", documentName: "Example.swift",
+            precedingText: "let x = ")
+        for sentence in [
+            "fetch user open paren close paren", "items open bracket index close bracket",
+            "let count equals forty two",
+        ] {
+            let words = sentence.split(separator: " ").map(String.init)
+            let whole = await self.written([sentence], seeing: code)
+            for cut in 1..<words.count {
+                let pieces = [words[..<cut].joined(separator: " "), words[cut...].joined(separator: " ")]
+                let text = await self.written(pieces, seeing: code)
+                #expect(text == whole, "cut at \(cut) of \(sentence)")
+            }
+        }
+    }
+
+    @Test("a quotation is read whole at every cut inside it")
+    func everyQuotationCut() async {
+        let sentence = "the brief says open quote ship on friday close quote"
+        let words = sentence.split(separator: " ").map(String.init)
+        let whole = await written([sentence])
+        // From "open | quote" to "friday | close quote": every cut that leaves the quotation open.
+        for cut in 4..<words.count {
+            let pieces = [words[..<cut].joined(separator: " "), words[cut...].joined(separator: " ")]
+            let text = await written(pieces)
+            #expect(text == whole, "cut at \(cut): \(text ?? "")")
+        }
+    }
+
     @Test("a named mark kept as a word stays a word across the cut")
     func mentionedMarkStays() async {
         let text = await written(["it lasted a long", "period of time"]) ?? ""

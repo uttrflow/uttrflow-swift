@@ -22,6 +22,8 @@ public struct DictationWait: Sendable, Equatable {
     ) {
         var spent: [SlowDictationCause: Duration] = [:]
         spent[.fallbackDecode] = .seconds(decoding.reduce(0) { $0 + $1.fallbackSeconds })
+        spent[.modelLoad] = .seconds(decoding.reduce(0) { $0 + $1.loadSeconds })
+        spent[.cappedDecodeRetry] = .seconds(decoding.reduce(0) { $0 + $1.retrySeconds })
         spent[.contextRead] = screenReads
         for stage in stages {
             switch stage.stage {

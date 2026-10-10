@@ -11,10 +11,12 @@ struct DictionaryPageView: View {
     var onIntent: (MainIntent) -> Void
     /// Reports the chosen filter chip.
     var onFilter: (String) -> Void = { _ in }
+    /// The rows ticked for Delete selected or Restore selected.
+    @State private var ticked: Set<UUID> = []
 
-    /// The artboard's columns: word, sound, source, recogniser prompt, used, undone, and the row's controls.
+    /// The tick, then the artboard's columns: word, sound, source, recogniser prompt, used, undone, and the row's controls.
     static let widths: [PageColumnWidth] = [
-        .share(1.1), .share(1.1), .share(1), .share(1), .fixed(55), .fixed(60), .fixed(76),
+        .fixed(14), .share(1.1), .share(1.1), .share(1), .share(1), .fixed(55), .fixed(60), .fixed(76),
     ]
 
     var body: some View {
@@ -42,6 +44,15 @@ struct DictionaryPageView: View {
                         MainEmptyStateView(state: empty, onIntent: onIntent)
                             .frame(minHeight: 220)
                     } else {
+                        if let selection = DictionaryPresenter.selection(ticked, in: presentation.rows) {
+                            DictionarySelectionBar(
+                                selection: selection,
+                                onSelectAll: { ticked = Set(presentation.rows.map(\.id)) },
+                                onClear: { ticked = [] },
+                                onIntent: onIntent
+                            )
+                            .padding(.bottom, 10)
+                        }
                         table
                     }
                     if let footnote = presentation.footnote {
@@ -67,20 +78,29 @@ struct DictionaryPageView: View {
     private var table: some View {
         LazyVStack(alignment: .leading, spacing: 0) {
             PageTableHeader(
-                titles: ["Write it as", "Say it like", "From", "Recogniser", "Used", "Undone", ""],
+                titles: ["", "Write it as", "Say it like", "From", "Recogniser", "Used", "Undone", ""],
                 widths: Self.widths)
             ForEach(presentation.rows) { row in
                 PageDivider()
-                DictionaryRowView(row: row, onIntent: onIntent)
+                DictionaryRowView(row: row, isTicked: tick(row.id), onIntent: onIntent)
             }
         }
         .pageCard()
+    }
+
+    /// Whether one row is ticked, as the row's checkbox reads and writes it.
+    private func tick(_ id: UUID) -> Binding<Bool> {
+        Binding(
+            get: { ticked.contains(id) },
+            set: { if $0 { ticked.insert(id) } else { ticked.remove(id) } })
     }
 }
 
 /// One word; a retired row is dimmed and offers Restore, and Delete waits for the pointer.
 struct DictionaryRowView: View {
     let row: DictionaryRow
+    /// Whether the row is gathered into the selection.
+    @Binding var isTicked: Bool
     var onIntent: (MainIntent) -> Void
 
     @State private var isHovered = false
@@ -100,6 +120,9 @@ struct DictionaryRowView: View {
 
     private var columns: some View {
         PageColumns(widths: DictionaryPageView.widths) {
+            Toggle(isOn: $isTicked) { Text(row.word) }
+                .toggleStyle(.checkbox)
+                .labelsHidden()
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.word)
                     .fontWeight(.semibold)
@@ -338,5 +361,43 @@ struct DictionaryFixCard: View {
         .pageCard()
         .accessibilityElement(children: .contain)
         .accessibilityLabel("“\(fix.heard)” was changed to “\(fix.wrote)” at \(fix.when)")
+    }
+}
+
+/// Over the table while rows are ticked: how many, and Restore selected and Delete selected for all of them.
+struct DictionarySelectionBar: View {
+    let selection: DictionarySelection
+    var onSelectAll: () -> Void
+    var onClear: () -> Void
+    var onIntent: (MainIntent) -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Text(selection.count)
+                .font(.system(size: 12.5, weight: .medium))
+                .foregroundStyle(PagePalette.text)
+            if let selectAll = selection.selectAll {
+                Button(selectAll, action: onSelectAll)
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(PagePalette.clipboardInk)
+            }
+            Button(selection.clear, action: onClear)
+                .buttonStyle(.plain)
+                .font(.system(size: 11.5))
+                .foregroundStyle(PagePalette.clipboardInk)
+            Spacer(minLength: 6)
+            if let restore = selection.restore {
+                PageButton(action: restore, onIntent: acting)
+            }
+            PageButton(action: selection.delete, onIntent: acting)
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    /// Carries the batch out, then unticks the rows it was done to.
+    private func acting(_ intent: MainIntent) {
+        onIntent(intent)
+        onClear()
     }
 }

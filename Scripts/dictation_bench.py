@@ -140,6 +140,32 @@ NOUNS = [
     ("The Jaxvale release depends on Brunmore, so tell Cendrik before we ship Fyloria.",
      ["Jaxvale", "Brunmore", "Cendrik", "Fyloria"]),
 ]
+# Invented personas, each the vocabulary one kind of person would supply (a tool, a project, a colleague) and the
+# app they dictate into. Each sentence is scored with its own persona's vocabulary off, on, and swapped for the next
+# persona's, so the bench shows what a persona is worth and what the wrong one costs. Every name is invented.
+PERSONAS = [
+    ("developer", "com.apple.Terminal", ["Quillmark", "Dravenport", "Tessaly Brunwick"], [
+        "Ask Tessaly Brunwick to review the Quillmark patch before lunch.",
+        "The Dravenport build failed again, so roll back the Quillmark release.",
+        "Tell Tessaly Brunwick the Dravenport cache is full.",
+        "Pin Quillmark to the old version until Dravenport passes its tests.",
+    ]),
+    ("clinician", "com.apple.TextEdit", ["Corvaline", "Hessendril", "Imra Feldane"], [
+        "Start the patient on Corvaline twice a day and review in a week.",
+        "Imra Feldane will see her at the Hessendril clinic on Monday.",
+        "Stop the Corvaline if the rash comes back and call Imra Feldane.",
+        "Refer him to the Hessendril ward for a scan this afternoon.",
+    ]),
+    ("support", "com.apple.mail", ["Pellucine", "Ostravel", "Juno Marrick"], [
+        "Thanks for writing in about your Pellucine subscription.",
+        "Juno Marrick from billing will refund the Ostravel order today.",
+        "Please restart Pellucine and send Juno Marrick the error message.",
+        "Your Ostravel parcel left the warehouse this morning.",
+    ]),
+]
+PERSONA_CONDITIONS = ("off", "on", "wrong")
+# The most a wrong persona may add to a persona's final word error rate, in percentage points, before `score` fails.
+PERSONA_HARM_LIMIT = 2.0
 HINGLISH = [
     "Kal ki meeting cancel ho gayi hai, toh hum report Monday ko bhejenge.",
     "Yaar, mera laptop bahut slow chal raha hai, kya tum IT team ko ticket bhej sakte ho?",
@@ -209,7 +235,7 @@ def clips():
     out = []
 
     def add(cid, category, language, voice, say, written, spoken=None, vocabulary=(), devanagari=None,
-            languages=None, parts=None, rate=None, entities=None):
+            languages=None, parts=None, rate=None, entities=None, app=None):
         # Entities are the tagged terms the entity metrics count, kept whether or not a vocabulary is supplied.
         entities = [e for e in (vocabulary if entities is None else entities) if e in written]
         clip = dict(id=cid, category=category, language=language, voice=voice, say=say, spoken=spoken or say,
@@ -218,6 +244,7 @@ def clips():
         if languages is not None: clip["languages"] = languages
         if parts is not None: clip["parts"] = parts
         if rate is not None: clip["rate"] = rate
+        if app is not None: clip["app"] = app
         out.append(clip)
 
     for i, (said, written) in enumerate(REPLIES):
@@ -258,6 +285,15 @@ def clips():
         for voice in ENGLISH:
             add(f"nouns{i}-{voice.lower()}", "nouns", "english", voice, said, said, entities=words)
             add(f"nouns{i}-{voice.lower()}-vocabulary", "nouns-vocabulary", "english", voice, said, said, vocabulary=words)
+    for p, (name, app, vocabulary, sentences) in enumerate(PERSONAS):
+        wrong = PERSONAS[(p + 1) % len(PERSONAS)][2]
+        for i, said in enumerate(sentences):
+            for voice in ENGLISH:
+                for condition, supplied in zip(PERSONA_CONDITIONS, ((), vocabulary, wrong)):
+                    # Entities are always this persona's terms, so the three conditions count the same words.
+                    add(f"persona-{name}{i}-{voice.lower()}-{condition}", f"persona-{name}", "english", voice,
+                        said, said, vocabulary=supplied, entities=vocabulary, app=app)
+                    out[-1].update(persona=name, persona_condition=condition)
     for i, said in enumerate(HINGLISH):
         add(f"hinglish{i}-rishi", "hinglish-latin", "hinglish", "Rishi", said, said)
     english_twice = f"{CODE_SWITCH_ENGLISH} {CODE_SWITCH_ENGLISH}"
@@ -381,7 +417,8 @@ def jobs(args):
         for c in chosen:
             for cleaner in cleaners:
                 fields = [c["id"], c["wav"], ",".join(c["vocabulary"]), args.mode, cleaner]
-                if c.get("languages"): fields.append(",".join(c["languages"]))
+                if c.get("languages") or c.get("app"): fields.append(",".join(c.get("languages") or ["en"]))
+                if c.get("app"): fields.append(c["app"])
                 lines.append("\t".join(fields))
     if not lines:
         sys.exit(f"selected {len(chosen)} clip(s) but --repeat {args.repeat} produced no jobs")
@@ -525,6 +562,7 @@ def score(args):
             exact = sum(s["exact"][0] for s in g) / max(1, sum(s["exact"][1] for s in g))
             print(f"| {k} | {len(g)} | {100 * raw:.1f}% | {100 * out:.1f}% | {100 * exact:.1f}% |")
 
+    harmed = []
     for cleaner in sorted({s["r"]["cleaner"] for s in scored}):
         for mode in sorted({s["r"]["mode"] for s in scored}):
             mine = lambda s, cl=cleaner, m=mode: s["r"]["cleaner"] == cl and s["r"]["mode"] == m
@@ -557,11 +595,14 @@ def score(args):
                 print(f"| {k} | " + " | ".join(str(x) for x in cells) + " |")
             devvocab_pairs(scored, mine)
             entity_metrics(scored, mine)
+            harmed += [f"{name}, cleaner {cleaner}, mode {mode}" for name in persona_metrics(scored, mine)]
     failed = [(s["r"]["id"], s["r"]["failed"]) for s in scored if s["r"].get("failed")]
     print(f"\nfailed: {failed or 'none'}")
     unstable(scored)
-    if args.baseline:
-        gate(args, scored)
+    if harmed:
+        print(f"\npersona harm over {PERSONA_HARM_LIMIT:.1f} points: {', '.join(harmed)}")
+    verdict = gate(args, scored) if args.baseline else 0
+    sys.exit(verdict or (1 if harmed else 0))
 
 
 def as_baseline(scored):
@@ -599,7 +640,7 @@ def audio_digest(clip):
 
 
 def gate(args, scored):
-    """Hands the run to `uttrflow-eval compare`, the one regression rule, and exits with its verdict."""
+    """Hands the run to `uttrflow-eval compare`, the one regression rule, and answers its exit status."""
     measured = os.path.join(args.out, "measured-baseline.json")
     with open(measured, "w") as handle:
         json.dump(as_baseline(scored), handle, indent=2)
@@ -607,7 +648,7 @@ def gate(args, scored):
     command += ["--save-baseline"] if args.save_baseline else []
     command += ["--fail-on-regression"] if args.fail_on_regression else []
     sys.stdout.flush()
-    sys.exit(subprocess.run(command).returncode)
+    return subprocess.run(command).returncode
 
 
 def term_heard(term, text):
@@ -683,7 +724,8 @@ def entity_metrics(scored, keep):
     groups = defaultdict(list)
     for s in scored:
         if keep(s) and s["c"]["variant"] == "clean":
-            vocabulary = "vocabulary" if s["c"]["vocabulary"] else "no vocabulary"
+            vocabulary = (f"persona {s['c']['persona_condition']}" if s["c"].get("persona_condition") else
+                          "vocabulary" if s["c"]["vocabulary"] else "no vocabulary")
             groups[f"{s['c']['category']}, {vocabulary}"].append(s["entity"])
     if not groups:
         return
@@ -697,6 +739,42 @@ def entity_metrics(scored, keep):
         print(f"| {k} | {len(g)} | {rate(total('entity_missed'), total('entities'))} | "
               f"{rate(total('tagged_wrong'), total('tagged'))} | {rate(total('untagged_wrong'), total('untagged'))} | "
               f"{rate(total('overridden'), total('decoder_right'))} | {total('compared')} |")
+
+
+def persona_metrics(scored, keep):
+    """Each persona's sentences with its vocabulary off, on and swapped: gain is off minus on, harm wrong minus off.
+
+    Only sentences scored under all three conditions count, so the three rates are over the same audio. Answers the
+    personas whose harm, in points of final word error rate, is over PERSONA_HARM_LIMIT.
+    """
+    bases = defaultdict(dict)
+    for s in scored:
+        c = s["c"]
+        if keep(s) and c["variant"] == "clean" and c.get("persona_condition"):
+            bases[(c["persona"], c["app"], c["id"].rsplit("-", 1)[0])][c["persona_condition"]] = s
+    groups = defaultdict(list)
+    for (name, app, _), conditions in bases.items():
+        if set(conditions) == set(PERSONA_CONDITIONS):
+            groups[(name, app)].append(conditions)
+    if not groups:
+        return []
+    wer = lambda g, k: 100 * sum(c[k]["out"][0] for c in g) / max(1, sum(c[k]["out"][1] for c in g))
+    missed = lambda g, k: 100 * (sum(c[k]["entity"]["entity_missed"] for c in g)
+                                 / max(1, sum(c[k]["entity"]["entities"] for c in g)))
+    print("\nPersonas, final text against the written reference, clean audio: vocabulary off, on, and another "
+          f"persona's (wrong); harm over {PERSONA_HARM_LIMIT:.1f} points fails\n\n"
+          "| persona | app | sentences | WER off | WER on | WER wrong | entity error off | entity error on | "
+          "entity error wrong | gain | harm |\n|---|---|---|---|---|---|---|---|---|---|---|")
+    harmed = []
+    for (name, app), g in sorted(groups.items()):
+        off, on, wrong = (wer(g, k) for k in PERSONA_CONDITIONS)
+        gain, harm = off - on, wrong - off
+        if harm > PERSONA_HARM_LIMIT:
+            harmed.append(name)
+        cells = [len(g), *(f"{x:.1f}%" for x in (off, on, wrong)),
+                 *(f"{missed(g, k):.1f}%" for k in PERSONA_CONDITIONS), f"{gain:+.1f}", f"{harm:+.1f}"]
+        print(f"| {name} | {app} | " + " | ".join(str(x) for x in cells) + " |")
+    return harmed
 
 
 def unstable(scored):
