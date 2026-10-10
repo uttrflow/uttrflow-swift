@@ -9,6 +9,9 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
     /// Where the words go; a command line takes only the rows that name it, so its brackets stay marks.
     var destination: Destination = .codeEditor
 
+    /// The language the caret's file or text declares, which picks the rows whose meaning depends on it.
+    var language: CodeLanguage?
+
     /// What the screen said for the notation, to which the speech's own cues are added.
     var evidence = Applicability(cues: [.caretInCode])
 
@@ -21,8 +24,11 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
         while position < draft.presentIndices.count {
             let live = draft.presentIndices
             guard position < live.count else { break }
-            if let symbol = symbol(at: position, in: live, of: draft) {
-                apply(symbol, at: position, in: live, to: &draft)
+            // Empty parentheses joined onto the word before leave the next word where this one stood.
+            if let symbol = symbol(at: position, in: live, of: draft),
+                apply(symbol, at: position, in: live, to: &draft) == .joinedBefore
+            {
+                continue
             }
             position += 1
         }
@@ -35,6 +41,7 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
         }
         return SpokenCommands.codeSymbols.first {
             ($0.destinations?.contains(destination) ?? (destination == .codeEditor))
+                && $0.isEnabled(for: language)
                 && draft.spells($0.words, at: position, in: live, acrossSentences: true)
         }
     }
@@ -43,16 +50,22 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
         text.lowercased().trimmingCharacters(in: .letters.inverted)
     }
 
-    private func apply(_ command: SpokenCommand, at position: Int, in live: [Int], to draft: inout Draft) {
+    /// Where a written symbol went: onto its own first word, or onto the word before it.
+    private enum Written { case inPlace, joinedBefore }
+
+    private func apply(
+        _ command: SpokenCommand, at position: Int, in live: [Int], to draft: inout Draft
+    ) -> Written {
         let consumed = command.words.count
         let text = command.text
         let suffix = draft.shape(at: live[position + consumed - 1]).suffix
         if text == ")", position > 0, draft.words[live[position - 1]].text == "(" {
             draft.replace(at: live[position - 1], with: "()" + suffix, by: Self.id)
             for offset in 0..<consumed { draft.remove(at: live[position + offset], by: Self.id) }
-            return
+            return .joinedBefore
         }
         draft.replace(at: live[position], with: text + suffix, by: Self.id)
         for offset in 1..<consumed { draft.remove(at: live[position + offset], by: Self.id) }
+        return .inPlace
     }
 }

@@ -1050,6 +1050,96 @@ signed-temperature	Temperature fell to -5 degrees overnight.
 single-word-self-correction	The green.
 slack-name-spelling	Thanks marcy I'll pick up the printer quote this afternoon.
 sounds-like-a-prompt	Summarise the meeting notes in three bullet points.
+source-javascript-arrow-callback	items map (item => item)
+source-javascript-arrow-function	const square = (value) => value times value
+source-javascript-arrow-identity	const same = (value) => value
+source-javascript-divide-equals	width /= 2
+source-javascript-double-equals	if count == 0 {
+source-javascript-fat-arrow	const twice = value => value
+source-javascript-greater-or-equal	if score >= 90 {
+source-javascript-greater-than	if count > limit {
+source-javascript-less-or-equal	if age <= 12 {
+source-javascript-less-than	while index < end {
+source-javascript-logical-and	if ready && visible {
+source-javascript-logical-or	const label = name || fallback
+source-javascript-minus-equals	remaining -= 1
+source-javascript-not-equals	if name != null {
+source-javascript-plus-equals	total += price
+source-javascript-power	const area = side ** 2
+source-javascript-strict-not-equals	if left !== right {
+source-javascript-times-equals	scale *= 2
+source-javascript-triple-equals	if left === right {
+source-python-arrow-float	) -> float:
+source-python-arrow-fragment	) -> int:
+source-python-arrow-list	) -> list:
+source-python-arrow-self	(self) -> str:
+source-python-brace-dict	config = {}
+source-python-compare-chain	if low <= mid:
+source-python-divide-equals	width /= 2
+source-python-double-equals	if count == 0:
+source-python-double-equals-string	if status == ready:
+source-python-equals-assign	limit = 10
+source-python-fat-arrow-stays-literal	mapping = key => value
+source-python-greater-or-equal	if score >= 90:
+source-python-greater-than	if count > limit:
+source-python-greater-than-zero	if balance > 0:
+source-python-less-or-equal	if age <= 12:
+source-python-less-than	while index < end:
+source-python-logical-and-not-python	if ready logical and visible:
+source-python-logical-or-not-python	if empty logical or hidden:
+source-python-minus-equals	remaining -= 1
+source-python-not-equals	if name != none:
+source-python-not-equals-default	if mode != default:
+source-python-not-equals-end	while chunk != end:
+source-python-not-equals-zero	if remainder != 0:
+source-python-plus-equals	total += price
+source-python-plus-equals-count	count += 1
+source-python-power	area = side ** 2
+source-python-power-assign	cube = side ** 3
+source-python-times-equals	scale *= 2
+source-python-times-equals-rate	price *= rate
+source-python-triple-equals-not-python	if left triple = right:
+source-swift-arrow-closure	{ value -> bool in
+source-swift-arrow-return	let handler: () -> void
+source-swift-arrow-throws	) throws -> data {
+source-swift-brace-close	}
+source-swift-compare-chain	if low <= mid && mid < high
+source-swift-divide-equals	width /= 2
+source-swift-double-equals	if count == 0 {
+source-swift-double-equals-string	if status == ready
+source-swift-equals-assign	let limit = 10
+source-swift-fat-arrow-stays-literal	let mapping = key => value
+source-swift-greater-or-equal	if score >= 90
+source-swift-greater-than	if count > limit
+source-swift-greater-than-zero	guard balance > 0 else {
+source-swift-identity-check	return lhs === rhs
+source-swift-less-or-equal	if age <= 12
+source-swift-less-than	while index < end {
+source-swift-logical-and	if ready && visible
+source-swift-logical-or	if empty || hidden
+source-swift-logical-or-guard	guard first || second else {
+source-swift-minus-equals	remaining -= 1
+source-swift-minus-equals-offset	offset -= step
+source-swift-not-equals	guard index != end else {
+source-swift-not-equals-nil	if delegate != nil {
+source-swift-plus-equals	total += price
+source-swift-plus-equals-count	count += 1
+source-swift-power-not-swift	let area = side double star 2
+source-swift-strict-not-equals	if left !== right
+source-swift-times-equals	scale *= 2
+source-swift-triple-equals	if lhs === rhs {
+source-swift-triple-equals-guard	guard lhs === rhs else {
+source-typescript-arrow-handler	const handle = (event) => {
+source-typescript-arrow-return	const total = () => 0
+source-typescript-close-brace	}
+source-typescript-compare-chain	if low <= mid && mid < high {
+source-typescript-equals-assign	let limit = 10
+source-typescript-logical-and	return ready && loaded
+source-typescript-logical-or	return first || second
+source-typescript-not-triple-equals	if user !== undefined {
+source-typescript-plus-equals	count += 1
+source-typescript-power	const cube = side ** 3
+source-typescript-triple-equals	if status === ready {
 spelled-acronym-ending-in-a	QA signed off an hour ago.
 spelled-acronym-ending-in-a-mid-sentence	The SLA covers weekends.
 spelled-apr	Open APR for it.
