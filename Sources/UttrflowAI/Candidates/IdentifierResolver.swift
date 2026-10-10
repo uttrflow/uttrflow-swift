@@ -55,7 +55,7 @@ enum IdentifierResolver {
     static func bind(spokenWords: [String], vocabulary: ScreenVocabulary) -> Binding {
         guard !spokenWords.isEmpty, !vocabulary.identifiers.isEmpty else { return .none }
         let heard = ReadingKey(spokenWords.joined(separator: " "))
-        let found = matches(for: heard, among: vocabulary.identifiers.map(ReadingKey.init))
+        let found = matches(for: heard, among: vocabulary.identifiers.map(ShownWord.init))
         for tier in [found.spelled, found.sounded] where !tier.isEmpty {
             return tier.count == 1 ? .bound(tier[0]) : .ambiguous(tier)
         }
@@ -64,17 +64,29 @@ enum IdentifierResolver {
 
     /// The shown words that spell the run with its spaces closed up, then those that sound and open like it.
     static func matches(
-        for heard: ReadingKey, among shown: [ReadingKey]
+        for heard: ReadingKey, among shown: [ShownWord]
     ) -> (spelled: [String], sounded: [String]) {
         var spelled: [String] = []
         var sounded: [String] = []
         for screen in shown {
-            if screen.closed == heard.closed {
+            if screen.key.closed == heard.closed {
                 spelled.append(screen.word)
-            } else if ReadingRestraint.isWorthOffering(screen, for: heard) {
+            } else if ReadingRestraint.isWorthOffering(screen.key, for: heard) {
                 sounded.append(screen.word)
             }
         }
         return (spelled, sounded)
+    }
+}
+
+/// A word the screen shows, as written and as said: an identifier is said word by word, "CacheStore" as "cache store", because the lexicon lists its words and not it.
+struct ShownWord: Sendable, Equatable {
+    let word: String
+    let key: ReadingKey
+
+    init(_ word: String) {
+        let parts = MeaningPreservationGuard.identifierParts(word)
+        self.word = word
+        self.key = ReadingKey(parts.count > 1 ? parts.joined(separator: " ") : word)
     }
 }

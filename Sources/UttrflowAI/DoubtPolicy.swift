@@ -17,10 +17,11 @@ public enum DoubtPolicy {
         settled || isHeardSurely(confidence)
     }
 
-    /// Why one word is doubted, or `nil` when it is not: never a settled word, then a low score, else a homophone group.
+    /// Why one word is doubted, or `nil` when it is not: never a settled word, then a low score, else a homophone group; a hesitation sound ("um", "umm") has no meaning a homophone could change.
     public static func reason(text: String, confidence: Double, settled: Bool = false) -> DoubtReason? {
         guard !settled else { return nil }
         if !isHeardSurely(confidence) { return .lowScore }
+        guard !FillersPass.fillerWords.contains(text.lowercased()) else { return nil }
         return GeneralVocabulary.homophones(of: text).isEmpty ? nil : .homophoneClass
     }
 

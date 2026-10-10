@@ -38,7 +38,10 @@ import UttrflowCore
         let doubtful = DoubtfulWordsOutcome.locating(
             heard("meet at five today", doubted: ["five"]), in: "Meet at 5 today.")
         #expect(
-            spans(doubtful) == [DoubtfulWordSpan(range: 2..<3, kind: .numberLike, evidence: 0)])
+            spans(doubtful) == [
+                DoubtfulWordSpan(range: 0..<1, kind: .soundAlikeClass, evidence: 3),
+                DoubtfulWordSpan(range: 2..<3, kind: .numberLike, evidence: 0),
+            ])
     }
 
     @Test func aDictionaryOverrideIsOverriddenWhereverItLanded() {
@@ -60,13 +63,17 @@ import UttrflowCore
     @Test func aSurelyHeardSoundAlikeIsTheSoundAlikeKind() {
         let doubtful = DoubtfulWordsOutcome.locating(
             heard("put it there please"), in: "Put it there, please.")
-        #expect(spans(doubtful) == [DoubtfulWordSpan(range: 2..<3, kind: .soundAlikeClass, evidence: 3)])
+        #expect(spans(doubtful) == [DoubtfulWordSpan(range: 2..<4, kind: .soundAlikeClass, evidence: 3)])
     }
 
     @Test func aDoubtedWordBesideANegatorIsNegatorAdjacent() {
         let doubtful = DoubtfulWordsOutcome.locating(
             heard("do not delpoy today", doubted: ["delpoy"]), in: "Do not deploy today.")
-        #expect(spans(doubtful) == [DoubtfulWordSpan(range: 2..<3, kind: .negatorAdjacent, evidence: 0)])
+        #expect(
+            spans(doubtful) == [
+                DoubtfulWordSpan(range: 0..<1, kind: .negatorAdjacent, evidence: 3),
+                DoubtfulWordSpan(range: 2..<3, kind: .negatorAdjacent, evidence: 0),
+            ])
     }
 
     @Test func aDoubtedWordWrittenAsANameIsNameLike() {
