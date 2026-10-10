@@ -83,9 +83,9 @@ extension EvaluationCorpus {
             id: "probe-regex-pattern", category: .technical,
             spoken:
                 "the pattern is caret open bracket a dash z close bracket plus at open bracket a dash z close bracket plus dollar",
-            expected: "^[a-z]+@[a-z]+$",
+            expected: "The pattern is ^[a-z]+@[a-z]+$",
             context: AppContext(applicationName: "Xcode", bundleIdentifier: "com.apple.dt.Xcode"),
-            destination: .codeEditor, mustBeginWith: "^[a-z]+@[a-z]+$", mustEndWith: "^[a-z]+@[a-z]+$",
+            destination: .codeEditor, mustBeginWith: "The pattern is", mustEndWith: "^[a-z]+@[a-z]+$",
             classes: [.quotesAndBrackets, .capitalisationAndTokens, .perDestination, .codeAndMarkdown],
             origin: .reportRewrite, addedFor: 4447
         ),
@@ -93,9 +93,9 @@ extension EvaluationCorpus {
             id: "probe-yaml-keys", category: .technical,
             spoken:
                 "set replicas colon three and image colon registry dot example dot com slash api colon one point four point two",
-            expected: "replicas: 3\nimage: registry.example.com/api:1.4.2",
+            expected: "Set replicas: 3 and image: registry.example.com/api:1.4.2",
             context: AppContext(applicationName: "Xcode", bundleIdentifier: "com.apple.dt.Xcode"),
-            destination: .codeEditor, mustBeginWith: "replicas:",
+            destination: .codeEditor, mustBeginWith: "Set replicas:",
             mustEndWith: "registry.example.com/api:1.4.2",
             classes: [.capitalisationAndTokens, .numbers, .lists, .perDestination, .codeAndMarkdown],
             origin: .reportRewrite, addedFor: 4447

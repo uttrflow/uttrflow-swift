@@ -124,6 +124,7 @@ public enum SettingsEditor {
         case .sendsCrashReports: settings.sendsCrashReports = isOn
         case .suggestionsEnabled: settings.suggestions.isEnabled = isOn
         case .quietSuggestions: settings.suggestions.isQuiet = isOn
+        case .learnsFromDictation: settings.learnsFromDictation = isOn
         }
     }
 
@@ -163,7 +164,7 @@ public enum SettingsEditor {
             capabilities.canCheckForUpdates
                 ? nil
                 : "This build has no update feed, so there is nothing to check."
-        case .suggestionsEnabled, .sendsCrashReports:
+        case .suggestionsEnabled, .sendsCrashReports, .learnsFromDictation:
             nil
         case .quietSuggestions:
             settings.suggestions.isEnabled ? nil : suggestionsAreOff

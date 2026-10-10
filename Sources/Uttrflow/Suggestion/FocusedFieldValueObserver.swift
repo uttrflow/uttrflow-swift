@@ -87,7 +87,7 @@ func registerPairedNativeMenuNotifications(
 @MainActor
 final class FocusedFieldValueObserver: FocusedFieldValueObserving {
     private let worker: any FocusedFieldAXWorking
-    private let queue = DispatchQueue(label: "com.uttrflow.suggestions.focused-field-ax", qos: .userInitiated)
+    private let queue = DispatchQueue(label: "com.uttrflow.suggestions.focused-field-ax", qos: .utility)
     private let requestGate = FocusedFieldAXRequestGate()
     private let callbackEpoch = FocusedFieldAXRequestGate()
     private var callbackContext: FocusedFieldValueObserverCallbackContext?

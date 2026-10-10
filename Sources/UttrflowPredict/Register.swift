@@ -66,7 +66,8 @@ public struct Register: Sendable, Equatable {
         let typical = median(own.map(\.count)) ?? (conversational ? median(screenLines.map(\.count)) : nil)
         let symbols = symbolShare(of: [situation.preceding ?? "", typed] + own)
         // A command line and known code destinations stay code; symbolic conversation text stays a reply.
-        let codeLike = situation.isCommandLine || situation.isCodeDestination
+        let codeLike =
+            situation.isCommandLine || situation.isCodeDestination
             || (!conversational && symbols > symbolicShare)
         var register = Register(
             isMultiline: situation.isMultiline,
@@ -74,8 +75,7 @@ public struct Register: Sendable, Equatable {
             isConversational: conversational,
             symbolShare: symbols,
             usesSentenceCase: own.isEmpty ? nil : sentenceCaseShare(of: own) >= 0.5,
-            // Labels are page-controlled; they remain prompt context and never choose a history-only register.
-            // A URL typed at a command line is an argument to a command, never the whole line.
+            // A URL at a command line is an argument, never the line; page labels never choose a history-only register.
             writesAddresses: !situation.isCommandLine
                 && ((looksLikeAddress(typed) && !codeLike) || addressShare(of: own) >= 0.5),
             isSearchField: situation.accessibilityRole == "AXSearchField",

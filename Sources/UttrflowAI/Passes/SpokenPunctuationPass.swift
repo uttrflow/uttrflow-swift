@@ -11,6 +11,8 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     private let isCommandLine: Bool
     /// What the field holds without a word announcing it: addresses in a recipient field, paths at a command line.
     private let expected: SpokenAddress.Expectation
+    /// The silence that ends a sentence for the person speaking; a full stop's name set apart by it on both sides is the mark.
+    private let sentencePause: Duration
 
     /// The particles after which "dash" and "hyphen" are the verbs they also are: "dash off a note".
     static let particles: Set<String> = [
@@ -35,9 +37,10 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
 
     public init(
         destination: Destination = .plain, fieldRole: FieldRole = .unknown,
-        region: CaretStructure.Region = .unrecognised
+        region: CaretStructure.Region = .unrecognised, pauses: PauseLength = .usual
     ) {
         self.destination = destination
+        self.sentencePause = PauseStopPass.sentencePause(for: pauses)
         // The flag rows name where options are typed; the one notation rule rules out a comment or prose body there.
         let screen = NotationEvidence.applicability(destination: destination, region: region)
         self.isCommandLine =
@@ -615,7 +618,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         return Self.particles.contains(draft.shape(at: live[position + 1]).key)
     }
 
-    /// A full stop is used where the text closes or commas bracket its name; a hyphen or dash is used only where it does not.
+    /// A full stop is used where the text closes or commas or pauses bracket its name; a hyphen or dash is used only where it does not.
     private func isPlaced(
         _ mark: String, before next: Int, spanning length: Int, in live: [Int], of draft: Draft
     ) -> Bool {
@@ -623,6 +626,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         case ".":
             return closes(at: next, in: live, of: draft)
                 || isCommaBracketed(before: next, spanning: length, in: live, of: draft)
+                || isPauseBracketed(before: next, spanning: length, in: live, of: draft)
                 || opensDeterminerClause(at: next, in: live, of: draft)
         case "-", "\u{2014}": return !closes(at: next, in: live, of: draft)
         default: return true
@@ -636,6 +640,16 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         guard next < live.count, next > length else { return false }
         return draft.shape(at: live[next - length - 1]).suffix.hasSuffix(",")
             && draft.shape(at: live[next - 1]).suffix.hasSuffix(",")
+    }
+
+    /// A speaker sets a dictated full stop apart with a sentence-length silence on each side of its name.
+    private func isPauseBracketed(
+        before next: Int, spanning length: Int, in live: [Int], of draft: Draft
+    ) -> Bool {
+        guard next < live.count, next > length,
+            let before = draft.pause(before: live[next - length]), let after = draft.pause(before: live[next])
+        else { return false }
+        return before >= sentencePause && after >= sentencePause
     }
 
     /// Whether a determiner-led clause starts at `next`, so a full stop before it is a sentence boundary.

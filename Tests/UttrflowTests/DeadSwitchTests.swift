@@ -21,6 +21,7 @@ struct DeadSwitchTests {
             "minimisesWhileDictating", "playsSoundWhenRecordingStarts", "opensAtLogin",
             "transcriptRetentionDays", "hotkey", "hotkeyActivation", "clipboardHotkey",
             "dictationEnabled", "clipboardEnabled", "sharesUsageStatistics", "handsFreeEnabled",
+            "learnsFromDictation",
         ])
     func everyToggleReachesSomething(field: String) throws {
         let root = URL(fileURLWithPath: #filePath)
