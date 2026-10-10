@@ -48,6 +48,19 @@ struct SnippetsPageTests {
         #expect(page.emptyState == nil)
     }
 
+    @Test("a stored snippet whose trigger says a spoken command is listed with a warning")
+    func collidingRowWarns() {
+        let page = HistoryFixture.snippets([
+            HistoryFixture.snippet("new line please", createdDaysAgo: 20),
+            HistoryFixture.snippet("my address"),
+        ])
+        let warnings = Dictionary(uniqueKeysWithValues: page.rows.map { ($0.trigger.text, $0.warning) })
+        #expect(
+            warnings["new line please"]
+                == "Says the spoken command “new line”, so the command runs and this snippet never does.")
+        #expect(warnings["my address"] == .some(nil))
+    }
+
     @Test("a row says what it types, how often and when it last did")
     func row() {
         let snippet = HistoryFixture.snippet(used: 48, lastUsedDaysAgo: 0)

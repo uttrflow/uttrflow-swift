@@ -155,4 +155,16 @@ struct SlowFieldsTests {
         slow.answered(other)
         #expect(!slow.isQuiet(field.process))
     }
+
+    @Test("Forgetting everything ends every rest and quiet, and the next run over is forgiven again")
+    func forgettingEndsEveryRest() {
+        let slow = SlowFields(clock: ManualClock())
+        slow.ranOver(field)
+        slow.ranOver(field)
+        slow.forgetEverything()
+        #expect(!slow.isQuiet(field.process))
+        #expect(!slow.isResting(field))
+        slow.ranOver(field)
+        #expect(!slow.isResting(field))
+    }
 }

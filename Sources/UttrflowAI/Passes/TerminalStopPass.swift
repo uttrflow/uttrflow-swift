@@ -30,6 +30,7 @@ public struct TerminalStopPass: WholeTextCleaningPass {
         Self.separateLeadingQuestionOpener(&draft, layout: layout)
         Self.separateTrailingRequest(&draft, layout: layout)
         Self.separateTrailingTag(&draft, layout: layout)
+        Self.separateHindiAsides(&draft, layout: layout)
         guard let last = draft.presentIndices.last, !draft.words[last].isLayoutMark else { return draft }
         let word = draft.words[last].text
         if destination == .email, Self.isEmailGreetingOrSignOff(draft) {
@@ -104,6 +105,45 @@ public struct TerminalStopPass: WholeTextCleaningPass {
         else { return }
         let index = live[start - 1]
         draft.replace(at: index, with: WordShape.marked(draft.words[index].text, with: ","), by: id)
+    }
+
+    /// Sets off an English aside opening or closing a Hindi sentence, "actually mujhe nahi pata" → "actually, mujhe nahi pata".
+    private static func separateHindiAsides(_ draft: inout Draft, layout: LayoutPolicy) {
+        guard layout.contains(.paragraphs) else { return }
+        for sentence in sentences(in: draft) {
+            let keys = sentence.map { draft.shape(at: $0).key }
+            guard keys.count >= 3 else { continue }
+            if AsideWords.holds(keys[0], at: .opening), AsideWords.areHindiClause(Array(keys.dropFirst())) {
+                setOff(sentence[0], in: &draft)
+            }
+            if AsideWords.holds(keys[keys.count - 1], at: .closing),
+                AsideWords.areHindiClause(Array(keys.dropLast()))
+            {
+                setOff(sentence[sentence.count - 2], in: &draft)
+            }
+        }
+    }
+
+    /// Puts a comma after the word unless it already carries a mark.
+    private static func setOff(_ index: Int, in draft: inout Draft) {
+        guard !draft.shape(at: index).suffix.contains(where: { ".!?;,:".contains($0) }) else { return }
+        draft.replace(at: index, with: WordShape.marked(draft.words[index].text, with: ","), by: id)
+    }
+
+    /// The spoken words of each sentence, split at sentence ends and layout marks.
+    private static func sentences(in draft: Draft) -> [[Int]] {
+        let live = draft.presentIndices
+        var sentences: [[Int]] = [[]]
+        for (position, index) in live.enumerated() {
+            if draft.words[index].isLayoutMark {
+                sentences.append([])
+                continue
+            }
+            if !draft.shape(at: index).key.isEmpty { sentences[sentences.count - 1].append(index) }
+            let next = live.indices.contains(position + 1) ? draft.words[live[position + 1]].text : nil
+            if Abbreviations.endsSentence(draft.words[index].text, followedBy: next) { sentences.append([]) }
+        }
+        return sentences.filter { !$0.isEmpty }
     }
 
     /// The last word with a stop unless it ends a list item, or the layout keeps newlines and the text holds one.
