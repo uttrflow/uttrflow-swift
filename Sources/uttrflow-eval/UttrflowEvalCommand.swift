@@ -17,7 +17,7 @@ struct UttrflowEvalCommand: AsyncParsableCommand {
             AccentGroupReport.self, RelistenProbe.self, HomophoneTable.self, LearningCurve.self,
             PathCoverageProbe.self, AccuracyReportCommand.self, ShortClipProbe.self, SilenceStopProbe.self,
             CommandRecallProbe.self, EnglishWords.self, CompareRuns.self, InputLevelProbe.self,
-            GuidedReadProbe.self,
+            GuidedReadProbe.self, DigitStringProbe.self, NameClassProbe.self,
         ]
     )
 }

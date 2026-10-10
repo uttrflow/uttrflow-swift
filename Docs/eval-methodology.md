@@ -512,6 +512,33 @@ How far to trust it:
   misses are extraction failures, not mishearings.
 - (c) asks without the doubt and evidence conditions the engine also checks, so it is a ceiling.
 
+## Proper names by origin and frequency band (`names`)
+
+`uttrflow-eval names` has `say` read every name in `NameClassCorpus`
+(`Sources/UttrflowEval/Resources/Corpus/Names/names.json`): 159 names, each tagged with an origin
+(english, southAsian, eastAsian, african, slavic, irishScottish, arabic), a band (common, uncommon,
+rare) and a kind. Every origin holds, per band, three given names, two surnames and two places;
+twelve English given names that are also ordinary words ("Will", "Grace", "Hope") form the
+`wordAlike` kind, four per band. Each kind is read in one fixed carrier (`NameClassItem.Kind.carrier`),
+and the words between the carrier's own are what was heard.
+
+- Every clip is transcribed twice under an English hint: plain, and with the name as the
+  dictation's vocabulary, which is the path a personal-dictionary entry takes into the prompt.
+- *Exact* keeps case and drops apostrophes, so a word-alike name heard in lower case is a miss;
+  *spelled* also folds case. Both are printed per origin and band, per band over every origin and
+  per kind, with the confusion list (meant against heard, clips per condition) by band and origin.
+  The rows file keeps every transcript for comparison with a later run.
+- The band is the author's judgement of how often the name is written in English text, not a
+  measured frequency; a row compares origins and bands, it does not rank single names.
+- The file holds given names and surnames on their own and public place names only, never a full
+  name, so no entry identifies a person.
+- `--compute gpu` keeps the Neural Engine free when other loads hold it; the plan is printed with
+  the engine.
+
+Not yet measured: one voice reading the class takes over an hour on a loaded machine, so the table
+by origin and band and the weakest band are added here from the first full run of
+`swift run -c release uttrflow-eval names`.
+
 ## Dropped words and the coverage signal (`omission-coverage`)
 
 A dropped "not", "no" or "a" carries no score, so no doubt mechanism sees it. The probe asks

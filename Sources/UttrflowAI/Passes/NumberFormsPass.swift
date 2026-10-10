@@ -17,6 +17,7 @@ public struct NumberFormsPass: PieceCleaningPass {
     static let contextWords: Set<String> = [
         "port", "version", "extension", "page", "chapter", "step", "number", "line", "section", "figure",
         "table", "level", "room", "floor", "route", "flight", "interstate", "highway", "bus", "gate",
+        "grade", "size", "model",
     ]
     /// The spoken currency words, bar those read with the `measures` ("yen").
     static let currencies = Set(Quantities.currencyWords.keys).subtracting(measures)
