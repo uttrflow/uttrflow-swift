@@ -584,7 +584,7 @@ public enum SettingsPresenter {
             banner: nil,
             groups: [
                 SettingsDestinations.places(
-                    settings.destinations, lastApp: personalisation.lastDictationApp),
+                    settings.destinations, recentApps: personalisation.recentDictationApps),
 
                 SettingsDestinations.steps(settings.cleaning),
                 SettingsGroup(

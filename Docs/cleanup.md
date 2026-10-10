@@ -473,12 +473,15 @@ Three surfaces, so a word that went missing can be accounted for rather than gue
   the formatter's decisions about the place, not a cleaning the user asked for, and
   `CleaningSteps` drops anything else from a stored set rather than trusting it.
 - **An app can be treated as somewhere else.** Settings → Dictation → "Where your words go"
-  names the app the last dictation went into and offers every kind of place, plus "Work it
-  out", which is the table. A choice is stored against the bundle identifier
+  lists every app kept history went into, newest use first, then every other override in its
+  stored order, one row per `ApplicationKey`, and "Add an app" picks an installed one. Each row
+  offers every kind of place, plus "Work it out (…)", which is the table and names what the
+  table makes of that app. A choice is stored against the bundle identifier
   (`Settings.destinations`) and `DestinationClassifier` consults the overrides before the
-  table; every override made is listed underneath with a button that puts it back. The table
-  itself is never edited. The app named is the last one dictated into rather than the
-  frontmost, because while the settings window is open the frontmost app is Uttrflow. Each
+  table; an app added from the picker is stored as the table's answer, so it stays listed
+  until it is put back. The table itself is never edited. The apps come from history rather
+  than the frontmost app, because while the settings window is open the frontmost app is
+  Uttrflow. Each
   override also carries an `AdapterMode`, written only when it is not `auto`, so an entry
   stored before modes existed reads back unchanged ([adapters.md](adapters.md) §6).
 

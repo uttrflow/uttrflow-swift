@@ -410,6 +410,9 @@ public enum SettingsChange: Sendable, Equatable {
     /// Asks the user to pick an application to turn suggestions off in, which stores nothing until one is picked.
     case chooseApplicationToTurnOffSuggestions
 
+    /// Asks the user to pick an installed application to say what kind of place it is.
+    case chooseApplicationForDestination
+
     /// Fetches the suggestion model again after a failed attempt.
     case retrySuggestionModel
 
@@ -428,9 +431,9 @@ public enum SettingsChange: Sendable, Equatable {
     /// Whether this asks for something to happen now rather than for something to be stored.
     public var isRequestToAct: Bool {
         switch self {
-        case .checkForUpdatesNow, .chooseApplicationToTurnOffSuggestions, .retrySuggestionModel,
-            .exportPersonalData, .importPersonalData, .manageClipboardExclusions, .pauseClipboardCapture,
-            .openSystemSettings, .openPage:
+        case .checkForUpdatesNow, .chooseApplicationToTurnOffSuggestions, .chooseApplicationForDestination,
+            .retrySuggestionModel, .exportPersonalData, .importPersonalData, .manageClipboardExclusions,
+            .pauseClipboardCapture, .openSystemSettings, .openPage:
             true
         default: false
         }

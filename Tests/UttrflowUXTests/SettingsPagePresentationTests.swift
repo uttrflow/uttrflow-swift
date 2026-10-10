@@ -227,7 +227,7 @@ struct SettingsDictationDesignTests {
     @Test("an app's own row carries its icon")
     func appIcons() {
         let last = SettingsApp(bundleIdentifier: "com.example.notes", name: "Notes")
-        let places = SettingsDestinations.places(.none, lastApp: last)
+        let places = SettingsDestinations.places(.none, recentApps: [last])
         #expect(places.rows.first?.icon == .application(bundleIdentifier: "com.example.notes", name: "Notes"))
     }
 }

@@ -84,9 +84,9 @@ public enum SettingsEditor {
         case .pauseSuggestions(let isOn):
             try requireSuggestionsAreOn(in: settings)
             updated.suggestions.setPaused(isOn, at: moment)
-        case .checkForUpdatesNow, .chooseApplicationToTurnOffSuggestions, .retrySuggestionModel,
-            .exportPersonalData, .importPersonalData, .manageClipboardExclusions, .pauseClipboardCapture,
-            .openSystemSettings, .openPage:
+        case .checkForUpdatesNow, .chooseApplicationToTurnOffSuggestions, .chooseApplicationForDestination,
+            .retrySuggestionModel, .exportPersonalData, .importPersonalData, .manageClipboardExclusions,
+            .pauseClipboardCapture, .openSystemSettings, .openPage:
             // Named rather than left to a `default`, which would swallow the next case added.
             break
         }

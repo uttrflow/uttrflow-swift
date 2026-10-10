@@ -36,6 +36,13 @@ public enum SettingsDestinations {
         }
     }
 
+    /// The same name inside a sentence, so "A SQL editor" reads "a SQL editor" rather than "a sql editor".
+    public static func phrase(of destination: UttrflowCore.Destination) -> String {
+        let name = title(of: destination)
+        guard let first = name.first else { return name }
+        return first.lowercased() + name.dropFirst()
+    }
+
     /// The option that puts an app back on the table Uttrflow ships with.
     public static let automaticID = "automatic"
     static let automaticTitle = "Work it out"
@@ -56,45 +63,91 @@ public enum SettingsDestinations {
             })
     }
 
-    /// The rows for overriding where the words go: the app last dictated into, then every other override made.
+    /// The rows for overriding where the words go: every app in kept history, newest first, then every
+    /// other override, then a way to add an app nobody has dictated into yet.
     public static func places(
-        _ overrides: DestinationOverrides, lastApp: SettingsApp?
+        _ overrides: DestinationOverrides, recentApps: [SettingsApp]
     ) -> SettingsGroup {
-        // The last app's own row already says what it is treated as, so listing it again names it twice.
-        let named = lastApp.map { ApplicationKey.of($0.bundleIdentifier) }
-        return SettingsGroup(
-            id: "places", title: "Where your words go",
-            rows: [lastAppRow(overrides, lastApp)]
-                + overrides.overrides.filter { $0.id != named }.map(overrideRow))
+        let (listed, historyCount) = apps(recentApps, overrides)
+        let rows =
+            listed.isEmpty
+            ? [nothingYetRow]
+            : listed.enumerated().map { index, app in
+                appRow(
+                    app, overrides, explanation: explanation(at: index, fromHistory: index < historyCount))
+            }
+        return SettingsGroup(id: "places", title: "Where your words go", rows: rows + [addAppRow])
     }
 
-    /// What Uttrflow treats the last app as, and the pop-up for disagreeing with it.
-    static func lastAppRow(
-        _ overrides: DestinationOverrides, _ lastApp: SettingsApp?
-    ) -> SettingsRow {
-        guard let lastApp else {
-            return SettingsRow(
-                id: "lastApp",
-                label: "The app you dictate into",
-                explanation:
-                    "Dictate somewhere once and it appears here, so you can say what kind of "
-                    + "place it is.",
-                control: .placeholder("Nothing yet"),
-                icon: .symbol("macbook", .neutral))
-        }
+    /// History's apps in the order given, then overrides with no history in their own stable order, one per key.
+    static func apps(
+        _ recent: [SettingsApp], _ overrides: DestinationOverrides
+    ) -> (apps: [SettingsApp], historyCount: Int) {
+        var seen: Set<String> = []
+        let fromHistory = recent.filter { seen.insert(ApplicationKey.of($0.bundleIdentifier)).inserted }
+            .map { app in
+                let saved = overrides.overrides.first { $0.id == ApplicationKey.of(app.bundleIdentifier) }
+                return SettingsApp(
+                    bundleIdentifier: app.bundleIdentifier, name: app.name ?? saved?.applicationName)
+            }
+        let fromOverrides = overrides.overrides.filter { seen.insert($0.id).inserted }
+            .map { SettingsApp(bundleIdentifier: $0.bundleIdentifier, name: $0.applicationName) }
+        return (fromHistory + fromOverrides, fromHistory.count)
+    }
 
-        let chosen = overrides.destination(forBundleIdentifier: lastApp.bundleIdentifier)
+    private static func explanation(at index: Int, fromHistory: Bool) -> String {
+        guard fromHistory else { return "Kept from a choice you made." }
+        return index == 0
+            ? "The last app you dictated into. Uttrflow writes to suit the place."
+            : "An app you dictated into recently."
+    }
+
+    /// Before anything is dictated or chosen there is no app to have a choice about.
+    static let nothingYetRow = SettingsRow(
+        id: "lastApp",
+        label: "The app you dictate into",
+        explanation:
+            "Dictate somewhere once and it appears here, so you can say what kind of place it is.",
+        control: .placeholder("Nothing yet"),
+        icon: .symbol("macbook", .neutral))
+
+    /// Asks for an installed app, so one can be set before it is ever dictated into.
+    static let addAppRow = SettingsRow(
+        id: "addApp",
+        label: "Add an app",
+        control: .action(title: "Add an app", change: .chooseApplicationForDestination),
+        style: .add)
+
+    /// What the table, not any override, makes of this app; "Work it out" names it.
+    public static func automaticDestination(for app: SettingsApp) -> UttrflowCore.Destination {
+        DestinationClassifier.classify(
+            AppContext(applicationName: app.name, bundleIdentifier: app.bundleIdentifier))
+    }
+
+    /// The change that stores a picked app as the table's answer, so it is listed and can then be changed.
+    public static func adding(_ app: SettingsApp) -> SettingsChange {
+        .appDestination(
+            bundleIdentifier: app.bundleIdentifier, name: app.name,
+            destination: automaticDestination(for: app))
+    }
+
+    /// What Uttrflow treats one app as, and the pop-up for disagreeing with it.
+    static func appRow(
+        _ app: SettingsApp, _ overrides: DestinationOverrides, explanation: String
+    ) -> SettingsRow {
+        let chosen = overrides.destination(forBundleIdentifier: app.bundleIdentifier)
+        let worked = phrase(of: automaticDestination(for: app))
         let automatic = SettingsOption(
-            id: automaticID, title: automaticTitle,
-            change: .forgetAppDestination(bundleIdentifier: lastApp.bundleIdentifier))
+            id: automaticID, title: "\(automaticTitle) (\(worked))",
+            change: .forgetAppDestination(bundleIdentifier: app.bundleIdentifier))
         return SettingsRow(
-            id: "lastApp",
-            label: lastApp.title,
-            explanation: "The last app you dictated into. Uttrflow writes to suit the place.",
+            id: "app-\(ApplicationKey.of(app.bundleIdentifier))",
+            label: app.title,
+            explanation: explanation,
             control: .menu(
-                options: [automatic] + offered.map { option(for: $0, in: lastApp) },
+                options: [automatic] + offered.map { option(for: $0, in: app) },
                 selectedID: chosen?.rawValue ?? automaticID),
-            icon: .application(bundleIdentifier: lastApp.bundleIdentifier, name: lastApp.title))
+            icon: .application(bundleIdentifier: app.bundleIdentifier, name: app.title))
     }
 
     static func option(
@@ -104,17 +157,5 @@ public enum SettingsDestinations {
             id: destination.rawValue, title: title(of: destination),
             change: .appDestination(
                 bundleIdentifier: app.bundleIdentifier, name: app.name, destination: destination))
-    }
-
-    /// One override the user has made, and the button that puts it back.
-    static func overrideRow(_ override: DestinationOverride) -> SettingsRow {
-        SettingsRow(
-            id: "override-\(override.id)",
-            label: override.title,
-            explanation: "Treated as \(title(of: override.destination).lowercased()).",
-            control: .action(
-                title: "Use the Default",
-                change: .forgetAppDestination(bundleIdentifier: override.bundleIdentifier)),
-            icon: .application(bundleIdentifier: override.bundleIdentifier, name: override.title))
     }
 }

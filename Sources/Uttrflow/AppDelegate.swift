@@ -3774,6 +3774,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 ApplicationPicker.choose(given: settings.suggestions) { [weak self] identifier in
                     self?.settingsPage.apply(.suggestionsHere(application: identifier, isOn: false))
                 }
+            case .chooseApplicationForDestination:
+                ApplicationPicker.chooseInstalled { [weak self] app in
+                    self?.settingsPage.apply(SettingsDestinations.adding(app))
+                }
             case .manageClipboardExclusions: manageClipboardExclusions()
             case .exportPersonalData: exportPersonalData()
             case .importPersonalData: importPersonalData()
