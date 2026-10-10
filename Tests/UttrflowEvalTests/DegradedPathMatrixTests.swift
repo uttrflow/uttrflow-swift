@@ -16,10 +16,11 @@ struct DegradedPathMatrixTests {
         .appendingPathComponent("Docs/degraded-path-matrix.md")
 
     /// The pipeline with no recogniser, screen or field behind it, on a clock that never runs a stage out of time.
-    static let building: DegradedPathMatrix.Building = { layers, corrector, cleaner in
+    static let building: DegradedPathMatrix.Building = { layers, corrector, speechWords, cleaner in
         DictationPipeline(
             capture: FakeAudioCaptureEngine(), speech: FakeSpeechEngine(), cleaner: cleaner,
-            context: FakeContextEngine(), inserter: FakeTextInserter(), corrector: corrector,
+            context: FakeContextEngine(), inserter: FakeTextInserter(), speechWords: speechWords,
+            corrector: corrector,
             clock: ManualClock(), layers: layers)
     }
 

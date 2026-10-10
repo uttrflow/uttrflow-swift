@@ -169,4 +169,72 @@ struct PersonalDataTransferTests {
         }
         #expect(await snippets.snippets() == before)
     }
+
+    @Test("refused words travel in a version 2 archive and are refused again on the importing Mac")
+    func refusalsRoundTrip() async throws {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appending(path: "uttrflow-personal-data-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let source = PersonalDictionaryStore(file: root.appending(path: "source.json"))
+        let junk = DictionaryEntry(word: "Gorbled", origin: .learned, firstSeen: .distantPast)
+        let noise = DictionaryEntry(word: "Thrimp", origin: .learned, firstSeen: .distantPast)
+        try await source.replaceAll { _ in ([junk, noise], ()) }
+        try await source.remove(Set([junk.id]))
+        try await source.remove(Set([noise.id]))
+        let refused = Array(await source.refusedWords().reversed())
+        let bytes = try PersonalDataArchive(dictionary: [], snippets: [], refused: refused).encoded()
+
+        let decoded = try PersonalDataArchive.decode(bytes)
+        #expect(decoded.version == 2)
+        #expect(decoded.refused == ["Gorbled", "Thrimp"])
+
+        let target = PersonalDictionaryStore(file: root.appending(path: "target.json"))
+        try await target.replaceAll { _ in
+            ([DictionaryEntry(word: "Quellix", origin: .learned, firstSeen: .distantPast)], ())
+        }
+        try await target.remove(Set(await target.allEntries().map(\.id)))
+        let report = try await PersonalDataTransfer.importArchive(
+            bytes, into: target, and: SnippetStore(file: root.appending(path: "snippets.json")))
+
+        #expect(report.refusedWords == 2)
+        #expect(report.lapsedRefusals == 0)
+        #expect(await target.refusedWords() == ["Thrimp", "Gorbled", "Quellix"])
+        let reread = PersonalDictionaryStore(file: root.appending(path: "target.json"))
+        #expect(await reread.refusedWords() == ["Thrimp", "Gorbled", "Quellix"])
+    }
+
+    @Test("a version 1 archive imports with no refusals, and one naming refusals is refused")
+    func versionOneImportsWithoutRefusals() async throws {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appending(path: "uttrflow-personal-data-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let dictionary = PersonalDictionaryStore(file: root.appending(path: "dictionary.json"))
+        let snippets = SnippetStore(file: root.appending(path: "snippets.json"))
+        let versionOne = Data(#"{"version":1,"dictionary":[],"snippets":[]}"#.utf8)
+
+        let report = try await PersonalDataTransfer.importArchive(versionOne, into: dictionary, and: snippets)
+
+        #expect(report.refusedWords == 0)
+        #expect(await dictionary.refusedWords().isEmpty)
+        let mislabelled = Data(#"{"version":1,"dictionary":[],"snippets":[],"refused":["Gorbled"]}"#.utf8)
+        #expect(throws: PersonalDataArchiveError.self) { try PersonalDataArchive.decode(mislabelled) }
+    }
+
+    @Test("past the store's bound an import keeps the newest refusals and reports the ones that lapsed")
+    func refusalsBeyondTheBoundLapseOldestFirst() async throws {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appending(path: "uttrflow-personal-data-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let dictionary = PersonalDictionaryStore(file: root.appending(path: "dictionary.json"))
+        let bound = PersonalDictionaryStore.maximumRefusedWords
+        let refused = (0..<(bound + 40)).map { "refused\($0)" }
+        let bytes = try PersonalDataArchive(dictionary: [], snippets: [], refused: refused).encoded()
+
+        let report = try await PersonalDataTransfer.importArchive(
+            bytes, into: dictionary, and: SnippetStore(file: root.appending(path: "snippets.json")))
+
+        #expect(report.refusedWords == bound)
+        #expect(report.lapsedRefusals == 40)
+        #expect(await dictionary.refusedWords() == Array(refused.suffix(bound).reversed()))
+    }
 }

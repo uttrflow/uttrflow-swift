@@ -104,6 +104,8 @@ public final class MacContextEngine: ContextEngine, Sendable {
     private let clock: any Clock<Duration>
     /// The keys and clicks seen so far, or `nil` when this engine does not watch them.
     private let countInputs: (@Sendable () -> Int)?
+    /// The applications whose last read ran past the budget, shared with the suggestion reads. See `Docs/context-budget.md`.
+    private let slowFields: SlowFields
 
     /// The latest read and the last other application, changed under one lock so old reads cannot replace it.
     private struct AppMemory {
@@ -130,6 +132,7 @@ public final class MacContextEngine: ContextEngine, Sendable {
         ownProcessIdentifier: Int32,
         clock: any Clock<Duration> = ContinuousClock(),
         countInputs: (@Sendable () -> Int)? = nil,
+        slowFields: SlowFields = SlowFields(),
         observeActivations: (@escaping @Sendable (FrontmostApplication) -> Void) -> any Sendable = { _ in () }
     ) {
         self.readFrontmostApplication = readFrontmostApplication
@@ -139,10 +142,13 @@ public final class MacContextEngine: ContextEngine, Sendable {
         self.ownProcessIdentifier = ownProcessIdentifier
         self.clock = clock
         self.countInputs = countInputs
+        self.slowFields = slowFields
         // Every stored property now has a value, so `self` is safe to capture from here on.
         let token = observeActivations { [weak self] application in
             guard let self else { return }
             let isOurselves = self.isOurselves(application)
+            // Switching to an application is the user asking it again, so its rest ends.
+            if !isOurselves { self.slowFields.endRest(.application(application.processIdentifier)) }
             self.memory.withLock { memory in
                 memory.lastActivated = application
                 memory.activations += 1
@@ -176,6 +182,12 @@ public final class MacContextEngine: ContextEngine, Sendable {
             reading.record(application: early)
             guard let frontmost, early == frontmost else { return }
 
+            // An application resting after a read that ran over is not asked again, so no thread is abandoned in it.
+            guard !slowFields.isResting(.application(frontmost.processIdentifier)) else {
+                return reading.window.bank(FocusedWindow(unavailable: .timedOut))
+            }
+            reading.asked(frontmost.processIdentifier)
+
             // A panel that never activates holds focus over the frontmost application, so its owner is the destination.
             let destination = FocusedElementPreference.destination(
                 focusOwner: await readFocusOwner(frontmost), frontmost: frontmost)
@@ -189,6 +201,14 @@ public final class MacContextEngine: ContextEngine, Sendable {
         }
 
         var gathered = reading.value
+        if let asked = gathered.asked {
+            // A dictation can afford one miss, so the application rests from its second read that runs over.
+            if finished {
+                slowFields.answered(.application(asked))
+            } else {
+                slowFields.ranOver(.application(asked))
+            }
+        }
         // Identity missed the budget, so it comes from the activation feed instead.
         if gathered.application == nil, let fallback = activationFallback() {
             Self.log.notice("Context identity timed out; named from the activation feed")
@@ -296,6 +316,8 @@ private final class Reading: Sendable {
     struct Value: Sendable {
         var application: FrontmostApplication?
         var window: FocusedWindow?
+        /// The application whose focus and window this read asked for, which a read that runs over rests.
+        var asked: Int32?
     }
 
     /// The gathered value under a lock, in a class since a bare `Mutex` cannot be captured by a task.
@@ -312,6 +334,10 @@ private final class Reading: Sendable {
 
     func record(application: FrontmostApplication) {
         state.withLock { $0.application = application }
+    }
+
+    func asked(_ process: Int32) {
+        state.withLock { $0.asked = process }
     }
 }
 

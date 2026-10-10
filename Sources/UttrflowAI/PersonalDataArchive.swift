@@ -4,9 +4,12 @@ public import Foundation
 public import UttrflowCore
 public import UttrflowDictionary
 
-/// The personal dictionary and snippets a person can move between their own Macs.
+/// The personal dictionary, snippets and refused words a person can move between their own Macs.
 public struct PersonalDataArchive: Codable, Sendable, Equatable {
-    public static let currentVersion = 1
+    /// What this build writes; version 2 added `refused`, and a version 1 file still imports with none.
+    public static let currentVersion = 2
+    /// Every version this build reads.
+    public static let supportedVersions: ClosedRange<Int> = 1...currentVersion
     public static let maximumSizeInBytes = 5 * 1024 * 1024
     public static let maximumSnippetCount = 1_000
     public static let maximumSnippetTriggerBytes = 256
@@ -14,15 +17,44 @@ public struct PersonalDataArchive: Codable, Sendable, Equatable {
     public static let maximumDictionaryWordBytes = 256
     /// Imported words all count as added and escape the inferred-word cap, so the archive bounds them itself.
     public static let maximumDictionaryEntryCount = 1_000
+    /// Refused words an archive may name; import keeps the newest of them within the store's own bound.
+    public static let maximumRefusedWordCount = 5_000
 
     public let version: Int
     public let dictionary: [DictionaryEntry]
     public let snippets: [Snippet]
+    /// Spellings the person deleted and does not want learned again, oldest first.
+    public let refused: [String]
 
-    public init(dictionary: [DictionaryEntry], snippets: [Snippet], version: Int = currentVersion) {
+    public init(
+        dictionary: [DictionaryEntry], snippets: [Snippet], refused: [String] = [],
+        version: Int = currentVersion
+    ) {
         self.version = version
         self.dictionary = dictionary
         self.snippets = snippets
+        self.refused = refused
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case version, dictionary, snippets, refused
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        version = try container.decode(Int.self, forKey: .version)
+        dictionary = try container.decode([DictionaryEntry].self, forKey: .dictionary)
+        snippets = try container.decode([Snippet].self, forKey: .snippets)
+        refused = try container.decodeIfPresent([String].self, forKey: .refused) ?? []
+    }
+
+    /// Writes `refused` only when it holds a word, so an archive without refusals keeps the version 1 shape.
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(version, forKey: .version)
+        try container.encode(dictionary, forKey: .dictionary)
+        try container.encode(snippets, forKey: .snippets)
+        if !refused.isEmpty { try container.encode(refused, forKey: .refused) }
     }
 
     /// Encodes a complete snapshot, retaining identifiers, dates and usage counts.
@@ -44,7 +76,9 @@ public struct PersonalDataArchive: Codable, Sendable, Equatable {
             throw PersonalDataArchiveError.archiveTooLarge
         }
         let archive = try JSONDecoder().decode(Self.self, from: data)
-        guard archive.version == currentVersion else { throw PersonalDataArchiveError.unsupportedVersion }
+        guard supportedVersions.contains(archive.version) else {
+            throw PersonalDataArchiveError.unsupportedVersion
+        }
         if let limitError = archive.limitError { throw limitError }
         guard archive.isValid else { throw PersonalDataArchiveError.invalidContents }
         return archive
@@ -98,10 +132,14 @@ public struct PersonalDataArchive: Codable, Sendable, Equatable {
     }
 
     private var isValid: Bool {
-        guard version == Self.currentVersion,
+        // Refusals arrived with version 2, so a version 1 file naming them was not written by Uttrflow.
+        guard Self.supportedVersions.contains(version), version >= 2 || refused.isEmpty,
             Set(dictionary.map(\.id)).count == dictionary.count,
             Set(snippets.map(\.id)).count == snippets.count
         else { return false }
+        guard refused.allSatisfy({ !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) else {
+            return false
+        }
         return dictionary.allSatisfy {
             !$0.word.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 && $0.timesUsed >= 0 && $0.timesReverted >= 0
@@ -118,13 +156,15 @@ public struct PersonalDataArchive: Codable, Sendable, Equatable {
         }) {
             return .snippetTooLong
         }
+        if refused.count > Self.maximumRefusedWordCount { return .tooManyRefusedWords }
         if dictionary.contains(where: {
             $0.word.utf8.count > Self.maximumDictionaryWordBytes
                 || $0.pronunciations.contains { $0.utf8.count > Self.maximumDictionaryWordBytes }
-        }) {
+        }) || refused.contains(where: { $0.utf8.count > Self.maximumDictionaryWordBytes }) {
             return .dictionaryWordTooLong
         }
-        let spellings = dictionary.flatMap { [$0.word] + $0.pronunciations } + snippets.map(\.trigger)
+        let spellings =
+            dictionary.flatMap { [$0.word] + $0.pronunciations } + snippets.map(\.trigger) + refused
         if spellings.contains(where: Self.holdsHiddenCharacters) { return .hiddenCharacters }
         return nil
     }
@@ -152,6 +192,7 @@ public enum PersonalDataArchiveError: Error, Sendable {
     case snippetTooLong
     case dictionaryWordTooLong
     case tooManyDictionaryEntries
+    case tooManyRefusedWords
     case hiddenCharacters
 }
 
