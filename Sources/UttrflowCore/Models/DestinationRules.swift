@@ -111,22 +111,14 @@ public enum DestinationRules {
         DestinationRule(
             bundlePrefixes: [
                 word, pages, pagesStudio, keynote, keynoteStudio, powerPoint, textEdit,
-                "org.libreoffice.script",
             ],
             titleContains: ["Google Docs"],
-            nameWords: ["textedit", "pages", "word", "keynote", "powerpoint", "libreoffice"],
+            nameWords: ["textedit", "pages", "word", "keynote", "powerpoint"],
             kind: .documentEditor
         ),
         DestinationRule(
-            bundlePrefixes: [
-                notes, "notion.id", "md.obsidian", "net.shinyfrog.bear",
-                "com.evernote.Evernote", "com.bloombuilt.dayone-mac", "com.ulyssesapp.mac",
-                "pro.writer.mac", "abnerworks.Typora", "com.electron.logseq", "net.cozic.joplin-desktop",
-            ],
-            nameWords: [
-                "notes", "notion", "obsidian", "bear", "craft", "drafts", "evernote", "dayone",
-                "ulysses", "typora", "logseq", "joplin",
-            ],
+            bundlePrefixes: [notes, "notion.id", "md.obsidian", "net.shinyfrog.bear"],
+            nameWords: ["notes", "notion", "obsidian", "bear", "craft", "drafts"],
             kind: .notes
         ),
         DestinationRule(
