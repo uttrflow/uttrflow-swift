@@ -167,7 +167,7 @@ struct SuggestionForgettingTests {
         let container = Container()
         try FileManager.default.createDirectory(at: container.url, withIntermediateDirectories: true)
         let encryptedStore = EncryptedStore(keys: SuggestionStoreKeys())
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container.url, preferences: SuggestionPreferences(isEnabled: true),
             encryptedStore: encryptedStore)
         try await coordinator.store.record("remembered line", in: notes, at: moment)

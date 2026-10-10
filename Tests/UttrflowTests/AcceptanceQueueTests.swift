@@ -5,6 +5,7 @@ import Synchronization
 import Testing
 import UttrflowPredict
 import UttrflowPredictCapture
+import UttrflowPredictStore
 
 @testable import Uttrflow
 
@@ -37,7 +38,7 @@ private actor BoundedCaptureSink: CaptureSink {
     func release() { gateContinuation.yield() }
 
     func record(
-        _ text: String, in surface: Surface, after previous: String?, selfSourced: Bool, at moment: Date
+        _ text: String, in surface: Surface, after previous: String?, as origin: LineOrigin, at moment: Date
     ) async throws {
         if blocksFirstRecord {
             blocksFirstRecord = false
