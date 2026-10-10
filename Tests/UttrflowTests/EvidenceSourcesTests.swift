@@ -173,4 +173,29 @@ struct EvidenceSourcesTests {
 
         #expect(await noted.ids == [[entry.id]])
     }
+
+    @Test(
+        "a re-dictation in the same app within the respeak window writes a retry row for a dropped correction"
+    )
+    func reDictationRetriesItsPairing() {
+        let correction = RecordedCorrection(
+            heard: "nickel", wrote: "Nikhil", wordRange: 1..<2, entryID: UUID(),
+            reason: .saidClearlyElsewhere, heardConfidence: 0.3)
+        let first = DictationRecord(
+            text: "Ask Nikhil about the meeting.", when: now, applicationIdentifier: "com.example.notes",
+            changes: RecordedChanges(corrections: [correction]), arrival: .confirmed,
+            heard: "ask nickel about the meeting")
+        let retry = { (seconds: Double, app: String) in
+            DictationRecord(
+                text: "Ask Nikhel about the meeting.", when: self.now.addingTimeInterval(seconds),
+                applicationIdentifier: app, arrival: .confirmed, heard: "ask Nikhel about the meeting")
+        }
+        let key = ConfusionPairs.key(heard: "nickel", meant: "Nikhil")
+        #expect(
+            EvidenceSources.retried(first, by: retry(5, "com.example.notes")) == [
+                EvidenceRow(kind: .pairRetried, subject: key, day: today, provenance: .dictation)
+            ])
+        #expect(EvidenceSources.retried(first, by: retry(31, "com.example.notes")).isEmpty)
+        #expect(EvidenceSources.retried(first, by: retry(5, "com.example.mail")).isEmpty)
+    }
 }
