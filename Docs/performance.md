@@ -273,6 +273,7 @@ clean audio, played at speaking pace (`rt`), and is judged by the same `percenti
 |---|---|
 | `wait:<category>` | key release to the words being ready, one row per dictation length; insertion is not in it |
 | `asr:<field>` | one piece's recognition and its sub-stages, from the `asr` events `bench` writes |
+| `correct` | one dictionary pass over a piece or the joined seams, with the job's vocabulary as the dictionary; it holds candidate generation, scoring and the override gate |
 | `clean` | one tidy by the shipping tidier |
 
 This is the current latency of the app; every other latency figure in these pages is historical

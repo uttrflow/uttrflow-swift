@@ -229,4 +229,24 @@ struct FocusedFieldSnapshotReadTests {
         #expect(snapshot == nil)
         #expect(log.asked.count == askedWhenStopped)
     }
+
+    /// A key arriving while a read is under way clears the kept answers, so a read that began before it cannot keep stale frames.
+    @Test func answersReadAcrossAClearAreNotKeptForTheNextRead() throws {
+        let cache = OneEntryCache<Int, FocusedFieldReader.StableAnswers>()
+        let generation = cache.generation
+        let crossing = FocusedFieldReader.SnapshotSources<Node>(
+            app: FrontmostApp(processIdentifier: 42, bundleIdentifier: "com.example.editor", name: "Editor"),
+            decode: FieldAnswerDecoder(element: { $0 as? Node }, range: { $0 as? CFRange }),
+            cached: { _ in cache.value(for: 2) },
+            keep: { answers, _ in
+                cache.clear()
+                cache.insert(answers, for: 2, readSince: generation)
+            },
+            elementHash: { UInt($0.id) }, windowNumber: { _ in 7 }, primaryScreenMaxY: { Self.screenTop },
+            inputSourceKind: { .layout }, elapsedMicroseconds: { 0 })
+        _ = try #require(
+            FocusedFieldReader.snapshot(
+                of: Self.field(), in: FakeTree(root: Self.field()), from: crossing, while: { true }))
+        #expect(cache.value(for: 2) == nil)
+    }
 }

@@ -69,7 +69,9 @@
     ],
     "UttrflowEval": [
       "UttrflowAudio",
-      "UttrflowCore"
+      "UttrflowCore",
+      "UttrflowDictionary",
+      "UttrflowPipeline"
     ],
     "UttrflowPermissions": [
       "UttrflowCore"

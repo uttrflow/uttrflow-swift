@@ -38,8 +38,11 @@ characters so a stray ampersand does not scan a large clip.
 
 Line breaks are requested, not written, and nothing is emitted until real content arrives:
 `<div><p></p></div><br>` requests four breaks and produces none. Headings get a blank line
-(separation is plain text's only cue for one); `<pre>` and `<code>` are verbatim; the newline
-directly after `<pre>` is dropped scalar by scalar, because CR LF is one `Character` in Swift.
+(separation is plain text's only cue for one); `<pre>` and `<code>` are verbatim, and so is any
+element whose inline style sets `white-space` to `pre`, `pre-wrap` or `break-spaces`, which is how
+some document editors put runs of spaces on the pasteboard; a child inherits the mode until its
+own style sets another (`HTMLWhiteSpaceStack`). The newline directly after `<pre>` is dropped
+scalar by scalar, because CR LF is one `Character` in Swift.
 `<script>`, `<style>` and `<title>` contribute no text.
 
 Nested list indentation stops growing at `PlainTextRenderer.maximumListIndentDepth`; deeper items

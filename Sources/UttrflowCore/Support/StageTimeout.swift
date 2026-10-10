@@ -4,8 +4,16 @@ private import Synchronization
 
 /// How long a dictation waits for one stage before giving up; each limit's source is in `Docs/stuck-recording.md`.
 public enum StageTimeout: Sendable {
-    /// Transcription, generous because a cold model load and four minutes of audio are both honest.
+    /// Transcription's floor, generous because a cold model load is honest whatever the audio length.
     public static let transcription = Duration.seconds(120)
+
+    /// What each second of audio adds to the floor: 25 times the 0.04 s a second measured in `Docs/performance.md`.
+    public static let transcriptionPerAudioSecond = Duration.seconds(1)
+
+    /// The transcription limit for `audio` of that length, so a slow Mac's long recording is not cut at a fixed point.
+    public static func transcription(of audio: Duration) -> Duration {
+        transcription + transcriptionPerAudioSecond * max(0, audio / .seconds(1))
+    }
 
     /// The whole tidying stage, as a backstop; each engine on the route has its own allowance inside it.
     public static let transformation = Duration.seconds(30)

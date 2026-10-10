@@ -234,6 +234,7 @@ struct QuestionShapeTests {
             "tum kab aaoge", "tum kab milenge", "tum kyun aaye", "aaj kaun aayega",
             "tumhara naam kya hai", "yeh kya hai", "tum kya karoge", "tum kya chahte ho",
             "tum kaisa feel kar rahe ho", "tumne khana khaya kya", "chalega kya", "tum kaisi ho",
+            "kal ka kya plan hai", "so kal ka kya plan hai", "tumhara kya plan hai", "team ka kya status hai",
         ] {
             #expect(QuestionShape.asks(shapes(text)), "Expected a question: \(text)")
         }
@@ -248,6 +249,7 @@ struct QuestionShapeTests {
             "mujhe nahi pata woh kahan hai", "usne bataya meeting kab hai",
             "mujhe yaad nahi kitna paisa diya",
             "main dekh raha hoon kaise hota hai", "mujhe pata hai tum kyun nahi aaye",
+            "mujhe nahi pata unka kya plan hai", "kal ka kya plan hai woh mujhe pata hai",
         ] {
             #expect(!QuestionShape.asks(shapes(text)), "Expected a statement: \(text)")
         }

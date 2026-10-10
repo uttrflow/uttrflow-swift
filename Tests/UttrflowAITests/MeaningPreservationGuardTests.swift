@@ -445,6 +445,14 @@ struct MeaningPreservationGuardTests {
         #expect(GuardVerdict.accepted.isAccepted)
         #expect(!GuardVerdict.rejected(reason: "x", kind: .lostWord).isAccepted)
     }
+
+    @Test("reads a unit symbol in either case as one quantity, and still refuses a changed number")
+    func unitSymbolCase() {
+        accepted("Start aspirin 81 mg by mouth.", "Start aspirin 81 MG by mouth.")
+        accepted("Start aspirin 81 MG by mouth.", "Start aspirin 81 mg by mouth.")
+        accepted("Draw up 10 mL of saline.", "Draw up 10 ML of saline.")
+        rejected("Start aspirin 81 mg by mouth.", "Start aspirin 18 mg by mouth.")
+    }
 }
 
 /// Hindi number words in both scripts pass the invented-number check.

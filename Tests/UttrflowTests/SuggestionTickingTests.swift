@@ -223,6 +223,21 @@ struct SuggestionCoordinatorClockTests {
         #expect(!text.contains("if let scrolls { monitors.append(scrolls) }"))
     }
 
+    @Test("a scroll or a key that keeps focus drops the field's kept frames")
+    func keysAndScrollsDropKeptFieldAnswers() throws {
+        let text = try source
+        let scrolled = try #require(text.components(separatedBy: "private func scrolled() {").last)
+        let scrollBody = try #require(scrolled.components(separatedBy: "\n    }").first)
+        #expect(scrollBody.contains("FocusedFieldReader.fieldMayHaveChanged()"))
+        let keys = try #require(
+            text.components(
+                separatedBy: "if Self.mayMoveFocus(keyCode: event.keyCode, modifiers: event.modifierFlags) {"
+            )
+            .last)
+        let branch = try #require(keys.components(separatedBy: "self.keyPressed(").first)
+        #expect(branch.contains("} else {\n                    FocusedFieldReader.fieldMayHaveChanged()"))
+    }
+
     @Test("withdraws on mouse-up and rereads after a drop reaches the field")
     func mouseUpWithdrawsAndSchedulesFreshRead() throws {
         let text = try source

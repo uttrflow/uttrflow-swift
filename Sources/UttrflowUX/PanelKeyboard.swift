@@ -126,7 +126,13 @@ extension PanelSnapshot {
         switch key {
         case .down: PanelResponse(state: moving(by: 1), outcome: .open)
         case .up: PanelResponse(state: moving(by: -1), outcome: .open)
-        case .search(let text): PanelResponse(state: listing { $0.query = text }, outcome: .open)
+        // A changed query hides the undo offer, so ⌘Z goes back to undoing the typing.
+        case .search(let text):
+            PanelResponse(
+                state: listing {
+                    if $0.query != text { $0.canUndoDelete = false }
+                    $0.query = text
+                }, outcome: .open)
         // One chip at a time across the row: choosing a kind or a collection clears the other.
         case .filter(let filter):
             PanelResponse(

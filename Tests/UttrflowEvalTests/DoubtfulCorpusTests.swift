@@ -79,6 +79,25 @@ struct DoubtfulCorpusTests {
         }
     }
 
+    @Test("binds in the rules exactly the identifier the model is offered first for the same run")
+    func rulesAndModelBindAlike() async {
+        var bound = 0
+        for testCase in doubtfulCases {
+            let draft = CleaningPipeline.standard(
+                for: .standard(for: testCase.situation), situation: testCase.situation
+            ).run(Draft(transcription: testCase.transcription))
+            let written = draft.words.filter { word in
+                word.isPresent && word.edits.contains { $0.by == "screenIdentifier" && $0.kind == .replaced }
+            }.map { WordShape($0.text).core }
+            let offered = await spans(for: testCase).compactMap { $0.candidates.first?.spelling }
+            #expect(
+                written.allSatisfy(offered.contains),
+                "\(testCase.id): rules wrote \(written), model offered \(offered)")
+            bound += written.count
+        }
+        #expect(bound >= 4)
+    }
+
     @Test("offers nothing when the window shows nothing that sounds like the doubtful word")
     func offersNothingWithoutAScreen() async {
         for id in [
