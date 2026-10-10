@@ -209,6 +209,11 @@ EXCLUDED_FILES = {
         "it decides itself, which #630 moves into a pure type in UttrflowUX"
     ),
     "Uttrflow/Dock/DockView.swift": "SwiftUI, drawn from a tested presentation",
+    "Uttrflow/Dock/DockMetrics.swift": "SwiftUI sizes and the canvas drawing of the bars; their rules are tested in DockBarsTests",
+    "Uttrflow/Dock/DockForms.swift": "SwiftUI, drawn from a tested presentation",
+    "Uttrflow/Dock/DockNotices.swift": "SwiftUI, drawn from a tested presentation",
+    "Uttrflow/Dock/DockParts.swift": "SwiftUI shapes and marks",
+    "Uttrflow/Dock/DockStyle.swift": "SwiftUI glass and colours; the tokens it draws are measured in BrandPaletteTests",
     "Uttrflow/Dock/DockSetupView.swift": (
         "SwiftUI, drawn from DockModelSetup, which SpeechModelDockTests covers"
     ),
@@ -265,7 +270,6 @@ OVERSIZED_EXCLUSIONS = {
         "SuggestionCaptureFeed, tested in SuggestionCaptureFeedTests; still untested is the "
         "tap-insertion sequencing"
     ),
-    "Uttrflow/Dock/DockView.swift": "what DockViewModel decides is tested in DockClockTests and DockBarsTests",
     "Uttrflow/Main/MainPieces.swift": (
         "views, metrics and colour mappings; the one rule among them is RowReveal, tested in RowRevealTests"
     ),

@@ -393,6 +393,9 @@ public enum SettingsChange: Sendable, Equatable {
     case appDestination(
         bundleIdentifier: String, name: String?, destination: UttrflowCore.Destination)
 
+    /// Format one app's words in this mode: left to the registry, as plain prose, or by one adapter.
+    case appAdapterMode(bundleIdentifier: String, name: String?, mode: AdapterMode)
+
     /// Put one app back on the table's answer.
     case forgetAppDestination(bundleIdentifier: String)
 

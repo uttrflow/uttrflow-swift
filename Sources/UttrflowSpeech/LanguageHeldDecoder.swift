@@ -49,8 +49,15 @@ final class LanguageHeldDecoder: TextDecoding {
     /// The reason WhisperKit names a compression fallback by, a raw string that `WhisperKitContractTests` pins.
     static let compressionFallbackReason = "compressionRatioThreshold"
 
-    /// The fallback WhisperKit decided on, re-judged with the language's own compression-ratio threshold.
+    /// The reason WhisperKit names a silence verdict by; a silent window is final and is never retried warmer.
+    static let silenceFallbackReason = "silence"
+
+    /// The fallback WhisperKit decided on, silence first, a compression verdict re-judged per language.
     static func judged(_ result: DecodingResult, options: DecodingOptions) -> DecodingFallback? {
+        // Whisper puts silence first; WhisperKit checks the first token before it, and the warm retry invents text.
+        if let threshold = options.noSpeechThreshold, result.noSpeechProb > threshold {
+            return DecodingFallback(needsFallback: false, fallbackReason: silenceFallbackReason)
+        }
         guard let fallback = result.fallback, fallback.fallbackReason == compressionFallbackReason,
             let language = options.language, let threshold = compressionRatioThresholds[language] ?? nil
         else { return result.fallback }
