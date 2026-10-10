@@ -112,7 +112,9 @@ struct DictationPipelineJoinTests {
             uniquingKeysWith: { first, _ in first })
     }
 
-    @Test("a piece reads the same previous piece whether decoded while the key is held, after release or on retry")
+    @Test(
+        "a piece reads the same previous piece whether decoded while the key is held, after release or on retry"
+    )
     func previousPieceIsTheSameOnEveryPath() async {
         let lines = ["we waited for the build", "because the runner was slow", "and then it passed"]
         let expected: [String: String?] = [lines[0]: nil, lines[1]: lines[0], lines[2]: lines[1]]

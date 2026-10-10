@@ -609,7 +609,6 @@ public actor DictationPipeline {
             let start = early.cut
             let end = early.cut - lead + cut
 
-
             // Keep the previous tidy in its span while the next piece is recognised.
             if let earlyTidy = early.tidyTask {
                 early.spans.append(.tidying(earlyTidy))
@@ -674,7 +673,8 @@ public actor DictationPipeline {
                     guard self.state == .recording, self.generation == mine,
                         !self.wasCancelled(mine)
                     else { return }
-                    let situation = self.dictationContext?.situation
+                    let situation =
+                        self.dictationContext?.situation
                         ?? SituationResolver.resolve(from: seeing, overrides: self.runningOverrides)
                     self.early.running.fold(piece, going: situation)
                     self.showFinished(piece)
@@ -735,8 +735,6 @@ public actor DictationPipeline {
 
     // MARK: Stages
 
-
-
     /// Where the finished words go.
     enum Delivery {
         case insert
@@ -786,7 +784,8 @@ public actor DictationPipeline {
         case .heard(let heard, let seen):
             appContext = seen
             var running = handed.running
-            let situation = dictationContext?.situation
+            let situation =
+                dictationContext?.situation
                 ?? SituationResolver.resolve(from: seen ?? AppContext(), overrides: runningOverrides)
             for piece in heard.dropFirst(running.pieces.count) {
                 running.fold(piece, going: situation)
@@ -842,7 +841,6 @@ public actor DictationPipeline {
         if spans.isEmpty, remainder.isEmpty { remainder = [cut..<audio.samples.count] }
         return Takeover(spans: spans, running: handed.running, remainder: remainder, context: handed.context)
     }
-
 
     /// What the recogniser made of one window.
     enum Heard: Sendable {

@@ -45,8 +45,7 @@ public enum PanelAlias {
         .folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: locale)
     }
 
-    /// Whether two aliases are one name: equal under the search comparison, which ignores a nukta, or
-    /// confusable when either handle holds a non-ASCII character, so `m1` and `ml` stay distinct.
+    /// Whether two aliases are one name: equal ignoring a nukta, or confusable only when a handle is non-ASCII.
     static func matches(_ first: String, _ second: String, locale: Locale) -> Bool {
         guard case .success(let rules) = AliasUnicodeRules.loaded else { return false }
         let firstHandle = handle(first, locale: locale)

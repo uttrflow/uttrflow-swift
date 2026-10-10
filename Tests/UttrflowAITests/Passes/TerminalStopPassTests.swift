@@ -388,8 +388,14 @@ struct TerminalStopPassTests {
         "leaves the last of three or more lines in the last paragraph open when no other line ends a sentence",
         arguments: [
             ("Shopping list\nMilk\nEggs\nBin bags", "Shopping list\nMilk\nEggs\nBin bags"),
-            ("Four things\nA kettle\nA scarf\nUntil the spring.", "Four things\nA kettle\nA scarf\nUntil the spring"),
-            ("Verse one\n\nVerse two\nVerse three\nVerse four", "Verse one\n\nVerse two\nVerse three\nVerse four"),
+            (
+                "Four things\nA kettle\nA scarf\nUntil the spring.",
+                "Four things\nA kettle\nA scarf\nUntil the spring"
+            ),
+            (
+                "Verse one\n\nVerse two\nVerse three\nVerse four",
+                "Verse one\n\nVerse two\nVerse three\nVerse four"
+            ),
             ("Note\n\nOne\nTwo", "Note\n\nOne\nTwo."),
             ("Line one.\nLine two\nLine three", "Line one.\nLine two\nLine three."),
             ("one two\nthree four", "one two\nthree four."),

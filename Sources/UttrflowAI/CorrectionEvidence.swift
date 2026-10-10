@@ -97,7 +97,7 @@ struct CorrectionEvidence: Sendable {
         )
     }
 
-    /// Every signal that holds for this reading rather than the other, in priority order, with where it was read.
+    /// Every signal that holds for this reading rather than the other, in priority order, each with its source.
     private func reasons(
         supporting words: [String], ratherThan other: [String]
     ) -> [Sourced<CorrectionReason>] {

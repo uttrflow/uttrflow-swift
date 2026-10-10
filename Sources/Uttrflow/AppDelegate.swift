@@ -1530,9 +1530,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     filed: dictionary.allEntries(),
                     learnt: SpellingPreferences.project(personaEvidence?() ?? []))
             },
-            // The same answers typing capture keeps, so one refusal covers both. See `Docs/predict.md`.
-            consent: CapturePreferencesFile(
-                path: CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false)),
+            // The same answers typing capture keeps, so one refusal covers both, behind the switch in Settings.
+            consent: SwitchedLearningConsent(
+                isOn: { [settingsStore] in settingsStore.load().learnsFromDictation },
+                answers: CapturePreferencesFile(
+                    path: CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false))),
             metrics: telemetry.map { MetricsFanOut([diagnostics, $0.recorder]) } ?? diagnostics,
             cleaningRecorder: diagnostics,
             destinationOverrides: settings.destinations,

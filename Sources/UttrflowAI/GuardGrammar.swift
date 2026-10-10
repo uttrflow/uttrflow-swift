@@ -424,12 +424,12 @@ extension MeaningPreservationGuard {
         let rewritten = alignment.rewritten
         // Non-Latin negations are commonly romanised by the cleanup model; their existing count check remains authoritative.
         let keptNegations = kept.indices.filter {
-            kept[$0].isPlain && isNegation(kept[$0].matching)
+            kept[$0].isPlain && isNegation(at: $0, in: kept)
         }
         guard !keptNegations.isEmpty else { return .accepted }
         let written = rewritten + echo
         let writtenNegations = written.indices.filter {
-            written[$0].isPlain && isNegation(written[$0].matching)
+            written[$0].isPlain && isNegation(at: $0, in: written)
         }
         guard keptNegations.count == writtenNegations.count else { return .accepted }
 
@@ -483,7 +483,7 @@ extension MeaningPreservationGuard {
                 clause += 1
                 clauseStart = index
             }
-            if isNegation(token.matching) {
+            if isNegation(at: index, in: tokens) {
                 let clauseEnd =
                     tokens[(index + 1)...].firstIndex {
                         ["but", "and", "or"].contains($0.matching)
