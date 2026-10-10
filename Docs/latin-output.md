@@ -99,7 +99,8 @@ below, no real people or places) that no rule, table entry or tuning passage was
 `HeldOutHindiTests` fails if a table entry is added for one of their words or a sentence appears
 in `TranscriptionCorpus`. Each sentence takes Latin references written independently by people
 who have not seen the table, and `RomanisationScore` scores against the closest of them. No
-reference is written yet, so no held-out figure exists.
+reference is written yet, so no held-out figure exists. `HeldOutHindi.score(viaVariants: true)` also
+counts attested spelling variants (`romanised-variants.json`) as the same word.
 
 ### Audited by sound class
 
