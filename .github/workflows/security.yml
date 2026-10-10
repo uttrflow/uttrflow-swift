@@ -23,9 +23,10 @@
 name: Security
 
 on:
-  # Security checks run on pull requests into `main` and pushes to `main`.
+  # Security checks run on pull requests into `main`, the merge queue and pushes to `main`.
   pull_request:
     branches: [main]
+  merge_group:
   push:
     branches: [main]
   # Weekly, because a dependency that was clean when it was merged does not stay clean.

@@ -14,9 +14,10 @@
 name: CI
 
 on:
-  # Pull requests into `main` and pushes to `main` run the same verification gate.
+  # Pull requests into `main`, the merge queue and pushes to `main` run the same verification gate.
   pull_request:
     branches: [main]
+  merge_group:
   push:
     branches: [main]
 
