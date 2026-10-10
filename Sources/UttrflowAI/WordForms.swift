@@ -1,5 +1,6 @@
 // The single home for whether two spellings are one word: respellings, verb forms, inflections and spelled-in identifiers.
 import UttrflowCore
+private import Synchronization
 
 /// Whether two spellings are one word, shared by the guard, the passes and the correction engine.
 public enum WordForms {
@@ -20,6 +21,22 @@ public enum WordForms {
 
     /// The words `word` is a form of, itself included, each listed irregular form named by its paradigm: "crashes" is "crash", "sends" is "send".
     private static func lemmas(of word: String) -> Set<String> {
+        // The guard compares every said word with every written one, so each word's forms are worked out once.
+        if let known = lemmaMemo.withLock({ $0[word] }) { return known }
+        let found = workedOutLemmas(of: word)
+        lemmaMemo.withLock { memo in
+            if memo.count >= lemmaMemoLimit { memo.removeAll(keepingCapacity: true) }
+            memo[word] = found
+        }
+        return found
+    }
+
+    /// The lemmas already worked out, by word, emptied when full so a long session keeps it small.
+    private static let lemmaMemo = Mutex<[String: Set<String>]>([:])
+    private static let lemmaMemoLimit = 4096
+
+    /// `lemmas(of:)` without the memo.
+    private static func workedOutLemmas(of word: String) -> Set<String> {
         // Every regular ending is at most four letters, a doubled consonant and "ing"; a stem may have lost an "e" or a "y" to it.
         let stems = (1...4).filter { word.count - $0 >= 2 }.flatMap { length -> [String] in
             let trunk = String(word.dropLast(length))
