@@ -175,7 +175,7 @@ struct StandardPipelineTests {
             ("we're on postgres sixteen point two right now", "We're on postgres 16.2 right now."),
             ("first line new line second line", "First line\nSecond line."),
             ("what do you think question mark new line thanks", "What do you think?\nThanks."),
-            ("agenda new line one intro new line two demo", "Agenda\nOne intro\nTwo demo."),
+            ("agenda new line one intro new line two demo", "Agenda\nOne intro\nTwo demo"),
             ("thanks new paragraph the second issue", "Thanks\n\nThe second issue."),
             ("is it ready question mark", "Is it ready?"),
             ("i think i'll take the earlier train", "I think I'll take the earlier train."),

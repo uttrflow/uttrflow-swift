@@ -173,19 +173,21 @@ public struct TerminalStopPass: WholeTextCleaningPass {
             : WordShape.finished(word, after: preceding)
     }
 
-    /// Whether the text is laid out as three or more lines, one item or verse line each, none before the last ending a sentence.
+    /// Whether the text is one item or verse line per line, three or more in its last paragraph, none ending a sentence.
     private static func isUnstoppedLines(_ draft: Draft) -> Bool {
         var lines: [[Int]] = [[]]
+        var lastParagraphStart = 0
         for index in draft.presentIndices {
             let word = draft.words[index]
             if word.text.hasPrefix("\n") {
                 lines.append([])
+                if word.text.hasPrefix("\n\n") { lastParagraphStart = lines.count - 1 }
             } else if !word.isLayoutMark {
                 lines[lines.count - 1].append(index)
             }
         }
         let spoken = lines.filter { !$0.isEmpty }
-        return spoken.count >= 3
+        return lines[lastParagraphStart...].filter { !$0.isEmpty }.count >= 3
             && spoken.dropLast().allSatisfy { line in
                 line.last.map { !draft.shape(at: $0).endsSentence } ?? true
             }
