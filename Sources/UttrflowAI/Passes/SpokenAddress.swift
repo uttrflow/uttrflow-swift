@@ -280,8 +280,7 @@ struct SpokenAddress: Equatable {
             prefix + host.spelled.lowercased(), from: position, hostEnd: hostPosition + host.length,
             within: run,
             in: live, of: draft)
-        // A bare name that a noun follows names a company, not a site: "at Example dot com offices".
-        // A mark said by name after it is no such noun, since it goes on the host: "example dot org comma".
+        // A bare name a noun follows names a company, not a site ("at Example dot com offices"); a named mark is no noun.
         let after = position + address.length
         let isBare = prefix.isEmpty && after == hostPosition + host.length
         if isBare, after < run.upperBound, !draft.shape(at: live[after - 1]).endsClause,

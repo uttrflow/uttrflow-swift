@@ -33,8 +33,7 @@ extension CleaningPipeline {
                 + message(for: formatter, situation: situation, steps: steps, vocabulary: vocabulary).passes)
     }
 
-    /// The passes that are right on any piece of a message, which is why no casing or stop policy can reach them.
-    /// `screen` is where the identifiers a doubted run may be bound to are read; the model path leaves it unknown.
+    /// The passes right on any piece of a message; `screen` holds the identifiers a doubted run may be bound to.
     public static func piece(
         numbers: NumberPolicy, digits: DigitGrouping, layout: LayoutPolicy = [.paragraphs, .lists],
         insertionPoint: InsertionPoint = .unknown, destination: Destination = .plain,
