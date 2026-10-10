@@ -75,7 +75,7 @@ struct SpecificsTests {
         let credentials = [
             ["xoxb", "2913847561", "3847561290", "KdMx8Qw2Lp"].joined(separator: "-"),
             ["glpat", "x7Kd9Pq2LmRt4Vw8Nz1C"].joined(separator: "-"),
-            ["AKIA", "IOSFODNN7EXAMPLE"].joined(),
+            ["AKIA", "Q7RZ3MXW2K9TBN4D"].joined(),
             ["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9", "eyJzdWIiOiIxMjM0NTY3ODkwIn0", "sig"].joined(
                 separator: "."),
             "-----BEGIN PRIVATE KEY-----",
