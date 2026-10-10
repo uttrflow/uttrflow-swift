@@ -76,9 +76,11 @@ struct SpokenAddress: Equatable {
         at position: Int, before sentenceEnd: Int, in live: [Int], of draft: Draft,
         expecting: Expectation = []
     ) -> SpokenAddress? {
+        // A ratio is read first, because its first number may be "one", which also opens a noun phrase.
+        let run = position..<sentenceEnd
+        if let ratio = readRatio(at: position, within: run, in: live, of: draft) { return ratio }
         // A determiner opens a noun phrase, so the symbol name after it is a word: "the dot com bubble".
         guard !MentionGuard.phraseOpeners.contains(draft.shape(at: live[position]).key) else { return nil }
-        let run = position..<sentenceEnd
         if let url = readExplicitURL(at: position, within: run, in: live, of: draft) { return url }
         if let host = readNumericHost(at: position, within: run, in: live, of: draft) { return host }
         if let address = readWebAddress(at: position, within: run, in: live, of: draft) { return address }
@@ -162,7 +164,7 @@ struct SpokenAddress: Equatable {
     }
 
     /// A "colon" joined to the word before it and the spoken number after it, and how many words both used.
-    private static func colonNumber(
+    static func colonNumber(
         at place: Int, within run: Range<Int>, in live: [Int], of draft: Draft
     ) -> (value: Int, used: Int)? {
         guard place > 0, place + 1 < run.upperBound, draft.shape(at: live[place - 1]).suffix.isEmpty,
