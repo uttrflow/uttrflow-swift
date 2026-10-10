@@ -151,6 +151,16 @@ struct CommandLineFlagTests {
         }
     }
 
+    @Test("keeps a letter said twice after a short option apart, so no word is joined that was not said", .bug(id: 6957))
+    func keepsAStammeredFlagLetterApart() {
+        for (spoken, expected) in [
+            ("dash dash no dash verify dash m m", "--no-verify -m m"),
+            ("git commit dash m m wip", "git commit -m m wip"),
+        ] {
+            #expect(SpokenPunctuationPass().apply(Draft(text: spoken)).text == expected)
+        }
+    }
+
     @Test(
         "keeps a negated long option whole, however short the name it negates",
         .bug(id: 4032),
