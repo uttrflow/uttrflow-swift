@@ -451,6 +451,22 @@ struct VerifierTests {
 
 @Suite("What the gates leave behind")
 struct VerifiedCandidateTests {
+    @Test("Learned, environment and generated lines reject unresolved destructive syntax alike.")
+    func allSourcesRefuseUnresolvedDestructiveSyntax() async {
+        let editor = Surface(bundleIdentifier: "com.example.editor", role: "AXTextArea")
+        let line = "echo $(rm -rf x)"
+        let verifier = await warmed([:], on: line, in: editor)
+        let remembered = await verifier.verified(
+            [
+                Candidate(text: line, source: .personal),
+                Candidate(text: line, source: .environment),
+            ], in: editor, typed: "echo ", now: moment)
+        let generated = await verifier.standing([line], after: "echo ", in: editor, now: moment)
+
+        #expect(remembered.isEmpty)
+        #expect(generated.isEmpty)
+    }
+
     @Test("What the gates refuse is dropped and what they correct comes back corrected.")
     func keepsWhatItAllows() async {
         let verifier = await warmed(

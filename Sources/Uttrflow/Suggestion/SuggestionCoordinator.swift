@@ -44,10 +44,10 @@ private final class ProcessSuggestionActivity: SuggestionProcessActivityManaging
     }
 }
 
-/// Starts a repeating check of the focused selection and returns what stops it.
+/// Starts a check of the focused selection repeating at `interval` and returns what stops it.
 typealias SelectionCheckScheduling =
     @MainActor (
-        _ check: @escaping @MainActor () -> Void
+        _ interval: TimeInterval, _ check: @escaping @MainActor () -> Void
     ) -> @MainActor () -> Void
 
 /// Runs tab-to-complete end to end: reads the field, asks the corpus, draws, accepts, records.
@@ -121,6 +121,8 @@ final class SuggestionCoordinator {
     private let scheduleSelectionChecks: SelectionCheckScheduling
     /// Stops the selection check, present only while a ghost can still be accepted.
     private var stopSelectionChecks: (@MainActor () -> Void)?
+    /// The cadence the running selection check was scheduled at.
+    private var selectionCheckInterval: TimeInterval?
     private var selectionGuard: ArmedSelectionGuard?
     private var selectionPollInFlight = false
     private var selectionPollGeneration = 0
@@ -721,7 +723,7 @@ final class SuggestionCoordinator {
         scrollMonitor = nil
     }
 
-    /// Checks the caret every 200 ms only while a drawn offer can be accepted.
+    /// Checks the caret only while a drawn offer can be accepted, at the clock's selection cadence.
     func armSelectionMonitor(
         for suggestion: Suggestion, at range: NSRange?, identity: FocusedFieldIdentity? = nil
     ) {
@@ -729,18 +731,34 @@ final class SuggestionCoordinator {
         guard armedOffer != nil else { return stopWatchingSelection() }
         stopWatchingSelection()
         selectionGuard = ArmedSelectionGuard(expectedRange: range, identity: identity)
+        startSelectionChecks(every: ticking.selectionInterval)
+    }
+
+    /// Schedules the current selection check at `interval`, replacing any running one.
+    private func startSelectionChecks(every interval: TimeInterval) {
+        stopSelectionChecks?()
         let generation = selectionPollGeneration
-        stopSelectionChecks = scheduleSelectionChecks { [weak self] in
+        selectionCheckInterval = interval
+        stopSelectionChecks = scheduleSelectionChecks(interval) { [weak self] in
             self?.pollSelection(generation: generation)
         }
     }
 
-    /// Runs `check` every 200 ms on the main run loop and returns what stops it.
-    static func selectionTimer(_ check: @escaping @MainActor () -> Void) -> @MainActor () -> Void {
-        let timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { _ in
+    /// Moves a running selection check to the clock's cadence, so an idle ghost is not read 300 times a minute.
+    private func followSelectionCadence() {
+        let interval = ticking.selectionInterval
+        guard stopSelectionChecks != nil, selectionCheckInterval != interval else { return }
+        startSelectionChecks(every: interval)
+    }
+
+    /// Runs `check` every `interval` on the main run loop and returns what stops it.
+    static func selectionTimer(
+        every interval: TimeInterval, _ check: @escaping @MainActor () -> Void
+    ) -> @MainActor () -> Void {
+        let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in
             MainActor.assumeIsolated { check() }
         }
-        timer.tolerance = 0.05
+        timer.tolerance = interval / 4
         return { timer.invalidate() }
     }
 
@@ -781,6 +799,7 @@ final class SuggestionCoordinator {
         selectionPollGeneration += 1
         stopSelectionChecks?()
         stopSelectionChecks = nil
+        selectionCheckInterval = nil
         selectionGuard = nil
         selectionPollInFlight = false
         FocusedFieldReader.cancelFocusedSelectionRead()
@@ -796,13 +815,14 @@ final class SuggestionCoordinator {
     }
 
     /// Starts the pause clock if it is not running; every activity calls this.
-    func noteActivity() {
+    func noteActivity(at moment: Date = Date()) {
         guard activityIsAllowed() else {
             stopTicker()
             return
         }
-        guard ticking.noteActivity(at: Date()) else { return }
+        guard ticking.noteActivity(at: moment) else { return }
         scheduleTicker(every: SuggestionTicking.interval)
+        followSelectionCadence()
     }
 
     /// Stops the activity clock when a disabled application becomes frontmost.
@@ -823,7 +843,7 @@ final class SuggestionCoordinator {
     }
 
     /// Wakes a turn while a field can change beneath a visible ghost.
-    private func tick() {
+    func tick() {
         guard activityIsAllowed() else {
             stopTicker()
             return
@@ -833,6 +853,7 @@ final class SuggestionCoordinator {
             wake(.tick)
         case .wakeAndSlow:
             scheduleTicker(every: SuggestionTicking.ghostInterval)
+            followSelectionCadence()
             wake(.tick)
         case .stop:
             ticker?.invalidate()

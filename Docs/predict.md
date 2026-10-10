@@ -271,6 +271,7 @@ apps do not schedule turns from key, click, accessibility, menu, activation or t
 | `CaptureTypingRouter.maximumKeys` / `maximumCharacters` | 256 keys / 4,096 UTF-16 units | Keystrokes held between field reads; overflow drops the batch and prevents it from being learned |
 | `AcceptanceQueue.maximumPendingWrites` / `maximumPendingBytes` / `maximumWriteBytes` | 128 writes / 512 KiB / 64 KiB per write | Corpus work held behind a slow write; overflow drops later work, drains admitted writes, resets incomplete field state, and waits for an empty-field baseline before capture resumes |
 | `SuggestionTicking.interval` / `SuggestionTicking.ghostInterval` | 1 s / 5 s | Field observation after activity, then while a ghost remains visible |
+| `SuggestionTicking.activeSelectionInterval` / `SuggestionTicking.ghostInterval` | 200 ms / 5 s | Caret checks of an armed ghost while the person is active, then once the visible ghost is idle |
 | `Quieting.proseHesitationInMilliseconds` | 400 ms | Pause a prose writer must make before anything is drawn |
 | `SuggestionSession.turnBudgetInMilliseconds` | 8,000 ms | A whole turn, timed from after the field read; a later answer draws nothing |
 | `Verification.budgetInMilliseconds` | 7,000 ms | The model's share of one keystroke's verification |

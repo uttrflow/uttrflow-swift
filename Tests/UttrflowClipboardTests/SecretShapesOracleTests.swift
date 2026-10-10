@@ -402,7 +402,7 @@ enum BacktrackingPatterns {
             || text.matches(of: SecretShapes.vendorKey).contains(where: {
                 !CredentialPlaceholder.matches(String($0.output))
             }) || hasNamedSecret(text)
-            || hasCardNumber(text)
+            || ContextualCredentialScan.matches(text, tally: nil) || hasCardNumber(text)
             || SecretShapes.hasHighEntropyToken(text)
     }
 }

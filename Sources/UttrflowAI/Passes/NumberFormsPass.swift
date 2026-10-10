@@ -477,7 +477,9 @@ public struct NumberFormsPass: PieceCleaningPass {
         if let percent = percentWords(at: end, keys: keys, shapes: shapes) {
             text += "%"
             end += percent
-        } else if thousandsMark(at: end, after: position, keys: keys, shapes: shapes) {
+        } else if thousandsMark(at: end, after: position, keys: keys, shapes: shapes),
+            LetterRun.knownCodes[text + keys[end]] == nil
+        {
             text += shapes[end].core
             end += 1
         }
