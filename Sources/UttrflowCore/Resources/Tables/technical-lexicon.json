@@ -15,6 +15,7 @@
         {"id": "GPU", "category": "acronym", "spoken": ["g p u"]},
         {"id": "RAM", "category": "acronym", "spoken": ["r a m"], "destinations": ["codeEditor", "terminal"]},
         {"id": "SSD", "category": "acronym", "spoken": ["s s d"]},
+        {"id": "LED", "category": "acronym", "spoken": ["l e d"], "everyday": true},
         {"id": "URL", "category": "acronym", "spoken": ["u r l"]},
         {"id": "URI", "category": "acronym", "spoken": ["u r i"]},
         {"id": "HTTP", "category": "acronym", "spoken": ["h t t p"]},
@@ -204,6 +205,7 @@
         {"id": "PostgreSQL", "category": "tool", "spoken": ["postgres", "postgres q l", "postgre sequel"]},
         {"id": "SQLite", "category": "tool", "spoken": ["sequel lite", "s q lite", "sequel light"]},
         {"id": "Linux", "category": "tool", "spoken": ["linux"]},
+        {"id": "Android", "category": "tool", "spoken": ["android"], "destinations": ["codeEditor", "terminal"], "heads": ["app", "apps", "phone", "phones", "device", "devices", "tablet", "tablets", "studio", "version", "users"]},
         {"id": "Debian", "category": "tool", "spoken": ["debian"]},
         {"id": "Node.js", "category": "tool", "spoken": ["node js", "node dot js"]},
         {"id": "WebKit", "category": "tool", "spoken": ["web kit"]},
@@ -362,6 +364,8 @@
         {"id": "HTTP/2", "category": "joined", "spoken": ["h t t p two"]},
         {"id": "HTTP/3", "category": "joined", "spoken": ["h t t p three"]},
         {"id": "A/B", "category": "joined", "spoken": ["a slash b"]},
-        {"id": "USB-C", "category": "joined", "spoken": ["usb c", "u s b c"]}
+        {"id": "USB-C", "category": "joined", "spoken": ["usb c", "u s b c"]},
+        {"id": "AA", "category": "joined", "spoken": ["double a"], "destinations": ["document", "spreadsheet", "messaging", "email", "plain"]},
+        {"id": "AAA", "category": "joined", "spoken": ["triple a"]}
     ]
 }
