@@ -1565,23 +1565,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             monitor: ActivationMonitor(),
             commandMonitor: ActivationMonitor(),
             cue: cue,
-            activation: settings.hotkeyActivation,
-            handsFreeEnabled: settings.handsFreeEnabled,
-            doubleTapWindow: .milliseconds(settings.handsFreeDoubleTapMilliseconds),
-            minimumHold: .milliseconds(settings.handsFreeHoldMilliseconds),
-            releaseGrace: DictationController<ContinuousClock>.releaseGrace,
             clock: ContinuousClock(),
-            endOnSilence: SilenceStop(seconds: settings.endOnSilenceSeconds),
-            onAdvice: { [weak self] advice in
-                Task { @MainActor in self?.recordingAdviceChanged(to: advice) }
-            },
-            onWarning: reportWarning.report,
-            onNearMissTap: { [weak self] in
-                Task { @MainActor in self?.announce(DictationPresenter.nearMissTapAnnouncement) }
-            },
-            onStopGestureChange: { [weak self] gesture in
-                Task { @MainActor in self?.recordingStopGestureChanged(to: gesture) }
-            }
+            options: .init(
+                activation: settings.hotkeyActivation,
+                handsFreeEnabled: settings.handsFreeEnabled,
+                doubleTapWindow: .milliseconds(settings.handsFreeDoubleTapMilliseconds),
+                minimumHold: .milliseconds(settings.handsFreeHoldMilliseconds),
+                releaseGrace: DictationController<ContinuousClock>.releaseGrace,
+                endOnSilence: SilenceStop(seconds: settings.endOnSilenceSeconds)
+            ),
+            observers: .init(
+                onAdvice: { [weak self] advice in
+                    Task { @MainActor in self?.recordingAdviceChanged(to: advice) }
+                },
+                onWarning: reportWarning.report,
+                onNearMissTap: { [weak self] in
+                    Task { @MainActor in self?.announce(DictationPresenter.nearMissTapAnnouncement) }
+                },
+                onStopGestureChange: { [weak self] gesture in
+                    Task { @MainActor in self?.recordingStopGestureChanged(to: gesture) }
+                }
+            )
         )
         DictationIntentBridge.run = { [weak self] command in
             await self?.controller?.command(command) ?? .nothingRecording
@@ -2438,23 +2442,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     await clipboard.forgetHeldPictures()
                 }
                 throw error
-            }
-        case .restore(let clip):
-            let deletion = undoOffer.pendingDelete
-            undoOffer.withdraw()
-            if let deletion {
-                switch await deletion.value {
-                case .success:
-                    break
-                case .failure(let error):
-                    throw error
-                }
-            }
-            let notice = try await PanelUndoRestorer.restore(
-                [clip], to: clipboard, keeping: retention)
-            if owner.isSameOpen(panel, opens: quickPanel.opens) {
-                panel?.notice = notice
-                panel?.canUndoDelete = false
             }
         }
         clearClipboardWriteFailure()

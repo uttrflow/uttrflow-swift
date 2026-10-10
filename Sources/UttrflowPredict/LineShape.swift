@@ -24,7 +24,10 @@ struct LineShape: Equatable, Sendable {
     let kind: ArgumentKind
 
     /// The shape of the word a line ends on, from the words before it.
-    static func of(_ token: CompletionToken) -> LineShape {
+    static func of(_ token: CompletionToken) -> LineShape { of(token, aliases: [:]) }
+
+    /// The shape of the word a line ends on, reading a command word the shell would expand as the words it stands for.
+    static func of(_ token: CompletionToken, aliases: [String: [String]]) -> LineShape {
         var words = CommandGrammar.simpleCommand(before: token.leading)
         while let first = words.first, CommandGrammar.wrappers.contains(first) {
             words.removeFirst()
@@ -39,6 +42,7 @@ struct LineShape: Equatable, Sendable {
                 words.removeFirst()
             }
         }
+        words = expanded(words, aliases: aliases)
         guard let command = words.first else { return LineShape(command: nil, kind: .program) }
         let rest = words.dropFirst()
         // A bare `--` ends the options, so every word after it is an operand whatever it begins with.
@@ -52,6 +56,18 @@ struct LineShape: Equatable, Sendable {
                 of: command, after: arguments, flags: options.filter { $0.hasPrefix("-") },
                 previous: rest.last,
                 endOfOptions: end != nil))
+    }
+}
+
+extension LineShape {
+    /// The words with a leading alias replaced by what it stands for, once for each name, as a shell does.
+    private static func expanded(_ words: [String], aliases: [String: [String]]) -> [String] {
+        var words = words
+        var seen: Set<String> = []
+        while let first = words.first, let body = aliases[first], seen.insert(first).inserted {
+            words = body + words.dropFirst()
+        }
+        return words
     }
 }
 

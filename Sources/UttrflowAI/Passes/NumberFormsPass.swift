@@ -480,7 +480,7 @@ public struct NumberFormsPass: PieceCleaningPass {
             digits: digits)
     }
 
-    /// Decimal places joined with "point", then "percent" or "per cent", or a "k" for thousands.
+    /// Decimal places joined with "point", then "percent" or "per cent", or a letter for a magnitude.
     private static func decimalAndPercent(
         _ item: Item, at position: Int, keys: [String], shapes: [WordShape]
     ) -> Phrase? {
@@ -495,10 +495,11 @@ public struct NumberFormsPass: PieceCleaningPass {
         if let percent = percentWords(at: end, keys: keys, shapes: shapes) {
             text += "%"
             end += percent
-        } else if thousandsMark(at: end, after: position, keys: keys, shapes: shapes),
+        } else if let mark = magnitudeMark(
+            at: end, after: position, decimal: text.contains("."), keys: keys, shapes: shapes),
             LetterRun.knownCodes[text + keys[end]] == nil
         {
-            text += shapes[end].core
+            text += mark
             end += 1
         }
         return end == position + item.count ? nil : Phrase(text: text, count: end - position)
@@ -789,15 +790,24 @@ public struct NumberFormsPass: PieceCleaningPass {
             || NumberWords.scales[previous] != nil
     }
 
-    /// Whether a lone "k" at `index` counts thousands, not a unit ("k b") or a code ("seat twelve k").
-    private static func thousandsMark(
-        at index: Int, after position: Int, keys: [String], shapes: [WordShape]
-    ) -> Bool {
-        guard joined(index, shapes), keys[index] == "k" else { return false }
-        let letterFollows =
-            joined(index + 1, shapes) && keys[index + 1].count == 1 && keys[index + 1].allSatisfy(\.isLetter)
+    /// The written magnitude for a lone "k", "m" or "b" at `index`, or nil when it is a unit, a code or a name.
+    ///
+    /// "k" counts thousands and stays lower case; "m" and "b" are millions and billions, written "M" and "B".
+    /// "m" and "b" are also a metre and a label, so they count only with a decimal before them or a noun or currency
+    /// word after them: "two point five m", "ten b dollars", but not "five m long".
+    private static func magnitudeMark(
+        at index: Int, after position: Int, decimal: Bool, keys: [String], shapes: [WordShape]
+    ) -> String? {
+        guard joined(index, shapes), ["k", "m", "b"].contains(keys[index]) else { return nil }
+        let next = index + 1
+        let letterFollows = joined(next, shapes) && keys[next].count == 1 && keys[next].allSatisfy(\.isLetter)
         let designated = position > 0 && SpelledInitialismPass.designators[keys[position - 1]] != nil
-        return !letterFollows && !designated
+        guard !letterFollows, !designated else { return nil }
+        if keys[index] == "k" { return shapes[index].core }
+        let countsANoun =
+            joined(next, shapes)
+            && (currencies.contains(keys[next]) || LexicalClass.tag(ofWordAt: next, in: keys) == .noun)
+        return decimal || countsANoun ? keys[index].uppercased() : nil
     }
 
     /// "three out of ten": a score on a scale of ten, written "3/10" unless the ten counts a plural noun after it.
