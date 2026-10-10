@@ -384,6 +384,19 @@ struct TerminalStopPassTests {
         #expect(short.apply(long).text == "One. Two.\n\nThree here.")
     }
 
+    @Test(
+        "leaves the last of three or more lines open when no other line ends a sentence",
+        arguments: [
+            ("Shopping list\nMilk\nEggs\nBin bags", "Shopping list\nMilk\nEggs\nBin bags"),
+            ("Four things\nA kettle\nA scarf\nUntil the spring.", "Four things\nA kettle\nA scarf\nUntil the spring"),
+            ("Verse one\n\nVerse two\nVerse three", "Verse one\n\nVerse two\nVerse three"),
+            ("Line one.\nLine two\nLine three", "Line one.\nLine two\nLine three."),
+            ("one two\nthree four", "one two\nthree four."),
+        ])
+    func unstoppedLines(text: String, expected: String) {
+        #expect(sut.apply(Draft(keepingLineBreaks: text)).text == expected)
+    }
+
     @Test("leaves a model answer ending in a numbered list item without a full stop")
     func modelAnswerEndingInNumberedItem() {
         let answer = Draft(keepingLineBreaks: "Number 1 call mom\n2. Pay rent\n3. Book the flight")
