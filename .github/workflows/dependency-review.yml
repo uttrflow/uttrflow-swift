@@ -8,9 +8,11 @@
 name: Dependency review
 
 on:
-  # Dependency review runs on pull requests into `main` before the change is merged.
+  # Dependency review runs on pull requests into `main` before the change is merged. The merge
+  # queue reports the same required check; the queued change is the pull request already reviewed.
   pull_request:
     branches: [main]
+  merge_group:
 
 permissions:
   contents: read
@@ -26,7 +28,8 @@ jobs:
           # every later step can read it, which is the same reason ci.yml drops it.
           persist-credentials: false
 
-      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294  # v5.0.0
+      - if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294  # v5.0.0
         with:
           # `moderate` rather than `high`: this is a desktop application holding somebody's
           # clipboard and microphone, and the cost of looking at a moderate finding is a
