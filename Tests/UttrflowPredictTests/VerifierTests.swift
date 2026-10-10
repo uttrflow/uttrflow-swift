@@ -162,9 +162,10 @@ struct VerifierTests {
         let candidate = Candidate(text: "git comit", source: .personal)
 
         #expect(
-            await verifier.verified([candidate], in: terminal, typed: "git com", now: instant).map(\.text) == [
-                "git commit"
-            ])
+            await verifier.verified([candidate], in: terminal, typed: "git com", now: instant).map(\.text)
+                == [
+                    "git commit"
+                ])
         #expect(await store.supersessions == 1)
         #expect(
             await verifier.verified([candidate], in: terminal, typed: "git com", now: instant).map(\.text)
@@ -194,9 +195,10 @@ struct VerifierTests {
         let candidate = Candidate(text: "git comit", source: .personal)
 
         #expect(
-            await verifier.verified([candidate], in: terminal, typed: "git com", now: instant).map(\.text) == [
-                "git commit"
-            ])
+            await verifier.verified([candidate], in: terminal, typed: "git com", now: instant).map(\.text)
+                == [
+                    "git commit"
+                ])
         #expect(
             await verifier.verified([candidate], in: terminal, typed: "git com", now: instant).map(\.text)
                 == ["git commit"])
@@ -228,9 +230,10 @@ struct VerifierTests {
         #expect(await store.corpusClears == 1)
 
         #expect(
-            await verifier.verified([candidate], in: terminal, typed: "git com", now: instant).map(\.text) == [
-                "git commit"
-            ])
+            await verifier.verified([candidate], in: terminal, typed: "git com", now: instant).map(\.text)
+                == [
+                    "git commit"
+                ])
         #expect(await store.supersessions == 3)
     }
 

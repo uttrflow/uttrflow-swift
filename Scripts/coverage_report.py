@@ -165,6 +165,7 @@ EXCLUDED_FILES = {
     "Uttrflow/Main/OrbitPalette.swift": "colour values; the two decidable parts are tested in OrbitPaletteTests",
     "Uttrflow/Main/DictionaryPageView.swift": "SwiftUI, drawn from a tested presentation",
     "Uttrflow/Main/DictionaryEditorView.swift": "SwiftUI, drawn from a tested presentation",
+    "Uttrflow/Main/DictionarySelectionBar.swift": "SwiftUI, drawn from a tested presentation",
     "Uttrflow/Main/PageParts.swift": "SwiftUI parts of the redesigned pages, drawn from tested presentations",
     "Uttrflow/Main/PageTable.swift": (
         "SwiftUI layout; the one sum in it, PageColumns.cellWidths, is tested in PageTableTests"

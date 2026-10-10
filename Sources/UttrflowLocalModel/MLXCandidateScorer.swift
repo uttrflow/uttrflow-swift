@@ -673,7 +673,8 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
             judgementCacheMisses += 1
             do {
                 let result = try await ChunkedCandidateJudge.judge(
-                    candidate, following: context, vocabulary: vocabulary, in: container)
+                    candidate, following: context, vocabulary: vocabulary, in: container,
+                    holding: bufferCachePasses)
                 guard generation == forgetGeneration else { return [] }
                 judgementCache.remember(result.line, for: candidate)
                 return result.judged(using: vocabulary)
@@ -696,7 +697,8 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
         let result: ChunkedCandidateJudgement
         do {
             result = try await ChunkedCandidateJudge.judge(
-                candidate, following: context, vocabulary: scoringVocabulary, in: container)
+                candidate, following: context, vocabulary: scoringVocabulary, in: container,
+                holding: bufferCachePasses)
         } catch {
             return []
         }

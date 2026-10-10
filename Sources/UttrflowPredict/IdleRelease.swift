@@ -11,6 +11,8 @@ public protocol ReleasableModel: CandidateScoring, CandidateGenerating {
     func reload() async throws
     /// Drops the weights.
     func release() async
+    /// Empties what the model keeps across an idle release, for a release no query will undo.
+    func forgetPrefixIndex() async
 }
 
 /// How long a suggestion model may sit unasked before it is let go. See `Docs/performance-suggestions.md`.
@@ -135,6 +137,7 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
         let step = Task {
             await previous?.value
             await model.release()
+            await model.forgetPrefixIndex()
         }
         work = step
         await step.value
@@ -181,6 +184,11 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
     /// Clears the wrapped scorer's retained candidates and confidences.
     public func forgetEverything() async {
         await model.forgetEverything()
+    }
+
+    /// Empties the wrapped model's prefix index; a release this model is asked for does it itself.
+    public func forgetPrefixIndex() async {
+        await model.forgetPrefixIndex()
     }
 
     /// Lets the model go when it has not been asked for in the window; returns whether it is still held.

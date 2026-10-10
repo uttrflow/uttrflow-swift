@@ -48,7 +48,6 @@ struct ReadingRestraintTests {
         #expect(ReadingRestraint.isWorthOffering("Maine", for: "main"))
     }
 
-
     /// Regression for issue 1572: a homophone is a reading even when its spelling opens differently.
     @Test("offers a homophone whose opening letters differ")
 
