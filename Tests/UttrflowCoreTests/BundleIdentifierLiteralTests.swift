@@ -31,6 +31,9 @@ struct BundleIdentifierLiteralTests {
         "co.uk",
         // A pasteboard type macOS writes on a copy from another device, not an app.
         "com.apple.is-remote-clipboard",
+        // Older pasteboard marker types other writers put beside a copy, and look-alikes the reader ignores.
+        "de.petermaurer.transientpasteboardtype", "com.agilebits.onepassword", "com.typeit4me.clipping",
+        "net.antelle.keeweb", "com.nspasteboard.transienttype",
     ]
 
     /// Every prefix the table matches, compared the way the classifier compares.
