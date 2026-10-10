@@ -196,6 +196,57 @@ class BenchTests(unittest.TestCase):
         self.assertIn("| nouns, no vocabulary | 1 | 100.0% | 100.0% | 0.0% | 33.3% | 1 |", out.stdout)
         self.assertIn("| nouns-vocabulary, vocabulary | 1 | 0.0% | 0.0% | 0.0% | 0.0% | 1 |", out.stdout)
 
+    def test_every_domain_sentence_is_read_bare_and_with_its_own_terms_by_every_voice(self):
+        made = [c for c in bench.clips() if c.get("domain")]
+        for domain, rows in bench.DOMAINS.items():
+            mine = [c for c in made if c["category"] == f"domain-{domain}"]
+            terms = {t for c in mine for t in c["entities"]}
+            self.assertGreaterEqual(len(terms), bench.DOMAIN_MIN_TERMS, domain)
+            self.assertGreaterEqual(len(rows), bench.DOMAIN_MIN_SENTENCES, domain)
+            bases = {}
+            for c in mine:
+                bases.setdefault(c["id"].rsplit("-", 1)[0], {})[c["domain_condition"]] = c
+            self.assertEqual(len(bases), len(rows) * len(bench.ENGLISH), domain)
+            for base, conditions in bases.items():
+                self.assertEqual(set(conditions), set(bench.DOMAIN_CONDITIONS), base)
+                bare, supplied = conditions["bare"], conditions["vocabulary"]
+                self.assertEqual(bare["vocabulary"], [], base)
+                self.assertEqual(supplied["vocabulary"], supplied["entities"], base)
+                self.assertEqual(bare["entities"], supplied["entities"], base)
+                self.assertEqual(bare["say"], supplied["say"], base)
+
+    def test_a_domain_sentence_with_a_term_missing_from_its_written_text_fails_loudly(self):
+        rows = [(None, "Start metformin today.", ["metformin", "warfarin"])] * bench.DOMAIN_MIN_SENTENCES
+        original = bench.DOMAINS
+        bench.DOMAINS = {"medical": rows}
+        self.addCleanup(setattr, bench, "DOMAINS", original)
+        with self.assertRaisesRegex(ValueError, "warfarin"):
+            bench.clips()
+
+    def test_a_domain_with_fewer_terms_than_the_minimum_fails_loudly(self):
+        rows = [(None, f"Start drug{i} today.", [f"drug{i}"]) for i in range(bench.DOMAIN_MIN_SENTENCES)]
+        original = bench.DOMAINS
+        bench.DOMAINS = {"medical": rows}
+        self.addCleanup(setattr, bench, "DOMAINS", original)
+        with self.assertRaisesRegex(ValueError, "fewer than"):
+            bench.clips()
+
+    def test_a_domain_score_reports_term_error_without_and_with_the_vocabulary(self):
+        clips = [dict(CLIP, id=f"dm-{condition}", category="domain-medical", vocabulary=vocabulary,
+                      entities=["apixaban"], spoken="continue the apixaban", written="continue the apixaban",
+                      domain="medical", domain_condition=condition)
+                 for condition, vocabulary in (("bare", []), ("vocabulary", ["apixaban"]))]
+        with open(os.path.join(self.out, "corpus.json"), "w") as handle:
+            json.dump(clips, handle)
+        bare = result_event("dm-bare", text="continue the a pixaban")
+        bare["events"][0]["text"] = "continue the a pixaban"
+        supplied = result_event("dm-vocabulary", text="continue the apixaban")
+        supplied["events"][0]["text"] = "continue the apixaban"
+        out = self.run_bench("score", self.write_run("BENCH " + json.dumps(bare), "BENCH " + json.dumps(supplied)))
+        self.assertEqual(out.returncode, 0, out.stderr)
+        self.assertIn("| domain-medical, no vocabulary | 1 | 100.0% |", out.stdout)
+        self.assertIn("| domain-medical, vocabulary | 1 | 0.0% |", out.stdout)
+
     def test_every_persona_sentence_is_scored_off_on_and_with_another_personas_vocabulary(self):
         made = [c for c in bench.clips() if c.get("persona")]
         own = {name: vocabulary for name, _, vocabulary, _ in bench.PERSONAS}

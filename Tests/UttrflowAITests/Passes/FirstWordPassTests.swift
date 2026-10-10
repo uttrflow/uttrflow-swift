@@ -210,6 +210,38 @@ struct FirstWordPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test(
+        "writes a spoken time zone name from the zone table",
+        arguments: [
+            ("at ten thirty pacific time", "At ten thirty Pacific time"),
+            ("the call is at three eastern standard time", "The call is at three Eastern Standard Time"),
+            ("it starts at nine india standard time", "It starts at nine India Standard Time"),
+            ("noon greenwich mean time", "Noon Greenwich Mean Time"),
+            ("send it by five pacific daylight time", "Send it by five Pacific Daylight Time"),
+            ("the meeting is at four central european time", "The meeting is at four Central European Time"),
+            ("we use coordinated universal time", "We use Coordinated Universal Time"),
+            ("the pacific time zone", "The Pacific time zone"),
+            ("eastern time works", "Eastern time works"),
+            ("we leave at noon australian eastern standard time", "We leave at noon Australian Eastern Standard Time"),
+        ]
+    )
+    func writesZoneNames(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "leaves words that only resemble a zone name alone",
+        arguments: [
+            ("the central time slot works", "The central time slot works"),
+            ("we hiked in mountain time", "We hiked in mountain time"),
+            ("the eastern, time is short", "The eastern, time is short"),
+            ("the standard time limit", "The standard time limit"),
+        ]
+    )
+    func leavesNearZoneNamesAlone(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test("capitalises unambiguous place, language and nationality names")
     func capitalisesProperNames() {
         #expect(cleaned("we went to london and tokyo", by: sut) == "We went to London and Tokyo")
@@ -546,6 +578,14 @@ struct FirstWordPassTests {
     func keepsAHeadingsFirstWord() {
         #expect(cleaned("# Release notes", by: sut) == "# Release notes")
         #expect(cleaned("## Release notes", by: sut) == "## Release notes")
+    }
+
+    @Test("keeps a capital listed beside a name, and lowers one listed beside ordinary words")
+    func keepsACapitalListedBesideAName() {
+        let listed = "we use Slack and Zoom and Figma daily"
+        #expect(cleaned(listed, by: sut) == "We use Slack and Zoom and Figma daily")
+        #expect(cleaned("we use Figma, Zoom daily", by: sut) == "We use Figma, Zoom daily")
+        #expect(cleaned("we use Report and Zoom daily", by: sut) == "We use report and zoom daily")
     }
 
     @Test("keeps a mid-sentence capital the dictionary or the screen holds")

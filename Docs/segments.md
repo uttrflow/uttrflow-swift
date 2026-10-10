@@ -36,7 +36,7 @@ nothing serves yet, and it always names an open issue.
 | People who rely on voice because of a motor or vision impairment | as their other rows | as their other rows | unknown: probe #3587 | [hands-free session](#a-hands-free-session): stop by voice #4314 #4319 | every correction needs the command key and no edit command exists: gap #2389 | no extra need known |
 | Non-native English speakers | `properNouns` stressor; accent cohorts, [measuring-accuracy.md](measuring-accuracy.md) | as their other rows | unknown: probe #4527 | as their other rows | class 1; accent confusions #4511 | no extra need known |
 | Hinglish speakers | `multilingual` category, [eval-context-cases.md](eval-context-cases.md); Indian pack #4301 | as their other rows | unknown: probe #3587 | spoken command names per language #4351; self-correction triggers #4051 | class 1 for Devanagari or a translation, [latin-output.md](latin-output.md) | no extra need known |
-| Speakers with speech differences | `falseStarts` stressor | as their other rows | slow and effortful speech: gap #3804; pause length #4052 | as their other rows | class 1 for an over-deleted word: gap #3779 | no extra need known |
+| Speakers with speech differences | `falseStarts` stressor; [disfluent-speech.md](disfluent-speech.md) | as their other rows | slow and effortful speech: gap #3804; pause length #4052 | as their other rows | class 1 for an over-deleted word: gap #3779 | no extra need known |
 
 ## By where the text goes
 
