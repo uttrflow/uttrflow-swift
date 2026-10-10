@@ -118,7 +118,10 @@ the recogniser heard paired with what the user meant, which veto, alias and pref
 kept correction writes a `pairConfirmed` row and an undo writes a `pairVetoed` row, with the
 subject `heard>meant`, `heard` closed up by `ReadingRestraint.closedUp`. The projection counts
 separate days on each side: more undone days than kept is `vetoed`, so one undo vetoes the pair;
-kept on at least 3 separate days and more than undone is `confirmed`; anything else is inert. A
+kept on at least 3 separate days and more than undone is `confirmed`; anything else is inert. At most
+`ConfusionPairs.maximumNewPairsPerDay` (10) new pairs start counting on one day, the first written;
+a pair past that starts on the next day with room, so a field rewritten in bulk teaches no more than
+the cap a day. A kept replacement that is not Latin script writes no row. A
 pair is a feature to the correction gate, never a rewrite on its own. An undone row on the
 Corrections page whose pair is vetoed says so, with an Allow action that writes `pairAllowed`; the
 projection then ignores every `pairVetoed` row for the pair on or before that day. The rows are ordinary

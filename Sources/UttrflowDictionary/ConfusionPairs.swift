@@ -7,6 +7,9 @@ public enum ConfusionPairs {
     /// Separate days a pair must be kept on before it counts, so a lone event changes nothing.
     public static let daysBeforeConfirming = 3
 
+    /// New pairs that may start counting on one day, so a field rewritten in bulk cannot teach many at once.
+    public static let maximumNewPairsPerDay = 10
+
     /// What a pair's evidence says to the correction gate; a feature, never a rewrite on its own.
     public enum Feature: Sendable, Equatable {
         /// Kept on enough separate days, and on more days than it is undone.
@@ -19,7 +22,9 @@ public enum ConfusionPairs {
     public static func confirming(
         heard: String, meant: String, day: Int, provenance: EvidenceRow.Provenance = .dictation
     ) -> [EvidenceRow] {
-        row(.pairConfirmed, heard: heard, meant: meant, day: day, provenance: provenance)
+        // Dictation writes only Latin letters, so a replacement in another script is no word to learn.
+        guard LatinScript.isLatin(meant) else { return [] }
+        return row(.pairConfirmed, heard: heard, meant: meant, day: day, provenance: provenance)
     }
 
     /// The row one undo of a rewrite writes: the user took `meant` back to what was heard.
@@ -40,9 +45,16 @@ public enum ConfusionPairs {
         }
         var confirmed: [String: Set<Int>] = [:]
         var vetoed: [String: Set<Int>] = [:]
-        for row in rows {
+        var started: [Int: Int] = [:]
+        // Stable by day, so the first pairs written on a day are the ones that start counting on it.
+        let ordered = rows.enumerated().sorted { ($0.element.day, $0.offset) < ($1.element.day, $1.offset) }
+        for row in ordered.map(\.element) {
             switch row.kind {
-            case .pairConfirmed: confirmed[row.subject, default: []].insert(row.day)
+            case .pairConfirmed where confirmed[row.subject] != nil:
+                confirmed[row.subject, default: []].insert(row.day)
+            case .pairConfirmed where started[row.day, default: 0] < maximumNewPairsPerDay:
+                started[row.day, default: 0] += 1
+                confirmed[row.subject] = [row.day]
             case .pairVetoed where row.day > (allowed[row.subject] ?? .min):
                 vetoed[row.subject, default: []].insert(row.day)
             default: continue
