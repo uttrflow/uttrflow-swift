@@ -13,9 +13,10 @@ private let everyPass: [any CleaningPass] = {
         .afterModelPiece(digits: .thousands, situation: .unknown),
     ]
     var seen: Set<PassID> = []
-    // Code commands run only with the caret in code, spoken emoji only when the user turns them on, at-mentions only in chat.
+    // Code commands run only with the caret in code, spoken emoji only when the user turns them on, at-mentions only in chat, email structure only in an email body.
     let offByDefault: [any CleaningPass] = [
         CodeEditorCommandsPass(), SpokenEmojiPass(destination: .plain), AtMentionPass(precedingText: nil),
+        EmailStructurePass(),
     ]
     return (pipelines.flatMap(\.passes) + offByDefault).filter { seen.insert($0.id).inserted }
 }()

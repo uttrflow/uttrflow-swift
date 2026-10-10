@@ -300,7 +300,10 @@ public struct TerminalStopPass: WholeTextCleaningPass {
     }
 
     /// Whether the text ends with a supported email closing and a name.
-    private static func isEmailSignOff(_ draft: Draft) -> Bool {
+    private static func isEmailSignOff(_ draft: Draft) -> Bool { emailSignOffStart(in: draft) != nil }
+
+    /// The draft index of the closing word that opens the text's final sign-off, when it ends with one and a name.
+    static func emailSignOffStart(in draft: Draft) -> Int? {
         let live = draft.presentIndices
         for (position, index) in live.enumerated() where !draft.words[index].isLayoutMark {
             if position > 0 {
@@ -324,9 +327,9 @@ public struct TerminalStopPass: WholeTextCleaningPass {
             guard (1...2).contains(nameCount) else { continue }
             let name = suffix.dropFirst(closingWords)
             guard name.dropLast().allSatisfy({ !draft.shape(at: $0).endsSentence }) else { continue }
-            if draft.words[first].text.hasSuffix(",") || closingWords == 2 || nameCount == 1 { return true }
+            if draft.words[first].text.hasSuffix(",") || closingWords == 2 || nameCount == 1 { return first }
         }
-        return false
+        return nil
     }
 
     /// The words in a draft split at paragraph marks, ignoring layout marks.
@@ -356,14 +359,16 @@ public struct TerminalStopPass: WholeTextCleaningPass {
                 !draft.shape(at: $0).suffix.contains(where: { ",.;:!?".contains($0) })
             }
         guard indices.count <= 3 || standsAlone else { return false }
+        return greetingOpenerLength(indices, in: draft) != nil
+    }
+
+    /// How many words of `indices` spell a conventional email greeting opener, when they open with one.
+    static func greetingOpenerLength(_ indices: [Int], in draft: Draft) -> Int? {
         let openingWords = ["dear", "hello", "hi", "good morning", "good afternoon", "good evening"]
-        return openingWords.contains { prefix in
-            let words = prefix.split(separator: " ").map(String.init)
-            return indices.count >= words.count
-                && zip(words, indices).allSatisfy { pair in
-                    firstWord(draft.words[pair.1].text) == pair.0
-                }
-        }
+        return openingWords.lazy.map { $0.split(separator: " ").map(String.init) }.first { words in
+            indices.count >= words.count
+                && zip(words, indices).allSatisfy { firstWord(draft.words[$0.1].text) == $0.0 }
+        }?.count
     }
 
     /// Whether this is the email's first greeting paragraph or final closing paragraph.
@@ -373,7 +378,7 @@ public struct TerminalStopPass: WholeTextCleaningPass {
             || paragraphs.first == paragraph && isEmailGreeting(paragraph, in: draft)
     }
 
-    private static func firstWord(_ text: String) -> String {
+    static func firstWord(_ text: String) -> String {
         String(text.lowercased().prefix(while: \.isLetter))
     }
 
