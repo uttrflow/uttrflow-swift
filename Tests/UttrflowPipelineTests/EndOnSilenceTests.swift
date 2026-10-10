@@ -43,7 +43,8 @@ struct EndOnSilenceTests {
                 capture: capture,
                 speech: FakeSpeechEngine(transcribeOutcome: .success(Transcription(text: "said and done"))),
                 cleaner: FakeTranscriptCleaner(), context: FakeContextEngine(), inserter: inserter,
-                clock: ContinuousClock())
+                // Its own clock, never moved, so a slow run reaches no stage limit.
+                clock: ManualClock())
             controller = DictationController(
                 pipeline: pipeline, monitor: StillMonitor(), activation: activation, clock: clock,
                 endOnSilence: seconds.flatMap(SilenceStop.init(seconds:)))
