@@ -28,16 +28,16 @@ struct ScreenWordReadingRestraintTests {
     }
 
     /// The asymmetry the issue was: one source refused this reading and its sibling offered it.
-    @Test("answers what the ordinary-words source answers for the same word")
+    @Test("refuses what the ordinary-words source refuses for the same word")
     func agreesWithTheSibling() async {
         let screen = await source.candidates(
             for: Draft.Word("made", evidence: .score(0.42)),
             in: .showing(title: "parser.rs", preceding: "pub mod parser;"))
         let phonetic = await PhoneticCandidates().candidates(
             for: Draft.Word("made", evidence: .score(0.42)), in: .showing(title: "parser.rs"))
-
-        #expect(screen.isEmpty == phonetic.isEmpty)
-
+        #expect(!screen.contains("mod") && !phonetic.contains("mod"))
+        #expect(screen.isEmpty)
+        #expect(phonetic == ["maid"])
     }
 
     /// The second rule the issue names: what is on screen is evidence only when the word is not one everybody knows.

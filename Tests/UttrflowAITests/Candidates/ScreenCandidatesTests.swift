@@ -84,16 +84,16 @@ struct ScreenCandidatesTests {
         #expect(!mean.contains("main"))
     }
 
-    @Test("answers what the dictionary's own sound source answers for the same word")
+    @Test("refuses what the dictionary's own sound source refuses for the same word")
     func refusesWhatTheSiblingRefuses() async {
         let screen = await source.candidates(
             for: Draft.Word("made", evidence: .score(0.42)),
             in: .showing(title: "parser.rs", preceding: "pub mod parser;"))
         let phonetic = await PhoneticCandidates().candidates(
             for: Draft.Word("made", evidence: .score(0.42)), in: .showing(title: "parser.rs"))
-
-        #expect(screen.isEmpty == phonetic.isEmpty)
-
+        #expect(!screen.contains("mod") && !phonetic.contains("mod"))
+        #expect(screen.isEmpty)
+        #expect(phonetic == ["maid"])
     }
 
     @Test("still offers a screen word that sounds alike and opens alike")
