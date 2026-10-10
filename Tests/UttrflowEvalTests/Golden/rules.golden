@@ -417,7 +417,10 @@ hindi-translation-refused	Meeting 4 baje hai, nahi nahi, 5 baje hai.
 hindi-worked-example-refused	Matlab main kal aayega, haan, accha to phir milte hain.
 hinglish-apology-kept	Main late hoon sorry main abhi aata hoon.
 hinglish-correction-nahi-nahi	Meeting 5 baje hai.
+hinglish-correction-paused-nahi	4 baje milte hain.
+hinglish-correction-replaced-head	Parso ki meeting cancel hai.
 hinglish-false-start	Yaar wo wo bug bahut weird hai mujhe samajh nahi aa raha.
+hinglish-galat-bola-kept	Usne mujhe galat bola.
 hinglish-interjections-not-letters	Are o bhai sun.
 hinglish-jay-jay-not-letters	Jay jay ho.
 hinglish-kaunsa-question	Kaunsa option better hai?
@@ -429,6 +432,7 @@ hinglish-mera-matlab-kept	Aap samjhe mera matlab.
 hinglish-na-question-tag	Tum kal aa rahe ho na?
 hinglish-nahi-nahi-answer-kept	Kya aap thak gaye ho nahi nahi main bilkul theek hoon?
 hinglish-negation-kept	Mujhe yeh build thik nahi lag raha.
+hinglish-paused-nahi-kept	Do log nahi, sab log aayenge.
 hinglish-question	Kya tum aaj ka PR review kar sakte ho?
 hinglish-question-after-verb	Report bhej di kya?
 hinglish-question-word-after-subject	Meeting kab hai?
@@ -437,6 +441,7 @@ hinglish-reply-haan-2371	Haan.
 hinglish-reply-theek-hai-2371	Theek hai.
 hinglish-request	Arre suno zara wo report bhej dena.
 hinglish-romanised-respelling-2377	Kal ki meeting nahi hai main ghar se kaam karunga.
+hinglish-sorry-sorry-kept	Sorry sorry main bhool gaya.
 hinglish-spoken-colon-before-kal	Note: kal chutti hai.
 hinglish-spoken-comma-before-aur	Chai, aur biscuit.
 hinglish-trailing-english	Mujhe kal morning mein doctor ke paas jaana hai so I'll be offline.

@@ -124,6 +124,9 @@ public enum Restatement {
         guard !isWeakAnchor(firstAfter) else { return nil }
         let replacesOneWord = replacesSingleWord(
             before: trigger, after: restart, evidence: evidence, in: live, of: draft)
+        let unanchored =
+            replacedHeadStart(before: trigger, after: restart, evidence: evidence, in: live, of: draft)
+            ?? (replacesOneWord ? trigger - 1 : nil)
         for candidate in stride(from: trigger - 1, through: earliestPhraseAnchor, by: -1) {
             // A spoken line or paragraph break closes what came before it, so nothing behind it is taken back.
             guard !endsSpokenLayout(candidate, in: live, of: draft, asksForLayout: asksForLayout) else {
@@ -146,10 +149,28 @@ public enum Restatement {
                 return spanStart
             }
             if endsSentence(candidate, in: live, of: draft), !(through && candidate == trigger - 1) {
-                return replacesOneWord ? trigger - 1 : nil
+                return unanchored
             }
         }
-        return replacesOneWord ? trigger - 1 : nil
+        return unanchored
+    }
+
+    /// Where a content word is taken back when the restart replaces it and repeats every word after it ("red wala lo strike that blue wala lo").
+    private static func replacedHeadStart(
+        before trigger: Int, after restart: Int, evidence: RestatementEvidence, in live: [Int],
+        of draft: Draft
+    ) -> Int? {
+        guard FunctionWords.isContent(draft.shape(at: live[restart]).key) else { return nil }
+        // Triggers that are also everyday words need a pause before them to read as a correction.
+        if evidence == .alignedHalvesPausedSingleWord {
+            guard draft.shape(at: live[trigger - 1]).suffix.contains(",") else { return nil }
+        }
+        guard
+            let start = restatedTailStart(
+                before: trigger, after: restart, in: live, of: draft, head: FunctionWords.isContent),
+            !coordinates(start, before: trigger, in: live, of: draft)
+        else { return nil }
+        return start
     }
 
     /// A bare no after a copula and before a comma completes a reported answer clause.
@@ -170,27 +191,56 @@ public enum Restatement {
         guard restart < live.count else { return nil }
         let replacement = draft.shape(at: live[restart]).key
         guard isHindiOrDigitNumber(replacement) else { return nil }
-
-        let earliest = max(0, trigger - reach)
-        if trigger > earliest {
-            for start in stride(from: trigger - 1, through: earliest, by: -1)
-            where isHindiOrDigitNumber(draft.shape(at: live[start]).key) {
-                let oldTail = live[(start + 1)..<trigger].map { draft.shape(at: $0).key }
-                let newTailStart = restart + 1
-                let newTailEnd = newTailStart + oldTail.count
-                guard !oldTail.isEmpty, newTailEnd <= live.count else { continue }
-                let newTail = live[newTailStart..<newTailEnd].map { draft.shape(at: $0).key }
-                guard oldTail == newTail,
-                    !(start..<trigger).contains(where: { endsSentence($0, in: live, of: draft) }),
-                    !(restart..<newTailEnd).contains(where: { endsSentence($0, in: live, of: draft) })
-                else { continue }
-                return start
-            }
+        if let start = restatedTailStart(
+            before: trigger, after: restart, in: live, of: draft, head: isHindiOrDigitNumber)
+        {
+            return start
         }
-
         guard trigger > 0 else { return nil }
         let oldNumber = draft.shape(at: live[trigger - 1]).key
-        return isHindiOrDigitNumber(oldNumber) ? trigger - 1 : nil
+        if isHindiOrDigitNumber(oldNumber) { return trigger - 1 }
+        return unitDroppedStart(before: trigger, after: restart, in: live, of: draft)
+    }
+
+    /// Where a number and its one-word unit are taken back when the restated number closes the sentence and leaves the unit understood ("bees rupaye nahi nahi pachaas").
+    private static func unitDroppedStart(
+        before trigger: Int, after restart: Int, in live: [Int], of draft: Draft
+    ) -> Int? {
+        guard trigger > 1, isHindiOrDigitNumber(draft.shape(at: live[trigger - 2]).key),
+            FunctionWords.isContent(draft.shape(at: live[trigger - 1]).key),
+            !endsSentence(trigger - 2, in: live, of: draft)
+        else { return nil }
+        var next = restart
+        while next < live.count, isHindiOrDigitNumber(draft.shape(at: live[next]).key),
+            !endsSentence(next, in: live, of: draft)
+        {
+            next += 1
+        }
+        let closes = next == live.count || isHindiOrDigitNumber(draft.shape(at: live[next]).key)
+        guard closes else { return nil }
+        return numberStart(through: trigger - 2, from: max(0, trigger - reach), in: live, of: draft)
+    }
+
+    /// The nearest head word within reach whose following words the restart repeats, word for word, after its own first word.
+    private static func restatedTailStart(
+        before trigger: Int, after restart: Int, in live: [Int], of draft: Draft, head: (String) -> Bool
+    ) -> Int? {
+        let earliest = max(0, trigger - reach)
+        guard trigger > earliest else { return nil }
+        for start in stride(from: trigger - 1, through: earliest, by: -1)
+        where head(draft.shape(at: live[start]).key) {
+            let oldTail = live[(start + 1)..<trigger].map { draft.shape(at: $0).key }
+            let newTailStart = restart + 1
+            let newTailEnd = newTailStart + oldTail.count
+            guard !oldTail.isEmpty, newTailEnd <= live.count else { continue }
+            let newTail = live[newTailStart..<newTailEnd].map { draft.shape(at: $0).key }
+            guard oldTail == newTail,
+                !(start..<trigger).contains(where: { endsSentence($0, in: live, of: draft) }),
+                !(restart..<newTailEnd).contains(where: { endsSentence($0, in: live, of: draft) })
+            else { continue }
+            return start
+        }
+        return nil
     }
 
     /// Whether a word is a supported romanised Hindi, English or digit number.
