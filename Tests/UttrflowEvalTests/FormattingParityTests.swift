@@ -18,6 +18,8 @@ struct FormattingParityTests {
     static let knownGaps: Set<String> = [
         // A colon inside a token is spaced as prose: "8000: 8000", "node: 20".
         "probe-docker-run-flags", "probe-dockerfile-from", "probe-yaml-keys",
+        // A query of many clauses keeps "customer id" and "created at" as words and runs its clauses on one line.
+        "probe-sql-join",
         // Spoken regex marks and a dash inside brackets stay words: "caret [a dash z]".
         "probe-regex-pattern",
         // A spoken code-comment marker and mention are written as words.
