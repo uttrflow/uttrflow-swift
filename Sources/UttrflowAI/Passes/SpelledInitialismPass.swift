@@ -360,7 +360,7 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         guard position > 0 else { return [] }
         let previous = draft.shape(at: live[position - 1])
         var before: LetterRun.Before = isClockTime(previous) ? .clockTime : []
-        // Only the words a written number took in may stand between: "eighty one m g" is 81 then mg.
+        // Only the words a written number took in may stand between: "twenty five m g" is 25 then mg.
         let between = (live[position - 1] + 1)..<live[position]
         if between.allSatisfy({ draft.words[$0].state == .removed(by: NumberFormsPass.id) }),
             !previous.endsClause, NumberWords.isNumber(previous.key)

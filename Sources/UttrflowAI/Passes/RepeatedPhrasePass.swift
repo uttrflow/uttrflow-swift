@@ -60,7 +60,7 @@ public struct RepeatedPhrasePass: PieceCleaningPass {
             || deliberateChains.contains { repeatsCycle(of: $0, keys) }
     }
 
-    /// Whether `keys` is whole turns of `chain` starting from any of its words: "and on and on" turns "on and".
+    /// Whether `keys` is whole turns of `chain` starting from any of its words: "and more and more" turns "more and".
     private static func repeatsCycle(of chain: [String], _ keys: [String]) -> Bool {
         guard keys.count.isMultiple(of: chain.count) else { return false }
         return chain.indices.contains { offset in
