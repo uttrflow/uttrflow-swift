@@ -89,8 +89,8 @@ public final class HTTPAuthenticationService: AuthenticationService {
     private let randomBytes: @Sendable (Int) -> Data
     /// The clock, injected so a test can move it.
     private let now: @Sendable () -> Date
-    /// How the device flow waits between polls; injected so a test does not wait.
-    private let sleep: @Sendable (Duration) async throws -> Void
+    /// The clock the device flow waits on between polls; injected so a test does not wait.
+    private let clock: any Clock<Duration>
 
     /// The short-lived half of the session; a `Mutex`, not an actor, as nothing done with it is slow.
     private let access = Mutex<AccessToken?>(nil)
@@ -124,7 +124,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
         makeListener: @escaping @Sendable () -> any LoopbackListening = { SystemLoopbackListener() },
         randomBytes: @escaping @Sendable (Int) -> Data = HTTPAuthenticationService.systemRandomBytes,
         now: @escaping @Sendable () -> Date = Date.init,
-        sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
+        clock: any Clock<Duration> = ContinuousClock()
     ) {
         self.baseURL = baseURL
         self.clientID = clientID
@@ -135,7 +135,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
         self.makeListener = makeListener
         self.randomBytes = randomBytes
         self.now = now
-        self.sleep = sleep
+        self.clock = clock
     }
 
     /// Cryptographically secure randomness for the PKCE verifier and the state.
@@ -302,7 +302,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
 
         while true {
             do {
-                try await sleep(wait)
+                try await clock.sleep(for: wait)
             } catch {
                 // Cancellation: the person walked away, and the code expires on its own.
                 throw refusal(.abandoned)
@@ -457,6 +457,30 @@ public final class HTTPAuthenticationService: AuthenticationService {
 
         guard let refreshToken else { return }
         _ = try? await transport.perform(post("v1/auth/sign-out", SignOutBody(refreshToken: refreshToken)))
+    }
+
+    /// Asks the server to delete the account, renewing a rejected token once, and signs out only once it agreed.
+    public func deleteAccount() async throws(AccountError) {
+        Self.log.info("account deletion: started")
+        do throws(AccountError) {
+            guard case .token(let token) = try await authorised() else {
+                throw accountError(for: .sessionEnded)
+            }
+            var response = try await send(deletionRequest(token))
+            if response.status == 401 {
+                guard case .token(let renewed) = try await renew(replacing: token) else {
+                    throw accountError(for: .sessionEnded)
+                }
+                response = try await send(deletionRequest(renewed))
+            }
+            Self.log.notice("account deletion: answered \(response.status, privacy: .public)")
+            guard response.isSuccess else { throw accountError(for: .serverRefused) }
+        } catch {
+            logAccountFailure("account deletion: failed", error)
+            throw error
+        }
+        forgetSession()
+        Self.log.info("account deletion: completed")
     }
 
     // MARK: The session
@@ -687,19 +711,26 @@ public final class HTTPAuthenticationService: AuthenticationService {
     private func post(_ path: String, _ body: some Encodable) -> BackendRequest {
         BackendRequest(
             method: .post, url: url(path), headers: ["Content-Type": "application/json"],
-            body: encode(body))
+            body: encode(body), purpose: .account)
     }
 
     /// A bearer-authorised read of `address`, conditional on `validator` when there is one.
     private func get(_ address: URL, token: String, ifNoneMatch validator: String? = nil) -> BackendRequest {
         var headers = ["Authorization": "Bearer \(token)"]
         if let validator { headers["If-None-Match"] = validator }
-        return BackendRequest(method: .get, url: address, headers: headers)
+        return BackendRequest(method: .get, url: address, headers: headers, purpose: .account)
     }
 
     /// A conditional read of `v1/me`.
     private func profileRequest(_ token: String, ifNoneMatch validator: String?) -> BackendRequest {
         get(url("v1/me"), token: token, ifNoneMatch: validator)
+    }
+
+    /// A bearer-authorised `DELETE v1/me`, which removes the account and everything that names the person.
+    private func deletionRequest(_ token: String) -> BackendRequest {
+        BackendRequest(
+            method: .delete, url: url("v1/me"), headers: ["Authorization": "Bearer \(token)"],
+            purpose: .account)
     }
 
     /// Performs a request, translating a transport failure into ``AccountError/serverUnreachable``.

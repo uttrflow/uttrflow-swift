@@ -189,6 +189,8 @@ enum BrandPalette {
         static let dockMeter = BrandTone(dark: textStrong.dark, light: dictationAccent.light)
         /// The initials on the avatar's lilac-to-teal disc.
         static let avatarInk: UInt32 = 0x08_131A
+        /// A lettered app tile's saturation and brightness; its hue comes from the app's name.
+        static let appTileTone = (saturation: 0.55, brightness: 0.62)
         /// The avatar disc's lilac end on a page, deepened in the light.
         static let avatarLilac = BrandTone(dark: Purple.light, light: suggestionAccent.light)
         /// The avatar disc's teal end on a page, deepened in the light.

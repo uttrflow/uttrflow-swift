@@ -179,7 +179,7 @@ struct OrbitPageHeader: View {
                 Text(chrome.title.uppercased())
                     .font(.system(size: MainMetrics.footnoteSize, weight: .medium))
                     .tracking(1.6)
-                    .foregroundStyle(Color.dockActive)
+                    .foregroundStyle(Color.accentInk)
                 Text(chrome.title)
                     .font(.system(size: 29, weight: .bold))
                 if let caption = chrome.caption {

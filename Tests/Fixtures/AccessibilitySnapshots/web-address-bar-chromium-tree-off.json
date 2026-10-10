@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "family": "web address-bar, chromium engine, full tree off",
+  "windowTitle": "Example Domain",
+  "document": null,
+  "focused": {
+    "attributes": {
+      "AXRole": {
+        "kind": "value",
+        "text": "AXTextField"
+      },
+      "AXSubrole": {
+        "kind": "noValue"
+      },
+      "AXIdentifier": {
+        "kind": "noValue"
+      },
+      "AXPlaceholderValue": {
+        "kind": "noValue"
+      },
+      "AXDescription": {
+        "kind": "noValue"
+      },
+      "AXNumberOfCharacters": {
+        "kind": "value",
+        "number": 11
+      },
+      "AXValue": {
+        "kind": "value",
+        "text": "example.com"
+      },
+      "AXSelectedTextRange": {
+        "kind": "noValue"
+      }
+    },
+    "rangedText": {
+      "kind": "unsupported"
+    },
+    "children": []
+  }
+}

@@ -11,7 +11,8 @@ public enum ReviewTag {
         // "question is whether…" makes the label the subject; "question is this needed" asks.
         guard QuestionShape.verbsBeforeSubject.contains(next) else { return true }
         let after = words[2].key
-        return after != "that" && (QuestionShape.subjects.contains(after) || QuestionShape.determiners.contains(after))
+        return after != "that"
+            && (QuestionShape.subjects.contains(after) || QuestionShape.determiners.contains(after))
     }
 
     /// Labels that are nouns, set off unless the next word makes the label part of the sentence.

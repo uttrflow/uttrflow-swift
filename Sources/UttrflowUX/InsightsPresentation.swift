@@ -1,100 +1,7 @@
-// The Insights page: a calendar of how much was said each day, a range switch, and four figures.
+// The Insights page: a calendar of how much was said each day, a range switch, and measured figures.
 public import Foundation
 public import UttrflowHistory
 public import UttrflowSettings
-
-/// How far back the calendar reaches.
-public enum InsightsRange: String, Sendable, CaseIterable, Identifiable {
-    case week = "7"
-    case month = "30"
-    case quarter = "90"
-
-    /// The identifier the page reports back when this range is picked.
-    public var id: String { rawValue }
-
-    /// The days the range covers, today included.
-    public var days: Int {
-        switch self {
-        case .week: 7
-        case .month: 30
-        case .quarter: 90
-        }
-    }
-
-    /// "30 days".
-    public var title: String { "\(days) days" }
-}
-
-/// One segment of the range switch.
-public struct InsightsRangeOption: Sendable, Equatable, Identifiable {
-    /// The range this segment picks.
-    public let range: InsightsRange
-    /// Whether this is the range the calendar shows.
-    public let isSelected: Bool
-    /// Why the range cannot be picked; absent when it can.
-    public let unavailableReason: String?
-
-    /// The range's identifier.
-    public var id: String { range.id }
-    /// "30 days".
-    public var title: String { range.title }
-    /// Whether the range reaches no further back than history is kept.
-    public var isAvailable: Bool { unavailableReason == nil }
-
-    /// Builds a segment.
-    public init(range: InsightsRange, isSelected: Bool, unavailableReason: String? = nil) {
-        self.range = range
-        self.isSelected = isSelected
-        self.unavailableReason = unavailableReason
-    }
-}
-
-/// One day's tile on the calendar.
-public struct InsightsCalendarDay: Sendable, Equatable, Identifiable {
-    /// The start of the day.
-    public let date: Date
-    /// The day of the month drawn on the tile: "26".
-    public let number: String
-    /// Words dictated that day.
-    public let words: Int
-    /// Of the busiest day in the range, 0…1, so the view scales nothing itself.
-    public let fraction: Double
-    /// Whether this tile is today's.
-    public let isToday: Bool
-    /// "1,284 words · 26 Sept", shown on hover and read aloud.
-    public let detail: String
-
-    /// The start of this calendar day, unique across a multi-month range even when day numbers repeat.
-    public var id: Date { date }
-    /// A day with nothing said, drawn as a bare tile.
-    public var isSilent: Bool { words == 0 }
-    /// The teal's opacity, from a floor to full, stepping over the band where no number ink reaches 4.5:1.
-    public var shade: Double {
-        if isSilent { return 0 }
-        let smooth = 0.15 + 0.85 * fraction
-        guard smooth > Self.inkCeiling, smooth < Self.deepInkFloor else { return smooth }
-        return smooth < (Self.inkCeiling + Self.deepInkFloor) / 2 ? Self.inkCeiling : Self.deepInkFloor
-    }
-    /// Whether the number is drawn in the deep ink, which is on every tile at or past ``deepInkFloor``.
-    public var usesDeepInk: Bool { shade >= Self.deepInkFloor }
-
-    /// The deepest shade the page's ink still clears 4.5:1 on in dark. See `Docs/redesign-tokens.md`.
-    public static let inkCeiling = 0.5
-    /// The palest shade the deep ink clears 4.5:1 on in dark.
-    public static let deepInkFloor = 0.72
-
-    /// Builds a tile; the fraction is clamped to 0…1.
-    public init(
-        date: Date, number: String, words: Int, fraction: Double, isToday: Bool, detail: String
-    ) {
-        self.date = date
-        self.number = number
-        self.words = words
-        self.fraction = min(max(fraction, 0), 1)
-        self.isToday = isToday
-        self.detail = detail
-    }
-}
 
 /// The range laid out as weeks, first weekday on the left.
 public struct InsightsCalendar: Sendable, Equatable {
@@ -134,6 +41,8 @@ public struct InsightsSnapshot: Sendable, Equatable {
     public let now: Date
     /// Whether ``entries`` has been read from the store yet; false only before the first reading.
     public let hasReadHistory: Bool
+    /// Suggestion corpus totals, absent when suggestions are off or the corpus is unreadable.
+    public let suggestionCounts: SuggestionCounts?
 
     /// Builds a snapshot; entries and settings default to empty, the range to the presenter's choice.
     public init(
@@ -141,13 +50,15 @@ public struct InsightsSnapshot: Sendable, Equatable {
         settings: Settings = .default,
         range: InsightsRange? = nil,
         now: Date,
-        hasReadHistory: Bool = true
+        hasReadHistory: Bool = true,
+        suggestionCounts: SuggestionCounts? = nil
     ) {
         self.entries = entries
         self.settings = settings
         self.range = range
         self.now = now
         self.hasReadHistory = hasReadHistory
+        self.suggestionCounts = suggestionCounts
     }
 }
 
@@ -163,6 +74,10 @@ public struct InsightsPresentation: Sendable, Equatable {
     public let calendar: InsightsCalendar?
     /// Words, dictations, words per minute and the streak, in that order.
     public let figures: [MainStatistic]
+    /// Counts held by the suggestion corpus, absent when suggestions are off.
+    public let suggestionFigures: [MainStatistic]?
+    /// Raw corpus counts retained so synchronous redraws do not drop the group.
+    public let suggestionCounts: SuggestionCounts?
     /// Shown until there is a week to show.
     public let emptyState: MainEmptyState?
 
@@ -173,7 +88,9 @@ public struct InsightsPresentation: Sendable, Equatable {
         chartCaption: String? = nil,
         calendar: InsightsCalendar?,
         figures: [MainStatistic],
-        emptyState: MainEmptyState?
+        emptyState: MainEmptyState?,
+        suggestionFigures: [MainStatistic]? = nil,
+        suggestionCounts: SuggestionCounts? = nil
     ) {
         self.chrome = chrome
         self.ranges = ranges
@@ -181,6 +98,8 @@ public struct InsightsPresentation: Sendable, Equatable {
         self.calendar = calendar
         self.figures = figures
         self.emptyState = emptyState
+        self.suggestionFigures = suggestionFigures
+        self.suggestionCounts = suggestionCounts
     }
 }
 
@@ -203,10 +122,14 @@ public enum InsightsPresenter {
         let chrome = MainPageChrome(
             title: "Insights",
             caption: "Where the words went, and how fast they arrived. Measured on this Mac.")
+        let suggestionFigures = snapshot.suggestionCounts.map {
+            Self.suggestionFigures(for: $0, locale: locale)
+        }
         // Before the store has answered, only the header is drawn, not "0 of 7 days".
         guard snapshot.hasReadHistory else {
             return InsightsPresentation(
-                chrome: chrome, ranges: [], calendar: nil, figures: [], emptyState: nil)
+                chrome: chrome, ranges: [], calendar: nil, figures: [], emptyState: nil,
+                suggestionFigures: suggestionFigures, suggestionCounts: snapshot.suggestionCounts)
         }
 
         guard spoken.count >= daysBeforeCharting else {
@@ -214,7 +137,8 @@ public enum InsightsPresenter {
                 chrome: chrome, ranges: [], calendar: nil, figures: [],
                 emptyState: emptyState(
                     for: inRange, daysSpokenOn: spoken.count, now: snapshot.now, calendar: calendar,
-                    locale: locale))
+                    locale: locale), suggestionFigures: suggestionFigures,
+                suggestionCounts: snapshot.suggestionCounts)
         }
 
         return InsightsPresentation(
@@ -227,7 +151,22 @@ public enum InsightsPresenter {
             calendar: self.calendar(
                 for: inRange, range: range, now: snapshot.now, calendar: calendar, locale: locale),
             figures: figures(inRange: inRange, range: range, calendar: calendar, locale: locale),
-            emptyState: nil)
+            emptyState: nil,
+            suggestionFigures: suggestionFigures, suggestionCounts: snapshot.suggestionCounts)
+    }
+
+    /// Names stored totals without turning them into an acceptance rate.
+    private static func suggestionFigures(
+        for counts: SuggestionCounts, locale: Locale
+    ) -> [MainStatistic] {
+        [
+            MainStatistic(value: counts.entries.formatted(.number.locale(locale)), caption: "Stored lines"),
+            MainStatistic(value: counts.uses.formatted(.number.locale(locale)), caption: "Recorded uses"),
+            MainStatistic(value: counts.accepted.formatted(.number.locale(locale)), caption: "Accepted"),
+            MainStatistic(value: counts.rejected.formatted(.number.locale(locale)), caption: "Typed past"),
+            MainStatistic(
+                value: counts.selfSourced.formatted(.number.locale(locale)), caption: "Self-sourced"),
+        ]
     }
 
     // MARK: - The range

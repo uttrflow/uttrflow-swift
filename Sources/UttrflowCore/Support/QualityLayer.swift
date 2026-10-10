@@ -3,6 +3,7 @@
 /// One switchable dictation-quality layer. See `Docs/dictation-quality.md`.
 public enum QualityLayer: String, Sendable, CaseIterable {
     case recogniserBias = "recogniser-bias"
+    case personaVocabulary = "persona-vocabulary"
     case evidenceCapture = "evidence-capture"
     case candidateGeneration = "candidate-generation"
     case scoring
@@ -12,16 +13,31 @@ public enum QualityLayer: String, Sendable, CaseIterable {
     /// Whether the layer runs when nothing overrides it; a new layer starts off until measured.
     public var defaultOn: Bool {
         switch self {
-        case .recogniserBias, .evidenceCapture, .candidateGeneration, .scoring, .overrideGate, .formatting: true
+        case .recogniserBias, .evidenceCapture, .candidateGeneration, .scoring, .overrideGate, .formatting:
+            true
+        case .personaVocabulary: false
         }
     }
 
     /// The stage whose `StageTimeout` the layer runs inside.
     public var stageBudget: Duration {
         switch self {
-        case .recogniserBias, .evidenceCapture: StageTimeout.transcription
-        case .candidateGeneration, .scoring, .overrideGate: StageTimeout.quick
+        case .recogniserBias, .personaVocabulary, .evidenceCapture: StageTimeout.transcription
+        case .candidateGeneration, .scoring, .overrideGate: StageTimeout.correction
         case .formatting: StageTimeout.transformation
+        }
+    }
+
+    /// The layers whose output this one reads, so switching either off changes what this one is given.
+    public var inputs: [QualityLayer] {
+        switch self {
+        case .personaVocabulary: []
+        case .recogniserBias: [.personaVocabulary]
+        case .evidenceCapture: [.recogniserBias]
+        case .candidateGeneration: [.evidenceCapture]
+        case .scoring: [.evidenceCapture, .candidateGeneration]
+        case .overrideGate: [.candidateGeneration, .scoring]
+        case .formatting: [.recogniserBias, .overrideGate]
         }
     }
 
@@ -29,6 +45,7 @@ public enum QualityLayer: String, Sendable, CaseIterable {
     public var summary: String {
         switch self {
         case .recogniserBias: "Conditions the recogniser on the user's own words."
+        case .personaVocabulary: "Ranks those words by what this Mac recently saw the user keep."
         case .evidenceCapture: "Records what the recogniser can say about a doubtful word."
         case .candidateGeneration: "Proposes the words a doubtful run might have been."
         case .scoring: "Scores the heard reading against each candidate."
@@ -60,6 +77,18 @@ public struct QualityLayers: Sendable, Equatable {
             let removed = without.map(parse) ?? []
         else { return nil }
         return QualityLayers(enabled: kept.subtracting(removed))
+    }
+
+    /// Each default-on layer switched off alone, then with each default-on layer it reads, in declaration order.
+    public static var degradedPaths: [[QualityLayer]] {
+        let defaults = QualityLayer.allCases.filter(\.defaultOn)
+        let alone = defaults.map { [$0] }
+        let pairs = defaults.flatMap { layer in
+            layer.inputs.filter(\.defaultOn).map { input in defaults.filter { $0 == input || $0 == layer } }
+        }
+        return (alone + pairs).reduce(into: []) { paths, path in
+            if !paths.contains(path) { paths.append(path) }
+        }
     }
 
     /// Whether `layer` runs.

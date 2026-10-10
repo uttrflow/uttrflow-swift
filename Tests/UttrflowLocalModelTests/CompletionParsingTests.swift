@@ -12,17 +12,17 @@ struct CompletionParsingTests {
         let situation = GenerationSituation(application: "Notes")
         let cutOff = MLXCandidateScorer.completions(
             from: .init(
-                forgetGeneration: 0, text: "see you at the", stop: .length, written: "", tokens: [],
+                forgetGeneration: 0, text: "see you at the cafe", stop: .length, written: "", tokens: [],
                 logProbabilities: [], bytes: []),
             typed: "see you", asking: .one, in: situation)
         #expect(cutOff.isEmpty)
 
         let endedNormally = MLXCandidateScorer.completions(
             from: .init(
-                forgetGeneration: 0, text: "see you at the", stop: .stop, written: "", tokens: [],
+                forgetGeneration: 0, text: "see you at the cafe", stop: .stop, written: "", tokens: [],
                 logProbabilities: [], bytes: []),
             typed: "see you", asking: .one, in: situation)
-        #expect(endedNormally == ["see you at the"])
+        #expect(endedNormally == ["see you at the cafe"])
     }
 
     @Test("An alternatives pass drops only its unterminated line when the token budget ends it.")
@@ -80,6 +80,15 @@ struct CompletionParsingTests {
         #expect(CompletionText.parse(headings, typed: "on my") == ["on my way, be there at 7"])
     }
 
+    @Test("Prompt-marker words in the typed line do not suppress its continuation.")
+    func promptMarkerInTypedTextDoesNotSuppressContinuation() {
+        #expect(
+            CompletionText.parse("Some hints: keep it short", typed: "Some hints:") == [
+                "Some hints: keep it short"
+            ])
+        #expect(CompletionText.parse("Some hints: continue this text", typed: "Some hints:").isEmpty)
+    }
+
     @Test(
         "A line the model repeated without its marks, in another case or spacing, is still read past what was typed."
     )
@@ -95,15 +104,19 @@ struct CompletionParsingTests {
     }
 
     @Test(
-        "One slip inside the echo, two characters swapped or one added or changed, still reads past what was typed."
+        "Swapped characters and same-word spelling forms are read past; an added letter cannot change the word."
     )
-    func oneSlipInTheEchoIsReadPast() {
+    func echoSlipMustPreserveTheWord() {
         #expect(CompletionText.continuation(of: "don't know", past: "dont") == " know")
         #expect(CompletionText.continuation(of: "the quick fix", past: "teh") == " quick fix")
-        #expect(CompletionText.continuation(of: "receive the parcel", past: "recieve") == " the parcel")
         #expect(CompletionText.continuation(of: "git commit -m", past: "gitcommit") == " -m")
-        #expect(CompletionText.continuation(of: "colour scheme", past: "color") == " scheme")
         #expect(CompletionText.continuation(of: "git  commit -m", past: "git commit") == " -m")
+        #expect(CompletionText.continuation(of: "runs fast", past: "run ") == "fast")
+        #expect(CompletionText.continuation(of: "receive the parcel", past: "recieve") == " the parcel")
+        #expect(CompletionText.continuation(of: "colour scheme", past: "color") == nil)
+        #expect(CompletionText.continuation(of: "she is going", past: "he is") == nil)
+        #expect(CompletionText.continuation(of: "her is going", past: "he is") == nil)
+        #expect(CompletionText.parse("she is going", typed: "he is").isEmpty)
         #expect(CompletionText.parse("don't know\n", typed: "dont") == ["dont know"])
         #expect(CompletionText.parse("The quick fix", typed: "teh") == ["teh quick fix"])
     }
@@ -157,6 +170,15 @@ struct CompletionParsingTests {
         #expect(CompletionText.isDegenerate(" - sr - sr - sr - sr - sr - sr"))
         #expect(!CompletionText.isDegenerate(" -l"))
         #expect(!CompletionText.isDegenerate("toring the data in the table for the next run"))
+    }
+
+    @Test("A word repeated, or spelled out one letter at a time, is not a continuation.")
+    func stutterAndSpelledOutAreDropped() {
+        #expect(CompletionText.isDegenerate(" pic pic pic pic pic"))
+        #expect(CompletionText.isDegenerate(" a s s p o r t"))
+        #expect(!CompletionText.isDegenerate(" a b c"))
+        #expect(!CompletionText.isDegenerate(" no no no, not that one"))
+        #expect(!CompletionText.isDegenerate(" I want a cup of tea"))
     }
 
     @Test("A continuation the length of a paragraph is not the rest of a line.")
@@ -264,14 +286,88 @@ struct CompletionParsingTests {
         #expect(CompletionText.joined("busy nahi", with: " hoon bolo") == "busy nahi hoon bolo")
         #expect(CompletionText.joined("busy nahi ", with: " hoon bolo") == "busy nahi hoon bolo")
         #expect(CompletionText.joined("see you at 8", with: ", then") == "see you at 8, then")
+        #expect(CompletionText.joined("hello", with: "\"world\"") == "hello \"world\"")
+        #expect(CompletionText.joined("hello", with: "'world'") == "hello 'world'")
+        #expect(CompletionText.joined("she said ", with: "\"hello\"") == "she said \"hello\"")
+        #expect(CompletionText.joined("she said \"hello ", with: "\"") == "she said \"hello\"")
+        #expect(CompletionText.joined("see you ", with: ", then") == "see you, then")
+        #expect(CompletionText.joined("see you ", with: ")") == "see you)")
+        #expect(CompletionText.joined("don", with: "'t") == "don't")
+        #expect(CompletionText.joined("James", with: "'s here") == "James's here")
         #expect(CompletionText.joined("see you", with: "(8pm)") == nil)
-        #expect(CompletionText.joined("she said", with: "\"hello\"") == nil)
+        #expect(CompletionText.joined("she said", with: "\"hello\"") == "she said \"hello\"")
         #expect(CompletionText.joined("cost", with: "$5") == nil)
         #expect(CompletionText.joined("see you ", with: "(8pm)") == "see you (8pm)")
         #expect(CompletionText.joined("busy nahi", with: "hoon bolo") == nil)
         #expect(CompletionText.joined("git c", with: "ommit -m") == nil)
         #expect(CompletionText.joined("", with: "hoon") == nil)
         #expect(CompletionText.joined("busy", with: "") == nil)
+    }
+
+    @Test("An Apple answer joins ordinary continuations, then refuses model remarks.")
+    func appleFallbackRequiresAReadableNonMetaContinuation() {
+        let typed = "Thanks for your email "
+        let situation = GenerationSituation(application: "Mail")
+        #expect(
+            CompletionText.modelCompletions(
+                from: "I'll send the invoice tomorrow.", typed: typed, echoPolicy: .joinAtBoundary,
+                in: situation) == ["Thanks for your email I'll send the invoice tomorrow."]
+        )
+        #expect(
+            CompletionText.modelCompletions(
+                from: "I'm sorry, but I can't help with that.", typed: typed,
+                echoPolicy: .joinAtBoundary, in: situation
+            ).isEmpty)
+        #expect(
+            CompletionText.modelCompletions(
+                from: "Here is the completion: Thanks for your email, I'll send it tomorrow.",
+                typed: typed, echoPolicy: .joinAtBoundary, in: situation
+            ).isEmpty)
+    }
+
+    @Test("Common openings can continue text the model echoed from the field.")
+    func echoedTextCanContinueWithCommonOpenings() {
+        let situation = GenerationSituation(application: "Mail")
+        #expect(
+            CompletionText.modelCompletions(
+                from: "I'm so sorry about that", typed: "I'm so", echoPolicy: .required,
+                in: situation) == ["I'm so sorry about that"])
+        #expect(
+            CompletionText.modelCompletions(
+                from: "Hi Sam, here is the report", typed: "Hi Sam,", echoPolicy: .required,
+                in: situation) == ["Hi Sam, here is the report"])
+    }
+
+    @Test("Every tabled refusal is refused, with common continuations allowed after an echoed prefix.")
+    func modelRemarksRespectWhetherTheyContinueEchoedTypedText() {
+        let typed = "Thanks for your email "
+        let situation = GenerationSituation(application: "Mail")
+        for opening in CompletionText.rejectedOpenings {
+            #expect(
+                CompletionText.modelCompletions(
+                    from: opening.phrase + "; the rest follows.", typed: typed,
+                    echoPolicy: .joinAtBoundary, in: situation
+                ).isEmpty,
+                "Echo-less reply: \(opening.phrase)")
+            let echoed = typed + opening.phrase + "; the rest follows."
+            #expect(
+                CompletionText.modelCompletions(
+                    from: echoed, typed: typed, echoPolicy: .required, in: situation
+                ).isEmpty == opening.rejectedAfterTypedEcho,
+                "Echoed reply: \(opening.phrase)")
+        }
+    }
+
+    @Test("The MLX candidate path refuses an echoed answer that starts with a refusal.")
+    func mlxGeneratorRefusesEchoedRefusal() {
+        let typed = "Thanks for your email "
+        let run = MLXCandidateScorer.Run(
+            forgetGeneration: 0, text: "I'm sorry, but I can't help with that.", stop: .stop,
+            written: typed, tokens: [], logProbabilities: [], bytes: [])
+        #expect(
+            MLXCandidateScorer.completions(
+                from: run, typed: typed, asking: .one, in: GenerationSituation(application: "Mail")
+            ).isEmpty)
     }
 
     @Test("A line the model wrote in another script is dropped, wherever in the line the script appears.")
@@ -497,8 +593,34 @@ struct ContinuationLengthTests {
     }
 }
 
-@Suite("A sign-off is signed only with a name the person wrote")
+@Suite("A sign-off is signed only with a name the person wrote", .bug(id: 5966))
 struct SignOffTests {
+    @Test("a closing word inside ordinary prose does not begin a signature")
+    func embeddedClosingStaysInProse() {
+        #expect(
+            SignOff.unsigned(
+                "Hi Sam, thanks, Sarah is coming", typed: "Hi Sam, ", ownLines: [])
+                == "Hi Sam, thanks, Sarah is coming")
+        #expect(
+            SignOff.unsigned("I said, thanks, Priya will drive", typed: "I said, ", ownLines: [])
+                == "I said, thanks, Priya will drive")
+    }
+
+    @Test("newline closings and lowercase signatures keep their distinct behavior")
+    func newlineAndLowercaseSignatures() {
+        #expect(
+            SignOff.unsigned("Kind regards,\nJohn", typed: "Kind reg", ownLines: [])
+                == "Kind regards,")
+        #expect(SignOff.unsigned("Thanks\nJohn", typed: "Thanks\n", ownLines: []) == "Thanks\nJohn")
+        #expect(SignOff.unsigned("thanks, john", typed: "", ownLines: []) == "thanks, john")
+        #expect(
+            SignOff.unsigned("Got it.\nThanks, Sarah is coming", typed: "Got it.\n", ownLines: [])
+                == "Got it.\nThanks,")
+        #expect(
+            SignOff.unsigned("See you then. Thanks, Sarah", typed: "See you then. ", ownLines: [])
+                == "See you then. Thanks,")
+    }
+
     @Test("A name followed by a farewell, a title or more names is cut from a prose suggestion")
     func trailingWordsDoNotHideAnInventedName() {
         let mail = GenerationSituation(application: "Mail", isMultiline: true)
@@ -553,6 +675,22 @@ struct SignOffTests {
         #expect(
             SignOff.unsigned("Thanks, Sam Collins", typed: "Thanks, Sam", ownLines: ["Collins here"])
                 == "Thanks, Sam Collins")
+    }
+
+    @Test("a lowercase verb does not establish the same word as a signature name")
+    func aLowercaseVerbDoesNotEstablishAName() {
+        let own = ["I will send it Monday"]
+        #expect(SignOff.unsigned("Best,\nWill", typed: "Best", ownLines: own) == "Best,")
+        #expect(SignOff.unsigned("Best,\nWill", typed: "Best,", ownLines: own) == nil)
+    }
+
+    @Test("common closings still cut an invented signature")
+    func commonClosingsCutInventedNames() {
+        for closing in ["Respectfully", "Cordially", "Love", "Talk soon"] {
+            #expect(
+                SignOff.unsigned("\(closing), Will", typed: closing, ownLines: []) == "\(closing),",
+                "\(closing)")
+        }
     }
 
     @Test("A recipient name in the typed text is not treated as the sender's signature")

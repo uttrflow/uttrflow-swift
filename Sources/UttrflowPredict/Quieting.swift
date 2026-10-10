@@ -1,3 +1,5 @@
+import UttrflowCore
+
 /// The rules that draw nothing whatever the candidates say, so the feature is quiet by default.
 public enum Quieting {
     /// How long a prose writer must pause before a suggestion is worth their attention.
@@ -16,12 +18,15 @@ public enum Quieting {
         if !context.isEnabledHere { return .turnedOffHere }
         if context.isSecure { return .secureField }
         if context.markedText == .present { return .composing }
-        if !context.writingDirectionKnown { return .unknownWritingDirection }
         if !context.canDraw { return .nowhereToDraw }
         if context.hasSelection { return .textSelected }
         if !context.caretAtLineEnd { return .caretInsideText }
+        // Direction only places a ghost at the line's end, so it is asked after the caret's questions.
+        if !context.writingDirectionKnown { return .unknownWritingDirection }
         if context.showsOwnList { return .applicationPicker }
-        if !context.isCommandLine, AppPicker.isOpen(after: context.typed) { return .applicationPicker }
+        if context.applicationSupportsPickers, AppPicker.isOpen(after: context.typed) {
+            return .applicationPicker
+        }
         if context.rejectionsThisSession >= rejectionsBeforeSilence { return .rejectedTooOften }
         if context.isProse, context.millisecondsSinceKeystroke < proseHesitationInMilliseconds {
             return .writingFluently
@@ -57,7 +62,7 @@ public enum Quieting {
         case emptyLine
         /// A list line holding only its marker, so nothing of the item has been typed yet.
         case listMarkerOnly
-        /// A line past `SuggestionSession.maximumTypedLength` is a document, not a prefix.
+        /// A line past `TypedLine.maximumLength` is a document, not a prefix.
         case lineTooLong
         /// The line holds another script, where nothing Uttrflow may write belongs. See `Docs/predict.md`.
         case nonLatinLine

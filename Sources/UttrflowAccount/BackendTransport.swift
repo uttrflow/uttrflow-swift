@@ -1,6 +1,7 @@
 // The request and response values, and the protocol that carries them to the backend.
 public import struct Foundation.Data
 public import struct Foundation.URL
+public import UttrflowCore
 
 /// One request as a value, so every decision worth getting wrong is in code a test can read.
 public struct BackendRequest: Sendable, Equatable {
@@ -20,10 +21,15 @@ public struct BackendRequest: Sendable, Equatable {
     public let headers: [String: String]
     /// The body, if any.
     public let body: Data?
+    /// Why it is sent, which is what the network-activity ledger counts it under.
+    public let purpose: NetworkPurpose
 
-    /// A request with no headers and no body unless given.
-    public init(method: Method, url: URL, headers: [String: String] = [:], body: Data? = nil) {
+    /// A request with no headers and no body unless given; every request names its purpose.
+    public init(
+        method: Method, url: URL, headers: [String: String] = [:], body: Data? = nil, purpose: NetworkPurpose
+    ) {
         self.method = method
+        self.purpose = purpose
         self.url = url
         self.headers = headers
         self.body = body

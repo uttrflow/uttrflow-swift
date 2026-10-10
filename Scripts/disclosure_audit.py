@@ -207,6 +207,8 @@ NAMES = compile_terms(NAMES_B64)
 PHRASES = compile_terms(PHRASES_B64)
 TIER1 = NAMES + PHRASES
 TIER2 = compile_terms(TIER2_B64)
+# A co-author trailer names a tool or person the repository does not credit; new writing never carries one.
+TRAILER = re.compile(r"^\s*co-authored-by\s*:", re.IGNORECASE)
 
 
 def hits(text, patterns):
@@ -302,6 +304,7 @@ def scan_diff(patch, label):
 def scan_text(text, label, strict=True):
     """Scans one block of new writing. Both tiers block: new text has no legacy."""
     one = [("line", n, line, m) for n, line, m in hits(text, TIER1)]
+    one += [("line", n, line, m) for n, line, m in hits(text, [TRAILER])] if strict else []
     two = [("line", n, line, m) for n, line, m in hits(text, TIER2)] if strict else []
     if one:
         report(one, "forbidden", label)

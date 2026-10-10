@@ -8,9 +8,9 @@ drawn is in [`app-settings-controls.md`](app-settings-controls.md).
 
 ## Outcomes, not engines
 
-`SettingsTidyingLevel` and `SettingsTranscriptionQuality` are stated as outcomes (how much help,
-how long a wait), never as a list of implementations. The user chooses what they want, never which
-engine gives it to them, so swapping an engine is never a change of screen.
+`SettingsTidyingLevel` is stated as an outcome (how much help), never as a list of
+implementations. The user chooses what they want, never which engine gives it to them, so swapping
+an engine is never a change of screen.
 
 ## There is no "off" for tidying
 
@@ -58,12 +58,6 @@ retried (see [`recordings.md`](recordings.md)).
 `SettingsLanguage.offered` is written out rather than read from the speech profile, so a language
 the user has never chosen still appears, unticked, to be chosen.
 
-## Reading a choice back is exhaustive
-
-`SettingsTranscriptionQuality.init(engine:)` switches over every engine rather than searching with
-a fallback. A fallback would be a branch nothing could take, and it would silently mislabel a newly
-added engine instead of refusing to compile until somebody said what it is for.
-
 ## The privacy copy, written once
 
 `SettingsPresenter.privacyPromise`, `.recordingsPromise` and `.signingOutKeepsEverything` are each
@@ -73,7 +67,7 @@ three wordings is a promise they have to work out for themselves.
 Each is worded to be exactly true rather than comfortable:
 
 - `recordingsPromise`: "Audio is deleted the moment it becomes text, and kept on this Mac for a day
-  only if it couldn’t be, so you can retry."
+  only if some of it couldn’t be, so you can retry."
 - `privacyPromise` adds that the text is kept on this Mac until the user deletes it or for the
   period they choose, that "we never see it" and that it is not tied to the account, and that local
   history, clips, suggestions and retry recordings are excluded from Mac backups that honour that
@@ -93,8 +87,8 @@ The levels are `SettingsReset`: `.learnedWords`, `.suggestions(inApplication:)` 
 
 - `forgetLearnedRow` names both halves of the trade, because the reason that level exists is that
   hand-added words survive it.
-- `resetSentence` is built only from the parts that exist. With nothing saved, a reset really is
-  only the preferences, and offering to remove "0 transcripts" both reads badly and misstates it.
+- `resetSentence` counts only the parts that exist, since offering to remove "0 transcripts"
+  reads badly. The clipboard, pinned clips included, is always named, uncounted.
 - `counted(_:_:_:)` is the one place a number meets its noun, so "1 words" cannot appear.
 - `.everything` is never greyed out: preferences are always there to put back, and a greyed reset
   strands the user who came here precisely to start again.

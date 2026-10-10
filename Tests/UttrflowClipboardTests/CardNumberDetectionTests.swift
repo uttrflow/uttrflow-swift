@@ -3,6 +3,7 @@
 import Testing
 
 @testable import UttrflowClipboard
+@testable import UttrflowCore
 
 /// Every card number below is a network's published test number, never a real card.
 @Suite("Card numbers are hidden, and other long numbers are not")

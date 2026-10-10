@@ -1,5 +1,7 @@
 // Tests the memory budget's judge.
 import Testing
+import UttrflowAudio
+import UttrflowCore
 
 @testable import UttrflowEval
 
@@ -83,5 +85,56 @@ struct ResourceBudgetProfileTests {
             of: MemoryTimeline(samples: [sample("idle, nothing loaded", 11)], peak: nil))
         #expect(readings.map(\.label) == ["idle, nothing loaded"])
         #expect(ResourceBudget.breaches(in: readings).isEmpty)
+    }
+}
+
+@Suite("Disk budget of the support folder")
+struct DiskBudgetTests {
+    private let megabyte: Int64 = 1_048_576
+
+    private func usage(_ entry: LocalStoreEntry, _ bytes: Int64) -> LocalStoreUsage {
+        LocalStoreUsage(entry: entry, files: 1, bytes: bytes, oldest: nil)
+    }
+
+    @Test("the lines are the budget table's")
+    func limitsMatchTheTable() {
+        #expect(DiskPart.speechModel.limitInMegabytes == 768)
+        #expect(DiskPart.recordings.limitInMegabytes == 256)
+        #expect(DiskPart.history.limitInMegabytes == 64)
+        #expect(DiskPart.clipboard.limitInMegabytes == 1_024)
+        #expect(DiskPart.diagnostics.limitInMegabytes == 16)
+        #expect(DiskPart.otherStores.limitInMegabytes == 64)
+    }
+
+    @Test("the recordings line is the cap the recording store prunes to")
+    func recordingsLineIsTheStoreCap() {
+        #expect(DiskPart.recordings.limitInBytes == Int64(RecordingStore.defaultByteLimit))
+    }
+
+    @Test("every part is read, the clipboard's files summed into one line")
+    func readingsSumEachPart() {
+        let readings = ResourceBudget.diskReadings(of: [
+            usage(.clipboard, 3), usage(.clipboardImages, 40), usage(.savedClips, 2), usage(.speechModels, 9),
+        ])
+        #expect(readings.map(\.part) == DiskPart.allCases)
+        #expect(readings.first { $0.part == .clipboard }?.bytes == 45)
+        #expect(readings.first { $0.part == .speechModel }?.bytes == 9)
+        #expect(readings.first { $0.part == .recordings }?.bytes == 0)
+    }
+
+    @Test("a part one byte over its line is a breach, and only that one")
+    func overTheLineFails() {
+        let readings = ResourceBudget.diskReadings(of: [
+            usage(.recordings, 256 * megabyte + 1), usage(.dictationHistory, 64 * megabyte),
+        ])
+        let breaches = ResourceBudget.breaches(in: readings)
+        #expect(breaches.map(\.part) == [.recordings])
+        #expect(breaches.first?.description == "recordings: 256 MB on disk, over the 256 MB budget")
+    }
+
+    @Test("a stale model revision beside the installed one breaches the model line")
+    func staleRevisionFails() {
+        let installed = usage(.speechModels, 618 * megabyte + 618 * megabyte)
+        #expect(ResourceBudget.breaches(in: ResourceBudget.diskReadings(of: [installed])).count == 1)
     }
 }

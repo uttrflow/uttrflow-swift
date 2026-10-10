@@ -91,13 +91,13 @@ struct TokenChoiceTests {
     func thePromptNamesTheChoices() {
         let register = Register.infer(from: GenerationSituation(application: "Terminal"), typed: "cd ")
         let held = GenerationSituation(application: "Terminal", choices: ["Sources", "Scripts"])
-        let message = PromptBuilder.message(typed: "cd ", in: held, register: register)
+        let message = CompletionPromptBuilder.message(typed: "cd ", in: held, register: register)
         #expect(message.contains("The next word is one of these, exactly as written: Sources, Scripts."))
-        let free = PromptBuilder.message(
+        let free = CompletionPromptBuilder.message(
             typed: "cd ", in: GenerationSituation(application: "Terminal"), register: register)
         #expect(!free.contains("The next word is one of these"))
         // The choosing turn's list is told to the model once; a pass for alternatives is never held to it.
-        let others = PromptBuilder.message(
+        let others = CompletionPromptBuilder.message(
             typed: "cd ", in: held, register: register, asking: .others(excluding: "cd Sources"))
         #expect(!others.contains("The next word is one of these"))
     }

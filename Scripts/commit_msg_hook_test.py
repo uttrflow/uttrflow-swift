@@ -57,6 +57,11 @@ class CommitMessageHookTests(unittest.TestCase):
         self.assertIn("Could not read the message file", run.stdout)
         self.assertNotIn(BLAME, run.stdout)
 
+    def test_a_co_author_trailer_is_refused(self):
+        run = self.run_hook("Add a line\n\nCo-Authored-By: Someone <someone@example.invalid>\n")
+        self.assertEqual(run.returncode, 1, run.stdout + run.stderr)
+        self.assertIn(BLAME, run.stdout)
+
     def test_a_forbidden_term_is_still_refused(self):
         sample = forbidden_sample()
         if sample is None:

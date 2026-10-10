@@ -70,11 +70,11 @@ struct ReportBreakdownTests {
     @Test("reports by cohort, with the unattributed recordings as their own row")
     func byCohort() {
         let subject = report([
-            score("a", cohort: "naveen-quiet", reference: ["one", "two"], heard: ["one", "two"]),
+            score("a", cohort: "avery-quiet", reference: ["one", "two"], heard: ["one", "two"]),
             score("b", cohort: "priya-cafe", reference: ["one", "two"], heard: ["x", "y"]),
             score("c", reference: ["one", "two"], heard: ["one", "two"]),
         ])
-        #expect(subject.byCohort.map(\.label) == ["naveen-quiet", "priya-cafe", "unattributed"])
+        #expect(subject.byCohort.map(\.label) == ["avery-quiet", "priya-cafe", "unattributed"])
         #expect(subject.byCohort[1].rate.rate == 1)
         #expect(subject.byCohort[2].rate.rate == 0)
     }
@@ -189,7 +189,7 @@ struct ReportBreakdownTests {
     @Test("a round trip keeps everything a report reads")
     func roundTripsAFullResult() throws {
         let original = score(
-            "a", language: .hinglish, stresses: ["code-switching"], cohort: "naveen-quiet",
+            "a", language: .hinglish, stresses: ["code-switching"], cohort: "avery-quiet",
             reference: ["one"], heard: ["two"], lost: ["one"])
         let encoded = try JSONEncoder().encode(original)
         #expect(try JSONDecoder().decode(PassageScore.self, from: encoded) == original)

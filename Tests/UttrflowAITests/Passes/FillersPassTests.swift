@@ -36,6 +36,22 @@ struct FillersPassTests {
     }
 
     @Test(
+        "collapses a stretched word's hyphenated vowel echoes and keeps real hyphenated words",
+        arguments: [
+            ("So-oh-oh, the meeting moved to Tuesday.", "So, the meeting moved to Tuesday."),
+            ("no-oh I meant Monday", "no I meant Monday"),
+            ("it was so-so", "it was so-so"),
+            ("uh-oh, the build broke", "uh-oh, the build broke"),
+            ("oh-oh, look", "oh-oh, look"),
+            ("a well-known fix", "a well-known fix"),
+            ("Go-ahead given", "Go-ahead given"),
+        ]
+    )
+    func collapsesVowelEchoes(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
         "joins fixed assent and alarm replies",
         arguments: [
             ("uh huh", "Uh-huh"),
@@ -79,13 +95,25 @@ struct FillersPassTests {
     @Test(
         "keeps a filler when the sentence names it",
         arguments: [
-            "The word ah is an interjection", "Write ah in the field", "Say mhm when you agree",
-            "Type the word er into the box", "Spell um after the greeting", "She said uh yesterday",
+            "The word ah is an interjection", "Write the sound ah in the field", "Say an mhm when you agree",
+            "Type the word er into the box", "Spell um after the greeting", "She said ‘uh’ yesterday",
             "Write ‘um’ in quotes after hello",
         ]
     )
     func keepsNamedFillers(input: String) {
         #expect(cleaned(input, by: sut) == input)
+    }
+
+    @Test(
+        "removes a hesitation after a verb that could name it",
+        arguments: [
+            ("he said um I think it is fine", "he said I think it is fine"),
+            ("I would say uh maybe next week", "I would say maybe next week"),
+            ("let me write uh a quick note", "let me write a quick note"),
+        ]
+    )
+    func removesHesitationAfterNamingVerb(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
     }
 
     @Test("removes a filler not being named")
@@ -98,7 +126,7 @@ struct FillersPassTests {
         "keeps a word a determiner opens, however it is spelled",
         arguments: [
             "I took her to the ER", "an ER visit ran long", "her ER shift",
-            "we waited in the ER for hours", "put the ah file back",
+            "we waited in the ER for hours",
             // An interior mark is part of the word, so this is not the filler spelling at all.
             "I took her to the E.R.",
         ]
@@ -118,7 +146,8 @@ struct FillersPassTests {
         "removes um and uh after determiners while keeping a determiner-led er noun",
         arguments: [
             ("check the uh logs", "check the logs"),
-            ("the uh the database is down", "the database is down"),
+            // The repeated "the" is RepeatedPhrasePass's to remove, not this pass's.
+            ("the uh the database is down", "the the database is down"),
             ("the er ward is full", "the er ward is full"),
         ]
     )

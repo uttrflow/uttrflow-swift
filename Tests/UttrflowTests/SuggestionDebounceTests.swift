@@ -29,6 +29,14 @@ struct SuggestionDebounceTests {
         #expect(SuggestionCoordinator.remainingDebounce(sinceKeystroke: Self.key, now: now) == .zero)
     }
 
+    @Test("a future keystroke waits no longer than a fresh keystroke")
+    func futureKeystrokeWaitsNoLongerThanFreshKey() {
+        let future = Self.key.addingTimeInterval(3_600)
+        #expect(
+            SuggestionCoordinator.remainingDebounce(sinceKeystroke: future, now: Self.key)
+                == .milliseconds(SuggestionCoordinator.generationDebounceInMilliseconds))
+    }
+
     @Test("A steady typing burst leaves one field snapshot within the three-message-per-key budget")
     func countsMessagesAcrossTypingBurst() {
         var reader = CountingAccessibilityFake()
@@ -107,6 +115,14 @@ struct FieldSnapshotDebounceTests {
         #expect(SuggestionCoordinator.remainingFieldReadDebounce(sinceKeystroke: Self.key, now: before) == 1)
         #expect(SuggestionCoordinator.remainingFieldReadDebounce(sinceKeystroke: Self.key, now: due) == 0)
     }
+
+    @Test("a future keystroke waits only the field-read debounce")
+    func futureKeystrokeWaitsOnlyTheFieldReadDebounce() {
+        let future = Self.key.addingTimeInterval(3_600)
+        #expect(
+            SuggestionCoordinator.remainingFieldReadDebounce(sinceKeystroke: future, now: Self.key)
+                == SuggestionCoordinator.fieldReadDebounceInMilliseconds)
+    }
 }
 
 @Suite("The wake-up after a prose pause")
@@ -128,5 +144,11 @@ struct SuggestionHesitationWakeTests {
     func aLongPauseWakesAtOnce() {
         let now = Self.key.addingTimeInterval(2)
         #expect(SuggestionCoordinator.hesitationWake(sinceKeystroke: Self.key, now: now) == 20)
+    }
+
+    @Test("a future keystroke gets the normal prose-pause wake")
+    func futureKeystrokeGetsNormalProsePauseWake() {
+        let future = Self.key.addingTimeInterval(3_600)
+        #expect(SuggestionCoordinator.hesitationWake(sinceKeystroke: future, now: Self.key) == 420)
     }
 }

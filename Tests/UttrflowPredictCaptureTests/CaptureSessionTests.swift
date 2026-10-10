@@ -1,6 +1,8 @@
 import Foundation
 import Testing
+import UttrflowCore
 import UttrflowPredict
+import UttrflowPredictStore
 
 @testable import UttrflowPredictCapture
 
@@ -11,7 +13,7 @@ private actor Recorder: CaptureSink {
     private(set) var moments: [Date] = []
 
     func record(
-        _ text: String, in surface: Surface, after previous: String?, selfSourced: Bool, at moment: Date
+        _ text: String, in surface: Surface, after previous: String?, as origin: LineOrigin, at moment: Date
     ) {
         recorded.append((text, surface, previous))
         moments.append(moment)
@@ -21,7 +23,20 @@ private actor Recorder: CaptureSink {
         superseded.append((text, replacement))
     }
 
+    private(set) var edits: [EditedSpan] = []
+
+    func recordEditedSpan(_ edit: EditedSpan, in surface: Surface) {
+        edits.append(edit)
+    }
+
     var texts: [String] { recorded.map(\.text) }
+}
+
+/// Collects only the fixed reasons a finished line was excluded.
+private actor SkipReasonRecorder {
+    private(set) var reasons: [CaptureSkipReason] = []
+
+    func record(_ reason: CaptureSkipReason) { reasons.append(reason) }
 }
 
 /// A sink that throws the first `recordFailures` record calls and the first `supersedeFailures` supersede calls, then accepts, so transient write failures can be exercised.
@@ -31,12 +46,21 @@ private actor FlakySink: CaptureSink {
     private var recordFailures: Int
     private var supersedeFailures: Int
     private var acceptFailures: Int
+    private var retractFailures: Int
+    private var shouldSuspendNextRecord = false
+    private var recordSuspension: CheckedContinuation<Void, any Error>?
+    private var recordSuspensionWaiter: CheckedContinuation<Void, Never>?
+    private var isRecordSuspended = false
     private(set) var accepted: [String] = []
 
-    init(recordFailures: Int = 0, supersedeFailures: Int = 0, acceptFailures: Int = 0) {
+    init(
+        recordFailures: Int = 0, supersedeFailures: Int = 0, acceptFailures: Int = 0,
+        retractFailures: Int = 0
+    ) {
         self.recordFailures = recordFailures
         self.supersedeFailures = supersedeFailures
         self.acceptFailures = acceptFailures
+        self.retractFailures = retractFailures
     }
 
     func recordAccepted(_ text: String, in surface: Surface) throws {
@@ -48,8 +72,18 @@ private actor FlakySink: CaptureSink {
     }
 
     func record(
-        _ text: String, in surface: Surface, after previous: String?, selfSourced: Bool, at moment: Date
-    ) throws {
+        _ text: String, in surface: Surface, after previous: String?, as origin: LineOrigin, at moment: Date
+    ) async throws {
+        if shouldSuspendNextRecord {
+            shouldSuspendNextRecord = false
+            try await withCheckedThrowingContinuation {
+                (continuation: CheckedContinuation<Void, any Error>) in
+                recordSuspension = continuation
+                isRecordSuspended = true
+                recordSuspensionWaiter?.resume()
+                recordSuspensionWaiter = nil
+            }
+        }
         if recordFailures > 0 {
             recordFailures -= 1
             throw FlakySinkError.transient
@@ -64,6 +98,35 @@ private actor FlakySink: CaptureSink {
         }
         superseded.append((text, replacement))
     }
+
+    func retractAcceptance(_ text: String, in surface: Surface) throws {
+        if retractFailures > 0 {
+            retractFailures -= 1
+            throw FlakySinkError.transient
+        }
+        if let index = accepted.firstIndex(of: text) { accepted.remove(at: index) }
+    }
+
+    func failNextRecordWrites(_ count: Int) {
+        recordFailures = count
+    }
+
+    func suspendNextRecordWrite() {
+        shouldSuspendNextRecord = true
+    }
+
+    func waitForSuspendedRecord() async {
+        guard !isRecordSuspended else { return }
+        await withCheckedContinuation { continuation in
+            recordSuspensionWaiter = continuation
+        }
+    }
+
+    func failSuspendedRecord() {
+        recordSuspension?.resume(throwing: FlakySinkError.transient)
+        recordSuspension = nil
+        isRecordSuspended = false
+    }
 }
 
 private enum FlakySinkError: Error { case transient }
@@ -75,7 +138,7 @@ private actor GatedSink: CaptureSink {
     private var isHolding = true
 
     func record(
-        _ text: String, in surface: Surface, after previous: String?, selfSourced: Bool, at moment: Date
+        _ text: String, in surface: Surface, after previous: String?, as origin: LineOrigin, at moment: Date
     ) async {
         recorded.append((text, previous))
         guard isHolding else { return }
@@ -100,7 +163,7 @@ private actor RetryGateSink: CaptureSink {
     private var gate: CheckedContinuation<Bool, Never>?
 
     func record(
-        _ text: String, in surface: Surface, after previous: String?, selfSourced: Bool, at moment: Date
+        _ text: String, in surface: Surface, after previous: String?, as origin: LineOrigin, at moment: Date
     ) async throws {
         calls += 1
         if calls == 1 { throw FlakySinkError.transient }
@@ -145,6 +208,26 @@ private func session<Sink: CaptureSink>(
 
 @Suite("Capturing what the user finishes")
 struct CaptureSessionTests {
+    @Test("a skipped finished line reports its fixed reason without its text")
+    func skippedLineReportsReason() async throws {
+        let scratch = Scratch()
+        let sink = Recorder()
+        let skips = SkipReasonRecorder()
+        let capture = CaptureSession(
+            sink: sink, preferencesFile: CapturePreferencesFile(path: scratch.preferencesPath),
+            onCommitSkipped: { reason in await skips.record(reason) })
+        try await capture.record(.allowed, for: terminal.bundleIdentifier)
+        _ = try await capture.handle(.keystroke("kubectl get po", at: start), in: terminal)
+        _ = try await capture.handle(
+            .typed("ds", at: start.addingTimeInterval(0.01)), in: terminal)
+        _ = try await capture.handle(
+            .keystroke("kubectl get podx", at: start.addingTimeInterval(0.5)), in: terminal)
+        _ = try await capture.handle(.returnPressed(at: start.addingTimeInterval(1)), in: terminal)
+
+        #expect(await skips.reasons == [.unmatchedKeys])
+        #expect(await sink.texts.isEmpty)
+    }
+
     @Test("Typing writes nothing; only finishing does.")
     func onlyFinishedValuesAreWritten() async throws {
         let scratch = Scratch()
@@ -236,27 +319,25 @@ struct CaptureSessionTests {
         #expect(await recorder.texts.isEmpty)
     }
 
-    @Test("An application nobody has opted into is refused, and says so, so the user can be asked.")
-    func unknownApplicationIsRefused() async throws {
+    @Test("An application nobody has been asked about is learned from, since learning is on by default.")
+    func unknownApplicationIsLearned() async throws {
         let scratch = Scratch()
         let recorder = Recorder()
         let session = try await session(scratch, recorder)
         _ = try await session.handle(.keystroke("git status", at: start), in: terminal)
         let outcome = try await session.handle(.returnPressed(at: start), in: terminal)
-        #expect(outcome == .refused(.consentNotGiven))
-        #expect(await recorder.texts.isEmpty)
+        #expect(outcome == .recorded("git status"))
+        #expect(await recorder.texts == ["git status"])
     }
 
-    @Test("An accepted suggestion in an unasked application is refused and never recorded.")
-    func acceptedSuggestionInUnaskedApplicationIsRefused() async throws {
+    @Test("An accepted suggestion in an unasked application is recorded, since learning is on by default.")
+    func acceptedSuggestionInUnaskedApplicationIsRecorded() async throws {
         let scratch = Scratch()
         let recorder = Recorder()
         let session = try await session(scratch, recorder)
 
-        #expect(
-            try await session.accepted("git status", in: terminal, at: start)
-                == .refused(.consentNotGiven))
-        #expect(await recorder.texts.isEmpty)
+        #expect(try await session.accepted("git status", in: terminal, at: start) == .recorded("git status"))
+        #expect(await recorder.texts == ["git status"])
     }
 
     @Test("An accepted suggestion in a declined application is refused and never recorded.")
@@ -332,6 +413,112 @@ struct CaptureSessionTests {
         #expect(await recorder.texts == ["git checkout main"])
     }
 
+    @Test("An accepted extension followed by typing retires the idle draft it extended.")
+    func acceptedExtensionFollowedByTypingSupersedesIdleDraft() async throws {
+        let scratch = Scratch()
+        let recorder = Recorder()
+        let session = try await session(scratch, recorder, allowing: ["com.example.terminal"])
+        _ = try await session.handle(.keystroke("foo bar", at: start), in: terminal)
+        #expect(
+            try await session.handle(
+                .tick(at: start.addingTimeInterval(CommitDetector.idleInterval)), in: terminal)
+                == .recorded("foo bar"))
+
+        #expect(
+            try await session.accepted(
+                "foo bar baz", over: "foo bar", in: terminal,
+                at: start.addingTimeInterval(CommitDetector.idleInterval + 1))
+                == .recorded("foo bar baz"))
+        #expect(await recorder.superseded.map(\.text) == ["foo bar"])
+        #expect(await recorder.superseded.map(\.replacement) == ["foo bar baz"])
+        _ = try await session.handle(
+            .keystroke("foo bar baz!", at: start.addingTimeInterval(CommitDetector.idleInterval + 2)),
+            in: terminal)
+        #expect(
+            try await session.handle(
+                .returnPressed(at: start.addingTimeInterval(CommitDetector.idleInterval + 3)),
+                in: terminal) == .recorded("foo bar baz!"))
+
+        #expect(await recorder.superseded.map(\.text) == ["foo bar", "foo bar baz"])
+        #expect(await recorder.superseded.map(\.replacement) == ["foo bar baz", "foo bar baz!"])
+    }
+
+    @Test("A held accepted extension is retired after a typed continuation reaches the sink.")
+    func heldAcceptedExtensionFollowsTypedContinuation() async throws {
+        let scratch = Scratch()
+        let sink = FlakySink()
+        let session = try await session(scratch, sink, allowing: ["com.example.terminal"])
+        _ = try await session.handle(.keystroke("foo bar", at: start), in: terminal)
+        #expect(
+            try await session.handle(
+                .tick(at: start.addingTimeInterval(CommitDetector.idleInterval)), in: terminal)
+                == .recorded("foo bar"))
+        await sink.failNextRecordWrites(3)
+        await #expect(throws: FlakySinkError.self) {
+            _ = try await session.accepted(
+                "foo bar baz", over: "foo bar", in: terminal,
+                at: start.addingTimeInterval(CommitDetector.idleInterval + 1))
+        }
+
+        _ = try await session.handle(
+            .keystroke("foo bar baz!", at: start.addingTimeInterval(CommitDetector.idleInterval + 2)),
+            in: terminal)
+        #expect(
+            try await session.handle(
+                .returnPressed(at: start.addingTimeInterval(CommitDetector.idleInterval + 3)),
+                in: terminal) == .recorded("foo bar baz!"))
+        _ = try await session.handle(
+            .tick(at: start.addingTimeInterval(CommitDetector.idleInterval + 4)), in: terminal)
+
+        #expect(await sink.recorded == ["foo bar", "foo bar baz!", "foo bar baz"])
+        #expect(await sink.superseded.map(\.text) == ["foo bar baz", "foo bar", "foo bar baz"])
+        #expect(
+            await sink.superseded.map(\.replacement) == [
+                "foo bar baz!", "foo bar baz", "foo bar baz!",
+            ])
+    }
+
+    @Test("A continuation during a suspended acceptance write is retained when that write fails.")
+    func inFlightAcceptedExtensionFollowsTypedContinuation() async throws {
+        let scratch = Scratch()
+        let sink = FlakySink()
+        let session = try await session(scratch, sink, allowing: ["com.example.terminal"])
+        _ = try await session.handle(.keystroke("foo bar", at: start), in: terminal)
+        #expect(
+            try await session.handle(
+                .tick(at: start.addingTimeInterval(CommitDetector.idleInterval)), in: terminal)
+                == .recorded("foo bar"))
+
+        await sink.suspendNextRecordWrite()
+        let accepted = Task {
+            try await session.accepted(
+                "foo bar baz", over: "foo bar", in: terminal,
+                at: start.addingTimeInterval(CommitDetector.idleInterval + 1))
+        }
+        await sink.waitForSuspendedRecord()
+        _ = try await session.handle(
+            .keystroke("foo bar baz!", at: start.addingTimeInterval(CommitDetector.idleInterval + 2)),
+            in: terminal)
+        #expect(
+            try await session.handle(
+                .returnPressed(at: start.addingTimeInterval(CommitDetector.idleInterval + 3)),
+                in: terminal) == .recorded("foo bar baz!"))
+
+        await sink.failSuspendedRecord()
+        await #expect(throws: FlakySinkError.self) { _ = try await accepted.value }
+        #expect(await session.unwrittenAcceptanceCount() == 1)
+        _ = try await session.handle(
+            .tick(at: start.addingTimeInterval(CommitDetector.idleInterval + 4)), in: terminal)
+
+        #expect(await sink.recorded == ["foo bar", "foo bar baz!", "foo bar baz"])
+        #expect(await sink.superseded.map(\.text) == ["foo bar baz", "foo bar", "foo bar baz"])
+        #expect(
+            await sink.superseded.map(\.replacement) == [
+                "foo bar baz!", "foo bar baz", "foo bar baz!",
+            ])
+        #expect(await sink.accepted == ["foo bar baz"])
+    }
+
     @Test("Typing more after accepting commits the whole line as it then stands.")
     func typingAfterAcceptCommitsTheFullLine() async throws {
         let scratch = Scratch()
@@ -379,10 +566,11 @@ struct CaptureSessionTests {
         let scratch = Scratch()
         let recorder = Recorder()
         let session = try await session(scratch, recorder)
+        try await session.record(.declined, for: "com.example.terminal")
         _ = try await session.handle(.keystroke("git pu", at: start), in: terminal)
         #expect(
             try await session.handle(.tick(at: start.addingTimeInterval(60)), in: terminal)
-                == .refused(.consentNotGiven))
+                == .refused(.consentDeclined))
         try await session.record(.allowed, for: "com.example.terminal")
         _ = try await session.handle(.keystroke("git push", at: start.addingTimeInterval(61)), in: terminal)
         #expect(
@@ -525,6 +713,25 @@ struct CaptureSessionTests {
             forHomeDirectory: scratch.directory, into: surface, at: start)
         #expect(again == 0)
         #expect(await recorder.texts.count == 2)
+    }
+
+    @Test("A shell history import whose write fails is not marked done, and the next call finishes it.")
+    func failedShellHistoryImportIsRetried() async throws {
+        let scratch = Scratch()
+        try scratch.write("git status\nmake verify\nswift build\n", to: ".bash_history")
+        let sink = FlakySink(recordFailures: 1)
+        let session = try await session(scratch, sink, allowing: ["com.example.terminal"])
+        let surface = try #require(terminal.surface)
+        await #expect(throws: (any Error).self) {
+            try await session.importShellHistory(
+                forHomeDirectory: scratch.directory, into: surface, at: start)
+        }
+        #expect(await !session.decisions().hasImportedShellHistory)
+        let imported = try await session.importShellHistory(
+            forHomeDirectory: scratch.directory, into: surface, at: start)
+        #expect(imported == 3)
+        #expect(await sink.recorded == ["git status", "make verify", "swift build"])
+        #expect(await session.decisions().hasImportedShellHistory)
     }
 
     @Test("Imported commands are stamped oldest first, ending at the import, so eviction keeps the newest.")
@@ -783,6 +990,23 @@ struct CaptureSessionTransientFailureTests {
         #expect(await sink.accepted == ["git status", "git push"])
     }
 
+    @Test("A failed undo retraction is retried by the next event.")
+    func failedRetractionIsRetried() async throws {
+        let scratch = Scratch()
+        let sink = FlakySink(retractFailures: 1)
+        let session = try await session(scratch, sink, allowing: ["com.example.terminal"])
+        _ = try await session.accepted("git status", over: "git", in: terminal, at: start)
+
+        _ = try await session.handle(
+            .keystroke("git", at: start.addingTimeInterval(1)), in: terminal)
+        #expect(await sink.accepted == ["git status"])
+        #expect(await session.unwrittenRetractionCount() == 1)
+
+        _ = try await session.handle(.tick(at: start.addingTimeInterval(2)), in: terminal)
+        #expect(await sink.accepted.isEmpty)
+        #expect(await session.unwrittenRetractionCount() == 0)
+    }
+
     @Test("Held acceptances are bounded, and forgetting an application drops its own.")
     func heldAcceptancesAreBoundedAndForgotten() async throws {
         let scratch = Scratch()
@@ -893,5 +1117,72 @@ struct CaptureSessionRetryReentrancyTests {
         #expect(await sink.recorded == ["git status"])
         #expect(await session.unwrittenCommitCount() == 0)
         #expect(await session.unwrittenAcceptanceCount() == 0)
+    }
+
+    /// Dictates `inserted` into an empty line of `field`, types `replacement` over `old` and presses Return.
+    private func dictateAndEdit(
+        _ inserted: String, replacing old: String, with replacement: String, in field: FieldReading,
+        allowing: [String]
+    ) async throws -> [EditedSpan] {
+        let scratch = Scratch()
+        let recorder = Recorder()
+        let session = try await session(scratch, recorder, allowing: allowing)
+        _ = try await session.handle(.keystroke("", at: start), in: field)
+        for event in CaptureEvent.marking([.keystroke(inserted, at: start)], insertedAt: start) {
+            _ = try await session.handle(event, in: field)
+        }
+        let edited = inserted.replacingOccurrences(of: old, with: replacement)
+        _ = try await session.handle(.typed(replacement, at: start), in: field)
+        _ = try await session.handle(.keystroke(edited, at: start), in: field)
+        #expect(try await session.handle(.returnPressed(at: start), in: field) == .nothing)
+        #expect(await recorder.texts.isEmpty)
+        return await recorder.edits
+    }
+
+    @Test("A word replaced inside dictated text reaches the sink as one edit.")
+    func anEditInsideDictationReachesTheSink() async throws {
+        let chat = FieldReading(bundleIdentifier: "com.example.chat", role: "AXTextArea")
+        let edits = try await dictateAndEdit(
+            "see you on tuesday", replacing: "tuesday", with: "thursday", in: chat,
+            allowing: ["com.example.chat"])
+        #expect(edits == [EditedSpan(position: 3, old: ["tuesday"], new: ["thursday"])])
+    }
+
+    @Test("An edit in an application not yet asked about is heard, since learning is on by default.")
+    func anEditInAnUnaskedApplicationIsHeard() async throws {
+        let chat = FieldReading(bundleIdentifier: "com.example.chat", role: "AXTextArea")
+        let edits = try await dictateAndEdit(
+            "see you on tuesday", replacing: "tuesday", with: "thursday", in: chat, allowing: [])
+        #expect(edits == [EditedSpan(position: 3, old: ["tuesday"], new: ["thursday"])])
+    }
+
+    @Test("An edit in a secure field, an opted-out application or of a secret shape is never heard.")
+    func refusedEditsAreNotHeard() async throws {
+        let chat = FieldReading(bundleIdentifier: "com.example.chat", role: "AXTextArea")
+        let secure = FieldReading(
+            bundleIdentifier: "com.example.chat", role: "AXTextField", subrole: "AXSecureTextField")
+        #expect(
+            try await dictateAndEdit(
+                "my code is tuesday", replacing: "tuesday", with: "thursday", in: secure,
+                allowing: ["com.example.chat"]
+            ).isEmpty)
+        let declining = Scratch()
+        let recorder = Recorder()
+        let session = try await session(declining, recorder)
+        try await session.record(.declined, for: "com.example.chat")
+        _ = try await session.handle(.keystroke("", at: start), in: chat)
+        let dictated = [CaptureEvent.keystroke("see you on tuesday", at: start)]
+        for event in CaptureEvent.marking(dictated, insertedAt: start) {
+            _ = try await session.handle(event, in: chat)
+        }
+        _ = try await session.handle(.typed("thursday", at: start), in: chat)
+        _ = try await session.handle(.keystroke("see you on thursday", at: start), in: chat)
+        _ = try await session.handle(.returnPressed(at: start), in: chat)
+        #expect(await recorder.edits.isEmpty)
+        #expect(
+            try await dictateAndEdit(
+                "the key is tuesday", replacing: "tuesday", with: "ASIAY34FZKBOKMUTVV7A", in: chat,
+                allowing: ["com.example.chat"]
+            ).isEmpty)
     }
 }

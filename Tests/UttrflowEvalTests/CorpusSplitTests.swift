@@ -45,10 +45,12 @@ struct CorpusSplitTests {
 
     @Test("a held-out case copied into a prompt fragment is caught, and a development one is not")
     func copyingIsCaught() throws {
-        let heldOut = try #require(EvaluationCorpus.all.first { $0.split == .heldout && $0.expected.count >= 12 })
+        let heldOut = try #require(
+            EvaluationCorpus.all.first { $0.split == .heldout && $0.expected.count >= 12 })
         let development = try #require(
             EvaluationCorpus.all.first { $0.split == .development && $0.expected.count >= 12 })
-        let fragments = Self.promptFragments + ["Spoken: x\nResult: \(heldOut.expected)", development.expected]
+        let fragments =
+            Self.promptFragments + ["Spoken: x\nResult: \(heldOut.expected)", development.expected]
         let leaks = CorpusSplit.leaks(of: [heldOut, development], into: fragments)
         #expect(leaks.count == 1)
         #expect(leaks.first?.hasPrefix(heldOut.id + ":") == true)

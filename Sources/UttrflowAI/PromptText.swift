@@ -2,16 +2,59 @@
 
 /// Makes text safe to place inside one prompt line. See Docs/cleanup.md.
 public enum PromptText {
-    /// The value as one line: no control characters or bidirectional marks, whitespace collapsed, quotes single, capped.
+    /// The value as one line: no control characters, bidirectional marks or zero-width spaces, whitespace collapsed, quotes single, capped.
     public static func quoted(_ text: String, limit: Int? = nil) -> String {
         let flattened = TextTidy.collapseWhitespace(scrubbed(text, lineBreak: " "))
         guard let limit else { return flattened }
         return truncated(flattened, to: limit)
     }
 
+    /// Prompt-safe text: escape line breaks, replace other controls with spaces, and optionally replace quotes.
+    public static func promptValue(
+        _ text: String, limit: Int? = nil, replaceQuotes: Bool = false
+    ) -> String {
+        let safe = scrubbed(text, lineBreak: "\\n", replaceQuotes: replaceQuotes)
+        guard let limit else { return safe }
+        return truncated(safe, to: limit)
+    }
+
     /// The spoken text with each line break written as one `\n` and every other line made safe as `quoted` makes it.
     public static func spoken(_ text: String) -> String {
         TextTidy.collapseSpacing(scrubbed(text, lineBreak: "\n"))
+    }
+
+    /// The mark a prompt writes for each line break in the spoken words; nothing a recogniser writes contains it.
+    static let lineMarker = "\u{23CE}"
+
+    /// The spoken text on one line, each line break written as `lineMarker`, so no dictated line begins a prompt line.
+    static func markedLines(_ spoken: String) -> String {
+        spoken.split(separator: "\n", omittingEmptySubsequences: false).joined(separator: " \(lineMarker) ")
+    }
+
+    /// The answer with each `lineMarker` the model copied made the line break it stands for, unless the speaker wrote the mark.
+    static func restoringLineBreaks(in answer: String, from spoken: String) -> String {
+        guard answer.contains(lineMarker), !spoken.contains(lineMarker) else { return answer }
+        let edge: (Character) -> Bool = { $0 == " " || $0 == "\t" }
+        var lines: [String] = []
+        for line in answer.split(separator: "\n", omittingEmptySubsequences: false) {
+            let parts = line.components(separatedBy: lineMarker)
+            for (index, part) in parts.enumerated() {
+                var kept = Substring(part)
+                if index > 0 { kept = kept.drop(while: edge) }
+                if index < parts.count - 1 {
+                    kept = Substring(String(kept.reversed().drop(while: edge).reversed()))
+                }
+                // A mark opening its line stands for the break already there, so it adds no empty line.
+                if index == 0, parts.count > 1, kept.isEmpty { continue }
+                lines.append(String(kept))
+            }
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    /// Context text with safe line feeds preserved and other invisible/control hazards removed.
+    public static func blockValue(_ text: String) -> String {
+        scrubbed(text, lineBreak: "\n", replaceQuotes: false)
     }
 
     /// The text with every double-quote variant made a single quote, so it cannot close the quotation it sits in.
@@ -64,24 +107,31 @@ public enum PromptText {
         "\u{22}", "\u{201C}", "\u{201D}", "\u{201E}", "\u{201F}", "\u{2033}", "\u{2036}", "\u{FF02}",
     ]
 
-    /// Line breaks become `lineBreak`, other controls a space, bidirectional marks nothing, double quotes single.
-    private static func scrubbed(_ text: String, lineBreak: Unicode.Scalar) -> String {
+    /// Line breaks become `lineBreak`, other controls a space, bidirectional marks and zero-width spaces nothing, double quotes single.
+    private static func scrubbed(_ text: String, lineBreak: String, replaceQuotes: Bool = true) -> String {
         var scalars = String.UnicodeScalarView()
         var previous: Unicode.Scalar?
         for scalar in text.unicodeScalars {
             defer { previous = scalar }
-            if scalar.properties.isBidiControl { continue }
+            if isUnsafeFormat(scalar) { continue }
             if isLineBreak(scalar) {
                 // A carriage return and line feed are one break, not two.
                 if scalar == "\n", previous == "\r" { continue }
-                scalars.append(lineBreak)
+                scalars.append(contentsOf: lineBreak.unicodeScalars)
             } else if scalar.properties.generalCategory == .control {
                 scalars.append(" ")
             } else {
-                scalars.append(doubleQuotes.contains(scalar) ? "'" : scalar)
+                scalars.append(replaceQuotes && doubleQuotes.contains(scalar) ? "'" : scalar)
             }
         }
         return String(scalars)
+    }
+
+    /// Keep joiners used by words and emoji; discard other invisible formatting controls.
+    private static func isUnsafeFormat(_ scalar: Unicode.Scalar) -> Bool {
+        scalar.properties.isBidiControl
+            || scalar == "\u{200B}"
+            || (scalar.properties.generalCategory == .format && scalar != "\u{200C}" && scalar != "\u{200D}")
     }
 
     /// Whether the scalar ends a line: line feed, vertical tab, form feed, carriage return, NEL, U+2028 or U+2029.

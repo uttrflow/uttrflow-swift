@@ -92,21 +92,14 @@ private final class ScriptedDevice: InputDevice, Sendable {
     }
 }
 
-/// A pause that holds each reopen attempt until the test lets it go.
+/// A clock that holds each reopen attempt until the test lets it go, one step per attempt.
 private final class Gate: Sendable {
-    private let released: AsyncStream<Void>
-    private let release: AsyncStream<Void>.Continuation
+    static let step: Duration = .milliseconds(1)
+    let clock = ManualClock()
 
-    init() {
-        (released, release) = AsyncStream.makeStream()
-    }
-
-    func pause() async {
-        for await _ in released { return }
-    }
-
-    func letGo() {
-        release.yield()
+    /// Lets the next attempt's wait finish, parking until that attempt is waiting.
+    func letGo() async {
+        await clock.advanceWhenSomethingIsWaiting(by: Self.step)
     }
 }
 
@@ -116,14 +109,17 @@ struct InputDeviceSessionTests {
     /// No real waiting, so the schedule is exercised without the test taking its three seconds.
     private func session(_ device: FlakyDevice, delays: Int = 5) -> (InputDeviceSession, Reports) {
         let schedule = ReopenSchedule(delays: Array(repeating: .zero, count: delays))
-        return (InputDeviceSession(device: device, schedule: schedule, pause: { _ in }), Reports())
+        return (
+            InputDeviceSession(
+                device: device, schedule: schedule, clock: ManualClock(advancesWhenSlept: true)), Reports()
+        )
     }
 
     /// A session whose attempts each wait at the gate until the test lets them go.
     private func gated(_ device: any InputDevice, _ gate: Gate, attempts: Int = 1) -> InputDeviceSession {
         InputDeviceSession(
-            device: device, schedule: ReopenSchedule(delays: Array(repeating: .zero, count: attempts)),
-            pause: { _ in await gate.pause() })
+            device: device, schedule: ReopenSchedule(delays: Array(repeating: Gate.step, count: attempts)),
+            clock: gate.clock)
     }
 
     @Test("opens once and reports nothing when the device is there")
@@ -148,6 +144,18 @@ struct InputDeviceSessionTests {
         }
         #expect(device.log.withLock(\.opens) == 1)
         #expect(session.health == .gone)
+    }
+
+    @Test("reports a hole in the tap's clock only while the device is live")
+    func timelineBreakReportsWhileLive() throws {
+        let (session, reported) = session(FlakyDevice(failing: 0))
+        session.timelineBroke()
+        try session.open { reported.record($0) }
+        session.timelineBroke()
+        session.close()
+        session.timelineBroke()
+        #expect(reported.count == 1)
+        #expect(reported.first == .began)
     }
 
     @Test("reopens a device that comes back after several refusals")
@@ -225,7 +233,8 @@ struct InputDeviceSessionTests {
     func secondChangeWhileOpeningIsNotDiscarded() async throws {
         let device = ScriptedDevice()
         let session = InputDeviceSession(
-            device: device, schedule: ReopenSchedule(delays: [.zero, .zero]), pause: { _ in })
+            device: device, schedule: ReopenSchedule(delays: [.zero, .zero]),
+            clock: ManualClock(advancesWhenSlept: true))
         try session.open { _ in }
 
         device.during(open: 2) {
@@ -254,7 +263,7 @@ struct InputDeviceSessionTests {
         // Coalesced into the retry already under way, rather than starting a second task.
         #expect(session.deviceChanged() == nil)
         // Two refused opens, then the coalesced change costs one more open before publishing live.
-        for _ in 0..<4 { gate.letGo() }
+        for _ in 0..<4 { await gate.letGo() }
         await retry?.value
 
         #expect(session.health == .live)
@@ -288,7 +297,8 @@ struct InputDeviceSessionTests {
     func stopAsTheHoleIsReported() async throws {
         let device = ScriptedDevice()
         let session = InputDeviceSession(
-            device: device, schedule: ReopenSchedule(delays: [.zero]), pause: { _ in })
+            device: device, schedule: ReopenSchedule(delays: [.zero]),
+            clock: ManualClock(advancesWhenSlept: true))
         try session.open { if $0 == .began { session.close() } }
 
         let retry = session.deviceChanged()
@@ -313,7 +323,7 @@ struct InputDeviceSessionTests {
         }
 
         let retry = session.deviceChanged()
-        gate.letGo()
+        await gate.letGo()
         await retry?.value
 
         #expect(session.health == .gone)
@@ -336,7 +346,7 @@ struct InputDeviceSessionTests {
         }
 
         let retry = session.deviceChanged()
-        gate.letGo()
+        await gate.letGo()
         await retry?.value
 
         #expect(session.health == .gone)
@@ -359,7 +369,7 @@ struct InputDeviceSessionTests {
         }
 
         let retry = session.deviceChanged()
-        gate.letGo()
+        await gate.letGo()
         await retry?.value
 
         #expect(session.health == .live)

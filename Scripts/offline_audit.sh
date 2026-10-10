@@ -77,8 +77,7 @@ ALLOWED_NETWORK_MODULE='UttrflowAccount'
 #
 #   the tokenizer      — fetched beside the weights at install time so that loading never
 #                        has to. Check 4 proves loading cannot reach it.
-#   the Apple backend  — not sanctioned. Listed in KNOWN_GAP_FILES below, and reported on
-#                        every run, because it downloads on a path the promise covers.
+#   module-local task observers — count model-hub and crash-report requests.
 #   onboarding         — first-run sign-in, and the reachability banner that says why it
 #                        failed. Signing in is the one thing the product says needs a
 #                        connection, and it happens before any dictation.
@@ -89,7 +88,9 @@ ALLOWED_NETWORK_MODULE='UttrflowAccount'
 DOWNLOAD_ISLAND='Sources/UttrflowSpeech/TokenizerDownload.swift'
 ALLOWED_NETWORK_FILES=(
     "$DOWNLOAD_ISLAND"
-    'Sources/UttrflowSpeech/AppleSpeechBackend.swift'
+    'Sources/UttrflowLocalModel/AnonymousHub.swift'
+    'Sources/UttrflowDiagnostics/CrashReporter.swift'
+    'Sources/Uttrflow/Updates/UpdateController.swift'
     'Sources/Uttrflow/Onboarding/NetworkReachability+System.swift'
     'Sources/Uttrflow/Onboarding/OnboardingAccountLayer.swift'
     'Sources/Uttrflow/Onboarding/OnboardingWindowController.swift'
@@ -110,23 +111,13 @@ SNAPSHOT_FILE='Sources/UttrflowLocalModel/CachedSnapshot.swift'
 HUB_CLIENT_FILES=(
     "$SNAPSHOT_FILE"
     'Sources/UttrflowLocalModel/MLXCandidateScorer.swift'
-    'Sources/UttrflowLocalModel/MLXCleanupModel.swift'
     'Sources/UttrflowLocalModel/AnonymousHub.swift'
 )
 
 # Allowed above only so that the rest of the tree can be checked at all, and named on
 # every run because each is a live defect rather than a design. Taking a file out of here
 # is how its fix gets recorded; deleting the note is not.
-#
-#   AppleSpeechBackend.load() installs the system locale asset, and transcribe() calls
-#   load(), so choosing the built-in recogniser and speaking downloads on a Mac that has
-#   not installed that locale. WhisperKitBackend has `download: false` for exactly this;
-#   the Apple asset API offers no equivalent, so the fix is a product decision about what
-#   the user is told, not a flag. Docs/offline.md § What this does not prove has the
-#   detail; this list is what keeps it from being forgotten.
-KNOWN_GAP_FILES=(
-    'Sources/UttrflowSpeech/AppleSpeechBackend.swift'
-)
+KNOWN_GAP_FILES=()
 
 # Every way to reach the network that leaves a name in Swift source: Foundation's stack,
 # Network.framework in both its Swift and its C spelling, CFNetwork, the BSD calls those
@@ -207,14 +198,19 @@ fi
 # of these is local is decided by where its URL came from, which grep cannot follow — so
 # the question this check asks is not "is it local" but "has a new one appeared". Each
 # call below was read: the app's take a path under Application Support, inside the app
-# bundle or an installed model, or a file the user picked in an open panel, and the rest
-# belong to the evaluation harness and the bakeoff, which ship in nothing.
+# bundle or an installed model, or a file the user picked in an open panel. The evaluation
+# report also reads its explicitly file-backed history option; the remaining readers belong
+# to the evaluation harness and bakeoff, which ship in nothing.
 URL_READ_PATTERN='\b(Data|String|NSData|NSString|NSArray|NSDictionary|NSImage|XMLDocument)\(contentsOf:'
 URL_READERS=(
     'Sources/Uttrflow/AppDelegate.swift'
     'Sources/UttrflowAudio/RecordingStore.swift'
-    'Sources/UttrflowClipboard/BIP39RecoveryPhrase.swift'
+    'Sources/UttrflowClipboard/ClipboardPreferences.swift'
     'Sources/UttrflowClipboard/ClipboardStore.swift'
+    'Sources/UttrflowClipboard/LegacyPictureMigration.swift'
+    'Sources/UttrflowCore/Secrets/BIP39RecoveryPhrase.swift'
+    'Sources/UttrflowCore/Language/PhonemeLexicon.swift'
+    'Sources/UttrflowCore/Support/DataTable.swift'
     'Sources/UttrflowCore/Support/EncryptedStore.swift'
     'Sources/UttrflowCore/Support/StoredList.swift'
     'Sources/UttrflowDictionary/PersonalDictionaryStore.swift'
@@ -226,11 +222,17 @@ URL_READERS=(
     'Sources/UttrflowTestSupport/GoldenFile.swift'
     'Sources/UttrflowUX/AliasUnicodeRules.swift'
     'Sources/UttrflowEval/AccuracyBaseline.swift'
+    'Sources/UttrflowEval/AccuracyReport.swift'
     'Sources/UttrflowEval/CorpusCache.swift'
     'Sources/UttrflowEval/CorpusUploadOutbox.swift'
+    'Sources/UttrflowEval/DisfluentSpeech.swift'
     'Sources/UttrflowEval/JSONRecordStore.swift'
+    'Sources/UttrflowEval/SeamRun.swift'
     'Sources/UttrflowEval/SpokenPassages.swift'
     'Sources/uttrflow-bakeoff/Bakeoff.swift'
+    'Sources/uttrflow-bakeoff/FixtureReport.swift'
+    'Sources/uttrflow-dev/Seams.swift'
+    'Sources/uttrflow-eval/SynthesiseCorpus.swift'
 )
 
 reader_filter=(-v)
@@ -657,6 +659,69 @@ else
         fi
     fi
 fi
+
+# ---------------------------------------------------------------------------
+# 8. Every shipped transport is bound to request-level counting, and every purpose has a call site.
+# ---------------------------------------------------------------------------
+#
+# The Privacy pane shows what left this Mac from NetworkActivityLedger; a transport without
+# an explicit request-counting binding makes that count a lie, and a dead purpose is a dead row.
+printf '\nNetwork-activity ledger\n'
+ledger_failures=$failures
+TRANSPORT_FILES=(
+    'Sources/UttrflowAccount/BackendTransport+URLSession.swift'
+    "$DOWNLOAD_ISLAND"
+    "$DOWNLOAD_ISLAND"
+    'Sources/UttrflowLocalModel/AnonymousHub.swift'
+    'Sources/UttrflowLocalModel/AnonymousHub.swift'
+    'Sources/UttrflowDiagnostics/CrashReporter.swift'
+    'Sources/UttrflowDiagnostics/CrashReporter.swift'
+    'Sources/UttrflowDiagnostics/CrashReporter.swift'
+    'Sources/Uttrflow/Updates/UpdateController.swift'
+    'Sources/Uttrflow/Updates/UpdateController.swift'
+    'Sources/Uttrflow/Updates/UpdateController.swift'
+    'Sources/Uttrflow/Updates/UpdateController.swift'
+    'Sources/Uttrflow/Updates/UpdateRequestActivity.swift'
+    'Sources/Uttrflow/Updates/UpdateRequestActivity.swift'
+    'Sources/Uttrflow/Updates/UpdateRequestActivity.swift'
+)
+TRANSPORT_MARKERS=(
+    'ledger.record(request.purpose)'
+    'private func recordSpeechAssetRequest()'
+    'private func countedTokenizerData('
+    'func urlSession(_ session: URLSession, didCreateTask task: URLSessionTask)'
+    'willPerformHTTPRedirection'
+    'options.urlSession = CrashReportSession.make()'
+    'private func countCreatedCrashRequest()'
+    'private func countRedirectedCrashRequest()'
+    'requestActivity.feedLoaded()'
+    'requestActivity.feedFailed()'
+    'requestActivity.archiveWillDownload()'
+    'requestActivity.checkDidFinish()'
+    'let feedWasCounted = Mutex(false)'
+    'guard !wasCounted else { return false }'
+    'if shouldRecord { ledger.record(.updateCheck) }'
+)
+for index in "${!TRANSPORT_FILES[@]}"; do
+    file=${TRANSPORT_FILES[$index]}
+    marker=${TRANSPORT_MARKERS[$index]}
+    if [[ ! -f "$file" ]]; then
+        fail "a counted network transport no longer exists: $file" \
+            "Update TRANSPORT_FILES with the transport that replaced it."
+    elif ! grep -Fq "$marker" "$file"; then
+        fail "a network transport is no longer bound to request counting: $file ($marker)" \
+            "Restore the request-level counter at this transport or update the marker with its replacement."
+    fi
+done
+PURPOSE_FILE='Sources/UttrflowCore/Support/NetworkActivity.swift'
+purposes=$(sed -n '/^public enum NetworkPurpose/,/^}/p' "$PURPOSE_FILE" | sed -n 's/^ *case \([a-zA-Z]*\)$/\1/p')
+for purpose in $purposes; do
+    if ! grep -rqE "(record\(|purpose: )\.$purpose\b" Sources --include='*.swift'; then
+        fail "the purpose .$purpose is recorded nowhere" \
+            "A purpose with no call site is a row that always says zero; remove it or record it."
+    fi
+done
+[[ "$failures" -eq "$ledger_failures" ]] && pass "every network transport has its request counter, and every purpose is recorded"
 
 # ---------------------------------------------------------------------------
 printf '\n'

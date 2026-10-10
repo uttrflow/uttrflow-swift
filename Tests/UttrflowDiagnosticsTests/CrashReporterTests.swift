@@ -4,6 +4,7 @@ import Foundation
 import Sentry
 import Synchronization
 import Testing
+import UttrflowCore
 
 @testable import UttrflowDiagnostics
 
@@ -24,7 +25,7 @@ private final class FakeSDK: CrashReportingSDK {
         let dsn: String?
         let releaseName: String?
         let sendDefaultPii, debug, autoBreadcrumbs, networkBreadcrumbs, failedRequests, autoTracing: Bool
-        let crashHandler, appHangs, hasBeforeSend, dropsBreadcrumbs: Bool
+        let crashHandler, appHangs, hasBeforeSend, hasURLSession, dropsBreadcrumbs: Bool
         let tracesSampleRate: Double?
         let maxBreadcrumbs: UInt
     }
@@ -40,6 +41,7 @@ private final class FakeSDK: CrashReportingSDK {
             failedRequests: options.enableCaptureFailedRequests,
             autoTracing: options.enableAutoPerformanceTracing, crashHandler: options.enableCrashHandler,
             appHangs: options.enableAppHangTracking, hasBeforeSend: options.beforeSend != nil,
+            hasURLSession: options.urlSession != nil,
             dropsBreadcrumbs: options.beforeBreadcrumb?(Breadcrumb()) == nil,
             tracesSampleRate: options.tracesSampleRate?.doubleValue, maxBreadcrumbs: options.maxBreadcrumbs)
         lastOptions.withLock { $0 = snapshot }
@@ -98,6 +100,7 @@ struct CrashReporterSwitchTests {
         #expect(!options.failedRequests && !options.autoTracing)
         #expect(options.maxBreadcrumbs == 0)
         #expect(options.crashHandler && options.appHangs)
+        #expect(options.hasURLSession)
         #expect(options.hasBeforeSend && options.dropsBreadcrumbs)
     }
 
@@ -189,7 +192,8 @@ struct CrashReporterScrubTests {
         #expect(frame.contextLine == nil)
         #expect(scrubbed.debugMeta?.first?.codeFile == "Uttrflow")
         #expect(scrubbed.debugMeta?.first?.debugID == "A1B2C3D4-0000-4000-8000-00000000ABCD")
-        #expect(scrubbed.exceptions?.first?.value == "EXC_BAD_ACCESS at x.db and ~ and Notes")
+        #expect(scrubbed.exceptions?.first?.type == "EXC_BAD_ACCESS")
+        #expect(scrubbed.exceptions?.first?.mechanism?.type == "mach")
         #expect(scrubbed.context?["device"]?["model"] as? String == "Mac14,2")
         #expect(scrubbed.context?["os"]?["version"] as? String == "26.0.1")
         #expect(scrubbed.context?["app"]?["app_version"] as? String == "26.0926.0")
@@ -201,6 +205,33 @@ struct CrashReporterScrubTests {
         let scrubbed = try #require(CrashReporter.scrub(event(mechanism: "nsexception")))
         #expect(scrubbed.exceptions?.first?.value == nil)
         #expect(scrubbed.exceptions?.first?.mechanism?.desc == nil)
+    }
+
+    /// The text Swift writes for a duplicate-key trap, holding an invented dictionary word.
+    private static let trapMessage = "Fatal error: Duplicate values for key: 'zorblatquin'"
+
+    @Test(
+        "a Swift trap's message, which the SDK puts in the value, never leaves",
+        arguments: ["mach", "signal"])
+    func trapMessageGoes(mechanism: String) throws {
+        let event = event(mechanism: mechanism)
+        event.exceptions?.first?.value = Self.trapMessage
+        #expect(!(try sent(event)).contains("zorblatquin"))
+    }
+
+    @Test("a Swift trap's message attached to the mechanism's data never leaves")
+    func trapMessageInMechanismDataGoes() throws {
+        let event = event(mechanism: "nsexception")
+        event.exceptions?.first?.mechanism?.data = ["crash_info_messages": [Self.trapMessage]]
+        #expect(!(try sent(event)).contains("zorblatquin"))
+    }
+
+    @Test("a hang keeps the value the SDK wrote for it")
+    func hangValueStays() throws {
+        let event = event(mechanism: "AppHang")
+        event.exceptions?.first?.value = "App hanging for at least 2000 ms."
+        let scrubbed = try #require(CrashReporter.scrub(event))
+        #expect(scrubbed.exceptions?.first?.value == "App hanging for at least 2000 ms.")
     }
 
     @Test("an event that is not a crash or a hang is not sent")
@@ -231,5 +262,53 @@ struct CrashReporterScrubTests {
         #expect(CrashReporter.strippingPaths("(~/Secret/b.db)") == "(b.db)")
         #expect(CrashReporter.strippingPaths("at ~/ now") == "at ~ now")
         #expect(CrashReporter.strippingPaths("no paths here") == "no paths here")
+    }
+}
+
+@Suite("The quality-layers tag on a crash report")
+struct CrashReporterLayersTagTests {
+    /// A crash event carrying `tags`.
+    private func crash(tags: [String: String]) -> Event {
+        let event = Event(level: .fatal)
+        event.tags = tags
+        event.exceptions = [Exception(value: "x", type: "EXC_BAD_ACCESS")]
+        return event
+    }
+
+    @Test("the initial scope carries the enabled layers in declaration order")
+    func initialScopeCarriesLayers() {
+        let options = Options()
+        let layers = QualityLayers(enabled: [.formatting, .scoring])
+        CrashReporter.configure(
+            options, dsn: "https://key@o0.ingest.example.invalid/1", release: nil, layers: layers)
+        let scope = options.initialScope(Scope())
+        #expect(scope.serialize()["tags"] as? [String: String] == ["layers": "scoring,formatting"])
+    }
+
+    @Test("a fixture event keeps the layers tag and nothing else in tags")
+    func keepsOnlyLayers() throws {
+        let event = crash(tags: ["layers": "scoring,override-gate", "host": "someones-macbook.local"])
+        let scrubbed = try #require(CrashReporter.scrub(event))
+        #expect(scrubbed.tags == ["layers": "scoring,override-gate"])
+    }
+
+    @Test("no layers is written as none and kept")
+    func noneIsKept() throws {
+        #expect(CrashReporter.layersTag(QualityLayers(enabled: [])) == "none")
+        let scrubbed = try #require(CrashReporter.scrub(crash(tags: ["layers": "none"])))
+        #expect(scrubbed.tags == ["layers": "none"])
+    }
+
+    @Test(
+        "a value with anything outside the layer identifiers is dropped",
+        arguments: ["scoring,someone", "scoring,,formatting", "", "/Users/someone", "Scoring", "scoring "])
+    func foreignValueDropped(value: String) throws {
+        let scrubbed = try #require(CrashReporter.scrub(crash(tags: ["layers": value])))
+        #expect(scrubbed.tags == nil)
+    }
+
+    @Test("a kept value is rebuilt in declaration order without repeats")
+    func rebuilt() {
+        #expect(CrashReporter.keptLayersTag("formatting,scoring,scoring") == "scoring,formatting")
     }
 }

@@ -31,6 +31,12 @@ private enum Signal {
             return level * envelope * Float(sin(2 * .pi * 180 * time))
         }
     }
+
+    static func scaledToRMS(_ samples: [Float], decibels: Double) -> [Float] {
+        let rms = (samples.reduce(0) { $0 + $1 * $1 } / Float(samples.count)).squareRoot()
+        let target = Float(pow(10, decibels / 20))
+        return samples.map { $0 * target / rms }
+    }
 }
 
 @Suite("VoiceActivity")
@@ -51,6 +57,47 @@ struct VoiceActivityTests {
         let hiss = Signal.noise(20, level: 0.04)
         #expect(hiss.contains { Swift.abs($0) > VoiceActivity.absoluteFloor })
         #expect(VoiceActivity.speechRange(in: hiss, sampleRate: Signal.rate) == nil)
+    }
+
+    @Test("keeps clean speech at -52 dBFS over digital silence")
+    func keepsQuietSpeechOverSilence() {
+        let quietSpeech = Signal.scaledToRMS(Signal.speech(3), decibels: -52)
+        let audio = Signal.silence(1) + quietSpeech + Signal.silence(1)
+        #expect(VoiceActivity.speechRange(in: audio, sampleRate: Signal.rate) != nil)
+    }
+
+    @Test("keeps clean speech at -50 and -55 dBFS over -65 dBFS room noise")
+    func keepsQuietSpeechOverRoomNoise() {
+        for speechLevel in [-50.0, -55.0] {
+            let roomNoise = Signal.scaledToRMS(Signal.noise(5, level: 1), decibels: -65)
+            let quietSpeech = Signal.scaledToRMS(Signal.speech(3), decibels: speechLevel)
+            var audio = roomNoise
+            for (offset, sample) in quietSpeech.enumerated() {
+                audio[Signal.rate + offset] += sample
+            }
+
+            #expect(VoiceActivity.speechRange(in: audio, sampleRate: Signal.rate) != nil)
+        }
+    }
+
+    @Test("keeps clean speech at -52 dBFS over -70 dBFS noise")
+    func keepsQuietSpeechOverQuietNoise() {
+        let noise = Signal.scaledToRMS(Signal.noise(5, level: 1), decibels: -70)
+        let quietSpeech = Signal.scaledToRMS(Signal.speech(3), decibels: -52)
+        var audio = noise
+        for (offset, sample) in quietSpeech.enumerated() {
+            audio[Signal.rate + offset] += sample
+        }
+        #expect(VoiceActivity.speechRange(in: audio, sampleRate: Signal.rate) != nil)
+    }
+
+    @Test("still rejects digital silence and noise at -60, -45, and -35 dBFS")
+    func rejectsSilenceAndNoiseAtAcceptedFloor() {
+        #expect(VoiceActivity.speechRange(in: Signal.silence(20), sampleRate: Signal.rate) == nil)
+        for level in [-60.0, -45.0, -35.0] {
+            let noise = Signal.scaledToRMS(Signal.noise(20, level: 1), decibels: level)
+            #expect(VoiceActivity.speechRange(in: noise, sampleRate: Signal.rate) == nil)
+        }
     }
 
     @Test("keeps evenly-spoken speech, which is as stationary as noise is")
@@ -172,5 +219,14 @@ struct IsolatedSpeechTests {
     @Test("answers nothing for a recording with no speech in it")
     func answersNothingForSilence() {
         #expect(AudioSamples.canonical(Signal.silence(20)).speechOnly() == nil)
+    }
+
+    @Test("a DC offset is not loudness, so quiet speech on an offset microphone is still found")
+    func dcOffsetIsNotLoudness() throws {
+        let room = Signal.noise(2, level: 0.0006)
+        let quiet = room + Signal.speech(2, level: 0.01) + room
+        let offset = quiet.map { $0 + 0.01 }
+        let range = try #require(VoiceActivity.speechRange(in: offset, sampleRate: Signal.rate))
+        #expect(range.lowerBound > Signal.rate && range.upperBound < 5 * Signal.rate)
     }
 }

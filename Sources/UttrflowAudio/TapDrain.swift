@@ -7,15 +7,26 @@ public final class TapDrain: Sendable {
     public static let cap: Duration = .milliseconds(250)
 
     private let step: Duration
-    private let pause: @Sendable (Duration) async throws -> Void
+    private let clock: any Clock<Duration>
     private let blocks = Mutex(0)
+    private let lastBlock = Mutex(0)
+
+    /// What one key-up wait took, so a drain can be timed per device instead of assumed from the window.
+    public struct Outcome: Sendable, Equatable {
+        /// Time slept before the wait returned, never more than the window.
+        public let waited: Duration
+        /// Whether a block arrived inside the window, rather than the window running out.
+        public let arrived: Bool
+        /// Samples in the most recent block delivered, after conversion, so a device that ignores the tap size shows.
+        public let lastBlockSamples: Int
+    }
 
     public init(
         step: Duration = .milliseconds(5),
-        pause: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
+        clock: any Clock<Duration> = ContinuousClock()
     ) {
         self.step = step
-        self.pause = pause
+        self.clock = clock
     }
 
     /// One tap period, sized from the buffer the tap was installed with and the rate the device runs at.
@@ -25,7 +36,8 @@ public final class TapDrain: Sendable {
     }
 
     /// Counted on the capture thread, because a delivered block is the only sign the tap handed anything over.
-    public func blockDelivered() {
+    public func blockDelivered(samples: Int = 0) {
+        lastBlock.withLock { $0 = samples }
         blocks.withLock { $0 += 1 }
     }
 
@@ -33,15 +45,17 @@ public final class TapDrain: Sendable {
     public var deliveredCount: Int { blocks.withLock { $0 } }
 
     /// Returns as soon as one more block arrives, and at the latest when the window closes.
-    public func wait(_ window: Duration) async {
-        guard window > .zero else { return }
+    @discardableResult
+    public func wait(_ window: Duration) async -> Outcome {
         let before = blocks.withLock { $0 }
         var waited = Duration.zero
-        while waited < window {
+        var arrived = false
+        while waited < window, !arrived {
             let slice = min(step, window - waited)
-            guard (try? await pause(slice)) != nil else { return }
+            guard (try? await clock.sleep(for: slice)) != nil else { break }
             waited += slice
-            if blocks.withLock({ $0 }) != before { return }
+            arrived = blocks.withLock { $0 } != before
         }
+        return Outcome(waited: waited, arrived: arrived, lastBlockSamples: lastBlock.withLock { $0 })
     }
 }

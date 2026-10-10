@@ -218,7 +218,10 @@ struct QuickPanelView: View {
                 HStack(spacing: 8) {
                     QuickPanelSegments(filters: presentation.filters) { relayKey(.filter($0)) }
                     ForEach(presentation.categories) { chip in
-                        pill(chip.title, isActive: chip.isActive, shortcut: chip.shortcut) {
+                        pill(
+                            chip.title, category: chip.category,
+                            isActive: chip.isActive, shortcut: chip.shortcut
+                        ) {
                             // `chosen`, not `shortcut`: a chip past the ninth has no number.
                             relayKey(.category(number: chip.chosen))
                         }
@@ -227,7 +230,9 @@ struct QuickPanelView: View {
                         .contextMenu {
                             if let category = chip.category {
                                 Button("Rename…") { onIntent(.renameCategory(category)) }
+                                    .keyboardShortcut("r", modifiers: [.command, .shift])
                                 Button("Delete…") { onIntent(.deleteCategory(category)) }
+                                    .keyboardShortcut(.delete, modifiers: [.command, .shift])
                             }
                         }
                     }
@@ -254,12 +259,17 @@ struct QuickPanelView: View {
 
     /// One collection chip, tinted when it is the one on.
     private func pill(
-        _ title: String, isActive: Bool, shortcut: Int?, action: @escaping () -> Void
+        _ title: String, category: String?, isActive: Bool, shortcut: Int?,
+        action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             HStack(spacing: 5) {
                 Text(title)
                     .font(.system(size: 11.5, weight: isActive ? .semibold : .medium))
+                    // One line at most 160 points, so a long or multi-line name cannot stretch the row.
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: 160)
                 if let shortcut {
                     Text("⌘\(shortcut)")
                         .font(.system(size: 10, weight: .medium))
@@ -280,9 +290,24 @@ struct QuickPanelView: View {
             .fixedSize()
         }
         .buttonStyle(.plain)
+        .help(title)
         .accessibilityLabel(title)
         .accessibilityAddTraits(isActive ? .isSelected : [])
         .accessibilityHint(shortcut.map { "Shortcut command \($0)" } ?? "")
+        .onKeyPress(phases: .down) { press in
+            guard let category,
+                press.characters.lowercased() == "r",
+                press.modifiers.contains(.command), press.modifiers.contains(.shift)
+            else { return .ignored }
+            onIntent(.renameCategory(category))
+            return .handled
+        }
+        .accessibilityActions {
+            if let category {
+                Button("Rename collection") { onIntent(.renameCategory(category)) }
+                Button("Delete collection") { onIntent(.deleteCategory(category)) }
+            }
+        }
     }
 
     // MARK: - List
@@ -296,7 +321,8 @@ struct QuickPanelView: View {
                         if let title = section.title { groupHeading(title) }
                         ForEach(section.rows) { row in
                             // Keyed by section as well as clip, or SwiftUI keeps the old rendering.
-                            rowView(row).id(section.key(for: row))
+                            rowView(row, isSelected: row.id == presentation.selectedRow?.id)
+                                .id(section.key(for: row))
                         }
                         if let text = section.moreLine { moreLine(text) }
                     }
@@ -305,7 +331,14 @@ struct QuickPanelView: View {
                 .padding(.vertical, 6)
             }
             .scrollIndicators(.never)
-            .overlay { if let empty = presentation.emptyState { emptyView(empty) } }
+            .overlay {
+                if let empty = presentation.emptyState {
+                    PanelEmptyStateView(
+                        state: empty, showsClearSearch: !presentation.query.isEmpty,
+                        emptyAction: presentation.emptyAction,
+                        onClearSearch: { relayKey(.clearSearch) }, onIntent: onIntent)
+                }
+            }
             .frame(maxHeight: .infinity)
             // Keeps the selection on screen; `anchor: nil` moves the list by the least it can.
             .onChange(of: presentation.selectedRow?.id) { _, _ in
@@ -327,48 +360,21 @@ struct QuickPanelView: View {
 
     /// The selected row under the key it is drawn with, so the list can scroll to it.
     private var selectedKey: String? {
-        for section in sections {
-            if let row = section.rows.first(where: \.isSelected) { return section.key(for: row) }
-        }
-        return nil
+        guard let row = presentation.selectedRow else { return nil }
+        let sectionID = row.matched.map(String.init(describing:)) ?? "all"
+        return "\(sectionID)-\(row.id)"
     }
 
     /// The list as drawn: one unnamed run while browsing, one run per heading while searching.
     private var sections: [QuickPanelSection] {
-        guard !presentation.groups.isEmpty else {
-            return [QuickPanelSection(id: "all", title: nil, rows: presentation.rows, moreLine: nil)]
+        guard !presentation.listGroups.isEmpty else {
+            return [QuickPanelSection(id: "all", title: nil, rows: presentation.listRows, moreLine: nil)]
         }
-        return presentation.groups.map {
+        return presentation.listGroups.map {
             QuickPanelSection(
                 id: String(describing: $0.field), title: $0.title, rows: $0.rows,
                 moreLine: $0.moreLine)
         }
-    }
-
-    private func emptyView(_ state: MainEmptyState) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: state.symbolName)
-                .font(.system(size: 22, weight: .light))
-                .foregroundStyle(Color.panelLabelDim)
-                .accessibilityHidden(true)
-            Text(state.title)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Color.panelLabelSoft)
-            Text(state.message)
-                .font(.system(size: 11.5))
-                .foregroundStyle(Color.panelLabelDim)
-                .multilineTextAlignment(.center)
-            // Outside the combined accessibility element, so a screen reader reaches it as a button.
-            if let action = presentation.emptyAction {
-                Button(action.title) { onIntent(action.intent) }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 11.5, weight: .semibold))
-                    .foregroundStyle(Color.panelAccentBright)
-                    .padding(.top, 2)
-                    .accessibilityHidden(false)
-            }
-        }
-        .padding(.horizontal, 40)
     }
 
     // MARK: - Row
@@ -430,9 +436,9 @@ struct QuickPanelView: View {
     }
 
     /// The row view with this panel's callbacks; only its value inputs decide whether it redraws.
-    private func rowView(_ row: PanelRow) -> some View {
+    private func rowView(_ row: PanelRow, isSelected: Bool) -> some View {
         QuickPanelRow(
-            row: row, hasSelection: presentation.selectedRow != nil,
+            row: row, isSelected: isSelected, hasSelection: presentation.selectedRow != nil,
             isMenuOpen: rowMenu.rowID == row.id, hint: presentation.rowHint, openCount: openCount,
             onKey: { relayKey($0) }, onAction: { perform($0) }, onMenu: { rowMenu.open($0) }
         )
@@ -540,13 +546,18 @@ struct QuickPanelView: View {
 
     /// The line that teaches the three keystrokes, in the presenter's words.
     private var hint: some View {
-        Text(presentation.hint)
-            .font(.system(size: 10))
-            .foregroundStyle(Color.panelLabelDim)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 14)
-            .frame(height: 28)
-            .overlay(alignment: .top) { hairline }
+        HStack(spacing: 8) {
+            Text(presentation.hint)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if let shortcuts = presentation.shortcutsHint {
+                Text(shortcuts).fixedSize()
+            }
+        }
+        .font(.system(size: 10))
+        .foregroundStyle(Color.panelLabelDim)
+        .padding(.horizontal, 14)
+        .frame(height: 28)
+        .overlay(alignment: .top) { hairline }
     }
 
     /// The bottom bar; what each tab means is the presenter's, and every button does something.
@@ -661,10 +672,13 @@ struct QuickPanelView: View {
 
     /// Bound to the presentation, not `@State`, so the field cannot disagree with its conflict note.
     private func sheetField(_ sheet: PanelSheetPresentation) -> some View {
+        // Edit grows with a clip's lines, and ⏎ still saves; ⌥⏎ starts a new line, as in any text field.
         TextField(
             sheet.placeholder,
-            text: Binding(get: { sheet.draft }, set: { relayKey(.draft($0)) })
+            text: Binding(get: { sheet.draft }, set: { relayKey(.draft($0)) }),
+            axis: sheet.kind == .editing ? .vertical : .horizontal
         )
+        .lineLimit(sheet.kind == .editing ? 8 : 1)
         .textFieldStyle(.plain)
         .font(.system(size: 13))
         .foregroundStyle(Color.panelLabel)
@@ -791,9 +805,7 @@ struct QuickPanelView: View {
     }
 
     /// Whether the field editor holds marked text, which is the one thing a key handler cannot read from the key.
-    @MainActor private var isComposing: Bool {
-        (NSApp.keyWindow?.firstResponder as? NSTextView)?.hasMarkedText() ?? false
-    }
+    @MainActor private var isComposing: Bool { QuickPanel.isComposing(in: NSApp.keyWindow) }
 
     /// One handler for the chords and the long moves; two `onKeyPress(phases:)` on one view do not compose.
     private func keyPress(_ press: KeyPress) -> KeyPress.Result {
@@ -835,11 +847,20 @@ struct QuickPanelView: View {
 
     /// Sends a key to the controller, letting esc close an open menu before it closes the panel.
     private func relayKey(_ key: PanelKey) {
-        switch PanelKeyHandling.relayDecision(for: key, rowMenuOpen: rowMenu.rowID != nil) {
+        switch PanelKeyHandling.relayDecision(
+            for: key, rowMenuOpen: rowMenu.rowID != nil, query: query,
+            hasSheet: presentation.sheet != nil)
+        {
         case .closeMenu:
             rowMenu.handle(.windowResignedKey)
         case .key(let key), .keyAfterClosingMenu(let key):
             rowMenu.handle(.windowResignedKey)
+            // The field follows a cleared search without relaying it a second time.
+            if key == .clearSearch {
+                isSyncingQuery = true
+                query = ""
+                isSyncingQuery = false
+            }
             onKey(key)
         case .intent, .ignore:
             break
@@ -870,6 +891,7 @@ struct QuickPanelView: View {
 /// Claims right-clicks and ctrl-clicks in `hitTest` and lets every other click through to the row.
 private struct QuickPanelRow: View, @MainActor Equatable {
     let row: PanelRow
+    let isSelected: Bool
     let hasSelection: Bool
     let isMenuOpen: Bool
     let hint: String
@@ -884,7 +906,7 @@ private struct QuickPanelRow: View, @MainActor Equatable {
 
     /// Compares what is drawn; the callbacks are the panel's own and stable across updates.
     static func == (lhs: QuickPanelRow, rhs: QuickPanelRow) -> Bool {
-        lhs.row == rhs.row && lhs.hasSelection == rhs.hasSelection
+        lhs.row == rhs.row && lhs.isSelected == rhs.isSelected && lhs.hasSelection == rhs.hasSelection
             && lhs.isMenuOpen == rhs.isMenuOpen && lhs.hint == rhs.hint
             && lhs.openCount == rhs.openCount
     }
@@ -896,16 +918,18 @@ private struct QuickPanelRow: View, @MainActor Equatable {
 
     var body: some View {
         let look = QuickPanelRowAppearance.of(
-            row, hovered: isHovered ? row.id : nil, hasSelection: hasSelection)
+            row, isSelected: isSelected, hovered: isHovered ? row.id : nil,
+            hasSelection: hasSelection)
         return Button {
             // Reads ⌘ at the click rather than tracking it as state; a modifier is not a mode.
             choose(row, plain: NSEvent.modifierFlags.contains(.command))
         } label: {
             HStack(spacing: 9) {
                 mark(row)
-                if let file = row.imageFile { thumbnail(file, selected: row.isSelected) }
+                if let file = row.imageFile { thumbnail(file, selected: isSelected) }
                 if let alias = row.alias { aliasChip(alias) }
                 if let language = row.language { languageChip(language) }
+                if row.containsDisplayHazards { hiddenCharactersBadge }
                 if let measurements = row.measurements {
                     Text(measurements)
                         .font(.system(size: 11.5))
@@ -985,7 +1009,9 @@ private struct QuickPanelRow: View, @MainActor Equatable {
     @ViewBuilder private func mark(_ row: PanelRow) -> some View {
         let glyph = Image(systemName: row.symbolName)
         let colour = tint(for: row.kind)
-        if QuickPanelSpeech.hasTile(row.kind) {
+        if let swatch = row.swatch {
+            QuickPanelColourSwatch(colour: swatch)
+        } else if QuickPanelSpeech.hasTile(row.kind) {
             glyph
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(colour)
@@ -1020,6 +1046,21 @@ private struct QuickPanelRow: View, @MainActor Equatable {
             .background(Color.panelCode.opacity(0.12), in: .rect(cornerRadius: 5))
             .fixedSize()
             .accessibilityLabel("\(text) code")
+    }
+
+    private var hiddenCharactersBadge: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 8, weight: .semibold))
+            Text("Hidden chars")
+                .font(.system(size: 9, weight: .semibold))
+        }
+        .foregroundStyle(Color.panelDestructive)
+        .padding(.horizontal, 5)
+        .frame(height: 18)
+        .background(Color.panelDestructive.opacity(0.12), in: .rect(cornerRadius: 5))
+        .fixedSize()
+        .accessibilityHidden(true)
     }
 
     private func aliasChip(_ text: String) -> some View {
@@ -1060,7 +1101,7 @@ private struct QuickPanelRow: View, @MainActor Equatable {
 
     private func colourOfDots(for row: PanelRow, showsActions: Bool) -> Color {
         if isMenuOpen { return .panelAccentBright }
-        if showsActions || row.isSelected { return .panelLabelSoft }
+        if showsActions || isSelected { return .panelLabelSoft }
         return .panelGhost
     }
 

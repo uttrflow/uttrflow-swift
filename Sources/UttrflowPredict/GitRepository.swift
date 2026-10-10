@@ -230,16 +230,49 @@ struct GitRepository: Sendable {
 
     /// Whether a name is a commit ref or `HEAD`, with optional parent and ancestor selectors.
     func hasCommit(named name: String) -> Bool {
-        let base = String(name.prefix { $0 != "~" && $0 != "^" })
-        guard
-            base.count == name.count
-                || name.dropFirst(base.count).allSatisfy({ "~^".contains($0) || $0.isNumber })
-        else { return false }
+        if name.hasPrefix("@{-"), Self.validCommitSelectors(name) { return true }
+        if name.hasPrefix(":/"), name.count > 2 { return true }
+        let base = String(name.prefix { $0 != "~" && $0 != "^" && !($0 == "@" && name.contains("@{")) })
+        guard Self.validCommitSelectors(String(name.dropFirst(base.count))) else { return false }
         if base == "HEAD" || base == "@" { return true }
         guard Self.isRefName(base) else { return false }
         if ["refs/heads/", "refs/tags/", "refs/remotes/", "refs/"].contains(where: { has($0 + base) }) {
             return true
         }
         return false
+    }
+
+    /// Whether revision operators have Git's numeric and braced selector shapes.
+    private static func validCommitSelectors(_ suffix: String) -> Bool {
+        var rest = suffix[...]
+        while !rest.isEmpty {
+            if rest.first == "~" {
+                rest = rest.dropFirst()
+                rest = rest.dropFirst(rest.prefix(while: \.isNumber).count)
+            } else if rest.first == "^" {
+                rest = rest.dropFirst()
+                if rest.first == "{" {
+                    guard let close = rest.firstIndex(of: "}") else { return false }
+                    let type = rest[rest.index(after: rest.startIndex)..<close]
+                    guard type.isEmpty || ["commit", "tree", "blob", "tag"].contains(String(type)) else {
+                        return false
+                    }
+                    rest = rest[rest.index(after: close)...]
+                } else {
+                    rest = rest.dropFirst(rest.prefix(while: \.isNumber).count)
+                }
+            } else if rest.hasPrefix("@{") {
+                rest = rest.dropFirst(2)
+                guard let close = rest.firstIndex(of: "}"), close != rest.startIndex else { return false }
+                let selector = rest[..<close]
+                guard selector.allSatisfy({ $0.isNumber || $0 == "-" }) else { return false }
+                rest = rest[rest.index(after: close)...]
+            } else if rest.hasPrefix(":/") {
+                return rest.dropFirst(2).isEmpty == false
+            } else {
+                return false
+            }
+        }
+        return true
     }
 }

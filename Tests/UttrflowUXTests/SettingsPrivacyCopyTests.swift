@@ -146,7 +146,7 @@ struct SettingsPrivacyCopyTests {
     func thePromiseIsTheHonestOne() {
         let promise = SettingsPresenter.recordingsPromise
         #expect(promise.contains("deleted the moment it becomes text"))
-        #expect(promise.contains("kept on this Mac for a day only"))
+        #expect(promise.contains("kept on this Mac for a day only if some of it couldn’t be"))
         #expect(promise.contains("retry"))
         #expect(SettingsPresenter.privacyPromise.hasPrefix(promise))
         #expect(!SettingsPresenter.privacyPromise.contains("Recordings are never saved"))

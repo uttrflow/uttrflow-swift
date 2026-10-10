@@ -13,6 +13,10 @@ public struct ConcealingPasteboard: Pasteboard {
 
     public func changeCount() -> Int? { base.changeCount() }
 
+    public func discardContents(ifUnchangedSince changeCount: Int) -> Bool {
+        base.discardContents(ifUnchangedSince: changeCount)
+    }
+
     public func setText(_ text: String) -> PasteboardWriteResult { base.setConcealedText(text) }
 
     /// The formatted flavour is dropped, since a concealed write carries the plain words alone.

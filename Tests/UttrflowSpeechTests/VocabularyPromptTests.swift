@@ -48,6 +48,18 @@ struct VocabularyPromptTests {
         #expect(try encoded(plain) != encoded(biased))
     }
 
+    @Test("the fallback plan sets the retry count and log-probability test, and ships Whisper's own")
+    func fallbackPlanReachesTheOptions() {
+        let shipping = VocabularyPrompt.decodingOptions(languageHint: .english)
+        let swept = VocabularyPrompt.decodingOptions(
+            languageHint: .english, fallback: SpeechFallbackPlan(temperatureCount: 0, logProbThreshold: -0.7))
+
+        #expect(shipping.temperatureFallbackCount == 5)
+        #expect(shipping.logProbThreshold == -1.0)
+        #expect(swept.temperatureFallbackCount == 0)
+        #expect(swept.logProbThreshold == -0.7)
+    }
+
     @Test("an empty vocabulary asks for exactly what it asked for before biasing existed")
     func emptyVocabularyChangesNothing() throws {
         for hint: LanguageCode? in [.english, nil] {
@@ -128,9 +140,12 @@ struct VocabularyPromptTests {
         let words = (0..<500).map { "supercalifragilistic\($0)" }
         let tokens = try #require(VocabularyPrompt.tokens(for: words, using: tokenizer))
 
-        #expect(tokens.count <= VocabularyPrompt.maximumTokens)
+        let opening = VocabularyPrompt.ids(of: VocabularyPrompt.opening, using: tokenizer).count
+        let closing = VocabularyPrompt.ids(of: VocabularyPrompt.closing, using: tokenizer).count
+        let listed = tokens.count - opening - closing
+        #expect(listed <= VocabularyPrompt.maximumWordTokens)
         // Full, not merely bounded: a budget that truncated to nothing would also pass the line above.
-        #expect(tokens.count > VocabularyPrompt.maximumTokens - 30)
+        #expect(listed > VocabularyPrompt.maximumWordTokens - 10)
     }
 
     @Test("the words kept are the ones ranked highest")
@@ -157,7 +172,7 @@ struct VocabularyPromptTests {
 
     @Test("skips a word that does not fit and keeps lower-ranked words that fit")
     func overflowSkipsOnlyTheWordThatDoesNotFit() throws {
-        let first = String(repeating: "a", count: 60)
+        let first = String(repeating: "a", count: 30)
         let second = String(repeating: "b", count: 25)
         let third = "cc"
         let fourth = "d"
@@ -254,4 +269,65 @@ struct VocabularyPromptTests {
         #expect(VocabularyPrompt.decodingOptions(languageHint: nil).chunkingStrategy == nil)
     }
 
+    // MARK: The text before the caret
+
+    @Test("the text before the caret follows the vocabulary sentence, so the decoder continues from it")
+    func precedingTextComesLast() {
+        let tokens = VocabularyPrompt.tokens(
+            for: ["Uttrflow"], after: "Run the build with", using: tokenizer)
+
+        #expect(tokenizer.read(tokens) == " The words used here are Uttrflow. Run the build with")
+    }
+
+    @Test("the text before the caret alone is a prompt, with no empty vocabulary sentence")
+    func precedingTextWithoutVocabulary() {
+        let tokens = VocabularyPrompt.tokens(for: [], after: "Deploy it\nwith  kubectl", using: tokenizer)
+
+        #expect(tokenizer.read(tokens) == " Deploy it with kubectl")
+    }
+
+    @Test("long text before the caret keeps its last whole words within its share of the budget")
+    func precedingTextKeepsTheTail() {
+        let text = (1...40).map { "word\($0)" }.joined(separator: " ")
+        let lead = VocabularyPrompt.leadIn(text, using: tokenizer)
+        let read = tokenizer.read(lead)
+
+        #expect(lead.count <= VocabularyPrompt.maximumLeadTokens)
+        #expect(lead.count > VocabularyPrompt.maximumLeadTokens - 8)
+        #expect(read.hasSuffix(" word40"))
+        #expect(read.dropFirst().split(separator: " ").allSatisfy { $0.hasPrefix("word") })
+    }
+
+    @Test("the vocabulary packs into what the text before the caret leaves, never past 111 tokens")
+    func vocabularySharesTheBudget() {
+        let words = (1...60).map { "term\($0)" }
+        let text = (1...40).map { "word\($0)" }.joined(separator: " ")
+        let alone = VocabularyPrompt.packing(for: words, using: tokenizer)
+        let shared = VocabularyPrompt.packing(for: words, after: text, using: tokenizer)
+
+        #expect(shared.tokens?.count ?? 0 <= VocabularyPrompt.maximumTokens)
+        #expect(shared.words.count < alone.words.count)
+        #expect(!shared.words.isEmpty)
+        #expect(shared.words == Array(alone.words.prefix(shared.words.count)))
+    }
+
+    @Test("blank or absent text before the caret changes nothing")
+    func blankPrecedingTextChangesNothing() throws {
+        let plain = try encoded(
+            VocabularyPrompt.decodingOptions(
+                languageHint: .english, vocabulary: ["Uttrflow"], tokenizer: tokenizer))
+        for text: String? in [nil, "", "  \n "] {
+            let options = VocabularyPrompt.decodingOptions(
+                languageHint: .english, vocabulary: ["Uttrflow"], precedingText: text, tokenizer: tokenizer)
+            #expect(try encoded(options) == plain)
+        }
+    }
+
+    @Test("the options carry the text before the caret to the recogniser")
+    func optionsCarryPrecedingText() {
+        let options = VocabularyPrompt.decodingOptions(
+            languageHint: .english, precedingText: "Open the", tokenizer: tokenizer)
+
+        #expect(tokenizer.read(options.promptTokens) == " Open the")
+    }
 }

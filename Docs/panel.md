@@ -13,11 +13,30 @@ stories about the same moment. Window, focus and AppKit traps are in
 
 A clip has one of seven kinds, detected rather than declared: text, link, code, secret, colour,
 image and file path (`ClipKind` in `Sources/UttrflowClipboard/Clip.swift`). The kind picks the
-glyph, the tint and what the row offers.
+glyph, the tint and what the row offers. A colour with a resolved sRGB value shows that value as
+the row mark; a detected perceptual colour without an sRGB conversion keeps the palette glyph.
+Word-shaped hashes and issue-like short numbers need a colour declaration to disambiguate
+them. An exact standalone CSS named colour gets a swatch; a colour name within prose stays text.
+
+**Make a note asks first.** Confirming adds a rich form that has no undo path; the original plain text
+stays unchanged. Escape closes the question without changing the clip.
 
 One search field matches text and aliases. An alias is reduced the same way when it is saved
 and when it is matched, in `PanelAlias.handle` (no leading slash, no whitespace, case, accents
 and width folded), so two spellings of one name cannot drift apart.
+
+A clip can also carry tags (`Clip.tags`), and search finds a clip by one of them. A tag is
+compared in `PanelTags.match` after the same reduction as an alias, with a leading `#` dropped
+instead of a slash, so `Prod`, `prod` and `próD` are one tag. A query finds a tag only when it is
+the whole tag or its beginning: never from inside a tag, never across two tags, never with a
+space, and never when it is shorter than two characters, which would begin too many tags. The
+clip's text is still searched as before, so a word that only appears in the middle of a tag
+finds the clip by its text or not at all. Tag matches are listed after the names you gave and
+before collections and contents; a whole tag leads a tag the query only begins.
+
+Content search bounds a clip containing a grapheme longer than 32 Unicode scalars to its first
+1,000 Unicode scalars. This keeps a single combining-mark cluster from making each keystroke
+work over an unbounded grapheme.
 
 ## Chips, and the way out of a collection
 
@@ -34,6 +53,20 @@ everything and clears the kind as well, or "show me everything" would leave a fi
 at `PanelSnapshot.shortcutLimit` (9), because there is no ⌘10 and printing a shortcut that does
 not work is worse than printing none. `position` is what pressing the chip *means*, counts from
 2, and does not stop, so the tenth collection and later still work when clicked.
+
+**A collection name fits one chip.** `PanelSnapshot.collectionRefusal` is the one rule for a new
+name, whether a clip is filed under it or a collection is renamed to it. A name is at most
+`PanelCollectionName.maximumLength` (40) characters as a person counts them, holds no line break,
+tab, or character `ClipTextSafety` calls a display hazard, and is not a kind filter's title in any
+case, since that would be a second chip in the row reading the same. A name already held files the clip there, so a collection made before these rules keeps working.
+The chip draws one line at most 160 points wide, cut at the end, with the full name as its tooltip.
+
+A collection exists only while a clip carries its name. When a refreshed list no longer has the
+open collection, for example because its last clip moved out, the panel returns to every clip.
+
+Each collection chip offers **Rename collection** and **Delete collection** as VoiceOver actions.
+With a chip focused, ⌘⇧R renames that collection. The context menu offers both actions with
+⌘⇧R and ⌘⇧Delete.
 
 **While there is a query, the active chip is All**, unless a kind chip is on. That is the one
 narrowing a search keeps: the kind chip stays lit, and an empty search says "Nothing under Code
@@ -59,14 +92,44 @@ A masked row also loses its excerpt, its language chip and its tooltip:
 
 Search does not read a masked secret's text either. A row that appeared under "Contents" for a
 typed fragment would confirm the fragment is inside the hidden value, so until it is revealed a
-secret is found only by its alias or its collection. What counts as a secret:
+secret is found only by its alias, its tags or its collection. What counts as a secret:
 [`clipboard-secrets.md`](clipboard-secrets.md).
+
+A reveal lasts only for the open panel. Screen lock, display sleep, system sleep and switching
+user sessions close the panel; its resume point does not retain revealed clip identifiers, so
+the next opening masks those clips again.
 
 ## Checklists in notes
 
-The panel neither counts a note's checkboxes nor ticks them. A row is built on every keystroke,
-and parsing each note's HTML for a count nothing draws costs time and buys nothing. A checklist
-keeps its boxes in the plain form; see [`clipboard-plain-form.md`](clipboard-plain-form.md).
+The panel counts a note's checkboxes and never ticks them. The row's `checklist` field, which
+VoiceOver reads as "1 of 2", counts exactly the boxes the plain form writes: `NoteChecklist` takes
+them from `RichTextPlainForm`, so a paste and its row never disagree on which items are boxes. An
+item in a list labelled as a checklist is a box even when it does not mark itself; see
+[`clipboard-plain-form.md`](clipboard-plain-form.md#checklists). A row is built on every
+keystroke, so `ChecklistProgresses` reads each note once until its formatted content changes.
+
+## Editing a clip's text
+
+Edit (⌘E) opens the clip's whole text in the sheet's field, which grows to eight lines and then
+scrolls; ⏎ saves and ⌥⏎ starts a new line. Save sends the text to `ClipboardStore.setText`, which
+keeps the clip's identity, name, tags, collection and pin, asks the detector again on the path a
+copy takes, so the user's own answer about a text still outranks it, and clears the formatted
+form. The app then marks the clip used, so it moves to the top. Save does nothing while the text
+is unchanged, blank, or over the largest clip the store keeps
+([`clipboard-budget.md`](clipboard-budget.md#the-largest-clip)), so what was typed stays on screen.
+
+Edit is offered on every clip that is text, and not on:
+
+- a picture, which has no text;
+- a masked secret, until it is revealed, because the field would show what the mask hides;
+- a clip with a formatted form, a note included: plain editing would discard the formatting and a
+  note's checklist state, and a written note and a formatted copy are the same field to the store.
+
+A kept clip whose new text the detector takes for a secret would be held in memory only and gone
+after the next launch ([`clipboard-secrets.md`](clipboard-secrets.md)). The first Save says so and
+saves nothing; a second Save of the same text saves it. Typing anything in between asks again.
+Format and Re-indent ask the same of their result: the first confirmation of a kept clip whose
+new text is a secret shows the warning in place of the undo line, and a second one applies it.
 
 ## Empty states: never specific and wrong
 
@@ -97,6 +160,10 @@ the panel holds no clips and has no idea whether there are any. `PanelSnapshot.i
 marks it, and the presenter says nothing about emptiness and offers nothing to keep until the
 list arrives.
 
+A refresh keeps a selection or open sheet only while its referenced clip or collection remains in the
+list. A vanished sheet closes with a notice. Reveals belong to the current clip list, so a deleted
+and later restored secret is masked again.
+
 ## The line under the list
 
 Precedence: the sheet's keys, then the undo offer, then the empty state's reason, then the
@@ -113,12 +180,25 @@ confirmation, and the undo is what pays for that, so the undo is **offered, not 
 available**: an undo nobody is told about leaves the clip gone with neither a question
 beforehand nor a way back.
 
+If another clip took the deleted clip's alias during that window, undo restores the clip without
+that alias, keeps the newer clip's name, and announces the conflict in the panel.
+
 The panel window takes ⌘Z ahead of Edit › Undo, which would otherwise swallow it, in this order:
 while the offer shows, ⌘Z restores the clip; otherwise, if the search field has typing to take
 back, ⌘Z undoes that typing; otherwise it goes to the panel. ⇧⌘Z stays Redo.
+Typing a different search query hides the offer, so ⌘Z after typing undoes the typing rather
+than bringing back a clip the person is no longer looking at; with no typing left to undo, ⌘Z
+still restores the clip until the offer expires.
 
 While a sheet is up, `esc` backs out of it and Return commits it. Saying so is the difference
 between one press of esc and two by reflex, the second of which loses the list.
+
+When a search has no results, **Clear search · Esc** appears below the message; Escape clears the
+query before it closes the panel. **?** while search is empty, or **⌘/**, opens the one-screen
+keyboard guide, whose entries use the same row-action chord table as the panel. List footer states
+point to the guide; sheet footers keep only the keys available in their focused editor. If an undo
+is available during a search, the footer also keeps its ⌘Z hint while teaching Escape to clear the
+query.
 
 ## What a picture row says
 
@@ -174,13 +254,16 @@ method and it never arrives.
 `PanelComposition.panelMayTake(_:whileComposing:)` holds the rule for both panel keys and
 resolved key decisions, including command chord intents. `send` in `QuickPanelView` applies it to
 relayed keys, and the chord handler applies it before performing an intent, so the search field
-and the sheet's field share one ownership policy. Marked text is also not reported through the `text:` binding, so the
+and the sheet's field share one ownership policy. Row chords reach `QuickPanel.performKeyEquivalent`
+before the application menu: while marked text is open, or when no row takes the chord, it returns
+false so the chord is passed on rather than swallowed. Marked text is also not reported through the `text:` binding, so the
 query holds only what was committed; a panel that took Return during composition would paste the
 top row of the *unfiltered* list.
 
 Whether a composition is open is the one part a key handler cannot read from the key: the view
-asks the field editor, `(NSApp.keyWindow?.firstResponder as? NSTextView)?.hasMarkedText()`. That
-read is in `QuickPanelView`, which is excluded from coverage, so it is checked by hand:
+asks the field editor through `QuickPanel.isComposing(in:)`, which reads `hasMarkedText()` on the
+window's first responder. The view passes `NSApp.keyWindow`, and `QuickPanelView` is excluded from
+coverage, so the keys it handles are checked by hand:
 
 1. Add Japanese – Romaji in System Settings › Keyboard › Text Input.
 2. Copy two pieces of text, one containing 日本.
@@ -199,11 +282,19 @@ the clipboard itself is unchanged and a user can still inspect the source before
 Unrevealed secrets expose neither the line count nor their preview. A first line made only of
 whitespace says so and includes the clip's character count, instead of becoming an empty row.
 
+When a clip retains HTML, its row also shows the character count of the stored plain-text form,
+which is what a plain target receives, so a large payload the page kept out of view is visible
+before pasting. An unrevealed secret does not show the count.
+
 ## Names and Unicode confusables
 
-Name matching keeps the existing case, accent, width, whitespace and leading-slash folding, then compares Unicode confusable skeletons: normalize to NFD, replace each code point with its Unicode confusable prototype, and normalize to NFD again. The skeleton is only a comparison key and is never shown or stored. The packaged Unicode 18.0.0 confusables, Scripts, ScriptExtensions and PropertyValueAliases data make the result consistent across macOS ICU versions. If any table is missing or unreadable, saving a name is disabled and the sheet says why.
+Two names are one name when they are equal under the search comparison, after whitespace and the leading slash are dropped, or when either name keeps a non-ASCII character after that folding and their Unicode confusable skeletons are equal. Names that fold to ASCII compare by spelling alone, so `m1` and `ml`, or `rn` and `m`, stay distinct. The search comparison folds case, accents and width, so a Devanagari nukta is ignored and an Arabic hamza is kept. The skeleton keeps every mark: normalize to NFD, replace each code point with its Unicode confusable prototype, and normalize to NFD again. The skeleton is only a comparison key and is never shown or stored. The packaged Unicode 18.0.0 confusables, Scripts, ScriptExtensions and PropertyValueAliases data make the result consistent across macOS ICU versions. If any table is missing or unreadable, saving a name is disabled and the sheet says why.
 
-The script check intersects each alphabetic character's Script_Extensions set, falling back to Script when no extension set is listed. Common and inherited letters do not constrain the set. An empty intersection means the name mixes scripts. Unicode data is distributed under the [Unicode terms of use](https://www.unicode.org/terms_of_use.html); the source tables identify their version and copyright.
+The script check intersects each alphabetic character's Script_Extensions set, falling back to Script when no extension set is listed. Common and inherited letters do not constrain the set. An empty intersection means the name mixes scripts, except that Japanese names may combine Han with Hiragana or Katakana, and Korean names may combine Han with Hangul. Other mixed-script combinations remain refused. Unicode data is distributed under the [Unicode terms of use](https://www.unicode.org/terms_of_use.html); the source tables identify their version and copyright.
+
+## Invisible and control characters in clips
+
+The panel identifies default-ignorable, format and control scalars in a clip, except tabs and line endings. Rows show a `Hidden chars` badge, and previews replace each such scalar with its `U+` value and Unicode name in brackets; unnamed controls are labelled `CONTROL CHARACTER`. Search removes non-whitespace hazards from both the clip text and the query; whitespace controls keep the existing search-as-space behavior. A query made only of removed scalars acts like a blank search. The stored clip and ordinary Insert or Copy actions keep the original text. `Paste cleaned` is an explicit row action that removes those scalars from the text sent to the destination; it never edits the stored clip, and a secret remains marked concealed.
 
 ## Related
 

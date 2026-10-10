@@ -1,4 +1,4 @@
-// The Dictionary page: today's fixes, the filter chips, the words table and its editor card.
+// The Dictionary page: today's fixes, the filter chips and the words table.
 
 import UttrflowUX
 import SwiftUI
@@ -11,14 +11,18 @@ struct DictionaryPageView: View {
     var onIntent: (MainIntent) -> Void
     /// Reports the chosen filter chip.
     var onFilter: (String) -> Void = { _ in }
+    /// The rows ticked for Delete selected or Restore selected.
+    @State private var ticked: Set<UUID> = []
 
-    /// The artboard's columns: word, sound, source, recogniser prompt, used, undone, and the row's controls.
+    /// The tick, then the artboard's columns: word, sound, source, recogniser prompt, used, undone, and the row's controls.
     static let widths: [PageColumnWidth] = [
-        .share(1.1), .share(1.1), .share(1), .share(1), .fixed(55), .fixed(60), .fixed(76),
+        .fixed(14), .share(1.1), .share(1.1), .share(1), .share(1), .fixed(55), .fixed(60), .fixed(76),
     ]
 
     var body: some View {
-        if let empty = presentation.emptyState, presentation.filters.isEmpty {
+        if let empty = presentation.emptyState, presentation.filters.isEmpty,
+            presentation.notLearning == nil
+        {
             MainEmptyStateView(state: empty, onIntent: onIntent)
         } else {
             ScrollView {
@@ -40,10 +44,23 @@ struct DictionaryPageView: View {
                         MainEmptyStateView(state: empty, onIntent: onIntent)
                             .frame(minHeight: 220)
                     } else {
+                        if let selection = DictionaryPresenter.selection(ticked, in: presentation.rows) {
+                            DictionarySelectionBar(
+                                selection: selection,
+                                onSelectAll: { ticked = Set(presentation.rows.map(\.id)) },
+                                onClear: { ticked = [] },
+                                onIntent: onIntent
+                            )
+                            .padding(.bottom, 10)
+                        }
                         table
                     }
                     if let footnote = presentation.footnote {
                         MainFootnote(text: footnote)
+                    }
+                    if let notLearning = presentation.notLearning {
+                        DictionaryNotLearningView(section: notLearning, onIntent: onIntent)
+                            .padding(.top, 18)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -61,27 +78,60 @@ struct DictionaryPageView: View {
     private var table: some View {
         LazyVStack(alignment: .leading, spacing: 0) {
             PageTableHeader(
-                titles: ["Write it as", "Say it like", "From", "Recogniser", "Used", "Undone", ""],
+                titles: ["", "Write it as", "Say it like", "From", "Recogniser", "Used", "Undone", ""],
                 widths: Self.widths)
             ForEach(presentation.rows) { row in
                 PageDivider()
-                DictionaryRowView(row: row, onIntent: onIntent)
+                DictionaryRowView(row: row, isTicked: tick(row.id), onIntent: onIntent)
             }
         }
         .pageCard()
+    }
+
+    /// Whether one row is ticked, as the row's checkbox reads and writes it.
+    private func tick(_ id: UUID) -> Binding<Bool> {
+        Binding(
+            get: { ticked.contains(id) },
+            set: { if $0 { ticked.insert(id) } else { ticked.remove(id) } })
     }
 }
 
 /// One word; a retired row is dimmed and offers Restore, and Delete waits for the pointer.
 struct DictionaryRowView: View {
     let row: DictionaryRow
+    /// Whether the row is gathered into the selection.
+    @Binding var isTicked: Bool
     var onIntent: (MainIntent) -> Void
 
     @State private var isHovered = false
     @FocusState private var focusedControl: String?
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            columns
+            if let undoneFor = row.undoneFor {
+                Text(undoneFor.text)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(PagePalette.text.opacity(0.6))
+                    .lineLimit(2)
+                    .accessibilityLabel(undoneFor.spoken)
+                    .padding(.horizontal, PageMetrics.rowInset)
+                    .padding(.bottom, 10)
+            }
+            if let trial = row.trial {
+                DictionaryTrialView(line: trial, onIntent: onIntent)
+                    .padding(.horizontal, PageMetrics.rowInset)
+                    .padding(.bottom, 10)
+            }
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    private var columns: some View {
         PageColumns(widths: DictionaryPageView.widths) {
+            Toggle(isOn: $isTicked) { Text(row.word) }
+                .toggleStyle(.checkbox)
+                .labelsHidden()
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.word)
                     .fontWeight(.semibold)
@@ -126,7 +176,7 @@ struct DictionaryRowView: View {
         .contentShape(.rect)
         .onHover { isHovered = $0 }
         .accessibilityElement(children: .contain)
-        .rowActions(row.actions, onIntent: onIntent)
+        .rowActions((row.tryIt.map { [$0] } ?? []) + row.actions, onIntent: onIntent)
     }
 
     /// Amber once undone, red when the undos are what is retiring it, quiet otherwise.
@@ -139,6 +189,15 @@ struct DictionaryRowView: View {
     private var controls: some View {
         HStack(spacing: 4) {
             Spacer(minLength: 0)
+            if let tryIt = row.tryIt {
+                PageRowIconButton(
+                    action: tryIt,
+                    isShown: row.trial != nil
+                        || RowReveal.isDrawn(isHovered: isHovered, focusedControl: focusedControl),
+                    onIntent: onIntent
+                )
+                .focused($focusedControl, equals: tryIt.id)
+            }
             ForEach(row.actions) { action in
                 if action.isDestructive {
                     PageRowIconButton(
@@ -160,6 +219,73 @@ struct DictionaryRowView: View {
         }
         // The row's height comes from its text, as in the design; the 22-point hit area overhangs it.
         .frame(maxWidth: .infinity, maxHeight: 19, alignment: .trailing)
+    }
+}
+
+/// The refused spellings behind a disclosure, each with Allow again drawn at rest.
+struct DictionaryNotLearningView: View {
+    let section: DictionaryNotLearning
+    var onIntent: (MainIntent) -> Void
+
+    var body: some View {
+        DisclosureGroup {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(section.note)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(PagePalette.faint)
+                    .padding(.bottom, 8)
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(section.rows) { row in
+                        if row.id != section.rows.first?.id { PageDivider() }
+                        HStack {
+                            Text(row.word)
+                                .foregroundStyle(PagePalette.text)
+                                .lineLimit(1)
+                            Spacer(minLength: 6)
+                            Button(row.allow.title) { onIntent(row.allow.intent) }
+                                .buttonStyle(.plain)
+                                .font(.system(size: 11.5))
+                                .foregroundStyle(PagePalette.clipboardInk)
+                                .accessibilityLabel("\(row.allow.title), \(row.word)")
+                        }
+                        .font(.system(size: 13))
+                        .padding(.horizontal, PageMetrics.rowInset)
+                        .padding(.vertical, 9)
+                    }
+                }
+                .pageCard()
+            }
+            .padding(.top, 8)
+        } label: {
+            PageSectionLabel(text: section.title)
+        }
+    }
+}
+
+/// A try's one line, a spinner while it runs, and the "Say it like" a miss offers.
+struct DictionaryTrialView: View {
+    let line: DictionaryTrialLine
+    var onIntent: (MainIntent) -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if line.isBusy {
+                ProgressView().controlSize(.small)
+            }
+            Text(line.text)
+                .font(.system(size: 11.5))
+                .foregroundStyle(PagePalette.text)
+                .lineLimit(2)
+            if let offer = line.offer {
+                Button(offer.title) { onIntent(offer.intent) }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(PagePalette.clipboardInk)
+                    .lineLimit(1)
+                    .fixedSize()
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -247,98 +373,40 @@ struct DictionaryFixCard: View {
     }
 }
 
-/// The word being written, on a card over the table shaped like the snippet editor.
-struct DictionaryEditorView: View {
-    let editor: DictionaryEditor
-    @Binding var draft: DictionaryDraft
+/// Over the table while rows are ticked: how many, and Restore selected and Delete selected for all of them.
+struct DictionarySelectionBar: View {
+    let selection: DictionarySelection
+    var onSelectAll: () -> Void
+    var onClear: () -> Void
     var onIntent: (MainIntent) -> Void
 
-    /// Which field has the caret; the spelling takes it as the card opens.
-    @FocusState private var focused: Field?
-
-    /// The card's two fields.
-    enum Field { case word, pronunciation }
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("New word")
-                    .font(BrandFont.display(size: 14, weight: .semibold))
-                    .foregroundStyle(PagePalette.text)
-                Spacer(minLength: 0)
-                PageBadge(text: editor.badge.text)
-            }
-            PageEditorField(
-                label: editor.wordLabel, symbolName: "character.cursor.ibeam",
-                tint: PagePalette.dictation
-            ) {
-                TextField("", text: word).textFieldStyle(.plain)
-                    .focused($focused, equals: .word)
-                    .onSubmit(submit)
-            }
-            VStack(alignment: .leading, spacing: 5) {
-                PageEditorField(
-                    label: editor.pronunciationLabel, symbolName: "ear", tint: PagePalette.suggestion
-                ) {
-                    TextField("", text: pronunciation).textFieldStyle(.plain)
-                        .focused($focused, equals: .pronunciation)
-                        .onSubmit(submit)
-                }
-                Text(editor.pronunciationHint)
+        HStack(spacing: 10) {
+            Text(selection.count)
+                .font(.system(size: 12.5, weight: .medium))
+                .foregroundStyle(PagePalette.text)
+            if let selectAll = selection.selectAll {
+                Button(selectAll, action: onSelectAll)
+                    .buttonStyle(.plain)
                     .font(.system(size: 11.5))
-                    .foregroundStyle(PagePalette.faint)
-                if let note = editor.pronunciationNote {
-                    Text(note)
-                        .font(.system(size: 11.5))
-                        .foregroundStyle(PagePalette.text)
-                }
+                    .foregroundStyle(PagePalette.clipboardInk)
             }
-            PageEditorFooter(
-                problem: editor.problem, cancel: editor.cancel, save: save,
-                canSave: editor.canSave, onIntent: onIntent)
-            if let replace = editor.replace {
-                HStack {
-                    Spacer(minLength: 0)
-                    PageButton(action: replacing(replace), onIntent: onIntent)
-                }
+            Button(selection.clear, action: onClear)
+                .buttonStyle(.plain)
+                .font(.system(size: 11.5))
+                .foregroundStyle(PagePalette.clipboardInk)
+            Spacer(minLength: 6)
+            if let restore = selection.restore {
+                PageButton(action: restore, onIntent: acting)
             }
+            PageButton(action: selection.delete, onIntent: acting)
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .pageCard(edge: PagePalette.dictation.opacity(0.35))
-        .onAppear { focused = .word }
-        .onExitCommand { onIntent(editor.cancel.intent) }
+        .accessibilityElement(children: .contain)
     }
 
-    /// Return saves a word that can be saved, and does nothing to one that cannot.
-    private func submit() {
-        if editor.canSave { onIntent(save.intent) }
-    }
-
-    /// Rebuilt from what is in the fields now, not from the presentation drawn a keystroke ago.
-    private var save: MainAction {
-        MainAction(
-            title: editor.save.title,
-            intent: .saveWord(word: draft.word, pronunciation: draft.pronunciation))
-    }
-
-    /// The Replace action rebuilt from the fields now, as Save is.
-    private func replacing(_ replace: MainAction) -> MainAction {
-        guard case .replaceWord(let id, _, _) = replace.intent else { return replace }
-        return MainAction(
-            title: replace.title,
-            intent: .replaceWord(id, word: draft.word, pronunciation: draft.pronunciation))
-    }
-
-    private var word: Binding<String> {
-        Binding(
-            get: { draft.word },
-            set: { draft = DictionaryDraft(word: $0, pronunciation: draft.pronunciation) })
-    }
-
-    private var pronunciation: Binding<String> {
-        Binding(
-            get: { draft.pronunciation },
-            set: { draft = DictionaryDraft(word: draft.word, pronunciation: $0) })
+    /// Carries the batch out, then unticks the rows it acted on.
+    private func acting(_ intent: MainIntent) {
+        onIntent(intent)
+        onClear()
     }
 }

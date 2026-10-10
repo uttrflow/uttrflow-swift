@@ -30,7 +30,7 @@ extension PromptBuilder {
     }
 
     /// Twelve hex digits of a SHA-256 over the parts, each length-prefixed so no two splits of one text collide.
-    static func fingerprint(_ parts: [String]) -> String {
+    public static func fingerprint(_ parts: [String]) -> String {
         var hash = SHA256()
         for part in parts { hash.update(data: Data("\(part.utf8.count):\(part)".utf8)) }
         return hash.finalize().prefix(6).map { byte in

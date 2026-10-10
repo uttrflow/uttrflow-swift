@@ -26,7 +26,7 @@ struct ReplayTree: ElementTree {
         return element.attributes[name]?.fieldAnswer ?? .unsupported
     }
 
-    /// A ranged read gives the recorded refusal or recorded text, else cuts the recorded value.
+    /// A ranged read cuts the recorded value unless the snapshot recorded a refusal for ranged reads.
     func attribute(_ name: String, of element: AccessibilitySnapshot.Element, range: NSRange) -> FieldAnswer {
         messages.asked.append(name)
         if let recorded = element.rangedText, recorded.kind != .value || recorded.text != nil {

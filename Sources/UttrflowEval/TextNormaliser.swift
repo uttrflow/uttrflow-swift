@@ -103,7 +103,7 @@ public struct TextNormaliser: Sendable, Equatable {
     /// Splits into words, keeping a full stop or underscore that joins two alphanumerics.
     private func split(_ text: String) -> [String] {
         guard rules.contains(.punctuationAsSeparators) else {
-            return text.split(whereSeparator: \.isWhitespace).map(String.init)
+            return WordTokens.words(text, .display)
         }
 
         let characters = Array(text)
@@ -136,7 +136,7 @@ public struct TextNormaliser: Sendable, Equatable {
     /// Number words below a hundred, English and Devanagari, less the Hindi words as often ordinary ones.
     static let numberWordDigits: [String: Int] = NumberWords.english
         .merging(NumberWords.hindi.filter { Script.of($0.key) == .devanagari }) { first, _ in first }
-        .filter { !NumberWords.isScale($0.value) && !NumberWords.hindiHomographs.contains($0.key) }
+        .filter { $0.value < 100 && !NumberWords.hindiHomographs.contains($0.key) }
 
     /// Maps a number word to its digits, with a second pass for "twenty five".
     private func foldNumberWords(_ tokens: [String]) -> [String] {

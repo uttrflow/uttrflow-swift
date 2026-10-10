@@ -14,8 +14,9 @@ struct CleaningStepsPipelineTests {
         #expect(
             built == [
                 .fillers, .repeatedPhrase, .stammers, .selfCorrection, .spokenPunctuation,
-                .layoutWords, .numberForms, .contractions, .spacing, .spelledInitialism,
-                SentenceBoundaryPass.id, .firstWord, .terminalStop,
+                .spokenCasing, .layoutWords, .numberForms, .contractions, .spacing, .pauseStop,
+                .spelledInitialism, .acronymCasing, SentenceBoundaryPass.id, .firstWord, CommentMarkerPass.id,
+                .terminalStop,
             ])
     }
 
@@ -24,13 +25,13 @@ struct CleaningStepsPipelineTests {
         let steps = CleaningSteps.default.setting(.fillers, isOn: false)
         let pipeline = CleaningPipeline.standard(for: formatter, situation: .unknown, steps: steps)
         #expect(!pipeline.ids.contains(.fillers))
-        #expect(pipeline.run(Draft(text: "um we ship on friday")).text == "Um we ship on friday.")
+        #expect(pipeline.run(Draft(text: "um we ship on friday")).text == "Um we ship on Friday.")
     }
 
     @Test("with fillers on the same words lose the um")
     func fillersOn() {
         let pipeline = CleaningPipeline.standard(for: formatter, situation: .unknown)
-        #expect(pipeline.run(Draft(text: "um we ship on friday")).text == "We ship on friday.")
+        #expect(pipeline.run(Draft(text: "um we ship on friday")).text == "We ship on Friday.")
     }
 
     /// They carry the formatter's decisions about the place, not a cleaning the user asked for.
@@ -38,7 +39,11 @@ struct CleaningStepsPipelineTests {
     func policyPassesStay() {
         let steps = CleaningSteps(switchedOff: Set(CleaningSteps.offered.map(\.id)))
         let pipeline = CleaningPipeline.standard(for: formatter, situation: .unknown, steps: steps)
-        #expect(pipeline.ids == [.spelledInitialism, SentenceBoundaryPass.id, .firstWord, .terminalStop])
+        #expect(
+            pipeline.ids == [
+                .spokenCasing, .pauseStop, .spelledInitialism, .acronymCasing, SentenceBoundaryPass.id,
+                .firstWord, CommentMarkerPass.id, .terminalStop,
+            ])
     }
 
     @Test("the passes handed to a model drop the same step and keep the finishing two out")

@@ -6,14 +6,16 @@ public enum SpeechEngineError: UttrflowFailure {
     case modelDownloadFailed(description: String)
     /// The disk cannot hold the download; `neededBytes` is the free space setup asks for.
     case notEnoughSpace(neededBytes: Int64)
-    /// The model is on disk but would not load.
-    case modelLoadFailed(description: String)
+    /// The model is on disk but would not load; `outOfMemory` when the system could not supply the memory.
+    case modelLoadFailed(description: String, outOfMemory: Bool = false)
     /// The model's files are all there but `fileCount` of them no longer hash to their pins.
     case modelDamaged(fileCount: Int)
     /// The recording is shorter than anything the recogniser can use.
     case audioTooShort
     /// Held the shortcut and said nothing the recogniser could use.
     case nothingHeard
+    /// The microphone delivered exact silence for the whole recording, so the input is muted or dead.
+    case noSignal
     /// Speech was heard, yet the recogniser produced no words for it, even on a second attempt.
     case speechWithoutWords
     /// The recogniser did not answer within its stage limit: an overloaded Mac or a hung recogniser.
@@ -38,6 +40,8 @@ public enum SpeechEngineError: UttrflowFailure {
             "Too short. Hold the shortcut a moment longer."
         case .nothingHeard:
             "Didn't catch that."
+        case .noSignal:
+            "The microphone sent only silence. Check that it isn't muted and its input level is up in Sound settings."
         case .speechWithoutWords:
             "Speech was heard but no words came out. Speak closer to the microphone, or check your languages in Settings."
         case .recogniserTimedOut:
@@ -47,11 +51,25 @@ public enum SpeechEngineError: UttrflowFailure {
         }
     }
 
+    /// The failure without its remedy, so a kept recording can replace the advice to try again.
+    public var cause: String {
+        switch self {
+        case .modelLoadFailed: "Speech recognition couldn't start."
+        case .speechWithoutWords: "Speech was heard but no words came out."
+        case .recogniserTimedOut: "Speech recognition took too long."
+        case .transcriptionFailed: "Speech recognition ran into an error."
+        case .modelNotInstalled, .modelDownloadFailed, .notEnoughSpace, .modelDamaged, .audioTooShort,
+            .nothingHeard, .noSignal:
+            userMessage
+        }
+    }
+
     /// The model download where the model is missing, a retry where it is not, and nothing for silence or a brief tap.
     public var recovery: RecoveryAction? {
         switch self {
         case .modelNotInstalled, .modelDownloadFailed, .notEnoughSpace, .modelDamaged: .downloadSpeechModel
         case .modelLoadFailed, .speechWithoutWords, .recogniserTimedOut, .transcriptionFailed: .retry
+        case .noSignal: .openSystemSettings(.soundInput)
         // Nothing to press: the remedy is to speak again, or hold longer, which the shortcut already is.
         case .audioTooShort, .nothingHeard: nil
         }
@@ -64,7 +82,7 @@ public enum SpeechEngineError: UttrflowFailure {
         case .audioTooShort, .nothingHeard: .informational
         // Setup keeps its progress, so asking again resumes rather than restarting the download.
         case .modelNotInstalled, .modelDownloadFailed, .notEnoughSpace, .modelLoadFailed,
-            .modelDamaged, .speechWithoutWords, .recogniserTimedOut, .transcriptionFailed:
+            .modelDamaged, .noSignal, .speechWithoutWords, .recogniserTimedOut, .transcriptionFailed:
             .recoverable
         }
     }

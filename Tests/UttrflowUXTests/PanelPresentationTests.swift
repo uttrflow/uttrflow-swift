@@ -45,6 +45,50 @@ struct PanelRowTests {
         #expect(!row.isMasked)
     }
 
+    @Test("a formatted row shows the plain form character count")
+    func formattedRowShowsPlainTextLength() {
+        let clip = Clip(
+            text: "Visible", kind: .text, copiedAt: PanelFixture.now,
+            richText: #"<p>Visible</p><div hidden>unshown payload</div>"#)
+
+        #expect(PanelFixture.page([clip]).rows[0].measurements == "7 characters")
+    }
+
+    @Test("a plain text row shows no character count")
+    func plainRowShowsNoLength() {
+        let clip = Clip(text: "Visible", kind: .text, copiedAt: PanelFixture.now)
+
+        #expect(PanelFixture.page([clip]).rows[0].measurements == nil)
+    }
+
+    @Test("a formatted secret row does not show its character count before reveal")
+    func maskedFormattedRowHidesPlainTextLength() {
+        let clip = Clip(
+            text: "secret words", kind: .secret, copiedAt: PanelFixture.now,
+            richText: #"<p>secret words</p>"#)
+
+        let row = PanelFixture.page([clip]).rows[0]
+
+        #expect(row.isMasked)
+        #expect(row.measurements == nil)
+    }
+
+    @Test("a hazardous clip is marked, and its preview names invisible characters")
+    func hazardousTextIsEscapedAndOffersCleanPaste() {
+        let clip = PanelFixture.clip("file\u{202E}name\u{001B}[31m")
+        let row = PanelFixture.page([clip]).rows[0]
+
+        #expect(row.containsDisplayHazards)
+        #expect(
+            row.summary
+                == "file⟦U+202E RIGHT-TO-LEFT OVERRIDE⟧name⟦U+001B CONTROL CHARACTER⟧[31m")
+        #expect(row.preview == row.summary)
+        #expect(row.actions.map(\.title).contains("Paste cleaned"))
+        #expect(row.actions.first?.intent == .insert(clip.id), "normal insertion remains first")
+        #expect(
+            row.actions.first(where: { $0.title == "Paste cleaned" })?.intent.key == .chooseCleaned(clip.id))
+    }
+
     @Test("a copy arriving after the panel opens is not dated in the future")
     func arrivingCopyUsesTheRefreshClock() {
         let openedAt = Date(timeIntervalSince1970: 1_000_000)
@@ -63,7 +107,9 @@ struct PanelRowTests {
     func checklistProgress() {
         let note = Clip(
             text: "Shopping list", kind: .text, copiedAt: PanelFixture.now,
-            richText: "<ul class=\"checklist\"><li class=\"checked\">Milk</li><li>Tea</li></ul>")
+            richText: """
+                <ul class="checklist"><li class="checked">Milk</li><li class="unchecked">Tea</li></ul>
+                """)
 
         #expect(PanelFixture.page([note]).rows[0].checklist == "1 of 2")
     }
@@ -137,11 +183,15 @@ struct PanelRowTests {
         #expect(
             row.actions.map(\.intent) == [
                 .insert(clip.id), .copy(clip.id), .pin(clip.id), .alias(clip.id),
-                .move(clip.id), .makeNote(clip.id), .delete(clip.id),
+                .move(clip.id), .edit(clip.id), .makeNote(clip.id), .markSecret(clip.id),
+                .delete(clip.id),
             ])
         #expect(
             row.actions.map(\.id)
-                == ["Insert", "Copy", "Pin", "Name", "Move", "Make a note", "Delete"])
+                == [
+                    "Insert", "Copy", "Pin", "Name", "Move", "Edit", "Make a note", "Treat as secret",
+                    "Delete",
+                ])
         #expect(row.actions.allSatisfy { !$0.symbolName.isEmpty })
     }
 
@@ -247,7 +297,29 @@ struct PanelMaskTests {
         #expect(!shown.actions.map(\.title).contains("Reveal"))
         // Reveal comes after Insert and before everything that only reads the clip.
         #expect(masked.actions.map(\.title).firstIndex(of: "Reveal") == 1)
-        #expect(shown.actions.map(\.title) == masked.actions.map(\.title).filter { $0 != "Reveal" })
+        // Edit is the one action revealing adds, since editing shows the text.
+        #expect(!masked.actions.map(\.title).contains("Edit"))
+        let shownTitles: [String] = shown.actions.map(\.title)
+        let maskedTitles: [String] = masked.actions.map(\.title)
+        let shownWithoutEdit: [String] = shownTitles.filter { $0 != "Edit" }
+        let maskedWithoutReveal: [String] = maskedTitles.filter { $0 != "Reveal" }
+        #expect(shownWithoutEdit == maskedWithoutReveal)
+        #expect(shownTitles.contains("Edit"))
+    }
+
+    @Test("a secret offers to stop being one, and any other text clip offers to become one")
+    func secrecyActions() {
+        let secret = PanelFixture.page([Self.secret]).rows[0]
+        let plain = PanelFixture.clip("plain")
+        let text = PanelFixture.page([plain]).rows[0]
+
+        #expect(secret.actions.map(\.intent).contains(.markNotSecret(Self.secret.id)))
+        #expect(!secret.actions.map(\.title).contains("Treat as secret"))
+        #expect(text.actions.map(\.intent).contains(.markSecret(plain.id)))
+        #expect(!text.actions.map(\.title).contains("This is not a secret"))
+        let unmask = PanelIntent.markNotSecret(Self.secret.id).immediateChange
+        #expect(unmask == .setSecret(Self.secret.id, false))
+        #expect(PanelIntent.markSecret(plain.id).immediateChange == .setSecret(plain.id, true))
     }
 }
 
@@ -368,6 +440,17 @@ struct PanelChromeTests {
     @Test("an empty list only promises the key that works")
     func emptyHint() {
         #expect(PanelFixture.page([]).hint == "esc to close")
+    }
+
+    @Test("the footer points to the keyboard guide under the list, not under a sheet")
+    func shortcutsHint() {
+        let clip = PanelFixture.clip()
+        var snapshot = PanelFixture.panel([clip])
+        #expect(PanelPresenter.present(snapshot).shortcutsHint == "⌘/ shortcuts")
+        #expect(PanelFixture.page([]).shortcutsHint == "⌘/ shortcuts")
+
+        snapshot.sheet = .aliasing(clip.id, draft: "")
+        #expect(PanelPresenter.present(snapshot).shortcutsHint == nil)
     }
 
     @Test("nothing copied yet says so")

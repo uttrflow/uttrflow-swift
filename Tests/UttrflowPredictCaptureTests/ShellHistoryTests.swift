@@ -48,9 +48,9 @@ struct ShellHistoryTests {
         #expect(ShellHistory.commands(in: contents) == ["git status"])
     }
 
-    @Test("Repeats are kept, because how often a command is run is what ranks it.")
-    func repeatsAreKept() {
-        #expect(ShellHistory.commands(in: "ls\nls\nls\n").count == 3)
+    @Test("Repeated commands keep only their newest occurrence.")
+    func repeatedCommandsAreDeduplicated() {
+        #expect(ShellHistory.commands(in: "git status\nls\ngit status\nls\n") == ["git status", "ls"])
     }
 
     @Test("Only the most recent commands are taken, however long the file is.")
@@ -85,6 +85,47 @@ struct ShellHistoryTests {
         FileManager.default.createFile(
             atPath: scratch.path(".bash_history"), contents: Data("echo café\n".utf8))
         #expect(ShellHistory.read(atPath: scratch.path(".bash_history")) == ["echo café"])
+    }
+
+    @Test("A large history reads its newest distinct commands across bounded chunks.")
+    func largeHistoryReadsNewestCommands() throws {
+        let scratch = Scratch()
+        try FileManager.default.createDirectory(
+            atPath: scratch.directory, withIntermediateDirectories: true)
+        let firstKept = 1_000
+        let contents = (0..<(ShellHistory.limit + firstKept))
+            .map { "command-number-\($0)-with-padding" }
+            .joined(separator: "\n")
+        FileManager.default.createFile(
+            atPath: scratch.path(".bash_history"), contents: Data(contents.utf8))
+
+        let commands = ShellHistory.read(atPath: scratch.path(".bash_history"))
+        #expect(commands.count == ShellHistory.limit)
+        #expect(commands.first == "command-number-\(firstKept)-with-padding")
+        #expect(commands.last == "command-number-\(ShellHistory.limit + firstKept - 1)-with-padding")
+    }
+
+    @Test("Bash epoch timestamp lines are not imported as commands.")
+    func bashTimestampsAreSkipped() throws {
+        let scratch = Scratch()
+        try FileManager.default.createDirectory(
+            atPath: scratch.directory, withIntermediateDirectories: true)
+        let contents = "#1699999999\ngit status\n#1700000000\ngit status\n#1700000001\nmake verify\n"
+        FileManager.default.createFile(
+            atPath: scratch.path(".bash_history"), contents: Data(contents.utf8))
+
+        #expect(ShellHistory.read(atPath: scratch.path(".bash_history")) == ["git status", "make verify"])
+    }
+
+    @Test("An unterminated continuation drops its trailing backslash at EOF.")
+    func readDropsTrailingBackslashAtEOF() throws {
+        let scratch = Scratch()
+        try FileManager.default.createDirectory(
+            atPath: scratch.directory, withIntermediateDirectories: true)
+        FileManager.default.createFile(
+            atPath: scratch.path(".bash_history"), contents: Data("echo one\\\necho two\\".utf8))
+
+        #expect(ShellHistory.read(atPath: scratch.path(".bash_history")) == ["echo one\necho two"])
     }
 
     @Test("A command with a remaining replacement character is dropped.")

@@ -2,8 +2,8 @@ import ArgumentParser
 private import ApplicationServices
 private import Foundation
 private import UttrflowContext
+private import UttrflowCore
 private import UttrflowEval
-private import UttrflowPredict
 
 /// Phase 0's measurements: what fields will tell us, what retrieval costs, whether the tap works.
 struct Probe: AsyncParsableCommand {
@@ -11,7 +11,8 @@ struct Probe: AsyncParsableCommand {
         commandName: "probe",
         abstract: "Measure what tab-to-complete can rely on, before any of it is built.",
         subcommands: [
-            ProbeSurface.self, ProbeRetrieval.self, ProbeTap.self, ProbeIME.self, ProbeModifiers.self,
+            ProbeSurface.self, ProbeSnapshot.self, ProbeRetrieval.self, ProbeTap.self, ProbeIME.self,
+            ProbeModifiers.self,
         ]
     )
 }

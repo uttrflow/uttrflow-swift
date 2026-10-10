@@ -46,8 +46,8 @@ struct FieldSituationReadingTests {
 
     @Test("A prompt that labels its branch is believed whatever the branch is called.")
     func labelledBranch() {
-        let situation = FieldSituationReading.read(windowTitle: "➜  uttrflow git:(naveen/spike) ✗")
-        #expect(situation?.branch == "naveen/spike")
+        let situation = FieldSituationReading.read(windowTitle: "➜  uttrflow git:(avery/spike) ✗")
+        #expect(situation?.branch == "avery/spike")
     }
 
     @Test("A branch marked with the git glyph is read the same way.")
@@ -98,14 +98,14 @@ struct FieldSituationReadingTests {
         #expect(FieldSituationReading.read(windowTitle: "Untitled") == nil)
         #expect(FieldSituationReading.read(windowTitle: "Slack | general | Acme") == nil)
         #expect(FieldSituationReading.read(windowTitle: "") == nil)
-        #expect(FieldSituationReading.read(windowTitle: "Inbox (2,481) - naveen@example.com - Gmail") == nil)
+        #expect(FieldSituationReading.read(windowTitle: "Inbox (2,481) - avery@example.com - Gmail") == nil)
         #expect(FieldSituationReading.read(windowTitle: "staging.example.com/orders — Chrome") == nil)
         #expect(FieldSituationReading.read() == nil)
     }
 
     @Test("A user at a host is not a connection, however much it looks like one.")
     func userAtHostIsNotAConnection() {
-        #expect(FieldSituationReading.read(windowTitle: "naveen@macbook: ~/projects/foo") == nil)
+        #expect(FieldSituationReading.read(windowTitle: "avery@macbook: ~/projects/foo") == nil)
     }
 
     @Test("A deployment beside something capitalised names no database.")
@@ -139,7 +139,7 @@ struct FieldSituationReadingTests {
         #expect(FieldSituationReading.isBranchShaped("MASTER"))
         #expect(FieldSituationReading.isBranchShaped("feature/tab-complete"))
         #expect(!FieldSituationReading.isBranchShaped("orders_db"))
-        #expect(!FieldSituationReading.isBranchShaped("naveen/spike"))
+        #expect(!FieldSituationReading.isBranchShaped("avery/spike"))
         #expect(!FieldSituationReading.isBranchShaped("~/projects/foo"))
         #expect(!FieldSituationReading.isBranchShaped("feat/a b"))
         #expect(!FieldSituationReading.isBranchShaped(""))
@@ -148,7 +148,7 @@ struct FieldSituationReadingTests {
 
     @Test("A pair with no deployment on either side names nothing.")
     func pairsWithoutADeployment() {
-        #expect(FieldSituationReading.environmentPair(in: "naveen@macbook") == nil)
+        #expect(FieldSituationReading.environmentPair(in: "avery@macbook") == nil)
         #expect(FieldSituationReading.environmentPair(in: "analytics") == nil)
         #expect(FieldSituationReading.environmentPair(in: "a@b@c") == nil)
         #expect(FieldSituationReading.environmentPair(in: "prod@TablePlus")?.1 == nil)

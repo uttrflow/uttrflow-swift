@@ -13,25 +13,18 @@ struct DraftTests {
         #expect(draft.words.allSatisfy { $0.state == .kept && $0.confidence == 1 && $0.heard == $0.text })
     }
 
-    @Test("splits pause ellipses only between adjacent words")
-    func splitsPauseEllipses() {
-        let draft = Draft(text: "Ah...the...um...the invoice is...ah...overdue")
-        #expect(
-            draft.words.map(\.text)
-                == ["Ah", "the", "um", "the", "invoice", "is", "ah", "overdue"])
-        #expect(draft.text == "Ah the um the invoice is ah overdue")
-    }
-
-    @Test("keeps a Unicode ellipsis as written, splitting only one that sits between two words")
-    func keepsUnicodeEllipsis() {
-        #expect(Draft(text: "wait\u{2026} we should\u{2026} move").words.map(\.text) == ["wait\u{2026}", "we", "should\u{2026}", "move"])
-        #expect(Draft(text: "the\u{2026}the end\u{2026}").words.map(\.text) == ["the", "the", "end\u{2026}"])
-    }
-
-    @Test("keeps abbreviations and URLs intact while splitting a pause")
-    func keepsAbbreviationsAndURLs() {
-        let draft = Draft(text: "e.g. https://example.com/a...b hello...world")
-        #expect(draft.words.map(\.text) == ["e.g.", "https://example.com/a...b", "hello", "world"])
+    @Test(
+        "keeps every ellipsis inside its token as written",
+        arguments: [
+            "Ah...the...um...the invoice is...ah...overdue",
+            "wait\u{2026} we should\u{2026} move the\u{2026}the end\u{2026}",
+            "e.g. https://example.com/a...b hello...world",
+            "open ~/projects/.../Sources and pages 1...5 or src/a...b",
+        ])
+    func keepsEllipsesInTokens(text: String) {
+        let draft = Draft(text: text)
+        #expect(draft.words.map(\.text) == text.split(separator: " ").map(String.init))
+        #expect(draft.text == text)
     }
 
     @Test(
@@ -93,13 +86,27 @@ struct DraftTests {
 
     @Test("tells a list mark from the other layout marks")
     func listMarks() {
-        #expect(Draft.Word("\n- ").isListMark && Draft.Word("\n- ").isLayoutMark)
-        #expect(Draft.Word("- ").isListMark && Draft.Word("- ").isLayoutMark)
-        #expect(!Draft.Word("\n\n").isListMark && Draft.Word("\n\n").isLayoutMark)
-        #expect(!Draft.Word("-").isListMark && !Draft.Word("-").isLayoutMark)
-        #expect(Draft.Word("\n1. ").isListMark && Draft.Word("\n1. ").isLayoutMark)
-        #expect(Draft.Word("\n21. ").isListMark && Draft.Word("\n21. ").isLayoutMark)
-        #expect(!Draft.Word("\n. ").isListMark && !Draft.Word("\n1.").isListMark)
+        #expect(
+            Draft.Word("\n- ", evidence: .unknown).isListMark
+                && Draft.Word("\n- ", evidence: .unknown).isLayoutMark)
+        #expect(
+            Draft.Word("- ", evidence: .unknown).isListMark
+                && Draft.Word("- ", evidence: .unknown).isLayoutMark)
+        #expect(
+            !Draft.Word("\n\n", evidence: .unknown).isListMark
+                && Draft.Word("\n\n", evidence: .unknown).isLayoutMark)
+        #expect(
+            !Draft.Word("-", evidence: .unknown).isListMark
+                && !Draft.Word("-", evidence: .unknown).isLayoutMark)
+        #expect(
+            Draft.Word("\n1. ", evidence: .unknown).isListMark
+                && Draft.Word("\n1. ", evidence: .unknown).isLayoutMark)
+        #expect(
+            Draft.Word("\n21. ", evidence: .unknown).isListMark
+                && Draft.Word("\n21. ", evidence: .unknown).isLayoutMark)
+        #expect(
+            !Draft.Word("\n. ", evidence: .unknown).isListMark
+                && !Draft.Word("\n1.", evidence: .unknown).isListMark)
     }
 
     @Test("joins the words with single spaces")
@@ -118,7 +125,7 @@ struct DraftTests {
         ]
     )
     func rendersLayoutMarks(words: [String], expected: String) {
-        #expect(Draft(words: words.map { Draft.Word($0) }).text == expected)
+        #expect(Draft(words: words.map { Draft.Word($0, evidence: .unknown) }).text == expected)
     }
 
     @Test("drops a removed word from the text but keeps it in the record")
@@ -130,7 +137,7 @@ struct DraftTests {
         #expect(
             draft.removed == [
                 Draft.Word(
-                    text: "um", heard: "um", confidence: 1, state: .removed(by: pass),
+                    text: "um", heard: "um", evidence: .unknown, state: .removed(by: pass),
                     edits: [Draft.Word.Edit(by: pass, kind: .removed, from: "um", to: "")])
             ])
         #expect(draft.presentIndices == [1, 2])
@@ -205,10 +212,20 @@ struct DraftTests {
         #expect(draft.text == "he said \"we shipped")
     }
 
+    @Test("moves only the opening mark forward when asked for opening marks, leaving the closing one behind")
+    func carriesOnlyTheOpeningMark() {
+        var draft = Draft(text: "alpha @comma. beta")
+        draft.remove(at: 1, by: pass, carryingOpeningMarks: true)
+        #expect(draft.text == "alpha @beta")
+    }
+
     /// A mark belongs to the line it was spoken on, and the word before the break ended its own.
     @Test("does not carry a mark across a line break")
     func doesNotCarryAcrossABreak() {
-        var draft = Draft(words: [Draft.Word("today"), Draft.Word("\n"), Draft.Word("uh?")])
+        var draft = Draft(words: [
+            Draft.Word("today", evidence: .unknown), Draft.Word("\n", evidence: .unknown),
+            Draft.Word("uh?", evidence: .unknown),
+        ])
         draft.remove(at: 2, by: pass, carryingMarks: true)
         #expect(draft.text == "today\n")
     }
@@ -281,9 +298,9 @@ struct DraftTests {
 
     @Test("knows a layout mark from a word")
     func layoutMarks() {
-        #expect(Draft.Word("\n").isLayoutMark)
-        #expect(Draft.Word("\n- ").isLayoutMark)
-        #expect(!Draft.Word("hello").isLayoutMark)
+        #expect(Draft.Word("\n", evidence: .unknown).isLayoutMark)
+        #expect(Draft.Word("\n- ", evidence: .unknown).isLayoutMark)
+        #expect(!Draft.Word("hello", evidence: .unknown).isLayoutMark)
     }
 
     @Test("takes the recogniser's confidences when its words are the text's words")
@@ -382,7 +399,7 @@ struct DraftTests {
                 )
             ])
         let draft = Draft(transcription: transcription)
-        #expect(draft.words == ["Okay", "so,", "um,", "quick"].map { Draft.Word($0) })
+        #expect(draft.words == ["Okay", "so,", "um,", "quick"].map { Draft.Word($0, evidence: .unknown) })
         #expect(!draft.confidencesAreReal)
     }
 
@@ -405,6 +422,7 @@ struct DraftTests {
 /// Upper-cases every present word.
 private struct ShoutPass: PieceCleaningPass {
     static let id: PassID = "shout"
+    static let laws: Set<PassLaw> = []
     func apply(_ draft: Draft) -> Draft {
         var draft = draft
         for index in draft.presentIndices {
@@ -417,6 +435,7 @@ private struct ShoutPass: PieceCleaningPass {
 /// Removes the first present word.
 private struct DropFirstPass: PieceCleaningPass {
     static let id: PassID = "dropFirst"
+    static let laws: Set<PassLaw> = []
     func apply(_ draft: Draft) -> Draft {
         var draft = draft
         if let first = draft.presentIndices.first { draft.remove(at: first, by: Self.id) }
@@ -459,5 +478,30 @@ struct CleaningPipelineTests {
         #expect(draft.text == "main meeting mein tha")
         #expect(draft.words.indices.map(draft.isHindi(at:)) == [true, false, true, true])
         #expect(draft.originalText == "main meeting mein tha")
+    }
+}
+
+@Suite("Draft word timing")
+struct DraftTimingTests {
+    @Test("reads the silence between two timed words")
+    func pauseBetweenTimedWords() {
+        let words = [
+            TranscribedWord(text: "done", confidence: 1, start: .zero, end: .milliseconds(400)),
+            TranscribedWord(
+                text: "next", confidence: 1, start: .milliseconds(1_300), end: .milliseconds(1_600)),
+        ]
+        let draft = Draft(
+            transcription: Transcription(
+                text: "done next",
+                segments: [
+                    TranscriptionSegment(text: "done next", start: .zero, end: .seconds(2), words: words)
+                ]))
+        #expect(draft.pause(before: 1) == .milliseconds(900))
+        #expect(draft.pause(before: 0) == nil)
+    }
+
+    @Test("knows no pause for words the recogniser did not time")
+    func untimed() {
+        #expect(Draft(text: "done next").pause(before: 1) == nil)
     }
 }

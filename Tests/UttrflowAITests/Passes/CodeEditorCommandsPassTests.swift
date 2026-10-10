@@ -65,11 +65,87 @@ struct CodeEditorCommandsPassTests {
         }
     }
 
+    @Test("leaves prose unchanged in a code editor whose document is not recognised source")
+    func proseDocuments() {
+        let spoken = [
+            "the dot product equals the sum of the products",
+            "press the arrow keys to move",
+            "the underscore key is next to the dash",
+            "all caps is shouting so avoid it",
+        ]
+        let documents: [(String?, String?)] = [
+            ("README.md", "## Notes\n"), ("notes.txt", ""), ("paper.tex", nil), (nil, nil),
+        ]
+        for (documentName, precedingText) in documents {
+            let pipeline = CleaningPipeline.piece(
+                numbers: .fromTen, digits: .none, destination: .codeEditor,
+                intent: WritingIntent(
+                    app: AppContext(documentName: documentName),
+                    insertion: InsertionPoint(precedingText: precedingText)))
+            for text in spoken {
+                #expect(pipeline.run(Draft(text: text)).text == text, "\(documentName ?? "untitled")")
+            }
+        }
+    }
+
     @Test("writes code operators")
     func symbols() {
         let app = AppContext(documentName: "Example.swift")
         let situation = Situation(app: app, insertion: app.insertionPoint, destination: .codeEditor)
         let pipeline = CleaningPipeline.beforeModel(for: .standard(for: .codeEditor), situation: situation)
         #expect(pipeline.run(Draft(text: "max retries equals five")).text == "max retries = 5")
+    }
+
+    /// The words a code editor's rules write for `spoken` when the caret sits in code in `documentName`.
+    private static func written(_ spoken: String, in documentName: String) -> String {
+        let app = AppContext(documentName: documentName, precedingText: "    ")
+        let situation = Situation(app: app, insertion: app.insertionPoint, destination: .codeEditor)
+        return CleaningPipeline.beforeModel(for: .standard(for: .codeEditor), situation: situation)
+            .run(Draft(text: spoken)).text
+    }
+
+    @Test("writes an arrow as the caret's language writes it")
+    func arrowFollowsTheLanguage() {
+        #expect(Self.written("value arrow bool", in: "Example.swift") == "value -> bool")
+        #expect(Self.written("value arrow bool", in: "example.py") == "value -> bool")
+        #expect(Self.written("value arrow bool", in: "example.js") == "value => bool")
+        #expect(Self.written("value arrow bool", in: "example.ts") == "value => bool")
+    }
+
+    @Test("keeps a language's own operators out of a language without them")
+    func languageRowsStayInTheirLanguage() {
+        #expect(Self.written("left triple equals right", in: "example.ts") == "left === right")
+        #expect(Self.written("left triple equals right", in: "example.py") == "left triple = right")
+        #expect(Self.written("side double star 2", in: "example.py") == "side ** 2")
+        #expect(Self.written("side double star 2", in: "Example.swift") == "side double star 2")
+    }
+
+    @Test("leaves a word whose notation depends on the language as spoken where no language is known")
+    func unknownLanguageAbstainsOnAmbiguousWords() throws {
+        let arrow = try #require(SpokenCommands.codeSymbols.first { $0.id == "code.arrow" })
+        let equals = try #require(SpokenCommands.codeSymbols.first { $0.id == "code.double-equals" })
+        #expect(!arrow.isEnabled(for: nil))
+        #expect(arrow.isEnabled(for: .swift) && !arrow.isEnabled(for: .javascript))
+        #expect(equals.isEnabled(for: nil) && equals.isEnabled(for: .python))
+    }
+
+    @Test("reads the word after empty parentheses")
+    func readsTheWordAfterEmptyParentheses() {
+        #expect(Self.written("open paren close paren arrow void", in: "Example.swift") == "() -> void")
+        #expect(Self.written("open paren close paren equals nil", in: "Example.swift") == "() = nil")
+    }
+
+    @Test("reads a casing phrase that a form of be follows as the subject of prose, at a code caret")
+    func casingPhraseAsSubject() {
+        for precedingText in ["let total = 0\n", "let message = \""] {
+            let app = AppContext(documentName: "notes.swift", precedingText: precedingText)
+            let situation = Situation(app: app, insertion: app.insertionPoint, destination: .codeEditor)
+            let pipeline = CleaningPipeline.beforeModel(
+                for: .standard(for: .codeEditor), situation: situation)
+            for spoken in ["all caps is shouting so avoid it", "camel case was the old style"] {
+                #expect(pipeline.run(Draft(text: spoken)).text == spoken, "\(precedingText)")
+            }
+            #expect(pipeline.run(Draft(text: "all caps max retries")).text == "MAX RETRIES")
+        }
     }
 }

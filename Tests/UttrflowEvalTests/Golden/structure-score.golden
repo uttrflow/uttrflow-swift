@@ -1,0 +1,7 @@
+all	cases=42 breaks=92 output-breaks=73 correct=73 precision=100.0% recall=79.3% f1=88.5% over-segmentation=-3.31 list-items=38/47 inside-sentence=0
+codeEditor	cases=2 breaks=2 output-breaks=1 correct=1 precision=100.0% recall=50.0% f1=66.7% over-segmentation=-6.94 list-items=0/0 inside-sentence=0
+document	cases=22 breaks=57 output-breaks=49 correct=49 precision=100.0% recall=86.0% f1=92.5% over-segmentation=-2.38 list-items=36/39 inside-sentence=0
+email	cases=3 breaks=11 output-breaks=10 correct=10 precision=100.0% recall=90.9% f1=95.2% over-segmentation=-0.81 list-items=0/0 inside-sentence=0
+messaging	cases=1 breaks=1 output-breaks=1 correct=1 precision=100.0% recall=100.0% f1=100.0% over-segmentation=+0.00 list-items=0/0 inside-sentence=0
+plain	cases=13 breaks=17 output-breaks=12 correct=12 precision=100.0% recall=70.6% f1=82.8% over-segmentation=-7.96 list-items=2/8 inside-sentence=0
+sqlEditor	cases=1 breaks=4 output-breaks=0 correct=0 precision=- recall=0.0% f1=- over-segmentation=-11.43 list-items=0/0 inside-sentence=0

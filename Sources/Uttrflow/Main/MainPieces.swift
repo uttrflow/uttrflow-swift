@@ -483,7 +483,11 @@ struct MainApplicationTile: View {
                     .frame(width: size, height: size)
             } else {
                 RoundedRectangle(cornerRadius: size * 0.27)
-                    .fill(Color(hue: hue, saturation: 0.55, brightness: 0.62))
+                    .fill(
+                        Color(
+                            hue: hue, saturation: BrandPalette.Redesign.appTileTone.saturation,
+                            brightness: BrandPalette.Redesign.appTileTone.brightness)
+                    )
                     .frame(width: size, height: size)
                     .overlay(
                         Text(application.initial)

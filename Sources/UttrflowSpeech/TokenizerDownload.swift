@@ -52,7 +52,7 @@ func downloadTokenizer(for model: SpeechModel, into destination: URL) async thro
         }
 
         // No token and no endpoint of anybody's choosing: this fetches a public file and says who nobody is.
-        let (data, response) = try await URLSession.shared.data(from: url)
+        let (data, response) = try await countedTokenizerData(from: url, using: .shared)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
             throw TokenizerFetchFailure(
@@ -74,6 +74,13 @@ func downloadTokenizer(for model: SpeechModel, into destination: URL) async thro
     }
 }
 
+private func countedTokenizerData(
+    from url: URL, using session: URLSession
+) async throws -> (Data, URLResponse) {
+    NetworkActivityLedger.shared.record(.modelDownload)
+    return try await session.data(from: url)
+}
+
 private func completedPinnedWeightBytes(for model: SpeechModel, in destination: URL) throws -> Int64 {
     var completed: Int64 = 0
     for (name, expected) in model.weightFiles {
@@ -85,9 +92,13 @@ private func completedPinnedWeightBytes(for model: SpeechModel, in destination: 
 }
 
 func verified(file: URL, expected: SpeechModelFile) throws -> Bool {
-    let values = try? file.resourceValues(forKeys: [.fileSizeKey])
-    guard Int64(values?.fileSize ?? -1) == expected.bytes else { return false }
+    guard onDiskSize(of: file) == expected.bytes else { return false }
     return try sha256(of: file) == expected.sha256
+}
+
+/// The file's size as the disk has it now, or nil when it is missing; URL resource values are cached per URL and go stale while a download writes.
+func onDiskSize(of file: URL) -> Int64? {
+    (try? FileManager.default.attributesOfItem(atPath: file.path)[.size] as? NSNumber)?.int64Value
 }
 
 typealias SpeechAssetDownloader =
@@ -117,7 +128,7 @@ func fetchPinnedFile(
     if fileManager.fileExists(atPath: partial.path) { try PrivateFile.tighten(at: partial) }
 
     for attempt in 0...1 {
-        if offset == expected.bytes, try matches(partial, expected: expected) {
+        if offset == expected.bytes, try verified(file: partial, expected: expected) {
             break
         }
         let response = try await fetch(
@@ -132,13 +143,13 @@ func fetchPinnedFile(
             throw SpeechModelFetchFailure(reason: "\(repository) answered \(status) for \(path)")
         }
 
-        if try matches(partial, expected: expected) { break }
+        if try verified(file: partial, expected: expected) { break }
         if attempt == 0, offset > 0 {
             try? fileManager.removeItem(at: partial)
             offset = 0
             continue
         }
-        let received = (try? partial.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? -1
+        let received = onDiskSize(of: partial) ?? -1
         let found = (try? sha256(of: partial)) ?? "unavailable"
         try? fileManager.removeItem(at: partial)
         throw SpeechModelFetchFailure(
@@ -147,7 +158,7 @@ func fetchPinnedFile(
         )
     }
 
-    guard try matches(partial, expected: expected) else {
+    guard try verified(file: partial, expected: expected) else {
         throw SpeechModelFetchFailure(reason: "\(path) could not be verified after download")
     }
     try PrivateFile.tighten(at: partial)
@@ -161,15 +172,9 @@ func fetchPinnedFile(
 }
 
 private func partialSize(_ file: URL, expected: SpeechModelFile) throws -> Int64 {
-    let size = Int64((try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
+    let size = onDiskSize(of: file) ?? 0
     guard size > 0, size <= expected.bytes else { return 0 }
     return size
-}
-
-private func matches(_ file: URL, expected: SpeechModelFile) throws -> Bool {
-    let size = Int64((try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? -1)
-    guard size == expected.bytes else { return false }
-    return try sha256(of: file) == expected.sha256
 }
 
 func speechAssetRequest(from url: URL, startingAt offset: Int64) -> URLRequest {
@@ -195,6 +200,7 @@ private func downloadSpeechAsset(
     _ request: URLRequest, to partial: URL, startingAt offset: Int64,
     onProgress: @escaping @Sendable (Int64) -> Void
 ) async throws -> URLResponse {
+    recordSpeechAssetRequest()
     let download = SpeechAssetURLSessionDownload(
         partial: partial, requestedOffset: offset, onProgress: onProgress)
     return try await withTaskCancellationHandler {
@@ -204,6 +210,10 @@ private func downloadSpeechAsset(
     } onCancel: {
         download.cancel()
     }
+}
+
+private func recordSpeechAssetRequest() {
+    NetworkActivityLedger.shared.record(.modelDownload)
 }
 
 private final class SpeechAssetURLSessionDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable {

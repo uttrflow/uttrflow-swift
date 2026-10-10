@@ -1,17 +1,18 @@
 // Tests for addressing a spelling the English coder cannot speak.
 
 import Testing
+import UttrflowCore
 
 @testable import UttrflowDictionary
 
 @Suite("Addressing a spelling")
 struct PronunciationCoderTests {
-    /// Where the metaphone can speak, it is still the only address: nothing about English changes.
+    /// Where the sound key can speak, it is still the only address: nothing about English changes.
     @Test(
-        "keys an English spelling exactly as the metaphone does",
+        "keys an English spelling exactly as its sound does",
         arguments: ["Uttrflow", "kubectl", "caf\u{00E9}", "Nikhil"])
     func keysEnglishAsBefore(word: String) {
-        #expect(PronunciationCoder.keys(for: word) == DoubleMetaphone.code(for: word).keys)
+        #expect(PronunciationCoder.keys(for: word) == WordSound(of: word).keys)
         #expect(!PronunciationCoder.keys(for: word).isEmpty)
     }
 
@@ -22,18 +23,18 @@ struct PronunciationCoderTests {
             "\u{5317}\u{4EAC}", "\u{041C}\u{043E}\u{0441}\u{043A}\u{0432}\u{0430}",
         ])
     func keysOtherScriptsOnTheSpelling(word: String) {
-        #expect(DoubleMetaphone.code(for: word).keys.isEmpty, "the metaphone is silent for this word")
+        #expect(WordSound(of: word).keys.isEmpty, "the sound key is silent for this word")
         #expect(PronunciationCoder.keys(for: word).count == 1)
     }
 
     /// A Devanagari spelling also gets the keys of its romanisation, so a Latin entry can meet it.
     @Test("keys a Devanagari spelling on its romanisation as well as itself")
     func keysDevanagariOnItsRomanisation() {
-        let devanagari = "\u{0928}\u{0935}\u{0940}\u{0928}"  // नवीन, "Naveen"
-        #expect(DoubleMetaphone.code(for: devanagari).keys.isEmpty, "the metaphone is silent for Devanagari")
+        let devanagari = "\u{0930}\u{094B}\u{0939}\u{0928}"  // नवीन, "Avery"
+        #expect(WordSound(of: devanagari).keys.isEmpty, "the sound key is silent for Devanagari")
         let keys = PronunciationCoder.keys(for: devanagari)
         #expect(keys.contains(PronunciationCoder.spellingKey(for: devanagari)))
-        #expect(Set(keys).isSuperset(of: DoubleMetaphone.code(for: "Naveen").keys))
+        #expect(Set(keys).isSuperset(of: WordSound(of: "Rohan").keys))
     }
 
     /// A Latin entry and the Devanagari rendering of the same name share a key.
@@ -76,7 +77,9 @@ struct PronunciationCoderTests {
         "keys a digit and its spoken word alike",
         arguments: [("S 3", "s three"), ("o auth 2", "o auth two"), ("R2D2", "R two D two")])
     func keysDigitsAsSpoken(written: String, spoken: String) {
-        #expect(!Set(PronunciationCoder.keys(for: written)).isDisjoint(with: PronunciationCoder.keys(for: spoken)))
+        #expect(
+            !Set(PronunciationCoder.keys(for: written)).isDisjoint(with: PronunciationCoder.keys(for: spoken))
+        )
     }
 
     /// A spelling with digits keeps the keys it had as written, and a number alone keeps its spelling key.
@@ -84,12 +87,14 @@ struct PronunciationCoderTests {
     func digitsKeepTheirWrittenKeys() {
         #expect(
             Set(PronunciationCoder.keys(for: "R2D2"))
-                == Set(DoubleMetaphone.code(for: "R2D2").keys + DoubleMetaphone.code(for: "R two D two ").keys))
+                == Set(
+                    WordSound(of: "R2D2").keys + WordSound(of: "R two D two ").keys))
         #expect(PronunciationCoder.digitsSpoken(in: "R2D2") == "R two D two ")
         #expect(
             Set(PronunciationCoder.keys(for: "2024"))
-                == Set([PronunciationCoder.spellingKey(for: "2024")]
-                    + DoubleMetaphone.code(for: " two  zero  two  four ").keys))
+                == Set(
+                    [PronunciationCoder.spellingKey(for: "2024")]
+                        + WordSound(of: " two  zero  two  four ").keys))
         #expect(PronunciationCoder.digitsSpoken(in: "Nikhil") == nil)
     }
 }

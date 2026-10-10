@@ -136,12 +136,15 @@ extension MenuBarPresenter {
             return .status(MenuBarStatus(title: statusLine, emphasis: .live))
         case .working:
             return .status(MenuBarStatus(title: statusLine))
-        case .idle, .inserted, .partial, .unconfirmed, .copied:
+        case .idle, .inserted, .partial, .unconfirmed, .copied, .discarded, .executed:
             break
         }
         if let notice = state.suggestionUnheard, state.features.suggestions {
             return .status(
                 MenuBarStatus(title: "AI suggestions paused", detail: notice, emphasis: .attention))
+        }
+        if state.features.suggestions, let status = suggestionStatus(state.suggestionRuntime) {
+            return .status(status)
         }
         if state.shortcutUnheard != nil, state.features.dictation {
             return .status(
@@ -150,6 +153,29 @@ extension MenuBarPresenter {
                     emphasis: .attention))
         }
         return .hint(hint(for: state))
+    }
+
+    private static func suggestionStatus(_ runtime: SuggestionRuntimeStatus) -> MenuBarStatus? {
+        let detail: String
+        switch runtime {
+        case .idle, .starting, .running:
+            return nil
+        case .tapResting:
+            detail = "The key tap is restarting. Suggestions will resume automatically."
+        case .restarting:
+            detail = "Suggestions are restarting and will resume automatically."
+        case .secureInputBlocked:
+            detail = "A secure input field is active. Suggestions resume when you leave it."
+        case .accessibilityDenied:
+            detail = SuggestionRuntimeStatus.accessibilityDeniedMessage
+        case .tapFailed:
+            detail =
+                "Allow Uttrflow to monitor input in Privacy & Security, then turn suggestions off and on again."
+        case .corpusFailed:
+            detail =
+                "The suggestion corpus could not be opened. Check its file access, then turn suggestions off and on again."
+        }
+        return MenuBarStatus(title: "AI suggestions paused", detail: detail, emphasis: .attention)
     }
 
     /// Each speech-model state, with the words and the one action its design gives it.

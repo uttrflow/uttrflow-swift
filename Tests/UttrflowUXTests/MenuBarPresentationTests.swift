@@ -8,14 +8,16 @@ import UttrflowClipboard
 // MARK: - Fixtures
 
 /// A blocking failure: the microphone is off, so nothing can be dictated at all.
-private let microphoneOff = FailurePresenter.present(PermissionError.microphoneDenied, floatingButtonShown: true)
+private let microphoneOff = FailurePresenter.present(
+    PermissionError.microphoneDenied, floatingButtonShown: true)
 
 /// A degraded one: the words arrived, just on the clipboard rather than in the app.
 private let clipboardFallback = FailurePresenter.present(
     TextInsertionError.insertionRejected(description: "read-only field"), floatingButtonShown: true)
 
 /// One with nothing to offer, to prove the menu does not invent a row for it.
-private let noWayOut = FailurePresenter.present(AudioCaptureError.unsupportedInputFormat, floatingButtonShown: true)
+private let noWayOut = FailurePresenter.present(
+    AudioCaptureError.unsupportedInputFormat, floatingButtonShown: true)
 
 private let twoRecents = [
     MenuBarRecent(
@@ -49,7 +51,7 @@ struct MenuBarIconTests {
             icons == [
                 .mark, .symbol("mic.fill"), .symbol("sparkles"), .symbol("checkmark"),
                 .symbol("exclamationmark.circle"), .symbol("questionmark.circle"),
-                .symbol("doc.on.clipboard"),
+                .symbol("doc.on.clipboard"), .symbol("trash"), .symbol("checkmark.circle"),
             ])
         #expect(Set(icons).count == DictationActivity.allCases.count)
     }
@@ -180,7 +182,7 @@ struct MenuBarStatusTests {
         #expect(
             lines == [
                 "Ready", "Listening…", "Tidying up…", "Inserted", "Inserted — part not transcribed",
-                "Inserted — not confirmed", "Copied — press ⌘V",
+                "Inserted — not confirmed", "Copied — press ⌘V", "Discarded", "Done",
             ])
         for (activity, line) in [
             (DictationActivity.copied, "Copied — press ⌘V"),
@@ -372,7 +374,7 @@ struct MenuBarContentsTests {
                     MenuBarStatus(title: "Nothing heard", detail: "Try again closer to the microphone.")))
     }
 
-    /// The popover names a ``Destination`` and the app owns the windows, so no callback is added.
+    /// The popover names a ``AppLocation`` and the app owns the windows, so no callback is added.
     @Test("asks for a window by naming the place, not by opening it")
     func windowsAreNamedAsDestinations() {
         let shown = MenuBarPresenter.present(MenuBarState())
@@ -780,7 +782,7 @@ struct MenuBarClipListTests {
 
     @Test("masks a secret and gives it no tooltip")
     func secretIsMasked() {
-        let secret = PanelFixture.clip("AKIAIOSFODNN7EXAMPLE", kind: .secret)
+        let secret = PanelFixture.clip("ASIAY34FZKBOKMUTVV7A", kind: .secret)
         let row = MenuBarPresenter.present(MenuBarState(clips: [secret])).clips.first
         #expect(row?.title == PanelPresenter.mask)
         #expect(row?.tooltip == nil)
@@ -1027,6 +1029,51 @@ struct MenuBarUnheardSuggestionTests {
             features: MenuBarFeatures(suggestions: false), suggestionUnheard: reason)
         guard case .hint = MenuBarPresenter.present(state).header else {
             Issue.record("the suggestion notice was shown while AI suggestions are off")
+            return
+        }
+    }
+}
+
+@Suite("AI suggestions runtime in the menu bar")
+struct MenuBarSuggestionRuntimeTests {
+    @Test("shows every unavailable coordinator state while suggestions are on")
+    func unavailableRuntimeStatesReachTheMenuBar() throws {
+        let unavailable: [(SuggestionRuntimeStatus, String)] = [
+            (.tapResting, "key tap is restarting"),
+            (.restarting, "Suggestions are restarting and will resume automatically."),
+            (.secureInputBlocked, "secure input field is active"),
+            (.accessibilityDenied, "Accessibility"),
+            (.tapFailed, "monitor input in Privacy & Security"),
+            (.corpusFailed, "corpus could not be opened"),
+        ]
+        for (runtime, expectedDetail) in unavailable {
+            let state = MenuBarState(
+                features: MenuBarFeatures(suggestions: true), suggestionRuntime: runtime)
+            let shown = MenuBarPresenter.present(state)
+            guard case .status(let status) = shown.header else {
+                Issue.record("the menu bar omitted the \(runtime) suggestions state")
+                continue
+            }
+            #expect(status.title == "AI suggestions paused")
+            #expect(status.detail?.contains(expectedDetail) == true)
+            #expect(status.emphasis == .attention)
+        }
+    }
+
+    @Test("keeps running and switched-off suggestions quiet")
+    func runningAndDisabledAreQuiet() {
+        for runtime in [SuggestionRuntimeStatus.idle, .starting, .running] {
+            let state = MenuBarState(
+                features: MenuBarFeatures(suggestions: true), suggestionRuntime: runtime)
+            guard case .hint = MenuBarPresenter.present(state).header else {
+                Issue.record("the menu bar reported the \(runtime) suggestions state")
+                continue
+            }
+        }
+        let disabled = MenuBarState(
+            features: MenuBarFeatures(suggestions: false), suggestionRuntime: .tapFailed)
+        guard case .hint = MenuBarPresenter.present(disabled).header else {
+            Issue.record("the menu bar showed a suggestions failure while suggestions were off")
             return
         }
     }

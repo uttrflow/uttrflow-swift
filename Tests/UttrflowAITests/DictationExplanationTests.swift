@@ -25,7 +25,7 @@ struct DictationExplanationTests {
         switchedOff: [.stammers],
         refusals: [.init(engine: "localModel", reason: "it dropped ship", kind: .lostWord)],
         unavailableEngines: [.init(engine: "foundationModels", reason: .appleIntelligenceDisabled)],
-        engineFailures: [.init(engine: "cloud", reason: "timed out")])
+        engineFailures: [.init(engine: "cloud", failureClass: .timedOut)])
 
     @Test("names every stage's input, output and reason in the order they ran")
     func everyStage() {
@@ -40,7 +40,7 @@ struct DictationExplanationTests {
                 "doubtful   \"ship\" at 0.41 → chip, shop",
                 "for model  we ship it",
                 "skipped    foundationModels: Apple Intelligence is switched off",
-                "failed     cloud: timed out",
+                "failed     cloud: timedOut",
                 "refused    localModel: it dropped ship",
                 "step       Filler words: removed 1: um",
                 "off        Stammers",
@@ -77,5 +77,15 @@ struct DictationExplanationTests {
         #expect(explanation.result.producedBy == .rules)
         #expect(explanation.lines.contains("step       Filler words: removed 1: um"))
         #expect(explanation.lines.last == "result     \(explanation.result.text)")
+    }
+
+    @Test("prints the model's raw answer after the refusals, line breaks shown")
+    func modelAnswer() {
+        let explanation = DictationExplanation(
+            request: scored, spoken: "we ship it", doubtful: [],
+            result: TransformationResult(
+                text: "We ship it.", producedBy: .localModel,
+                cleaning: CleaningRecord(changes: [], modelAnswers: ["Here you go:\nwe ship it"])))
+        #expect(explanation.lines.contains("model said Here you go:⏎we ship it"))
     }
 }

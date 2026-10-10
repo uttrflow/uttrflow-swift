@@ -58,7 +58,8 @@ struct ErrorPresentationTests {
         }
 
         let blocked = FailurePresenter.present(HotkeyError.observationNotPermitted, floatingButtonShown: true)
-        let degraded = FailurePresenter.present(PermissionError.accessibilityNotTrusted, floatingButtonShown: true)
+        let degraded = FailurePresenter.present(
+            PermissionError.accessibilityNotTrusted, floatingButtonShown: true)
         #expect(blocked.action == degraded.action, "the two offer the same fix")
         #expect(blocked.severity == .blocking)
         #expect(degraded.severity == .degraded)
@@ -113,7 +114,8 @@ struct ErrorPresentationTests {
         let error = TextInsertionError.insertionRejected(description: "read-only field")
         let direct = FailurePresenter.present(error, floatingButtonShown: true)
         let reduced = FailurePresenter.present(
-            message: error.userMessage, recovery: error.recovery, severity: error.severity, floatingButtonShown: true)
+            message: error.userMessage, recovery: error.recovery, severity: error.severity,
+            floatingButtonShown: true)
         #expect(direct == reduced)
     }
 
@@ -129,7 +131,8 @@ struct ErrorPresentationTests {
     @Test("leaves a one-sentence message with nothing underneath it")
     func keepsASingleSentenceWhole() {
         let shown = FailurePresenter.present(
-            message: "Recording is already in progress.", recovery: .retry, severity: .recoverable, floatingButtonShown: true)
+            message: "Recording is already in progress.", recovery: .retry, severity: .recoverable,
+            floatingButtonShown: true)
         #expect(shown.headline == "Recording is already in progress.")
         #expect(shown.detail == nil)
     }
@@ -216,6 +219,7 @@ struct ErrorPresentationTests {
                 == FailurePresenter.present(PermissionError.microphoneDenied, floatingButtonShown: true))
         #expect(
             FailurePresenter.present(PermissionError.microphoneDenied, floatingButtonShown: true)
-                != FailurePresenter.present(PermissionError.accessibilityNotTrusted, floatingButtonShown: true))
+                != FailurePresenter.present(
+                    PermissionError.accessibilityNotTrusted, floatingButtonShown: true))
     }
 }

@@ -15,12 +15,23 @@ measured. The rules live in `FieldReading.scope` (`Sources/UttrflowPredictCaptur
 **Precision** is the share of the suggestions actually drawn that were right. **Coverage** is the
 share of moments where anything was drawn. `uttrflow-bakeoff complete --fixtures` prints both, with
 precision to two decimal places, and the count of wrong lines, per category;
-`Scripts/predict_scorecard.py new.json [old.json]` reads its `--json` output and compares two runs.
+`Scripts/predict_scorecard.py new.json [--compare-run old.json]` reads its `--json` output and
+compares two runs.
 
-A fixture whose expectation takes any continuation (`Determinacy.any`, the default for chat, notes
-and mail) has nothing to check a hit against, so the report counts its hits as *unjudged*, prints
-them apart (`hits judged … unjudged …`), and computes precision over judged fixtures only. An
-address or search fixture, where the generator refuses by design, expects `<none>`.
+Only the leading completion is considered; a later alternative cannot rescue it. The typed-prefix
+check and named-answer comparison are case-insensitive and canonically equivalent. For a named
+expectation, after its typed prefix is removed, the non-empty continuation must equal a named
+answer or be a whole-word prefix of it. A prefix must end at a whole-word boundary within the
+answer; text added after the full answer is not a hit. A shorter fragment within a word, an empty
+continuation or a match in a later alternative is not a hit. With no typed text, the leader must
+therefore equal an answer or end at a whole-word boundary within it. Unicode letters, numbers,
+combining marks and connector punctuation continue a word; any other scalar is a boundary.
+
+An expectation that takes any continuation (`Determinacy.any`, the default for chat, notes and mail)
+has no named answer to judge. Any drawn line contributes to coverage but not judged precision.
+Separately, the hit count is true only when the leader continues the typed prefix with a non-empty
+tail; the report prints those hits as *unjudged* (`hits judged … unjudged …`). An address or search
+fixture, where the generator refuses by design, expects `<none>`.
 
 `complete --fixtures` measures the model alone. `complete --sources --json run.json` exercises the
 app's choice between remembered, machine and model candidates — shared session ranking,
@@ -30,6 +41,22 @@ is an arbitration check, not a measurement of a live corpus.
 
 The design target is precision at or above 99%, with coverage whatever that costs: a category that
 cannot reach it stays quiet until something can ground it.
+
+`make predict-accuracy` holds that bar on this Mac: it builds `uttrflow-bakeoff` in Release, runs
+the full fixture catalogue into `.build/predict/fixtures.json`, and runs `make predict-scorecard`,
+which exits non-zero when judged precision falls or the count of wrong shown lines rises against
+`Scripts/predict_precision_baseline.json`, overall or in any category. A missing, added, duplicated
+or recategorised fixture, or a changed category set, also fails, so a partial `--only`, `--limit`,
+`--sources` or `--failed-in` run cannot pass for the full catalogue. Coverage is not compared:
+withholding more lines is allowed. A bare `uttrflow-bakeoff complete --fixtures` measures and does
+not enforce. The run needs the Metal toolchain and the local model, so CI does not run it;
+`make verify` runs `make predict-scorecard-test`, which proves the ratchet on synthetic runs.
+
+The 99% target is reported beside the ratchet: a scope below it prints `TARGET NOT MET`, and an
+unchanged run still passes the ratchet, so the gap stays visible without blocking. The baseline is
+written only by `Scripts/predict_scorecard.py run.json --record-baseline <path>` from a run whose
+JSON says the unfiltered catalogue ran in full; it is refreshed when a reviewed change moves the
+fixture set or the model.
 
 ## Two causes of a wrong line
 
@@ -89,8 +116,12 @@ at all.
 A generated line is scored by the pass that wrote it, and a line below a floor is not drawn. While
 the model decodes, `RecordingSampler` keeps the log-probability of every token it chose, and
 `GeneratedConfidence` averages the tokens that wrote the line's own words past the typing; a word
-the typing still owed and anything the parser cut off the line are left out. No second model pass
-is spent. A line no pass scored, such as one whose model has since been released, is never drawn.
+the typing still owed and anything the parser cut off the line are left out. When one of those
+tokens falls under `Verification.plausibilityFloor`, the line scores as that token instead, so one
+invented name or figure among likely words clears neither floor below. A token that
+`TokenChoice` or `TokenHealing` held the model to is scored over the model's own logits from before
+the mask (`UnmaskedLogits`), so a forced token counts as likely as the model found it, not as
+certain. No second model pass is spent. A line no pass scored, such as one whose model has since been released, is never drawn.
 
 | Floor | Value | What clears it |
 |---|---|---|
@@ -149,33 +180,29 @@ Both models' lines pass through `CompletionText.finished`, so these rules hold o
   only where the person wrote that name.
 - **Length follows this person.** A continuation is held to `Register.lengthMultiple` (3) times this
   person's typical line here, never under `shortestAllowance` (16) characters; with no history, to
-  the register's own limit (`registerContinuationLimit`): 80 for a reply, an address or a search,
-  120 for a command, 160 for a document. The token budget follows the typical line too
-  (`Register.maxTokens`), so a terse person is not given a paragraph's room.
+  the register's own limit (`registerContinuationLimit`), by field kind as
+  [predict.md](predict.md#continuation-length-by-field-kind) tabulates. The token budget follows
+  the typical line too (`Register.maxTokens`), so a terse person is not given a paragraph's room.
 
 ## A generated line adds no specific nobody gave it
 
-A number, a time, a date, an amount, a percentage, an email or a web address is the one kind of
-wrong that reads as right, and one Tab puts it in a sent message. `Specifics.areGrounded` refuses a
-line from either model when a token it adds names such a specific and that exact token is not in
-the typed text, this person's lines here, the screen or the machine's values. Tokens compare
-lowercased with surrounding punctuation removed, with no prefix or substring match. A digit inside a
-name, as in `python3`, is not a number. The corpus is unaffected: a line this person typed is
-theirs, specifics included. Each refusal is logged under `predict` as `DROP made-up specific`, by
-reason only.
+A number, spoken number, time, date, amount, percentage, email or web address can read as right while being wrong; one Tab puts it in a sent message. `Specifics.areGrounded` refuses either model's line when it adds a specific whose same-kind value is absent from typed text, this person's lines, the screen or machine values. Calendar names and day periods count; nearby numbers stay bound to dates (`Inbox (5)` cannot ground `March 5`), and amounts include their unit (`20 dollars` cannot ground `50 dollars` or `20 euros`).
+DNS-shaped dotted hosts count, including ambiguous `readme.md` but not paths such as `docs/readme.md`; in code, a key name cannot ground an unprovided credential, and credentials are recognised by the shared `SecretShapes.matches` rules. Tokens compare lowercased with punctuation removed, without prefix or substring matching; digits inside names like `python3` are not numbers. The corpus is unaffected, and refusals log reason only.
 
 Code, queries and commands write a few numbers that carry no value of their own. In those registers
 (not prose, an address bar or a search box) a word whose every number is one of these is not a
 specific. A number assigned to or compared with a name whose last word is `id`, `ids`, `pid`,
 `uid`, `uuid` or `guid` is still an invented id, and one after `<` or `>` is an invented threshold.
 So is one passed as the first argument of a call whose name ends in one of those words
-(`findById(1)`, `getUserId(1)`), or whose name starts with `get`, `fetch`, `find` or `load` and names
-an entity (`getUser(1)`, `fetchOrder(0)`), or listed in `IN (…)` or `NOT IN (…)` after such a
-column. The exemption holds only where the number is an operand of code: after an assignment, a
-bracket, a separator, an operator or a member, or after `return`, `in`, `case`, `limit` and the
-like. A number standing as a word after a command's word or after `~` or `^` is an argument the
-command acts on (`kill 1`, `HEAD~1`, `tail -n 1`) and is a specific. Each row has a case in
-`SpecificsTests`.
+(`findById(1)`, `getUserId(1)`), or ends in `user`, `order`, `account`, `record` or `item`, whatever
+the verb (`deleteUser(1)`, `cancelOrder(0)`, `lookupAccount(0)`, `updateRecord(0)`,
+`archiveItem(1)`). A call whose name starts with `get`, `fetch`, `find` or `load` and names an
+entity is also covered (`getBook(1)`, `fetchOrder(0)`), as is a value listed in `IN (…)` or
+`NOT IN (…)` after such a column. The exemption holds only where the number is an operand of code:
+after an assignment, a bracket, a separator, an operator or a member, or after `return`, `in`,
+`case`, `limit` and the like. A number standing as a word after a command's word or after `~` or
+`^` is an argument the command acts on (`kill 1`, `HEAD~1`, `tail -n 1`) and is a specific. Each
+row has a case in `SpecificsTests`.
 
 | Literal | In code, a query or a command | In prose | Why |
 |---|---|---|---|
@@ -184,7 +211,7 @@ command acts on (`kill 1`, `HEAD~1`, `tail -n 1`) and is a specific. Each row ha
 | `true`, `false`, `nil`, `null`, `None` | kept | kept | words, never a specific |
 | `""`, `''`, `[]`, `{}` | kept | kept | empty values, never a specific |
 | `id = 1`, `user_id = 1`, `userId: 0`, `"id": 1` | refused | refused | a record nobody named |
-| `findById(1)`, `getUserId(0)`, `getUser(1)`, `fetchOrder(0)`, `id IN (1)`, `id NOT IN (1)` | refused | refused | a record nobody named, passed as an argument |
+| `findById(1)`, `getUserId(0)`, `deleteUser(1)`, `cancelOrder(0)`, `lookupAccount(0)`, `updateRecord(0)`, `archiveItem(1)`, `getBook(1)`, `id IN (1)`, `id NOT IN (1)` | refused | refused | a record nobody named, passed as an argument |
 | `> 0`, `>= 0`, `< 1` | refused | refused | a threshold is a choice the line never showed |
 | `kill 1`, `HEAD~1`, `tail -n 1`, `sleep 1` | refused | refused | an argument a command acts on: a process, a commit, a count |
 | `2`, `10`, `1042`, `0.5`, `19.99` | refused | refused | a count, an id or an amount |

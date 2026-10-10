@@ -44,4 +44,12 @@ struct SuggestionModelWiringTests {
         #expect(text.contains("scoring.whenReloadFails"))
         #expect(text.contains("suggestionModelWentMissing()"))
     }
+
+    @Test(
+        "asks for a fetch only when a reload found the weights gone, not for any other failure",
+        .bug(id: 5270))
+    func onlyMissingWeightsAskForAFetch() throws {
+        let text = try source
+        #expect(text.contains("guard error is WeightsNotOnDisk else { return }"))
+    }
 }

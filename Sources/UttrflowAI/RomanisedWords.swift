@@ -73,12 +73,7 @@ extension MeaningPreservationGuard {
 
     /// Whether the rewrite wrote a loanword the rules romanised in its English spelling: "ticket" for the rules' "tikat".
     static func isRespelling(_ spoken: String, as spelt: String) -> Bool {
-        guard !spoken.contains(where: \.isNumber), !spelt.contains(where: \.isNumber) else { return false }
-        guard !ReadingRestraint.isOrdinaryCollision(spelt, heard: spoken) else { return false }
-        let heard = DoubleMetaphone.code(for: spoken)
-        let spelling = DoubleMetaphone.code(for: spelt)
-        // One sound says too little to call two words one: "dhai" and "doh" both encode as a lone T.
-        return heard.keys.contains { $0.count > 1 && spelling.keys.contains($0) }
+        LoanwordRestoration.isRespelling(spoken, as: spelt)
     }
 
     /// Whether a word only ties the sentence together, so adding or dropping it changes no content: never a number, a negation or a Hindi pronoun.
@@ -86,13 +81,6 @@ extension MeaningPreservationGuard {
         guard !word.contains(where: \.isNumber), !isNegation(word) else { return false }
         let key = Romaniser.soundKey(word)
         guard WordForms.hindiPronouns[key] == nil else { return false }
-        return FunctionWords.holds(word) || hindiGrammarWords.contains(key)
+        return FunctionWords.holds(word) || HindiWords.grammarWords.contains(key)
     }
-
-    /// Hindi auxiliaries, postpositions and particles, by sound key; pronouns, verbs and negations stay content.
-    static let hindiGrammarWords: Set<String> = Set(
-        [
-            "hai", "hain", "hoon", "hun", "tha", "thi", "the", "raha", "rahi", "rahe",
-            "ko", "ka", "ki", "ke", "se", "mein", "par", "ne", "to", "toh", "bhi", "hi",
-        ].map(Romaniser.soundKey))
 }

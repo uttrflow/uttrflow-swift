@@ -1,11 +1,21 @@
-// Keeps a model's line from adding a number, an amount, an email or a web address nobody gave it.
+// Keeps a model's line from adding a number, an amount, an address or a credential nobody gave it.
 
 import Foundation
 import OSLog
+import UttrflowCore
 import UttrflowPredict
 
 /// The specifics a model's line adds, and whether each one is grounded in what the person or the screen already holds.
 enum Specifics {
+    /// What kind of value a token names, so unrelated evidence cannot ground it.
+    enum Kind: Hashable { case address, amount, credential, date, number, time }
+
+    /// A normalised specific and the kind its surrounding words give it.
+    struct Mention: Hashable {
+        let token: String
+        let kind: Kind
+    }
+
     /// Where a refused line is counted, by reason and never by its words.
     private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "predict")
 
@@ -18,29 +28,12 @@ enum Specifics {
         let sources =
             [typed, situation.preceding, situation.surroundings, situation.document, situation.windowTitle]
             .compactMap { $0 } + situation.recentLines + situation.choices
-        let known = Set(sources.flatMap(tokens(of:)))
+        let known = Set(sources.flatMap { mentions(in: $0, writesCode: writesCode) })
         guard added.allSatisfy(known.contains) else {
             log.debug("DROP made-up specific")
             return false
         }
         return true
-    }
-
-    /// The tokens of the line the continuation writes or finishes that name a specific, as they compare; in code a word whose numbers are all conventional names none.
-    static func specifics(in line: String, after typed: String, writesCode: Bool = false) -> [String] {
-        let typedLength = typed.count
-        var offset = 0
-        var found: [String] = []
-        for word in line.split(separator: " ", omittingEmptySubsequences: false) {
-            let end = offset + word.count
-            if end > typedLength, let token = normalised(word), isSpecific(token),
-                !(writesCode && isConventionalCode(token, word: word, after: line.prefix(offset)))
-            {
-                found.append(token)
-            }
-            offset = end + 1
-        }
-        return found
     }
 
     /// The numbers code writes that carry no value of their own: nothing, one, the last one, as an initialiser, an index, a bound or a step. See `Docs/predict-precision.md`.
@@ -49,9 +42,12 @@ enum Specifics {
     /// The last words of a name that says its value picks out one record, so even a conventional number there is an invented id.
     static let keyWords: Set<String> = ["id", "ids", "pid", "uid", "uuid", "guid"]
 
+    /// Entity names whose first call argument identifies a record, whatever the call does to it.
+    static let recordEntityNames: Set<String> = ["user", "order", "account", "record", "item"]
+
     /// Whether a specific token of code is so only by numbers that are each conventional and none a chosen value.
     static func isConventionalCode(_ token: String, word: Substring, after before: Substring) -> Bool {
-        guard !namesAddressOrAmount(token) else { return false }
+        guard !namesAddressOrAmount(token), !namesCredential(String(word)) else { return false }
         let characters = Array(before) + Array(word)
         var index = before.count
         while index < characters.count {
@@ -121,7 +117,7 @@ enum Specifics {
         if !operates, let open = openingParenthesis(before: index, in: characters) {
             let firstArgument = characters[(open + 1)..<index].allSatisfy { $0.isWhitespace }
             return namesKey(endingAt: open, in: characters, throughIn: true)
-                || (firstArgument && namesRecordLookup(endingAt: open, in: characters))
+                || (firstArgument && namesEntityCall(endingAt: open, in: characters))
         }
         guard operates else { return false }
         return namesKey(endingAt: index, in: characters, throughIn: false)
@@ -164,8 +160,8 @@ enum Specifics {
         return keyWords.contains(last)
     }
 
-    /// Whether the call name starts with a lookup verb and names an entity after it.
-    static func namesRecordLookup(endingAt end: Int, in characters: [Character]) -> Bool {
+    /// Whether the call name ends with a record entity, regardless of its verb.
+    static func namesEntityCall(endingAt end: Int, in characters: [Character]) -> Bool {
         var index = end
         while index > 0, " \t".contains(characters[index - 1]) { index -= 1 }
         var nameStart = index
@@ -173,9 +169,8 @@ enum Specifics {
             nameStart -= 1
         }
         let name = String(characters[nameStart..<index])
-        let parts = words(of: name)
-        guard let verb = parts.first, ["get", "fetch", "find", "load"].contains(verb) else { return false }
-        return parts.count > 1 && parts.dropFirst().contains { !$0.isEmpty }
+        guard let entity = words(of: name).last else { return false }
+        return recordEntityNames.contains(entity)
     }
 
     /// Whether a character is a letter or a digit, which is what a name or a number is made of.
@@ -198,11 +193,6 @@ enum Specifics {
         return words
     }
 
-    /// Every token of a text as it compares, split on any whitespace.
-    static func tokens(of text: String) -> [String] {
-        text.split(whereSeparator: \.isWhitespace).compactMap(normalised)
-    }
-
     /// A word lowercased with the punctuation around it dropped, or nothing when no character is left.
     static func normalised(_ word: Substring) -> String? {
         let edges = CharacterSet(charactersIn: ".,;:!?()[]{}\"'`<>*")
@@ -210,16 +200,33 @@ enum Specifics {
         return token.isEmpty ? nil : token
     }
 
-    /// Whether a token names a specific: a number not part of a name, an amount, a percentage, an email or a web address.
-    static func isSpecific(_ token: String) -> Bool {
-        namesAddressOrAmount(token) || startsANumber(token)
-    }
-
     /// Whether a token names an email, a web address, an amount or a percentage, which no register writes as a convention.
     static func namesAddressOrAmount(_ token: String) -> Bool {
         if token.contains("@"), token.count > 1 { return true }
-        if token.contains("://") || token.hasPrefix("www.") || isHostPath(token) { return true }
+        if token.contains("://") || token.hasPrefix("www.") || isHostPath(token) || isBareHost(token) {
+            return true
+        }
         return token.contains(where: isAmountSign)
+    }
+
+    /// Whether a token is a credential under the shared secret-shape rules.
+    static func namesCredential(_ token: String) -> Bool {
+        SecretShapes.matches(token)
+    }
+
+    /// Whether every label of a dotted token has a plausible DNS host shape.
+    static func isBareHost(_ token: String) -> Bool {
+        let labels = token.split(separator: ".", omittingEmptySubsequences: false)
+        guard labels.count > 1, let suffix = labels.last, suffix.count >= 2,
+            suffix.contains(where: \.isLetter), token.utf8.count <= 253,
+            labels.allSatisfy({ $0.utf8.count <= 63 })
+        else { return false }
+        return labels.allSatisfy { label in
+            guard let first = label.first, let last = label.last,
+                first.isLetter, last.isLetter || last.isNumber
+            else { return false }
+            return label.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" }
+        }
     }
 
     /// Whether some digit in the token opens a run of digits no letter stands before, as in `3pm`, `#12` or `12.50`, never `python3`.

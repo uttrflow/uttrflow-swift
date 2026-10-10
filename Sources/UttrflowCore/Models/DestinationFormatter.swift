@@ -25,8 +25,42 @@ public enum TerminalStopPolicy: Sendable, Equatable, Codable {
 public enum DigitGrouping: Sendable, Equatable {
     /// A separator every three digits from ten thousand up, as prose wants: 12,000.
     case thousands
+    /// A comma after the last three digits and every two before them, from one lakh up: 1,50,000.
+    case indian
     /// The digits and nothing between them, as anything that will be parsed wants: 12000.
     case none
+
+    /// The size of each group of digits, read from the right.
+    var groupSizes: (last: Int, rest: Int)? {
+        switch self {
+        case .thousands: (3, 3)
+        case .indian: (3, 2)
+        case .none: nil
+        }
+    }
+
+    /// Whether a written numeral carries this grouping, so "1,50,000" reads as Indian and "150,000" does not.
+    public func matches(_ spelling: String) -> Bool {
+        guard let sizes = groupSizes else { return !spelling.contains(",") }
+        let groups = spelling.split(separator: ",", omittingEmptySubsequences: false)
+        guard groups.count >= 2, let last = groups.last, last.count == sizes.last,
+            (1...sizes.rest).contains(groups[0].count)
+        else { return false }
+        return groups.dropFirst().dropLast().allSatisfy { $0.count == sizes.rest }
+    }
+}
+
+/// How the person writes numbers, which travels with them rather than with the place the text lands.
+public struct NumberStyle: Sendable, Equatable {
+    /// How a numeral's digits are grouped where the place leaves that to the reader's habit.
+    public let grouping: DigitGrouping
+
+    public init(grouping: DigitGrouping) {
+        self.grouping = grouping
+    }
+
+    /// Commas every three digits, the style until a setting says otherwise.
+    public static let standard = NumberStyle(grouping: .thousands)
 }
 
 /// Counting the sentences a text holds, which is what the short-message rule is asked about.
@@ -140,7 +174,7 @@ public struct DestinationFormatter: Sendable, Equatable {
             promptBlock: "codeEditor"),
         .terminal: DestinationFormatter(
             destination: .terminal, firstWord: .asSpoken, terminalStop: .never,
-            layout: .preserveNewlines, grammar: .asSpoken, numbers: .always, digits: .none,
+            layout: .singleLine, grammar: .asSpoken, numbers: .always, digits: .none,
             promptBlock: "terminal", consequence: .executes),
         .messaging: DestinationFormatter(
             destination: .messaging, firstWord: .fromInsertionPoint,
@@ -155,12 +189,27 @@ public struct DestinationFormatter: Sendable, Equatable {
             layout: [.paragraphs, .lists], grammar: .repair, numbers: .fromTen, promptBlock: "plain"),
     ]
 
+    /// Whether a line opening with a program typed at a prompt keeps its heard case: source, never a comment's prose.
+    public var keepsCommandCase: Bool { destination == .codeEditor && !layout.contains(.paragraphs) }
+
     /// Whether this place's first-word or stop policy would still change `text`, so an answer returning it unchanged did no work.
     public func owesFormatting(_ text: String) -> Bool {
         let first = text.first.map(String.init) ?? ""
         let owesCapital = firstWord != .asSpoken && first != first.uppercased()
-        let owesStop = terminalStop != .never && !text.contains(where: { ".!?;,".contains($0) })
+        let owesStop = terminalStop != .never && !Self.hasClauseMark(text)
         return owesCapital && owesStop
+    }
+
+    /// Whether `text` holds a clause mark; one between two digits, as in "2.4.1" or "9,000", belongs to the number.
+    private static func hasClauseMark(_ text: String) -> Bool {
+        let characters = Array(text)
+        return characters.indices.contains { index in
+            guard ".!?;,".contains(characters[index]) else { return false }
+            let inNumber =
+                index > 0 && index + 1 < characters.count
+                && characters[index - 1].isNumber && characters[index + 1].isNumber
+            return !inNumber
+        }
     }
 
     /// The formatter for a destination, falling back to plain text's for one the registry lacks.
@@ -175,15 +224,18 @@ public struct DestinationFormatter: Sendable, Equatable {
     /// The destination formatter with an app rule's terminal-stop exception, when that rule still applies.
     public static func standard(for situation: Situation) -> DestinationFormatter {
         let base = standard(for: situation.destination)
-        let ruleStop: TerminalStopPolicy? = {
-            guard let rule = DestinationClassifier.rule(for: situation.app),
-                rule.destination == situation.destination
-            else { return nil }
-            return rule.terminalStop
-        }()
-        let role = situation.app.accessibilityRole
-        let isSearch = role == "AXSearchField"
-        let isSingleLine = situation.app.isMultiline == false || role == "AXTextField" || isSearch
+        let preceding = situation.insertion.precedingText
+        if situation.destination == .codeEditor {
+            let region = situation.intent.region
+            if region == .prose { return proseInCodeEditor(base) }
+            // A statement opens no sentence, so source takes its first word as spoken, as a terminal does.
+            if region.isCode, preceding != nil { return withFirstWord(.asSpoken, base) }
+        }
+        let kind = fieldKind(of: situation)
+        if let header = emailHeader(kind, base) { return header }
+        let ruleStop = rule(for: situation)?.terminalStop
+        let isSearch = kind == .search
+        let isSingleLine = kind == .oneLine || isSearch
         guard ruleStop != nil || isSingleLine else { return base }
         return DestinationFormatter(
             destination: base.destination,
@@ -194,5 +246,61 @@ public struct DestinationFormatter: Sendable, Equatable {
             layout: isSingleLine ? .singleLine : base.layout,
             grammar: base.grammar, numbers: base.numbers, digits: base.digits,
             promptBlock: base.promptBlock, consequence: isSearch ? .navigates : base.consequence)
+    }
+
+    /// The kind of field the words go into, from its role, its line count and its app's row, in the order `standard(for:)` reads them.
+    public static func fieldKind(of situation: Situation) -> FieldKind {
+        if situation.destination == .email {
+            switch situation.intent.fieldRole {
+            case .recipient: return .recipient
+            case .subject: return .subject
+            default: break
+            }
+        }
+        let role = situation.app.accessibilityRole
+        if role == "AXSearchField" || rule(for: situation)?.field == .search { return .search }
+        if situation.app.isMultiline == false || role == "AXTextField" { return .oneLine }
+        return .primary
+    }
+
+    /// The app's row, when it routes to the situation's own destination rather than one the user chose instead.
+    private static func rule(for situation: Situation) -> DestinationRule? {
+        DestinationClassifier.rule(for: situation.app)
+            .flatMap { $0.destination == situation.destination ? $0 : nil }
+    }
+
+    /// A recipient or subject field's one-line, stopless formatter; `nil` keeps the email policy for any other field.
+    private static func emailHeader(_ kind: FieldKind, _ base: DestinationFormatter) -> DestinationFormatter?
+    {
+        let firstWord: FirstWordPolicy
+        switch kind {
+        case .recipient: firstWord = .asSpoken
+        case .subject: firstWord = base.firstWord
+        default: return nil
+        }
+        return DestinationFormatter(
+            destination: base.destination, firstWord: firstWord, terminalStop: .never,
+            layout: .singleLine, grammar: base.grammar, numbers: base.numbers, digits: base.digits,
+            promptBlock: base.promptBlock, consequence: base.consequence)
+    }
+
+    /// The same formatter with another first-word policy.
+    private static func withFirstWord(
+        _ firstWord: FirstWordPolicy, _ base: DestinationFormatter
+    )
+        -> DestinationFormatter
+    {
+        DestinationFormatter(
+            destination: base.destination, firstWord: firstWord, terminalStop: base.terminalStop,
+            layout: base.layout, grammar: base.grammar, numbers: base.numbers, digits: base.digits,
+            promptBlock: base.promptBlock, consequence: base.consequence)
+    }
+
+    /// A code editor's formatter with a document's stops and lists, for prose in a Markdown or text file.
+    private static func proseInCodeEditor(_ base: DestinationFormatter) -> DestinationFormatter {
+        DestinationFormatter(
+            destination: base.destination, firstWord: base.firstWord, terminalStop: .always,
+            layout: [.paragraphs, .lists], grammar: base.grammar, numbers: base.numbers, digits: base.digits,
+            promptBlock: base.promptBlock, consequence: base.consequence)
     }
 }

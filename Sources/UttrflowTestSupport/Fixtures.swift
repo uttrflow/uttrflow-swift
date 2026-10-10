@@ -12,6 +12,13 @@ extension AudioSamples {
         return AudioSamples(samples: Array(repeating: 0, count: count), sampleRate: canonicalSampleRate)
             ?? .empty
     }
+
+    /// A quiet room at -70 dBFS: never loud enough to be speech, never the exact zeros of a muted input.
+    public static func roomTone(seconds: Double) -> AudioSamples {
+        let count = Int(Double(canonicalSampleRate) * seconds)
+        let level: Float = 0.000_316
+        return .canonical((0..<count).map { $0.isMultiple(of: 2) ? level : -level })
+    }
 }
 
 extension Transcription {
@@ -34,7 +41,7 @@ extension AppContext {
     /// A messaging app, the commonest real target.
     public static func fixture(
         applicationName: String? = "Slack",
-        bundleIdentifier: String? = "com.tinyspeck.slackmacgap",
+        bundleIdentifier: String? = DestinationRules.slack,
         documentName: String? = "#engineering",
         selectedText: String? = nil,
         precedingText: String? = nil,

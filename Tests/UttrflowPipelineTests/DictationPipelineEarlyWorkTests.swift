@@ -17,11 +17,16 @@ private actor NumberingSpeechEngine: SpeechEngine {
     private var silentCalls: Set<Int>
     private var blankCalls: Set<Int>
     private var failingCalls: Set<Int>
+    private var foreignCalls: [Int: String]
 
-    init(silentCalls: Set<Int> = [], blankCalls: Set<Int> = [], failingCalls: Set<Int> = []) {
+    init(
+        silentCalls: Set<Int> = [], blankCalls: Set<Int> = [], failingCalls: Set<Int> = [],
+        foreignCalls: [Int: String] = [:]
+    ) {
         self.silentCalls = silentCalls
         self.blankCalls = blankCalls
         self.failingCalls = failingCalls
+        self.foreignCalls = foreignCalls
     }
 
     func prepare() async throws(SpeechEngineError) {}
@@ -35,7 +40,7 @@ private actor NumberingSpeechEngine: SpeechEngine {
         if silentCalls.contains(call) { throw .nothingHeard }
         if failingCalls.contains(call) { throw .transcriptionFailed(description: "call \(call)") }
         return Transcription(
-            text: blankCalls.contains(call) ? "" : "w\(call) x",
+            text: foreignCalls[call] ?? (blankCalls.contains(call) ? "" : "w\(call) x"),
             detectedLanguage: DetectedLanguage(code: .english, confidence: 1),
             audioDuration: audio.duration)
     }
@@ -104,30 +109,6 @@ private actor HeldSpeechEngine: SpeechEngine {
     var isHolding: Bool { held != nil }
 }
 
-/// Holds its early recognition across cancellation and names each result so stale words are visible.
-private actor HeldSwapSpeechEngine: SpeechEngine {
-    let kind = SpeechEngineKind.whisperKit
-    private(set) var calls = 0
-    private var held: CheckedContinuation<Void, Never>?
-
-    func prepare() async throws(SpeechEngineError) {}
-
-    func transcribe(
-        _ audio: AudioSamples, options: TranscriptionOptions
-    ) async throws(SpeechEngineError) -> Transcription {
-        calls += 1
-        if calls == 1 { await withCheckedContinuation { held = $0 } }
-        return .fixture(text: "held result")
-    }
-
-    func release() {
-        held?.resume()
-        held = nil
-    }
-
-    var isHolding: Bool { held != nil }
-}
-
 /// A tidier whose first tidy does not finish until the test lets it, so the key can come up mid-tidy.
 private actor HeldCleaner: TranscriptCleaning {
     private var calls = 0
@@ -150,6 +131,43 @@ private actor HeldCleaner: TranscriptCleaning {
     }
 
     var isHolding: Bool { held != nil }
+}
+
+/// A tidier that holds its second tidy until that tidy is cancelled, and accounts for each piece by its first word.
+private final class CancelWatchingCleaner: TranscriptCleaning, Sendable {
+    private let state = Mutex((calls: 0, holding: false, cancelled: [String](), finished: [String]()))
+
+    func clean(_ request: TransformationRequest) async throws(TransformationError) -> TransformationResult {
+        let text = request.transcription.text
+        let call = state.withLock { state -> Int in
+            state.calls += 1
+            return state.calls
+        }
+        if call == 2 {
+            state.withLock { $0.holding = true }
+            while !Task.isCancelled { await Task.yield() }
+            state.withLock { $0.cancelled.append(text) }
+            throw .outputRejected(reason: "cancelled", kind: .lostWord)
+        }
+        state.withLock { $0.finished.append(text) }
+        let first = text.split(separator: " ").first.map(String.init) ?? ""
+        return TransformationResult(
+            text: text.uppercased(), producedBy: .foundationModels,
+            cleaning: CleaningRecord(changes: [CleaningRecord.Change(step: .fillers, removed: [first])]))
+    }
+
+    func warm(for situation: Situation?) async {}
+
+    var isHolding: Bool { state.withLock(\.holding) }
+    var cancelled: [String] { state.withLock(\.cancelled) }
+    var finished: [String] { state.withLock(\.finished) }
+}
+
+/// Keeps what the pipeline reported as each dictation's cleaning account.
+private actor KeptCleaningAccounts: CleaningRecording {
+    private(set) var records: [CleaningRecord] = []
+
+    func record(_ record: CleaningRecord) async { records.append(record) }
 }
 
 /// A tidier that shouts, so its work on each piece can be seen, and remembers where it was warmed for.
@@ -344,6 +362,9 @@ private enum Take {
     static let fragmentTail = AudioSamples.canonical(
         tone(1.2) + silence(0.5) + tone(1.2) + silence(0.5) + tone(0.1))
 
+    /// A first piece, its pause, and a fragment with no piece between them.
+    static let failedThenFragment = AudioSamples.canonical(tone(1.2) + silence(0.5) + tone(0.1))
+
     static let speechThenSilence = AudioSamples.canonical(tone(1.2) + silence(1.0))
 }
 
@@ -376,17 +397,24 @@ struct DictationPipelineEarlyWorkTests {
         metrics: any MetricsRecording = NoOpMetricsRecorder(),
         recordings: any RecordingKeeper = RecordingsNotKept(),
         earlyPoll: Duration = .milliseconds(2),
+        pollClock: any Clock<Duration> = ContinuousClock(),
         speechWords: @escaping @Sendable (AppContext) async -> [String] = { _ in [] }
     ) -> DictationPipeline {
         DictationPipeline(
             capture: capture, speech: speech, cleaner: cleaner, context: context,
             inserter: inserter, speechWords: speechWords, corrector: corrector, metrics: metrics,
-            recordings: recordings, windowing: quick, earlyPoll: earlyPoll)
+            recordings: recordings, windowing: quick, earlyPoll: earlyPoll, pollClock: pollClock)
     }
 
     /// Waits for the recogniser to have been asked `count` times.
     private func waitForCalls(_ count: Int, on speech: NumberingSpeechEngine) async throws {
         try await eventually { await speech.calls >= count }
+    }
+
+    /// Lets the early loop look at the audio `polls` times, then waits until it is asleep again with nothing under way.
+    private func workAhead(_ polls: Int, on pollClock: ManualClock) async {
+        for _ in 0..<polls { await pollClock.advanceWhenSomethingIsWaiting(by: .milliseconds(2)) }
+        await pollClock.waitUntilSomethingIsWaiting()
     }
 
     @Test("pieces ended by a pause are recognised and tidied before the key is released")
@@ -425,17 +453,22 @@ struct DictationPipelineEarlyWorkTests {
             Take.tone(1.2) + Take.silence(4) + Take.tone(0.35) + Take.silence(10))
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(take))
         await capture.setCaptured(take)
-        let speech = NumberingSpeechEngine()
-        let pipeline = makePipeline(capture: capture, speech: speech)
+        // The trailing ten seconds are their own window, which a recogniser answers with nothing.
+        let speech = NumberingSpeechEngine(silentCalls: [3])
+        let pollClock = ManualClock()
+        let pipeline = makePipeline(capture: capture, speech: speech, pollClock: pollClock)
 
         await pipeline.startRecording()
-        try await waitForCalls(1, on: speech)
+        await workAhead(1, on: pollClock)
+        #expect(await speech.calls == 1, "only the first piece is worked ahead")
         await pipeline.finishRecording()
 
         #expect(await pipeline.currentState.outcome?.text == "W1 X. W2 X")
-        #expect(await speech.calls == 2)
+        #expect(await speech.calls == 3)
         let counts = await speech.sampleCounts
-        #expect(counts[1] > 4 * Take.rate, "the final phrase is decoded with the preceding window")
+        #expect(
+            counts[0] + counts[1] >= Int(5.55 * Double(Take.rate)),
+            "the final phrase is decoded with the window before it, never alone")
     }
 
     @Test("a dictation of one piece warms the tidier once, at key-down, and not again after its answer")
@@ -486,7 +519,7 @@ struct DictationPipelineEarlyWorkTests {
         #expect(pieces.joined().elementsEqual(Take.threePieces.samples))
     }
 
-    /// The first screen read warms the tidier; each piece gets another read for correction evidence.
+    /// The first screen read warms the tidier and serves every piece's correction; insertion reads once more.
     @Test(
         "the tidier is warmed for where the screen says the words are going, and for plain text when it says nothing"
     )
@@ -510,7 +543,8 @@ struct DictationPipelineEarlyWorkTests {
             await pipeline.finishRecording()
 
             #expect(!cleaner.warmed.isEmpty && cleaner.warmed.allSatisfy { $0 == destination })
-            #expect(await engine.calls.count == 4, "one warm-up read and one correction read per piece")
+            #expect(
+                await engine.calls.count == 2, "one warm-up read for every piece and one read at insertion")
         }
     }
 
@@ -527,11 +561,12 @@ struct DictationPipelineEarlyWorkTests {
         await pipeline.finishRecording()
 
         #expect(await pipeline.currentState.outcome?.insertedInto == "Notes")
-        #expect(await context.calls.count == 4, "one initial read and one correction read per piece")
+        #expect(
+            await context.calls.count == 2, "one initial read for every piece and one read at insertion")
     }
 
-    @Test("later pieces use the screen they were spoken against for correction evidence")
-    func refreshesCorrectionContextForEachPiece() async throws {
+    @Test("every piece is corrected against the one screen read the dictation took")
+    func correctsEveryPieceAgainstOneRead() async throws {
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
         await capture.setCaptured(Take.threePieces)
         let cleaner = HeldCleaner()
@@ -550,8 +585,7 @@ struct DictationPipelineEarlyWorkTests {
         try await eventually { await corrector.documents.count >= 2 }
         await pipeline.finishRecording()
 
-        #expect(await corrector.documents.prefix(2) == ["Madison marketing plan", "Quarterly budget"])
-        #expect(await pipeline.currentState.outcome?.changes.corrections.count == 1)
+        #expect(await corrector.documents.allSatisfy { $0 == "Madison marketing plan" })
     }
 
     @Test("insertion padding and first-word case follow the caret at insertion time")
@@ -574,7 +608,7 @@ struct DictationPipelineEarlyWorkTests {
         await cleaner.release()
         await pipeline.finishRecording()
 
-        #expect(inserter.received == ["W1 x.w2 x"])
+        #expect(inserter.received == ["W1 x. w2 x"], "a text editor ends the first piece as a sentence")
     }
 
     @Test("a different frontmost app makes the insertion caret unknown")
@@ -599,7 +633,7 @@ struct DictationPipelineEarlyWorkTests {
         await cleaner.release()
         await pipeline.finishRecording()
 
-        #expect(inserter.received == ["W1 x.w2 x"])
+        #expect(inserter.received == ["W1 x w2 x"], "joined for the terminal it began in, which adds no stop")
     }
 
     @Test("pieces cut from audio the stop did not return are thrown away, not joined")
@@ -633,36 +667,6 @@ struct DictationPipelineEarlyWorkTests {
 
         #expect(await pipeline.currentState == .idle)
         #expect(inserter.received.isEmpty)
-    }
-
-    @Test("a speech swap waits for a cancelled early decode, then loads after it returns")
-    func speechSwapWaitsForCancelledEarlyDecode() async throws {
-        let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
-        await capture.setCaptured(Take.threePieces)
-        let before = HeldSwapSpeechEngine()
-        let after = FakeSpeechEngine(
-            kind: .appleSpeech, transcribeOutcome: .success(.fixture(text: "faster")))
-        let pipeline = makePipeline(capture: capture, speech: before, earlyPoll: .milliseconds(2))
-
-        await pipeline.startRecording()
-        try await eventually { await before.isHolding }
-        await pipeline.cancel()
-        let switching = Task { await pipeline.adopt(speech: after) }
-        try await eventually { await pipeline.speechChangesWaiting == 1 }
-        #expect(
-            await after.prepareCalls.isEmpty,
-            "the replacement recogniser is not loaded before the old decode returns")
-
-        await before.release()
-        await switching.value
-
-        #expect(await after.prepareCalls.count == 1)
-        #expect(await pipeline.speechKind == .appleSpeech)
-        await pipeline.startRecording()
-        await pipeline.finishRecording()
-        #expect(
-            await pipeline.currentState.outcome?.text == "faster",
-            "cancelled words do not enter the next dictation")
     }
 
     @Test("a retry after canceling a dictation has no context from the cancelled screen")
@@ -745,17 +749,42 @@ struct DictationPipelineEarlyWorkTests {
 
     @Test("a failed early window joins a fragment tail to its pending span")
     func failedEarlyWindowJoinsFragmentTail() async throws {
-        let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.fragmentTail))
-        await capture.setCaptured(Take.fragmentTail)
+        let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.failedThenFragment))
+        await capture.setCaptured(Take.failedThenFragment)
         let speech = NumberingSpeechEngine(failingCalls: [1])
-        let pipeline = makePipeline(capture: capture, speech: speech)
+        let pollClock = ManualClock()
+        let pipeline = makePipeline(capture: capture, speech: speech, pollClock: pollClock)
 
         await pipeline.startRecording()
-        try await waitForCalls(1, on: speech)
+        await workAhead(1, on: pollClock)
+        #expect(await speech.calls == 1, "the first piece fails while the key is held")
         await pipeline.finishRecording()
 
         #expect(await pipeline.currentState.outcome?.text == "W2 X")
         #expect(await speech.calls == 2)
+    }
+
+    @Test("a tidy the release join drops is cancelled and leaves nothing in the account")
+    func droppedTidyIsCancelledAndUnaccounted() async throws {
+        let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.fragmentTail))
+        await capture.setCaptured(Take.fragmentTail)
+        let speech = NumberingSpeechEngine()
+        let cleaner = CancelWatchingCleaner()
+        let accounts = KeptCleaningAccounts()
+        let pipeline = DictationPipeline(
+            capture: capture, speech: speech, cleaner: cleaner,
+            context: FakeContextEngine(context: .fixture()), inserter: FakeTextInserter(),
+            cleaningRecorder: accounts, windowing: quick, earlyPoll: .milliseconds(2))
+
+        await pipeline.startRecording()
+        try await eventually { cleaner.isHolding }
+        await pipeline.finishRecording()
+
+        #expect(await pipeline.currentState.outcome?.text == "W1 X. W3 X")
+        #expect(cleaner.cancelled == ["w2 x"], "the dropped span's tidy is cancelled")
+        #expect(!cleaner.finished.contains("w2 x"))
+        let removed = await accounts.records.flatMap(\.changes).flatMap(\.removed)
+        #expect(removed.sorted() == ["w1", "w3"], "only inserted pieces are in the account")
     }
 
     @Test("a silent early window does not remove the preceding finished span")
@@ -763,14 +792,17 @@ struct DictationPipelineEarlyWorkTests {
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.fragmentTail))
         await capture.setCaptured(Take.fragmentTail)
         let speech = NumberingSpeechEngine(silentCalls: [2])
-        let pipeline = makePipeline(capture: capture, speech: speech)
+        let pollClock = ManualClock()
+        let pipeline = makePipeline(capture: capture, speech: speech, pollClock: pollClock)
 
         await pipeline.startRecording()
-        try await waitForCalls(2, on: speech)
+        await workAhead(2, on: pollClock)
+        #expect(await speech.calls == 3, "both pieces are worked ahead, the second decoded twice")
         await pipeline.finishRecording()
 
-        #expect(await pipeline.currentState.outcome?.text == "W1 X. W3 X")
-        #expect(await speech.calls == 3)
+        // The silent answer is a miss, since the window speaks, so it is decoded again; the tail then rejoins it.
+        #expect(await pipeline.currentState.outcome?.text == "W1 X. W4 X")
+        #expect(await speech.calls == 4)
     }
 
     @Test("a retried recording is recognised in windows, so a long one is never one request")
@@ -828,6 +860,81 @@ struct DictationPipelineEarlyWorkTests {
         #expect(inserter.received == ["W1 X. W4 X"])
     }
 
+    @Test("a dictation that missed a piece keeps its recording, and one that missed none deletes it")
+    func missedPieceKeepsTheRecording() async {
+        for missed in [false, true] {
+            let recording = KeptRecording(id: UUID(), when: Date(), duration: .seconds(3))
+            let recordings = FakeRecordingKeeper(current: recording)
+            let pipeline = makePipeline(
+                capture: FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces)),
+                speech: NumberingSpeechEngine(blankCalls: missed ? [2, 3] : []),
+                recordings: recordings, earlyPoll: .seconds(60))
+
+            await pipeline.startRecording()
+            await pipeline.finishRecording()
+
+            #expect(await pipeline.currentState.outcome?.missedPieces == (missed ? 1 : 0))
+            #expect(await recordings.discarded == (missed ? [] : [recording.id]))
+        }
+    }
+
+    @Test(
+        "a piece heard in Arabic or Chinese script is a missed piece: the notice shows and every other word goes in",
+        arguments: ["شكرا جزيلا", "谢谢观看"])
+    func untranscribedScriptPieceIsMissed(heard: String) async throws {
+        let pipeline = makePipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces)),
+            speech: NumberingSpeechEngine(foreignCalls: [2: heard, 3: heard]), earlyPoll: .seconds(60))
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        let outcome = try #require(await pipeline.currentState.outcome)
+        #expect(outcome.missedPieces == 1)
+        #expect(MissedSpeech.isMissing(outcome.missedPieces))
+        let words = outcome.text.lowercased()
+        #expect(words.contains("w1 x") && words.contains("w4 x"), "\(outcome.text)")
+        #expect(LatinScript.isLatin(outcome.text))
+    }
+
+    @Test("a secure-field dictation that missed a piece keeps no audio")
+    func secureMissedPieceKeepsNoAudio() async {
+        let recording = KeptRecording(id: UUID(), when: Date(), duration: .seconds(3))
+        let recordings = FakeRecordingKeeper(current: recording)
+        let pipeline = makePipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces)),
+            speech: NumberingSpeechEngine(blankCalls: [2, 3]),
+            inserter: FakeTextInserter(.success(InsertionAttempt(.pasteboard, intoSecureField: true))),
+            recordings: recordings, earlyPoll: .seconds(60))
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        #expect(await pipeline.currentState.outcome?.missedPieces == 1)
+        #expect(await recordings.discarded == [recording.id])
+    }
+
+    @Test("retrying the recording kept for a missed piece produces the missing words")
+    func retryRecoversTheMissedPiece() async {
+        let recording = KeptRecording(id: UUID(), when: Date(), duration: .seconds(3))
+        let recordings = FakeRecordingKeeper(
+            current: recording, audioOutcome: .success(Take.threePieces))
+        let speech = NumberingSpeechEngine(blankCalls: [2, 3])
+        let pipeline = makePipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces)),
+            speech: speech, recordings: recordings, earlyPoll: .seconds(60))
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+        #expect(await recordings.discarded.isEmpty)
+
+        await pipeline.retry(recording.id)
+
+        let outcome = await pipeline.currentState.outcome
+        #expect(outcome?.text == "W5 X. W6 X. W7 X")
+        #expect(outcome?.missedPieces == 0)
+        #expect(await recordings.discarded == [recording.id])
+    }
+
     @Test(
         "a recording whose every speech-bearing piece decodes to no words fails as untranscribed, not silent")
     func everyPieceMissedFails() async {
@@ -866,7 +973,7 @@ struct DictationPipelineEarlyWorkTests {
     func allSilentIsRefused() async {
         let speech = NumberingSpeechEngine(silentCalls: [1])
         let pipeline = makePipeline(
-            capture: FakeAudioCaptureEngine(stopOutcome: .success(AudioSamples.canonical(Take.silence(3)))),
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(.roomTone(seconds: 3))),
             speech: speech)
 
         await pipeline.startRecording()
@@ -880,7 +987,7 @@ struct DictationPipelineEarlyWorkTests {
         let speech = NumberingSpeechEngine(blankCalls: [1])
         let pipeline = makePipeline(
             capture: FakeAudioCaptureEngine(
-                stopOutcome: .success(AudioSamples.canonical(Take.silence(3)))),
+                stopOutcome: .success(.roomTone(seconds: 3))),
             speech: speech)
 
         await pipeline.startRecording()
@@ -952,6 +1059,28 @@ struct DictationPipelineEarlyWorkTests {
         #expect(await metrics.decoding == [effort, effort, effort], "one per recognised piece")
     }
 
+    @Test("the decoder's judgement of each piece's segments reaches the recorder, and none is invented")
+    func segmentReliabilityIsRecorded() async {
+        let metrics = RecordingMetricsRecorder()
+        let judged = SegmentReliability(
+            temperature: 1, averageLogProbability: -0.93, noSpeechProbability: 0, compressionRatio: 0.95)
+        let segments = [
+            TranscriptionSegment(text: "hello", start: .zero, end: .seconds(1), reliability: judged),
+            TranscriptionSegment(text: "there", start: .seconds(1), end: .seconds(2)),
+        ]
+        let speech = FakeSpeechEngine(
+            transcribeOutcome: .success(
+                Transcription(text: "hello there", segments: segments, audioDuration: .seconds(2))))
+        let pipeline = makePipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces)),
+            speech: speech, metrics: metrics)
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        #expect(await metrics.reliability == [[judged], [judged], [judged]], "one per recognised piece")
+    }
+
     @Test("a dictation done in pieces still reports one figure per stage")
     func metricsAreOnePerStage() async {
         let metrics = RecordingMetricsRecorder()
@@ -964,6 +1093,21 @@ struct DictationPipelineEarlyWorkTests {
         #expect(await metrics.measurements(for: .transcription).count == 1)
         #expect(await metrics.measurements(for: .transformation).count == 1)
         #expect(await metrics.measurements(for: .insertion).count == 1)
+    }
+
+    @Test("what reading the screen cost a dictation is reported once, apart from the stages")
+    func screenReadCostIsReportedOnce() async {
+        let metrics = RecordingMetricsRecorder()
+        let context = FakeContextEngine(context: .fixture(applicationName: "Notes"))
+        let pipeline = makePipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces)),
+            context: context, metrics: metrics)
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        let reads = await context.calls.count
+        #expect(await metrics.screenReads.map(\.reads) == [reads])
     }
 
     @Test("nothing recorded at all still reaches the recogniser, whose refusal names the reason")
@@ -1097,6 +1241,30 @@ struct DictationPipelineEarlyWorkTests {
             pipeline, holding: { await speech.isHolding }, letGo: { await speech.release() })
 
         #expect(await metrics.measurements.contains { $0.stage == .drain })
+    }
+
+    /// A recognition under way at key-up is finished and kept, so the user never waits for its window twice.
+    @Test("keeps the recognition under way at key-up instead of decoding its window again")
+    func finishesTheRecognitionUnderWay() async throws {
+        let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
+        await capture.setCaptured(Take.threePieces)
+        let speech = HeldSpeechEngine()
+        let pollClock = ManualClock()
+        let pipeline = DictationPipeline(
+            capture: capture, speech: speech, cleaner: ShoutingCleaner(),
+            context: FakeContextEngine(context: .fixture()), inserter: FakeTextInserter(),
+            windowing: quick, earlyPoll: .milliseconds(2), pollClock: pollClock)
+
+        await pipeline.startRecording()
+        await pollClock.advanceWhenSomethingIsWaiting(by: .milliseconds(2))
+        try await eventually { await speech.isHolding }
+        let finishing = Task { await pipeline.finishRecording() }
+        try await eventually { await pipeline.currentState == .transcribing }
+        await speech.release()
+        await finishing.value
+
+        #expect(await pipeline.currentState.outcome?.text == "W1 X. W2 X. W3 X")
+        #expect(await speech.calls == 3, "each window is decoded once")
     }
 
     /// A dictation with no piece in flight waits for nothing, and a row of zero would only mislead.

@@ -4,6 +4,7 @@ import AppKit
 import SwiftUI
 import Testing
 import UttrflowPredict
+import UttrflowTestSupport
 import UttrflowUX
 
 @testable import Uttrflow
@@ -60,6 +61,8 @@ struct SuggestionSurfaceTests {
         let caret = CGRect(x: screen.minX + 200, y: screen.midY, width: 0, height: 17)
         let panel = SuggestionPanelController()
         defer { panel.hide() }
+        var withdrewUnasked = false
+        panel.onWithdrawnUnasked = { withdrewUnasked = true }
         panel.show(.certain("meeting"), placement: .inlineGhost, caret: caret)
         #expect(panel.isShowing)
 
@@ -68,6 +71,7 @@ struct SuggestionSurfaceTests {
 
         #expect(!panel.isShowing)
         #expect(panel.drawn.style == .hidden)
+        #expect(withdrewUnasked)
     }
 
     @Test("A suggestion with no room reports hidden and stops idle polling")
@@ -114,6 +118,35 @@ struct SuggestionSurfaceTests {
         #expect(screen.contains(panel.window.frame))
         #expect(panel.drawn.inline?.ghost == " at noon")
         #expect(panel.drawn.maximumWidth == field.maxX - caret.maxX)
+    }
+
+    @Test("An open list with a row wider than its room is withdrawn before that row can be selected")
+    func anOpenListWithATruncatedRowIsNotOffered() throws {
+        let screen = try #require(NSScreen.screens.first).visibleFrame
+        let field = CGRect(x: screen.minX + 100, y: screen.midY - 5, width: 100, height: 28)
+        let caret = CGRect(x: field.minX + 60, y: screen.midY, width: 0, height: 17)
+        let room = field.maxX - caret.maxX
+        let suggestion = Suggestion.choice(
+            leader: "ok", others: ["long alternative that cannot fit in this field"])
+        let presentation = SuggestionPresentation(
+            suggestion, selection: SuggestionSelection(index: 0, hasMoved: true), maximumWidth: room)
+        let rows = presentation.list
+        let measuredWidths = rows.map {
+            NSHostingView(rootView: SuggestionListRow(presentation: presentation, row: $0)).fittingSize.width
+        }
+        #expect(measuredWidths.first ?? .infinity <= room)
+        #expect(measuredWidths.last ?? 0 > room)
+
+        let panel = SuggestionPanelController()
+        defer { panel.hide() }
+        let shown = panel.show(
+            suggestion, placement: .inlineGhost, caret: caret, field: field,
+            selection: SuggestionSelection(index: 0, hasMoved: true))
+
+        #expect(!shown)
+        #expect(!panel.isShowing)
+        #expect(panel.drawn.style == .hidden)
+        #expect(panel.drawn.list.isEmpty)
     }
 
     @Test("Drawing the same offer at the same caret again does no layout, no placement and no fronting")
@@ -164,28 +197,62 @@ struct SuggestionSurfaceTests {
         #expect(panel.withdrawals == withdrawals)
     }
 
+    @Test("Typing through an RTL ghost keeps the remaining text at the same frame")
+    func typingThroughRTLTheGhostNeverHidesIt() throws {
+        let screen = try #require(NSScreen.screens.first).visibleFrame
+        let caret = CGRect(x: screen.minX + 400, y: screen.midY, width: 0, height: 17)
+        let panel = SuggestionPanelController.shared
+        defer { panel.hide() }
+        let line = "see you at the station"
+        panel.show(
+            .certain(line), typed: "see", placement: .inlineGhost, direction: .rightToLeft,
+            caret: caret, fieldPointSize: 13)
+        let withdrawals = panel.withdrawals
+        // The ghost is anchored at the caret by its left edge in right-to-left text.
+        let anchor = panel.window.frame.minX
+        var typed = "see"
+        for character in " you " {
+            typed.append(character)
+            let placements = panel.placements
+            #expect(panel.advance(to: typed, showing: .certain(line)))
+            #expect(panel.placements == placements + 1)
+            #expect(panel.window.isVisible)
+            #expect(panel.drawn.inline?.ghost == String(line.dropFirst(typed.count)))
+            #expect(abs(panel.window.frame.minX - anchor) <= 2)
+        }
+        #expect(panel.withdrawals == withdrawals)
+    }
+
     @Test("VoiceOver is told once as a suggestion appears, not on a redraw, and not when it cannot be drawn")
-    func aSuggestionIsAnnouncedOnce() throws {
+    func aSuggestionIsAnnouncedOnce() async throws {
         let screen = try #require(NSScreen.screens.first).visibleFrame
         let caret = CGRect(x: screen.minX + 200, y: screen.midY, width: 0, height: 17)
         let panel = SuggestionPanelController.shared
         let original = panel.announce
+        let originalSleep = panel.announcementSleep
         var heard: [String] = []
+        // A clock the announcer's quiet period passes on at once, so each offer is spoken as soon as it settles.
+        var now = Duration.zero
         panel.announce = { heard.append($0) }
+        panel.announcementNow = { now }
+        panel.announcementSleep = { now += $0 }
         defer {
             panel.hide()
             panel.announce = original
+            panel.announcementNow = nil
+            panel.announcementSleep = originalSleep
         }
         panel.show(.certain("meeting"), placement: .inlineGhost, caret: caret)
         panel.show(.certain("meeting"), typed: "mee", placement: .inlineGhost, caret: caret)
+        try await eventually { !heard.isEmpty }
         #expect(heard == ["AI suggestion: meeting. Tab to accept."])
         panel.show(.certain("meeting"), placement: .inlineGhost)
         panel.show(.certain("meeting"), placement: .inlineGhost, caret: caret)
-        #expect(heard.count == 2)
+        try await eventually { heard.count == 2 }
         panel.hide()
         panel.show(.certain("meeting"), placement: .inlineGhost, caret: caret, acceptKey: .rightArrow)
+        try await eventually { heard.count == 3 }
         #expect(heard.last == "AI suggestion: meeting. Right Arrow to accept.")
-        #expect(heard.count == 3)
     }
 
     @Test("The panel has no window animation, so hiding a ghost does not wait out a fade")

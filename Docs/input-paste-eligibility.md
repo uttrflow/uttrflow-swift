@@ -22,9 +22,10 @@ the trap: a field that accepts an Accessibility write, answers `.success`, and c
 
 ## Trying and failing costs nothing
 
-The paste never restores the previous clipboard, so the worst an attempt can do is leave the words
-on the clipboard, which is what the clipboard floor below it would do anyway. Declining costs the
-user their insertion. So the engine volunteers, and the coordinator finds out by trying.
+The paste never restores the previous clipboard. If it is cancelled before ⌘V, it discards its own
+unchanged write; after posting, arrival may be uncertain and the words stay on the clipboard. The
+rules for cancellation and ownership are in [insertion.md](insertion.md). Declining costs the user
+their insertion, so the engine volunteers and the coordinator finds out by trying.
 
 ## Never into Uttrflow itself
 

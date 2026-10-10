@@ -9,24 +9,35 @@ struct StandardPipelineTests {
     func order() {
         #expect(
             CleaningPipeline.standard.ids == [
-                "fillers", "repeatedPhrase", "stammers", "selfCorrection", "spokenPunctuation", "layoutWords",
-                "numberForms", "contractions", "spacing", "spelledInitialism", "sentenceBoundary",
-                "firstWord",
-                "terminalStop",
+                "fillers", "repeatedPhrase", "stammers", "selfCorrection", "spokenPunctuation",
+                "spokenCasing",
+                "layoutWords", "numberForms", "contractions", "spacing", "pauseStop", "spelledInitialism",
+                "acronymCasing", "sentenceBoundary", "firstWord", "commentMarker", "terminalStop",
             ])
+    }
+
+    @Test("reads a recogniser stop and a pipeline stop as one stop, not a pause")
+    func doubledStopEndsTheSentence() {
+        #expect(
+            CleaningPipeline.standard.run(Draft(text: "the build is done.. next we ship")).text
+                == "The build is done. Next we ship.")
     }
 
     @Test("leaves casing and the full stop for after the model")
     func beforeModel() {
         #expect(
             CleaningPipeline.beforeModel(for: .standard(for: .plain), situation: .unknown).ids
-                == Array(CleaningPipeline.standard.ids.dropLast(3)))
+                == Array(CleaningPipeline.standard.ids.dropLast(5)))
     }
 
     @Test("joins spoken initialisms after the whole message is assembled")
     func wholeTextInitialisms() {
         let pipeline = CleaningPipeline.message(for: .standard(for: .plain), situation: .unknown)
-        #expect(pipeline.ids == [.spelledInitialism, SentenceBoundaryPass.id, .firstWord, .terminalStop])
+        #expect(
+            pipeline.ids == [
+                .spelledInitialism, .acronymCasing, SentenceBoundaryPass.id, .firstWord, CommentMarkerPass.id,
+                .terminalStop,
+            ])
         #expect(pipeline.run(Draft(text: "the a p i is down")).text == "The API is down.")
     }
 
@@ -37,7 +48,7 @@ struct StandardPipelineTests {
             for: spreadsheet, situation: .unknown)
         #expect(
             spreadsheetPipeline.run(Draft(text: "number one buy milk number two walk the dog")).text
-                == "number 1 buy milk number 2 walk the dog")
+                == "buy milk, walk the dog")
 
         let document = DestinationFormatter.standard(for: .document)
         let documentPipeline = CleaningPipeline.beforeModel(for: document, situation: .unknown)
@@ -138,7 +149,11 @@ struct StandardPipelineTests {
     func afterModel() {
         let cell = CleaningPipeline.afterModel(
             for: .standard(for: .spreadsheet), situation: .unknown, heard: "uh total revenue")
-        #expect(cell.ids == ["spokenPunctuation", "caretEcho", "firstWord", "terminalStop"])
+        #expect(
+            cell.ids == [
+                "spokenPunctuation", "caretEcho", "caretCloser", "digitGrouping", "spelledInitialism",
+                "acronymCasing", "sentenceBoundary", "firstWord", "commentMarker", "terminalStop",
+            ])
         #expect(cell.run(Draft(text: "Total revenue.")).text == "total revenue")
 
         let app = AppContext(documentName: "Chat with John", precedingText: "because ")
@@ -155,12 +170,12 @@ struct StandardPipelineTests {
                 "um so uh basically the the thing is we need more time",
                 "So basically the thing is we need more time."
             ),
-            ("let's meet at four no sorry at five on tuesday", "Let's meet at five on tuesday."),
+            ("let's meet at four no sorry at five on tuesday", "Let's meet at five on Tuesday."),
             ("we still need milk comma eggs comma and bread", "We still need milk, eggs, and bread."),
             ("we're on postgres sixteen point two right now", "We're on postgres 16.2 right now."),
             ("first line new line second line", "First line\nSecond line."),
             ("what do you think question mark new line thanks", "What do you think?\nThanks."),
-            ("agenda new line one intro new line two demo", "Agenda\nOne intro\nTwo demo."),
+            ("agenda new line one intro new line two demo", "Agenda\nOne intro\nTwo demo"),
             ("thanks new paragraph the second issue", "Thanks\n\nThe second issue."),
             ("is it ready question mark", "Is it ready?"),
             ("i think i'll take the earlier train", "I think I'll take the earlier train."),
@@ -218,12 +233,47 @@ struct StandardPipelineTests {
         #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
     }
 
-    @Test("splits fillers glued to their neighbours by pause ellipses")
-    func splitsGluedFillers() {
+    @Test(
+        "keeps repeated numbers after a digit cue through the rest of the sentence",
+        arguments: [
+            (
+                "set the port to eighty eighty and the timeout to twenty one seconds",
+                "Set the port to 8080 and the timeout to 21 seconds."
+            ),
+            ("set the port to eighty eighty and restart", "Set the port to 8080 and restart."),
+            ("set the port to eighty eighty", "Set the port to 8080."),
+            ("the server listens on port eighty eighty", "The server listens on port 8080."),
+        ]
+    )
+    func repeatedNumberAfterCue(input: String, expected: String) {
+        #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "leaves a repeated number with no digit cue as it read before",
+        arguments: [
+            ("twenty twenty", "2020"),
+            ("one one", "One one."),
+            ("six six six", "666"),
+        ]
+    )
+    func repeatedNumbersStay(input: String, expected: String) {
+        #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test("reads no English label cue across a Hindi function word, so a Hindi sentence keeps its number")
+    func hindiWordEndsLabelCue() {
+        #expect(
+            CleaningPipeline.standard.run(Draft(text: "mera lucky number hai seven")).text
+                == "Mera lucky number hai seven.")
+    }
+
+    @Test("removes fillers glued to their neighbours by pause ellipses, keeping the ellipses between words")
+    func removesGluedFillers() {
         #expect(
             CleaningPipeline.standard.run(
                 Draft(text: "Ah...the...um...the invoice is...ah...overdue")
-            ).text == "The invoice is overdue."
+            ).text == "The...the invoice is...overdue."
         )
     }
 

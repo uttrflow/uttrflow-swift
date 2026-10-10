@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "family": "web rich-editor, webkit engine, full tree off",
+  "windowTitle": "Example Domain",
+  "document": "https://example.com/compose",
+  "focused": {
+    "attributes": {
+      "AXRole": {
+        "kind": "value",
+        "text": "AXTextArea"
+      },
+      "AXSubrole": {
+        "kind": "noValue"
+      },
+      "AXIdentifier": {
+        "kind": "noValue"
+      },
+      "AXPlaceholderValue": {
+        "kind": "noValue"
+      },
+      "AXDescription": {
+        "kind": "noValue"
+      },
+      "AXNumberOfCharacters": {
+        "kind": "value",
+        "number": 0
+      },
+      "AXValue": {
+        "kind": "value",
+        "text": ""
+      },
+      "AXSelectedTextRange": {
+        "kind": "value",
+        "number": 0
+      }
+    },
+    "rangedText": {
+      "kind": "value"
+    },
+    "children": []
+  }
+}

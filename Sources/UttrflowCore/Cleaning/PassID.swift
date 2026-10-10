@@ -26,7 +26,11 @@ extension PassID {
     public static let selfCorrection: PassID = "selfCorrection"
     /// "Comma", "full stop" and their kind, spoken as instructions.
     public static let spokenPunctuation: PassID = "spokenPunctuation"
-    /// Spoken casing and symbol commands in code editors.
+    /// An emoji said by name, such as "thumbs up emoji".
+    public static let spokenEmoji: PassID = "spokenEmoji"
+    /// Spoken casing commands: an identifier style in code, capitals for a word or a span in prose.
+    public static let spokenCasing: PassID = "spokenCasing"
+    /// Spoken symbol commands in code editors.
     public static let codeEditorCommands: PassID = "codeEditorCommands"
     /// "New line", "new paragraph", "bullet point", spoken as instructions.
     public static let layoutWords: PassID = "layoutWords"
@@ -36,7 +40,13 @@ extension PassID {
     public static let contractions: PassID = "contractions"
     /// Spaces around the marks the other passes put in.
     public static let spacing: PassID = "spacing"
+    /// The full stop a sentence-length pause inside one piece put there.
+    public static let pauseStop: PassID = "pauseStop"
     public static let spelledInitialism: PassID = "spelledInitialism"
+    /// An acronym said as one word, written in its known casing.
+    public static let acronymCasing: PassID = "acronymCasing"
+    /// "at Sam" opening a chat message or clause, written as the mention "@Sam".
+    public static let atMention: PassID = "atMention"
     /// The case of the first word, which the formatter decides.
     public static let firstWord: PassID = "firstWord"
     /// The last mark, which the formatter decides.

@@ -11,13 +11,14 @@ private func row(
     _ text: String = "a clip", kind: ClipKind = .text, isSelected: Bool = false,
     isMasked: Bool = false, alias: String? = nil, isPinned: Bool = false,
     measurements: String? = nil, checklist: String? = nil, language: String? = nil,
-    category: String? = nil
+    category: String? = nil, containsDisplayHazards: Bool = false
 ) -> PanelRow {
     PanelRow(
         id: UUID(), summary: text, kind: kind, symbolName: "doc", when: "2 minutes ago",
         alias: alias, category: category, isPinned: isPinned, isMasked: isMasked,
         isSelected: isSelected, matched: nil, measurements: measurements, checklist: checklist,
-        language: language, isMonospaced: false, actions: [])
+        language: language, isMonospaced: false,
+        containsDisplayHazards: containsDisplayHazards, actions: [])
 }
 
 /// Hover is the one thing the presentation cannot know, so the rule is a decision tested here.
@@ -135,6 +136,13 @@ struct QuickPanelSpeechTests {
         let code = row("let value = 1", kind: .code, language: "swift")
 
         #expect(QuickPanelSpeech.label(for: code).contains("swift code"))
+    }
+
+    @Test("a row with hidden characters announces the warning")
+    func hazardousRowsAnnounceWarning() {
+        let hazardous = row("file⟦U+202E RIGHT-TO-LEFT OVERRIDE⟧name", containsDisplayHazards: true)
+
+        #expect(QuickPanelSpeech.label(for: hazardous).contains("contains invisible or control characters"))
     }
 
     @Test("a masked row omits checklist and language details")

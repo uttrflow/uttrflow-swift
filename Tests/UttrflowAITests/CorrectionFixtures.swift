@@ -8,7 +8,7 @@ import UttrflowDictionary
 enum CorrectionFixtures {
     /// A real person's dictionary, stocked on purpose with words that collide with ordinary English.
     static let words = [
-        "Uttrflow", "asyncpg", "Nikhil", "Naveen Bhatt", "PaymentSheet", "kubectl",
+        "Uttrflow", "asyncpg", "Nikhil", "Avery Stone", "PaymentSheet", "kubectl",
         "Postgres", "Claude", "Grafana", "Kestrel", "Redis", "Aditi", "setUserPrefs",
         "Valkey", "Sonnet", "Cassandra", "Terraform", "Maven", "SQL", "API", "XML",
         "CSS", "URL", "Kubernetes",

@@ -1,12 +1,15 @@
 // The one search rule every list page uses: trimmed, case-, accent- and width-insensitive, blank keeps all.
 import Foundation
+import UttrflowClipboard
 
 extension StringProtocol {
     /// Whether `needle` occurs here ignoring case, accents, width, curly quotes, dash kinds and whitespace runs.
     func contains(_ needle: String, ignoringCaseAndAccentsIn locale: Locale) -> Bool {
-        SearchFolding.contains(
-            SearchFolding.folded(needle) ?? needle,
-            inFolded: SearchFolding.folded(self) ?? String(self), locale: locale)
+        let haystack = SearchFolding.boundedPrefix(of: self)
+        let boundedNeedle = SearchFolding.boundedPrefix(of: needle)
+        return SearchFolding.contains(
+            SearchFolding.folded(boundedNeedle) ?? String(boundedNeedle),
+            inFolded: SearchFolding.folded(haystack) ?? String(haystack), locale: locale)
     }
 
     /// Whether this text, whole, is `needle` under the same folding as `contains(_:ignoringCaseAndAccentsIn:)`.
@@ -22,11 +25,13 @@ extension String {
     /// Where `needle` first occurs under the search folding, as a range of this unfolded text.
     func range(of needle: String, ignoringCaseAndAccentsIn locale: Locale) -> Range<String.Index>? {
         let options = SearchFolding.comparisonOptions
-        let needle = SearchFolding.folded(needle) ?? needle
-        guard let folded = SearchFolding.foldedWithOrigins(self) else {
-            return range(of: needle, options: options, range: nil, locale: locale)
+        let haystack = SearchFolding.boundedPrefix(of: self)
+        let boundedNeedle = SearchFolding.boundedPrefix(of: needle)
+        let foldedNeedle = SearchFolding.folded(boundedNeedle) ?? String(boundedNeedle)
+        guard let folded = SearchFolding.foldedWithOrigins(haystack) else {
+            return haystack.range(of: foldedNeedle, options: options, range: nil, locale: locale)
         }
-        guard let found = folded.text.range(of: needle, options: options, range: nil, locale: locale)
+        guard let found = folded.text.range(of: foldedNeedle, options: options, range: nil, locale: locale)
         else { return nil }
         let scalars = folded.text.unicodeScalars
         let lower = scalars.distance(from: scalars.startIndex, to: found.lowerBound)
@@ -40,6 +45,10 @@ enum SearchFolding {
     static let comparisonOptions: String.CompareOptions = [
         .caseInsensitive, .diacriticInsensitive, .widthInsensitive,
     ]
+    /// The most scalars a grapheme may have before its text is bounded for search.
+    static let maximumGraphemeScalarCount = 32
+    /// The maximum searchable scalar prefix when a text contains an overlong grapheme.
+    static let maximumSearchScalarCount = 1_000
     private static let apostrophes: Set<Unicode.Scalar> = ["\u{2018}", "\u{2019}", "\u{201B}", "\u{2032}"]
     private static let quotes: Set<Unicode.Scalar> = ["\u{201C}", "\u{201D}", "\u{201E}", "\u{2033}"]
     private static let dashes: Set<Unicode.Scalar> = [
@@ -52,6 +61,22 @@ enum SearchFolding {
             of: needle, options: comparisonOptions, range: nil,
             locale: locale
         ) != nil
+    }
+
+    /// The whole text unless one grapheme exceeds the limit, then only its first scalar prefix.
+    static func boundedPrefix<S: StringProtocol>(of text: S) -> S.SubSequence {
+        guard hasOverlongGrapheme(in: text) else { return text[...] }
+        let scalars = text.unicodeScalars
+        let end =
+            scalars.index(
+                scalars.startIndex, offsetBy: maximumSearchScalarCount, limitedBy: scalars.endIndex)
+            ?? scalars.endIndex
+        return text[..<end]
+    }
+
+    /// Whether any grapheme in the text exceeds the scalar limit.
+    static func hasOverlongGrapheme<S: StringProtocol>(in text: S) -> Bool {
+        text.contains { $0.unicodeScalars.count > maximumGraphemeScalarCount }
     }
 
     /// The lowest scalar this folding rewrites, below which only whitespace can need it.
@@ -80,6 +105,10 @@ enum SearchFolding {
         var needsFolding = false
         var previousWasSpace = false
         for scalar in text.unicodeScalars {
+            if ClipTextSafety.isDisplayHazard(scalar) && !isWhitespace(scalar) {
+                needsFolding = true
+                break
+            }
             let isSpace = isWhitespace(scalar)
             if isRewritten(scalar) || (isSpace && (scalar != " " || previousWasSpace)) {
                 needsFolding = true
@@ -91,6 +120,7 @@ enum SearchFolding {
         var out = String.UnicodeScalarView()
         previousWasSpace = false
         for scalar in text.unicodeScalars {
+            if ClipTextSafety.isDisplayHazard(scalar) && !isWhitespace(scalar) { continue }
             if isWhitespace(scalar) {
                 if !previousWasSpace { out.append(" ") }
                 previousWasSpace = true
@@ -114,8 +144,20 @@ enum SearchFolding {
         return String(out)
     }
 
+    /// Removes display hazards while keeping control whitespace in the existing search-as-space rule.
+    static func withoutDisplayHazards<S: StringProtocol>(_ text: S) -> String {
+        var out = String.UnicodeScalarView()
+        for scalar in text.unicodeScalars
+        where !ClipTextSafety.isDisplayHazard(scalar) || isWhitespace(scalar) {
+            out.append(scalar)
+        }
+        return String(out)
+    }
+
     /// The folded text with, per folded scalar, where it starts in `text`, plus the end; `nil` if unchanged.
-    static func foldedWithOrigins(_ text: String) -> (text: String, origins: [String.Index])? {
+    static func foldedWithOrigins<S: StringProtocol>(
+        _ text: S
+    ) -> (text: String, origins: [String.Index])? {
         guard folded(text) != nil else { return nil }
         var out = String.UnicodeScalarView()
         var origins: [String.Index] = []
@@ -124,7 +166,9 @@ enum SearchFolding {
         var index = scalars.startIndex
         while index < scalars.endIndex {
             let scalar = scalars[index]
-            if isWhitespace(scalar) {
+            if ClipTextSafety.isDisplayHazard(scalar) && !isWhitespace(scalar) {
+                // A removed scalar has no folded position; the next visible scalar owns the match.
+            } else if isWhitespace(scalar) {
                 if !previousWasSpace {
                     out.append(" ")
                     origins.append(index)
@@ -155,7 +199,7 @@ enum SearchFolding {
 enum SearchQuery {
     /// The query as it is matched, with surrounding whitespace dropped.
     static func needle(in query: String) -> String {
-        query.trimmingCharacters(in: .whitespacesAndNewlines)
+        SearchFolding.withoutDisplayHazards(query).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// The items whose named fields mention the query; all of them when nothing was typed.

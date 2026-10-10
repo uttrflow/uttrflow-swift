@@ -1,0 +1,166 @@
+{
+ "schema": 1,
+ "family": "native chat composer",
+ "windowTitle": "Mira Okafor",
+ "document": null,
+ "focused": {
+  "attributes": {
+   "AXRole": {
+    "kind": "value",
+    "text": "AXTextArea"
+   },
+   "AXValue": {
+    "kind": "value",
+    "text": ""
+   },
+   "AXDescription": {
+    "kind": "value",
+    "text": "Running ten minutes late, save me a seat"
+   },
+   "AXSubrole": {
+    "kind": "noValue"
+   },
+   "AXIdentifier": {
+    "kind": "unsupported"
+   },
+   "AXPlaceholderValue": {
+    "kind": "value",
+    "text": "Type a message"
+   },
+   "AXNumberOfCharacters": {
+    "kind": "value",
+    "number": 0
+   }
+  },
+  "children": []
+ },
+ "window": {
+  "attributes": {
+   "AXRole": {
+    "kind": "value",
+    "text": "AXWindow"
+   },
+   "AXTitle": {
+    "kind": "value",
+    "text": "Mira Okafor"
+   }
+  },
+  "children": [
+   {
+    "attributes": {
+     "AXRole": {
+      "kind": "value",
+      "text": "AXGroup"
+     },
+     "AXDescription": {
+      "kind": "value",
+      "text": "Mira Okafor"
+     }
+    },
+    "children": [
+     {
+      "attributes": {
+       "AXRole": {
+        "kind": "value",
+        "text": "AXHeading"
+       },
+       "AXValue": {
+        "kind": "value",
+        "text": "Today"
+       }
+      },
+      "children": []
+     },
+     {
+      "attributes": {
+       "AXRole": {
+        "kind": "value",
+        "text": "AXStaticText"
+       },
+       "AXValue": {
+        "kind": "value",
+        "text": ""
+       },
+       "AXDescription": {
+        "kind": "value",
+        "text": "Are we still on for the book club at seven?"
+       }
+      },
+      "children": []
+     },
+     {
+      "attributes": {
+       "AXRole": {
+        "kind": "value",
+        "text": "AXStaticText"
+       },
+       "AXValue": {
+        "kind": "value",
+        "text": ""
+       },
+       "AXDescription": {
+        "kind": "value",
+        "text": "Yes, I booked the corner table"
+       }
+      },
+      "children": []
+     }
+    ]
+   },
+   {
+    "attributes": {
+     "AXRole": {
+      "kind": "value",
+      "text": "AXGroup"
+     }
+    },
+    "children": [
+     {
+      "attributes": {
+       "AXRole": {
+        "kind": "value",
+        "text": "AXTextArea"
+       },
+       "AXValue": {
+        "kind": "value",
+        "text": ""
+       },
+       "AXDescription": {
+        "kind": "value",
+        "text": "Running ten minutes late, save me a seat"
+       },
+       "AXSubrole": {
+        "kind": "noValue"
+       },
+       "AXIdentifier": {
+        "kind": "unsupported"
+       },
+       "AXPlaceholderValue": {
+        "kind": "value",
+        "text": "Type a message"
+       },
+       "AXNumberOfCharacters": {
+        "kind": "value",
+        "number": 0
+       }
+      },
+      "children": []
+     },
+     {
+      "attributes": {
+       "AXRole": {
+        "kind": "value",
+        "text": "AXButton"
+       },
+       "AXDescription": {
+        "kind": "value",
+        "text": "Send"
+       }
+      },
+      "children": []
+     }
+    ]
+   }
+  ]
+ }
+}

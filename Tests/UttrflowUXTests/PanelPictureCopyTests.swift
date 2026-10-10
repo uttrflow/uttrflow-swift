@@ -27,7 +27,17 @@ struct PanelPictureCopyTests {
     func copyOnlyCopiesThePicture(_ obstacle: PanelInsertionObstacle) {
         let effect = Self.panel(insertion: .clipboardOnly(obstacle)).applying(.return).outcome.effect
 
-        #expect(effect == .copyImageAndSay(Self.picture, obstacle.notice))
+        guard case .copyImageAndSay(let clip, let notice) = effect else {
+            Issue.record("did not copy the picture: \(String(describing: effect))")
+            return
+        }
+        let expected = obstacle.copiedNotice
+        #expect(clip == Self.picture)
+        #expect(
+            notice
+                == PanelNotice(
+                    symbolName: expected.symbolName, message: expected.message, action: expected.action,
+                    announcementID: notice.announcementID))
     }
 
     @Test("the row's Copy on a picture copies the picture and closes")

@@ -27,12 +27,15 @@ public struct SnippetExpansion: Sendable, Equatable {
     public let text: String
     /// Every firing in the order it appears in ``text``; a snippet that fires twice appears twice.
     public let applied: [AppliedSnippet]
+    /// UTF-16 units of ``text`` before the caret a fired snippet marked, or `nil`; the first marked firing wins.
+    public let caret: Int?
 
     /// Makes a result from its parts.
-    public init(original: String, text: String, applied: [AppliedSnippet]) {
+    public init(original: String, text: String, applied: [AppliedSnippet], caret: Int? = nil) {
         self.original = original
         self.text = text
         self.applied = applied
+        self.caret = caret
     }
 
     /// A transcript nothing was done to.

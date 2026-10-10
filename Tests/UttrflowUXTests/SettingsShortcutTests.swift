@@ -261,16 +261,16 @@ struct SettingsShortcutRecorderTests {
     /// Driven the way the field drives it: whole keystrokes, not hand-picked calls.
     @Suite("Every shape, as keystrokes")
     struct Strokes {
-        private func held(_ mods: Set<HotkeyModifier>, fn: Bool = false, key: UInt16 = 0) -> KeyStroke {
-            KeyStroke(
+        private func held(_ mods: Set<HotkeyModifier>, fn: Bool = false, key: UInt16 = 0) -> KeyEvent {
+            KeyEvent(
                 keyCode: key, modifiers: mods, isFunctionDown: fn, phase: .modifiersChanged,
                 isKeyDown: true)
         }
-        private func lifted(_ mods: Set<HotkeyModifier>, key: UInt16) -> KeyStroke {
-            KeyStroke(keyCode: key, modifiers: mods, phase: .modifiersChanged, isKeyDown: false)
+        private func lifted(_ mods: Set<HotkeyModifier>, key: UInt16) -> KeyEvent {
+            KeyEvent(keyCode: key, modifiers: mods, phase: .modifiersChanged, isKeyDown: false)
         }
-        private func down(_ key: UInt16, _ mods: Set<HotkeyModifier>) -> KeyStroke {
-            KeyStroke(keyCode: key, modifiers: mods, phase: .down)
+        private func down(_ key: UInt16, _ mods: Set<HotkeyModifier>) -> KeyEvent {
+            KeyEvent(keyCode: key, modifiers: mods, phase: .down)
         }
         private func recorder() -> SettingsShortcutRecorder {
             var r = SettingsShortcutRecorder(binding: .optionSpace)
@@ -360,7 +360,7 @@ struct SettingsShortcutRecorderTests {
         @Test("a key coming up is not a shortcut")
         func keyUpIsQuiet() {
             var r = recorder()
-            #expect(r.receive(KeyStroke(keyCode: 49, phase: .up)) == .ignored)
+            #expect(r.receive(KeyEvent(keyCode: 49, phase: .up)) == .ignored)
             #expect(r.isRecording)
         }
 
@@ -401,12 +401,13 @@ struct SettingsShortcutRecorderTests {
             var r = SettingsShortcutRecorder(binding: .functionHold)
             r.beginRecording()
             _ = r.hold(keyCode: 58, modifiers: [.option])
-            #expect(
-                r.record(keyCode: 49, modifiers: [.option]) == .recorded(.shortcut(.dictate, .optionSpace)))
-            #expect(r.binding == .optionSpace)
+            // F1 rather than Space: Option with a key that types is refused, and that is a separate test.
+            let optionF1 = HotkeyBinding(keyCode: 122, modifiers: [.option])
+            #expect(r.record(keyCode: 122, modifiers: [.option]) == .recorded(.shortcut(.dictate, optionF1)))
+            #expect(r.binding == optionF1)
             // The modifier coming up afterwards must not overwrite what was just recorded.
             #expect(r.release() == .ignored)
-            #expect(r.binding == .optionSpace)
+            #expect(r.binding == optionF1)
         }
 
         /// Two modifiers and a key, pressed in the order a hand presses them.

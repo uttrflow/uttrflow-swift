@@ -4,10 +4,10 @@ import UttrflowClipboard
 
 /// Remembers each clip's search-folded text, so a keystroke does not rebuild every clip's text.
 final class FoldedTexts: Sendable, Equatable {
-    /// Holds the last text folded for a clip, and its folding; `nil` when folding changes nothing.
+    /// Holds the source text and its bounded, folded search form.
     private struct Entry {
         let text: String
-        let folded: String?
+        let searchable: String
     }
 
     private let entries = Mutex<[Clip.ID: Entry]>([:])
@@ -21,11 +21,12 @@ final class FoldedTexts: Sendable, Equatable {
     /// The clip's text as search compares it, folding only a text not folded before.
     func text(of clip: Clip) -> String {
         if let known = entries.withLock({ $0[clip.id] }), known.text == clip.text {
-            return known.folded ?? clip.text
+            return known.searchable
         }
-        let folded = fold(clip.text)
-        entries.withLock { $0[clip.id] = Entry(text: clip.text, folded: folded) }
-        return folded ?? clip.text
+        let searchableText = String(SearchFolding.boundedPrefix(of: clip.text))
+        let searchable = fold(searchableText) ?? searchableText
+        entries.withLock { $0[clip.id] = Entry(text: clip.text, searchable: searchable) }
+        return searchable
     }
 
     /// Compares equal to any other memo, because a cache is not part of what the panel shows.

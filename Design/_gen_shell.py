@@ -272,7 +272,7 @@ def sidebar(active, recent="", tails=None):
       </div>"""
 
 
-def account_chip(initials="NB", name="Naveen Bhatt"):
+def account_chip(initials="AS", name="Avery Stone"):
     """`AccountChip`: a filled monogram, the signed-in name, and a disclosure chevron."""
     return (f'<div class="achip"><span class="aavatar">{initials}</span>'
             f'<span>{name}</span>'
@@ -408,10 +408,20 @@ def apple_mark(size=16, color="currentColor"):
 
 def write_pair(stem, build):
     """Writes `Stem.dc.html` and `Stem-Dark.dc.html` from one builder."""
+    return _write_pair(stem, build, lambda html: html)
+
+
+def write_whitespace_clean_pair(stem, build):
+    """Writes a pair with trailing whitespace removed from each generated line."""
+    return _write_pair(
+        stem, build, lambda html: "\n".join(line.rstrip() for line in html.splitlines()) + "\n")
+
+
+def _write_pair(stem, build, prepare):
     names = []
     for dark, suffix in ((False, ""), (True, "-Dark")):
         name = f"{stem}{suffix}.dc.html"
         with open(DESIGN_DIR / name, "w") as handle:
-            handle.write(build(dark))
+            handle.write(prepare(build(dark)))
         names.append(name)
     return names

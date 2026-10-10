@@ -1,8 +1,9 @@
+public import UttrflowAI
 public import UttrflowPredict
 
 // The MLX macros expand to code naming these types, so the imports cannot be private.
-import Foundation
-import UttrflowCore
+public import Foundation
+public import UttrflowCore
 import HuggingFace
 import MLX
 import MLXHuggingFace
@@ -27,26 +28,37 @@ public struct JudgedToken: Sendable, Equatable {
 public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassShowing, ReleasableModel {
     private let model: LocalModel
     private let maximumTokens: Int
+    private let capacityForDownload: (@Sendable (URL) -> Int64?)?
+    private let downloadHeadroomBytes: Int64
     private var container: ModelContainer?
     private let bufferCachePasses: BufferCachePasses
 
     /// Where a pass reports its timing and its failures: numbers and error text only, never the prompt.
     private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "predict")
 
-    public init(model: LocalModel, maximumTokens: Int = 128) {
+    public init(
+        model: LocalModel, maximumTokens: Int = 128,
+        capacityForDownload: (@Sendable (URL) -> Int64?)? = nil,
+        downloadHeadroomBytes: Int64 = 0
+    ) {
         self.init(
             model: model, maximumTokens: maximumTokens, bufferCache: .mlx,
-            bufferCachePasses: .processWide)
+            bufferCachePasses: .processWide, capacityForDownload: capacityForDownload,
+            downloadHeadroomBytes: downloadHeadroomBytes)
     }
 
     init(
         model: LocalModel, maximumTokens: Int, bufferCache: BufferCacheControl,
         cache: URL = HubCache.default.cacheDirectory, loading: WeightLoading<ModelContainer> = .mlx,
         bufferCachePasses: BufferCachePasses? = nil,
-        initialConfidenceMemory: ConfidenceMemory = ConfidenceMemory()
+        initialConfidenceMemory: ConfidenceMemory = ConfidenceMemory(),
+        capacityForDownload: (@Sendable (URL) -> Int64?)? = nil,
+        downloadHeadroomBytes: Int64 = 0
     ) {
         self.model = model
         self.maximumTokens = maximumTokens
+        self.capacityForDownload = capacityForDownload
+        self.downloadHeadroomBytes = downloadHeadroomBytes
         self.bufferCachePasses = bufferCachePasses ?? BufferCachePasses(control: bufferCache)
         self.cache = cache
         self.weights = ReloadableWeights(loading: loading)
@@ -63,8 +75,8 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
     /// The Hugging Face cache a whole model is loaded from without asking the hub.
     private let cache: URL
 
-    /// The load in flight, which a second caller joins rather than starting its own.
-    private var loadInFlight: Task<Void, any Error>?
+    /// Shares model loading and lets a download caller retry a disk-only miss.
+    private let inFlightLoad = InFlightModelLoad()
 
     /// Loads the weights from disk when they are whole there, downloading them only when they are not.
     public func prepare(onProgress: @escaping @Sendable (Double) -> Void = { _ in }) async throws {
@@ -82,13 +94,11 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
         onProgress: @escaping @Sendable (Double) -> Void
     ) async throws {
         guard container == nil else { return }
-        if let loadInFlight { return try await loadInFlight.value }
-        let step = Task { try await self.fill(downloader: downloader, onProgress: onProgress) }
-        loadInFlight = step
-        defer { if loadInFlight == step { loadInFlight = nil } }
-        // The caller that started the load stopping it stops the load, so a release never waits out the read.
-        try await withTaskCancellationHandler(
-            operation: { try await step.value }, onCancel: { step.cancel() })
+        try await inFlightLoad.run(
+            downloads: downloader != nil,
+            onProgress: onProgress,
+            shouldRetry: { $0 is WeightsNotOnDisk },
+            operation: { report in try await self.fill(downloader: downloader, onProgress: report) })
     }
 
     /// Reads the weights in, fetching them through `downloader` only where one is given.
@@ -100,7 +110,8 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
         beginPass()
         defer { endPass() }
         let directory = try await model.weightsDirectory(
-            cache: cache, downloader: downloader, onProgress: onProgress)
+            cache: cache, downloader: downloader, onProgress: onProgress,
+            capacityForDownload: capacityForDownload, downloadHeadroomBytes: downloadHeadroomBytes)
         // A load stopped during the fetch reads no weights, and one stopped during the read keeps none for the warm-up.
         try Task.checkCancellation()
         guard let loaded = try await weights.load(from: directory) else { return }
@@ -114,7 +125,7 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
         vocabulary = await container?.perform { context in
             TokenHealing.Vocabulary(
                 tokenizer: context.tokenizer, endOfTurn: context.configuration.extraEOSTokens,
-                endingIds: context.configuration.eosTokenIds)
+                endingIds: context.configuration.eosTokenIds, prefixIndex: prefixIndex)
         }
         // A release that landed while the instructions were read leaves nothing of them behind.
         if container == nil { forgetReadings() }
@@ -123,13 +134,17 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
     /// Empties the weights once every pass using them has ended, and hands the freed GPU buffers back to the system.
     public func release() async {
         container = nil
-        loadInFlight?.cancel()
-        loadInFlight = nil
+        await inFlightLoad.cancel()
         forgetReadings()
         await passesEnded()
         bufferCachePasses.begin()
         await weights.unload()
         bufferCachePasses.end()
+    }
+
+    /// Empties the prefix buckets kept across releases; for a release no query will undo, unlike an idle one.
+    public nonisolated func forgetPrefixIndex() {
+        prefixIndex.forget()
     }
 
     /// Builds the model's modules from placeholders and reads its weights, so even the first load leaves no quantize graph.
@@ -157,10 +172,11 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
         confidenceMemory.confidence(of: line)
     }
 
-    /// Forgets every judged candidate and generated confidence without releasing the model.
+    /// Forgets every judged candidate, confidence and tokenised prompt line without releasing the model.
     public func forgetEverything() async {
         forgetGeneration &+= 1
         kept = nil
+        prompt?.forgetEverything()
         judgementCache.forgetEverything()
         confidenceMemory.forgetEverything()
     }
@@ -220,6 +236,9 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
     /// Every token's text, read once, so a pass can hold the model to the word being typed.
     private var vocabulary: TokenHealing.Vocabulary?
 
+    /// Keeps queried prefix indexes for this scorer's pinned tokenizer across weight releases.
+    private let prefixIndex = TokenHealing.Vocabulary.PrefixIndex()
+
     /// The tokens every prompt opens with and the model's state after reading them, copied for each pass.
     private struct WarmInstructions: @unchecked Sendable {
         // Built once and only ever copied afterwards, which is what makes sharing it across passes safe.
@@ -268,19 +287,43 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
     /// Reads the instructions into a cache once, taking their exact tokens as the run two different messages share.
     private func warmInstructions() async -> WarmInstructions? {
         guard let container else { return nil }
-        return try? await container.perform { context in
-            try Task.checkCancellation()
-            let first = try await Self.promptTokens(for: "alpha", context: context)
-            let second = try await Self.promptTokens(for: "omega bravo charlie", context: context)
-            let shared = zip(first, second).prefix { $0 == $1 }.count
-            guard shared > 0 else { return nil }
-            let prefix = Array(first[..<shared])
-            let cache = context.model.newCache(parameters: nil)
-            let tokens = MLXArray(prefix.map(Int32.init)).expandedDimensions(axis: 0)
-            _ = context.model(LMInput.Text(tokens: tokens), cache: cache, state: nil)
-            eval(cache.flatMap(\.state))
-            return WarmInstructions(tokens: prefix, cache: cache)
+        let prefix: [Int]
+        do {
+            prefix = try await container.perform { context in
+                try Task.checkCancellation()
+                let first = try await Self.promptTokens(for: "alpha", context: context)
+                let second = try await Self.promptTokens(for: "omega bravo charlie", context: context)
+                let shared = zip(first, second).prefix { $0 == $1 }.count
+                return Array(first.prefix(shared))
+            }
+        } catch {
+            return nil
         }
+        guard !prefix.isEmpty else { return nil }
+        let cache = ModelCacheTransfer()
+        do {
+            let chunks = stride(
+                from: 0, to: prefix.count, by: CancellableModelChunks.tokenLimit
+            ).map { $0 }
+            try await CancellableModelChunks.run(chunks, chunkSize: 1) { unit in
+                let start = unit.first ?? 0
+                let end = min(start + CancellableModelChunks.tokenLimit, prefix.count)
+                let tokens = Array(prefix[start..<end])
+                try await container.perform { context in
+                    try Task.checkCancellation()
+                    let layers = cache.layers ?? context.model.newCache(parameters: nil)
+                    let input = MLXArray(tokens.map(Int32.init)).expandedDimensions(axis: 0)
+                    let output = context.model(LMInput.Text(tokens: input), cache: layers, state: nil)
+                    eval(output.logits)
+                    eval(layers)
+                    cache.layers = layers
+                }
+            }
+        } catch {
+            return nil
+        }
+        guard let layers = cache.layers else { return nil }
+        return WarmInstructions(tokens: prefix, cache: layers)
     }
 
     /// The whole prompt as the model reads it, instructions and chat template included.
@@ -378,20 +421,24 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
                 response = ""
             }
         }
-        let context = CompletionText.contextNeverCopied(in: situation)
-        // The prefill is the line's own start, so the answer reads as the whole line it would echo.
-        let lines = CompletionText.parse(response, typed: typed).compactMap {
-            CompletionText.trimmed($0, typed: typed, echoing: context)
-        }
-        return CompletionText.finished(lines, typed: typed, in: situation)
+        return CompletionText.modelCompletions(
+            from: response, typed: typed, echoPolicy: .required, in: situation)
     }
 
     /// One pass over the model: prefilled under the container's lock, decoded outside it so a score never waits on a line; a pass that fails throws, so the caller can tell it from an empty answer.
     private func run(
         typed: String, in situation: GenerationSituation, asking ask: Ask, tokenShare: Int
     ) async throws -> Run? {
+        guard
+            let choices = CompletionPromptBuilder.choiceValuesIfPassAllowed(
+                situation.choices, asking: ask)
+        else {
+            return nil
+        }
         let forgetGeneration = self.forgetGeneration
-        guard let container, !Task.isCancelled, LatinScript.writesOnlyLatin(typed),
+        let promptTyped = PromptText.promptValue(typed)
+        // The line also opens the model's own turn, so refuse it if sanitising would change that prefix.
+        guard promptTyped == typed, let container, !Task.isCancelled, LatinScript.writesOnlyLatin(typed),
             typed.trimmingCharacters(in: .whitespaces).count >= Self.minimumTypedLength
         else { return nil }
         beginPass()
@@ -400,10 +447,11 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
         let register = Register.infer(from: situation, typed: typed)
         // A host and a search phrase are not things a model can know: each exists in this person's history or nowhere, so a guess at one is refused rather than drawn. See `Docs/predict-precision.md`.
         guard !register.answersFromHistoryAlone else { return nil }
-        let message = PromptBuilder.message(typed: typed, in: situation, register: register, asking: ask)
-        let opening = ask.opening(of: typed)
+        let message = CompletionPromptBuilder.message(
+            typed: promptTyped, in: situation, register: register, asking: ask)
+        let opening = ask.opening(of: promptTyped)
         // With the machine's values to choose among, the whole line before the word opens the turn and the word is one of them.
-        let choice = opening.flatMap { CompletionText.choice(of: situation.choices, at: $0) }
+        let choice = opening.flatMap { CompletionText.choice(of: choices, at: $0) }
         let warm = self.warm
         let prompt = self.prompt
         // Taken out for this pass, so two passes that overlap never write one cache.
@@ -413,16 +461,12 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
         let vocabulary = self.vocabulary
         let perLine = register.maxTokens
         let cap = maximumTokens
-        let stream: AsyncStream<Generation>
-        let generation: Task<Void, Never>
-        let read: KeptPrefix<[KVCache]>?
         let ledger = SampleLedger()
+        let passInput: PromptChunkInput
         do {
-            (stream, generation, read) = try await container.perform { loaded in
+            passInput = try await container.perform { loaded in
                 try Task.checkCancellation()
-                var context = loaded
-                // The producer ends at the newline itself when one line is wanted, so no decode step is spent past it.
-                if let stop = ask.stopStrings { context.configuration.stopStrings = stop }
+                let context = loaded
                 // The frame and the unchanged lines come from the cache; a message it cannot vouch for is tokenised whole.
                 var all: [Int]
                 if let known = prompt?.tokens(
@@ -437,29 +481,72 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
                 if !written.isEmpty {
                     all += context.tokenizer.encode(text: written, addSpecialTokens: false)
                 }
-                var feed = LMInput(text: LMInput.Text(tokens: MLXArray(all.map(Int32.init))))
-                var cache: [KVCache]?
+                var remaining = all
+                var cacheSource = PromptChunkInput.CacheSource.empty
                 // The tokens this prompt shares with the last one are already read, so the pass pays only for the rest.
                 if let keptCopy,
                     let shared = Self.trimmed(keptCopy, to: all, beating: warm?.tokens.count ?? 0)
                 {
-                    feed = LMInput(text: LMInput.Text(tokens: MLXArray(all[shared...].map(Int32.init))))
-                    cache = keptCopy.cache
+                    remaining = Array(all[shared...])
+                    cacheSource = .kept
                 } else if let warm, all.count > warm.tokens.count,
                     Array(all[..<warm.tokens.count]) == warm.tokens
                 {
                     // When the prompt opens exactly as the warm cache read it, the pass pays only for the tokens past that.
-                    let rest = MLXArray(all[warm.tokens.count...].map(Int32.init))
-                    feed = LMInput(text: LMInput.Text(tokens: rest))
-                    cache = warm.cache.map { $0.copy() }
+                    remaining = Array(all[warm.tokens.count...])
+                    cacheSource = .warm
                 }
-                // An answer that must repeat the line pays for the echo on top of the completion; an opened one pays only for the word it owes.
-                let echo = context.tokenizer.encode(text: opening?.owed ?? typed).count
-                let parameters = GenerateParameters(
-                    maxTokens: CompletionText.tokenBudget(
-                        perLine: perLine, lines: tokenShare, echo: echo, cap: cap),
-                    temperature: 0)
+                return PromptChunkInput(
+                    allTokens: all, remainingTokens: remaining, cacheSource: cacheSource)
+            }
+        } catch is CancellationError {
+            self.kept = Self.restoring(current: self.kept, taken: kept, weightsLoaded: self.container != nil)
+            // A cancelled pass answers a line that is gone, and nothing is drawn for it either way.
+            return nil
+        } catch {
+            self.kept = Self.restoring(current: self.kept, taken: kept, weightsLoaded: self.container != nil)
+            throw error
+        }
+        guard let lastToken = passInput.remainingTokens.last else {
+            self.kept = Self.restoring(current: self.kept, taken: kept, weightsLoaded: self.container != nil)
+            return nil
+        }
+        let stream: AsyncStream<Generation>
+        let generation: Task<Void, Never>
+        let read: KeptPrefix<[KVCache]>?
+        do {
+            let cacheTransfer = ModelCacheTransfer(
+                passInput.cacheSource == .kept ? keptCopy?.cache : nil)
+            if passInput.remainingTokens.count > 1 {
+                try await CancellableModelChunks.run(
+                    Array(passInput.remainingTokens.dropLast()), chunkSize: CancellableModelChunks.tokenLimit
+                ) { chunk in
+                    try await container.perform { context in
+                        try Task.checkCancellation()
+                        let cache = cacheTransfer.obtain(
+                            from: passInput.cacheSource, kept: keptCopy?.cache,
+                            warm: warm?.cache, model: context.model)
+                        let tokens = MLXArray(Array(chunk).map(Int32.init)).expandedDimensions(axis: 0)
+                        let output = context.model(LMInput.Text(tokens: tokens), cache: cache, state: nil)
+                        eval(output.logits)
+                        eval(cache)
+                        cacheTransfer.layers = cache
+                    }
+                }
+            }
+            let echo = await container.perform {
+                $0.tokenizer.encode(text: opening?.owed ?? typed).count
+            }
+            let parameters = GenerateParameters(
+                maxTokens: CompletionText.tokenBudget(
+                    perLine: perLine, lines: tokenShare, echo: echo, cap: cap), temperature: 0)
+            let finalToken = Int32(lastToken)
+            (stream, generation, read) = try await container.perform { loaded in
                 try Task.checkCancellation()
+                var context = loaded
+                // The producer ends at the newline itself when one line is wanted, so no decode step is spent past it.
+                if let stop = ask.stopStrings { context.configuration.stopStrings = stop }
+                let input = LMInput(text: LMInput.Text(tokens: MLXArray([finalToken])))
                 let iterator: TokenIterator
                 if let opening, let vocabulary {
                     // The first tokens are held to the word being typed, or to one of the machine's values, so the model continues rather than invents.
@@ -472,24 +559,36 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
                                 wordComplete: opening.isWordComplete,
                                 mayEnd: opening.mayEnd)
                         }
+                    // Scored over the logits from before the mask, so a forced token does not count as certain.
+                    let unmasked = UnmaskedLogits(masking: processor)
                     iterator = try TokenIterator(
-                        input: feed, model: context.model, cache: cache, processor: processor,
-                        sampler: RecordingSampler(inner: parameters.sampler(), ledger: ledger),
+                        input: input, model: context.model,
+                        cache: cacheTransfer.obtain(
+                            from: passInput.cacheSource, kept: keptCopy?.cache,
+                            warm: warm?.cache, model: context.model),
+                        processor: unmasked,
+                        sampler: RecordingSampler(
+                            inner: parameters.sampler(), ledger: ledger, unmasked: unmasked),
                         maxTokens: parameters.maxTokens)
                 } else {
                     iterator = try TokenIterator(
-                        input: feed, model: context.model, cache: cache, processor: parameters.processor(),
+                        input: input, model: context.model,
+                        cache: cacheTransfer.obtain(
+                            from: passInput.cacheSource, kept: keptCopy?.cache,
+                            warm: warm?.cache, model: context.model),
+                        processor: parameters.processor(),
                         sampler: RecordingSampler(inner: parameters.sampler(), ledger: ledger),
                         prefillStepSize: parameters.prefillStepSize, maxTokens: parameters.maxTokens)
                 }
                 let (stream, generation) = generateTask(
-                    promptTokenCount: feed.text.tokens.size, modelConfiguration: context.configuration,
+                    promptTokenCount: passInput.remainingTokens.count,
+                    modelConfiguration: context.configuration,
                     tokenizer: context.tokenizer, iterator: iterator)
-                return (stream, generation, cache.map { KeptPrefix(tokens: all, cache: $0) })
+                let read = cacheTransfer.layers.map { KeptPrefix(tokens: passInput.allTokens, cache: $0) }
+                return (stream, generation, read)
             }
         } catch is CancellationError {
             self.kept = Self.restoring(current: self.kept, taken: kept, weightsLoaded: self.container != nil)
-            // A cancelled pass answers a line that is gone, and nothing is drawn for it either way.
             return nil
         } catch {
             self.kept = Self.restoring(current: self.kept, taken: kept, weightsLoaded: self.container != nil)
@@ -547,20 +646,40 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
     /// Every token the model is judged on with its log-probability, which is where a score comes from.
     public func judgedTokens(of candidate: String, following context: String) async -> [JudgedToken] {
         let generation = forgetGeneration
-        // The forward pass runs on the whole candidate, so the result is the same for every typed prefix.
-        if let line = judgementCache.recall(candidate: candidate) {
-            judgementCacheHits += 1
-            guard let container else { return [] }
+        // Reuse the candidate's token scores when its requested prefix-mass position is still current.
+        if let cachedLine = judgementCache.recall(candidate: candidate) {
+            guard let container else {
+                judgementCacheHits += 1
+                return []
+            }
             guard let vocabulary = self.vocabulary else { return [] }
             // Only a call that reaches the model holds the process-wide cache; an unloaded scorer never does.
             beginPass()
             defer { endPass() }
-            let judged = await container.perform { loaded in
-                Self.judgedFromCache(
-                    line, candidate: candidate, context: context, vocabulary: vocabulary,
-                    tokenizer: loaded.tokenizer)
+            let request = await container.perform { loaded in
+                let typed = loaded.tokenizer.encode(
+                    text: Self.leadIn + CompletionText.typedPart(of: candidate, following: context))
+                let requestedStart = Self.requestedStart(
+                    cachedLine.tokens, candidate: candidate, context: context,
+                    vocabulary: vocabulary, tokenizer: loaded.tokenizer)
+                return (typed, cachedLine.isEmpty || cachedLine.prefixMassIndex == requestedStart)
             }
-            return generation == forgetGeneration ? judged : []
+            guard generation == forgetGeneration else { return [] }
+            if request.1 {
+                judgementCacheHits += 1
+                return JudgedLine.judged(
+                    from: cachedLine, typedTokens: request.0, vocabulary: vocabulary)
+            }
+            judgementCacheMisses += 1
+            do {
+                let result = try await ChunkedCandidateJudge.judge(
+                    candidate, following: context, vocabulary: vocabulary, in: container)
+                guard generation == forgetGeneration else { return [] }
+                judgementCache.remember(result.line, for: candidate)
+                return result.judged(using: vocabulary)
+            } catch {
+                return []
+            }
         }
         judgementCacheMisses += 1
         // A cancelled pass says nothing about the candidate, so it leaves the cache as it found it.
@@ -574,70 +693,30 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
         guard let scoringVocabulary = self.vocabulary else { return [] }
         beginPass()
         defer { endPass() }
-        let result = await container.perform { loaded -> (JudgedLine, [JudgedToken]) in
-            let line = Self.judge(candidate, vocabulary: scoringVocabulary, with: loaded)
-            let judged = Self.judgedFromCache(
-                line, candidate: candidate, context: context, vocabulary: scoringVocabulary,
-                tokenizer: loaded.tokenizer)
-            return (line, judged)
+        let result: ChunkedCandidateJudgement
+        do {
+            result = try await ChunkedCandidateJudge.judge(
+                candidate, following: context, vocabulary: scoringVocabulary, in: container)
+        } catch {
+            return []
         }
         guard generation == forgetGeneration else { return [] }
-        judgementCache.remember(result.0, for: candidate)
-        return result.1
+        judgementCache.remember(result.line, for: candidate)
+        return result.judged(using: scoringVocabulary)
     }
 
     /// Two neutral tokens before the line, since `uttrflow-bakeoff score` shows Gemma 3 predicting nonsense from the first two positions.
     static let leadIn = "...\n"
 
-    /// The whole candidate as the model reads it, keeping only the scores needed for typed-prefix judgements.
-    private static func judge(
-        _ candidate: String, vocabulary: TokenHealing.Vocabulary, with loaded: ModelContext
-    ) -> JudgedLine {
-        let whole = loaded.tokenizer.encode(text: leadIn + candidate)
-        guard !whole.isEmpty else {
-            return JudgedLine(tokens: [], tokenLogProbabilities: [], prefixLogMasses: [], texts: [])
-        }
-        let tokens = MLXArray(whole.map(Int32.init)).expandedDimensions(axis: 0)
-        let output = loaded.model(LMInput.Text(tokens: tokens), cache: nil, state: nil)
-        // Softmax in Float32, since the bf16 logits would round every log-probability to a coarse grid.
-        let probabilities = logSoftmax(output.logits.asType(.float32), axis: -1)[0]
-        eval(probabilities)
-        var tokenLogProbabilities: [Float] = []
-        var prefixLogMasses: [Float?] = []
-        tokenLogProbabilities.reserveCapacity(whole.count)
-        prefixLogMasses.reserveCapacity(whole.count)
-        for position in whole.indices {
-            let row = probabilities[position]
-            let token = whole[position]
-            tokenLogProbabilities.append(row[token].item(Float.self))
-            let bytes = ScoredSpan.written(by: token, in: vocabulary.bytes)
-            let continuing = ScoredSpan.continuing(bytes, in: vocabulary).filter { $0 != token }
-            prefixLogMasses.append(Self.logMass(of: continuing, in: row))
-        }
-        let texts = whole.map { loaded.tokenizer.decode(tokenIds: [$0]) }
-        return JudgedLine(
-            tokens: whole, tokenLogProbabilities: tokenLogProbabilities,
-            prefixLogMasses: prefixLogMasses, texts: texts)
-    }
-
-    /// The log probability mass of a token prefix, accumulated without copying a vocabulary-sized row.
-    private static func logMass(of tokens: [Int], in row: MLXArray) -> Float? {
-        let values = tokens.map { row[$0].item(Float.self) }
-        guard let largest = values.max(), largest > -.infinity else { return nil }
-        let sum = values.reduce(Float.zero) { $0 + exp($1 - largest) }
-        return largest + Foundation.log(sum)
-    }
-
-    /// The judged tokens for a typed prefix, cut from the cached line so a re-typed keystroke skips the forward pass.
-    private static func judgedFromCache(
-        _ line: JudgedLine, candidate: String, context: String, vocabulary: TokenHealing.Vocabulary,
-        tokenizer: any MLXLMCommon.Tokenizer
-    ) -> [JudgedToken] {
-        guard !line.isEmpty else { return [] }
+    static func requestedStart(
+        _ whole: [Int], candidate: String, context: String,
+        vocabulary: TokenHealing.Vocabulary, tokenizer: any MLXLMCommon.Tokenizer
+    ) -> Int? {
         let typed = tokenizer.encode(
             text: leadIn + CompletionText.typedPart(of: candidate, following: context))
-        return JudgedLine.judged(from: line, typedTokens: typed, vocabulary: vocabulary)
+        return ScoredSpan(whole: whole, typed: typed, bytes: vocabulary.bytes)?.start
     }
+
 }
 
 extension WeightLoading<ModelContainer> {
@@ -669,4 +748,62 @@ extension WeightLoading<ModelContainer> {
                 context.model.update(parameters: placeholders)
             }
         })
+}
+
+/// The same loaded weights tidy dictation, so the app holds one copy of the model for suggestions and clean-up.
+extension MLXCandidateScorer: CleanupModel {
+    /// The most tokens one tidied utterance may produce.
+    static let tidyTokens = 256
+
+    /// A reply a little longer than the prompt it tidies, so a runaway stops early and the guard declines it.
+    static func tidyBudget(for prompt: String) -> Int {
+        min(tidyTokens, 32 + prompt.utf8.count / 2)
+    }
+
+    /// Available only while the weights are loaded; a dictation never waits on a load.
+    public func availability(for language: LanguageCode?) async -> TransformerAvailability {
+        guard container != nil else { return .unavailable(reason: .other("the local model is not loaded")) }
+        guard let language else { return .available }
+        return model.supports(language) ? .available : .unsupportedLanguage(language)
+    }
+
+    /// One block of instructions, with no examples apart from it.
+    public func rewrite(
+        _ text: String, instructions: String, kind: TransformerKind
+    ) async throws(TransformationError) -> String {
+        try await tidy(text, system: instructions, examples: [], kind: kind)
+    }
+
+    /// The rules as the system turn and each worked example as an earlier exchange, so the model answers rather than reads on.
+    public func rewrite(
+        _ text: String, prompt: ModelPrompt, kind: TransformerKind
+    ) async throws(TransformationError) -> String {
+        try await tidy(text, system: prompt.rules, examples: prompt.examples, kind: kind)
+    }
+
+    /// Answers `text` after the system turn and the examples in a fresh session, so one utterance cannot bleed into the next.
+    private func tidy(
+        _ text: String, system: String, examples: [WorkedExample], kind: TransformerKind
+    ) async throws(TransformationError) -> String {
+        guard let container else { throw .transformFailed(kind: kind, failure: .notReady) }
+        beginPass()
+        defer { endPass() }
+        do {
+            return try await Self.answer(text, system: system, examples: examples, in: container)
+        } catch {
+            throw .transformFailed(kind: kind, failure: .of(error))
+        }
+    }
+
+    /// Runs the session off the actor, which owns no part of it.
+    private nonisolated static func answer(
+        _ text: String, system: String, examples: [WorkedExample], in container: ModelContainer
+    ) async throws -> String {
+        let turns = examples.flatMap { [Chat.Message.user($0.question), .assistant($0.cleaned)] }
+        let history = [Chat.Message.system(system)] + turns
+        let session = ChatSession(
+            container, history: history,
+            generateParameters: GenerateParameters(maxTokens: tidyBudget(for: text), temperature: 0))
+        return try await session.respond(to: text)
+    }
 }

@@ -63,12 +63,12 @@ struct TranscriptAssemblyTests {
                 text: "hello", languageIdentifier: "en",
                 segments: [RawSegment(text: "hello", start: 0, end: 0.6, words: [firstWord])],
                 effort: DecodeEffort(fallbacks: 1, fallbackSeconds: 0.25, encoderRuns: 2),
-                tokensUsed: 4, vocabularyPrompt: ["Uttrflow"]),
+                tokensUsed: 4, promptPositions: 3, vocabularyPrompt: ["Uttrflow"]),
             WhisperTranscriptWindow(
                 text: "there", languageIdentifier: "hi",
                 segments: [RawSegment(text: "there", start: 1, end: 1.8, words: [secondWord])],
                 effort: DecodeEffort(fallbacks: 2, fallbackSeconds: 0.5, encoderRuns: 3),
-                tokensUsed: 6, vocabularyPrompt: ["Uttrflow"]),
+                tokensUsed: 6, promptPositions: 3, vocabularyPrompt: ["Uttrflow"]),
         ]
 
         let transcript = TranscriptAssembly.whisper(windows)
@@ -80,6 +80,7 @@ struct TranscriptAssemblyTests {
         #expect(transcript.segments.flatMap { $0.words ?? [] } == [firstWord, secondWord])
         #expect(transcript.segments.flatMap { $0.words ?? [] }.map(\.end) == [0.5, 1.6])
         #expect(transcript.tokensUsed == 10)
+        #expect(transcript.promptPositions == 3)
         #expect(transcript.vocabularyPrompt == ["Uttrflow"])
         #expect(transcript.effort == DecodeEffort(fallbacks: 3, fallbackSeconds: 0.75, encoderRuns: 5))
     }

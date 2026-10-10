@@ -12,7 +12,7 @@ struct SnippetNearMissTests {
         makeSnippet(trigger: "pr", expansion: "pull request"),
         makeSnippet(trigger: "add", expansion: "Adobe Acrobat"),
         makeSnippet(trigger: "my address", expansion: "Flat 402, Sample Road, Bengaluru 560001"),
-        makeSnippet(trigger: "sign off", expansion: "Thanks, Naveen"),
+        makeSnippet(trigger: "sign off", expansion: "Thanks, Avery"),
         makeSnippet(trigger: "stand up", expansion: "Yesterday: … Today: … Blockers: …"),
         makeSnippet(trigger: "meeting link", expansion: "https://meet.google.com/qzt-hnrv-dka"),
     ]
@@ -49,13 +49,13 @@ struct SnippetNearMissTests {
         "I gave them my old address by mistake.",
 
         // The user quoting the expansion back. Saying it is not asking for it again.
-        "Sign off with Thanks, Naveen at the bottom.",
+        "Sign off with Thanks, Avery at the bottom.",
         "The link is https://meet.google.com/qzt-hnrv-dka — that is the meeting link.",
     ]
 
     @Test("expands nothing it should not", arguments: nearMisses)
     func nothingExpands(transcript: String) {
-        let result = SnippetExpander(snippets: Self.snippets).expand(transcript)
+        let result = SnippetExpander(snippets: Self.snippets, in: nil).expand(transcript)
         #expect(!result.didExpand, "expanded: \(result.applied.map(\.matched))")
         #expect(result.text == transcript)
     }
@@ -73,7 +73,7 @@ struct SnippetNearMissTests {
         ]
     )
     func theRealThingStillWorks(transcript: String) {
-        #expect(SnippetExpander(snippets: Self.snippets).expand(transcript).didExpand)
+        #expect(SnippetExpander(snippets: Self.snippets, in: nil).expand(transcript).didExpand)
     }
 
     @Test("at least ten ways of being nearly right are checked")

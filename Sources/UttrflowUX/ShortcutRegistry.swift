@@ -46,6 +46,11 @@ public enum ShortcutRegistry {
             label: "Copy last transcript",
             explanation: "Puts the last thing you dictated on the clipboard.",
             delivery: .claimed),
+        ShortcutDescriptor(
+            action: .editCommand,
+            label: "Edit command",
+            explanation: "Hold and say an edit for the selected text. Nothing you say is typed.",
+            delivery: .observed),
     ]
 
     /// Every shortcut macOS must swallow for us, which is where a hot key is registered.

@@ -24,7 +24,7 @@ public actor PredictStore: PredictionStore {
     static let candidateLimit = 16
 
     /// The open file every read and write goes through.
-    private var database: Database
+    private(set) var database: Database
 
     /// Opens the corpus, replacing a file that is not a database at all and refusing one from a newer build.
     public init(path: String, encryptedStore: EncryptedStore? = nil) throws(PredictStoreError) {
@@ -45,7 +45,11 @@ public actor PredictStore: PredictionStore {
             let database = try Database(path: path, encryptedStore: encryptedStore)
             try Schema.migrate(database)
             try database.finishOpening()
-            if encryptedStore == nil { secureFiles(at: path) }
+            if encryptedStore == nil {
+                // A migration may have deleted forgotten lines; their old pages must not stay in the log.
+                _ = try? database.rows("PRAGMA wal_checkpoint(TRUNCATE)", { _ in }) { $0.integer(0) }
+                secureFiles(at: path)
+            }
             return database
         } catch {
             guard error == .corrupt else { throw error }
@@ -70,6 +74,25 @@ public actor PredictStore: PredictionStore {
                 try? FileManager.default.removeItem(at: url)
             }
         }
+    }
+
+    /// Deletes every copy of the corpus and its sidecars that an earlier open set aside.
+    public static func removeSetAsideCopies(at path: String) throws {
+        var refusal: (any Error)?
+        for suffix in ["", "-wal", "-shm"] {
+            do { try LocalStore.removeSetAside(URL(filePath: path + suffix)) } catch {
+                refusal = refusal ?? error
+            }
+        }
+        if let refusal { throw refusal }
+    }
+
+    /// Deletes the corpus and its sidecars without opening them, for a corpus this build cannot open.
+    public static func removeFiles(at path: String) throws {
+        let files = ["", "-wal", "-shm"].map { URL(filePath: path + $0) }.filter {
+            FileManager.default.fileExists(atPath: $0.path(percentEncoded: false))
+        }
+        try LocalStore.removeEach(files)
     }
 
     /// SQLite owns these files in the legacy mode, so each remains private and backup-excluded.
@@ -107,8 +130,8 @@ public actor PredictStore: PredictionStore {
         _ candidates: [Candidate], here: Int64?
     ) throws(PredictStoreError) -> [Candidate] {
         guard let here, !candidates.isEmpty else { return candidates }
-        let retired = try retiredTexts(surfaceIdentifier: here)
-        return retired.isEmpty ? candidates : candidates.filter { !retired.contains($0.text) }
+        let withheld = try withheldTexts(among: candidates.map(\.text), surfaceIdentifier: here)
+        return withheld.isEmpty ? candidates : candidates.filter { !withheld.contains($0.text) }
     }
 
     /// The lines this person recently entered in this field, each once, the ones from this document first.
@@ -117,12 +140,14 @@ public actor PredictStore: PredictionStore {
         guard !ids.isEmpty, limit > 0 else { return [] }
         let here = try identifier(of: surface, creating: false) ?? -1
         // One indexed read per scope, ordered and de-duplicated here, so SQLite groups nothing. See #880.
-        let retired = try retiredTexts(surfaceIdentifier: here)
+        var scopes: [(id: Int64, lines: [(text: String, used: Double)])] = []
+        for id in ids { scopes.append((id, try recentLines(surfaceIdentifier: id, limit: limit))) }
+        let withheld = try withheldTexts(
+            among: scopes.flatMap { $0.lines.map(\.text) }, surfaceIdentifier: here)
         var newest: [String: (used: Double, isHere: Bool)] = [:]
         var order: [String] = []
-        for id in ids {
-            let lines = try recentLines(surfaceIdentifier: id, limit: limit)
-            for line in lines where !retired.contains(line.text) {
+        for (id, lines) in scopes {
+            for line in lines where !withheld.contains(line.text) {
                 let isHere = id == here
                 guard let seen = newest[line.text] else {
                     newest[line.text] = (line.used, isHere)
@@ -143,13 +168,29 @@ public actor PredictStore: PredictionStore {
         return ranked.prefix(limit).map(\.element)
     }
 
-    /// What this folder retired, so a line borrowed from another folder does not come back as recent.
-    private func retiredTexts(surfaceIdentifier id: Int64) throws(PredictStoreError) -> Set<String> {
-        Set(
+    /// Which of these lines this folder retired or forgot, so one borrowed from another folder does not come back.
+    private func withheldTexts(
+        among texts: [String], surfaceIdentifier id: Int64
+    ) throws(PredictStoreError) -> Set<String> {
+        var withheld = Set(
             try database.rows(
                 "SELECT text FROM entry WHERE surface_id = ? AND superseded_by IS NOT NULL",
                 { $0.bind(1, id) }
             ) { $0.text(0) })
+        let markers = Set(try forgottenMarkers(surfaceIdentifier: id))
+        guard !markers.isEmpty else { return withheld }
+        let marker = try ForgottenMarker(database)
+        for text in Set(texts) where !withheld.contains(text) {
+            if markers.contains(try marker(text)) { withheld.insert(text) }
+        }
+        return withheld
+    }
+
+    /// The digests of every line forgotten in this folder.
+    private func forgottenMarkers(surfaceIdentifier id: Int64) throws(PredictStoreError) -> [String] {
+        try database.rows("SELECT marker FROM forgotten WHERE surface_id = ?", { $0.bind(1, id) }) {
+            $0.text(0)
+        }
     }
 
     /// The per-scope recency read, exposed so a test can check its plan groups and sorts nothing.
@@ -366,14 +407,14 @@ public actor PredictStore: PredictionStore {
     /// Records a value the user finished entering, and what it followed, as one transaction.
     public func record(
         _ text: String, in surface: Surface, after previous: String? = nil,
-        selfSourced: Bool = false, at moment: Date
+        as origin: LineOrigin = .typed, at moment: Date
     ) throws(PredictStoreError) {
         guard !text.isEmpty else { return }
         let moment = min(moment, Date())
         try database.transaction { () throws(PredictStoreError) in
             try write(
                 Spelling.canonical(text), in: surface, after: previous.map(Spelling.canonical),
-                selfSourced: selfSourced, at: moment)
+                as: origin, at: moment)
         }
         try? compactIfNeeded()
     }
@@ -385,22 +426,36 @@ public actor PredictStore: PredictionStore {
 
     /// The steps of a record, which stand or fall together.
     private func write(
-        _ text: String, in surface: Surface, after previous: String?, selfSourced: Bool, at moment: Date
+        _ text: String, in surface: Surface, after previous: String?, as origin: LineOrigin, at moment: Date
     ) throws(PredictStoreError) {
         guard let id = try identifier(of: surface, creating: true) else { return }
         try database.run("UPDATE surface SET last_used = MAX(last_used, ?) WHERE id = ?") {
             $0.bind(1, moment.timeIntervalSince1970)
             $0.bind(2, id)
         }
-        // A half-typed fragment is not stored when a longer line the user already entered begins with it.
-        if try isFragmentOfLongerEntry(surfaceIdentifier: id, text: text) { return }
+        // A forgotten line comes back only when typed by hand; an accepted suggestion of it stays unstored.
+        if try !forgottenMarkers(surfaceIdentifier: id).isEmpty {
+            let digest = try ForgottenMarker(database)(text)
+            let cleared = try database.run("DELETE FROM forgotten WHERE surface_id = ? AND marker = ?") {
+                $0.bind(1, id)
+                $0.bind(2, digest)
+            }
+            if cleared > 0, origin.isSelfSourced { return }
+        }
+        // An unfinished fragment is not stored when a longer line the user already entered begins with it.
+        if origin != .finished, try isFragmentOfLongerEntry(surfaceIdentifier: id, text: text),
+            try !holdsFinishedLine(text, surfaceIdentifier: id)
+        {
+            return
+        }
         try database.run(
             """
-            INSERT INTO entry (surface_id, text, text_lower, count, self_sourced, last_used)
-            VALUES (?, ?, ?, 1, ?, ?)
+            INSERT INTO entry (surface_id, text, text_lower, count, self_sourced, finished, last_used)
+            VALUES (?, ?, ?, 1, ?, ?, ?)
             ON CONFLICT (surface_id, text) DO UPDATE SET
               count = count + 1,
               self_sourced = self_sourced + excluded.self_sourced,
+              finished = MAX(finished, excluded.finished),
               last_used = excluded.last_used,
               text_lower = excluded.text_lower,
               superseded_by = CASE
@@ -412,11 +467,12 @@ public actor PredictStore: PredictionStore {
                 $0.bind(1, id)
                 $0.bind(2, text)
                 $0.bind(3, text.lowercased())
-                $0.bind(4, Int64(selfSourced ? 1 : 0))
-                $0.bind(5, moment.timeIntervalSince1970)
+                $0.bind(4, Int64(origin.isSelfSourced ? 1 : 0))
+                $0.bind(5, Int64(origin == .finished ? 1 : 0))
+                $0.bind(6, moment.timeIntervalSince1970)
             })
         // Typing the line by hand takes back every refusal of it in this field, which is what brings a retired line back.
-        if !selfSourced { try forgiveRefusals(of: text, in: surface) }
+        if !origin.isSelfSourced { try forgiveRefusals(of: text, in: surface) }
         // This whole value retires the shorter fragments it grew out of, so only it is ever proposed.
         try supersedeFragments(surfaceIdentifier: id, of: text)
         if let previous, !previous.isEmpty {
@@ -431,7 +487,9 @@ public actor PredictStore: PredictionStore {
                     $0.bind(3, text)
                 })
         }
-        try evictWeakest(surfaceIdentifier: id)
+        try evictWeakest(
+            surfaceIdentifier: id, protecting: text,
+            succession: previous.map { (previous: $0, next: text) })
         try evictOldestSurfaces(
             bundleIdentifier: surface.bundleIdentifier, role: surface.role, locator: surface.locator ?? "",
             keepingSurface: id)
@@ -464,14 +522,14 @@ public actor PredictStore: PredictionStore {
         }
     }
 
-    /// Marks an entry wrong in this folder and points at what replaces it, so it is never proposed here again.
+    /// Marks an entry wrong in this folder and points at what replaces it, unless the person finished that line.
     public func supersede(
         _ text: String, with replacement: String, in surface: Surface
     ) throws(PredictStoreError) {
         let text = Spelling.canonical(text)
         let replacement = Spelling.canonical(replacement)
         try database.transaction { () throws(PredictStoreError) in
-            guard try supplier(of: text, in: surface) != nil,
+            guard let supplier = try supplier(of: text, in: surface), try !isFinished(entry: supplier),
                 let id = try identifier(of: surface, creating: true)
             else { return }
             try database.run("UPDATE surface SET last_used = MAX(last_used, ?) WHERE id = ?") {
@@ -515,21 +573,16 @@ public actor PredictStore: PredictionStore {
                 $0.bind(1, Date().timeIntervalSince1970)
                 $0.bind(2, id)
             }
-            // Keep a scoped tombstone so copies read from other scopes stay forgotten here.
-            try database.run(
-                """
-                INSERT INTO entry (surface_id, text, text_lower, count, last_used, superseded_by)
-                VALUES (?, ?, ?, 0, 0, ?)
-                ON CONFLICT (surface_id, text) DO UPDATE SET
-                    count = 0, last_used = 0, superseded_by = excluded.superseded_by
-                """
-            ) {
+            try database.run("DELETE FROM entry WHERE surface_id = ? AND text = ?") {
                 $0.bind(1, id)
                 $0.bind(2, text)
-                $0.bind(3, text.lowercased())
-                $0.bind(4, text)
             }
-            try evictWeakest(surfaceIdentifier: id)
+            // Keep only a keyed digest, so copies read from other scopes stay forgotten here without the line on disk.
+            let digest = try ForgottenMarker(database)(text)
+            try database.run("INSERT OR IGNORE INTO forgotten (surface_id, marker) VALUES (?, ?)") {
+                $0.bind(1, id)
+                $0.bind(2, digest)
+            }
             try database.run("DELETE FROM succession WHERE surface_id = ? AND (previous = ? OR next = ?)") {
                 $0.bind(1, id)
                 $0.bind(2, text)
@@ -634,84 +687,6 @@ public actor PredictStore: PredictionStore {
         }
     }
 
-    /// How many entries each application has taught, keyed by bundle identifier.
-    public func entryCountsByApplication() throws(PredictStoreError) -> [String: Int] {
-        let counted = try database.rows(
-            """
-            SELECT bundle_id, COUNT(*) FROM entry
-            JOIN surface ON surface.id = entry.surface_id
-            GROUP BY bundle_id
-            """, { _ in }
-        ) { ($0.text(0), $0.integer(1)) }
-        return Dictionary(counted, uniquingKeysWith: +)
-    }
-
-    /// How many entries the corpus holds across every surface.
-    public func entryCount() throws(PredictStoreError) -> Int {
-        try database.rows("SELECT COUNT(*) FROM entry", { _ in }) { $0.integer(0) }.first ?? 0
-    }
-
-    // MARK: - Prefix hygiene
-
-    /// Whether a longer non-superseded line the user entered begins with this one, making it a fragment.
-    private func isFragmentOfLongerEntry(
-        surfaceIdentifier id: Int64, text: String
-    ) throws(PredictStoreError) -> Bool {
-        let lowered = text.lowercased()
-        let length = Int64(lowered.unicodeScalars.count)
-        let found = try database.rows(
-            """
-            SELECT 1 FROM entry
-            WHERE surface_id = ? AND superseded_by IS NULL
-              AND length(text_lower) > ? AND substr(text_lower, 1, ?) = ?
-            LIMIT 1
-            """,
-            {
-                $0.bind(1, id)
-                $0.bind(2, length)
-                $0.bind(3, length)
-                $0.bind(4, lowered)
-            }
-        ) { $0.integer(0) }
-        return !found.isEmpty
-    }
-
-    /// Retires every shorter non-superseded entry that this value begins with, pointing each at this value.
-    private func supersedeFragments(
-        surfaceIdentifier id: Int64, of text: String
-    ) throws(PredictStoreError) {
-        let lowered = text.lowercased()
-        let fragments = try database.rows(
-            """
-            SELECT text FROM entry
-            WHERE surface_id = ? AND superseded_by IS NULL AND text <> ?
-              AND length(text_lower) < ? AND text_lower = substr(?, 1, length(text_lower))
-            """,
-            {
-                $0.bind(1, id)
-                $0.bind(2, text)
-                $0.bind(3, Int64(lowered.unicodeScalars.count))
-                $0.bind(4, lowered)
-            }
-        ) { $0.text(0) }
-        for fragment in fragments {
-            try markSuperseded(fragment, by: text, surfaceIdentifier: id)
-        }
-    }
-
-    /// Points one entry at what replaces it, which is how a correction and a fragment are both retired.
-    private func markSuperseded(
-        _ text: String, by replacement: String, surfaceIdentifier id: Int64
-    ) throws(PredictStoreError) {
-        try database.run(
-            "UPDATE entry SET superseded_by = ? WHERE surface_id = ? AND text = ?",
-            {
-                $0.bind(1, replacement)
-                $0.bind(2, id)
-                $0.bind(3, text)
-            })
-    }
-
     /// Clears the refusals of one line in every folder of the field, since a line typed by hand is one the person wants.
     private func forgiveRefusals(of text: String, in surface: Surface) throws(PredictStoreError) {
         try database.run(
@@ -765,56 +740,8 @@ public actor PredictStore: PredictionStore {
         ) { Int64($0.integer(0)) }.first
     }
 
-    /// The order entries leave a full surface: fragments a longer line grew out of, then the weakest, and retirements last.
-    static let evictionOrder = """
-        CASE
-          WHEN superseded_by IS NULL THEN 1
-          WHEN length(superseded_by) > length(text)
-            AND substr(lower(superseded_by), 1, length(text_lower)) = text_lower THEN 0
-          ELSE 2
-        END ASC, count ASC, last_used ASC
-        """
-
-    /// Keeps a surface within its cap, never dropping a correction or a refusal while a live entry could go instead.
-    private func evictWeakest(surfaceIdentifier id: Int64) throws(PredictStoreError) {
-        try evictWeakestSuccessions(surfaceIdentifier: id)
-        let held = try database.rows(
-            "SELECT COUNT(*) FROM entry WHERE surface_id = ?", { $0.bind(1, id) }
-        ) { $0.integer(0) }
-        guard let held = held.first, held > Self.entriesPerSurface else { return }
-        try database.run(
-            """
-            DELETE FROM entry WHERE id IN (
-              SELECT id FROM entry WHERE surface_id = ?
-              ORDER BY \(Self.evictionOrder) LIMIT ?
-            )
-            """,
-            {
-                $0.bind(1, id)
-                $0.bind(2, Int64(held - Self.entriesPerSurface))
-            })
-    }
-
     /// How many rows the fuzzy tier has looked at, which a test reads to bound the per-keystroke work.
     package static let rowsScanned = Mutex(0)
-    /// Keeps a surface's successions within the same cap as its entries, dropping the least followed and then the oldest.
-    private func evictWeakestSuccessions(surfaceIdentifier id: Int64) throws(PredictStoreError) {
-        let held = try database.rows(
-            "SELECT COUNT(*) FROM succession WHERE surface_id = ?", { $0.bind(1, id) }
-        ) { $0.integer(0) }
-        guard let held = held.first, held > Self.entriesPerSurface else { return }
-        try database.run(
-            """
-            DELETE FROM succession WHERE rowid IN (
-              SELECT rowid FROM succession WHERE surface_id = ? ORDER BY count ASC, rowid ASC LIMIT ?
-            )
-            """,
-            {
-                $0.bind(1, id)
-                $0.bind(2, Int64(held - Self.entriesPerSurface))
-            })
-    }
-
     /// Removes the least recently used scopes after a field exceeds its surface cap.
     private func evictOldestSurfaces(
         bundleIdentifier: String, role: String, locator: String, keepingSurface id: Int64

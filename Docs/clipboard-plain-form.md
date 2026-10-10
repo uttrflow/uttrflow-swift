@@ -38,8 +38,11 @@ characters so a stray ampersand does not scan a large clip.
 
 Line breaks are requested, not written, and nothing is emitted until real content arrives:
 `<div><p></p></div><br>` requests four breaks and produces none. Headings get a blank line
-(separation is plain text's only cue for one); `<pre>` and `<code>` are verbatim; the newline
-directly after `<pre>` is dropped scalar by scalar, because CR LF is one `Character` in Swift.
+(separation is plain text's only cue for one); `<pre>` and `<code>` are verbatim, and so is any
+element whose inline style sets `white-space` to `pre`, `pre-wrap` or `break-spaces`, which is how
+some document editors put runs of spaces on the pasteboard; a child inherits the mode until its
+own style sets another (`HTMLWhiteSpaceStack`). The newline directly after `<pre>` is dropped
+scalar by scalar, because CR LF is one `Character` in Swift.
 `<script>`, `<style>` and `<title>` contribute no text.
 
 Nested list indentation stops growing at `PlainTextRenderer.maximumListIndentDepth`; deeper items
@@ -49,14 +52,18 @@ Truncated output ends with an ellipsis, or a dot marker sized to a smaller confi
 The watcher drops the rich HTML flavor so the bounded plain-text clip still fits the single-clip
 limit.
 
+The panel shows the character count of a clip's stored plain-text form when it also retains HTML;
+the count is the text a plain target would receive, not the size of the HTML source. See
+[`panel.md`](panel.md#multiline-clips).
+
 ## Checklists
 
 A checklist item is written as `[ ] ` or `[x] ` before its text, so the boxes survive as text a
 person could type. A `<ul>` is a checklist when the list is labelled as one (Apple Notes), when
 its items are (`data-checked`, `aria-checked`, or a class such as `task-list-item` or
 `checklist-item`, as several editors write them), or when an item holds a real `<input>`
-checkbox, as Markdown renderers write them. The panel does not count or tick boxes; see
-[`panel.md`](panel.md#checklists-in-notes).
+checkbox, as Markdown renderers write them. The panel counts these same boxes and never ticks
+them; see [`panel.md`](panel.md#checklists-in-notes).
 
 ## Links
 
@@ -64,4 +71,5 @@ A link is written as `text (url)`; the text alone when it already is the url
 (`https://x (https://x)` is what makes people stop trusting a paste) or when the href goes
 nowhere without the page (`#section`, a relative path, `javascript:`). "Already is the url"
 ignores the scheme, a trailing slash and the case of the host only: a path, query or fragment
-that differs by case is another destination, so `/Report` behind `/report` is printed.
+that differs by case is another destination, so `/Report` behind `/report` is printed. A block
+boundary or `<br>` inside a link separates its words with one space.

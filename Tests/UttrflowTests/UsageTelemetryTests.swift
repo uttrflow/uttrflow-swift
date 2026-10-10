@@ -90,6 +90,105 @@ struct UsageTelemetryTests {
         #expect(sender.reports.isEmpty)
     }
 
+    @Test("a post-boundary state delivered while the snapshot is pending is replayed")
+    func postBoundaryStateSurvivesSnapshotWait() async throws {
+        let sender = RecordingTelemetrySender()
+        let usage = UsageTelemetry(
+            isEnabled: true, sender: sender, version: "26.926.0", now: Date(timeIntervalSinceNow: -60))
+        let (snapshots, yieldSnapshot) = AsyncStream<DictationStateSnapshot?>.makeStream()
+        let reset = usage.discardPendingForAccountSwitch {
+            for await snapshot in snapshots { return snapshot }
+            return nil
+        }
+
+        usage.observe(
+            inserted("new", spoken: .seconds(2)), language: LanguageCode("en"), pipelineRevision: 6)
+        await usage.recorder.record(
+            StageMeasurement(
+                stage: .transcription, duration: .milliseconds(900), succeeded: true, generation: 4))
+        yieldSnapshot.yield((revision: 5, state: DictationState.idle, generation: 4))
+        await reset.value
+        await usage.recorder.record(
+            StageMeasurement(
+                stage: .transcription, duration: .milliseconds(2000), succeeded: true, generation: 5))
+        await usage.flushBeforeQuitting()
+
+        #expect(sender.reports.first?.dictationCount == 1)
+        #expect(sender.reports.first?.charactersInserted == 3)
+        #expect(sender.reports.first?.stages.first?.latencyP50Ms == 2000)
+    }
+
+    @Test("a delayed terminal observer cannot reopen old-generation stage timings")
+    func delayedTerminalObserverKeepsGenerationFence() async throws {
+        let sender = RecordingTelemetrySender()
+        let usage = UsageTelemetry(
+            isEnabled: true, sender: sender, version: "26.926.0", now: Date(timeIntervalSinceNow: -60))
+        let reset = usage.discardPendingForAccountSwitch {
+            (revision: 5, state: DictationState.transcribing, generation: 7)
+        }
+        await reset.value
+
+        await usage.recorder.record(
+            StageMeasurement(
+                stage: .transcription, duration: .milliseconds(900), succeeded: true, generation: 7))
+        usage.observe(
+            inserted("old", spoken: .seconds(1)), language: LanguageCode("en"), pipelineRevision: 6)
+        usage.observe(.recording, language: LanguageCode("en"), pipelineRevision: 7)
+        await usage.recorder.record(
+            StageMeasurement(
+                stage: .transcription, duration: .milliseconds(3000), succeeded: true, generation: 7))
+        await usage.recorder.record(
+            StageMeasurement(
+                stage: .transcription, duration: .milliseconds(2000), succeeded: true, generation: 8))
+        usage.observe(
+            inserted("new", spoken: .seconds(1)), language: LanguageCode("en"), pipelineRevision: 8)
+        await usage.flushBeforeQuitting()
+
+        let report = try #require(sender.reports.first)
+        #expect(report.stages.count == 1)
+        #expect(report.stages.first?.stage == .transcription)
+        #expect(report.stages.first?.latencyP50Ms == 2000)
+    }
+
+    @Test("an account change drops the previous account's counts but keeps the opt-in")
+    func accountSwitchDropsPreviousCounts() async throws {
+        let sender = RecordingTelemetrySender()
+        let usage = UsageTelemetry(
+            isEnabled: true, sender: sender, version: "26.926.0", now: Date(timeIntervalSinceNow: -60))
+        usage.observe(
+            inserted("previous", spoken: .seconds(1)), language: LanguageCode("en"), pipelineRevision: 1)
+
+        await usage.discardPendingForAccountSwitch {
+            (revision: 1, state: DictationState.idle, generation: 1)
+        }.value
+        usage.observe(.recording, language: LanguageCode("en"), pipelineRevision: 2)
+        usage.observe(
+            inserted("next", spoken: .seconds(1)), language: LanguageCode("en"), pipelineRevision: 3)
+        await usage.flushBeforeQuitting()
+
+        #expect(usage.service.isEnabled)
+        let report = try #require(sender.reports.first)
+        #expect(report.dictationCount == 1)
+        #expect(report.charactersInserted == 4)
+    }
+
+    @Test("an account change with no pipeline reopens stage timings")
+    func accountSwitchWithoutPipelineReopensStages() async throws {
+        let sender = RecordingTelemetrySender()
+        let usage = UsageTelemetry(
+            isEnabled: true, sender: sender, version: "26.926.0", now: Date(timeIntervalSinceNow: -60))
+
+        await usage.discardPendingForAccountSwitch { nil }.value
+        usage.observe(inserted("Hi.", spoken: .seconds(1)), language: nil)
+        await usage.recorder.record(
+            StageMeasurement(
+                stage: .transcription, duration: .milliseconds(2000), succeeded: true, generation: 1))
+        await usage.flushBeforeQuitting()
+
+        let report = try #require(sender.reports.first)
+        #expect(report.stages.first?.latencyP50Ms == 2000)
+    }
+
     @Test("the timer flushes on its own")
     func theTimerFlushes() async throws {
         let sender = RecordingTelemetrySender()
@@ -97,11 +196,13 @@ struct UsageTelemetryTests {
             isEnabled: true, sender: sender, version: "26.926.0", now: Date(timeIntervalSinceNow: -60))
         usage.observe(.idle, language: nil)
         usage.observe(inserted("Hi.", spoken: .seconds(1)), language: nil)
-        #expect(usage.recorder is TelemetryCollector)
+        await usage.recorder.record(
+            StageMeasurement(stage: .transcription, duration: .milliseconds(2000), succeeded: true))
 
         usage.start(every: .milliseconds(10))
         for _ in 0..<200 where sender.reports.isEmpty { try await Task.sleep(for: .milliseconds(10)) }
         await usage.flushBeforeQuitting()
         #expect(sender.reports.count == 1)
+        #expect(sender.reports[0].stages.first?.latencyP50Ms == 2000)
     }
 }

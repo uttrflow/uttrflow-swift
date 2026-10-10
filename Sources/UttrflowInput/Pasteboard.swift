@@ -24,6 +24,8 @@ public protocol Pasteboard: Sendable {
     func text() -> String?
     /// A token that changes whenever the clipboard is written, or `nil` when ownership cannot be observed.
     func changeCount() -> Int?
+    /// Discards the current contents only when this generation still belongs to the caller.
+    func discardContents(ifUnchangedSince changeCount: Int) -> Bool
     /// Replaces the contents.
     func setText(_ text: String) -> PasteboardWriteResult
 
@@ -53,11 +55,21 @@ public protocol Pasteboard: Sendable {
 public protocol KeystrokeSender: Sendable {
     /// Presses ⌘V, refusing with ``TextInsertionError/accessibilityDenied`` where macOS forbids it.
     func sendPaste() throws(TextInsertionError)
+    /// Whether macOS lets this app post the paste key, asked before the clipboard is taken for it.
+    func maySendPaste() -> Bool
+}
+
+extension KeystrokeSender {
+    /// A sender that cannot tell beforehand answers at the key itself.
+    public func maySendPaste() -> Bool { true }
 }
 
 extension Pasteboard {
     /// Test doubles and pasteboards without ownership tracking may decline this check.
     public func changeCount() -> Int? { nil }
+
+    /// Pasteboards without generation-aware clearing leave their contents untouched.
+    public func discardContents(ifUnchangedSince changeCount: Int) -> Bool { false }
 
     /// A pasteboard that cannot carry formatting simply writes the words.
     public func setText(_ text: String, richText: String?) -> PasteboardWriteResult { setText(text) }
@@ -84,5 +96,15 @@ extension Pasteboard {
         let result = setConcealedText(text)
         guard result.didWrite else { return .refused }
         return .written(changeCount: result.changeCount ?? changeCount())
+    }
+}
+
+enum PasteboardInsertionCancellation {
+    static func requireLive(
+        on pasteboard: any Pasteboard, afterWritingAt changeCount: Int? = nil
+    ) throws(TextInsertionError) {
+        guard Task.isCancelled else { return }
+        if let changeCount { _ = pasteboard.discardContents(ifUnchangedSince: changeCount) }
+        throw .insertionCancelled
     }
 }

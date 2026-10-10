@@ -17,8 +17,10 @@ final class FakePasteboard: Pasteboard {
         var concealed: [String] = []
         var markers: [String: String] = [:]
         var pictures: [Data] = []
+        var currentPicture: Data?
         var acceptsWrites = true
         var refusesWrites = false
+        var readbackTransform: @Sendable (String) -> String = { $0 }
         var onImageWrite: (@Sendable (FakePasteboard) -> Void)?
         var onTextWrite: (@Sendable (FakePasteboard) -> Void)?
     }
@@ -29,6 +31,7 @@ final class FakePasteboard: Pasteboard {
     init(
         text: String? = nil, acceptsWrites: Bool = true, refusesWrites: Bool = false,
         onImageWrite: (@Sendable (FakePasteboard) -> Void)? = nil,
+        readbackTransform: @escaping @Sendable (String) -> String = { $0 },
         onTextWrite: (@Sendable (FakePasteboard) -> Void)? = nil
     ) {
         state.withLock { state in
@@ -36,12 +39,25 @@ final class FakePasteboard: Pasteboard {
             state.acceptsWrites = acceptsWrites
             state.refusesWrites = refusesWrites
             state.onImageWrite = onImageWrite
+            state.readbackTransform = readbackTransform
             state.onTextWrite = onTextWrite
         }
     }
 
-    func text() -> String? { state.withLock(\.text) }
+    func text() -> String? {
+        state.withLock { state in state.text.map(state.readbackTransform) }
+    }
     func changeCount() -> Int? { state.withLock(\.changeCount) }
+
+    func discardContents(ifUnchangedSince changeCount: Int) -> Bool {
+        state.withLock { state in
+            guard state.changeCount == changeCount else { return false }
+            state.text = nil
+            state.currentPicture = nil
+            state.changeCount += 1
+            return true
+        }
+    }
 
     func setText(_ text: String) -> PasteboardWriteResult {
         state.withLock { state in
@@ -103,6 +119,7 @@ final class FakePasteboard: Pasteboard {
             guard !state.refusesWrites else { return (.refused, state.onImageWrite) }
             state.pictures.append(data)
             state.changeCount += 1
+            state.currentPicture = data
             if state.acceptsWrites { state.text = nil }
             return (.written(changeCount: state.changeCount), state.onImageWrite)
         }
@@ -122,6 +139,7 @@ final class FakePasteboard: Pasteboard {
     var concealed: [String] { state.withLock(\.concealed) }
     var markers: [String: String] { state.withLock(\.markers) }
     var pictures: [Data] { state.withLock(\.pictures) }
+    var currentPicture: Data? { state.withLock(\.currentPicture) }
 }
 
 /// A ⌘V that can be counted, and made to fail.
@@ -151,6 +169,8 @@ final class FakeKeystrokeSender: KeystrokeSender {
         onPaste?()
         if let error { throw error }
     }
+
+    func maySendPaste() -> Bool { state.withLock(\.error) != .accessibilityDenied }
 
     var pasteCount: Int { state.withLock(\.pasteCount) }
 }
@@ -196,6 +216,24 @@ final class SwitchableFocus: AccessibilityFocus, @unchecked Sendable {
 
     /// Brings Uttrflow itself to the front, as the user would by switching to it.
     func becomeSelfFrontmost() { selfIsFrontmost.withLock { $0 = true } }
+}
+
+private final class CancellingPasteFocus: AccessibilityFocus, @unchecked Sendable {
+    private let cancelOnCheck: Int
+    private let checks = Mutex(0)
+
+    init(cancelOnCheck: Int) { self.cancelOnCheck = cancelOnCheck }
+
+    func focusedTextField() -> (any FocusedTextField)? { nil }
+    func hasFocusedElement() -> Bool { true }
+    func isSelfFrontmost() -> Bool {
+        let check = checks.withLock { checks -> Int in
+            checks += 1
+            return checks
+        }
+        if check == cancelOnCheck { withUnsafeCurrentTask { $0?.cancel() } }
+        return false
+    }
 }
 
 /// Returns frontmost apps in order so a test can switch targets at a specific insertion step.
@@ -245,6 +283,25 @@ private final class GatedConfirmationFocus: AccessibilityFocus, @unchecked Senda
 
 @Suite("PasteboardTextInsertionEngine")
 struct PasteboardTextInsertionEngineTests {
+    @Test("pastes a leading byte-order mark using the pasteboard readback")
+    func leadingByteOrderMarkUsesPasteboardReadback() async throws {
+        let text = "\u{FEFF}hello"
+        let pasteboard = FakePasteboard(readbackTransform: {
+            $0.first == "\u{FEFF}" ? String($0.dropFirst()) : $0
+        })
+        let focus = CountingFocus(answer: "hello", readsBeforeItLands: 1)
+        let keystrokes = FakeKeystrokeSender()
+        let sut = PasteboardTextInsertionEngine(
+            focus: focus, pasteboard: pasteboard, keystrokes: keystrokes,
+            confirmation: PasteConfirmation(focus: focus, clock: ManualClock(advancesWhenSlept: true)))
+
+        let arrival = try await sut.insert(text)
+
+        #expect(pasteboard.writes == [text])
+        #expect(keystrokes.pasteCount == 1)
+        #expect(arrival == .confirmed)
+    }
+
     @Test("marks the paste route transient")
     func transientMarkerIsWrittenOnPaste() async throws {
         let pasteboard = FakePasteboard()
@@ -394,6 +451,75 @@ struct PasteboardTextInsertionEngineTests {
 
         #expect(pasteboard.writes.first == "hello there")
         #expect(keystrokes.pasteCount == 1)
+    }
+
+    @Test("cancellation after the clipboard write does not post paste")
+    func cancellationAfterClipboardWriteDoesNotPaste() async {
+        let pasteboard = FakePasteboard(onTextWrite: { _ in
+            withUnsafeCurrentTask { $0?.cancel() }
+        })
+        let keystrokes = FakeKeystrokeSender()
+        let sut = engine(
+            pasteboard, keystrokes, focus: FakeFocus(field: FakeTextField(), secure: true))
+        let task = Task { try await sut.insert("password=demo1") }
+
+        await #expect(throws: TextInsertionError.insertionCancelled) {
+            try await task.value
+        }
+
+        #expect(pasteboard.writes == ["password=demo1"])
+        #expect(pasteboard.concealed == ["password=demo1"])
+        #expect(pasteboard.text() == nil)
+        #expect(keystrokes.pasteCount == 0)
+    }
+
+    @Test("cancellation before the clipboard write leaves the clipboard untouched")
+    func cancellationBeforeClipboardWriteDoesNotWrite() async {
+        let pasteboard = FakePasteboard(text: "previous copy")
+        let keystrokes = FakeKeystrokeSender()
+        let sut = PasteboardTextInsertionEngine(
+            focus: CancellingPasteFocus(cancelOnCheck: 1), pasteboard: pasteboard,
+            keystrokes: keystrokes)
+        let task = Task { try await sut.insert("private words") }
+
+        await #expect(throws: TextInsertionError.insertionCancelled) { try await task.value }
+
+        #expect(pasteboard.writes.isEmpty)
+        #expect(pasteboard.text() == "previous copy")
+        #expect(keystrokes.pasteCount == 0)
+    }
+
+    @Test("cancellation immediately before the paste key clears the owned generation")
+    func cancellationBeforePasteKeyClearsClipboard() async {
+        let pasteboard = FakePasteboard(text: "previous copy")
+        let keystrokes = FakeKeystrokeSender()
+        let sut = PasteboardTextInsertionEngine(
+            focus: CancellingPasteFocus(cancelOnCheck: 2), pasteboard: pasteboard,
+            keystrokes: keystrokes)
+        let task = Task { try await sut.insert("private words") }
+
+        await #expect(throws: TextInsertionError.insertionCancelled) { try await task.value }
+
+        #expect(pasteboard.text() == nil)
+        #expect(keystrokes.pasteCount == 0)
+    }
+
+    @Test("cancellation cleanup preserves a newer clipboard generation")
+    func cancellationCleanupPreservesNewerCopy() async {
+        let newerCopy = "copied while the insert was cancelling"
+        let pasteboard = FakePasteboard(onTextWrite: { pasteboard in
+            pasteboard.copyFromAnotherApp(newerCopy)
+            withUnsafeCurrentTask { $0?.cancel() }
+        })
+        let keystrokes = FakeKeystrokeSender()
+        let sut = engine(
+            pasteboard, keystrokes, focus: FakeFocus(field: FakeTextField(), secure: true))
+        let task = Task { try await sut.insert("password=demo1") }
+
+        await #expect(throws: TextInsertionError.insertionCancelled) { try await task.value }
+
+        #expect(pasteboard.text() == newerCopy)
+        #expect(keystrokes.pasteCount == 0)
     }
 
     /// The dictation stays put and the previous contents do not come back. See `Docs/insertion.md`.
@@ -630,6 +756,71 @@ private final class InterleavingFocus: AccessibilityFocus, @unchecked Sendable {
 
 @Suite("PasteboardImageInsertionEngine")
 struct PasteboardImageInsertionEngineTests {
+    private static let editor = InsertionDestination(
+        applicationName: "Editor", bundleIdentifier: "com.example.editor")
+    private static let notes = InsertionDestination(
+        applicationName: "Notes", bundleIdentifier: "com.example.notes")
+
+    @Test("an app switch between the panel closing and the paste keystroke posts no paste")
+    func refusesWhenTheCapturedApplicationLeavesDuringTheWrite() {
+        let image = Data([0x89, 0x50, 0x4E, 0x47])
+        let pasteboard = FakePasteboard()
+        let keystrokes = FakeKeystrokeSender()
+        let sut = PasteboardImageInsertionEngine(
+            focus: SequencedFrontmostFocus([Self.editor, Self.notes]), pasteboard: pasteboard,
+            keystrokes: keystrokes)
+
+        #expect(throws: TextInsertionError.insertionTargetChanged) {
+            try sut.insert(image, targeting: Self.editor)
+        }
+        #expect(keystrokes.pasteCount == 0)
+    }
+
+    @Test("a switch made before the write leaves the clipboard alone")
+    func refusesBeforeWritingWhenTheCapturedApplicationIsGone() {
+        let pasteboard = FakePasteboard()
+        let keystrokes = FakeKeystrokeSender()
+        let sut = PasteboardImageInsertionEngine(
+            focus: SequencedFrontmostFocus([Self.notes]), pasteboard: pasteboard, keystrokes: keystrokes)
+
+        #expect(throws: TextInsertionError.insertionTargetChanged) {
+            try sut.insert(Data([0x89, 0x50]), targeting: Self.editor)
+        }
+        #expect(pasteboard.pictures.isEmpty)
+        #expect(keystrokes.pasteCount == 0)
+    }
+
+    @Test("the captured application still in front receives the picture")
+    func pastesIntoTheCapturedApplication() throws {
+        let image = Data([0x89, 0x50, 0x4E, 0x47])
+        let pasteboard = FakePasteboard()
+        let keystrokes = FakeKeystrokeSender()
+        let sut = PasteboardImageInsertionEngine(
+            focus: SequencedFrontmostFocus([Self.editor]), pasteboard: pasteboard, keystrokes: keystrokes)
+
+        try sut.insert(image, targeting: Self.editor)
+
+        #expect(pasteboard.pictures == [image])
+        #expect(keystrokes.pasteCount == 1)
+    }
+
+    @Test("cancellation after an image write removes it before posting paste")
+    func cancellationDiscardsOwnedImage() async {
+        let image = Data([1, 2, 3])
+        let pasteboard = FakePasteboard(onImageWrite: { _ in
+            withUnsafeCurrentTask { $0?.cancel() }
+        })
+        let keystrokes = FakeKeystrokeSender()
+        let sut = PasteboardImageInsertionEngine(
+            focus: SwitchableFocus(), pasteboard: pasteboard, keystrokes: keystrokes)
+        let task = Task { try sut.insert(image) }
+
+        await #expect(throws: TextInsertionError.insertionCancelled) { try await task.value }
+
+        #expect(pasteboard.currentPicture == nil)
+        #expect(keystrokes.pasteCount == 0)
+    }
+
     @Test("does not paste another app's clipboard write after the image")
     func refusesPasteAfterClipboardChangesDuringImageWrite() {
         let copiedText = "a newer copy"
@@ -800,6 +991,18 @@ private final class RouteRecordingTypist: KeystrokeTyping, @unchecked Sendable {
 
 @Suite("ClipboardTextInsertionEngine")
 struct ClipboardTextInsertionEngineTests {
+    @Test("leaves a leading byte-order mark on a pasteboard that omits it on readback")
+    func leadingByteOrderMarkUsesPasteboardReadback() async throws {
+        let text = "\u{FEFF}hello"
+        let pasteboard = FakePasteboard(readbackTransform: {
+            $0.first == "\u{FEFF}" ? String($0.dropFirst()) : $0
+        })
+
+        _ = try await ClipboardTextInsertionEngine(pasteboard: pasteboard).insert(text)
+
+        #expect(pasteboard.writes == [text])
+    }
+
     @Test("conceals a secret transcript left on the clipboard")
     func secretTranscriptIsConcealed() async throws {
         let secret = "password=demo1"
@@ -836,6 +1039,24 @@ struct ClipboardTextInsertionEngineTests {
 
         #expect(pasteboard.writes == ["dictated words"])
         #expect(pasteboard.text() == "dictated words")
+    }
+
+    @Test("clears its own concealed write when cancellation arrives during it")
+    func cancellationDiscardsOwnedSecretWrite() async {
+        let secret = "password=demo1"
+        let pasteboard = FakePasteboard(onTextWrite: { _ in
+            withUnsafeCurrentTask { $0?.cancel() }
+        })
+        let engine = ClipboardTextInsertionEngine(
+            pasteboard: pasteboard, secretClassifier: { $0 == secret })
+        let task = Task { try await engine.insert(secret) }
+
+        await #expect(
+            throws: TextInsertionError.insertionCancelled
+        ) { try await task.value }
+
+        #expect(pasteboard.concealed == [secret])
+        #expect(pasteboard.text() == nil)
     }
 
     /// Claiming success after a write that did not stick would lose the words silently.

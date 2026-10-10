@@ -12,7 +12,12 @@ struct DoubtfulWordsTests {
     @Test("says nothing when the confidences are a stand-in rather than the recogniser's")
     func needsRealConfidences() async {
         var draft = Draft.heard("i ate an ?apple")
-        draft = Draft(words: draft.words, confidencesAreReal: false)
+        draft = Draft(
+            words: draft.words.map {
+                Draft.Word(
+                    text: $0.text, heard: $0.heard, evidence: .unknown, settled: $0.settled,
+                    origin: $0.origin, start: $0.start, end: $0.end, state: $0.state, edits: $0.edits)
+            })
         #expect(await DoubtfulWords(sources: [source]).spans(in: draft, for: .unknown).isEmpty)
     }
 
@@ -30,14 +35,19 @@ struct DoubtfulWordsTests {
     @Test("offers the readings for the run the recogniser was unsure of")
     func offersReadings() async {
         let spans = await DoubtfulWords(sources: [source]).spans(in: .heard("i ate an ?apple"), for: .unknown)
-        #expect(spans == [DoubtfulSpan(heard: "apple", confidence: 0.3, candidates: ["Apple", "apples"], occurrence: 0)])
+        #expect(
+            spans == [
+                DoubtfulSpan(heard: "apple", confidence: 0.3, candidates: ["Apple", "apples"], occurrence: 0)
+            ])
     }
 
     @Test("names which mention of the words was doubted when the same words are said twice")
     func namesTheDoubtedMention() async {
         let sources = [ScriptedCandidates(["set user prefs": ["setUserPrefs"]])]
         let spans = await DoubtfulWords(sources: sources)
-            .spans(in: .heard("we call set user prefs so it never has to ?set ?user ?prefs again"), for: .unknown)
+            .spans(
+                in: .heard("we call set user prefs so it never has to ?set ?user ?prefs again"), for: .unknown
+            )
         #expect(spans.map(\.occurrence) == [1])
     }
 
@@ -86,15 +96,15 @@ struct DoubtfulWordsTests {
     @Test("asks every source at the same time rather than one after another")
     func asksConcurrently() async {
         let line = StartLine(expected: 3)
-        let sources = ["one", "two", "three"].map { BarrierCandidates(line: line, answer: $0) }
+        let sources = ["amber", "birch", "cedar"].map { BarrierCandidates(line: line, answer: $0) }
         let spans = await DoubtfulWords(sources: sources).spans(in: .heard("?apple"), for: .unknown)
-        #expect(spans.first?.candidates == ["one", "two", "three"])
+        #expect(spans.first?.candidates == ["amber", "birch", "cedar"])
     }
 
     @Test("reads the screen once a piece, so ten times the words on it costs one encoding each")
     func encodesTheScreenOnce() async {
         let draft = Self.budgetDraft
-        let runs = UncertainSpan.spans(in: draft, below: WordCorrectionEngine.certaintyThreshold).count
+        let runs = UncertainSpan.spans(in: draft).count
         let few = await Self.encodings(for: draft, screenWords: 50)
         let many = await Self.encodings(for: draft, screenWords: 500)
 
@@ -107,8 +117,8 @@ struct DoubtfulWordsTests {
         let one = Draft.heard("the ?order is late")
         let manyRuns = Self.budgetDraft
         let added =
-            UncertainSpan.spans(in: manyRuns, below: WordCorrectionEngine.certaintyThreshold).count
-            - UncertainSpan.spans(in: one, below: WordCorrectionEngine.certaintyThreshold).count
+            UncertainSpan.spans(in: manyRuns).count
+            - UncertainSpan.spans(in: one).count
         let few = await Self.encodings(for: one, screenWords: 200)
         let many = await Self.encodings(for: manyRuns, screenWords: 200)
 
@@ -120,14 +130,14 @@ struct DoubtfulWordsTests {
     private static let budgetDraft = Draft.heard(
         "the ?order ?totals ?view is ?stale after ?midnight and the ?cash ?report ?failed")
 
-    /// The Double Metaphone encodings one candidate step makes over a selection of distinct screen words.
+    /// The sound keys one candidate step works out over a selection of distinct screen words.
     private static func encodings(for draft: Draft, screenWords: Int) async -> Int {
         let selection = (0..<screenWords).map { "orderTotal\($0)" }.joined(separator: " ")
         let situation = Situation.showing(title: "revenue.sql", selection: selection)
         // Warmed first, because the vocabulary's sound index is built once on first use and is not the step's cost.
         _ = await DoubtfulWords.standard.spans(in: draft, for: situation)
         let tally = EncodingTally()
-        await DoubleMetaphone.$tally.withValue(tally) {
+        await WordSound.$tally.withValue(tally) {
             _ = await DoubtfulWords.standard.spans(in: draft, for: situation)
         }
         return tally.count
@@ -136,7 +146,7 @@ struct DoubtfulWordsTests {
     @Test("asks the user's own dictionary before the screen and the general vocabulary")
     func dictionaryComesFirst() async {
         let doubtful = DoubtfulWords.including(dictionary: { CorrectionFixtures.index })
-        #expect(doubtful.sources.count == 4)
+        #expect(doubtful.sources.count == DoubtfulWords.standard.sources.count + 1)
         #expect(doubtful.sources.first is DictionaryCandidates)
     }
 }

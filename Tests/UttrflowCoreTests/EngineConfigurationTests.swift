@@ -12,7 +12,7 @@ struct EngineConfigurationTests {
         let configuration = EngineConfiguration.default
 
         #expect(configuration.speech == .whisperKit)
-        #expect(configuration.transformerPreference == [.foundationModels, .localModel, .rules])
+        #expect(configuration.transformerPreference == [.localModel, .foundationModels, .rules])
     }
 
     @Test("ends its default preference list in a transformer that can never decline")
@@ -20,13 +20,12 @@ struct EngineConfigurationTests {
         #expect(EngineConfiguration.default.transformerPreference.last == .rules)
     }
 
-    @Test("switching engine is a change to this value alone")
+    @Test("switching clean-up engines is a change to this value alone")
     func switchingEngines() {
         var configuration = EngineConfiguration.default
-        configuration.speech = .appleSpeech
         configuration.transformerPreference = [.foundationModels, .rules]
 
-        #expect(configuration.speech == .appleSpeech)
+        #expect(configuration.speech == .whisperKit)
         #expect(configuration.resolvedTransformerPreference == [.foundationModels, .rules])
     }
 
@@ -75,10 +74,10 @@ struct EngineKindsTests {
         #expect(decoded.resolvedTransformerPreference == [.rules])
     }
 
-    /// MLX is quarantined behind `UttrflowLocalModel`; no transformer assembly links it, whatever flags are set.
-    @Test("never offers the local model, since no build assembles it")
-    func localModelIsNeverSelectable() {
-        #expect(!TransformerKind.selectable.contains(.localModel))
+    /// The app hands the loaded model in as a `CleanupModel`, so the local model leads, then Apple's, then rules.
+    @Test("offers the local model first, then Apple's model, then the rules")
+    func localModelLeadsSelectable() {
+        #expect(TransformerKind.selectable == [.localModel, .foundationModels, .rules])
     }
 
     /// The floor has to be there whatever a build contains; it is what stops the pipeline dead-ending.

@@ -22,6 +22,8 @@ public final class AudioResampler: Sendable {
         /// Reused per-channel energy totals for choosing the active microphone input.
         var channelEnergy: [Double]
         var selectedChannel = 0
+        /// Reused converter input, so a chunk does not allocate the object that hands its slice over.
+        let feed = ConversionInput()
 
         init(slice: AVAudioPCMBuffer, output: AVAudioPCMBuffer, channelCount: AVAudioChannelCount) {
             self.slice = slice
@@ -47,6 +49,8 @@ public final class AudioResampler: Sendable {
             let converter = AVAudioConverter(from: inputFormat, to: outputFormat)
         else { return nil }
         if inputFormat.channelCount > 1 { converter.channelMap = [0] }
+        // The default leaks a 9 kHz tone at about -19 dB at 48 kHz; see Docs/audio-capture.md.
+        converter.sampleRateConverterQuality = AVAudioQuality.max.rawValue
 
         let ratio = outputFormat.sampleRate / inputFormat.sampleRate
         let outputCapacity =
@@ -66,27 +70,32 @@ public final class AudioResampler: Sendable {
 
     /// Converts one buffer. Returns an empty array for an empty input.
     public func resample(_ buffer: AVAudioPCMBuffer) throws(AudioCaptureError) -> [Float] {
-        guard buffer.frameLength > 0 else { return [] }
-
         var converted: [Float] = []
         converted.reserveCapacity(Int((Double(buffer.frameLength) * ratio).rounded(.up)) + 1)
+        try resample(buffer) { converted.append(contentsOf: $0) }
+        return converted
+    }
 
+    /// Converts one buffer chunk by chunk, lending each chunk out of reused storage, so the tap allocates no array.
+    public func resample(
+        _ buffer: AVAudioPCMBuffer, into consume: (UnsafeBufferPointer<Float>) -> Void
+    ) throws(AudioCaptureError) {
         var offset: AVAudioFrameCount = 0
         while offset < buffer.frameLength {
             let frames = Swift.min(Self.maxFramesPerConversion, buffer.frameLength - offset)
-            converted.append(contentsOf: try convert(buffer, from: offset, frames: frames))
+            try convert(buffer, from: offset, frames: frames, into: consume)
             offset += frames
         }
-        return converted
     }
 
     /// Converts one chunk, reusing this resampler's own buffers when the source is in its own format.
     private func convert(
-        _ buffer: AVAudioPCMBuffer, from offset: AVAudioFrameCount, frames: AVAudioFrameCount
-    ) throws(AudioCaptureError) -> [Float] {
+        _ buffer: AVAudioPCMBuffer, from offset: AVAudioFrameCount, frames: AVAudioFrameCount,
+        into consume: (UnsafeBufferPointer<Float>) -> Void
+    ) throws(AudioCaptureError) {
         // The tap always hands back its own format; this is the path the callback thread actually takes.
         if buffer.format == inputFormat {
-            return try converter.withLock { converter throws(AudioCaptureError) -> [Float] in
+            try converter.withLock { converter throws(AudioCaptureError) in
                 guard Self.fill(scratch.slice, from: buffer, offset: offset, frames: frames) else {
                     throw .unsupportedInputFormat
                 }
@@ -98,8 +107,11 @@ public final class AudioResampler: Sendable {
                         scratch.selectedChannel = channel
                     }
                 }
-                return try Self.convertWhole(scratch.slice, into: scratch.output, using: converter)
+                consume(
+                    try Self.convertWhole(
+                        scratch.slice, into: scratch.output, using: converter, feeding: scratch.feed))
             }
+            return
         }
         // Only a buffer in a format this resampler was not built for reaches here, which never happens on the tap.
         guard let slice = Self.slice(buffer, from: offset, frames: frames) else {
@@ -109,17 +121,20 @@ public final class AudioResampler: Sendable {
         guard let output = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: capacity) else {
             throw .unsupportedInputFormat
         }
-        return try converter.withLock { converter throws(AudioCaptureError) -> [Float] in
-            try Self.convertWhole(slice, into: output, using: converter)
+        try converter.withLock { converter throws(AudioCaptureError) in
+            consume(
+                try Self.convertWhole(slice, into: output, using: converter, feeding: ConversionInput()))
         }
     }
 
+    /// Converts `input` into `output` and lends out its samples, valid only until `output` is next written.
     private static func convertWhole(
-        _ input: AVAudioPCMBuffer, into output: AVAudioPCMBuffer, using converter: AVAudioConverter
-    ) throws(AudioCaptureError) -> [Float] {
+        _ input: AVAudioPCMBuffer, into output: AVAudioPCMBuffer, using converter: AVAudioConverter,
+        feeding feed: ConversionInput
+    ) throws(AudioCaptureError) -> UnsafeBufferPointer<Float> {
         output.frameLength = 0
         var conversionError: NSError?
-        let feed = ConversionInput(input)
+        feed.load(input)
         let status = converter.convert(to: output, error: &conversionError, withInputFrom: feed.next)
 
         switch status {
@@ -131,13 +146,15 @@ public final class AudioResampler: Sendable {
             throw .engineFailed(description: "unrecognised conversion result")
         }
 
-        guard let channel = output.floatChannelData?.pointee else { return [] }
+        guard let channel = output.floatChannelData?.pointee else {
+            return UnsafeBufferPointer(start: nil, count: 0)
+        }
         // Filtering can overshoot, so downstream consumers receive bounded, finite samples.
         for index in 0..<Int(output.frameLength) {
             let sample = channel[index]
             channel[index] = sample.isFinite ? min(max(sample, -1), 1) : 0
         }
-        return Array(UnsafeBufferPointer(start: channel, count: Int(output.frameLength)))
+        return UnsafeBufferPointer(start: channel, count: Int(output.frameLength))
     }
 
     /// Selects the channel with the most input energy so inactive channels and phase cancellation do not erase speech.
@@ -276,11 +293,13 @@ public final class AudioResampler: Sendable {
 
 /// Feeds one buffer to `AVAudioConverter` once; the input block never escapes despite being `@Sendable`.
 private final class ConversionInput: @unchecked Sendable {
-    private let buffer: AVAudioPCMBuffer
-    private var consumed = false
+    private var buffer: AVAudioPCMBuffer?
+    private var consumed = true
 
-    init(_ buffer: AVAudioPCMBuffer) {
+    /// Arms this input with the next buffer to hand over once.
+    func load(_ buffer: AVAudioPCMBuffer) {
         self.buffer = buffer
+        consumed = false
     }
 
     /// The converter asks repeatedly; the buffer may only be handed over once.
@@ -288,7 +307,7 @@ private final class ConversionInput: @unchecked Sendable {
         _ packetCount: AVAudioPacketCount,
         _ status: UnsafeMutablePointer<AVAudioConverterInputStatus>
     ) -> AVAudioBuffer? {
-        guard !consumed else {
+        guard !consumed, let buffer else {
             status.pointee = .noDataNow
             return nil
         }

@@ -51,7 +51,8 @@ extension SpeechEngineError: CataloguedFailure {
         case .modelLoadFailed: .modelDamaged(fileCount: 0)
         case .modelDamaged: .audioTooShort
         case .audioTooShort: .nothingHeard
-        case .nothingHeard: .speechWithoutWords
+        case .nothingHeard: .noSignal
+        case .noSignal: .speechWithoutWords
         case .speechWithoutWords: .recogniserTimedOut
         case .recogniserTimedOut: .transcriptionFailed(description: "")
         case .transcriptionFailed: nil
@@ -64,7 +65,7 @@ extension TransformationError: CataloguedFailure {
 
     public var caseAfter: Self? {
         switch self {
-        case .noCapableTransformer: .transformFailed(kind: .rules, description: "")
+        case .noCapableTransformer: .transformFailed(kind: .rules, failure: .other)
         case .transformFailed: .outputRejected(reason: "", kind: .lostWord)
         case .outputRejected: .cancelled
         case .cancelled: nil
@@ -94,7 +95,8 @@ extension DictionaryStoreError: CataloguedFailure {
         case .couldNotReadSeedRecord: .wordIsEmpty
         case .wordIsEmpty: .wordAlreadyKnown
         case .wordAlreadyKnown: .entryHasTooManyWords(maximum: 3)
-        case .entryHasTooManyWords: nil
+        case .entryHasTooManyWords: .entryIsTooLong(maximum: 80)
+        case .entryIsTooLong: nil
         }
     }
 }
@@ -106,7 +108,8 @@ extension SnippetStoreError: CataloguedFailure {
         switch self {
         case .couldNotWrite: .triggerHasNoWords
         case .triggerHasNoWords: .triggerAlreadyUsed
-        case .triggerAlreadyUsed: .expansionIsEmpty
+        case .triggerAlreadyUsed: .triggerIsSpokenCommand(phrase: "new line")
+        case .triggerIsSpokenCommand: .expansionIsEmpty
         case .expansionIsEmpty: nil
         }
     }
@@ -134,9 +137,11 @@ extension TextInsertionError: CataloguedFailure {
         case .insertionTimedOut: .insertionRejected(description: "")
         case .insertionRejected: .insertionUnconfirmed
         case .insertionUnconfirmed: .insertionTargetChanged
-        case .insertionTargetChanged: .insertionNeedsCopy(description: "")
+        case .insertionTargetChanged: .insertionFieldClosed
+        case .insertionFieldClosed: .insertionNeedsCopy(description: "")
         case .insertionNeedsCopy: .insertionInterrupted(typed: 0, total: 0)
-        case .insertionInterrupted: nil
+        case .insertionInterrupted: .insertionCancelled
+        case .insertionCancelled: nil
         }
     }
 }

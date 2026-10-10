@@ -35,6 +35,7 @@ struct DictationRecordMappingTests {
         #expect(record.applicationIdentifier == "com.example.editor")
         #expect(record.spokenFor == .seconds(12))
         #expect(record.isFlagged == false)
+        #expect(record.arrival == .notReported)
         let changes = try #require(record.changes)
         #expect(changes.spokenWords == 5)
         #expect(changes.corrections.count == 1)
@@ -73,6 +74,31 @@ struct DictationRecordMappingTests {
         #expect(record.spokenFor == nil)
         #expect(record.changes == nil)
         #expect(record.isFlagged == false)
+        #expect(record.arrival == .notInserted)
+    }
+
+    @Test("an inserted outcome keeps how its arrival was read")
+    func insertedOutcomeKeepsItsArrival() throws {
+        for arrival in InsertionArrival.allCases {
+            let outcome = DictationOutcome(
+                text: "Done", method: .pasteboard, cleanedBy: .rules, arrival: arrival)
+            let record = try #require(
+                DictationRecordMapping.record(for: .inserted(outcome), when: Date(), id: UUID()))
+            #expect(record.arrival == RecordedArrival(arrival))
+        }
+    }
+
+    @Test("an inserted outcome keeps the change ledger, and an unlocated one stays nil")
+    func insertedOutcomeKeepsItsLedger() throws {
+        let ledger = [ChangeLedgerEntry(writtenIndex: 1, pass: .fillers, kind: .removed)]
+        for kept in [ledger, nil] {
+            let outcome = DictationOutcome(
+                text: "Done", method: .pasteboard, cleanedBy: .rules,
+                changes: AppliedChanges(changeLedger: kept))
+            let record = try #require(
+                DictationRecordMapping.record(for: .inserted(outcome), when: Date(), id: UUID()))
+            #expect(record.changeLedger == kept)
+        }
     }
 
     @Test("a failure with no transcript creates no record")
@@ -87,7 +113,7 @@ struct DictationRecordMappingTests {
 
     @Test("every state before an outcome creates no record")
     func inProgressStatesMapNothing() {
-        let states: [DictationState] = [.idle, .recording, .transcribing, .tidying, .inserting]
+        let states: [DictationState] = [.idle, .recording, .transcribing, .tidying, .inserting(into: nil)]
 
         for state in states {
             #expect(
@@ -100,7 +126,7 @@ struct DictationRecordMappingTests {
     func endedStatesAreExhaustive() {
         let states: [(DictationState, Bool)] = [
             (.idle, false), (.recording, false), (.transcribing, false), (.tidying, false),
-            (.inserting, false),
+            (.inserting(into: nil), false),
             (.inserted(DictationOutcome(text: "Done", method: .accessibility, cleanedBy: .rules)), true),
             (.failed(DictationFailure(message: "Failed", recovery: .retry, severity: .recoverable)), true),
         ]
@@ -108,5 +134,35 @@ struct DictationRecordMappingTests {
         for (state, expected) in states {
             #expect(state.hasEnded == expected, "Unexpected ended status for \(state)")
         }
+    }
+
+    @Test("a dictation into a listed app writes no history record")
+    func listedAppWritesNoRecord() {
+        let outcome = DictationOutcome(
+            text: "Private note", method: .pasteboard, cleanedBy: .rules,
+            insertedInto: "Records", insertedIntoIdentifier: "com.example.records")
+        let keeping = HistoryKeeping(excludedApplications: ["com.example.records"])
+
+        #expect(
+            DictationRecordMapping.record(
+                for: .inserted(outcome), when: Date(), id: UUID(), keeping: keeping) == nil)
+        #expect(
+            DictationRecordMapping.record(
+                for: .inserted(outcome), when: Date(), id: UUID(), keeping: .everything) != nil)
+    }
+
+    @Test("an inserted outcome keeps the words as heard only when they differ and may be kept")
+    func keepsTheWordsAsHeard() throws {
+        func heard(_ said: String, wrote: String, secure: Bool = false) -> String? {
+            let outcome = DictationOutcome(
+                text: wrote, method: .pasteboard, cleanedBy: .rules,
+                changes: AppliedChanges(heard: said), intoSecureField: secure)
+            return DictationRecordMapping.record(for: .inserted(outcome), when: Date(), id: UUID())?.heard
+        }
+
+        #expect(heard("um ship it", wrote: "Ship it.") == "um ship it")
+        #expect(heard("Ship it.", wrote: "Ship it.") == nil)
+        #expect(heard("um ship it", wrote: "Ship it.", secure: true) == nil)
+        #expect(heard("mysql -u root -pExampleS3cret appdb", wrote: "Connect to the database.") == nil)
     }
 }

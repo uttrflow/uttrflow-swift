@@ -1,3 +1,6 @@
+import Foundation
+import UttrflowCore
+
 /// What a completion is held to: which continuations count, how long the first may run, what it must never echo.
 public struct CompletionExpectation: Sendable, Equatable {
     /// Continuations past the typed text that count as a hit; empty when any continuation counts.
@@ -27,12 +30,36 @@ public struct CompletionExpectation: Sendable, Equatable {
         CompletionExpectation(acceptable: [Self.nothing], band: lengthBand, forbidden: forbidden)
     }
 
-    /// Whether any completion continues the typed text the way this expects.
+    /// Whether the leader matches a named whole-word answer or continues an unnamed typed prefix.
     public func hits(_ completions: [String], typed: String) -> Bool {
-        if expectsNothing { return completions.isEmpty }
-        let continuations = completions.map { String($0.dropFirst(typed.count)).lowercased() }
-        guard !acceptable.isEmpty else { return !continuations.isEmpty }
-        return continuations.contains { got in acceptable.contains { $0.lowercased().hasPrefix(got) } }
+        guard let leader = completions.first else { return expectsNothing }
+        let continuation: String?
+        if typed.isEmpty {
+            continuation = leader.isEmpty ? nil : leader.lowercased()
+        } else if let prefix = leader.range(of: typed, options: [.anchored, .caseInsensitive]),
+            prefix.upperBound < leader.endIndex
+        {
+            continuation = String(leader[prefix.upperBound...]).lowercased()
+        } else {
+            continuation = nil
+        }
+        if expectsNothing { return continuation == nil }
+        guard let got = continuation, !got.isEmpty else { return false }
+        guard !acceptable.isEmpty else { return true }
+        return acceptable.contains { answer in
+            let expected = Array(answer.lowercased().decomposedStringWithCanonicalMapping.unicodeScalars)
+            let actual = Array(got.lowercased().decomposedStringWithCanonicalMapping.unicodeScalars)
+            guard expected.starts(with: actual) else { return false }
+            guard actual.count < expected.count else { return true }
+            return !Self.isWordContinuation(expected[actual.count])
+        }
+    }
+
+    private static func isWordContinuation(_ scalar: Unicode.Scalar) -> Bool {
+        let properties = scalar.properties
+        let category = properties.generalCategory
+        return properties.isAlphabetic || properties.numericType != nil || category == .nonspacingMark
+            || category == .spacingMark || category == .enclosingMark || category == .connectorPunctuation
     }
 
     /// Whether the first completion keeps to the register, or there is none where none is expected.
@@ -182,8 +209,7 @@ public enum ScreenThread {
 
     /// Each non-blank line split at its first colon into who speaks and what they say.
     static func messages(in thread: String) -> [(label: String?, body: String)] {
-        thread.split(whereSeparator: \.isNewline).compactMap { line in
-            let text = String(line)
+        WordTokens.words(thread, .line).compactMap { text in
             guard text.contains(where: { !$0.isWhitespace }) else { return nil }
             guard let colon = text.firstIndex(of: ":"),
                 text.distance(from: text.startIndex, to: colon) < labelLength

@@ -193,6 +193,51 @@ struct DictationPipelineRecordingTests {
 
     // MARK: Retrying
 
+    @Test("a retry with another engine hears the recording with it once, leaving the configured one")
+    func retryWithTheOtherEngine() async throws {
+        let recordings = FakeRecordingKeeper(current: recording, waiting: [recording])
+        let speech = FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: "configured engine")))
+        let other = FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: said)))
+        let clipboard = FakeTextInserter(.success(InsertionAttempt(.clipboard)))
+        let pipeline = makePipeline(speech: speech, clipboard: clipboard, recordings: recordings)
+
+        #expect(await pipeline.retry(recording.id, hearingWith: other))
+        #expect(clipboard.received == [said])
+        #expect(await other.transcribeCalls.count > 0)
+        #expect(await speech.transcribeCalls.isEmpty)
+
+        _ = await dictate(pipeline)
+        #expect(await speech.transcribeCalls.count > 0)
+    }
+
+    @Test("the failure names its kept recording, so one press of the notice puts the words on the clipboard")
+    func noticeRetryTakesOnePress() async throws {
+        let recordings = FakeRecordingKeeper(current: recording, waiting: [recording])
+        let speech = FakeSpeechEngine(transcribeOutcome: .failure(.transcriptionFailed(description: "x")))
+        let clipboard = FakeTextInserter(.success(InsertionAttempt(.clipboard)))
+        let pipeline = makePipeline(speech: speech, clipboard: clipboard, recordings: recordings)
+        let failure = try #require(await dictate(pipeline).failure)
+        #expect(failure.recovery == .retryFromRecording)
+        let kept = try #require(failure.keptRecording)
+        #expect(kept == recording.id)
+
+        await speech.setTranscribeOutcome(.success(.fixture(text: said)))
+        #expect(await pipeline.retry(kept))
+
+        let outcome = try #require(await pipeline.currentState.outcome)
+        #expect(outcome.method == .clipboard)
+        #expect(outcome.isFromRecording)
+        #expect(clipboard.received == [said])
+    }
+
+    @Test("a failure that kept no recording names none")
+    func noRecordingNamesNone() async throws {
+        let speech = FakeSpeechEngine(transcribeOutcome: .failure(.transcriptionFailed(description: "x")))
+        let pipeline = makePipeline(speech: speech, recordings: FakeRecordingKeeper())
+        let failure = try #require(await dictate(pipeline).failure)
+        #expect(failure.keptRecording == nil)
+    }
+
     @Test("a retry runs the kept audio and copies the words rather than typing them")
     func retryCopies() async throws {
         let audio = AudioSamples.silence(seconds: 3)
@@ -295,13 +340,29 @@ struct DictationPipelineRecordingTests {
         #expect(await speech.transcribeCalls.events.last?.options.vocabulary == ["NewName"])
     }
 
+    @Test("recogniser bias switched off sends the recogniser no vocabulary")
+    func recogniserBiasOff() async {
+        let speech = FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: said)))
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(), speech: speech, cleaner: FakeTranscriptCleaner(),
+            context: FakeContextEngine(context: .fixture()), inserter: FakeTextInserter(),
+            speechWords: { _ in ["Uttrflow"] },
+            recordings: FakeRecordingKeeper(waiting: [recording]),
+            clipboard: FakeTextInserter(.success(InsertionAttempt(.clipboard))),
+            layers: QualityLayers(enabled: QualityLayers().enabled.subtracting([.recogniserBias])))
+
+        await pipeline.retry(recording.id)
+
+        #expect(await speech.transcribeCalls.events.map(\.options.vocabulary) == [[]])
+    }
+
     @Test("a multi-piece dictation resolves vocabulary once and shares it with every piece")
     func dictationReadsVocabularyOnce() async {
         let words = WordsInTurn(["Uttrflow"])
         let speech = FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: said)))
-        let audio = AudioSamples.canonical(
-            [Float](repeating: 0.3, count: 24_000) + [Float](repeating: 0, count: 8_000)
-                + [Float](repeating: 0.3, count: 24_000))
+        // A tone, not a constant level: loudness is measured about the frame's mean, so a DC offset is silence.
+        let tone = (0..<24_000).map { 0.3 * Float(sin(Double($0) * 0.07)) }
+        let audio = AudioSamples.canonical(tone + [Float](repeating: 0, count: 8_000) + tone)
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(audio))
         await capture.setCaptured(audio)
         let pipeline = DictationPipeline(
@@ -400,7 +461,7 @@ struct DictationPipelineRecordingTests {
 struct InsertingStateTests {
     @Test("reads as work in progress rather than a result")
     func showsProgress() {
-        let dock = DictationPresenter.dock(for: .inserting)
+        let dock = DictationPresenter.dock(for: .inserting(into: nil))
 
         #expect(dock.showsProgress)
         #expect(dock.showsWaveform == false)
@@ -410,14 +471,14 @@ struct InsertingStateTests {
 
     @Test("holds the dictation open, so a second one cannot start over it")
     func staysBusy() {
-        #expect(DictationState.inserting.isBusy)
-        #expect(DictationState.inserting.isListening == false)
+        #expect(DictationState.inserting(into: nil).isBusy)
+        #expect(DictationState.inserting(into: nil).isListening == false)
     }
 
     /// One wait to the person waiting, so a second wording would only announce our own plumbing.
     @Test("says exactly what tidying says, because it is the same wait")
     func speaksWithOneVoice() {
-        let inserting = DictationPresenter.dock(for: .inserting)
+        let inserting = DictationPresenter.dock(for: .inserting(into: nil))
         let tidying = DictationPresenter.dock(for: .tidying)
 
         #expect(inserting == tidying)
@@ -451,7 +512,7 @@ struct RetriedDictationPresentationTests {
         let failure = DictationFailure(message: "Lost it.", recovery: .retry, severity: .recoverable)
         let offered = failure.offering(.retryFromRecording)
         #expect(offered.recovery == .retryFromRecording)
-        #expect(offered.message == failure.message)
+        #expect(offered.message == "Lost it. Your recording is kept on this Mac.")
         #expect(offered.severity == failure.severity)
     }
 }

@@ -107,7 +107,10 @@ struct Profile: AsyncParsableCommand {
             report: report, model: model, includesCleanup: !transcribeOnly, prewarm: !noPrewarm,
             voice: resolvedVoice
         ).emit()
-        try BudgetVerdict.enforce(ResourceBudget.readings(of: report.timeline))
+        try BudgetVerdict.enforce(
+            ResourceBudget.readings(of: report.timeline),
+            disk: ResourceBudget.diskReadings(of: LocalStoreInventory.usage(in: .applicationSupportDirectory))
+        )
     }
 
     // MARK: Progress

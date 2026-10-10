@@ -38,7 +38,9 @@ public struct ContaminationAudit: Sendable {
     /// Every clean-up case's spoken and expected text and every transcription passage.
     public static var corpusPassages: [(caseID: String, text: String)] {
         EvaluationCorpus.all.flatMap { [($0.id, $0.spoken), ($0.id, $0.expected)] }
-            + TranscriptionCorpus.all.flatMap { passage in passage.forms.map { (passage.id, $0) } }
+            + (TranscriptionCorpus.all + TranscriptionCorpus.codeMixing).flatMap { passage in
+                passage.forms.map { (passage.id, $0) }
+            }
     }
 
     /// The audit over the whole corpus as it stands.

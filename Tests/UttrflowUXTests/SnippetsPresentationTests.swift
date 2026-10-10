@@ -1,6 +1,7 @@
 // Tests for the Snippets page: rows, search, the inline editor, and the empty page.
 import Foundation
 import UttrflowCore
+import UttrflowDictionary
 import Testing
 
 @testable import UttrflowUX
@@ -47,6 +48,19 @@ struct SnippetsPageTests {
         #expect(page.emptyState == nil)
     }
 
+    @Test("a stored snippet whose trigger says a spoken command is listed with a warning")
+    func collidingRowWarns() {
+        let page = HistoryFixture.snippets([
+            HistoryFixture.snippet("new line please", createdDaysAgo: 20),
+            HistoryFixture.snippet("my address"),
+        ])
+        let warnings = Dictionary(uniqueKeysWithValues: page.rows.map { ($0.trigger.text, $0.warning) })
+        #expect(
+            warnings["new line please"]
+                == "Says the spoken command “new line”, so the command runs and this snippet never does.")
+        #expect(warnings["my address"] == .some(nil))
+    }
+
     @Test("a row says what it types, how often and when it last did")
     func row() {
         let snippet = HistoryFixture.snippet(used: 48, lastUsedDaysAgo: 0)
@@ -79,10 +93,10 @@ struct SnippetsPageTests {
     func searching() {
         let snippets = [
             HistoryFixture.snippet("my address", text: "Flat 402, Bengaluru"),
-            HistoryFixture.snippet("sign off", text: "Thanks, Naveen"),
+            HistoryFixture.snippet("sign off", text: "Thanks, Avery"),
         ]
         #expect(HistoryFixture.snippets(snippets, query: "address").rows.count == 1)
-        #expect(HistoryFixture.snippets(snippets, query: "Naveen").rows.count == 1)
+        #expect(HistoryFixture.snippets(snippets, query: "Avery").rows.count == 1)
         #expect(HistoryFixture.snippets(snippets, query: "  ").rows.count == 2)
     }
 
@@ -135,7 +149,8 @@ struct SnippetsEditorTests {
         #expect(page.editor?.canSave == true)
         #expect(
             page.editor?.save.intent
-                == .saveSnippet(trigger: snippet.trigger, text: "New text", replacing: snippet.id))
+                == .saveSnippet(
+                    trigger: snippet.trigger, text: "New text", applications: [], replacing: snippet.id))
     }
 
     @Test("a snippet needs both halves before it can be saved")
@@ -160,6 +175,30 @@ struct SnippetsEditorTests {
         #expect(editor?.problem == "You already have a snippet for “My  Address”.")
     }
 
+    @Test("a one-word trigger is saved but warned about, since it fires on that word everywhere")
+    func oneWordTriggerCaution() {
+        let editor = HistoryFixture.snippets(
+            draft: SnippetDraft(trigger: " address ", text: "x")
+        ).editor
+
+        #expect(editor?.canSave == true)
+        #expect(
+            editor?.caution == """
+                Uttrflow swaps in this text every time you say “address”, in any sentence. \
+                A phrase you would not say otherwise, such as “my home address”, is safer.
+                """)
+    }
+
+    @Test("a trigger of two or more words, or one that cannot be saved, carries no warning")
+    func noCaution() {
+        #expect(
+            HistoryFixture.snippets(draft: SnippetDraft(trigger: "my address", text: "x")).editor?
+                .caution == nil)
+        #expect(
+            HistoryFixture.snippets(draft: SnippetDraft(trigger: "address", text: " ")).editor?
+                .caution == nil)
+    }
+
     @Test("a trigger dictation rewrites says how it arrives and offers to save that form")
     func arrivalDiffers() {
         let editor = HistoryFixture.snippets(
@@ -170,7 +209,47 @@ struct SnippetsEditorTests {
         #expect(editor?.arrival == "Said aloud, this arrives as “Email 1.”.")
         #expect(
             editor?.saveArrived?.intent
-                == .saveSnippet(trigger: "Email 1.", text: "x", replacing: nil))
+                == .saveSnippet(trigger: "Email 1.", text: "x", applications: [], replacing: nil))
+    }
+
+    @Test("a trigger word that is a Dictionary entry's sounds-like says what dictation writes instead")
+    func dictionarySoundsLike() {
+        let entry = DictionaryEntry(
+            word: "Quillon", pronunciation: "quill on", origin: .added, firstSeen: HistoryFixture.now)
+        let note = SnippetsPresenter.dictionaryNote(for: "send quill on invoice", in: [entry])
+        #expect(note == "Dictation may write “quill on” as “Quillon”, from your Dictionary.")
+    }
+
+    @Test("a trigger word that is a Dictionary spelling is named")
+    func dictionarySpelling() {
+        let entry = DictionaryEntry(word: "Example Corp", origin: .added, firstSeen: HistoryFixture.now)
+        let note = SnippetsPresenter.dictionaryNote(for: "sign off example corp", in: [entry])
+        #expect(note == "“Example Corp” is a Dictionary word, so dictation may change how it arrives.")
+    }
+
+    @Test("a trigger with no Dictionary word, or only part of a phrase, shows no Dictionary note")
+    func dictionaryNone() {
+        let entries = [
+            DictionaryEntry(word: "Example Corp", origin: .added, firstSeen: HistoryFixture.now),
+            DictionaryEntry(
+                word: "Quillon", pronunciation: "quill on", origin: .added, firstSeen: HistoryFixture.now),
+        ]
+        #expect(SnippetsPresenter.dictionaryNote(for: "my example address", in: entries) == nil)
+        #expect(SnippetsPresenter.dictionaryNote(for: "quill", in: entries) == nil)
+        #expect(SnippetsPresenter.dictionaryNote(for: "", in: entries) == nil)
+    }
+
+    @Test("the editor carries the Dictionary note from the snapshot's dictionary")
+    func dictionaryNoteInEditor() {
+        let entry = DictionaryEntry(
+            word: "Quillon", pronunciation: "quill on", origin: .added, firstSeen: HistoryFixture.now)
+        let editor = SnippetsPresenter.page(
+            for: SnippetsSnapshot(
+                draft: SnippetDraft(trigger: "quill on", text: "x"), now: HistoryFixture.now,
+                dictionary: [entry])
+        ).editor
+        #expect(
+            editor?.dictionaryNote == "Dictation may write “quill on” as “Quillon”, from your Dictionary.")
     }
 
     @Test("a trigger that arrives as the same words shows no note")
@@ -282,7 +361,10 @@ struct UntouchedEditorTests {
 struct SnippetTintTests {
     @Test("each snippet keeps the tint of its place in the store, cycling through four")
     func cycles() {
-        let snippets = (0..<6).map { HistoryFixture.snippet("trigger \($0)", text: "text \($0)") }
+        // Each a day older than the last, so the newest-first list is the store's order and no tie is broken by identity.
+        let snippets = (0..<6).map {
+            HistoryFixture.snippet("trigger \($0)", text: "text \($0)", createdDaysAgo: 10 + $0)
+        }
         #expect(HistoryFixture.snippets(snippets).rows.map(\.tint) == [0, 1, 2, 3, 0, 1])
     }
 

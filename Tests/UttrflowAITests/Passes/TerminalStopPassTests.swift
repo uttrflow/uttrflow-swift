@@ -13,11 +13,66 @@ struct TerminalStopPassTests {
     @Test(
         "finishes a sentence that has no ending",
         arguments: [
-            ("hello there", "hello there."), ("42", "42."), ("ship it", "ship it."),
+            ("hello there", "hello there."), ("42 apples", "42 apples."), ("ship it", "ship it."),
             ("मेरी उड़ान 15 अगस्त को सुबह 9 बजे है", "मेरी उड़ान 15 अगस्त को सुबह 9 बजे है."),
         ])
     func addsStop(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "adds no stop to a dictation made only of digits",
+        arguments: [
+            ("42", "42"), ("415 555 0100", "415 555 0100"), ("4,096", "4,096"),
+            ("4th", "4th."), ("10%", "10%."),
+        ])
+    func leavesDigitsOpen(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "takes back the stop the recogniser closed a literal with",
+        arguments: [
+            ("localhost:8080.", "localhost:8080"), ("https://example.com.", "https://example.com"),
+            ("sam.jones@example.com.", "sam.jones@example.com"), ("/var/log.", "/var/log"),
+        ])
+    func unstopsALiteral(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "ends no dictation with a stop after a word that leaves the clause open",
+        arguments: [
+            ("i went to the bank and", "i went to the bank and"),
+            ("i would go but", "i would go but"),
+            ("i stayed home because", "i stayed home because"),
+            ("i went to the bank and.", "i went to the bank and"),
+        ])
+    func danglingWord(input: String, expected: String) {
+        for destination in Destination.allCases {
+            let formatter = DestinationFormatter.standard(for: destination)
+            let pass = TerminalStopPass(
+                policy: formatter.terminalStop, layout: formatter.layout, destination: destination)
+            #expect(cleaned(input, by: pass) == expected)
+        }
+    }
+
+    @Test(
+        "stops a dictation that ends on \"though\", which closes its clause as an adverb",
+        arguments: [
+            ("khana achha tha though", "khana achha tha, though."),
+            ("it was good though", "it was good though."),
+        ])
+    func closingThough(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test("leaves a paragraph that ends on a word leaving the clause open without a stop")
+    func danglingParagraph() {
+        let text = "we sent the report and\n\nthen we left the office"
+        #expect(
+            email.apply(Draft(keepingLineBreaks: text)).text
+                == "we sent the report and\n\nthen we left the office.")
     }
 
     @Test("leaves an open parenthetical unfinished but keeps a question mark")
@@ -32,6 +87,37 @@ struct TerminalStopPassTests {
         #expect(cleaned("buy milk", by: pass(before: "Details (")) == "buy milk")
         #expect(cleaned("is it ready?", by: pass(before: "Details (")) == "is it ready?")
         #expect(cleaned("buy milk", by: pass(before: "Details (see above) ")) == "buy milk.")
+    }
+
+    @Test(
+        "leaves the words unfinished when an aside opens after the caret",
+        arguments: [
+            " (on weekdays).", "(and a loft).", " [weather allowing].", " \u{201C}keep dry\u{201D}.",
+            " \"keep dry\".", " \u{00AB}and back\u{00BB}.",
+        ])
+    func asideAfterCaret(following: String) {
+        let formatter = DestinationFormatter.standard(for: .plain)
+        let pass = TerminalStopPass(
+            policy: formatter.terminalStop, layout: formatter.layout,
+            insertionPoint: InsertionPoint(precedingText: "", followingText: following))
+        #expect(cleaned("the market opens at eight", by: pass) == "the market opens at eight")
+        #expect(cleaned("the market opens at eight.", by: pass) == "the market opens at eight")
+    }
+
+    @Test("leaves the words unfinished inside a quotation opened on the caret's line, not one closed there")
+    func openQuotationBeforeCaret() {
+        let formatter = DestinationFormatter.standard(for: .plain)
+        func pass(before: String) -> TerminalStopPass {
+            TerminalStopPass(
+                policy: formatter.terminalStop, layout: formatter.layout,
+                insertionPoint: InsertionPoint(precedingText: before))
+        }
+
+        #expect(cleaned("back by noon", by: pass(before: "The sign said \u{201C}")) == "back by noon")
+        #expect(cleaned("back by noon", by: pass(before: "She wrote \u{00AB}")) == "back by noon")
+        let closed = pass(before: "The sign said \u{201C}shut\u{201D}. ")
+        #expect(cleaned("back by noon", by: closed) == "back by noon.")
+        #expect(cleaned("back by noon", by: pass(before: "\u{201C}Shut\n")) == "back by noon.")
     }
 
     /// An unpunctuated question is finished as one, on the rules path and after a model that left it bare. Issue #2177.
@@ -56,6 +142,14 @@ struct TerminalStopPassTests {
             ("she is a nurse", "she is a nurse."),
             ("the report is a good idea", "the report is a good idea."),
             ("it is not a good idea", "it is not a good idea."),
+            ("here is the list: apples and pears.", "here is the list: apples and pears."),
+            ("here are the files: a and b.", "here are the files: a and b."),
+            ("there is a list: one two three.", "there is a list: one two three."),
+            ("here is what we need: milk and eggs", "here is what we need: milk and eggs."),
+            ("here is the plan", "here is the plan."),
+            ("you are the best person for this", "you are the best person for this."),
+            ("everything is the way it should be", "everything is the way it should be."),
+            ("nothing is the same as before", "nothing is the same as before."),
             (
                 "didi can you ask jiju if he's free on saturday",
                 "didi, can you ask jiju if he's free on saturday?"
@@ -94,6 +188,20 @@ struct TerminalStopPassTests {
             ("you sent the invoice right", "you sent the invoice, right?"),
             ("the file is saved right", "the file is saved, right?"),
             ("we leave at noon right", "we leave at noon, right?"),
+            ("he called the office right", "he called the office, right?"),
+            ("tum kal aa rahe ho right", "tum kal aa rahe ho, right?"),
+            ("report kal tak bhej doge okay", "report kal tak bhej doge, okay?"),
+            ("tumne mera message dekha no", "tumne mera message dekha, no?"),
+            ("yeh wahi restaurant hai isn't it", "yeh wahi restaurant hai, isn't it?"),
+            ("the room is booked do you need a projector", "the room is booked, do you need a projector?"),
+            (
+                "the invoice went out did you hear from finance",
+                "the invoice went out, did you hear from finance?"
+            ),
+            (
+                "the venue is booked shall we send the invites",
+                "the venue is booked, shall we send the invites?"
+            ),
             ("is it okay if i leave at five", "is it okay if i leave at five?"),
             ("is it fine if we start late", "is it fine if we start late?"),
             ("is it okay when i call later", "is it okay when i call later?"),
@@ -102,6 +210,38 @@ struct TerminalStopPassTests {
             ("Can you check? I think it's fine", "Can you check? I think it's fine."),
         ])
     func addsQuestionMark(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "sets off an English aside opening or closing a Hindi sentence with a comma",
+        arguments: [
+            ("actually mujhe aaj nahi aana", "actually, mujhe aaj nahi aana."),
+            ("anyway chhodo woh baat", "anyway, chhodo woh baat."),
+            ("basically humein naya server chahiye", "basically, humein naya server chahiye."),
+            ("main nahi aa paunga actually", "main nahi aa paunga, actually."),
+            ("woh aayega hi nahi obviously", "woh aayega hi nahi, obviously."),
+            ("phir milte hain anyway", "phir milte hain, anyway."),
+            (
+                "actually mujhe nahi pata. phir milte hain anyway",
+                "actually, mujhe nahi pata. phir milte hain, anyway."
+            ),
+        ])
+    func setsOffAsideInHindiSentence(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "leaves an aside in an English sentence, or one the speaker already set off, as it was",
+        arguments: [
+            ("actually I can't come today", "actually I can't come today."),
+            ("so I was thinking we could ship on Friday", "so I was thinking we could ship on Friday."),
+            ("we should ban the user actually", "we should ban the user actually."),
+            ("actually ban him", "actually ban him."),
+            ("actually, mujhe aaj nahi aana", "actually, mujhe aaj nahi aana."),
+            ("actually nahi", "actually nahi."),
+        ])
+    func leavesAsideOutsideHindiSentence(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
     }
 
@@ -145,6 +285,18 @@ struct TerminalStopPassTests {
         #expect(cleaned("I have no right", by: sut) == "I have no right.")
         #expect(cleaned("you got the answer right", by: sut) == "you got the answer right.")
         #expect(cleaned("I think it is right", by: sut) == "I think it is right.")
+        #expect(cleaned("I will call you right now", by: sut) == "I will call you right now.")
+        #expect(cleaned("we tried to get it right", by: sut) == "we tried to get it right.")
+        #expect(cleaned("I wanted to do it right", by: sut) == "I wanted to do it right.")
+    }
+
+    @Test("keeps a statement whose later verb has its own subject or opens a condition")
+    func statementBeforeALaterVerbIsNotAQuestion() {
+        #expect(
+            cleaned("let me know should you have any questions", by: sut)
+                == "let me know should you have any questions.")
+        #expect(cleaned("I think the dog did it yesterday", by: sut) == "I think the dog did it yesterday.")
+        #expect(cleaned("the reason is they were late", by: sut) == "the reason is they were late.")
     }
 
     @Test("keeps an indirect if clause as a statement")
@@ -217,17 +369,33 @@ struct TerminalStopPassTests {
     @Test("adds nothing when the text holds a line break and the layout keeps newlines")
     func leavesLayout() {
         let code = TerminalStopPass(policy: .always, layout: .preserveNewlines)
-        let draft = Draft(words: ["line", "one", "\n", "line", "two"].map { Draft.Word($0) })
+        let draft = Draft(
+            words: ["line", "one", "\n", "line", "two"].map { Draft.Word($0, evidence: .unknown) })
         #expect(code.apply(draft).text == "line one\nline two")
         #expect(code.apply(Draft(text: "ship it")).text == "ship it.")
     }
 
     @Test("ends the last sentence under a paragraph layout whatever line breaks the text holds")
     func paragraphsEndTheLast() {
-        let draft = Draft(words: ["line", "one", "\n", "line", "two"].map { Draft.Word($0) })
+        let draft = Draft(
+            words: ["line", "one", "\n", "line", "two"].map { Draft.Word($0, evidence: .unknown) })
         #expect(sut.apply(draft).text == "line one\nline two.")
         let long = Draft(keepingLineBreaks: "One. Two.\n\nThree here")
         #expect(short.apply(long).text == "One. Two.\n\nThree here.")
+    }
+
+    @Test(
+        "leaves the last of three or more lines in the last paragraph open when no other line ends a sentence",
+        arguments: [
+            ("Shopping list\nMilk\nEggs\nBin bags", "Shopping list\nMilk\nEggs\nBin bags"),
+            ("Four things\nA kettle\nA scarf\nUntil the spring.", "Four things\nA kettle\nA scarf\nUntil the spring"),
+            ("Verse one\n\nVerse two\nVerse three\nVerse four", "Verse one\n\nVerse two\nVerse three\nVerse four"),
+            ("Note\n\nOne\nTwo", "Note\n\nOne\nTwo."),
+            ("Line one.\nLine two\nLine three", "Line one.\nLine two\nLine three."),
+            ("one two\nthree four", "one two\nthree four."),
+        ])
+    func unstoppedLines(text: String, expected: String) {
+        #expect(sut.apply(Draft(keepingLineBreaks: text)).text == expected)
     }
 
     @Test("leaves a model answer ending in a numbered list item without a full stop")
@@ -387,5 +555,18 @@ struct TerminalStopPassTests {
         #expect(
             cleaned("Call Sam. Book the room. Send notes", by: pass) == "Call Sam. Book the room. Send notes."
         )
+    }
+
+    @Test(
+        "leaves a closing run of hashtags unstopped, and stops prose that only mentions one",
+        arguments: [
+            ("Thanks to the club. #halfmarathon #firstrace", "Thanks to the club. #halfmarathon #firstrace"),
+            ("Great day. #teamwork", "Great day. #teamwork"),
+            ("#launchday", "#launchday"),
+            ("We loved #launchday", "We loved #launchday."),
+            ("Ranked #1 again", "Ranked #1 again."),
+        ])
+    func leavesHashtagRunOpen(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
     }
 }

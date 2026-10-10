@@ -11,11 +11,11 @@ private func chat(screen: String? = nil, own: [String] = [], choices: [String] =
 }
 
 /// A source file with code above the line, which reads as the code register.
-private func code() -> GenerationSituation {
+private func code(own: [String] = []) -> GenerationSituation {
     GenerationSituation(
         application: "Editor", field: "Source", document: "Math.swift",
         preceding: "func add(a: Int, b: Int) -> Int {\n    return a + b\n}\n",
-        recentLines: ["}", "    return a + b", "func add(a: Int, b: Int) -> Int {"], isMultiline: true)
+        recentLines: own + ["}", "    return a + b", "func add(a: Int, b: Int) -> Int {"], isMultiline: true)
 }
 
 /// A shell with commands above the line, which reads as the command register.
@@ -44,13 +44,51 @@ struct SpecificsTests {
             ("Send it to ", "Send it to sam@example.com please"),
             ("The docs are at ", "The docs are at https://example.com/guide"),
             ("See github.com/", "See github.com/example/tool"),
+            ("Pay at ", "Pay at acme-payments.com"),
             ("Growth was ", "Growth was 12% this quarter"),
             ("The meeting is on the ", "The meeting is on the 14th"),
             ("Fixed in ", "Fixed in #2041"),
+            ("Send ", "Send fifty dollars"),
+            ("Pay at ", "Pay at acme.nl"),
+            ("Meet me on ", "Meet me on Friday at noon"),
+            ("Meet me in ", "Meet me in March fifteenth"),
         ])
     func madeUpSpecificsAreRefused(typed: String, line: String) {
         #expect(!Specifics.areGrounded(line, typed: typed, in: chat()))
         #expect(CompletionText.finished([line], typed: typed, in: chat()).isEmpty)
+    }
+
+    @Test(
+        "Unprovided access keys are refused, whether their issuer uses digits or not.",
+        arguments: [
+            ("export API_KEY=", "export API_KEY=sk_live_a1b2c3d4e5f6"),
+            ("export API_KEY=", "export API_KEY=ghp_abcdefghijklmnop"),
+            ("export API_KEY=", "export API_KEY=sk-AbCdEfGhIjKlMnOp"),
+        ])
+    func madeUpCredentialIsRefused(typed: String, line: String) {
+        #expect(!Specifics.areGrounded(line, typed: typed, in: code(), writesCode: true))
+        #expect(CompletionText.finished([line], typed: typed, in: code()).isEmpty)
+    }
+
+    @Test("The output filter refuses credential shapes recognised by the shared scanner")
+    func sharedCredentialShapesAreRefused() {
+        let credentials = [
+            ["xoxb", "2913847561", "3847561290", "KdMx8Qw2Lp"].joined(separator: "-"),
+            ["glpat", "x7Kd9Pq2LmRt4Vw8Nz1C"].joined(separator: "-"),
+            ["AKIA", "IOSFODNN7EXAMPLE"].joined(),
+            ["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9", "eyJzdWIiOiIxMjM0NTY3ODkwIn0", "sig"].joined(
+                separator: "."),
+            "-----BEGIN PRIVATE KEY-----",
+        ]
+
+        for credential in credentials {
+            #expect(Specifics.namesCredential(credential), "\(credential.debugDescription)")
+            let line = "export API_KEY=\(credential)"
+            #expect(
+                !Specifics.areGrounded(line, typed: "export API_KEY=", in: code(), writesCode: true),
+                "\(credential.debugDescription)"
+            )
+        }
     }
 
     @Test("A specific copied from the screen, the person's lines, the typed text or the machine is kept.")
@@ -60,9 +98,49 @@ struct SpecificsTests {
         #expect(Specifics.areGrounded(line, typed: typed, in: chat(screen: "Priya: free at 3pm?")))
         #expect(Specifics.areGrounded(line, typed: typed, in: chat(own: ["3pm works"])))
         #expect(Specifics.areGrounded(line, typed: typed, in: chat(choices: ["3pm"])))
+        #expect(
+            Specifics.areGrounded(
+                "Pay at acme-payments.com", typed: "Pay at ", in: chat(own: ["acme-payments.com"])))
+        let knownCredential = "export API_KEY=sk_live_a1b2c3d4e5f6"
+        #expect(
+            Specifics.areGrounded("Pay at acme.nl", typed: "Pay at ", in: chat(own: ["ACME.NL"])))
+        #expect(
+            !Specifics.areGrounded(
+                "export API_KEY=sk_live_a1b2c3d4e5f6", typed: "export API_KEY=",
+                in: code(), writesCode: true))
+        #expect(
+            Specifics.areGrounded(
+                knownCredential, typed: "export API_KEY=", in: code(own: [knownCredential]), writesCode: true)
+        )
         #expect(Specifics.areGrounded("Invoice 1,250 is paid", typed: "Invoice 1,250 ", in: chat()))
         #expect(
             !Specifics.areGrounded("Invoice 1,250.00 is paid", typed: "Invoice ", in: chat(own: ["1,250"])))
+        #expect(!Specifics.areGrounded("Count is 01", typed: "Count is ", in: chat(own: ["1"])))
+        #expect(!Specifics.areGrounded("Count is 1,25", typed: "Count is ", in: chat(own: ["125"])))
+        #expect(Specifics.areGrounded("Count is 1,250", typed: "Count is ", in: chat(own: ["1250"])))
+        #expect(
+            Specifics.areGrounded(
+                "Meet on March 5", typed: "Meet on March ", in: chat(screen: "Calendar:\nMarch\t5")))
+        #expect(
+            Specifics.specifics(in: "Meet on March 5", after: "Meet on March ") == [
+                .init(token: "5 march", kind: .date)
+            ])
+        let cases: [(String, String, String?, Bool)] = [
+            ("Meet on March 5", "Meet on March ", "Inbox (5)", false),
+            ("Meet on March 5", "Meet on March ", "Calendar: March 5", true),
+            ("Meet on March 5", "Meet on March ", "Calendar:\u{00A0}March\u{2003}5", true),
+            ("Meet in June 5", "Meet in June ", "Calendar: May 5", false),
+            ("Count is fifty", "Count is ", "Count is 50", true),
+            ("Count is twenty-one", "Count is ", "Count is 21", true),
+            ("Meet on March twenty-first", "Meet on March ", "Calendar: March 21", true),
+            ("Meet on the fifteenth of March", "Meet on the ", "Calendar: March 15", true),
+            ("Pay twenty dollars", "Pay ", "Invoice: 20 dollars", true),
+            ("Pay 20 dollars", "Pay ", "Invoice: 50 dollars", false),
+            ("Pay 20 dollars", "Pay ", "Invoice: 20 euros", false),
+        ]
+        for (line, typed, screen, expected) in cases {
+            #expect(Specifics.areGrounded(line, typed: typed, in: chat(screen: screen)) == expected)
+        }
     }
 
     @Test("Words with no specific in them, and names that carry a digit, are left alone.")
@@ -78,11 +156,16 @@ struct SpecificsTests {
     func shapesAreRecognised() {
         for token in [
             "3pm", "12.50", "#12", "$5", "€20", "50%", "a@b", "http://x", "www.example.com", "example.com/a",
+            "acme-payments.com", "sk_live_a1b2c3d4e5f6", "ghp_abcdefghijklmnop", "sk-AbCdEfGhIjKlMnOp",
         ] {
             #expect(Specifics.isSpecific(token), "\(token)")
         }
-        for token in ["python3", "utf8", "hello", "docs/guide.md", "e.g", "@", "readme.md"] {
+        #expect(!Specifics.isBareHost("acme.123"))
+        for token in ["python3", "utf8", "hello", "docs/guide.md", "e.g", "@"] {
             #expect(!Specifics.isSpecific(token), "\(token)")
+        }
+        for token in ["acme.nl", "bit.ly", "pay.tv", "readme.md", "Friday", "May", "noon", "midnight"] {
+            #expect(Specifics.isSpecific(token), "\(token)")
         }
     }
 
@@ -96,6 +179,10 @@ struct SpecificsTests {
             (
                 "1 in a later call argument", "let result = getUser(options, ",
                 "let result = getUser(options, 1)"
+            ),
+            (
+                "1 in a later entity-call argument", "let result = processUser(options, ",
+                "let result = processUser(options, 1)"
             ),
             (
                 "1 in a name that only starts with a lookup verb", "let result = forget(",
@@ -152,6 +239,14 @@ struct SpecificsTests {
                 "let user = try await repo.getUser(1)"
             ),
             ("an order passed to a fetcher", "let order = repo.fetch", "let order = repo.fetchOrder(0)"),
+            (
+                "an account passed to a lookup", "let account = repo.lookupAccount(",
+                "let account = repo.lookupAccount(0)"
+            ),
+            (
+                "a record passed to an update", "let record = repo.updateRecord(",
+                "let record = repo.updateRecord(0)"
+            ),
             ("an id passed by name", "let order = orders.by", "let order = orders.byId(0)"),
             ("an id passed to a getter", "let name = get", "let name = getUserId(1)"),
             ("a quoted id passed to a finder", "find", "findById(\"1\")"),
@@ -167,6 +262,24 @@ struct SpecificsTests {
     func inventedLiteralsAreRefusedInCode(entry: String, typed: String, line: String) {
         #expect(!Specifics.areGrounded(line, typed: typed, in: code(), writesCode: true), "\(entry)")
         #expect(CompletionText.finished([line], typed: typed, in: code()).isEmpty, "\(entry)")
+    }
+
+    @Test(
+        "A conventional number is refused as the first argument of a call naming a record entity",
+        arguments: [
+            "deleteUser", "deleteOrder", "deleteAccount", "deleteRecord", "deleteItem",
+            "cancelUser", "cancelOrder", "cancelAccount", "cancelRecord", "cancelItem",
+            "removeUser", "removeOrder", "removeAccount", "removeRecord", "removeItem",
+            "lookupUser", "lookupOrder", "lookupAccount", "lookupRecord", "lookupItem",
+            "updateUser", "updateOrder", "updateAccount", "updateRecord", "updateItem",
+            "archiveUser", "archiveOrder", "archiveAccount", "archiveRecord", "archiveItem",
+            "processUser", "user",
+        ])
+    func entityCallArgumentsAreRefused(_ call: String) {
+        let typed = "let result = repository.\(call)("
+        let line = "\(typed)1)"
+        #expect(!Specifics.areGrounded(line, typed: typed, in: code(), writesCode: true), "\(call)")
+        #expect(CompletionText.finished([line], typed: typed, in: code()).isEmpty, "\(call)")
     }
 
     @Test(

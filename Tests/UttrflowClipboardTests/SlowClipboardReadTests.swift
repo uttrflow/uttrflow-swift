@@ -1,6 +1,7 @@
 // Tests that a clipboard read another process has to answer cannot hold up the watcher (#895).
 
 import Foundation
+import Synchronization
 import Testing
 import UttrflowCore
 
@@ -48,8 +49,8 @@ struct SlowClipboardReadTests {
         #expect(await watcher.newClip(at: Date())?.clip.text == "delivered at last")
     }
 
-    @Test("outstanding workers are bounded across timed-out copies, and a later healthy copy still lands")
-    func outstandingWorkersAreBounded() async {
+    @Test("timed-out reads release their slots, and a later healthy copy lands")
+    func timedOutReadSlotsAreReleased() async {
         let source = BlockedSource()
         let watcher = PasteboardWatcher(
             source: source, interval: .milliseconds(10), readLimit: .milliseconds(50))
@@ -60,7 +61,7 @@ struct SlowClipboardReadTests {
             let clip = await watcher.newClip(at: Date())
             #expect(clip == nil)
         }
-        #expect(await watcher.outstandingReads == PasteboardWatcher.maxOutstandingReads)
+        #expect(await watcher.outstandingReads == 0)
 
         // Freeing the blocked workers lets them return and give their slots back.
         source.releaseBlocked()
@@ -70,6 +71,116 @@ struct SlowClipboardReadTests {
         source.bumpChangeCount()
         #expect(await watcher.newClip(at: Date())?.clip.text == "delivered at last")
     }
+
+    @Test("a clipboard generation is retried after its read times out")
+    func timedOutGenerationIsRetried() async {
+        let source = BlockedSource()
+        let watcher = PasteboardWatcher(
+            source: source, interval: .milliseconds(10), readLimit: .milliseconds(50))
+        defer { source.releaseBlocked() }
+        source.bumpChangeCount()
+
+        #expect(await watcher.newClip(at: Date()) == nil)
+
+        source.deliverPromptly()
+        #expect(await watcher.newClip(at: Date())?.clip.text == "delivered at last")
+    }
+
+    @Test("capture resumes while earlier timed-out reads remain blocked")
+    func captureResumesWithBlockedWorkers() async {
+        let source = BlockedSource()
+        let watcher = PasteboardWatcher(
+            source: source, interval: .milliseconds(10), readLimit: .milliseconds(50))
+        defer {
+            for _ in 0..<PasteboardWatcher.maxOutstandingReads { source.releaseBlocked() }
+        }
+
+        for _ in 0..<PasteboardWatcher.maxOutstandingReads {
+            source.bumpChangeCount()
+            #expect(await watcher.newClip(at: Date()) == nil)
+        }
+
+        source.deliverPromptly()
+        source.bumpChangeCount()
+        #expect(await watcher.newClip(at: Date())?.clip.text == "delivered at last")
+    }
+
+    @Test("capture reports repeated timeouts once and retries until a read answers")
+    func reportsDegradationOnceWhileRetrying() async {
+        let source = RecoveringSource(blockedReads: 2)
+        let watcher = PasteboardWatcher(
+            source: source, interval: .milliseconds(5), readLimit: .milliseconds(20))
+        let (clips, clipContinuation) = AsyncStream.makeStream(of: NoticedClip.self)
+        let (degraded, degradedContinuation) = AsyncStream.makeStream(of: Void.self)
+        let noticeCount = Mutex(0)
+        var startedReads = source.reads.makeAsyncIterator()
+        let task = Task {
+            await watcher.run(
+                handing: { clipContinuation.yield($0) },
+                whenCaptureDegrades: {
+                    noticeCount.withLock { $0 += 1 }
+                    degradedContinuation.yield(())
+                })
+        }
+        defer {
+            task.cancel()
+            source.releaseBlocked()
+        }
+        source.bumpChangeCount()
+
+        var degradedEvents = degraded.makeAsyncIterator()
+        #expect(await degradedEvents.next() != nil)
+        while let read = await startedReads.next(), read < 3 {}
+        var noticedClips = clips.makeAsyncIterator()
+        #expect(await noticedClips.next()?.clip.text == "delivered at last")
+        task.cancel()
+        await task.value
+
+        #expect(noticeCount.withLock { $0 } == 1)
+    }
+}
+
+/// Blocks a fixed number of reads, then answers retries for the same clipboard generation.
+private final class RecoveringSource: ClipboardSource, @unchecked Sendable {
+    private struct State {
+        var count = 1
+        var reads = 0
+    }
+
+    private let lock = NSLock()
+    private var state = State()
+    private let blockedReads: Int
+    private let gate = DispatchSemaphore(value: 0)
+    let reads: AsyncStream<Int>
+    private let readContinuation: AsyncStream<Int>.Continuation
+
+    init(blockedReads: Int) {
+        self.blockedReads = blockedReads
+        (reads, readContinuation) = AsyncStream.makeStream(of: Int.self)
+    }
+
+    func changeCount() -> Int { lock.withLock { state.count } }
+    func bumpChangeCount() { lock.withLock { state.count += 1 } }
+
+    func text() -> String? {
+        let number = lock.withLock {
+            state.reads += 1
+            return state.reads
+        }
+        readContinuation.yield(number)
+        if number <= blockedReads { gate.wait() }
+        return "delivered at last"
+    }
+
+    func releaseBlocked() {
+        for _ in 0..<blockedReads { gate.signal() }
+        readContinuation.finish()
+    }
+
+    func html() -> String? { nil }
+    func markers() -> PasteboardMarkers { PasteboardMarkers() }
+    func image() -> (data: Data, width: Int, height: Int)? { nil }
+    func frontmostApplicationName() -> String? { nil }
 }
 
 /// A source whose `text()` blocks until released, so a caller can hold several readers open at once.

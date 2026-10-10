@@ -1,4 +1,5 @@
 // What this Mac can do, passed in so the settings screens can be tested on a Mac that can.
+import Foundation
 public import UttrflowCore
 public import UttrflowSettings
 
@@ -54,9 +55,6 @@ public struct SettingsCapabilities: Sendable, Equatable {
     /// Whether this build has an update feed; false without `SUFeedURL` or `SUPublicEDKey`.
     public var canCheckForUpdates: Bool
 
-    /// The speech engines whose model is present and usable right now.
-    public var readySpeechEngines: Set<SpeechEngineKind>
-
     /// The clean-up engines above the floor that are usable now; the floor itself is always ready.
     public var readyTransformers: Set<TransformerKind>
 
@@ -81,13 +79,15 @@ public struct SettingsCapabilities: Sendable, Equatable {
     /// What macOS does when the Globe or Fn key is pressed by itself.
     public var globeKeyAction: GlobeKeyAction
 
+    /// The input devices present, as UID and name, for the microphone choice.
+    public var microphones: [SettingsMicrophone]
+
     /// Builds the answers; updates and the version default to absent.
     public init(
         launchAtLogin: LaunchAtLoginStatus,
         canPlayRecordingSound: Bool,
         canCheckForUpdates: Bool = false,
         versionDescription: String? = nil,
-        readySpeechEngines: Set<SpeechEngineKind>,
         readyTransformers: Set<TransformerKind>,
         foundationModelAvailability: TransformerAvailability? = nil,
         transformerAvailability: [TransformerKind: TransformerAvailability] = [:],
@@ -95,13 +95,13 @@ public struct SettingsCapabilities: Sendable, Equatable {
         suggestionRuntime: SuggestionRuntimeStatus = .idle,
         unarmedShortcuts: [ShortcutAction: HotkeyError] = [:],
         clipboardCapturePaused: Bool = false,
-        globeKeyAction: GlobeKeyAction = .doNothing
+        globeKeyAction: GlobeKeyAction = .doNothing,
+        microphones: [SettingsMicrophone] = []
     ) {
         self.launchAtLogin = launchAtLogin
         self.canPlayRecordingSound = canPlayRecordingSound
         self.canCheckForUpdates = canCheckForUpdates
         self.versionDescription = versionDescription
-        self.readySpeechEngines = readySpeechEngines
         self.readyTransformers = readyTransformers
         self.foundationModelAvailability = foundationModelAvailability
         self.transformerAvailability = transformerAvailability
@@ -110,6 +110,7 @@ public struct SettingsCapabilities: Sendable, Equatable {
         self.unarmedShortcuts = unarmedShortcuts
         self.clipboardCapturePaused = clipboardCapturePaused
         self.globeKeyAction = globeKeyAction
+        self.microphones = microphones
     }
 
     /// A Mac that can do everything: the start of a real probe, and a test's default.
@@ -118,7 +119,6 @@ public struct SettingsCapabilities: Sendable, Equatable {
         canPlayRecordingSound: true,
         canCheckForUpdates: true,
         versionDescription: "1.0.0 (1)",
-        readySpeechEngines: Set(SpeechEngineKind.allCases),
         readyTransformers: Set(TransformerKind.selectable),
         suggestionModel: .ready
     )
@@ -135,14 +135,35 @@ public struct SettingsCapabilities: Sendable, Equatable {
     }
 }
 
+/// An input device as the microphone choice offers it: a stable UID and the name macOS gives it.
+public struct SettingsMicrophone: Sendable, Equatable {
+    public let uid: String
+    public let name: String
+
+    public init(uid: String, name: String) {
+        self.uid = uid
+        self.name = name
+    }
+}
+
 /// Whether suggestions can currently receive keystrokes.
 public enum SuggestionRuntimeStatus: Sendable, Equatable {
     case idle
     case starting
+    case tapResting
+    case restarting
     case running
     case secureInputBlocked
+    case accessibilityDenied
     case tapFailed
     case corpusFailed
+}
+
+extension SuggestionRuntimeStatus {
+    static let accessibilityDeniedMessage =
+        String(
+            localized: "Allow Uttrflow under Accessibility settings; return to resume suggestions.",
+            comment: "Suggestion runtime status when Accessibility permission is denied")
 }
 
 /// How far along the model tab-to-complete needs is, so a switch that is on can say what it is doing.
@@ -161,6 +182,8 @@ public enum SuggestionModelReadiness: Sendable, Equatable {
     case fetchFailed
     /// The weights are on disk, but reading them into memory failed.
     case loadFailed
+    /// The model's pinned download will not fit on its cache volume.
+    case insufficientSpace(neededBytes: Int64)
     /// A failed fetch, for callers that still use the earlier spelling.
     case failed
 
@@ -172,8 +195,15 @@ public enum SuggestionModelReadiness: Sendable, Equatable {
             fraction.map { "Getting ready — \(MenuBarPresenter.percentage(of: $0))%" } ?? "Getting ready"
         case .loading: "Getting ready"
         case .releasedForMemory: "Paused to free memory"
+        case .insufficientSpace: "Not enough disk space"
         case .fetchFailed, .failed: "The model could not be fetched"
         case .loadFailed: "The model could not be loaded"
         }
+    }
+
+    /// The pinned download size in a compact, user-readable form when space is the failure.
+    public var requiredSpaceDescription: String? {
+        guard case .insufficientSpace(let neededBytes) = self else { return nil }
+        return neededBytes.formatted(.byteCount(style: .file))
     }
 }

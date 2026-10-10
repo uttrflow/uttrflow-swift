@@ -2,10 +2,12 @@ import Foundation
 import UttrflowPredict
 
 /// One fixture's outcome, as the table prints it and the JSON records it.
-struct FixtureResult: Encodable {
+struct FixtureResult: Codable {
     let name: String
     let category: String
     let typed: String
+    /// The fixture inputs checked when a saved report is used as a baseline.
+    let fixtureIdentity: String?
     /// Whether the fixture was hit and the model did not error, so a thrown error always reads as a miss.
     let hit: Bool
     /// Whether the hit was checked against a named answer, rather than any continuation counting.
@@ -14,6 +16,8 @@ struct FixtureResult: Encodable {
     let elapsedMs: Int
     /// The first completion the model offered, or nothing when it offered none.
     let first: String?
+    /// The lines the arbitration actually drew, empty when no candidate or no confident candidate was selected.
+    let drawn: [String]
     /// Which production candidate source supplied the line shown to the person.
     let source: String?
     /// How the pass ended and every word the model wrote, recorded only when the run asked for it.
@@ -34,7 +38,7 @@ struct FixtureResult: Encodable {
     let gate: Gate
 
     /// The first line's score from its own pass, whether the floor held it back, and the scorer's second opinion when asked for.
-    struct Gate: Encodable {
+    struct Gate: Codable {
         let confidence: Double?
         let held: Bool
         /// Whether the line would have been a hit had it been drawn, which is what a lower floor would change.
@@ -47,20 +51,22 @@ struct FixtureResult: Encodable {
 
     init(
         name: String, category: String, typed: String, hit: Bool, judged: Bool, conforms: Bool,
-        elapsedMs: Int, first: String?, source: String? = nil,
+        elapsedMs: Int, first: String?, drawn: [String], source: String? = nil,
         raw: String?, invented: Bool, rescued: Bool = false, secondOpinionMs: Int? = nil,
         lengthStopped: Bool = false, alternativesLengthStopped: Bool = false, error: String? = nil,
-        gate: Gate = .open
+        gate: Gate = .open, fixtureIdentity: String? = nil
     ) {
         self.name = name
         self.category = category
         self.typed = typed
+        self.fixtureIdentity = fixtureIdentity
         // An errored pass is not a hit and not in register, even when silence would have been the right answer.
         self.hit = hit && error == nil
         self.judged = judged
         self.conforms = conforms && error == nil
         self.elapsedMs = elapsedMs
         self.first = first
+        self.drawn = drawn
         self.source = source
         self.raw = raw
         self.invented = invented
@@ -72,8 +78,8 @@ struct FixtureResult: Encodable {
         self.gate = gate
     }
 
-    /// Whether anything at all was put in front of the person, which is what a wrong answer needs to be wrong.
-    var shown: Bool { offered && !gate.held }
+    /// Whether any line was put in front of the person, rather than only offered by the model.
+    var shown: Bool { !drawn.isEmpty }
 
     /// Whether the model offered a line, drawn or held back by the floor.
     var offered: Bool { error == nil && (first?.isEmpty == false) && first?.hasPrefix("error:") != true }
@@ -90,8 +96,8 @@ struct FixtureResult: Encodable {
 }
 
 /// The rates and latency percentiles a run is judged by, overall and per category.
-struct FixtureSummary: Encodable {
-    struct Category: Encodable {
+struct FixtureSummary: Codable {
+    struct Category: Codable {
         let name: String
         let total: Int
         let hits: Int
@@ -182,19 +188,64 @@ struct FixtureSummary: Encodable {
 }
 
 /// What a fixture run found, printed for the operator and written for whoever categorises the failures.
-struct FixtureReport: Encodable {
+struct FixtureReport: Codable {
+    /// The options that identify a comparable fixture run.
+    struct Configuration: Codable, Equatable {
+        let model: String
+        let sources: Bool
+        let only: String?
+        let limit: Int?
+        let failedIn: Bool
+        let raw: Bool
+        let judge: Bool
+        let secondOpinion: Bool
+    }
+
     let results: [FixtureResult]
     let summary: FixtureSummary
+    let configuration: Configuration?
+    /// The unfiltered fixture count used by this command, when written from a catalogue run.
+    let fixtureCatalogueCount: Int?
+    /// True only when the default full generation catalogue ran without a selection filter.
+    let fullFixtureCatalogue: Bool
 
-    init(results: [FixtureResult]) {
+    init(
+        results: [FixtureResult], configuration: Configuration? = nil,
+        fixtureCatalogueCount: Int? = nil, fullFixtureCatalogue: Bool = false
+    ) {
         self.results = results
         summary = FixtureSummary(results)
+        self.configuration = configuration
+        self.fixtureCatalogueCount = fixtureCatalogueCount
+        self.fullFixtureCatalogue = fullFixtureCatalogue
     }
 
     /// A rate as a percentage to two figures, since the last of them is what a trustworthy feature is judged on.
     private static func rate(_ part: Int, of whole: Int) -> String {
         guard whole > 0 else { return "-" }
         return String(format: "%.2f %%", 100 * Double(part) / Double(whole))
+    }
+
+    /// The Wilson interval shows the uncertainty when a rate has few observations.
+    static func interval(_ part: Int, of whole: Int) -> String {
+        guard whole > 0 else { return "" }
+        let z = 1.96
+        let size = Double(whole)
+        let proportion = Double(part) / size
+        let zSquared = z * z
+        let denominator = 1 + zSquared / size
+        let center = (proportion + zSquared / (2 * size)) / denominator
+        let margin =
+            z * sqrt(proportion * (1 - proportion) / size + zSquared / (4 * size * size))
+            / denominator
+        let lower = max(0, center - margin) * 100
+        let upper = min(1, center + margin) * 100
+        return String(format: " [95%% Wilson CI %.2f–%.2f%%]", lower, upper)
+    }
+
+    /// A coverage rate stays tied to its count and uncertainty, especially on a small sample.
+    static func measuredCoverage(_ part: Int, of whole: Int) -> String {
+        "\(Self.rate(part, of: whole)) (\(part)/\(whole))\(Self.interval(part, of: whole))"
     }
 
     /// The per-category rates and the overall rates with latency percentiles.
@@ -205,7 +256,8 @@ struct FixtureReport: Encodable {
                 "\(category.name.leftPadded(to: 10))  hit \(category.hits)/\(category.total)  "
                     + "in register \(category.conforming)/\(category.total)  precision "
                     + "\(Self.rate(category.right, of: category.shown)) (\(category.right)/\(category.shown) judged shown, "
-                    + "\(category.shown - category.right) wrong)")
+                    + "\(category.shown - category.right) wrong)"
+                    + Self.interval(category.right, of: category.shown))
         }
         if !summary.sources.isEmpty {
             print("\nby shown source:")
@@ -213,7 +265,8 @@ struct FixtureReport: Encodable {
                 print(
                     "\(source.name.leftPadded(to: 12)) precision "
                         + "\(Self.rate(source.right, of: source.shown)) (\(source.right)/\(source.shown) judged shown, "
-                        + "\(source.shown - source.right) wrong)")
+                        + "\(source.shown - source.right) wrong)"
+                        + Self.interval(source.right, of: source.shown))
             }
             let unjudged = summary.unjudgedSources.filter { $0.shown > 0 }
             if !unjudged.isEmpty {
@@ -238,7 +291,8 @@ struct FixtureReport: Encodable {
         print(
             "precision \(Self.rate(summary.right, of: summary.shown)) (\(summary.right)/\(summary.shown) judged shown,"
                 + " \(wrong) wrong, \(summary.unjudgedShown) unjudged shown)"
-                + "  coverage \(Self.rate(spoke, of: summary.total))")
+                + Self.interval(summary.right, of: summary.shown)
+                + "  coverage \(Self.measuredCoverage(spoke, of: summary.total))")
         guard summary.secondOpinions > 0 else { return }
         print(
             "second opinion  spent \(summary.secondOpinions)  rescued \(summary.rescued)"
@@ -277,7 +331,9 @@ struct FixtureReport: Encodable {
         let right = judged.filter(\.gate.hitIfDrawn).count
         print(
             "  \(String(format: "%5.2f", floor))  precision \(Self.rate(right, of: judged.count)) (\(right)/\(judged.count),"
-                + " \(judged.count - right) wrong)  coverage \(Self.rate(kept.count, of: results.count))")
+                + " \(judged.count - right) wrong)"
+                + Self.interval(right, of: judged.count)
+                + "  coverage \(Self.measuredCoverage(kept.count, of: results.count))")
     }
 
     /// Every miss and every line out of register, each with what was typed and what came back first.
@@ -301,5 +357,10 @@ struct FixtureReport: Encodable {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try encoder.encode(self).write(to: url)
+    }
+
+    /// Reads a saved fixture run for a later regression comparison.
+    static func load(from path: String) throws -> FixtureReport {
+        try JSONDecoder().decode(FixtureReport.self, from: Data(contentsOf: URL(fileURLWithPath: path)))
     }
 }

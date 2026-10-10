@@ -29,6 +29,7 @@ struct UpdateGateTests {
             UpdateActivity(isPanelOpen: true),
             UpdateActivity(isEditing: true),
             UpdateActivity(isOnboarding: true),
+            UpdateActivity(isSuggesting: true),
         ]
         for activity in busy {
             var gate = UpdateGate()
@@ -94,6 +95,7 @@ struct UpdateGateTests {
         #expect(!UpdateActivity(isPanelOpen: true).isQuiet)
         #expect(!UpdateActivity(isEditing: true).isQuiet)
         #expect(!UpdateActivity(isOnboarding: true).isQuiet)
+        #expect(!UpdateActivity(isSuggesting: true).isQuiet)
         #expect(!UpdateActivity(isDictating: true, isOnboarding: true).isQuiet)
     }
 }

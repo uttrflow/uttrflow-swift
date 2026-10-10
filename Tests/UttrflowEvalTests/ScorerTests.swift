@@ -24,6 +24,24 @@ struct ScorerTests {
             mustBeginWith: begin, mustEndWith: end)
     }
 
+    @Test("fails a long rewrite that closes fewer sentences than the case requires")
+    func failsTooFewSentences() {
+        let reference = EvaluationCase(
+            id: "case", category: .longInput, spoken: "spoken",
+            expected: "One thing. Two things. Three things.", minimumSentences: 2)
+        let runOn = Scorer.score("One thing two things three things.", against: reference)
+        #expect(runOn.brokeShape == ["closes 2 sentences"])
+        #expect(!runOn.passed)
+        #expect(Scorer.score("One thing. Two things. Three things.", against: reference).passed)
+    }
+
+    @Test("names at least three hundred words in its long-input case, which is what the category guards")
+    func longInputIsLong() throws {
+        let testCase = try #require(EvaluationCorpus.cases(in: .longInput).first)
+        #expect(testCase.spoken.split(whereSeparator: \.isWhitespace).count >= 300)
+        #expect(Scorer.score(testCase.expected, against: testCase).passed)
+    }
+
     @Test("fails a rewrite that drops a reference word even when similarity clears the floor")
     func failsAnyDeletedWord() {
         let reference = reference(expected: "My manager wants the slides by noon.")
@@ -44,19 +62,47 @@ struct ScorerTests {
         #expect(Scorer.score("the report is attached.", against: reference).passed)
 
         let capitalised = Scorer.score("The report is attached.", against: reference)
-        #expect(capitalised.brokeShape == ["the report"])
+        #expect(capitalised.brokeShape == [#"begins with "the report""#])
         #expect(!capitalised.passed)
 
         let unfinished = Scorer.score("the report is attached", against: reference)
-        #expect(unfinished.brokeShape == ["."])
+        #expect(unfinished.brokeShape == [#"ends with ".""#])
         #expect(!unfinished.passed)
 
-        #expect(Scorer.score("The Report Is Attached", against: reference).brokeShape == ["the report", "."])
+        #expect(
+            Scorer.score("The Report Is Attached", against: reference).brokeShape == [
+                #"begins with "the report""#, #"ends with ".""#,
+            ])
+    }
+
+    /// A structured output has one written form, so a near miss in spacing or case is a miss.
+    @Test("checks an exact form character for character and keeps it through the recogniser shape")
+    func checksExactForm() {
+        let reference = EvaluationCase(
+            id: "case", category: .technical, spoken: "select star from orders",
+            expected: "SELECT * FROM orders", expectedExact: "SELECT * FROM orders")
+        #expect(Scorer.score("SELECT * FROM orders", against: reference).brokeShape.isEmpty)
+        #expect(
+            Scorer.score("SELECT *  FROM orders", against: reference).brokeShape == [
+                #"is exactly "SELECT * FROM orders""#
+            ])
+        #expect(!Scorer.score("select * from orders", against: reference).passed)
+        #expect(reference.shaped(.recogniser).expectedExact == "SELECT * FROM orders")
     }
 
     @Test("asks nothing of the shape when the case says nothing about it")
     func shapeIsOptional() {
         #expect(Scorer.score("HELLO THERE", against: shaped(expected: "hello there.")).brokeShape.isEmpty)
+    }
+
+    @Test("compares romanised Hindi by sound, so a spelling variant is not a lost word")
+    func foldsRomanisedSpellings() {
+        let hindi = EvaluationCase(
+            id: "case", category: .multilingual, language: .hindi, spoken: "spoken",
+            expected: "Mujhe theek nahi lag raha.")
+        #expect(Scorer.score("Mujhe thik nahi lag raha.", against: hindi).similarity == 1)
+        let english = reference(expected: "Mujhe theek nahi lag raha.")
+        #expect(Scorer.score("Mujhe thik nahi lag raha.", against: english).similarity < 1)
     }
 
     @Test("scores an exact match perfectly")
@@ -408,6 +454,9 @@ struct EvaluationCorpusTests {
     /// A reference that already lost a required word would score every model wrongly.
     @Test("keeps every required word in its own reference answer")
     func referencesAreSelfConsistent() {
+        let urlCase = EvaluationCorpus.all.first { $0.id == "fmt-token-url-path-stopped" }
+        #expect(urlCase?.expected == "The url is https://example.com/docs.")
+        #expect(urlCase?.mustKeep == ["https://example.com/docs"])
         for testCase in EvaluationCorpus.all {
             let score = Scorer.score(testCase.expected, against: testCase)
             #expect(score.keptEverythingRequired, "\(testCase.id) lost \(score.lost)")
@@ -415,10 +464,14 @@ struct EvaluationCorpusTests {
         }
     }
 
-    @Test("never uses the raw transcript as its own reference")
+    /// A leave-alone case is deliberate only when it pins the shape it guards; similarity alone would pass the raw input.
+    @Test("uses the raw transcript as its reference only where the case pins the shape it guards")
     func referencesDifferFromInput() {
-        for testCase in EvaluationCorpus.all {
-            #expect(testCase.spoken != testCase.expected, "\(testCase.id) expects no change at all")
+        for testCase in EvaluationCorpus.all where testCase.spoken == testCase.expected {
+            let pinned =
+                testCase.expectedExact != nil || testCase.mustBeginWith != nil || testCase.mustEndWith != nil
+                || !testCase.mustNotAdd.isEmpty
+            #expect(pinned, "\(testCase.id) expects no change at all and pins nothing")
         }
     }
 
@@ -614,15 +667,15 @@ struct CorpusIndependenceTests {
             contract: "",
             contractExamples: [
                 WorkedExample(
-                    spoken: "I'll probably be about twenty minutes late to the meeting",
-                    cleaned: "I'll probably be about twenty minutes late to the meeting.")
+                    spoken: "I'll probably be about 20 minutes late to the meeting",
+                    cleaned: "I'll probably be about 20 minutes late to the meeting.")
             ],
             blocks: [:])
 
         #expect(
             knownContamination(in: prompt).contains {
                 $0.caseID == "late-to-meeting"
-                    && normalise($0.fragment) == "i ll probably be about twenty minutes late to the meeting"
+                    && normalise($0.fragment) == "i ll probably be about 20 minutes late to the meeting"
             })
     }
 
@@ -666,17 +719,16 @@ struct CorpusIndependenceTests {
         }
     }
 
-    /// Rules cannot change alphabet, so romanised references measure clean-up rather than doing nothing.
+    /// Hindi is spoken into the corpus in either alphabet, and every reference is written in the Latin one.
     @Test("expects Hindi written in the Latin alphabet")
     func hindiReferencesAreRomanised() {
+        let devanagari: (Character) -> Bool = { ("\u{0900}"..."\u{097F}").contains($0) }
         for testCase in EvaluationCorpus.cases(for: .hindi) {
-            #expect(
-                testCase.expected.allSatisfy { !("\u{0900}"..."\u{097F}").contains($0) },
-                "\(testCase.id) still expects Devanagari")
-            #expect(
-                testCase.spoken.contains { ("\u{0900}"..."\u{097F}").contains($0) },
-                "\(testCase.id) has nothing to romanise")
+            #expect(!testCase.expected.contains(where: devanagari), "\(testCase.id) still expects Devanagari")
         }
+        #expect(
+            EvaluationCorpus.cases(for: .hindi).contains { $0.spoken.contains(where: devanagari) },
+            "no Hindi case has Devanagari to romanise")
     }
 }
 
@@ -704,9 +756,9 @@ struct GrammarRepairTests {
         #expect(!score.passed, "\(testCase.id) passes with the slip left in")
     }
 
-    @Test("counts sixteen grammar cases as asking for a repair, so the check above is not vacuous")
+    @Test("counts twenty-four grammar cases as asking for a repair, so the check above is not vacuous")
     func repairCasesAreCounted() {
-        #expect(EvaluationCorpus.cases(in: .grammar).filter(Self.asksForARepair).count == 16)
+        #expect(EvaluationCorpus.cases(in: .grammar).filter(Self.asksForARepair).count == 24)
     }
 
     @Test(

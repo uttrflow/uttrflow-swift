@@ -38,18 +38,34 @@ public enum SettingsEditor {
             updated.shortcutsReturnedToDefault.remove(action)
         case .tidying(let level):
             try applyTidying(level, to: &updated, given: capabilities)
-        case .transcription(let quality):
-            try applyTranscription(quality, to: &updated, given: capabilities)
         case .spokenLanguage(let code, let isSpoken):
             try applyLanguage(code, isSpoken: isSpoken, to: &updated)
+        case .pauses(let pauses):
+            updated.profile.pauses = pauses
         case .appearance(let appearance):
             // No capability to check: every Mac can draw itself light or dark.
             updated.appearance = appearance
+        case .contextLevel(let level):
+            // No capability to check: reading less never needs a permission.
+            updated.contextLevel = level
+        case .microphone(let uid):
+            // An absent device is kept: capture falls back to the default until it is plugged in again.
+            updated.microphoneUID = uid
         case .handsFreeDoubleTap(let milliseconds):
             guard Settings.handsFreeDoubleTapChoices.contains(milliseconds) else {
                 throw SettingsRejection(reason: "Choose a listed hands-free interval.")
             }
             updated.handsFreeDoubleTapMilliseconds = milliseconds
+        case .handsFreeHold(let milliseconds):
+            guard Settings.handsFreeHoldChoices.contains(milliseconds) else {
+                throw SettingsRejection(reason: "Choose a listed hold length.")
+            }
+            updated.handsFreeHoldMilliseconds = milliseconds
+        case .endOnSilence(let seconds):
+            guard seconds == 0 || SilenceStop(seconds: seconds) != nil else {
+                throw SettingsRejection(reason: "Choose a listed wait.")
+            }
+            updated.endOnSilenceSeconds = seconds
         case .retention(let days):
             try applyRetention(days: days, to: &updated)
         case .cleaningStep(let step, let isOn):
@@ -60,16 +76,20 @@ public enum SettingsEditor {
             updated.destinations = updated.destinations.removing(bundle)
         case .suggestionsHere(let application, let isOn):
             try requireSuggestionsAreOn(in: settings)
-            updated.suggestions.set(application, isOn: isOn)
+            if isOn {
+                updated.suggestions.removePreferences(for: application)
+            } else {
+                updated.suggestions.set(application, isOn: false)
+            }
         case .suggestionAcceptKey(let application, let key):
             try requireSuggestionsAreOn(in: settings)
             updated.suggestions.setAcceptKey(key, in: application)
         case .pauseSuggestions(let isOn):
             try requireSuggestionsAreOn(in: settings)
             updated.suggestions.setPaused(isOn, at: moment)
-        case .checkForUpdatesNow, .chooseApplicationToTurnOffSuggestions, .retrySuggestionModel,
-            .exportPersonalData, .importPersonalData, .manageClipboardExclusions, .pauseClipboardCapture,
-            .openSystemSettings, .openPage:
+        case .checkForUpdatesNow, .chooseApplicationToTurnOffSuggestions, .chooseApplicationForDestination,
+            .retrySuggestionModel, .exportPersonalData, .importPersonalData, .manageClipboardExclusions,
+            .pauseClipboardCapture, .openSystemSettings, .openPage:
             // Named rather than left to a `default`, which would swallow the next case added.
             break
         }
@@ -229,7 +249,10 @@ public enum SettingsEditor {
 
     /// Refuses Dictate key combinations that type into the focused app or invoke macOS actions.
     private static func dictateCombinationConflict(_ binding: HotkeyBinding) -> String? {
-        if binding.modifiers.contains(.option), printableKeyCodes.contains(binding.keyCode) {
+        // Option types a character only alone or with Shift; Control or Command turns it into a shortcut.
+        if binding.modifiers.contains(.option), binding.modifiers.isSubset(of: [.option, .shift]),
+            printableKeyCodes.contains(binding.keyCode)
+        {
             return
                 "Option with a character key can type into the app you are using. Choose another Dictate shortcut."
         }
@@ -280,27 +303,6 @@ public enum SettingsEditor {
             return reason.diagnosticDescription + ". Uttrflow will still apply its rules."
         }
         return "Full tidying is not available on this Mac yet, so Uttrflow will still apply its rules."
-    }
-
-    /// Throws when the engine behind this quality is not downloaded, then selects it.
-    private static func applyTranscription(
-        _ quality: SettingsTranscriptionQuality,
-        to settings: inout Settings,
-        given capabilities: SettingsCapabilities
-    ) throws(SettingsRejection) {
-        if let reason = unavailability(ofTranscription: quality, given: capabilities) {
-            throw SettingsRejection(reason: reason)
-        }
-        settings.engines.speech = quality.engine
-    }
-
-    /// Why this quality cannot be chosen, or `nil` when it can.
-    static func unavailability(
-        ofTranscription quality: SettingsTranscriptionQuality,
-        given capabilities: SettingsCapabilities
-    ) -> String? {
-        capabilities.readySpeechEngines.contains(quality.engine)
-            ? nil : "This option needs a download that has not finished yet."
     }
 
     // MARK: - Languages
@@ -373,6 +375,10 @@ public enum SettingsEditor {
             personalisation.suggestions(from: application) > 0
                 ? nil
                 : "Uttrflow has not picked up anything in \(SuggestionApplications.name(of: application)) yet."
+        case .persona:
+            personalisation.persona.isEmpty ? "Uttrflow has not noticed anything about you yet." : nil
+        case .personaFact(let fact):
+            personalisation.persona.contains { $0.fact == fact } ? nil : "This has already been removed."
         }
     }
 
@@ -383,7 +389,7 @@ public enum SettingsEditor {
     /// What to say when the disk refused a reset, naming what is still here rather than apologising.
     static func reason(forFailed reset: SettingsReset) -> String {
         switch reset {
-        case .learnedWords, .suggestions:
+        case .learnedWords, .suggestions, .persona, .personaFact:
             "Uttrflow could not write to the disk, so nothing was forgotten. Try again."
         case .everything:
             "Uttrflow could not write to the disk, so some of this may still be here. Try again."

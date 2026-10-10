@@ -21,11 +21,49 @@ struct WordShapeTests {
     @Test(
         "an ellipsis with no question or exclamation mark trails off",
         arguments: [
-            ("...", true), ("\u{2026}", true), ("..,", true), (".", false), ("...?", false), ("", false),
+            ("...", true), ("\u{2026}", true), ("...\"", true), ("..", false), ("..,", false), (".", false),
+            ("...?", false), ("", false),
         ]
     )
     func trailsOff(marks: String, expected: Bool) {
         #expect(WordShape.trailsOff(marks) == expected)
+    }
+
+    @Test(
+        "settles each run of marks after a word to its one legal form",
+        arguments: [
+            ("done", "done"), ("done.", "done."), ("done,", "done,"), ("done?", "done?"), ("done!", "done!"),
+            ("done..", "done."), ("done...", "done..."), ("done....", "done..."), ("done.....", "done..."),
+            ("done\u{2026}", "done\u{2026}"), ("done\u{2026}.", "done\u{2026}"),
+            ("done\u{2026}\u{2026}", "done\u{2026}"),
+            ("done,.", "done."), ("done.,", "done."), ("done?.", "done?"), ("done!.", "done!"),
+            ("done;.", "done."), ("done:.", "done."), ("done,,", "done,"), ("done;,", "done;"),
+            ("done:,", "done:"), ("done??", "done?"), ("done!!!", "done!"), ("done?!", "done?!"),
+            ("done!?", "done!?"), ("done?!?", "done?!"), ("done...?", "done?"), ("done...,", "done..."),
+            ("U.S..", "U.S."), ("etc..", "etc."), ("done.\"", "done.\""), ("done..\".", "done.\"."),
+            ("(done),.", "(done)."), (",,", ",,"),
+        ]
+    )
+    func settlingMarks(text: String, expected: String) {
+        #expect(WordShape.settlingMarks(text) == expected)
+    }
+
+    @Test("every generated run of marks settles to a legal run, and settling again changes nothing")
+    func settledRunsAreLegal() {
+        let marks: [Character] = [".", ",", ";", ":", "?", "!", "\u{2026}"]
+        let legal: Set<String> = Set(marks.map { String($0) }).union(["...", "?!", "!?"])
+        var state: UInt64 = 0x4036
+        for _ in 0..<500 {
+            var run = ""
+            state = state &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
+            for _ in 0...(Int(state >> 33) % 6) {
+                state = state &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
+                run.append(marks[Int(state >> 33) % marks.count])
+            }
+            let settled = WordShape.settlingMarks("done" + run)
+            #expect(legal.contains(WordShape(settled).suffix), "\(run) settled to \(settled)")
+            #expect(WordShape.settlingMarks(settled) == settled, "\(run)")
+        }
     }
 
     @Test(
@@ -55,6 +93,23 @@ struct WordShapeTests {
         ]
     )
     func finishesAfterABracket(word: String, preceding: String, expected: String) {
+        #expect(WordShape.finished(word, after: preceding) == expected)
+    }
+
+    @Test(
+        "a quoted term mid-sentence takes the stop after its quote; a quotation that is the sentence or a clause takes it inside",
+        arguments: [
+            ("queue\"", "we call it \"dead letter", "queue\"."),
+            ("done\"", "she said \"we are", "done.\""),
+            ("done\"", "\"we are", "done.\""),
+            ("it\"", "he replied \"ship", "it.\""),
+            ("it\"", "I named the branch \"ship", "it\"."),
+            ("now\"", "Fine. \"call me", "now.\""),
+            ("\"queue\"", "we call it", "\"queue\""),
+            ("queue\u{201D}", "we call it \u{201C}dead letter", "queue\u{201D}."),
+        ]
+    )
+    func finishesAfterAQuote(word: String, preceding: String, expected: String) {
         #expect(WordShape.finished(word, after: preceding) == expected)
     }
 

@@ -30,13 +30,17 @@ issue closes, the page changes in the same pull request.
 ## How a pull request lands
 
 1. It targets `main`: `gh pr create --base main`.
-2. CI runs `make verify` and builds the app bundle. 0 failing and 0 pending checks
+2. CI runs `make --keep-going verify` and builds the app bundle. 0 failing and 0 pending checks
    (`gh pr checks`); a running check is not a passed check.
 3. The live `main` ruleset requires one approving review.
    It also requires code-owner review, resolution of review threads, dismissal of stale
    reviews after a push, and approval by someone other than the last pusher. The branch
    must be up to date with `main`, enforced by `strict_required_status_checks_policy`, so
    what merges is what was tested.
+4. When `main` is red, the next merge is the repair. `gh run list --branch main --workflow ci.yml
+   --status completed -L 1` shows `success` before any other pull request merges; while it shows
+   `failure`, the only pull request that merges is one whose body names the failing step and
+   whose own `make verify` passes on the current tip.
 
 ## Evidence each change type needs
 
@@ -59,6 +63,8 @@ issue closes, the page changes in the same pull request.
 2. Subject: imperative mood, at most 72 characters, no trailing period, no `fix:` or `feat:`
    prefix. A pull-request title follows the same rule.
 3. Body: why, in 2 to 4 lines. A fix states the root cause and how the fix removes it.
+4. No `Co-Authored-By:` trailer; `python3 Scripts/disclosure_audit.py --range origin/main..HEAD`
+   exits 0, and the commit-msg hook refuses one.
 
 ## Pull request description
 

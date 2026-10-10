@@ -8,6 +8,13 @@ public enum SpokenMarkKind: String, Decodable, Sendable, Equatable {
     case opening
     /// Closes one, so it goes on the word before it as a trailing mark does.
     case closing
+    /// Stands as a word of its own between the words on both sides of it: an ampersand.
+    case standalone
+    /// Goes on the word after it without opening a quotation: an at sign, a hash sign.
+    case leading
+
+    /// Whether the mark goes on the word after its name rather than on the one before.
+    public var attachesAfter: Bool { self == .opening || self == .leading }
 }
 
 /// One phrase said as an instruction rather than as words, and what it writes.
@@ -20,6 +27,36 @@ public struct SpokenCommand: DataTableRow, Equatable {
         case layout
         /// A symbol written in place of its name in executable code.
         case codeSymbol
+        /// A word of a statement's grammar, written as `text` in a statement and as spoken anywhere else.
+        case keyword
+        /// A case style, named by `text`, applied to the words the row's reach covers.
+        case casing
+        /// An option marker written before the word after it at a command line; `destinations` are where every dash is one.
+        case flag
+        /// A lead-in kept as spoken, with `text` written onto its last word when the clause goes on after it.
+        case leadIn
+        /// An edit said under the editing key: the words up to `until` are found in the last insertion and replaced by the rest.
+        case replace
+        /// A Markdown mark written before each line the selection touches, said under the editing key.
+        case lineMark
+        /// A Markdown mark written around the selection, closed by the same mark read backwards.
+        case spanMark
+        /// An emoji written in place of its name, which ends in "emoji"; only where the user switched emoji on.
+        case emoji
+        /// A key press named by `text`, said under the editing key; it posts a key and never writes words.
+        case key
+    }
+
+    /// How many of the following words a casing command covers.
+    public enum Reach: String, Decodable, Sendable {
+        /// Every word up to a spoken clause mark or the end of the clause: an identifier.
+        case clause
+        /// The one word after the command.
+        case word
+        /// Every word up to the row's closing phrase, which is said and dropped.
+        case span
+        /// Every word up to a timed pause, a spoken clause mark or the end of the piece: a hashtag.
+        case pause
     }
 
     /// The row's stable name.
@@ -30,16 +67,47 @@ public struct SpokenCommand: DataTableRow, Equatable {
     public let action: Action
     /// The text it writes.
     public let text: String
-    /// Where a mark goes relative to its name; trailing when the row does not say.
-    public let placement: SpokenMarkKind
+    /// Where a mark goes relative to its name: the row's own when it says, otherwise the mark's row in `MarkSpacing`, otherwise trailing.
+    public private(set) var placement: SpokenMarkKind
     /// Whether the command writes a list item, so it applies only where lists are laid out.
     public let requiresLists: Bool
     /// The destinations it is enabled in; nil means every destination.
     public let destinations: Set<Destination>?
+    /// The code languages whose notation it is; nil means every language, a known one or none.
+    package let languages: Set<CodeLanguage>?
+    /// Where an opening name said again inside the quotation it opened closes it, as a typed quote does; nowhere when the row does not say.
+    private let closesItselfIn: Set<Destination>
+    /// The words a casing command covers; a clause when the row does not say.
+    public let reach: Reach
+    /// The phrase that ends a span, as lower-cased word keys; empty for any other reach.
+    public let until: [String]
+
+    /// Whether the row is said only while the editing key is held, never in ordinary dictation.
+    public var isSaidUnderEditingKey: Bool {
+        action == .replace || action == .lineMark || action == .spanMark
+    }
 
     /// Whether the command is enabled where the words are going.
     public func isEnabled(in destination: Destination) -> Bool {
         destinations?.contains(destination) ?? true
+    }
+
+    /// Whether the row is notation in `language`; a row naming languages never fires where none is known.
+    package func isEnabled(for language: CodeLanguage?) -> Bool {
+        guard let languages else { return true }
+        return language.map(languages.contains) ?? false
+    }
+
+    /// Whether the name said again inside the quotation it opened closes it where the words are going.
+    public func closesItself(in destination: Destination) -> Bool {
+        closesItselfIn.contains(destination)
+    }
+
+    /// The row read as the closing of the quotation its name opened.
+    public var asClosing: SpokenCommand {
+        var row = self
+        row.placement = .closing
+        return row
     }
 
     public init(from decoder: any Decoder) throws {
@@ -48,13 +116,20 @@ public struct SpokenCommand: DataTableRow, Equatable {
         words = try container.decode([String].self, forKey: .words)
         action = try container.decode(Action.self, forKey: .action)
         text = try container.decode(String.self, forKey: .text)
-        placement = try container.decodeIfPresent(SpokenMarkKind.self, forKey: .placement) ?? .trailing
+        placement =
+            try container.decodeIfPresent(SpokenMarkKind.self, forKey: .placement)
+            ?? (text.count == 1 ? text.first.flatMap(MarkSpacing.kind(of:)) : nil) ?? .trailing
         requiresLists = try container.decodeIfPresent(Bool.self, forKey: .requiresLists) ?? false
         destinations = try container.decodeIfPresent(Set<Destination>.self, forKey: .destinations)
+        languages = try container.decodeIfPresent(Set<CodeLanguage>.self, forKey: .languages)
+        closesItselfIn = try container.decodeIfPresent(Set<Destination>.self, forKey: .closesItself) ?? []
+        reach = try container.decodeIfPresent(Reach.self, forKey: .reach) ?? .clause
+        until = try container.decodeIfPresent([String].self, forKey: .until) ?? []
     }
 
     private enum Key: String, CodingKey {
-        case id, words, action, text, placement, requiresLists, destinations
+        case id, words, action, text, placement, requiresLists, destinations, languages, closesItself, reach,
+            until
     }
 }
 
@@ -64,15 +139,52 @@ public enum SpokenCommands {
     static let table = DataTable<SpokenCommand>.load(
         "spoken-commands", schema: 1, from: .module, fallback: [])
 
+    /// Every row, in file order.
+    public static var all: [SpokenCommand] { table.rows }
     /// Punctuation said by name, in file order so a longer name is tried before a shorter one.
     public static let marks = rows(.mark)
     /// Layout said by name.
     public static let layout = rows(.layout)
-    /// Symbols said by name in code.
-    public static let codeSymbols = rows(.codeSymbol)
-    /// The marks that open a quotation.
+    /// Symbols said by name in code: the code rows, and the bracket marks, which code writes as bare symbols.
+    public static let codeSymbols = rows(.codeSymbol) + marks.filter { isBracket($0.text) }
+    /// Statement keywords, longest phrase first; each is a word of a statement, never a command.
+    public static let keywords = rows(.keyword).sorted { $0.words.count > $1.words.count }
+    /// Case styles said by name, in file order so a longer phrase is tried before a shorter one.
+    public static let casings = rows(.casing)
+    /// Option markers said by name, longest first.
+    public static let flags = rows(.flag).sorted { $0.words.count > $1.words.count }
+    /// Phrases that introduce what follows them, such as a list.
+    public static let leadIns = rows(.leadIn)
+    /// Edits that replace words in the last insertion, said only under the editing key.
+    public static let replacements = rows(.replace)
+    /// Markdown structure said under the editing key: line marks, then span marks.
+    public static let markdown = rows(.lineMark) + rows(.spanMark)
+    /// Key presses said under the editing key, longest phrase first.
+    public static let keys = rows(.key).sorted { $0.words.count > $1.words.count }
+    /// Emoji said by name, longest name first.
+    public static let emoji = rows(.emoji).sorted { $0.words.count > $1.words.count }
+
+    /// The first row heard in ordinary dictation, not under the editing key, whose phrase is a run of lower-cased `words`.
+    public static func phrase(within words: [String]) -> SpokenCommand? {
+        all.first { row in
+            !row.isSaidUnderEditingKey && row.action != .keyword && !row.words.isEmpty
+                && row.words.count <= words.count
+                && (0...(words.count - row.words.count)).contains { start in
+                    Array(words[start..<(start + row.words.count)]) == row.words
+                }
+        }
+    }
+
+    /// Whether `text` is a single bracket, opening or closing.
+    public static func isBracket(_ text: String) -> Bool {
+        guard text.count == 1, let character = text.first else { return false }
+        return WordShape.bracketOpeners[character] != nil
+            || WordShape.bracketOpeners.values.contains(character)
+    }
+
+    /// The marks that open a quotation or a bracket.
     public static let openings = marks.filter { $0.placement == .opening }
-    /// The marks that close a quotation.
+    /// The marks that close a quotation or a bracket.
     public static let closings = marks.filter { $0.placement == .closing }
 
     private static func rows(_ action: SpokenCommand.Action) -> [SpokenCommand] {

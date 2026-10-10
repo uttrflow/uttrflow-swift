@@ -23,6 +23,9 @@ struct SnippetTests {
             ("v2 notes", ["v2", "notes"]),
             ("", []),
             ("!!!", []),
+            // Matched against dictation, which is written in Latin letters, so a Devanagari trigger is too.
+            ("मेरा पता", ["mera", "pata"]),
+            ("office का पता", ["office", "ka", "pata"]),
         ]
     )
     func triggerWords(trigger: String, expected: [String]) {
@@ -47,7 +50,7 @@ struct SnippetTests {
 
     @Test("counting a use advances the counter and the clock, and changes nothing else")
     func recordingAUse() {
-        let snippet = makeSnippet(trigger: "sign off", expansion: "Thanks, Naveen")
+        let snippet = makeSnippet(trigger: "sign off", expansion: "Thanks, Avery")
         let later = snippetEpoch.addingTimeInterval(3_600)
 
         let used = snippet.used(at: later).used(at: later)

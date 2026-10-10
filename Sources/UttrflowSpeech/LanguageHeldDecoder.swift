@@ -1,5 +1,7 @@
 // Language detection held to the languages the product transcribes, and a decode judged by its language.
 import CoreML
+import Foundation
+import Synchronization
 import UttrflowCore
 import WhisperKit
 
@@ -39,7 +41,7 @@ struct AllowedLanguageSampler: TokenSampling {
     }
 }
 
-/// A text decoder whose language detection is held to `languages`; everything else is the wrapped decoder's.
+/// A text decoder whose detection is held to `languages` and whose window decode is a `DecodeSession`.
 final class LanguageHeldDecoder: TextDecoding {
     /// Each transcribed language's compression-ratio decision; `nil` keeps Whisper's 2.4. See `Docs/speech-engines.md`.
     static let compressionRatioThresholds: [String: Float?] = ["en": nil, "hi": 3.0]
@@ -62,10 +64,26 @@ final class LanguageHeldDecoder: TextDecoding {
 
     private var inner: any TextDecoding
     private let languages: [LanguageCode]
+    /// Every decode window's per-step entropy, one record per `decodeText` call, fallback retries included.
+    let windows: DecodeWindowLog
+    /// Prefill time, prompt steps and timestamp steps since the last `drainSplit`, which WhisperKit's timings omit.
+    private let split = Mutex(RecognitionTimings.zero)
 
-    init(wrapping inner: any TextDecoding, languages: [LanguageCode]) {
+    init(
+        wrapping inner: any TextDecoding, languages: [LanguageCode],
+        windows: DecodeWindowLog = DecodeWindowLog()
+    ) {
         self.inner = inner
         self.languages = languages
+        self.windows = windows
+    }
+
+    /// The split recorded since the last drain, leaving it empty for the next piece.
+    func drainSplit() -> RecognitionTimings {
+        split.withLock { recorded in
+            defer { recorded = .zero }
+            return recorded
+        }
     }
 
     /// Detects among the allowed languages greedily, ignoring the fallback temperature it is handed.
@@ -126,7 +144,12 @@ final class LanguageHeldDecoder: TextDecoding {
     func prefillDecoderInputs(
         _ decoderInputs: any DecodingInputsType, withOptions options: DecodingOptions?
     ) async throws -> any DecodingInputsType {
-        try await inner.prefillDecoderInputs(decoderInputs, withOptions: options)
+        let start = Date()
+        defer {
+            let seconds = Date().timeIntervalSince(start)
+            split.withLock { $0 = $0.adding(RecognitionTimings(prefillSeconds: seconds)) }
+        }
+        return try await inner.prefillDecoderInputs(decoderInputs, withOptions: options)
     }
 
     func decodeText(
@@ -136,10 +159,23 @@ final class LanguageHeldDecoder: TextDecoding {
         options decoderOptions: DecodingOptions,
         callback: TranscriptionCallback?
     ) async throws -> DecodingResult {
-        var result = try await inner.decodeText(
-            from: encoderOutput, using: decoderInputs, sampler: tokenSampler,
-            options: decoderOptions, callback: callback)
+        // The same filter list WhisperKit reads for this decode, so the record undoes exactly the bias applied.
+        let bias = inner.logitsFilters?.lazy.compactMap { $0 as? PhraseBiasFilter }.first
+        let session = try DecodeSession(
+            decoder: inner,
+            window: .init(encoderOutput: encoderOutput, inputs: decoderInputs, options: decoderOptions))
+        // The wrappers hide a greedy sampler's temperature, so it is read off the sampler handed in.
+        let temperature = DecodeSession.temperature(of: tokenSampler, options: decoderOptions)
+        let sampler = SeededFallbackSampler.replacing(
+            tokenSampler, temperature: temperature, options: decoderOptions,
+            endToken: session.tokenizer.specialTokens.endToken)
+        let evidence = EvidenceSampler(wrapping: sampler, bias: bias)
+        var (result, stepSplit) = try await session.decodeSplit(sampler: evidence, callback: callback)
+        split.withLock { $0 = $0.adding(stepSplit) }
+        result.tokenLogProbs = evidence.tokenLogProbs(of: result)
+        result.temperature = temperature
         result.fallback = Self.judged(result, options: decoderOptions)
+        windows.append(evidence.window(of: result))
         return result
     }
 }

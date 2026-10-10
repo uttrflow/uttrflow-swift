@@ -127,13 +127,13 @@ struct InsertionPointTests {
     @Test("a word after another word is padded with one leading space")
     func leadingSpaceAfterAWord() {
         let point = InsertionPoint(precedingText: "I went to the", followingText: "")
-        #expect(point.paddedBoundary(for: "store") == " store")
+        #expect(point.paddedBoundary(for: "store", in: .plain) == " store")
     }
 
     @Test("a word after a comma is padded with one leading space")
     func leadingSpaceAfterComma() {
         let point = InsertionPoint(precedingText: "Hello,", followingText: "")
-        #expect(point.paddedBoundary(for: "world") == " world")
+        #expect(point.paddedBoundary(for: "world", in: .plain) == " world")
     }
 
     @Test(
@@ -146,32 +146,32 @@ struct InsertionPointTests {
     func punctuationAndCliticsAttach(dictated: String) {
         for preceding in ["hello", "7", " "] {
             let point = InsertionPoint(precedingText: preceding, followingText: nil)
-            #expect(point.paddedBoundary(for: dictated) == dictated)
+            #expect(point.paddedBoundary(for: dictated, in: .plain) == dictated)
         }
     }
 
     @Test("a word after a space already brings its own join, so no leading space is added")
     func leadingSpaceAfterASpace() {
         let point = InsertionPoint(precedingText: "Hello ", followingText: "world")
-        #expect(point.paddedBoundary(for: "big") == "big ")
+        #expect(point.paddedBoundary(for: "big", in: .plain) == "big ")
     }
 
     @Test("a word at the start of a new line adds no leading space")
     func leadingSpaceAtLineStart() {
         let point = InsertionPoint(precedingText: "first line\n", followingText: "")
-        #expect(point.paddedBoundary(for: "store") == "store")
+        #expect(point.paddedBoundary(for: "store", in: .plain) == "store")
     }
 
     @Test("a word in an empty field adds no leading space")
     func leadingSpaceInEmptyField() {
         let point = InsertionPoint(precedingText: "", followingText: "")
-        #expect(point.paddedBoundary(for: "Hello") == "Hello")
+        #expect(point.paddedBoundary(for: "Hello", in: .plain) == "Hello")
     }
 
     @Test("a word after an opening bracket belongs inside the brackets, so no leading space")
     func leadingSpaceAfterOpeningBracket() {
         let point = InsertionPoint(precedingText: "(", followingText: "stuff)")
-        #expect(point.paddedBoundary(for: "world") == "world ")
+        #expect(point.paddedBoundary(for: "world", in: .plain) == "world ")
     }
 
     @Test(
@@ -179,7 +179,7 @@ struct InsertionPointTests {
         arguments: ["\"", "'", "say \"", "say '", "say (\"", "say ('"])
     func leadingSpaceAfterOpeningStraightQuote(preceding: String) {
         let point = InsertionPoint(precedingText: preceding, followingText: "")
-        #expect(point.paddedBoundary(for: "world") == "world")
+        #expect(point.paddedBoundary(for: "world", in: .plain) == "world")
     }
 
     @Test(
@@ -187,56 +187,56 @@ struct InsertionPointTests {
         arguments: ["said \"hi\"", "said 'hi'", "it'"])
     func leadingSpaceAfterClosingStraightQuote(preceding: String) {
         let point = InsertionPoint(precedingText: preceding, followingText: "")
-        #expect(point.paddedBoundary(for: "world") == " world")
+        #expect(point.paddedBoundary(for: "world", in: .plain) == " world")
     }
 
     @Test("a word before another word is padded with one trailing space")
     func trailingSpaceBeforeAWord() {
         let point = InsertionPoint(precedingText: "", followingText: "world")
-        #expect(point.paddedBoundary(for: "Hello") == "Hello ")
+        #expect(point.paddedBoundary(for: "Hello", in: .plain) == "Hello ")
     }
 
     @Test("a word before a stop adds the leading space but no trailing one")
     func trailingSpaceBeforeStop() {
         let point = InsertionPoint(precedingText: "Hello world", followingText: ".")
-        #expect(point.paddedBoundary(for: "again") == " again")
+        #expect(point.paddedBoundary(for: "again", in: .plain) == " again")
     }
 
     @Test("a field that refused its text leaves the dictated words untouched")
     func precedingTextIsNilLeavesTextAlone() {
         let point = InsertionPoint(precedingText: nil, followingText: nil)
-        #expect(point.paddedBoundary(for: "Hello") == "Hello")
+        #expect(point.paddedBoundary(for: "Hello", in: .plain) == "Hello")
     }
 
     @Test("a field that reports an empty preceding text also leaves the dictated words untouched")
     func precedingTextIsEmptyLeavesLeadingAlone() {
         let point = InsertionPoint(precedingText: "", followingText: "world")
-        #expect(point.paddedBoundary(for: "Hello") == "Hello ")
+        #expect(point.paddedBoundary(for: "Hello", in: .plain) == "Hello ")
     }
 
     /// Mid-word, both rules fire and the dictated word gets a space at each edge.
     @Test("a mid-word caret adds a space at each edge, by definition of the rules")
     func midWordCaretAddsBothSpaces() {
         let point = InsertionPoint(precedingText: "Hello wo", followingText: "rld")
-        #expect(point.paddedBoundary(for: "big") == " big ")
+        #expect(point.paddedBoundary(for: "big", in: .plain) == " big ")
     }
 
     @Test("text that already starts with whitespace needs no extra leading space")
     func dictatedTextLeadingWhitespaceIsKept() {
         let point = InsertionPoint(precedingText: "Hello,", followingText: "")
-        #expect(point.paddedBoundary(for: "  world") == "  world")
+        #expect(point.paddedBoundary(for: "  world", in: .plain) == "  world")
     }
 
     @Test("text that already ends with whitespace needs no extra trailing space")
     func dictatedTextTrailingWhitespaceIsKept() {
         let point = InsertionPoint(precedingText: "", followingText: "world")
-        #expect(point.paddedBoundary(for: "Hello  ") == "Hello  ")
+        #expect(point.paddedBoundary(for: "Hello  ", in: .plain) == "Hello  ")
     }
 
     @Test("a blank dictated text is returned unchanged")
     func blankDictatedTextIsUnchanged() {
         let point = InsertionPoint(precedingText: "Hello", followingText: "world")
-        #expect(point.paddedBoundary(for: "   ") == "   ")
+        #expect(point.paddedBoundary(for: "   ", in: .plain) == "   ")
     }
 
     @Test(
@@ -258,5 +258,80 @@ struct InsertionPointTests {
         arguments: ["// ", "/// ", "/* ", "/** ", "/*\n * ", " * ", "# ", "-- ", "\"\"\"", "' "])
     func commentMarkerStartsText(preceding: String) {
         #expect(InsertionPoint.sentenceState(before: preceding) == .startOfText)
+    }
+
+    @Test(
+        "an attachment, zero-width or bidi mark before the caret reads as if absent",
+        arguments: [
+            ("\u{FFFC}", "", InsertionPoint.SentenceState.startOfText),
+            ("Notes\n\u{FFFC}", "Notes\n", .startOfSentence),
+            ("Ship it. \u{FFFC}", "Ship it. ", .startOfSentence),
+            ("Ship it.\u{200B}", "Ship it.", .startOfSentence),
+            ("send the\u{200E}", "send the", .midSentence),
+            ("- \u{2066}", "- ", .startOfText),
+        ])
+    func invisibleCharactersAreAbsent(preceding: String, visible: String, state: InsertionPoint.SentenceState)
+    {
+        #expect(InsertionPoint.visibleText(preceding) == visible)
+        #expect(InsertionPoint.sentenceState(before: preceding) == state)
+        #expect(
+            InsertionPoint(precedingText: preceding).isOnListItemLine
+                == InsertionPoint(precedingText: visible).isOnListItemLine)
+    }
+
+    @Test("a trailing zero-width mark or attachment still gets the space a word would")
+    func invisibleCharactersPad() {
+        #expect(
+            InsertionPoint(precedingText: "word\u{200B}").paddedBoundary(for: "next", in: .document)
+                == " next")
+        #expect(
+            InsertionPoint(precedingText: "a\u{FFFC}").paddedBoundary(for: "next", in: .document) == " next")
+        #expect(
+            InsertionPoint(precedingText: "a", followingText: "\u{FEFF}next").paddedBoundary(
+                for: "b", in: .document) == " b ")
+    }
+
+    @Test("an emoji joined by a zero-width joiner keeps its joiner")
+    func emojiJoinerStays() {
+        let family = "\u{1F469}\u{200D}\u{1F467}"
+        #expect(InsertionPoint.visibleText(family) == family)
+    }
+
+    @Test("the vocabulary view drops a key and keeps every prose word and line")
+    func vocabularyDropsSecrets() {
+        let point = InsertionPoint(
+            precedingText: "Meeting moved to Thursday, see you there.\nkey ASIAY34FZKBOKMUTVV7A here",
+            followingText: "well-known co-op notes")
+        #expect(point.vocabulary.precedingText == "Meeting moved to Thursday, see you there.\nkey  here")
+        #expect(point.vocabulary.followingText == "well-known co-op notes")
+        #expect(InsertionPoint.unknown.vocabulary == .unknown)
+    }
+
+    @Test("recognition keeps the last two sentences or lines before the caret, secrets out")
+    func recognitionContextKeepsTwoSentences() {
+        let point = InsertionPoint(
+            precedingText: "One. Two is here! Three uses key ASIAY34FZKBOKMUTVV7A now.  ")
+        #expect(point.recognitionContext == "Two is here! Three uses key  now.")
+        #expect(
+            InsertionPoint(precedingText: "Header\nfirst line\nsecond").recognitionContext
+                == "first line\nsecond")
+        #expect(InsertionPoint(precedingText: "Version 2.5 ships").recognitionContext == "Version 2.5 ships")
+        #expect(InsertionPoint(precedingText: " \n ").recognitionContext == nil)
+        #expect(InsertionPoint.unknown.recognitionContext == nil)
+    }
+
+    @Test("recognition text is capped and cut at a word")
+    func recognitionContextIsCapped() {
+        let long = (1...80).map { "Item \($0)," }.joined(separator: " ") + " and the last"
+        let kept = InsertionPoint(precedingText: long).recognitionContext ?? ""
+        #expect(kept.utf16.count <= InsertionPoint.recognitionLimit)
+        #expect(long.hasSuffix(" " + kept))
+        #expect(kept.hasSuffix("Item 80, and the last"))
+    }
+
+    @Test("a secure field gives recognition no text")
+    func secureFieldGivesNoRecognitionContext() {
+        #expect(AppContext(precedingText: "Hello there.", isSecure: true).recognitionContext == nil)
+        #expect(AppContext(precedingText: "Hello there.").recognitionContext == "Hello there.")
     }
 }

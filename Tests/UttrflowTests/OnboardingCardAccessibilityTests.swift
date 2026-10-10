@@ -19,23 +19,8 @@ struct OnboardingCardAccessibilityTests {
         return [root] + children.flatMap { elements(under: $0) }
     }
 
-    private func askAsAnAssistiveApp() {
-        let done = DispatchSemaphore(value: 0)
-        Thread.detachNewThread {
-            var value: CFTypeRef?
-            _ = AXUIElementCopyAttributeValue(
-                AXUIElementCreateApplication(getpid()), kAXChildrenAttribute as CFString, &value)
-            done.signal()
-        }
-        let deadline = Date().addingTimeInterval(5)
-        while done.wait(timeout: .now()) == .timedOut && Date() < deadline {
-            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
-        }
-        RunLoop.main.run(until: Date().addingTimeInterval(0.2))
-    }
-
     @Test("page explanation is announced by the heading and not repeated as control help")
-    func explanationStaysOnTheHeading() {
+    func explanationStaysOnTheHeading() async {
         let page = OnboardingPresenter.page(
             for: OnboardingState(step: .signIn, detail: .signIn(.signingIn(.google))),
             hotkey: Settings.default.hotkey)
@@ -51,13 +36,13 @@ struct OnboardingCardAccessibilityTests {
         window.contentView = host
         window.orderFrontRegardless()
         host.layoutSubtreeIfNeeded()
-        askAsAnAssistiveApp()
+        await askAsAnAssistiveApp()
 
         let found = elements(under: host)
         // The heading role constant is macOS 26 only; its raw value is what older systems report too.
         let headings = found.filter { $0.accessibilityRole?() == NSAccessibility.Role(rawValue: "AXHeading") }
         let buttons = found.filter { $0.accessibilityRole?() == .button }
-        let indicators = found.filter { $0.accessibilityLabel?() == "Step 1 of 5: Sign in" }
+        let indicators = found.filter { $0.accessibilityLabel?() == "Step 1 of 6: Sign in" }
         #expect(headings.contains { ($0.accessibilityLabel?() ?? "").contains(page.explanation ?? "") })
         let buttonLabels = Set(buttons.compactMap { $0.accessibilityLabel?() })
         #expect(buttonLabels.isSuperset(of: ["Reopen", "Cancel"]))

@@ -49,6 +49,18 @@ struct DictionaryEntryTests {
         #expect(decoded == original)
     }
 
+    @Test("spelling identity preserves symbols that distinguish technical terms")
+    func spellingKeyPreservesMeaningfulSymbols() {
+        let distinctSpellings = ["C++", "C#", "C", ".NET", "NET", "R&D", "RD", "Node.js", "Nodejs"]
+        let keys = distinctSpellings.map(DictionaryEntry.spellingKey(for:))
+
+        #expect(Set(keys).count == distinctSpellings.count)
+        #expect(DictionaryEntry.spellingKey(for: "Open AI") == DictionaryEntry.spellingKey(for: "OpenAI"))
+        #expect(DictionaryEntry.spellingKey(for: "C++") == "c++")
+        #expect(DictionaryEntry.spellingKey(for: "C#") == "c#")
+        #expect(DictionaryEntry.spellingKey(for: ".NET") == ".net")
+    }
+
     /// A hand-edited file can carry a counter no normal path ever produces; the initializer refuses it too.
     @Test("clamps a counter built outside the domain, not just one decoded outside it")
     func initializerClampsOutOfDomainCounters() {

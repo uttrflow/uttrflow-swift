@@ -34,12 +34,63 @@ struct SpokenPunctuationPassTests {
             ("we discussed colon cancer", "we discussed colon cancer"),
             ("export comma separated values", "export comma separated values"),
             ("we checked dash cam footage", "we checked dash cam footage"),
-            ("meet at five colon thirty", "meet at five: 30"),
+            ("meet at five colon thirty", "meet at five: thirty"),
             ("the build passed period the tests passed period", "the build passed. the tests passed."),
             ("that was amazing exclamation point", "that was amazing!"),
         ]
     )
     func attachesMarks(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "sets off what a lead-in introduces with a colon and keeps the case after it",
+        arguments: [
+            ("the steps are as follows build the app", "the steps are as follows: build the app"),
+            ("the steps are as follows First build", "the steps are as follows: First build"),
+            ("the steps are as follows colon build", "the steps are as follows: build"),
+            ("the steps are as follows", "the steps are as follows"),
+            ("the steps are as follows. build it", "the steps are as follows. build it"),
+            ("the steps are first second", "the steps are first second"),
+            ("note the build failed", "note the build failed"),
+        ]
+    )
+    func marksLeadIns(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "writes a spoken bracket pair around the words it encloses and leaves an unpaired or named one as words",
+        arguments: [
+            ("the report open paren draft two close paren is attached", "the report (draft two) is attached"),
+            ("bring a jacket open bracket it gets cold close bracket", "bring a jacket [it gets cold]"),
+            ("see open parenthesis below close parenthesis", "see (below)"),
+            ("it ends open paren soon close paren full stop", "it ends (soon)."),
+            ("open paren close paren", "open paren close paren"),
+            ("the parentheses are wrong", "the parentheses are wrong"),
+            (
+                "her letter has an open paren that never closes",
+                "her letter has an open paren that never closes"
+            ),
+            ("a close paren was missing from the note", "a close paren was missing from the note"),
+            ("the judges open bracket play on friday", "the judges open bracket play on friday"),
+            ("it was a close bracket race", "it was a close bracket race"),
+        ]
+    )
+    func pairsBrackets(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "keeps a mark said onto the next word when that word opens another mark",
+        arguments: [
+            ("alpha at sign open paren beta close paren", "alpha @(beta)"),
+            ("alpha hash sign open quote beta close quote", "alpha #\"beta\""),
+            ("alpha open quote open paren beta close paren", "alpha \"(beta)"),
+            ("alpha open single quote open quote beta close quote", "alpha '\"beta\""),
+        ]
+    )
+    func keepsAMarkWrittenOntoAnotherName(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
     }
 
@@ -77,10 +128,10 @@ struct SpokenPunctuationPassTests {
     @Test(
         "keeps abbreviation full stops when the standard pipeline adds a clause mark",
         arguments: [
-            ("Is it 5 p.m. question mark", "Is it 5 p.m.?"),
-            ("We left at 5 p.m. comma then ate.", "We left at 5 p.m., then ate."),
+            ("Is it 5 p.m. question mark", "Is it 5 pm?"),
+            ("We left at 5 p.m. comma then ate.", "We left at 5 pm, then ate."),
             ("Bring apples, pears, etc. exclamation mark", "Bring apples, pears, etc.!"),
-            ("Meet at 5 p.m. exclamation mark", "Meet at 5 p.m.!"),
+            ("Meet at 5 p.m. exclamation mark", "Meet at 5 pm!"),
         ]
     )
     func keepsAbbreviationStops(input: String, expected: String) {
@@ -129,13 +180,83 @@ struct SpokenPunctuationPassTests {
 
     @Test("ends a sentence with a spoken full stop before a layout mark already placed")
     func fullStopBeforeLayoutMark() {
-        let draft = Draft(words: ["ship", "it", "period", "\n", "next"].map { Draft.Word($0) })
+        let draft = Draft(
+            words: ["ship", "it", "period", "\n", "next"].map { Draft.Word($0, evidence: .unknown) })
         #expect(sut.apply(draft).text == "ship it.\nnext")
     }
 
     @Test("wraps the words between open quote and close quote")
     func quotes() {
         #expect(cleaned("he said open quote hello there close quote", by: sut) == "he said \"hello there\"")
+    }
+
+    /// "quote" opens a quotation only when "unquote", "end quote" or "close quote" closes it later in the sentence.
+    @Test(
+        "reads quote with its closing as a quotation and keeps every other quote a word",
+        arguments: [
+            ("she said quote ready unquote and left", "she said \"ready\" and left"),
+            ("she said quote see you at noon end quote", "she said \"see you at noon\""),
+            ("he wrote quote done close quote", "he wrote \"done\""),
+            ("can you quote me a price", "can you quote me a price"),
+            ("the quote was too high", "the quote was too high"),
+            ("the so called quote unquote expert", "the so called quote unquote expert"),
+            ("call the unquote function", "call the unquote function"),
+        ]
+    )
+    func quoteUnquote(spoken: String, expected: String) {
+        #expect(cleaned(spoken, by: sut) == expected)
+    }
+
+    @Test(
+        "writes open and close parentheses as brackets and keeps a mentioned parenthesis",
+        arguments: [
+            ("add the flag open parentheses optional close parentheses", "add the flag (optional)"),
+            ("add the flag open parenthesis optional close parenthesis", "add the flag (optional)"),
+            ("a parenthesis is a curved mark", "a parenthesis is a curved mark"),
+        ]
+    )
+    func parentheses(spoken: String, expected: String) {
+        #expect(cleaned(spoken, by: sut) == expected)
+    }
+
+    /// A quotation inside a quotation takes the other quote, and each close goes with the quote still open.
+    @Test(
+        "wraps single and nested quotations to depth two",
+        arguments: [
+            ("he said open single quote hello close single quote", "he said 'hello'"),
+            (
+                "she said open quote he told me open quote ship it close quote today close quote",
+                "she said \"he told me 'ship it' today\""
+            ),
+            (
+                "she said open quote he wrote open single quote done close single quote close quote",
+                "she said \"he wrote 'done'\""
+            ),
+            (
+                "she said open quote he said open quote ship it period close quote close quote",
+                "she said \"he said 'ship it.'\""
+            ),
+            (
+                "open quote one close quote and open quote two close quote",
+                "\"one\" and \"two\""
+            ),
+        ]
+    )
+    func nestedQuotations(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    /// The first word inside a quotation keeps its spoken case; the pass never recases it.
+    @Test(
+        "keeps the case of the first quoted word",
+        arguments: [
+            ("he said open quote hello there close quote", "he said \"hello there\""),
+            ("he said open quote Hello there close quote", "he said \"Hello there\""),
+            ("she said open single quote iPhone close single quote", "she said 'iPhone'"),
+        ]
+    )
+    func quotedCase(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
     }
 
     @Test("joins the words around a hyphen, and spaces a dash")
@@ -264,8 +385,7 @@ struct SpokenPunctuationPassTests {
             "screened for colon cancer last year", "write comma separated values please",
             "reduce comma usage in prose", "sprint dash training starts monday",
             "we checked dash cam footage", "he keeps writing comma splices",
-            "the main road is closed", "turn left at the main gate",
-            "done comma next", "two things colon milk", "milk comma eggs and bread",
+            "the main road is closed", "turn left at the main gate", "we discussed colon number one",
         ]
     )
     func leavesAnOrdinaryNameWithoutEvidence(input: String) {
@@ -286,8 +406,20 @@ struct SpokenPunctuationPassTests {
             ("note colon kal chutti hai", "note: kal chutti hai"),
             ("chai dash phir biscuit", "chai \u{2014} phir biscuit"),
             ("apples comma pears comma plums", "apples, pears, plums"),
+            ("done comma next", "done, next"),
+            ("two things colon milk", "two things: milk"),
+            ("milk comma eggs and bread", "milk, eggs and bread"),
             ("red comma green. blue comma white", "red comma green. blue comma white"),
             ("we have colon trouble. the colon comma and more", "we have colon trouble. the colon, and more"),
+            (
+                "before you release colon number one run it number two ship it",
+                "before you release: number one run it number two ship it"
+            ),
+            ("consequences colon logins need redis", "consequences: logins need redis"),
+            (
+                "we have colon trouble period the colon comma and more",
+                "we have colon trouble. the colon, and more"
+            ),
         ]
     )
     func takesAnOrdinaryNameOnEvidence(input: String, expected: String) {
@@ -339,16 +471,35 @@ struct SpokenPunctuationPassTests {
         #expect(draft.words[2].state == .kept)
     }
 
-    @Test("a long unpunctuated rules-only transcript finishes inside the rules budget")
-    func longUnpunctuatedTranscript() async throws {
+    @Test("a long unpunctuated rules-only transcript finishes inside the rules budget, keeping every word")
+    func longUnpunctuatedTranscript() throws {
         let text = String(
             repeating: "so i was thinking about the garden and the tomatoes are growing well this year ",
             count: 200)
         let request = TransformationRequest(transcription: Transcription(text: text))
-        let clock = ContinuousClock()
-        let start = clock.now
-        let result = try await RuleBasedTransformer().transform(request)
-        #expect(clock.now - start < StageTimeout.rules)
-        #expect(result.text.split(whereSeparator: \.isWhitespace).count == 2_801)
+        let pipeline = CleaningPipeline.standard(
+            for: DestinationFormatter.standard(for: request.situation), situation: request.situation,
+            steps: .default, vocabulary: request.vocabulary)
+        // The work is the CPU time of this thread, which other processes on a loaded machine do not add to.
+        let start = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)
+        let (draft, _) = RuleBasedTransformer.audited(
+            pipeline, over: Draft(romanising: request.transcription))
+        let spent = Duration.nanoseconds(Int64(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - start))
+        #expect(spent < StageTimeout.rules)
+        #expect(draft.text.split(whereSeparator: \.isWhitespace).count == 3_000)
+    }
+
+    @Test("every romanised Hindi word the pass reads as evidence is a row of the word-class table")
+    func romanisedHindiEvidenceIsTableRows() {
+        for word in [
+            "aur", "ya", "toh", "phir", "lekin", "par", "ki", "ke", "ka", "ko", "main", "hum", "tum", "aap",
+            "yeh",
+            "woh",
+        ] {
+            #expect(SpokenPunctuationPass.isRomanisedHindiEvidence(word), "\(word)")
+        }
+        for word in ["nahi", "hai", "bhi", "kar", "chai"] {
+            #expect(!SpokenPunctuationPass.isRomanisedHindiEvidence(word), "\(word)")
+        }
     }
 }

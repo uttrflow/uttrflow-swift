@@ -1,102 +1,98 @@
-public import UttrflowCore
+import Foundation
+import UttrflowCore
 
-/// Writes spoken identifier and symbol commands in executable code.
-public struct CodeEditorCommandsPass: PieceCleaningPass {
-    public static let id: PassID = .codeEditorCommands
+/// Writes spoken symbol commands and statement keywords in code, a query or a command line, abstaining where words read as prose.
+struct CodeEditorCommandsPass: PieceCleaningPass {
+    static let id: PassID = .codeEditorCommands
+    static let laws: Set<PassLaw> = Set(PassLaw.allCases)
 
-    public init() {}
+    /// Where the words go; a command line takes only the rows that name it, so its brackets stay marks.
+    var destination: Destination = .codeEditor
 
-    public func apply(_ draft: Draft) -> Draft {
+    /// The language the caret's file or text declares, which picks the rows whose meaning depends on it.
+    var language: CodeLanguage?
+
+    /// What the screen said for the notation, to which the speech's own cues are added.
+    var evidence = Applicability(cues: [.caretInCode])
+
+    func apply(_ draft: Draft) -> Draft {
+        let words = draft.presentIndices.map { Self.bare(draft.words[$0].text) }
+        let screen = NotationEvidence.applicability(
+            destination: destination, opening: words.first, given: evidence)
+        let evidence = NotationEvidence.applicability(of: words, given: screen)
+        guard evidence.activates(at: NotationEvidence.activationThreshold) else { return draft }
         var draft = draft
         var position = 0
         while position < draft.presentIndices.count {
             let live = draft.presentIndices
             guard position < live.count else { break }
-            if let command = Self.casing(at: position, in: live, of: draft) {
-                apply(command, at: position, in: live, to: &draft)
-                position += 1
-            } else if let symbol = Self.symbol(at: position, in: live, of: draft) {
-                apply(symbol, at: position, in: live, to: &draft)
-                position += 1
-            } else {
-                position += 1
+            if let symbol = symbol(at: position, in: live, of: draft) {
+                // A joined name stands where its first part stood, so the next dot is read from there.
+                if join(symbol, at: position, in: live, of: &draft) { continue }
+                // Empty parentheses join the word before, so the next word takes this one's place.
+                if apply(symbol, at: position, in: live, to: &draft) == .joinedBefore { continue }
             }
+            position += 1
         }
         return draft
     }
 
-    private enum Command {
-        case casing(style: CaseStyle, consumed: Int, wordCount: Int)
-        case symbol(text: String, consumed: Int)
-    }
-
-    private enum CaseStyle {
-        case camel, snake, kebab, upper
-    }
-
-    private static func casing(at position: Int, in live: [Int], of draft: Draft) -> Command? {
-        guard position + 1 < live.count else { return nil }
-        let first = draft.shape(at: live[position]).key
-        let second = draft.shape(at: live[position + 1]).key
-        let style: CaseStyle
-        switch (first, second) {
-        case ("camel", "case"): style = .camel
-        case ("snake", "case"): style = .snake
-        case ("kebab", "case"): style = .kebab
-        case ("all", "caps"): style = .upper
-        default: return nil
+    private func symbol(at position: Int, in live: [Int], of draft: Draft) -> SpokenCommand? {
+        if position > 0, Self.bare(draft.words[live[position - 1]].text) == NotationEvidence.nounMarker {
+            return nil
         }
-        var end = position + 2
-        var wordCount = 0
-        while end < live.count {
-            let shape = draft.shape(at: live[end])
-            if isSpokenClauseWord(shape) { break }
-            wordCount += 1
-            end += 1
-            if shape.endsClause || WordShape.trailsOff(shape.suffix) { break }
-        }
-        guard wordCount > 0 else { return nil }
-        return .casing(style: style, consumed: wordCount + 2, wordCount: wordCount)
-    }
-
-    private static func symbol(at position: Int, in live: [Int], of draft: Draft) -> Command? {
-        SpokenCommands.codeSymbols.first {
-            $0.isEnabled(in: .codeEditor)
+        return Self.rows.first {
+            ($0.destinations?.contains(destination) ?? (destination == .codeEditor))
+                && $0.isEnabled(for: language)
                 && draft.spells($0.words, at: position, in: live, acrossSentences: true)
-        }.map { .symbol(text: $0.text, consumed: $0.words.count) }
-    }
-
-    private static func isSpokenClauseWord(_ shape: WordShape) -> Bool {
-        ["comma", "period", "colon", "semicolon"].contains(shape.key)
-    }
-
-    private func apply(_ command: Command, at position: Int, in live: [Int], to draft: inout Draft) {
-        switch command {
-        case .casing(let style, let consumed, let wordCount):
-            let spoken = (position + 2)..<(position + 2 + wordCount)
-            let values = spoken.map { draft.shape(at: live[$0]).core }
-            let suffix = draft.shape(at: live[position + consumed - 1]).suffix
-            let converted: String
-            switch style {
-            case .camel:
-                converted = values.enumerated().map { index, value in
-                    index == 0 ? value.lowercased() : WordShape.capitalised(value.lowercased())
-                }.joined()
-            case .snake: converted = values.map { $0.lowercased() }.joined(separator: "_")
-            case .kebab: converted = values.map { $0.lowercased() }.joined(separator: "-")
-            case .upper: converted = values.map { $0.uppercased() }.joined(separator: " ")
-            }
-            draft.replace(at: live[position], with: converted + suffix, by: Self.id)
-            for offset in 1..<consumed { draft.remove(at: live[position + offset], by: Self.id) }
-        case .symbol(let text, let consumed):
-            let suffix = draft.shape(at: live[position + consumed - 1]).suffix
-            if text == ")", position > 0, draft.words[live[position - 1]].text == "(" {
-                draft.replace(at: live[position - 1], with: "()" + suffix, by: Self.id)
-                for offset in 0..<consumed { draft.remove(at: live[position + offset], by: Self.id) }
-                return
-            }
-            draft.replace(at: live[position], with: text + suffix, by: Self.id)
-            for offset in 1..<consumed { draft.remove(at: live[position + offset], by: Self.id) }
         }
+    }
+
+    /// The code symbol rows, then the statement keywords, so a symbol phrase opening on a keyword is tried first.
+    private static let rows = SpokenCommands.codeSymbols + SpokenCommands.keywords
+
+    private static func bare(_ text: String) -> String {
+        text.lowercased().trimmingCharacters(in: .letters.inverted)
+    }
+
+    /// Writes a joining symbol between the names on both sides of it, as "orders dot id" is `orders.id`; false when either side is no name.
+    private func join(
+        _ command: SpokenCommand, at position: Int, in live: [Int], of draft: inout Draft
+    ) -> Bool {
+        let after = position + command.words.count
+        guard command.placement == .joining, position > 0, after < live.count else { return false }
+        let left = draft.words[live[position - 1]].text
+        let right = draft.words[live[after]].text
+        guard Self.isName(left), Self.isName(right.trimmingCharacters(in: .punctuationCharacters)) else {
+            return false
+        }
+        draft.replace(at: live[position - 1], with: left + command.text + right, by: Self.id)
+        for offset in position...after { draft.remove(at: live[offset], by: Self.id) }
+        return true
+    }
+
+    /// A word an identifier can be: letters, digits and underscores, with a letter or underscore first.
+    private static func isName(_ text: String) -> Bool {
+        guard let first = text.first, first.isLetter || first == "_" else { return false }
+        return text.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "." }
+    }
+
+    /// Where a written symbol goes: onto its own first word, or onto the word before it.
+    private enum Written { case inPlace, joinedBefore }
+
+    private func apply(
+        _ command: SpokenCommand, at position: Int, in live: [Int], to draft: inout Draft
+    ) -> Written {
+        let consumed = command.words.count
+        let text = command.text
+        let suffix = draft.shape(at: live[position + consumed - 1]).suffix
+        if text == ")", position > 0, draft.words[live[position - 1]].text == "(" {
+            draft.replace(at: live[position - 1], with: "()" + suffix, by: Self.id)
+            for offset in 0..<consumed { draft.remove(at: live[position + offset], by: Self.id) }
+            return .joinedBefore
+        }
+        draft.replace(at: live[position], with: text + suffix, by: Self.id)
+        for offset in 1..<consumed { draft.remove(at: live[position + offset], by: Self.id) }
+        return .inPlace
     }
 }

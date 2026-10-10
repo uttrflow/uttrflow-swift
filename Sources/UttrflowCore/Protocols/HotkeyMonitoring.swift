@@ -27,6 +27,9 @@ public struct HotkeyBinding: Sendable, Equatable, Codable {
     /// Control + Option held with no other key, the dictation shortcut the product ships with.
     public static let controlOptionHold = HotkeyBinding(keyCode: 58, modifiers: [.control, .option])
 
+    /// Control + Shift held with no other key, the edit-command key; it shares no chord with ⌃⌥.
+    public static let controlShiftHold = HotkeyBinding(keyCode: 56, modifiers: [.control, .shift])
+
     /// ⇧⌘V, the clipboard panel's default; it shadows "paste without formatting". See `Docs/core-hotkeys.md`.
     public static let shiftCommandV = HotkeyBinding(keyCode: 9, modifiers: [.shift, .command])
 
@@ -122,7 +125,7 @@ public enum HotkeyError: UttrflowFailure {
         case .observationNotPermitted:
             "Accessibility access is required to watch for your shortcut. Turn it on in System Settings."
         case .accessibilityNeedsRefresh:
-            "Accessibility is enabled, but macOS refused the shortcut monitor. Turn it off and on for Uttrflow in System Settings, or remove and re-add Uttrflow, then try again."
+            "The shortcut was refused. In Accessibility settings, turn Uttrflow off and on, or remove and re-add it."
         case .shortcutUnavailable:
             "That keyboard shortcut isn't available. It's most likely already in use by another app."
         }

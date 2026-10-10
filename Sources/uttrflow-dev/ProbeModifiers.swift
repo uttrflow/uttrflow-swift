@@ -70,7 +70,7 @@ private final class StrokeRecorder: Sendable {
     static let header = "ms      phase             key  keyDown  modifiers              fn     event"
 
     /// Feeds one stroke through the recogniser and prints the row it makes.
-    func receive(_ stroke: KeyStroke) {
+    func receive(_ stroke: KeyEvent) {
         let now = ContinuousClock.now
         let row = state.withLock { current in
             let start = current.start ?? now
@@ -84,7 +84,7 @@ private final class StrokeRecorder: Sendable {
     }
 
     /// One stroke as a fixed-width row, ready to paste into a replay fixture.
-    static func row(_ stroke: KeyStroke, event: HotkeyEvent?, milliseconds: Double) -> String {
+    static func row(_ stroke: KeyEvent, event: HotkeyEvent?, milliseconds: Double) -> String {
         let modifiers = HotkeyModifier.allCases.filter(stroke.modifiers.contains).map(\.rawValue)
         return [
             pad(String(Int(milliseconds)), 7), pad("\(stroke.phase)", 17), pad(String(stroke.keyCode), 4),

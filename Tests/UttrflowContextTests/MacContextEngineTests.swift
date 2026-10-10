@@ -59,15 +59,19 @@ private func makeEngine(
     ownBundleIdentifier: String? = uttrflowBundle,
     ownProcessIdentifier: Int32 = uttrflowProcess,
     clock: any Clock<Duration> = GatedClock(),
+    slowFields: SlowFields = SlowFields(),
     observeActivations: (@escaping @Sendable (FrontmostApplication) -> Void) -> any Sendable = { _ in () }
 ) -> MacContextEngine {
     MacContextEngine(
         readFrontmostApplication: frontmost,
         readFocusOwner: focusOwner,
-        readFocusedWindow: window,
+        readFocusedWindow: { application, sink in
+            if let banked = await window(application) { sink.bank(banked) }
+        },
         ownBundleIdentifier: ownBundleIdentifier,
         ownProcessIdentifier: ownProcessIdentifier,
         clock: clock,
+        slowFields: slowFields,
         observeActivations: observeActivations
     )
 }
@@ -94,6 +98,49 @@ struct MacContextEngineTests {
 
         #expect(context.applicationName == "Slack")
         #expect(context.bundleIdentifier == "com.tinyspeck.slackmacgap")
+    }
+
+    @Test("Carries the subrole into field classification before trusting its label")
+    func fieldSubrolePrecedesItsLabel() async {
+        let context = await makeEngine(
+            frontmost: slack,
+            window: FocusedWindow(
+                accessibilityRole: "AXTextField", accessibilitySubrole: "AXSecureTextField",
+                fieldLabel: "Subject")
+        )
+        .currentContext()
+
+        #expect(context.accessibilitySubrole == "AXSecureTextField")
+        #expect(context.fieldRole == .unknown)
+    }
+
+    @Test("carries the focused field's identity, secure or not, so a write can refuse another field")
+    func carriesTheFieldIdentity() async {
+        let field = FieldIdentity(processIdentifier: 42, windowNumber: 5, element: 9)
+        let plain = await makeEngine(frontmost: slack, window: FocusedWindow(title: "general", field: field))
+            .currentContext()
+        let secure = await makeEngine(
+            frontmost: slack, window: FocusedWindow(title: "login", isSecure: true, field: field)
+        ).currentContext()
+
+        #expect(plain.field == field)
+        #expect(secure.field == field)
+    }
+
+    @Test("carries the rung that read the caret text, secure or not, and none when no window is read")
+    func carriesTheReadRung() async {
+        let ranged = await makeEngine(
+            frontmost: slack, window: FocusedWindow(title: "general", readRung: .rangedValue)
+        ).currentContext()
+        let secure = await makeEngine(
+            frontmost: slack,
+            window: FocusedWindow(title: "login", isSecure: true, readRung: ContextReadRung.none)
+        ).currentContext()
+        let unread = await makeEngine(frontmost: slack).currentContext()
+
+        #expect(ranged.readRung == .rangedValue)
+        #expect(secure.readRung == ContextReadRung.none)
+        #expect(unread.readRung == nil)
     }
 
     @Test("names the owner of a focused panel that never activated, not the application underneath")
@@ -295,6 +342,30 @@ struct MacContextEngineTests {
         #expect(context.selectedText == nil)
     }
 
+    @Test("keeps the window title a read banked before it hung")
+    func keepsWhatTheWindowReadBankedBeforeHanging() async {
+        let clock = GatedClock()
+        let banked = Gate()
+        let hung = Gate()
+        let engine = MacContextEngine(
+            readFrontmostApplication: { slack },
+            readFocusedWindow: { _, sink in
+                sink.bank(FocusedWindow(title: "Budget.numbers"))
+                await banked.open()
+                await hung.wait()
+            },
+            ownBundleIdentifier: uttrflowBundle, ownProcessIdentifier: uttrflowProcess, clock: clock)
+
+        async let reading = engine.currentContext()
+        await banked.wait()
+        await clock.gate.open()
+        let context = await reading
+
+        #expect(context.applicationName == "Slack")
+        #expect(context.documentName == "Budget.numbers")
+        #expect(context.precedingText == nil)
+    }
+
     @Test("returns nothing rather than waiting when even the identity read hangs")
     func timesOutBeforeAnythingIsGathered() async {
         let clock = GatedClock()
@@ -314,7 +385,7 @@ struct MacContextEngineTests {
         await clock.gate.open()
         let context = await reading
 
-        #expect(context == .unknown)
+        #expect(context == AppContext(unavailable: .timedOut))
     }
 
     @Test("names the application from the activation feed when the identity read misses the budget")
@@ -493,7 +564,7 @@ struct MacContextEngineTests {
         await started.wait()
         if expireOldRead {
             await clock.advanceWhenSomethingIsWaiting(by: MacContextEngine.budget)
-            #expect(await old.value == .unknown)
+            #expect(await old.value == AppContext(unavailable: .timedOut))
         }
         #expect(await engine.currentContext().applicationName == "Slack")
 
@@ -782,5 +853,82 @@ struct MacContextEngineTests {
 
         #expect(cut.count == MacContextEngine.selectedTextLimit + 1)
         #expect(cut.hasPrefix("🇮🇳🇮🇳"))
+    }
+}
+
+/// An application that never answers inside the budget, counted so a test can see which reads asked it.
+private final class NeverAnswering: Sendable {
+    let asked = Mutex(0)
+    let hung = Gate()
+
+    func window(_: FrontmostApplication) async -> FocusedWindow? {
+        asked.withLock { $0 += 1 }
+        await hung.wait()
+        return FocusedWindow(title: "never arrives")
+    }
+}
+
+extension MacContextEngineTests {
+    @Test("rests an application whose reads ran over twice, so later dictations ask it nothing at all")
+    func restsAnApplicationThatNeverAnswers() async {
+        let clock = GatedClock()
+        let app = NeverAnswering()
+        let engine = makeEngine(frontmost: { slack }, window: app.window, clock: clock)
+        await clock.gate.open()
+        let first = await engine.currentContext()
+        let second = await engine.currentContext()
+
+        let started = ContinuousClock.now
+        let third = await engine.currentContext()
+        let took = ContinuousClock.now - started
+        let fourth = await engine.currentContext()
+        await app.hung.open()
+
+        #expect(first.unavailable == .timedOut)
+        #expect(second.unavailable == .timedOut)
+        #expect(app.asked.withLock { $0 } == 2, "a resting application must not be asked again")
+        #expect(third.applicationName == "Slack")
+        #expect(third.unavailable == .timedOut)
+        #expect(fourth.unavailable == .timedOut)
+        #expect(took < .milliseconds(5), "a rested read took \(took)")
+    }
+
+    @Test("ends an application's rest when the user switches to it")
+    func switchingToAnApplicationEndsItsRest() async {
+        let clock = GatedClock()
+        let app = NeverAnswering()
+        let report = Mutex<(@Sendable (FrontmostApplication) -> Void)?>(nil)
+        let engine = makeEngine(
+            frontmost: { slack }, window: app.window, clock: clock,
+            observeActivations: { callback in
+                report.withLock { $0 = callback }
+                return ()
+            })
+        await clock.gate.open()
+        _ = await engine.currentContext()
+        _ = await engine.currentContext()
+        _ = await engine.currentContext()
+        report.withLock { $0 }?(slack)
+        _ = await engine.currentContext()
+        await app.hung.open()
+
+        #expect(app.asked.withLock { $0 } == 3)
+    }
+
+    @Test("does not rest an application whose read kept to the budget")
+    func answeringApplicationIsAskedEveryTime() async {
+        let asked = Mutex(0)
+        let engine = makeEngine(
+            frontmost: { slack },
+            window: { _ in
+                asked.withLock { $0 += 1 }
+                return FocusedWindow(title: "general")
+            })
+        _ = await engine.currentContext()
+        let second = await engine.currentContext()
+
+        #expect(asked.withLock { $0 } == 2)
+        #expect(second.documentName == "general")
+        #expect(second.unavailable == nil)
     }
 }

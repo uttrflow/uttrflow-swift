@@ -46,19 +46,69 @@ struct SuggestionModelBannerTests {
         #expect(shown.message.contains("Privacy & Security"))
     }
 
-    @Test("a failed corpus names the cause and recovery with a ready model")
+    @Test("a denied Accessibility permission names the setting and automatic recovery")
+    func accessibilityDenialExplainsRecovery() throws {
+        let shown = try #require(bannerForRuntime(.accessibilityDenied))
+        #expect(shown.title.contains("Accessibility"))
+        #expect(shown.message.contains("Accessibility"))
+        #expect(shown.message.contains("return"))
+    }
+
+    @Test("a failed saved suggestions file names the file and a recovery step")
     func corpusFailureWhileReady() throws {
         let shown = try #require(bannerForRuntime(.corpusFailed))
         #expect(shown.title.contains("could not start"))
-        #expect(shown.message.contains("corpus"))
-        #expect(shown.message.contains("file access"))
+        #expect(shown.message.contains("predict.v1.sqlite"))
+        #expect(shown.message.contains("Application Support"))
+        #expect(shown.message.contains("turn suggestions off and on again"))
+        #expect(!shown.message.localizedCaseInsensitiveContains("corpus"))
     }
 
-    @Test("tap setup in progress says suggestions are paused briefly")
+    @Test("first startup says suggestions are starting without claiming a restart")
     func tapStarting() throws {
         let shown = try #require(bannerForRuntime(.starting))
+        #expect(shown.title == "Starting suggestions…")
+        #expect(!shown.message.localizedCaseInsensitiveContains("restart"))
+    }
+
+    @Test("a tap recovery says suggestions are restarting")
+    func tapRestarting() throws {
+        let shown = try #require(bannerForRuntime(.restarting))
+        #expect(shown.title == "Restarting suggestions…")
+        #expect(shown.message.contains("resume automatically"))
+    }
+
+    @Test("a long tap rest keeps Settings informed")
+    func tapResting() throws {
+        let shown = try #require(bannerForRuntime(.tapResting))
         #expect(shown.title == "Suggestions are paused briefly")
         #expect(shown.message.contains("resume automatically"))
+    }
+
+    @Test("every suggestions banner avoids internal terms")
+    func suggestionBannersUsePlainWords() throws {
+        var banners: [SettingsBanner] = []
+        for runtime in [
+            SuggestionRuntimeStatus.starting, .tapResting, .restarting, .secureInputBlocked,
+            .accessibilityDenied, .tapFailed, .corpusFailed,
+        ] {
+            banners.append(try #require(bannerForRuntime(runtime)))
+        }
+        for readiness in [
+            SuggestionModelReadiness.downloading(fractionCompleted: nil),
+            .downloading(fractionCompleted: 0.4), .loading, .releasedForMemory,
+            .fetchFailed, .loadFailed, .failed,
+        ] {
+            banners.append(try #require(bannerFor(readiness)))
+        }
+        for shown in banners {
+            #expect(!shown.title.localizedCaseInsensitiveContains("key tap"))
+            #expect(!shown.message.localizedCaseInsensitiveContains("key tap"))
+            #expect(!shown.title.localizedCaseInsensitiveContains("corpus"))
+            #expect(!shown.message.localizedCaseInsensitiveContains("corpus"))
+            #expect(!shown.title.localizedCaseInsensitiveContains("weights"))
+            #expect(!shown.message.localizedCaseInsensitiveContains("weights"))
+        }
     }
 
     @Test("secure input does not report suggestions running with a ready model")
@@ -95,11 +145,12 @@ struct SuggestionModelBannerTests {
         #expect(bannerFor(.releasedForMemory, suggesting: false) == nil)
     }
 
-    @Test("loading is its own state, since it happens on every launch and no bytes move")
+    @Test("loading says what is happening without claiming it only occurs once")
     func loadingSaysSo() throws {
         let shown = try #require(bannerFor(.loading))
         #expect(shown.title == "Getting ready")
-        #expect(shown.message.contains("once per launch"))
+        #expect(shown.message == "The model is being read into memory for AI suggestions.")
+        #expect(!shown.message.contains("once per launch"))
     }
 
     @Test("a failure is shown rather than swallowed, and says what to do about it")

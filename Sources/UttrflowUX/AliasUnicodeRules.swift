@@ -3,6 +3,9 @@
 import Foundation
 
 struct AliasUnicodeRules: Sendable {
+    private static let japaneseNameScripts: Set<String> = ["Hani", "Hira", "Kana"]
+    private static let koreanNameScripts: Set<String> = ["Hani", "Hang"]
+
     private let confusables: [UInt32: String]
     private let scripts: [ScriptRange]
     private let scriptExtensions: [ScriptRange]
@@ -24,20 +27,32 @@ struct AliasUnicodeRules: Sendable {
 
     func mixesScripts(_ text: String) -> Bool {
         var sharedScripts: Set<String>?
+        var observedScripts = Set<String>()
         for scalar in text.unicodeScalars where scalar.properties.isAlphabetic {
             let candidates =
                 scriptExtensions(for: scalar.value)
                 ?? script(for: scalar.value).map { [$0] }
             guard let candidates, !candidates.isEmpty else { continue }
             if candidates.contains("Zyyy") || candidates.contains("Zinh") { continue }
+            observedScripts.formUnion(candidates)
             if sharedScripts == nil {
                 sharedScripts = Set(candidates)
             } else {
                 sharedScripts?.formIntersection(candidates)
-                if sharedScripts?.isEmpty == true { return true }
             }
         }
-        return false
+        guard sharedScripts?.isEmpty == true else { return false }
+        return !allowsStandardHanName(observedScripts)
+    }
+
+    /// Whether a mixed Han name uses only the standard Japanese or Korean script combination.
+    private func allowsStandardHanName(_ scripts: Set<String>) -> Bool {
+        let hasHan = scripts.contains("Hani")
+        let hasKana = scripts.contains("Hira") || scripts.contains("Kana")
+        let hasHangul = scripts.contains("Hang")
+        let isJapanese = scripts.isSubset(of: Self.japaneseNameScripts) && hasHan && hasKana
+        let isKorean = scripts.isSubset(of: Self.koreanNameScripts) && hasHan && hasHangul
+        return isJapanese || isKorean
     }
 
     private func scriptExtensions(for scalar: UInt32) -> [String]? {

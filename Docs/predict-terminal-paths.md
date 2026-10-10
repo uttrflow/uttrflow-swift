@@ -6,9 +6,17 @@ branch this repository never had: each costs more than no suggestion at all. So 
 line is drawn, from the corpus or from the model, `TerminalLineCheck`
 (`Sources/UttrflowPredict/TerminalLineCheck.swift`) reads the whole line the way the shell would
 and asks the disk whether everything it names is there. False negatives are accepted; a wrong path
-is not. The parser is `ShellWords`, the disk `FileSystemProbing`, the refs `GitRepository` and the
-session test `RemoteSession`, all in `Sources/UttrflowPredict`. What the machine offers before the
+is not. The parser is `ShellWords`, the disk `FileSystemProbing` and the refs `GitRepository`, all in
+`Sources/UttrflowPredict`; the session test `RemoteSession` is in `Sources/UttrflowCore/Models`. What the machine offers before the
 model writes is in [predict-agent.md](predict-agent.md).
+
+## Who owns the prompt
+
+`ShellPrompt` (`Sources/UttrflowContext/ShellPrompt.swift`) owns prompt parsing and heredoc
+detection, and `FocusedFieldSnapshot.shellInput` is the one place either reader asks it. The
+suggestion snapshot takes its `currentLine` from it; the dictation read takes its text before the
+caret from it through `CaretText.inTerminal`. So dictation sees only the shell input, never
+scrollback or the prompt, and a heredoc body or a full-screen program gives it no edges at all.
 
 ## Where it runs
 
@@ -25,9 +33,10 @@ Two rules decide what runs where:
 
 1. **A destructive line is never offered, in any field.** `DestructiveCommand.matches` reads the
    same parsed commands as the terminal path check and is asked of every line, whatever its evidence.
-   Unresolved shell syntax is refused in terminals; ordinary editor prose is not parsed as a terminal
-   command. The same test keeps destructive lines out of the corpus (`CaptureGate`), so here it
-   closes the lines the model writes and any older line already in the corpus.
+   Unresolved shell syntax is refused in every field, so a line the model writes is held to the same
+   test as a learned or machine line; ordinary editor prose without shell syntax is not parsed as a
+   terminal command. The same test keeps destructive lines out of the corpus (`CaptureGate`), so
+   here it closes the lines the model writes and any older line already in the corpus.
 2. **The path check runs only in a terminal**, meaning an application `TerminalApplications`
    names. An editor's document also has a directory for a scope, but its lines are prose, and a
    shell grammar would refuse all of them.
@@ -67,12 +76,14 @@ relative path is refused while absolute and `~` paths are still checked. A `cd` 
 the directory for the commands after it when they surely follow it (`&&`, `;`); after `||`, `|` or
 `&` the directory is unknown. `..` is folded lexically, as `cd` does.
 
-**Branches.** `GitRepository` finds `.git` by walking up from the directory, follows a linked
+**Branches.** `GitRepository` finds `.git` by walking up from the directory and follows a linked
 worktree's `gitdir:` and `commondir` only when the common `.git` directory contains its admin
-directory and the reciprocal `gitdir` points back to the worktree, then looks a ref up as a loose file under `refs/` or a line of
-`packed-refs`. A repository whose refs live in a reftable, or whose `packed-refs` is over 8 MB
-(`GitRepository.packedRefsLimit`), is not read, and its branch lines are refused. A commit hash
-is refused too, since telling one from a typo means reading the object store.
+directory and the reciprocal `gitdir` points back to the worktree. It looks a ref up as a loose
+file under `refs/` or a line of `packed-refs`. Commit selectors may add reflog (`@{...}`), peel
+(`^{...}`), ancestry (`~n` or `^n`) or message (`:/...`) operators to a known ref or `HEAD`. A
+repository whose refs live in a reftable, or whose `packed-refs` is over 8 MB
+(`GitRepository.packedRefsLimit`), is not read, and its branch lines are refused. A commit hash is
+refused too, since telling one from a typo means reading the object store.
 
 ## A session on another machine
 

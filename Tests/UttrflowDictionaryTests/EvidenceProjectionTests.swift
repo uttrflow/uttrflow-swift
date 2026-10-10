@@ -78,7 +78,9 @@ struct EvidenceProjectionTests {
                 let entry = word("Uttrflow", used: used, reverted: reverted)
                 let ledger = EvidenceLedger(rows: EvidenceLedger.migrating(entry, on: 0))
                 #expect(ledger.netUses(entry.id) == entry.netUses, "used \(used), reverted \(reverted)")
-                #expect(ledger.isTrustworthy(entry.id) == entry.isTrustworthy, "used \(used), reverted \(reverted)")
+                #expect(
+                    ledger.isTrustworthy(entry.id) == entry.isTrustworthy,
+                    "used \(used), reverted \(reverted)")
             }
         }
     }
@@ -91,7 +93,9 @@ struct EvidenceProjectionTests {
         let entry = word("kubectl", from: .added)
         try await store.add(entry)
 
-        let steps: [EvidenceRow.Kind] = [.use, .use, .revert, .use, .revert, .revert, .restore, .use, .revert]
+        let steps: [EvidenceRow.Kind] = [
+            .use, .use, .revert, .use, .revert, .revert, .restore, .use, .revert,
+        ]
         var ledger = EvidenceLedger()
         for (day, step) in steps.enumerated() {
             let stored: DictionaryEntry?
@@ -105,7 +109,8 @@ struct EvidenceProjectionTests {
             #expect(ledger.netUses(entry.id) == current.netUses, "after step \(day)")
             #expect(ledger.isTrustworthy(entry.id) == current.isTrustworthy, "after step \(day)")
             #expect(ledger.compacted().netUses(entry.id) == current.netUses, "compacted, after step \(day)")
-            #expect(ledger.compacted().isTrustworthy(entry.id) == current.isTrustworthy, "compacted, step \(day)")
+            #expect(
+                ledger.compacted().isTrustworthy(entry.id) == current.isTrustworthy, "compacted, step \(day)")
         }
     }
 }

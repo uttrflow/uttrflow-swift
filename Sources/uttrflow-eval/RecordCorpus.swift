@@ -10,7 +10,8 @@ struct RecordCorpus: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "record",
         abstract: "Read the evaluation passages aloud and keep them. Resumable, and uploadable.",
-        discussion: "A recording is personal data: never commit one. `make audio-audit` refuses audio in the tree."
+        discussion:
+            "A recording is personal data: never commit one. `make audio-audit` refuses audio in the tree."
     )
 
     @OptionGroup var connection: CorpusConnection
@@ -19,7 +20,7 @@ struct RecordCorpus: AsyncParsableCommand {
     var corpusPath = TranscriptionCorpusStore.defaultDirectoryName
 
     /// Short and slug-safe, because it becomes part of the sample's name in the bucket; see ``validate()``.
-    @Option(name: .long, help: "Which recording cohort this sitting belongs to, e.g. naveen-quiet.")
+    @Option(name: .long, help: "Which recording cohort this sitting belongs to, e.g. avery-quiet.")
     var cohort: String?
 
     @Option(name: .long, help: "Who is reading, as a label rather than a name.")

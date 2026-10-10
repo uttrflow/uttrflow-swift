@@ -22,6 +22,8 @@ struct Node: Equatable {
 /// Which attributes a read asked, in order, so a test can count the messages one read sends.
 final class MessageLog {
     var asked: [String] = []
+    /// The range of every ranged read, so a test can bound how much text one read copies.
+    var ranges: [NSRange] = []
 }
 
 /// A deadline an hour after the read starts, so only the caps decide what a test's read comes to.
@@ -43,6 +45,8 @@ struct FakeTree: ElementTree {
     var visits: VisitCounter? = nil
     var textReads: TextReadLog? = nil
     var messages: MessageLog? = nil
+    /// Whether several attributes go in one message, as Accessibility batches them, or one message each.
+    var batches = true
 
     func role(of element: Node) -> String? { element.role }
     func subrole(of element: Node) -> String? { element.subrole }
@@ -68,9 +72,36 @@ struct FakeTree: ElementTree {
         return element.answers[name] ?? .unsupported
     }
 
+    /// A batch is logged as one message, its attributes joined, unless the tree is set not to batch.
+    func attributes(_ names: [String], of element: Node) -> [FieldAnswer] {
+        guard batches else { return names.map { attribute($0, of: element) } }
+        messages?.asked.append(names.joined(separator: "+"))
+        return names.map { element.answers[$0] ?? .unsupported }
+    }
+
+    /// The marker rung answers what the node holds under `AXSelectedTextMarkerRange`, logged as one message.
+    func markerSelection(of element: Node) -> MarkerSelection? {
+        messages?.asked.append("AXSelectedTextMarkerRange")
+        return element.answers["AXSelectedTextMarkerRange"].flatMap {
+            guard case .value(let value) = $0 else { return nil }
+            return value as? MarkerSelection
+        }
+    }
+
+    /// The marker rung's rectangle is what the node holds under `AXBoundsForTextMarkerRange`, logged as one message.
+    func markerBounds(of element: Node) -> CGRect? {
+        messages?.asked.append("AXBoundsForTextMarkerRange")
+        return element.answers["AXBoundsForTextMarkerRange"]?.object as? CGRect
+    }
+
+    /// A title and a document come with the node's shape, as Accessibility batches them, so neither is a message.
+    func title(of element: Node) -> String? { element.answers["AXTitle"]?.string }
+    func document(of element: Node) -> String? { element.answers["AXDocument"]?.string }
+
     /// A ranged read cuts the node's `AXValue` answer, or refuses as the node says for `AXStringForRange`.
     func attribute(_ name: String, of element: Node, range: NSRange) -> FieldAnswer {
         messages?.asked.append(name)
+        messages?.ranges.append(range)
         if let refusal = element.answers[name] { return refusal }
         guard let whole = element.answers["AXValue"]?.string,
             let cut = Range(range, in: whole)

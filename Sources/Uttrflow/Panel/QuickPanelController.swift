@@ -14,8 +14,8 @@ final class QuickPanel: NSPanel {
     /// Whether the footer offers ⌘Z to put a deleted clip back, kept current by the controller's draw.
     var offersRestore = false
 
-    /// Applies a row chord before the application menu can claim it.
-    var onRowChord: ((PanelChord) -> Void)?
+    /// Applies a row chord before the application menu can claim it; false when no row takes it, so it is passed on.
+    var onRowChord: ((PanelChord) -> Bool)?
 
     /// Restores a deleted row after the offer claims ⌘Z.
     var onUndo: (() -> Void)?
@@ -23,13 +23,19 @@ final class QuickPanel: NSPanel {
     /// Handles a panel chord before the main menu can swallow it, as Minimise does ⌘M.
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if let chord = Self.rowChord(event) {
-            onRowChord?(chord)
-            return true
+            // A composing input method owns its keys until it commits. See `PanelComposition`.
+            guard !Self.isComposing(in: self) else { return false }
+            return onRowChord?(chord) ?? false
         }
         guard Self.claimsUndo(event, offersRestore: offersRestore, fieldCanUndo: fieldCanUndo)
         else { return super.performKeyEquivalent(with: event) }
         onUndo?()
         return true
+    }
+
+    /// Whether `window`'s field editor holds marked text, which is the one thing a key handler cannot read from the key.
+    static func isComposing(in window: NSWindow?) -> Bool {
+        (window?.firstResponder as? NSTextView)?.hasMarkedText() ?? false
     }
 
     /// Whether the search field has typing to take back, which ⌘Z undoes before it restores a clip.
@@ -42,7 +48,9 @@ final class QuickPanel: NSPanel {
         guard event.type == .keyDown, offersRestore || !fieldCanUndo else { return false }
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         return modifiers.subtracting(.capsLock) == .command
-            && event.keyCode == PanelChord("z").keyCode
+            && PanelChord("z").matches(
+                characters: event.charactersIgnoringModifiers ?? "", keyCode: event.keyCode,
+                shifted: modifiers.contains(.shift))
     }
 
     /// Whether `event` is ⌘, with or without ⇧, on a key some row action is bound to.
@@ -50,14 +58,16 @@ final class QuickPanel: NSPanel {
         rowChord(event) != nil
     }
 
-    /// The row action bound to this physical key and modifier combination, independent of its produced character.
+    /// The action named by the produced letter, or by its US position when no Latin letter is produced.
     static func rowChord(_ event: NSEvent) -> PanelChord? {
         guard event.type == .keyDown else { return nil }
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         guard modifiers.contains(.command), modifiers.isDisjoint(with: [.option, .control])
         else { return nil }
         return PanelRowAction.allCases.first {
-            $0.chord.keyCode == event.keyCode && $0.chord.isShifted == modifiers.contains(.shift)
+            $0.chord.matches(
+                characters: event.charactersIgnoringModifiers ?? "", keyCode: event.keyCode,
+                shifted: modifiers.contains(.shift))
         }?.chord
     }
 }
@@ -172,7 +182,8 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
     var insertionDestination: InsertionDestination? {
         guard let caretOwner else { return nil }
         return InsertionDestination(
-            applicationName: caretOwner.localizedName, bundleIdentifier: caretOwner.bundleIdentifier)
+            applicationName: caretOwner.localizedName, bundleIdentifier: caretOwner.bundleIdentifier,
+            processIdentifier: caretOwner.processIdentifier)
     }
     /// Live only while the panel is on screen; see ``watchForLeaving()``.
     private var clicks: Any?
@@ -259,7 +270,12 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
     /// Made once, so every root the panel draws carries the same callbacks.
     private lazy var keyRelay: (PanelKey) -> Void = { [weak self] key in self?.relay(key) }
     private lazy var intentRelay: (PanelIntent) -> Void = { [weak self] intent in
-        self?.onIntent?(intent, self?.caretOwner)
+        guard let self else { return }
+        PanelIntentRouting.forward(intent, through: presentation.sheet) {
+            [weak self] intent in
+            guard let self else { return }
+            self.onIntent?(intent, self.caretOwner)
+        }
     }
 
     private func postNewAnnouncements(_ presentation: PanelPresentation) {
@@ -282,7 +298,7 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
 
     /// Reports keys to the app; the resolved panel outcome decides whether Escape closes the window.
     private func relay(_ key: PanelKey) {
-        onKey?(key, caretOwner)
+        PanelShortcutHelpWindow.route(key, relativeTo: panel, relay: onKey, caretOwner: caretOwner)
     }
 
     /// Deliberately empty: losing key is not the user leaving, and a notification banner takes key too.
@@ -381,8 +397,9 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
         panel.onRowChord = { [weak self] chord in
             guard let self, self.presentation.sheet?.takesTyping != true,
                 let intent = self.presentation.intent(for: chord)
-            else { return }
+            else { return false }
             self.intentRelay(intent)
+            return true
         }
         panel.onUndo = { [weak self] in
             guard let self, self.presentation.sheet?.takesTyping != true else { return }

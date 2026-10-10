@@ -1,0 +1,86 @@
+{
+  "entries" : [
+    {
+      "caseID" : "en-message",
+      "cohortID" : "synthesised-samantha",
+      "errors" : 1,
+      "isUnscorable" : false,
+      "language" : "english",
+      "recordingIdentity" : "sha256:9fb8221381b0f6b62f5063da2b20b81a82ee49ac53f64d6927036b909b075617",
+      "referenceWordCount" : 57,
+      "stresses" : [
+        "everyday"
+      ]
+    },
+    {
+      "caseID" : "en-people",
+      "cohortID" : "synthesised-samantha",
+      "errors" : 1,
+      "isUnscorable" : false,
+      "language" : "english",
+      "recordingIdentity" : "sha256:1e71a35c1b749b3a7376007855a01d80a0b72400418b84f25207815b610c0ee3",
+      "referenceWordCount" : 51,
+      "stresses" : [
+        "properNouns"
+      ]
+    },
+    {
+      "caseID" : "en-restarts",
+      "cohortID" : "synthesised-samantha",
+      "errors" : 0,
+      "isUnscorable" : false,
+      "language" : "english",
+      "recordingIdentity" : "sha256:eb8334e5f0cf3b4668552f05b00ef88549c6c55d7b0d86c8bf9f530eba9cda7d",
+      "referenceWordCount" : 46,
+      "stresses" : [
+        "falseStarts"
+      ]
+    },
+    {
+      "caseID" : "en-standup",
+      "cohortID" : "synthesised-samantha",
+      "errors" : 0,
+      "isUnscorable" : false,
+      "language" : "english",
+      "recordingIdentity" : "sha256:b1fe9d9a4cc62ad61f0480fc36ef9716e4f50d7ee5eef0d79d5361ddf51cb482",
+      "referenceWordCount" : 48,
+      "stresses" : [
+        "everyday"
+      ]
+    },
+    {
+      "caseID" : "en-terms",
+      "cohortID" : "synthesised-samantha",
+      "errors" : 6,
+      "isUnscorable" : false,
+      "language" : "english",
+      "recordingIdentity" : "sha256:354f82f6270f142dc86f08e344aa61c2ac1da5c17651135e51922b303ee8a353",
+      "referenceWordCount" : 53,
+      "stresses" : [
+        "technical"
+      ]
+    },
+    {
+      "caseID" : "en-versions",
+      "cohortID" : "synthesised-samantha",
+      "errors" : 3,
+      "isUnscorable" : false,
+      "language" : "english",
+      "recordingIdentity" : "sha256:f04d1b62daf3c147638ff45854cd2a8cac848249d25265e772b811879d1d24f8",
+      "referenceWordCount" : 50,
+      "stresses" : [
+        "digits"
+      ]
+    }
+  ],
+  "label" : "whisperKit openai_whisper-large-v3-v20240930_turbo_632MB, language detected",
+  "normalisation" : [
+    "caseFolding",
+    "apostropheFolding",
+    "punctuationAsSeparators",
+    "devanagariDigits",
+    "numberWords",
+    "spokenDecimalPoint"
+  ],
+  "recordedAt" : "2026-10-04T11:19:15Z"
+}

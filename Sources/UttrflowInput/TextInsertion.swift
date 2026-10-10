@@ -10,14 +10,20 @@ public enum TextInsertion {
         guard !Task.isCancelled else { throw .insertionRejected(description: dictationEnded) }
     }
 
-    /// Refuses when the captured destination is no longer the frontmost application; nil captures nothing to check.
+    /// Refuses when the captured application, or the captured field within it, is no longer in front; nil checks nothing.
     static func requireTarget(
         _ destination: InsertionDestination?, focus: any AccessibilityFocus
     ) throws(TextInsertionError) {
         guard let destination else { return }
-        guard destination.isKnown, let expected = destination.bundleIdentifier,
-            focus.focusedApplication()?.bundleIdentifier == expected
+        // The window the field was read in has closed, so whatever is focused now is not where the words were meant.
+        if let window = destination.field?.windowNumber, focus.windowIsOpen(window) == false {
+            throw .insertionFieldClosed
+        }
+        guard let application = focus.focusedApplication(), destination.isSameApplication(as: application)
         else { throw .insertionTargetChanged }
+        // A field that cannot be read now is not proof of a switch, so only a readable different field refuses.
+        guard let field = destination.field, let current = focus.focusedFieldIdentity() else { return }
+        guard field.isSameField(as: current) else { throw .insertionTargetChanged }
     }
 
     /// Accessibility, then pasting, typing and optionally the clipboard; `only` keeps one of them. See `Docs/insertion.md`.
@@ -35,7 +41,7 @@ public enum TextInsertion {
             AccessibilityTextInsertionEngine(focus: focus),
             PasteboardTextInsertionEngine(
                 focus: focus, pasteboard: pasteboard, keystrokes: keystrokes,
-                confirmsArrival: confirmsArrival,
+                confirmsArrival: confirmsArrival, keepsWordsWhenRefused: clipboardFallback,
                 reporting: reporting),
         ]
         if clipboardFallback {
@@ -50,13 +56,14 @@ public enum TextInsertion {
     /// Dictation never writes the clipboard: after Accessibility, it types or leaves the transcript for explicit copy.
     public static func dictation(
         focus: any AccessibilityFocus = AXAccessibilityFocus(),
-        typist: any KeystrokeTyping = CGEventTypist()
+        typist: any KeystrokeTyping = CGEventTypist(),
+        ledger: InsertionLedger? = nil
     ) -> TextInsertionCoordinator {
         TextInsertionCoordinator(
             strategies: [
                 AccessibilityTextInsertionEngine(focus: focus),
                 TypedTextInsertionEngine(focus: focus, typist: typist),
-            ], focus: focus)
+            ], focus: focus, ledger: ledger ?? InsertionLedger())
     }
 
     /// The route an accepted suggestion takes, which has no clipboard in it at all. See `Docs/predict-accept.md`.

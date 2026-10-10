@@ -19,10 +19,10 @@ UTTRFLOW_PROBE_AUDIO=/path/a.wav,/path/b.wav swift test --filter DecoderEvidence
 |---|---|---|---|
 | Log-probability of each chosen token | yes, already returned | `TranscriptionSegment.tokenLogProbs`, one `[token: logProb]` per token | none |
 | Per-word probability | yes, used today | `WordTiming.probability`, exp of the mean token log-probability | none |
-| Top-k alternatives at a position | not returned; readable from the logits | a logits filter, or a substituted `TokenSampling` | 0.31 to 0.39 ms per step, median |
+| Top-k alternatives at a position | carried: up to 5 leaders beside the chosen token in `tokenLogProbs` | `EvidenceSampler`, passed in by `LanguageHeldDecoder.decodeText` | 0.31 to 0.39 ms per step, median |
 | No-speech probability | **no**: always 0 | TextDecoder.swift:817 writes the constant | n/a |
 | No-speech token at the first sampled step | readable, but measured ~0 even on silence | logits filter | as top-k |
-| Substituting the sampler | yes, only by wrapping the `TextDecoding` | `LanguageHeldDecoder.decodeText` | none |
+| Substituting the sampler | yes: the repository owns the loop ([decode-session.md](decode-session.md)) | `DecodeSession.decode`, called by `LanguageHeldDecoder.decodeText` | none |
 
 ## Per-token log-probabilities
 
@@ -79,7 +79,116 @@ UTTRFLOW_PROBE_AUDIO=/path/a.wav,/path/b.wav swift test --filter DecoderEvidence
 
 - Re-ranking by alternatives is feasible without forking WhisperKit: a recorder or wrapping
   sampler gives the top-k at every sampled position for under 3% of decode time.
-- Per-token log-probabilities are already in the results and are dropped at the backend
+- `EvidenceSampler` now does this: it wraps WhisperKit's sampler, samples exactly as it does,
+  and adds each position's leaders to that token's `tokenLogProbs` entry, so they travel through
+  WhisperKit's segmenting unchanged. The chosen token keeps the sampler's own value. Leaders are
+  log-probabilities over the filtered logits at temperature 0; on a fallback at a higher
+  temperature the chosen value is the sampler's and is not on the same scale.
+- Wrapping hides the sampler from WhisperKit's `as? GreedyTokenSampler` read of the temperature
+  (TextDecoder.swift:812), so `LanguageHeldDecoder` restores it.
+- Per-token log-probabilities and leaders are in the results and are dropped at the backend
   mapping, where only the per-word probability survives.
+- Entropy has no slot in WhisperKit's result types, so it is kept in a record of the repo's own:
+  `EvidenceSampler` computes each step's entropy in nats from the logits it already reads, and
+  `LanguageHeldDecoder` appends one `DecodeWindowEvidence` per decode window, fallback retries
+  included, to its `DecodeWindowLog`. The log keeps its newest 64 windows until drained.
 - A no-speech probability is not available and the first-step token is not a substitute;
   anything gated on it needs another signal.
+
+## Word-level doubt features
+
+The per-word probability is the exp of the mean token log-probability, so a word whose first
+token was doubtful and whose later tokens were certain is averaged toward certainty. The
+candidate replacements, all computed from the same per-token evidence, live in
+`WordDoubtFeature` (`Sources/UttrflowEval/WordDoubtFeatures.swift`); each is a certainty where
+lower means more doubtful:
+
+| Feature | Definition |
+|---|---|
+| `mean` | exp of the mean token log-probability: today's score, unrounded |
+| `minimum` | the least probable token |
+| `firstToken` | the first token's probability |
+| `firstMargin` | the first token's probability minus its strongest runner-up's |
+| `negatedEntropy` | minus the mean entropy of the leading tokens, renormalised |
+
+`WordDoubtEvaluation` scores a feature as a detector of "this word differs from the reference":
+AUROC, recall at a required precision, and a 95% interval from resampling whole clusters (a voice
+or a speaker), so one voice cannot narrow the interval.
+
+Each recognised word now carries its per-token records (`TranscribedWord.tokens`: the chosen
+log-probability and the runners-up `EvidenceSampler` keeps), matched from the segment's steps in
+`WhisperKitBackend`. `uttrflow-eval word-doubt` decodes the English corpus passages and the
+homophone carriers in `say` voices, with seeded white noise, aligns each decode with the reading
+by minimum edit, and prints every feature's AUROC and recall at a required precision with
+voice-clustered intervals, overall and by noise level and voice.
+
+Reduced run: 60 sentences, four voices (Samantha, Daniel, Karen, Rishi), clean and 10 dB,
+large-v3 turbo; 4,990 scored words, 213 wrong. Synthetic voices only, so it says nothing about
+accented or disfluent human speech. With four clusters the intervals are wide; the full run
+(all sentences, six voices, clean, 20 and 10 dB) is queued for an idle machine.
+
+| Feature | AUROC (95% CI) | Recall at 50% precision (95% CI) | AUROC clean | AUROC 10 dB |
+|---|---|---|---|---|
+| `mean` | 0.85 (0.84–0.86) | 0.22 (0.11–0.28) | 0.82 | 0.86 |
+| `minimum` | 0.85 (0.85–0.86) | 0.22 (0.05–0.30) | 0.83 | 0.86 |
+| `firstToken` | 0.82 (0.81–0.83) | 0.17 (0.05–0.27) | 0.78 | 0.84 |
+| `firstMargin` | 0.82 (0.80–0.82) | 0.01 (0.00–0.06) | 0.77 | 0.83 |
+| `negatedEntropy` | 0.84 (0.83–0.85) | 0.26 (0.20–0.33) | 0.81 | 0.85 |
+
+Ranking is close on AUROC, but only `negatedEntropy` keeps recall at 50% precision in every voice
+(0.17 to 0.35; `minimum` and `firstToken` fall to 0 for Karen), so it is the chosen doubt feature;
+see [decisions.md](decisions.md). `firstMargin` is not usable as a flag.
+
+### Calibrated doubt flag
+
+`DoubtDetector` (`Sources/UttrflowEval/DoubtDetector.swift`) turns any feature into a flag chosen
+from the data, never from a fixed constant: the threshold is the highest certainty whose flags
+still reach the required precision. Recall and precision are reported on held-out flags, each
+voice graded by the threshold chosen on the other voices, so a flag cannot grade itself. Each
+feature is also scored relative to its sentence (certainty less the sentence's median), because a
+fixed line cannot see a programmer homophone heard at 0.97 while the ranking still separates it.
+
+`uttrflow-eval word-doubt` prints, per feature and per voice, beside the AUROC table:
+
+| Column | Meaning |
+|---|---|
+| Threshold | the flag chosen on every voice |
+| Recall | wrong words flagged by the held-out flag, over wrong words |
+| Precision | held-out flags that are wrong words, over flags |
+| Confident errors flagged | wrong words today's 0.5 gate hears surely that the flag catches |
+| Ceiling | wrong words whose read word `DoubtfulWords.standard` offers among a span's readings: the most any scorer can fix |
+| Reachable | wrong words both flagged and offered |
+
+A low ceiling means the work is candidate generation, not the flag or the scorer. A voice's row
+counts only that voice's words, graded by the flag chosen on the other five, and its threshold
+is that flag.
+
+Reduced run: the first 20 English passages, six voices (Samantha, Daniel, Karen, Rishi, Moira,
+Tessa), clean and 10 dB, large-v3 turbo; 4,706 scored words, 231 wrong, 178 of them heard surely
+by today's 0.5 gate. Synthetic voices only, and no homophone carriers; recorded human speech was
+not on the measuring machine. Flags at 50% precision, held out by voice:
+
+| Feature | Threshold | Recall | Precision | Confident errors flagged | Ceiling | Reachable |
+|---|---|---|---|---|---|---|
+| `mean` | 0.553 | 69/231 (0.30) | 69/141 (0.49) | 16/178 (0.09) | 4/231 (0.02) | 2/231 (0.01) |
+| `minimum` | 0.457 | 63/231 (0.27) | 63/130 (0.48) | 18/178 (0.10) | 4/231 (0.02) | 2/231 (0.01) |
+| `firstToken` | 0.503 | 65/231 (0.28) | 65/129 (0.50) | 16/178 (0.09) | 4/231 (0.02) | 1/231 (0.00) |
+| `firstMargin` | 0.036 | 15/231 (0.06) | 15/29 (0.52) | 1/178 (0.01) | 4/231 (0.02) | 0/231 (0.00) |
+| `negatedEntropy` | -0.901 | 76/231 (0.33) | 76/154 (0.49) | 28/178 (0.16) | 4/231 (0.02) | 3/231 (0.01) |
+| `negatedEntropy` relative | -0.829 | 62/231 (0.27) | 62/122 (0.51) | 19/178 (0.11) | 4/231 (0.02) | 2/231 (0.01) |
+
+`negatedEntropy` keeps the highest recall and confident-error recall, and its held-out recall
+stays between 0.30 and 0.40 in every voice. Scoring relative to the sentence lowers recall for
+every feature here. The ceiling decides the next step: `DoubtfulWords.standard` offers the read
+word for 4 of 231 wrong words (95% interval 0.01 to 0.04), so no flag or scorer can fix more than
+2% of these errors. The work is candidate generation, not the flag or the scorer.
+
+### Typed word certainty
+
+`TranscribedWord.certainty` is a `WordCertainty`: `.decoder` when the word carries token evidence
+(`DecoderCertainty`, unrounded mean probability and negated entropy, computed once in
+`UttrflowCore` and read by the eval features), `.reported` when an engine gave only a whole-word
+value. The two cases never compare equal; `gateConfidence` is the one explicit conversion to the
+0-to-1 scale `DoubtPolicy.certaintyThreshold` is set on. The decoder words no longer take
+WhisperKit's two-decimal word probability. The gate still reads the unrounded mean: moving it to
+`negatedEntropy` needs that feature's operating point from the full run, which is queued.

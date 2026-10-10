@@ -30,6 +30,7 @@ would lose precisely the words worth having.
 | Constant | Value | Meaning |
 |---|---|---|
 | `VocabularyPrompt.maximumTokens` | 111 | the prompt budget |
+| `VocabularyPrompt.maximumLeadTokens` | 48 | the most of it the text before the caret may take |
 | `WorkingSet.defaultLimit` | 28 words | how many dictionary words usually fit beside the rest |
 | `WorkingSet.newAdditionPriorityDays` | 7 days | a word added by hand ranks ahead of older entries for this long |
 | `WorkingSet.recencyHalfLifeInDays` | 30 days | the age at which a word's value halves |
@@ -50,6 +51,15 @@ between words, because dropping a word that will not fit must not leave its sepa
 
 Special tokens are filtered out of every piece. WhisperKit discards them itself, so filtering
 here as well is what keeps the count being budgeted equal to the count that survives.
+
+## The text before the caret comes last
+
+The sentence or two before the caret (`TranscriptionOptions.precedingText`, read once per
+dictation and `nil` in a secure field; see [`context-budget.md`](context-budget.md)) follows the
+vocabulary sentence, so the decoder continues from the user's own words. It keeps its last whole
+words within `maximumLeadTokens`, and the vocabulary packs into what is left. A decode that comes
+back empty is retried with no prompt at all. The dictation bench's developer-vocabulary
+categories measure what a lead-in sentence is worth to recognition.
 
 ## The sentence around the words is the surprise
 
@@ -150,6 +160,13 @@ overwrites it, so a two-minute dictation is biased just as strongly at the end a
 start. It costs the prefill cache and part of each window's decode budget, which is why the
 111 tokens are a ceiling rather than a target.
 
+Inside that ceiling the listed words take at most `VocabularyPrompt.maximumWordTokens` (48),
+because every prompt token is a forced decoder step before the first word (about 1.3 s for a
+102-token prompt on a 10 s dictation, measured in #479). The best-ranked word always gets
+its place, so the longest spelling the dictionary keeps still fits. `WorkingSet` offers a
+word only when it is worth those steps: kept at least once, on screen, used lately in the
+evidence ledger, or added in the last 30 days. Anything else is shown as "Idle".
+
 ## A saved prompt cache belongs to the audio it was computed on
 
 Each decoder block runs self-attention and then cross-attention over the encoder output, so
@@ -197,3 +214,56 @@ encode costs them the dictation.
 The arithmetic above is checked against a tokeniser a test writes in three lines rather than
 against a 646 MB download. Its only real implementation adapts WhisperKit's own and lives in
 `WhisperKitBackend.swift`. `firstSpecialToken` is what the special-token filter compares against.
+
+## The prompt is not played back from non-speech
+
+A conditioned decoder given no evidence could continue its prompt, typing the listed words or
+the opening sentence from audio that said neither. `uttrflow-eval nonspeech --vocabulary <words>`
+conditions every clip of the non-speech corpus on those words and counts a clip as an echo when
+the words after the last spoken one are prompt words in prompt order, the opening sentence
+included; `--max-echo-rate` gates it.
+
+Measured on Apple M5 Pro with the shipping turbo model, 66 clips (six non-speech kinds, three
+seeds each, plus eight `say` sentences in one voice followed by each kind), with 20 invented
+names and five words the sentences really say ("bakery", "kettle", "printer", "folder",
+"plants"):
+
+| Prompt | Echoed | Inserted | Spoken dictionary words dropped |
+|---|---|---|---|
+| none | 0 of 66 | 1 of 66 | 0 |
+| 20 words | 0 of 66 | 1 of 66 | 0 |
+
+The one insertion is a breath clip in both runs ("The End" with the prompt), so the prompt adds
+none. With no echo found, no echo check runs at transcript assembly; the empty-result
+retry without the prompt in `CappedDecodeRetry` stays the only prompt-specific recovery.
+
+## Prompt words, decode-time bias or a previous sentence
+
+Three mechanisms can carry the user's words to the decoder: the word list in the prompt (A), the
+phrase bias of [speech-phrase-bias.md](speech-phrase-bias.md) without the words in the prompt (B),
+a previous sentence that names them (C), and B with C (D). Arm 0 has none of them.
+
+```bash
+uttrflow-dev transcribe <clip> --raw --language en --bias "<names>"                                   # A
+uttrflow-dev transcribe <clip> --raw --language en --bias "<names>" --no-prompt-words --phrase-bias 4 # B
+uttrflow-dev transcribe <clip> --raw --language en --after "<sentence naming them>"                   # C
+```
+
+Host: Apple M5 Pro, 48 GB, `openai_whisper-large-v3-v20240930_turbo_632MB`, shared with another
+recogniser run, so times are noisy. 32 clips from `say` (Samantha at 175 and Daniel at 260 words a
+minute): 16 sentences with six invented names, 16 without them.
+
+| Arm | Persona words missed | Other-word errors / words | Persona words inserted in name-free clips | Median time | p95 time |
+|---|---|---|---|---|---|
+| 0 | 13 of 34 | 18 / 248 | 0 | 1.13 s | 9.96 s |
+| A | 0 of 34 | 4 / 248 | 0 | 2.25 s | 20.99 s |
+| B | 7 of 34 | 12 / 248 | 0 | 1.26 s | 6.57 s |
+| C | 0 of 34 | 4 / 248 | 0 | 2.50 s | 9.59 s |
+| D | 0 of 34 | 4 / 248 | 0 | 2.51 s | 16.44 s |
+
+The phrase bias alone recovers about half of the names the bare decoder misses, because it never
+starts a word; the prompt word list recovers all of them with no insertion. The prompt word list
+stays the one bias mechanism and the phrase bias stays off. A previous sentence only helps here
+because it names the same words, so it adds nothing beside the list. The prompt costs roughly a
+second of median time. The full run on recorded speech, with paired intervals, is what retires the
+phrase bias code.

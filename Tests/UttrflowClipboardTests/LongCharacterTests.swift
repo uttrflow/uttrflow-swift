@@ -4,6 +4,7 @@ import Foundation
 import Testing
 
 @testable import UttrflowClipboard
+@testable import UttrflowCore
 
 @Suite("A clip holding one very long character")
 struct LongCharacterTests {

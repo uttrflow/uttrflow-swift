@@ -10,6 +10,9 @@ public enum TranscriptionCorpus {
         all.filter { $0.stressor == stressor }
     }
 
+    /// Hinglish read by a synthetic Indian-English voice, kept out of ``all`` because nobody reads it aloud.
+    public static let codeMixing: [TranscriptionCase] = CodeMixingPassages.all
+
     public static func passage(_ id: String) -> TranscriptionCase? {
         all.first { $0.id == id }
     }

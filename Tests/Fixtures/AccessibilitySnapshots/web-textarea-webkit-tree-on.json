@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "family": "web textarea, webkit engine, full tree on",
+  "windowTitle": "Example Domain",
+  "document": "https://example.com/compose",
+  "focused": {
+    "attributes": {
+      "AXRole": {
+        "kind": "value",
+        "text": "AXTextArea"
+      },
+      "AXSubrole": {
+        "kind": "noValue"
+      },
+      "AXIdentifier": {
+        "kind": "noValue"
+      },
+      "AXPlaceholderValue": {
+        "kind": "noValue"
+      },
+      "AXDescription": {
+        "kind": "noValue"
+      },
+      "AXNumberOfCharacters": {
+        "kind": "value",
+        "number": 17
+      },
+      "AXValue": {
+        "kind": "value",
+        "text": "Lorem ipsum dolor"
+      },
+      "AXSelectedTextRange": {
+        "kind": "value",
+        "number": 11
+      }
+    },
+    "rangedText": {
+      "kind": "value"
+    },
+    "children": []
+  }
+}

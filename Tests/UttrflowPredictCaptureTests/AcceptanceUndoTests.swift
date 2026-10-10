@@ -96,4 +96,33 @@ struct AcceptanceUndoTests {
             #expect(try await evidence(of: "git status --short", in: store)?.accepted == 1, "\(ending)")
         }
     }
+
+    @Test("An accepted line edited before Return records the final line without an acceptance count.")
+    func editedAcceptanceLearnsTheCommittedLine() async throws {
+        let scratch = Scratch()
+        let (session, store) = try await opened(scratch)
+        let prefix = "I will send the report "
+        let acceptedText = prefix + "tomorrow."
+        let finalText = prefix + "today."
+        let surface = try #require(shell.surface)
+        try await store.record(acceptedText, in: surface, at: accepted - 60)
+
+        _ = try await session.handle(.keystroke(prefix, at: accepted), in: shell)
+        _ = try await session.accepted(acceptedText, over: prefix, in: shell, at: accepted)
+        #expect(try await evidence(of: acceptedText, in: store)?.accepted == 1)
+
+        _ = try await session.handle(.typed("today.", at: accepted + 1), in: shell)
+        _ = try await session.handle(.keystroke(finalText, at: accepted + 1), in: shell)
+        let outcome = try await session.handle(.returnPressed(at: accepted + 2), in: shell)
+
+        #expect(outcome == .recorded(finalText))
+        let original = try #require(try await evidence(of: acceptedText, in: store))
+        #expect(original.count == 1)
+        #expect(original.accepted == 0)
+        #expect(original.selfSourced == 0)
+        let final = try #require(try await evidence(of: finalText, in: store))
+        #expect(final.count == 1)
+        #expect(final.accepted == 0)
+        #expect(final.selfSourced == 0)
+    }
 }

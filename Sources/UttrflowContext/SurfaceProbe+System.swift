@@ -1,4 +1,4 @@
-import ApplicationServices
+public import ApplicationServices
 import Foundation
 import UttrflowCore
 
@@ -10,6 +10,15 @@ public enum SurfaceProbe {
     /// The suggestion loop's own reading of the focused field, so the capability table says what the feature will do.
     public static func read(of app: FrontmostApp) -> SurfaceCapability? {
         FocusedFieldReader.snapshot(app: app)?.capability
+    }
+
+    /// The app's focused field and its window as a redacted fixture, or nothing when no field is focused.
+    public static func snapshot(of app: FrontmostApp, family: String) -> AccessibilitySnapshot? {
+        guard let field = focusedField(of: app.processIdentifier) else { return nil }
+        let window = element(field, kAXWindowAttribute).map { FocusedFieldReader.AXNode($0) }
+        return SnapshotRecorder.record(
+            family: family, field: FocusedFieldReader.AXNode(field), window: window,
+            in: FocusedFieldReader.AXElementTree(), clock: { DispatchTime.now().uptimeNanoseconds })
     }
 
     /// Asks system-wide first and the application second, because apps answer only one. See `Docs/insertion.md`.
@@ -50,18 +59,13 @@ public enum SurfaceProbe {
 
     /// The focused field's selection, refusing to guess at a multi-range caret.
     static func selection(_ field: AXUIElement) -> AccessibilitySelection {
-        let plural = attribute(field, kAXSelectedTextRangesAttribute)
-        if let ranges = plural as? [AnyObject], ranges.count > 1 {
-            return .discontinuous
-        }
-        let pluralRanges = (plural as? [AnyObject])?.compactMap { unwrap($0, .cfRange) as CFRange? }
-        return AccessibilitySelection.resolve(
-            singular: value(field, kAXSelectedTextRangeAttribute, .cfRange), plural: pluralRanges,
-            textLength: integer(field, kAXNumberOfCharactersAttribute))
+        FocusedFieldRead.selection(
+            of: FocusedFieldReader.AXNode(keepingTimeout: field), in: FocusedFieldReader.AXElementTree(),
+            decode: .accessibility)
     }
 
     /// What names the field, asked in one message: its role and the four names it may publish for itself.
-    static func names(of field: AXUIElement) -> FieldNames {
+    public static func names(of field: AXUIElement) -> FieldNames {
         FocusedFieldRead.names(
             of: FocusedFieldReader.AXNode(keepingTimeout: field), in: FocusedFieldReader.AXElementTree())
     }
@@ -73,11 +77,23 @@ public enum SurfaceProbe {
             names: names, at: range.map { NSRange(location: $0.location, length: $0.length) })
     }
 
-    /// The screen rectangle Accessibility reports for one text range, which decides whether a ghost can be drawn.
-    static func bounds(_ field: AXUIElement, at range: CFRange) -> CGRect? {
-        let rect: CGRect? = unwrap(
-            parameterized(field, kAXBoundsForRangeParameterizedAttribute, range), .cgRect)
-        return rect.flatMap { $0.isNull ? nil : $0 }
+    /// The selection's opening stretch, read by range so a selected document is never copied whole.
+    static func selectedText(of field: AXUIElement, at range: CFRange?) -> String? {
+        FocusedFieldRead.selectedText(
+            of: FocusedFieldReader.AXNode(keepingTimeout: field), in: FocusedFieldReader.AXElementTree(),
+            at: range.map { NSRange(location: $0.location, length: $0.length) })
+    }
+
+    /// The field's whole value under the shared secure-check order, or nil when secure, unknown or too long.
+    public static func readableValue(of field: AXUIElement) -> String? {
+        let names = names(of: field)
+        guard !names.isSecureOrUnknown else { return nil }
+        guard let count = integer(field, kAXNumberOfCharactersAttribute),
+            count <= ValueWindow.unitsBefore + ValueWindow.unitsAfter
+        else { return nil }
+        let read = text(of: field, names: names, at: CFRange(location: 0, length: 0))
+        guard let value = read.value else { return nil }
+        return names.isSecure(value: { value }) ? nil : value
     }
 
     /// One attribute read with a range for a parameter, which is how a field is asked about part of its text.
@@ -128,28 +144,6 @@ public enum SurfaceProbe {
         guard AXUIElementCopyAttributeValue(owner, attribute as CFString, &value) == .success
         else { return nil }
         return (value as? NSNumber)?.intValue
-    }
-
-    /// One attribute read as a boolean, or nothing where the element answers something else.
-    static func boolean(_ owner: AXUIElement, _ attribute: String) -> Bool? {
-        var value: AnyObject?
-        guard AXUIElementCopyAttributeValue(owner, attribute as CFString, &value) == .success
-        else { return nil }
-        return (value as? NSNumber)?.boolValue
-    }
-
-    /// One `AXValue` attribute, unwrapped into the Core Graphics type it stands for.
-    static func value<T>(_ owner: AXUIElement, _ attribute: String, _ kind: AXValueType) -> T? {
-        unwrap(self.attribute(owner, attribute), kind)
-    }
-
-    /// One attribute returned as an object, or nothing when the element will not say.
-    private static func attribute(_ owner: AXUIElement, _ attribute: String) -> AnyObject? {
-        var value: AnyObject?
-        guard AXUIElementCopyAttributeValue(owner, attribute as CFString, &value) == .success else {
-            return nil
-        }
-        return value
     }
 
     /// One `AXValue`, already fetched, unwrapped into the Core Graphics type it stands for.

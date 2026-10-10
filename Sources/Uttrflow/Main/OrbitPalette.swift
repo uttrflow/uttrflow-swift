@@ -97,7 +97,8 @@ extension NSColor {
     /// A palette layer as one appearance variant draws it.
     static func orbit(_ layer: BrandLayer, in variant: NSAppearance.Name) -> NSColor {
         let opacity =
-            variant.highContrastValue(dark: layer.highContrastDarkOpacity, light: layer.highContrastLightOpacity)
+            variant.highContrastValue(
+                dark: layer.highContrastDarkOpacity, light: layer.highContrastLightOpacity)
             ?? (variant.isDarkVariant ? layer.darkOpacity : layer.lightOpacity)
         return orbit(layer.tone, in: variant).withAlphaComponent(opacity)
     }

@@ -9,9 +9,15 @@ come from `uttrflow-bakeoff profile` (method in [`performance.md`](performance.m
 [`measuring-accuracy.md`](measuring-accuracy.md); early transcription is
 [`early-transcription.md`](early-transcription.md).
 
+The current latency is the dated table in
+[`performance.md`](performance.md#latency-budget-per-stage), which names the commit, hardware, load
+and mode it was measured at. Every latency figure on this page is historical and says which commit
+recorded it; read it for the shape of the cost, not for today's value.
+
 ## Latency in the profile
 
-Median and slowest of three runs each, model already loaded, Debug, load average up to 24:
+**Historical, recorded by commit `8b07c12e9` (2026-08-29), before early transcription.** Median and slowest of three runs each, model already loaded, Debug,
+load average up to 24:
 
 ```
   length   audio   runs  end-to-end          transcription       transformation
@@ -54,21 +60,21 @@ them:
 The first sample arrives about 100 ms after `start()` returns, one hardware block. For a modifier
 shortcut `keyDownToAudio` starts at key-down and is read when the press is adopted after
 `modifierSettle`, so it records the settle rather than the first sample; for any other shortcut it
-is not recorded. No latency budget is enforced: `Scripts/perf_budget_audit.py` reads energy and
-memory only.
+is not recorded. Neither has a latency budget; the stages that do are in
+[`performance.md`](performance.md#latency-budget-per-stage).
 
 **Dictionary correction** is held to work, not time: `CorrectionEngineTests` checks that a
 10,000-entry dictionary reads no more entries than a 50-entry one and that the screen is read once
 per utterance. **The doubtful-word candidate step** is budgeted at under 5 ms a piece
-([`cleanup-design.md`](cleanup-design.md)); `DoubtfulWordsTests` counts Double Metaphone encodings
-through `DoubleMetaphone.tally` instead of timing, and fails when ten times the screen words costs
+([`cleanup-design.md`](cleanup-design.md)); `DoubtfulWordsTests` counts sound keys worked out
+through `WordSound.tally` instead of timing, and fails when ten times the screen words costs
 more than one encoding each or a doubtful run costs more than four. A wall-clock bound is not used
 because it failed under a sanitizer build and a busy machine on changes that never touched the
 step.
 
 ### Transcription steps every 30 seconds
 
-From an earlier `profile` run, re-confirmed by the one above (superLinear for transcription, linear
+**Historical, recorded by commit `8b07c12e9` (2026-08-29), before early transcription.** From an earlier `profile` run, re-confirmed by the one above (superLinear for transcription, linear
 for clean-up). Marginal cost, in extra seconds of work per extra second of speech:
 
 ```
@@ -152,6 +158,88 @@ alphabet, spoken punctuation, self-corrections, the `TranscriptionCorpus` passag
 (`hi-reply`), mixed-language clips (`code-switch`), and ten clips again with brown noise at 20 and
 10 dB SNR, 24 dB quieter and 12 dB hotter (clipping). No recording of a person is involved.
 
+**Developer speech** (`devspeech`) is invented sentences with commands, flags, file names,
+acronyms and made-up project names, read by all three English voices, by Samantha at 130 and 240
+words a minute (`devspeech-slow`, `devspeech-fast`), and two of them with the noise and level
+variants above. The whole corpus is rebuilt from `Scripts/dictation_bench.py`; no audio is
+committed.
+
+**Developer vocabulary** (`devvocab-commands`, `-flags`, `-tools`, `-acronyms`) is short phrases,
+at least eight per category, each read by all three English voices twice: bare, and after a
+fixed lead-in such as "In the terminal, run". `score` prints the two as a paired table: the raw
+WER of each, and how many clips heard the term's words in order. The lead-in is the preceding
+context; the difference between the columns is what it is worth to the recogniser.
+
+Baseline, shipping recogniser and cleaner, fast mode, 24 pairs per category (raw WER bare →
+after the lead-in; term heard bare → after): commands 29.8% → 4.6%, 15 → 21; flags 13.9% → 8.3%,
+17 → 22; tools 62.5% → 22.5%, 10 → 14; acronyms 8.8% → 2.9%, 20 → 21. Final exact WER over both
+halves: flags 85.4%, tools 44.4%, acronyms 31.5%, commands 30.5%; spoken flags are not yet written
+as `--flag`.
+
+**Entities and false overrides.** Each clip tags its entities: the developer-vocabulary term,
+the invented names in `nouns` whether or not they are supplied as vocabulary, and the supplied
+vocabulary words its text contains. `score` prints, per category and per vocabulary supplied or
+not, four rates over the final text against the written reference: entity error (a term with any
+word wrong), tagged-word WER and untagged-word WER (substitutions and deletions only; an inserted
+word belongs to neither), and the false-override rate, words the recogniser had right that the
+final text has wrong, over words the recogniser had right. The false-override rate is counted only
+where the spoken and written references normalise the same, since elsewhere the two stages answer
+different references; `clips compared` says how many. `uttrflow-eval transcribe` scores the
+recogniser alone and carries no entity tags, so these are scored here.
+
+**Personas and apps** (`persona-developer`, `-clinician`, `-support`) are invented people: each
+has a vocabulary of a tool, a project and a colleague, the app it dictates into (Terminal,
+TextEdit, Mail, passed to the job as the frontmost app), and four sentences using those words, read
+by all three English voices. Each sentence is scored three times on the same audio: vocabulary
+off, on, and swapped for the next persona's (wrong). `score` prints, per persona and app, the
+final WER and entity error under each, the gain (off minus on) and the harm (wrong minus off), in
+points of final WER, over sentences scored under all three. A harm above `PERSONA_HARM_LIMIT` (2
+points) makes `score` exit non-zero. The persona here is a supplied vocabulary: in the app the
+learned persona ranks which dictionary words `WorkingSet` hands the recogniser, so what it chooses
+is scored by putting those words in these lists.
+
+**Professional domains** (`domain-medical`, `-legal`, `-financial`, `-scientific`) are at least
+`DOMAIN_MIN_SENTENCES` (15) sentences and `DOMAIN_MIN_TERMS` (40) distinct terms per domain:
+generic drug names, anatomy and clinical abbreviations said as letters and one as a word; Latin
+legal phrases and section, clause and rule numbers read aloud; accounting terms, ratios and
+letter abbreviations; units, chemical names and Greek letters. No brand names, and no term with a
+regional spelling, so a term is right or wrong by its words alone. Each sentence is read by all
+three English voices twice on the same audio: with no vocabulary (`bare`), and with its own terms
+supplied (`vocabulary`). Its terms are its entities under both, so the entities table's `domain-…,
+no vocabulary` and `domain-…, vocabulary` rows are the term error rate per domain without and
+with the dictionary. `corpus` refuses a domain under either minimum or a term its sentence does not
+contain.
+
+Baseline, shipping recogniser and cleaner, fast mode, clean audio, one Release run under a load
+average of 90–190 (term error without → with the sentence's terms supplied; final WER of the
+category over both):
+
+| domain | clips per condition | term error, no vocabulary | term error, vocabulary | final WER |
+|---|---|---|---|---|
+| legal | 51 | 17.0% | 0.7% | 4.8% |
+| medical | 51 | 9.5% | 4.1% | 3.1% |
+| financial | 48 | 8.3% | 1.4% | 3.1% |
+| scientific | 51 | 3.8% | 0.8% | 0.7% |
+
+**The bar for a starting vocabulary pack is 5% term error with no vocabulary**: a domain above it
+gets a pack, a domain under it does not. Legal, medical and financial are above it; scientific is
+not. Bare, the misses are Latin phrases (`res judicata`, `stare decisis`, `ratione materiae`,
+`nolo contendere`), letter abbreviations (`GAAP`, `ROE`, `CABG` said as a word), multi-word
+terms (`weighted average cost of capital`) and drug names (`budesonide`, `atorvastatin`).
+Supplied, `budesonide` and `ST elevation` are missed as often as bare,
+so a pack does not fix every term.
+
+**Voices and their licence.** Every voice is a macOS system voice (Samantha, Daniel, Rishi,
+Lekha), used under the macOS software licence agreement that ships them. `corpus` refuses a voice
+missing from `VOICE_SOURCES`, so a new voice is added there with its source before it is used.
+
+**What synthetic speech hides.** `say` reads every word at an even pace, with no hesitations,
+restarts, mumbled endings, breathing, room echo or microphone colour, and the same text in the
+same voice gives the same samples every time. Real dictation has all of these, so word error
+rates here are a floor: they rank changes against each other and do not predict what a person
+will see. A recorded set of real speakers is personal data and is not part of this corpus
+(`make audio-audit`).
+
 **Two word error rates.** *Raw* is the recogniser's pieces joined, against what was said; *final*
 is the inserted text, against what should be typed. Both lower-case, drop punctuation, spell
 numerals, and split identifiers and addresses into words, so "3.5%" and "three point five percent"
@@ -160,8 +248,8 @@ romanised passage, whichever is closer.
 
 ### Word error rate
 
-One run of the commands below, Release, load average 6–30, each clip all at once with the shipping
-router:
+**Historical, recorded by commit `7acaae647` (2026-09-14).** One run of the commands below, Release, load average 6–30, each clip all at
+once with the shipping router:
 
 | category | clips | raw | final |
 |---|---|---|---|
@@ -213,7 +301,7 @@ not a claim about real speakers.
 
 ### The wait
 
-**All at once** hands the whole file over and releases the key, so every piece is recognised and
+**Historical, recorded by commit `7acaae647` (2026-09-14).** **All at once** hands the whole file over and releases the key, so every piece is recognised and
 tidied after key-up: what a retry does, and the worst case. **Real time** plays the file at speaking
 pace, so early transcription works ahead while the key is held. The wait is key-up to the words
 being ready; recognising and tidying are each dictation's total across its pieces, so in real time
@@ -246,9 +334,21 @@ they can exceed the wait.
 - **Peak footprint stays under the 400 MB dictation line**; the highest was 372 MB, during a
   two-minute real-time dictation.
 
+### Naming a slow wait in the app
+
+Every dictation from the microphone times its wait from key-up to the words placed and splits it by
+cause (`DictationWait`): from `DecodeEffort`, fallback seconds, the wait for the speech model to
+load (`BackedSpeechEngine`) and the time spent decoding a piece again after a capped or empty decode
+(`CappedDecodeRetry` and the pipeline's unprompted second decode); then a tidy that timed out, the
+insertion, and screen reads made after key-up; the rest is "other". The target,
+`DictationWait.target`, is 4 s, the spoken-reply p95 in the table above. A wait past it is named by
+the cause furthest past its median over the last 100 dictations (`DictationWaits`). The cause is kept
+on the History record on this Mac; Diagnostics shows p50 and p95 per dictation and the count per
+cause. A cold tidier session has no separate timing yet, so its time falls under "other".
+
 ### What the recognising time is made of
 
-WhisperKit reports its own stages in `TranscriptionResult.timings`. Read with a temporary print
+**Historical, recorded by commit `7acaae647` (2026-09-14).** WhisperKit reports its own stages in `TranscriptionResult.timings`. Read with a temporary print
 over 528 decodes of the same corpus:
 
 - **Decoder steps are about four fifths of it**, one Neural Engine call per token, 20 ms each on a
@@ -273,20 +373,6 @@ over 528 decodes of the same corpus:
 - **A shorter vocabulary prompt.** The per-token cost above is real and so is the accuracy it buys;
   trading one for the other needs vocabularies of the size people keep.
 
-## The system recogniser, per piece
-
-`AppleSpeechBackend` settles the asset check, the format query and the transcriber and analyser in
-`load()`, and prepares the next pair once a piece answers, rather than doing all of it inside every
-call. Debug, called directly on one 5.3-second clip, fifteen pieces 300 ms apart, two runs each:
-
-| | median per piece |
-|---|---|
-| settled in `load()`, next pair prepared (shipped) | 101, 93 ms |
-| everything inside every call (not used) | 121, 124 ms |
-
-About 25 ms a piece leaves the wait after key release. A standalone probe of the framework put the
-asset query alone at 5–130 ms per call, largest when the system had been idle.
-
 ## Re-running the bench
 
 ```
@@ -305,6 +391,10 @@ python3 Scripts/dictation_bench.py score .build/bench/run.out
 `score` counts words through `uttrflow-eval normalise`, the same `TextNormaliser.standard` the
 Swift scorers use, and prints the rules in force first; a run printed under other rules is not
 comparable. `Tests/UttrflowEvalTests/Golden/normalisation.tsv` pins both entry points to one table.
+
+`score --baseline <path>` compares the final text's rates, one cleaner and mode at a time, with a
+stored run through `uttrflow-eval compare`, the rule `make accuracy-gate` judges with; add
+`--save-baseline` to store the run, or `--fail-on-regression` to exit non-zero on a worse slice.
 
 `--categories hi-reply` selects the Hindi replies, whose jobs use the `hi` Languages profile.
 `--categories code-switch` selects an English passage followed by a Hindi one and a Hindi sentence

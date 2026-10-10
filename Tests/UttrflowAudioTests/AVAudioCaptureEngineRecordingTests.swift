@@ -51,8 +51,8 @@ struct AVAudioCaptureEngineRecordingTests {
     }
 
     /// The pipeline offers this recording for a retry, which only works because the WAV is finished first.
-    @Test("a take refused for a gap is still on disk, finished and waiting")
-    func refusedGapKeepsTheFile() async throws {
+    @Test("a take refused because the microphone never came back is still on disk, finished and waiting")
+    func refusedTakeKeepsTheFile() async throws {
         let sandbox = Sandbox()
         let store = RecordingStore(directory: sandbox.directory)
         let source = FakeMicrophoneSource()
@@ -61,12 +61,12 @@ struct AVAudioCaptureEngineRecordingTests {
         try await engine.start()
         source.emit(Array(repeating: 0.2, count: 16_000))
         source.skip()
-        while await engine.interruptionsHandled < 1 { await Task.yield() }
-        source.emit(Array(repeating: 0.2, count: 16_000))
+        source.die()
+        while await engine.interruptionsHandled < 2 { await Task.yield() }
         await #expect(throws: AudioCaptureError.self) { _ = try await engine.stop() }
 
         let recording = try #require(await store.current())
-        #expect(try await store.audio(of: recording.id).samples.count == 32_000)
+        #expect(try await store.audio(of: recording.id).samples.count == 16_000)
         #expect(await store.waiting(now: Date()).count == 1)
     }
 

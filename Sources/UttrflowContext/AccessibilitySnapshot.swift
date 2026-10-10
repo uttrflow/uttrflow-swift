@@ -11,6 +11,8 @@ public struct AccessibilitySnapshot: Codable, Sendable, Equatable {
     public let windowTitle: String?
     public let document: String?
     public let focused: Element
+    /// The window's bounded subtree holding an element equal to `focused`, so the surroundings walk can be replayed.
+    public let window: Element?
 
     /// One element: its answers by attribute, and the ranged text it gives where it reads by range.
     public struct Element: Codable, Sendable, Equatable {

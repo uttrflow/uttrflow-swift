@@ -42,6 +42,20 @@ struct FrecencyTests {
         #expect(taken == 4 * Frecency.selfSourcedWeight)
     }
 
+    @Test(
+        "Self-sourced acceptance does not outrank its equivalent typed evidence.",
+        arguments: [(4, 2), (12, 3)])
+    func selfSourcedAcceptancesCannotLiftPastTypedEvidence(
+        acceptances: Int, typedUses: Int
+    ) {
+        let accepted = Frecency.score(
+            remembered(count: acceptances, accepted: acceptances, selfSourced: acceptances),
+            now: moment)
+        let typed = Frecency.score(remembered(count: typedUses), now: moment)
+
+        #expect(accepted <= typed)
+    }
+
     @Test("More self-sourced uses than total uses cannot push the count below zero.")
     func selfSourcedCannotExceedCount() {
         let count = Frecency.effectiveCount(

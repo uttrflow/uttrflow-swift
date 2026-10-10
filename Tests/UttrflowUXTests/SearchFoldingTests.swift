@@ -24,6 +24,30 @@ struct SearchFoldingTests {
         #expect(!PanelPresenter.present(panel).groups.isEmpty)
     }
 
+    @Test("search ignores zero-width characters in both the clip and the query")
+    func ignoresZeroWidthCharacters() {
+        let panel = PanelFixture.panel(
+            [PanelFixture.clip("pa\u{200B}ypal")], query: "pay\u{200B}pal")
+
+        #expect("pa\u{200B}ypal".contains("paypal", ignoringCaseAndAccentsIn: PanelFixture.locale))
+        #expect("paypal".contains("pa\u{200B}ypal", ignoringCaseAndAccentsIn: PanelFixture.locale))
+        #expect(PanelPresenter.present(panel).rows.map(\.summary) == ["pa⟦U+200B ZERO WIDTH SPACE⟧ypal"])
+    }
+
+    @Test("a query containing only zero-width characters becomes blank")
+    func zeroWidthOnlyQueryIsBlank() {
+        #expect(SearchQuery.needle(in: "\u{200B}\u{2060}").isEmpty)
+        #expect(PanelPresenter.present(PanelFixture.panel(query: "\u{200B}")).rows.count == 3)
+    }
+
+    @Test("control whitespace keeps matching as a space in clip text and query")
+    func controlWhitespaceMatchesAsSpace() {
+        let panel = PanelFixture.panel(
+            [PanelFixture.clip("deploy\u{000B}staging")], query: "deploy\u{000B}staging")
+
+        #expect(PanelPresenter.present(panel).rows.count == 1)
+    }
+
     /// The marks folding straightens, which are rewritten without being whitespace.
     static let straightened: Set<Unicode.Scalar> = [
         "\u{2018}", "\u{2019}", "\u{201B}", "\u{2032}", "\u{201C}", "\u{201D}", "\u{201E}",

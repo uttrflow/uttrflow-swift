@@ -3,6 +3,7 @@
 import CoreAudio
 import Foundation
 import UttrflowAI
+import UttrflowAudio
 import UttrflowCore
 import UttrflowSettings
 import UttrflowSpeech
@@ -17,9 +18,11 @@ extension SettingsCapabilities {
             canPlayRecordingSound: hasAudioOutput,
             canCheckForUpdates: UpdateController.isConfigured,
             versionDescription: versionDescription,
-            readySpeechEngines: readySpeechEngines,
             readyTransformers: Set(TransformerKind.selectable),
-            globeKeyAction: GlobeKeySettings.action)
+            globeKeyAction: GlobeKeySettings.action,
+            microphones: SystemInputDeviceCatalog().inputDevices().map {
+                SettingsMicrophone(uid: $0.uid, name: $0.name)
+            })
     }
 
     /// The same answers with the clean-up engines that answered they could run for `profile`'s language.
@@ -52,15 +55,6 @@ extension SettingsCapabilities {
         let version = AppVersion.ofThisBuild
         guard version.isKnown else { return nil }
         return version.build == version.short ? version.short : version.full
-    }
-
-    /// Which engines could transcribe right now; the higher quality one needs its model on disk.
-    private static var readySpeechEngines: Set<SpeechEngineKind> {
-        var ready: Set<SpeechEngineKind> = [.appleSpeech]
-        if FileSystemSpeechModelStore.whisperKit().isInstalled(.default) {
-            ready.insert(.whisperKit)
-        }
-        return ready
     }
 
     /// Whether macOS has an output device; `NSSound.play()` on none returns false without saying why.

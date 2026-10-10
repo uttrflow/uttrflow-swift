@@ -87,6 +87,34 @@ struct EditTargetTests {
         let field = FakeSelectionField("Hi, hello", caret: 9) { $0.ignoresText = true }
         #expect(refusal(field, target()) == .insertionUnconfirmed)
     }
+
+    @Test("a snippet's caret lands at its marker in a field that reports ranges")
+    func placesTheCaret() throws {
+        let field = FakeSelectionField("Hi, hello", caret: 9)
+        try SelectionWriter(field: field).placeCaret(in: target(), back: 3)
+        #expect(field.selection == 6..<6)
+        #expect(field.text == "Hi, hello")
+        #expect(field.textWrites.isEmpty)
+    }
+
+    @Test("the caret stays at the end of the expansion in a field that does not report ranges")
+    func leavesTheCaretWithoutRanges() {
+        let field = FakeSelectionField("Hi, hello", caret: 9) { $0.reportsValue = false }
+        #expect(throws: TextInsertionError.self) {
+            try SelectionWriter(field: field).placeCaret(in: target(), back: 3)
+        }
+        #expect(field.text == "Hi, hello")
+        #expect(field.selectionWrites.isEmpty)
+    }
+
+    @Test("the caret never leaves the written span")
+    func refusesACaretOutsideTheSpan() {
+        let field = FakeSelectionField("Hi, hello", caret: 9)
+        #expect(throws: TextInsertionError.self) {
+            try SelectionWriter(field: field).placeCaret(in: target(), back: 6)
+        }
+        #expect(field.selection == 9..<9)
+    }
 }
 
 private func isRejection(_ error: TextInsertionError?) -> Bool {

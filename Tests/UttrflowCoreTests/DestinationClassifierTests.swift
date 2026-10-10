@@ -13,6 +13,9 @@ struct DestinationClassifierTests {
         arguments: [
             ("com.microsoft.Word", Destination.document),
             ("com.apple.iWork.Pages", .document),
+            ("com.apple.Pages", .document),
+            ("com.apple.Keynote", .document),
+            ("com.apple.Numbers", .spreadsheet),
             ("com.apple.Notes", .document),
             ("com.apple.TextEdit", .document),
             ("com.apple.iWork.Numbers", .spreadsheet),
@@ -25,7 +28,12 @@ struct DestinationClassifierTests {
             ("com.apple.dt.Xcode", .codeEditor),
             ("com.todesktop.230313mzl4w4u92", .codeEditor),
             ("com.microsoft.VSCode", .codeEditor),
+            ("com.microsoft.VSCodeInsiders", .codeEditor),
+            ("com.vscodium", .codeEditor),
+            ("com.visualstudio.code.oss", .codeEditor),
+            ("com.exafunction.windsurf", .codeEditor),
             ("dev.zed.Zed", .codeEditor),
+            ("com.jetbrains.intellij", .codeEditor),
             ("com.jetbrains.pycharm", .codeEditor),
             ("com.jetbrains.goland", .codeEditor),
             ("com.jetbrains.rider", .codeEditor),
@@ -35,6 +43,7 @@ struct DestinationClassifierTests {
             ("com.jetbrains.clion", .codeEditor),
             ("com.jetbrains.appcode", .codeEditor),
             ("com.jetbrains.mps", .codeEditor),
+            ("com.google.antigravity", .codeEditor),
             ("com.apple.Terminal", .terminal),
             ("com.googlecode.iterm2", .terminal),
             ("com.tinyspeck.slackmacgap", .messaging),
@@ -52,6 +61,21 @@ struct DestinationClassifierTests {
         #expect(DestinationClassifier.classify(app(bundle)) == expected)
     }
 
+    @Test(
+        "reads the identifiers probed from installed apps, and not their vendor siblings",
+        arguments: [
+            ("com.mongodb.compass", Destination.sqlEditor, "com.mongodb.atlas"),
+            ("org.RedisLabs.RedisInsight-V2", .sqlEditor, "org.RedisLabs.RedisStack"),
+            ("com.google.antigravity", .codeEditor, "com.google.drivefs"),
+            ("com.vscodium", .codeEditor, "com.apple.TextEdit"),
+            ("com.google.android.studio", .codeEditor, "com.google.Chrome"),
+        ]
+    )
+    func classifiesProbedBundles(bundle: String, expected: Destination, sibling: String) {
+        #expect(DestinationClassifier.classify(app(bundle)) == expected)
+        #expect(DestinationClassifier.classify(app(sibling)) != expected)
+    }
+
     @Test("matches a bundle identifier whatever its case")
     func ignoresBundleCase() {
         #expect(DestinationClassifier.classify(app("COM.APPLE.NOTES")) == .document)
@@ -62,6 +86,10 @@ struct DestinationClassifierTests {
         arguments: [
             ("Quarterly plan - Google Docs", Destination.document),
             ("Budget - Google Sheets", .spreadsheet),
+            ("Budget - Excel", .spreadsheet),
+            ("Budget - Excel for the web", .spreadsheet),
+            ("Budget - Microsoft Excel", .spreadsheet),
+            ("Budget - Microsoft Excel for the web", .spreadsheet),
             ("Inbox (3) - Gmail", .email),
             ("Compose Mail - Outlook", .email),
             ("Mail - Jane Doe - Outlook", .email),
@@ -72,6 +100,13 @@ struct DestinationClassifierTests {
     )
     func classifiesByTitle(title: String, expected: Destination) {
         #expect(DestinationClassifier.classify(app("com.google.Chrome", title: title)) == expected)
+    }
+
+    @Test("an unrelated title mentioning Excel is not a spreadsheet")
+    func doesNotMatchAnExcelMentionInTheTitle() {
+        #expect(
+            DestinationClassifier.classify(app("com.google.Chrome", title: "Excel tips and formulas"))
+                == .plain)
     }
 
     @Test(
@@ -142,7 +177,7 @@ struct DestinationClassifierTests {
     func ruleDefaults() {
         let rule = DestinationRule(titleContains: ["Docs"], destination: .document)
         #expect(rule.bundlePrefixes.isEmpty)
-        #expect(rule.matches(app(title: "My Docs")))
+        #expect(rule.matches(app(title: "Plan - Docs")))
         #expect(!rule.matches(app("com.example")))
     }
 
@@ -151,6 +186,6 @@ struct DestinationClassifierTests {
         for rule in DestinationRules.standard {
             #expect(!rule.bundlePrefixes.isEmpty || !rule.titleContains.isEmpty)
         }
-        #expect(Set(DestinationRules.standard.map(\.destination)).count == Destination.allCases.count - 1)
+        #expect(Set(DestinationRules.standard.map(\.destination)).isSuperset(of: Destination.allCases))
     }
 }

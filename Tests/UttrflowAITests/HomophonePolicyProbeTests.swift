@@ -22,7 +22,8 @@ struct HomophonePolicyProbeTests {
         Case(heard: "i want to come to", meant: "i want to come too", wrong: "to", right: "too"),
         Case(heard: "put it over their", meant: "put it over there", wrong: "their", right: "there"),
         Case(heard: "there car is red", meant: "their car is red", wrong: "there", right: "their"),
-        Case(heard: "the dog wagged it's tail", meant: "the dog wagged its tail", wrong: "it's", right: "its"),
+        Case(
+            heard: "the dog wagged it's tail", meant: "the dog wagged its tail", wrong: "it's", right: "its"),
         Case(heard: "its raining today", meant: "it's raining today", wrong: "its", right: "it's"),
         Case(heard: "you're bag is here", meant: "your bag is here", wrong: "you're", right: "your"),
         Case(heard: "your late again", meant: "you're late again", wrong: "your", right: "you're"),
@@ -31,7 +32,9 @@ struct HomophonePolicyProbeTests {
         Case(heard: "i will by milk", meant: "i will buy milk", wrong: "by", right: "buy"),
         Case(heard: "stand buy the door", meant: "stand by the door", wrong: "buy", right: "by"),
         Case(heard: "i can hear you hear", meant: "i can hear you here", wrong: "hear", right: "here"),
-        Case(heard: "come over here and here this", meant: "come over here and hear this", wrong: "here", right: "hear"),
+        Case(
+            heard: "come over here and here this", meant: "come over here and hear this", wrong: "here",
+            right: "hear"),
         Case(heard: "we one the match", meant: "we won the match", wrong: "one", right: "won"),
         Case(heard: "give me won apple", meant: "give me one apple", wrong: "won", right: "one"),
         Case(heard: "i no the answer", meant: "i know the answer", wrong: "no", right: "know"),
@@ -44,7 +47,9 @@ struct HomophonePolicyProbeTests {
         Case(heard: "we ship next weak", meant: "we ship next week", wrong: "weak", right: "week"),
         Case(heard: "the signal is week", meant: "the signal is weak", wrong: "week", right: "weak"),
         Case(heard: "a peace of the cake", meant: "a piece of the cake", wrong: "peace", right: "piece"),
-        Case(heard: "they signed a piece treaty", meant: "they signed a peace treaty", wrong: "piece", right: "peace"),
+        Case(
+            heard: "they signed a piece treaty", meant: "they signed a peace treaty", wrong: "piece",
+            right: "peace"),
         Case(heard: "lets meat at noon", meant: "lets meet at noon", wrong: "meat", right: "meet"),
         Case(heard: "the meet is cold", meant: "the meat is cold", wrong: "meet", right: "meat"),
         Case(heard: "press the break pedal", meant: "press the brake pedal", wrong: "break", right: "brake"),
@@ -53,9 +58,15 @@ struct HomophonePolicyProbeTests {
         Case(heard: "we sale at dawn", meant: "we sail at dawn", wrong: "sale", right: "sail"),
         Case(heard: "i ate the hole pie", meant: "i ate the whole pie", wrong: "hole", right: "whole"),
         Case(heard: "dig a whole here", meant: "dig a hole here", wrong: "whole", right: "hole"),
-        Case(heard: "the school principle spoke", meant: "the school principal spoke", wrong: "principle", right: "principal"),
-        Case(heard: "it is a matter of principal", meant: "it is a matter of principle", wrong: "principal", right: "principle"),
-        Case(heard: "the beam is made of steal", meant: "the beam is made of steel", wrong: "steal", right: "steel"),
+        Case(
+            heard: "the school principle spoke", meant: "the school principal spoke", wrong: "principle",
+            right: "principal"),
+        Case(
+            heard: "it is a matter of principal", meant: "it is a matter of principle", wrong: "principal",
+            right: "principle"),
+        Case(
+            heard: "the beam is made of steal", meant: "the beam is made of steel", wrong: "steal",
+            right: "steel"),
         Case(heard: "do not steel the car", meant: "do not steal the car", wrong: "steel", right: "steal"),
         Case(heard: "the plain landed late", meant: "the plane landed late", wrong: "plain", right: "plane"),
         Case(heard: "a plane white shirt", meant: "a plain white shirt", wrong: "plane", right: "plain"),
@@ -74,8 +85,9 @@ struct HomophonePolicyProbeTests {
         let words = item.heard.split(separator: " ").map(String.init)
         let wrongIndex = words.lastIndex(of: item.wrong)
         return Draft(
-            words: words.indices.map { Draft.Word(words[$0], confidence: $0 == wrongIndex ? score : 0.95) },
-            confidencesAreReal: true)
+            words: words.indices.map {
+                Draft.Word(words[$0], evidence: .score($0 == wrongIndex ? score : 0.95))
+            })
     }
 
     /// Asks the shipping sources whether the meant word is offered, then judges the rewrite that takes it.
@@ -105,7 +117,8 @@ struct HomophonePolicyProbeTests {
                 }
                 offered += groupOffered
                 offeredThenRefused += groupRefused
-                table.append("\(group) \(score): offered \(groupOffered)/20, offered then refused \(groupRefused)")
+                table.append(
+                    "\(group) \(score): offered \(groupOffered)/20, offered then refused \(groupRefused)")
             }
         }
         print(table.joined(separator: "\n"))
@@ -113,7 +126,7 @@ struct HomophonePolicyProbeTests {
         #expect(offeredThenRefused == Self.expectedOfferedThenRefused)
     }
 
-    /// Measured on the shipping sources and guard; the change that keeps one rule brings the second to 0.
-    static let expectedOffered = 120
-    static let expectedOfferedThenRefused = 87
+    /// Measured on the shipping sources and guard: a reading the guard would refuse is never offered.
+    static let expectedOffered = 35
+    static let expectedOfferedThenRefused = 0
 }

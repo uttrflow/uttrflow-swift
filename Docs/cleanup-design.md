@@ -109,8 +109,8 @@ by editing the table. Adding an app is a row, and the classifier has no `if` on 
 anywhere in code.
 
 The focused field's Accessibility role and multiline capability travel with the situation.
-`DestinationFormatter.standard(for: Situation)` reads them: an `AXSearchField` keeps the first
-word's heard casing, takes no terminal stop and turns line breaks into spaces; an
+`DestinationFormatter.standard(for: Situation)` reads them: an `AXSearchField`, or any field of
+an app whose row says `field: .search` (the launcher panels), keeps the first word's heard casing, takes no terminal stop and turns line breaks into spaces; an
 `AXTextField`, or any field Accessibility reports as single-line, also turns line breaks into
 spaces. Multiline fields keep the destination's layout.
 
@@ -140,14 +140,14 @@ The eight shipped values (`DestinationFormatter.registry`):
 | spreadsheet | as spoken | never | single line | as spoken | always numerals | 12,000 |
 | sqlEditor | from caret | always | preserve newlines | as spoken | always numerals | 12000 |
 | codeEditor | from caret | never in code, always in a comment | preserve newlines | as spoken | always numerals | 12000 |
-| terminal | as spoken | never | preserve newlines | as spoken | always numerals | 12000 |
+| terminal | as spoken | never | single line | as spoken | always numerals | 12000 |
 | messaging | from caret | off for ≤2 sentences | paragraphs | as spoken | numerals ≥10 | 12,000 |
 | email | from caret | always | paragraphs, lists | repair | numerals ≥10 | 12,000 |
 | plain | from caret | always | paragraphs, lists | repair | numerals ≥10 | 12,000 |
 
 Everything a formatter decides is a policy value with two to four cases, so a change is a
 value change and a test change, never a new branch. Whether the caret sits in a code comment
-is read by `CodeCommentContext`, which is what switches the code editor's stop to `.always`.
+is read by `CaretStructure.region`, which is what switches the code editor's stop to `.always`.
 
 A decision that needs the grammar of what is being written (a SQL statement, a shell
 command, a formula) is not a destination decision. It belongs to a format adapter, whose
@@ -175,12 +175,14 @@ destination — so `apply` sees only the draft. The passes, in the order they ru
 | `StammersPass` | the same function word twice | adjacency | piece |
 | `SelfCorrectionPass` | the half before a trigger phrase, a bare-hyphen cut-off | trigger between two candidates of the same shape | piece |
 | `SpokenPunctuationPass` | "comma", "full stop", "question mark", "open quote…close quote", a spoken email address → marks | the word stands at a seam, not "put a comma there" | piece |
-| `CodeEditorCommandsPass` | spoken identifier and symbol commands | a code editor, outside a comment | piece |
+| `SpokenCasingPass` | casing rows of `spoken-commands.json`: an identifier style in code; "all caps" (next word) and "all caps on … all caps off" (span) in prose | the row's destinations; in prose, not after a determiner, a preposition or a naming verb, nor before a form of "be" | piece |
+| `CodeEditorCommandsPass` | spoken symbol commands | a code editor, outside a comment | piece |
 | `LayoutWordsPass` | "new line", "new paragraph", "bullet point", "number one" → layout | same | piece |
 | `NumberFormsPass` | fifteen → 15, sixteen point two → 16.2, two thirty pm → 2:30 pm | number-word grammar, `NumberPolicy`, `DigitGrouping` | piece |
 | `ContractionsPass` | dont → don't | word list | piece |
 | `SpelledInitialismPass` | a p i → API | adjacent letter names | piece, and again after the model |
 | `SpacingPass` | no space before `, . ? ! : ;`, one after; collapse runs | none | piece |
+| `PauseStopPass` | a full stop where the speaker paused a piece boundary's length inside one piece | recogniser word timing, then `SentenceBoundaryEvidence`; prose destinations only | piece |
 | `SentenceBoundaryPass` | takes back a stop where the sentence runs on | `SentenceBoundaryEvidence` | message |
 | `FirstWordPass` | capitalise, or lower-case after a mid-sentence caret | `sentenceState` + `FirstWordPolicy` | message |
 | `TerminalStopPass` | add or withhold the final mark | `TerminalStopPolicy`, `LayoutPolicy` | message |
@@ -265,7 +267,7 @@ whether the repair helped or overreached.
 ## 5. Doubtful words — the "Apple or apples" problem
 
 The recogniser reports a probability for every word (`wordTimestamps: true`), and the
-correction engine acts only on words under `WordCorrectionEngine.certaintyThreshold` (0.5).
+correction engine acts only on words under `DoubtPolicy.certaintyThreshold` (0.5).
 The doubtful-word design generalises that into candidates and a chooser:
 
 ```swift
@@ -281,8 +283,26 @@ offer a spelling keeping it: the **personal dictionary** (`DictionaryCandidates`
 correction engine's own lookup, carrying the entry on the `Reading` so a reading the model
 takes is counted as a use), **screen vocabulary** (`ScreenCandidates`: words in the window
 title, the selection and the text around the caret), **ordinary words** (`PhoneticCandidates`,
-the Double Metaphone neighbours in `GeneralVocabulary`), and **homophones**
-(`HomophoneCandidates`, a word's partner in the hand-kept `Homophones` table).
+
+the phoneme-distance neighbours in `GeneralVocabulary`), and **homophones**
+(`HomophoneCandidates`, a word's ordinary partner the pronunciation lexicon lists as said alike).
+
+
+The sources are feature producers, not choosers. Their answers for one span become a
+`HypothesisSet`: each reading once, with the first source that offered it and how many sources
+agreed. One `SpanScorer`, held by `DoubtfulWords`, ranks the set before the span's limit of
+readings is applied; the default `SourceOrderScorer` keeps the order above. A new signal is a
+feature or a scorer behind this seam, never a second path to a reading.
+
+The set also carries the two said words on each side of the span. `ContextSpanScorer` reads them
+through `ContextScorer`: it keeps the sources' order and lifts first only the reading an n-gram
+model prefers over every other by the margin, so context is a tie-breaker, never the sole judge.
+Its model is an `InterpolatedLanguageModel` of an ARPA table (`ARPAReader`) and a user model
+counted on the device (`NGramModel.counted`, absolute discounting with back-off). Nothing selects
+it yet: it waits for the shipped technical table and a `make bakeoff` gain. Debug-build probe
+(`ContextScorerTests`): a synthetic 420,000 n-gram 3-gram loads in about 2 s into about 32 MB and
+scores ten two-word readings in 0.4 ms per span; a user model counted from 20,000 twelve-word
+sentences (416,000 n-grams) builds in about 3 s and scores in 0.35 ms per span.
 
 The **chooser is the same model call**: the situation block lists each doubtful word
 with its candidates —
@@ -337,8 +357,9 @@ alone. Some cleanings only make sense over the whole:
   piece's trailing stop before asking `Restatement.discardedStart` and restores it if nothing
   matched, so the callee keeps its sentence-end rule and the stop the cut introduced is
   removed by the code that created it.
-- **The seam's stop.** A piece ends at a pause of 0.8 s, or any pause of 0.4 s once the piece
-  is past fifteen seconds (`SpeechWindowing`), which reads as a sentence ending, so a seam
+- **The seam's stop.** A piece ends at a pause of <!-- value:SpeechWindowing.sentencePause -->0.8 s; past
+  <!-- value:SpeechWindowing.comfortableLength -->15 s the pause needed shrinks evenly to
+  <!-- value:SpeechWindowing.anyPause -->0.4 s at <!-- value:SpeechWindowing.maximumLength -->30 s (`SpeechWindowing`), which reads as a sentence ending, so a seam
   ends as a sentence the way the place ends one: a full stop unless the place's stop policy
   is `.never`, in which case a stop the recogniser wrote comes off. A pause is not always a
   sentence end, so a seam takes no stop where a list item or a code line ends the piece, or
@@ -381,7 +402,7 @@ still called once per piece; the message stage is deterministic and calls nothin
 A source is asked for a whole piece's runs at once, not run by run, which keeps its cost a
 per-piece cost rather than a per-run one. `ScreenCandidates` is why that matters: everything
 it derives — the join of title, selection and caret text, the split, the 512-word cut
-(`maximumWordsOnScreen`), the dedupe, and a Double Metaphone code for every word that
+(`maximumWordsOnScreen`), the dedupe, and a sound key for every word that
 survives — depends on the screen and not on the run being asked about, so asking run by run
 would redo it for every run, and a noisy recognition with many doubted runs would cost the
 most. The default implementation asks one run at a time, which is right for a source whose

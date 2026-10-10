@@ -1,4 +1,5 @@
 public import struct Foundation.NSRange
+public import enum UttrflowCore.ContextReadRung
 
 /// The stretch of a long field's value a turn reads, around the caret, instead of the whole value.
 public enum ValueWindow {
@@ -15,29 +16,36 @@ public enum ValueWindow {
     public static let selectionLimit = 1024
 
     /// The range to ask for, or `nil` when the whole value is no longer than the window and is read whole.
-    public static func range(count: Int, selection: NSRange) -> NSRange? {
-        guard count > unitsBefore + unitsAfter, selection.location >= 0, selection.length >= 0,
+    public static func range(count: Int, selection: NSRange, need: ContextNeed = .turn) -> NSRange? {
+        guard count > need.unitsBefore + need.unitsAfter, selection.location >= 0, selection.length >= 0,
             selection.location <= count
         else { return nil }
         let caret = selection.location
-        let start = max(0, caret - unitsBefore)
-        let selectedLength = min(selection.length, selectionLimit)
-        let end = min(count, caret + min(selectedLength + unitsAfter, count - caret))
+        let start = max(0, caret - need.unitsBefore)
+        let selectedLength = min(selection.length, need.selectionUnits)
+        let end = min(count, caret + min(selectedLength + need.unitsAfter, count - caret))
         return NSRange(location: start, length: max(0, end - start))
     }
 
-    /// The value and selection a turn works from, never fetching a long or unknown value whole.
+    /// The value, selection and answering rung a turn works from, never fetching a long or unknown value whole.
     public static func read(
-        count: Int?, selection: NSRange?, whole: () -> String?, part: (NSRange) -> String?
-    ) -> (value: String?, selection: NSRange?) {
-        guard let count else { return (nil, selection) }
-        guard count > unitsBefore + unitsAfter else { return (whole(), selection) }
-        guard let selection, let window = range(count: count, selection: selection) else {
-            return (nil, selection)
+        count: Int?, selection: NSRange?, need: ContextNeed = .turn, whole: () -> String?,
+        part: (NSRange) -> String?
+    ) -> (value: String?, selection: NSRange?, rung: ContextReadRung) {
+        guard let count else { return (nil, selection, .none) }
+        guard count > need.unitsBefore + need.unitsAfter else {
+            let value = whole()
+            return (value, selection, value == nil ? .none : .wholeValue)
         }
-        guard let text = part(window), text.utf16.count == window.length else { return (nil, selection) }
+        guard let selection, let window = range(count: count, selection: selection, need: need) else {
+            return (nil, selection, .none)
+        }
+        guard let text = part(window), text.utf16.count == window.length else {
+            return (nil, selection, .none)
+        }
         let shifted = NSRange(
-            location: selection.location - window.location, length: min(selection.length, selectionLimit))
-        return (text, shifted)
+            location: selection.location - window.location, length: min(selection.length, need.selectionUnits)
+        )
+        return (text, shifted, .rangedValue)
     }
 }

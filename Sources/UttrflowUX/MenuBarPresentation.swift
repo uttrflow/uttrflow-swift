@@ -17,6 +17,10 @@ public enum DictationActivity: Sendable, Equatable, CaseIterable {
     case unconfirmed
     /// Text remains on the clipboard for the user to paste.
     case copied
+    /// A long recording was cancelled, so nothing was typed.
+    case discarded
+    /// A command-key utterance ran an edit, so nothing was typed.
+    case executed
 
     /// Carries the insertion outcome through the menu without claiming text arrived when it did not.
     public static func completion(
@@ -136,39 +140,6 @@ public enum MenuBarFeature: String, Sendable, Equatable, CaseIterable {
     public var isBeta: Bool { self != .dictation }
 }
 
-/// Which of the three are on, held as three answers so switching one cannot move another.
-public struct MenuBarFeatures: Sendable, Equatable {
-    public var dictation: Bool
-    public var clipboard: Bool
-    /// Off to begin with, the same as the setting it stands for.
-    public var suggestions: Bool
-
-    public init(dictation: Bool = true, clipboard: Bool = true, suggestions: Bool = false) {
-        self.dictation = dictation
-        self.clipboard = clipboard
-        self.suggestions = suggestions
-    }
-
-    public func isOn(_ feature: MenuBarFeature) -> Bool {
-        switch feature {
-        case .dictation: dictation
-        case .clipboard: clipboard
-        case .suggestions: suggestions
-        }
-    }
-
-    /// Answers a copy with one switch moved, which is the whole of the independence promise.
-    public func setting(_ feature: MenuBarFeature, isOn: Bool) -> MenuBarFeatures {
-        var updated = self
-        switch feature {
-        case .dictation: updated.dictation = isOn
-        case .clipboard: updated.clipboard = isOn
-        case .suggestions: updated.suggestions = isOn
-        }
-        return updated
-    }
-}
-
 /// What the product is doing, in the only terms the menu bar needs it.
 public struct MenuBarState: Sendable, Equatable {
     public var activity: DictationActivity
@@ -205,6 +176,8 @@ public struct MenuBarState: Sendable, Equatable {
     public var shortcutUnheard: String?
     /// Why AI suggestions cannot receive keyboard input right now, or nil when they can.
     public var suggestionUnheard: String?
+    /// Whether AI suggestions can receive keyboard input right now.
+    public var suggestionRuntime: SuggestionRuntimeStatus
     /// How far along the AI suggestion model is, so a switch that is on but waiting says so.
     public var suggestionModel: SuggestionModelReadiness
     /// Whether the dictation shortcut is held or pressed, so the hint uses the right verb.
@@ -229,6 +202,7 @@ public struct MenuBarState: Sendable, Equatable {
         unarmedShortcuts: Set<ShortcutAction> = [],
         shortcutUnheard: String? = nil,
         suggestionUnheard: String? = nil,
+        suggestionRuntime: SuggestionRuntimeStatus = .idle,
         suggestionModel: SuggestionModelReadiness = .notAsked,
         activation: HotkeyActivation = .holdToTalk,
         speechModelBytes: Int64? = nil
@@ -249,6 +223,7 @@ public struct MenuBarState: Sendable, Equatable {
         self.unarmedShortcuts = unarmedShortcuts
         self.shortcutUnheard = shortcutUnheard
         self.suggestionUnheard = suggestionUnheard
+        self.suggestionRuntime = suggestionRuntime
         self.suggestionModel = suggestionModel
         self.activation = activation
         self.speechModelBytes = speechModelBytes
@@ -272,11 +247,13 @@ public enum MenuBarIntent: Sendable, Equatable {
     case copyClip(id: UUID)
     /// Removes and refuses a learned word, named by its entry so a redraw cannot change which.
     case undoLearnedWord(id: UUID)
-    case open(Destination)
+    case open(AppLocation)
     /// Opens the clipboard panel, which is otherwise reachable only by a shortcut nothing mentions.
     case openClipboard
     /// Move one of the three switches, naming the one it moves so the other two cannot follow.
     case setFeature(MenuBarFeature, isOn: Bool)
+    /// Saves these edits in order, for an unticked switch whose fix is not the switch itself.
+    case changeSettings([SettingsChange])
     /// Starts a manual update check when the current build has a trusted update feed.
     case checkForUpdates
     case quit
@@ -462,7 +439,8 @@ public struct MenuBarPresentation: Sendable, Equatable {
     public var commands: [MenuBarCommand] {
         let action: [MenuBarCommand] =
             if case .status(let status) = header, let command = status.action { [command] } else { [] }
-        let rows = ([lastDictation].compactMap(\.self) + clips).flatMap { [$0.insert, $0.copy] }
+        let rows =
+            ([lastDictation].compactMap(\.self) + clips).flatMap { [$0.insert, $0.copy] }
             + learned.map(\.undo)
         let menu = items.compactMap { if case .command(let command) = $0 { command } else { nil } }
         return action + buttons.map(\.command) + rows + menu
@@ -518,6 +496,8 @@ public enum MenuBarPresenter {
         case .partial: .symbol("exclamationmark.circle")
         case .unconfirmed: .symbol("questionmark.circle")
         case .copied: .symbol("doc.on.clipboard")
+        case .discarded: .symbol("trash")
+        case .executed: .symbol("checkmark.circle")
         }
     }
 
@@ -558,6 +538,8 @@ public enum MenuBarPresenter {
             case .partial: MissedSpeech.line
             case .unconfirmed: "Inserted — not confirmed"
             case .copied: "Copied — press ⌘V"
+            case .discarded: "Discarded"
+            case .executed: "Done"
             }
         }
     }
@@ -637,32 +619,6 @@ public enum MenuBarPresenter {
         return items
     }
 
-    /// The three switches, always all three, so turning one off never hides another.
-    static func featureItems(
-        for features: MenuBarFeatures, suggestionModel: SuggestionModelReadiness = .notAsked
-    ) -> [MenuBarItem] {
-        [.sectionHeader("Turn on and off")]
-            + MenuBarFeature.allCases.map { feature in
-                let isOn = features.isOn(feature)
-                return .command(
-                    MenuBarCommand(
-                        title: title(of: feature, isOn: isOn, suggestionModel: suggestionModel),
-                        intent: .setFeature(feature, isOn: !isOn),
-                        isChecked: isOn))
-            }
-    }
-
-    /// A switch's name, followed for AI suggestions that are on by what their model is waiting on.
-    static func title(
-        of feature: MenuBarFeature, isOn: Bool, suggestionModel: SuggestionModelReadiness
-    ) -> String {
-        let name = feature.isBeta ? "\(feature.title), \(BetaFeature.label)" : feature.title
-        guard feature == .suggestions, isOn, let headline = suggestionModel.headline else {
-            return name
-        }
-        return "\(name) — \(headline)"
-    }
-
     /// What a recording says about itself: how to finish when releasing the keys does not, and a countdown near its cap.
     static func listeningLine(for advice: DictationAdvice, stopGesture: StopGesture = .letGo) -> String {
         let instruction: String? =
@@ -686,7 +642,7 @@ public enum MenuBarPresenter {
         guard state.failure?.severity != .blocking else { return false }
         guard state.speechModel == .ready else { return false }
         return switch state.activity {
-        case .idle, .inserted, .partial, .unconfirmed, .copied: true
+        case .idle, .inserted, .partial, .unconfirmed, .copied, .discarded, .executed: true
         case .listening, .working: false
         }
     }
@@ -700,7 +656,7 @@ public enum MenuBarPresenter {
     static func isBusy(_ activity: DictationActivity) -> Bool {
         switch activity {
         case .listening, .working: true
-        case .idle, .inserted, .partial, .unconfirmed, .copied: false
+        case .idle, .inserted, .partial, .unconfirmed, .copied, .discarded, .executed: false
         }
     }
 
@@ -709,7 +665,7 @@ public enum MenuBarPresenter {
         switch action.recovery {
         case .openSystemSettings: "\(action.title)…"
         case .retry, .downloadSpeechModel, .pasteManually, .showHistory, .retryFromRecording,
-            .copyTranscript:
+            .restoreRecording, .copyTranscript:
             action.title
         }
     }

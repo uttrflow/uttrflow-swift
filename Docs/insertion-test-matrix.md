@@ -34,6 +34,8 @@ application for a manual cell from that class's table there, and add a row to it
 | S10 | The Mac sleeps while a dictation records | `DictationControllerTests.sleepFinishesToggle` | manual M8 | manual M8 | manual M8 | manual M8 | manual M8 | manual M8 | manual M8 |
 | S11 | A second dictation is started while the first is still inserting | `DictationPipelineTurnTests.turnIsReleased` | manual M9 | manual M9 | manual M9 | manual M9 | manual M9 | manual M9 | manual M9 |
 | S12 | A script-controlled web field keeps its own state | `SelectionWriterTests.acceptedButUnchangedIsAFailure` | harness H1 | manual M10 | not applicable | not applicable | not applicable | not applicable | not applicable |
+| S13 | Escape is pressed while the words are still being inserted | `CancelDuringProcessingTests.escapeDuringProcessing` | manual M11 | manual M11 | manual M11 | manual M11 | manual M11 | manual M11 | manual M11 |
+| S14 | The destination has a process but no bundle identifier | `TextInsertionCoordinatorTests.writesIntoUnbundledApplication` | not applicable | not applicable | not applicable | manual M1 | manual M1 | not applicable | not applicable |
 
 ## Before a tag
 
@@ -144,3 +146,10 @@ settle, plus any printout the steps name.
 2. Dictate "one two three", then type one more letter by hand.
 3. Expected: the dictated words stay after the typed letter, and the application's send or save
    includes them.
+
+### M11
+
+1. Click into the field and dictate a sentence of about thirty words.
+2. Press Escape after letting go of the shortcut, before the words appear.
+3. Expected: the floating button returns to rest without a failure, no words that had not already
+   started arriving appear afterwards, and the History page lists the recording with Retry.

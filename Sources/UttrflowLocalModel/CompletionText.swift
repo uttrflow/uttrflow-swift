@@ -1,11 +1,69 @@
 // The text a suggestion pass is read through: echoes found, copies of the screen cut, runaway lines refused.
 
 import Foundation
+import NaturalLanguage
+import UttrflowAI
 import UttrflowCore
 import UttrflowPredict
 
 /// Everything done to a model's answer that is only text, kept apart from the model so it is tested and counted.
 enum CompletionText {
+    enum EchoPolicy {
+        case required
+        case joinAtBoundary
+    }
+
+    static let rejectedOpenings: [(phrase: String, rejectedAfterTypedEcho: Bool)] = [
+        ("i'm sorry", true), ("i am sorry", true), ("sorry", false), ("i can't help", true),
+        ("i cannot help", true), ("as an ai", true), ("as a language model", true),
+        ("here is", false), ("here's", false), ("here are", false), ("the instructions say", true),
+        ("your instruction says", true), ("your prompt says", true), ("to summarize your request", true),
+    ]
+
+    /// Turns a model reply into finished candidates under the echo rule for its generator.
+    static func modelCompletions(
+        from answer: String, typed: String, echoPolicy: EchoPolicy, in situation: GenerationSituation
+    ) -> [String] {
+        let context = contextNeverCopied(in: situation)
+        let echoedTypedText = echoes(answer, of: typed)
+        var lines = parse(answer, typed: typed).compactMap {
+            trimmed($0, typed: typed, echoing: context)
+        }
+        if lines.isEmpty, case .joinAtBoundary = echoPolicy, !echoes(answer, of: typed),
+            let joined = joinedContinuation(answer, typed: typed)
+        {
+            lines = parse(joined, typed: typed).compactMap {
+                trimmed($0, typed: typed, echoing: context)
+            }
+        }
+        let continuations = lines.filter { line in
+            guard let added = continuation(of: line, past: typed) else { return false }
+            return !isRejectedOpening(added, afterTypedEcho: echoedTypedText)
+        }
+        return finished(continuations, typed: typed, in: situation)
+    }
+
+    /// Joins an answer only when the parser can read the result as a non-empty extension.
+    private static func joinedContinuation(_ answer: String, typed: String) -> String? {
+        guard let joined = joined(typed, with: answer),
+            let added = continuation(of: joined, past: typed), !added.isEmpty,
+            parse(joined, typed: typed).contains(joined)
+        else { return nil }
+        return joined
+    }
+
+    /// Whether the added words start with a refusal or a remark about the model's instructions.
+    private static func isRejectedOpening(_ continuation: String, afterTypedEcho: Bool) -> Bool {
+        let continuationWords = words(of: continuation).map {
+            $0.text.replacingOccurrences(of: "’", with: "'")
+        }
+        return rejectedOpenings.contains { opening in
+            guard !afterTypedEcho || opening.rejectedAfterTypedEcho else { return false }
+            let openingWords = words(of: opening.phrase).map(\.text)
+            return continuationWords.starts(with: openingWords)
+        }
+    }
+
     /// The screen and the text before the line are context, never words to copy; the person's own lines may be repeated.
     static func contextNeverCopied(in situation: GenerationSituation) -> [String] {
         [situation.surroundings, situation.preceding].compactMap { $0 }
@@ -127,6 +185,8 @@ enum CompletionText {
             // A command or a query reuses the paths and names on screen, so only prose is held to its own words.
             if register.endsAtSentence {
                 kept = firstSentence(of: kept, typed: typed)
+                guard let whole = withoutDanglingEnd(kept, typed: typed) else { return nil }
+                kept = whole
                 guard
                     let unsigned = SignOff.unsigned(
                         kept, typed: typed, ownLines: situation.recentLines)
@@ -150,6 +210,36 @@ enum CompletionText {
         }
     }
 
+    /// Prose cut back past an opening bracket or quote, a lone dash, or a conjunction or article at its end; nothing when the cut leaves no more than was typed.
+    static func withoutDanglingEnd(_ line: String, typed: String) -> String? {
+        var kept = withoutTrailingWhitespace(line)
+        while kept.count > typed.count {
+            let start = kept.lastIndex(where: \.isWhitespace).map { kept.index(after: $0) } ?? kept.startIndex
+            let word = String(kept[start...])
+            guard isDangling(word, endingLine: kept) else { return kept }
+            kept = withoutTrailingWhitespace(String(kept[..<start]))
+        }
+        return nil
+    }
+
+    /// Whether the last word of a line leaves its phrase open.
+    private static func isDangling(_ word: String, endingLine line: String) -> Bool {
+        guard let last = word.last else { return false }
+        if word.allSatisfy({ "-\u{2013}\u{2014}".contains($0) }) { return true }
+        if let scalar = last.unicodeScalars.first, last.unicodeScalars.count == 1,
+            scalar.properties.generalCategory == .openPunctuation
+                || scalar.properties.generalCategory == .initialPunctuation
+        {
+            return true
+        }
+        if isStraightQuote(last), word.count == 1 || hasUnmatchedQuote(last, in: line) { return true }
+        guard word.allSatisfy(\.isLetter), let tagged = LexicalClass.tags(in: line).last,
+            tagged.word == word
+        else { return false }
+        // A determiner that can stand alone ("that", "some") ends a phrase; only one that leads on ("the", "my") leaves it open.
+        return tagged.tag == .conjunction || (tagged.tag == .determiner && FunctionWords.leadsOn(word))
+    }
+
     /// The comma-separated parts of one screen label long enough to be a label's own, as they compare.
     private static func labelParts(of label: String) -> [String] {
         label.split(separator: ", ").map { fold(String($0)) }.filter { $0.count >= shortestLabelPart }
@@ -160,12 +250,60 @@ enum CompletionText {
         String(text.lowercased().map { $0.isWhitespace ? " " : $0 }).trimmingCharacters(in: .whitespaces)
     }
 
-    /// The typed text with an answer that left out its echo joined on, or nothing when no boundary says how: a space on either side, or punctuation opening the answer, joins as written; letters against letters could be the rest of a word or a new one run together, and no reading is better than a wrong line.
+    /// The typed text with an answer that left out its echo joined where spaces or punctuation define a boundary; straight quotes open unless the typed text has an unmatched opener, and apostrophes inside words stay attached.
     static func joined(_ typed: String, with answer: String) -> String? {
         guard let last = typed.last, let first = answer.first else { return nil }
+        if isStraightQuote(first) {
+            if isWordApostrophe(first, at: typed, before: answer) { return typed + answer }
+            if hasUnmatchedQuote(first, in: typed) {
+                return withoutTrailingWhitespace(typed) + answer
+            }
+            let separator = last.isWhitespace ? "" : " "
+            return typed + separator + answer
+        }
         guard last.isWhitespace || first.isWhitespace || isClosingPunctuation(first) else { return nil }
-        let continuation = last.isWhitespace ? answer.drop(while: \.isWhitespace) : answer[...]
-        return typed + continuation
+        let prefix = isClosingPunctuation(first) ? withoutTrailingWhitespace(typed) : typed
+        let continuation =
+            last.isWhitespace && !isClosingPunctuation(first)
+            ? answer.drop(while: \.isWhitespace) : answer[...]
+        return prefix + continuation
+    }
+
+    /// The text without whitespace at its end.
+    private static func withoutTrailingWhitespace(_ text: String) -> String {
+        var trimmed = text
+        while trimmed.last?.isWhitespace == true { trimmed.removeLast() }
+        return trimmed
+    }
+
+    /// Whether a quote is the same straight mark as an unmatched opening quote in the typed text.
+    private static func hasUnmatchedQuote(_ quote: Character, in typed: String) -> Bool {
+        let characters = Array(typed)
+        let marks = characters.indices.filter { index in
+            characters[index] == quote
+                && !(quote == "'" && isBetweenLetters(index, in: characters))
+        }
+        return !marks.count.isMultiple(of: 2)
+    }
+
+    /// Whether an apostrophe completes a word across the join.
+    private static func isWordApostrophe(
+        _ character: Character, at typed: String, before answer: String
+    ) -> Bool {
+        guard character == "'", let last = typed.last else { return false }
+        let remaining = answer.dropFirst()
+        return last.isLetter && remaining.first?.isLetter == true && !remaining.contains("'")
+    }
+
+    /// Whether this quote sits between letters in one text.
+    private static func isBetweenLetters(_ index: Int, in characters: [Character]) -> Bool {
+        index > 0 && index + 1 < characters.count
+            && characters[index - 1].isLetter && characters[index + 1].isLetter
+    }
+
+    /// Whether a character is an ASCII straight quote.
+    private static func isStraightQuote(_ character: Character) -> Bool {
+        character == "'" || character == "\""
     }
 
     /// Closing punctuation attaches to the preceding word without a space.
@@ -175,7 +313,7 @@ enum CompletionText {
         }
         return scalar.properties.generalCategory == .closePunctuation
             || scalar.properties.generalCategory == .finalPunctuation
-            || ",.!?;:%…'\"".unicodeScalars.contains(scalar)
+            || ",.!?;:%…".unicodeScalars.contains(scalar)
     }
 
     /// The text up to the last word cut by the budget, or nothing when the cut fell inside its only word.
@@ -233,7 +371,7 @@ enum CompletionText {
                 !Self.closesTypedNumber(typed, with: continuation),
                 SuggestionTextSafety.allows(continuation),
                 Self.comparable(continuation).contains(where: { $0 != " " }),
-                !promptMarkers.contains(where: text.lowercased().contains),
+                !promptMarkers.contains(where: continuation.lowercased().contains),
                 !isDegenerate(continuation)
             else { continue }
             let whole = typed + continuation
@@ -244,7 +382,7 @@ enum CompletionText {
     }
 
     /// Refuses a completion that ends a number the person may still be typing.
-    private static func closesTypedNumber(_ typed: String, with continuation: String) -> Bool {
+    static func closesTypedNumber(_ typed: String, with continuation: String) -> Bool {
         guard typed.last?.isNumber == true, let first = continuation.first else { return false }
         if first.isNumber { return false }
         let remainder = Array(continuation.dropFirst())
@@ -336,13 +474,48 @@ enum CompletionText {
         {
             resumes.append((line.index(after: next), matched + 2))
         }
-        // An added character is stepped over; a changed one stands in for a typed one only when more typed text follows to vouch for it.
-        resumes.append((next, matched))
-        if matched + piece.count < wanted.count { resumes.append((next, matched + piece.count)) }
+        // A letter added to or changed in the echo must leave its whole word in an accepted form.
+        let letterSlip = letterSlipNeedsSameForm(line, at: index, wanted: wanted, matched: matched)
+        let sameWord =
+            letterSlip && sameWordAfterAddedLetter(line, at: index, wanted: wanted, matched: matched)
+        // An added apostrophe, space or other non-alphanumeric leaves every typed letter and digit unchanged.
+        if sameWord || !(line[index].isLetter || line[index].isNumber) {
+            resumes.append((next, matched))
+        }
+        if matched + piece.count < wanted.count, !letterSlip || sameWord {
+            resumes.append((next, matched + piece.count))
+        }
         for (start, matched) in resumes {
             if case .read(let end) = echo(of: wanted, in: line, from: start, matched: matched) { return end }
         }
         return nil
+    }
+
+    /// Whether this departure changes a letter rather than omitting the space before the next word.
+    private static func letterSlipNeedsSameForm(
+        _ line: String, at index: String.Index, wanted: [Character], matched: Int
+    ) -> Bool {
+        guard matched < wanted.count else { return line[index].isLetter }
+        guard wanted[matched].isLetter || line[index].isLetter else { return false }
+        guard wanted[matched].isWhitespace, line[index].isLetter else { return true }
+        return wanted[matched...].drop(while: \.isWhitespace).first != line[index]
+    }
+
+    /// Whether an inserted letter leaves the echoed word in a form accepted for the typed word.
+    private static func sameWordAfterAddedLetter(
+        _ line: String, at index: String.Index, wanted: [Character], matched: Int
+    ) -> Bool {
+        guard line[index].isLetter else { return false }
+        let probe = matched < wanted.count && wanted[matched].isLetter ? matched : matched - 1
+        guard probe >= 0, wanted[probe].isLetter else { return false }
+        let typedWordStart = wanted[..<probe].lastIndex(where: { !$0.isLetter }).map { $0 + 1 } ?? 0
+        let typedWordEnd = wanted[probe...].firstIndex(where: { !$0.isLetter }) ?? wanted.count
+        let echoWordStart =
+            line[..<index].lastIndex(where: { !$0.isLetter }).map { line.index(after: $0) } ?? line.startIndex
+        let echoWordEnd = line[index...].firstIndex(where: { !$0.isLetter }) ?? line.endIndex
+        let typedWord = String(wanted[typedWordStart..<typedWordEnd])
+        let echoWord = comparable(String(line[echoWordStart..<echoWordEnd]))
+        return WordForms.sameForm(typedWord, echoWord)
     }
 
     /// The text as it compares: lowercased, without the marks and repeated spaces a model tends to rewrite.
@@ -366,8 +539,32 @@ enum CompletionText {
     static func isDegenerate(_ continuation: String) -> Bool {
         guard continuation.count <= maximumContinuationLength else { return true }
         let words = continuation.split(whereSeparator: \.isWhitespace)
+        // A copied phrase loops even when each word appears only twice.
+        if words.count >= 4 {
+            for phraseLength in 2...(words.count / 2) {
+                for start in 0...(words.count - 2 * phraseLength) {
+                    let split = start + phraseLength
+                    let end = split + phraseLength
+                    if words[start..<split].elementsEqual(words[split..<end]) { return true }
+                }
+            }
+        }
+        if hasSpelledOutRun(words) { return true }
         // Six or more words drawn from a third as many distinct ones is a repetition, not a sentence.
         return words.count >= 6 && Set(words).count * 3 <= words.count
+    }
+
+    /// The fewest one-letter words in a row that spell a word out letter by letter rather than say anything.
+    static let spelledOutRunLength = 4
+
+    /// Whether the words hold a run of single letters, as in `a s s p o r t`, which no sentence has.
+    static func hasSpelledOutRun(_ words: [Substring]) -> Bool {
+        var run = 0
+        for word in words {
+            run = word.count == 1 && word.first?.isLetter == true ? run + 1 : 0
+            if run >= spelledOutRunLength { return true }
+        }
+        return false
     }
 
     /// Strips a code fence, bullet, or numbering the model added despite being asked not to.
@@ -386,8 +583,16 @@ enum CompletionText {
 
     /// The opening of the candidate that is already typed, in the candidate's own spelling, or nothing when it does not carry the context.
     static func typedPart(of candidate: String, following context: String) -> String {
-        guard !context.isEmpty, candidate.lowercased().hasPrefix(context.lowercased()) else { return "" }
-        return String(candidate.prefix(context.count))
+        let key = TextMatching.caseFoldedKey(context)
+        guard !context.isEmpty, TextMatching.caseFoldedKey(candidate).hasPrefix(key) else { return "" }
+        // A fold can change length, as ß against SS, so the opening is measured in folded text, not characters.
+        var end = candidate.startIndex
+        while end < candidate.endIndex {
+            end = candidate.index(after: end)
+            let opening = String(candidate[..<end])
+            if TextMatching.caseFoldedKey(opening) == key { return opening }
+        }
+        return ""
     }
 
     /// The first token the model is judged on, past the tokens the typed opening shares with the whole line.

@@ -146,7 +146,7 @@ def home_rows():
 
 home = f"""<div class="card stage-card">
           <div class="status"><span class="dot"></span><span>Ready</span></div>
-          <div class="greet">Good afternoon, Naveen</div>
+          <div class="greet">Good afternoon, Avery</div>
           <div class="subtitle">3 dictations today, 90 words.</div>
           <div class="hint"><span class="key" style="height:20px; min-width:20px;
             padding:0 5px; font-size:10px">&#8997;</span><span class="key" style="height:20px;
@@ -279,7 +279,7 @@ COLS = [("Word", 116, "left"), ("Sounds like", 104, "left"), ("Where from", 106,
 
 WORDS = [
     ("Uttrflow", "utter-flow", "Added by you", "12 Aug", "34", "0", False, False),
-    ("Naveen Bhatt", "&mdash;", "Learned", "2 Aug", "118", "1", False, False),
+    ("Avery Stone", "&mdash;", "Learned", "2 Aug", "118", "1", False, False),
     ("pgvector", "pee-gee vector", "Seen on screen", "19 Aug", "9", "0", False, True),
     ("asyncpg", "a-sync-p-g", "Seen on screen", "20 Aug", "6", "0", False, False),
     ("Valkey", "val-key", "Learned", "14 Aug", "22", "2", False, False),
@@ -352,7 +352,7 @@ dictionary_empty = f"""<div class="empty">
 # =====================================================================
 CHANGES = [
     ("a sink p g", "asyncpg", "Seen on screen", "2:30 PM", "Code", None),
-    ("naveen bhat", "Naveen Bhatt", "You said it clearly elsewhere", "11:05 AM", "Mail", None),
+    ("avery ston", "Avery Stone", "You said it clearly elsewhere", "11:05 AM", "Mail", None),
     ("s q l", "SQL", "Heard as stray letters", "10:18 AM", "Code", None),
     ("data base", "database", "Heard as several words", "9:41 AM", "Slack", "undone"),
 ]
@@ -416,7 +416,8 @@ corrections_empty = f"""<div class="empty">
 # Insights — only what the app already measures.
 # =====================================================================
 # Mirrors InsightsPresenter in Sources/UttrflowUX/InsightsPresentation.swift: a range switch,
-# a calendar shaded by each day's words, and four figures. Scripts/insights_contract_audit.py
+# a calendar shaded by each day's words, four dictation figures and suggestion counts.
+# Scripts/insights_contract_audit.py
 # reads both sides and fails when they part.
 RANGES = [7, 30, 90]
 RANGE_TITLES = [f"{days} days" for days in RANGES]
@@ -434,6 +435,8 @@ DEEP_INK_FLOOR = 0.72
 HEAT = "95,224,211"
 DEEP_INK = "#04332F"
 FIGURE_CAPTIONS = ["words", "a day", "words / min", "longest streak"]
+SUGGESTION_CAPTIONS = ["Stored lines", "Recorded uses", "Accepted", "Typed past", "Self-sourced"]
+SUGGESTION_VALUES = ["23", "41", "12", "9", "7"]
 EMPTY_TITLE = "Not enough to chart yet"
 DAYS_BEFORE_CHARTING = 7
 
@@ -481,6 +484,15 @@ legend_swatches = "".join(
 figure_tiles = "".join(
     f'<div class="card figure"><div class="v">{value}</div><div class="k">{caption}</div></div>'
     for value, caption in zip(FIGURES, FIGURE_CAPTIONS))
+suggestion_tiles = "".join(
+    f'<div class="card figure"><div class="v">{value}</div><div class="k">{caption}</div></div>'
+    for value, caption in zip(SUGGESTION_VALUES, SUGGESTION_CAPTIONS))
+suggestion_insights = f"""<div style="margin-top: 18px">
+          <div style="font-size: 12px; font-weight: 600">Suggestions</div>
+          <div style="font-size: 11px; color: var(--label-2); margin-top: 3px">
+            Stored corpus totals on this Mac.</div>
+          <div class="row" style="gap: 12px; margin-top: 10px">{suggestion_tiles}</div>
+        </div>"""
 
 insights = f"""<div class="row" style="gap: 18px; align-items: flex-start">
           <div class="card calendar" style="flex: 1">
@@ -493,7 +505,8 @@ insights = f"""<div class="row" style="gap: 18px; align-items: flex-start">
           <div style="width: 220px; flex: none; display: flex; flex-direction: column; gap: 12px">
             {figure_tiles}
           </div>
-        </div>"""
+        </div>
+        {suggestion_insights}"""
 
 SPOKEN_SO_FAR = 2
 insights_empty = f"""<div class="empty">
@@ -512,7 +525,8 @@ insights_empty = f"""<div class="empty">
             <div class="chip"><div class="cv">68</div><div class="ck">dictations so far</div></div>
             <div class="chip"><div class="cv">2,410</div><div class="ck">words so far</div></div>
           </div>
-        </div>"""
+        </div>
+        {suggestion_insights}"""
 
 
 # =====================================================================
@@ -523,7 +537,7 @@ SNIPS = [
     ("standup update", "Yesterday: &hellip; &nbsp;Today: &hellip; &nbsp;Blockers: &hellip;",
      "31", "Today"),
     ("meeting link", "https://meet.google.com/qzt-hnrv-dka", "48", "Today"),
-    ("sign off", "Thanks, Naveen", "64", "Today"),
+    ("sign off", "Thanks, Avery", "64", "Today"),
 ]
 
 snip_rows = "".join(f"""<div class="tr">
@@ -669,9 +683,9 @@ style = f"""<p class="grp-title" style="margin-top: 0">Tidying up</p>
 # =====================================================================
 account = f"""<div class="card" style="padding: 14px 15px">
           <div class="row" style="gap: 13px">
-            <div class="avatar">NB</div>
+            <div class="avatar">AS</div>
             <div style="flex: 1; min-width: 0">
-              <div style="font-size: var(--t-title3); font-weight: 600">Naveen Bhatt</div>
+              <div style="font-size: var(--t-title3); font-weight: 600">Avery Stone</div>
               <div class="muted" style="font-size: var(--t-callout); margin-top: 2px">
                 nadia.d@example.com</div>
             </div>
@@ -745,7 +759,12 @@ SCREENS = [
 
 written = []
 for stem, active, caption, scope_html, search_html, add_html, content, recent, tails in SCREENS:
-    written += write_pair(
+    writer = (
+        write_whitespace_clean_pair
+        if stem in ("Main-Home", "Main-Dictionary-Empty", "Main-Snippets-Empty")
+        else write_pair
+    )
+    written += writer(
         stem,
         lambda dark, a=active, cap=caption, sc=scope_html, se=search_html, ad=add_html,
         c=content, r=recent, x=tails:
