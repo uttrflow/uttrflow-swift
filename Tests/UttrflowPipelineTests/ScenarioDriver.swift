@@ -40,6 +40,11 @@ struct Scenario: Sendable {
     var spellings: @Sendable () async -> [String: String] = { [:] }
     /// The recording itself, when a test needs audio the pieces' pauses cannot describe.
     var take: AudioSamples?
+    /// The piece whose decode waits until the test releases it, counted from the first decode the recogniser is asked for.
+    var heldPiece: Int?
+    var recordings: any RecordingKeeper = RecordingsNotKept()
+    /// How often the pipeline looks for a finished piece while the key is held.
+    var earlyPoll: Duration = .milliseconds(2)
 }
 
 /// The cleaner stacks a scenario runs under.
@@ -121,45 +126,71 @@ enum ScenarioDriver {
     }
 
     static func run(_ scenario: Scenario) async -> ScenarioRun {
-        let (pipeline, speech, inserter) = await assemble(scenario)
-        await pipeline.startRecording()
-        await pipeline.finishRecording()
-        return ScenarioRun(
-            state: await pipeline.currentState, writes: inserter.received,
-            placedCarets: inserter.placedCarets,
-            heard: await speech.answered, context: scenario.context, pipeline: pipeline)
+        await session(scenario).run()
     }
 
     /// The form a spoken phrase reaches the snippet matcher in, under the scenario's dictionary and cleaners.
     static func arrival(ofSpoken phrase: String, in scenario: Scenario) async -> String {
-        await assemble(scenario).pipeline.arrival(ofSpoken: phrase)
+        await session(scenario).pipeline.arrival(ofSpoken: phrase)
     }
 
-    private static func assemble(
-        _ scenario: Scenario
-    ) async -> (pipeline: DictationPipeline, speech: ScriptedPieceRecogniser, inserter: FakeTextInserter) {
+    /// The scenario's pipeline before key-down, for a test that presses the keys itself.
+    static func session(_ scenario: Scenario) async -> ScenarioSession {
         let take = scenario.take ?? take(scenario.pieces)
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(take))
         await capture.setCaptured(take)
-        let speech = ScriptedPieceRecogniser(scenario.pieces)
+        let speech = ScriptedPieceRecogniser(scenario.pieces, holding: scenario.heldPiece)
         let inserter = FakeTextInserter()
         let pipeline = DictationPipeline(
             capture: capture, speech: speech, cleaner: scenario.cleaner,
             context: FakeContextEngine(context: scenario.context), inserter: inserter,
             corrector: scenario.corrector, snippets: scenario.snippets, spellings: scenario.spellings,
-            profile: scenario.profile, windowing: windows, earlyPoll: .milliseconds(2))
-        return (pipeline, speech, inserter)
+            recordings: scenario.recordings, profile: scenario.profile, windowing: windows,
+            earlyPoll: scenario.earlyPoll)
+        return ScenarioSession(
+            pipeline: pipeline, speech: speech, inserter: inserter, context: scenario.context)
+    }
+}
+
+/// A scenario's pipeline, recogniser and inserter, wired and waiting for key-down.
+struct ScenarioSession: Sendable {
+    let pipeline: DictationPipeline
+    let speech: ScriptedPieceRecogniser
+    let inserter: FakeTextInserter
+    let context: AppContext
+
+    /// Holds the key for the whole take, lets go, and reports what the dictation left behind.
+    func run() async -> ScenarioRun {
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+        return ScenarioRun(
+            state: await pipeline.currentState, writes: inserter.received,
+            placedCarets: inserter.placedCarets, heard: await speech.answered, context: context,
+            pipeline: pipeline)
     }
 }
 
 /// A recogniser that reads out the next scripted piece per call, so a dictation's pieces are known in advance.
-private actor ScriptedPieceRecogniser: SpeechEngine {
+actor ScriptedPieceRecogniser: SpeechEngine {
     let kind = SpeechEngineKind.whisperKit
     private let pieces: [ScriptedPiece]
+    private let heldPiece: Int?
+    private var held: CheckedContinuation<Void, Never>?
+    private var released = false
+    /// The language hint of every decode asked for, in the order asked.
+    private(set) var hints: [LanguageCode?] = []
     private(set) var answered: [Transcription] = []
 
-    init(_ pieces: [ScriptedPiece]) {
+    init(_ pieces: [ScriptedPiece], holding heldPiece: Int? = nil) {
         self.pieces = pieces
+        self.heldPiece = heldPiece
+    }
+
+    /// Lets the held piece's decode answer.
+    func release() {
+        released = true
+        held?.resume()
+        held = nil
     }
 
     func prepare() async throws(SpeechEngineError) {}
@@ -167,8 +198,11 @@ private actor ScriptedPieceRecogniser: SpeechEngine {
     func transcribe(
         _ audio: AudioSamples, options: TranscriptionOptions
     ) async throws(SpeechEngineError) -> Transcription {
-        guard answered.count < pieces.count else { throw .nothingHeard }
-        let piece = pieces[answered.count]
+        let index = hints.count
+        hints.append(options.languageHint)
+        guard index < pieces.count else { throw .nothingHeard }
+        if index == heldPiece, !released { await withCheckedContinuation { held = $0 } }
+        let piece = pieces[index]
         let heard = Transcription(
             text: piece.text, detectedLanguage: DetectedLanguage(code: piece.language, confidence: 1),
             segments: [
