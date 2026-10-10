@@ -497,6 +497,20 @@ each, 16 minutes on a loaded machine. Every row is the same:
 | clean, 10 dB | 5, 0, 1, 2 | -1.0 | 0.0% | 0.000 | 0.00 | 100.0% | 0.0% |
 | clean, 10 dB | 5 | -0.7, -1.3 | 0.0% | 0.000 | 0.00 | 100.0% | 0.0% |
 
+A second sweep on the same clips, noisier (`--counts 0 1 2 5 --snrs 20 5 0`, 3 runs, release build):
+
+| Audio | Count | Log-prob | Fallback rate | Mean extra s | Worst extra s | Identical | WER |
+|---|---|---|---|---|---|---|---|
+| 20 dB | 0, 1, 2, 5 | -1.0 | 0.0% | 0.000 | 0.00 | 100.0% | 1.6% |
+| 20 dB | 5 | -0.7, -1.3 | 0.0% | 0.000 | 0.00 | 100.0% | 1.6% |
+| 5 dB | 0, 1, 2, 5 | -1.0 | 0.0% | 0.000 | 0.00 | 100.0% | 9.4% |
+| 5 dB | 5 | -0.7, -1.3 | 0.0% | 0.000 | 0.00 | 100.0% | 9.4% |
+| 0 dB | 0, 1, 2, 5 | -1.0 | 0.0% | 0.000 | 0.00 | 100.0% | 17.2% |
+| 0 dB | 5 | -0.7, -1.3 | 0.0% | 0.000 | 0.00 | 100.0% | 17.2% |
+
+Word error rises with noise (1.6%, 9.4%, 17.2%) but the fallback still never fires, even at 0 dB,
+so worst-case added seconds is 0.00 for every count.
+
 On this set the fallback never fires, so no setting changes words, seconds or repeatability, and
 the shipping plan stays. The set cannot decide the question: the recorded and degradation corpora,
 Hindi, short utterances and 8 runs are not measured here, and the log-probability test still reads
