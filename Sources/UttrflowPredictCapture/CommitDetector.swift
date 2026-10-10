@@ -1,5 +1,6 @@
 // What happens in a field, why a value counts as finished, and the machine that decides.
 public import Foundation
+package import UttrflowCore
 
 /// One thing that happened in a text field, carrying the moment it happened rather than reading a clock.
 public enum CaptureEvent: Sendable, Equatable {
@@ -141,6 +142,8 @@ public struct CommitDetector: Sendable, Equatable {
     private var editedSpan: EditedSpan?
     /// An accepted line replaced by what the person committed, held until the caller retracts its acceptance.
     private var acceptedLineToRetract: String?
+    /// A closed reason for the last line the detector deliberately refused to learn.
+    private var skippedReason: CaptureSkipReason?
 
     /// A detector watching a field nothing has been typed into.
     public init() {}
@@ -157,13 +160,17 @@ public struct CommitDetector: Sendable, Equatable {
         switch event {
         case .keystroke(let text, let moment):
             let line = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let expected = observedLine + typedSinceRead
+            let isDelayedPrefix =
+                hasObservedLine && !typedSinceRead.isEmpty && !hasUnverifiableKeySinceRead
+                && expected.hasPrefix(text)
             if hasObservedLine, (!typedSinceRead.isEmpty || hasUnverifiableKeySinceRead) {
                 let replacesAcceptedText =
                     acceptedLine != nil && !typedSinceRead.isEmpty
                     && Self.isRangeReplaced(
                         in: observedLine, by: text, typing: typedSinceRead,
                         keyed: !typedSinceRead.isEmpty || hasUnverifiableKeySinceRead)
-                if text != observedLine + typedSinceRead && !replacesAcceptedText {
+                if text != expected && !isDelayedPrefix && !replacesAcceptedText {
                     holdsMutation = true
                 }
             }
@@ -177,8 +184,12 @@ public struct CommitDetector: Sendable, Equatable {
             observedLine = text
             pending = line
             hasObservedLine = true
-            typedSinceRead = ""
-            hasUnverifiableKeySinceRead = false
+            if isDelayedPrefix, text != expected {
+                typedSinceRead = String(expected.dropFirst(text.count))
+            } else {
+                typedSinceRead = ""
+                hasUnverifiableKeySinceRead = false
+            }
             lastKeystroke = moment
             if let acceptedLine, line != acceptedLine, line.hasPrefix(acceptedLine) {
                 // Typing on past the suggestion keeps its acceptance evidence.
@@ -262,6 +273,7 @@ public struct CommitDetector: Sendable, Equatable {
         span = nil
         editedSpan = nil
         acceptedLineToRetract = nil
+        skippedReason = nil
     }
 
     /// Hands over the edit the last ending found inside inserted text, once.
@@ -274,6 +286,11 @@ public struct CommitDetector: Sendable, Equatable {
     mutating func takeAcceptedLineToRetract() -> String? {
         defer { acceptedLineToRetract = nil }
         return acceptedLineToRetract
+    }
+
+    package mutating func takeSkippedReason() -> CaptureSkipReason? {
+        defer { skippedReason = nil }
+        return skippedReason
     }
 
     /// Undoes the most recent idle commit, so a later tick can re-emit the value after a failed write.
@@ -292,8 +309,21 @@ public struct CommitDetector: Sendable, Equatable {
             keyedSinceRead ? nil : span.flatMap { Self.edit(of: $0, into: observedLine, at: moment) }
         let acceptedToRetract = acceptedLine != pending ? acceptedLine : nil
         let finished = commit(reason, admits)
+        let skippedReason: CaptureSkipReason?
+        if finished == nil, !pending.isEmpty, pending != committed, pending != acceptedLine {
+            if holdsInsertion {
+                skippedReason = .insertedText
+            } else if holdsMutation || keyedSinceRead {
+                skippedReason = .unmatchedKeys
+            } else {
+                skippedReason = nil
+            }
+        } else {
+            skippedReason = nil
+        }
         reset()
         editedSpan = edit
+        self.skippedReason = skippedReason
         if finished != nil { acceptedLineToRetract = acceptedToRetract }
         return finished
     }

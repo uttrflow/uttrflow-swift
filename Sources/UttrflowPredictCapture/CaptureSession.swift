@@ -22,6 +22,8 @@ public actor CaptureSession {
     private let preferencesFile: CapturePreferencesFile
     /// Which endings of a field's life finish its value.
     private let policy: CommitPolicy
+    /// Receives only a closed reason when a finished line is deliberately not learned.
+    private let onCommitSkipped: (@Sendable (CaptureSkipReason) async -> Void)?
     /// The answers as they stand, read once at launch and written back as they change.
     private var preferences: CapturePreferences
     /// The field the events are believed to be about, until a different one is read.
@@ -59,13 +61,15 @@ public actor CaptureSession {
     /// How long after an acceptance a line cut back inside the accepted text reads as the person undoing it.
     static let undoWindow = SuggestionSession.undoWindow
 
-    /// A session writing to this sink, remembering its answers in this file.
+    /// A session writing to this sink, remembering its answers in this file, and told why a finished line was not learned.
     public init(
-        sink: any CaptureSink, preferencesFile: CapturePreferencesFile, policy: CommitPolicy = .everyEnding
+        sink: any CaptureSink, preferencesFile: CapturePreferencesFile, policy: CommitPolicy = .everyEnding,
+        onCommitSkipped: (@Sendable (CaptureSkipReason) async -> Void)? = nil
     ) {
         self.sink = sink
         self.preferencesFile = preferencesFile
         self.policy = policy
+        self.onCommitSkipped = onCommitSkipped
         preferences = preferencesFile.load()
     }
 
@@ -84,10 +88,12 @@ public actor CaptureSession {
         focused = reading
         if await retractIfUndone(event, in: reading) { detector.cancelAcceptedLine() }
         let commit = detector.receive(event, admitting: { policy.admits($0, in: reading) })
+        let skippedReason = detector.takeSkippedReason()
         if let accepted = detector.takeAcceptedLineToRetract(), let surface = reading.surface {
             await retract(accepted, in: surface)
         }
         await hearEditedSpan(from: reading)
+        if let skippedReason { await onCommitSkipped?(skippedReason) }
         guard let commit else { return .nothing }
         return try await write(commit, from: reading, at: event.moment)
     }
@@ -421,7 +427,9 @@ public actor CaptureSession {
         defer { detector.reset() }
         guard let leaving = focused else { return .nothing }
         let commit = detector.receive(ending, admitting: { policy.admits($0, in: leaving) })
+        let skippedReason = detector.takeSkippedReason()
         await hearEditedSpan(from: leaving)
+        if let skippedReason { await onCommitSkipped?(skippedReason) }
         guard let commit else { return .nothing }
         return try await write(commit, from: leaving, at: ending.moment)
     }

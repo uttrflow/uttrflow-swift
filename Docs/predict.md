@@ -107,6 +107,13 @@ line starts at the earliest sentence start within reach of the caret
 `Acceptance.edit(accepting:after:)` is given the same string, so what a replacement can destroy is
 bounded by the current line.
 
+Capture matches accessibility reads against the printable keys observed since the prior read.
+A value change with no key-down in the last 100 ms counts as an insertion only when no typed key
+still awaits its echo, so a slow remote shell's late echo is judged by its text, not its timing.
+If a read is only a prefix of the expected echo, the unmatched suffix stays pending until the field
+catches up. A line that cannot be explained by typed keys is not learned; Diagnostics counts its
+closed skip reason without keeping the line.
+
 **What is drawn is the tail, not the whole candidate.** The surface is given the line as well as
 the candidate and draws only what the accept key will add.
 
@@ -149,6 +156,7 @@ Greek, Han, kana and the digits of those scripts do.
 | `SuggestionSession.turn` | A line containing another script gets no turn: it settles as `Quieting.Reason.nonLatinLine`, and neither the store nor the model is asked |
 | `SuggestionSession.resolve` | A remembered or machine candidate containing another script is never ranked or drawn, though capture keeps it |
 | `CompletionText.finished`, `SuggestionSession.drawable` | A generated line containing another script is dropped where the reply is parsed, so the bake-off sees it too, and again before anything is drawn |
+| `SuggestionLanguage.continues`, in `SuggestionSession.resolve` and `SuggestionSession.drawable` | A candidate whose continuation the system language identifier is at least 0.9 sure is a different language from a typed line it is at least 0.8 sure of: German, French or Spanish after English. Either side under three words is not judged, and a continuation holding a word from `hindi-words.json` always continues, since the identifier cannot name romanised Hindi |
 | `LatinOnlyInstruction.text`, `GenerationSituation.recentLines` | Where the screen, the window title or the text before the line holds another script, the model is told to write English, or romanised Hinglish where the person writes that, in Latin letters only. The person's earlier lines in other scripts are left out of the prompt |
 
 **A non-Latin line is silent, not completed in Latin.** A completion in that script breaks the

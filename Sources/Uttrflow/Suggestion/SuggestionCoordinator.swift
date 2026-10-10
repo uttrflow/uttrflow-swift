@@ -192,6 +192,7 @@ final class SuggestionCoordinator {
         focusedFieldValueObserver: (any FocusedFieldValueObserving)? = nil,
         processActivity: any SuggestionProcessActivityManaging = ProcessSuggestionActivity(),
         secureInput: SecureInputWatch = SecureInputWatch(),
+        onCaptureSkipped: (@Sendable (CaptureSkipReason) async -> Void)? = nil,
         focusedSelectionReader: @escaping @Sendable () async -> FocusedFieldSelectionRead = {
             await FocusedFieldReader.focusedSelection()
         },
@@ -232,7 +233,7 @@ final class SuggestionCoordinator {
             preferencesFile: CapturePreferencesFile(
                 path: CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false)),
             // A line that was never sent was not a value: a shell and a chat composer learn on Return alone.
-            policy: .whereReturnSends)
+            policy: .whereReturnSends, onCommitSkipped: onCaptureSkipped)
         self.capture = capture
         let acceptances = AcceptanceQueue { await capture.abandonFocusedField() }
         self.acceptances = acceptances
@@ -617,7 +618,10 @@ final class SuggestionCoordinator {
             return
         }
         let moment = Date()
-        if Self.isUnkeyedAccessibilityChange(lastKeyDown: lastObservedKeyDown, at: moment) {
+        // A slow field echoes typed keys late; capture checks that change against the keys instead.
+        if Self.isUnkeyedAccessibilityChange(lastKeyDown: lastObservedKeyDown, at: moment),
+            !captureFeed.awaitsTypedEcho
+        {
             captureFeed.noteInsertion()
         }
         let action = Self.accessibilityValueChangeAction(

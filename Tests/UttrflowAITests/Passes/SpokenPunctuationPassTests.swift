@@ -416,6 +416,10 @@ struct SpokenPunctuationPassTests {
                 "before you release: number one run it number two ship it"
             ),
             ("consequences colon logins need redis", "consequences: logins need redis"),
+            (
+                "we have colon trouble period the colon comma and more",
+                "we have colon trouble. the colon, and more"
+            ),
         ]
     )
     func takesAnOrdinaryNameOnEvidence(input: String, expected: String) {

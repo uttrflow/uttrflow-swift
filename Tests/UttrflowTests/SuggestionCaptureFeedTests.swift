@@ -62,6 +62,51 @@ struct SuggestionCaptureFeedTests {
         return reading
     }
 
+    @Test("a slow field's late echo of typed keys is learned, and awaited until the field shows it")
+    func lateEchoIsAwaitedAndLearned() async throws {
+        let fixture = try await Fixture()
+        defer { fixture.remove() }
+
+        _ = await Self.read(
+            Self.field("shell", value: "kubectl get po"), into: fixture.feed, because: .keystroke, after: 0)
+        fixture.feed.queue("d")
+        fixture.feed.queue("s")
+        _ = await Self.read(
+            Self.field("shell", value: "kubectl get po"), into: fixture.feed, because: .keystroke, after: 0.1)
+        #expect(fixture.feed.awaitsTypedEcho)
+        _ = await Self.read(
+            Self.field("shell", value: "kubectl get pod"), into: fixture.feed, because: .keystroke,
+            after: 0.3)
+        #expect(fixture.feed.awaitsTypedEcho)
+        _ = await Self.read(
+            Self.field("shell", value: "kubectl get pods"), into: fixture.feed, because: .keystroke,
+            after: 0.5)
+        #expect(!fixture.feed.awaitsTypedEcho)
+        let reading = await Self.read(
+            Self.field("shell", value: "kubectl get pods"), into: fixture.feed, because: .returnPressed,
+            after: 1)
+
+        #expect(try await fixture.learned(in: reading) == ["kubectl get pods"])
+    }
+
+    @Test("a read that is not the typed keys' echo stops awaiting one")
+    func unrelatedReadStopsAwaitingEcho() async throws {
+        let fixture = try await Fixture()
+        defer { fixture.remove() }
+
+        _ = await Self.read(
+            Self.field("shell", value: "git sta"), into: fixture.feed, because: .keystroke, after: 0)
+        fixture.feed.queue("t")
+        _ = await Self.read(
+            Self.field("shell", value: "git stash pop"), into: fixture.feed, because: .keystroke, after: 0.3)
+
+        #expect(!fixture.feed.awaitsTypedEcho)
+        #expect(SuggestionCaptureFeed.unechoed(after: "git sta", typed: "tus", read: "git stat") == "us")
+        #expect(SuggestionCaptureFeed.unechoed(after: "git sta", typed: "tus", read: "git sta") == "tus")
+        #expect(SuggestionCaptureFeed.unechoed(after: "git sta", typed: "tus", read: "git stash pop") == nil)
+        #expect(SuggestionCaptureFeed.unechoed(after: "git sta", typed: "tus", read: "git st") == nil)
+    }
+
     @Test("a Return learns the read line and lets go of the line the last keystroke handed")
     func returnLearnsTheLineAndClearsTheHandedLine() async throws {
         let fixture = try await Fixture()

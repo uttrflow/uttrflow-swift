@@ -23,6 +23,16 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     /// Quotation names that are everyday words too: an opening is a mark only with its closing later in the sentence, a closing only inside an open quotation.
     static let partneredNames: Set<[String]> = [["quote"], ["unquote"]]
 
+    /// A spoken closing, or a self-closing quotation name, indexed by the mark it pairs with.
+    private struct ClosingCandidate {
+        let wordIndex: Int
+        let words: [String]
+        /// Whether this is an opening name that closes its own quotation, which pairs only with the same name.
+        let reopens: Bool
+    }
+
+    private typealias ClosingIndex = [Character: [ClosingCandidate]]
+
     public init(
         destination: Destination = .plain, fieldRole: FieldRole = .unknown,
         region: CaretStructure.Region = .unrecognised
@@ -42,6 +52,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         markLeadIns(in: &draft)
         var live = draft.presentIndices
         let repeated = repeatedNames(in: live, of: draft)
+        let closings = closingIndex(in: live, of: draft)
         var names: Set<Int> = []
         let literal = literalDashes(in: live, of: draft, names: &names)
         let pairs = dashPairs(in: live, of: draft, literal: literal, repeated: repeated)
@@ -53,15 +64,20 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         // The quotes opened and not yet closed, innermost last, each with the name that opened it.
         var openQuotes: [(mark: String, name: [String])] = []
         while position < live.count {
+            let countBeforeMutation = live.count
             if replaceLongFlag(at: position, literal: literal, in: &live, of: &draft) {
-                sentenceEnd = nil
+                Self.adjustSentenceEnd(
+                    &sentenceEnd, oldCount: countBeforeMutation, newCount: live.count, at: position,
+                    endsSentence: WordShape(draft.words[live[position]].text).endsSentence)
                 continue
             }
             let literalHyphens = literal.contains(live[position])
             if literalHyphens, !names.contains(live[position]),
                 replaceShortFlag(at: position, in: &live, of: &draft)
             {
-                sentenceEnd = nil
+                Self.adjustSentenceEnd(
+                    &sentenceEnd, oldCount: countBeforeMutation, newCount: live.count, at: position,
+                    endsSentence: draft.shape(at: live[position]).endsSentence)
                 position += 1
                 continue
             }
@@ -72,15 +88,20 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 let address = SpokenAddress.read(
                     at: position, before: end, in: live, of: draft, expecting: expected)
             {
+                let countBeforeWrite = live.count
                 write(address, at: position, in: &live, of: &draft)
-                sentenceEnd = nil
+                Self.adjustSentenceEnd(
+                    &sentenceEnd, oldCount: countBeforeWrite, newCount: live.count, at: position,
+                    endsSentence: draft.shape(at: live[position]).endsSentence)
                 position += 1
                 continue
             }
             if let echoed = echoedName(at: position, in: live, of: draft) {
                 for index in live[position..<(position + echoed)] { draft.remove(at: index, by: Self.id) }
                 live.removeSubrange(position..<(position + echoed))
-                sentenceEnd = nil
+                Self.adjustSentenceEnd(
+                    &sentenceEnd, oldCount: countBeforeMutation, newCount: live.count, at: position,
+                    endsSentence: false)
                 continue
             }
             let said = SpokenCommands.marks.first { draft.spells($0.words, at: position, in: live) }
@@ -94,7 +115,8 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                     || isUsed(found, at: position, in: live, of: draft, repeated: repeated),
                 isPaired(
                     found, at: position, in: live, of: draft, open: openBrackets,
-                    quoting: !openQuotes.isEmpty),
+                    quoting: !openQuotes.isEmpty, sentenceEnd: sentenceEnd ?? live.count,
+                    closings: closings),
                 isPlaced(
                     found.text, before: position + found.words.count, spanning: found.words.count,
                     in: live, of: draft),
@@ -113,7 +135,9 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             }
             if found.placement == .closing, !SpokenCommands.isBracket(found.text) { _ = openQuotes.popLast() }
             track(found.text, in: &openBrackets)
-            sentenceEnd = nil
+            Self.adjustSentenceEnd(
+                &sentenceEnd, oldCount: countBeforeMutation, newCount: live.count, at: position,
+                endsSentence: WordShape(written).endsSentence)
         }
         return draft
     }
@@ -121,6 +145,19 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     /// Whether an opening name said again closes the innermost quotation it opened, where its row says it does.
     private func closesOwnQuotation(_ row: SpokenCommand, opened name: [String]?) -> Bool {
         row.placement == .opening && row.words == name && row.closesItself(in: destination)
+    }
+
+    /// Keeps a cached sentence boundary valid when a write shrinks `live` in place, instead of rescanning to the sentence end.
+    private static func adjustSentenceEnd(
+        _ sentenceEnd: inout Int?, oldCount: Int, newCount: Int, at position: Int, endsSentence: Bool
+    ) {
+        guard let end = sentenceEnd else { return }
+        guard !endsSentence else {
+            sentenceEnd = nil
+            return
+        }
+        let removed = oldCount - newCount
+        if removed > 0, end > position { sentenceEnd = end - removed }
     }
 
     /// The quote a quotation mark writes: a double quote opened inside a double quote is single, and a close matches the quote still open.
@@ -191,7 +228,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     /// A spoken bracket, or a partnered name, is a mark only as half of a pair around words: an opening needs its closing later in the sentence, a bracket closing needs its opening.
     private func isPaired(
         _ command: SpokenCommand, at position: Int, in live: [Int], of draft: Draft, open: [Character],
-        quoting: Bool
+        quoting: Bool, sentenceEnd: Int, closings: ClosingIndex
     ) -> Bool {
         let partnered = Self.partneredNames.contains(command.words)
         // A partnered name is an everyday word too, so after a determiner it is named even inside a quotation: "the quote".
@@ -203,22 +240,62 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         guard SpokenCommands.isBracket(command.text) || partnered, let bracket = command.text.first
         else { return true }
         if let opener = WordShape.bracketOpeners[bracket] { return open.last == opener }
-        // The closing must leave at least one word between it and the opening.
-        var next = position + command.words.count + 1
-        while next < live.count, !draft.shape(at: live[next - 2]).endsSentence {
-            let closesHere =
-                command.closesItself(in: destination) && draft.spells(command.words, at: next, in: live)
-            if closesHere
-                || SpokenCommands.closings.contains(where: {
-                    (partnered ? $0.text.first : WordShape.bracketOpeners[$0.text.first ?? " "]) == bracket
-                        && draft.spells($0.words, at: next, in: live)
-                })
+        // The closing must leave at least one word between it and the opening, and start no later than the word after the sentence end.
+        let firstPossible = position + command.words.count + 1
+        let lastPossible = min(sentenceEnd, live.count - 1)
+        guard firstPossible <= lastPossible else { return false }
+        let candidates = closings[bracket, default: []]
+        var low = Self.firstIndex(in: candidates, notBelow: live[firstPossible]) { $0.wordIndex }
+        while low < candidates.count, candidates[low].wordIndex <= live[lastPossible] {
+            let candidate = candidates[low]
+            low += 1
+            guard !candidate.reopens || candidate.words == command.words else { continue }
+            let window = live[firstPossible...lastPossible]
+            let at = firstPossible + Self.firstIndex(in: window, notBelow: candidate.wordIndex) { $0 }
+            if at <= lastPossible, live[at] == candidate.wordIndex,
+                draft.spells(candidate.words, at: at, in: live)
             {
                 return true
             }
-            next += 1
         }
         return false
+    }
+
+    /// The offset of the first element of a sorted collection that is not below `value`.
+    private static func firstIndex<C: RandomAccessCollection>(
+        in sorted: C, notBelow value: Int, by key: (C.Element) -> Int
+    ) -> Int {
+        var low = 0
+        var high = sorted.count
+        while low < high {
+            let middle = low + (high - low) / 2
+            if key(sorted[sorted.index(sorted.startIndex, offsetBy: middle)]) < value {
+                low = middle + 1
+            } else {
+                high = middle
+            }
+        }
+        return low
+    }
+
+    /// Indexes every spoken closing, and every opening name that closes itself here, once, so each opening finds its pair by binary search.
+    private func closingIndex(in live: [Int], of draft: Draft) -> ClosingIndex {
+        let reopening = SpokenCommands.marks.filter {
+            $0.placement == .opening && $0.closesItself(in: destination)
+        }
+        let rows = SpokenCommands.closings + reopening
+        var result: ClosingIndex = [:]
+        for position in live.indices {
+            for command in rows where draft.spells(command.words, at: position, in: live) {
+                guard let mark = command.text.first else { continue }
+                let key = WordShape.bracketOpeners[mark] ?? mark
+                result[key, default: []].append(
+                    ClosingCandidate(
+                        wordIndex: live[position], words: command.words,
+                        reopens: command.placement == .opening))
+            }
+        }
+        return result
     }
 
     /// Records a bracket the pass wrote: an opening is pushed, a closing pops its opening.
