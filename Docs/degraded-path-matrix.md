@@ -12,21 +12,21 @@ below the floor fails the test.
 
 | Off | Cases | Passed | Invented | Deleted | Lost | Broke shape | Below floor |
 |---|---|---|---|---|---|---|---|
-| none (default) | 1217 | 1095 | 40 | 12 | 22 | 90 | 0 |
-| recogniser-bias | 1217 | 1095 | 40 | 12 | 22 | 90 | 0 |
-| evidence-capture | 1217 | 1095 | 40 | 12 | 22 | 90 | 0 |
-| candidate-generation | 1217 | 1095 | 40 | 12 | 22 | 90 | 0 |
-| scoring | 1217 | 1095 | 40 | 12 | 22 | 90 | 0 |
-| override-gate | 1217 | 1095 | 40 | 12 | 22 | 90 | 0 |
-| formatting | 1217 | 609 | 149 | 4 | 204 | 511 | 0 |
-| recogniser-bias + evidence-capture | 1217 | 1095 | 40 | 12 | 22 | 90 | 0 |
-| evidence-capture + candidate-generation | 1217 | 1095 | 40 | 12 | 22 | 90 | 0 |
-| evidence-capture + scoring | 1217 | 1095 | 40 | 12 | 22 | 90 | 0 |
-| candidate-generation + scoring | 1217 | 1095 | 40 | 12 | 22 | 90 | 0 |
-| candidate-generation + override-gate | 1217 | 1095 | 40 | 12 | 22 | 90 | 0 |
-| scoring + override-gate | 1217 | 1095 | 40 | 12 | 22 | 90 | 0 |
-| recogniser-bias + formatting | 1217 | 609 | 149 | 4 | 204 | 511 | 0 |
-| override-gate + formatting | 1217 | 609 | 149 | 4 | 204 | 511 | 0 |
+| none (default) | 1237 | 1115 | 40 | 12 | 22 | 90 | 0 |
+| recogniser-bias | 1237 | 1115 | 40 | 12 | 22 | 90 | 0 |
+| evidence-capture | 1237 | 1115 | 40 | 12 | 22 | 90 | 0 |
+| candidate-generation | 1237 | 1115 | 40 | 12 | 22 | 90 | 0 |
+| scoring | 1237 | 1115 | 40 | 12 | 22 | 90 | 0 |
+| override-gate | 1237 | 1115 | 40 | 12 | 22 | 90 | 0 |
+| formatting | 1237 | 610 | 149 | 4 | 222 | 511 | 0 |
+| recogniser-bias + evidence-capture | 1237 | 1115 | 40 | 12 | 22 | 90 | 0 |
+| evidence-capture + candidate-generation | 1237 | 1115 | 40 | 12 | 22 | 90 | 0 |
+| evidence-capture + scoring | 1237 | 1115 | 40 | 12 | 22 | 90 | 0 |
+| candidate-generation + scoring | 1237 | 1115 | 40 | 12 | 22 | 90 | 0 |
+| candidate-generation + override-gate | 1237 | 1115 | 40 | 12 | 22 | 90 | 0 |
+| scoring + override-gate | 1237 | 1115 | 40 | 12 | 22 | 90 | 0 |
+| recogniser-bias + formatting | 1237 | 610 | 149 | 4 | 222 | 511 | 0 |
+| override-gate + formatting | 1237 | 610 | 149 | 4 | 222 | 511 | 0 |
 
 ## The user's own words on each fallback rung
 
