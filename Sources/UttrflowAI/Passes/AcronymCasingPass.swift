@@ -13,8 +13,12 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
     let fileForms: [String: String]
     /// Screen keys that are ordinary or English words, cased only where the screen writes them beside a spoken neighbour.
     let sightedEnglishKeys: Set<String>
-    /// Ordinary language names that can be cased only when a version frame identifies them.
-    let versionedLanguageForms: [String: String]
+    /// Ordinary-word language and tool names, cased only where a version, a coordinated name or a head noun identifies them.
+    let framedForms: [String: String]
+    /// The head nouns that identify each framed name said right before one: "android app".
+    let headedForms: [String: Set<String>]
+    /// Acronyms whose letters spell an everyday word, cased only where that word stands as a noun: "an led".
+    let nounSlotForms: [String: String]
     /// The user's one-word entries, lower-cased: the correction engine alone writes them in the entry's case.
     let ownKeys: Set<String>
     /// The screen's words, checked for that neighbour.
@@ -23,7 +27,7 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
     public init(destination: Destination = .plain, vocabulary: [String] = [], onScreen: [String] = []) {
         let terms = TechnicalLexicon.terms
             .filter { Self.namedCategories.contains($0.category) && $0.applies(in: destination) }
-            .filter { !($0.category == .fileFormat && $0.isEveryday) }
+            .filter { !$0.isEveryday }
         let lexicon = terms.map(\.id)
         // A spelt-out acronym such as HTTPS claims no ordinary word, so its form is a key even when it spells one.
         let vouched = terms.filter { !$0.claimsOrdinaryWrittenForm(GeneralVocabulary.isOrdinary) }
@@ -52,12 +56,17 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
         self.forms = forms
         self.sightedEnglishKeys = sightedEnglish
         self.ownKeys = Set(own.filter(Self.isOneWord).map { $0.lowercased() })
-        // The version frame is the evidence, so a language the lexicon keeps to code is still named in prose.
-        self.versionedLanguageForms = Dictionary(
-            uniqueKeysWithValues: TechnicalLexicon.terms.filter {
-                $0.category == .language && $0.claimsOrdinaryWrittenForm(GeneralVocabulary.isOrdinary)
-                    && !FunctionWords.holds($0.id.lowercased())
-            }.map { ($0.id.lowercased(), $0.id) })
+        // The frame is the evidence, so a name the lexicon keeps to code is still named in prose.
+        let framed = TechnicalLexicon.terms.filter {
+            [.language, .tool].contains($0.category)
+                && $0.claimsOrdinaryWrittenForm(GeneralVocabulary.isOrdinary)
+                && !FunctionWords.holds($0.id.lowercased())
+        }
+        self.framedForms = Dictionary(uniqueKeysWithValues: framed.map { ($0.id.lowercased(), $0.id) })
+        self.headedForms = Dictionary(uniqueKeysWithValues: framed.map { ($0.id.lowercased(), $0.heads) })
+        self.nounSlotForms = Dictionary(
+            uniqueKeysWithValues: TechnicalLexicon.terms.filter { $0.category == .acronym && $0.isEveryday }
+                .map { ($0.id.lowercased(), $0.id) })
         self.screen = ScreenWords(texts: onScreen)
         let stems = TechnicalLexicon.terms
             .filter { $0.category == .fileFormat && $0.applies(in: destination) }.map(\.id).filter(
@@ -74,8 +83,7 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
         for index in draft.presentIndices where !draft.words[index].isLayoutMark {
             let shape = draft.shape(at: index)
             guard
-                let form = cased(shape.core) ?? versionedLanguageForm(shape.core, at: index, in: draft)
-                    ?? coordinatedLanguageForm(shape.core, at: index, in: draft),
+                let form = cased(shape.core) ?? framedForm(shape.core, at: index, in: draft),
                 form != shape.core
             else { continue }
             let key = shape.core.lowercased()
@@ -101,10 +109,17 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
         return form + "s"
     }
 
+    /// An everyday-word name's lexicon case where a version, a coordinated name, a head noun or a noun slot identifies it.
+    func framedForm(_ core: String, at index: Int, in draft: Draft) -> String? {
+        versionedLanguageForm(core, at: index, in: draft)
+            ?? coordinatedLanguageForm(core, at: index, in: draft)
+            ?? headedForm(core, at: index, in: draft) ?? nounSlotForm(core, at: index, in: draft)
+    }
+
     /// A language name takes its lexicon case when a verb and a following number identify a version mention.
     func versionedLanguageForm(_ core: String, at index: Int, in draft: Draft) -> String? {
         let key = core.lowercased()
-        guard !ownKeys.contains(key), let form = versionedLanguageForms[key] else { return nil }
+        guard !ownKeys.contains(key), let form = framedForms[key] else { return nil }
         let present = draft.presentIndices.filter { !draft.words[$0].isLayoutMark }
         guard let position = present.firstIndex(of: index), position > 0, position + 1 < present.count else {
             return nil
@@ -148,7 +163,7 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
     /// A language name takes its lexicon case when "and", "or" or a list comma joins it to a name this pass writes.
     func coordinatedLanguageForm(_ core: String, at index: Int, in draft: Draft) -> String? {
         let key = core.lowercased()
-        guard !ownKeys.contains(key), let form = versionedLanguageForms[key] else { return nil }
+        guard !ownKeys.contains(key), let form = framedForms[key] else { return nil }
         let present = draft.presentIndices.filter { !draft.words[$0].isLayoutMark }
         guard let position = present.firstIndex(of: index) else { return nil }
         let shapes = present.map { draft.shape(at: $0) }
@@ -161,6 +176,36 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
             partners.append(position + 2)
         }
         return partners.contains { isNamed(shapes[$0].core) } ? form : nil
+    }
+
+    /// A framed name takes its lexicon case when one of its head nouns follows it in the same clause: "android app".
+    func headedForm(_ core: String, at index: Int, in draft: Draft) -> String? {
+        let key = core.lowercased()
+        guard !ownKeys.contains(key), let form = framedForms[key], let heads = headedForms[key] else {
+            return nil
+        }
+        let present = draft.presentIndices.filter { !draft.words[$0].isLayoutMark }
+        guard let position = present.firstIndex(of: index), position + 1 < present.count,
+            !draft.shape(at: index).endsClause
+        else { return nil }
+        return heads.contains(draft.shape(at: present[position + 1]).key) ? form : nil
+    }
+
+    /// An acronym that spells an everyday verb form takes its case as a noun: after an article, or before a verb when no pronoun leads.
+    func nounSlotForm(_ core: String, at index: Int, in draft: Draft) -> String? {
+        let key = core.lowercased()
+        guard !ownKeys.contains(key), let form = nounSlotForms[key] else { return nil }
+        let present = draft.presentIndices.filter { !draft.words[$0].isLayoutMark }
+        guard let position = present.firstIndex(of: index), position > 0,
+            !draft.shape(at: present[position - 1]).endsClause
+        else { return nil }
+        let words = present.map { draft.shape(at: $0).key }
+        if ["a", "an", "the"].contains(words[position - 1]) { return form }
+        guard position + 1 < words.count, !draft.shape(at: index).endsClause,
+            !FunctionWords.english.contains(words[position - 1])
+        else { return nil }
+        let tags = LexicalClass.tags(ofWords: words)
+        return tags[position - 1] != .pronoun && tags[position + 1] == .verb ? form : nil
     }
 
     /// Whether this pass writes a word as a name from the lexicon, dictionary or screen, not only beside a neighbour.

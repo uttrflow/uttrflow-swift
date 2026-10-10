@@ -253,6 +253,7 @@ private func name(of change: SettingsChange) -> String {
     case .endOnSilence: "endOnSilence"
     case .cleaningStep: "cleaningStep"
     case .appDestination: "appDestination"
+    case .appAdapterMode: "appAdapterMode"
     case .forgetAppDestination: "forgetAppDestination"
     case .suggestionsHere: "suggestionsHere"
     case .suggestionAcceptKey: "suggestionAcceptKey"
@@ -272,7 +273,7 @@ private func name(of change: SettingsChange) -> String {
 }
 
 /// How many cases ``SettingsChange`` has, bumped deliberately when one is added.
-private let settingsChangeCaseCount = 28
+private let settingsChangeCaseCount = 29
 
 /// Applies a change, or answers the settings unchanged when the editor refused it.
 private func applying(_ change: SettingsChange, to settings: Settings) -> Settings {
@@ -341,6 +342,7 @@ private let samples: [Sample] = [
     Sample(.endOnSilence(seconds: 4)),
     Sample(.cleaningStep(.fillers, isOn: false)),
     Sample(.appDestination(bundleIdentifier: knownApp, name: "Thing", destination: .document)),
+    Sample(.appAdapterMode(bundleIdentifier: knownApp, name: "Thing", mode: .prose)),
     Sample(
         .forgetAppDestination(bundleIdentifier: knownApp),
         from: applying(

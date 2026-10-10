@@ -134,8 +134,8 @@ public struct AdapterSelection: Sendable {
    in code or a statement opened in a query editor reaches it, a cue against (a comment, a prose body, an article in the speech) rules
    the notation out, and no speech cue alone reaches it. Measured under the rules: 0 misfires on
    the abstention corpus, and the notation cases `NotationRecallTests` counts are written
-   exactly 90 of 90 in a code editor, 3 of 4 at a command line and 0 of 22 in a query editor,
-   where every statement gains a full stop; each count is its floor.
+   exactly 90 of 90 in a code editor, 3 of 4 at a command line and 21 of 22 in a query editor,
+   where a statement takes no full stop and a `;` only when it was said; each count is its floor.
 4. **Otherwise the prose adapter for `situation.destination`**, which is today's behaviour
    exactly. Abstention is the default; a weak signal degrades to prose, never to a different
    notation adapter.

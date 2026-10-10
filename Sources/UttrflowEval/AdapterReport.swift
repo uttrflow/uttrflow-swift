@@ -64,9 +64,7 @@ public struct AdapterReport: Sendable, Equatable, Codable {
         public let reason: String
     }
 
-    /// The adapters where this run has fewer exact hits, or any added word or broken shape, than the baseline allows.
-    ///
-    /// Added words and broken shapes must be 0, so they fail against 0 whatever the baseline held.
+    /// The adapters with fewer exact hits than the baseline, or any added word or broken shape (which must be 0).
     public func worsened(against baseline: AdapterReport) -> Result<[String], Incomparable> {
         guard label == baseline.label else {
             return .failure(Incomparable(reason: "measured \"\(label)\", baseline \"\(baseline.label)\""))

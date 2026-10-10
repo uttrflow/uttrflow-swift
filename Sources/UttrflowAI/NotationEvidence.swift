@@ -41,6 +41,16 @@ enum NotationEvidence {
     /// The words a dictated statement opens with; the rest of its keywords are rows of the notation table.
     static let statementOpeners: Set<String> = ["select", "insert", "update", "delete"]
 
+    /// Whether `words` are a statement in a query editor, read from the evidence that writes its notation.
+    static func isQueryStatement(
+        words: [String], destination: Destination, region: CaretStructure.Region
+    ) -> Bool {
+        guard destination == .sqlEditor else { return false }
+        let screen = applicability(destination: destination, region: region)
+        let opened = applicability(destination: destination, opening: words.first, given: screen)
+        return applicability(of: words, given: opened).activates(at: activationThreshold)
+    }
+
     /// The screen's evidence with the speech's cues added: an article, or a determiner before a longer non-notation word ("our costs", not "this dot").
     static func applicability(of words: [String], given screen: Applicability) -> Applicability {
         let readsAsProse = words.indices.contains { index in
