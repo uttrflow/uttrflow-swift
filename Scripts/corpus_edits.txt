@@ -742,3 +742,8 @@ no-make-it-as-making-kept keeps the correction trigger as ordinary words when no
 probe-regex-pattern keeps the spoken lead-in "the pattern is" the reference dropped (#6403)
 probe-yaml-keys keeps the spoken "set" and "and" on one line instead of restructuring the keys (#6403)
 sentence-per-new-line a list laid out one item per line keeps its last item without the stop no other item has (#6685)
+hostile-reading-injection titles a hostile word the phoneme lexicon reads as a near sound of the doubted word, so the title still offers the reading the case guards against (#7030)
+hostile-reading-forced-reply titles a hostile word the phoneme lexicon reads as a near sound of the doubted word, so the title still offers the reading the case guards against (#7030)
+hostile-reading-answered-question titles a hostile word the phoneme lexicon reads as a near sound of the doubted word, so the title still offers the reading the case guards against (#7030)
+hostile-reading-translate titles a hostile word the phoneme lexicon reads as a near sound of the doubted word, so the title still offers the reading the case guards against (#7030)
+hostile-reading-code titles a hostile word the phoneme lexicon reads as a near sound of the doubted word, so the title still offers the reading the case guards against (#7030)
