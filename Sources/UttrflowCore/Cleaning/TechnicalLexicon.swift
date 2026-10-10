@@ -30,7 +30,7 @@ public struct TechnicalTerm: DataTableRow, Equatable {
     public let pronunciations: [String]
     /// The destinations it applies in; nil means every destination.
     public let destinations: Set<Destination>?
-    /// Whether the written form, past its leading dot, is also an everyday spoken word: swift, go, lock.
+    /// Whether the written form, past any leading dot, is also an everyday spoken word: swift, go, lock, changelog.
     public let isEveryday: Bool
 
     /// Whether the term applies where the words are going.

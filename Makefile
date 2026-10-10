@@ -213,6 +213,11 @@ accuracy-gate: ## Fail when the shipping recogniser got worse on the synthesised
 	./.build/release/uttrflow-eval transcribe --corpus-path $(ACCURACY_CORPUS) \
 		--results-path .build/accuracy-results --baseline $(ACCURACY_BASELINE) --fail-on-regression
 
+.PHONY: seam-score
+seam-score: ## Fail when a long-form clip gained a stray stop, capital, doubled or lost word at a seam. Needs the installed model.
+	$(SWIFT) build -c release --product uttrflow-eval $(SWIFT_BUILD_FLAGS)
+	./.build/release/uttrflow-eval seam-score --baseline Scripts/seam_score_baseline.json --fail-on-regression
+
 .PHONY: accuracy-report
 accuracy-report: ## Write a release's accuracy report from the committed baseline: make accuracy-report VERSION=26.0926.0
 	@test -n "$(VERSION)" || { echo "usage: make accuracy-report VERSION=<release version>" >&2; exit 2; }

@@ -7,9 +7,13 @@ import class Foundation.ProcessInfo
 
 /// What the pipeline writes with each degraded path of `QualityLayers.degradedPaths`. See `Docs/degraded-path-matrix.md`.
 public struct DegradedPathMatrix: Sendable, Equatable {
-    /// Builds the pipeline one case runs through, with these layers, the case's own dictionary as its corrector and this tidier.
+    /// Builds the pipeline one case runs through, with these layers, the case's own dictionary as its corrector
+    /// and as the words a dictation ranks, and this tidier.
     public typealias Building =
-        @Sendable (QualityLayers, any WordCorrecting, any TranscriptCleaning) -> DictationPipeline
+        @Sendable (
+            QualityLayers, any WordCorrecting, @escaping @Sendable (AppContext) async -> [String],
+            any TranscriptCleaning
+        ) -> DictationPipeline
 
     /// One run of the corpus: the layers it had off and what its outputs did to the floor.
     public struct Row: Sendable, Equatable {
@@ -92,7 +96,7 @@ public struct DegradedPathMatrix: Sendable, Equatable {
         var written: [String] = []
         for off in paths {
             let layers = QualityLayers(enabled: QualityLayers().enabled.subtracting(off))
-            let pipeline = building(layers, corrector(for: testCase), remembering)
+            let pipeline = building(layers, corrector(for: testCase), speechWords(for: testCase), remembering)
             let cleaned = await pipeline.clean([testCase.transcription], seeing: testCase.context)
             written.append(cleaned.text ?? "")
         }
@@ -101,11 +105,24 @@ public struct DegradedPathMatrix: Sendable, Equatable {
 
     /// The case's dictionary as the corrector sees it, every entry added by the user.
     static func corrector(for testCase: EvaluationCase) -> any WordCorrecting {
-        let entries = testCase.dictionary.map {
+        let index = PhoneticIndex(entries: entries(of: testCase))
+        return DictionaryCorrections { index }
+    }
+
+    /// The case's dictionary ranked against the screen, as a dictation ranks the words it is biased towards.
+    static func speechWords(for testCase: EvaluationCase) -> @Sendable (AppContext) async -> [String] {
+        let entries = entries(of: testCase)
+        let index = PhoneticIndex(entries: entries)
+        return { context in
+            WorkingSet.words(
+                from: entries, coded: index, now: Date(timeIntervalSince1970: 0), favouring: context)
+        }
+    }
+
+    private static func entries(of testCase: EvaluationCase) -> [DictionaryEntry] {
+        testCase.dictionary.map {
             DictionaryEntry(word: $0, origin: .added, firstSeen: Date(timeIntervalSince1970: 0))
         }
-        let index = PhoneticIndex(entries: entries)
-        return DictionaryCorrections { index }
     }
 
     /// Each floor failure of one score, named by its kind so two kinds of one word stay apart.
@@ -181,9 +198,9 @@ public struct DegradedPathMatrix: Sendable, Equatable {
             "## The user's own words on each fallback rung",
             "",
             "A term is a word of a case's dictionary that its reference writes; it is kept when the output writes",
-            "it in the entry's case. `DictationPipeline.clean` hands the tidier no vocabulary, so the rules rung",
-            "here is the tidier without the user's words. The model rung needs the local model's weights, which",
-            "this run does not load.",
+            "it in the entry's case. Each case's dictionary is both the corrector and the words the tidier is",
+            "given, as in a dictation. The model rung needs the local model's weights, which this run does not",
+            "load.",
             "",
             "| Rung | Terms | Kept | Accuracy |",
             "|---|---|---|---|",
