@@ -61,6 +61,33 @@ struct ConfusionPairsTests {
         #expect(ConfusionPairs.vetoing(heard: "nickel", meant: "", day: 1).isEmpty)
     }
 
+    /// A replacement in another script is no word the user meant, so it writes no row.
+    @Test("A non-Latin replacement writes nothing")
+    func nonLatinMeantRefused() {
+        #expect(ConfusionPairs.confirming(heard: "nickel", meant: "निखिल", day: 1).isEmpty)
+    }
+
+    /// A thousand different rewrites a day for three days confirm no more pairs than the daily cap.
+    @Test("New pairs a day are capped")
+    func newPairsADayAreCapped() {
+        let rows = (1...3).flatMap { day in
+            (0..<1000).flatMap {
+                ConfusionPairs.confirming(heard: "word\($0)", meant: "Other\($0)", day: day)
+            }
+        }
+        #expect(ConfusionPairs.project(rows).count == ConfusionPairs.maximumNewPairsPerDay)
+    }
+
+    /// A pair past one day's cap starts counting on the next day that has room, so it is delayed, not lost.
+    @Test("A pair past the cap starts on a later day")
+    func pairPastCapStartsLater() {
+        let crowd = (0..<ConfusionPairs.maximumNewPairsPerDay).flatMap {
+            ConfusionPairs.confirming(heard: "word\($0)", meant: "Other\($0)", day: 1)
+        }
+        #expect(ConfusionPairs.project(crowd + kept(days: [1, 2, 3]))[key] == nil)
+        #expect(ConfusionPairs.project(crowd + kept(days: [1, 2, 3, 4]))[key] == .confirmed)
+    }
+
     private func retried(days: [Int]) -> [EvidenceRow] {
         days.flatMap { day in
             ConfusionPairs.retrying(
