@@ -185,14 +185,18 @@ private func makeHarness(
             pipeline: pipeline,
             monitor: monitor,
             cue: cue,
-            activation: activation,
-            handsFreeEnabled: handsFreeEnabled,
-            doubleTapWindow: doubleTapWindow,
-            minimumHold: minimumHold,
-            releaseGrace: releaseGrace,
             clock: clock,
-            onNearMissTap: { nearMisses.record() },
-            onStopGestureChange: { gesture in gestureSpy.record(gesture) }
+            options: .init(
+                activation: activation,
+                handsFreeEnabled: handsFreeEnabled,
+                doubleTapWindow: doubleTapWindow,
+                minimumHold: minimumHold,
+                releaseGrace: releaseGrace
+            ),
+            observers: .init(
+                onNearMissTap: { nearMisses.record() },
+                onStopGestureChange: { gesture in gestureSpy.record(gesture) }
+            )
         ),
         pipeline: pipeline,
         monitor: monitor,
