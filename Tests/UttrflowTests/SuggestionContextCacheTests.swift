@@ -85,10 +85,89 @@ struct SuggestionContextCacheTests {
         #expect(await walks.count == 1)
         #expect(answers.allSatisfy { $0?.windowTitle == "Notes" })
     }
+
+    @Test("Different windows can finish their own shared walks")
+    func concurrentWindowsKeepTheirOwnWalks() async {
+        let cache = SuggestionContextCache()
+        let walks = Counter()
+        let notes: @Sendable () async -> Surroundings? = {
+            await walks.bump()
+            while await walks.count < 2 { await Task.yield() }
+            return Self.around
+        }
+        let mail: @Sendable () async -> Surroundings? = {
+            await walks.bump()
+            while await walks.count < 2 { await Task.yield() }
+            return Surroundings(windowTitle: "Mail", text: "a message")
+        }
+
+        async let notesResult = cache.surroundings(for: "notes", reading: notes)
+        async let mailResult = cache.surroundings(for: "mail", reading: mail)
+        let answers = await [notesResult, mailResult]
+
+        #expect(await walks.count == 2)
+        #expect(answers[0]?.windowTitle == "Notes")
+        #expect(answers[1]?.windowTitle == "Mail")
+    }
+
+    @Test("Cancelling the only waiter cancels its walk and does not cache the late answer")
+    func cancellingTheOnlyWaiterCancelsItsWalk() async {
+        let cache = SuggestionContextCache()
+        let walks = Counter()
+        let cancelledWalks = Counter()
+        let walk: @Sendable () async -> Surroundings? = {
+            await walks.bump()
+            while !Task.isCancelled { await Task.yield() }
+            await cancelledWalks.bump()
+            return Self.around
+        }
+        let read = Task { await cache.surroundings(for: "notes", reading: walk) }
+
+        #expect(await waitUntil { await walks.count == 1 })
+        read.cancel()
+        #expect(await read.value == nil)
+        #expect(await waitUntil { await cancelledWalks.count == 1 })
+
+        let next = await cache.surroundings(
+            for: "notes",
+            reading: {
+                await walks.bump()
+                return Self.around
+            })
+        #expect(next == Self.around)
+        #expect(await walks.count == 2)
+    }
+
+    @Test("A successful surroundings lifetime starts when the walk finishes")
+    func lifetimeStartsAtWalkCompletion() async {
+        let cache = SuggestionContextCache()
+        let walks = Counter()
+        let start = ContinuousClock().now
+        let walk: @Sendable () async -> Surroundings? = {
+            await walks.bump()
+            return Self.around
+        }
+
+        _ = await cache.surroundings(
+            for: "notes", now: start, finishTime: { start + .milliseconds(1_500) }, reading: walk)
+        _ = await cache.surroundings(
+            for: "notes", now: start + .seconds(2), finishTime: { start + .seconds(2) }, reading: walk)
+
+        #expect(await walks.count == 1)
+    }
 }
 
 /// Counts the walks a test asked for.
 private actor Counter {
     private(set) var count = 0
     func bump() { count += 1 }
+}
+
+/// Waits for an actor-backed condition without relying on a wall-clock sleep.
+private func waitUntil(_ condition: () async -> Bool) async -> Bool {
+    for _ in 0..<10_000 {
+        if await condition() { return true }
+        await Task.yield()
+    }
+    return false
 }

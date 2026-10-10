@@ -44,10 +44,10 @@ private final class ProcessSuggestionActivity: SuggestionProcessActivityManaging
     }
 }
 
-/// Starts a repeating check of the focused selection and returns what stops it.
+/// Starts a check of the focused selection repeating at `interval` and returns what stops it.
 typealias SelectionCheckScheduling =
     @MainActor (
-        _ check: @escaping @MainActor () -> Void
+        _ interval: TimeInterval, _ check: @escaping @MainActor () -> Void
     ) -> @MainActor () -> Void
 
 /// Runs tab-to-complete end to end: reads the field, asks the corpus, draws, accepts, records.
@@ -71,11 +71,11 @@ final class SuggestionCoordinator {
     /// Whether secure keyboard entry is holding suggestions off, as this coordinator last saw it.
     var isSecureInputBlocking: Bool { secureInput.isBlocking }
     private let acceptor: SuggestionAcceptor
-    private let focusedFieldValueObserver: any FocusedFieldValueObserving
+    let focusedFieldValueObserver: any FocusedFieldValueObserving
     /// Keeps background typing work responsive for the coordinator's lifetime.
     private let processActivity: any SuggestionProcessActivityManaging
     /// What the user has decided on the Suggestions screen, which the app hands over as it changes.
-    private var preferences: SuggestionPreferences
+    private(set) var preferences: SuggestionPreferences
     /// Whether a native menu currently owns keyboard gestures in the focused application.
     private var nativeMenuIsOpen = false
     /// What exists on this machine right now, which the corpus cannot know. See `Docs/predict.md`.
@@ -89,7 +89,7 @@ final class SuggestionCoordinator {
     /// Reads the whole focused field, the one cross-process read a turn makes.
     private let focusedFieldReader: @Sendable () async -> FocusedFieldSnapshot?
     /// The frontmost application's bundle identifier, which decides whether a key or a turn is acted on.
-    private let frontmostBundleIdentifier: @MainActor () -> String?
+    let frontmostBundleIdentifier: @MainActor () -> String?
     /// What the model last answered or had nothing for, which decides whether it is asked again.
     private var modelPass = ModelPass()
     /// The model pass in flight, cancelled by the next keystroke so a burst never queues one pass per key.
@@ -111,7 +111,7 @@ final class SuggestionCoordinator {
     /// How long a key-down can explain an Accessibility value change.
     nonisolated static let accessibilityKeyWindowInMilliseconds = 100
 
-    private var session = SuggestionSession()
+    var session = SuggestionSession()
     private var monitors: [Any] = []
     /// The scroll monitor, present only while a ghost is drawn, since a scroll matters only then.
     private var scrollMonitor: Any?
@@ -121,6 +121,8 @@ final class SuggestionCoordinator {
     private let scheduleSelectionChecks: SelectionCheckScheduling
     /// Stops the selection check, present only while a ghost can still be accepted.
     private var stopSelectionChecks: (@MainActor () -> Void)?
+    /// The cadence the running selection check was scheduled at.
+    private var selectionCheckInterval: TimeInterval?
     private var selectionGuard: ArmedSelectionGuard?
     private var selectionPollInFlight = false
     private var selectionPollGeneration = 0
@@ -145,7 +147,7 @@ final class SuggestionCoordinator {
     /// The last observed key-down, used to distinguish typing from edits made without a key.
     private var lastObservedKeyDown = Date.distantPast
     /// One turn at a time, with a turn that never returns left behind so the loop cannot die with it.
-    private var turns = TurnGate()
+    var turns = TurnGate()
     /// How many turns have run or are running, so a test can hold each turn to one field read.
     var turnsAdmitted: Int { turns.admitted }
     /// Whether no turn is running and none is booked, so a test knows every key it sent has been answered.
@@ -171,7 +173,7 @@ final class SuggestionCoordinator {
     let acceptances: AcceptanceQueue
     /// What capture is told about the focused field between reads, and in which order.
     let captureFeed: SuggestionCaptureFeed
-    private let ownBundleIdentifier = Bundle.main.bundleIdentifier
+    let ownBundleIdentifier = Bundle.main.bundleIdentifier
     /// Called when the user turns the feature off everywhere, so the choice is persisted and can be undone.
     var onTurnedOffEverywhere: (() -> Void)?
     var onConsentPersistenceFailure: ((any Error) -> Void)?
@@ -182,15 +184,24 @@ final class SuggestionCoordinator {
     var onTapRestRestarting: (() -> Void)?
     var onSecureInputChanged: ((Bool) -> Void)?
 
+    /// Runs synchronous store opening away from the main actor before the suggestion loop is assembled.
+    nonisolated static func startupFileWorkOffMain<T: Sendable>(
+        _ operation: @escaping @Sendable () throws -> T
+    ) async throws -> T {
+        try await Task.detached(priority: .utility, operation: operation).value
+    }
+
     /// Opens the corpus, or reports why it could not; the scorer, when given, is the model that validates.
     init(
         container: URL, preferences: SuggestionPreferences,
         scoring: (any CandidateScoring)? = nil, generating: (any CandidateGenerating)? = nil,
         encryptedStore: EncryptedStore? = nil,
+        captureSink: (any CaptureSink)? = nil,
         environmentIndex: EnvironmentIndex? = nil,
         focusedFieldValueObserver: (any FocusedFieldValueObserving)? = nil,
         processActivity: any SuggestionProcessActivityManaging = ProcessSuggestionActivity(),
         secureInput: SecureInputWatch = SecureInputWatch(),
+        onCaptureSkipped: (@Sendable (CaptureSkipReason) async -> Void)? = nil,
         focusedSelectionReader: @escaping @Sendable () async -> FocusedFieldSelectionRead = {
             await FocusedFieldReader.focusedSelection()
         },
@@ -203,7 +214,7 @@ final class SuggestionCoordinator {
         scheduleSelectionChecks: @escaping SelectionCheckScheduling = SuggestionCoordinator.selectionTimer,
         panel: SuggestionPanelController = .shared,
         editHeard: @escaping @Sendable (EditedSpan) async -> Void = { _ in }
-    ) throws(PredictStoreError) {
+    ) async throws {
         self.preferences = preferences
         self.processActivity = processActivity
         self.secureInput = secureInput
@@ -214,9 +225,14 @@ final class SuggestionCoordinator {
         self.scheduleSelectionChecks = scheduleSelectionChecks
         self.panel = panel
         self.focusedFieldValueObserver = focusedFieldValueObserver ?? FocusedFieldValueObserver()
-        let store = try PredictStore(
-            path: PredictStore.defaultFile(in: container).path(percentEncoded: false),
-            encryptedStore: encryptedStore)
+        let storePath = PredictStore.defaultFile(in: container).path(percentEncoded: false)
+        let preferencesPath =
+            CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false)
+        let (store, capturePreferences) = try await Self.startupFileWorkOffMain {
+            let store = try PredictStore(path: storePath, encryptedStore: encryptedStore)
+            let preferences = CapturePreferencesFile(path: preferencesPath).load()
+            return (store, preferences)
+        }
         self.store = store
         rejectedSuggestionRecorder = RejectedSuggestionRecorder(store: store)
         // Lines learned before the credential rules last widened are removed once, off the typing path.
@@ -227,13 +243,14 @@ final class SuggestionCoordinator {
         // The model, when the app hands one over, is what turns a habit into a validated suggestion.
         verifier = Verifier(index: index, scoring: scoring, supersession: store)
         let capture = CaptureSession(
-            sink: EditHearingSink(store: store, heard: editHeard),
+            sink: captureSink ?? EditHearingSink(store: store, heard: editHeard),
             preferencesFile: CapturePreferencesFile(
                 path: CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false)),
+            initialPreferences: capturePreferences,
             // A line that was never sent was not a value: a shell and a chat composer learn on Return alone.
-            policy: .whereReturnSends)
+            policy: .whereReturnSends, onCommitSkipped: onCaptureSkipped)
         self.capture = capture
-        let acceptances = AcceptanceQueue()
+        let acceptances = AcceptanceQueue { await capture.abandonFocusedField() }
         self.acceptances = acceptances
         captureFeed = SuggestionCaptureFeed(capture: capture, acceptances: acceptances)
         acceptor = SuggestionAcceptor(completion: TextInsertion.completion(), focus: AXAccessibilityFocus())
@@ -248,6 +265,7 @@ final class SuggestionCoordinator {
         let moment = Date()
         let before = self.preferences
         self.preferences = preferences
+        refreshFocusedFieldObservation()
         if Self.disablesSuggestions(
             in: frontmostBundleIdentifier(),
             before: before, after: preferences, at: moment)
@@ -325,6 +343,7 @@ final class SuggestionCoordinator {
     /// Arms the tap and starts watching, or says why it cannot.
     @discardableResult
     func start() -> Result<Void, any Error> {
+        FocusedFieldReader.beginFullTreeSession()
         processActivity.begin()
         wakeState.start()
         tapRest.cancel()
@@ -356,7 +375,7 @@ final class SuggestionCoordinator {
                 self.onTapRestChanged?(.failure(KeyInterceptorFailure.accessibilityDenied))
                 return
             }
-            if self.activityIsAllowed() { self.focusedFieldValueObserver.refresh() }
+            self.refreshFocusedFieldObservation()
             self.applicationChanged(front: self.frontmostBundleIdentifier())
             guard !wasSecureInputBlocking else { return }
             guard trust == .granted else { return }
@@ -512,6 +531,8 @@ final class SuggestionCoordinator {
                 }
                 if Self.mayMoveFocus(keyCode: event.keyCode, modifiers: event.modifierFlags) {
                     FocusedFieldReader.focusMayHaveMoved()
+                } else {
+                    FocusedFieldReader.fieldMayHaveChanged()
                 }
                 self.keyPressed(Key(keyCode: event.keyCode), typing: text, isARepeat: event.isARepeat)
             }
@@ -529,10 +550,8 @@ final class SuggestionCoordinator {
                     self?.isPointerGestureActive = false
                 }
                 guard let self else { return }
-                let shouldProcess = Self.shouldProcessActivityEvent(
-                    front: self.frontmostBundleIdentifier(),
-                    own: self.ownBundleIdentifier, preferences: self.preferences, at: Date())
-                if shouldProcess { self.focusedFieldValueObserver.refresh() }
+                let shouldProcess = self.activityIsAllowed()
+                self.refreshFocusedFieldObservation()
                 self.withdraw()
                 guard shouldProcess else { return }
                 self.noteActivity()
@@ -550,6 +569,7 @@ final class SuggestionCoordinator {
             MainActor.assumeIsolated {
                 let activeProcessIdentifier = NSWorkspace.shared.frontmostApplication?.processIdentifier
                 FocusedFieldReader.releaseFullTrees(except: activeProcessIdentifier)
+                self?.refreshFocusedFieldObservation()
                 self?.applicationChanged(front: self?.frontmostBundleIdentifier())
             }
         }
@@ -583,6 +603,7 @@ final class SuggestionCoordinator {
 
     func watchFocusedFieldValues() {
         focusedFieldValueObserver.start(
+            for: focusedFieldObservationTarget(),
             onValueChanged: { [weak self] in self?.accessibilityValueChanged() },
             onNativeMenuVisibilityChanged: { [weak self] isOpen in
                 guard let self else { return }
@@ -612,7 +633,10 @@ final class SuggestionCoordinator {
             return
         }
         let moment = Date()
-        if Self.isUnkeyedAccessibilityChange(lastKeyDown: lastObservedKeyDown, at: moment) {
+        // A slow field echoes typed keys late; capture checks that change against the keys instead.
+        if Self.isUnkeyedAccessibilityChange(lastKeyDown: lastObservedKeyDown, at: moment),
+            !captureFeed.awaitsTypedEcho
+        {
             captureFeed.noteInsertion()
         }
         let action = Self.accessibilityValueChangeAction(
@@ -712,7 +736,7 @@ final class SuggestionCoordinator {
         scrollMonitor = nil
     }
 
-    /// Checks the caret every 200 ms only while a drawn offer can be accepted.
+    /// Checks the caret only while a drawn offer can be accepted, at the clock's selection cadence.
     func armSelectionMonitor(
         for suggestion: Suggestion, at range: NSRange?, identity: FocusedFieldIdentity? = nil
     ) {
@@ -720,18 +744,34 @@ final class SuggestionCoordinator {
         guard armedOffer != nil else { return stopWatchingSelection() }
         stopWatchingSelection()
         selectionGuard = ArmedSelectionGuard(expectedRange: range, identity: identity)
+        startSelectionChecks(every: ticking.selectionInterval)
+    }
+
+    /// Schedules the current selection check at `interval`, replacing any running one.
+    private func startSelectionChecks(every interval: TimeInterval) {
+        stopSelectionChecks?()
         let generation = selectionPollGeneration
-        stopSelectionChecks = scheduleSelectionChecks { [weak self] in
+        selectionCheckInterval = interval
+        stopSelectionChecks = scheduleSelectionChecks(interval) { [weak self] in
             self?.pollSelection(generation: generation)
         }
     }
 
-    /// Runs `check` every 200 ms on the main run loop and returns what stops it.
-    static func selectionTimer(_ check: @escaping @MainActor () -> Void) -> @MainActor () -> Void {
-        let timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { _ in
+    /// Moves a running selection check to the clock's cadence, so an idle ghost is not read 300 times a minute.
+    private func followSelectionCadence() {
+        let interval = ticking.selectionInterval
+        guard stopSelectionChecks != nil, selectionCheckInterval != interval else { return }
+        startSelectionChecks(every: interval)
+    }
+
+    /// Runs `check` every `interval` on the main run loop and returns what stops it.
+    static func selectionTimer(
+        every interval: TimeInterval, _ check: @escaping @MainActor () -> Void
+    ) -> @MainActor () -> Void {
+        let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in
             MainActor.assumeIsolated { check() }
         }
-        timer.tolerance = 0.05
+        timer.tolerance = interval / 4
         return { timer.invalidate() }
     }
 
@@ -772,6 +812,7 @@ final class SuggestionCoordinator {
         selectionPollGeneration += 1
         stopSelectionChecks?()
         stopSelectionChecks = nil
+        selectionCheckInterval = nil
         selectionGuard = nil
         selectionPollInFlight = false
         FocusedFieldReader.cancelFocusedSelectionRead()
@@ -781,25 +822,20 @@ final class SuggestionCoordinator {
     private func scrolled() {
         guard panel.isShowing else { return stopWatchingScrolls() }
         guard !isInserting else { return }
+        FocusedFieldReader.fieldMayHaveChanged()
         noteActivity()
         withdraw()
     }
 
     /// Starts the pause clock if it is not running; every activity calls this.
-    func noteActivity() {
+    func noteActivity(at moment: ContinuousClock.Instant = ContinuousClock.now) {
         guard activityIsAllowed() else {
             stopTicker()
             return
         }
-        guard ticking.noteActivity(at: Date()) else { return }
+        guard ticking.noteActivity(at: moment) else { return }
         scheduleTicker(every: SuggestionTicking.interval)
-    }
-
-    /// Whether the foreground application can run the suggestion loop now.
-    private func activityIsAllowed() -> Bool {
-        Self.shouldProcessActivityEvent(
-            front: frontmostBundleIdentifier(),
-            own: ownBundleIdentifier, preferences: preferences, at: Date())
+        followSelectionCadence()
     }
 
     /// Stops the activity clock when a disabled application becomes frontmost.
@@ -820,16 +856,17 @@ final class SuggestionCoordinator {
     }
 
     /// Wakes a turn while a field can change beneath a visible ghost.
-    private func tick() {
+    func tick() {
         guard activityIsAllowed() else {
             stopTicker()
             return
         }
-        switch ticking.tick(at: Date(), ghostIsVisible: panel.isShowing) {
+        switch ticking.tick(at: ContinuousClock.now, ghostIsVisible: panel.isShowing) {
         case .wake:
             wake(.tick)
         case .wakeAndSlow:
             scheduleTicker(every: SuggestionTicking.ghostInterval)
+            followSelectionCadence()
             wake(.tick)
         case .stop:
             ticker?.invalidate()
@@ -957,7 +994,7 @@ final class SuggestionCoordinator {
                 return
             }
         }
-        switch turns.begin(at: Date()) {
+        switch turns.begin(at: ContinuousClock.now) {
         case .busy:
             // A Return or a switch waiting its turn is never overwritten by the tick that follows it.
             _ = wakeState.queue(reason)
@@ -1038,8 +1075,14 @@ final class SuggestionCoordinator {
     }
 
     /// Reads the field, asks the corpus and draws the answer, all off the keystroke path; a turn left behind touches nothing.
-    private func turn(_ number: Int, because reason: SuggestionReason) async {
-        await rejectedSuggestionRecorder.retry()
+    func turn(_ number: Int, because reason: SuggestionReason) async {
+        // Held rejection writes retry behind earlier corpus writes, so a slow store never delays the draw.
+        if rejectedSuggestionRecorder.claimQueuedRetry() {
+            let queued = acceptances.enqueue(
+                { [rejectedSuggestionRecorder] in await rejectedSuggestionRecorder.retry() },
+                estimatedBytes: rejectedSuggestionRecorder.queuedRetryReservationBytes())
+            if !queued { rejectedSuggestionRecorder.cancelQueuedRetry() }
+        }
         let front = frontmostBundleIdentifier() ?? "nil"
         progress = (number, .read, front)
         // Taken before the read, since a key pressed while a slow field is being read is one the read may have missed.
@@ -1062,6 +1105,7 @@ final class SuggestionCoordinator {
             draw(session.turn(in: nil, at: PredictionContext(typed: "")).step)
             return
         }
+        let turnStartedAt = ContinuousClock.now
         let started = Date()
         guard preferences.isEnabled(in: snapshot.bundleIdentifier, at: started) else {
             captureFeed.discard()
@@ -1100,12 +1144,15 @@ final class SuggestionCoordinator {
             isQuiet: preferences.isQuiet, sawKeystrokes: keystrokesSeen)
         if let rejected = turn.rejected, let surface = reading.surface {
             entering(.reject, turn: number)
-            await rejectedSuggestionRecorder.record(rejected, in: surface)
+            _ = acceptances.enqueue(
+                { [rejectedSuggestionRecorder] in
+                    await rejectedSuggestionRecorder.record(rejected, in: surface)
+                }, estimatedBytes: AcceptanceQueue.estimatedBytes(for: [rejected], surface: surface))
         }
 
         switch turn.step {
         case .settled(let update):
-            settle(update, in: snapshot, since: started)
+            settle(update, in: snapshot)
         case .query(let query):
             entering(.corpus, turn: number)
             let candidates = await candidates(for: query)
@@ -1118,18 +1165,18 @@ final class SuggestionCoordinator {
             Self.log.debug(
                 "\(SuggestionLog.query(typed: query.typed, corpus: candidates.count, generatorReady: ready), privacy: .public)"
             )
-            guard let update = await remembered(number, candidates, for: query, since: started),
+            guard let update = await remembered(number, candidates, for: query, since: turnStartedAt),
                 turns.isCurrent(number)
             else { return }
             // When nothing remembered can be drawn — nothing held, the line itself, or a line the gates refused — the model invents the suggestion instead.
             guard ModelPass.shouldAsk(after: update, hasGenerator: generator != nil, isReady: ready),
                 let generator
             else {
-                return settle(update, in: snapshot, since: started)
+                return settle(update, in: snapshot)
             }
             // The machine says first what the next word may be: anything, one of its values, or nothing here, which no pass can improve on.
             entering(.options, turn: number)
-            let options = await verifier.options(for: query.typed, in: query.surface, now: Date())
+            let options = await verifier.options(for: query.typed, in: query.surface, now: .now)
             guard turns.isCurrent(number) else { return }
             switch options {
             case .none:
@@ -1137,24 +1184,24 @@ final class SuggestionCoordinator {
                 modelPass.rememberEmpty(query, at: SuggestionMoment.place(of: snapshot))
                 guard
                     let quiet = session.resolveGenerated(
-                        [], for: query, elapsedMilliseconds: since(started), whenEmpty: .notOnThisMachine,
-                        scores: [:])
+                        [], for: query, elapsedMilliseconds: since(turnStartedAt),
+                        whenEmpty: .notOnThisMachine, scores: [:])
                 else { return }
-                settle(quiet, in: snapshot, since: started)
+                settle(quiet, in: snapshot)
             case .among(let values):
                 Self.log.debug(
                     "\(SuggestionLog.optionsAmong(typed: query.typed, among: values.count), privacy: .public)"
                 )
                 await generate(
-                    number, with: generator, for: query, in: snapshot, choosing: values, since: started)
+                    number, with: generator, for: query, in: snapshot, choosing: values, since: turnStartedAt)
             case .open:
-                await generate(number, with: generator, for: query, in: snapshot, since: started)
+                await generate(number, with: generator, for: query, in: snapshot, since: turnStartedAt)
             }
         }
     }
 
     /// Draws the update and, when it draws nothing, says why, so a silence is never logged without its reason.
-    private func settle(_ update: SuggestionUpdate, in snapshot: FocusedFieldSnapshot, since started: Date) {
+    private func settle(_ update: SuggestionUpdate, in snapshot: FocusedFieldSnapshot) {
         if let silence = update.silence {
             Self.log.debug(
                 "\(SuggestionLog.quiet(typed: snapshot.currentLine, reason: silence.rawValue, rejections: self.session.rejectionsHere, silencedHere: self.session.isSilencedHere, enabled: self.session.isEnabled), privacy: .public)"
@@ -1171,7 +1218,8 @@ final class SuggestionCoordinator {
 
     /// What the corpus and the gates make of the line: the update they settle on, or nothing once the turn was left behind.
     private func remembered(
-        _ number: Int, _ candidates: [Candidate], for query: SuggestionQuery, since started: Date
+        _ number: Int, _ candidates: [Candidate], for query: SuggestionQuery,
+        since started: ContinuousClock.Instant
     ) async -> SuggestionUpdate? {
         switch session.resolve(candidates, for: query, now: Date(), elapsedMilliseconds: since(started)) {
         case .settled(let update): return update
@@ -1218,7 +1266,8 @@ final class SuggestionCoordinator {
     /// Asks the model for a suggestion the corpus never held, from the field read live, held to the machine's values where it has them, and draws it.
     private func generate(
         _ number: Int, with generator: any CandidateGenerating, for query: SuggestionQuery,
-        in snapshot: FocusedFieldSnapshot, choosing choices: [String] = [], since started: Date
+        in snapshot: FocusedFieldSnapshot, choosing choices: [String] = [],
+        since started: ContinuousClock.Instant
     ) async {
         let completions: [String]
         // Whether the model wrote lines and the machine denied every one, which is a silence with its own name.
@@ -1294,7 +1343,7 @@ final class SuggestionCoordinator {
                 listed: reusedListed)
         else { return }
         // A silence has nothing to place, so it is settled and logged against the field it read.
-        guard update.silence == nil else { return settle(update, in: snapshot, since: started) }
+        guard update.silence == nil else { return settle(update, in: snapshot) }
         // A kept answer is ready as the turn's own read is taken, and its alternatives were already sought when it was written.
         guard !reused else { return draw(update, in: snapshot) }
         await drawFresh(update, for: snapshot, turn: number)
@@ -1353,7 +1402,7 @@ final class SuggestionCoordinator {
 
     /// The model's lines the machine lets stand, with how many it denied counted in the log; a program, path or branch this Mac does not have is never drawn.
     private func attested(_ lines: [String], for query: SuggestionQuery) async -> [String] {
-        let standing = await verifier.standing(lines, after: query.typed, in: query.surface, now: Date())
+        let standing = await verifier.standing(lines, after: query.typed, in: query.surface, now: .now)
         if standing.count < lines.count {
             Self.log.debug(
                 "\(SuggestionLog.attest(typed: query.typed, offered: lines.count, standing: standing.count), privacy: .public)"
@@ -1420,10 +1469,10 @@ final class SuggestionCoordinator {
 
     /// Puts the head of the ranking through the gates and draws whatever survives them.
     private func verify(
-        _ number: Int, _ request: VerificationRequest, since started: Date
+        _ number: Int, _ request: VerificationRequest, since started: ContinuousClock.Instant
     ) async -> SuggestionUpdate? {
         let allowed = await verifier.verified(
-            request.candidates, in: request.surface, typed: request.typed, now: Date())
+            request.candidates, in: request.surface, typed: request.typed, now: .now)
         guard turns.isCurrent(number) else { return nil }
         Self.log.debug(
             "\(SuggestionLog.verify(typed: request.typed, offered: request.candidates.count, allowed: allowed.count, elapsedMilliseconds: self.since(started), firstCompletion: allowed.first?.text), privacy: .public)"
@@ -1433,12 +1482,22 @@ final class SuggestionCoordinator {
     }
 
     /// How long this turn has taken, which is what decides whether its answer is still worth drawing.
-    private func since(_ started: Date) -> Int {
-        Int(Date().timeIntervalSince(started) * 1000)
+    nonisolated static func elapsedMilliseconds(
+        since started: ContinuousClock.Instant, now: ContinuousClock.Instant
+    ) -> Int {
+        let elapsed = started.duration(to: now).components
+        let milliseconds = elapsed.seconds * 1_000 + elapsed.attoseconds / 1_000_000_000_000_000
+        return Int(max(0, milliseconds))
+    }
+
+    private func since(_ started: ContinuousClock.Instant) -> Int {
+        Self.elapsedMilliseconds(since: started, now: .now)
     }
 
     /// What the corpus remembers, or failing that what this machine holds at `now`; the machine never outranks the person's own history.
-    func candidates(for query: SuggestionQuery, at now: Date = Date()) async -> [Candidate] {
+    func candidates(
+        for query: SuggestionQuery, at now: ContinuousClock.Instant = .now
+    ) async -> [Candidate] {
         let candidates = await CandidateSources.candidates(
             from: store, environment: environment, for: query.surface, matching: query.typed, now: now)
         return candidates.filter {
@@ -1681,6 +1740,8 @@ final class SuggestionCoordinator {
                 try await acceptor.accept(
                     accepted, after: typed, expectedWindowNumber: windowNumber)?.rawValue ?? via
         } catch {
+            // A refusal for lost trust withdraws suggestions and tells the menu bar, as the next activation would.
+            if error == .accessibilityDenied { activationMonitor?.recheckForLoss() }
             let outcome = Self.acceptanceOutcome(for: error)
             if outcome == .refused {
                 Self.log.error(
@@ -1697,14 +1758,21 @@ final class SuggestionCoordinator {
         guard let reading else { return .inserted }
         let moment = Date()
         let log = Self.log
-        _ = acceptances.enqueue { [capture] in
-            do {
-                _ = try await capture.accepted(text, over: typed, in: reading, at: moment)
-            } catch {
-                // The session holds the acceptance and retries it before the next event.
-                log.error("An accepted suggestion's corpus write failed and is held for a retry")
-            }
-        }
+        let bytes = AcceptanceQueue.estimatedBytes(
+            for: [
+                text, typed, reading.bundleIdentifier, reading.role, reading.subrole, reading.identifier,
+                reading.placeholder, reading.accessibilityDescription, reading.document, reading.windowTitle,
+                reading.applicationName,
+            ], surface: reading.surface)
+        _ = acceptances.enqueue(
+            { [capture] in
+                do {
+                    _ = try await capture.accepted(text, over: typed, in: reading, at: moment)
+                } catch {
+                    // The session holds the acceptance and retries it before the next event.
+                    log.error("An accepted suggestion's corpus write failed and is held for a retry")
+                }
+            }, estimatedBytes: bytes)
         return .inserted
     }
 

@@ -64,6 +64,8 @@ public protocol MetricsRecording: Sendable {
     func recordScreenReads(_ reads: ScreenReadCost) async
     /// Keeps why the dictation's last screen read carried no field text, or `nil` when it did.
     func recordScreenText(_ unavailable: ContextUnavailableReason?) async
+    /// Keeps which rung of the read ladder answered one screen read in `bundleIdentifier`, with no field text.
+    func recordContextRead(_ rung: ContextReadRung, in bundleIdentifier: String) async
     /// Keeps one dictation's wait after key-up and the cause named for it.
     func recordWait(_ wait: TimedWait) async
 }
@@ -108,6 +110,9 @@ extension MetricsRecording {
 
     /// Most recorders do not track why the screen carried no text.
     public func recordScreenText(_ unavailable: ContextUnavailableReason?) async {}
+
+    /// Most recorders do not track which rung answered a read.
+    public func recordContextRead(_ rung: ContextReadRung, in bundleIdentifier: String) async {}
 
     /// Most recorders do not track the wait after key-up.
     public func recordWait(_ wait: TimedWait) async {}
@@ -166,6 +171,10 @@ public struct MetricsFanOut: MetricsRecording {
 
     public func recordScreenText(_ unavailable: ContextUnavailableReason?) async {
         for recorder in recorders { await recorder.recordScreenText(unavailable) }
+    }
+
+    public func recordContextRead(_ rung: ContextReadRung, in bundleIdentifier: String) async {
+        for recorder in recorders { await recorder.recordContextRead(rung, in: bundleIdentifier) }
     }
 
     public func recordWait(_ wait: TimedWait) async {

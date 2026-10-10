@@ -23,7 +23,7 @@ struct SuggestionConsentTests {
         try consentFile.save(declined)
 
         let before = SuggestionPreferences(isEnabled: true, turnedOff: [bundleIdentifier])
-        let coordinator = try SuggestionCoordinator(container: container, preferences: before)
+        let coordinator = try await SuggestionCoordinator(container: container, preferences: before)
         defer { coordinator.stop() }
 
         var after = before

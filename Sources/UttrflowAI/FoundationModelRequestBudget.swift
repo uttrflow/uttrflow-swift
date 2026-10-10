@@ -37,6 +37,16 @@ enum FoundationModelRequestBudget {
         return !withMargin.overflow && withMargin.partialValue <= contextSize
     }
 
+    /// The prompt's estimated tokens when even that high estimate fits beside the fixed parts, else nil and only an exact count can say.
+    static func estimatedPromptTokens(
+        _ prompt: String, contextSize: Int, instructions: Int, schema: Int
+    ) -> Int? {
+        let estimate = estimatedTokens(in: prompt)
+        return fits(
+            contextSize: contextSize, instructions: instructions, prompt: estimate, schema: schema,
+            expectedOutput: estimate) ? estimate : nil
+    }
+
     /// The most tokens a tidy answer may generate: the guard's growth allowance over the prompt, plus the structure.
     static func responseCeiling(promptTokens: Int, schemaTokens: Int) -> Int {
         let growth = Double(max(0, promptTokens)) * MeaningPreservationGuard.maximumGrowthFactor
@@ -44,9 +54,16 @@ enum FoundationModelRequestBudget {
         return ceiling.overflow ? Int.max : max(1, ceiling.partialValue)
     }
 
-    /// Longer prompts receive more time, with a short baseline and a cap below the router's 20-second ceiling.
-    static func allowance(for wordCount: Int) -> Duration {
-        let milliseconds = min(15_000, max(4_000, 3_000 + max(0, wordCount) * 12))
-        return .milliseconds(Int64(milliseconds))
+    /// The longest any one request may take, below the router's 20-second ceiling.
+    static let ceiling = Duration.seconds(15)
+
+    /// Longer prompts receive more time, with a short baseline; a measured slow model lengthens it, never shortens it.
+    static func allowance(for wordCount: Int, timePerWord: Duration? = nil) -> Duration {
+        let words = max(0, wordCount)
+        let scaled = Duration.milliseconds(Int64(max(4_000, 3_000 + words * 12)))
+        guard let timePerWord else { return min(ceiling, scaled) }
+        // Half again over the slowest recent pace, counted as `ModelThroughput` counts it.
+        let measured = timePerWord * max(words, ModelThroughput.minimumCountedWords) * 3 / 2
+        return min(ceiling, max(scaled, measured))
     }
 }

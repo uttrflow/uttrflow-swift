@@ -31,6 +31,22 @@ struct SpokenSymbolMentionTests {
     }
 
     @Test(
+        "a mark name after a pressed modifier key is the key, not a mark",
+        arguments: [
+            ("press command comma to open settings", "Press command comma to open settings."),
+            ("hit control shift dash to zoom out", "Hit control shift dash to zoom out."),
+        ])
+    func chordKeyStaysWord(spoken: String, written: String) async throws {
+        let result = try await rules(spoken)
+        #expect(result == written, "\(result)")
+    }
+
+    @Test("a mark name after a modifier key nobody pressed is still written")
+    func modifierWithoutKeyVerbStillMarks() async throws {
+        #expect(try await rules("i ran the command comma then i left").contains("command,"))
+    }
+
+    @Test(
         "a symbol said as one is still written",
         arguments: [
             ("email me at john dot smith at example dot com", "john.smith@example.com"),

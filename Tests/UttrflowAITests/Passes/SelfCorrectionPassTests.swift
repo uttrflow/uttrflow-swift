@@ -404,6 +404,19 @@ struct SelfCorrectionPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test(
+        "does not anchor a restated long option on a lone dash, in either order with spoken punctuation",
+        .bug(id: 6950),
+        arguments: ["dash no dash dash ff", "git merge dash no dash dash ff"]
+    )
+    func keepsNegatedOptionWords(input: String) {
+        let punctuation = SpokenPunctuationPass()
+        let draft = Draft(text: input)
+        #expect(sut.apply(draft).text == input)
+        #expect(
+            punctuation.apply(sut.apply(draft)).text == sut.apply(punctuation.apply(draft)).text)
+    }
+
     @Test("records the discarded half and the trigger as removed by this pass")
     func provenance() {
         let draft = sut.apply(Draft(text: "at four no sorry at five"))

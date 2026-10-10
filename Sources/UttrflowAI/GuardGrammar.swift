@@ -308,13 +308,18 @@ extension MeaningPreservationGuard {
         }
     }
 
-    /// Refuses to erase capitals that distinguish a mid-sentence name or acronym from an ordinary word, except capitals a pass styled onto lowercase speech.
+    /// Refuses to erase capitals that distinguish a mid-sentence name or acronym from an ordinary word, except capitals a pass styled onto lowercase speech and a sentence capital a spoken comma stranded.
     static func casePreservationVerdict(
         _ alignment: RewriteAlignment, styling styled: Set<String> = []
     ) -> GuardVerdict {
-        let capitalised = alignment.kept.filter {
-            !$0.startsSentence && $0.text.contains(where: \.isUppercase) && !styled.contains($0.text)
-        }
+        let gaps = grammarTokenGaps(alignment.keptText)
+        let capitalised = alignment.kept.indices.filter {
+            let token = alignment.kept[$0]
+            return !token.startsSentence && token.text.contains(where: \.isUppercase)
+                && !styled.contains(token.text)
+                && !(gaps.count == alignment.kept.count + 1 && gaps[$0].contains(",")
+                    && strandedSentenceCapital(token))
+        }.map { alignment.kept[$0] }
         var required: [String: [String: Int]] = [:]
         for token in capitalised {
             required[token.matching, default: [:]][token.text, default: 0] += 1
@@ -334,6 +339,12 @@ extension MeaningPreservationGuard {
                 reason: "the rewrite changed the capitalization of '\(token.text)'", kind: .lostWord)
         }
         return .accepted
+    }
+
+    /// A small word written with only a sentence's capital, which names nothing: "Of" in "we shipped, Of course", never "I", "May", "Will" or "US".
+    private static func strandedSentenceCapital(_ token: GrammarToken) -> Bool {
+        FunctionWords.holds(token.lookup) && !FunctionWords.isCaseSensitive(token.lookup)
+            && token.text.first?.isUppercase == true && !token.text.dropFirst().contains(where: \.isUppercase)
     }
 
     /// Spellings whose capitals a pass wrote over words the recogniser heard in lowercase, such as "URL" for "url"; acronym style, not the speaker's.

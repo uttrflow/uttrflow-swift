@@ -68,6 +68,14 @@ struct SpokenAddressTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    /// A mark said by name after a bare host is the mark, not the noun that makes the host a company's name.
+    @Test("writes a bare host and the mark said after it in one pass")
+    func bareHostBeforeASpokenMark() {
+        let once = cleaned("example dot org comma", by: sut)
+        #expect(once == "example.org,")
+        #expect(cleaned(once, by: sut) == once)
+    }
+
     @Test("leaves a piece ending on www dot alone, with no host after it to read")
     func wwwDotAtTheEnd() {
         #expect(cleaned("the site is www dot", by: sut) == "the site is www dot")

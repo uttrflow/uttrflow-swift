@@ -235,40 +235,74 @@ struct PanelResizeTests {
         #expect(leftward.maxX == 460)
 
         let downward = resized(
-            .bottom, by: CGSize(width: 0, height: -2000), within: Self.visible)
+            .bottom, by: CGSize(width: 0, height: -2000),
+            from: CGRect(x: Self.frame.minX, y: 300, width: Self.frame.width, height: Self.frame.height),
+            within: Self.visible)
         #expect(downward.minY == Self.visible.minY)
-        #expect(downward.maxY == Self.frame.maxY)
+        #expect(downward.maxY == Self.visible.maxY)
     }
 
     /// The opposite border is not pulled about while the user is holding this one.
     @Test("holding one border never moves the one opposite it")
     func theOppositeBorderIsLeftAlone() {
+        let frame = CGRect(
+            x: Self.frame.minX, y: Self.visible.maxY - Self.frame.height,
+            width: Self.frame.width, height: Self.frame.height)
+
         for edge in PanelEdge.allCases {
             let after = resized(
-                edge, by: CGSize(width: 300, height: 300), within: Self.visible)
+                edge, by: CGSize(width: 300, height: 300), from: frame, within: Self.visible)
             let moves = edge.movesOrigin
             if edge.changesWidth {
                 #expect(
-                    moves.x ? after.maxX == Self.frame.maxX : after.minX == Self.frame.minX,
+                    moves.x ? after.maxX == frame.maxX : after.minX == frame.minX,
                     "\(edge) moved the border opposite the one being dragged")
             }
             if edge.changesHeight {
                 #expect(
-                    moves.y ? after.maxY == Self.frame.maxY : after.minY == Self.frame.minY,
+                    moves.y ? after.maxY == frame.maxY : after.minY == frame.minY,
                     "\(edge) moved the border opposite the one being dragged")
             }
         }
     }
 
-    /// A screen smaller than the minimum loses, the same choice `PanelPlacement.clamped` makes.
-    @Test("a screen too small for the minimum does not shrink the panel below it")
+    /// A display may be smaller than the minimum; visibility takes priority over the design floor.
+    @Test("a panel resized inward on a tiny display stays inside the visible frame")
     func aScreenSmallerThanTheMinimum() {
-        let tiny = CGRect(x: 0, y: 0, width: 200, height: 200)
+        let tiny = CGRect(x: 0, y: 0, width: 320, height: 240)
+        let fitted = CGRect(origin: .zero, size: tiny.size)
         let after = resized(
-            .right, by: CGSize(width: 500, height: 0),
-            from: CGRect(x: 0, y: 0, width: 420, height: 560), within: tiny)
+            .topRight, by: CGSize(width: -500, height: -500), from: fitted, within: tiny)
 
-        #expect(after.width >= PanelResize.minimum.width)
+        #expect(after == tiny)
+    }
+
+    @Test("the visible frame wins over the minimum for every dragged edge")
+    func everyEdgeStaysInsideATinyVisibleFrame() {
+        let tiny = CGRect(x: 0, y: 0, width: 320, height: 240)
+        let oversized = CGRect(x: 10, y: 10, width: 400, height: 400)
+
+        for edge in PanelEdge.allCases {
+            let sign = edge.sign
+            let after = resized(
+                edge,
+                by: CGSize(width: sign.width * 1_000, height: sign.height * 1_000),
+                from: oversized, within: tiny)
+
+            #expect(tiny.contains(after), "the \(edge) drag left the visible frame: \(after)")
+            #expect(after.width <= tiny.width)
+            #expect(after.height <= tiny.height)
+        }
+    }
+
+    @Test("a side drag also clamps an existing height taller than the visible frame")
+    func aSideDragClampsTheUntouchedHeight() {
+        let visible = CGRect(x: 0, y: 0, width: 800, height: 300)
+        let tooTall = CGRect(x: 100, y: 0, width: 400, height: 400)
+        let after = resized(.left, by: CGSize(width: 20, height: 0), from: tooTall, within: visible)
+
+        #expect(visible.contains(after))
+        #expect(after.height == visible.height)
     }
 
     /// With no screen to measure against there is nothing to hold it inside.

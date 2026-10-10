@@ -1,6 +1,6 @@
 {
   "files": {
-    "Uttrflow/AppDelegate.swift": 4399,
+    "Uttrflow/AppDelegate.swift": 4407,
     "Uttrflow/Dock/DockView.swift": 821,
     "Uttrflow/Main/HomeHeroView.swift": 489,
     "Uttrflow/Main/MainPieces.swift": 643,
@@ -12,8 +12,8 @@
     "Uttrflow/Suggestion/SuggestionCoordinator.swift": 1724,
     "Uttrflow/Suggestion/SuggestionPanelController.swift": 456,
     "UttrflowInput/SystemInput.swift": 772,
-    "UttrflowLocalModel/MLXCandidateScorer.swift": 775,
+    "UttrflowLocalModel/MLXCandidateScorer.swift": 776,
     "UttrflowSpeech/WhisperKitBackend.swift": 442
   },
-  "total": 13455
+  "total": 13464
 }

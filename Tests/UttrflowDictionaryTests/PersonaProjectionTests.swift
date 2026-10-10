@@ -70,4 +70,30 @@ struct PersonaProjectionTests {
         let explained = WorkingSet.explain(entries: entries, limit: 1, now: epoch, evidence: evidence)
         #expect(explained[ledgerFavourite.id] == .inPrompt(rank: 1))
     }
+
+    @Test("The last use is the newest use row's day, and an undo does not move it")
+    func lastUse() {
+        let id = UUID()
+        let rows = [
+            row(.use, id, daysAgo: 40), row(.use, id, daysAgo: 3), row(.revert, id), row(.sighting, id),
+        ]
+        #expect(PersonaProjection.lastUse(in: rows) == [id: today - 3])
+        #expect(PersonaProjection.lastUse(in: [row(.revert, id)]).isEmpty)
+    }
+
+    @Test(
+        "Of two entries with equal counts, the one used yesterday outranks the one last used 90 days ago",
+        arguments: [1, 5, 20], [91.0, 400, 2000])
+    func lastUseOutranksFirstSeen(uses: Int, firstSeenDaysAgo: Double) {
+        let recent = word(
+            "Kubernetes", saying: "kooberneteez", from: .added, used: uses, daysAgo: firstSeenDaysAgo)
+        let stale = word("Zorvane", saying: "zorvain", from: .added, used: uses, daysAgo: 90)
+        let evidence =
+            (0..<uses).map { _ in row(.use, recent.id, daysAgo: 1) }
+            + (0..<uses).map { _ in row(.use, stale.id, daysAgo: 90) }
+        #expect(
+            WorkingSet.words(from: [stale, recent], limit: 1, now: epoch, evidence: evidence) == [
+                "Kubernetes"
+            ])
+    }
 }

@@ -393,6 +393,31 @@ extension EvaluationCorpus {
             expected: "The ticket costs 40 dollars.",
             mustKeep: ["ticket", "40"], classes: [.numbers], semiotic: .money
         ),
+        .init(
+            id: "fmt-number-repeated-port-followed-by-clause", category: .everyday,
+            spoken: "set the port to eighty eighty and restart",
+            expected: "Set the port to 8080 and restart.", mustKeep: ["port", "8080"],
+            classes: [.numbers], semiotic: .electronic, origin: .reportRewrite, addedFor: 5485
+        ),
+        .init(
+            id: "fmt-number-repeated-port-followed-by-quantity", category: .everyday,
+            spoken: "set the port to eighty eighty and the timeout to twenty one seconds",
+            expected: "Set the port to 8080 and the timeout to 21 seconds.",
+            mustKeep: ["8080", "21", "seconds"], classes: [.numbers], semiotic: .electronic,
+            origin: .reportRewrite, addedFor: 5485
+        ),
+        .init(
+            id: "fmt-number-repeated-port-at-end", category: .everyday,
+            spoken: "set the port to eighty eighty",
+            expected: "Set the port to 8080.", mustKeep: ["port", "8080"],
+            classes: [.numbers], semiotic: .electronic, origin: .reportRewrite, addedFor: 5485
+        ),
+        .init(
+            id: "fmt-number-repeated-port-with-listener-cue", category: .everyday,
+            spoken: "the server listens on port eighty eighty",
+            expected: "The server listens on port 8080.", mustKeep: ["server", "8080"],
+            classes: [.numbers], semiotic: .electronic, origin: .reportRewrite, addedFor: 5485
+        ),
         // Adversarial: "one" as a pronoun is a word, not a numeral.
         .init(
             id: "fmt-number-one-as-pronoun", category: .everyday,
