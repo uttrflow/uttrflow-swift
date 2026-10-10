@@ -4,6 +4,8 @@ public enum AdapterCue: String, Sendable, Equatable, CaseIterable {
     case caretInCode
     /// The destination runs what is typed, so every word is part of a command line.
     case commandLine
+    /// The caret is in a query editor and the speech opens a statement, which a sentence about a query does not.
+    case queryStatement
     /// The caret stands in a comment, a docstring or a prose body, where the words are prose.
     case caretInProse
     /// The speech holds a word code is never dictated with, such as an article.
@@ -12,7 +14,7 @@ public enum AdapterCue: String, Sendable, Equatable, CaseIterable {
     /// How much the cue counts toward activation when it speaks for the notation.
     public var weight: Double {
         switch self {
-        case .caretInCode, .commandLine: 1
+        case .caretInCode, .commandLine, .queryStatement: 1
         case .caretInProse, .proseWord: 0
         }
     }

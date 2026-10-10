@@ -847,5 +847,405 @@
     "expected": "No, the board will not proceed.",
     "mustKeep": ["No,"],
     "addedFor": 4032
+  },
+  {
+    "id": "sql-statement-star",
+    "spoken": "select star from customers",
+    "expected": "SELECT * FROM customers",
+    "mustKeep": ["*"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-everything",
+    "spoken": "select everything from orders",
+    "expected": "SELECT * FROM orders",
+    "mustKeep": ["*"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-equals",
+    "spoken": "select star from orders where status equals paid",
+    "expected": "SELECT * FROM orders WHERE status = paid",
+    "mustKeep": ["*", "="],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-comma-list",
+    "spoken": "select name comma email from customers",
+    "expected": "SELECT name, email FROM customers",
+    "mustKeep": ["name,"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-greater-than",
+    "spoken": "select id from orders where total greater than one hundred",
+    "expected": "SELECT id FROM orders WHERE total > 100",
+    "mustKeep": [">", "100"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-less-than",
+    "spoken": "select title from books where year less than two thousand",
+    "expected": "SELECT title FROM books WHERE year < 2000",
+    "mustKeep": ["<", "2000"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-at-least",
+    "spoken": "select title from books where year at least two thousand",
+    "expected": "SELECT title FROM books WHERE year >= 2000",
+    "mustKeep": [">="],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-at-most",
+    "spoken": "select name from products where price at most twenty",
+    "expected": "SELECT name FROM products WHERE price <= 20",
+    "mustKeep": ["<="],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-greater-or-equal",
+    "spoken": "select name from products where stock greater than or equal to five",
+    "expected": "SELECT name FROM products WHERE stock >= 5",
+    "mustKeep": [">="],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-less-or-equal",
+    "spoken": "select name from products where stock less than or equal to three",
+    "expected": "SELECT name FROM products WHERE stock <= 3",
+    "mustKeep": ["<="],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-not-equals",
+    "spoken": "select email from customers where status not equals closed",
+    "expected": "SELECT email FROM customers WHERE status <> closed",
+    "mustKeep": ["<>"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-and",
+    "spoken": "select id from orders where status equals paid and total greater than fifty",
+    "expected": "SELECT id FROM orders WHERE status = paid AND total > 50",
+    "mustKeep": ["AND"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-or",
+    "spoken": "select id from orders where status equals paid or status equals shipped",
+    "expected": "SELECT id FROM orders WHERE status = paid OR status = shipped",
+    "mustKeep": ["OR"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-in-words",
+    "spoken": "select title from books where genre in open paren poetry comma drama close paren",
+    "expected": "SELECT title FROM books WHERE genre IN (poetry, drama)",
+    "mustKeep": ["IN", "(poetry,", "drama)"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-in-numbers",
+    "spoken": "select name from products where id in open paren one comma two comma three close paren",
+    "expected": "SELECT name FROM products WHERE id IN (1, 2, 3)",
+    "mustKeep": ["(1,", "3)"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-between",
+    "spoken": "select name from products where price between ten and twenty",
+    "expected": "SELECT name FROM products WHERE price BETWEEN 10 AND 20",
+    "mustKeep": ["BETWEEN"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-is-null",
+    "spoken": "select name from customers where email is null",
+    "expected": "SELECT name FROM customers WHERE email IS NULL",
+    "mustKeep": ["IS NULL"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-is-not-null",
+    "spoken": "select name from customers where email is not null",
+    "expected": "SELECT name FROM customers WHERE email IS NOT NULL",
+    "mustKeep": ["IS NOT NULL"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-like",
+    "spoken": "select title from books where title like mystery",
+    "expected": "SELECT title FROM books WHERE title LIKE mystery",
+    "mustKeep": ["LIKE"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-order-by",
+    "spoken": "select name from products order by price",
+    "expected": "SELECT name FROM products ORDER BY price",
+    "mustKeep": ["ORDER BY"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-order-by-desc",
+    "spoken": "select name from products order by price desc",
+    "expected": "SELECT name FROM products ORDER BY price DESC",
+    "mustKeep": ["DESC"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-order-asc-limit",
+    "spoken": "select title from books order by year asc limit ten",
+    "expected": "SELECT title FROM books ORDER BY year ASC LIMIT 10",
+    "mustKeep": ["ASC", "LIMIT"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-group-by",
+    "spoken": "select status comma total from orders group by status",
+    "expected": "SELECT status, total FROM orders GROUP BY status",
+    "mustKeep": ["GROUP BY"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-having",
+    "spoken": "select genre from books group by genre having genre not equals poetry",
+    "expected": "SELECT genre FROM books GROUP BY genre HAVING genre <> poetry",
+    "mustKeep": ["HAVING", "<>"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-distinct",
+    "spoken": "select distinct city from customers",
+    "expected": "SELECT DISTINCT city FROM customers",
+    "mustKeep": ["DISTINCT"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-dot",
+    "spoken": "select orders dot id from orders",
+    "expected": "SELECT orders.id FROM orders",
+    "mustKeep": ["orders.id"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-join",
+    "spoken": "select books dot title comma authors dot name from books join authors on books dot author equals authors dot id",
+    "expected": "SELECT books.title, authors.name FROM books JOIN authors ON books.author = authors.id",
+    "mustKeep": ["books.title,", "authors.name", "JOIN", "ON"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-inner-join",
+    "spoken": "select loans dot due from loans inner join members on loans dot member equals members dot id",
+    "expected": "SELECT loans.due FROM loans INNER JOIN members ON loans.member = members.id",
+    "mustKeep": ["INNER JOIN"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-left-join",
+    "spoken": "select members dot name from members left join loans on members dot id equals loans dot member",
+    "expected": "SELECT members.name FROM members LEFT JOIN loans ON members.id = loans.member",
+    "mustKeep": ["LEFT JOIN"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-alias",
+    "spoken": "select title as name from books",
+    "expected": "SELECT title AS name FROM books",
+    "mustKeep": ["AS"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-not",
+    "spoken": "select id from orders where not status equals paid",
+    "expected": "SELECT id FROM orders WHERE NOT status = paid",
+    "mustKeep": ["NOT"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-delete",
+    "spoken": "delete from orders where status equals cancelled",
+    "expected": "DELETE FROM orders WHERE status = cancelled",
+    "mustKeep": ["DELETE FROM"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-delete-less-than",
+    "spoken": "delete from loans where due less than twenty",
+    "expected": "DELETE FROM loans WHERE due < 20",
+    "mustKeep": ["<"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-update",
+    "spoken": "update products set price equals ten where id equals four",
+    "expected": "UPDATE products SET price = 10 WHERE id = 4",
+    "mustKeep": ["UPDATE", "SET"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-update-rating",
+    "spoken": "update books set rating equals five where id equals two",
+    "expected": "UPDATE books SET rating = 5 WHERE id = 2",
+    "mustKeep": ["SET"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-insert-values",
+    "spoken": "insert into books values open paren seven comma poetry close paren",
+    "expected": "INSERT INTO books VALUES (7, poetry)",
+    "mustKeep": ["INSERT INTO", "VALUES", "(7,"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-insert-columns",
+    "spoken": "insert into tags open paren name close paren values open paren drama close paren",
+    "expected": "INSERT INTO tags (name) VALUES (drama)",
+    "mustKeep": ["(name)", "(drama)"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-range",
+    "spoken": "select id from orders where total greater than fifty and total less than ninety",
+    "expected": "SELECT id FROM orders WHERE total > 50 AND total < 90",
+    "mustKeep": [">", "<"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-between-ratings",
+    "spoken": "select title from books where rating between one and five",
+    "expected": "SELECT title FROM books WHERE rating BETWEEN 1 AND 5",
+    "mustKeep": ["BETWEEN"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-null-and",
+    "spoken": "select star from loans where due is null and member equals four",
+    "expected": "SELECT * FROM loans WHERE due IS NULL AND member = 4",
+    "mustKeep": ["IS NULL", "AND"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
   }
 ]

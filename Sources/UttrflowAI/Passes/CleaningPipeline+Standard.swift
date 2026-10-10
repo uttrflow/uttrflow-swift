@@ -63,7 +63,7 @@ extension CleaningPipeline {
         let inCode = destination == .codeEditor && intent.region.isCode
         let notation = NotationEvidence.applicability(destination: destination, region: intent.region)
         if let layoutPosition = cleanings.firstIndex(where: { $0.id == .layoutWords }) {
-            if notation.activates(at: NotationEvidence.activationThreshold) {
+            if NotationEvidence.mayActivate(notation, in: destination) {
                 cleanings.insert(
                     CodeEditorCommandsPass(destination: destination, evidence: notation), at: layoutPosition)
             }

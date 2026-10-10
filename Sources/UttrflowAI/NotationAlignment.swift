@@ -24,7 +24,7 @@ struct NotationAlignment: Sendable {
     static let notationRows = SpokenCommands.all.filter { row in
         switch row.action {
         case .mark, .codeSymbol, .flag: true
-        case .layout, .casing, .leadIn, .replace, .lineMark, .spanMark, .emoji, .key: false
+        case .layout, .casing, .keyword, .leadIn, .replace, .lineMark, .spanMark, .emoji, .key: false
         }
     }
 
