@@ -304,7 +304,7 @@ public enum HomeDashboard {
 
     /// One dictation as a row on the rail.
     static func activity(
-        for entry: HistoryEntry, calendar: Calendar, locale: Locale
+        for entry: HistoryEntry, calendar: Calendar, locale: Locale, secretPhrases: [String] = []
     )
         -> HomeActivityRow
     {
@@ -312,7 +312,7 @@ public enum HomeDashboard {
         return HomeActivityRow(
             id: entry.id,
             time: time(entry.when, calendar: calendar, locale: locale),
-            text: DictationTextPresentation(entry.text).displayText,
+            text: DictationTextPresentation(entry.text, secretPhrases: secretPhrases).displayText,
             application: HistoryPresenter.application(for: entry),
             words: MainFormatting.count(MainFormatting.words(in: entry.text), "word", "words"),
             tag: tag, tone: tone,

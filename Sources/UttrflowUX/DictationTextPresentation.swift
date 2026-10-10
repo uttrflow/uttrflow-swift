@@ -1,5 +1,6 @@
 import Foundation
 import UttrflowClipboard
+public import UttrflowCore
 
 /// A dictation's display form and clipboard handling decision, using the clipboard's secret rules.
 public struct DictationTextPresentation: Sendable, Equatable {
@@ -9,11 +10,24 @@ public struct DictationTextPresentation: Sendable, Equatable {
     public let isSecret: Bool
 
     /// Detects secrets once so every dictation surface shares one classification.
-    public init(_ text: String) {
+    ///
+    /// `secretPhrases` are the expansions of snippets the person marked secret; text holding one is a secret.
+    public init(_ text: String, secretPhrases: [String] = []) {
         self.text = text
-        isSecret = ClipKindDetector.kind(of: text) == .secret
+        isSecret =
+            ClipKindDetector.kind(of: text) == .secret
+            || secretPhrases.contains { text.range(of: $0, options: .caseInsensitive) != nil }
     }
 
     /// The text a dictation surface may show.
     public var displayText: String { isSecret ? PanelPresenter.mask : text }
+}
+
+extension Sequence where Element == Snippet {
+    /// The text each secret snippet writes, trimmed, for ``DictationTextPresentation``.
+    public var secretPhrases: [String] {
+        filter(\.isSecret)
+            .map { $0.body.text.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
 }

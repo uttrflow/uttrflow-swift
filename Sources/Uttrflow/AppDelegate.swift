@@ -2092,6 +2092,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
+    /// A dictation's text classified with the shape rules and the snippets marked secret.
+    private func dictationText(_ text: String) -> DictationTextPresentation {
+        DictationTextPresentation(text, secretPhrases: knownSnippets.secretPhrases)
+    }
+
     /// Shown and spoken, so a shortcut with nothing to act on never looks broken.
     private func sayNoLastTranscript(to verb: String) {
         Self.log.notice("\(verb, privacy: .public) last transcript: nothing dictated yet")
@@ -2106,8 +2111,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             sayNoLastTranscript(to: "copy")
             return
         }
+        // Read now: the shortcut can fire before any page has read the snippets.
+        knownSnippets = await snippets.snippets()
         let result: PasteboardWriteResult
-        if DictationTextPresentation(text).isSecret {
+        if dictationText(text).isSecret {
             result = announcingPasteboard.writeConcealedText(text)
             if result.didWrite { scheduleSecretClear(writtenAt: result.changeCount) }
         } else {
@@ -2117,7 +2124,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             showClipboardCopyFailure()
             return
         }
-        sayCopiedForMainWindow(secret: DictationTextPresentation(text).isSecret)
+        sayCopiedForMainWindow(secret: dictationText(text).isSecret)
     }
 
     /// The shortcut is a toggle, so the same key puts the panel away again.
@@ -3086,7 +3093,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             speechLoadElapsed: speechLoadStarted.map { $0.duration(to: .now) } ?? .zero,
             recordingAdvice: recordingAdvice,
             stopGesture: recordingStopGesture,
-            recents: recents.previews.map {
+            recents: recents.previews(secretPhrases: knownSnippets.secretPhrases).map {
                 MenuBarRecent(
                     id: $0.id,
                     title: $0.title,
@@ -3143,11 +3150,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             guard let recent = recents.entries.first(where: { $0.id == id }) else { return }
             // The app's own inserter: a fresh one would get the unannouncing pasteboard.
             insert(
-                recent.text, concealed: DictationTextPresentation(recent.text).isSecret, used: nil)
+                recent.text, concealed: dictationText(recent.text).isSecret, used: nil)
         case .copyRecent(let id):
             guard let recent = recents.entries.first(where: { $0.id == id }) else { return }
             // And through the helper that announces the write, for the same reason.
-            let isSecret = DictationTextPresentation(recent.text).isSecret
+            let isSecret = dictationText(recent.text).isSecret
             if !putOnClipboard(recent.text, concealed: isSecret, used: nil) {
                 showClipboardCopyFailure()
             } else {
@@ -3452,7 +3459,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     systemName: NSFullUserName(),
                     shortcut: shortcut, settings: settings, now: now,
                     speechModel: speechModelLoad, speechDownload: speechReadiness.download,
-                    speechModelBytes: SpeechModel.default.downloadBytes, hasReadHistory: hasReadHistory)),
+                    speechModelBytes: SpeechModel.default.downloadBytes, hasReadHistory: hasReadHistory,
+                    secretPhrases: knownSnippets.secretPhrases)),
             sidebar: SidebarPresenter.sidebar(
                 for: SidebarSnapshot(
                     // The page the window shows, which may be the Settings page on one of its tabs.
@@ -3472,7 +3480,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     keepsRecordings: true, canKeepAsClip: surfaces.watchesTheClipboard,
                     recordings: knownRecordings,
                     retrying: retryingRecording, playing: playback.playing, now: now,
-                    hasReadHistory: hasReadHistory)),
+                    hasReadHistory: hasReadHistory, secretPhrases: knownSnippets.secretPhrases)),
             dictionary: dictionaryPage(at: now, corrections: corrections),
             corrections: CorrectionsPresenter.page(
                 for: CorrectionsSnapshot(
@@ -3531,7 +3539,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             for: SnippetsSnapshot(
                 snippets: knownSnippets, draft: snippetDraft, refusal: snippetRefusal,
                 query: query(for: .snippets), sort: sorts[.snippets] ?? "", now: now,
-                arrival: snippetArrival, dictionary: knownWords))
+                arrival: snippetArrival, dictionary: knownWords, revealed: revealedSnippets))
     }
 
     /// Reads the account the pages draw from.
@@ -3580,6 +3588,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         repeatWindow: DictationController<ContinuousClock>.doubleTapWindow)
     private var announcementHold = AnnouncementHold()
     private var snippetEditorIsOpen = false
+    /// The secret snippets whose text the Snippets page shows right now.
+    private var revealedSnippets: Set<UUID> = []
     /// The same, for the word editor.
     private var wordEditorIsOpen = false
     /// Why the last Save was refused, per editor, until the next keystroke clears it.
@@ -3620,7 +3630,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var knownWords: [DictionaryEntry] = []
     /// The spellings the dictionary refuses to learn, newest first, from the latest reading.
     private var knownRefusals: [String] = []
-    private var knownSnippets: [Snippet] = []
+    var knownSnippets: [Snippet] = []
     private var knownEntitlement: Entitlement?
     /// When the signed-in account was created, from the unsigned profile beside the entitlement.
     private var knownMemberSince: Date?
@@ -3730,13 +3740,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .removeSuggestionModel:
             intentWork = releaseModel.removeCachedFiles { [weak self] in self?.report($0) }
         case .copy(let text):
-            let secret = DictationTextPresentation(text).isSecret
+            let secret = dictationText(text).isSecret
             if putOnClipboard(text, concealed: secret, used: nil) {
                 sayCopiedForMainWindow(secret: secret)
             } else {
                 showClipboardCopyFailure()
             }
-        case .insert(let text): insert(text, used: nil)
+        case .insert(let text): insert(text, concealed: dictationText(text).isSecret, used: nil)
         case .dictate:
             toggleDictation()
         case .search:
@@ -3867,12 +3877,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 editSnippet(
                     SnippetDraft(
                         editing: id, trigger: snippet.trigger, text: snippet.expansion,
-                        applications: snippet.applications))
+                        applications: snippet.applications, isSecret: snippet.isSecret))
             }
         case .cancelSnippetEdit:
             editSnippet(nil)
-        case .saveSnippet(let trigger, let text, let applications, let replacing):
-            saveSnippet(trigger: trigger, text: text, applications: applications, replacing: replacing)
+        case .saveSnippet(let trigger, let text, let applications, let replacing, let isSecret):
+            saveSnippet(
+                trigger: trigger, text: text, applications: applications, replacing: replacing,
+                isSecret: isSecret)
+        case .revealSnippet(let id):
+            revealedSnippets.insert(id)
+            redrawPages([.snippets])
+        case .hideSnippet(let id):
+            revealedSnippets.remove(id)
+            redrawPages([.snippets])
         case .forgetSnippet(let id):
             snippetUndoTask?.cancel()
             deletedSnippet = nil
@@ -4329,13 +4347,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Saves a snippet, closing the editor only once it is in, as saving a word does.
-    private func saveSnippet(trigger: String, text: String, applications: [String], replacing: UUID?) {
+    private func saveSnippet(
+        trigger: String, text: String, applications: [String], replacing: UUID?, isSecret: Bool
+    ) {
         intentWork = Task { [weak self] in
             guard let self else { return }
             do throws(SnippetStoreError) {
                 try await snippets.save(
                     trigger: trigger, expansion: text, replacing: replacing, created: Date(),
-                    applications: applications)
+                    applications: applications, isSecret: isSecret)
+                // A saved edit hides its text again.
+                if let replacing { revealedSnippets.remove(replacing) }
                 editSnippet(nil)
             } catch {
                 Self.log.error("could not save snippet: \(error.userMessage, privacy: .public)")
@@ -4605,7 +4627,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             Task { await pipeline?.acknowledge() }
         case .copyTranscript:
             if case .failed(let failure) = lastDictationState, let text = failure.wordsToKeep {
-                putOnClipboard(text, concealed: DictationTextPresentation(text).isSecret, used: nil)
+                putOnClipboard(text, concealed: dictationText(text).isSecret, used: nil)
             }
             Task { await pipeline?.acknowledge() }
         case .showHistory:
