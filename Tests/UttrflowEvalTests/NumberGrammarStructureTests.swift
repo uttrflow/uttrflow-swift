@@ -29,7 +29,7 @@ struct NumberGrammarStructureTests {
             .electronic
         ),
         ("double oh seven", "007", .telephone),
-        ("fifty k", "50 k.", .cardinal),
+        ("fifty k", "50k.", .cardinal),
     ]
 
     @Test("writes every known ambiguity as expected, with no value error and no false conversion")
