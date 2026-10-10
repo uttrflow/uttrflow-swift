@@ -41,6 +41,12 @@ struct HarvestConfusions: AsyncParsableCommand {
     @Option(name: .customLong("model"), help: "Model variant. Defaults to the shipping model.")
     var modelVariant: String?
 
+    /// Judges the table on real errors instead of a held-out half, so every clip builds it.
+    @Option(
+        name: .customLong("calibration-results"),
+        help: "A `transcribe` results folder; coverage is measured on its calibration-split errors.")
+    var calibrationResults: String?
+
     func run() async throws {
         let (engine, utterances) = try await ManifestDecoder.decode(
             manifest: manifest, modelVariant: modelVariant)
@@ -48,7 +54,13 @@ struct HarvestConfusions: AsyncParsableCommand {
             dataset: dataset, version: datasetVersion, licence: licence,
             engine: engine,
             seed: seed)
-        let built = utterances.filter { !ConfusionHarvest.isHeldOut(speaker: $0.speaker, seed: seed) }
+        let realErrors = try calibrationResults.map { path in
+            ConfusionHarvest.calibrationErrors(
+                try JSONRecordStore<PassageScore>(directory: URL(fileURLWithPath: path)).all())
+        }
+        let built = utterances.filter {
+            realErrors != nil || !ConfusionHarvest.isHeldOut(speaker: $0.speaker, seed: seed)
+        }
         let heldOut = utterances.filter { ConfusionHarvest.isHeldOut(speaker: $0.speaker, seed: seed) }
         let table = ConfusionHarvest.table(built, provenance: provenance, minimumSpeakers: minimumSpeakers)
         let encoder = JSONEncoder()
@@ -57,9 +69,14 @@ struct HarvestConfusions: AsyncParsableCommand {
         try FileManager.default.createDirectory(
             at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
         try encoder.encode(table).write(to: destination)
-        let coverage = ConfusionHarvest.coverage(of: table, on: heldOut)
+        func percent(_ share: Double?) -> String { share.map { String(format: "%.1f%%", $0 * 100) } ?? "–" }
         print("\(utterances.count) clips; \(table.pairs.count) pairs; digest \(table.digest)")
-        print("Held-out coverage: \(coverage.map { String(format: "%.1f%%", $0 * 100) } ?? "–")")
+        if let realErrors {
+            let coverage = ConfusionHarvest.coverage(of: table, errors: realErrors)
+            print("Coverage of \(realErrors.count) real calibration-split errors: \(percent(coverage))")
+        } else {
+            print("Held-out coverage: \(percent(ConfusionHarvest.coverage(of: table, on: heldOut)))")
+        }
         print("Wrote \(destination.path)")
     }
 }
