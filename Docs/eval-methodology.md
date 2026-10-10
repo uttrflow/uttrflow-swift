@@ -640,9 +640,25 @@ difference beside it.
 (speaker, group, label kind, errors, words, decisions, false overrides), never audio, and prints
 one row per group and label kind and one line per same-label pair. A group under two speakers, or
 whose decisions fall short of the 3/n count for `--decision-bound` (default 1 in 1,000), prints
-"insufficient evidence". `SpeakerGroupReportTests` fixes these rows over an invented slice. No
-real-speaker slice has been run through it yet; the first run is a Common Voice download read
-from a local path.
+"insufficient evidence". `SpeakerGroupReportTests` fixes these rows over an invented slice.
+
+With `--manifest` in place of `--rows`, the command reads the `harvest-confusions` manifest
+(audio path, reference text, accent group, speaker) of a slice already downloaded, decodes a
+seeded sample of each group with the shipping recogniser (`ManifestDecoder`), and scores each clip
+with the standard normaliser and `WordErrorRate`; only those counts reach the report. The sample
+(`AccentSlice.sample`) takes `--clips-per-group` clips (200 by default: about 2,000 reference words
+on ten-word clips, a binomial interval of about plus or minus 1.2 points at 8%, before speaker
+correlation widens it), one clip per speaker per round in seeded order, so the budget reaches every
+speaker the group has. The first printed line names the dataset, version, label kind, seed, clip
+budget and engine, and is pasted above the table. Nothing is fetched and no audio is written.
+
+```bash
+uttrflow-eval accent-groups --manifest <slice>/manifest.tsv --label self-described \
+  --dataset "Common Voice English" --dataset-version <release> --seed 1
+```
+
+Not yet measured: no real-speaker slice has been run through it. The per-accent table belongs here
+once a slice is downloaded; each difference whose interval excludes zero is filed as its own issue.
 
 ## Word-score calibration by accent group (`accent-calibration`)
 
