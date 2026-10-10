@@ -58,12 +58,22 @@ public enum GeneralVocabulary {
             \.word)
     }
 
-    /// The ordinary words the lexicon lists as said exactly like this ordinary one: "here" for "hear". Both sides ordinary, because the lexicon also lists rare spellings and surnames ("thee", "appel") that are no reading of a confidently heard word; a single letter is its name, never a homophone.
+    /// How many times rarer than the heard word a homophone may be: "knead" is 79 times rarer than "need", "thee" 1,809 times rarer than "the".
+    static let rarestHomophone = 100
+
+    /// The everyday words the lexicon lists as said exactly like this ordinary one: "here" for "hear". The partner is no name and at most `rarestHomophone` times rarer, because the lexicon also lists rare spellings and surnames ("thee", "appel") that are no reading of a confidently heard word; a single letter is its name, never a homophone.
     public static func homophones(of text: String) -> [String] {
         guard text.count > 1, isOrdinary(text) else { return [] }
-        // A clipped form ("in'") is the same word written short, not a homophone of it.
-        return PhonemeLexicon.shared.homophones(of: text).filter {
-            $0.count > 1 && $0.first != "'" && $0.last != "'" && isOrdinary($0)
+        let heard = RecogniserWords.rank(of: text.lowercased())
+        // A clipped form ("in'") is the same word written short, not a homophone.
+        return PhonemeLexicon.shared.homophones(of: text).filter { partner in
+            guard partner.count > 1, partner.first != "'", partner.last != "'", isOrdinary(partner) else {
+                return false
+            }
+            if let heard, let rank = RecogniserWords.rank(of: partner), rank > heard * rarestHomophone {
+                return false
+            }
+            return isEveryday(partner) && !LexicalClass.isNameInDictionary(partner)
         }
     }
 
