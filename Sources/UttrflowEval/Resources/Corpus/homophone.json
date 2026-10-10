@@ -9,6 +9,15 @@
     "addedFor": 2325
   },
   {
+    "id": "homophone-no-know-6689",
+    "note": "A misheard no between a subject and a determiner is the verb know, not a negation.",
+    "spoken": "i no the answer to that question",
+    "expected": "I know the answer to that question.",
+    "mustKeep": ["know"],
+    "mustNotAdd": ["no the"],
+    "addedFor": 6689
+  },
+  {
     "id": "homophone-by-buy-2326",
     "note": "A sound-alike pair the homophone table lacked: by and buy.",
     "spoken": "i need to by groceries after work",
