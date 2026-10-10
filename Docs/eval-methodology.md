@@ -512,6 +512,33 @@ How far to trust it:
   misses are extraction failures, not mishearings.
 - (c) asks without the doubt and evidence conditions the engine also checks, so it is a ceiling.
 
+## Proper names by origin and frequency band (`names`)
+
+`uttrflow-eval names` has `say` read every name in `NameClassCorpus`
+(`Sources/UttrflowEval/Resources/Corpus/Names/names.json`): 159 names, each tagged with an origin
+(english, southAsian, eastAsian, african, slavic, irishScottish, arabic), a band (common, uncommon,
+rare) and a kind. Every origin holds, per band, three given names, two surnames and two places;
+twelve English given names that are also ordinary words ("Will", "Grace", "Hope") form the
+`wordAlike` kind, four per band. Each kind is read in one fixed carrier (`NameClassItem.Kind.carrier`),
+and the words between the carrier's own are what was heard.
+
+- Every clip is transcribed twice under an English hint: plain, and with the name as the
+  dictation's vocabulary, which is the path a personal-dictionary entry takes into the prompt.
+- *Exact* keeps case and drops apostrophes, so a word-alike name heard in lower case is a miss;
+  *spelled* also folds case. Both are printed per origin and band, per band over every origin and
+  per kind, with the confusion list (meant against heard, clips per condition) by band and origin.
+  The rows file keeps every transcript for comparison with a later run.
+- The band is the author's judgement of how often the name is written in English text, not a
+  measured frequency; a row compares origins and bands, it does not rank single names.
+- The file holds given names and surnames on their own and public place names only, never a full
+  name, so no entry identifies a person.
+- `--compute gpu` keeps the Neural Engine free when other loads hold it; the plan is printed with
+  the engine.
+
+Not yet measured: one voice reading the class takes over an hour on a loaded machine, so the table
+by origin and band and the weakest band are added here from the first full run of
+`swift run -c release uttrflow-eval names`.
+
 ## Dropped words and the coverage signal (`omission-coverage`)
 
 A dropped "not", "no" or "a" carries no score, so no doubt mechanism sees it. The probe asks
@@ -686,6 +713,27 @@ prosody, so a gap between them understates the gap between real speakers.
 Both runs end with one line measuring the score against the doubtful-word strip's floor
 ([ai-correction-thresholds.md](ai-correction-thresholds.md#showing-doubtful-words-after-insertion-not-built)):
 the lowest-scored words flagged at 3 per 100, with recall, precision and the unflaggable share.
+
+## What one guided read measures (`guided-read`)
+
+`uttrflow-eval guided-read` decodes one reading of `GuidedRead.passage` per speaker, from `say`
+voices (`--voices`) or recordings of a person reading it (`--recordings`), and prints one row each
+(`GuidedRead.measure`). The passage is invented English; its targets are its words written as one
+technical-lexicon term, so a term added to the lexicon is tracked without a code change.
+
+| Column | Measured as |
+|---|---|
+| Words a minute | words heard over the span from the first timed word's start to the last one's end |
+| Median pause, 90th pause | gaps between two timed words of one sentence; the gap after a word ending `.`, `?` or `!` is left out |
+| Median confidence | the recogniser's confidence over every word heard |
+| Pause setting | the first `PauseLength` whose `sentencePause` the 90th pause stays under |
+| Missed | targets `HomophoneConfidence.outcome` finds wrong or dropped |
+
+Nothing here changes a setting or a threshold, and no audio or row is kept by the app: this measures
+whether a reading at setup separates speakers enough to tune anything. Synthetic voices share one
+synthesiser's prosody, so their pause columns say little; recordings of people are the evidence
+that counts. Still to measure before any of it reaches setup: first-week word error rate on corpus
+speakers with the pause setting a reading picks against the default.
 
 ## Confusions on accented read speech (`harvest-confusions`)
 
