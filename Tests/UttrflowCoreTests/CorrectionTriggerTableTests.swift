@@ -76,6 +76,10 @@ fileprivate let hinglishCorrections: [TriggerCase] = [
     corrected("galat bola", "teen kilo galat bola chaar kilo chawal lao", "chaar kilo chawal lao"),
     corrected("matlab", "do din, matlab, teen din lagenge", "teen din lagenge"),
     corrected("matlab", "saat baje, matlab, aath baje aao", "aath baje aao"),
+    corrected("nahi", "teen baje, nahi, chaar baje milte hain", "chaar baje milte hain"),
+    corrected("nahi", "do kilo nahi, teen kilo chini lao", "teen kilo chini lao"),
+    corrected("sorry sorry", "paanch baje sorry sorry chhe baje aana", "chhe baje aana"),
+    corrected("sorry sorry", "blue wali shirt sorry sorry red wali shirt lao", "red wali shirt lao"),
 ]
 
 /// The same words said plainly in Hinglish, none of which may lose a word.
@@ -114,17 +118,20 @@ fileprivate let hinglishPlain: [TriggerCase] = [
     plain("galat bola", "maine kuch galat bola kya"),
     plain("matlab", "iska matlab kya hai"),
     plain("matlab", "matlab tum kal nahi aaoge"),
+    plain("nahi", "main kal nahi aa paunga"),
+    plain("nahi", "wo paanch baje nahi aaya"),
+    plain("nahi", "do log nahi, sab log aayenge"),
+    plain("nahi", "mujhe do nahi, kuch nahi chahiye"),
+    plain("nahi nahi", "bees rupaye nahi nahi chahiye"),
+    plain("sorry sorry", "sorry sorry main bhool gaya"),
+    plain("sorry sorry", "usko sorry sorry bolna padega"),
 ]
 
 private let allCases = hinglishCorrections + hinglishPlain
 
 /// Sentences the current evidence still reads wrongly, each held here until a fix makes it pass; see `Docs/cleanup.md`.
 let owedTriggerCases: Set<String> = [
-    "bees rupaye nahi nahi pachaas",
-    "chai or rather coffee pi lete hain",
-    "flight monday ko hai no wait tuesday ko hai",
-    "kal ki meeting sorry parso ki meeting cancel hai",
-    "red wala lo strike that blue wala lo",
+    "chai or rather coffee pi lete hain"
 ]
 
 @Suite("Correction triggers, one table read by the same code for English and Hindi")

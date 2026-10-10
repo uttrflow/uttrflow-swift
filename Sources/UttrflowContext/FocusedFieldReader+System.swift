@@ -179,6 +179,11 @@ public enum FocusedFieldReader {
     /// The fields whose reads ran past their budget lately, which are left alone until their rest is over.
     static let slowFields = SlowFields()
 
+    /// Forgets which fields ran slow, so a reset leaves no record of the fields this Mac has read.
+    public static func forgetSlowFields() {
+        slowFields.forgetEverything()
+    }
+
     /// Lets an application quieted by a resting field be asked again, for a click, a switch or a key that may move focus.
     public static func focusMayHaveMoved() {
         slowFields.focusMayHaveMoved()

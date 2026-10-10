@@ -245,7 +245,7 @@ extension DictationPipeline {
             scriptConversions: ScriptConversions(enforcement))
     }
 
-    /// Pieces cut inside a spoken number, time or address, tidied again as one piece so the unit is read whole.
+    /// Pieces cut inside a spoken number, time, address or quotation, tidied again as one piece so the unit is read whole.
     func rejoiningUnits(
         _ pieces: [Piece], under formatter: DestinationFormatter, going situation: Situation,
         seeing appContext: AppContext, recording metrics: any MetricsRecording, for mine: Int?
@@ -255,6 +255,7 @@ extension DictationPipeline {
             if let previous = groups.last?.last,
                 PieceJoiner.unitRunsAcross(
                     previous.corrected.text, into: piece.corrected.text, under: formatter, going: situation)
+                    || PieceJoiner.quotationRunsAcross(previous.cleaned.text, into: piece.cleaned.text)
             {
                 groups[groups.count - 1].append(piece)
             } else {
