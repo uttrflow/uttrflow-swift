@@ -78,6 +78,7 @@ extension DictationPipeline {
                 doubtful: DoubtfulWordsOutcome.locating(whole.heard.saying(whole.corrected), in: toWrite),
                 delivery: delivery, generation: mine, recording: tally,
                 unavailableEngines: whole.cleaned.cleaning?.unavailableEngines ?? [],
+                guardRefusals: whole.cleaned.cleaning?.refusals.map(\.kind) ?? [],
                 destination: InsertionDestination(
                     applicationName: appContext?.applicationName,
                     bundleIdentifier: appContext?.bundleIdentifier,
@@ -153,6 +154,7 @@ extension DictationPipeline {
         _ text: String, cleanedBy: TransformerKind, changes: AppliedChanges,
         doubtful: DoubtfulWordsOutcome = .notAvailable, delivery: Delivery, generation mine: Int,
         recording tally: StageTally, unavailableEngines: [CleaningRecord.UnavailableEngine],
+        guardRefusals: [RefusalKind],
         destination: InsertionDestination
     ) async -> InsertionAttempt? {
         let inserter = delivery == .copy ? clipboard : self.inserter
@@ -192,7 +194,7 @@ extension DictationPipeline {
                         fromRecording: delivery == .copy, arrival: attempt.arrival,
                         intoSecureField: destinationIsSecure, missedPieces: missedPieces,
                         unavailableEngines: unavailableEngines, doubtful: doubtful,
-                        slowCause: slowCause)))
+                        slowCause: slowCause, guardRefusals: guardRefusals)))
             return attempt
         } catch {
             guard !wasCancelled(mine) else { return nil }

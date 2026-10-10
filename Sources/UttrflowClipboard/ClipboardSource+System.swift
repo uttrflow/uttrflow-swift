@@ -4,6 +4,7 @@ public import struct Foundation.Data
 public import struct UttrflowCore.PasteboardMarkers
 import AppKit
 private import os
+private import Synchronization
 
 /// The real clipboard, excluded from coverage; when to read it is decided and tested elsewhere.
 public struct SystemClipboardSource: ClipboardProvenanceSource {
@@ -16,18 +17,25 @@ public struct SystemClipboardSource: ClipboardProvenanceSource {
         self.budget = budget
     }
 
+    /// One content read of the general pasteboard at a time in this process: two at once race on its type cache and crash.
+    private static let contents = Mutex(())
+
+    private static func reading<Value>(_ read: () -> Value) -> Value {
+        contents.withLock { _ in read() }
+    }
+
     public func changeCount() -> Int {
         NSPasteboard.general.changeCount
     }
 
     public func text() -> String? {
-        NSPasteboard.general.string(forType: .string)
+        Self.reading { NSPasteboard.general.string(forType: .string) }
     }
 
     /// RTF bytes within the same single-clip bound used for plain text.
     public func rtf() -> Data? {
         guard
-            let data = NSPasteboard.general.data(forType: .rtf),
+            let data = Self.reading({ NSPasteboard.general.data(forType: .rtf) }),
             budget.largestClip == 0 || data.count <= budget.largestClip
         else {
             return nil
@@ -36,30 +44,32 @@ public struct SystemClipboardSource: ClipboardProvenanceSource {
     }
 
     public func markers() -> PasteboardMarkers {
-        PasteboardMarkers(types: NSPasteboard.general.types?.map(\.rawValue) ?? [])
+        PasteboardMarkers(types: Self.reading { NSPasteboard.general.types?.map(\.rawValue) } ?? [])
     }
 
     func clipboardProvenance() -> ClipboardProvenance {
-        let pasteboard = NSPasteboard.general
-        let types = pasteboard.types?.map(\.rawValue) ?? []
-        return ClipboardProvenance(
-            types: types,
-            writerValue: types.contains(ClipboardProvenance.writerType)
-                ? pasteboard.string(forType: .init(ClipboardProvenance.writerType)) : nil)
+        Self.reading {
+            let pasteboard = NSPasteboard.general
+            let types = pasteboard.types?.map(\.rawValue) ?? []
+            return ClipboardProvenance(
+                types: types,
+                writerValue: types.contains(ClipboardProvenance.writerType)
+                    ? pasteboard.string(forType: .init(ClipboardProvenance.writerType)) : nil)
+        }
     }
 
     /// The formatted flavour, HTML only; RTF has its own bounded import.
     public func html() -> String? {
-        NSPasteboard.general.string(forType: .html)
+        Self.reading { NSPasteboard.general.string(forType: .html) }
     }
 
     /// The picture on the clipboard as PNG, judged by its header first and never via a TIFF macOS translates for us.
     public func image() -> (data: Data, width: Int, height: Int)? {
-        Self.picture(on: .general, within: budget)
+        Self.reading { Self.picture(on: .general, within: budget) }
     }
 
     public func hasPicture() -> Bool {
-        guard let types = NSPasteboard.general.types else { return false }
+        guard let types = Self.reading({ NSPasteboard.general.types }) else { return false }
         return types.contains { Self.pictureFlavours.contains($0) }
     }
 
