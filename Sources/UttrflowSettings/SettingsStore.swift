@@ -108,6 +108,9 @@ public struct Settings: Sendable, Equatable, Codable {
     /// Whether pasting a hidden clip into a field not known to hide what is typed asks first.
     public var confirmsHiddenClipPaste: Bool
 
+    /// Seconds a copied secret stays on the system clipboard before it is cleared; 0 leaves it there.
+    public var secretClipboardClearSeconds: Int
+
     /// Everything the user has decided about tab-to-complete.
     public var suggestions: SuggestionPreferences
 
@@ -152,6 +155,7 @@ public struct Settings: Sendable, Equatable, Codable {
         historyExcludedApplications: [String] = [],
         clipboardRetentionDays: Int = Settings.defaultRetentionDays,
         confirmsHiddenClipPaste: Bool = true,
+        secretClipboardClearSeconds: Int = Settings.defaultSecretClipboardClearSeconds,
         suggestions: SuggestionPreferences = .default,
         microphoneUID: String? = nil,
         contextLevel: ContextLevel = .nearCaret,
@@ -188,6 +192,7 @@ public struct Settings: Sendable, Equatable, Codable {
         self.historyExcludedApplications = historyExcludedApplications
         self.clipboardRetentionDays = clipboardRetentionDays
         self.confirmsHiddenClipPaste = confirmsHiddenClipPaste
+        self.secretClipboardClearSeconds = secretClipboardClearSeconds
         self.suggestions = suggestions
         self.microphoneUID = microphoneUID
         self.contextLevel = contextLevel
@@ -196,6 +201,14 @@ public struct Settings: Sendable, Equatable, Codable {
 
     /// A week: how long an unkept clip lives unless the user chooses otherwise.
     public static let defaultRetentionDays = 7
+
+    /// A copied secret leaves the clipboard after this many seconds.
+    public static let defaultSecretClipboardClearSeconds = 60
+
+    /// Keeps a stored clear delay that is zero (off) or positive; a negative one falls back.
+    static func secretClear(_ seconds: Int, default fallback: Int) -> Int {
+        seconds >= 0 ? seconds : fallback
+    }
 
     /// The period that stands for "keep until I delete it", longer than anything can be kept waiting.
     public static let keepAlwaysDays = RetentionWindow.keepAlwaysDays
@@ -269,6 +282,7 @@ extension Settings {
         case historyExcludedApplications
         case clipboardRetentionDays
         case confirmsHiddenClipPaste
+        case secretClipboardClearSeconds
         case suggestions
         case microphoneUID
         case contextLevel
@@ -359,6 +373,10 @@ extension Settings {
             ),
             confirmsHiddenClipPaste: container.value(
                 forKey: .confirmsHiddenClipPaste, default: fallback.confirmsHiddenClipPaste),
+            secretClipboardClearSeconds: Settings.secretClear(
+                container.value(
+                    forKey: .secretClipboardClearSeconds, default: fallback.secretClipboardClearSeconds),
+                default: fallback.secretClipboardClearSeconds),
             suggestions: container.value(forKey: .suggestions, default: fallback.suggestions),
             microphoneUID: (try? container.decodeIfPresent(String.self, forKey: .microphoneUID)) ?? nil,
             contextLevel: container.value(forKey: .contextLevel, default: fallback.contextLevel),

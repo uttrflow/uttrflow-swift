@@ -344,6 +344,16 @@ struct SettingsTests {
         #expect(settings.clipboardRetentionDays == Settings.maximumFiniteRetentionDays)
     }
 
+    @Test("a copied secret clears after a minute unless the file says otherwise")
+    func secretClearDelay() throws {
+        #expect(Settings().secretClipboardClearSeconds == 60)
+        func decoded(_ json: String) throws -> Settings { try decode(json) }
+        #expect(try decoded("{}").secretClipboardClearSeconds == 60)
+        #expect(try decoded(#"{"secretClipboardClearSeconds": 0}"#).secretClipboardClearSeconds == 0)
+        #expect(try decoded(#"{"secretClipboardClearSeconds": 15}"#).secretClipboardClearSeconds == 15)
+        #expect(try decoded(#"{"secretClipboardClearSeconds": -5}"#).secretClipboardClearSeconds == 60)
+    }
+
     @Test("keeps transcript Always distinct while capping clipboard retention")
     func alwaysSentinelIsSeparateFromFiniteRetention() throws {
         let settings = try decode(

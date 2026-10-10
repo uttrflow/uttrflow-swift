@@ -6,10 +6,7 @@ import WhisperKit
 @testable import UttrflowCore
 @testable import UttrflowSpeech
 
-/// A tokeniser with one id per character, so a prompt reads back as the sentence it is.
-///
-/// The closing sentence is one id per word, as a real vocabulary spells it, so its length in the
-/// budget is the few tokens it costs in the recogniser rather than one per letter.
+/// A tokeniser with one id per character, except the closing sentence, which has one id per word.
 private struct SpellingTokenizer: PromptTokenizer {
     private static let closingBase = 40_000
     private static let closingPieces: [String] = {
