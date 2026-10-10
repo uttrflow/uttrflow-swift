@@ -71,4 +71,40 @@ struct DiagnosticsReportRedactionTests {
         await recorder.forget()
         #expect(await recorder.tidyTally == TidyTally())
     }
+
+    @Test("forgetting empties the read rung tally")
+    func forgetEmptiesTheReadRungTally() async {
+        let recorder = DiagnosticsRecorder()
+        await recorder.recordContextRead(.wholeValue, in: "com.example.editor")
+        #expect(await recorder.readRungs.counts == ["com.example.editor": [.wholeValue: 1]])
+        await recorder.forget()
+        #expect(await recorder.readRungs == ContextReadTally())
+    }
+
+    /// Reads in two applications, three answered by the ranged rung and one by the whole value.
+    static func readRungs() -> ContextReadTally {
+        var tally = ContextReadTally()
+        tally.add(.rangedValue, in: "com.example.editor")
+        tally.add(.rangedValue, in: "com.example.editor")
+        tally.add(.wholeValue, in: "com.example.editor")
+        tally.add(.rangedValue, in: "com.example.chat")
+        return tally
+    }
+
+    @Test("the page counts each application's read rungs by bundle identifier")
+    func pageCountsRungsPerApplication() {
+        let page = DiagnosticsPresenter.page(
+            for: DiagnosticsSnapshot(readRungs: Self.readRungs()), locale: DiagnosticsFixture.locale)
+        let rows = page.cleanUp.filter { $0.title.hasPrefix("Screen reads, ") }
+        #expect(rows.map(\.title) == ["Screen reads, com.example.chat", "Screen reads, com.example.editor"])
+        #expect(rows.map(\.detail) == ["rangedValue 1", "rangedValue 2, wholeValue 1"])
+    }
+
+    @Test("the copied report sums read rungs across applications and names none")
+    func reportSumsRungsWithoutApplications() {
+        let report = DiagnosticsPresenter.report(
+            for: DiagnosticsSnapshot(readRungs: Self.readRungs()), locale: DiagnosticsFixture.locale)
+        #expect(report.contains("Screen reads by rung, all apps: rangedValue 3, wholeValue 1"))
+        #expect(!report.contains("com.example"))
+    }
 }

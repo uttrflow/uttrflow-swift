@@ -3121,6 +3121,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
         lastCleaning = nil
         lastTidyTally = TidyTally()
+        lastReadRungs = ContextReadTally()
         lastCleanedBy = nil
         forgetLastTranscript()
         Task { [weak self] in
@@ -3179,6 +3180,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             lastCleaning = await diagnostics.lastCleaning
             lastTidyTally = await diagnostics.tidyTally
             lastScreenTextUnavailable = await diagnostics.screenTextUnavailable
+            lastReadRungs = await diagnostics.readRungs
             lastVocabularyPrompt = await diagnostics.vocabularyPrompt
             let kept = await history.records(
                 keeping: Retention(days: settings.transcriptRetentionDays, now: Date()))
@@ -3298,6 +3300,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     speechModelLoads: lastSpeechModelLoads,
                     cleaning: lastCleaning,
                     tidyTally: lastTidyTally, screenTextUnavailable: lastScreenTextUnavailable,
+                    readRungs: lastReadRungs,
                     lastCleanedBy: lastCleanedBy,
                     suggestionModel: suggestionModel, version: .ofThisBuild,
                     machine: MachineDescription.current, arrivals: entries.map(\.arrival),
@@ -3358,6 +3361,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var lastTidyTally = TidyTally()
     /// Why the last dictation's screen read carried no field text, read on the same hop as the timings.
     private var lastScreenTextUnavailable: ContextUnavailableReason?
+    /// Which rung answered each screen read, per application, read on the same hop as the timings.
+    private var lastReadRungs = ContextReadTally()
     /// The word spellings in the last recogniser prompt, held locally for Diagnostics.
     private var lastVocabularyPrompt: [String] = []
     /// What the dictation pipeline last reported. See where it is written.
