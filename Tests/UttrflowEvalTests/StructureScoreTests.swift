@@ -155,7 +155,7 @@ struct StructureScoreTests {
             #expect(change.verdict != .worsened && change.verdict != .improved)
         }
         #expect(comparison.changes.filter { $0.label == "all" }.allSatisfy { $0.interval == 0...0 })
-        let single = try change(comparison, "sqlEditor", .missedBreaks)
+        let single = try change(comparison, "codeEditor", .missedBreaks)
         #expect(single.interval == nil)
         #expect(single.verdict == .unchanged)
     }

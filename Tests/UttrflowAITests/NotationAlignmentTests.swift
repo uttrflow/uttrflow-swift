@@ -59,6 +59,7 @@ struct NotationAlignmentTests {
     func underscoreJoinsIdentifier() {
         #expect(unsourced("rename user id to account id", "rename `user_id` to `account_id`").isEmpty)
         #expect(unsourced("call get user", "call get_user") == [])
+        #expect(unsourced("where created at is after", "where created_at is after").isEmpty)
         #expect(unsourced("user id", "user _ id") == ["_"])
         #expect(unsourced("user id", "user_ id") == ["_"])
     }
