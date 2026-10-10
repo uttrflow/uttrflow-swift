@@ -387,5 +387,301 @@
     "mustKeep": ["SLA"],
     "addedFor": 6568,
     "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-mg",
+    "spoken": "start aspirin eighty one m g by mouth",
+    "expected": "Start aspirin 81 mg by mouth.",
+    "mustKeep": ["81 mg"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-mcg",
+    "spoken": "give fifty m c g of levothyroxine each morning",
+    "expected": "Give 50 mcg of levothyroxine each morning.",
+    "mustKeep": ["50 mcg"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-kg",
+    "spoken": "she weighs sixty two k g today",
+    "expected": "She weighs 62 kg today.",
+    "mustKeep": ["62 kg"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-ml",
+    "spoken": "draw up ten m l of saline",
+    "expected": "Draw up 10 mL of saline.",
+    "mustKeep": ["10 mL"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-dl",
+    "spoken": "the jug holds four d l of water",
+    "expected": "The jug holds 4 dL of water.",
+    "mustKeep": ["4 dL"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-mm",
+    "spoken": "use a ten m m drill bit",
+    "expected": "Use a 10 mm drill bit.",
+    "mustKeep": ["10 mm"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-cm",
+    "spoken": "the cut is three c m long",
+    "expected": "The cut is 3 cm long.",
+    "mustKeep": ["3 cm"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-km",
+    "spoken": "we ran five k m this morning",
+    "expected": "We ran 5 km this morning.",
+    "mustKeep": ["5 km"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-mmhg",
+    "spoken": "the cuff read ninety m m h g",
+    "expected": "The cuff read 90 mmHg.",
+    "mustKeep": ["90 mmHg"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-meq",
+    "spoken": "add twenty m e q of potassium",
+    "expected": "Add 20 mEq of potassium.",
+    "mustKeep": ["20 mEq"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-mmol",
+    "spoken": "the glucose reading is seven m m o l",
+    "expected": "The glucose reading is 7 mmol.",
+    "mustKeep": ["7 mmol"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-khz",
+    "spoken": "the tone sits at four k h z",
+    "expected": "The tone sits at 4 kHz.",
+    "mustKeep": ["4 kHz"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-mhz",
+    "spoken": "the clock runs at eight hundred m h z",
+    "expected": "The clock runs at 800 MHz.",
+    "mustKeep": ["800 MHz"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-ghz",
+    "spoken": "the router uses five g h z",
+    "expected": "The router uses 5 GHz.",
+    "mustKeep": ["5 GHz"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-hz",
+    "spoken": "the hum is sixty h z",
+    "expected": "The hum is 60 Hz.",
+    "mustKeep": ["60 Hz"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-gb",
+    "spoken": "the phone has sixteen g b of storage",
+    "expected": "The phone has 16 GB of storage.",
+    "mustKeep": ["16 GB"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-tb",
+    "spoken": "the drive holds two t b of photos",
+    "expected": "The drive holds 2 TB of photos.",
+    "mustKeep": ["2 TB"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-mb",
+    "spoken": "the file is forty m b",
+    "expected": "The file is 40 MB.",
+    "mustKeep": ["40 MB"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-kb",
+    "spoken": "the icon is twelve k b",
+    "expected": "The icon is 12 KB.",
+    "mustKeep": ["12 KB"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-kw",
+    "spoken": "the heater draws three k w",
+    "expected": "The heater draws 3 kW.",
+    "mustKeep": ["3 kW"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-kwh",
+    "spoken": "we used thirty k w h last week",
+    "expected": "We used 30 kWh last week.",
+    "mustKeep": ["30 kWh"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-mph",
+    "spoken": "the limit is forty m p h",
+    "expected": "The limit is 40 mph.",
+    "mustKeep": ["40 mph"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-kph",
+    "spoken": "drive at sixty k p h",
+    "expected": "Drive at 60 kph.",
+    "mustKeep": ["60 kph"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-mv",
+    "spoken": "the signal peaks at fifty m v",
+    "expected": "The signal peaks at 50 mV.",
+    "mustKeep": ["50 mV"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-iu",
+    "spoken": "take four hundred i u daily",
+    "expected": "Take 400 IU daily.",
+    "mustKeep": ["400 IU"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-ng",
+    "spoken": "the level was nine n g",
+    "expected": "The level was 9 ng.",
+    "mustKeep": ["9 ng"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-kcal",
+    "spoken": "the bar has two hundred k c a l",
+    "expected": "The bar has 200 kcal.",
+    "mustKeep": ["200 kcal"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-rpm",
+    "spoken": "the fan spins at nine hundred r p m",
+    "expected": "The fan spins at 900 rpm.",
+    "mustKeep": ["900 rpm"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-psi",
+    "spoken": "inflate the tyres to thirty two p s i",
+    "expected": "Inflate the tyres to 32 psi.",
+    "mustKeep": ["32 psi"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-bpm",
+    "spoken": "her pulse was seventy two b p m",
+    "expected": "Her pulse was 72 bpm.",
+    "mustKeep": ["72 bpm"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-ppm",
+    "spoken": "the reading was four hundred p p m",
+    "expected": "The reading was 400 ppm.",
+    "mustKeep": ["400 ppm"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-fps",
+    "spoken": "the game holds sixty f p s",
+    "expected": "The game holds 60 fps.",
+    "mustKeep": ["60 fps"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-mah",
+    "spoken": "the battery is three thousand m a h",
+    "expected": "The battery is 3000 mAh.",
+    "mustKeep": ["3000 mAh"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-digits-mg",
+    "spoken": "take 81 m g with food",
+    "expected": "Take 81 mg with food.",
+    "mustKeep": ["81 mg"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-letters-without-number",
+    "spoken": "the m g badge is on the grille",
+    "expected": "The MG badge is on the grille.",
+    "mustKeep": ["MG"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-letters-after-a-word",
+    "spoken": "the g b team won",
+    "expected": "The GB team won.",
+    "mustKeep": ["GB"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-letters-after-number-not-a-unit",
+    "spoken": "gate four b q is closed",
+    "expected": "Gate 4BQ is closed.",
+    "mustKeep": ["4BQ"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
   }
 ]

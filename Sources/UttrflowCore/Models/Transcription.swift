@@ -136,6 +136,14 @@ public struct Transcription: Sendable, Equatable {
         self.conditioning = conditioning
     }
 
+    /// This transcription with `effort` added to what the recogniser already spent on it.
+    public func spending(_ more: DecodeEffort) -> Transcription {
+        Transcription(
+            text: text, detectedLanguage: detectedLanguage, segments: segments,
+            audioDuration: audioDuration, effort: effort.adding(more), vocabularyPrompt: vocabularyPrompt,
+            conditioning: conditioning)
+    }
+
     /// `true` when recognition contains no letter or digit — silence, or noise only.
     public var isBlank: Bool {
         !text.contains { $0.isLetter || $0.isNumber }

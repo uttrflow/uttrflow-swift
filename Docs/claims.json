@@ -123,7 +123,7 @@
     },
     {
       "id": "suggestion-reads-stay",
-      "file": "Sources/UttrflowUX/SettingsPresenter.swift",
+      "file": "Sources/UttrflowUX/SettingsPresenter+Suggestions.swift",
       "text": "What it reads stays on this Mac",
       "kind": "privacy",
       "evidence": {

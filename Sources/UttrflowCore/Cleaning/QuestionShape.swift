@@ -295,6 +295,10 @@ public enum QuestionShape {
             if let first = tail.first, hindiCopulas.contains(first) { return tail.count == 1 }
             return !tail.isEmpty
         }
+        // After a possessive or a postposition "kya" is the thing asked about, closed by its verb: "kal ka kya plan hai".
+        if hindiArgumentMarkers.contains(clause[kya - 1]), clause.count - kya <= 3 {
+            return hindiFiniteVerbs.contains(clause[clause.count - 1])
+        }
         return kya == clause.count - 2 && hindiCopulas.contains(clause[kya + 1])
     }
 
@@ -536,4 +540,10 @@ public enum QuestionShape {
 
     /// Copulas that can follow a subject or noun before an interrogative "kya".
     private static let hindiCopulas: Set<String> = ["hai", "hain", "ho", "hoga"]
+
+    /// Romanised Hindi possessives and postpositions, from `hindi-words.json`; a "kya" after one is an argument, not a particle.
+    private static let hindiArgumentMarkers: Set<String> = Set(
+        HindiWords.spellings.filter {
+            !HindiWords.classes(of: $0).isDisjoint(with: [.possessive, .postposition])
+        })
 }

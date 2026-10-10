@@ -40,6 +40,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [early-transcription.md](early-transcription.md) | Working ahead while the key is held |
 | [repair-cost.md](repair-cost.md) | What a mistake costs to repair, route by route |
 | [pipeline-changes.md](pipeline-changes.md) | What the pipeline changes about a dictation, and how it stays honest |
+| [module-decisions.md](module-decisions.md) | Whether the pipeline actor and the meaning guard are rewritten, decomposed or kept, from merged history |
 | [insertion.md](insertion.md) | Putting the words on screen, and the traps in doing it |
 | [input-synthetic-keystrokes.md](input-synthetic-keystrokes.md) | The key events this app posts, and what the system does with them |
 | [input-paste-eligibility.md](input-paste-eligibility.md) | When the paste strategy volunteers |
