@@ -69,8 +69,14 @@ def gates(bakeoff_baseline: str, bench_run: str) -> list[Gate]:
     ]
 
 
-def last_line(text: str) -> str:
+FAILURE_MARKS = ("✗", "FAIL", "error:")
+
+
+def summary_line(text: str, failed: bool) -> str:
     lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if failed:
+        lines = [line for line in lines if line.startswith(FAILURE_MARKS)] or lines
+        return lines[0] if lines else "no output"
     return lines[-1] if lines else "no output"
 
 
@@ -87,7 +93,7 @@ def run(gate: Gate, cwd: Path) -> Result:
     if gate.empty_marker and gate.empty_marker in completed.stdout:
         return Result(gate, NO_VERDICT, "the filter matched no tests")
     verdict = PASS if completed.returncode == 0 else FAIL
-    evidence = last_line(completed.stdout)
+    evidence = summary_line(completed.stdout, verdict == FAIL)
     if verdict == FAIL:
         evidence = f"exit {completed.returncode}: {evidence}"
     return Result(gate, verdict, evidence)

@@ -58,11 +58,11 @@ def main() -> int:
         for index, gate in enumerate(real):
             broken = list(clean)
             broken[index] = release_quality.Gate(
-                gate.name, gate.threshold, script("print('3 over budget'); raise SystemExit(2)"))
+                gate.name, gate.threshold, script("print('  ✗ 3 over budget'); print('✓ later line'); raise SystemExit(2)"))
             check(release_quality.release_quality(broken, output, root) == 1,
                   f"a regression in {gate.name} passed")
             written = output.read_text(encoding="utf-8")
-            check(f"| {gate.name} | fail |" in written and "exit 2: 3 over budget" in written,
+            check(f"| {gate.name} | fail |" in written and "exit 2: ✗ 3 over budget" in written,
                   f"the table does not name the failing gate {gate.name}")
             check(f"Not releasable: {gate.name}." in written, f"the summary does not name {gate.name}")
 
