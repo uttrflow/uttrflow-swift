@@ -209,7 +209,7 @@ public actor DictationPipeline {
         nextFormat = mode
     }
 
-    /// The choice waiting for the next dictation, or nil when none is; it shows as a mark in the panel.
+    /// The choice waiting for the next dictation, or nil when none is, for the panel to show.
     public var pendingFormat: AdapterMode? { nextFormat }
 
     /// Takes the languages the user speaks as they stand now, for every dictation after this one.
