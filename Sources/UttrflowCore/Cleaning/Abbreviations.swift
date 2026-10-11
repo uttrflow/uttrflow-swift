@@ -23,8 +23,13 @@ public enum Abbreviations {
     /// Whether a full stop after the word belongs to it whatever follows, so a mark added after it keeps the stop.
     public static func ownsStop(_ word: String) -> Bool {
         let key = word.lowercased()
-        if let row = rows[key] { return !row.alsoAWord && row.symbol == nil }
+        if let row = rows[key] { return row.ownsStop }
         return isDottedAcronym(key)
+    }
+
+    /// Whether a bundled abbreviation owns a final dot, read without that dot.
+    package static func ownsRegisteredStop(_ word: String) -> Bool {
+        rows[word.lowercased()]?.ownsStop == true
     }
 
     /// The case-exact unit symbol whose letters are `letters`, case aside, as "mg" or "mL"; nil when none is.
@@ -68,6 +73,8 @@ public enum Abbreviations {
         let kind: Kind
         let alsoAWord: Bool
         let symbol: String?
+
+        var ownsStop: Bool { !alsoAWord && symbol == nil }
 
         private enum CodingKeys: String, CodingKey { case id, kind, alsoAWord, symbol }
 
