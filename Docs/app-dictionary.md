@@ -110,6 +110,19 @@ the store writes them down and a relaunch still refuses them; at most 512 are ke
 (`maximumRefused`), the oldest lapsing first. Removing learnt words clears the pending tally
 and keeps the refusals; removing everything clears both (`Docs/app-dictionary-store.md`).
 
+### The pair ledger
+
+`PairLedger` counts an edited pair (heard form, written form) the way `SightingLedger` counts a term,
+but a pair becomes an entry only at `sightingsBeforeLearning` (3) sightings on at least
+`daysBeforeLearning` (2) separate days: one edit may be a rewrite, an app's autocorrection or a
+scripted field, and a burst on one day is one day. A day holding three sightings of a pair adds no
+more rows. At most `ConfusionPairs.maximumNewPairsPerDay` (10, the one cap for pairs) become entries on one day; a pair held back stays
+pending and is released by its next sighting on a day with room. Pairs are counted under a keyed hash
+as `pairSighting` rows, and the day a pair became an entry is a `pairLearnt` row, so counts and the
+cap outlive a quit and no heard or written text is kept. A refused pair is never counted; its
+refusal is the closed-up heard words and the lowercased written word, bounded at 512 like the word
+refusals. The ledger is not yet fed by any edit source.
+
 ### The unit of evidence
 
 `SightingUnitProbeTests` replays an invented fortnight through `SightingLedger` under both rules:

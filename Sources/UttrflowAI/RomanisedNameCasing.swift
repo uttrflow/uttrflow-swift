@@ -36,7 +36,7 @@ struct RomanisedNameCasing: Sendable {
 
     /// The honorifics and kinship words said after a name; they stay lower case.
     static let tailWords: Set<String> = Set(
-        (KinshipWords.hindiWords + ["ji", "sahab", "sahib", "saab", "bhaiya"]).map {
+        KinshipWords.hindiNameTails.map {
             Romaniser.soundKey($0)
         })
 
@@ -55,7 +55,7 @@ struct RomanisedNameCasing: Sendable {
 
     /// The words of `entries` written as names that are not ordinary words and not listed romanised Hindi: "Kal" stays tomorrow.
     static func names(_ entries: [String]) -> [String] {
-        entries.flatMap { $0.split(whereSeparator: \.isWhitespace).map(String.init) }.filter {
+        entries.flatMap { WordTokens.words($0, .display) }.filter {
             isCasedName($0) && !GeneralVocabulary.isOrdinary($0) && !LoanwordRestoration.isRomanisedHindi($0)
         }
     }
