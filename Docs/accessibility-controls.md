@@ -148,8 +148,8 @@ leave a stale pass behind.
 | Settings | `Sources/Uttrflow/Settings/SettingsControlView.swift#Button#3` | Button | label view | unchecked |
 | Settings | `Sources/Uttrflow/Settings/SettingsControlView.swift#Menu#1` | Menu | accessibilityLabel | unchecked |
 | Settings | `Sources/Uttrflow/Settings/SettingsControlView.swift#Button#4` | Button | expression | unchecked |
-| Settings | `Sources/Uttrflow/Settings/SettingsControlView.swift#Button#5` | Button | text "Cancel" | unchecked |
-| Settings | `Sources/Uttrflow/Settings/SettingsControlView.swift#Button#6` | Button | text "Remove" | unchecked |
+| Settings | `Sources/Uttrflow/Settings/SettingsControlView.swift#Button#5` | Button | expression | unchecked |
+| Settings | `Sources/Uttrflow/Settings/SettingsControlView.swift#Button#6` | Button | accessibilityLabel | unchecked |
 | Settings | `Sources/Uttrflow/Settings/SettingsControlView.swift#Button#7` | Button | label view | unchecked |
 | Settings | `Sources/Uttrflow/Settings/SettingsDiagnosticsView.swift#Button#1` | Button | expression | unchecked |
 | Settings | `Sources/Uttrflow/Settings/SettingsDiagnosticsView.swift#Button#2` | Button | text "Copy" | unchecked |
