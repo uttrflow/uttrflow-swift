@@ -61,6 +61,12 @@ extension DictationPresenter {
                     + (readBack.spoken(outcome).map { " " + $0 } ?? ""),
                 isUrgent: false)
 
+        case .inserted(let outcome) where outcome.inputTooLoud:
+            return DictationAnnouncement(
+                text: "Inserted. \(InputTooLoud.sentence)"
+                    + (readBack.spoken(outcome).map { " " + $0 } ?? ""),
+                isUrgent: false)
+
         case .inserted(let outcome):
             return DictationAnnouncement(
                 text: readBack.spoken(outcome).map { "Inserted: \($0)" } ?? "Inserted.", isUrgent: false)

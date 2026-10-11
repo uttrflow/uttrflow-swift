@@ -347,6 +347,40 @@ swift build --disable-sandbox --product uttrflow-eval
 .build/debug/uttrflow-eval cue-bleed --model-folder <installed model folder>
 ```
 
+## Input gain and clipping
+
+`uttrflow-eval input-level` replays each recording of a corpus scaled to peaks of -40, -30, -20,
+-10 and 0 dBFS, then amplified 2x, 4x and 8x and hard-clipped at full scale. It scores each replay
+with the shipping Whisper model (`--compute gpu`) and gives the change against the unclipped 0 dBFS
+replay as a paired 95% bootstrap. Measured on an Apple M5 Pro over the `reader-1-quiet` recordings,
+6 passages per language; the clipped share is `CaptureQuality.clippedFraction`:
+
+| Level | English WER | Hindi WER | Hinglish WER |
+|---|---|---|---|
+| -40 dBFS | 23.9% (worse) | 25.4% | 85.8% (worse) |
+| -30 dBFS | 20.7% | 25.4% (worse) | 66.1% (worse) |
+| -20 dBFS | 23.0% (worse) | 24.9% | 41.5% (worse) |
+| -10 dBFS | 20.0% | 24.9% | 45.9% (worse) |
+| 0 dBFS | 18.4% | 23.4% | 34.4% |
+| 2x, clipped 0.1% / 0.5% / 0.6% | 15.4% | 24.9% | 38.8% (worse) |
+| 4x, clipped 2.1% / 5.1% / 6.5% | 16.7% | 25.4% | 45.4% |
+| 8x, clipped 10.4% / 17.4% / 21.0% | 17.4% | 33.3% (worse) | 47.0% (worse) |
+
+"Worse" means the paired interval excludes zero. The quiet rows are the quiet end that
+the loudness floor covers. At the loud end, accuracy holds up to a clipped share of about 6% in
+every language, and English holds at 10%. It falls measurably at 17% (Hindi) and 21% (Hinglish).
+Six passages per language is a small set, so the intervals are wide.
+
+The dictation ends with `DictationOutcome.inputTooLoud` when the clipped share reaches
+`InputTooLoud.clippedFractionThreshold` (0.17, the lowest measured share at which a language is
+measurably worse), and the dock and VoiceOver say to lower the input volume. A recording below it
+never shows the notice. There is no setting.
+
+```bash
+swift build --disable-sandbox --product uttrflow-eval
+.build/debug/uttrflow-eval input-level --compute gpu --corpus-path <recordings folder>
+```
+
 ## Spoken announcements
 
 VoiceOver speaks through the same speakers the cue does, and unlike the cue it speaks words, which

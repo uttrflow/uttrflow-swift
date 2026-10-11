@@ -156,6 +156,11 @@ public enum DictationPresenter {
                 "exclamationmark.circle", MissedSpeech.line, MissedSpeech.detail,
                 label: "Inserted. \(MissedSpeech.sentence) \(said(outcome))")
         }
+        if outcome.inputTooLoud {
+            return .notice(
+                "speaker.wave.2", InputTooLoud.line, InputTooLoud.detail,
+                label: "Inserted. \(InputTooLoud.sentence) \(said(outcome))")
+        }
         return .notice(
             "checkmark", "Inserted", outcome.wordsToKeep.map { preview(of: $0) },
             label: "Inserted: \(said(outcome))")

@@ -133,6 +133,8 @@ public struct DictationOutcome: Sendable, Equatable {
     public let intoSecureField: Bool
     /// Pieces of speech that decoded to no words twice and are missing from the text; zero when nothing is.
     public let missedPieces: Int
+    /// Whether the input clipped past the point where accuracy falls, so the person is told to lower the volume.
+    public let inputTooLoud: Bool
     /// Availability causes that made this successful dictation use a lower-priority engine.
     public let unavailableEngines: [CleaningRecord.UnavailableEngine]
     /// Which written words the recogniser doubted, as positions only; memory only, never persisted.
@@ -147,7 +149,7 @@ public struct DictationOutcome: Sendable, Equatable {
         insertedInto: String? = nil, insertedIntoIdentifier: String? = nil,
         spokenFor: Duration? = nil, changes: AppliedChanges = .none, fromRecording: Bool = false,
         arrival: InsertionArrival = .notReported, intoSecureField: Bool = false, missedPieces: Int = 0,
-        unavailableEngines: [CleaningRecord.UnavailableEngine] = [],
+        inputTooLoud: Bool = false, unavailableEngines: [CleaningRecord.UnavailableEngine] = [],
         doubtful: DoubtfulWordsOutcome = .notAvailable, slowCause: SlowDictationCause? = nil,
         guardRefusals: [RefusalKind] = []
     ) {
@@ -162,6 +164,7 @@ public struct DictationOutcome: Sendable, Equatable {
         self.arrival = arrival
         self.intoSecureField = intoSecureField
         self.missedPieces = missedPieces
+        self.inputTooLoud = inputTooLoud
         self.unavailableEngines = unavailableEngines
         self.doubtful = doubtful
         self.slowCause = slowCause

@@ -206,6 +206,29 @@ struct DictationPipelineStateTests {
         #expect(await metrics.captureQualities == [expected])
     }
 
+    @Test(
+        "a recording clipped past the measured cliff ends with the too-loud outcome, and a mild one does not")
+    func flagsAnInputThatClippedTooMuch() async {
+        for (level, expected) in [(Float(1), true), (Float(0.5), false)] {
+            let recording = AudioSamples.canonical([Float](repeating: level, count: 16_000))
+            let pipeline = DictationPipeline(
+                capture: FakeAudioCaptureEngine(stopOutcome: .success(recording)),
+                speech: FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: spoken))),
+                cleaner: FakeTranscriptCleaner(answering: tidiedAnswer),
+                context: FakeContextEngine(context: .fixture()),
+                inserter: FakeTextInserter(), metrics: RecordingMetricsRecorder(), clock: ManualClock())
+
+            await pipeline.startRecording()
+            await pipeline.finishRecording()
+
+            guard case .inserted(let outcome) = await pipeline.currentState else {
+                Issue.record("the dictation did not finish inserted")
+                continue
+            }
+            #expect(outcome.inputTooLoud == expected)
+        }
+    }
+
     @Test("tells the metrics when the chosen input was missing for the recording")
     func reportsAMissingChosenInput() async {
         let metrics = RecordingMetricsRecorder()
