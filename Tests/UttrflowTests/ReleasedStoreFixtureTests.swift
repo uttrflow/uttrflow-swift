@@ -48,7 +48,7 @@ struct ReleasedStoreFixtureTests {
         .clipboard: Opened(count: 2, sample: "Lunch moved to half past one. text 2 811700000.0"),
         .savedClips: Opened(count: 2, sample: "Agenda: wins, blockers, next steps. standup Work true 5"),
         .predict: Opened(count: 2, sample: "git status 3 1 make test"),
-        .predictConsent: Opened(count: 2, sample: "allowed declined true"),
+        .predictConsent: Opened(count: 2, sample: "allowed declined"),
     ]
 
     /// Entries this build reads through `EncryptedStore`, so their payload is sealed before it is opened.
@@ -194,7 +194,7 @@ struct ReleasedStoreFixtureTests {
             return Opened(
                 count: consent.consent.count,
                 sample:
-                    "\(consent.state(of: "com.example.terminal")) \(consent.state(of: "com.example.mail")) \(consent.hasImportedShellHistory)"
+                    "\(consent.state(of: "com.example.terminal")) \(consent.state(of: "com.example.mail"))"
             )
         default:
             Issue.record("no reader for \(entry)")
