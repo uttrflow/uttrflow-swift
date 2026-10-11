@@ -104,8 +104,10 @@ public actor EnvironmentIndex {
     private let seconds: @Sendable () -> Double
 
     /// An index over one reader, holding nothing until that reader answers.
-    public init(reader: any EnvironmentReading) {
-        self.init(reader: reader, seconds: EnvironmentIndex.monotonicSeconds)
+    public init(reader: any EnvironmentReading, aliasReader: SystemEnvironmentReader? = nil) {
+        self.init(
+            reader: reader, seconds: EnvironmentIndex.monotonicSeconds,
+            aliases: AliasExpansionCache(reader: aliasReader, clock: ContinuousClock()))
     }
 
     /// An index whose sense of how long a read took is given, which only a test has a reason to do.
@@ -245,7 +247,8 @@ public struct EnvironmentSource: Sendable {
 
         var offered: [String] = []
         var seen: Set<String> = []
-        for lookup in Verification.offerings(for: completing) {
+        let aliases = await index.aliasSnapshot()
+        for lookup in Verification.offerings(for: completing, aliases: aliases) {
             for kind in lookup.kinds {
                 // Only a name listing is narrowed here: branches and verbs cost the same to read whole, so narrowing them would only fragment their cache.
                 let narrowing: String
@@ -260,6 +263,7 @@ public struct EnvironmentSource: Sendable {
                 }
             }
         }
+        guard await index.aliasSnapshot().revision == aliases.revision else { return [] }
         return offered.map {
             let text = completing.leading + $0
             return Candidate(

@@ -35,7 +35,7 @@ residual risks here when it lands, and is held to the rules below.
 |---|---|---|---|---|
 | Learned dictionary words (from titles seen and said, and from the user's own corrections) | `dictionary.v1.json`, `Sources/UttrflowDictionary/PersonalDictionaryStore.swift` | yes | yes | `removeLearned()`, reset |
 | Words the user deleted from the dictionary | `dictionary.v1.refused.json`, same file | **no** | no | reset |
-| Plain shell-alias expansion snapshots (internal owner, not an app consumer) | process memory, at most 200 aliases and 64 KiB of UTF-8 names, words and separators | not on disk | no | 62-second expiry, `AliasExpansionCache.forgetEverything()`, quit |
+| Plain shell-alias expansion snapshots | process memory, at most 200 aliases and 64 KiB of UTF-8 names, words and separators | not on disk | no | 62-second expiry, `AliasExpansionCache.forgetEverything()`, quit |
 | Pending sightings of title words | memory only ([app-dictionary.md](app-dictionary.md)) | not on disk | no | quit, reset |
 | Lines learned from typing or accepted suggestions per surface (application, role, document) | the suggestion corpus, `Sources/UttrflowPredictStore/PredictStore.swift` | yes | no | per-application forget, reset |
 | Per-application capture consent | `predict-consent.v1.json`, `Sources/UttrflowPredictCapture/CapturePreferences.swift` | **no** | no | reset |
@@ -109,10 +109,12 @@ cleared words. `AliasExpansionCacheTests` cover these limits and lifecycle bound
 
 The 64 KiB budget counts UTF-8 content and word separators, excluding Swift object overhead.
 Bodies may contain private arguments; they are not persisted, exported, logged, shown in
-Settings or sent to a model. The owner has no app consumer in this change;
-[alias-aware verifier integration](https://github.com/uttrflow/uttrflow-swift/issues/2659)
-tracks the user-facing forgetting and Terminal behavior. These tests establish the internal
-clear operation, not a completed app reset route.
+Settings or sent to a model. The app explicitly connects the same concrete environment reader
+to ordinary name listings and the index's metadata owner. Options, literal candidates and
+verification use the metadata without forwarding bodies to scoring. The existing suggestion
+reset route calls `Verifier.forgetEverything`, which clears the provider and advances its
+generation before an old read can publish again. Synthetic controls exercise this verifier
+route; they do not establish an observed Settings reset interaction.
 
 The existing test container also supplies the environment reader's home. Invalid explicit
 fixture homes never fall back to personal shell files; subprocesses use the same home, and

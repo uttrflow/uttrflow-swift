@@ -42,7 +42,7 @@ public actor Verifier {
     ) {
         self.lines = TerminalLineCheck(files: files)
         self.index = index
-        self.environment = EnvironmentVerification(index: index, metadata: .disabled)
+        self.environment = EnvironmentVerification(index: index, metadata: .enabled)
         self.scoring = scoring
         self.supersession = supersession
         self.budgetInMilliseconds = budgetInMilliseconds
@@ -75,7 +75,7 @@ public actor Verifier {
                 kept.append(allowed)
             }
         }
-        return await held(kept, in: operation) ?? kept
+        return await held(kept, in: operation) ?? []
     }
 
     /// A converged text sums its evidence, keeps the nearest source and the machine's confirmation, and is spelled as the machine spells it.
@@ -124,7 +124,7 @@ public actor Verifier {
         // Each lookup asks about its own word among its own kinds, so a path's name is not sought among whole paths.
         var judged: (word: String, prefix: String, known: Set<String>, caseSensitive: Bool)?
         var complete = environment.isComplete(operation)
-        for lookup in environment.attestation(for: token)?.lookups ?? [] {
+        for lookup in environment.attestation(for: token, in: operation)?.lookups ?? [] {
             guard
                 let (known, lookupComplete) = await environment.knownAndComplete(
                     of: lookup.kinds, in: surface, now: now)
@@ -136,7 +136,7 @@ public actor Verifier {
             let caseSensitive = lookup.kinds.contains(where: environment.requiresCaseSensitiveMatch)
             // Each kind attests under its own case rule, so a branch lookup cannot make a file name case-sensitive.
             guard !(await environment.attests(lookup, in: surface, now: now)) else {
-                return await published(.attested, for: key, in: operation) ?? .attested
+                return await published(.attested, for: complete ? key : nil, in: operation) ?? .rejected
             }
             if judged == nil { judged = (lookup.word, lookup.prefix, known, caseSensitive) }
         }
@@ -153,8 +153,8 @@ public actor Verifier {
                 caseSensitive: judged?.caseSensitive ?? false),
             on: candidate.text, leading: token.leading + (judged?.prefix ?? ""), in: operation,
             // A listing still unanswered may yet hold the word, so the verdict stands this time only and is not cached.
-            forGood: complete && judged != nil && environment.mayPersist(token))
-        return await published(verdict, for: complete ? key : nil, in: operation) ?? verdict
+            forGood: complete && judged != nil && environment.mayPersist(token, in: operation))
+        return await published(verdict, for: complete ? key : nil, in: operation) ?? .rejected
     }
 
     /// The verdict in the whole line's terms, told to the store whenever it condemns the candidate for good.
@@ -362,7 +362,7 @@ public actor Verifier {
         guard !distinct.isEmpty || everyLookupComplete else { return .open }
         let result: ArgumentOptions =
             distinct.isEmpty ? .none : .among(Array(distinct.prefix(Verification.mostChoices)))
-        return await held(result, in: operation) ?? result
+        return await held(result, in: operation) ?? .open
     }
 
     /// Whether a value continues the word: it begins as the word does, and a word not yet begun is not offered the hidden names.
@@ -379,7 +379,7 @@ public actor Verifier {
         for completion in completions {
             if await stands(completion, after: typed, in: operation, now: now) { standing.append(completion) }
         }
-        return await held(standing, in: operation) ?? standing
+        return await held(standing, in: operation) ?? []
     }
 
     /// Each generated line's mean log-probability per token from the pass that wrote it, absent where no pass measured it or no model is loaded.
@@ -404,7 +404,7 @@ public actor Verifier {
         // A field that is not a directory has no listings, so nothing it holds is looked up.
         guard EnvironmentSource.workingDirectory(of: surface) != nil else { return true }
         for token in Verification.words(of: completion, addedAfter: typed) {
-            guard let attestation = environment.attestation(for: token) else { continue }
+            guard let attestation = environment.attestation(for: token, in: operation) else { continue }
             var vouched = false
             for lookup in attestation.lookups where !vouched {
                 let answer = await environment.knownAndComplete(of: lookup.kinds, in: surface, now: now)

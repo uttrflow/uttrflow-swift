@@ -259,7 +259,7 @@ final class SuggestionCoordinator {
         // Lines too old to be offered are dropped once at start, off the typing path.
         Task.detached(priority: .utility) { _ = try? await store.expireStale(now: Date()) }
         // One index behind both, so asking the machine for a completion also warms what attests it.
-        let index = environmentIndex ?? EnvironmentIndex(reader: SystemEnvironmentReader())
+        let index = environmentIndex ?? SuggestionEnvironmentIndex.make()
         environment = EnvironmentSource(index: index)
         // The model, when the app hands one over, is what turns a habit into a validated suggestion.
         verifier = Verifier(index: index, scoring: scoring, supersession: store)

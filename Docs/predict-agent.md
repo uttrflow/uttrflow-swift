@@ -85,7 +85,19 @@ expiry and forgetting. The metadata overload of `LineShape.of` distinguishes unc
 known free slot, records whether an alias supplies the grammar, and resolves supported aliases
 before wrappers; the dictionary overload keeps
 its existing contract. `EnvironmentIndex` owns an injected metadata provider and settles and
-forgets that provider; its default owner does not opt into configuration reads.
+forgets that provider. The app passes the same `SystemEnvironmentReader` for ordinary listings
+and the optional concrete alias reader; callers that omit the alias reader do not opt into
+configuration-body reads.
+
+Options, environment candidates, verdicts and generated-line attestation use one alias snapshot
+per operation. A supported `gco='git checkout'` therefore asks for branches while the offered
+and accepted line keeps the literal `gco` head. A changed revision clears remembered verdicts
+and prevents an older operation from publishing its result. Alias-dependent refusals stay
+transient, so changing an expansion cannot leave a permanent corpus rejection. Missing metadata
+keeps ordinary command lookups but cannot make their refusal durable or cache their verdict.
+Fields without a local working directory do not request alias bodies. Existing destructive-line
+and terminal landing checks still apply; metadata does not authorize execution or override those
+checks.
 
 `uttrflow-dev machine --directory <dir> --under <path>` prints everything the index lists there.
 

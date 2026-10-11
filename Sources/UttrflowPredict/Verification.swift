@@ -169,6 +169,10 @@ public enum Verification {
         }
     }
 
+    private static func shape(for token: CompletionToken, aliases: AliasExpansionSnapshot) -> LineShape {
+        aliases.words == nil ? LineShape.of(token) : LineShape.of(token, metadata: aliases)
+    }
+
     /// What the machine could vouch for in a word the model wrote; any one lookup vouching lets the word stand.
     public struct Attestation: Equatable, Sendable {
         public let lookups: [Lookup]
@@ -181,21 +185,34 @@ public enum Verification {
 
     /// What could vouch for a generated word, absent where any word is allowed: a flag, a number, a quotation, or a word the command reads as text.
     static func attestation(for token: CompletionToken) -> Attestation? {
+        attestation(for: token, aliases: AliasExpansionSnapshot(words: [:], revision: 0))
+    }
+
+    static func attestation(for token: CompletionToken, aliases: AliasExpansionSnapshot) -> Attestation? {
+        guard !shape(for: token, aliases: aliases).isUncertain else { return nil }
         guard !isFree(token.token) else { return nil }
-        return lookups(for: token)
+        return lookups(for: token, aliases: aliases)
     }
 
     /// What the next word may be chosen from: the lookups for a word begun or not yet begun, absent where the word may be anything.
     static func choices(for token: CompletionToken) -> Attestation? {
+        choices(for: token, aliases: AliasExpansionSnapshot(words: [:], revision: 0))
+    }
+
+    static func choices(for token: CompletionToken, aliases: AliasExpansionSnapshot) -> Attestation? {
+        guard !shape(for: token, aliases: aliases).isUncertain else { return nil }
         let word = token.token
         // A word not begun is chosen from what the shape lists; a lone dot begins a hidden file, but for a directory may be `..`.
-        if word.isEmpty { return lookups(for: token) }
-        if word == "." { return LineShape.of(token).kind == .directory ? nil : lookups(for: token) }
+        if word.isEmpty { return lookups(for: token, aliases: aliases) }
+        if word == "." {
+            return shape(for: token, aliases: aliases).kind == .directory
+                ? nil : lookups(for: token, aliases: aliases)
+        }
         guard !isFree(word) else { return nil }
         // A path ending in its slash is open at a name not yet begun, so what is under the path is offered.
-        guard word.hasSuffix("/") else { return lookups(for: token) }
+        guard word.hasSuffix("/") else { return lookups(for: token, aliases: aliases) }
         let under = word == "/" ? "/" : String(word.dropLast())
-        let kind = LineShape.of(token).kind
+        let kind = shape(for: token, aliases: aliases).kind
         let below = Lookup(
             "", [kind == .directory ? .directories(under: under) : .entries(under: under)], prefix: word)
         // Where a branch is wanted, the slash may be a branch's own, so the branches beginning this way are offered too.
@@ -214,9 +231,9 @@ public enum Verification {
     }
 
     /// The lookups the line's shape gives a word, absent for one the command reads as text.
-    private static func lookups(for token: CompletionToken) -> Attestation? {
+    private static func lookups(for token: CompletionToken, aliases: AliasExpansionSnapshot) -> Attestation? {
         let word = token.token
-        let shape = LineShape.of(token)
+        let shape = shape(for: token, aliases: aliases)
         // A path is looked up where it points, narrowed to directories by `cd` and its kin; a word read as text is never a path, so `deploy/api` stands.
         if word.contains("/"), shape.kind != .free {
             guard let path = path(word, directoriesOnly: shape.kind == .directory) else { return nil }
@@ -241,7 +258,12 @@ public enum Verification {
 
     /// What the machine may offer to finish a word: what could vouch for it, and for a free word the names here, which a shell offers too.
     static func offerings(for token: CompletionToken) -> [Lookup] {
-        if let attestation = attestation(for: token) { return attestation.lookups }
+        offerings(for: token, aliases: AliasExpansionSnapshot(words: [:], revision: 0))
+    }
+
+    static func offerings(for token: CompletionToken, aliases: AliasExpansionSnapshot) -> [Lookup] {
+        guard !shape(for: token, aliases: aliases).isUncertain else { return [] }
+        if let attestation = attestation(for: token, aliases: aliases) { return attestation.lookups }
         return isFree(token.token) ? [] : [Lookup(token.token, [.file])]
     }
 
@@ -303,6 +325,10 @@ public enum Verification {
 
     /// Whether everything that could vouch for a word is a kind that names all there is, so a refusal is final.
     static func isClosedVocabulary(for token: CompletionToken) -> Bool {
-        isClosedVocabulary(attestation(for: token)?.lookups.flatMap(\.kinds) ?? [])
+        isClosedVocabulary(for: token, aliases: AliasExpansionSnapshot(words: [:], revision: 0))
+    }
+
+    static func isClosedVocabulary(for token: CompletionToken, aliases: AliasExpansionSnapshot) -> Bool {
+        isClosedVocabulary(attestation(for: token, aliases: aliases)?.lookups.flatMap(\.kinds) ?? [])
     }
 }

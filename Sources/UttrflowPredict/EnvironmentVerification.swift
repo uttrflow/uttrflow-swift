@@ -70,18 +70,21 @@ struct EnvironmentVerification: Sendable {
         await index.forgetAliases()
     }
 
-    func attestation(for token: CompletionToken) -> Verification.Attestation? {
-        Verification.attestation(for: token)
+    func attestation(
+        for token: CompletionToken, in operation: VerificationOperation
+    ) -> Verification.Attestation? {
+        Verification.attestation(for: token, aliases: operation.aliases)
     }
 
     func choices(for typed: String, in operation: VerificationOperation) -> Verification.Attestation? {
         guard EnvironmentSource.workingDirectory(of: operation.surface) != nil else { return nil }
         let token = CompletionToken(typed) ?? CompletionToken(leading: typed, token: "")
-        return Verification.choices(for: token)
+        return Verification.choices(for: token, aliases: operation.aliases)
     }
 
-    func mayPersist(_ token: CompletionToken) -> Bool {
-        Verification.isClosedVocabulary(for: token)
+    func mayPersist(_ token: CompletionToken, in operation: VerificationOperation) -> Bool {
+        !LineShape.of(token, metadata: operation.aliases).isAliasDependent
+            && Verification.isClosedVocabulary(for: token, aliases: operation.aliases)
     }
 
     func isComplete(_ operation: VerificationOperation) -> Bool { operation.aliases.words != nil }
