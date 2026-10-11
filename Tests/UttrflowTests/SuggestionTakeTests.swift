@@ -20,7 +20,8 @@ struct SuggestionTakeTests {
         private(set) var accepted: [String] = []
 
         func record(
-            _ text: String, in surface: Surface, after previous: String?, as origin: LineOrigin, at moment: Date
+            _ text: String, in surface: Surface, after previous: String?, as origin: LineOrigin,
+            at moment: Date
         ) {
             texts.append(text)
         }
