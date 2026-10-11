@@ -512,7 +512,7 @@ let package = Package(
                 "UttrflowPipeline",
                 "UttrflowTestSupport",
             ],
-            exclude: ["Golden"],
+            exclude: ["FitTables", "Golden"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(

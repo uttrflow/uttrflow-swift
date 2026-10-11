@@ -104,7 +104,7 @@ extension HeavyClipScans {
         }
 
         @Test("A keyword-stem prefilter sends fewer realistic non-secret clips to the named scan")
-        func namedSecretPrefilterSelectivity() {
+        func namedSecretPrefilterSelectivity() throws {
             var random = Seeded(seed: 463_000)
             var nonSecrets: [String] = []
             while nonSecrets.count < 292 {
@@ -118,6 +118,9 @@ extension HeavyClipScans {
                 "Named-secret scan fraction: \(before)/\(nonSecrets.count) before, \(after)/\(nonSecrets.count) after"
             )
             #expect(after * 4 < before, "named-secret scans: \(before) before, \(after) after")
+            try QualityGridReport.emit(
+                suite: "clip-prefilter", id: "463000/292", passed: after * 4 < before,
+                measurements: ["before": before, "after": after, "total": nonSecrets.count])
         }
 
         @Test("Every named-secret keyword stem reaches the scanner regardless of ASCII case")

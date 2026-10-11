@@ -46,7 +46,7 @@ public enum RichTextPlainForm: Sendable {
         while let token = tokenizer.next() { tokens.append(token) }
         tokens = HiddenContent.removed(from: tokens)
         var renderer = PlainTextRenderer(
-            itemCounts: PlainTextRenderer.itemCounts(in: tokens), maximumOutputBytes: maximumOutputBytes)
+            itemCounts: HTMLListInputs.itemCounts(in: tokens), maximumOutputBytes: maximumOutputBytes)
         for token in tokens {
             renderer.consume(token)
             if renderer.didReachLimit { break }
@@ -60,48 +60,6 @@ private struct Rendering {
     let text: String
     let wasTruncated: Bool
     let checkboxes: [Bool]
-}
-
-// MARK: - Hidden content
-
-/// Drops what the page hides from its reader, since the page and not the browser chooses what the HTML flavour holds.
-enum HiddenContent {
-    /// The tokens a reader would see: every hidden element is removed with everything inside it.
-    static func removed(from tokens: [HTMLToken]) -> [HTMLToken] {
-        var kept: [HTMLToken] = []
-        kept.reserveCapacity(tokens.count)
-        var hiddenName: String?
-        var depth = 0
-        for token in tokens {
-            if let name = hiddenName {
-                guard case .tag(let tag) = token, tag.name == name else { continue }
-                depth += tag.isClosing ? -1 : 1
-                if depth == 0 { hiddenName = nil }
-                continue
-            }
-            if case .tag(let tag) = token, !tag.isClosing, isHidden(tag) {
-                if !HTMLElements.void.contains(tag.name) {
-                    hiddenName = tag.name
-                    depth = 1
-                }
-                continue
-            }
-            kept.append(token)
-        }
-        return kept
-    }
-
-    /// Whether a start tag hides its element: `hidden`, `aria-hidden="true"`, or an inline style that hides it.
-    static func isHidden(_ tag: HTMLTag) -> Bool {
-        if tag.attribute("hidden") != nil { return true }
-        if tag.attribute("aria-hidden")?.trimmingCharacters(in: .whitespaces).lowercased() == "true" {
-            return true
-        }
-        return tag.styleDeclarations.contains { declaration in
-            (declaration.property == "display" && declaration.value == "none")
-                || (declaration.property == "visibility" && declaration.value == "hidden")
-        }
-    }
 }
 
 // MARK: - Rendering
@@ -145,39 +103,6 @@ private struct PlainTextRenderer {
     init(itemCounts: [Int], maximumOutputBytes: Int) {
         out = HTMLTextOutput(maximumBytes: maximumOutputBytes)
         self.itemCounts = itemCounts
-    }
-
-    /// How many items each list holds directly, in the order the lists open, nesting as `apply` does.
-    static func itemCounts(in tokens: [HTMLToken]) -> [Int] {
-        var counts: [Int] = []
-        var open: [Int] = []
-        for case .tag(let tag) in tokens {
-            switch tag.name {
-            case "ul", "ol", "menu":
-                if tag.isClosing {
-                    if !open.isEmpty { open.removeLast() }
-                } else {
-                    open.append(counts.count)
-                    counts.append(0)
-                }
-            case "li" where !tag.isClosing:
-                if let list = open.last { counts[list] += 1 }
-            default:
-                break
-            }
-        }
-        return counts
-    }
-
-    /// An attribute's integer the way HTML reads one: leading space, a sign, then digits, and the rest ignored.
-    static func integer(_ text: String?) -> Int? {
-        guard let text else { return nil }
-        var rest = Substring(text.drop(while: \.isWhitespace))
-        let isNegative = rest.first == "-"
-        if rest.first == "-" || rest.first == "+" { rest = rest.dropFirst() }
-        let digits = rest.prefix(while: \.isASCII).prefix(while: \.isNumber)
-        guard !digits.isEmpty, let magnitude = Int(digits) else { return nil }
-        return isNegative ? -magnitude : magnitude
     }
 
     private struct LinkCapture {
@@ -331,7 +256,7 @@ private struct PlainTextRenderer {
         listsOpened += 1
         var frame = ListFrame(isOrdered: tag.name == "ol", isChecklist: isChecklist(tag))
         guard frame.isOrdered else { return frame }
-        let start = Self.integer(tag.attribute("start"))
+        let start = HTMLListInputs.integer(tag.attribute("start"))
         if tag.attribute("reversed") != nil {
             frame.next = start ?? items
             frame.step = -1
@@ -350,7 +275,7 @@ private struct PlainTextRenderer {
             pendingMarker = ItemMarker(indent: indent, box: false)
         } else if lists.last?.isOrdered == true {
             let last = lists.count - 1
-            if let value = Self.integer(tag.attribute("value")) { lists[last].next = value }
+            if let value = HTMLListInputs.integer(tag.attribute("value")) { lists[last].next = value }
             // Plain digits, so the tenth item is `10.` and the list stays a list.
             pendingMarker = ItemMarker(indent: indent, label: "\(lists[last].next). ")
             lists[last].next &+= lists[last].step
@@ -441,69 +366,5 @@ private struct PlainTextRenderer {
         var result = String(authority[..<host]) + authority[host...].lowercased() + rest[end...]
         while result.hasSuffix("/") { result.removeLast() }
         return result
-    }
-}
-
-// MARK: - Small string work
-
-/// A text run with its inner whitespace collapsed to one space and its edge whitespace remembered.
-private struct CollapsedRun {
-    let body: String
-    let hasLeadingSpace: Bool
-    let hasTrailingSpace: Bool
-
-    init(_ text: String) {
-        var out = String.UnicodeScalarView()
-        var leading = false
-        var pending = false
-        for scalar in text.unicodeScalars {
-            guard !scalar.properties.isWhitespace else {
-                pending = true
-                continue
-            }
-            if pending {
-                if out.isEmpty { leading = true } else { out.append(" ") }
-                pending = false
-            }
-            out.append(scalar)
-        }
-        body = String(out)
-        hasLeadingSpace = leading
-        // A run of only whitespace still separates its neighbours.
-        hasTrailingSpace = pending
-    }
-}
-
-extension String {
-    fileprivate func trimmedEdges() -> String {
-        String(trimmedTrailing().unicodeScalars.drop(while: \.properties.isWhitespace))
-    }
-
-    fileprivate func trimmingTrailingSpace() -> String {
-        var copy = self
-        while copy.hasSuffix(" ") { copy.removeLast() }
-        return copy
-    }
-
-    fileprivate func trimmedTrailing() -> String {
-        var scalars = unicodeScalars[...]
-        while let last = scalars.last, last.properties.isWhitespace { scalars.removeLast() }
-        return String(scalars)
-    }
-
-    /// The scheme of an absolute url; hand-written because `URL` accepts `page.html` as a url.
-    fileprivate func urlScheme() -> String? {
-        var scheme = String.UnicodeScalarView()
-        for scalar in unicodeScalars {
-            if scalar == ":" {
-                return scheme.isEmpty ? nil : String(scheme).lowercased()
-            }
-            guard
-                scalar.properties.isAlphabetic || ("0"..."9").contains(scalar)
-                    || "+-.".unicodeScalars.contains(scalar)
-            else { return nil }
-            scheme.append(scalar)
-        }
-        return nil
     }
 }

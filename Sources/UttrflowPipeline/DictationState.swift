@@ -134,7 +134,7 @@ public struct DictationOutcome: Sendable, Equatable {
     /// Pieces of speech that decoded to no words twice and are missing from the text; zero when nothing is.
     public let missedPieces: Int
     /// Whether the input clipped past the point where accuracy falls, so the person is told to lower the volume.
-    public let inputTooLoud: Bool
+    let inputTooLoud: Bool
     /// Availability causes that made this successful dictation use a lower-priority engine.
     public let unavailableEngines: [CleaningRecord.UnavailableEngine]
     /// Which written words the recogniser doubted, as positions only; memory only, never persisted.

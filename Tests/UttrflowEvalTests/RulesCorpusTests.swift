@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 import UttrflowAI
 import UttrflowCore
@@ -54,7 +55,9 @@ struct RulesCorpusTests {
             outputs[testCase.id] = result.text
         }
         let inputs = Dictionary(uniqueKeysWithValues: EvaluationCorpus.all.map { ($0.id, $0.spoken) })
-        let differences = try Self.golden.compare(outputs, inputs: inputs)
+        let destination = ProcessInfo.processInfo.environment["UTTRFLOW_RULES_GOLDEN_OUTPUT"]
+        let golden = destination.map { GoldenFile(url: URL(fileURLWithPath: $0)) } ?? Self.golden
+        let differences = try golden.compare(outputs, inputs: inputs)
         #expect(
             differences.isEmpty,
             "\(differences.count) outputs moved; rerun with \(GoldenFile.updateVariable)=1 if intended:\n\(differences.map(\.description).joined(separator: "\n"))"

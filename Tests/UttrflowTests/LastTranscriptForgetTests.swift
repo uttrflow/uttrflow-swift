@@ -2,6 +2,7 @@
 
 import Foundation
 import Synchronization
+import UttrflowAI
 import UttrflowCore
 import UttrflowClipboard
 import UttrflowHistory
@@ -188,6 +189,66 @@ struct LastTranscriptForgetTests {
         await app.perform(.copyLastTranscript)
 
         #expect(pasteboard.markers[secret] == .concealed)
+    }
+
+    @Test("copy-last conceals a transcript holding a snippet marked secret")
+    func copyLastTranscriptConcealsSecretSnippets() async throws {
+        let sandbox = Sandbox()
+        let phrase = "Sunny day tomorrow"
+        let transcript = "my login is \(phrase)"
+        #expect(!DictationTextPresentation(transcript).isSecret)
+        let store = SnippetStore(file: SnippetStore.defaultFile(in: sandbox.root))
+        try await store.save(
+            trigger: "my login", expansion: phrase, replacing: nil, created: .now, applications: [],
+            isSecret: true)
+        let history = DictationHistoryStore(
+            file: DictationHistoryStore.defaultFile(in: sandbox.root))
+        try await history.append(
+            DictationRecord(text: transcript, when: .now), keeping: Retention(days: 30, now: .now))
+        let pasteboard = MarkerRecordingPasteboard()
+        let app = AppDelegate(
+            container: sandbox.root, account: HeldSession(signedIn: true).layer, pasteboard: pasteboard)
+        await app.restoreLastTranscript()
+
+        await app.perform(.copyLastTranscript)
+
+        #expect(pasteboard.markers[transcript] == .concealed)
+    }
+
+    @Test("copying from a History row conceals a transcript holding a snippet marked secret")
+    func copyFromHistoryConcealsSecretSnippets() async throws {
+        let sandbox = Sandbox()
+        let transcript = "my login is Sunny day tomorrow"
+        let pasteboard = MarkerRecordingPasteboard()
+        let app = AppDelegate(
+            container: sandbox.root, account: HeldSession(signedIn: true).layer, pasteboard: pasteboard)
+        app.knownSnippets = [
+            Snippet(trigger: "my login", expansion: "Sunny day tomorrow", created: .now, isSecret: true)
+        ]
+
+        app.carryOut(.copy(transcript))
+
+        #expect(pasteboard.markers[transcript] == .concealed)
+    }
+
+    @Test("the retry route's copy conceals a transcript holding a snippet marked secret")
+    func retryCopyConcealsSecretSnippets() async throws {
+        let sandbox = Sandbox()
+        let transcript = "my login is Sunny day tomorrow"
+        let pasteboard = MarkerRecordingPasteboard()
+        let app = AppDelegate(
+            container: sandbox.root, account: HeldSession(signedIn: true).layer, pasteboard: pasteboard)
+        app.carryOut(
+            .saveSnippet(
+                trigger: "my login", text: "Sunny day tomorrow", applications: [], replacing: nil,
+                isSecret: true))
+        await app.intentWork?.value
+        app.render(failed(transcript))
+
+        app.carryOut(MainIntent.recover(.copyTranscript))
+        await app.intentWork?.value
+
+        #expect(pasteboard.markers[transcript] == .concealed)
     }
 
     @Test("copy-last marks an ordinary transcript transient")
