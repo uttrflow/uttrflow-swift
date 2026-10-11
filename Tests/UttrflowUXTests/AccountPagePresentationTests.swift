@@ -273,3 +273,15 @@ struct AccountEmptyTests {
         #expect(without.identity?.initials == withPicture.identity?.initials)
     }
 }
+
+@Suite("Account: the published Privacy page")
+struct AccountPrivacyLinkTests {
+    @Test("signed in or not, the page carries the verified Privacy destination")
+    func privacyIsReachableAfterOnboarding() {
+        for account in [HistoryFixture.account(), nil] {
+            let link = HistoryFixture.accountPage(account: account).privacy
+            #expect(link.title == "Privacy Policy")
+            #expect(link.destination.absoluteString == "https://uttrflow.com/privacy")
+        }
+    }
+}
