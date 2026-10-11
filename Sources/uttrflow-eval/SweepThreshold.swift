@@ -60,7 +60,9 @@ struct SweepThreshold: ParsableCommand {
     }
 
     var values: [Double] {
-        grid.split(separator: ",").compactMap { Double($0.trimmingCharacters(in: .whitespaces)) }
+        grid.split(separator: ",", omittingEmptySubsequences: false).map {
+            Double($0.trimmingCharacters(in: .whitespaces)) ?? .nan
+        }
     }
 
     func run() throws {
