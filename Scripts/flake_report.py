@@ -86,7 +86,10 @@ def report(paths: list[Path], quarantine: list[dict[str, str]]) -> int:
     print(f"{len(runs)} runs, {len(set().union(*runs))} tests, {len(flaky)} with differing outcomes")
     for test_id, failures in flaky.items():
         mark = " [quarantined]" if test_id in quarantined else ""
-        print(f"  {failures}/{len(runs)} failed  {test_id}{mark}")
+        executed = sum(test_id in run for run in runs)
+        unobserved = len(runs) - executed
+        missing = f" [{unobserved} unobserved]" if unobserved else ""
+        print(f"  {failures}/{executed} failed  {test_id}{mark}{missing}")
     return 0
 
 
