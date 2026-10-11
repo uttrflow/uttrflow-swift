@@ -80,8 +80,9 @@ extension SettingsReset {
     public var meetsADictation: Bool {
         targets.contains { target in
             switch target {
-            case .learnedWords, .everyWord, .history, .clipboard, .clipboardHistory, .recordings, .evidence,
-                .evidenceFact: true
+            case .learnedWords, .everyWord, .history, .clipboard, .clipboardHistory, .recordings,
+                .evidence, .evidenceFact:
+                true
             case .preferences, .suggestions, .everySuggestion, .snippets, .suggestionConsent,
                 .suggestionModel:
                 false

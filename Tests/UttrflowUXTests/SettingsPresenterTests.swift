@@ -684,8 +684,10 @@ struct SettingsPrivacyPaneTests {
         let pane = SettingsPresenter.pane(
             for: .privacy, settings: .default, capabilities: .everything, personalisation: personalisation)
         let rows = pane.groups.first { $0.id == "retention" }?.rows.map(\.id) ?? []
-        #expect(
-            rows.prefix(4) == ["transcripts", "clipboardRetention", "clipboardLimits", "storage.dictationHistory"])
+        let expected = [
+            "transcripts", "clipboardRetention", "clipboardLimits", "storage.dictationHistory",
+        ]
+        #expect(Array(rows.prefix(4)) == expected)
         let size = { (bytes: Int64) in SettingsControl.status(bytes.formatted(.byteCount(style: .file))) }
         #expect(pane.row("storage.recordings")?.control == size(2_000_000))
         #expect(pane.row("storage.snippets")?.control == size(0))

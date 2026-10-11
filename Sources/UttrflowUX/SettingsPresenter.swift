@@ -931,7 +931,8 @@ public enum SettingsPresenter {
     private static var clipboardLimitsRow: SettingsRow {
         let budget = ClipboardBudget.standard
         func size(_ bytes: Int) -> String { bytes.formatted(.byteCount(style: .file)) }
-        let picture = budget.images.days.map { "Pictures are kept for \($0) days at most" } ?? "Pictures are limited"
+        let picture =
+            budget.images.days.map { "Pictures are kept for \($0) days at most" } ?? "Pictures are limited"
         return SettingsRow(
             id: "clipboardLimits",
             label: "Clipboard limits",
