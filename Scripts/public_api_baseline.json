@@ -2730,6 +2730,7 @@
     "UttrflowEval func register": 1,
     "UttrflowEval func remaining": 1,
     "UttrflowEval func render": 1,
+    "UttrflowEval func requireFeatureSpec": 1,
     "UttrflowEval func resolveVoice": 1,
     "UttrflowEval func retryPieces": 1,
     "UttrflowEval func rises": 1,
@@ -6180,5 +6181,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 8759
+  "total": 8760
 }
