@@ -18,7 +18,7 @@ struct AvatarRefreshTests {
         let account = OnboardingAccountLayer(authentication: authentication, profiles: profiles)
         let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        let app = AppDelegate(container: root, account: account)
+        let app = AppDelegate(container: root, clipboardSource: InMemoryClipboardSource(), account: account)
         app.drawsWindows = false
         app.readAccount()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -44,7 +44,7 @@ struct AvatarRefreshTests {
         let account = OnboardingAccountLayer(authentication: authentication, profiles: profiles)
         let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        let app = AppDelegate(container: root, account: account)
+        let app = AppDelegate(container: root, clipboardSource: InMemoryClipboardSource(), account: account)
         app.drawsWindows = false
         app.readAccount()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -71,7 +71,7 @@ struct AvatarRefreshTests {
         let account = OnboardingAccountLayer(authentication: authentication, profiles: profiles)
         let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        let app = AppDelegate(container: root, account: account)
+        let app = AppDelegate(container: root, clipboardSource: InMemoryClipboardSource(), account: account)
         app.drawsWindows = false
         app.readAccount()
         defer { try? FileManager.default.removeItem(at: root) }

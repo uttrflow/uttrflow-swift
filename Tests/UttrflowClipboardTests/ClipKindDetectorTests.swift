@@ -6,6 +6,15 @@ import Testing
 
 @Suite("What a copied thing turns out to be", .bug(id: 4424))
 struct ClipKindDetectorTests {
+    /// The time bound on a two-megabyte run of this prefix is in `make bench`; the answers it must keep are here.
+    @Test("a repeated scheme-less webhook prefix is text, and a real address after it is still a secret")
+    func repeatedSchemeLessWebhookPrefix() {
+        let prefixes = String(repeating: "hooks.slack.com/", count: 500)
+        #expect(ClipKindDetector.kind(of: prefixes) == .text)
+        let webhook = "hooks.slack.com/services/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"
+        #expect(ClipKindDetector.kind(of: prefixes + webhook) == .secret)
+    }
+
     /// Most things are prose, the answer that costs nothing when wrong; each of these is a near-miss.
     @Test(
         "calls ordinary writing text",
