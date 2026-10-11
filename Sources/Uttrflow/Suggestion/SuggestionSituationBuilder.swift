@@ -14,10 +14,13 @@ enum SuggestionSituationBuilder {
     /// The text around the field, or nothing where the window is not walked.
     private static func surroundings(
         of snapshot: FocusedFieldSnapshot, cache: SuggestionContextCache,
-        readingWindow: @escaping @Sendable () async -> Surroundings?
+        readingWindow: @escaping @Sendable () async -> Surroundings?,
+        windowTime: @escaping @Sendable () -> ContinuousClock.Instant
     ) async -> Surroundings? {
         guard walksSurroundings(of: snapshot) else { return nil }
-        return await cache.surroundings(for: SuggestionMoment.windowKey(of: snapshot)) {
+        return await cache.surroundings(
+            for: SuggestionMoment.windowKey(of: snapshot), now: windowTime(), finishTime: windowTime
+        ) {
             await readingWindow()
         }
     }
@@ -27,12 +30,14 @@ enum SuggestionSituationBuilder {
         of snapshot: FocusedFieldSnapshot, for query: SuggestionQuery, store: PredictStore,
         cache: SuggestionContextCache, turn: Int,
         readingWindow: @escaping @Sendable () async -> Surroundings?,
+        windowTime: @escaping @Sendable () -> ContinuousClock.Instant = { .now },
         log: @MainActor (Surroundings?, [String], GenerationSituation) -> Void
     ) async -> GenerationSituation {
         // The alternatives pass asks about the same line in the same turn, so it is told what the first pass was.
         if let built = await cache.situation(forTurn: turn) { return built }
         // Neither read needs the other, so the walk and the corpus query run side by side.
-        async let walk = surroundings(of: snapshot, cache: cache, readingWindow: readingWindow)
+        async let walk = surroundings(
+            of: snapshot, cache: cache, readingWindow: readingWindow, windowTime: windowTime)
         async let remembered =
             (try? await store.recent(in: query.surface, limit: SuggestionMoment.recentLinesShown)) ?? []
         let around = await walk

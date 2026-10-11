@@ -129,10 +129,11 @@ struct SuggestionSituationBuilderTests {
         let query = Self.query(snapshot)
         let window = SituationWindow()
         let cache = SuggestionContextCache()
+        let instant = ContinuousClock.now
         var logs = 0
         let first = await SuggestionSituationBuilder.situation(
             of: snapshot, for: query, store: corpus.store, cache: cache, turn: 1,
-            readingWindow: { await window.read(Self.around) },
+            readingWindow: { await window.read(Self.around) }, windowTime: { instant },
             log: { around, recent, situation in
                 logs += 1
                 #expect(around == Self.around)
@@ -146,20 +147,20 @@ struct SuggestionSituationBuilderTests {
         try await corpus.store.record("new remembered line", in: query.surface, at: Date())
         let repeated = await SuggestionSituationBuilder.situation(
             of: snapshot, for: query, store: corpus.store, cache: cache, turn: 1,
-            readingWindow: { await window.read(nil) }, log: { _, _, _ in logs += 1 })
+            readingWindow: { await window.read(nil) }, windowTime: { instant }, log: { _, _, _ in logs += 1 })
         #expect(logs == 1)
         #expect(repeated == first)
         #expect(await window.reads == 1)
         let next = await SuggestionSituationBuilder.situation(
             of: snapshot, for: query, store: corpus.store, cache: cache, turn: 2,
-            readingWindow: { await window.read(nil) }, log: Self.log)
+            readingWindow: { await window.read(nil) }, windowTime: { instant }, log: Self.log)
         #expect(await window.reads == 1)
         #expect(next.surroundings == Self.around.text)
         #expect(next.recentLines == ["new remembered line"])
         let changedWindow = Self.snapshot(window: 8)
         _ = await SuggestionSituationBuilder.situation(
             of: changedWindow, for: query, store: corpus.store, cache: cache, turn: 3,
-            readingWindow: { await window.read(nil) }, log: Self.log)
+            readingWindow: { await window.read(nil) }, windowTime: { instant }, log: Self.log)
         #expect(await window.reads == 2)
     }
 
