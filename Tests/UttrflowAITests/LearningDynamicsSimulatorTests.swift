@@ -35,7 +35,7 @@ private enum Rates {
 }
 
 /// One sentence of persona-free speech; words starred are heard doubtfully, and every word is right.
-private let heldOut: [String] = [
+let heldOut: [String] = [
     "the *core* *vain* argument fell apart", "a *tall* *more* careful plan",
     "buy a *brick* *cell* phone case",
     "the *new* *jello* recipe set well", "she *knew* the answer", "*right* a short note",

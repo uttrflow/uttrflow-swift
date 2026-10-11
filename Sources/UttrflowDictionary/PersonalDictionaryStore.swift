@@ -27,6 +27,8 @@ public actor PersonalDictionaryStore {
 
     /// Terms seen and said but not yet on enough days to keep, and the words deleted; read from disk on first use.
     private var ledger: SightingLedger?
+    /// Edited pairs not yet seen on enough days to keep; read from the evidence ledger on first use.
+    private var pairs: PairLedger?
     /// Where pending sightings outlive a quit; without it they are counted in memory only.
     private let sightings: SightingMemory?
 
@@ -365,6 +367,29 @@ public actor PersonalDictionaryStore {
         return learnt.filter { entry in bounded.contains(where: { $0.id == entry.id }) }
     }
 
+    /// Counts one observed edit of `heard` into `wrote`; the pair becomes an entry that says it like `heard` on recurrence. See `Docs/app-dictionary.md`.
+    @discardableResult
+    public func learnEdit(
+        heard: String, wrote: String, at moment: Date
+    ) async throws(DictionaryStoreError) -> [DictionaryEntry] {
+        guard let pair = LearnableWords.editedPair(heard: heard, wrote: wrote),
+            !(await sightingLedger()).isRefused(pair.meant)
+        else { return [] }
+        var tally = await pairLedger()
+        let counted = tally.record(heard: pair.heard, meant: pair.meant, on: EvidenceRow.day(of: moment))
+        pairs = tally
+        try await remember(counted.rows, at: moment)
+        let existing = load()
+        guard counted.learnt != nil,
+            !existing.contains(where: { $0.spellingKey == DictionaryEntry.spellingKey(for: pair.meant) })
+        else { return [] }
+        let entry = DictionaryEntry(
+            word: pair.meant, pronunciation: pair.heard, origin: .learned, firstSeen: moment
+        ).inLatinScript
+        let bounded = try persist(existing + [entry])
+        return bounded.contains(where: { $0.id == entry.id }) ? [entry] : []
+    }
+
     /// Notes that an entry was applied to a dictation, answering with it so a caller sees it retire.
     @discardableResult
     public func recordUse(of id: UUID) throws(DictionaryStoreError) -> DictionaryEntry? {
@@ -448,6 +473,22 @@ public actor PersonalDictionaryStore {
         try? encryptedStore?.markLegacyMigrationComplete(for: .dictionaryRecords)
         let loaded = SightingLedger(refusing: refusals, remembering: rows, digest: digest)
         ledger = loaded
+        return loaded
+    }
+
+    /// The pair ledger, starting from the pair rows on disk the first time it is needed.
+    private func pairLedger() async -> PairLedger {
+        if let pairs { return pairs }
+        var rows: [EvidenceRow] = []
+        var digest: @Sendable (String) -> String? = { $0 }
+        if let sightings {
+            rows = await sightings.pairRows(at: Date())
+            digest = sightings.digest
+        }
+        // Another call may have loaded it while this one waited.
+        if let pairs { return pairs }
+        let loaded = PairLedger(remembering: rows, digest: digest)
+        pairs = loaded
         return loaded
     }
 
