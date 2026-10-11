@@ -1135,3 +1135,25 @@ idle machine:
 ```bash
 uttrflow-eval pace --corpus-path <reader-1-quiet>
 ```
+
+## One sweep for a layer threshold (`sweep`)
+
+`uttrflow-eval sweep --from-table <table> --parameter <name> --grid 0.30,0.31,... --false-flag-bound 0.05 --seed <s> --record <file>`
+chooses a threshold on a fit table feature and keeps what it tried, so a constant is never justified
+by prose alone.
+
+- The grid is scored on the development rows (fit side) and on half of the held-out rows (calibration
+  side); the seed splits the held-out rows, so the same seed always gives the same halves.
+- The choice is the value with the fewest wrong rows left unflagged on calibration, among values
+  whose false-flag share on the fit side is within the bound; a tie takes the stricter value.
+- The other half of the held-out rows (test side) is scored once, for the chosen value only, and no
+  step reads it to choose.
+- A chosen value whose neighbour scores more than `--cliff-tolerance` worse is a cliff and is refused
+  with exit 1; `--margin-steps N` moves the choice N grid steps toward the flatter, feasible
+  neighbour instead.
+- `--record` writes one JSON file: the grid, objective, seed, table digest, feature spec version,
+  engine label, every trial, the chosen value, its neighbours, the margin and the test score.
+  Rerunning on the same table gives the same bytes. Its `id` names the record.
+
+Not yet built: a constant's comment naming its record id, the `make verify` check that the record
+still matches the code, and sweeping by name from a layer registry.
