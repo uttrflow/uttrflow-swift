@@ -62,6 +62,7 @@ and a word gets in only by defeating all of them. Every learnt word is thrown aw
   word first, so numbered files share one spelling. At most `WorkingSet.maximumWordsOnScreen`
   (64) title words are read.
 - Never from the application name, which is on screen for every dictation in that app.
+- Never from a window title naming a sensitive kind of document (medical, legal, financial, tax, identity, employment, immigration): `PrivateDocumentTitles` holds whole-word phrases per category as data, and a matching title yields no sighting, so nothing is counted.
 - Never from the selected text: both insertion routes write over the selection, so every word
   in it is a word the user is deleting.
 
