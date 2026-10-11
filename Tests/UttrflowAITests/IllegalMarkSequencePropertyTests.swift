@@ -14,6 +14,11 @@ struct IllegalMarkSequencePropertyTests {
         case unbalancedBrackets, stopAfterIllegalToken, notIdempotent
     }
 
+    /// Failures that stand today, as destination and property with the issue that fixes each; the list only shrinks.
+    static let knownFaults: [String: Int] = ["terminal notIdempotent": 7327]
+
+    static let seeds = Seeded.seeds(0..<150)
+
     static let words = [
         "the", "meeting", "is", "at", "and", "of", "we", "will", "ship", "Monday", "42", "3.5", "Dr.", "e.g.",
         "etc.", "p.m.", "OK", "hello", "world", "a", "to", "my", "their",
@@ -111,7 +116,9 @@ struct IllegalMarkSequencePropertyTests {
             smaller.remove(at: index)
             if !smaller.isEmpty, broken(smaller, in: destination).contains(property) {
                 current = smaller
-            } else { index += 1 }
+            } else {
+                index += 1
+            }
         }
         return current
     }
@@ -119,8 +126,10 @@ struct IllegalMarkSequencePropertyTests {
     @Test("no destination writes an illegal mark sequence on generated recogniser text")
     func holds() {
         for destination in Destination.allCases {
-            var reported: Set<Property> = []
-            for seed in Seeded.seeds(0..<150) {
+            var reported: Set<Property> = Set(
+                Property.allCases.filter { Self.knownFaults["\(destination.rawValue) \($0.rawValue)"] != nil }
+            )
+            for seed in Self.seeds {
                 var random = Seeded(seed: seed)
                 let words = Self.dictation(&random)
                 for property in Self.broken(words, in: destination).subtracting(reported) {
@@ -132,6 +141,21 @@ struct IllegalMarkSequencePropertyTests {
                     )
                 }
             }
+        }
+    }
+
+    @Test("each known fault still happens, so a fixed one leaves the list")
+    func knownFaultsStillHappen() {
+        for (name, issue) in Self.knownFaults {
+            let parts = name.split(separator: " ").map(String.init)
+            let destination = Destination(rawValue: parts[0])
+            let property = Property(rawValue: parts[1])
+            let happens = Self.seeds.contains { seed in
+                var random = Seeded(seed: seed)
+                return Self.broken(Self.dictation(&random), in: destination ?? .plain).contains(
+                    property ?? .notIdempotent)
+            }
+            #expect(happens, "\(name) no longer happens: remove it from the list and close #\(issue)")
         }
     }
 

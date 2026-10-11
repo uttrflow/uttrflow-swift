@@ -20,7 +20,9 @@ struct MarkLegalityTests {
         #expect(MarkLegality.verdict(.comma, after: token) == .legal)
     }
 
-    @Test("a closer followed by a stop still closes the word", arguments: ["(a).", "my].", "(today),", "(yes)?"])
+    @Test(
+        "a closer followed by a stop still closes the word",
+        arguments: ["(a).", "my].", "(today),", "(yes)?"])
     func closerWithStop(token: String) {
         #expect(MarkLegality.state(of: token) == .closer)
     }
