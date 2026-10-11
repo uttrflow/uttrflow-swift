@@ -1,25 +1,25 @@
-public import UttrflowCore
+import UttrflowCore
 
 /// A number, the unit said after it, or a negator that a pass lost or changed without a rule that allows it.
-public struct IntegrityViolation: Sendable, Equatable {
+struct IntegrityViolation: Sendable, Equatable {
     /// What kind of word was changed.
-    public enum Kind: Sendable, Equatable {
+    enum Kind: Sendable, Equatable {
         case number
         case unit
         case negator
     }
 
     /// The pass answerable for the change.
-    public let pass: PassID
-    public let kind: Kind
+    let pass: PassID
+    let kind: Kind
     /// The word as the recogniser heard it.
-    public let heard: String
+    let heard: String
 }
 
 /// Reads a draft for numbers, units and negators a pass altered or dropped. See `Docs/cleanup.md`.
-public enum IntegrityAudit {
+enum IntegrityAudit {
     /// Every violation in the order the words were said; a change a removal grant covers is not one.
-    public static func violations(
+    static func violations(
         in draft: Draft, grants: [PassID: RemovalGrant]
     ) -> [IntegrityViolation] {
         let unauthorised = Set(RemovalAudit.unauthorisedPlaces(in: draft, grants: grants))
@@ -73,7 +73,8 @@ public enum IntegrityAudit {
         let heard = WordShape(word.heard).key
         switch kind {
         case .number: return digits(now) != digits(heard)
-        case .negator: return carries(now) && !letterRuns(now).contains(where: MeaningPreservationGuard.isNegation)
+        case .negator:
+            return carries(now) && !letterRuns(now).contains(where: MeaningPreservationGuard.isNegation)
         case .unit: return plainWord(word.text) && now != heard
         }
     }

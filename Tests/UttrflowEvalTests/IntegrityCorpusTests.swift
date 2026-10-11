@@ -84,9 +84,11 @@ struct IntegrityCorpusTests {
                 let draft = pipeline.run(Draft(text: sentence.spoken))
                 let words = draft.text.lowercased().split(separator: " ").map { WordShape(String($0)).key }
                 let kept =
-                    (draft.text.contains(sentence.digits) || draft.text.lowercased().contains(sentence.amount))
+                    (draft.text.contains(sentence.digits)
+                        || draft.text.lowercased().contains(sentence.amount))
                     && words.contains(sentence.unit.lowercased())
-                    && (sentence.negator.isEmpty || words.contains { MeaningPreservationGuard.isNegation($0) })
+                    && (sentence.negator.isEmpty
+                        || words.contains { MeaningPreservationGuard.isNegation($0) })
                 let violations = IntegrityAudit.violations(in: draft, grants: pipeline.grants)
                 if !kept || !violations.isEmpty {
                     found.append("\(sentence.spoken) -> \(draft.text) \(violations)")
