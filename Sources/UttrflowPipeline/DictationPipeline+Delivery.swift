@@ -197,7 +197,8 @@ extension DictationPipeline {
                         spokenFor: spokenFor, changes: changes,
                         fromRecording: delivery == .copy, arrival: attempt.arrival,
                         intoSecureField: destinationIsSecure, missedPieces: missedPieces,
-                        inputTooLoud: inputTooLoud, unavailableEngines: unavailableEngines, doubtful: doubtful,
+                        inputTooLoud: inputTooLoud, unavailableEngines: unavailableEngines,
+                        doubtful: doubtful,
                         slowCause: slowCause, guardRefusals: guardRefusals,
                         quality: OutcomeQuality(
                             producedBy: cleanedBy, account: account, missedPieces: missedPieces))))

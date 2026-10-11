@@ -161,19 +161,19 @@ struct HistoryRailRow: View {
             HStack(spacing: 10) {
                 if let application = row.application {
                     Text(application.name)
-                    Text("·")
+                    Text(verbatim: "·")
                 }
                 Text(row.time).font(.system(size: 11.5, weight: .medium, design: .monospaced))
-                Text("·")
+                Text(verbatim: "·")
                 Text(row.length)
                 if let tag = row.tag {
-                    Text("·")
+                    Text(verbatim: "·")
                     Label(tag, systemImage: "wand.and.stars")
                         .labelStyle(HistoryTagLabelStyle())
                         .foregroundStyle(PagePalette.suggestion)
                 }
                 if let formattedAs = row.formattedAs {
-                    Text("·")
+                    Text(verbatim: "·")
                     Label(formattedAs, systemImage: "chevron.left.forwardslash.chevron.right")
                         .labelStyle(HistoryTagLabelStyle())
                         .accessibilityLabel(formattedAs)
@@ -184,9 +184,12 @@ struct HistoryRailRow: View {
                         .foregroundStyle(PagePalette.clipboardInk)
                 }
                 if row.isFlagged {
-                    Label("Flagged", systemImage: "flag")
-                        .labelStyle(HistoryTagLabelStyle())
-                        .foregroundStyle(PagePalette.clipboardInk)
+                    Label(
+                        String(localized: "Flagged", comment: "History row badge for a flagged dictation"),
+                        systemImage: "flag"
+                    )
+                    .labelStyle(HistoryTagLabelStyle())
+                    .foregroundStyle(PagePalette.clipboardInk)
                 }
             }
             .font(.system(size: 11.5))

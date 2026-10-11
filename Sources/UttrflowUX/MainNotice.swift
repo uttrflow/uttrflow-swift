@@ -36,7 +36,6 @@ extension MainNotice {
         message: "Could not copy to the clipboard. Please try again.",
         symbolName: "exclamationmark.triangle", tone: .warning)
 
-
     /// The notice for a refused change, from the failure's own sentence and what it cost the user.
     public init(refusing error: any Error) {
         let failure = error as? any UttrflowFailure
