@@ -23,7 +23,7 @@ enum IntegrityAudit {
         in draft: Draft, grants: [PassID: RemovalGrant]
     ) -> [IntegrityViolation] {
         let unauthorised = Set(RemovalAudit.unauthorisedPlaces(in: draft, grants: grants))
-        let written = Set(draft.text.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init))
+        let written = Set(WordTokens.words(draft.text.lowercased(), .comparison))
         var found: [IntegrityViolation] = []
         var afterNumber = false
         for index in draft.words.indices {
@@ -67,7 +67,7 @@ enum IntegrityAudit {
         }
     }
 
-    /// Whether the word as it reads now no longer carries what was heard.
+    /// Whether the word as it reads now lacks what was heard.
     private static func changed(_ word: Draft.Word, kind: IntegrityViolation.Kind) -> Bool {
         let now = WordShape(word.text).key
         let heard = WordShape(word.heard).key
@@ -89,9 +89,9 @@ enum IntegrityAudit {
         !text.isEmpty && text.allSatisfy(\.isLetter)
     }
 
-    /// The runs of letters in a word, so "--no-cache" still holds the "no" it was spoken with.
+    /// The runs of letters in a word, so "--no-cache" still holds the "no" said inside it.
     private static func letterRuns(_ key: String) -> [String] {
-        key.split { !$0.isLetter }.map(String.init)
+        WordTokens.words(key, .letters)
     }
 
     /// The digits of a word alone, so grouping and decimal marks do not read as a change.
