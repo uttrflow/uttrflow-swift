@@ -40,15 +40,18 @@ public struct ScreenCandidates: CandidateSource {
             .filter { $0.count >= shortestWorthOffering && seen.insert($0.lowercased()).inserted }
     }
 
-    /// The window title, the selection and the text either side of the caret, secrets dropped, joined by spaces.
+    /// The window title, the names on screen, the selection and the text either side of the caret, secrets dropped, joined by spaces.
     static func shownText(on situation: Situation) -> String {
         let insertion = situation.insertion.vocabulary
-        return [
-            situation.app.documentName.map(SecretShapes.vocabulary(of:)),
-            situation.app.selectedText.map(SecretShapes.vocabulary(of:)),
-            insertion.precedingText, insertion.followingText,
-        ]
-        .compactMap { $0 }
-        .joined(separator: " ")
+        // The names come second, so a long selection cannot push them past the word cap.
+        return
+            ([situation.app.documentName.map(SecretShapes.vocabulary(of:))]
+            + situation.app.onScreenNames.map(SecretShapes.vocabulary(of:))
+            + [
+                situation.app.selectedText.map(SecretShapes.vocabulary(of:)),
+                insertion.precedingText, insertion.followingText,
+            ])
+            .compactMap { $0 }
+            .joined(separator: " ")
     }
 }

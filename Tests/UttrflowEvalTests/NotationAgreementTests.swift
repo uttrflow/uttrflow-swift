@@ -27,7 +27,7 @@ struct NotationAgreementTests {
     static let uncovered: Set<String> = [
         "case.kebab", "case.upper", "code.semicolon", "code.underscore", "layout.blank-line",
         "layout.next-point",
-        "mark.exclamation-mark", "mark.exclamation-point", "mark.hyphen", "mark.semi-colon", "mark.semicolon",
+        "mark.exclamation-mark", "mark.exclamation-point", "mark.hyphen", "mark.semi-colon",
     ]
 
     /// Block and row pairs where a worked example writes other than the table, a baseline that only shrinks.

@@ -179,7 +179,7 @@ public enum ShellPrompt {
     private static let changeMarks: Set<Character> = ["✗", "✔", "✓"]
 
     /// What follows a leading `➜  directory` prompt, with the `git:(branch)` and change mark a repository adds; absent where the line does not begin with one.
-    private static func afterArrowPrompt(in line: String) -> String? {
+    static func afterArrowPrompt(in line: String) -> String? {
         var rest = line.drop(while: \.isWhitespace)
         guard rest.first == "➜" else { return nil }
         rest = rest.dropFirst()
@@ -221,7 +221,7 @@ public enum ShellPrompt {
     }
 
     /// The first terminator within the search limit that is outside every quote and carries the evidence its character needs.
-    private static func promptEnd(in line: String) -> String.Index? {
+    static func promptEnd(in line: String) -> String.Index? {
         var prefix = Prefix()
         var quote: Character?
         var escaped = false
@@ -246,6 +246,8 @@ public enum ShellPrompt {
                     escaped = true
                 }
             } else if character == "$", next < line.endIndex, line[next] == "(" {
+                // An at sign that a substitution supplies the host for is command text, not a prompt's.
+                if prefix.last == "@" { prefix.hasAt = false }
                 substitutions.append(0)
             } else if !substitutions.isEmpty {
                 if character == "'" || character == "\"" {

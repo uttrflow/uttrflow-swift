@@ -83,6 +83,12 @@ public enum Degradation: Sendable, Equatable, CustomStringConvertible {
     case clean
     /// The clip with `kind` added so speech power sits `snr` dB above the noise's.
     case noise(NoiseKind, snr: Double)
+    /// The clip in a room whose reverberation time (60 dB decay) is `rt60` seconds.
+    case reverb(rt60: Double)
+    /// The clip with everything above `cutoff` hertz removed, as a narrowband microphone delivers it.
+    case bandLimited(cutoff: Double)
+    /// The clip through 8 kHz mu-law telephone coding.
+    case muLaw
 
     /// The signal-to-noise ratios each noise is added at, from mild to as loud as the speech.
     public static let snrSteps: [Double] = [20, 10, 5, 0]
@@ -91,10 +97,23 @@ public enum Degradation: Sendable, Equatable, CustomStringConvertible {
     public static let noiseSweep: [Degradation] =
         [.clean] + NoiseKind.allCases.flatMap { kind in snrSteps.map { .noise(kind, snr: $0) } }
 
+    /// The reverberation times, in seconds, the channel sweep replays a passage in.
+    static let reverbTimes: [Double] = [0.3, 0.6, 1.0]
+
+    /// The bandwidths, in hertz, the channel sweep limits a passage to.
+    static let bandLimits: [Double] = [8_000, 4_000]
+
+    /// Every room and channel condition, clean not included; reported beside the noise sweep, never pooled with it.
+    public static let channelSweep: [Degradation] =
+        reverbTimes.map { .reverb(rt60: $0) } + bandLimits.map { .bandLimited(cutoff: $0) } + [.muLaw]
+
     public var description: String {
         switch self {
         case .clean: "clean"
         case .noise(let kind, let snr): "\(kind.rawValue) \(Int(snr)) dB"
+        case .reverb(let rt60): "reverb \(String(format: "%.1f", rt60)) s"
+        case .bandLimited(let cutoff): "band \(Int(cutoff / 1_000)) kHz"
+        case .muLaw: "mu-law 8 kHz"
         }
     }
 
@@ -112,6 +131,12 @@ public enum Degradation: Sendable, Equatable, CustomStringConvertible {
             let mixed = zip(samples, noise).map(+)
             let peak = mixed.reduce(Float(0)) { max($0, abs($1)) }
             return peak > 1 ? mixed.map { $0 / peak } : mixed
+        case .reverb(let rt60):
+            return ChannelEffects.reverberated(samples, rt60: rt60, sampleRate: sampleRate, seed: seed)
+        case .bandLimited(let cutoff):
+            return ChannelEffects.bandLimited(samples, cutoff: cutoff, sampleRate: sampleRate)
+        case .muLaw:
+            return ChannelEffects.muLawCoded(samples, sampleRate: sampleRate)
         }
     }
 

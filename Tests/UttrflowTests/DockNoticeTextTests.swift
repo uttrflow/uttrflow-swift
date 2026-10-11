@@ -80,7 +80,7 @@ struct DockNoticeTextTests {
         let line = presentation.primaryLine ?? ""
 
         #expect(
-            DockView.hoverText(for: presentation, primaryLine: line)
+            DockWording.hoverText(for: presentation, primaryLine: line)
                 == "Recording stopped unexpectedly. Try again.\nthe words that were said")
     }
 
@@ -89,7 +89,7 @@ struct DockNoticeTextTests {
         let presentation = DictationPresenter.dock(for: .failed(.stillLoading))
 
         #expect(
-            DockView.hoverText(for: presentation, primaryLine: SpeechModelLoad.refusal)
+            DockWording.hoverText(for: presentation, primaryLine: SpeechModelLoad.refusal)
                 == SpeechModelLoad.refusal)
     }
 
@@ -103,7 +103,7 @@ struct DockNoticeTextTests {
                     message: "Recording stopped unexpectedly. Try again.", recovery: .retry,
                     severity: .recoverable)))
 
-        #expect(DockView.pillLine(for: microphone) == "Microphone is off")
-        #expect(DockView.pillLine(for: retry) == nil)
+        #expect(DockWording.pillLine(for: microphone) == "Microphone is off")
+        #expect(DockWording.pillLine(for: retry) == nil)
     }
 }

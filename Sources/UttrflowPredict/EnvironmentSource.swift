@@ -282,15 +282,40 @@ enum ShellAliases {
         configuration.split(separator: "\n").compactMap(name(in:))
     }
 
+    /// What each alias runs, as the words of a plain command; an alias whose body the shell would have to run to settle is left out.
+    static func expansions(in configuration: String) -> [String: [String]] {
+        var expansions: [String: [String]] = [:]
+        for line in configuration.split(separator: "\n") {
+            // The body is one word, whose unquoted text is the command line the alias stands for.
+            guard let (name, body) = binding(in: line),
+                let quoted = ShellWords.commands(in: String(body), home: ""),
+                quoted.count == 1, let word = quoted.first?.words.first, quoted.first?.words.count == 1,
+                !word.isUnresolved,
+                let commands = ShellWords.commands(in: word.text, home: ""),
+                commands.count == 1, let command = commands.first, command.separator == .end,
+                command.inputs.isEmpty, command.overwrites.isEmpty,
+                !command.words.isEmpty, !command.words.contains(where: \.isUnresolved)
+            else { continue }
+            // A later declaration of a name replaces an earlier one, as it does in the shell.
+            expansions[name] = command.words.map(\.text)
+        }
+        return expansions
+    }
+
     /// The name one line binds, absent for anything that is not a plain alias declaration.
     private static func name(in line: some StringProtocol) -> String? {
+        binding(in: Substring(line))?.name
+    }
+
+    /// The name and the text after its equals sign, absent for anything that is not a plain alias declaration.
+    private static func binding(in line: Substring) -> (name: String, body: Substring)? {
         let declaration = line.drop { $0 == " " || $0 == "\t" }
         guard declaration.hasPrefix("alias ") else { return nil }
-        let binding = declaration.dropFirst(6).drop { $0 == " " }
-        guard let equals = binding.firstIndex(of: "=") else { return nil }
-        let name = binding[..<equals]
+        let assignment = declaration.dropFirst(6).drop { $0 == " " }
+        guard let equals = assignment.firstIndex(of: "=") else { return nil }
+        let name = assignment[..<equals]
         guard !name.isEmpty, name.allSatisfy(isNameCharacter) else { return nil }
-        return String(name)
+        return (String(name), assignment[assignment.index(after: equals)...])
     }
 
     /// What a name may be made of, which excludes the flags and quoting a shell also accepts.

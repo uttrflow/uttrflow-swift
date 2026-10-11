@@ -57,6 +57,31 @@ struct DictationWaitTests {
         #expect(cold.cause == .modelLoad)
     }
 
+    @Test("A cold tidier session is named, and a timed-out tidy does not name its cold seconds again.")
+    func coldSessionMapsToACause() {
+        let wait = DictationWait(
+            wait: .seconds(9),
+            stages: [StageMeasurement(stage: .transformation, duration: .seconds(5), succeeded: false)],
+            decoding: [], screenReads: .zero, tidyColdStart: .seconds(3))
+        #expect(wait.spent[.tidyColdSession] == .seconds(3))
+        #expect(wait.spent[.tidyTimeout] == .seconds(2))
+        #expect(wait.spent[.other] == .seconds(4))
+    }
+
+    @Test("A wait spent starting the tidier cold is named a cold session once the log knows the usual cost.")
+    func coldSessionIsNamed() {
+        var log = DictationWaits()
+        for _ in 0..<5 {
+            log.classify(
+                DictationWait(wait: .seconds(2), stages: [], decoding: [], screenReads: .milliseconds(200)))
+        }
+        let cold = log.classify(
+            DictationWait(
+                wait: .seconds(8), stages: [], decoding: [], screenReads: .milliseconds(200),
+                tidyColdStart: .seconds(5)))
+        #expect(cold.cause == .tidyColdSession)
+    }
+
     @Test("A tidy that finished in time is not a timeout.")
     func finishedTidyIsNotATimeout() {
         let wait = DictationWait(

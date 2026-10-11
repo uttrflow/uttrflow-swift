@@ -82,6 +82,10 @@ public struct HistoryRow: Sendable, Equatable, Identifiable {
     public let whatChanged: [String]
     /// The recogniser's words before clean-up, masked like the text; absent when unrecorded or unchanged.
     public let asHeard: String?
+    /// "Formatted as SQL" when spoken notation ran; absent for prose and for a record that kept no notation.
+    public let formattedAs: String?
+    /// Copies the recogniser's words, the form before notation; absent unless notation ran and those words were kept.
+    public let asSpoken: MainAction?
 
     /// Builds a row from its parts; everything after the text defaults to a bare dictation.
     public init(
@@ -89,7 +93,7 @@ public struct HistoryRow: Sendable, Equatable, Identifiable {
         time: String = "", length: String = "", tag: String? = nil, isFlagged: Bool = false,
         arrival: String? = nil, actions: [MainAction] = [], more: [MainAction] = [],
         recording: HistoryRecording? = nil, fixes: [MainAction] = [], whatChanged: [String] = [],
-        asHeard: String? = nil
+        asHeard: String? = nil, formattedAs: String? = nil, asSpoken: MainAction? = nil
     ) {
         self.id = id
         self.application = application
@@ -106,6 +110,8 @@ public struct HistoryRow: Sendable, Equatable, Identifiable {
         self.fixes = fixes
         self.whatChanged = whatChanged
         self.asHeard = asHeard
+        self.formattedAs = formattedAs
+        self.asSpoken = asSpoken
     }
 }
 
@@ -168,6 +174,8 @@ public struct HistorySnapshot: Sendable, Equatable {
     public let now: Date
     /// Whether ``entries`` has been read from the store yet; false only before the first reading.
     public let hasReadHistory: Bool
+    /// The text of every snippet marked secret; a dictation holding one is masked. See ``DictationTextPresentation``.
+    public let secretPhrases: [String]
 
     /// Builds a snapshot; everything but entries and the clock has a default.
     public init(
@@ -180,8 +188,10 @@ public struct HistorySnapshot: Sendable, Equatable {
         retrying: UUID? = nil,
         playing: UUID? = nil,
         now: Date,
-        hasReadHistory: Bool = true
+        hasReadHistory: Bool = true,
+        secretPhrases: [String] = []
     ) {
+        self.secretPhrases = secretPhrases
         self.entries = entries
         self.query = query
         self.settings = settings
@@ -386,7 +396,8 @@ public enum HistoryPresenter {
         case .entry(let entry):
             row(
                 for: entry, words: words, relativeTo: snapshot.now, calendar: calendar,
-                locale: locale, canKeepAsClip: snapshot.canKeepAsClip)
+                locale: locale, canKeepAsClip: snapshot.canKeepAsClip,
+                secretPhrases: snapshot.secretPhrases)
         case .recording(let recording):
             row(for: recording, snapshot: snapshot, calendar: calendar, locale: locale)
         }
@@ -416,14 +427,16 @@ public enum HistoryPresenter {
     /// One dictation as a row, with the buttons it offers when pointed at.
     static func row(
         for entry: HistoryEntry, words: Int? = nil, relativeTo now: Date,
-        calendar: Calendar = .autoupdatingCurrent, locale: Locale, canKeepAsClip: Bool = false
+        calendar: Calendar = .autoupdatingCurrent, locale: Locale, canKeepAsClip: Bool = false,
+        secretPhrases: [String] = []
     ) -> HistoryRow {
         let (tag, tone) = HomeDashboard.outcome(of: entry.changes)
+        let shown = DictationTextPresentation(entry.text, secretPhrases: secretPhrases)
         return HistoryRow(
             id: entry.id,
             application: application(for: entry),
             when: when(entry.when, relativeTo: now, locale: locale),
-            text: DictationTextPresentation(entry.text).displayText,
+            text: shown.displayText,
             time: HomeDashboard.time(entry.when, calendar: calendar, locale: locale),
             length: length(of: entry, words: words),
             // Only a change is worth a tag; "as dictated" is what every quiet row already says.
@@ -454,10 +467,31 @@ public enum HistoryPresenter {
                             intent: .keepDictationAsClip(entry.id))
                     ]
                     : []) + [.delete(.forgetDictation(entry.id))],
-            fixes: fixes(for: entry.text),
+            // A "Fix" title would spell the hidden words out.
+            fixes: shown.isSecret ? [] : fixes(for: entry.text),
             whatChanged: (entry.changes?.corrections ?? []).map(phrase(for:))
                 + (entry.whatChanged ?? []).map(phrase(for:)),
-            asHeard: entry.heard.map { DictationTextPresentation($0).displayText })
+            asHeard: entry.heard.map {
+                DictationTextPresentation($0, secretPhrases: secretPhrases).displayText
+            },
+            formattedAs: formattedAs(entry.notation),
+            asSpoken: asSpoken(for: entry))
+    }
+
+    /// Names the kind of writing notation ran for; absent for a kind with no notation, never a guessed name.
+    static func formattedAs(_ notation: NotationUse?) -> String? {
+        switch notation?.destination {
+        case .sqlEditor: "Formatted as SQL"
+        case .codeEditor: "Formatted as code"
+        case .terminal: "Formatted as a command"
+        case .document, .spreadsheet, .messaging, .email, .plain, nil: nil
+        }
+    }
+
+    /// The way back to the words as spoken, offered only where notation ran and the record kept them.
+    static func asSpoken(for entry: HistoryEntry) -> MainAction? {
+        guard formattedAs(entry.notation) != nil, let heard = entry.heard else { return nil }
+        return MainAction(title: "Copy as Spoken", symbolName: "text.quote", intent: .copy(heard))
     }
 
     /// One dictionary correction as one phrase naming the signal that decided it, in the order the stages ran.

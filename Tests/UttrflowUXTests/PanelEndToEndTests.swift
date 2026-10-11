@@ -41,6 +41,8 @@ struct PanelEndToEndTests {
             switch change {
             case .setAlias(let id, let alias):
                 _ = try await store.setAlias(alias, of: id, keeping: retention)
+            case .setLabels(let id, let alias, let tags):
+                _ = try await store.setLabels(alias: alias, tags: tags, of: id, keeping: retention)
             case .setCategory(let id, let category):
                 _ = try await store.setCategory(category, of: id, keeping: retention)
             case .setPinned(let id, let isPinned):
@@ -70,8 +72,6 @@ struct PanelEndToEndTests {
                 }
             case .deleteCategoryAndClips(let name):
                 _ = try await store.deleteCategory(name, keeping: retention)
-            case .restore(let clip):
-                _ = try await store.restore(clip, keeping: retention)
             }
         }
 
@@ -185,7 +185,7 @@ struct PanelEndToEndTests {
         try await harness.carryOut(.delete(target.id))
         #expect(await harness.clip("keep me") == nil)
 
-        try await harness.carryOut(.restore(target))
+        _ = try await harness.store.restore(target, keeping: harness.retention)
 
         let back = try #require(await harness.clip("keep me"))
         #expect(back.alias == "keeper")
@@ -208,7 +208,7 @@ struct PanelEndToEndTests {
             Clip(text: target.text, kind: target.kind, copiedAt: Date()), keeping: harness.retention)
         let newerID = try #require(await harness.clip("pg prod")).id
 
-        try await harness.carryOut(.restore(target))
+        _ = try await harness.store.restore(target, keeping: harness.retention)
 
         let clips = await harness.store.clips(keeping: harness.retention)
         #expect(clips.count == 1)
@@ -239,7 +239,7 @@ struct PanelEndToEndTests {
         #expect(await harness.clip("leave this alone") != nil)
 
         for clip in deleted {
-            try await harness.carryOut(.restore(clip))
+            _ = try await harness.store.restore(clip, keeping: harness.retention)
         }
         #expect(await harness.clip("pinned note")?.isPinned == true)
         #expect(await harness.clip("named note")?.alias == "named")

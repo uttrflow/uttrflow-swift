@@ -23,12 +23,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     private let cue: any RecordingCueing
     private let clock: ClockType
     private let limit: DictationLimit
-    /// Told how a long recording is going, so the interface can say so and then stop it.
-    private let onAdvice: @Sendable (DictationAdvice) -> Void
-    /// Told once when a dictation first reaches its warning point.
-    private let onWarning: @Sendable (DictationAdvice) -> Void
-    /// Told when the gesture that ends a recording changes, so the dock can say so even mid-recording.
-    private let onStopGestureChange: @Sendable (StopGesture) -> Void
+    private let observers: Observers
     private var limitTask: Task<Void, Never>?
     /// Which dictation's cap `limitTask` is, so an older cap can neither finish nor stop a newer one.
     private var limitGeneration = 0
@@ -36,6 +31,8 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     private var endOnSilence: SilenceStop?
     /// Listens for that quiet, under the same generation as the cap.
     private var silenceTask: Task<Void, Never>?
+    /// The seconds the dock is showing before End on silence ends the recording, if it is.
+    private var silenceSecondsLeft: Int?
     /// The last finished dictation's recognition and insertion, which run off the queue. See Docs/pipeline-gestures.md.
     private var processing: Task<Void, Never>?
 
@@ -47,8 +44,6 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     private var holdLength: Duration
     /// How long the microphone stays open after a hold's key comes up; press-to-toggle and taps have none.
     private let releaseGrace: Duration
-    /// Told when a tap lands after the double-tap window but within twice it, so the miss is not silent.
-    private let onNearMissTap: @Sendable () -> Void
     private var pressedAt: ClockType.Instant?
     /// When the last slip ended, so the next one can tell whether it is the second of a pair.
     private var lastTapEndedAt: ClockType.Instant?
@@ -69,7 +64,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     /// Whether the press in progress opened the microphone, and so what withdrawing it has to undo.
     private var pressOpenedTheMicrophone = false
     /// A key event, or a click that has no release and is told when it has been handled.
-    private enum Gesture: Sendable {
+    enum Gesture: Sendable {
         case key(HotkeyEvent, UtteranceRoute)
         case control(DictationCommand, CheckedContinuation<DictationCommandOutcome, Never>)
         /// The press with this id has been held long enough to count.
@@ -84,10 +79,86 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         case limitReached(Int)
         /// This generation of dictation has been quiet for the chosen wait.
         case silenceReached(Int)
+        /// This generation of dictation has this many seconds of quiet left before it ends, or none once speech resets it.
+        case silenceCountdown(Int, Int?)
         /// The active session is ending, so an open dictation finishes before control leaves the user.
         case sessionEnding(CheckedContinuation<Void, Never>)
         /// Answered once the queue reaches it, whatever is still being processed.
         case reached(CheckedContinuation<Void, Never>)
+
+        /// Answers a caller still waiting on a gesture the controller will never handle, so it is not left suspended.
+        func releaseWaiter() {
+            switch self {
+            case .control(_, let handled):
+                handled.resume(returning: .nothingRecording)
+            case .drained(let handled), .reached(let handled),
+                .activation(_, let handled), .handsFree(_, let handled), .sessionEnding(let handled):
+                handled.resume()
+            case .key, .settled, .limitReached, .silenceReached, .silenceCountdown: break
+            }
+        }
+    }
+
+    /// What a controller is set to do, all of it adjustable later through the setters below.
+    public struct Options: Sendable {
+        public var activation: HotkeyActivation
+        /// Whether a double tap of held keys leaves the microphone open.
+        public var handsFreeEnabled: Bool
+        public var doubleTapWindow: Duration
+        public var minimumHold: Duration
+        public var releaseGrace: Duration
+        public var limit: DictationLimit
+        public var endOnSilence: SilenceStop?
+
+        public init(
+            activation: HotkeyActivation = .holdToTalk,
+            handsFreeEnabled: Bool = true,
+            doubleTapWindow: Duration = .milliseconds(450),
+            minimumHold: Duration = .milliseconds(200),
+            releaseGrace: Duration = .zero,
+            limit: DictationLimit = .default,
+            endOnSilence: SilenceStop? = nil
+        ) {
+            self.activation = activation
+            self.handsFreeEnabled = handsFreeEnabled
+            self.doubleTapWindow = doubleTapWindow
+            self.minimumHold = minimumHold
+            self.releaseGrace = releaseGrace
+            self.limit = limit
+            self.endOnSilence = endOnSilence
+        }
+    }
+
+    /// The callbacks that tell the interface what the controller is doing.
+    public struct Observers: Sendable {
+        /// Told how a long recording is going, so the interface can say so and then stop it.
+        public var onAdvice: @Sendable (DictationAdvice) -> Void
+        /// Told once when a dictation first reaches its warning point.
+        public var onWarning: @Sendable (DictationAdvice) -> Void
+        /// Told the seconds left before End on silence finishes a recording, and `nil` once the quiet ends or the recording does.
+        public var onSilenceCountdown: @Sendable (Int?) -> Void
+        /// Told once per countdown, with the seconds left when it began.
+        public var onSilenceWarning: @Sendable (Int) -> Void
+        /// Told when a tap lands after the double-tap window but within twice it, so the miss is not silent.
+        public var onNearMissTap: @Sendable () -> Void
+        /// Told when the gesture that ends a recording changes, so the dock can say so even mid-recording.
+        public var onStopGestureChange: @Sendable (StopGesture) -> Void
+
+        public init(
+            onAdvice: @escaping @Sendable (DictationAdvice) -> Void = { _ in },
+            onWarning: @escaping @Sendable (DictationAdvice) -> Void = { _ in },
+            onSilenceCountdown: @escaping @Sendable (Int?) -> Void = { _ in },
+            onSilenceWarning: @escaping @Sendable (Int) -> Void = { _ in },
+            onNearMissTap: @escaping @Sendable () -> Void = {},
+            onStopGestureChange: @escaping @Sendable (StopGesture) -> Void = { _ in }
+        ) {
+            self.onAdvice = onAdvice
+            self.onWarning = onWarning
+            self.onSilenceCountdown = onSilenceCountdown
+            self.onSilenceWarning = onSilenceWarning
+            self.onNearMissTap = onNearMissTap
+            self.onStopGestureChange = onStopGestureChange
+        }
     }
 
     /// Every gesture from every source, handled one at a time. See Docs/pipeline-gestures.md.
@@ -99,78 +170,37 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         monitor: any HotkeyMonitoring,
         commandMonitor: (any HotkeyMonitoring)? = nil,
         cue: any RecordingCueing = SilentCue(),
-        activation: HotkeyActivation = .holdToTalk,
-        handsFreeEnabled: Bool = true,
-        doubleTapWindow: Duration = .milliseconds(450),
-        minimumHold: Duration = .milliseconds(200),
-        releaseGrace: Duration = .zero,
         clock: ClockType,
-        limit: DictationLimit = .default,
-        endOnSilence: SilenceStop? = nil,
-        onAdvice: @escaping @Sendable (DictationAdvice) -> Void = { _ in },
-        onWarning: @escaping @Sendable (DictationAdvice) -> Void = { _ in },
-        onNearMissTap: @escaping @Sendable () -> Void = {},
-        onStopGestureChange: @escaping @Sendable (StopGesture) -> Void = { _ in }
+        options: Options = Options(),
+        observers: Observers = Observers()
     ) {
         self.pipeline = pipeline
         self.monitor = monitor
         self.commandMonitor = commandMonitor
         self.cue = cue
-        self.activation = activation
-        self.handsFreeEnabled = handsFreeEnabled
-        self.doubleTapWindow = doubleTapWindow
-        self.holdLength = minimumHold
-        self.releaseGrace = releaseGrace
-        self.onNearMissTap = onNearMissTap
         self.clock = clock
-        self.limit = limit
-        self.endOnSilence = endOnSilence
-        self.onAdvice = onAdvice
-        self.onWarning = onWarning
-        self.onStopGestureChange = onStopGestureChange
+        self.activation = options.activation
+        self.handsFreeEnabled = options.handsFreeEnabled
+        self.doubleTapWindow = options.doubleTapWindow
+        self.holdLength = options.minimumHold
+        self.releaseGrace = options.releaseGrace
+        self.limit = options.limit
+        self.endOnSilence = options.endOnSilence
+        self.observers = observers
         (gestures, gestureSink) = AsyncStream<Gesture>.makeStream()
-        // Weak, like the forwarder below: a strong `self` here would never let the controller die.
+        startForwarding()
+        // Tells the dock the resting gesture so a press-to-toggle shortcut does not read .letGo.
+        observers.onStopGestureChange(
+            Self.currentStopGesture(activation: options.activation, isHandsFree: false))
+    }
+
+    /// Starts the gesture loop and the monitor forwarders, none holding the controller, so it can still die.
+    private nonisolated func startForwarding() {
         let queued = gestures
         Task { [weak self] in
             for await gesture in queued {
-                guard let self else {
-                    // A caller still waiting is answered, so it is not left suspended forever.
-                    switch gesture {
-                    case .control(_, let handled):
-                        handled.resume(returning: .nothingRecording)
-                    case .drained(let handled), .reached(let handled),
-                        .activation(_, let handled), .handsFree(_, let handled), .sessionEnding(let handled):
-                        handled.resume()
-                    case .key, .settled, .limitReached, .silenceReached: break
-                    }
-                    continue
-                }
-                switch gesture {
-                case .key(let event, let route):
-                    await respond(to: event, from: route)
-                case .control(let command, let handled):
-                    let outcome = await perform(command)
-                    await answer(handled, with: outcome)
-                case .settled(let id):
-                    await settle(id)
-                case .activation(let activation, let handled):
-                    await adopt(activation)
-                    await answer(handled)
-                case .handsFree(let enabled, let handled):
-                    await adoptHandsFree(enabled)
-                    await answer(handled)
-                case .drained(let handled):
-                    await answer(handled)
-                case .reached(let handled):
-                    handled.resume()
-                case .limitReached(let generation):
-                    await finishAtTheLimit(generation)
-                case .silenceReached(let generation):
-                    await finishOnSilence(generation)
-                case .sessionEnding(let handled):
-                    await finishForSessionEnding()
-                    await answer(handled)
-                }
+                guard let self else { gesture.releaseWaiter(); continue }
+                await dispatch(gesture)
             }
         }
         // Forwarded once for the controller's life: an `AsyncStream` has room for one reader.
@@ -183,8 +213,38 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
                 for await event in commandEvents { self?.submit(event, from: .command) }
             }
         }
-        // Tells the dock the resting gesture so a press-to-toggle shortcut does not read .letGo.
-        onStopGestureChange(Self.currentStopGesture(activation: activation, isHandsFree: false))
+    }
+
+    /// Handles one gesture; the only switch over `Gesture`, with `releaseWaiter` for a gesture never handled.
+    private func dispatch(_ gesture: Gesture) async {
+        switch gesture {
+        case .key(let event, let route):
+            await respond(to: event, from: route)
+        case .control(let command, let handled):
+            let outcome = await perform(command)
+            answer(handled, with: outcome)
+        case .settled(let id):
+            await settle(id)
+        case .activation(let activation, let handled):
+            await adopt(activation)
+            answer(handled)
+        case .handsFree(let enabled, let handled):
+            await adoptHandsFree(enabled)
+            answer(handled)
+        case .drained(let handled):
+            answer(handled)
+        case .reached(let handled):
+            handled.resume()
+        case .limitReached(let generation):
+            await finishAtTheLimit(generation)
+        case .silenceReached(let generation):
+            await finishOnSilence(generation)
+        case .silenceCountdown(let generation, let secondsLeft):
+            silenceCountdownChanged(to: secondsLeft, generation: generation)
+        case .sessionEnding(let handled):
+            await finishForSessionEnding()
+            answer(handled)
+        }
     }
 
     deinit {
@@ -243,7 +303,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         lastTapEndedAt = nil
         pressOpenedTheMicrophone = false
         isHandsFree = false
-        onStopGestureChange(currentStopGesture)
+        observers.onStopGestureChange(currentStopGesture)
         guard await pipeline.currentState.isListening else { return }
         stopWatchingTheLimit()
         await finishListening()
@@ -293,7 +353,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     /// Records a tap that did not pair, announcing it when it fell just outside the window.
     private func recordUnpairedTap(at now: ClockType.Instant) {
         if handsFreeEnabled, let last = lastTapEndedAt, last.duration(to: now) < doubleTapWindow * 2 {
-            onNearMissTap()
+            observers.onNearMissTap()
         }
         lastTapEndedAt = now
     }
@@ -317,7 +377,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     private func setHandsFree(_ value: Bool) {
         guard isHandsFree != value else { return }
         isHandsFree = value
-        onStopGestureChange(currentStopGesture)
+        observers.onStopGestureChange(currentStopGesture)
     }
 
     /// Answers a waiting caller once any dictation finished so far has been inserted, without holding the queue.
@@ -346,7 +406,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     private func resetControlStartedRecording() {
         guard controlStartedRecording else { return }
         controlStartedRecording = false
-        onStopGestureChange(currentStopGesture)
+        observers.onStopGestureChange(currentStopGesture)
     }
 
     // MARK: Events
@@ -617,7 +677,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
             // Only a control is ended by a click; the press-to-toggle shortcut ends its own recording.
             guard fromControl else { return .started }
             controlStartedRecording = true
-            onStopGestureChange(.clickAgain)
+            observers.onStopGestureChange(.clickAgain)
             return .started
         case (.start, true):
             return .alreadyRecording
@@ -632,11 +692,6 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
 
     private func beginListening(route: UtteranceRoute, adoptingModifierCapture: Bool = false) async {
         resetControlStartedRecording()
-        // The previous take can still be transcribed; a new capture must not wait for its insertion.
-        if let processing {
-            self.processing = nil
-            Task { await processing.value }
-        }
         await pipeline.route(next: route)
         if adoptingModifierCapture {
             await pipeline.adoptModifierPress()
@@ -645,6 +700,11 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         }
         // Only once the pipeline is listening, so a refused microphone does not sound as though it worked.
         if await pipeline.currentState.isListening {
+            // An accepted capture leaves the previous take's remaining work running independently.
+            if let processing {
+                self.processing = nil
+                Task { await processing.value }
+            }
             cue.playStart()
             watchTheLimit()
         }
@@ -655,16 +715,16 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         limitTask?.cancel()
         limitGeneration += 1
         let generation = limitGeneration
-        limitTask = Task { [clock, limit, onAdvice, onWarning, gestureSink] in
+        limitTask = Task { [clock, limit, observers, gestureSink] in
             let start = clock.now
             do {
                 // Deadlines from the start, so a late wake-up cannot push the cap back.
                 for elapsed in limit.countdown {
                     try await clock.sleep(until: start.advanced(by: elapsed), tolerance: nil)
                     if elapsed == limit.warnAfter {
-                        onWarning(limit.advice(at: elapsed))
+                        observers.onWarning(limit.advice(at: elapsed))
                     }
-                    onAdvice(limit.advice(at: elapsed))
+                    observers.onAdvice(limit.advice(at: elapsed))
                 }
                 try await clock.sleep(until: start.advanced(by: limit.stopAfter), tolerance: nil)
             } catch {
@@ -675,10 +735,24 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         }
         silenceTask = endOnSilence.map { stop in
             Task { [pipeline, clock, gestureSink] in
-                do { try await pipeline.silence(reaching: stop, on: clock) } catch { return }
+                do {
+                    try await pipeline.silence(reaching: stop, on: clock) {
+                        gestureSink.yield(.silenceCountdown(generation, $0))
+                    }
+                } catch { return }
                 gestureSink.yield(.silenceReached(generation))
             }
         }
+    }
+
+    /// Passes the countdown on while the silence watch is the only thing that can end the recording; a held key outranks it.
+    private func silenceCountdownChanged(to secondsLeft: Int?, generation: Int) {
+        guard generation == limitGeneration, silenceTask != nil else { return }
+        let shown = currentStopGesture == .letGo ? nil : secondsLeft
+        guard shown != silenceSecondsLeft else { return }
+        if let shown, silenceSecondsLeft == nil { observers.onSilenceWarning(shown) }
+        silenceSecondsLeft = shown
+        observers.onSilenceCountdown(shown)
     }
 
     /// Ends a recording that fell quiet the way its stop gesture would; one a key still holds is left to the key.
@@ -694,7 +768,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     /// Ends a dictation that reached its own cap, keeping every word of it; a stale cap does nothing.
     private func finishAtTheLimit(_ generation: Int) async {
         guard generation == limitGeneration, limitTask != nil else { return }
-        onAdvice(.finishNow)
+        observers.onAdvice(.finishNow)
         guard await pipeline.currentState.isListening else { return stopWatchingTheLimit(generation) }
         setHandsFree(false)
         await finishListening()
@@ -712,7 +786,11 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         limitTask = nil
         silenceTask?.cancel()
         silenceTask = nil
-        onAdvice(.keepGoing)
+        if silenceSecondsLeft != nil {
+            silenceSecondsLeft = nil
+            observers.onSilenceCountdown(nil)
+        }
+        observers.onAdvice(.keepGoing)
     }
 
     private func endHold() async {

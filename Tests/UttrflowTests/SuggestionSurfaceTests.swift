@@ -59,6 +59,26 @@ struct SuggestionSurfaceTests {
     func displayChangeWithdrawsTheVisibleSuggestion() throws {
         let screen = try #require(NSScreen.screens.first).visibleFrame
         let caret = CGRect(x: screen.minX + 200, y: screen.midY, width: 0, height: 17)
+        let center = NotificationCenter()
+        let panel = SuggestionPanelController(screenNotificationCenter: center)
+        defer { panel.hide() }
+        var withdrewUnasked = false
+        panel.onWithdrawnUnasked = { withdrewUnasked = true }
+        panel.show(.certain("meeting"), placement: .inlineGhost, caret: caret)
+        #expect(panel.isShowing)
+
+        center.post(
+            name: NSApplication.didChangeScreenParametersNotification, object: nil)
+
+        #expect(!panel.isShowing)
+        #expect(panel.drawn.style == .hidden)
+        #expect(withdrewUnasked)
+    }
+
+    @Test("The system hiding the panel, as Mission Control does, withdraws the visible suggestion")
+    func systemHidingThePanelWithdrawsTheSuggestion() throws {
+        let screen = try #require(NSScreen.screens.first).visibleFrame
+        let caret = CGRect(x: screen.minX + 200, y: screen.midY, width: 0, height: 17)
         let panel = SuggestionPanelController()
         defer { panel.hide() }
         var withdrewUnasked = false
@@ -66,9 +86,15 @@ struct SuggestionSurfaceTests {
         panel.show(.certain("meeting"), placement: .inlineGhost, caret: caret)
         #expect(panel.isShowing)
 
+        panel.systemHidesPanel = { false }
         NotificationCenter.default.post(
-            name: NSApplication.didChangeScreenParametersNotification, object: nil)
+            name: NSWindow.didChangeOcclusionStateNotification, object: panel.window)
+        #expect(panel.isShowing)
+        #expect(!withdrewUnasked)
 
+        panel.systemHidesPanel = { true }
+        NotificationCenter.default.post(
+            name: NSWindow.didChangeOcclusionStateNotification, object: panel.window)
         #expect(!panel.isShowing)
         #expect(panel.drawn.style == .hidden)
         #expect(withdrewUnasked)
@@ -227,7 +253,8 @@ struct SuggestionSurfaceTests {
     func aSuggestionIsAnnouncedOnce() async throws {
         let screen = try #require(NSScreen.screens.first).visibleFrame
         let caret = CGRect(x: screen.minX + 200, y: screen.midY, width: 0, height: 17)
-        let panel = SuggestionPanelController.shared
+        let panel = SuggestionPanelController()
+        panel.systemHidesPanel = { false }
         let original = panel.announce
         let originalSleep = panel.announcementSleep
         var heard: [String] = []
@@ -244,13 +271,16 @@ struct SuggestionSurfaceTests {
         }
         panel.show(.certain("meeting"), placement: .inlineGhost, caret: caret)
         panel.show(.certain("meeting"), typed: "mee", placement: .inlineGhost, caret: caret)
+        panel.window.orderOut(nil)
         try await eventually { !heard.isEmpty }
         #expect(heard == ["AI suggestion: meeting. Tab to accept."])
         panel.show(.certain("meeting"), placement: .inlineGhost)
         panel.show(.certain("meeting"), placement: .inlineGhost, caret: caret)
+        panel.window.orderOut(nil)
         try await eventually { heard.count == 2 }
         panel.hide()
         panel.show(.certain("meeting"), placement: .inlineGhost, caret: caret, acceptKey: .rightArrow)
+        panel.window.orderOut(nil)
         try await eventually { heard.count == 3 }
         #expect(heard.last == "AI suggestion: meeting. Right Arrow to accept.")
     }

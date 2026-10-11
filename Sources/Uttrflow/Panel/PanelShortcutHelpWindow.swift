@@ -45,7 +45,7 @@ enum PanelShortcutHelpWindow {
         return panel
     }
 
-    private static func close() {
+    static func close() {
         guard let window else { return }
         let parent = window.parent
         window.orderOut(nil)

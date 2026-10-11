@@ -201,6 +201,11 @@ struct SettingsShortcutField: View {
                 } else {
                     SettingsKeys(keys: keys)
                 }
+                if !keys.isEmpty {
+                    Button("Remove") { model.apply(.clearShortcut(action)) }
+                        .buttonStyle(SettingsButtonStyle())
+                        .accessibilityLabel("Remove the \(ShortcutRegistry.label(for: action)) shortcut")
+                }
                 Button {
                     model.beginRecordingShortcut(action)
                 } label: {

@@ -204,6 +204,48 @@ struct SettingsShortcutValidationTests {
         #expect(updated.shortcutsReturnedToDefault == [.clipboard])
     }
 
+    @Test("clearing a shortcut leaves that action with no keys and every other one alone")
+    func clearingLeavesNone() throws {
+        for action in ShortcutAction.allCases {
+            let updated = try applied(.clearShortcut(action))
+
+            #expect(!updated.shortcuts.isBound(action), "\(action)")
+            for other in ShortcutAction.allCases where other != action {
+                let shipped = ShortcutSet.default.bindings(for: other)
+                #expect(updated.shortcuts.bindings(for: other) == shipped)
+            }
+        }
+    }
+
+    @Test("clearing a shortcut forgets that it was returned to its default")
+    func clearingForgetsTheReturnedNote() throws {
+        var settings = Settings.default
+        settings.shortcutsReturnedToDefault = [.clipboard, .dictate]
+
+        let updated = try applied(.clearShortcut(.clipboard), to: settings)
+
+        #expect(updated.shortcutsReturnedToDefault == [.dictate])
+    }
+
+    @Test("restoring defaults changes only the shortcuts")
+    func restoreTouchesOnlyShortcuts() throws {
+        var settings = Settings.default
+        settings.shortcuts.removeAll(from: .dictate)
+        settings.shortcuts.replace(at: 0, with: .optionSpace, for: .clipboard)
+        settings.shortcutsReturnedToDefault = [.copyLastTranscript]
+        settings.clipboardRetentionDays = 3
+        settings.appearance = .dark
+
+        let restored = try applied(.restoreDefaultShortcuts, to: settings)
+
+        #expect(restored.shortcuts == ShortcutSet.default)
+        #expect(restored.shortcutsReturnedToDefault.isEmpty)
+        var expected = settings
+        expected.shortcuts = .default
+        expected.shortcutsReturnedToDefault = []
+        #expect(restored == expected)
+    }
+
     @Test("leaves the previous shortcut in force when the new one is refused")
     func previousShortcutSurvives() {
         var settings = Settings.default
@@ -229,6 +271,17 @@ struct SettingsRetentionTests {
             let restored = try JSONDecoder().decode(Settings.self, from: data)
 
             #expect(restored.transcriptRetentionDays == days, "\(days) was not kept")
+        }
+    }
+
+    @Test("a clipboard period changes the clipboard setting alone and refuses an unoffered one")
+    func clipboardPeriodIsIndependent() throws {
+        let settings = Settings.default
+        let updated = try SettingsEditor.apply(.clipboardRetention(days: 30), to: settings)
+        #expect(updated.clipboardRetentionDays == 30)
+        #expect(updated.transcriptRetentionDays == settings.transcriptRetentionDays)
+        #expect(throws: SettingsRejection.self) {
+            try SettingsEditor.apply(.clipboardRetention(days: 5), to: settings)
         }
     }
 

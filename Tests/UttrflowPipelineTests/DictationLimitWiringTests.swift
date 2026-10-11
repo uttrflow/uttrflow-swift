@@ -176,11 +176,16 @@ struct DictationLimitWiringTests {
                 clock: ManualClock()),
             monitor: SilentMonitor(),
             cue: cue,
-            activation: .holdToTalk,
             clock: clock,
-            limit: Self.limit,
-            onAdvice: advice,
-            onWarning: warning)
+            options: .init(
+                activation: .holdToTalk,
+                limit: Self.limit
+            ),
+            observers: .init(
+                onAdvice: advice,
+                onWarning: warning
+            )
+        )
     }
 
     private func makeGatedPipeline(
@@ -352,8 +357,15 @@ struct DictationLimitWiringTests {
         let cue = LimitCue()
         let pipeline = makeGatedPipeline(capture: capture, inserter: inserter, speech: speech)
         let controller = DictationController(
-            pipeline: pipeline, monitor: SilentMonitor(), cue: cue, activation: .holdToTalk,
-            clock: clock, limit: Self.limit)
+            pipeline: pipeline,
+            monitor: SilentMonitor(),
+            cue: cue,
+            clock: clock,
+            options: .init(
+                activation: .holdToTalk,
+                limit: Self.limit
+            )
+        )
         await doubleTap(controller, clock: clock)
         await advance(clock, to: Self.limit.warnAfter)
         await advance(clock, to: Self.limit.stopAfter - Self.limit.warnAfter)
@@ -366,7 +378,7 @@ struct DictationLimitWiringTests {
             clock.advance(by: DictationController<ManualClock>.minimumHold - .milliseconds(1))
             controller.submit(.released)
         }
-        await controller.drained()
+        await controller.caughtUp()
         // Refused as Docs/pipeline-gestures.md says: no microphone opens, no cue sounds, nothing is left listening.
         #expect(await capture.calls.events == microphoneBefore)
         #expect(cue.startCount == startCuesBefore)
@@ -414,9 +426,12 @@ struct DictationLimitWiringTests {
         DictationController(
             pipeline: pipeline,
             monitor: SilentMonitor(),
-            activation: .pressToToggle,
             clock: clock,
-            limit: limit)
+            options: .init(
+                activation: .pressToToggle,
+                limit: limit
+            )
+        )
     }
 
     @Test(
@@ -469,7 +484,7 @@ struct DictationLimitWiringTests {
         for _ in 0..<1_000 { await Task.yield() }
         await controller.caughtUp()
         inserter.open()
-        // The refused presses leave nothing for drained() to wait on, so wait for the pipeline to end the first dictation.
+        // Wait for the released insertion to finish before beginning the next dictation.
         try await eventually { await pipeline.currentState.hasEnded }
         #expect(inserter.inserted == ["a long dictation"])
 

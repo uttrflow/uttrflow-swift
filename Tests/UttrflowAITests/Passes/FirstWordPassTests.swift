@@ -632,6 +632,31 @@ struct FirstWordPassTests {
         #expect(cleaned(input, by: pass) == expected)
     }
 
+    /// Ten invented lower-case entries keep their case x
+    @Test(
+        "keeps ten lower-case dictionary spellings at a piece start and after a stop",
+        arguments: ["kubectl", "npm", "pnpm", "ffmpeg", "tmux", "nginx", "zsh", "jq", "zorbix", "quillstack"]
+    )
+    func keepsEveryPinnedSpellingAtEachStart(entry: String) {
+        for policy in [FirstWordPolicy.fromInsertionPoint, .alwaysCapital] {
+            let pass = FirstWordPass(policy: policy, vocabulary: [entry])
+            #expect(cleaned("\(entry) runs now", by: pass) == "\(entry) runs now")
+            #expect(cleaned("it ran. \(entry) runs now", by: pass) == "It ran. \(entry) runs now")
+        }
+    }
+
+    @Test("writes a pinned spelling at a mid-sentence caret even when it was heard capitalised")
+    func keepsAPinnedSpellingAtAMidSentenceCaret() {
+        let pass = FirstWordPass(policy: .fromInsertionPoint, state: .midSentence, vocabulary: ["kubectl"])
+        #expect(cleaned("Kubectl apply the file", by: pass) == "kubectl apply the file")
+    }
+
+    @Test("keeps a capitalised dictionary entry capitalised mid-sentence")
+    func keepsACapitalisedEntryMidSentence() {
+        let pass = FirstWordPass(policy: .fromInsertionPoint, vocabulary: ["Zorbix", "kubectl"])
+        #expect(cleaned("we ran Zorbix and kubectl today", by: pass) == "We ran Zorbix and kubectl today")
+    }
+
     @Test("still capitalises an ordinary lower-case entry and keeps a capitalised one")
     func pinsOnlyUnusualLowerCaseEntries() {
         let pass = FirstWordPass(vocabulary: ["okay", "Zorbix"])

@@ -162,6 +162,9 @@ extension MeaningPreservationGuard {
             if pieces[index].isDigits {
                 found.append(pieces[index].text)
                 index += 1
+            } else if let decimal = spokenDecimalMagnitude(words, from: index, reading: table) {
+                found.append(decimal.text)
+                index = decimal.end
             } else if let read = spokenNumber(words[index...]), read.count > 1 {
                 found += words[index..<(index + read.count)].compactMap { table[$0] }
                 index += read.count
@@ -185,10 +188,28 @@ extension MeaningPreservationGuard {
         return (read.value + unit, read.count + 1)
     }
 
+    /// A spoken decimal scaled by a magnitude letter after it ("two point five m" as 2500000), and where it ends.
+    private static func spokenDecimalMagnitude(
+        _ words: [String], from start: Int, reading table: [String: String]
+    ) -> (text: String, end: Int)? {
+        guard let whole = spokenNumber(words[start...]), start + whole.count < words.endIndex,
+            words[start + whole.count] == "point"
+        else { return nil }
+        var end = start + whole.count + 1
+        var fraction = ""
+        while end < words.endIndex, let digit = table[words[end]], digit.count == 1 {
+            fraction += digit
+            end += 1
+        }
+        guard !fraction.isEmpty, end < words.endIndex, let factor = Magnitude.spokenSuffixes[words[end]]
+        else { return nil }
+        return (Magnitude.scaled("\(whole.value).\(fraction)", by: factor), end + 1)
+    }
+
     /// The number scaled by a magnitude said as its own word after it ("six k" as 6000), stepping past that word.
     private static func spokenMagnitude(_ digits: String, _ words: [String], _ index: inout Int) -> String {
-        guard index < words.endIndex, Magnitude.spokenSuffixes.contains(words[index]),
-            let factor = Magnitude.suffixes[words[index]]
+        guard index < words.endIndex,
+            let factor = Magnitude.spokenSuffixes[words[index]]
         else { return digits }
         index += 1
         return Magnitude.scaled(digits, by: factor)

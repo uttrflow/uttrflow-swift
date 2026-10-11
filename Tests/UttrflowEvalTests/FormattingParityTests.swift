@@ -18,6 +18,8 @@ struct FormattingParityTests {
     static let knownGaps: Set<String> = [
         // A colon inside a token is spaced as prose: "8000: 8000", "node: 20".
         "probe-docker-run-flags", "probe-dockerfile-from", "probe-yaml-keys",
+        // A query of many clauses keeps "customer id" and "created at" as words and runs its clauses on one line.
+        "probe-sql-join",
         // Spoken regex marks and a dash inside brackets stay words: "caret [a dash z]".
         "probe-regex-pattern",
         // A spoken code-comment marker and mention are written as words.
@@ -107,14 +109,32 @@ struct FormattingParityTests {
         #expect(row?.refused == [ids[3]])
     }
 
+    @Test("measures the rules result of every recorded gap before its removal")
+    func measuredGapsForAbsorption() async throws {
+        let outputs = await Self.outputs.value
+        let measured = try Self.knownGaps.sorted().map { id in
+            let testCase = try #require(Self.tagged.first { $0.id == id })
+            let output = try #require(outputs[id])
+            return MeasuredFormattingGap(
+                id: id, rulesPassed: Scorer.score(output.rules, against: testCase).passed)
+        }
+        #expect(measured.count == Self.knownGaps.count)
+        if let path = ProcessInfo.processInfo.environment["UTTRFLOW_PARITY_MEASUREMENTS"] {
+            try JSONEncoder().encode(measured).write(to: URL(fileURLWithPath: path), options: .atomic)
+        }
+    }
+
     @Test("matches Docs/formatting-parity.md, which is generated from both paths' outputs")
     func pageMatchesOutputs() async throws {
         let generated = await Self.parity().markdown
         let environment = ProcessInfo.processInfo.environment
+        let page =
+            environment["UTTRFLOW_PARITY_PAGE_OUTPUT"]
+            .map { URL(fileURLWithPath: $0) } ?? Self.page
         if environment[GoldenFile.updateVariable] == "1", environment["CI"] == nil {
-            try generated.write(to: Self.page, atomically: true, encoding: .utf8)
+            try generated.write(to: page, atomically: true, encoding: .utf8)
         }
-        let recorded = try String(contentsOf: Self.page, encoding: .utf8)
+        let recorded = try String(contentsOf: page, encoding: .utf8)
         #expect(recorded == generated, "rerun with \(GoldenFile.updateVariable)=1 to regenerate the page")
     }
 }
@@ -130,4 +150,9 @@ private struct ExpectedAnswerModel: CleanupModel {
     ) async throws(TransformationError) -> String {
         answer
     }
+}
+
+private struct MeasuredFormattingGap: Encodable {
+    let id: String
+    let rulesPassed: Bool
 }

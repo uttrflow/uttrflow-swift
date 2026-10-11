@@ -59,6 +59,11 @@ struct ShortUtteranceTests {
 
         let devanagari = ShortUtteranceScore(said: yes, heard: "ठीक है", written: "theek hai", detected: nil)
         #expect(devanagari.wrongScriptOrLanguage && devanagari.exact)
+        // Devanagari decoded and then romanised is what the product ships: the written text is Latin.
+        #expect(!devanagari.writtenNonLatin && !devanagari.wrongLanguage)
+        let unromanised = ShortUtteranceScore(said: yes, heard: "ठीक है", written: "ठीक है", detected: .hindi)
+        #expect(unromanised.writtenNonLatin && !unromanised.wrongLanguage)
+        #expect(english.wrongLanguage && !english.writtenNonLatin)
     }
 
     @Test("turns scores into shares of the clips")

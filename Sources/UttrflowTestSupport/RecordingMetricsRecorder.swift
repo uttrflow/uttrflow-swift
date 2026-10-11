@@ -32,6 +32,13 @@ public actor RecordingMetricsRecorder: MetricsRecording {
         captureQualities.append(quality)
     }
 
+    /// The audio working ahead has not decoded at key-up, one per dictation, in the order they settled.
+    public private(set) var backlogs: [WorkAheadBacklog] = []
+
+    public func recordBacklog(_ backlog: WorkAheadBacklog) async {
+        backlogs.append(backlog)
+    }
+
     /// What reading the screen cost each dictation, in the order they settled.
     public private(set) var screenReads: [ScreenReadCost] = []
 
@@ -58,6 +65,13 @@ public actor RecordingMetricsRecorder: MetricsRecording {
 
     public func recordWait(_ wait: TimedWait) async {
         waits.append(wait)
+    }
+
+    /// The cold tidier time each report carried, in the order recorded.
+    public private(set) var tidyColdStarts: [Duration] = []
+
+    public func recordTidyColdStart(_ duration: Duration) async {
+        tidyColdStarts.append(duration)
     }
 
     public func measurements(for stage: PipelineStage) -> [StageMeasurement] {

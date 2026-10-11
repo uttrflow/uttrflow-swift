@@ -38,6 +38,13 @@ public struct SightingMemory: Sendable {
         await ledger.rows(keeping: window(moment)).filter { $0.kind == .sighting }
     }
 
+    /// The pair rows still inside retention at `moment`.
+    func pairRows(at moment: Date) async -> [EvidenceRow] {
+        await ledger.rows(keeping: window(moment)).filter {
+            $0.kind == .pairSighting || $0.kind == .pairLearnt
+        }
+    }
+
     /// Appends rows, refusing when the ledger on disk cannot be read.
     func append(_ rows: [EvidenceRow], at moment: Date) async throws {
         try await ledger.append(rows, keeping: window(moment))

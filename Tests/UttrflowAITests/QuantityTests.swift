@@ -138,6 +138,10 @@ struct QuantityGuardTests {
             ("it is about six k so bring shoes", "It is about 6k, so bring shoes."),
             ("there is nothing for 60 k", "There is nothing for 60k."),
             ("the last twenty five k were brutal", "The last 25k were brutal."),
+            // A million or a billion said as its letter, written 2.5M and 10B.
+            ("we raised two point five m", "We raised 2.5M."),
+            ("ten m users signed up", "10M users signed up."),
+            ("ten b dollars", "10B dollars."),
         ]
     )
     func acceptsAnAmountInAnotherForm(kept: String, rewritten: String) {

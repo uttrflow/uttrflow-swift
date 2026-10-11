@@ -13,6 +13,9 @@ extension MacContextEngine {
             readFrontmostApplication: { MacContextEngine.frontmostApplication() },
             readFocusOwner: { await MacContextEngine.focusOwner(of: $0) },
             readFocusedWindow: { await MacContextEngine.focusedWindow(of: $0, into: $1) },
+            readNames: {
+                await FocusedFieldReader.surroundings().map(SurroundingsNames.names(in:)) ?? []
+            },
             ownBundleIdentifier: Bundle.main.bundleIdentifier,
             ownProcessIdentifier: ProcessInfo.processInfo.processIdentifier,
             countInputs: { [inputs = InputCount(sinceLastInput: MacContextEngine.sinceKeyOrClick)] in

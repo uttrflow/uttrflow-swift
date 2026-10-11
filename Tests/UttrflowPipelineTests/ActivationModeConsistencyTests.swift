@@ -70,7 +70,8 @@ struct ActivationModeConsistencyTests {
         let clock = ManualClock()
         let controller = Controller(
             pipeline: session.pipeline, monitor: SilentMonitor(), commandMonitor: SilentMonitor(),
-            activation: gesture == .toggle ? .pressToToggle : .holdToTalk, clock: clock)
+            clock: clock,
+            options: .init(activation: gesture == .toggle ? .pressToToggle : .holdToTalk))
         switch gesture {
         case .hold:
             await controller.handle(.pressed)

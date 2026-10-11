@@ -9,8 +9,10 @@ public import UttrflowPredictStore
 public enum CaptureRefusal: String, Sendable, Equatable, CaseIterable {
     /// The field hides what is typed into it, so what it holds is never read.
     case secureField
-    /// The user said no to this application.
+    /// The user said no to this application, or it ships private and has not been allowed.
     case consentDeclined
+    /// The window names itself as a private window, so nothing typed in it is kept whatever was allowed.
+    case privateWindow
     /// The value has the shape of a credential.
     case looksLikeSecret
     /// The value is a short grouped digit code in an application that is not a terminal.
@@ -57,6 +59,7 @@ public enum CaptureGate {
         _ reading: FieldReading, given preferences: CapturePreferences
     ) -> CaptureRefusal? {
         guard !reading.isSecure else { return .secureField }
+        guard !reading.isInPrivateWindow else { return .privateWindow }
         switch preferences.decision(for: reading.bundleIdentifier) {
         case .refuseQuietly: return .consentDeclined
         case .proceed: return nil

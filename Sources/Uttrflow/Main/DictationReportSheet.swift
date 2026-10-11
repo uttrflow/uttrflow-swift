@@ -58,8 +58,12 @@ struct DictationReportPreview: View {
 /// Shows the preview in a standard alert; Copy and Save take the draft as it stands.
 @MainActor
 enum DictationReportSheet {
-    /// Presents `report`; `copy` puts text on the clipboard and says whether it could.
-    static func present(_ report: DictationReport, copy: (String) -> Bool) {
+    /// Presents `report`; `copy` puts text on the clipboard, `run` shows the alert and `save` takes the Save choice.
+    static func present(
+        _ report: DictationReport, copy: (String) -> Bool,
+        run: (NSAlert) -> NSApplication.ModalResponse = { $0.runModal() },
+        save: (DictationReport) -> Void = { DictationReportSheet.save($0) }
+    ) {
         let draft = DictationReportDraft(report)
         let alert = NSAlert()
         alert.messageText = "Report This Dictation"
@@ -71,7 +75,7 @@ enum DictationReportSheet {
         alert.addButton(withTitle: "Copy")
         alert.addButton(withTitle: "Save…")
         alert.addButton(withTitle: "Cancel")
-        switch alert.runModal() {
+        switch run(alert) {
         case .alertFirstButtonReturn:
             _ = copy(draft.report.text)
         case .alertSecondButtonReturn:
@@ -81,19 +85,24 @@ enum DictationReportSheet {
         }
     }
 
-    private static func save(_ report: DictationReport) {
+    /// Asks where to save the report; `choose` shows the panel and returns the chosen file, and `fail` shows the alert for a write that failed.
+    static func save(
+        _ report: DictationReport,
+        choose: (NSSavePanel) -> URL? = { $0.runModal() == .OK ? $0.url : nil },
+        fail: (NSAlert) -> Void = { _ = $0.runModal() }
+    ) {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.plainText]
         panel.nameFieldStringValue = "Uttrflow-Dictation-Report.txt"
         panel.canCreateDirectories = true
-        guard panel.runModal() == .OK, let destination = panel.url else { return }
+        guard let destination = choose(panel) else { return }
         do {
             try PrivateFile.writeOwnerOnlyAtomically(report.bytes, to: destination)
         } catch {
             let failure = NSAlert()
             failure.messageText = "Report could not be saved"
             failure.informativeText = "Uttrflow could not write the selected file."
-            failure.runModal()
+            fail(failure)
         }
     }
 }

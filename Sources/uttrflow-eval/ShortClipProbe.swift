@@ -58,6 +58,13 @@ struct ShortClipProbe: AsyncParsableCommand {
     var hindiVoice = "Rishi"
 
     @Option(
+        name: .long, help: "Measure only the replies spoken in this language code (en or hi); default all.")
+    var language: String?
+
+    @Flag(name: .long, help: "Skip arm B, the long dictations' last pieces.")
+    var skipLastPieces = false
+
+    @Option(
         name: .long, parsing: .upToNextOption,
         help: "Speaking rates in words a minute; the class is read at each.")
     var rates = [140, 220]
@@ -72,6 +79,10 @@ struct ShortClipProbe: AsyncParsableCommand {
         if voices.isEmpty { throw ValidationError("--voices needs at least one voice.") }
         if rates.isEmpty || rates.contains(where: { $0 <= 0 }) {
             throw ValidationError("--rates needs at least one positive rate.")
+        }
+        if let language, !LanguageCode.transcribed.contains(where: { $0.value == language }) {
+            throw ValidationError(
+                "--language must be one of: " + LanguageCode.transcribed.map(\.value).joined(separator: ", "))
         }
         if pause < 0 { throw ValidationError("--pause must not be negative.") }
         guard SpeechComputePlan(rawValue: compute) != nil else {
@@ -95,7 +106,7 @@ struct ShortClipProbe: AsyncParsableCommand {
         // One decode first, so the first measured clip does not carry the model's warm-up.
         _ = try await decoder.decode(Array(repeating: 0, count: 2 * AudioSamples.canonicalSampleRate))
         try await shortClips(decoder)
-        try await lastPieces(decoder)
+        if !skipLastPieces { try await lastPieces(decoder) }
     }
 
     /// Arm A: each reply of the class decoded alone, unpadded, as shipped, and under the two alternatives.
@@ -103,7 +114,8 @@ struct ShortClipProbe: AsyncParsableCommand {
         var outcomes: [Padding: [Reading]] = [:]
         var buckets: [ShortUtteranceBucket] = []
         var refused = 0
-        let readings = ShortUtterances.all.flatMap { utterance in
+        let readings = ShortUtterances.all.filter { language == nil || $0.language.value == language }.flatMap
+        { utterance in
             (utterance.language == .english ? voices : [hindiVoice]).flatMap { voice in
                 rates.map { (utterance, voice, $0) }
             }
@@ -164,7 +176,8 @@ struct ShortClipProbe: AsyncParsableCommand {
     private func classTable(_ rows: [(String, [ShortUtteranceScore])]) {
         print(
             "    " + "slice".padded(to: 12) + "clips".padded(to: 7) + "exact".padded(to: 8)
-                + "invented".padded(to: 10) + "empty".padded(to: 8) + "wrong script/lang")
+                + "invented".padded(to: 10) + "empty".padded(to: 8) + "wrong script/lang".padded(to: 20)
+                + "written non-Latin".padded(to: 19) + "wrong language")
         for (label, scores) in rows {
             let rates = ShortUtteranceRates(scores)
             func cell(_ count: Int, _ width: Int) -> String {
@@ -172,7 +185,9 @@ struct ShortClipProbe: AsyncParsableCommand {
             }
             print(
                 "    " + label.padded(to: 12) + "\(rates.clips)".padded(to: 7) + cell(rates.exact, 8)
-                    + cell(rates.invented, 10) + cell(rates.empty, 8) + cell(rates.wrongScriptOrLanguage, 0))
+                    + cell(rates.invented, 10) + cell(rates.empty, 8)
+                    + cell(rates.wrongScriptOrLanguage, 20) + cell(rates.writtenNonLatin, 19)
+                    + cell(rates.wrongLanguage, 0))
         }
     }
 

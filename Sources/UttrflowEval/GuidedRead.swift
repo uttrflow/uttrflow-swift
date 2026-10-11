@@ -30,12 +30,13 @@ package struct GuidedRead: Sendable, Equatable {
     package let missedTargets: [String]
 
     /// The pause setting whose sentence pause the speaker's long mid-sentence gap stays under; nil when no gap was timed.
-    package var pauses: PauseLength? {
-        guard let longPause else { return nil }
-        return PauseLength.allCases.first {
-            longPause < SpeechWindowing.standard.adjusted(for: $0).sentencePause
-        }
-            ?? .veryLong
+    package var pauses: PauseLength? { profile.pauses }
+
+    /// The aggregates a reading leaves behind, which is all the app keeps of it.
+    package var profile: CalibrationProfile {
+        CalibrationProfile(
+            wordsPerMinute: wordsPerMinute, medianPause: medianPause, longPause: longPause,
+            medianConfidence: medianConfidence, targets: targets.count, missedTargets: missedTargets)
     }
 
     /// Measures one reading of `reference` from the words the recogniser heard, in order.

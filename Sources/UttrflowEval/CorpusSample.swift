@@ -24,6 +24,8 @@ public struct CorpusSample: Sendable, Equatable, Codable, Identifiable {
     public let isHeldOut: Bool
     /// Who read it and in what conditions; `nil` while the catalogue has no column for it.
     public let cohort: String?
+    /// An invented group label such as a language background, set only with the speaker's consent.
+    let speakerGroup: String?
 
     public init(
         id: String,
@@ -37,7 +39,8 @@ public struct CorpusSample: Sendable, Equatable, Codable, Identifiable {
         sampleRateHz: Int,
         byteSize: Int? = nil,
         isHeldOut: Bool = false,
-        cohort: String? = nil
+        cohort: String? = nil,
+        speakerGroup: String? = nil
     ) {
         self.id = id
         self.slug = slug
@@ -51,6 +54,7 @@ public struct CorpusSample: Sendable, Equatable, Codable, Identifiable {
         self.byteSize = byteSize
         self.isHeldOut = isHeldOut
         self.cohort = cohort
+        self.speakerGroup = speakerGroup
     }
 
     public var duration: Duration { .milliseconds(durationMs) }

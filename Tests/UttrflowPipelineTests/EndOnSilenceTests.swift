@@ -1,5 +1,6 @@
 // Tests that a recording no key is holding finishes itself once the person falls quiet.
 import Foundation
+import Synchronization
 import Testing
 
 @testable import UttrflowCore
@@ -28,6 +29,15 @@ private func take(speaking seconds: Double, thenQuietFor quiet: Double) -> Audio
     return .canonical(phrase + room)
 }
 
+/// What the controller told the interface about the countdown, in order.
+private final class CountdownLog: Sendable {
+    private let state = Mutex((shown: [Int?](), warnings: [Int]()))
+    var shown: [Int?] { state.withLock { $0.shown } }
+    var warnings: [Int] { state.withLock { $0.warnings } }
+    func show(_ secondsLeft: Int?) { state.withLock { $0.shown.append(secondsLeft) } }
+    func warn(_ secondsLeft: Int) { state.withLock { $0.warnings.append(secondsLeft) } }
+}
+
 @Suite("Dictation controller: ending on silence", .timeLimit(.minutes(1)))
 struct EndOnSilenceTests {
     private struct Rig {
@@ -36,8 +46,10 @@ struct EndOnSilenceTests {
         let inserter = FakeTextInserter()
         let pipeline: DictationPipeline
         let controller: DictationController<ManualClock>
+        let log = CountdownLog()
 
         init(_ activation: HotkeyActivation, endOnSilence seconds: Int?, heard: AudioSamples) {
+            let log = log
             capture = FakeAudioCaptureEngine(stopOutcome: .success(heard))
             pipeline = DictationPipeline(
                 capture: capture,
@@ -46,8 +58,15 @@ struct EndOnSilenceTests {
                 // Its own clock, never moved, so a slow run reaches no stage limit.
                 clock: ManualClock())
             controller = DictationController(
-                pipeline: pipeline, monitor: StillMonitor(), activation: activation, clock: clock,
-                endOnSilence: seconds.flatMap(SilenceStop.init(seconds:)))
+                pipeline: pipeline,
+                monitor: StillMonitor(),
+                clock: clock,
+                options: .init(
+                    activation: activation,
+                    endOnSilence: seconds.flatMap(SilenceStop.init(seconds:))
+                ),
+                observers: .init(onSilenceCountdown: log.show, onSilenceWarning: log.warn)
+            )
         }
 
         /// Starts a recording that has already heard `heard`.
@@ -61,6 +80,14 @@ struct EndOnSilenceTests {
             for _ in 0..<(seconds * 2) {
                 await clock.advanceWhenSomethingIsWaiting(by: SilenceStop.poll)
                 for _ in 0..<200 { await Task.yield() }
+            }
+        }
+
+        /// Polls until the countdown has been reported `count` times, waiting real time for the analysis, for at most five seconds.
+        func listen(untilReported count: Int) async {
+            for _ in 0..<500 where log.shown.count < count {
+                await clock.advanceWhenSomethingIsWaiting(by: SilenceStop.poll)
+                try? await Task.sleep(for: .milliseconds(10))
             }
         }
 
@@ -162,5 +189,71 @@ struct EndOnSilenceTests {
 
         #expect(await rig.capture.calls.events == [.start, .cancel])
         #expect(rig.inserter.received.isEmpty)
+    }
+
+    @Test("the countdown starts past half the wait, is said once, and speech resets it")
+    func countdownResetsOnSpeech() async {
+        let heard = take(speaking: 1, thenQuietFor: 1.5)
+        let rig = Rig(.pressToToggle, endOnSilence: 4, heard: heard)
+        await rig.start(heard)
+        await rig.listen(for: 2)
+        #expect(rig.log.shown.isEmpty)
+
+        await rig.capture.appendCaptured(take(speaking: 0, thenQuietFor: 1))
+        await rig.listen(untilReported: 1)
+        #expect(rig.log.shown == [2])
+        #expect(rig.log.warnings == [2])
+
+        await rig.capture.appendCaptured(take(speaking: 1, thenQuietFor: 0))
+        await rig.listen(untilReported: 2)
+        #expect(rig.log.shown == [2, nil])
+
+        await rig.capture.appendCaptured(take(speaking: 0, thenQuietFor: 3))
+        await rig.listen(untilReported: 3)
+        #expect(rig.log.shown == [2, nil, 1])
+        #expect(rig.log.warnings == [2, 1])
+        #expect(await rig.pipeline.currentState.isListening)
+    }
+
+    @Test("the stop clears the countdown")
+    func stopClearsTheCountdown() async {
+        let heard = take(speaking: 1, thenQuietFor: 3)
+        let rig = Rig(.pressToToggle, endOnSilence: 4, heard: heard)
+        await rig.start(heard)
+        await rig.listen(untilReported: 1)
+        #expect(rig.log.shown == [1])
+
+        await rig.listenUntilInserted()
+        #expect(rig.log.shown.last == .some(nil))
+    }
+
+    @Test("escape clears the countdown")
+    func escapeClearsTheCountdown() async {
+        let heard = take(speaking: 1, thenQuietFor: 3)
+        let rig = Rig(.pressToToggle, endOnSilence: 4, heard: heard)
+        await rig.start(heard)
+        await rig.listen(untilReported: 1)
+        await rig.controller.handle(.escapePressed)
+        #expect(rig.log.shown == [1, nil])
+    }
+
+    @Test("a press that stops the recording clears the countdown")
+    func pressClearsTheCountdown() async {
+        let heard = take(speaking: 1, thenQuietFor: 3)
+        let rig = Rig(.pressToToggle, endOnSilence: 4, heard: heard)
+        await rig.start(heard)
+        await rig.listen(untilReported: 1)
+        await rig.controller.handle(.pressed)
+        #expect(rig.log.shown == [1, nil])
+    }
+
+    @Test("a held key shows no countdown, since only its release ends the recording")
+    func heldKeyShowsNoCountdown() async {
+        let heard = take(speaking: 1, thenQuietFor: 3)
+        let rig = Rig(.holdToTalk, endOnSilence: 4, heard: heard)
+        await rig.start(heard)
+        await rig.listen(for: 2)
+        #expect(rig.log.shown.isEmpty)
+        #expect(rig.log.warnings.isEmpty)
     }
 }

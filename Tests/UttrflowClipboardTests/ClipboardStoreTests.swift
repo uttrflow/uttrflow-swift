@@ -475,6 +475,31 @@ struct ClipboardStoreTests {
         #expect(await relaunched.clips(keeping: week()).map(\.text) == ["later"])
     }
 
+    @Test("a picture the disk refused to delete stays on disk until quit writes the deletion")
+    func refusedPictureDeletionIsWrittenAtQuit() async throws {
+        let folder = try TemporaryFolder()
+        let url = folder.url.appending(path: "clipboard.json", directoryHint: .notDirectory)
+        let store = ClipboardStore(file: url)
+        let noticed = NoticedClip(
+            clip: Clip(text: "", kind: .image, copiedAt: Date()),
+            picture: (ClipImageTests.bytes, 1024, 768))
+        let doomed = try #require(try await store.record(noticed, keeping: folder.retention).first)
+        let picture = try #require(doomed.image?.file)
+        let pictureURL = await store.imagesFolder.appending(path: picture, directoryHint: .notDirectory)
+
+        try await refusingWrites(in: folder.url) {
+            await #expect(throws: ClipboardStoreError.couldNotWrite) {
+                try await store.delete(doomed.id, keeping: folder.retention)
+            }
+        }
+        #expect(FileManager.default.fileExists(atPath: pictureURL.path))
+        await store.flushUse()
+
+        let relaunched = ClipboardStore(file: url)
+        #expect(await relaunched.clips(keeping: folder.retention).isEmpty)
+        #expect(!FileManager.default.fileExists(atPath: pictureURL.path))
+    }
+
     @Test("an unpin the disk refused is written when the app quits, so the clip does not return pinned")
     func refusedUnpinIsWrittenAtQuit() async throws {
         let folder = try TemporaryFolder()
@@ -777,6 +802,25 @@ struct ClipboardStoreTests {
 
         #expect(try await store.setAlias("/pgprod", of: subject.id, keeping: week())[0].alias == "/pgprod")
         #expect(try await store.setAlias(nil, of: subject.id, keeping: week())[0].alias == nil)
+    }
+
+    @Test("sets a name and tags together, and keeps a tagged clip when the name goes")
+    func labelling() async throws {
+        let file = TemporaryFile()
+        let store = ClipboardStore(file: file.url)
+        let subject = clip("postgres://…")
+        try await store.record(subject, keeping: week())
+
+        let both = try await store.setLabels(
+            alias: "pgprod", tags: ["db", "prod"], of: subject.id, keeping: week())
+        #expect(both[0].alias == "pgprod")
+        #expect(both[0].tags == ["db", "prod"])
+        let tagsOnly = try await store.setLabels(
+            alias: nil, tags: ["db"], of: subject.id, keeping: week())
+        #expect(tagsOnly[0].alias == nil)
+        #expect(tagsOnly[0].isKept)
+        let reloaded = ClipboardStore(file: file.url)
+        #expect(await reloaded.clips(keeping: week())[0].tags == ["db"])
     }
 
     @Test(

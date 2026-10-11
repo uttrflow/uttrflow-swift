@@ -192,7 +192,7 @@ EXCLUDED_FILES = {
         "wiring only: an event tap, a global key monitor and another app's focused field, "
         "none of which a headless test has; every rule it sequences is SuggestionSession, "
         "every field reading it maps goes through SuggestionMoment, what capture is told between reads "
-        "is SuggestionCaptureFeed, and whether the model is asked, "
+        "is SuggestionCaptureFeed, how an accepted suggestion is taken is SuggestionTake, and whether the model is asked, "
         "reused, skipped, drawn fresh or asked for alternatives is ModelPass, all of which are tested"
     ),
     "Uttrflow/Suggestion/SuggestionPanelController.swift": (
@@ -209,6 +209,11 @@ EXCLUDED_FILES = {
         "it decides itself, which #630 moves into a pure type in UttrflowUX"
     ),
     "Uttrflow/Dock/DockView.swift": "SwiftUI, drawn from a tested presentation",
+    "Uttrflow/Dock/DockMetrics.swift": "SwiftUI sizes and the canvas drawing of the bars; their rules are tested in DockBarsTests",
+    "Uttrflow/Dock/DockForms.swift": "SwiftUI, drawn from a tested presentation",
+    "Uttrflow/Dock/DockNotices.swift": "SwiftUI, drawn from a tested presentation",
+    "Uttrflow/Dock/DockParts.swift": "SwiftUI shapes and marks",
+    "Uttrflow/Dock/DockStyle.swift": "SwiftUI glass and colours; the tokens it draws are measured in BrandPaletteTests",
     "Uttrflow/Dock/DockSetupView.swift": (
         "SwiftUI, drawn from DockModelSetup, which SpeechModelDockTests covers"
     ),
@@ -262,10 +267,10 @@ OVERSIZED_EXCLUSIONS = {
     "Uttrflow/Suggestion/SuggestionCoordinator.swift": (
         "the two rules it keeps are tested in SuggestionReadGateTests and SuggestionDebounceTests, "
         "its model-pass decisions in ModelPassTests, and what capture is told between reads is "
-        "SuggestionCaptureFeed, tested in SuggestionCaptureFeedTests; still untested is the "
-        "tap-insertion sequencing"
+        "SuggestionCaptureFeed, tested in SuggestionCaptureFeedTests; how an accepted suggestion is "
+        "taken into the field is SuggestionTake, tested in SuggestionTakeTests; still untested is the "
+        "tap key routing and tap rest"
     ),
-    "Uttrflow/Dock/DockView.swift": "what DockViewModel decides is tested in DockClockTests and DockBarsTests",
     "Uttrflow/Main/MainPieces.swift": (
         "views, metrics and colour mappings; the one rule among them is RowReveal, tested in RowRevealTests"
     ),

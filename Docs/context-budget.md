@@ -30,6 +30,13 @@ recogniser's vocabulary, and is carried into tidying as `earlyContext` rather th
 100 ms adds to the time between stopping speaking and seeing text only when a dictation is too
 short to cover it.
 
+Beside that reading the early read asks the surroundings walk for names (`ContextEngine.onScreenNames`):
+capitalised words and @mentions from the visible conversation, at most 32, secret-shaped runs
+refused, kept on `AppContext.onScreenNames` and dropped for a secure field. The walk keeps its own
+60 ms deadline and runs only at the nearest-caret context level. The text itself is never passed on:
+names reach only the screen candidates and the recogniser vocabulary ranking, not any model prompt, and
+nothing is logged or stored. A dictation shorter than the walk goes without them.
+
 Every piece is corrected against that same reading. One later read looks at the caret as it is
 then rather than as it was: insertion reads it once more immediately before writing
 (`insertionContextForWrite`), to pad the words against the text beside the caret and decide the
@@ -157,3 +164,15 @@ If identity still misses the budget, the engine names the application from the
 `didActivateApplicationNotification` feed it already keeps (the application behind Uttrflow when
 Uttrflow itself activated last) and logs `Context identity timed out; named from the activation
 feed` under the `context` category.
+
+## How far a name vocabulary would need to reach
+
+`InsertionPoint.precedingLimit` (300) and `followingLimit` (100) were sized for sentence state. A
+name vocabulary taken from the text around the caret needs the identifiers a person is about to
+say, and a schema comment, an import block or a signature can sit further back than 300 units.
+`NameReach` (`Sources/UttrflowEval/NameReach.swift`) is the measure: for a set of invented editor
+sessions, each holding the text before the caret and the names dictated next, it reports the share
+whose nearest whole-token occurrence lies wholly inside 300, 1,000 and 4,000 UTF-16 units. A name
+cut by the window's start does not count. The limits stay as they are until that share is
+measured on a recorded sample and the read cost of the larger window is measured in the editors
+the adapters target; the 100 ms budget refuses any larger read that breaks it.

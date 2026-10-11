@@ -29,7 +29,7 @@ struct UpdateActivityWiringTests {
     @Test("an update staged mid-dictation installs a minute after the dictation ends")
     func dictationEndingStartsTheQuietClock() {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         var installed = false
         app.render(.recording)
         app.updates.stage({ installed = true })

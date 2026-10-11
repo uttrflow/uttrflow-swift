@@ -61,6 +61,12 @@ extension DictationPresenter {
                     + (readBack.spoken(outcome).map { " " + $0 } ?? ""),
                 isUrgent: false)
 
+        case .inserted(let outcome) where outcome.inputTooLoud:
+            return DictationAnnouncement(
+                text: "Inserted. \(InputTooLoud.sentence)"
+                    + (readBack.spoken(outcome).map { " " + $0 } ?? ""),
+                isUrgent: false)
+
         case .inserted(let outcome):
             return DictationAnnouncement(
                 text: readBack.spoken(outcome).map { "Inserted: \($0)" } ?? "Inserted.", isUrgent: false)
@@ -98,6 +104,15 @@ public struct DictationWarningReporter: Sendable {
     ) {
         self.cue = cue
         self.announce = announce
+    }
+
+    /// The warning cue when it is heard and the words otherwise, once as End on silence starts counting down.
+    public func reportSilence(secondsLeft: Int) {
+        let heard = cue.isAudible
+        cue.playWarning()
+        guard !heard else { return }
+        announce(
+            DictationAnnouncement(text: SilenceStop.sentence(secondsLeft: secondsLeft), isUrgent: false))
     }
 
     /// Plays the distinct warning cue, and speaks the remaining time only when that cue is not heard.

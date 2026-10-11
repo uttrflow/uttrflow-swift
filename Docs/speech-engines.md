@@ -251,9 +251,16 @@ detected language other than the one spoken).
 3. **The 250 ms floor stays.** The clips under 0.3 s are the weakest bucket (38% exact, 38%
    empty), so lowering the floor would admit clips that fail most often.
 4. **The weak spot is Hindi, not length.** English is 93% exact; Hindi is 30% exact, with 67%
-   of clips answering a word the speaker did not say and 98% flagged for script or language. The
-   length buckets from 0.3 s to 2.0 s are close to flat. A fix belongs in how romanised Hindi
-   is recognised, not in the padding.
+   of clips answering a word the speaker did not say. The length buckets from 0.3 s to 2.0 s are
+   close to flat. A fix belongs in how romanised Hindi is recognised, not in the padding.
+   The 98% "wrong script/lang" flag is two different things, split in the probe's table. Measured
+   again on the same 54 Hindi clips (`--language hi`): **0% of clips are written in a non-Latin
+   script** (the decoder writes Devanagari, as designed, and the script rule romanises it before
+   anything is shown, so the flag on the raw text is not a defect of the product), and **83% are
+   detected as a language other than Hindi** (English, on clips of two words or fewer). That
+   detection error is the real defect, and it is the same one measured under "Short Hindi
+   replies under an English and Hindi profile" below: the English decode of Hindi audio is the
+   source of the invented words. Exact 30%, invented 67% and the 98% flag reproduced unchanged.
 5. **Merging the last fragment is not shown to change accuracy, and costs time at key-up**:
    merged minus alone is -0.002 [-0.010, +0.005] WER and +617 ms [+520, +759] of key-up
    decode, 95% intervals. Under the rule the join stays.
@@ -281,6 +288,10 @@ short replies would replace all three tables.
 - WhisperKit re-runs detection for every fallback temperature and samples it the same way it
   samples text, top-k at that temperature. The allowed sampler ignores the temperature, so one
   window cannot change its language between retries.
+- The same detection step also reads the likeliest of all languages. When the model is at least 95%
+  sure of one the product does not transcribe, other than Urdu, the window's decode is refused
+  with an informational notice instead of being written in English. See `Docs/latin-output.md`,
+  "Speech in a language the product does not transcribe".
 
 ## Short Hindi replies under an English and Hindi profile
 
@@ -508,6 +519,11 @@ each, 16 minutes on a loaded machine. Every row is the same:
 |---|---|---|---|---|---|---|---|
 | clean, 10 dB | 5, 0, 1, 2 | -1.0 | 0.0% | 0.000 | 0.00 | 100.0% | 0.0% |
 | clean, 10 dB | 5 | -0.7, -1.3 | 0.0% | 0.000 | 0.00 | 100.0% | 0.0% |
+
+Refitted under the dictionary prompt that closes on lower-case prose (`--vocabulary Kubernetes Grafana
+Postgres Terraform Okta`, the same 8 clips and 3 runs, clean and 10 dB): all 12 rows still show a 0.0%
+fallback rate, 0.000 mean and 0.00 worst extra seconds and 100.0% identical runs, with 0.0% word error
+clean and 1.6% at 10 dB for every count and threshold, so the shipping plan stays.
 
 A second sweep on the same clips, noisier (`--counts 0 1 2 5 --snrs 20 5 0`, 3 runs, release build):
 

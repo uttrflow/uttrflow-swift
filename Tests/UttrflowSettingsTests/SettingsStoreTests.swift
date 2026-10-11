@@ -344,6 +344,16 @@ struct SettingsTests {
         #expect(settings.clipboardRetentionDays == Settings.maximumFiniteRetentionDays)
     }
 
+    @Test("a copied secret clears after a minute unless the file says otherwise")
+    func secretClearDelay() throws {
+        #expect(Settings().secretClipboardClearSeconds == 60)
+        func decoded(_ json: String) throws -> Settings { try decode(json) }
+        #expect(try decoded("{}").secretClipboardClearSeconds == 60)
+        #expect(try decoded(#"{"secretClipboardClearSeconds": 0}"#).secretClipboardClearSeconds == 0)
+        #expect(try decoded(#"{"secretClipboardClearSeconds": 15}"#).secretClipboardClearSeconds == 15)
+        #expect(try decoded(#"{"secretClipboardClearSeconds": -5}"#).secretClipboardClearSeconds == 60)
+    }
+
     @Test("keeps transcript Always distinct while capping clipboard retention")
     func alwaysSentinelIsSeparateFromFiniteRetention() throws {
         let settings = try decode(
@@ -538,6 +548,27 @@ struct SettingsTests {
 
         #expect(restored.shortcutsReturnedToDefault == [.dictate])
         #expect(restored.shortcuts.first(for: .dictate) == .controlOptionHold)
+    }
+
+    @Test("keeps a dictation shortcut switched off through a round trip")
+    func noDictationShortcutSurvivesARoundTrip() throws {
+        var settings = Settings.default
+        settings.shortcuts.removeAll(from: .dictate)
+        settings.shortcuts.removeAll(from: .clipboard)
+
+        let restored = try JSONDecoder().decode(Settings.self, from: JSONEncoder().encode(settings))
+
+        #expect(!restored.shortcuts.isBound(.dictate))
+        #expect(!restored.shortcuts.isBound(.clipboard))
+        #expect(restored.shortcuts.first(for: .copyLastTranscript) == .controlCommandC)
+    }
+
+    @Test("still gives a file that says nothing about dictation the earlier default")
+    func silentFileKeepsTheEarlierDefault() throws {
+        let settings = try decode(
+            #"{"shortcuts": {"clipboard": [{"keyCode": 9, "modifiers": ["command"]}]}}"#)
+
+        #expect(settings.shortcuts.first(for: .dictate) == .optionSpace)
     }
 
     @Test("returns nothing, and notes nothing, for shortcuts the user could press")
@@ -895,5 +926,27 @@ struct SettingsSuggestionsTests {
         #expect(settings.contextLevelOverrides.overrides.map(\.bundleIdentifier) == ["com.example.vault"])
         #expect(!settings.opensAtLogin)
         #expect(try decode(#"{"contextLevelOverrides": 3}"#).contextLevelOverrides == .none)
+    }
+}
+
+/// Whether a hidden clip's paste asks first is on until the user turns it off.
+@Suite("Confirming hidden clip pastes")
+struct HiddenClipConfirmationSettingTests {
+    @Test("it is on by default and when an older file lacks it")
+    func defaultsOn() throws {
+        #expect(Settings.default.confirmsHiddenClipPaste)
+        let older = try JSONDecoder().decode(Settings.self, from: Data("{}".utf8))
+        #expect(older.confirmsHiddenClipPaste)
+    }
+
+    @Test("turning it off survives a round trip")
+    func roundTrips() throws {
+        var settings = Settings.default
+        settings.confirmsHiddenClipPaste = false
+
+        let data = try JSONEncoder().encode(settings)
+        let decoded = try JSONDecoder().decode(Settings.self, from: data)
+
+        #expect(!decoded.confirmsHiddenClipPaste)
     }
 }

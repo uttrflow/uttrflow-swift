@@ -1,6 +1,7 @@
 // The real clipboard.
 
 public import struct Foundation.Data
+public import struct Foundation.URL
 public import struct UttrflowCore.PasteboardMarkers
 import AppKit
 private import os
@@ -55,6 +56,15 @@ public struct SystemClipboardSource: ClipboardProvenanceSource {
                 types: types,
                 writerValue: types.contains(ClipboardProvenance.writerType)
                     ? pasteboard.string(forType: .init(ClipboardProvenance.writerType)) : nil)
+        }
+    }
+
+    /// The local files on the clipboard, in the order the file manager wrote them.
+    public func fileURLs() -> [URL] {
+        Self.reading {
+            let urls = NSPasteboard.general.readObjects(
+                forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
+            return (urls as? [URL]) ?? []
         }
     }
 

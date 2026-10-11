@@ -16,6 +16,10 @@ public enum DestinationRules {
     public static let pages = "com.apple.iWork.Pages"
     /// Pages's identifier in the Creator Studio build, read from its Info.plist.
     public static let pagesStudio = "com.apple.Pages"
+    /// Keynote's identifier, named so a corpus case, fixture or default cannot mistype it.
+    public static let keynote = "com.apple.iWork.Keynote"
+    /// PowerPoint's identifier, named so a corpus case, fixture or default cannot mistype it.
+    static let powerPoint = "com.microsoft.Powerpoint"
     /// Keynote's identifier in the Creator Studio build, read from its Info.plist.
     public static let keynoteStudio = "com.apple.Keynote"
     /// TextEdit's identifier, named so a corpus case, fixture or default cannot mistype it.
@@ -106,10 +110,10 @@ public enum DestinationRules {
         ),
         DestinationRule(
             bundlePrefixes: [
-                word, pages, pagesStudio, keynoteStudio, textEdit,
+                word, pages, pagesStudio, keynote, keynoteStudio, powerPoint, textEdit,
             ],
             titleContains: ["Google Docs"],
-            nameWords: ["textedit", "pages", "word", "keynote"],
+            nameWords: ["textedit", "pages", "word", "keynote", "powerpoint"],
             kind: .documentEditor
         ),
         DestinationRule(

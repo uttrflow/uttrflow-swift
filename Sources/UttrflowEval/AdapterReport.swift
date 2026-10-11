@@ -1,43 +1,43 @@
 // Per-adapter counts over a scored corpus, and the stored run later runs are gated against.
-public import Foundation
+import Foundation
 import UttrflowCore
 
 /// What one adapter's cases scored: exact written form, added words and broken shape, kept as counts.
-public struct AdapterReport: Sendable, Equatable, Codable {
+struct AdapterReport: Sendable, Equatable, Codable {
     /// One adapter's counts, kept as counts so the rates can be recomputed exactly.
-    public struct Row: Sendable, Equatable, Codable {
-        public let adapter: String
+    struct Row: Sendable, Equatable, Codable {
+        let adapter: String
         /// Every case the adapter owns that the engine attempted.
-        public let cases: Int
+        let cases: Int
         /// Attempted cases that name an exact written form.
-        public let exactCases: Int
+        let exactCases: Int
         /// Exact cases whose output was that form, character for character.
-        public let exactHits: Int
+        let exactHits: Int
         /// Words the outputs invented that the cases forbid, summed; the gate holds this at 0.
-        public let addedTokens: Int
+        let addedTokens: Int
         /// Required beginnings, endings and exact forms the outputs broke, summed; the gate holds this at 0.
-        public let shapeViolations: Int
+        let shapeViolations: Int
 
         /// Exact-match rate over the exact cases, or `nil` when the adapter has none.
-        public var exactMatchRate: Double? {
+        var exactMatchRate: Double? {
             exactCases > 0 ? Double(exactHits) / Double(exactCases) : nil
         }
     }
 
     /// What was measured: engine and corpus; runs with different labels are never compared.
-    public let label: String
-    public let recordedAt: Date
+    let label: String
+    let recordedAt: Date
     /// One row per adapter, in adapter-name order.
-    public let rows: [Row]
+    let rows: [Row]
 
-    public init(label: String, recordedAt: Date = Date(), rows: [Row]) {
+    init(label: String, recordedAt: Date = Date(), rows: [Row]) {
         self.label = label
         self.recordedAt = recordedAt
         self.rows = rows.sorted { $0.adapter < $1.adapter }
     }
 
     /// Groups the scores of the cases that name an adapter; a case with no adapter, or no score, is left out.
-    public init(label: String, recordedAt: Date = Date(), cases: [EvaluationCase], scores: [CaseScore]) {
+    init(label: String, recordedAt: Date = Date(), cases: [EvaluationCase], scores: [CaseScore]) {
         let byID = Dictionary(scores.map { ($0.caseID, $0) }, uniquingKeysWith: { first, _ in first })
         var grouped: [String: [(EvaluationCase, CaseScore)]] = [:]
         for evaluated in cases {
@@ -60,14 +60,12 @@ public struct AdapterReport: Sendable, Equatable, Codable {
     }
 
     /// Why a run and a baseline do not describe the same thing.
-    public struct Incomparable: Error, Sendable, Equatable {
-        public let reason: String
+    struct Incomparable: Error, Sendable, Equatable {
+        let reason: String
     }
 
-    /// The adapters where this run has fewer exact hits, or any added word or broken shape, than the baseline allows.
-    ///
-    /// Added words and broken shapes must be 0, so they fail against 0 whatever the baseline held.
-    public func worsened(against baseline: AdapterReport) -> Result<[String], Incomparable> {
+    /// The adapters with fewer exact hits than the baseline, or any added word or broken shape (which must be 0).
+    func worsened(against baseline: AdapterReport) -> Result<[String], Incomparable> {
         guard label == baseline.label else {
             return .failure(Incomparable(reason: "measured \"\(label)\", baseline \"\(baseline.label)\""))
         }
@@ -86,7 +84,7 @@ public struct AdapterReport: Sendable, Equatable, Codable {
     }
 
     /// The table `make bakeoff` prints, one line per adapter.
-    public var table: String {
+    var table: String {
         guard !rows.isEmpty else { return "no case names an adapter" }
         return rows.map { row in
             let rate = row.exactMatchRate.map { String(format: "%.1f%%", $0 * 100) } ?? "n/a"
@@ -97,7 +95,7 @@ public struct AdapterReport: Sendable, Equatable, Codable {
 
     // MARK: On disk
 
-    public func write(to url: URL) throws(EvaluationStoreError) {
+    func write(to url: URL) throws(EvaluationStoreError) {
         let encoder = JSONEncoder()
         encoder.outputFormatting = .readable
         encoder.dateEncodingStrategy = .iso8601
@@ -109,7 +107,7 @@ public struct AdapterReport: Sendable, Equatable, Codable {
     }
 
     /// Reads through a file path, so the baseline is only ever a local file.
-    public static func read(from url: URL) throws(EvaluationStoreError) -> AdapterReport {
+    static func read(from url: URL) throws(EvaluationStoreError) -> AdapterReport {
         guard let data = FileManager.default.contents(atPath: url.path) else {
             throw .couldNotRead(path: url.lastPathComponent, reason: "no file")
         }

@@ -213,10 +213,10 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "c201adadf5ef58a47f5ff053228fa140925fadbd0829a8e34a62e82cfb918dfa",
+      "sha256": "8e7c3f2caba20a94875604df6b8e371f47bf1e256a4b76b7bf95aa3da2dfbca7",
       "path": "Sources/UttrflowCore/Resources/Tables/abbreviations.json",
       "origin": "authored",
-      "bytes": 5801
+      "bytes": 6209
     },
     {
       "note": "read through DataTable; see Docs/data-tables.md",
@@ -258,19 +258,19 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "e5abed957635e86d20617d5a5ac547ce6697e2aea3afc5d079fc623c49417d33",
+      "sha256": "20fa89cb5248539983e962ae2374de61afceb3b226803927a952a002fcd33437",
       "path": "Sources/UttrflowCore/Resources/Tables/function-words.json",
       "origin": "authored",
-      "bytes": 12747
+      "bytes": 16150
     },
     {
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "fdd453b229d4f8a387b018d282d59d7aa8e30cb3dfd29e6239f15e21d93a7c31",
+      "sha256": "ec38a4edfc350eba58a5e7cdbf11e1d68c6e823f5099f99e5f72d1b6ddd3b820",
       "path": "Sources/UttrflowCore/Resources/Tables/hindi-words.json",
       "origin": "authored",
-      "bytes": 8738
+      "bytes": 11823
     },
     {
       "licence": "MIT",
@@ -285,10 +285,10 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "b0d961e63b7c2f0b17acf8242b8c9a8b6ae029a10052a7b9c0aab6f86cb991a7",
+      "sha256": "79888075de6ec22608582b7474d578b637a1429efe0e8e276525fb2f540089d1",
       "path": "Sources/UttrflowCore/Resources/Tables/kinship-words.json",
       "origin": "authored",
-      "bytes": 1062
+      "bytes": 1318
     },
     {
       "licence": "MIT",
@@ -342,6 +342,24 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "a351f3592bcc6933f0bd6627aa107a77b3e81f37920b71783b610c6155859090",
+      "path": "Sources/UttrflowCore/Resources/Tables/quantity-words.json",
+      "origin": "authored",
+      "bytes": 399
+    },
+    {
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "ad99ca019ba9beda4e718769596e4c5b22956c1425cdad138e157f9a387b6d5e",
+      "path": "Sources/UttrflowCore/Resources/Tables/sql-words.json",
+      "origin": "authored",
+      "bytes": 2295
+    },
+    {
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
       "sha256": "4006e673f68ad76337f9f8f7a62db0cd758be8b819e7dabb07248f9ef9cd0cbd",
       "path": "Sources/UttrflowCore/Resources/Tables/spoken-commands.json",
       "origin": "authored",
@@ -351,10 +369,10 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "written for this repository, copied from no list; read through DataTable; see Docs/data-tables.md",
-      "sha256": "e5734556315b3124a43e46416dac0dc2c9acab142c9a073ed2a51023a3c184d5",
+      "sha256": "8ae616aaa23838a98f07932b656cb652c14ff835286ddbb14066fa8de1e50e8d",
       "path": "Sources/UttrflowCore/Resources/Tables/technical-lexicon.json",
       "origin": "authored",
-      "bytes": 29437
+      "bytes": 31055
     },
     {
       "licence": "MIT",
@@ -594,11 +612,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "60d2e26977a41c412389b2832be41e471601e76f591e38da58ca3d2c65a9e693",
+      "sha256": "959f34e5e33b935c399c3238f5c1059ad16d0e0384eb21b5041598b93a8e1c5c",
       "path": "Sources/UttrflowEval/Resources/Corpus/technical.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 45855,
+      "bytes": 46237,
       "licence": "MIT"
     },
     {
@@ -653,6 +671,18 @@
       "bytes": 758580,
       "licence": "Unicode-3.0",
       "revision": "18.0.0"
+    },
+    {
+      "path": "Sources/Uttrflow/Resources/GoogleG.png",
+      "origin": "third-party",
+      "source": "https://developers.google.com/static/identity/images/signin-assets.zip",
+      "revision": "sha256:ba884069e12093b06bcfd776915081254a7c95094b80d50be2c5dc6bac1c1da1",
+      "licence": "LicenseRef-GoogleSignInBranding",
+      "redistribution": true,
+      "producedBy": "Scripts/select-google-mark.sh and Scripts/lift-google-mark.swift",
+      "optional": true,
+      "sha256": "6258f9e98daf1aed69712e0fa1c3924d00f8a4fd2a86ed1ae9c6320b69ca1788",
+      "bytes": 7107
     }
   ]
 }

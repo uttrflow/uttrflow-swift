@@ -275,6 +275,13 @@ struct ShellPromptTests {
         #expect(ShellPrompt.input(in: quoted) == quoted)
     }
 
+    @Test("An at sign or equals sign inside a substitution is no evidence for a trailing hash.")
+    func substitutionTextIsNotRootPromptEvidence() {
+        for line in ["printf %s $(whoami)@$(hostname)#", "x=$(A=#"] {
+            #expect(ShellPrompt.input(in: line) == line)
+        }
+    }
+
     @Test("A genuine root prompt after a closed substitution still ends the prompt.")
     func rootPromptAfterClosedSubstitution() {
         #expect(ShellPrompt.input(in: "echo $(printf ready) root@host# apt update") == "apt update")

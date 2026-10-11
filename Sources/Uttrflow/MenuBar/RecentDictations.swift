@@ -45,9 +45,12 @@ struct RecentDictations: Sendable, Equatable {
         entries.removeAll()
     }
 
-    var previews: [RecentDictationPreview] {
+    var previews: [RecentDictationPreview] { previews(secretPhrases: []) }
+
+    /// The rows, masking a dictation that holds the text of a snippet marked secret.
+    func previews(secretPhrases: [String] = []) -> [RecentDictationPreview] {
         entries.map { dictation in
-            let presentation = DictationTextPresentation(dictation.text)
+            let presentation = DictationTextPresentation(dictation.text, secretPhrases: secretPhrases)
             return RecentDictationPreview(
                 title: presentation.isSecret ? presentation.displayText : Self.shortened(dictation.text),
                 isSecret: presentation.isSecret,

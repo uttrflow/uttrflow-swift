@@ -30,6 +30,21 @@ package struct ClipBytes {
         read(text) { _, bytes in needles.contains { contains(bytes, $0) } }
     }
 
+    /// Whether any of `needles`, held as strings, occurs in the text's bytes.
+    package static func containsAny(_ text: String, _ needles: [String]) -> Bool {
+        read(text) { _, bytes in
+            needles.contains { needle in
+                var needle = needle
+                return needle.withUTF8 { word in
+                    guard let base = bytes.baseAddress, let target = word.baseAddress,
+                        bytes.count >= word.count
+                    else { return false }
+                    return memmem(base, bytes.count, target, word.count) != nil
+                }
+            }
+        }
+    }
+
     /// Whether every byte is ASCII, in which case each byte is its own character except a CR before a LF.
     package static func isASCII(_ bytes: UnsafeBufferPointer<UInt8>) -> Bool {
         !bytes.contains { $0 >= 0x80 }

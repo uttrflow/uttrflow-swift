@@ -42,14 +42,20 @@ final class PanelThumbnails {
     @ObservationIgnored private var queueOrder = 0
     @ObservationIgnored private var missedAt: [URL: ContinuousClock.Instant] = [:]
     @ObservationIgnored private let retryAfter: Duration
+    @ObservationIgnored private let retryWait: @MainActor (Duration) async throws -> Void
+    @ObservationIgnored private let now: @MainActor () -> ContinuousClock.Instant
 
     init(
         source: PanelThumbnailSource = .system, budget: Int = PanelThumbnails.defaultBudget,
-        retryAfter: Duration = .seconds(2)
+        retryAfter: Duration = .seconds(2),
+        retryWait: @escaping @MainActor (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
+        now: @escaping @MainActor () -> ContinuousClock.Instant = { .now }
     ) {
         self.source = source
         self.budget = max(budget, 0)
         self.retryAfter = retryAfter
+        self.retryWait = retryWait
+        self.now = now
     }
 
     /// What a decoded thumbnail costs, measured from the bitmap rather than the point size.
@@ -162,7 +168,7 @@ final class PanelThumbnails {
 
     /// Waits before a visible row asks `prepare(_:)` to retry a remembered miss.
     func waitBeforeRetry() async throws {
-        try await Task.sleep(for: retryAfter)
+        try await retryWait(retryAfter)
     }
 
     /// Stored on `known` once the decode completes, even if the file is gone so the answer can be remembered.
@@ -176,7 +182,7 @@ final class PanelThumbnails {
         let result = bytes.image
         let cost = Self.bytes(of: result)
         known[file] = result
-        missedAt[file] = result == nil ? .now : nil
+        missedAt[file] = result == nil ? now() : nil
         self.cost[file] = cost
         held += cost
         touch(file)
@@ -186,7 +192,7 @@ final class PanelThumbnails {
 
     /// Drops a remembered failure once it is older than `retryAfter`, so the next ask decodes again.
     private func forgetStaleMiss(_ file: URL) {
-        guard let missed = missedAt[file], missed.duration(to: .now) >= retryAfter else { return }
+        guard let missed = missedAt[file], missed.duration(to: now()) >= retryAfter else { return }
         missedAt[file] = nil
         known.removeValue(forKey: file)
         cost.removeValue(forKey: file)

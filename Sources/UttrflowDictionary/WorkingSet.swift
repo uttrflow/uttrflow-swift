@@ -193,7 +193,9 @@ public enum WorkingSet {
 
     /// The sounds of everything the frontmost app is showing, split on anything that is not a letter.
     static func soundsOnScreen(in context: AppContext) -> Set<String> {
-        let onScreen = [context.applicationName, context.documentName, context.selectedText]
+        let onScreen =
+            ([context.applicationName, context.documentName] + context.onScreenNames
+            + [context.selectedText])
             .compactMap { $0 }
             .joined(separator: " ")
         let visible = Utterance(

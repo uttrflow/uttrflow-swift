@@ -18,6 +18,8 @@ public struct TechnicalTerm: DataTableRow, Equatable {
         case annotation
         /// Letters or words joined by a spoken "and" or "slash" into one token: Q&A, N/A, and/or.
         case joined
+        /// A name whose letters and number words are said one by one and written fused: EC2, S3, i18n.
+        case spelledName
         /// A well-known hidden folder, written with its leading dot, that a spoken "dot" opens inside a path: .ssh, .config.
         case hiddenFolder
     }
@@ -34,6 +36,8 @@ public struct TechnicalTerm: DataTableRow, Equatable {
     public let destinations: Set<Destination>?
     /// Whether the written form, past any leading dot, is also an everyday spoken word: swift, go, lock, changelog.
     public let isEveryday: Bool
+    /// Nouns that, said right after an everyday-word name, show the name is meant: "android app".
+    public let heads: Set<String>
 
     /// Whether the term applies where the words are going.
     public func applies(in destination: Destination) -> Bool {
@@ -55,10 +59,11 @@ public struct TechnicalTerm: DataTableRow, Equatable {
         pronunciations = try container.decodeIfPresent([String].self, forKey: .pronunciations) ?? []
         destinations = try container.decodeIfPresent(Set<Destination>.self, forKey: .destinations)
         isEveryday = try container.decodeIfPresent(Bool.self, forKey: .everyday) ?? false
+        heads = try container.decodeIfPresent(Set<String>.self, forKey: .heads) ?? []
     }
 
     private enum Key: String, CodingKey {
-        case id, spoken, category, pronunciations, destinations, everyday
+        case id, spoken, category, pronunciations, destinations, everyday, heads
     }
 }
 

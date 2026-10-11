@@ -68,6 +68,12 @@ public protocol MetricsRecording: Sendable {
     func recordContextRead(_ rung: ContextReadRung, in bundleIdentifier: String) async
     /// Keeps one dictation's wait after key-up and the cause named for it.
     func recordWait(_ wait: TimedWait) async
+
+    /// Keeps the time the tidier spent on a request that found no warm session.
+    func recordTidyColdStart(_ duration: Duration) async
+
+    /// Keeps how much audio working ahead has not decoded at key-up.
+    func recordBacklog(_ backlog: WorkAheadBacklog) async
 }
 
 /// How many times one dictation read the screen, and how long those reads took together.
@@ -116,6 +122,12 @@ extension MetricsRecording {
 
     /// Most recorders do not track the wait after key-up.
     public func recordWait(_ wait: TimedWait) async {}
+
+    /// Most recorders do not track a cold tidier session.
+    public func recordTidyColdStart(_ duration: Duration) async {}
+
+    /// Most recorders do not track the work-ahead backlog.
+    public func recordBacklog(_ backlog: WorkAheadBacklog) async {}
 }
 
 /// A recorder that discards everything, for callers that do not care about timings.
@@ -179,6 +191,14 @@ public struct MetricsFanOut: MetricsRecording {
 
     public func recordWait(_ wait: TimedWait) async {
         for recorder in recorders { await recorder.recordWait(wait) }
+    }
+
+    public func recordTidyColdStart(_ duration: Duration) async {
+        for recorder in recorders { await recorder.recordTidyColdStart(duration) }
+    }
+
+    public func recordBacklog(_ backlog: WorkAheadBacklog) async {
+        for recorder in recorders { await recorder.recordBacklog(backlog) }
     }
 }
 
@@ -267,6 +287,13 @@ public actor StageTally: MetricsRecording {
     /// What each piece cost the recogniser, in the order recognised.
     public var efforts: [DecodeEffort] { decoding }
 
+    /// The time the tidier spent starting sessions nothing had warmed, added up over the dictation's pieces.
+    public private(set) var tidyColdStart: Duration = .zero
+
+    public func recordTidyColdStart(_ duration: Duration) {
+        tidyColdStart += duration
+    }
+
     /// The decoder's judgement of each segment, kept per piece so the report keeps the pieces apart.
     private var reliability: [[SegmentReliability]] = []
 
@@ -284,6 +311,7 @@ public actor StageTally: MetricsRecording {
     public func report(to recorder: any MetricsRecording) async {
         for measurement in measurements { await recorder.record(measurement) }
         for effort in decoding { await recorder.recordDecoding(effort) }
+        if tidyColdStart > .zero { await recorder.recordTidyColdStart(tidyColdStart) }
         for segments in reliability { await recorder.recordReliability(segments) }
     }
 }

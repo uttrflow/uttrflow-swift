@@ -21,7 +21,7 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
             destination: destination, opening: words.first, given: evidence)
         let evidence = NotationEvidence.applicability(of: words, given: screen)
         guard evidence.activates(at: NotationEvidence.activationThreshold) else { return draft }
-        var draft = draft
+        var draft = NotationInput.settled(draft, by: Self.id)
         var position = 0
         while position < draft.presentIndices.count {
             let live = draft.presentIndices
@@ -51,7 +51,7 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
     /// The code symbol rows, then the statement keywords, so a symbol phrase opening on a keyword is tried first.
     private static let rows = SpokenCommands.codeSymbols + SpokenCommands.keywords
 
-    private static func bare(_ text: String) -> String {
+    static func bare(_ text: String) -> String {
         text.lowercased().trimmingCharacters(in: .letters.inverted)
     }
 

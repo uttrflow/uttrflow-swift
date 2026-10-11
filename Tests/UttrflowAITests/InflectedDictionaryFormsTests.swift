@@ -2,6 +2,7 @@ import Foundation
 import Testing
 import UttrflowCore
 import UttrflowDictionary
+import UttrflowTestSupport
 
 @testable import UttrflowAI
 
@@ -43,11 +44,19 @@ struct InflectedDictionaryFormsTests {
     }
 
     @Test("every plural and possessive in the probe is offered its entry")
-    func probeOfferedRate() {
+    func probeOfferedRate() throws {
         let (whole, all) = Self.offered()
         print(
             "PROBE whole-word \(whole.count)/\(Self.probe.count) \(whole); with endings \(all.count)/\(Self.probe.count) \(all)"
         )
+        for pair in Self.probe {
+            try QualityGridReport.emit(
+                suite: "inflected", id: "\(pair.entry)/\(pair.heard)",
+                passed: WordForms.nameEnding(of: pair.heard) == nil ? nil : all.contains(pair.heard),
+                measurements: [
+                    "whole": whole.contains(pair.heard) ? 1 : 0, "all": all.contains(pair.heard) ? 1 : 0,
+                ])
+        }
         let named = Self.probe.filter { WordForms.nameEnding(of: $0.heard) != nil }.map(\.heard)
         #expect(Set(named).isSubset(of: Set(all)), "missed \(Set(named).subtracting(all).sorted())")
     }

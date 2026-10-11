@@ -68,6 +68,7 @@ public struct FirstWordPass: WholeTextCleaningPass {
         let present = draft.presentIndices
         let datedMonths = NumberFormsPass.datedMonths(in: present.map { draft.shape(at: $0) })
         let zoneNames = TimeZones.nameWords(in: present.map { draft.shape(at: $0) })
+        let reasonWords = HTTPSlots.reasonWords(in: draft)
         for (order, index) in present.enumerated() {
             let word = draft.words[index]
             guard !word.isLayoutMark else {
@@ -130,11 +131,11 @@ public struct FirstWordPass: WholeTextCleaningPass {
             } else if capitaliseCalendarWords, datedMonths.contains(order) {
                 cased = WordShape(cased).replacingCore(with: WordShape.capitalised(WordShape(cased).core))
             } else if capitaliseCalendarWords {
-                let versionedLanguage = casing.versionedLanguageForm(cased, at: index, in: draft) != nil
+                let framedName = casing.framedForm(cased, at: index, in: draft) != nil
                 // Devanagari has no case, so a capital on a word heard in it comes from loanword restoration, never from the recogniser.
                 let restored = word.origin == .devanagari
-                let unstrayed =
-                    afterPause || versionedLanguage || restored ? cased : strayCapitalLowered(cased, in: text)
+                let keepsCase = afterPause || framedName || restored || reasonWords[index] != nil
+                let unstrayed = keepsCase ? cased : strayCapitalLowered(cased, in: text)
                 cased = Self.properNameCapitalised(
                     Self.titleCapitalised(Self.calendarWordCapitalised(unstrayed)), in: text)
                 cased = Self.kinshipCased(cased, at: order, in: present, of: draft)

@@ -9,10 +9,10 @@ extension DictationPipeline {
         delivery: Delivery, recording tally: StageTally, for mine: Int
     ) async -> Recognition {
         var appContext = read
-        var pieces: [Piece] = []
+        var pieces: [(position: Int, piece: Piece)] = []
         let vocabularyContext = earlyContext ?? AppContext()
         // One tidy runs beside the next recognition, which the two stages allow. See `Docs/early-transcription.md`.
-        let ending: Recognition? = await withTaskGroup(of: Piece.self) { tidying in
+        let ending: Recognition? = await withTaskGroup(of: (position: Int, piece: Piece).self) { tidying in
             // A span the early loop left unfinished is done here, in its place, so the words stay in order.
             let finalPending = work.indices.last(where: {
                 if case .pending = work[$0] { return true }
@@ -25,17 +25,16 @@ extension DictationPipeline {
                 if let heard = span.heard { precedingHeard = heard }
                 switch span {
                 case .done(let piece, _):
-                    if let earlier = await tidying.next() { pieces.append(earlier) }
-                    pieces.append(piece)
+                    // A finished piece waits for no tidy; the positions put it in its place.
+                    pieces.append((spanIndex, piece))
                     continue
                 case .tidying(let running):
                     let task = running.task
-                    // The recognition after it can start before this tidy is done; the group still drains it first.
-                    if let earlier = await tidying.next() { pieces.append(earlier) }
+                    // The next recognition starts while this tidy runs; the next new tidy waits for it.
                     if spanIndex == work.indices.last {
                         await runningCleaner.reserveFinalPiece(dictationContext?.situation)
                     }
-                    tidying.addTask { await task.value }
+                    tidying.addTask { (spanIndex, await task.value) }
                     continue
                 case .pending(let range):
                     window = range
@@ -51,8 +50,8 @@ extension DictationPipeline {
                     return .failed(
                         Self.failure(error, in: audio, speechEngineKind: (retrySpeech ?? speech).kind))
                 }
-                // The tidy that ran beside this recognition is taken before the next one starts, so one is ever in flight.
-                if let earlier = await tidying.next() { pieces.append(earlier) }
+                // Every tidy that ran beside this recognition is taken before a new one starts, so one is ever in flight.
+                while let earlier = await tidying.next() { pieces.append(earlier) }
                 guard !wasCancelled(mine) else {
                     tidying.cancelAll()
                     return .abandoned
@@ -67,15 +66,16 @@ extension DictationPipeline {
                 let preceding = precedingHeard
                 precedingHeard = heard
                 tidying.addTask {
-                    await self.finish(
+                    let piece = await self.finish(
                         heard, seeing: seeing, correctionSeeing: seeing,
                         finalPiece: finalPiece, after: preceding, recording: tally, for: mine)
+                    return (spanIndex, piece)
                 }
             }
             while let last = await tidying.next() { pieces.append(last) }
             return nil
         }
-        return ending ?? .heard(pieces, seeing: appContext)
+        return ending ?? .heard(pieces.sorted { $0.position < $1.position }.map(\.piece), seeing: appContext)
     }
 
     /// Recognises one window of the audio, answering `nil` when nothing was said in it; speech with no words is decoded twice.
@@ -90,7 +90,7 @@ extension DictationPipeline {
             ? audio
             : AudioSamples(samples: Array(audio.samples[window]), sampleRate: audio.sampleRate) ?? .empty
         // The dictation's one read, so every piece is conditioned on the same caret. See `Docs/context-budget.md`.
-        let preceding = dictationContext?.app.recognitionContext
+        let preceding = dictationContext?.situation.recognitionContext
         var heard = try await decode(
             slice, whole: whole, biasedTowards: words, after: preceding, recording: metrics, generation: mine)
         // The second decode goes without the prompt, which is the one input a retry can change.
@@ -129,7 +129,7 @@ extension DictationPipeline {
         let policy = dictationContext?.listening ?? ListeningLanguages(profile: runningProfile)
         let language = policy.hint(afterFirstPiece: nil)
         // The dictation's one read, so every piece is conditioned on the same caret. See `Docs/context-budget.md`.
-        let preceding = dictationContext?.app.recognitionContext
+        let preceding = dictationContext?.situation.recognitionContext
         let speaks = VoiceActivity.speechRange(in: slice.samples, sampleRate: slice.sampleRate) != nil
         let speech = retrySpeech ?? speech
         let heard = try await metrics.measuringInTime(
@@ -193,7 +193,7 @@ extension DictationPipeline {
         let screenReads = max(.zero, self.screenReads.cost.duration - readsBeforeRelease)
         let wait = DictationWait(
             wait: waited, stages: await tally.measurements, decoding: await tally.efforts,
-            screenReads: screenReads)
+            screenReads: screenReads, tidyColdStart: await tally.tidyColdStart)
         let timed = waits.classify(wait)
         await metrics.recordWait(timed)
         return timed.cause
