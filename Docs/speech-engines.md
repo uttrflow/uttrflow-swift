@@ -288,6 +288,10 @@ short replies would replace all three tables.
 - WhisperKit re-runs detection for every fallback temperature and samples it the same way it
   samples text, top-k at that temperature. The allowed sampler ignores the temperature, so one
   window cannot change its language between retries.
+- The same detection step also reads the likeliest of all languages. When the model is at least 95%
+  sure of one the product does not transcribe, other than Urdu, the window's decode is refused
+  with an informational notice instead of being written in English. See `Docs/latin-output.md`,
+  "Speech in a language the product does not transcribe".
 
 ## Short Hindi replies under an English and Hindi profile
 
