@@ -58,8 +58,7 @@ public final class TelemetryCollector: MetricsRecording {
         state.withLock { $0.reset(at: moment) }
     }
 
-    /// Records one dictation; `processing` feeds both the total and the latency sample, so the two agree.
-    /// `finishedBy` is counted for a completed dictation only, since nothing else was finished by a rung.
+    /// Records processing totals and latency together, counting `finishedBy` only for a completed dictation.
     public func recordDictation(
         _ outcome: DictationOutcome,
         language: TelemetryLanguage,
