@@ -193,6 +193,8 @@ struct DictationPipelineTimelineTests {
         #expect(rig.start("tidy 2") == nil)
 
         let finishing = Task { await rig.pipeline.finishRecording() }
+        // The silent tail is recognised at key-up, beside the tidy still running.
+        try await rig.expectRunning(["tidy 1", "recognise 3"])
         rig.advance(by: .milliseconds(150))
         try await rig.expectRunning(["tidy 2"])
         #expect(rig.start("tidy 2") == .milliseconds(350))
@@ -303,6 +305,9 @@ struct DictationPipelineTimelineTests {
         // The failed piece is recognised again first.
         try await rig.expectRunning(["recognise 3"])
         #expect(rig.start("recognise 3") == keyUp)
+        rig.advance(by: recognition)
+        // The last piece is recognised beside the retried piece's tidy.
+        try await rig.expectRunning(["tidy 2", "recognise 4"])
         while rig.timeline.run("tidy 3")?.end == nil {
             if Task.isCancelled { throw WaitNeverEnded() }
             rig.advance(by: .milliseconds(100))
@@ -310,10 +315,7 @@ struct DictationPipelineTimelineTests {
         }
         await finishing.value
 
-        #expect(rig.start("recognise 4") ?? .zero >= keyUp + recognition)
-        withKnownIssue("#5046: the release pass recognises the last piece after the retried piece's tidy") {
-            #expect(rig.start("recognise 4") == keyUp + recognition)
-        }
+        #expect(rig.start("recognise 4") == keyUp + recognition)
         #expect(await rig.speech.transcribeCalls.events.count == 4)
     }
 

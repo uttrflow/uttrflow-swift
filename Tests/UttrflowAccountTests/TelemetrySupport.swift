@@ -27,7 +27,8 @@ enum Telemetry {
         latencyP90Ms: Int? = nil,
         latencyP99Ms: Int? = nil,
         languages: [TelemetryLanguage: Int] = [:],
-        stages: [TelemetryReport.StageOutcome] = []
+        stages: [TelemetryReport.StageOutcome] = [],
+        fallbackRungs: [TelemetryFallbackRung: Int] = [:]
     ) -> TelemetryReport? {
         TelemetryReport(
             windowStartedAt: windowStartedAt, windowEndedAt: windowEndedAt, appVersion: appVersion,
@@ -35,7 +36,7 @@ enum Telemetry {
             cancelledCount: cancelledCount, failureCount: failureCount, audioTotalMs: audioTotalMs,
             processingTotalMs: processingTotalMs, charactersInserted: charactersInserted,
             latencyP50Ms: latencyP50Ms, latencyP90Ms: latencyP90Ms, latencyP99Ms: latencyP99Ms,
-            languages: languages, stages: stages)
+            languages: languages, stages: stages, fallbackRungs: fallbackRungs)
     }
 
     /// A collector that is switched on and has a window open at ``noon``.

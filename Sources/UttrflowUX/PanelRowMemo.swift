@@ -5,7 +5,7 @@ import UttrflowClipboard
 import UttrflowCore
 
 /// Remembers the rows last drawn, keyed by clip, with selection applied afterwards.
-final class PanelRowMemo: Sendable, Equatable {
+final class PanelRowMemo: Sendable {
     /// Everything outside the clip that a row's words depend on; a change to any of it forgets every row.
     struct Context: Sendable, Equatable {
         let needle: String
@@ -15,6 +15,7 @@ final class PanelRowMemo: Sendable, Equatable {
         let formattableLanguages: Set<CodeLanguage>
         let revealed: Set<Clip.ID>
         let missingImages: Set<Clip.ID>
+        let missingFiles: [Clip.ID: [String]]
     }
 
     /// What one row was built from, compared before it is reused.
@@ -120,6 +121,4 @@ final class PanelRowMemo: Sendable, Equatable {
         return row
     }
 
-    /// Compares equal to any other memo, because a cache is not part of what the panel shows.
-    static func == (lhs: PanelRowMemo, rhs: PanelRowMemo) -> Bool { true }
 }

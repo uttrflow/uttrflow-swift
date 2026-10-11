@@ -48,7 +48,10 @@ struct RecentDictationsTests {
     @Test("a history refresh repaints Recent with records written outside this app")
     func historyRefreshRepaintsRecent() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root, account: HeldSession(signedIn: true).layer)
+        let app = AppDelegate(
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
+            account: HeldSession(signedIn: true).layer)
         let history = DictationHistoryStore(file: DictationHistoryStore.defaultFile(in: sandbox.root))
         let spoken = RecentDictation(text: "Written by another process", when: .now)
         try await history.append(spoken, keeping: Retention(days: 30, now: .now))
@@ -67,7 +70,8 @@ struct RecentDictationsTests {
     func resetClearsRecentWithoutMainWindow() async throws {
         let sandbox = Sandbox()
         let app = AppDelegate(
-            container: sandbox.root, account: HeldSession(signedIn: true).layer)
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), account: HeldSession(signedIn: true).layer)
         let history = DictationHistoryStore(file: DictationHistoryStore.defaultFile(in: sandbox.root))
         let spoken = "Words that reset removes"
         app.render(.inserted(DictationOutcome(text: spoken, method: .accessibility, cleanedBy: .rules)))
@@ -89,7 +93,7 @@ struct RecentDictationsTests {
     @Test("salvaged insertion words remain kept when the next recording starts")
     func insertionFailureSurvivesNextRecording() throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let failure = DictationFailure(
             message: "Insertion was not confirmed.", recovery: .showHistory,
             severity: .degraded, transcript: "Words from the timeout")

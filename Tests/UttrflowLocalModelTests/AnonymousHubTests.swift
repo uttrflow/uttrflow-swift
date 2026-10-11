@@ -54,3 +54,31 @@ struct AnonymousHubTests {
         #expect(tally?.count == 2)
     }
 }
+
+@Suite("Anonymous Hub client and delegate")
+struct AnonymousHubDelegateTests {
+    @Test("the client is built without reading a token or the environment")
+    func clientIsBuilt() {
+        _ = AnonymousHub.client()
+    }
+
+    @Test("a created task and a redirect are each recorded as a model download")
+    func delegateRecordsTasksAndRedirects() async throws {
+        let ledger = NetworkActivityLedger(file: nil)
+        let session = AnonymousHub.session(ledger: ledger)
+        let delegate = try #require(session.delegate as? (any URLSessionTaskDelegate))
+        let url = try #require(URL(string: "https://huggingface.co/model/config.json"))
+        let task = session.dataTask(with: url)
+        delegate.urlSession?(session, didCreateTask: task)
+        let response = try #require(
+            HTTPURLResponse(url: url, statusCode: 302, httpVersion: nil, headerFields: nil))
+        let followed = await withCheckedContinuation { continuation in
+            delegate.urlSession?(
+                session, task: task, willPerformHTTPRedirection: response, newRequest: URLRequest(url: url)
+            ) { continuation.resume(returning: $0) }
+        }
+        session.invalidateAndCancel()
+        #expect(followed?.url == url)
+        #expect(ledger.activity().tallies(at: Date())[.modelDownload]?.count == 3)
+    }
+}

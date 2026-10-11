@@ -41,6 +41,8 @@ struct PanelEndToEndTests {
             switch change {
             case .setAlias(let id, let alias):
                 _ = try await store.setAlias(alias, of: id, keeping: retention)
+            case .setLabels(let id, let alias, let tags):
+                _ = try await store.setLabels(alias: alias, tags: tags, of: id, keeping: retention)
             case .setCategory(let id, let category):
                 _ = try await store.setCategory(category, of: id, keeping: retention)
             case .setPinned(let id, let isPinned):

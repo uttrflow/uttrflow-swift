@@ -13,7 +13,8 @@ struct Bakeoff: AsyncParsableCommand {
         commandName: "uttrflow-bakeoff",
         abstract: "Score clean-up engines against the evaluation corpus.",
         subcommands: [
-            Footprint.self, Profile.self, Complete.self, Score.self, GPUMemory.self, ReloadLeaks.self,
+            Footprint.self, Profile.self, Complete.self, Score.self, MidWord.self, GPUMemory.self,
+            ReloadLeaks.self,
             SpeechShape.self, Marks.self, HomophoneRepair.self, TidyGate.self,
         ]
     )
@@ -48,6 +49,11 @@ struct Bakeoff: AsyncParsableCommand {
         return EvaluationCorpus.all.filter { $0.id == caseID }
     }
 
+    @Option(
+        name: .customLong("repeat"),
+        help: "Run each model-backed case this many times and report which cases changed their answer.")
+    var repeatCount = 1
+
     @Option(name: .long, help: "Where results are kept between runs; comparisons use a -compared sibling.")
     var resultsPath = ".bakeoff"
 
@@ -56,6 +62,20 @@ struct Bakeoff: AsyncParsableCommand {
 
     @Option(name: .long, help: "Comma-separated quality layers to switch off, to measure what each adds.")
     var without: String?
+
+    /// Reads the test side only, since it judges a release; nothing is decoded and no model loads.
+    @Flag(
+        name: .long,
+        help:
+            "Switch each default-on layer off over the kept decodes of the test side and print its contribution."
+    )
+    var ablate = false
+
+    @Option(name: .long, help: "With --ablate: where the recorded corpus and its kept decodes live.")
+    var corpusPath = TranscriptionCorpusStore.defaultDirectoryName
+
+    @Option(name: .long, help: "With --ablate: the engine version the kept decodes were made under.")
+    var engineVersion: String?
 
     /// The layers this run measures; `validate` has refused a name that is not one.
     private var running: QualityLayers {
@@ -67,6 +87,7 @@ struct Bakeoff: AsyncParsableCommand {
             let valid = QualityLayer.allCases.map(\.rawValue).joined(separator: ", ")
             throw ValidationError("Unknown quality layer in --layers or --without. Choose from \(valid).")
         }
+        guard repeatCount >= 1 else { throw ValidationError("--repeat must be one or greater.") }
         guard let caseID else { return }
         guard !scored.isEmpty else { throw ValidationError("No case '\(caseID)' in the scored corpus.") }
         guard against == nil, ledger == nil, !summarise, !sample else {
@@ -100,6 +121,19 @@ struct Bakeoff: AsyncParsableCommand {
     }
 
     func run() async throws {
+        if ablate {
+            let rules = TransformerRouter(
+                engines: [RuleBasedTransformer()], preference: [.rules], rulesAlone: .shortReplies)
+            do {
+                print(
+                    try await LayerAblation.report(
+                        corpus: URL(fileURLWithPath: corpusPath), engineVersion: engineVersion, cleaner: rules
+                    ))
+            } catch {
+                throw CleanExit.message("\(error)")
+            }
+            return
+        }
         let store = ResultStore(directory: URL(fileURLWithPath: storeDirectory))
         let outputStore = ResultStore(
             directory: URL(fileURLWithPath: against == nil ? storeDirectory : storeDirectory + "-compared"))
@@ -291,7 +325,7 @@ struct Bakeoff: AsyncParsableCommand {
 
         print("· \(description.name)")
         let refusals = RefusalTally()
-        let report = await EvaluationRunner(cases: scored).run(label: description.name) { testCase in
+        let report = await runRepeated(label: description.name) { testCase in
             let request = request(for: testCase)
             // An engine that declines a language has behaved well, not answered wrongly.
             if let engine, await engine.availability(for: request).isAvailable == false {
@@ -361,7 +395,7 @@ struct Bakeoff: AsyncParsableCommand {
         print("  ready in \(seconds(loadStart.duration(to: clock.now)))s")
 
         let transformer = TextTransformers.local(cleanup)
-        let report = await EvaluationRunner(cases: scored).run(
+        let report = await runRepeated(
             label: description.name,
             onCase: { _ in FileHandle.standardError.write(Data(".".utf8)) }
         ) { testCase in
@@ -380,6 +414,26 @@ struct Bakeoff: AsyncParsableCommand {
         }
         FileHandle.standardError.write(Data("\r\u{1B}[2K".utf8))
         return Measurement(description: description, report: report)
+    }
+
+    /// Scores the cases `--repeat` times, keeps the first run's report and prints the run-to-run spread when repeated.
+    private func runRepeated(
+        label: String,
+        onCase: (@Sendable (EvaluationCase) -> Void)? = nil,
+        transform: (EvaluationCase) async throws -> EvaluationOutcome
+    ) async -> EvaluationReport {
+        let spread = OutputSpread()
+        var first: EvaluationReport?
+        for _ in 0..<repeatCount {
+            let report = await EvaluationRunner(cases: scored).run(label: label, onCase: onCase) { testCase in
+                let outcome = try await transform(testCase)
+                if case .produced(let text) = outcome { spread.record(text, forCase: testCase.id) }
+                return outcome
+            }
+            first = first ?? report
+        }
+        if repeatCount > 1 { for line in spread.lines { print(line) } }
+        return first ?? EvaluationReport(label: label, scores: [], durations: [])
     }
 
     /// What a candidate writes, or the words as heard when the formatting layer is off, as the pipeline leaves them.

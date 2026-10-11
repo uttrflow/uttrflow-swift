@@ -737,3 +737,19 @@ struct SignOffTests {
         #expect(SignOff.unsigned("Thanks, Sam Rivers", typed: "Thanks,", ownLines: []) == nil)
     }
 }
+
+@Suite("Joining an answer across an apostrophe or a combining mark")
+struct CompletionJoinEdgeTests {
+    @Test("An apostrophe inside a word is not an opening quote when the answer closes one.")
+    func wordApostropheIsNotAnOpeningQuote() {
+        #expect(CompletionText.joined("it's 'hi ", with: "'") == "it's 'hi'")
+        #expect(CompletionText.joined("it's", with: "'hi'") == "it's 'hi'")
+    }
+
+    @Test(
+        "An answer opening on a letter with a combining mark is not closing punctuation and cannot join a word."
+    )
+    func combiningMarkIsNotClosingPunctuation() {
+        #expect(CompletionText.joined("hi", with: "e\u{301}x") == nil)
+    }
+}

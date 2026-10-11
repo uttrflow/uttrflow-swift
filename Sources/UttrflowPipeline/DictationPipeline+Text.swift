@@ -19,7 +19,7 @@ extension Transcription {
             audioDuration: audioDuration)
     }
 
-    /// The same speech with the dictionary's spellings in it, settled, and every word keeping the score it was heard with.
+    /// The same speech with the dictionary's spellings in it, settled, and every word keeping its heard score.
     func saying(_ corrected: CorrectedTranscript) -> Transcription {
         guard corrected.text != text || !corrected.held.isEmpty else { return self }
         let heard = Draft(transcription: self)

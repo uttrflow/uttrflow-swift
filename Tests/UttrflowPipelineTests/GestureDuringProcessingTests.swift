@@ -96,6 +96,27 @@ private func dictateUntilInsertion(_ rig: Rig) async {
 @Suite("A press made while the last dictation is processed", .timeLimit(.minutes(1)))
 struct GestureDuringProcessingTests {
 
+    @Test("a refused press keeps the drain waiting for its held insertion")
+    func refusedPressRetainsInsertionCompletion() async {
+        let rig = makeRig()
+        await dictateUntilInsertion(rig)
+        rig.controller.submit(.pressed)
+        await rig.controller.caughtUp()
+        let premature = await withDeadline(.milliseconds(50)) {
+            await rig.controller.drained()
+            return true
+        }
+        #expect(premature == nil)
+        rig.inserter.open()
+        await rig.controller.drained()
+        #expect(await rig.capture.calls.events == [.start, .stop])
+        #expect(rig.inserter.received == ["Hello there."])
+        guard case .inserted = await rig.pipeline.currentState else {
+            Issue.record("draining did not wait for the held insertion")
+            return
+        }
+    }
+
     @Test("is refused when it arrives, and a quick release after it cancels nothing")
     func pressAndReleaseDuringProcessing() async {
         let rig = makeRig()

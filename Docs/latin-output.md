@@ -205,6 +205,21 @@ word heard in it as a stray recogniser capital. `BrandRestorationTests` measures
 M5 Pro: 16 of 20 names in a source restored, 0 restored wrongly, 0 of 122 Hindi words restored,
 and all 10 names in neither source left as the romaniser spells them.
 
+### Names, places and weekdays
+
+Devanagari has no case, so a romanised name carries no capital unless a source says it is one.
+`RomanisedNameCasing` runs after `LoanwordRestoration` and capitalises a word that came from
+Devanagari when its sound key matches a one-word capitalised dictionary entry, a name the screen
+shows, or a weekday (the weekday table is romanised by `Romaniser` itself, so the spellings agree).
+A name that is a listed romanised Hindi word ("Kal") or an ordinary word is never cased, and no
+word is capitalised by shape or position. `RomanisedNameCorpus` holds 24 invented sentences scored
+case-sensitively beside the case-folded word error rate: before the pass 12 of 19 sentences whose
+name a source the person owns can spell were written right, after it 19 of 19; the 4 sentences whose
+name only a shipped list of names and places could spell stay lower case, and the 1 control gains no
+capital. No shipped list exists; `LoanwordRestoration` already restores a respelled dictionary name.
+Honorific and kinship words after a name stay lower case unless `FirstWordPass` cases a kinship word
+as a name ("Didi"); that case is not yet handled.
+
 ## The script guard
 
 A model can answer Devanagari with a translation, with the prompt's own worked example, or in
@@ -352,5 +367,28 @@ clips are the 7 phonetic renderings. Refusing on a confident unrestricted answer
 allowed set is therefore the smallest rule that removes the translations, and it leaves Spanish
 speech an open case that detection cannot reach. The rule also refuses the 7 clips in French and
 German that came out in their own language, because the decode cannot tell them apart before it
-runs. It is not built yet: it needs the unrestricted verdict carried out of `detectLanguage` and the
-informational notice worded.
+runs.
+
+### Built
+
+`AllowedLanguageSampler` reads the likeliest of all language tokens beside the one it answers
+with, and `LanguageHeldDecoder` keeps that verdict until the window's decode. When
+`UnsupportedLanguageRefusal` says the model is at least 95% sure of a language outside
+`LanguageCode.transcribed`, the decode throws `SpeechEngineError.unsupportedLanguage` before any
+token is written, and nothing is inserted. The failure is informational, offers no button and says
+"That sounded like French, which Uttrflow can't write yet." Urdu is never refused, because it is
+how the model sometimes hears Hindi (`Docs/speech-engines.md`, "Which language the recogniser may
+answer in"). A pinned language hint skips detection, so a Hindi-only profile is never refused.
+
+Measured by `UnsupportedLanguageProbe` and `TranscribedLanguageGate` (set `UTTRFLOW_PROBE_UNSUPPORTED`),
+same host, model and clips as the table above:
+
+| | Before | After |
+|---|---|---|
+| French, German and Japanese clips refused | 0 of 30 | 30 of 30 |
+| Translations inserted | 17 | 0 |
+| Spanish clips inserted as phonetic English or Devanagari | 8 | 8 |
+| English and Hindi clips refused: 15 system-voice clips in 3 English voices, 8 in a Hindi voice, 30 real recordings (English, Hindi, Hinglish; quiet, fast, noisy) | not measured | 0 of 53 |
+
+Spanish stays open, since no detection margin separates it. The 7 French and German clips that
+came out in their own language are refused too.

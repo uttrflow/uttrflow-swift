@@ -57,6 +57,14 @@ prevents alone. Any other layer is listed for removal. The table without latency
 [degraded-path-matrix.md](degraded-path-matrix.md#each-layers-marginal-contribution); with latency,
 `make release-quality` adds it to `dist/release-quality.md`.
 
+The same table runs on recorded decodes, where the recogniser-side layers see real doubt:
+`uttrflow-bakeoff --ablate` and `uttrflow-eval transcribe --ablate` read the kept decodes of the
+English test-side recordings (`--corpus-path`; `--engine-version` names the engine when decodes of
+several are kept), switch each default-on layer off alone, and print the table above with the
+failed-case and meaning-error intervals, minimum detectable change and false overrides, naming every
+default-on layer. They decode nothing and load no model, and read the test side only, so run them
+to judge a release, never to tune one.
+
 ## Rules that hold across every layer
 
 1. **Doing nothing is the default.** A layer that is unsure leaves the words as heard. Only the
@@ -304,3 +312,25 @@ split could certify, and the shipped line states how many decisions the gate abs
 the recogniser's word. Today's gate thresholds the integer evidence margin of
 `DoubtPolicy.OverridePolicy` ([ai-correction-thresholds.md](ai-correction-thresholds.md)), so its
 grid is those margins; `GateCalibrationTests` checks the bound against published values.
+
+### Dictionary size
+
+The gate is calibrated on one dictionary size, and size grows with use. `DictionarySizeOverrideTests`
+builds dictionaries of invented words at 0, 30, 300 and 3,000 entries, half of them sound-alikes of
+words the held-out sentences doubt, five arrangements per size, and weighs the 36 persona-free
+sentences twice each (as starred and with every word doubted): 1,700 words per size. Every proposal
+there is a false override. It also hears 100 probes, 20 added terms each heard as a near-sound in five
+arrangements, to count the corrections the dictionary must still win.
+
+| Entries | False overrides per 1,000 words | Upper bound, 95% | Runs weighed | Abstained | Probes missed | Of which out of reach |
+|---|---|---|---|---|---|---|
+| 0 | 0.00 | 1.76 | 0 | n/a | 5 | 0 |
+| 30 | 0.00 | 1.76 | 63 | 100.0% | 6 | 0 |
+| 300 | 3.53 | 6.95 | 301 | 98.0% | 18 | 0 |
+| 3,000 | 0.00 | 1.76 | 399 | 100.0% | 40 | 13 |
+
+The false-override rate does not rise with size here, and the sample is too small to certify the 1 in
+1,000 target at any size (2,995 overrides with none wrong). Missed corrections do rise: the gate
+abstains more as competing readings grow, and from 3,000 entries the bucket cap of eight per sound
+(`PhoneticIndex.maximumPerSound`) keeps some added terms from being candidates at all. The suite
+fails when any size adds more than 6 false overrides per 1,000 words over the empty dictionary.

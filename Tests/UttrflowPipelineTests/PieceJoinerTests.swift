@@ -156,6 +156,15 @@ struct PieceJoinerListTests {
         #expect(whole.cleaned.text == "Agenda.\n- Budget\n- Hiring\n- Roadmap")
     }
 
+    @Test("puts a bullet that opens a paused piece, written without its break, on its own line")
+    func bulletWithoutBreakAtPieceHead() {
+        let whole = PieceJoiner.join(
+            [piece("Agenda"), piece("- budget"), piece("- hiring"), piece("- roadmap")],
+            under: .standard(for: .document))
+
+        #expect(whole.cleaned.text == "Agenda.\n- Budget\n- Hiring\n- Roadmap")
+    }
+
     @Test("one sequence word is prose, however plainly it counts")
     func oneItemIsProse() {
         #expect(
@@ -664,6 +673,22 @@ struct PieceJoinerSeamTests {
             under: .standard(for: .document))
 
         #expect(whole.cleaned.text == "We moved the review to the next slot works")
+    }
+
+    @Test(
+        "lowers a recognizer capital on a pronoun or verb that opens the clause after a run-on seam",
+        arguments: [
+            ("I called the supplier this morning and", "They said the parts ship on Friday", "they said"),
+            ("I called the supplier this morning and", "We agreed on a price", "we agreed"),
+            ("The review moved because", "She was out sick", "she was"),
+        ])
+    func lowersClauseOpeningAtRunOnSeam(first: String, next: String, expected: String) {
+        let whole = PieceJoiner.join(
+            [piece(first), piece(next)], under: .standard(for: .document))
+
+        #expect(whole.cleaned.text.lowercased().contains(expected))
+        let opening = next.prefix(while: \.isLetter)
+        #expect(!whole.cleaned.text.contains(" " + opening))
     }
 
     @Test(

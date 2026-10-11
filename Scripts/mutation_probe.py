@@ -6,6 +6,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -109,33 +110,96 @@ def refuse_outside_worktree(directory):
         sys.exit("mutation_probe: run this from a linked worktree, never the main checkout")
 
 
+def require_clean_target(repository, target, reference):
+    """Only a tracked, unchanged source from the selected current revision may be mutated."""
+    relative = os.path.relpath(target, repository)
+    if os.path.realpath(target) != target or relative.startswith(".." + os.sep):
+        sys.exit("mutation_probe: target must stay inside the linked worktree")
+    status = subprocess.run(["git", "status", "--porcelain", "--", relative],
+                            cwd=repository, capture_output=True, text=True, check=True)
+    revision = subprocess.run(["git", "show", f"{reference}:{relative}"],
+                              cwd=repository, capture_output=True, check=True)
+    with open(target, "rb") as file:
+        current = file.read()
+    if status.stdout or current != revision.stdout:
+        sys.exit("mutation_probe: target must be clean and match --ref before mutation")
+
+
+def require_runner(runner):
+    if shutil.which(runner) is None:
+        sys.exit("mutation_probe: --build-runner must name an executable build/test wrapper")
+
+
+def interrupted(signum, frame):
+    raise KeyboardInterrupt("mutation probe interrupted")
+
+
 def run(command, cwd, log, timeout):
     started = time.monotonic()
+    process = subprocess.Popen(command, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                               text=True, start_new_session=True)
     try:
-        result = subprocess.run(command, cwd=cwd, capture_output=True, text=True, timeout=timeout)
-        output, code = result.stdout + result.stderr, result.returncode
-    except subprocess.TimeoutExpired as expired:
-        output, code = str(expired.stdout or "") + str(expired.stderr or ""), None
+        output, _ = process.communicate(timeout=timeout)
+        code = process.returncode
+    except (subprocess.TimeoutExpired, KeyboardInterrupt) as failure:
+        os.killpg(process.pid, signal.SIGTERM)
+        try:
+            output, _ = process.communicate(timeout=10)
+        except subprocess.TimeoutExpired:
+            os.killpg(process.pid, signal.SIGKILL)
+            output, _ = process.communicate()
+        if isinstance(failure, KeyboardInterrupt):
+            raise
+        code = None
     with open(log, "a") as file:
         file.write(f"$ {' '.join(command)}\n{output}\nexit {code} after {time.monotonic() - started:.0f}s\n")
     return code
 
 
+def assertion_failure(log):
+    with open(log) as file:
+        last_command = file.read().rsplit("$ ", 1)[-1]
+    return re.search(r"Test run with [0-9]+ tests?.*failed", last_command) is not None
+
+
+def trial(target, source, commands, log, timeout):
+    build, test = commands
+    repository = os.getcwd()
+    with open(target, "w") as file:
+        file.writelines(source)
+    code = run(build, repository, log, timeout)
+    if code is None:
+        sys.exit(f"mutation_probe: build timed out; no score recorded; see {log}")
+    if code != 0:
+        return "unviable"
+    code = run(test, repository, log, timeout)
+    if code is None:
+        sys.exit(f"mutation_probe: test timed out; no score recorded; see {log}")
+    if code != 0 and (code != 1 or not assertion_failure(log)):
+        sys.exit(f"mutation_probe: test infrastructure failed; no score recorded; see {log}")
+    return "survived" if code == 0 else "killed"
+
+
 def probe(arguments):
     repository = os.getcwd()
     refuse_outside_worktree(repository)
-    sandbox = tempfile.mkdtemp(prefix="mutation-probe-")
-    subprocess.run(["git", "worktree", "add", "--detach", sandbox, arguments.ref], cwd=repository, check=True,
-                   capture_output=True)
-    log = os.path.join(tempfile.gettempdir(), "mutation_probe.log")
-    open(log, "w").close()
+    require_runner(arguments.build_runner)
+    target = os.path.abspath(os.path.join(repository, arguments.file))
+    if arguments.report and os.path.realpath(arguments.report) == os.path.realpath(target):
+        sys.exit("mutation_probe: the report cannot overwrite the source")
+    require_clean_target(repository, target, arguments.ref)
+    with open(target, "rb") as file:
+        original_bytes = file.read()
+    original = original_bytes.decode().splitlines(keepends=True)
+    with tempfile.NamedTemporaryFile(prefix="mutation-probe-", suffix=".log", delete=False) as file:
+        log = file.name
+    print(f"mutation log: {log}", flush=True)
+    build = [arguments.build_runner, "build", "--jobs", "4", "--build-tests", "--enable-code-coverage"]
+    test = [arguments.build_runner, "test", "--jobs", "4", "--skip-build",
+            "--enable-code-coverage", "--filter", arguments.filter]
+    previous = signal.signal(signal.SIGTERM, interrupted)
     try:
-        target = os.path.join(sandbox, arguments.file)
-        with open(target) as file:
-            original = file.readlines()
-        build = ["swift", "build", "--build-tests"]
-        test = ["swift", "test", "--skip-build", "--filter", arguments.filter]
-        if run(build, sandbox, log, None) != 0 or run(test, sandbox, log, None) != 0:
+        if run(build, repository, log, None) != 0 or run(test, repository, log, None) != 0:
             sys.exit(f"mutation_probe: the unmutated tree does not build and pass; see {log}")
         outcomes = []
         candidates = mutants(original)
@@ -143,21 +207,16 @@ def probe(arguments):
             source = apply(original, mutant)
             if source is None:
                 continue
-            with open(target, "w") as file:
-                file.writelines(source)
-            if run(build, sandbox, log, arguments.timeout) != 0:
-                verdict = "unviable"
-            else:
-                code = run(test, sandbox, log, arguments.timeout)
-                verdict = "survived" if code == 0 else "killed"
+            verdict = trial(target, source, (build, test), log, arguments.timeout)
             outcomes.append({"mutant": describe(mutant), "verdict": verdict})
+            if arguments.report:
+                write_report(arguments, outcomes, complete=False)
             print(f"[{index}/{len(candidates)}] {verdict}: {describe(mutant)}", flush=True)
-        with open(target, "w") as file:
-            file.writelines(original)
         return outcomes
     finally:
-        subprocess.run(["git", "worktree", "remove", "--force", sandbox], cwd=repository, capture_output=True)
-        shutil.rmtree(sandbox, ignore_errors=True)
+        with open(target, "wb") as file:
+            file.write(original_bytes)
+        signal.signal(signal.SIGTERM, previous)
 
 
 def score(outcomes):
@@ -166,17 +225,34 @@ def score(outcomes):
     return killed, survived, (killed / (killed + survived) if killed + survived else 0.0)
 
 
-def main():
+def write_report(arguments, outcomes, *, complete):
+    with open(arguments.report, "w") as file:
+        json.dump({"file": arguments.file, "score": score(outcomes)[2],
+                   "complete": complete, "outcomes": outcomes}, file, indent=2)
+
+
+def parse_arguments():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("file", help="the Swift source to mutate, relative to the repository root")
     parser.add_argument("--filter", required=True, help="the `swift test --filter` that selects the module's tests")
-    parser.add_argument("--ref", default="HEAD", help="the revision the throwaway worktree is cut from")
+    parser.add_argument("--ref", default="HEAD", help="the revision the clean source must match")
+    parser.add_argument("--build-runner",
+                        help="executable build/test wrapper; every build and test uses this runner")
     parser.add_argument("--limit", type=int, default=0, help="stop after this many mutants; 0 runs them all")
     parser.add_argument("--timeout", type=int, default=900, help="seconds before a build or test run counts as hung")
     parser.add_argument("--report", help="write every outcome to this JSON file")
     parser.add_argument("--list", action="store_true", help="print the mutants without building anything")
     parser.add_argument("--update-baseline", action="store_true", help="record this score as the floor")
     arguments = parser.parse_args()
+    if arguments.limit and arguments.update_baseline:
+        parser.error("a partial --limit run cannot update the score floor")
+    if not arguments.list and not arguments.build_runner:
+        parser.error("--build-runner must name an executable build/test wrapper")
+    return arguments
+
+
+def main():
+    arguments = parse_arguments()
     if arguments.list:
         with open(arguments.file) as file:
             lines = file.readlines()
@@ -188,8 +264,14 @@ def main():
     killed, survived, ratio = score(outcomes)
     print(f"killed {killed}, survived {survived}, score {ratio:.3f}")
     if arguments.report:
-        with open(arguments.report, "w") as file:
-            json.dump({"file": arguments.file, "score": ratio, "outcomes": outcomes}, file, indent=2)
+        write_report(arguments, outcomes, complete=not arguments.limit)
+    if arguments.limit:
+        print("partial run: score floor not checked")
+        return 0
+    return check_floor(arguments, ratio)
+
+
+def check_floor(arguments, ratio):
     baseline = {}
     if os.path.exists(BASELINE):
         with open(BASELINE) as file:
