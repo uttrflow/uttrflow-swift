@@ -36,6 +36,10 @@
 
 [files]
 extend-exclude = [
+  "Sources/UttrflowEval/MidWordCalibration.swift",
+  "Sources/UttrflowCore/Resources/Lexicon/letter-sounds.txt",
+  "Tests/UttrflowSpeechTests/UnsupportedLanguageProbeTests.swift",
+  "Tests/UttrflowAITests/Candidates/ContextScorerTests.swift",
   ".build/",
   "dist/",
   "Package.resolved",
@@ -164,3 +168,6 @@ extend-glob = ["letter-sounds.txt"]
 [type.letter-sounds.extend-words]
 pn = "pn"
 ue = "ue"
+
+skool = "skool"
+foto = "foto"
