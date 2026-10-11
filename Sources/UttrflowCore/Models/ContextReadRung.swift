@@ -4,6 +4,8 @@ public enum ContextReadRung: String, Sendable, CaseIterable {
     case rangedValue
     /// The whole value, taken when it fits the window.
     case wholeValue
+    /// The text-marker selection, taken when the field refuses its character range.
+    case textMarkerRange
     /// The rendered row an editor draws around the empty input it parks at the caret.
     case renderedRows
     /// No rung answers: the field refuses, is secure, or gives a value that does not fit its count.

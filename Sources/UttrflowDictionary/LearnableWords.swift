@@ -134,6 +134,21 @@ enum LearnableWords {
         return replacement
     }
 
+    /// The heard words and the written word of an edit that may be counted, with no demand that they sound alike.
+    static func editedPair(heard: String, wrote: String) -> (heard: String, meant: String)? {
+        let before = words(in: heard, atMost: maximumWordsInACorrection + 1)
+        let after = words(in: wrote, atMost: maximumWordsInACorrection + 1)
+        guard (1...maximumWordsInACorrection).contains(before.count),
+            (1...maximumWordsInACorrection).contains(after.count),
+            before.joined(separator: " ").lowercased() != after.joined(separator: " ").lowercased()
+        else { return nil }
+        let meant = after.joined(separator: " ")
+        guard LatinScript.isLatin(meant), LatinScript.isLatin(heard),
+            after.allSatisfy(GeneralVocabulary.isWorthLearning)
+        else { return nil }
+        return (before.joined(separator: " ").lowercased(), meant)
+    }
+
     /// Whether a replacement is a respelling within half the longer spelling's edit distance; see Docs/app-dictionary.md.
     static func isNearSpelling(_ replacement: String, of selected: String, sameWordCount: Bool) -> Bool {
         func letters(_ text: String) -> [Character] {
