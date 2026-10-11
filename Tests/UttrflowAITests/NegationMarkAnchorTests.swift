@@ -12,7 +12,9 @@ struct NegationMarkAnchorTests {
         #expect(MeaningPreservationGuard().verdict(draft: draft, rewritten: "display: none;}").isAccepted)
     }
 
-    @Test("refuses deleting or replacing the CSS negating value", arguments: ["display: block;}", "display: ;}"])
+    @Test(
+        "refuses deleting or replacing the CSS negating value",
+        arguments: ["display: block;}", "display: ;}"])
     func refusesChangedValue(rewritten: String) {
         let draft = CleaningPipeline.standard.run(
             Draft(keepingLineBreaks: "display colon none semicolon close brace"))
