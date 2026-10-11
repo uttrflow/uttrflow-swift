@@ -2,15 +2,15 @@ import Foundation
 import UttrflowCore
 
 /// The few names a surroundings read lets dictation keep, so spelling a colleague's name needs no more than the name.
-public enum SurroundingsNames {
+enum SurroundingsNames {
     /// The most names one read keeps, which bounds what correction and the recogniser vocabulary ever see.
-    public static let maximum = 32
+    static let maximum = 32
 
     /// The shortest name worth keeping; below this an initial or a stray capital matches everything.
     static let shortest = 2
 
     /// The names in the visible text, nearest the field first: capitalised words and @mentions, secret-shaped runs refused.
-    public static func names(in surroundings: Surroundings) -> [String] {
+    static func names(in surroundings: Surroundings) -> [String] {
         guard let text = surroundings.text else { return [] }
         return names(inText: text)
     }

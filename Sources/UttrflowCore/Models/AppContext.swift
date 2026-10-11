@@ -38,7 +38,7 @@ public struct AppContext: Sendable, Equatable {
     public private(set) var onScreenNames: [String] = []
 
     /// The most names one dictation takes from the screen around the field.
-    public static let onScreenNameLimit = 32
+    static let onScreenNameLimit = 32
 
     /// This context with the names the screen showed around the field, capped; a secure field carries none.
     public func adding(onScreenNames names: [String]) -> AppContext {

@@ -91,12 +91,12 @@ public enum SettingsDestinations {
     }
 
     /// The option that leaves an app's formatting to Uttrflow.
-    public static let automaticModeID = "auto"
+    static let automaticModeID = "auto"
     /// The option that writes an app's words as plain prose, never as notation.
-    public static let proseModeID = "prose"
+    static let proseModeID = "prose"
 
     /// One row per app saying how its words are formatted and letting the person switch notation off.
-    public static func adapterModes(
+    static func adapterModes(
         _ overrides: DestinationOverrides, recentApps: [SettingsApp]
     ) -> SettingsGroup? {
         let listed = apps(recentApps, overrides).apps
