@@ -7,6 +7,17 @@ import MLXLMCommon
 /// What the model's reply is allowed to become, decided without loading a model.
 @Suite("Completion parsing")
 struct CompletionParsingTests {
+    @Test("an alternatives pass with no complete line withholds its entire cut reply")
+    func tokenLimitedFirstAlternativeIsWithheld() {
+        let situation = GenerationSituation(application: "Notes")
+        let candidates = MLXCandidateScorer.completions(
+            from: .init(
+                forgetGeneration: 0, text: "see you after the", stop: .length, written: "",
+                tokens: [], logProbabilities: [], bytes: []),
+            typed: "see you", asking: .others(excluding: "see you soon"), in: situation)
+        #expect(candidates.isEmpty)
+    }
+
     @Test("A single-line pass stopped by its token budget offers no candidate.")
     func tokenLimitedPassIsWithheld() {
         let situation = GenerationSituation(application: "Notes")
