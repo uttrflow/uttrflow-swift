@@ -13,6 +13,10 @@ it says is decided by `DictationPresenter` in `Sources/UttrflowPipeline/`. Relat
 [`app-quick-panel.md`](app-quick-panel.md#after-the-panel-has-closed) for what it reports after a
 clipboard paste.
 
+Session loss, screen sleep, system sleep and screen lock end the running dictation through
+`DictationSessionEndObserver`; its notification registration and teardown are tested separately
+from the app delegate.
+
 ## Which display
 
 `DockPlacement.screen` picks the display: the one the panel is already on while it is attached, then

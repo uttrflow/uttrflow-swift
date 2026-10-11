@@ -305,38 +305,22 @@ final class SuggestionCoordinator {
 
     /// Forgets what one application taught, on disk and in every copy this loop holds.
     func forgetSuggestions(from bundleIdentifier: String) async throws {
-        let capture = self.capture
-        let store = self.store
-        try await forgetWhatThisLoopRemembers(
-            of: bundleIdentifier,
-            clearingCorpus: {
-                await capture.forgetLearned(from: bundleIdentifier)
-                try await store.forget(bundleIdentifier: bundleIdentifier)
-            })
+        let forgetting = SuggestionForgetting(
+            capture: capture, store: store, rejectedSuggestionRecorder: rejectedSuggestionRecorder,
+            acceptances: acceptances, verifier: verifier)
+        try await forgetting.forgetSuggestions(from: bundleIdentifier) {
+            modelPass.freshStart(surfaceChanged: true, lineIsEmpty: true)
+        }
     }
 
     /// Forgets every line and answer, on disk and in every copy this loop holds.
     func forgetEverySuggestion() async throws {
-        let capture = self.capture
-        let store = self.store
-        try await forgetWhatThisLoopRemembers(
-            of: nil,
-            clearingCorpus: {
-                await capture.forgetLearnedLines()
-                try await store.forgetEverything()
-                try await capture.forgetEveryAnswer()
-            })
-    }
-
-    /// Drops the verdicts, model answers and held rejections this loop keeps for one application, or for all when nil.
-    private func forgetWhatThisLoopRemembers(
-        of bundleIdentifier: String?, clearingCorpus: @escaping @Sendable () async throws -> Void
-    ) async throws {
-        rejectedSuggestionRecorder.forget(bundleIdentifier: bundleIdentifier)
-        await acceptances.beginForgetting()
-        defer { acceptances.finishForgetting() }
-        try await verifier.forgetEverything(then: clearingCorpus)
-        modelPass.freshStart(surfaceChanged: true, lineIsEmpty: true)
+        let forgetting = SuggestionForgetting(
+            capture: capture, store: store, rejectedSuggestionRecorder: rejectedSuggestionRecorder,
+            acceptances: acceptances, verifier: verifier)
+        try await forgetting.forgetEverySuggestion {
+            modelPass.freshStart(surfaceChanged: true, lineIsEmpty: true)
+        }
     }
 
     /// Arms the tap and starts watching, or says why it cannot.
