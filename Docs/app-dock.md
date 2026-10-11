@@ -13,6 +13,10 @@ it says is decided by `DictationPresenter` in `Sources/UttrflowPipeline/`. Relat
 [`app-quick-panel.md`](app-quick-panel.md#after-the-panel-has-closed) for what it reports after a
 clipboard paste.
 
+Session loss, screen sleep, system sleep and screen lock end the running dictation through
+`DictationSessionEndObserver`; its notification registration and teardown are tested separately
+from the app delegate.
+
 ## Which display
 
 `DockPlacement.screen` picks the display: the one the panel is already on while it is attached, then
@@ -133,8 +137,9 @@ The floating button can be switched off, and is hidden while nobody is signed in
 bar has to carry every dictation state on its own. `FailurePresenter.placement` decides a
 failure's surface from its severity and from whether the button is shown: a blocking failure,
 or any failure while the button is not shown, takes the menu bar's attention form for the same
-`AppDelegate.linger` the button would have used, then clears with the state. The VoiceOver
+`DockLingerPolicy` interval the button would have used, then clears with the state. The VoiceOver
 label is `MenuBarPresenter.spokenForm` of the status line, so it follows that column.
+`MenuBarDictationMapping` projects activity, outcome quality and failure without app coordination.
 `MenuBarSurfaceTableTests` fails when a `DictationState` has no row here or when a row's state
 shows the resting icon or status line.
 
