@@ -10,6 +10,14 @@ public enum FocusedElementPreference {
         role.map(textEntryRoles.contains) ?? false
     }
 
+    /// Roles an editor publishes its focus under; they take text only while the element reports itself editable.
+    private static let editableContainerRoles: Set<String> = ["AXWebArea", "AXGroup", "AXCell"]
+
+    /// Whether a role is one a rich, web or spreadsheet editor publishes, to be confirmed by the element's editable state.
+    public static func isEditableContainer(_ role: String?) -> Bool {
+        role.map(editableContainerRoles.contains) ?? false
+    }
+
     /// Whether an element belongs to the requested application and not this process.
     public static func belongsToRequestedApplication(
         owner: Int32?, requested: Int32?, current: Int32

@@ -1262,7 +1262,7 @@ final class SuggestionCoordinator {
     private func settle(_ update: SuggestionUpdate, in snapshot: FocusedFieldSnapshot) {
         if let silence = update.silence {
             Self.log.debug(
-                "\(SuggestionLog.quiet(typed: snapshot.currentLine, reason: silence.rawValue, rejections: self.session.rejectionsHere, silencedHere: self.session.isSilencedHere, enabled: self.session.isEnabled), privacy: .public)"
+                "\(SuggestionLog.quiet(typed: snapshot.currentLine, reason: silence.rawValue, rejections: self.session.rejectionsHere, enabled: self.session.isEnabled), privacy: .public)"
             )
             // A prose pause is answered the moment it is long enough, rather than at whatever tick comes next.
             if silence == .writingFluently {
@@ -1708,9 +1708,9 @@ final class SuggestionCoordinator {
                 if let returnedKey { KeyStrokeReturn.post(returnedKey) }
                 noteActivity()
             // The field-value observer wakes after the destination exposes its insertion; the activity ticker is the fallback.
-            case .redraw(let update):
-                redraw(update)
-            case .giveBack(let refused):
+            case .redraw(let update): redraw(update)
+            case .giveBack(let refused, let drawn):
+                drawn.map(redraw)
                 KeyStrokeReturn.post(refused)
             }
             // The keys pressed since this one reach the application only now, after anything it inserted.

@@ -60,12 +60,12 @@ public enum OnboardingPresenter {
                         "Share", "chart.bar", .setUsageStatistics(true),
                         isSelected: sharesUsageStatistics),
                 ],
-                hint: standIn ? standInHint : nil, showsTerms: true,
+                hint: standIn ? standInHint : nil, legal: .privacy,
                 explanation: pitch + " Usage statistics are off unless you choose to share them.")
         case .refused(let message):
             return page(
                 state, mood: .failure, picture: .waveform(.still, badge: .symbol("xmark", .failure)),
-                title: "That didn’t work.", providers: providers, hint: message, showsTerms: true,
+                title: "That didn’t work.", providers: providers, hint: message, legal: .privacy,
                 explanation: message)
         case .unreachable:
             return page(
@@ -131,7 +131,7 @@ public enum OnboardingPresenter {
     /// Says that copies are kept, for how long and where, with the choice to keep them or not.
     private static func clipboard(_ state: OnboardingState, isEnabled: Bool, days: Int) -> OnboardingPage {
         let period = days == 1 ? "1 day" : "\(days) days"
-        let off = "Copies are not kept while this is off. Turn it on in Settings › General."
+        let off = "Copies are not kept while this is off. Turn it on in Settings › Privacy."
         return page(
             state, mood: .brand, picture: .waveform(.still, badge: .symbol("list.clipboard", .neutral)),
             title: "Keep what you copy?",
@@ -143,14 +143,14 @@ public enum OnboardingPresenter {
             hint: isEnabled
                 ? """
                 Uttrflow keeps what you copy for up to \(period). It stays on this Mac. \
-                Change it in Settings › General.
+                Change it in Settings › Privacy.
                 """
                 : off,
             explanation: isEnabled
                 ? """
                 Uttrflow keeps what you copy for up to \(period), so you can paste it again from the \
                 Clipboard panel. Clips you pin, name or put in a collection have no time limit. Turn it \
-                off, or exclude apps, in Settings › General.
+                off, or exclude apps, in Settings › Privacy.
                 """
                 : off)
     }
@@ -355,7 +355,7 @@ public enum OnboardingPresenter {
         buttons: [OnboardingButton] = [],
         link: OnboardingLink? = nil,
         hint: String? = nil,
-        showsTerms: Bool = false,
+        legal: PublishedLegalLink? = nil,
         explanation: String? = nil
     ) -> OnboardingPage {
         OnboardingPage(
@@ -366,7 +366,7 @@ public enum OnboardingPresenter {
             buttons: buttons,
             link: link,
             hint: hint,
-            showsTerms: showsTerms,
+            legal: legal,
             explanation: explanation,
             position: state.step.position,
             stepCount: OnboardingStep.count,

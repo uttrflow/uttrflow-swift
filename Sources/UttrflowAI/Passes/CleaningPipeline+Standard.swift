@@ -125,10 +125,12 @@ extension CleaningPipeline {
         let mentions: [any WholeTextCleaningPass] =
             formatter.destination == .messaging
             ? [AtMentionPass(precedingText: situation.insertion.precedingText)] : []
-        // Only an email body has a greeting and a sign-off to set apart; a subject or recipient field is one line.
+        // An email body, or a letter in a document, has a greeting and a sign-off to set apart; a subject or recipient field is one line.
+        let letterDestination = formatter.destination == .email || formatter.destination == .document
         let structure: [any WholeTextCleaningPass] =
-            formatter.destination == .email && situation.intent.fieldRole == .message
-                && formatter.layout.contains(.paragraphs) ? [EmailStructurePass()] : []
+            letterDestination && situation.intent.fieldRole == .message
+                && formatter.layout.contains(.paragraphs)
+            ? [EmailStructurePass(requiresLetter: formatter.destination == .document)] : []
         return CleaningPipeline(
             wholeText: initialisms(steps: steps) + [casing] + mentions + structure + [
                 SentenceBoundaryPass(),

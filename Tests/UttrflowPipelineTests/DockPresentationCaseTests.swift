@@ -49,7 +49,7 @@ struct DockPresentationCaseTests {
         #expect(
             DictationPresenter.dock(for: .transcribing)
                 == DockPresentation(
-                    symbolName: "sparkles", primaryLine: "Tidying up…", secondaryLine: nil,
+                    symbolName: "sparkles", primaryLine: "Cleaning up…", secondaryLine: nil,
                     showsWaveform: false, showsProgress: true, isRecording: false, action: nil,
                     accessibilityLabel: "Working on what you said."))
     }
@@ -116,6 +116,19 @@ struct DockPresentationCaseTests {
                     secondaryLine: MissedSpeech.detail, showsWaveform: false, showsProgress: false,
                     isRecording: false, action: nil,
                     accessibilityLabel: "Inserted. \(MissedSpeech.sentence) \(words)"))
+    }
+
+    @Test("an insertion whose input clipped says to lower the volume")
+    func tooLoudInput() {
+        let outcome = DictationOutcome(
+            text: words, method: .accessibility, cleanedBy: .rules, inputTooLoud: true)
+        #expect(
+            DictationPresenter.dock(for: .inserted(outcome))
+                == DockPresentation(
+                    symbolName: "speaker.wave.2", primaryLine: InputTooLoud.line,
+                    secondaryLine: InputTooLoud.detail, showsWaveform: false, showsProgress: false,
+                    isRecording: false, action: nil,
+                    accessibilityLabel: "Inserted. \(InputTooLoud.sentence) \(words)"))
     }
 
     @Test("a plain insertion ticks and withholds words from a secure field")

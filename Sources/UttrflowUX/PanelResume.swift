@@ -67,7 +67,7 @@ extension PanelSnapshot {
             self.selection = selection
         }
         // Only a sheet whose subject still exists, or the panel reopens asking about nothing.
-        if let sheet = resume.sheet {
+        if let sheet = resume.sheet, !sheet.isPasteQuestion {
             // A clip's sheet needs the clip; a collection's needs the collection.
             let subjectSurvives =
                 sheet.clip.map { id in clips.contains { $0.id == id } }
