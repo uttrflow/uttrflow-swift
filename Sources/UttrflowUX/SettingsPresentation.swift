@@ -367,6 +367,10 @@ public enum SettingsChange: Sendable, Equatable {
     case activation(HotkeyActivation)
     case anchor(DockAnchor)
     case shortcut(ShortcutAction, HotkeyBinding)
+    /// Leaves one shortcut with no keys, so its action is reached from the menu alone.
+    case clearShortcut(ShortcutAction)
+    /// Puts every shortcut back to what the product ships with and touches nothing else.
+    case restoreDefaultShortcuts
     case tidying(SettingsTidyingLevel)
     case spokenLanguage(LanguageCode, isSpoken: Bool)
     /// How long the user pauses while speaking.

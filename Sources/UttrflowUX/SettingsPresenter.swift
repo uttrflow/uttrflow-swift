@@ -165,6 +165,9 @@ public enum SettingsPresenter {
         }
     }
 
+    /// Said under a claimed shortcut, since other apps stop receiving its keys while it is set.
+    static let claimsTheKeys = "While set, it takes these keys from other apps."
+
     /// One shortcut's row, drawn the same way whichever shortcut it is.
     private static func shortcutRow(
         _ descriptor: ShortcutDescriptor, _ settings: Settings,
@@ -187,6 +190,8 @@ public enum SettingsPresenter {
                 """
             } else if descriptor.action == .dictate, let binding {
                 dictateExplanation(settings.hotkeyActivation, keys: SettingsShortcut.compact(binding))
+            } else if descriptor.delivery == .claimed, binding != nil, let sentence = descriptor.explanation {
+                sentence + " " + claimsTheKeys
             } else {
                 descriptor.explanation
             }
@@ -250,6 +255,15 @@ public enum SettingsPresenter {
                     style: .inset),
                 at: 3)
         }
+        shortcuts.append(
+            SettingsRow(
+                id: "restoreDefaultShortcuts",
+                label: "Restore default shortcuts",
+                explanation: "Puts every shortcut back and leaves everything else as it is.",
+                control: .action(title: "Restore Defaults", change: .restoreDefaultShortcuts),
+                unavailability: settings.shortcuts == .default
+                    ? "Every shortcut is already the default." : nil,
+                icon: .symbol("arrow.counterclockwise", .neutral)))
         shortcuts.append(
             SettingsRow(
                 id: "activation",
