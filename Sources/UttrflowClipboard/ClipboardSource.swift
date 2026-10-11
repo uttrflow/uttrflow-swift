@@ -1,6 +1,7 @@
 // The read-only clipboard the watcher polls.
 
 public import struct Foundation.Data
+public import struct Foundation.URL
 public import struct UttrflowCore.PasteboardMarkers
 
 /// The machine's clipboard, read-only; not `UttrflowInput`'s `Pasteboard`, which this module must not link.
@@ -20,6 +21,8 @@ public protocol ClipboardSource: Sendable {
 
     /// The picture on the clipboard as PNG bytes and pixel size, read for copies that may have text or RTF.
     func image() -> (data: Data, width: Int, height: Int)?
+    /// The local files on the clipboard, in copy order; empty when it holds none.
+    func fileURLs() -> [URL]
     /// Whether the current pasteboard advertises a picture flavour without reading its bytes.
     func hasPicture() -> Bool
 
@@ -34,6 +37,9 @@ public protocol ClipboardSource: Sendable {
 }
 
 extension ClipboardSource {
+    /// Sources without a file-URL read hold no files.
+    public func fileURLs() -> [URL] { [] }
+
     /// Sources without a picture-flavour probe remain usable.
     public func hasPicture() -> Bool { false }
 

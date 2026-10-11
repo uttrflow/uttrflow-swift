@@ -31,7 +31,7 @@ extension MeaningPreservationGuard {
                 // A change reaching past the run took its neighbours with it, so they are expected here too.
                 let before = alignment.keptSpelling(of: start..<place.lowerBound)
                 let after = alignment.keptSpelling(of: place.upperBound..<end)
-                // The rewrite may inflect the run it was given — "payment sheets" for "payment sheet" — and change it no further.
+                // The rewrite may inflect its input run, such as "payment sheet" into "payment sheets", and change it no further.
                 func writes(_ reading: String) -> Bool {
                     let wanted = DoubtfulSpan.closedUp(reading)
                     return WordForms.inflections(of: wanted).union([wanted]).map { before + $0 + after }

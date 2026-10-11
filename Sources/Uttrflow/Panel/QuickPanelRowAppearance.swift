@@ -45,7 +45,8 @@ struct QuickPanelSection: Identifiable {
 /// What VoiceOver reads for a row; a masked row reads as hidden and its text is never in the string.
 enum QuickPanelSpeech {
     static func label(for row: PanelRow) -> String {
-        let body = row.isMasked ? "hidden" : row.summary
+        let body =
+            row.isMasked ? "hidden" : row.fileNames.count > 1 ? filesSpoken(row.fileNames) : row.summary
         let details: [String?] =
             row.isMasked
             ? []
@@ -71,6 +72,11 @@ enum QuickPanelSpeech {
             .joined(separator: ", ")
     }
 
+    /// Each file named in copy order, since a row of several shows only the first.
+    static func filesSpoken(_ names: [String]) -> String {
+        "\(names.count) files: \(names.joined(separator: ", "))"
+    }
+
     /// Spoken in place of the glyph, so a row is identifiable without being seen.
     static func noun(for kind: ClipKind) -> String {
         switch kind {
@@ -81,6 +87,7 @@ enum QuickPanelSpeech {
         case .colour: "Colour"
         case .filePath: "File path"
         case .image: "Image"
+        case .file: "File"
         }
     }
 

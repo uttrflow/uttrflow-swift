@@ -25,6 +25,10 @@ until the app is updated. Neither unsupported version is set aside or rewritten.
 payload with an unrecognised JSON key is also refused for writing, so a newer field cannot be lost
 when this build rewrites an index.
 
+`ClipIndexValidation` validates each replaceable index's encoded envelope and payload before a
+cached write. `ClipboardStore` retains the local file read, unreadable-file refusal and
+unsupported-version bookkeeping, and decides which indexes can be replaced.
+
 A clip's `tags` field is written only when the clip has a tag. An untagged clip's record is the
 same as before the field existed, so a build from before tags can still rewrite an index nobody
 tagged anything in; a tagged clip makes such a build refuse writes, as for any unrecognised key.

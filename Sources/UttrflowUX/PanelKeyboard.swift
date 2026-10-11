@@ -82,6 +82,10 @@ public enum PanelOutcome: Sendable, Equatable {
     case insertImage(Clip)
     /// The picture this clip refers to is missing from disk, so there is nothing to paste.
     case pictureMissing(Clip)
+    /// Copied files go to the caret as files, which is a different write from a string.
+    case insertFiles(Clip)
+    /// These files of a file clip are gone, so none of the selection is pasted.
+    case filesMissing([String])
     /// The row's Copy: the clip goes to the clipboard, as a picture when it is one, and the panel closes.
     case copy(Clip)
     /// A hidden clip the user agreed to paste into a field not known to hide what is typed.
@@ -246,10 +250,15 @@ extension PanelSnapshot {
         if clip.image != nil, missingImages.contains(clip.id) {
             return PanelResponse(state: self, outcome: .pictureMissing(clip))
         }
+        if let gone = missingFiles[clip.id] {
+            return PanelResponse(state: self, outcome: .filesMissing(gone))
+        }
         switch insertion {
         case .atCaret:
-            return PanelResponse(
-                state: self, outcome: clip.image != nil ? .insertImage(clip) : .insert(clip))
+            let outcome: PanelOutcome =
+                clip.files != nil
+                ? .insertFiles(clip) : clip.image != nil ? .insertImage(clip) : .insert(clip)
+            return PanelResponse(state: self, outcome: outcome)
         case .clipboardOnly(let obstacle):
             return PanelResponse(state: self, outcome: .copyOnly(clip, obstacle))
         }
@@ -258,8 +267,8 @@ extension PanelSnapshot {
     /// The same resolution with the formatting left behind; it passes the same obstacle check.
     func resolvingPlain(_ clip: Clip?) -> PanelResponse {
         guard let clip else { return stayingOpen }
-        // A picture has no formatting to leave behind, so ⌘ changes nothing about it.
-        if clip.image != nil { return resolving(clip) }
+        // A picture or a set of files has no formatting to leave behind, so ⌘ changes nothing about it.
+        if clip.image != nil || clip.files != nil { return resolving(clip) }
         switch insertion {
         case .atCaret:
             return PanelResponse(state: self, outcome: .insertPlain(clip))
@@ -273,6 +282,9 @@ extension PanelSnapshot {
         guard let clip = clip(id) else { return stayingOpen }
         if clip.image != nil, missingImages.contains(clip.id) {
             return PanelResponse(state: self, outcome: .pictureMissing(clip))
+        }
+        if let gone = missingFiles[clip.id] {
+            return PanelResponse(state: self, outcome: .filesMissing(gone))
         }
         return PanelResponse(state: self, outcome: .copy(clip))
     }
@@ -297,7 +309,7 @@ extension PanelSnapshot {
     /// Removes display hazards only after the user chooses the cleaned-paste action.
     func choosingCleaned(_ id: Clip.ID) -> PanelResponse {
         guard let row = results.rows.first(where: { $0.id == id }), row.clip.image == nil,
-            ClipTextSafety.containsDisplayHazards(row.clip.text)
+            row.clip.files == nil, ClipTextSafety.containsDisplayHazards(row.clip.text)
         else { return stayingOpen }
         var next = self
         next.selection = id

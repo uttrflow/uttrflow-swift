@@ -5,7 +5,8 @@ Why the choices on the Settings page are shaped the way they are. The choices ar
 local-store usage rows are rendered in `SettingsPresenter+Storage.swift`, how a change is applied in
 `SettingsEditor.swift`, and what a reset removes in `SettingsReset.swift`; the
 stored values are `Settings` in `Sources/UttrflowSettings/SettingsStore.swift`. How the controls are
-drawn is in [`app-settings-controls.md`](app-settings-controls.md).
+drawn is in [`app-settings-controls.md`](app-settings-controls.md). The microphone menu choices
+are assembled in `SettingsPresenter+Microphone.swift`.
 
 ## Outcomes, not engines
 

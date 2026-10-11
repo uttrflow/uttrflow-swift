@@ -22,6 +22,8 @@ final class FakePasteboard: Pasteboard {
         var refusesWrites = false
         var readbackTransform: @Sendable (String) -> String = { $0 }
         var onImageWrite: (@Sendable (FakePasteboard) -> Void)?
+        var onFileWrite: (@Sendable (FakePasteboard) -> Void)?
+        var files: [[URL]] = []
         var onTextWrite: (@Sendable (FakePasteboard) -> Void)?
     }
 
@@ -32,9 +34,11 @@ final class FakePasteboard: Pasteboard {
         text: String? = nil, acceptsWrites: Bool = true, refusesWrites: Bool = false,
         onImageWrite: (@Sendable (FakePasteboard) -> Void)? = nil,
         readbackTransform: @escaping @Sendable (String) -> String = { $0 },
-        onTextWrite: (@Sendable (FakePasteboard) -> Void)? = nil
+        onTextWrite: (@Sendable (FakePasteboard) -> Void)? = nil,
+        onFileWrite: (@Sendable (FakePasteboard) -> Void)? = nil
     ) {
         state.withLock { state in
+            state.onFileWrite = onFileWrite
             state.text = text
             state.acceptsWrites = acceptsWrites
             state.refusesWrites = refusesWrites
@@ -127,6 +131,19 @@ final class FakePasteboard: Pasteboard {
         return result
     }
 
+    /// A file write, kept apart from the text and picture ones so a test can tell them apart.
+    func setFiles(_ urls: [URL]) -> PasteboardWriteResult {
+        let (result, onFileWrite) = state.withLock {
+            state -> (PasteboardWriteResult, (@Sendable (FakePasteboard) -> Void)?) in
+            guard !state.refusesWrites else { return (.refused, state.onFileWrite) }
+            state.files.append(urls)
+            state.changeCount += 1
+            return (.written(changeCount: state.changeCount), state.onFileWrite)
+        }
+        onFileWrite?(self)
+        return result
+    }
+
     /// Stands in for another app copying something while the paste is in flight.
     func copyFromAnotherApp(_ text: String) {
         state.withLock { state in
@@ -139,6 +156,7 @@ final class FakePasteboard: Pasteboard {
     var concealed: [String] { state.withLock(\.concealed) }
     var markers: [String: String] { state.withLock(\.markers) }
     var pictures: [Data] { state.withLock(\.pictures) }
+    var files: [[URL]] { state.withLock(\.files) }
     var currentPicture: Data? { state.withLock(\.currentPicture) }
 }
 
@@ -237,7 +255,7 @@ private final class CancellingPasteFocus: AccessibilityFocus, @unchecked Sendabl
 }
 
 /// Returns frontmost apps in order so a test can switch targets at a specific insertion step.
-private final class SequencedFrontmostFocus: AccessibilityFocus, @unchecked Sendable {
+final class SequencedFrontmostFocus: AccessibilityFocus, @unchecked Sendable {
     private let applications: [InsertionDestination]
     private let index = Mutex(0)
 
