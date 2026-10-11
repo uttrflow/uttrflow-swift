@@ -88,6 +88,9 @@ public actor ClipboardStore {
     private let useFlushDelay: Duration
     /// The shared file envelope used by the app; nil only for stores created without encryption in tests/tools.
     private let encryptedStore: EncryptedStore?
+
+    /// Writes index files through the same immutable encryption envelope.
+    private let indexWriter: ClipIndexWriter
     /// Accesses picture files synchronously within this actor.
     private let pictureVault: PictureVault
 
@@ -114,6 +117,7 @@ public actor ClipboardStore {
         policy = RetentionPolicy(budget: budget)
         self.useFlushDelay = useFlushDelay
         self.encryptedStore = encryptedStore
+        indexWriter = ClipIndexWriter(encryptedStore: encryptedStore)
         pictureVault = PictureVault(
             imagesFolder: file.deletingLastPathComponent().appending(
                 path: LocalStoreEntry.clipboardImages.name, directoryHint: .isDirectory),
@@ -918,28 +922,10 @@ public actor ClipboardStore {
         guard !indexReader.unreplaceable.contains(url) else { throw .couldNotWrite }
         Self.beforePersistForTesting?(url)
         try validateCurrentIndexFormatsBeforeWrite()
-        do {
-            guard !clips.isEmpty else {
-                Self.writes?.record()
-                try removeFile(url)
-                indexReader.legacyIndexes.remove(url)
-                return
-            }
-            let index = ClipboardIndex(
-                clips: clips,
-                classifierVersion: classifierVersion ?? indexReader.classifierVersions[url]
-                    ?? ClipboardIndex.currentClassifierVersion)
-            let data = try JSONEncoder().encode(index)
-            Self.writes?.record(data)
-            if let encryptedStore {
-                try encryptedStore.write(encoded: data, to: url, preservingPreviousGeneration: true)
-            } else {
-                try PrivateFile.write(data, to: url)
-            }
-            indexReader.legacyIndexes.remove(url)
-        } catch {
-            throw Self.writeFailure(error)
-        }
+        try indexWriter.persist(
+            clips, to: url, classifierVersion: classifierVersion,
+            classifierVersions: indexReader.classifierVersions,
+            legacyIndexes: &indexReader.legacyIndexes)
     }
 
     /// Distinguishes exhausted storage from other file-system failures.
@@ -950,13 +936,5 @@ public actor ClipboardStore {
             return writeFailure(underlying)
         }
         return .couldNotWrite
-    }
-
-    /// Deletes a file if it is there; nothing to delete is success, not a failure.
-    private func removeFile(_ url: URL) throws {
-        if let encryptedStore { return try encryptedStore.remove(url) }
-        let manager = FileManager.default
-        guard manager.fileExists(atPath: url.path(percentEncoded: false)) else { return }
-        try manager.removeItem(at: url)
     }
 }
