@@ -590,7 +590,7 @@ public enum SettingsPresenter {
                 SettingsDestinations.plainTextApps(
                     personalisation.plainTextApps, overrides: settings.destinations),
 
-                SettingsDestinations.steps(settings.cleaning),
+                SettingsDestinations.steps(settings.cleaning, previewer: capabilities.cleaningPreviewer),
                 SettingsGroup(
                     id: "learned",
                     title: "What Uttrflow has picked up",

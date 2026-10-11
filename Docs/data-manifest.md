@@ -12,14 +12,16 @@ speech weights are pinned separately in [speech-model-install.md](speech-model-i
 | `path` | the file, from the repository root |
 | `origin` | `authored`, `generated`, `third-party`, or `unrecorded` |
 | `source`, `revision` | where a `third-party` file came from and which release; required for that origin |
-| `licence` | an SPDX identifier, or `LicenseRef-Uttrflow-Marks` for the marks `TRADEMARK.md` covers |
+| `licence` | an SPDX identifier, or the documented mark-use reference for a registered trademark |
 | `redistribution` | whether the licence allows shipping the file in the app |
 | `producedBy` | the tool or script that made the file, where one did |
 | `voice` | the synthesiser voice that spoke a take; required, with origin `generated`, under `Tests/Fixtures/SyntheticAudio/` |
 | `sha256`, `bytes` | the file's digest and size |
+| `optional` | absent only for the registered Google Sign-In mark; a Boolean, never an exemption for another resource |
 | `budgetBytes` | optional: the most bytes the file may grow to; set on each file a script derives |
 
-A `third-party` file comes only from an established publisher under a permissive licence.
+A `third-party` data file comes only from an established publisher under a permissive licence.
+The optional Google Sign-In artwork instead records its conditional branding use, described below.
 `revision: unrecorded` means the publisher is known but the release the file was taken
 from is not; replace it when the file is next refreshed.
 
@@ -60,7 +62,8 @@ make data-manifest
 ```
 
 `--update` changes only `sha256` and `bytes` for entries whose files are bundled. It does not add
-entries or change their origin or other metadata. Review the manifest diff before committing it.
+entries or change their origin or other metadata. It does not refresh optional provider artwork.
+Review the manifest diff before committing it.
 
 ## Reproducing a fitted asset from its tag
 
@@ -84,3 +87,29 @@ It checks the tag out in a scratch worktree, checks each input against its diges
 committed asset, runs the command and compares the new digest with the tag's manifest. It exits 1
 and names the asset on any difference, a changed seed or input digest included, and it needs no
 network when the cache is warm. It only builds and compares; it never tags.
+
+## Optional Google Sign-In artwork
+
+Only the Google G (`GoogleG.png`) in the app resource directory can be registered as optional;
+its full path is recorded in `Resources/DataManifest.json`. Its absence is
+supported by the existing onboarding fallback. When present, its bytes and SHA-256 must match
+its entry; other unlisted resources, changed resources and missing required resources still fail.
+`LicenseRef-GoogleSignInBranding` records Google's conditional use of its Sign-In artwork under
+[its branding guidelines](https://developers.google.com/identity/branding-guidelines), for the
+existing Google Sign-In button. It is not a permissive source redistribution licence; the image
+remains ignored and is never committed. The entry's `revision` is the published archive's SHA-256,
+and `producedBy` records the existing selector and tile extraction scripts that produce the mark.
+
+After explicitly obtaining and inspecting the official archive and its derived mark, register a
+refresh with the generator, then review the metadata diff:
+
+```bash
+python3 Scripts/provider_mark.py register --archive <official-archive.zip> --mark <derived-GoogleG.png>
+make data-manifest
+```
+
+The fetcher verifies the pinned archive before extraction, verifies the output afterwards, and
+verifies a pre-existing mark before accepting it. A changed publisher archive or corrupt local
+mark fails until an explicit reviewed registration refresh. Registration does not copy artwork
+into the repository. The generated metadata records provenance; it does not certify every aspect
+of the sign-in button's branding presentation.

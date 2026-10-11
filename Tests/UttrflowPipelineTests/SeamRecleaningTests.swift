@@ -82,6 +82,17 @@ struct SeamRecleaningTests {
         #expect(await written(cut.pieces) == written([cut.whole]))
     }
 
+    static let boundaryCuts: [SeamCut] = [
+        SeamCut(pieces: ["it costs twenty", "thirty people came"], whole: "It costs 20 30 people came."),
+        SeamCut(pieces: ["it costs twenty.", "thirty people came."], whole: "It costs 20. 30 people came."),
+    ]
+
+    @Test("two two-digit numbers across a cut are not fused into a year", arguments: boundaryCuts)
+    func sentenceStopBetweenNumbers(_ cut: SeamCut) async {
+        let text = await written(cut.pieces)
+        #expect(text == cut.whole, "got \(text ?? "nil")")
+    }
+
     @Test("a number, time or address is read whole at every cut inside it")
     func everyUnitCut() async {
         for (sentence, unit) in [

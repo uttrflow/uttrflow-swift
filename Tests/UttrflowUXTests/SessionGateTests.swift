@@ -61,7 +61,7 @@ struct SessionGateTests {
             showsFloatingButton: true, suggestions: SuggestionPreferences(isEnabled: true))
         settings.dictationEnabled = true
         settings.clipboardEnabled = true
-        let surfaces = SessionSurfaces(isSignedIn: false, settings: settings)
+        let surfaces = SessionSurfaces(isSignedIn: false, clipboardChoiceIsMade: true, settings: settings)
         #expect(!surfaces.listensForDictation)
         #expect(surfaces.claimedShortcuts.isEmpty)
         #expect(!surfaces.watchesTheClipboard)
@@ -75,7 +75,7 @@ struct SessionGateTests {
             showsFloatingButton: true, suggestions: SuggestionPreferences(isEnabled: true))
         settings.dictationEnabled = true
         settings.clipboardEnabled = true
-        let on = SessionSurfaces(isSignedIn: true, settings: settings)
+        let on = SessionSurfaces(isSignedIn: true, clipboardChoiceIsMade: true, settings: settings)
         #expect(on.listensForDictation)
         #expect(on.claimedShortcuts == ShortcutRegistry.claimed(in: settings).map(\.action))
         #expect(on.claimedShortcuts.contains(ShortcutAction.clipboard))
@@ -87,11 +87,22 @@ struct SessionGateTests {
         settings.clipboardEnabled = false
         settings.showsFloatingButton = false
         settings.suggestions = SuggestionPreferences(isEnabled: false)
-        let off = SessionSurfaces(isSignedIn: true, settings: settings)
+        let off = SessionSurfaces(isSignedIn: true, clipboardChoiceIsMade: true, settings: settings)
         #expect(!off.listensForDictation)
         #expect(!off.claimedShortcuts.contains(ShortcutAction.clipboard))
         #expect(!off.watchesTheClipboard)
         #expect(!off.completesWhatIsTyped)
         #expect(!off.showsTheFloatingButton)
+    }
+
+    @Test("signed in with the clipboard switch on, nothing is recorded until the choice is made")
+    func clipboardWaitsForTheChoice() {
+        let settings = Settings()
+        #expect(settings.clipboardEnabled)
+        let waiting = SessionSurfaces(isSignedIn: true, clipboardChoiceIsMade: false, settings: settings)
+        #expect(!waiting.watchesTheClipboard)
+        #expect(waiting.listensForDictation)
+        let chosen = SessionSurfaces(isSignedIn: true, clipboardChoiceIsMade: true, settings: settings)
+        #expect(chosen.watchesTheClipboard)
     }
 }

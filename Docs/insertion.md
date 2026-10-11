@@ -39,8 +39,10 @@ an app with no readable field is refused rather than typed into.
 
 The typed strategy also refuses, with `noFocusedTextField`, when a focused element is published
 and its role is not a text-entry role (`FocusedElementKind.control`): in a page body, a list or a
-file browser, letters are commands. It still types when the application publishes no focused
-element at all (`FocusedElementKind.unpublished`), which is how a bundled-browser composer takes
+file browser, letters are commands. A web area, group or cell counts as text entry while the
+element reports itself editable (`AXEditable`, or a settable `AXValue`). It still types when the
+application publishes no focused element at all or its role cannot be read, such as after an
+Accessibility timeout (`FocusedElementKind.unpublished`), which is how a bundled-browser composer takes
 dictation. The check is made in `canInsert()`, before the first chunk and before every later one.
 
 The typed strategy posts its text `TypedTextInsertionEngine.chunkLength` characters at a time,

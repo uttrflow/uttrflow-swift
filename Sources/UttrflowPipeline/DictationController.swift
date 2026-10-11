@@ -678,11 +678,6 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
 
     private func beginListening(route: UtteranceRoute, adoptingModifierCapture: Bool = false) async {
         resetControlStartedRecording()
-        // The previous take can still be transcribed; a new capture must not wait for its insertion.
-        if let processing {
-            self.processing = nil
-            Task { await processing.value }
-        }
         await pipeline.route(next: route)
         if adoptingModifierCapture {
             await pipeline.adoptModifierPress()
@@ -691,6 +686,11 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         }
         // Only once the pipeline is listening, so a refused microphone does not sound as though it worked.
         if await pipeline.currentState.isListening {
+            // An accepted capture leaves the previous take's remaining work running independently.
+            if let processing {
+                self.processing = nil
+                Task { await processing.value }
+            }
             cue.playStart()
             watchTheLimit()
         }

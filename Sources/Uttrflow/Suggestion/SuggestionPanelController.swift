@@ -70,7 +70,7 @@ final class SuggestionPanelController {
         request.direction == .rightToLeft ? .rightToLeft : .leftToRight
     }
     private var appearanceObserver: (any NSObjectProtocol)?
-    private var screenParametersObserver: (any NSObjectProtocol)?
+    private var screenParametersObserver: SuggestionScreenObservation?
     private var occlusionObserver: (any NSObjectProtocol)?
     /// Whether the system has taken the panel off screen, as Mission Control and App Exposé do; a test swaps it.
     var systemHidesPanel: @MainActor () -> Bool = { false }
@@ -91,7 +91,7 @@ final class SuggestionPanelController {
     /// Called when the panel takes a drawn ghost off screen without being asked, so its keys are let go.
     var onWithdrawnUnasked: (@MainActor () -> Void)?
 
-    init() {
+    init(screenNotificationCenter: NotificationCenter = .default) {
         hostingView = NSHostingView(rootView: SuggestionView(presentation: .init(.silent)))
         panel = SuggestionPanel(
             contentRect: CGRect(origin: .zero, size: panelSize),
@@ -101,16 +101,13 @@ final class SuggestionPanelController {
             presentation: SuggestionPresentation(.silent),
             onDesiredSize: { [weak self] size in self?.resize(to: size) })
         observeAppearance()
-        observeScreenParameters()
+        observeScreenParameters(in: screenNotificationCenter)
         systemHidesPanel = { [panel] in !panel.occlusionState.contains(.visible) }
         observeOcclusion()
     }
 
     isolated deinit {
         if let appearanceObserver { NSWorkspace.shared.notificationCenter.removeObserver(appearanceObserver) }
-        if let screenParametersObserver {
-            NotificationCenter.default.removeObserver(screenParametersObserver)
-        }
         if let occlusionObserver { NotificationCenter.default.removeObserver(occlusionObserver) }
     }
 
@@ -365,15 +362,11 @@ final class SuggestionPanelController {
     }
 
     /// Takes the ghost off a display that has just changed, before its old frame is stranded.
-    private func observeScreenParameters() {
-        screenParametersObserver = NotificationCenter.default.addObserver(
-            forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                self.hide()
-                self.onWithdrawnUnasked?()
-            }
+    private func observeScreenParameters(in center: NotificationCenter) {
+        screenParametersObserver = SuggestionScreenObservation(center: center) { [weak self] in
+            guard let self else { return }
+            self.hide()
+            self.onWithdrawnUnasked?()
         }
     }
 

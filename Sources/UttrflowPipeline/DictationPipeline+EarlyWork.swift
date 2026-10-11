@@ -90,5 +90,7 @@ extension DictationPipeline {
         let running: RunningMessage
         let remainder: [Range<Int>]
         let context: AppContext?
+        /// What the early loop has not decoded at key-up, or `nil` when its pieces are dropped.
+        let backlog: WorkAheadBacklog?
     }
 }
