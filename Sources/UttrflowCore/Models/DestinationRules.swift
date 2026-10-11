@@ -19,7 +19,7 @@ public enum DestinationRules {
     /// Keynote's identifier, named so a corpus case, fixture or default cannot mistype it.
     public static let keynote = "com.apple.iWork.Keynote"
     /// PowerPoint's identifier, named so a corpus case, fixture or default cannot mistype it.
-    public static let powerPoint = "com.microsoft.Powerpoint"
+    static let powerPoint = "com.microsoft.Powerpoint"
     /// Keynote's identifier in the Creator Studio build, read from its Info.plist.
     public static let keynoteStudio = "com.apple.Keynote"
     /// TextEdit's identifier, named so a corpus case, fixture or default cannot mistype it.

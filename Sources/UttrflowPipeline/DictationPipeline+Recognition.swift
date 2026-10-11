@@ -30,7 +30,7 @@ extension DictationPipeline {
                     continue
                 case .tidying(let running):
                     let task = running.task
-                    // The recognition after it can start before this tidy is done; the group still drains it first.
+                    // The next recognition can start while this tidy runs; the group drains the tidy first.
                     if let earlier = await tidying.next() { pieces.append(earlier) }
                     if spanIndex == work.indices.last {
                         await runningCleaner.reserveFinalPiece(dictationContext?.situation)
@@ -193,7 +193,7 @@ extension DictationPipeline {
         let screenReads = max(.zero, self.screenReads.cost.duration - readsBeforeRelease)
         let wait = DictationWait(
             wait: waited, stages: await tally.measurements, decoding: await tally.efforts,
-            screenReads: screenReads)
+            screenReads: screenReads, tidyColdStart: await tally.tidyColdStart)
         let timed = waits.classify(wait)
         await metrics.recordWait(timed)
         return timed.cause

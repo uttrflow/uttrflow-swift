@@ -10,7 +10,7 @@ public struct TerminalStopPass: WholeTextCleaningPass {
     public let insertionPoint: InsertionPoint
     public let destination: Destination?
     /// What the caret sits in, which with the words decides whether a query editor holds a statement.
-    public let region: CaretStructure.Region
+    let region: CaretStructure.Region
 
     public init(
         policy: TerminalStopPolicy = .always, layout: LayoutPolicy = .paragraphs,

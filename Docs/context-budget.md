@@ -164,3 +164,15 @@ If identity still misses the budget, the engine names the application from the
 `didActivateApplicationNotification` feed it already keeps (the application behind Uttrflow when
 Uttrflow itself activated last) and logs `Context identity timed out; named from the activation
 feed` under the `context` category.
+
+## How far a name vocabulary would need to reach
+
+`InsertionPoint.precedingLimit` (300) and `followingLimit` (100) were sized for sentence state. A
+name vocabulary taken from the text around the caret needs the identifiers a person is about to
+say, and a schema comment, an import block or a signature can sit further back than 300 units.
+`NameReach` (`Sources/UttrflowEval/NameReach.swift`) is the measure: for a set of invented editor
+sessions, each holding the text before the caret and the names dictated next, it reports the share
+whose nearest whole-token occurrence lies wholly inside 300, 1,000 and 4,000 UTF-16 units. A name
+cut by the window's start does not count. The limits stay as they are until that share is
+measured on a recorded sample and the read cost of the larger window is measured in the editors
+the adapters target; the 100 ms budget refuses any larger read that breaks it.
