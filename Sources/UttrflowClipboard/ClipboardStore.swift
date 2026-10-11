@@ -752,10 +752,7 @@ public actor ClipboardStore {
         // A picture written for a clip this list drops is ours to remove, whether the writes below land or not.
         let unnamed = pictureReferences.takeUnnamed(naming: named)
         defer { pictureVault.removePictures(unnamed) }
-        let wasSaved = indexSnapshot.savedOnDisk ?? []
         let persistable = clips.filter(Self.isPersistable)
-        let nowSaved = persistable.filter(\.isKept)
-        let nowHistory = persistable.filter { !$0.isKept }
 
         // Memory first and unconditionally, so a refusing disk does not also cost the change itself.
         indexSnapshot.wholeList = clips
@@ -764,22 +761,11 @@ public actor ClipboardStore {
         useFlush?.cancel()
         useFlush = nil
 
-        // Every clip reaches its new file before leaving its old one, so a refusing disk never loses one.
-        let bridge = ClipPersistencePlan.bridging(persistable, from: wasSaved, into: nowHistory)
-        // The bridge only has to hold every clip somewhere; the same clips in another order are already on disk.
         let dropped = pictureReferences.dropped(before: before, naming: named)
         do throws(ClipboardStoreError) {
-            if !ClipPersistencePlan.holdsTheSameClips(bridge, as: wasSaved) {
-                try persist(bridge, to: savedFile)
-                indexSnapshot.savedOnDisk = bridge
-            }
-            if nowHistory != indexSnapshot.historyOnDisk {
-                try persist(nowHistory, to: file)
-                indexSnapshot.historyOnDisk = nowHistory
-            }
-            if nowSaved != bridge {
-                try persist(nowSaved, to: savedFile)
-                indexSnapshot.savedOnDisk = nowSaved
+            try ClipPersistence(historyFile: file).write(persistable, updating: &indexSnapshot) {
+                clips, url throws(ClipboardStoreError) in
+                try persist(clips, to: url)
             }
         } catch {
             // The change stays in memory and is retried by the next write, the timed flush and quitting.

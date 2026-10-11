@@ -57,8 +57,8 @@ from JSON on that path buys certainty nobody asked for at a cost everybody sees.
 
 So the indexes are read once, lazily, and every list read after that is a filter over an array
 already in memory. `ClipIndexSnapshot` owns the saved, history and combined cached lists, their
-initial reconciliation and committed detector-result replacement. The actor retains all write and
-cache-update ordering. Each sealed index carries the version of the clip detector that judged it;
+initial reconciliation and committed detector-result replacement. `ClipPersistence` retains index-write ordering and committed disk snapshots; the actor retains
+live memory, write refusals and retry scheduling. Each sealed index carries the version of the clip detector that judged it;
 increment that version when detector changes alter stored classifications. When a stored version
 is older, the first list is returned before the store classifies clips in
 utility-priority batches; a completed pass writes the new classifications and version together.
@@ -119,8 +119,10 @@ refuses either write leaves at least one durable copy. Unpinning therefore write
 first, while the saved file still holds the old copy, and only then rewrites the saved file.
 
 `ClipPersistencePlan` computes the intermediate saved list and compares its complete records
-independent of order. `ClipboardStore` retains the destination-before-source write sequence and
-the record of which clips each file holds.
+independent of order. `ClipPersistence` executes the destination-before-source write sequence and
+updates each disk snapshot only after its write succeeds. Its injected write closure keeps format
+validation and physical writes inside `ClipboardStore`; a failure returns with earlier successful
+snapshots intact, so the actor can retain the live change and schedule its retry.
 
 A move refused between its two writes leaves the clip in both files. Reading keeps the saved
 file's copy and drops the history's, so reopening finds exactly one clip, and the next write that
