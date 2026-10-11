@@ -21,6 +21,10 @@ minutes of typing).
 pass through `MLXCandidateScorer` — a generation, an alternatives pass, a score — empties it when
 the pass ends, however it ends, a tidying rewrite included.
 
+The candidate judge and its MLX backend share one `BufferCachePasses` owner. Tokenization and
+each scoring chunk hold it within the outer judgment, so only the final pass ending clears
+the cache.
+
 Measured with `uttrflow-bakeoff gpu-memory` (Release, 48 GB Apple silicon): forty passes over
 invented message threads of 120–310 words, every fourth cancelled part-way, each followed by one
 score. MLX's own counters, in MB, without the cap and emptying, then with them:

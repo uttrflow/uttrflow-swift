@@ -3,7 +3,7 @@ import UttrflowCore
 /// The HTTP words whose case depends on their slot: a method before a path, a reason phrase after its status code.
 enum HTTPSlots {
     /// The methods that are everyday words, written in capitals only straight before a path or URL.
-    static let methods: Set<String> = ["get", "post", "put", "patch", "delete", "head"]
+    static let methods = FunctionWords.httpMethods
 
     /// The words that may stand between a method and its path: "a post to /api/orders".
     static let linkers: Set<String> = ["to", "on"]

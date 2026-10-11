@@ -246,6 +246,8 @@ public enum ShellPrompt {
                     escaped = true
                 }
             } else if character == "$", next < line.endIndex, line[next] == "(" {
+                // An at sign that a substitution supplies the host for is command text, not a prompt's.
+                if prefix.last == "@" { prefix.hasAt = false }
                 substitutions.append(0)
             } else if !substitutions.isEmpty {
                 if character == "'" || character == "\"" {

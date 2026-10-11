@@ -24,7 +24,7 @@ struct SuggestionAcceptKeyGiveBackTests {
     func successfulTakeDoesNotReturnTab() async {
         var attempts = 0
         var completed: AcceptanceOutcome?
-        let keyToReturn = await SuggestionCoordinator.acceptKeyToReturnIfTakeFails(
+        let keyToReturn = await SuggestionTake.acceptKeyToReturnIfTakeFails(
             UttrflowCore.KeyStroke(.tab)
         ) {
             attempts += 1
@@ -45,7 +45,7 @@ struct SuggestionAcceptKeyGiveBackTests {
     func failedTakeReturnsTabOnce() async {
         var attempts = 0
         var completed: AcceptanceOutcome?
-        let keyToReturn = await SuggestionCoordinator.acceptKeyToReturnIfTakeFails(
+        let keyToReturn = await SuggestionTake.acceptKeyToReturnIfTakeFails(
             UttrflowCore.KeyStroke(.tab)
         ) {
             attempts += 1
@@ -71,8 +71,8 @@ struct SuggestionAcceptKeyGiveBackTests {
         ]
         var requestedReads = 0
         for error in errors {
-            let outcome = SuggestionCoordinator.acceptanceOutcome(for: error)
-            let keyToReturn = await SuggestionCoordinator.acceptKeyToReturnIfTakeFails(
+            let outcome = SuggestionTake.acceptanceOutcome(for: error)
+            let keyToReturn = await SuggestionTake.acceptKeyToReturnIfTakeFails(
                 UttrflowCore.KeyStroke(.tab)
             ) {
                 outcome
@@ -96,10 +96,10 @@ struct SuggestionAcceptKeyGiveBackTests {
         var reads = 0
         var posted: [UttrflowCore.KeyStroke] = []
 
-        let returnedKey = await SuggestionCoordinator.acceptKeyToReturnIfTakeFails(
+        let returnedKey = await SuggestionTake.acceptKeyToReturnIfTakeFails(
             UttrflowCore.KeyStroke(.tab)
         ) {
-            SuggestionCoordinator.acceptanceOutcome(for: error)
+            SuggestionTake.acceptanceOutcome(for: error)
         } requestFreshRead: {
             reads += 1
             rereadLine = field.value
@@ -121,8 +121,8 @@ struct SuggestionAcceptKeyGiveBackTests {
     @MainActor
     func unwrittenErrorsReturnTab() async {
         let error = TextInsertionError.insertionRejected(description: "unwritten")
-        let outcome = SuggestionCoordinator.acceptanceOutcome(for: error)
-        let keyToReturn = await SuggestionCoordinator.acceptKeyToReturnIfTakeFails(
+        let outcome = SuggestionTake.acceptanceOutcome(for: error)
+        let keyToReturn = await SuggestionTake.acceptKeyToReturnIfTakeFails(
             UttrflowCore.KeyStroke(.tab)
         ) {
             outcome
@@ -137,8 +137,8 @@ struct SuggestionAcceptKeyGiveBackTests {
     @Test("a changed insertion target restores the offer and returns Tab")
     @MainActor
     func changedTargetReturnsTab() async {
-        let outcome = SuggestionCoordinator.acceptanceOutcome(for: .insertionTargetChanged)
-        let keyToReturn = await SuggestionCoordinator.acceptKeyToReturnIfTakeFails(
+        let outcome = SuggestionTake.acceptanceOutcome(for: .insertionTargetChanged)
+        let keyToReturn = await SuggestionTake.acceptKeyToReturnIfTakeFails(
             UttrflowCore.KeyStroke(.tab)
         ) {
             outcome
@@ -169,7 +169,7 @@ struct SuggestionAcceptKeyGiveBackTests {
         ]
 
         for (error, expected) in errors {
-            #expect(SuggestionCoordinator.acceptanceOutcome(for: error) == expected)
+            #expect(SuggestionTake.acceptanceOutcome(for: error) == expected)
         }
     }
 
@@ -192,11 +192,11 @@ struct SuggestionAcceptKeyGiveBackTests {
         #expect(offer?.suggestion == .certain("git commit -m"))
         #expect(session.route(UttrflowCore.KeyStroke(.tab)) == .accept("git commit -m"))
         var completions = 0
-        let outcome = SuggestionCoordinator.acceptanceOutcome(
+        let outcome = SuggestionTake.acceptanceOutcome(
             for: .insertionRejected(description: "unwritten"))
         var posted: [UttrflowCore.KeyStroke] = []
 
-        let returnedKey = await SuggestionCoordinator.acceptKeyToReturnIfTakeFails(
+        let returnedKey = await SuggestionTake.acceptKeyToReturnIfTakeFails(
             UttrflowCore.KeyStroke(.tab)
         ) {
             outcome

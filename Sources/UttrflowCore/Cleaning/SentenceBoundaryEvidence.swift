@@ -2,12 +2,15 @@ import NaturalLanguage
 
 /// The lexical-class and phrase evidence that decides whether a stop fell inside a sentence.
 public enum SentenceBoundaryEvidence {
-    /// Whether the words on both sides show that the sentence carried on.
-    public static func sentenceRunsOn(_ text: String, into next: String) -> Bool {
+    /// Whether the words on both sides show that the sentence carried on; `leading` is the sentence's words before `text`, read only to tell a noun "look".
+    public static func sentenceRunsOn(_ text: String, into next: String, after leading: String = "") -> Bool {
         let previous = WordTokens.words(text, .display).map(WordShape.init)
         let following = WordTokens.words(next, .display).map(WordShape.init)
         guard !previous.isEmpty, let first = following.first else { return false }
         let previousKeys = previous.map(\.key)
+        if endsInNounLook(WordTokens.words(leading, .display).map { WordShape($0).key } + previousKeys) {
+            return false
+        }
         let followingKeys = following.map(\.key)
         if text.last == ".", subordinators.contains(previous[0].key) { return true }
         if opensOnPostmodifier(following) || opensDependentFragment(following) { return true }
@@ -91,6 +94,7 @@ public enum SentenceBoundaryEvidence {
             let tail = fragment[split...].map(\.core)
             guard let last = head.last, !bareVerbLeaders.contains(last.key),
                 imperativeObjects.contains(fragment[split + 1].key)
+                    || imperativeParticles.contains(fragment[split + 1].key)
                     || FunctionWords.determiners.contains(fragment[split + 1].key)
             else { continue }
             let headHasVerb =
@@ -219,43 +223,33 @@ public enum SentenceBoundaryEvidence {
     private static func completesFinalPhrase(_ previous: [WordShape], _ following: [WordShape]) -> Bool {
         guard let first = following.first else { return false }
         let previousKeys = previous.map(\.key)
-        let completesReportedVerb = seamObjectEndings.contains {
-            previousKeys.suffix($0.count).elementsEqual($0)
-        }
+        let completesReportedVerb =
+            seamObjectEndings.contains { previousKeys.suffix($0.count).elementsEqual($0) }
+            && !endsInNounLook(previousKeys)
         let startsObject =
             determiners.contains(first.key)
             || (following.count > 1 && first.core.first?.isUppercase == true)
         return completesReportedVerb && (startsObject || following.count > 1)
     }
 
-    private static let determiners: Set<String> = [
-        "a", "an", "the", "my", "your", "his", "her", "its", "their", "our", "this", "that",
-        "these", "those", "some", "any",
-    ]
+    /// "take a look", "have a quick look": a determiner in the two words before "look" makes it a noun that closes the sentence.
+    private static func endsInNounLook(_ keys: [String]) -> Bool {
+        keys.last == "look" && keys.dropLast().suffix(2).contains { determiners.contains($0) }
+    }
+
+    private static let determiners = FunctionWords.boundaryDeterminers
     /// Words the tagger reads as a preposition, subordinator or adverb either way, which cannot close a sentence as a particle can ("move on", "let it through").
-    private static let neverLast: Set<String> = [
-        "of", "to", "at", "for", "with", "from", "by", "into", "onto", "upon", "between",
-        "during", "against", "within", "without", "among", "than",
-        "because", "although", "while", "if", "whether", "very",
-    ]
-    private static let neverFronted: Set<String> = [
-        "to", "of", "at", "with", "from", "by", "into", "onto", "upon", "between", "among",
-        "toward", "towards", "against", "without", "within", "beside", "behind", "beyond", "near", "past",
-    ]
+    private static let neverLast = FunctionWords.neverLast
+    private static let neverFronted = FunctionWords.neverFronted
     private static let clauseSubjects = QuestionShape.subjects.union(["nobody", "nothing"])
-    private static let imperativeObjects: Set<String> = ["me", "it", "him", "her", "us", "them"]
+    private static let imperativeObjects = FunctionWords.imperativeObjects
+    private static let imperativeParticles: Set<String> = ["back", "out", "off"]
     /// Words a bare verb follows inside one clause: "if you can leave it", "if you want to leave it".
-    private static let bareVerbLeaders = QuestionShape.verbsBeforeSubject.union([
-        "do", "don't", "must", "to", "let", "make", "help", "please", "not",
-    ])
-    private static let modals: Set<String> = [
-        "will", "can", "would", "should", "could", "must", "might", "shall",
-    ]
+    private static let bareVerbLeaders = QuestionShape.verbsBeforeSubject.union(FunctionWords.bareVerbLeaders)
+    private static let modals = FunctionWords.modals
     /// Prepositions that take an object after a comma; "on", "in" and "up" close a phrasal verb ("hold on, wait").
-    private static let commaPrepositions: Set<String> = [
-        "to", "for", "with", "from", "into", "by", "about", "at",
-    ]
-    private static let seamPrepositions: Set<String> = ["on", "in", "up", "around"]
+    private static let commaPrepositions = FunctionWords.commaPrepositions
+    private static let seamPrepositions = FunctionWords.seamPrepositions
     private static let seamObjectEndings: [[String]] = [
         ["could", "finish"], ["pick", "up"], ["look"], ["covers"],
     ]

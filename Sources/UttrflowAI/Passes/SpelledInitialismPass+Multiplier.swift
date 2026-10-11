@@ -3,10 +3,7 @@ import UttrflowCore
 /// Writes a lone spoken "x" after a number as a multiplier joined to it: "ten x faster" is "10x faster".
 extension SpelledInitialismPass {
     /// The words that, after "x", show it is a multiplier and not a letter, a dimension or a name.
-    private static let comparisons: Set<String> = [
-        "faster", "slower", "more", "less", "better", "worse", "bigger", "larger", "smaller",
-        "cheaper", "higher", "lower", "longer", "shorter", "as", "speedup", "improvement", "overhead",
-    ]
+    private static let comparisons = FunctionWords.multiplierComparisons
 
     /// The draft with each number then multiplier "x" written as one token.
     static func writingMultipliers(in draft: Draft) -> Draft {

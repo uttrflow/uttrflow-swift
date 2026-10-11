@@ -105,6 +105,8 @@ public actor DictationPipeline {
     var dictationWords: [String]?
     /// Pieces of this dictation that held speech and decoded to no words twice, left out of what is inserted.
     var missedPieces = 0
+    /// Whether the recording clipped past the point where accuracy falls.
+    var inputTooLoud = false
 
     /// The settings and screen resolved at the start of a dictation and shared by every piece.
     struct DictationContext: Sendable {
@@ -518,6 +520,7 @@ public actor DictationPipeline {
         dictationWords = nil
         dictationContext = nil
         missedPieces = 0
+        inputTooLoud = false
         screenReads = DictationScreenReads()
         sinceRelease = nil
     }
@@ -762,6 +765,7 @@ public actor DictationPipeline {
             samples: audio.samples, sampleRate: audio.sampleRate, gaps: audio.gaps,
             chosenInputMissing: audio.chosenInputMissing)
         {
+            inputTooLoud = InputTooLoud.isTooLoud(clippedFraction: quality.clippedFraction)
             await metrics.recordCaptureQuality(quality)
         }
         show(heard: nil)
@@ -769,6 +773,8 @@ public actor DictationPipeline {
         let handed = await takeOver(for: audio, delivery: delivery, generation: mine)
         let tally = StageTally()
         var appContext = handed.context
+        if let backlog = handed.backlog { await metrics.recordBacklog(backlog) }
+
         if dictationContext == nil {
             let seeing: AppContext
             if let appContext {
@@ -819,6 +825,8 @@ public actor DictationPipeline {
     private func takeOver(
         for audio: AudioSamples, delivery: Delivery, generation mine: Int
     ) async -> Takeover {
+        // Read before the drain: a piece under way has not moved the cut yet and is part of the backlog.
+        let cutAtKeyUp = early.cut
         // A piece under way is finished, not thrown away; the loop then ends itself, as the state has left `.recording`.
         if !early.recognising { early.task?.cancel() }
         if let earlyWork = early.task {
@@ -834,13 +842,23 @@ public actor DictationPipeline {
         var cut = handed.cut
         let previousWindowStart = handed.lastWindowStart
         // Pieces cut from other audio than this cannot be joined to it.
-        if delivery == .copy || cut > audio.samples.count {
+        let otherAudio = delivery == .copy || cut > audio.samples.count
+        if otherAudio {
             for span in spans { await withdraw(span) }
             spans = []
             cut = 0
             cleaningRecords = []
         }
 
+        let backlog =
+            otherAudio
+            ? nil
+            : WorkAheadBacklog(
+                seconds: Double(max(0, audio.samples.count - cutAtKeyUp)) / Double(audio.sampleRate),
+                pieces: runningWindowing.windows(
+                    in: audio.samples, sampleRate: audio.sampleRate, from: cutAtKeyUp,
+                    joiningPreviousWindowFrom: nil, boundaries: audio.discontinuities
+                ).count)
         var remainder = runningWindowing.windows(
             in: audio.samples, sampleRate: audio.sampleRate, from: cut,
             joiningPreviousWindowFrom: delivery != .copy ? previousWindowStart : nil,
@@ -850,7 +868,9 @@ public actor DictationPipeline {
         }
         // Nothing at all still goes to the recogniser, whose refusal names the reason.
         if spans.isEmpty, remainder.isEmpty { remainder = [cut..<audio.samples.count] }
-        return Takeover(spans: spans, running: handed.running, remainder: remainder, context: handed.context)
+        return Takeover(
+            spans: spans, running: handed.running, remainder: remainder, context: handed.context,
+            backlog: backlog)
     }
 
     /// What the recogniser made of one window.

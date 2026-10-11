@@ -737,7 +737,7 @@ fi
 #   and is reported with the path that would have worked.
 #
 #   Otherwise it is a failure only if it holds a `/` and its first segment is a real
-#   top-level entry of this repository. That last clause is the whole false-positive
+#   top-level entry tracked by Git or holding nonignored files. That last clause is the false-positive
 #   defence: `Contents/Resources/…gpt2_tokenizer_config.json` is the interior of a built
 #   app bundle and `node_modules/x.json` would be a dependency's, and neither exists here
 #   nor should. Requiring the first segment to be ours means a token is checked only when
@@ -768,7 +768,12 @@ UNCHECKABLE = re.compile(r"[\s*?\[\]<>{}|$]|\.\.\.")
 ELSEWHERE = re.compile(r"^(~|/|\.{1,2}/|[a-z][a-z0-9+.-]*://)")
 
 documents = sys.stdin.read().split("\n")
-top_level = {name for name in os.listdir(".") if not name.startswith(".")}
+# Ignored build output is not repository authority, even when a build creates its directory.
+# Git also retains the authority of a tracked source directory removed from the working tree.
+repository_paths = subprocess.check_output(
+    ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"], text=True
+).split("\0")
+top_level = {path.split("/", 1)[0] for path in repository_paths if path and not path.startswith(".")}
 searched = {}
 for root in ("Sources", "Tests"):
     for directory, _, names in os.walk(root):
@@ -828,6 +833,12 @@ fi
 
 if [[ -z "${misrooted//[[:space:]]/}" && -z "${missing//[[:space:]]/}" ]]; then
     pass "every backticked path that names a file in this tree resolves from the root"
+fi
+
+if python3 Scripts/docs_paths_test.py; then
+    pass "documented source paths stay checked independently of ignored output"
+else
+    fail "the documented-path self-test failed"
 fi
 
 # ---------------------------------------------------------------------------

@@ -52,6 +52,10 @@ enum QuickPanelSpeech {
             : [
                 row.measurements,
                 row.checklist,
+                row.linkHost.map { "host \($0.host)" },
+                row.linkHost.flatMap {
+                    $0.warnings.isEmpty ? nil : "warning, " + $0.warnings.joined(separator: ", ")
+                },
                 row.language.map { "\($0) code" },
                 row.category.map { "Collection \($0)" },
             ]

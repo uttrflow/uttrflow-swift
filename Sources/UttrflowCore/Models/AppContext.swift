@@ -37,6 +37,23 @@ public struct AppContext: Sendable, Equatable {
     /// Names read off the visible conversation while recording, at most ``onScreenNameLimit``; never kept past the dictation.
     public private(set) var onScreenNames: [String] = []
 
+    /// Whether the screen was never read on purpose, as for a retry; set only by ``readingSkipped()``.
+    package private(set) var isReadSkipped = false
+
+    /// Whether the screen was read, skipped by design, refused or hidden, so empty text is never mistaken for a blank screen.
+    package var availability: ContextAvailability {
+        if isSecure || unavailable == .secure { return .secure }
+        if isReadSkipped { return .absentByDesign }
+        return unavailable == nil ? .present : .unreadable
+    }
+
+    /// This context marked as never read on purpose; the retry path uses it for the identity-only context it has.
+    package func readingSkipped() -> AppContext {
+        var copy = self
+        copy.isReadSkipped = true
+        return copy
+    }
+
     /// The most names one dictation takes from the screen around the field.
     static let onScreenNameLimit = 32
 

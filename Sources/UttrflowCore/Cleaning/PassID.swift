@@ -34,6 +34,8 @@ extension PassID {
     public static let codeEditorCommands: PassID = "codeEditorCommands"
     /// "New line", "new paragraph", "bullet point", spoken as instructions.
     public static let layoutWords: PassID = "layoutWords"
+    /// "Next item", "new item" and "new heading", written as the next mark of the Markdown already there.
+    package static let markdownContinuation: PassID = "markdownContinuation"
     /// Spoken numbers written as numerals.
     public static let numberForms: PassID = "numberForms"
     /// The apostrophe a contraction was said without.

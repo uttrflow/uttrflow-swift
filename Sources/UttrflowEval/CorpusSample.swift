@@ -25,7 +25,7 @@ public struct CorpusSample: Sendable, Equatable, Codable, Identifiable {
     /// Who read it and in what conditions; `nil` while the catalogue has no column for it.
     public let cohort: String?
     /// An invented group label such as a language background, set only with the speaker's consent.
-    public let speakerGroup: String?
+    let speakerGroup: String?
 
     public init(
         id: String,

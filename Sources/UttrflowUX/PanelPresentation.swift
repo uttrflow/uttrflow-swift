@@ -171,6 +171,8 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
     public let isMonospaced: Bool
     /// Whether the clip contains invisible or control characters.
     public let containsDisplayHazards: Bool
+    /// The real host of a link row, or `nil` for any other row.
+    public let linkHost: LinkHostDisplay?
     public let actions: [PanelAction]
 
     /// The bounded full-text preview, never on a masked row. See `Docs/panel.md`.
@@ -204,6 +206,7 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
         language: String? = nil,
         isMonospaced: Bool,
         containsDisplayHazards: Bool = false,
+        linkHost: LinkHostDisplay? = nil,
         actions: [PanelAction]
     ) {
         self.id = id
@@ -229,6 +232,7 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
         self.language = language
         self.isMonospaced = isMonospaced
         self.containsDisplayHazards = containsDisplayHazards
+        self.linkHost = linkHost
         self.actions = actions
     }
 }
@@ -576,6 +580,7 @@ public enum PanelPresenter {
             language: isMasked ? nil : clip.language?.chip,
             isMonospaced: isMonospaced(clip.kind),
             containsDisplayHazards: ClipTextSafety.containsDisplayHazards(clip.text),
+            linkHost: isMasked || clip.kind != .link ? nil : LinkHostDisplay.parse(clip.text),
             actions: actions(for: clip, isMasked: isMasked, in: snapshot)
         )
     }
