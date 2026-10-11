@@ -57,6 +57,14 @@ prevents alone. Any other layer is listed for removal. The table without latency
 [degraded-path-matrix.md](degraded-path-matrix.md#each-layers-marginal-contribution); with latency,
 `make release-quality` adds it to `dist/release-quality.md`.
 
+The same table runs on recorded decodes, where the recogniser-side layers see real doubt:
+`uttrflow-bakeoff --ablate` and `uttrflow-eval transcribe --ablate` read the kept decodes of the
+English test-side recordings (`--corpus-path`; `--engine-version` names the engine when decodes of
+several are kept), switch each default-on layer off alone, and print the table above with the
+failed-case and meaning-error intervals, minimum detectable change and false overrides, naming every
+default-on layer. They decode nothing and load no model, and read the test side only, so run them
+to judge a release, never to tune one.
+
 ## Rules that hold across every layer
 
 1. **Doing nothing is the default.** A layer that is unsure leaves the words as heard. Only the
