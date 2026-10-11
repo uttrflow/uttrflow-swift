@@ -9,21 +9,21 @@ public struct ClipFileReference: Sendable, Equatable, Codable {
     /// A bookmark to the file, or `nil` when macOS could not make one.
     public let bookmark: Data?
 
-    public init(path: String, bookmark: Data? = nil) {
+    init(path: String, bookmark: Data? = nil) {
         self.path = path
         self.bookmark = bookmark
     }
 
     /// A reference to the file at `url`, with a bookmark when macOS makes one.
-    public init(url: URL) {
+    init(url: URL) {
         self.init(path: url.path(percentEncoded: false), bookmark: try? url.bookmarkData())
     }
 
     /// The file's name, as the row and its accessibility label say it.
-    public var name: String { URL(filePath: path).lastPathComponent }
+    var name: String { URL(filePath: path).lastPathComponent }
 
     /// Where the file is now, or `nil` when it has gone or cannot be read.
-    public func resolved() -> URL? {
+    func resolved() -> URL? {
         if let bookmark {
             var stale = false
             if let url = try? URL(resolvingBookmarkData: bookmark, bookmarkDataIsStale: &stale),
@@ -42,14 +42,14 @@ public struct ClipFileReference: Sendable, Equatable, Codable {
 }
 
 /// Whether every file of a copied selection can still be put back.
-public enum ClipFileResolution: Sendable, Equatable {
+enum ClipFileResolution: Sendable, Equatable {
     /// Every file, in copy order.
     case available([URL])
     /// The names of the files that are gone or unreadable; none of the selection is used.
     case unavailable([String])
 
     /// All or nothing: one missing file refuses the whole selection.
-    public static func resolving(_ references: [ClipFileReference]) -> ClipFileResolution {
+    static func resolving(_ references: [ClipFileReference]) -> ClipFileResolution {
         let found = references.map { ($0, $0.resolved()) }
         let missing = found.filter { $0.1 == nil }.map { $0.0.name }
         guard missing.isEmpty else { return .unavailable(missing) }
