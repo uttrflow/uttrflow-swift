@@ -13,7 +13,7 @@ public struct ShortcutSet: Sendable, Equatable {
         }
     }
 
-    /// What the product ships with; the shortcuts screen offers this back as "reset".
+    /// What the product ships with; the shortcuts screen offers this back as "Restore Defaults".
     public static let `default` = ShortcutSet([
         .dictate: [.controlOptionHold],
         .clipboard: [.shiftCommandV],
@@ -72,6 +72,11 @@ public struct ShortcutSet: Sendable, Equatable {
         bound[action] = bindings.isEmpty ? nil : bindings
     }
 
+    /// Frees an action of every binding, which is what switching its shortcut off means.
+    public mutating func removeAll(from action: ShortcutAction) {
+        bound[action] = nil
+    }
+
     /// The action already answering to these keys, so a clash can name what holds them.
     public func action(holding binding: HotkeyBinding, besides action: ShortcutAction?) -> ShortcutAction? {
         for candidate in ShortcutAction.allCases where candidate != action {
@@ -123,6 +128,8 @@ extension ShortcutSet: Codable {
         var container = encoder.singleValueContainer()
         var stored: [String: [HotkeyBinding]] = [:]
         for (action, bindings) in bound { stored[action.rawValue] = bindings }
+        // Written out so a dictation shortcut switched off is told apart from a file that predates it.
+        if bound[.dictate] == nil { stored[ShortcutAction.dictate.rawValue] = [] }
         try container.encode(stored)
     }
 }

@@ -36,6 +36,12 @@ public enum SettingsEditor {
             if let clash = clash(for: action, binding: binding, in: updated) { throw clash }
             updated.shortcuts.replace(at: 0, with: binding, for: action)
             updated.shortcutsReturnedToDefault.remove(action)
+        case .clearShortcut(let action):
+            updated.shortcuts.removeAll(from: action)
+            updated.shortcutsReturnedToDefault.remove(action)
+        case .restoreDefaultShortcuts:
+            updated.shortcuts = .default
+            updated.shortcutsReturnedToDefault = []
         case .tidying(let level):
             try applyTidying(level, to: &updated, given: capabilities)
         case .spokenLanguage(let code, let isSpoken):
