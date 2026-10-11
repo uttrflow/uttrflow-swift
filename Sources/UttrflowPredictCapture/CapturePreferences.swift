@@ -15,13 +15,10 @@ public enum ConsentDecision: Sendable, Equatable, CaseIterable {
 public struct CapturePreferences: Sendable, Equatable, Codable {
     /// What was said about each application, keyed by `ApplicationKey` so one app has one answer.
     public private(set) var consent: [String: ConsentState]
-    /// Whether the one-time shell history import has already run.
-    public var hasImportedShellHistory: Bool
 
     /// Preferences holding the given answers, filed under one spelling each however they arrived.
-    public init(consent: [String: ConsentState] = [:], hasImportedShellHistory: Bool = false) {
+    public init(consent: [String: ConsentState] = [:]) {
         self.consent = Self.folded(consent)
-        self.hasImportedShellHistory = hasImportedShellHistory
     }
 
     /// What was said about one application, which is nothing until it has been asked about.
@@ -65,9 +62,7 @@ public struct CapturePreferences: Sendable, Equatable, Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.init(
             consent: try container.decodeIfPresent([String: ConsentState].self, forKey: .consent)
-                ?? [:],
-            hasImportedShellHistory: try container.decodeIfPresent(
-                Bool.self, forKey: .hasImportedShellHistory) ?? false)
+                ?? [:])
     }
 }
 
