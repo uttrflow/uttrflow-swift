@@ -1157,6 +1157,7 @@ final class SuggestionCoordinator {
                     applicationName: snapshot.applicationName,
                     bundleIdentifier: snapshot.bundleIdentifier,
                     documentName: snapshot.windowTitle)),
+            wordKey: preferences.wordAcceptKey(forBundleIdentifier: snapshot.bundleIdentifier),
             isQuiet: preferences.isQuiet, sawKeystrokes: keystrokesSeen)
         if let rejected = turn.rejected, let surface = reading.surface {
             entering(.reject, turn: number)
@@ -1549,6 +1550,7 @@ final class SuggestionCoordinator {
                     applicationName: snapshot.applicationName,
                     bundleIdentifier: snapshot.bundleIdentifier,
                     documentName: snapshot.windowTitle)),
+            wordAcceptKey: preferences.wordAcceptKey(forBundleIdentifier: snapshot.bundleIdentifier),
             fontFamily: snapshot.fontFamily, isBold: snapshot.isBold, isItalic: snapshot.isItalic,
             textColor: snapshot.textColor)
         // An offer the panel could not show whole claims no key, so Tab never inserts what was not drawn.
@@ -1614,10 +1616,10 @@ final class SuggestionCoordinator {
             let reading = captureFeed.lastReading
             let action = session.route(stroke)
             Self.log.debug(
-                "SWALLOWED key=\(String(describing: stroke.key), privacy: .public) modifiers=\(stroke.modifiers.rawValue) decision=\(Self.name(of: action), privacy: .public)"
+                "SWALLOWED key=\(String(describing: stroke.key), privacy: .public) modifiers=\(stroke.modifiers.rawValue) decision=\(action.logName, privacy: .public)"
             )
             switch action {
-            case .accept(let text):
+            case .accept(let text), .acceptWord(let text):
                 stopWatchingSelection()
                 panel.hide()
                 interceptor.arm([])
@@ -1627,7 +1629,8 @@ final class SuggestionCoordinator {
                 let returnedKey = await SuggestionTake.acceptKeyToReturnIfTakeFails(stroke) {
                     await takeInto.take(
                         text, after: typed, in: reading,
-                        closingPunctuation: closingPunctuationAfterCaret)
+                        closingPunctuation: closingPunctuationAfterCaret,
+                        recordsAcceptance: action == .accept(text))
                 } requestFreshRead: {
                     wake(.tick)
                 } completed: { outcome in
@@ -1681,14 +1684,6 @@ final class SuggestionCoordinator {
         }
     }
 
-    /// The one word the log carries for a routed keystroke.
-    private static func name(of action: SuggestionAction) -> String {
-        switch action {
-        case .accept: "accept"
-        case .redraw: "redraw"
-        case .giveBack: "giveBack"
-        }
-    }
 
     // MARK: Consent
 

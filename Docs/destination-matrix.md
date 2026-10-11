@@ -11,7 +11,7 @@ from the destination's primary field, and then needs 8 cases; any other is liste
 | document | 156 | 8 | 8 | 0, none shipped | 0, none shipped |
 | spreadsheet | 8 | 0, none shipped | 8 | 0, none shipped | 0, none shipped |
 | sqlEditor | 50 | 8 | 8 | 0, none shipped | 0, none shipped |
-| codeEditor | 125 | 8 | 8 | 0, none shipped | 0, none shipped |
+| codeEditor | 165 | 8 | 8 | 0, none shipped | 0, none shipped |
 | terminal | 22 | 0, none shipped | 8 | 0, none shipped | 0, none shipped |
 | messaging | 80 | 8 | 8 | 0, none shipped | 0, none shipped |
 | email | 17 | 8 | 8 | 8 | 8 |

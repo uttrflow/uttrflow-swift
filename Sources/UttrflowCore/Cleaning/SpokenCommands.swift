@@ -27,6 +27,8 @@ public struct SpokenCommand: DataTableRow, Equatable {
         case layout
         /// A symbol written in place of its name in executable code.
         case codeSymbol
+        /// A symbol written in place of its name in HTML or CSS, only in the slot of the markup the row names.
+        case markup
         /// A word of a statement's grammar, written as `text` in a statement and as spoken anywhere else.
         case keyword
         /// A case style, named by `text`, applied to the words the row's reach covers.
@@ -75,6 +77,12 @@ public struct SpokenCommand: DataTableRow, Equatable {
     public let destinations: Set<Destination>?
     /// The code languages whose notation it is; nil means every language, a known one or none.
     package let languages: Set<CodeLanguage>?
+    /// The markup slots it is notation in; nil means any place outside HTML text content.
+    package let slots: Set<MarkupSlot>?
+    /// The slot the caret is in once the row is written; nil when the row leaves it in place.
+    package let enters: MarkupSlot?
+    /// Whether a quotation spoken right after the row is written as its quoted value: `class equals quote hero unquote` is `class="hero"`.
+    package let bindsQuote: Bool
     /// Where an opening name said again inside the quotation it opened closes it, as a typed quote does; nowhere when the row does not say.
     private let closesItselfIn: Set<Destination>
     /// The words a casing command covers; a clause when the row does not say.
@@ -122,14 +130,19 @@ public struct SpokenCommand: DataTableRow, Equatable {
         requiresLists = try container.decodeIfPresent(Bool.self, forKey: .requiresLists) ?? false
         destinations = try container.decodeIfPresent(Set<Destination>.self, forKey: .destinations)
         languages = try container.decodeIfPresent(Set<CodeLanguage>.self, forKey: .languages)
+        slots = try container.decodeIfPresent(Set<MarkupSlot>.self, forKey: .slots)
+        enters = try container.decodeIfPresent(MarkupSlot.self, forKey: .then)
+        bindsQuote = try container.decodeIfPresent(Bool.self, forKey: .bindsQuote) ?? false
         closesItselfIn = try container.decodeIfPresent(Set<Destination>.self, forKey: .closesItself) ?? []
         reach = try container.decodeIfPresent(Reach.self, forKey: .reach) ?? .clause
         until = try container.decodeIfPresent([String].self, forKey: .until) ?? []
     }
 
     private enum Key: String, CodingKey {
-        case id, words, action, text, placement, requiresLists, destinations, languages, closesItself, reach,
-            until
+        case id, words, action, text, placement, requiresLists, destinations, languages, slots, bindsQuote,
+            closesItself,
+            reach, until
+        case then
     }
 }
 
@@ -147,6 +160,8 @@ public enum SpokenCommands {
     public static let layout = rows(.layout)
     /// Symbols said by name in code: the code rows, and the bracket marks, which code writes as bare symbols.
     public static let codeSymbols = rows(.codeSymbol) + marks.filter { isBracket($0.text) }
+    /// Markup and style symbols said by name, in file order so a longer phrase is tried before a shorter one.
+    package static let markup = rows(.markup)
     /// Statement keywords, longest phrase first; each is a word of a statement, never a command.
     public static let keywords = rows(.keyword).sorted { $0.words.count > $1.words.count }
     /// Case styles said by name, in file order so a longer phrase is tried before a shorter one.
@@ -167,7 +182,8 @@ public enum SpokenCommands {
     /// The first row heard in ordinary dictation, not under the editing key, whose phrase is a run of lower-cased `words`.
     public static func phrase(within words: [String]) -> SpokenCommand? {
         all.first { row in
-            !row.isSaidUnderEditingKey && row.action != .keyword && !row.words.isEmpty
+            !row.isSaidUnderEditingKey && row.action != .keyword && row.action != .markup
+                && !row.words.isEmpty
                 && row.words.count <= words.count
                 && (0...(words.count - row.words.count)).contains { start in
                     Array(words[start..<(start + row.words.count)]) == row.words

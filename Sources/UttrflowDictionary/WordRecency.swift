@@ -22,7 +22,7 @@ public struct WordRecency: Sendable, Equatable {
         self.stale = stale
     }
 
-    /// Reads the ledger inside History's window; without a ledger a word is proven unused only if it was never used.
+    /// Reads the ledger inside History's window; without a ledger only a word with zero uses is proven unused.
     public static func read(
         from ledger: EvidenceLedgerStore?, entries: [DictionaryEntry], retentionDays: Int, now: Date = Date()
     ) async -> WordRecency {

@@ -150,6 +150,17 @@ struct SuggestionPresentationTests {
         #expect(presentation.unselectedListOpacity > 0)
     }
 
+    @Test("A chosen word key is named in the footer, and an unchosen one is not")
+    func footerNamesTheWordKey() {
+        let list = Suggestion.choice(leader: "Sydney", others: ["Soho"])
+        let selection = SuggestionSelection(index: 1, hasMoved: true)
+        let chosen = SuggestionPresentation(list, selection: selection, wordAcceptKey: .optionRightArrow)
+        #expect(chosen.footer == "⇥ take   ⌥→ word   ⌥↓ next   ⎋ dismiss")
+        let command = SuggestionPresentation(list, selection: selection, wordAcceptKey: .commandRightArrow)
+        #expect(command.footer.contains("⌘→ word"))
+        #expect(!SuggestionPresentation(list, selection: selection).footer.contains("word"))
+    }
+
     @Test("A field that names its face is drawn in it; one that names nothing gets the monospaced default")
     func theFaceFollowsTheField() {
         let named = SuggestionPresentation(.certain("Sydney"), fieldPointSize: 12, fontFamily: "Helvetica")

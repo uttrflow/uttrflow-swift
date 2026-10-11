@@ -12,6 +12,9 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
     /// The language the caret's file or text declares, which picks the rows whose meaning depends on it.
     var language: CodeLanguage?
 
+    /// Where the caret stands in HTML or CSS, which picks the slot the markup rows are read in.
+    var markup: MarkupPosition?
+
     /// What the screen said for the notation, to which the speech's own cues are added.
     var evidence = Applicability(cues: [.caretInCode])
 
@@ -19,13 +22,33 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
         let words = draft.presentIndices.map { Self.bare(draft.words[$0].text) }
         let screen = NotationEvidence.applicability(
             destination: destination, opening: words.first, given: evidence)
-        let evidence = NotationEvidence.applicability(of: words, given: screen)
+        // A spelled tag is evidence enough: its element may be a small word such as "a", and words outside a tag stay text.
+        let spellsTag =
+            markup == .slot(.text) && screen == .noEvidence
+            && NotationEvidence.spellsTag(
+                in: draft.presentIndices.map { Self.markupKey(draft.words[$0].text) })
+        let evidence =
+            spellsTag
+            ? Applicability(cues: [.markupTag]) : NotationEvidence.applicability(of: words, given: screen)
         guard evidence.activates(at: NotationEvidence.activationThreshold) else { return draft }
         var draft = NotationInput.settled(draft, by: Self.id)
+        var slot = markup?.slot
         var position = 0
         while position < draft.presentIndices.count {
             let live = draft.presentIndices
             guard position < live.count else { break }
+            if let current = slot {
+                if let row = markupRow(at: position, in: live, of: draft, slot: current) {
+                    position = write(row, at: position, in: live, to: &draft)
+                    slot = row.enters ?? current
+                    continue
+                }
+                // Between tags only a spelled tag is notation; every other word is text.
+                if current == .text {
+                    position += 1
+                    continue
+                }
+            }
             if let symbol = symbol(at: position, in: live, of: draft) {
                 // A joined name stands where its first part stood, so the next dot is read from there.
                 if join(symbol, at: position, in: live, of: &draft) { continue }
