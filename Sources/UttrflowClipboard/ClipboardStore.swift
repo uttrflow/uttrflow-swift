@@ -379,6 +379,20 @@ public actor ClipboardStore {
         return try change(id, keeping: retention) { $0.alias = alias }
     }
 
+    /// Sets a clip's name and its tags together, so one save from the rename sheet is one write.
+    @discardableResult
+    public func setLabels(
+        alias: String?, tags: [String], of id: UUID, keeping retention: ClipRetention
+    ) throws(ClipboardStoreError) -> [Clip] {
+        if let alias, loaded().contains(where: { $0.id != id && $0.alias == alias }) {
+            throw .aliasAlreadyInUse
+        }
+        return try change(id, keeping: retention) {
+            $0.alias = alias
+            $0.tags = tags
+        }
+    }
+
     /// The user's answer to whether a text clip is a secret, kept for its text from now on. See `Docs/clipboard-secrets.md`.
     @discardableResult
     public func setSecret(

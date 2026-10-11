@@ -38,6 +38,24 @@ enum Quantities {
         "euros": "\u{20AC}", "rupee": "\u{20B9}", "rupees": "\u{20B9}", "yen": "\u{00A5}",
     ]
 
+    /// Each currency's major nouns and the minor nouns of its hundredth part, so a new currency is a row and no code.
+    static let currencyUnits: [(majors: Set<String>, minors: Set<String>)] = [
+        (["dollar", "dollars"], ["cent", "cents"]),
+        (["pound", "pounds"], ["penny", "pence"]),
+        (["euro", "euros"], ["cent", "cents"]),
+        (["rupee", "rupees"], ["paisa", "paise"]),
+    ]
+
+    /// Whether `word` names the hundredth part of some currency.
+    static func isMinorUnit(_ word: String) -> Bool {
+        currencyUnits.contains { $0.minors.contains(word) }
+    }
+
+    /// Whether `word` names a currency that has a hundredth part.
+    static func hasMinorUnit(_ word: String) -> Bool {
+        currencyUnits.contains { $0.majors.contains(word) }
+    }
+
     /// A percent said as a word after the amount, so "50 percent" and "50%" are one quantity; "degrees" stays out, since it is as often a qualification.
     static let percentWords: [String: String] = ["percent": "%", "per cent": "%"]
 

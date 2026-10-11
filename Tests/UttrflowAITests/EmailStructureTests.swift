@@ -57,4 +57,14 @@ struct EmailStructureTests {
         #expect(once.text == "Hi Sam,\n\ncan you send the deck.\n\nThanks, Ana")
         #expect(pass.apply(once).text == once.text)
     }
+
+    @Test("a letter in a document is laid out like an email, and other document text is not")
+    func documentLetter() {
+        #expect(
+            Self.cleaned("hi sam, can you send the deck. thanks, ana", destination: .document)
+                == "Hi sam,\n\nCan you send the deck.\n\nThanks, ana")
+        #expect(
+            Self.cleaned("hi sam, the deck is ready", destination: .document)
+                == "Hi sam, the deck is ready.")
+    }
 }
