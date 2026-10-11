@@ -1443,6 +1443,7 @@
     "UttrflowCore func region": 1,
     "UttrflowCore func remember": 1,
     "UttrflowCore func remove": 5,
+    "UttrflowCore func removeAll": 1,
     "UttrflowCore func removeEach": 1,
     "UttrflowCore func removeSetAside": 1,
     "UttrflowCore func removing": 2,
@@ -6164,5 +6165,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 8745
+  "total": 8746
 }
