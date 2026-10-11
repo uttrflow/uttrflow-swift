@@ -1,4 +1,5 @@
 // Tests the per-group report over real speakers: counts on every row, speaker resampling, insufficient evidence.
+import Foundation
 import Testing
 
 @testable import UttrflowEval
