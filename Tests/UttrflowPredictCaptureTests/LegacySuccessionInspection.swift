@@ -10,6 +10,7 @@ extension PredictStore {
     ) throws(PredictStoreError) -> [Candidate] {
         try database.rows(
             LegacySuccessions.query,
-            { LegacySuccessions.bind($0, surface: surface, previous: Spelling.canonical(previous)) }, LegacySuccessions.read)
+            { LegacySuccessions.bind($0, surface: surface, previous: Spelling.canonical(previous)) },
+            LegacySuccessions.read)
     }
 }
