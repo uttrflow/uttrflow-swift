@@ -150,6 +150,31 @@ extension AliasVerificationTests {
         await index.settle()
         #expect(await index.aliasSnapshot().words == ["gco": ["git", "status"]])
     }
+    @Test func aChangedAliasWithdrawsAnAlreadyAcceptedBatchMember() async {
+        let reader = ChangingAliases(["gco": ["git", "checkout"]])
+        let clock = ManualClock()
+        let index = aliasIndex(reader, aliases: AliasExpansionCache(reader: reader, clock: clock))
+        await warmAliases(index, kinds: [.branch, .alias])
+        let scoring = WaitingAliasScore()
+        let verifier = Verifier(index: index, scoring: scoring, clock: ManualClock())
+        let batch = Task {
+            await verifier.verified(
+                [
+                    Candidate(text: "gco main", source: .personal),
+                    Candidate(text: "gco imaginary", source: .personal),
+                ],
+                in: terminal, typed: "gco ma", now: instant)
+        }
+        await scoring.wait()
+        await reader.replace(["gco": ["git", "status"]])
+        clock.advance(by: .seconds(60))
+        _ = await index.aliasSnapshot()
+        await index.settle()
+        #expect(await verifier.options(for: "gco ma", in: terminal, now: instant) == .open)
+        await scoring.release()
+        #expect(await batch.value == [])
+    }
+
     @Test(arguments: ["g", "sudo", "time"])
     func aliasRefusalsNeverPersistAcrossGrammarChanges(alias: String) async {
         let prefix = alias == "time" ? "sudo time" : alias
