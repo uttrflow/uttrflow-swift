@@ -115,7 +115,7 @@ struct PanelUseReportingTests {
     /// The identity a given effect reports, or `nil` where it reports none.
     static func used(of effect: PanelEffect) -> Clip.ID? {
         switch effect {
-        case .closeAndInsert(_, let used): used
+        case .closeAndInsert(_, let used), .closeAndInsertConfirmed(_, let used): used
         case .closeAndInsertFormatted(_, _, let used): used
         case .copyAndSay(_, _, let used): used
         case .closeAndCopy(_, _, let used): used

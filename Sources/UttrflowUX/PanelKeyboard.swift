@@ -85,7 +85,7 @@ public enum PanelOutcome: Sendable, Equatable {
     /// The row's Copy: the clip goes to the clipboard, as a picture when it is one, and the panel closes.
     case copy(Clip)
     /// A hidden clip the user agreed to paste into a field not known to hide what is typed.
-    case insertConfirmedHidden(Clip, cleaned: Bool)
+    case insertConfirmed(Clip, cleaned: Bool)
     /// Closed with nothing chosen. Whatever the user was doing is untouched.
     case dismissed
 }

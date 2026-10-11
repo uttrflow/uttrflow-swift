@@ -97,7 +97,8 @@ struct PanelPasteOutcomeTests {
         let effect = Self.panel(insertion).applying(.return).outcome.effect
 
         switch effect {
-        case .closeAndInsert(let text, _), .closeAndInsertFormatted(let text, _, _):
+        case .closeAndInsert(let text, _), .closeAndInsertFormatted(let text, _, _),
+            .closeAndInsertConfirmed(let text, _):
             #expect(!text.isEmpty)
         case .copyAndSay(let text, let notice, _):
             #expect(!text.isEmpty)

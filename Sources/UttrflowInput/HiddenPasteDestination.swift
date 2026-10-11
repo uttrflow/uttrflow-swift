@@ -3,14 +3,7 @@ public import UttrflowCore
 /// The field a hidden clip would land in, read to decide whether to ask and read again before pasting.
 public struct HiddenPasteDestination: Sendable, Equatable {
     /// What the focused field turned out to be.
-    public enum Field: Sendable, Equatable {
-        /// A field that hides what is typed.
-        case secure
-        /// A field that shows what is typed.
-        case nonSecure
-        /// No focused field could be read, or the reader did not answer.
-        case unclassified
-    }
+    public typealias Field = PasteQuestion.Field
 
     /// What kind of field has focus.
     public let field: Field
@@ -18,9 +11,6 @@ public struct HiddenPasteDestination: Sendable, Equatable {
     public let application: InsertionDestination?
     /// The focused element itself, so a move to another field of the same app is seen.
     public let identity: FieldIdentity?
-
-    /// Whether the user must agree first: anything but a field known to hide what is typed.
-    public var needsConfirmation: Bool { field != .secure }
 
     /// Builds a reading from its three parts.
     public init(field: Field, application: InsertionDestination?, identity: FieldIdentity?) {

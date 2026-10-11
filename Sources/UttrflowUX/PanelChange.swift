@@ -1,5 +1,6 @@
 // What a panel keystroke asks the store to do, and the sheets that ask the user first.
 public import UttrflowClipboard
+public import UttrflowCore
 
 /// Something only the store can carry out, named as a value so the decision is testable without the actor.
 public enum PanelChange: Sendable, Equatable {
@@ -49,22 +50,22 @@ public enum PanelSheet: Sendable, Equatable {
     case reindenting(Clip.ID, formatted: String)
     /// Editing a clip's text; `draft` is the whole text as it now stands in the field.
     case editing(Clip.ID, draft: String)
-    /// Asks before a hidden clip goes into a field not known to hide what is typed; `cleaned` keeps the chosen form.
-    case confirmingHiddenPaste(Clip.ID, cleaned: Bool, unclassified: Bool)
+    /// Asks before a paste the shared decision holds back; `cleaned` keeps the chosen form.
+    case confirmingPaste(Clip.ID, cleaned: Bool, reason: PasteQuestion.Reason)
 
     /// Whether this sheet has a field to type into; one that has none keeps the list behind it still (#946).
     public var takesTyping: Bool {
         switch self {
         case .aliasing, .moving, .renamingCategory, .editing: true
         case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting,
-            .confirmingHiddenPaste:
+            .confirmingPaste:
             false
         }
     }
 
-    /// Whether this is the question a hidden clip's paste asks, which only means something at once.
-    public var isHiddenPasteQuestion: Bool {
-        if case .confirmingHiddenPaste = self { return true }
+    /// Whether this is a paste question, which only means something at once.
+    public var isPasteQuestion: Bool {
+        if case .confirmingPaste = self { return true }
         return false
     }
 
@@ -74,7 +75,7 @@ public enum PanelSheet: Sendable, Equatable {
         case .aliasing(let id, _), .moving(let id, _), .confirmingDelete(let id),
             .confirmingMakeNote(let id),
             .formatting(let id, _), .reindenting(let id, _), .editing(let id, _),
-            .confirmingHiddenPaste(let id, _, _):
+            .confirmingPaste(let id, _, _):
             id
         case .renamingCategory, .deletingCategory: nil
         }
@@ -86,7 +87,7 @@ public enum PanelSheet: Sendable, Equatable {
         case .renamingCategory(let name, _), .deletingCategory(let name, _):
             name
         case .aliasing, .moving, .confirmingDelete, .formatting, .reindenting, .editing: nil
-        case .confirmingMakeNote, .confirmingHiddenPaste: nil
+        case .confirmingMakeNote, .confirmingPaste: nil
         }
     }
 
@@ -97,7 +98,7 @@ public enum PanelSheet: Sendable, Equatable {
             .editing(_, let draft):
             draft
         case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting,
-            .confirmingHiddenPaste:
+            .confirmingPaste:
             ""
         }
     }
@@ -160,12 +161,12 @@ extension PanelSnapshot {
                 state: closingSheet(),
                 outcome: .change(.setRichText(id, NotePromotion.note(from: clip.text))))
 
-        case .confirmingHiddenPaste(let id, let cleaned, _):
-            guard let clip = clip(id), clip.kind == .secret else {
+        case .confirmingPaste(let id, let cleaned, let reason):
+            guard let clip = clip(id), clip.kind == .secret || !reason.isAboutHiddenClip else {
                 return PanelResponse(state: closingSheet(), outcome: .open)
             }
             return PanelResponse(
-                state: closingSheet(), outcome: .insertConfirmedHidden(clip, cleaned: cleaned))
+                state: closingSheet(), outcome: .insertConfirmed(clip, cleaned: cleaned))
 
         case .formatting(let id, let formatted), .reindenting(let id, let formatted):
             return committingRewrite(id, to: formatted)
@@ -222,17 +223,17 @@ extension PanelSnapshot {
             // A warning holds only for the text it is shown for, so new text is judged again.
             next.hasWarnedOfUnsavedSecret = false
         case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting,
-            .confirmingHiddenPaste, .none:
+            .confirmingPaste, .none:
             return self
         }
         return next
     }
 
-    /// Opens the question a hidden clip's paste asks when the field is not known to hide what is typed.
-    public func askingBeforeHiddenPaste(
-        of id: Clip.ID, cleaned: Bool, unclassified: Bool
+    /// Opens the one question every confirm-before-paste asks, worded by its reason.
+    public func askingBeforePaste(
+        of id: Clip.ID, cleaned: Bool, reason: PasteQuestion.Reason
     ) -> PanelSnapshot {
-        opening(.confirmingHiddenPaste(id, cleaned: cleaned, unclassified: unclassified)).state
+        opening(.confirmingPaste(id, cleaned: cleaned, reason: reason)).state
     }
 
     /// Tidies a code clip, checking again at the moment it acts because the clip may have changed.

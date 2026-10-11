@@ -22,32 +22,6 @@ import UttrflowSettings
 import UttrflowSpeech
 import UttrflowUX
 
-struct DismissalCountdown {
-    private(set) var remaining: Duration
-    private var startedAt: ContinuousClock.Instant?
-
-    init(_ duration: Duration, at instant: ContinuousClock.Instant) {
-        remaining = duration
-        startedAt = instant
-    }
-
-    mutating func pause(at instant: ContinuousClock.Instant) {
-        guard let startedAt else { return }
-        remaining = max(.zero, remaining - startedAt.duration(to: instant))
-        self.startedAt = nil
-    }
-
-    mutating func resume(at instant: ContinuousClock.Instant) {
-        guard startedAt == nil, remaining > .zero else { return }
-        startedAt = instant
-    }
-
-    func hasExpired(at instant: ContinuousClock.Instant) -> Bool {
-        guard let startedAt else { return false }
-        return startedAt.duration(to: instant) >= remaining
-    }
-}
-
 enum DictationSessionEndObserver {
     static let screenIsLocked = Notification.Name("com.apple.screenIsLocked")
 
@@ -428,8 +402,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// A clipboard index that failed to persist remains unsaved until a later write succeeds.
     private(set) var clipboardWriteFailure: ClipboardStoreError?
     private var panelTarget: InsertionDestination?
-    /// The field a hidden-paste question was asked about, so agreeing is checked against it.
-    private var hiddenPasteDestination: HiddenPasteDestination?
+    private let pasteGate = PasteGate()
     /// Counts Format presses, so only the latest run's result may open its sheet.
     private var formatterRuns = 0
     /// Counts the store reads the panel has asked for, so an older list never replaces a newer one.
@@ -2238,18 +2211,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
             closeAfterReading()
         case .closeAndInsertFormatted(let text, let richText, let used):
-            let destination = panelTarget ?? InsertionDestination(applicationName: nil, bundleIdentifier: nil)
-            closeQuickPanel()
-            insertAfterTerminalCheck(text, richText: richText, destination: destination, used: used)
+            insertFromPanel(text, richText: richText, concealed: false, used: used)
         case .closeAndInsert(let text, let used):
-            // Closed first: insertion declines outright while Uttrflow is frontmost.
-            let destination = panelTarget ?? InsertionDestination(applicationName: nil, bundleIdentifier: nil)
-            closeQuickPanel()
-            insertAfterTerminalCheck(text, richText: nil, destination: destination, used: used)
+            insertFromPanel(text, concealed: false, used: used)
         case .closeAndInsertConcealed(let text, let used):
-            askBeforeHiddenPaste(text, used: used)
+            insertFromPanel(text, concealed: true, used: used)
+        case .closeAndInsertConfirmed(let text, let used):
+            insertFromPanel(text, concealed: false, used: used, agreed: true)
         case .closeAndInsertConfirmedConcealed(let text, let used):
-            pasteConfirmedHiddenClip(text, used: used)
+            insertFromPanel(text, concealed: true, used: used, agreed: true)
         case .copyAndSay(let text, let notice, let used):
             // Stays open: the panel is the only surface left to say this on.
             let copied = putOnClipboard(text, used: used)
@@ -2584,51 +2554,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
     }
 
-    /// Pastes a hidden clip at once into a secure field, and otherwise asks in the panel while the field keeps focus.
-    private func askBeforeHiddenPaste(_ text: String, used: Clip.ID) {
-        guard settings.confirmsHiddenClipPaste else {
-            insertHiddenClipFromPanel(text, used: used)
-            return
-        }
+    /// Pastes a panel clip, or asks first in the panel when the shared decision holds it back.
+    private func insertFromPanel(
+        _ text: String, richText: String? = nil, concealed: Bool, used: Clip.ID, agreed: Bool = false
+    ) {
+        let destination = panelTarget ?? InsertionDestination(applicationName: nil, bundleIdentifier: nil)
+        let situation = PasteQuestion.Situation(
+            isConcealed: concealed, field: .secure, bundleIdentifier: destination.bundleIdentifier,
+            text: text,
+            confirmsHiddenClips: settings.confirmsHiddenClipPaste,
+            confirmsMultiline: clipboardPreferences.confirmsMultilinePaste, isAgreed: agreed)
         let owner = PanelLateRequest(opens: quickPanel.opens, sheet: panel?.sheet)
-        Task { [weak self, focus] in
-            let destination = await HiddenPasteDestination.read(from: focus)
+        Task { [weak self, focus, pasteGate] in
+            let decision = await pasteGate.decide(situation, focus: focus)
             guard let self, owner.stillOwns(panel, opens: quickPanel.opens) else { return }
-            guard destination.needsConfirmation else {
-                insertHiddenClipFromPanel(text, used: used)
-                return
-            }
-            hiddenPasteDestination = destination
-            let original = panel?.clips.first { $0.id == used }?.text
-            panel = panel?.askingBeforeHiddenPaste(
-                of: used, cleaned: original != text, unclassified: destination.field == .unclassified)
-            if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
-        }
-    }
-
-    /// Pastes an agreed hidden clip only while the focus is still on the field that was asked about.
-    private func pasteConfirmedHiddenClip(_ text: String, used: Clip.ID) {
-        let asked = hiddenPasteDestination
-        hiddenPasteDestination = nil
-        let owner = PanelLateRequest(opens: quickPanel.opens, sheet: panel?.sheet)
-        Task { [weak self, focus] in
-            let unchanged = await asked?.isUnchanged(on: focus) ?? false
-            guard let self, owner.stillOwns(panel, opens: quickPanel.opens) else { return }
-            guard unchanged else {
-                panel?.notice = PanelNotice(
-                    symbolName: "eye.slash", message: "Not pasted — the cursor moved to another field")
+            switch decision {
+            case .pasteNow:
+                // Closed first: insertion declines outright while Uttrflow is frontmost.
+                closeQuickPanel()
+                insert(
+                    text, richText: richText, concealed: concealed, targeting: destination, used: used,
+                    forPanel: true)
+            case .ask(let reason):
+                let original = panel?.clips.first { $0.id == used }?.text
+                panel = panel?.askingBeforePaste(of: used, cleaned: original != text, reason: reason)
+                if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
+            case .refuse(let refusal):
+                panel?.notice = PanelNotice(symbolName: "eye.slash", message: refusal.message)
                 if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
                 closeAfterReading()
-                return
             }
-            insertHiddenClipFromPanel(text, used: used)
         }
-    }
-
-    private func insertHiddenClipFromPanel(_ text: String, used: Clip.ID) {
-        let destination = panelTarget ?? InsertionDestination(applicationName: nil, bundleIdentifier: nil)
-        closeQuickPanel()
-        insert(text, concealed: true, targeting: destination, used: used, forPanel: true)
     }
 
     /// Notes a clip was reached for, from the three methods that place one so no path can forget.
@@ -2710,49 +2666,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             }
             await self.refreshPanelIfOpen()
         }
-    }
-
-    /// Pastes a panel clip, first asking when a terminal would run its lines as commands.
-    private func insertAfterTerminalCheck(
-        _ text: String, richText: String?, destination: InsertionDestination, used: Clip.ID
-    ) {
-        guard
-            let question = MultilinePasteCheck.question(
-                for: text, into: destination.bundleIdentifier,
-                isOn: clipboardPreferences.confirmsMultilinePaste)
-        else {
-            insert(text, richText: richText, targeting: destination, used: used, forPanel: true)
-            return
-        }
-        guard confirmsPaste(of: text, question: question) else { return }
-        // The alert activates this app, and a paste is refused while it is active.
-        if let pid = destination.processIdentifier {
-            NSRunningApplication(processIdentifier: pid)?.activate()
-        }
-        Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(150))
-            self?.insert(text, richText: richText, targeting: destination, used: used, forPanel: true)
-        }
-    }
-
-    /// Shows the whole clip and asks; Cancel is the default so a stray Return pastes nothing.
-    private func confirmsPaste(of text: String, question: String) -> Bool {
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        alert.messageText = question
-        alert.informativeText = "A new line in a terminal runs the line before it."
-        let view = NSTextView(frame: NSRect(x: 0, y: 0, width: 420, height: 160))
-        view.string = text
-        view.isEditable = false
-        view.font = .monospacedSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
-        view.setAccessibilityLabel("Clip to paste")
-        let scroll = NSScrollView(frame: view.frame)
-        scroll.documentView = view
-        scroll.hasVerticalScroller = true
-        alert.accessoryView = scroll
-        alert.addButton(withTitle: "Cancel")
-        alert.addButton(withTitle: "Paste Anyway")
-        return alert.runModal() == .alertSecondButtonReturn
     }
 
     /// Stores the terminal paste choice with the other clipboard choices and redraws its row.
@@ -2910,7 +2823,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         quickPanel.hide()
         panel = nil
         panelTarget = nil
-        hiddenPasteDestination = nil
+        pasteGate.forget()
         // The quiet minute an update waits for starts here, not at the next window event.
         updates.refresh()
     }
@@ -4765,29 +4678,6 @@ private struct StoredSnippets: SnippetExpanding {
                     snippetID: $0.snippetID, matched: $0.matched, expansion: $0.expansion)
             }, caret: expansion.caret)
     }
-}
-
-/// Gives one retry exclusive ownership of the history badge until it finishes.
-@MainActor
-final class RetryBadgeOwnership {
-    private(set) var recording: UUID?
-
-    /// Refuses to transfer an in-flight retry's badge to a later click.
-    func begin(_ id: UUID) -> Bool {
-        guard recording == nil else { return false }
-        recording = id
-        return true
-    }
-
-    /// Finishes only the retry that currently owns the badge.
-    @discardableResult
-    func finish(_ id: UUID) -> Bool {
-        guard recording == id else { return false }
-        recording = nil
-        return true
-    }
-
-    func clear() { recording = nil }
 }
 
 /// A menu is built from a snapshot, so an index that has gone stale must do nothing.

@@ -1,6 +1,7 @@
 // The sheet over the panel's list, ready to draw, and the presenter that words each kind.
 import Foundation
 public import UttrflowClipboard
+import UttrflowCore
 
 /// One collection offered in the move popover, with its count so two similar names can be told apart.
 public struct PanelCollectionOption: Sendable, Equatable, Identifiable {
@@ -35,7 +36,7 @@ public struct PanelSheetPresentation: Sendable, Equatable {
         case formatting
         case reindenting
         case editing
-        case confirmingHiddenPaste
+        case confirmingPaste
     }
 
     /// Which sheet this is.
@@ -48,7 +49,7 @@ public struct PanelSheetPresentation: Sendable, Equatable {
         switch kind {
         case .aliasing, .moving, .renamingCategory, .editing: true
         case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting,
-            .confirmingHiddenPaste:
+            .confirmingPaste:
             false
         }
     }
@@ -233,15 +234,13 @@ extension PanelPresenter {
                 confirmTitle: "Make note",
                 isConfirmEnabled: true)
 
-        case .confirmingHiddenPaste(_, _, let unclassified):
+        case .confirmingPaste(_, _, let reason):
             return PanelSheetPresentation(
-                kind: .confirmingHiddenPaste,
-                title: unclassified ? "Paste a hidden clip here?" : "Paste a hidden clip into a text field?",
+                kind: .confirmingPaste,
+                title: reason.title,
                 draft: "",
                 placeholder: "",
-                note: unclassified
-                    ? "This field cannot be checked, so it may show what is pasted. Return pastes, Esc cancels."
-                    : "This field shows what is pasted. Return pastes, Esc cancels.",
+                note: reason.note,
                 conflict: nil,
                 collections: [],
                 confirmTitle: "Paste",
