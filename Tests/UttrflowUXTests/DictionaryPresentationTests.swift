@@ -25,12 +25,13 @@ extension HistoryFixture {
     /// The Dictionary page over these inputs.
     static func dictionary(
         entries: [DictionaryEntry] = [], draft: DictionaryDraft? = nil, query: String = "",
-        filter: String = "", sort: String = "", corrections: [Correction] = []
+        filter: String = "", sort: String = "", corrections: [Correction] = [],
+        recency: WordRecency = .none
     ) -> DictionaryPresentation {
         DictionaryPresenter.page(
             for: DictionarySnapshot(
                 entries: entries, draft: draft, query: query, filter: filter, sort: sort,
-                corrections: corrections, now: now),
+                corrections: corrections, now: now, recency: recency),
             calendar: calendar, locale: locale)
     }
 }
@@ -557,12 +558,61 @@ struct DictionaryFilterTests {
         }
     }
 
-    @Test("the chips run All then the four sources, with the chosen one selected")
+    @Test("the chips run All, the four sources, then Not used lately, with the chosen one selected")
     func chips() {
         let chips = HistoryFixture.dictionary(entries: Self.words, filter: "learned").filters
-        #expect(chips.map(\.title) == ["All", "Added by you", "Learned", "Seen on screen", "Retired"])
+        #expect(
+            chips.map(\.title) == [
+                "All", "Added by you", "Learned", "Seen on screen", "Retired", "Not used lately",
+            ])
         #expect(chips.filter(\.isSelected).map(\.id) == ["learned"])
         #expect(HistoryFixture.dictionary(entries: Self.words).filters.first?.isSelected == true)
+    }
+
+    @Test("Not used lately lists exactly the words the recency calls stale, and deletes none")
+    func notUsedLately() {
+        let learned = HistoryFixture.word("Valkey", origin: .learned, daysAgo: 400)
+        let added = HistoryFixture.word("Uttrflow", origin: .added, daysAgo: 400)
+        let recency = WordRecency(
+            entries: Self.words + [learned, added],
+            evidence: [], now: HistoryFixture.now, evidenceDays: 365)
+        let page = HistoryFixture.dictionary(
+            entries: [learned, added], filter: "notUsedLately", recency: recency)
+        #expect(page.rows.map(\.word) == ["Valkey"])
+        #expect(page.filters.filter(\.isSelected).map(\.id) == ["notUsedLately"])
+        #expect(HistoryFixture.dictionary(entries: [learned, added], recency: recency).rows.count == 2)
+    }
+
+    @Test("Nothing stale says so under the Not used lately chip")
+    func nothingStale() {
+        let page = HistoryFixture.dictionary(entries: Self.words, filter: "notUsedLately")
+        #expect(page.rows.isEmpty)
+        #expect(page.emptyState?.message.contains("90 days") == true)
+    }
+
+    @Test("A row says when its word last appeared, Never when it has not, and a dash when unknown")
+    func lastUsed() {
+        let used = HistoryFixture.word("Valkey", origin: .learned, used: 3)
+        let unused = HistoryFixture.word("Kestrel", origin: .observed, used: 0)
+        let unknown = HistoryFixture.word("Anand", origin: .learned, used: 2)
+        let yesterday = HistoryFixture.now.addingTimeInterval(-86_400)
+        let recency = WordRecency(
+            entries: [used],
+            evidence: [
+                EvidenceRow(
+                    kind: .use, subject: used.id.uuidString, day: EvidenceRow.day(of: yesterday),
+                    provenance: .dictation)
+            ], now: HistoryFixture.now, evidenceDays: 365)
+        let rows = HistoryFixture.dictionary(entries: [used, unused, unknown], recency: recency).rows
+        let byWord = Dictionary(uniqueKeysWithValues: rows.map { ($0.word, $0.lastUsed) })
+        #expect(
+            byWord["Valkey"]
+                == MainFormatting.date(
+                    Date(timeIntervalSince1970: Double(EvidenceRow.day(of: yesterday)) * 86_400),
+                    now: HistoryFixture.now, calendar: HistoryFixture.calendar, locale: HistoryFixture.locale)
+        )
+        #expect(byWord["Kestrel"] == "Never")
+        #expect(byWord["Anand"] == "—")
     }
 
     @Test("there are no chips while there are no words")
@@ -579,7 +629,7 @@ struct DictionaryFilterTests {
         #expect(page.rows.isEmpty)
         #expect(page.emptyState?.title == "Nothing in this view")
         #expect(page.emptyState?.message.contains("retired") == true)
-        #expect(page.filters.count == 5)
+        #expect(page.filters.count == 6)
     }
 
     @Test("each source has a name, and an entry takes the one its origin gives")
