@@ -92,7 +92,7 @@ struct ActivationStopRaceTests {
             clock: ManualClock()
         )
         let controller = DictationController(
-            pipeline: pipeline, monitor: SilentRaceMonitor(), clock: ManualClock())
+            dependencies: .init(pipeline: pipeline, monitor: SilentRaceMonitor()), clock: ManualClock())
         try await controller.start(binding: .optionSpace)
 
         var events = monitor.events.makeAsyncIterator()

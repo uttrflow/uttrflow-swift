@@ -34,7 +34,8 @@ private func longestGapDuringDictation(
         clock: ManualClock()
     )
     let clock = ManualClock()
-    let controller = DictationController(pipeline: pipeline, monitor: StillMonitor(), clock: clock)
+    let controller = DictationController(
+        dependencies: .init(pipeline: pipeline, monitor: StillMonitor()), clock: clock)
     let settled = Signal()
     let states = await pipeline.states()
     let presenting = Task { @MainActor in

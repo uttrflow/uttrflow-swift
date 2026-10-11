@@ -166,18 +166,13 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     private let gestureSink: AsyncStream<Gesture>.Continuation
 
     public init(
-        pipeline: DictationPipeline,
-        monitor: any HotkeyMonitoring,
-        commandMonitor: (any HotkeyMonitoring)? = nil,
-        cue: any RecordingCueing = SilentCue(),
-        clock: ClockType,
-        options: Options = Options(),
+        dependencies: Dependencies, clock: ClockType, options: Options = Options(),
         observers: Observers = Observers()
     ) {
-        self.pipeline = pipeline
-        self.monitor = monitor
-        self.commandMonitor = commandMonitor
-        self.cue = cue
+        self.pipeline = dependencies.pipeline
+        self.monitor = dependencies.monitor
+        self.commandMonitor = dependencies.commandMonitor
+        self.cue = dependencies.cue
         self.clock = clock
         self.activation = options.activation
         self.handsFreeEnabled = options.handsFreeEnabled

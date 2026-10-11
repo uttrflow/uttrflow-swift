@@ -165,17 +165,18 @@ struct DictationLimitWiringTests {
         warning: @escaping @Sendable (DictationAdvice) -> Void = { _ in }
     ) -> DictationController<ManualClock> {
         DictationController(
-            pipeline: DictationPipeline(
-                capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 200))),
-                speech: FakeSpeechEngine(
-                    transcribeOutcome: .success(Transcription(text: "a long dictation"))),
-                cleaner: QuietCleaner(),
-                context: FakeContextEngine(),
-                inserter: inserter,
-                // Its own clock, never moved: the cap's clock carries only the cap's sleepers.
-                clock: ManualClock()),
-            monitor: SilentMonitor(),
-            cue: cue,
+            dependencies: .init(
+                pipeline: DictationPipeline(
+                    capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 200))),
+                    speech: FakeSpeechEngine(
+                        transcribeOutcome: .success(Transcription(text: "a long dictation"))),
+                    cleaner: QuietCleaner(),
+                    context: FakeContextEngine(),
+                    inserter: inserter,
+                    // Its own clock, never moved: the cap's clock carries only the cap's sleepers.
+                    clock: ManualClock()),
+                monitor: SilentMonitor(),
+                cue: cue),
             clock: clock,
             options: .init(
                 activation: .holdToTalk,
@@ -357,9 +358,10 @@ struct DictationLimitWiringTests {
         let cue = LimitCue()
         let pipeline = makeGatedPipeline(capture: capture, inserter: inserter, speech: speech)
         let controller = DictationController(
-            pipeline: pipeline,
-            monitor: SilentMonitor(),
-            cue: cue,
+            dependencies: .init(
+                pipeline: pipeline,
+                monitor: SilentMonitor(),
+                cue: cue),
             clock: clock,
             options: .init(
                 activation: .holdToTalk,
@@ -424,8 +426,9 @@ struct DictationLimitWiringTests {
         clock: ManualClock, pipeline: DictationPipeline, limit: DictationLimit
     ) -> DictationController<ManualClock> {
         DictationController(
-            pipeline: pipeline,
-            monitor: SilentMonitor(),
+            dependencies: .init(
+                pipeline: pipeline,
+                monitor: SilentMonitor()),
             clock: clock,
             options: .init(
                 activation: .pressToToggle,
