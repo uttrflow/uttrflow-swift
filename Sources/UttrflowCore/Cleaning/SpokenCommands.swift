@@ -79,7 +79,7 @@ public struct SpokenCommand: DataTableRow, Equatable {
     package let languages: Set<CodeLanguage>?
     /// The markup slots it is notation in; nil means any place outside HTML text content.
     package let slots: Set<MarkupSlot>?
-    /// The slot the caret is in once the row is written; nil when the row leaves it where it was.
+    /// The slot the caret is in once the row is written; nil when the row leaves it in place.
     package let enters: MarkupSlot?
     /// Whether a quotation spoken right after the row is written as its quoted value: `class equals quote hero unquote` is `class="hero"`.
     package let bindsQuote: Bool
