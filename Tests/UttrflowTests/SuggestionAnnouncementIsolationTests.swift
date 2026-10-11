@@ -7,9 +7,11 @@ import UttrflowUX
 @testable import Uttrflow
 
 extension SuggestionSurfaceTests {
-    @Test("withdrawing the shared surface cannot cancel a private controller's pending announcement")
-    func competingSharedWithdrawal() async throws {
+    @Test("withdrawing one private controller cannot cancel another controller's pending announcement")
+    func independentControllerWithdrawal() async throws {
         let panel = SuggestionPanelController()
+        let otherPanel = SuggestionPanelController()
+        panel.systemHidesPanel = { false }
         let screen = try #require(NSScreen.screens.first).visibleFrame
         let caret = CGRect(x: screen.minX + 200, y: screen.midY, width: 0, height: 17)
         var heard: [String] = []
@@ -17,9 +19,13 @@ extension SuggestionSurfaceTests {
         panel.announce = { heard.append($0) }
         panel.announcementNow = { now }
         panel.announcementSleep = { now += $0 }
-        defer { panel.hide() }
+        defer {
+            panel.hide()
+            otherPanel.hide()
+        }
         panel.show(.certain("synthetic"), placement: .inlineGhost, caret: caret)
-        SuggestionPanelController.shared.hide()
+        panel.window.orderOut(nil)
+        otherPanel.hide()
         for _ in 0..<10_000 {
             if !heard.isEmpty { break }
             await Task.yield()
