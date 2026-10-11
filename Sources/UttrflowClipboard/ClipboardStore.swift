@@ -49,6 +49,9 @@ public actor ClipboardStore {
     /// What each pool of clips may cost, and for how long.
     private let budget: ClipboardBudget
 
+    /// The retention rules over `budget`.
+    private let policy: RetentionPolicy
+
     /// What the saved file is known to hold, which the migration off one file makes differ from memory.
     private var savedOnDisk: [Clip]?
 
@@ -130,6 +133,7 @@ public actor ClipboardStore {
     ) {
         self.file = file
         self.budget = budget
+        policy = RetentionPolicy(budget: budget)
         self.useFlushDelay = useFlushDelay
         self.encryptedStore = encryptedStore
         secrecy = ClipSecrecyOverrides(
@@ -148,10 +152,10 @@ public actor ClipboardStore {
     /// Everything still retained, newest first; one read, then a best-effort rewrite when clips age out.
     public func clips(keeping retention: ClipRetention) -> [Clip] {
         let stored = loaded()
-        let onDisk = keptOnDisk(stored, keeping: retention)
+        let onDisk = policy.keptOnDisk(stored, keeping: retention)
         // Time passes while the app idles, so the window drops clips here; the catch-up is best-effort.
         if onDisk.count != stored.count { try? save(onDisk) }
-        return retained(stored, keeping: retention)
+        return policy.retained(stored, keeping: retention)
     }
 
     /// Returns each damaged index copy once, so the app can tell the user where it is kept.
@@ -190,11 +194,11 @@ public actor ClipboardStore {
     ) throws(ClipboardStoreError) -> [Clip] {
         // A picture has no text and is still worth keeping — the emptiness is the point.
         guard clip.image != nil || ClipContent.isWorthKeeping(clip.text) else {
-            return retained(loaded(), keeping: retention)
+            return policy.retained(loaded(), keeping: retention)
         }
         // Refused rather than truncated: one copied log file would be rewritten on every later ⌘C.
-        guard fitsLargestClipBound(clip) else {
-            return retained(loaded(), keeping: retention)
+        guard policy.fitsLargestClip(clip) else {
+            return policy.retained(loaded(), keeping: retention)
         }
 
         let existing = loaded()
@@ -229,7 +233,7 @@ public actor ClipboardStore {
         let existing = loaded()
         guard !existing.contains(where: { $0.id == clip.id }) else {
             return ClipboardRestoreResult(
-                clips: retained(existing, keeping: retention), aliasWasAlreadyInUse: false)
+                clips: policy.retained(existing, keeping: retention), aliasWasAlreadyInUse: false)
         }
         let matching = Self.previous(for: clip, in: existing)
         let aliasConflict =
@@ -256,20 +260,20 @@ public actor ClipboardStore {
     ) -> [Clip] {
         var clips = loaded()
         guard let index = clips.firstIndex(where: { $0.id == id }) else {
-            return retained(clips, keeping: retention)
+            return policy.retained(clips, keeping: retention)
         }
         clips[index] = clips[index].used(at: moment, order: nextUseOrder())
-        clips = Self.orderedForDisplay(clips)
-        let onDisk = keptOnDisk(clips, keeping: retention)
+        clips = ClipOrdering.orderedForDisplay(clips)
+        let onDisk = policy.keptOnDisk(clips, keeping: retention)
         // A clip that aged out is a real change, written now; a use alone is bookkeeping for a later eviction.
         guard onDisk.count == clips.count else {
             try? save(onDisk)
-            return retained(clips, keeping: retention)
+            return policy.retained(clips, keeping: retention)
         }
         wholeList = onDisk
         hasUnwrittenUse = true
         scheduleUseFlush()
-        return retained(clips, keeping: retention)
+        return policy.retained(clips, keeping: retention)
     }
 
     /// Writes a use or a refused change still held in memory, which quitting asks for so a deletion is not undone.
@@ -320,7 +324,7 @@ public actor ClipboardStore {
         try save(saved)
         // A copy set aside from the history file is history too; the saved file's copies are saved clips.
         do { try LocalStore.removeSetAside(file) } catch { throw Self.writeFailure(error) }
-        return retained(saved, keeping: retention)
+        return policy.retained(saved, keeping: retention)
     }
 
     /// Forgets every copy of one dictation, pinned or edited; `spoken` finds copies older than the link.
@@ -337,7 +341,7 @@ public actor ClipboardStore {
             // A clip another dictation still copies loses only this dictation's link.
             return others.isEmpty ? nil : Self.relinking(clip, to: others)
         }
-        guard changed else { return retained(stored, keeping: retention) }
+        guard changed else { return policy.retained(stored, keeping: retention) }
         return try settled(left, keeping: retention)
     }
 
@@ -383,7 +387,7 @@ public actor ClipboardStore {
         var clips = loaded()
         guard let index = clips.firstIndex(where: { $0.id == id }), clips[index].image == nil,
             (clips[index].kind == .secret) != isSecret
-        else { return retained(clips, keeping: retention) }
+        else { return policy.retained(clips, keeping: retention) }
         let clip = clips[index]
         // The answer is recorded before the clip changes, so a refused write leaves the clip unchanged.
         if isSecret {
@@ -622,6 +626,12 @@ public actor ClipboardStore {
 
     // MARK: - The rules
 
+    /// What a clip costs this process to hold; see `RetentionPolicy`.
+    static func weight(of clip: Clip) -> Int { RetentionPolicy.weight(of: clip) }
+
+    /// What a list of clips costs this process to hold.
+    static func weight(of clips: [Clip]) -> Int { RetentionPolicy.weight(of: clips) }
+
     /// The clip this arrival is another copy of, if the same list already holds it.
     static func previous(for clip: Clip, in existing: [Clip]) -> Clip? {
         // Only within one list: a sentence dictated and the same sentence copied are two clips.
@@ -706,7 +716,7 @@ public actor ClipboardStore {
             edit(&clips[index])
             // An edit that asked the detector again must not overrule the user's answer about this text.
             clips[index] = secrecy.applied(to: clips[index])
-            guard fitsLargestClipBound(clips[index]) else { throw .couldNotWrite }
+            guard policy.fitsLargestClip(clips[index]) else { throw .couldNotWrite }
             if resetAgeIfUnkept(&clips[index], wasKept: wasKept, keeping: retention) {
                 let fresh = clips.remove(at: index)
                 clips.insert(fresh, at: 0)
@@ -728,134 +738,14 @@ public actor ClipboardStore {
     private func settled(
         _ clips: [Clip], keeping retention: ClipRetention
     ) throws(ClipboardStoreError) -> [Clip] {
-        let unique = Self.uniqueAliases(in: Self.orderedForDisplay(clips))
+        let unique = ClipOrdering.uniqueAliases(in: ClipOrdering.orderedForDisplay(clips))
         guard budget.fitsKeptPictures(unique, replacing: loaded()) else { throw .keptPicturesFull }
-        try save(keptOnDisk(unique, keeping: retention))
-        return retained(unique, keeping: retention)
-    }
-
-    /// Keeps the first clip holding an alias and removes that alias from later clips.
-    private static func uniqueAliases(in clips: [Clip]) -> [Clip] {
-        var aliases: Set<String> = []
-        return clips.map { clip in
-            guard let alias = clip.alias else { return clip }
-            guard aliases.insert(alias).inserted else {
-                var unnamed = clip
-                unnamed.alias = nil
-                return unnamed
-            }
-            return clip
-        }
-    }
-
-    /// Spares every kept clip, then applies the window and the per-pool caps to the history.
-    private func retained(_ clips: [Clip], keeping retention: ClipRetention) -> [Clip] {
-        held(clips, keeping: retention) { survives($0, keeping: retention) }
-    }
-
-    /// The same, plus what a clock too far ahead to be believed says is past. See `Docs/retention-clock.md`.
-    private func keptOnDisk(_ clips: [Clip], keeping retention: ClipRetention) -> [Clip] {
-        held(clips, keeping: retention) { clip in
-            let window = window(for: clip, keeping: retention)
-            return window.keeps(clip.copiedAt) || !window.mayDelete(clip.copiedAt)
-        }
-    }
-
-    /// The caps and quotas, over whichever clips the window has spared.
-    private func held(
-        _ clips: [Clip], keeping retention: ClipRetention, _ survives: (Clip) -> Bool
-    ) -> [Clip] {
-        // Kept clips are not candidates at all: their pool has no tier to be an exception to.
-        let history = clips.filter { ClipClass(of: $0).isEvictable }
-        let surviving = history.filter(survives)
-
-        // Per pool, so a morning of dictating cannot push out yesterday's ⌘C or a picture.
-        var taken: [ClipClass: Int] = [:]
-        var within: Set<UUID> = []
-        for clip in surviving {
-            let pool = ClipClass(of: clip)
-            guard let tier = budget.tier(for: pool), taken[pool, default: 0] < tier.items
-            else { continue }
-            taken[pool, default: 0] += 1
-            within.insert(clip.id)
-        }
-
-        // Filtered rather than concatenated, which keeps arrival order in one pass and without a sort.
-        let kept = clips.filter { !ClipClass(of: $0).isEvictable || within.contains($0.id) }
-        return withinDisk(withinMemory(kept))
-    }
-
-    /// What a clip costs this process to hold: its words, and deliberately not its picture's file.
-    static func weight(of clip: Clip) -> Int {
-        clip.text.utf8.count + (clip.richText?.utf8.count ?? 0)
-    }
-
-    /// Applies the same text-and-rich-text bound to copied clips and every stored edit.
-    private func fitsLargestClipBound(_ clip: Clip) -> Bool {
-        budget.fitsLargestClip(weighing: Self.weight(of: clip))
-    }
-
-    /// What a list of clips costs this process to hold.
-    static func weight(of clips: [Clip]) -> Int {
-        clips.reduce(0) { $0 + weight(of: $1) }
+        try save(policy.keptOnDisk(unique, keeping: retention))
+        return policy.retained(unique, keeping: retention)
     }
 
     /// Whether this clip may cross a launch boundary; secrets stay in this process only.
     private static func isPersistable(_ clip: Clip) -> Bool { clip.kind != .secret }
-
-    /// Drops the least recently used clips of a text pool until it fits its memory quota.
-    private func withinMemory(_ clips: [Clip]) -> [Clip] {
-        var dropped: Set<UUID> = []
-        // Only the text pools: a picture's bytes are a file, and its thumbnail is bounded elsewhere.
-        for pool in [ClipClass.copied, .dictation] {
-            guard let tier = budget.tier(for: pool), tier.bytes > 0 else { continue }
-            let list = clips.filter { ClipClass(of: $0) == pool }
-            var weight = Self.weight(of: list)
-            guard weight > tier.bytes else { continue }
-            for clip in list.sorted(by: { ($0.lastUsedOrder ?? 0) < ($1.lastUsedOrder ?? 0) })
-            where weight > tier.bytes {
-                dropped.insert(clip.id)
-                weight -= Self.weight(of: clip)
-            }
-        }
-        return clips.filter { !dropped.contains($0.id) }
-    }
-
-    /// Drops the least recently used pictures until the folder fits its disk budget.
-    private func withinDisk(_ clips: [Clip]) -> [Clip] {
-        guard budget.disk > 0 else { return clips }
-        // Pinned pictures count toward the budget so pinning many of them cannot push the unpinned pool past the bound.
-        let pictures = clips.filter { $0.kind == .image || $0.image != nil }
-        var weight = pictures.reduce(0) { $0 + ($1.image?.bytes ?? 0) }
-        guard weight > budget.disk else { return clips }
-        var dropped: Set<UUID> = []
-        // Only the un-kept pictures may be evicted; kept ones are exempt by the kept pool's rule.
-        let evictable =
-            pictures
-            .filter { !$0.isKept }
-            .sorted { ($0.lastUsedOrder ?? 0) < ($1.lastUsedOrder ?? 0) }
-        for clip in evictable where weight > budget.disk {
-            dropped.insert(clip.id)
-            weight -= clip.image?.bytes ?? 0
-        }
-        return clips.filter { !dropped.contains($0.id) }
-    }
-
-    /// Whether an unkept clip is still inside its window; zero days keeps nothing.
-    private func survives(_ clip: Clip, keeping retention: ClipRetention) -> Bool {
-        window(for: clip, keeping: retention).keeps(clip.copiedAt)
-    }
-
-    /// The promise this clip is held to, as the rule the three stores share states it.
-    private func window(for clip: Clip, keeping retention: ClipRetention) -> RetentionWindow {
-        // The pool's own window where it has one, and the user's transcript setting for a dictation.
-        let clipClass = ClipClass(of: clip)
-        let days =
-            clipClass == .dictation
-            ? (retention.dictationDays ?? budget.tier(for: clipClass)?.days ?? retention.days)
-            : (budget.tier(for: clipClass)?.days ?? retention.days)
-        return RetentionWindow(days: days, now: retention.now)
-    }
 
     // MARK: - The two files
 
@@ -887,11 +777,11 @@ public actor ClipboardStore {
         // An unreplaceable file is unknown rather than empty, so every save still meets its refusal.
         historyOnDisk = unreplaceable.contains(file) ? nil : fromHistoryFile
         let stored = fromSavedFile + fromHistoryFile.filter { !savedIDs.contains($0.id) }
-        let list = Self.uniqueAliases(
-            in: Self.interleaving(
-                saved: Self.orderedForDisplay(stored.filter(\.isKept)),
-                history: Self.orderedForDisplay(stored.filter { !$0.isKept })))
-        let normalized = Self.numberedForEviction(list)
+        let list = ClipOrdering.uniqueAliases(
+            in: ClipOrdering.interleaving(
+                saved: ClipOrdering.orderedForDisplay(stored.filter(\.isKept)),
+                history: ClipOrdering.orderedForDisplay(stored.filter { !$0.isKept })))
+        let normalized = ClipOrdering.numberedForEviction(list)
         lastUsedOrder = normalized.compactMap(\.lastUsedOrder).max() ?? 0
         wholeList = normalized
         if canRewriteIndexes {
@@ -901,33 +791,6 @@ public actor ClipboardStore {
         sweepOnce()
         migrateLegacyImagesOnce()
         return normalized
-    }
-
-    /// Keeps stored use orders that are whole and distinct, so a reopened list equals the one that wrote it.
-    private static func numberedForEviction(_ list: [Clip]) -> [Clip] {
-        let stored = list.compactMap(\.lastUsedOrder)
-        if stored.count == list.count, Set(stored).count == list.count { return list }
-        let ordered = list.enumerated().sorted { left, right in
-            switch (left.element.lastUsedOrder, right.element.lastUsedOrder) {
-            case (let leftOrder?, let rightOrder?):
-                return leftOrder == rightOrder ? left.offset < right.offset : leftOrder < rightOrder
-            case (nil, nil):
-                let leftDate = left.element.lastUsedAt
-                let rightDate = right.element.lastUsedAt
-                return leftDate == rightDate ? left.offset < right.offset : leftDate < rightDate
-            case (nil, .some):
-                return true
-            case (.some, nil):
-                return false
-            }
-        }
-        var orderByIndex = Array(repeating: UInt64(0), count: list.count)
-        for (order, clip) in ordered.enumerated() {
-            orderByIndex[clip.offset] = UInt64(order + 1)
-        }
-        return list.enumerated().map { pair in
-            pair.element.orderedForEviction(orderByIndex[pair.offset])
-        }
     }
 
     /// Starts the picture pass off the clipboard actor so sealed files do not slow down ⇧⌘V.
@@ -1080,46 +943,6 @@ public actor ClipboardStore {
     package func waitForClassifierMigrations() async {
         let tasks = Array(classifierMigrations.values)
         for task in tasks { await task.value }
-    }
-
-    /// The two lists as one, newest used first; a merge keeps each persisted pool's order intact.
-    private static func interleaving(saved: [Clip], history: [Clip]) -> [Clip] {
-        var out: [Clip] = []
-        out.reserveCapacity(saved.count + history.count)
-        var left = 0
-        var right = 0
-        while left < saved.count, right < history.count {
-            if precedesForDisplay(saved[left], history[right]) {
-                out.append(saved[left])
-                left += 1
-            } else {
-                out.append(history[right])
-                right += 1
-            }
-        }
-        out.append(contentsOf: saved[left...])
-        out.append(contentsOf: history[right...])
-        return out
-    }
-
-    /// Sorts each persisted pool by its monotonic use order, retaining arrival order for legacy clips.
-    private static func orderedForDisplay(_ clips: [Clip]) -> [Clip] {
-        clips.enumerated().sorted { left, right in
-            if precedesForDisplay(left.element, right.element) { return true }
-            if precedesForDisplay(right.element, left.element) { return false }
-            return left.offset < right.offset
-        }.map(\.element)
-    }
-
-    /// Compares by persisted use order and falls back to arrival time only before an order was stored.
-    private static func precedesForDisplay(_ left: Clip, _ right: Clip) -> Bool {
-        switch (left.lastUsedOrder, right.lastUsedOrder) {
-        case (let leftOrder?, let rightOrder?):
-            return leftOrder == rightOrder ? left.copiedAt > right.copiedAt : leftOrder > rightOrder
-        case (.some, nil): return true
-        case (nil, .some): return false
-        case (nil, nil): return left.copiedAt > right.copiedAt
-        }
     }
 
     /// Reconciles the pictures folder once a launch, catching orphans no write of ours can notice.

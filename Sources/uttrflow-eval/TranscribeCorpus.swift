@@ -76,7 +76,27 @@ struct TranscribeCorpus: AsyncParsableCommand {
         help: "Run the corpus this many times and print how far the runs disagree.")
     var runs = 1
 
+    @Option(name: .customLong("side"), help: "Read only this split side: fit, calibration or test.")
+    var sideName: String?
+
+    @Option(
+        name: .customLong("purpose"),
+        help: "What the run is for: fit, calibrate or release. Only release may read the test side.")
+    var purposeName: String?
+
+    private var side: TranscriptionSplit? { sideName.flatMap(TranscriptionSplit.init(rawValue:)) }
+    private var purpose: SplitPurpose? { purposeName.flatMap(SplitPurpose.init(rawValue:)) }
+
     func validate() throws {
+        if sideName != nil, side == nil { throw ValidationError("--side must be fit, calibration or test.") }
+        if purposeName != nil, purpose == nil {
+            throw ValidationError("--purpose must be fit, calibrate or release.")
+        }
+        if let purpose {
+            if let side, let refusal = purpose.refusal(reading: side) { throw ValidationError(refusal) }
+        } else if side == .test {
+            throw ValidationError("Reading the test side needs --purpose release.")
+        }
         if findings < 0 {
             throw ValidationError("--findings must be zero or greater.")
         }
@@ -115,7 +135,8 @@ struct TranscribeCorpus: AsyncParsableCommand {
         }
 
         let source = try await source()
-        let recordings = source.recordings
+        let readable = purpose?.side ?? side
+        let recordings = source.recordings.filter { readable == nil || $0.passage.split == readable }
         guard !recordings.isEmpty else {
             throw CleanExit.message(
                 "Nothing to measure. Run: uttrflow-eval record   (or: uttrflow-eval pull --backend …)")

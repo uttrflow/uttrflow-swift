@@ -240,6 +240,8 @@ final class SuggestionCoordinator {
         rejectedSuggestionRecorder = RejectedSuggestionRecorder(store: store)
         // Lines learned before the credential rules last widened are removed once, off the typing path.
         Task.detached(priority: .utility) { _ = try? await CaptureGate.sweepSecrets(from: store) }
+        // Lines too old to be offered are dropped once at start, off the typing path.
+        Task.detached(priority: .utility) { _ = try? await store.expireStale(now: Date()) }
         // One index behind both, so asking the machine for a completion also warms what attests it.
         let index = environmentIndex ?? EnvironmentIndex(reader: SystemEnvironmentReader())
         environment = EnvironmentSource(index: index)

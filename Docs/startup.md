@@ -173,4 +173,13 @@ log show --last 10m --predicate 'subsystem == "com.uttrflow.Uttrflow" && categor
   A refusal ends the wait as well, and the line says `refused`: a bundle without
   Accessibility is refused, and the time to that refusal is still the launch's.
 
-No launch-time budget is enforced.
+### The launch budget
+
+`LaunchBudgetTests`, a wall-clock check that runs in `make bench` and not in `make verify`, builds `AppDelegate` over a fresh container, which constructs the history,
+recordings, dictionary, snippet and clipboard stores, and fails when the fastest of three builds
+takes 100 ms or more. Measured on an Apple M5 Pro, 48 GB, debug build, the build took 15 ms, so a
+store whose setup adds about 85 ms trips it. Work that is not needed before the shortcut works
+belongs behind it, in the tasks `applicationDidFinishLaunching` starts after the first window.
+
+No budget is set yet for the whole time to the shortcut: that needs `uttrflow-dev launch` readings
+cold (after a restart) and warm on the base 8 GB Mac, which are not recorded here.
