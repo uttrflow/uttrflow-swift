@@ -126,13 +126,13 @@ public enum PasteQuestion {
     }
 
     /// How many lines the clip holds, with a trailing line break ending the last line rather than starting another.
-    public static func lineCount(of text: String) -> Int {
+    static func lineCount(of text: String) -> Int {
         let lines = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
         return text.last?.isNewline == true ? lines.count - 1 : lines.count
     }
 
     /// Whether the clip has a line break in its middle or at its end.
-    public static func hasLineBreak(_ text: String) -> Bool {
+    static func hasLineBreak(_ text: String) -> Bool {
         text.contains(where: \.isNewline)
     }
 }

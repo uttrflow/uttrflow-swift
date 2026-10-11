@@ -16,7 +16,7 @@ extension Transcription {
         guard text != self.text else { return self }
         return Transcription(
             text: text, detectedLanguage: detectedLanguage, segments: segments,
-            audioDuration: audioDuration)
+            audioDuration: audioDuration, leadingSilence: leadingSilence, trailingSilence: trailingSilence)
     }
 
     /// The same speech with the dictionary's spellings in it, settled, and every word keeping its heard score.
@@ -65,7 +65,7 @@ extension Transcription {
                 TranscriptionSegment(
                     text: corrected.text, start: .zero, end: audioDuration, words: scored)
             ],
-            audioDuration: audioDuration)
+            audioDuration: audioDuration, leadingSilence: leadingSilence, trailingSilence: trailingSilence)
     }
 }
 

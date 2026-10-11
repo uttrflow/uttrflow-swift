@@ -13,6 +13,8 @@ public enum DictationActivity: Sendable, Equatable, CaseIterable {
     case inserted
     /// Text was confirmed, but part of the speech decoded to no words and is missing from it.
     case partial
+    /// Text was confirmed, but clean-up fell back, so the words are plainer than asked for.
+    case degraded
     /// The target did not confirm the text, which remains on the clipboard.
     case unconfirmed
     /// Text remains on the clipboard for the user to paste.
@@ -24,11 +26,15 @@ public enum DictationActivity: Sendable, Equatable, CaseIterable {
 
     /// Carries the insertion outcome through the menu without claiming text arrived when it did not.
     public static func completion(
-        method: TextInsertionMethod, arrival: InsertionArrival, missedPieces: Int = 0
+        method: TextInsertionMethod, arrival: InsertionArrival, quality: OutcomeQuality = .complete
     ) -> Self {
         if method == .clipboard { return .copied }
         if arrival == .unconfirmed { return .unconfirmed }
-        return MissedSpeech.isMissing(missedPieces) ? .partial : .inserted
+        return switch quality {
+        case .complete: .inserted
+        case .partial: .partial
+        case .tidiedByRules, .untidied: .degraded
+        }
     }
 }
 
@@ -143,6 +149,8 @@ public enum MenuBarFeature: String, Sendable, Equatable, CaseIterable {
 /// What the product is doing, in the only terms the menu bar needs it.
 public struct MenuBarState: Sendable, Equatable {
     public var activity: DictationActivity
+    /// The last dictation's completeness, which determines the status wording for an incomplete result.
+    public var outcomeQuality: OutcomeQuality
     /// The last thing that went wrong and has not yet been dealt with.
     public var failure: FailurePresentation?
     public var speechModel: SpeechModelReadiness
@@ -187,6 +195,7 @@ public struct MenuBarState: Sendable, Equatable {
 
     public init(
         activity: DictationActivity = .idle,
+        outcomeQuality: OutcomeQuality = .complete,
         failure: FailurePresentation? = nil,
         speechModel: SpeechModelReadiness = .ready,
         speechLoadElapsed: Duration = .zero,
@@ -208,6 +217,7 @@ public struct MenuBarState: Sendable, Equatable {
         speechModelBytes: Int64? = nil
     ) {
         self.activity = activity
+        self.outcomeQuality = outcomeQuality
         self.failure = failure
         self.speechModel = speechModel
         self.speechLoadElapsed = speechLoadElapsed
@@ -494,6 +504,7 @@ public enum MenuBarPresenter {
         case .working: .symbol("sparkles")
         case .inserted: .symbol("checkmark")
         case .partial: .symbol("exclamationmark.circle")
+        case .degraded: .symbol(OutcomeQuality.degradedSymbol)
         case .unconfirmed: .symbol("questionmark.circle")
         case .copied: .symbol("doc.on.clipboard")
         case .discarded: .symbol("trash")
@@ -536,6 +547,7 @@ public enum MenuBarPresenter {
             case .working: "Cleaning up…"
             case .inserted: "Inserted"
             case .partial: MissedSpeech.line
+            case .degraded: state.outcomeQuality.presentation?.line ?? "Inserted"
             case .unconfirmed: "Inserted — not confirmed"
             case .copied: "Copied — press ⌘V"
             case .discarded: "Discarded"
@@ -642,7 +654,7 @@ public enum MenuBarPresenter {
         guard state.failure?.severity != .blocking else { return false }
         guard state.speechModel == .ready else { return false }
         return switch state.activity {
-        case .idle, .inserted, .partial, .unconfirmed, .copied, .discarded, .executed: true
+        case .idle, .inserted, .partial, .degraded, .unconfirmed, .copied, .discarded, .executed: true
         case .listening, .working: false
         }
     }
@@ -656,7 +668,7 @@ public enum MenuBarPresenter {
     static func isBusy(_ activity: DictationActivity) -> Bool {
         switch activity {
         case .listening, .working: true
-        case .idle, .inserted, .partial, .unconfirmed, .copied, .discarded, .executed: false
+        case .idle, .inserted, .partial, .degraded, .unconfirmed, .copied, .discarded, .executed: false
         }
     }
 

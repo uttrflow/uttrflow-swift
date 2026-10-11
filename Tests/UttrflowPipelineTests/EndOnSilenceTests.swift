@@ -58,8 +58,9 @@ struct EndOnSilenceTests {
                 // Its own clock, never moved, so a slow run reaches no stage limit.
                 clock: ManualClock())
             controller = DictationController(
-                pipeline: pipeline,
-                monitor: StillMonitor(),
+                dependencies: .init(
+                    pipeline: pipeline,
+                    monitor: StillMonitor()),
                 clock: clock,
                 options: .init(
                     activation: activation,

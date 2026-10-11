@@ -21,7 +21,8 @@ struct SuggestionTake {
 
     /// Puts the tail into the field and queues the taken line for capture, reporting uncertain writes.
     func take(
-        _ text: String, after typed: String, in reading: FieldReading?, closingPunctuation: String
+        _ text: String, after typed: String, in reading: FieldReading?, closingPunctuation: String,
+        recordsAcceptance: Bool = true
     ) async -> UttrflowPredict.AcceptanceOutcome {
         // What the gates left is a whole line, so taking it may replace characters as well as add.
         guard let windowNumber = reading?.surface?.windowNumber else {
@@ -44,7 +45,8 @@ struct SuggestionTake {
             return outcome
         }
         Self.log.debug("\(SuggestionLog.accept(text: text, typed: typed, via: via), privacy: .public)")
-        guard let reading else { return .inserted }
+        // Taking one word leaves the offer open, so the corpus does not hear a full acceptance.
+        guard recordsAcceptance, let reading else { return .inserted }
         let moment = Date()
         let log = Self.log
         let bytes = AcceptanceQueue.estimatedBytes(

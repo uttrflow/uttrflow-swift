@@ -59,11 +59,18 @@ let candidates = overrides + [
 
 `Bundle.main.resourceURL` is `Contents/Resources`, which codesign seals. Its only absolute-path
 escape hatch is an environment variable behind `#if DEBUG`, so a Release build bakes in no
-developer path. `bundle.sh` therefore builds with `xcodebuild`, copies every `*.bundle` the
-build produced into `Contents/Resources` and every `*.framework` (Sparkle) into
+developer path. `bundle.sh` therefore builds with `xcodebuild`, copies the resource bundles
+named by that scheme's build description into `Contents/Resources` and every `*.framework` into
 `Contents/Frameworks` with `ditto`, adds the `@executable_path/../Frameworks` rpath, and only
 then signs. Bundles and frameworks are discovered, never listed by name, so a new dependency
 that carries resources cannot go missing quietly.
+
+`Scripts/bundle_products.py` reads the matching Release app build request and its manifest's
+output paths. It includes resources without a literal bundle name in the executable, including
+Metal libraries and privacy manifests. Cached products from another scheme are excluded.
+A missing resource or a missing, stale, ambiguous or mismatched build description stops
+packaging; it never falls back to copying the products directory. `make bundle-test` proves
+this selection with a needed Metal bundle beside an unrelated corpus bundle.
 
 ### Measured
 

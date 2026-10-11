@@ -1,5 +1,5 @@
 // What the main window says when a change it was asked to make was refused.
-public import UttrflowCore
+import UttrflowCore
 
 /// A refused change, said where the user pressed; the window carries the latest one only.
 public struct MainNotice: Sendable, Equatable {
@@ -35,44 +35,6 @@ extension MainNotice {
     public static let clipboardCopyFailed = MainNotice(
         message: "Could not copy to the clipboard. Please try again.",
         symbolName: "exclamationmark.triangle", tone: .warning)
-
-    /// Explains a first rules-only dictation caused by Apple Intelligence readiness.
-    public static func appleIntelligenceUnavailable(_ reason: TransformerUnavailableReason) -> MainNotice {
-        let message: String
-        let action: MainAction?
-        switch reason {
-        case .appleIntelligenceDisabled:
-            message = "Apple Intelligence is switched off. Uttrflow used built-in rules for this dictation."
-            action = MainAction(
-                title: MainPresenter.title(for: .openSystemSettings(.appleIntelligence)),
-                intent: .recover(.openSystemSettings(.appleIntelligence)))
-        case .modelNotReady:
-            message =
-                "Apple Intelligence is downloading its model. Uttrflow used built-in rules for this dictation."
-            action = nil
-        case .deviceNotEligible:
-            message =
-                "This Mac cannot run Apple Intelligence. Uttrflow used built-in rules for this dictation."
-            action = nil
-        case .other(let detail):
-            message =
-                "Apple Intelligence is unavailable (\(detail)). Uttrflow used built-in rules for this dictation."
-            action = nil
-        }
-        let drawing = Self.drawing(for: .degraded)
-        return MainNotice(
-            message: message, symbolName: drawing.symbolName, tone: drawing.tone, action: action)
-    }
-
-    /// Says that the last dictation went in as heard because no clean-up finished, or nil when one did.
-    public static func cleanUpSkipped(by cleanedBy: TransformerKind) -> MainNotice? {
-        guard cleanedBy == .untidied else { return nil }
-        let drawing = Self.drawing(for: .degraded)
-        return MainNotice(
-            message:
-                "Inserted without clean-up. Clean-up did not finish, so your words went in exactly as heard.",
-            symbolName: drawing.symbolName, tone: drawing.tone)
-    }
 
     /// The notice for a refused change, from the failure's own sentence and what it cost the user.
     public init(refusing error: any Error) {

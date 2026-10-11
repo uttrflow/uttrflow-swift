@@ -6,11 +6,11 @@ public struct LinkHostDisplay: Sendable, Equatable {
     /// The host with any `xn--` labels decoded, lowercased.
     public let host: String
     /// The host exactly as written, lowercased, for the tooltip.
-    public let rawHost: String
+    let rawHost: String
     /// Whether the authority carries a user name or password before the host.
-    public let hasUserInfo: Bool
+    let hasUserInfo: Bool
     /// Whether one label of the host mixes writing systems.
-    public let isMixedScript: Bool
+    let isMixedScript: Bool
 
     /// Sentences for the badge and the tooltip, empty when nothing is out of the ordinary.
     public var warnings: [String] {

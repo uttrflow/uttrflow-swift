@@ -208,7 +208,7 @@ struct QuickPanelRow: View, @MainActor Equatable {
                     .foregroundStyle(Color.panelLabel)
                     .lineLimit(1)
                     .layoutPriority(1)
-                Text("  \(row.summary)")
+                Text(verbatim: "  \(row.summary)")
                     .font(.system(size: size, design: design))
                     .foregroundStyle(Color.panelLabelDim)
                     .lineLimit(1)

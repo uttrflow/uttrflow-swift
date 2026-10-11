@@ -8,6 +8,9 @@ stored values are `Settings` in `Sources/UttrflowSettings/SettingsStore.swift`. 
 drawn is in [`app-settings-controls.md`](app-settings-controls.md). The microphone menu choices
 are assembled in `SettingsPresenter+Microphone.swift`.
 
+Shortcut rows, activation choices and hands-free presentation are assembled in
+`SettingsPresenter+Shortcuts.swift`.
+
 ## Outcomes, not engines
 
 `SettingsTidyingLevel` is stated as an outcome (how much help), never as a list of

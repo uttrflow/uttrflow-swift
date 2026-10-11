@@ -239,9 +239,10 @@ struct DictationPipelineLoadingTests {
         let cue = LoadingCueSpy()
         let warnings = Mutex(0)
         let controller = DictationController(
-            pipeline: pipeline,
-            monitor: LoadingHotkeyMonitor(),
-            cue: cue,
+            dependencies: .init(
+                pipeline: pipeline,
+                monitor: LoadingHotkeyMonitor(),
+                cue: cue),
             clock: clock,
             options: .init(
                 limit: DictationLimit(warnAfter: .seconds(1), stopAfter: .seconds(2))

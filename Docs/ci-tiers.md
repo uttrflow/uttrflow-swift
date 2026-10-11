@@ -86,3 +86,21 @@ same gate. Every job uses the standard hosted `macos-26` runner. The evaluation,
 oracle workflows supply the manual dispatches; the weekly and release checks above are manual
 commands. This tier catalogue follows the existing workflows and does not introduce Linux
 jobs, a documentation-only runner bypass or a change to required checks.
+
+## Structured quality grid reports
+
+The voice-activity onset and condition grids, number round trips, inflected dictionary probe,
+lexicon neighbour report and clipboard prefilter comparison can emit structured records with
+`UTTRFLOW_QUALITY_REPORT=1`. This instrumentation leaves their assertions and lane ownership
+unchanged. The JSON lines contain stable case IDs, outcomes and numeric measurements, without
+recording the text or audio a case processes.
+
+`Scripts/quality_grid_scorecard.py --measured <report> --base <report>` compares two complete
+reports. Both inputs may be test logs containing `QUALITY_GRID` lines or JSON objects with a
+`records` array. Missing groups, duplicate IDs, malformed records and removed cases fail.
+A failing gated record is rejected, including a new case. Number round trips compare failure counts
+by bucket, reject a rise against the measured base, and retain each bucket's failure allowance;
+individual numbered-case outcomes remain diagnostic. Voice-activity recording-condition
+measurements also remain diagnostic, preserving the grid's existing absence of a clipping/over-inclusion tradeoff gate.
+The comparator does not treat an absent base as success. Its protocol and comparison checks run
+with `python3 Scripts/quality_grid_scorecard.py --self-test`.

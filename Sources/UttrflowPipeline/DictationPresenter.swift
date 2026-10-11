@@ -159,10 +159,10 @@ public enum DictationPresenter {
                 label: "Inserted, but not confirmed. The words are still on the clipboard, so press "
                     + "Command V if they are missing.\(missing(outcome)) \(said(outcome))")
         }
-        if MissedSpeech.isMissing(outcome.missedPieces) {
+        if let shown = outcome.quality.presentation {
             return .notice(
-                "exclamationmark.circle", MissedSpeech.line, MissedSpeech.detail,
-                label: "Inserted. \(MissedSpeech.sentence) \(said(outcome))")
+                shown.symbolName, shown.line, shown.detail,
+                label: "Inserted. \(shown.sentence) \(said(outcome))")
         }
         if outcome.inputTooLoud {
             return .notice(
@@ -287,9 +287,9 @@ public enum DictationPresenter {
                 : "The words are hidden because they look like a password or key.")
     }
 
-    /// The missing-speech sentence with its leading space, or nothing when every piece decoded.
+    /// The quality's sentence with its leading space, or nothing when the result is complete.
     static func missing(_ outcome: DictationOutcome) -> String {
-        MissedSpeech.isMissing(outcome.missedPieces) ? " \(MissedSpeech.sentence)" : ""
+        outcome.quality.presentation.map { " \($0.sentence)" } ?? ""
     }
 
     /// A glance at the text, since the floating button sits over the user's work.

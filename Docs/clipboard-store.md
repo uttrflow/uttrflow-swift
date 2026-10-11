@@ -7,6 +7,10 @@ one way that matters: this one keeps its list in memory as well as on disk. What
 in [`clipboard-budget.md`](clipboard-budget.md); when a clip ages out is in
 [`retention-clock.md`](retention-clock.md).
 
+`ClipboardStore+RecordTransforms.swift` owns clip identity matching and immutable record copies
+for rebuilding, relinking, arrival inheritance and undo restoration. `ClipboardStore` keeps actor
+coordination and file I/O; both use the same `isPersistable` predicate for memory-only secrets.
+
 | File | Holds |
 | --- | --- |
 | `clipboard.v1.json` | the history: every clip nobody named, tagged, filed or pinned |
@@ -109,6 +113,10 @@ Pinning, filing or naming a clip moves it into the saved file; taking the last o
 it back. Each move writes the clip's destination before the file it is leaving, so a disk that
 refuses either write leaves at least one durable copy. Unpinning therefore writes the history
 first, while the saved file still holds the old copy, and only then rewrites the saved file.
+
+`ClipPersistencePlan` computes the intermediate saved list and compares its complete records
+independent of order. `ClipboardStore` retains the destination-before-source write sequence and
+the record of which clips each file holds.
 
 A move refused between its two writes leaves the clip in both files. Reading keeps the saved
 file's copy and drops the history's, so reopening finds exactly one clip, and the next write that

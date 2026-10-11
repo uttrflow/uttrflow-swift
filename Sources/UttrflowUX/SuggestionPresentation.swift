@@ -118,6 +118,8 @@ public struct SuggestionPresentation: Sendable, Equatable {
     public let underlinesGhost: Bool
     /// The key that takes the suggestion in this field, which the hint after the ghost must name truthfully.
     public let acceptKey: AcceptKey
+    /// The key that takes the next word in this field, or nil when the user chose none.
+    let wordAcceptKey: WordAcceptKey?
     /// Whether Escape has a decision for this offer and accept key.
     private let escapeIsRouted: Bool
     /// The field's own font family, so the ghost is set in the face the line is, or nothing when it will not say.
@@ -140,6 +142,7 @@ public struct SuggestionPresentation: Sendable, Equatable {
         fieldPointSize: CGFloat? = nil,
         appearance: SuggestionAppearance = .standard,
         acceptKey: AcceptKey = .tab,
+        wordAcceptKey: WordAcceptKey? = nil,
         fontFamily: String? = nil,
         isBold: Bool = false,
         isItalic: Bool = false,
@@ -149,6 +152,7 @@ public struct SuggestionPresentation: Sendable, Equatable {
         direction: SuggestionWritingDirection = .leftToRight
     ) {
         self.acceptKey = acceptKey
+        self.wordAcceptKey = wordAcceptKey
         escapeIsRouted =
             KeyRouting.decision(
                 for: KeyStroke(.escape), showing: suggestion, selection: selection,
@@ -191,7 +195,8 @@ public struct SuggestionPresentation: Sendable, Equatable {
 
     /// The keys that work the open list, drawn under it in the dimmed style.
     public var footer: String {
-        "\(acceptKey.glyph) take   ⌥↓ next" + (escapeIsRouted ? "   ⎋ dismiss" : "")
+        "\(acceptKey.glyph) take" + (wordAcceptKey.map { "   \($0.glyph) word" } ?? "") + "   ⌥↓ next"
+            + (escapeIsRouted ? "   ⎋ dismiss" : "")
     }
 
     /// The selected candidate keeps full strength; other rows use the contrast-safe list opacity.
@@ -261,6 +266,16 @@ public struct SuggestionPresentation: Sendable, Equatable {
     private static func pointSize(_ reported: CGFloat?) -> CGFloat {
         guard let reported, reported.isFinite else { return defaultPointSize }
         return min(max(reported, pointSizeRange.lowerBound), pointSizeRange.upperBound)
+    }
+}
+
+extension WordAcceptKey {
+    /// The key as the keyboard prints it, which is what names it in the footer.
+    var glyph: String {
+        switch self {
+        case .optionRightArrow: "⌥→"
+        case .commandRightArrow: "⌘→"
+        }
     }
 }
 

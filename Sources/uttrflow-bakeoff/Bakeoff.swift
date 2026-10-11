@@ -179,31 +179,24 @@ struct Bakeoff: AsyncParsableCommand {
         print(await Self.guardFalseRefusals(over: scored) + "\n")
         print(await Self.guardFalseAccepts(over: scored) + "\n")
 
-        var measured: [Measurement] = []
-        if models == nil {
-            measured.append(await measureBaseline(kind: .rules, description: .rules))
-            await compareShapes()
-            measured.append(await measureBaseline(kind: .foundationModels, description: .appleOnDevice))
-            measured.append(await measureShipping())
-        }
-        if !baselinesOnly {
-            for model in try selectedModels() {
-                measured.append(await measureLocal(model))
-            }
-        }
-
-        for index in measured.indices { measured[index].header = header }
-        // A one-case run is not stored, so it never stands in for a whole run in `--summarise`.
-        for measurement in measured where caseID == nil {
-            if let baselineURL,
-                outputStore.fileURL(for: measurement).standardizedFileURL == baselineURL
-            {
-                throw CleanExit.message(
-                    "Comparison output would overwrite its baseline; choose a different --results-path."
-                )
-            }
-            try outputStore.save(measurement)
-        }
+        let baselines: [() async throws -> Measurement] =
+            models == nil
+            ? [
+                { await measureBaseline(kind: .rules, description: .rules) },
+                {
+                    await compareShapes()
+                    return await measureBaseline(kind: .foundationModels, description: .appleOnDevice)
+                },
+                { await measureShipping() },
+            ] : []
+        let measured = try await Self.measureCandidates(
+            baselines: baselines,
+            locals: {
+                guard !baselinesOnly else { return [] }
+                return try selectedModels().map { model in { await measureLocal(model) } }
+            },
+            header: header,
+            storage: caseID == nil ? .fullRun(outputStore, baselineURL: baselineURL) : .singleCase)
 
         if against != nil || caseID != nil {
             report(measured)

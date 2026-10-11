@@ -2,6 +2,7 @@
 
 import Foundation
 import Testing
+import UttrflowTestSupport
 
 @testable import UttrflowCore
 
@@ -59,7 +60,7 @@ private enum OnsetGrid {
 @Suite("VoiceActivity against known speech boundaries")
 struct VoiceActivityOnsetGridTests {
     @Test("reports signed start and end error for each onset, level and floor")
-    func reportsGrid() {
+    func reportsGrid() throws {
         var clipped: [String] = []
         for kind in ["vowel", "plosive", "nasal", "fricative"] {
             for level in [-45.0, -35.0, -25.0, -15.0] {
@@ -70,6 +71,9 @@ struct VoiceActivityOnsetGridTests {
                     else {
                         print("ONSETGRID \(label): rejected")
                         if level - floor >= 10 { clipped.append(label) }
+                        try QualityGridReport.emit(
+                            suite: "onset", id: label, passed: level - floor < 10,
+                            measurements: ["rejected": 1])
                         continue
                     }
                     let start = (found.lowerBound - clip.speech.lowerBound) * 1000 / OnsetGrid.rate
@@ -79,6 +83,9 @@ struct VoiceActivityOnsetGridTests {
                         "ONSETGRID \(label): start \(start) ms, end \(end) ms\(lost ? ", speech clipped" : "")"
                     )
                     if lost { clipped.append(label) }
+                    try QualityGridReport.emit(
+                        suite: "onset", id: label, passed: !lost,
+                        measurements: ["rejected": 0, "start": start, "end": end])
                 }
             }
         }

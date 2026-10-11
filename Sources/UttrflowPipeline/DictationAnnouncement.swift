@@ -55,10 +55,10 @@ extension DictationPresenter {
                     + missing(outcome),
                 isUrgent: false)
 
-        case .inserted(let outcome) where MissedSpeech.isMissing(outcome.missedPieces):
+        case .inserted(let outcome) where outcome.quality.presentation != nil:
+            let sentence = outcome.quality.presentation?.sentence ?? ""
             return DictationAnnouncement(
-                text: "Inserted. \(MissedSpeech.sentence)"
-                    + (readBack.spoken(outcome).map { " " + $0 } ?? ""),
+                text: "Inserted. \(sentence)" + (readBack.spoken(outcome).map { " " + $0 } ?? ""),
                 isUrgent: false)
 
         case .inserted(let outcome) where outcome.inputTooLoud:

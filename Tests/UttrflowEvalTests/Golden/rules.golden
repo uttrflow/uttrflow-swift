@@ -546,6 +546,46 @@ lowercase-start-after-complete-sentence-pronoun	Please send it today. I will che
 lowercase-start-after-complete-sentence-she	He is here. She is not.
 lowercase-start-after-complete-sentence-that	The price is 5 dollars. That is cheap.
 lowercase-start-after-complete-sentence-vitals	The patient is stable. Vitals are normal.
+markup-css-align	text-align: center;
+markup-css-before	a::before {
+markup-css-child	ul > li {
+markup-css-class-rule	.hero {
+markup-css-close	}
+markup-css-colour	color: red;
+markup-css-declare-and-close	display: none;}
+markup-css-descendant	.nav .active {
+markup-css-display	display: flex;
+markup-css-element	body {
+markup-css-group	nav, footer {
+markup-css-hex	background: #fff;
+markup-css-hover	a:hover {
+markup-css-hyphen-property	font-size: larger;
+markup-css-id-rule	#main {
+markup-css-root	:root {
+markup-css-style-element	.hero {
+markup-css-two-declarations	color: red; background: blue;
+markup-css-z-index	z-index: 10;
+markup-css-zero	margin: 0;
+markup-html-anchor-quoted	<a href="about.html">
+markup-html-break	<br />
+markup-html-button	<button type=submit>
+markup-html-continue-tag	class=hero>
+markup-html-data-attribute	<div data-id=abc>
+markup-html-div-class	<div class=hero>
+markup-html-div-quoted-class	<div class="hero banner">
+markup-html-end-body	</body>
+markup-html-end-div	</div>
+markup-html-end-item	</li>
+markup-html-heading-id	<h1 id=title>
+markup-html-image	<img src=logo.png />
+markup-html-input	<input type=text name=email />
+markup-html-item-class	<li class=item>
+markup-html-link	<link rel=stylesheet href=main.css />
+markup-html-list	<ul>
+markup-html-meta	<meta name=viewport>
+markup-html-paragraph	<p>
+markup-html-section	<section id=intro>
+markup-html-span	<span>
 message-at-home-stays	I'm at home
 message-at-mention	@Sam, can you take a look?
 message-at-possessive-stays	Let's meet at Sam's place
@@ -872,7 +912,7 @@ probe-shell-pipeline	cat access dot log | grep -v health | sort | uniq -c | sort
 probe-short-hash	revert A3F9C2 because it broke the nightly build
 probe-short-verse	Roses are red\nViolets are blue\nSugar is sweet\nAnd so are you.\n\nThe moon is bright\nThe stars are near\nI wish that you were here.
 probe-spoken-correction	No wait Thursday works better for the board.
-probe-sql-join	SELECT o.id, c.name, p.title FROM orders o JOIN customers c ON c.id = o.customer id JOIN products p ON p.id = o.product id WHERE o.created at IS after 2026 -10 -oh 1
+probe-sql-join	SELECT o.id, c.name, p.title\nFROM orders o\n  JOIN customers c ON c.id = o.customer id\n  JOIN products p ON p.id = o.product id\nWHERE o.created at IS after 2026 -10 -oh 1
 probe-stack-frame	At main dot run (main dot go colon 42).
 probe-support-email	Hi priya, thanks for getting in touch about the delayed order.\n\nI have checked with our warehouse and your parcel left the depot this morning it should reach you by Thursday the ninth of October.\n\nIf it has not arrived by Friday please reply to this email and I will send a replacement at no cost.\n\nThanks again for your patience,\nDana.
 probe-ticket-and-units	Yesterday I finished proj dash 1423 and opened APR. the p95 latency dropped to 200 ms which is about three x better and I am blocked on review from priya
@@ -1286,47 +1326,47 @@ sql-editor-search-sequelace	shipping address
 sql-editor-search-tableplus	order items
 sql-editor-totals	Add up the invoices grouped by currency and sort by the total.
 sql-editor-two-sentences	The job runs hourly. It skips weekends.
-sql-statement-alias	SELECT title AS name FROM books
-sql-statement-and	SELECT id FROM orders WHERE status = paid AND total > 50
-sql-statement-at-least	SELECT title FROM books WHERE year >= 2000
-sql-statement-at-most	SELECT name FROM products WHERE price <= 20
-sql-statement-between	SELECT name FROM products WHERE price BETWEEN 10 AND 20
-sql-statement-between-ratings	SELECT title FROM books WHERE rating BETWEEN 1 AND 5
-sql-statement-comma-list	SELECT name, email FROM customers
-sql-statement-delete	DELETE FROM orders WHERE status = cancelled
-sql-statement-delete-less-than	DELETE FROM loans WHERE due < 20
-sql-statement-distinct	SELECT DISTINCT city FROM customers
-sql-statement-dot	SELECT orders.id FROM orders
-sql-statement-equals	SELECT * FROM orders WHERE status = paid
-sql-statement-everything	SELECT * FROM orders
-sql-statement-greater-or-equal	SELECT name FROM products WHERE stock >= 5
-sql-statement-greater-than	SELECT id FROM orders WHERE total > 100
-sql-statement-group-by	SELECT status, total FROM orders GROUP BY status
-sql-statement-having	SELECT genre FROM books GROUP BY genre HAVING genre <> poetry
-sql-statement-in-numbers	SELECT name FROM products WHERE id IN (1, 2, 3)
-sql-statement-in-words	SELECT title FROM books WHERE genre IN (poetry, drama)
-sql-statement-inner-join	SELECT loans.due FROM loans INNER JOIN members ON loans.member = members.id
+sql-statement-alias	SELECT title AS name\nFROM books
+sql-statement-and	SELECT id\nFROM orders\nWHERE status = paid AND total > 50
+sql-statement-at-least	SELECT title\nFROM books\nWHERE year >= 2000
+sql-statement-at-most	SELECT name\nFROM products\nWHERE price <= 20
+sql-statement-between	SELECT name\nFROM products\nWHERE price BETWEEN 10 AND 20
+sql-statement-between-ratings	SELECT title\nFROM books\nWHERE rating BETWEEN 1 AND 5
+sql-statement-comma-list	SELECT name, email\nFROM customers
+sql-statement-delete	DELETE FROM orders\nWHERE status = cancelled
+sql-statement-delete-less-than	DELETE FROM loans\nWHERE due < 20
+sql-statement-distinct	SELECT DISTINCT city\nFROM customers
+sql-statement-dot	SELECT orders.id\nFROM orders
+sql-statement-equals	SELECT *\nFROM orders\nWHERE status = paid
+sql-statement-everything	SELECT *\nFROM orders
+sql-statement-greater-or-equal	SELECT name\nFROM products\nWHERE stock >= 5
+sql-statement-greater-than	SELECT id\nFROM orders\nWHERE total > 100
+sql-statement-group-by	SELECT status, total\nFROM orders\nGROUP BY status
+sql-statement-having	SELECT genre\nFROM books\nGROUP BY genre\nHAVING genre <> poetry
+sql-statement-in-numbers	SELECT name\nFROM products\nWHERE id IN (1, 2, 3)
+sql-statement-in-words	SELECT title\nFROM books\nWHERE genre IN (poetry, drama)
+sql-statement-inner-join	SELECT loans.due\nFROM loans\n  INNER JOIN members ON loans.member = members.id
 sql-statement-insert-columns	INSERT INTO tags (name) VALUES (drama)
 sql-statement-insert-values	INSERT INTO books VALUES (7, poetry)
-sql-statement-is-not-null	SELECT name FROM customers WHERE email IS NOT NULL
-sql-statement-is-null	SELECT name FROM customers WHERE email IS NULL
-sql-statement-join	SELECT books.title, authors.name FROM books JOIN authors ON books.author = authors.id
-sql-statement-left-join	SELECT members.name FROM members LEFT JOIN loans ON members.id = loans.member
-sql-statement-less-or-equal	SELECT name FROM products WHERE stock <= 3
-sql-statement-less-than	SELECT title FROM books WHERE year < 2000
-sql-statement-like	SELECT title FROM books WHERE title LIKE mystery
-sql-statement-not	SELECT id FROM orders WHERE NOT status = paid
-sql-statement-not-equals	SELECT email FROM customers WHERE status <> closed
-sql-statement-null-and	SELECT * FROM loans WHERE due IS NULL AND member = 4
-sql-statement-or	SELECT id FROM orders WHERE status = paid OR status = shipped
-sql-statement-order-asc-limit	SELECT title FROM books ORDER BY year ASC LIMIT 10
-sql-statement-order-by	SELECT name FROM products ORDER BY price
-sql-statement-order-by-desc	SELECT name FROM products ORDER BY price DESC
-sql-statement-range	SELECT id FROM orders WHERE total > 50 AND total < 90
-sql-statement-star	SELECT * FROM customers
-sql-statement-update	UPDATE products SET price = 10 WHERE id = 4
-sql-statement-update-rating	UPDATE books SET rating = 5 WHERE id = 2
-sql-terminated-semicolon-said	SELECT id FROM orders;
+sql-statement-is-not-null	SELECT name\nFROM customers\nWHERE email IS NOT NULL
+sql-statement-is-null	SELECT name\nFROM customers\nWHERE email IS NULL
+sql-statement-join	SELECT books.title, authors.name\nFROM books\n  JOIN authors ON books.author = authors.id
+sql-statement-left-join	SELECT members.name\nFROM members\n  LEFT JOIN loans ON members.id = loans.member
+sql-statement-less-or-equal	SELECT name\nFROM products\nWHERE stock <= 3
+sql-statement-less-than	SELECT title\nFROM books\nWHERE year < 2000
+sql-statement-like	SELECT title\nFROM books\nWHERE title LIKE mystery
+sql-statement-not	SELECT id\nFROM orders\nWHERE NOT status = paid
+sql-statement-not-equals	SELECT email\nFROM customers\nWHERE status <> closed
+sql-statement-null-and	SELECT *\nFROM loans\nWHERE due IS NULL AND member = 4
+sql-statement-or	SELECT id\nFROM orders\nWHERE status = paid OR status = shipped
+sql-statement-order-asc-limit	SELECT title\nFROM books\nORDER BY year ASC\nLIMIT 10
+sql-statement-order-by	SELECT name\nFROM products\nORDER BY price
+sql-statement-order-by-desc	SELECT name\nFROM products\nORDER BY price DESC
+sql-statement-range	SELECT id\nFROM orders\nWHERE total > 50 AND total < 90
+sql-statement-star	SELECT *\nFROM customers
+sql-statement-update	UPDATE products\nSET price = 10\nWHERE id = 4
+sql-statement-update-rating	UPDATE books\nSET rating = 5\nWHERE id = 2
+sql-terminated-semicolon-said	SELECT id\nFROM orders;
 sql-terms	Select everything from the user table and sort by name.
 standalone-pronoun-i	So I think.
 strike-that-as-an-order-kept	Strike that match and light the candle.

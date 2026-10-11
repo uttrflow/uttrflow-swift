@@ -23,7 +23,13 @@ open clause, the keyword case, the tables and aliases named, and whether a strin
 caret; it answers `unknown` when its 300-character window may have cut the statement. It owns that
 detection: a caret inside a statement counts as evidence for notation and as mid-sentence for the first
 word (`SQLContinuationTests`), and the keyword-case stage of AD.10 reads `keywordCase` rather than
-detecting case itself. `MarkdownPosition`
+detecting case itself.
+`SQLLayout` (`Sources/UttrflowCore/Adapters/SQLLayout.swift`) reads how that statement is laid out: clauses
+on their own lines or sharing a line, and the indent unit (tab or spaces) the script uses. `SQLLayoutPass`
+writes only whitespace: a line break and indent before a clause keyword the notation wrote. The field's
+convention wins; with none, a statement of two or more spoken clauses goes on clause lines with its joins
+indented two spaces, and a single clause or fragment stays on one line. A spoken "new line" always stands,
+and no break is written inside parentheses. `MarkdownPosition`
 (`Sources/UttrflowCore/Adapters/MarkdownPosition.swift`) reads the Markdown already before the caret: the
 list item and its next number, the blockquote marks, the last heading level and the language of an open
 fence. `MarkdownContinuationPass` writes the next mark only for the spoken words "next item", "new item"
@@ -32,6 +38,20 @@ the fence's language adapter there is not built. `MarkdownContinuationPassTests`
 and quote balance check of section 5 is `AdapterValidator` returning `AdapterVerdict`. The “Today”
 columns and references to existing source files describe current behavior; the “With the adapter”
 columns describe the planned design.
+
+Markup notation (AD.35) is `markup` rows of `spoken-commands.json`, each naming the slot of HTML or
+CSS it is read in. `MarkupPosition` (`Sources/UttrflowCore/Adapters/MarkupPosition.swift`) reads the
+slot from the text before the caret: text between tags, inside a tag, a selector, a property, a
+value, or a comment or quoted value that is the writer's own. The slot is found from the preceding
+text alone, so the region classifier is enough. `CodeEditorCommandsPass` walks the speech with the
+slot, each row moving it on (`close` leaves a tag, `open brace` enters a block), and runs before
+spoken punctuation so a colon, a semicolon and a dash are read by slot. In text between tags nothing
+is notation until the speech spells a whole tag, an element, attributes said as name equals value, and
+`close`; a tag cut by a pause, a body of small words, or a `close` followed by one is prose. The
+pass writes only what was said: it never closes a tag, adds an attribute or a unit, or changes the
+case of an element, and a quotation mark is written only where a quotation was spoken.
+`MarkupNotationTests` holds twenty HTML and twenty CSS cases to their exact text and the prose cases
+to their words. Not covered: entities, units, attribute selectors, and a tag said across two pieces.
 
 ## 0. Why the current seam cannot carry this
 

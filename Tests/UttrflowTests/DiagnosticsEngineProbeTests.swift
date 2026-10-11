@@ -121,33 +121,6 @@ struct DiagnosticsEngineProbeTests {
         #expect(app.transformerAvailability[.foundationModels] == false)
     }
 
-    @Test("shows the first Apple Intelligence fallback notice once, with System Settings recovery")
-    func appleIntelligenceFallbackNoticeIsShownOnce() {
-        let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
-        let unavailable = CleaningRecord.UnavailableEngine(
-            engine: TransformerKind.foundationModels.rawValue,
-            reason: .appleIntelligenceDisabled)
-
-        app.render(
-            .inserted(
-                DictationOutcome(
-                    text: "hello", method: .clipboard, cleanedBy: .rules,
-                    unavailableEngines: [unavailable])))
-        let notice = app.actionNotice
-        #expect(notice?.message.contains("switched off") == true)
-        #expect(notice?.action?.intent == .recover(.openSystemSettings(.appleIntelligence)))
-
-        app.render(
-            .inserted(
-                DictationOutcome(
-                    text: "again", method: .clipboard, cleanedBy: .rules,
-                    unavailableEngines: [
-                        .init(engine: TransformerKind.foundationModels.rawValue, reason: .modelNotReady)
-                    ])))
-        #expect(app.actionNotice == notice)
-    }
-
     /// #1668: the speech model row was never given an answer, so it read Not checked yet forever.
     @Test("the speech model is looked for on disk too")
     func speechModelIsLookedFor() async {

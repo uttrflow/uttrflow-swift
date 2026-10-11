@@ -60,25 +60,42 @@ extension CleaningPipeline {
         {
             cleanings.insert(ScreenIdentifierPass(vocabulary: identifiers), at: afterCorrection + 1)
         }
-        let inCode = destination == .codeEditor && intent.region.isCode
+        let markup =
+            destination == .codeEditor
+            ? MarkupPosition.at(insertionPoint.precedingText, language: intent.language) : nil
+        // Text between tags and a comment or quoted value are prose to the casing commands, whatever the region says.
+        let inCode =
+            destination == .codeEditor && intent.region.isCode && markup != .slot(.text) && markup != .quoted
         let notation = NotationEvidence.applicability(
             destination: destination, region: intent.region,
-            statement: SQLPosition.at(insertionPoint.precedingText), mode: mode)
+            statement: SQLPosition.at(insertionPoint.precedingText), markup: markup, mode: mode)
         if let layoutPosition = cleanings.firstIndex(where: { $0.id == .layoutWords }) {
             // Only a Markdown document names its lists and headings by what is already written.
             if CaretStructure.isMarkdown(documentName: screen.app.documentName) {
                 cleanings.insert(
                     MarkdownContinuationPass(position: .at(insertionPoint.precedingText)), at: layoutPosition)
             }
-            if NotationEvidence.mayActivate(notation, in: destination) {
+            if NotationEvidence.mayActivate(notation, in: destination, markup: markup) {
+                // Markup reads its colons, semicolons and dashes by slot, before punctuation takes them as marks.
+                let punctuation = cleanings.firstIndex { $0.id == .spokenPunctuation }
                 cleanings.insert(
                     CodeEditorCommandsPass(
-                        destination: destination, language: intent.language, evidence: notation),
-                    at: layoutPosition)
+                        destination: destination, language: intent.language, markup: markup,
+                        evidence: notation),
+                    at: markup?.slot == nil ? layoutPosition : punctuation ?? layoutPosition)
+                // After the spoken layout words, so a spoken "new line" is a break by then.
+                if destination == .sqlEditor,
+                    let spoken = cleanings.firstIndex(where: { $0.id == .layoutWords })
+                {
+                    cleanings.insert(
+                        SQLLayoutPass(layout: SQLLayout.at(insertionPoint.precedingText)), at: spoken + 1)
+                }
             }
             // A code editor's comments and a code editor set to plain prose take no casing: its rows are identifiers.
             if (destination != .codeEditor || inCode) && !(mode == .prose && destination == .codeEditor) {
-                cleanings.insert(SpokenCasingPass(destination: destination), at: layoutPosition)
+                cleanings.insert(
+                    SpokenCasingPass(destination: destination),
+                    at: cleanings.firstIndex { $0.id == .layoutWords } ?? layoutPosition)
             }
         }
         return CleaningPipeline(piece: cleanings.filter { steps.runs($0.id) })

@@ -31,26 +31,17 @@ extension SuggestionSession {
     /// Takes one keystroke the tap swallowed and answers with what it means.
     public mutating func route(_ stroke: KeyStroke, at now: Date = Date()) -> SuggestionAction {
         switch KeyRouting.decision(
-            for: stroke, showing: suggestion, selection: selection, acceptKey: acceptKey)
+            for: stroke, showing: suggestion, selection: selection, acceptKey: acceptKey,
+            wordKey: wordKey)
         {
         case .accept(let text):
-            // A key typed since the read this offer was worked out for has moved the line, so Tab takes nothing.
-            guard drawnAtKeystroke == keystrokes else { return .giveBack(stroke) }
-            let acceptanceGeneration = generation + 1
-            failedAcceptance = AcceptanceOutcome.FailedAcceptanceRollback(
-                acceptanceGeneration: acceptanceGeneration, keystrokes: keystrokes, acceptedAt: now,
-                suggestion: suggestion,
-                selection: selection, surface: surface, typed: typed, taken: taken,
-                undoneHere: undoneHere, undoMarkGenerations: undoMarkGenerations,
-                shownIsGenerated: shownIsGenerated, acceptedText: text)
-            // The offer is gone the moment it is taken, and so is any answer still in flight for it.
-            generation += 1
-            clearDrawing()
-            taken = TakenLine(
-                line: text, over: typed, moment: now,
-                acceptanceGeneration: acceptanceGeneration)
-            typed = text
-            return .accept(text)
+            return take(text, whole: text, stroke: stroke, at: now)
+        case .acceptWord(let line):
+            // The last word, or a line that rewrites what was typed, is taken whole.
+            guard let part = WordAcceptance.next(of: line, after: typed) else {
+                return take(line, whole: line, stroke: stroke, at: now)
+            }
+            return take(part, whole: line, stroke: stroke, at: now)
         case .moveSelection(let moved):
             selection = moved
             return .redraw(armed(showing: suggestion, silence: nil))
@@ -63,11 +54,40 @@ extension SuggestionSession {
         }
     }
 
+    /// Takes `text` into the field, remembering the rest of `whole` when `text` is only its start.
+    private mutating func take(
+        _ text: String, whole: String, stroke: KeyStroke, at now: Date
+    ) -> SuggestionAction {
+        // A key typed since the read this offer was worked out for has moved the line, so Tab takes nothing.
+        guard drawnAtKeystroke == keystrokes else { return .giveBack(stroke) }
+        let acceptanceGeneration = generation + 1
+        failedAcceptance = AcceptanceOutcome.FailedAcceptanceRollback(
+            acceptanceGeneration: acceptanceGeneration, keystrokes: keystrokes, acceptedAt: now,
+            suggestion: suggestion,
+            selection: selection, surface: surface, typed: typed, taken: taken,
+            undoneHere: undoneHere, undoMarkGenerations: undoMarkGenerations,
+            shownIsGenerated: shownIsGenerated, acceptedText: text)
+        let isPartial = text != whole
+        retained =
+            isPartial
+            ? RetainedRemainder(line: whole, over: typed, expected: text, isGenerated: shownIsGenerated)
+            : nil
+        // The offer is gone the moment it is taken, and so is any answer still in flight for it.
+        generation += 1
+        clearDrawing()
+        taken = TakenLine(
+            line: text, over: typed, moment: now,
+            acceptanceGeneration: acceptanceGeneration)
+        typed = text
+        return isPartial ? .acceptWord(text) : .accept(text)
+    }
+
     /// Commits the accept state after insertion or restores it if insertion failed without newer field activity.
     package mutating func completeAcceptance(_ outcome: AcceptanceOutcome) {
         guard let rollback = failedAcceptance else { return }
         failedAcceptance = nil
         guard outcome == .refused else { return }
+        retained = nil
         guard surface == rollback.surface else { return }
         let acceptedKey = TextMatching.caseFoldedKey(rollback.acceptedText)
         if !rollback.undoneHere.contains(acceptedKey),

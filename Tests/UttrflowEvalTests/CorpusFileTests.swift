@@ -38,7 +38,8 @@ struct CorpusFileTests {
         #expect(names.count >= 13)
         // Keeps the first of a shared id rather than trapping, so `noIdIsInTwoBundledFiles` can name it.
         let corpus = Dictionary(
-            (EvaluationCorpus.all + EvaluationCorpus.abstention + EvaluationCorpus.commandMentions)
+            (EvaluationCorpus.all + EvaluationCorpus.abstention + EvaluationCorpus.markupProse
+                + EvaluationCorpus.commandMentions)
                 .map { ($0.id, $0) },
             uniquingKeysWith: { first, _ in first })
         for name in names {

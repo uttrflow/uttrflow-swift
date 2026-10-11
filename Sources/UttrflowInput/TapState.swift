@@ -237,7 +237,7 @@ final class TapState: TapPayload, @unchecked Sendable {
         let stroke = KeyStroke(
             keyCode: UInt16(truncatingIfNeeded: keyCode),
             modifiers: KeyModifiers(event.flags))
-        let slot = ArmedKeys.slot(of: stroke)
+        let slot = ArmedKeys.takenSlot(of: stroke)
         let repeatingKeyCode = repeatingAcceptKeyCode.load(ordering: .acquiring)
         if event.getIntegerValueField(.keyboardEventAutorepeat) != 0,
             repeatingKeyCode != 0,
@@ -263,7 +263,7 @@ final class TapState: TapPayload, @unchecked Sendable {
             keyCode: UInt16(truncatingIfNeeded: event.getIntegerValueField(.keyboardEventKeycode)),
             modifiers: KeyModifiers(event.flags))
         // Bare Tab keeps its own rule above: discarded after a Tab accept, an application key after any other.
-        return stroke != KeyStroke(.tab) && !ArmedKeys.slot(of: stroke).isEmpty
+        return stroke != KeyStroke(.tab) && !ArmedKeys.takenSlot(of: stroke).isEmpty
     }
 
     /// Applies the same bare-Tab rule to a finished hold and one that reaches its deadline.
