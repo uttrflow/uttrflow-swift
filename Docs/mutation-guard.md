@@ -36,9 +36,13 @@ a check were wrong. `Scripts/mutation_probe.py` answers the second question.
 
 ## What the probe does
 
-It cuts a throwaway detached worktree from a revision (`--ref`, default `HEAD`), proves the
-unmutated tree builds and passes the selected tests, then applies one mutation at a time to
-the named file, rebuilds, and runs `swift test --skip-build --filter <filter>`:
+It uses the caller's linked worktree, proves the named source is tracked, clean and
+identical to the selected revision (`--ref`, default `HEAD`), then proves the unmutated tree
+builds and passes the selected tests. It applies one mutation at a time to that source,
+rebuilds, and runs the selected tests through the explicit `--build-runner` executable. The wrapper accepts
+Swift's `build` and `test` subcommands and forwards their arguments. Builds and tests use four
+compiler jobs and retain code-coverage instrumentation to match instrumented builds. No
+additional worktree is created:
 
 | Operator | Mutation |
 |---|---|
@@ -52,14 +56,20 @@ Each mutant is `killed` (a test failed), `survived` (every test passed) or `unvi
 literals and comments is never mutated, and a rejection spread over several lines is not
 applied, because it cannot be replaced on one line.
 
-The probe refuses to run from the main checkout, and removes its worktree when it ends.
+The probe refuses the main checkout, a dirty source, symlink targets and a missing or
+non-executable build runner. It restores the original source bytes
+when it ends, including on an interrupt or termination signal. A timeout or test-infrastructure
+failure aborts the measurement; only a failed Swift Testing run counts as a killed mutant.
+The JSON report checkpoints each outcome as incomplete until the whole file finishes.
+A partial `--limit` run neither checks nor updates the floor.
 It is not part of `make verify`: one mutant costs an incremental build and a module test
 run, so a whole file takes hours. `make mutation-probe-test` checks the probe itself.
 
 ```bash
-python3 Scripts/mutation_probe.py Sources/UttrflowAI/MeaningPreservationGuard.swift --list
+python3 Scripts/mutation_probe.py Sources/UttrflowAI/MeaningPreservationGuard.swift --filter MeaningPreservationGuardTests --list
 python3 Scripts/mutation_probe.py Sources/UttrflowAI/MeaningPreservationGuard.swift \
-    --filter UttrflowAITests --report "$TMPDIR/guard-mutants.json"
+    --build-runner /path/to/build-wrapper --filter 'UttrflowAITests\.(MeaningPreservationGuardTests|GrammarGuardTests|LayoutGuardTests)/' \
+    --report "$TMPDIR/guard-mutants.json"
 python3 Scripts/mutation_probe.py ... --update-baseline   # record the floor; it refuses to lower one
 ```
 
