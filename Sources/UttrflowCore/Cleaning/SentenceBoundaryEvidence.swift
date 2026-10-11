@@ -2,12 +2,15 @@ import NaturalLanguage
 
 /// The lexical-class and phrase evidence that decides whether a stop fell inside a sentence.
 public enum SentenceBoundaryEvidence {
-    /// Whether the words on both sides show that the sentence carried on.
-    public static func sentenceRunsOn(_ text: String, into next: String) -> Bool {
+    /// Whether the words on both sides show that the sentence carried on; `leading` is the sentence's words before `text`, read only to tell a noun "look".
+    public static func sentenceRunsOn(_ text: String, into next: String, after leading: String = "") -> Bool {
         let previous = WordTokens.words(text, .display).map(WordShape.init)
         let following = WordTokens.words(next, .display).map(WordShape.init)
         guard !previous.isEmpty, let first = following.first else { return false }
         let previousKeys = previous.map(\.key)
+        if endsInNounLook(WordTokens.words(leading, .display).map { WordShape($0).key } + previousKeys) {
+            return false
+        }
         let followingKeys = following.map(\.key)
         if text.last == ".", subordinators.contains(previous[0].key) { return true }
         if opensOnPostmodifier(following) || opensDependentFragment(following) { return true }
@@ -232,11 +235,6 @@ public enum SentenceBoundaryEvidence {
     /// "take a look", "have a quick look": a determiner in the two words before "look" makes it a noun that closes the sentence.
     private static func endsInNounLook(_ keys: [String]) -> Bool {
         keys.last == "look" && keys.dropLast().suffix(2).contains { determiners.contains($0) }
-    }
-
-    /// Whether the text ends in a noun "look" ("take a look"), which closes a sentence.
-    public static func endsInNounLook(_ text: String) -> Bool {
-        endsInNounLook(WordTokens.words(text, .display).map { WordShape($0).key })
     }
 
     private static let determiners: Set<String> = [

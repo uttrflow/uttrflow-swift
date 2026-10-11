@@ -25,12 +25,9 @@ struct SentenceBoundaryPass: WholeTextCleaningPass {
             guard !Abbreviations.ownsStop(shape.core) else { continue }
             let following = Self.sentenceAfter(position, in: live, of: draft)
             guard
-                !SentenceBoundaryEvidence.endsInNounLook(
-                    Self.sentenceBefore(position, in: live, of: draft))
-            else { continue }
-            guard
                 SentenceBoundaryEvidence.sentenceRunsOn(
-                    WordShape.withoutTrailingStop(draft.words[index].text), into: following
+                    WordShape.withoutTrailingStop(draft.words[index].text), into: following,
+                    after: Self.wordsBeforeLast(position, in: live, of: draft)
                 )
                     || SentenceBoundaryEvidence.modalAwaitsVerb(
                         Self.sentenceBefore(position, in: live, of: draft), into: following)
@@ -59,6 +56,11 @@ struct SentenceBoundaryPass: WholeTextCleaningPass {
         let words = live[start...position].map { draft.words[$0].text }
         return words.dropLast().joined(separator: " ")
             + (words.count > 1 ? " " : "") + WordShape.withoutTrailingStop(words[words.count - 1])
+    }
+
+    /// The up to two words before the one at `position`, the context a noun "look" needs.
+    private static func wordsBeforeLast(_ position: Int, in live: [Int], of draft: Draft) -> String {
+        live[max(0, position - 2)..<position].map { draft.words[$0].text }.joined(separator: " ")
     }
 
     /// The words after `position` through the next sentence end, at least two: all the boundary evidence reads.
