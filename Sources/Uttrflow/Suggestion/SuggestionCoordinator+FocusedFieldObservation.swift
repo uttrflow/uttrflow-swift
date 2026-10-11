@@ -3,6 +3,14 @@ import UttrflowPredict
 
 @MainActor
 extension SuggestionCoordinator {
+    /// Disabled applications do not start the suggestion loop from their keystrokes or activation.
+    nonisolated static func shouldProcessActivityEvent(
+        front: String?, own: String?, preferences: SuggestionPreferences, at moment: Date
+    ) -> Bool {
+        guard let front else { return false }
+        return shouldRead(front: front, own: own, preferences: preferences, at: moment)
+    }
+
     /// Whether the foreground application can run the suggestion loop now.
     func activityIsAllowed() -> Bool {
         Self.shouldProcessActivityEvent(
