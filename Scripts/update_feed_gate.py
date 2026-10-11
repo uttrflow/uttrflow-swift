@@ -20,6 +20,7 @@ def classify(url):
     parsed = urllib.parse.urlparse(url)
     try:
         host = parsed.hostname
+        parsed.port
     except ValueError as error:
         raise FeedError(f"SUFeedURL is not a valid URL: {url}") from error
 
