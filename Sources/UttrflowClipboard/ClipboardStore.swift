@@ -264,8 +264,7 @@ public actor ClipboardStore {
 
     /// Advances the store's persisted LRU sequence independently of wall-clock time.
     private func nextUseOrder() -> UInt64 {
-        if lastUsedOrder < .max { lastUsedOrder += 1 }
-        return lastUsedOrder
+        ClipEdits.nextUseOrder(&lastUsedOrder)
     }
 
     /// Forgets one clip and answers with what is left; an identifier that is not there is not an error.
@@ -524,20 +523,8 @@ public actor ClipboardStore {
     public func moveCategory(
         _ name: String, to destination: String?, keeping retention: ClipRetention
     ) throws(ClipboardStoreError) -> [Clip] {
-        var clips = loaded()
-        var freshlyUnkept: Set<UUID> = []
-        for index in clips.indices where clips[index].category == name {
-            let wasKept = clips[index].isKept
-            clips[index].category = destination
-            if resetAgeIfUnkept(&clips[index], wasKept: wasKept, keeping: retention) {
-                freshlyUnkept.insert(clips[index].id)
-            }
-        }
-        if !freshlyUnkept.isEmpty {
-            clips =
-                clips.filter { freshlyUnkept.contains($0.id) }
-                + clips.filter { !freshlyUnkept.contains($0.id) }
-        }
+        let clips = ClipEdits.movingCategory(
+            name, to: destination, in: loaded(), keeping: retention, lastUsedOrder: &lastUsedOrder)
         return try settled(clips, keeping: retention)
     }
 
@@ -572,28 +559,10 @@ public actor ClipboardStore {
     private func change(
         _ id: UUID, keeping retention: ClipRetention, _ edit: (inout Clip) -> Void
     ) throws(ClipboardStoreError) -> [Clip] {
-        var clips = loaded()
-        if let index = clips.firstIndex(where: { $0.id == id }) {
-            let wasKept = clips[index].isKept
-            edit(&clips[index])
-            // An edit that asked the detector again must not overrule the user's answer about this text.
-            clips[index] = secrecy.applied(to: clips[index])
-            guard policy.fitsLargestClip(clips[index]) else { throw .couldNotWrite }
-            if resetAgeIfUnkept(&clips[index], wasKept: wasKept, keeping: retention) {
-                let fresh = clips.remove(at: index)
-                clips.insert(fresh, at: 0)
-            }
-        }
+        let clips = try ClipEdits.changing(
+            id, in: loaded(), keeping: retention, secrecy: &secrecy, policy: policy,
+            lastUsedOrder: &lastUsedOrder, edit)
         return try settled(clips, keeping: retention)
-    }
-
-    /// Resets a clip's age when this edit removes its last keeping marker.
-    private func resetAgeIfUnkept(
-        _ clip: inout Clip, wasKept: Bool, keeping retention: ClipRetention
-    ) -> Bool {
-        guard wasKept && !clip.isKept else { return false }
-        clip = clip.recopied(at: retention.now, order: nextUseOrder())
-        return true
     }
 
     /// Writes what may stay on the disk and answers with what may be shown. See `Docs/retention-clock.md`.

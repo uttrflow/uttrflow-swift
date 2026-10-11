@@ -170,6 +170,10 @@ those copies on a clip with every field set and fails if its fixture misses a pe
 
 ## Undoing a delete
 
+`ClipEdits` shares single-clip and collection edits. Removing the final keeping marker refreshes
+the clip's age and monotonic eviction order; removing one of several markers leaves both intact.
+`ClipboardStore` retains loading, secrecy state, the order counter and settling each edited list.
+
 Undo restores a clip's alias only when no current clip holds it. If another clip took that alias
 while the deleted clip was absent, the newer holder keeps it and the restored clip returns unnamed.
 `restoreReportingAliasConflict` returns that conflict with the settled list so the panel can tell
