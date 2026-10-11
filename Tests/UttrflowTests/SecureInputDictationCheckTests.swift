@@ -17,6 +17,7 @@ struct SecureInputDictationCheckTests {
         let on = Mutex(false)
         let app = AppDelegate(
             container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
             secureInput: SecureInputWatch(isSecureInputOn: { on.withLock { $0 } }))
         #expect(app.shortcutUnheard == nil)
 
