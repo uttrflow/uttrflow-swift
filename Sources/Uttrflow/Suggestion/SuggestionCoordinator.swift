@@ -723,24 +723,11 @@ final class SuggestionCoordinator {
         return elapsedMilliseconds(since: lastKeyDown, at: moment) >= accessibilityKeyWindowInMilliseconds
     }
 
-    /// Whether a key-down may move keyboard focus to another field: Tab, Escape, or any ⌘ shortcut.
-    nonisolated static func mayMoveFocus(keyCode: UInt16, modifiers: NSEvent.ModifierFlags) -> Bool {
-        let key = Key(keyCode: keyCode)
-        return key == .tab || key == .escape || modifiers.contains(.command)
-    }
-
     /// Whether a key-down is ⌘V under the selected layout, matched by the key its ⌘ table puts V on.
     nonisolated static func isPaste(_ event: NSEvent) -> Bool {
         isPaste(
             keyCode: event.keyCode, modifiers: event.modifierFlags,
             pasteKeyCode: CGEventKeystrokeSender.pasteKeyCode)
-    }
-
-    /// Whether a key with `modifiers` held is the layout's ⌘V, whatever letter the key types without ⌘.
-    nonisolated static func isPaste(
-        keyCode: UInt16, modifiers: NSEvent.ModifierFlags, pasteKeyCode: UInt16
-    ) -> Bool {
-        modifiers.contains(.command) && keyCode == pasteKeyCode
     }
 
     /// Withdraws the ghost and holds every turn while a dictation is under way, so its models have the GPU.
@@ -924,17 +911,6 @@ final class SuggestionCoordinator {
         }
     }
 
-    /// The text a key puts on the line, or nothing for a shortcut, an arrow or any other key that types no text.
-    nonisolated static func typedText(characters: String?, modifiers: NSEvent.ModifierFlags) -> String? {
-        guard let characters, !characters.isEmpty,
-            modifiers.intersection([.command, .control, .option, .function]).isEmpty,
-            characters.unicodeScalars.allSatisfy({
-                !CharacterSet.controlCharacters.contains($0) && !(0xF700...0xF8FF).contains($0.value)
-            })
-        else { return nil }
-        return characters
-    }
-
     /// One key pressed in another application, which may update the focused field.
     func keyPressed(_ key: Key, typing text: String? = nil, isARepeat: Bool = false) {
         guard
@@ -957,19 +933,6 @@ final class SuggestionCoordinator {
         // The line just changed, so the ghost at the old caret, a pass about the old prefix and a booked wake are all stale.
         withdraw()
         wake(endsLine ? .returnPressed : .keystroke)
-    }
-
-    /// Whether a key ends the line: a Return does, unless an input method was composing, when it confirms a conversion.
-    nonisolated static func endsLine(_ key: Key, composing: Bool) -> Bool {
-        key == .return && !composing
-    }
-
-    /// Advances prose fluency only for a text-producing key-down that is not autorepeat.
-    nonisolated static func fluencyTimestamp(
-        previous: Date, typing text: String?, isARepeat: Bool, at moment: Date
-    ) -> Date {
-        guard text != nil, !isARepeat else { return previous }
-        return moment
     }
 
     /// Keeps the ghost up when the key typed its next letters, answering false for any other key, which withdraws it.

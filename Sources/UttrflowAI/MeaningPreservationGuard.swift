@@ -201,7 +201,7 @@ public struct MeaningPreservationGuard: Sendable {
         let wanted = DoubtfulSpan.closedUp(reading)
         guard !wanted.isEmpty else { return false }
         let (written, begins, ends) = closedUpEdges(rewritten)
-        // The rewrite may inflect the run it was given — "payment sheets" for "payment sheet" — and change it no further.
+        // The rewrite may inflect its input run, such as "payment sheet" into "payment sheets", and change it no further.
         let forms = WordForms.inflections(of: wanted).union([wanted])
         return begins.contains { start in
             forms.contains { form in
