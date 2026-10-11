@@ -11,6 +11,10 @@ stories about the same moment. Window, focus and AppKit traps are in
 
 ## Row cache contexts
 
+Per-clip row storage uses the shared `Memo` source-matching contract. A context change replaces
+that storage; a late builder stores its answer only while its original context remains current.
+The lookup can read a cached answer without building, including a remembered optional `nil`.
+
 `PanelRowMemo` keys whole lists and grouped rows by list identity and the complete row context.
 Per-clip rows use a separate context: a list finishing cannot relabel rows from another build,
 and a row finishing after its context changes is returned to its caller without entering that

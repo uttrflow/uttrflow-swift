@@ -192,6 +192,12 @@ destination — so `apply` sees only the draft. The passes, in the order they ru
 punctuation before a following layout phrase can be recognised as a break: "question mark new
 line" must become `?` followed by a line break.
 
+`LayoutWordsPass` precedes `NumberFormsPass`: consuming a spoken layout command can remove
+`line`, which otherwise cues a designator numeral. The two passes are order dependent.
+`LayoutNumberOrderTests` pins this order in the standard and before-model pipelines for every
+destination and checks both consumed commands and retained line-number cues. `PassLawTests`
+continues to check every declared independence over generated dictation.
+
 Every pass records what it did in the draft, which is what makes the guard able to tell
 "the pass removed *no sorry at four*" from "the model dropped half the sentence".
 
