@@ -210,9 +210,7 @@ AI suggestions screen. The answer is kept in
 `~/Library/Application Support/Uttrflow/predict-consent.v1.json` (`CapturePreferencesFile`, written
 through `PrivateFile`), written the first time the loop meets an application the screen allows and
 rewritten when a switch there moves. An application the loop has met is listed whether or not it
-has taught anything. Importing a shell's history (`ShellHistory`) asks the same question of the
-terminal it seeds: an application not yet allowed, or declined, gets nothing, and the one-time
-import stays unspent until it is allowed.
+has taught anything. Nothing reads a shell's history: the terminal learns only from what is typed in it.
 
 Dictation asks the same file before it learns (`LearningConsent` in `UttrflowCore`): the dictionary
 learner and the usage counts write nothing about an application the user declined. An application
