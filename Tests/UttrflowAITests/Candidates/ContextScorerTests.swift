@@ -84,14 +84,13 @@ struct ContextScorerTests {
     func probeCountedModel() throws {
         var generator = SyntheticARPA.Generator(state: 0x2545_F491_4F6C_DD1D)
         let sentences = (0..<20_000).map { _ in (0..<12).map { _ in "w\(generator.word(below: 5_000))" } }
-        let clock = ContinuousClock()
         var model: NGramModel?
-        let build = clock.measure { model = NGramModel.counted(sentences) }
+        let build = measureThreadCPU { model = NGramModel.counted(sentences) }
         let built = try #require(model)
         let scorer = ContextScorer(model: InterpolatedLanguageModel([.init(model: built, weight: 1)]))
         let candidates = (0..<10).map { ["w\($0 * 7)", "w\($0 * 13)"] }
         let rounds = 1_000
-        let elapsed = clock.measure {
+        let elapsed = measureThreadCPU {
             for round in 0..<rounds {
                 _ = scorer.verdict(
                     on: candidates, between: ["w\(round % 500)", "w\(round % 300)"], and: ["w1", "w2"])
@@ -105,9 +104,8 @@ struct ContextScorerTests {
     func probeSpeedAndMemory() throws {
         let text = SyntheticARPA.text(vocabulary: 20_000, bigrams: 200_000, trigrams: 200_000)
         let before = SyntheticARPA.footprintBytes()
-        let clock = ContinuousClock()
         var model: NGramModel?
-        let load = clock.measure { model = try? ARPAReader.model(from: text) }
+        let load = measureThreadCPU { model = try? ARPAReader.model(from: text) }
         let loaded = try #require(model)
         let resident = SyntheticARPA.footprintBytes() - before
         let scorer = ContextScorer(
@@ -116,7 +114,7 @@ struct ContextScorerTests {
             ]))
         let candidates = (0..<10).map { ["w\($0 * 7)", "w\($0 * 13)"] }
         let rounds = 1_000
-        let elapsed = clock.measure {
+        let elapsed = measureThreadCPU {
             for round in 0..<rounds {
                 _ = scorer.verdict(
                     on: candidates, between: ["w\(round % 500)", "w\(round % 300)"], and: ["w1", "w2"])
@@ -128,6 +126,13 @@ struct ContextScorerTests {
         )
         #expect(perSpan < .milliseconds(1))
     }
+}
+
+/// The CPU time this thread spends in `work`, which other work on a loaded machine does not add to.
+private func measureThreadCPU(_ work: () -> Void) -> Duration {
+    let start = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)
+    work()
+    return .nanoseconds(Int64(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - start))
 }
 
 /// A deterministic random ARPA file of a given size, for measuring the reader and scorer without a real corpus.
