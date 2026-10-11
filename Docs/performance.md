@@ -321,7 +321,8 @@ make perf-budget-latency RUN=.build/bench/run.out
 
 It exits 1 when any stage's p95 is over its budget or has fewer than 3 samples. `--self-test`
 proves a run within budget passes, the same run 50% slower fails every stage, and a budget loosened
-past its p95 plus headroom fails the table check.
+past its p95 plus headroom fails the table check. Budgeted duration samples must be finite and
+nonnegative; zero is valid. The minimum sample count is checked before duration validation.
 
 ### Recognition split per piece length
 

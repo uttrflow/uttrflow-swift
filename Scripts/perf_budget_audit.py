@@ -940,6 +940,9 @@ def latency_breaches(targets, samples):
         if len(got) < LATENCY_MIN_SAMPLES:
             breaches.append(f"latency: `{stage}` has {len(got)} sample(s), needs {LATENCY_MIN_SAMPLES}")
             continue
+        if any(not math.isfinite(value) or value < 0 for value in got):
+            breaches.append(f"latency: `{stage}` has non-finite or negative duration samples")
+            continue
         p95 = bench.percentile(got, 95)
         line = f"{stage}: {len(got)} samples, p95 {p95:.3f}/{budget:.3f} s"
         if p95 > budget:
