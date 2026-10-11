@@ -120,6 +120,18 @@ public struct SystemPasteboard: Pasteboard {
         return pasteboard.changeCount
     }
 
+    /// Writes the files and accepts the write only when the pasteboard reads the same files back.
+    static func writeFiles(_ urls: [URL], to pasteboard: NSPasteboard) -> PasteboardWriteResult {
+        guard !urls.isEmpty else { return .refused }
+        pasteboard.prepareForNewContents(with: .currentHostOnly)
+        guard pasteboard.writeObjects(urls.map { $0 as NSURL }) else { return .refused }
+        let back =
+            pasteboard.readObjects(
+                forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]
+        guard back?.map(\.standardizedFileURL) == urls.map(\.standardizedFileURL) else { return .refused }
+        return .written(changeCount: pasteboard.changeCount)
+    }
+
     /// K4 — the picture flavour, announced by its bytes and kept off Universal Clipboard like every other write.
     public func setImage(_ data: Data) -> PasteboardWriteResult {
         let finishAnnouncement = willWritePicture(data)
@@ -163,13 +175,6 @@ func makeTaggedKeyPair(
         SyntheticEvent.tag(event)
     }
     return (keyDown, keyUp)
-}
-
-func buildThenPost<Input, Output>(
-    _ inputs: [Input], build: (Input) throws(TextInsertionError) -> Output,
-    post: ([Output]) -> Void
-) throws(TextInsertionError) {
-    post(try inputs.map(build))
 }
 
 func postTaggedKeyPairs(_ pairs: [(down: CGEvent, up: CGEvent)]) {
@@ -602,18 +607,6 @@ public struct AXAccessibilityFocus: AcceptanceFieldReader {
                 })
         }
         return false
-    }
-}
-
-/// Confirms the focused element is a writable text control before exposing it to insertion.
-enum FocusedTextFieldEligibility {
-    /// A readable selection alone does not establish that the element accepts text writes.
-    static func accepts(
-        role: String?, selectedTextIsReadable: () -> Bool, selectedTextIsSettable: () -> Bool
-    ) -> Bool {
-        FocusedElementPreference.isTextEntry(role)
-            && selectedTextIsReadable()
-            && selectedTextIsSettable()
     }
 }
 
