@@ -25,12 +25,13 @@ extension HistoryFixture {
     /// The Dictionary page over these inputs.
     static func dictionary(
         entries: [DictionaryEntry] = [], draft: DictionaryDraft? = nil, query: String = "",
-        filter: String = "", sort: String = "", corrections: [Correction] = []
+        filter: String = "", sort: String = "", corrections: [Correction] = [],
+        recency: WordRecency = .none
     ) -> DictionaryPresentation {
         DictionaryPresenter.page(
             for: DictionarySnapshot(
                 entries: entries, draft: draft, query: query, filter: filter, sort: sort,
-                corrections: corrections, now: now),
+                corrections: corrections, now: now, recency: recency),
             calendar: calendar, locale: locale)
     }
 }
@@ -54,7 +55,7 @@ struct DictionaryPageTests {
     func captionExcludesRetiredWords() {
         let page = HistoryFixture.dictionary(entries: [
             HistoryFixture.word("Uttrflow"),
-            HistoryFixture.word("Retired", used: 4, reverted: 3),
+            HistoryFixture.word("Retired", origin: .learned, used: 4, reverted: 3),
         ])
         #expect(
             page.chrome.caption
@@ -70,7 +71,7 @@ struct DictionaryPageTests {
                     // A day apart, so the newest-first list has no tie for identity to break.
                     HistoryFixture.word("Uttrflow", daysAgo: 1, used: 9),
                     HistoryFixture.word("pgvector", pronunciation: nil, daysAgo: 2, used: 2),
-                    HistoryFixture.word("Retired", daysAgo: 3, used: 4, reverted: 3),
+                    HistoryFixture.word("Retired", origin: .learned, daysAgo: 3, used: 4, reverted: 3),
                 ],
                 now: HistoryFixture.now, packed: ["Uttrflow"]),
             calendar: HistoryFixture.calendar, locale: HistoryFixture.locale)
@@ -199,7 +200,7 @@ struct DictionaryRetirementTests {
     @Test("a word undone more often than it is kept is drawn as retired")
     func retired() {
         let row = HistoryFixture.dictionary(entries: [
-            HistoryFixture.word("Kestrel", used: 10, reverted: 7)
+            HistoryFixture.word("Kestrel", origin: .learned, used: 10, reverted: 7)
         ]).rows[0]
 
         #expect(row.isRetired)
@@ -219,7 +220,7 @@ struct DictionaryRetirementTests {
     /// A way out that is harder to find than the problem is not a way out.
     @Test("a retired word offers to be restored")
     func restore() {
-        let entry = HistoryFixture.word(used: 10, reverted: 7)
+        let entry = HistoryFixture.word(origin: .learned, used: 10, reverted: 7)
         let row = HistoryFixture.dictionary(entries: [entry]).rows[0]
         #expect(row.actions.map(\.title) == ["Restore", "Edit", "Delete"])
         #expect(row.actions[0].intent == .restoreWords([entry.id]))
@@ -229,7 +230,7 @@ struct DictionaryRetirementTests {
     /// The undone corrections are the cause; a row that names them says what Restore alone will not fix.
     @Test("a retired word lists the heard spellings it was undone for, with counts")
     func undoneFor() throws {
-        let entry = HistoryFixture.word("Nikhil", used: 10, reverted: 7)
+        let entry = HistoryFixture.word("Nikhil", origin: .learned, used: 10, reverted: 7)
         let undone = { (heard: String, minutesAgo: Int) in
             HistoryFixture.correction(
                 heard: heard, wrote: "Nikhil", minutesAgo: minutesAgo, isUndone: true, entry: entry.id)
@@ -258,7 +259,9 @@ struct DictionaryRetirementTests {
     /// History is kept for a while only, so a retired word may have nothing left to show.
     @Test("a retired word whose undone corrections have aged out lists nothing")
     func agedOut() {
-        let row = HistoryFixture.dictionary(entries: [HistoryFixture.word(used: 10, reverted: 7)]).rows[0]
+        let row = HistoryFixture.dictionary(entries: [
+            HistoryFixture.word(origin: .learned, used: 10, reverted: 7)
+        ]).rows[0]
         #expect(row.undoneFor == nil)
     }
 
@@ -269,7 +272,7 @@ struct DictionaryRetirementTests {
             HistoryFixture.dictionary(entries: [HistoryFixture.word()]).footnote?
                 .contains("retires itself") == false)
         #expect(
-            HistoryFixture.dictionary(entries: [HistoryFixture.word(used: 10, reverted: 7)])
+            HistoryFixture.dictionary(entries: [HistoryFixture.word(origin: .learned, used: 10, reverted: 7)])
                 .footnote?.contains("retires itself") == true)
     }
 
@@ -555,12 +558,61 @@ struct DictionaryFilterTests {
         }
     }
 
-    @Test("the chips run All then the four sources, with the chosen one selected")
+    @Test("the chips run All, the four sources, then Not used lately, with the chosen one selected")
     func chips() {
         let chips = HistoryFixture.dictionary(entries: Self.words, filter: "learned").filters
-        #expect(chips.map(\.title) == ["All", "Added by you", "Learned", "Seen on screen", "Retired"])
+        #expect(
+            chips.map(\.title) == [
+                "All", "Added by you", "Learned", "Seen on screen", "Retired", "Not used lately",
+            ])
         #expect(chips.filter(\.isSelected).map(\.id) == ["learned"])
         #expect(HistoryFixture.dictionary(entries: Self.words).filters.first?.isSelected == true)
+    }
+
+    @Test("Not used lately lists exactly the words the recency calls stale, and deletes none")
+    func notUsedLately() {
+        let learned = HistoryFixture.word("Valkey", origin: .learned, daysAgo: 400)
+        let added = HistoryFixture.word("Uttrflow", origin: .added, daysAgo: 400)
+        let recency = WordRecency(
+            entries: Self.words + [learned, added],
+            evidence: [], now: HistoryFixture.now, evidenceDays: 365)
+        let page = HistoryFixture.dictionary(
+            entries: [learned, added], filter: "notUsedLately", recency: recency)
+        #expect(page.rows.map(\.word) == ["Valkey"])
+        #expect(page.filters.filter(\.isSelected).map(\.id) == ["notUsedLately"])
+        #expect(HistoryFixture.dictionary(entries: [learned, added], recency: recency).rows.count == 2)
+    }
+
+    @Test("Nothing stale says so under the Not used lately chip")
+    func nothingStale() {
+        let page = HistoryFixture.dictionary(entries: Self.words, filter: "notUsedLately")
+        #expect(page.rows.isEmpty)
+        #expect(page.emptyState?.message.contains("90 days") == true)
+    }
+
+    @Test("A row says when its word last appeared, Never when it has not, and a dash when unknown")
+    func lastUsed() {
+        let used = HistoryFixture.word("Valkey", origin: .learned, used: 3)
+        let unused = HistoryFixture.word("Kestrel", origin: .observed, used: 0)
+        let unknown = HistoryFixture.word("Anand", origin: .learned, used: 2)
+        let yesterday = HistoryFixture.now.addingTimeInterval(-86_400)
+        let recency = WordRecency(
+            entries: [used],
+            evidence: [
+                EvidenceRow(
+                    kind: .use, subject: used.id.uuidString, day: EvidenceRow.day(of: yesterday),
+                    provenance: .dictation)
+            ], now: HistoryFixture.now, evidenceDays: 365)
+        let rows = HistoryFixture.dictionary(entries: [used, unused, unknown], recency: recency).rows
+        let byWord = Dictionary(uniqueKeysWithValues: rows.map { ($0.word, $0.lastUsed) })
+        #expect(
+            byWord["Valkey"]
+                == MainFormatting.date(
+                    Date(timeIntervalSince1970: Double(EvidenceRow.day(of: yesterday)) * 86_400),
+                    now: HistoryFixture.now, calendar: HistoryFixture.calendar, locale: HistoryFixture.locale)
+        )
+        #expect(byWord["Kestrel"] == "Never")
+        #expect(byWord["Anand"] == "—")
     }
 
     @Test("there are no chips while there are no words")
@@ -577,7 +629,7 @@ struct DictionaryFilterTests {
         #expect(page.rows.isEmpty)
         #expect(page.emptyState?.title == "Nothing in this view")
         #expect(page.emptyState?.message.contains("retired") == true)
-        #expect(page.filters.count == 5)
+        #expect(page.filters.count == 6)
     }
 
     @Test("each source has a name, and an entry takes the one its origin gives")
@@ -836,7 +888,7 @@ struct DictionarySelectionTests {
 
     @Test("Restore selected restores only the ticked words that retired")
     func restoreSelected() throws {
-        let retired = HistoryFixture.word("Kestrel", used: 10, reverted: 7)
+        let retired = HistoryFixture.word("Kestrel", origin: .learned, used: 10, reverted: 7)
         let kept = HistoryFixture.word("Osprey")
         let rows = HistoryFixture.dictionary(entries: [retired, kept]).rows
         let bar = try #require(DictionaryPresenter.selection([retired.id, kept.id], in: rows))

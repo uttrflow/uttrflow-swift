@@ -177,7 +177,7 @@ public actor WhisperKitBackend: TranscriptionBackend {
             Self.report(transcript.effort)
             return transcript
         } catch {
-            throw .transcriptionFailed(description: error.localizedDescription)
+            throw .recognition(failedWith: error)
         }
     }
 
@@ -300,7 +300,7 @@ private struct RetryBackend: TranscriptionBackend {
                 vocabularyPrompt: decoded.vocabularyPrompt,
                 conditioning: decoded.conditioning, split: decoded.split)
         } catch {
-            throw .transcriptionFailed(description: error.localizedDescription)
+            throw .recognition(failedWith: error)
         }
     }
 }
@@ -363,7 +363,9 @@ private final class LoadedKit: @unchecked Sendable {
             for: options, tokenizer: tokenizer,
             bias: promptTokenizer.map {
                 PhraseBias(
-                    words: promptWords ? packing?.words ?? [] : vocabulary, using: $0, strength: phraseBias)
+                    words: DecodeBias.words(
+                        vocabulary: vocabulary, packed: packing?.words ?? [], promptWords: promptWords),
+                    using: $0, strength: phraseBias)
             })
         // Reassigned with the rules, so word timings always read the rows this call's prompt left them.
         kit.segmentSeeker = Self.seeker(for: options, tokenizer: tokenizer)

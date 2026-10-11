@@ -65,10 +65,9 @@ public struct SpacingPass: PieceCleaningPass {
         let left = text[..<at]
         let right = text[text.index(after: at)...]
         let mark = text[at]
-        // A function word never starts a dot-file name, as in "the.env", though "out.txt" is a file.
+        // Only a dot-file name splits off a function word, as in "the.env"; "out.txt" and "in.sql" are files.
         if mark == ".", left.count >= 2, left.allSatisfy(\.isLetter), FunctionWords.holds(left.lowercased()),
-            !right.isEmpty, right.allSatisfy(\.isLowercase),
-            !TechnicalToken.commonFileExtensions.contains(String(right))
+            TechnicalToken.dotFileNames.contains(String(right))
         {
             return (String(left), "." + right)
         }

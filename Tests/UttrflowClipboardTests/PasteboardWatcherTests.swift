@@ -16,6 +16,7 @@ final class FakeClipboard: ClipboardProvenanceSource, Sendable {
         var rtf: Data?
         var html: String?
         var picture: (data: Data, width: Int, height: Int)?
+        var files: [URL] = []
         var application: String?
         var bundleIdentifier: String?
         var markers: PasteboardMarkers = []
@@ -34,7 +35,8 @@ final class FakeClipboard: ClipboardProvenanceSource, Sendable {
     @discardableResult
     func write(
         _ text: String?, html: String? = nil, rtf: Data? = nil,
-        picture: (data: Data, width: Int, height: Int)? = nil, from application: String? = nil,
+        picture: (data: Data, width: Int, height: Int)? = nil, files: [URL] = [],
+        from application: String? = nil,
         marked markers: PasteboardMarkers = [], bundleIdentifier: String? = nil,
         declaredSource: String? = nil, remote: Bool = false
     ) -> Int {
@@ -44,6 +46,7 @@ final class FakeClipboard: ClipboardProvenanceSource, Sendable {
             $0.rtf = rtf
             $0.html = html
             $0.picture = picture
+            $0.files = files
             $0.application = application
             $0.bundleIdentifier = bundleIdentifier
             $0.markers = markers
@@ -88,6 +91,8 @@ final class FakeClipboard: ClipboardProvenanceSource, Sendable {
     }
 
     func rtf() -> Data? { state.withLock(\.rtf) }
+
+    func fileURLs() -> [URL] { state.withLock(\.files) }
 
     /// Arms a write that lands while the watcher is reading the markers of the copy before it.
     func writeWhileMarkersAreRead(_ text: String, marked markers: PasteboardMarkers = []) {
@@ -455,16 +460,27 @@ struct PasteboardWatcherTests {
         let clipboard = FakeClipboard()
         let watcher = watcher(clipboard)
         clipboard.write(nil, html: String(repeating: "<ul><li>x", count: 200_000))
-        let clock = ContinuousClock()
-        let start = clock.now
 
         let clip = try #require(await watcher.newClip(at: noon)?.clip)
 
-        #expect(start.duration(to: clock.now) < .seconds(5))
         #expect(!clip.text.isEmpty)
         #expect(clip.text.utf8.count <= ClipboardBudget.standard.largestClip)
         #expect(clip.text.hasSuffix("…"))
         #expect(clip.richText == nil)
+    }
+
+    /// The time bound on the same copy runs in `make bench`, since a parallel test run cannot keep a wall-clock limit honest.
+    @Test("a deeply nested HTML copy is read within five seconds")
+    func deeplyNestedHTMLStaysFast() async throws {
+        let clipboard = FakeClipboard()
+        let watcher = watcher(clipboard)
+        clipboard.write(nil, html: String(repeating: "<ul><li>x", count: 200_000))
+        let clock = ContinuousClock()
+        let start = clock.now
+
+        _ = await watcher.newClip(at: noon)
+
+        #expect(start.duration(to: clock.now) < .seconds(5))
     }
 
     @Test("uses the watcher's output limit and keeps the bounded plain form")

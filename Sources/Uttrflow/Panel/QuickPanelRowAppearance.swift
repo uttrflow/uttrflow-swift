@@ -45,23 +45,36 @@ struct QuickPanelSection: Identifiable {
 /// What VoiceOver reads for a row; a masked row reads as hidden and its text is never in the string.
 enum QuickPanelSpeech {
     static func label(for row: PanelRow) -> String {
-        let body = row.isMasked ? "hidden" : row.summary
+        let body =
+            row.isMasked ? "hidden" : row.fileNames.count > 1 ? filesSpoken(row.fileNames) : row.summary
         let details: [String?] =
             row.isMasked
             ? []
             : [
                 row.measurements,
                 row.checklist,
+                row.linkHost.map { "host \($0.host)" },
+                row.linkHost.flatMap {
+                    $0.warnings.isEmpty ? nil : "warning, " + $0.warnings.joined(separator: ", ")
+                },
                 row.language.map { "\($0) code" },
                 row.category.map { "Collection \($0)" },
             ]
         return
-            ([noun(for: row.kind), row.isPinned ? "Pinned" : nil, row.alias, body]
+            ([
+                noun(for: row.kind), row.isPinned ? "Pinned" : nil, row.alias,
+                row.tags.isEmpty ? nil : "Tags " + row.tags.joined(separator: ", "), body,
+            ]
             + details
             + [row.containsDisplayHazards ? "contains invisible or control characters" : nil, row.when])
             .compactMap { $0 }
             .filter { !$0.isEmpty }
             .joined(separator: ", ")
+    }
+
+    /// Each file named in copy order, since a row of several shows only the first.
+    static func filesSpoken(_ names: [String]) -> String {
+        "\(names.count) files: \(names.joined(separator: ", "))"
     }
 
     /// Spoken in place of the glyph, so a row is identifiable without being seen.
@@ -74,6 +87,7 @@ enum QuickPanelSpeech {
         case .colour: "Colour"
         case .filePath: "File path"
         case .image: "Image"
+        case .file: "File"
         }
     }
 

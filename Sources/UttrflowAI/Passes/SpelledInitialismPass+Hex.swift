@@ -35,17 +35,12 @@ extension SpelledInitialismPass {
     private static func hexCharacters(_ shape: WordShape) -> String? {
         if shape.isCutOff { return nil }
         if !shape.key.isEmpty, shape.key.allSatisfy({ $0.isASCII && $0.isNumber }) { return shape.key }
-        if let digit = hexDigitWords[shape.key] { return digit }
+        if let digit = NumberWords.spokenDigit(shape.key) { return String(digit) }
         guard !ambiguousHexNames.contains(shape.key), let letter = LetterRun.letter(named: shape.key),
             "ABCDEF".contains(letter)
         else { return nil }
         return letter.lowercased()
     }
-
-    private static let hexDigitWords: [String: String] = [
-        "zero": "0", "oh": "0", "one": "1", "two": "2", "three": "3", "four": "4",
-        "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9",
-    ]
 
     private static let ambiguousHexNames: Set<String> = ["be", "see"]
 

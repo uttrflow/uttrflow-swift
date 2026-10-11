@@ -21,6 +21,8 @@ public struct EvidenceRow: Sendable, Equatable, Codable {
         case pairConfirmed, pairVetoed, pairAllowed
         /// A pair whose written word a re-dictation within seconds dropped; a weak, capped undo. See `ConfusionPairs`.
         case pairRetried
+        /// One edit of a heard word into a written one, counted by keyed hash, and the day a pair is made an entry; see `PairLedger`.
+        case pairSighting, pairLearnt
         /// One measure from the person's guided read at setup, replaced as a set by the next reading; see ``CalibrationProfile``.
         case calibration
     }
@@ -134,7 +136,7 @@ public actor EvidenceLedgerStore {
     }
 
     /// Swaps every row of the given kinds for `newRows` in one write, so a failed write leaves the old rows whole.
-    public func replace(
+    func replace(
         kinds: Set<EvidenceRow.Kind>, with newRows: [EvidenceRow], keeping window: RetentionWindow
     ) throws {
         let stored = try load()

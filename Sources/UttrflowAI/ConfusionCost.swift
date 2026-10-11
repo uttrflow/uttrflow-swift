@@ -37,14 +37,12 @@ public enum ConfusionCost: Int, Sendable, Comparable, CaseIterable {
 
     /// The quantity words in order, so any change to them is a number flip.
     private static func quantities(in words: [String]) -> [String] {
-        words.filter { $0.allSatisfy(\.isNumber) || quantityWords.contains($0) }
+        words.filter { $0.allSatisfy(\.isNumber) || isQuantityWord($0) }
     }
 
-    /// Words that state an amount; "a"/"an" and "one" are left to the cosmetic class until measured error promotes them.
-    static let quantityWords: Set<String> = [
-        "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve",
-        "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty",
-        "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety", "hundred", "thousand",
-        "million", "billion", "half", "quarter", "dozen", "percent",
-    ]
+    /// Whether a word states an amount; "a"/"an", "zero" and "one" are left to the cosmetic class until measured error promotes them.
+    static func isQuantityWord(_ word: String) -> Bool {
+        if let value = NumberWords.value(of: word) { return value > 1 }
+        return QuantityWords.quantities.contains(word)
+    }
 }

@@ -11,7 +11,7 @@ public struct ConcealedClipboardClear: Sendable {
     }
 
     /// Seconds a secret stays on the clipboard unless the person chooses otherwise.
-    public static let defaultSeconds = 60
+    static let defaultSeconds = 60
 
     /// Schedules the clear for one write; `nil` when off or the write's generation is unknown.
     @discardableResult

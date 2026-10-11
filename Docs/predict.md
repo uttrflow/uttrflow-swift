@@ -210,9 +210,7 @@ AI suggestions screen. The answer is kept in
 `~/Library/Application Support/Uttrflow/predict-consent.v1.json` (`CapturePreferencesFile`, written
 through `PrivateFile`), written the first time the loop meets an application the screen allows and
 rewritten when a switch there moves. An application the loop has met is listed whether or not it
-has taught anything. Importing a shell's history (`ShellHistory`) asks the same question of the
-terminal it seeds: an application not yet allowed, or declined, gets nothing, and the one-time
-import stays unspent until it is allowed.
+has taught anything. Nothing reads a shell's history: the terminal learns only from what is typed in it.
 
 Dictation asks the same file before it learns (`LearningConsent` in `UttrflowCore`): the dictionary
 learner and the usage counts write nothing about an application the user declined. An application
@@ -224,6 +222,15 @@ teaches nothing whatever the answer. One reset removes the file, so it forgets t
 
 The importer reads history from the end in 64 KiB chunks, keeps the newest 5,000 distinct
 commands in chronological order, and skips Bash's epoch timestamp lines.
+
+Typing capture also refuses two cases the application's answer cannot see. A window whose title
+carries `(Incognito)`, `InPrivate` or `Private Browsing` (`FieldReading.isInPrivateWindow`) teaches
+nothing whatever the application's answer, and its page host is never written as a scope. Titles are
+the only sign of a private window the capture path reads, so a browser that does not put one in the
+title is not detected: the limit is the browser's, not a promise. The applications in
+`SuggestionApplications.privateByDefault` (password managers, remote-desktop clients, virtual
+machines) are not learned from until the user allows them on the AI suggestions screen. No list of
+banking applications ships.
 
 Both sides file an application under `ApplicationKey`, its bundle identifier lowercased, because
 macOS is not consistent about case and the switch and the field reading see the identifier from
@@ -572,7 +579,7 @@ say why nothing was drawn:
 
 | Order | Reason | When |
 |---|---|---|
-| 1 | `turnedOffHere` | Off in this field (⎋⎋, ⌥⎋ or the preferences) |
+| 1 | `turnedOffHere` | Off in this field (⌥⎋ or the preferences) |
 | 2 | `secureField` | The field hides what is typed |
 | 3 | `composing` | The field reports marked text ([predict-ime.md](predict-ime.md)) |
 | 4 | `unknownWritingDirection` | The glyph bounds do not say which side the continuation belongs on |

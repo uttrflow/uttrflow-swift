@@ -143,12 +143,17 @@ struct OnboardingPresenterTests {
         }
     }
 
-    @Test("only the page a person is agreeing on carries the terms")
-    func onlySignInCarriesTheTerms() {
+    @Test("only the sign-in page links the published Privacy page, and no page names Terms")
+    func onlySignInLinksPrivacy() {
         let agreeing = page(OnboardingState(step: .signIn, detail: .signIn(.offering)))
-        #expect(agreeing.showsTerms)
+        #expect(agreeing.legal == PublishedLegalLink.privacy)
+        #expect(agreeing.legal?.destination.absoluteString == "https://uttrflow.com/privacy")
         for state in everyState where state.step != .signIn {
-            #expect(!page(state).showsTerms, "\(state)")
+            #expect(page(state).legal == nil, "\(state)")
+        }
+        for state in everyState {
+            let words = [page(state).legal?.title, page(state).accessibilityLabel].compactMap(\.self)
+            #expect(!words.contains { $0.localizedCaseInsensitiveContains("terms") }, "\(state)")
         }
     }
 
@@ -641,11 +646,11 @@ struct OnboardingPresenterTests {
         #expect(page.buttons.map(\.isSelected) == [true, false, false])
         #expect(
             page.hint
-                == "Uttrflow keeps what you copy for up to 7 days. It stays on this Mac. Change it in Settings › General."
+                == "Uttrflow keeps what you copy for up to 7 days. It stays on this Mac. Change it in Settings › Privacy."
         )
         let pinned = "Clips you pin, name or put in a collection have no time limit."
         #expect(page.explanation?.contains(pinned) == true)
-        #expect(page.explanation?.contains("exclude apps, in Settings › General.") == true)
+        #expect(page.explanation?.contains("exclude apps, in Settings › Privacy.") == true)
     }
 
     @Test("says the stored period, not the default one")
@@ -666,7 +671,7 @@ struct OnboardingPresenterTests {
             for: state, hotkey: Settings.default.hotkey, clipboardEnabled: false)
 
         #expect(page.buttons.map(\.isSelected) == [false, true, false])
-        #expect(page.hint == "Copies are not kept while this is off. Turn it on in Settings › General.")
+        #expect(page.hint == "Copies are not kept while this is off. Turn it on in Settings › Privacy.")
         #expect(page.explanation == page.hint)
     }
 }

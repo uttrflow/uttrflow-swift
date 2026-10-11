@@ -1,6 +1,7 @@
 public import struct Foundation.Date
 public import struct Foundation.Locale
 public import struct Foundation.ByteCountFormatStyle
+import UttrflowClipboard
 import UttrflowCore
 import UttrflowPredict
 public import UttrflowSettings
@@ -164,6 +165,9 @@ public enum SettingsPresenter {
         }
     }
 
+    /// Said under a claimed shortcut, since other apps stop receiving its keys while it is set.
+    static let claimsTheKeys = "While set, it takes these keys from other apps."
+
     /// One shortcut's row, drawn the same way whichever shortcut it is.
     private static func shortcutRow(
         _ descriptor: ShortcutDescriptor, _ settings: Settings,
@@ -186,6 +190,8 @@ public enum SettingsPresenter {
                 """
             } else if descriptor.action == .dictate, let binding {
                 dictateExplanation(settings.hotkeyActivation, keys: SettingsShortcut.compact(binding))
+            } else if descriptor.delivery == .claimed, binding != nil, let sentence = descriptor.explanation {
+                sentence + " " + claimsTheKeys
             } else {
                 descriptor.explanation
             }
@@ -249,6 +255,15 @@ public enum SettingsPresenter {
                     style: .inset),
                 at: 3)
         }
+        shortcuts.append(
+            SettingsRow(
+                id: "restoreDefaultShortcuts",
+                label: "Restore default shortcuts",
+                explanation: "Puts every shortcut back and leaves everything else as it is.",
+                control: .action(title: "Restore Defaults", change: .restoreDefaultShortcuts),
+                unavailability: settings.shortcuts == .default
+                    ? "Every shortcut is already the default." : nil,
+                icon: .symbol("arrow.counterclockwise", .neutral)))
         shortcuts.append(
             SettingsRow(
                 id: "activation",
@@ -348,6 +363,13 @@ public enum SettingsPresenter {
                             explanation: "Copies attributed to these apps are skipped.",
                             control: .action(title: "Manage…", change: .manageClipboardExclusions),
                             icon: .symbol("hand.raised", .amber)),
+                        toggleRow(
+                            .confirmsHiddenClipPaste,
+                            label: "Confirm hidden clips",
+                            explanation:
+                                "Ask before a hidden clip is pasted into a field that may show it. Hidden fields still paste at once.",
+                            settings, capabilities
+                        ).with(icon: .symbol("eye.slash", .amber)),
                         SettingsRow(
                             id: "clipboard-pause", label: "Clipboard capture",
                             explanation: capabilities.clipboardCapturePaused
@@ -515,16 +537,16 @@ public enum SettingsPresenter {
         switch reason {
         case .appleIntelligenceDisabled:
             label = "Apple Intelligence is switched off"
-            explanation = "Turn it on in System Settings to use full tidying."
+            explanation = "Turn it on in System Settings to use full clean-up."
             control = .action(
                 title: "Open System Settings", change: .openSystemSettings(.appleIntelligence))
         case .modelNotReady:
             label = "Apple Intelligence model is downloading"
-            explanation = "Full tidying will be available when the download finishes."
+            explanation = "Full clean-up will be available when the download finishes."
             control = .status("Downloading")
         case .deviceNotEligible:
             label = "This Mac cannot run Apple Intelligence"
-            explanation = "Uttrflow will continue tidying with its built-in rules."
+            explanation = "Uttrflow will continue cleaning up with its built-in rules."
             control = .status("Unavailable")
         case .other(let detail):
             label = "Apple Intelligence is unavailable"
@@ -563,7 +585,7 @@ public enum SettingsPresenter {
                     id: "spoken", title: "Languages you speak",
                     rows: [listenForRow(settings), pausesRow(settings)]),
                 SettingsGroup(
-                    id: "tidying", title: "Tidying up",
+                    id: "tidying", title: "Clean-up",
                     rows: [tidyingRow(level, capabilities)]
                         + [foundationModelAvailabilityRow(capabilities)].compactMap(\.self)),
             ],
@@ -585,7 +607,7 @@ public enum SettingsPresenter {
         _ personalisation: SettingsPersonalisation
     ) -> SettingsPane {
         let availabilityGroups = [foundationModelAvailabilityRow(capabilities)].compactMap { row in
-            row.map { SettingsGroup(id: "tidyingAvailability", title: "Tidying availability", rows: [$0]) }
+            row.map { SettingsGroup(id: "tidyingAvailability", title: "Clean-up availability", rows: [$0]) }
         }
         return SettingsPane(
             tab: .dictation,
@@ -599,7 +621,7 @@ public enum SettingsPresenter {
                 SettingsDestinations.plainTextApps(
                     personalisation.plainTextApps, overrides: settings.destinations),
 
-                SettingsDestinations.steps(settings.cleaning),
+                SettingsDestinations.steps(settings.cleaning, previewer: capabilities.cleaningPreviewer),
                 SettingsGroup(
                     id: "learned",
                     title: "What Uttrflow has picked up",
@@ -687,7 +709,8 @@ public enum SettingsPresenter {
                 SettingsGroup(
                     id: "retention",
                     title: "Your data",
-                    rows: [retentionRow(settings)] + storageRows(personalisation.storage, settings: settings)
+                    rows: [retentionRow(settings), clipboardRetentionRow(settings), clipboardLimitsRow]
+                        + storageRows(personalisation.storage, settings: settings)
                         + [
                             toggleRow(
                                 .sharesUsageStatistics,
@@ -713,7 +736,7 @@ public enum SettingsPresenter {
                 SettingsGroup(
                     id: "reset",
                     title: "Start over",
-                    rows: [forgetLearnedRow(personalisation), resetRow(personalisation)]),
+                    rows: [forgetLearnedRow(personalisation), clearClipboardRow, resetRow(personalisation)]),
             ],
             callout: SettingsCallout(
                 symbolName: "lock",
@@ -770,34 +793,6 @@ public enum SettingsPresenter {
     public static let recordingsPromise =
         "Audio is deleted the moment it becomes text, and kept on this Mac for a day only "
         + "if some of it couldn’t be, so you can retry."
-
-    /// The menu id of following the system default input.
-    static let systemDefaultMicrophone = "system-default"
-
-    /// System default first, then every input present; a chosen device that is absent stays listed as missing.
-    static func microphoneRow(_ settings: Settings, _ capabilities: SettingsCapabilities) -> SettingsRow {
-        let present = capabilities.microphones.map { device in
-            SettingsOption(id: device.uid, title: device.name, change: .microphone(uid: device.uid))
-        }
-        let chosen = settings.microphoneUID
-        let absent =
-            chosen.flatMap { uid in
-                present.contains { $0.id == uid }
-                    ? nil
-                    : SettingsOption(
-                        id: uid, title: "Chosen microphone (not connected)", change: .microphone(uid: uid))
-            }
-        let systemDefault = SettingsOption(
-            id: systemDefaultMicrophone, title: "System default", change: .microphone(uid: nil))
-        return SettingsRow(
-            id: "microphone",
-            label: "Microphone",
-            explanation: "When the chosen one is not connected, dictation uses the system default.",
-            control: .menu(
-                options: [systemDefault] + present + [absent].compactMap(\.self),
-                selectedID: chosen ?? systemDefaultMicrophone),
-            icon: .symbol("mic", .dictation))
-    }
 
     /// The order the theme is offered in: following the Mac first, then the two fixed looks.
     static let offeredAppearances: [AppAppearance] = [.system, .light, .dark]
@@ -905,7 +900,7 @@ public enum SettingsPresenter {
         let days = settings.transcriptRetentionDays
         return SettingsRow(
             id: "transcripts",
-            label: "Keep transcripts for",
+            label: "Keep dictations for",
             explanation: "Choose a limit to delete older ones automatically",
             control: .menu(
                 options: SettingsRetention.offeredDays.map { offered in
@@ -917,65 +912,64 @@ public enum SettingsPresenter {
             icon: .symbol("clock", .info))
     }
 
-    /// One read-only row per store a person would recognise, saying what it occupies on this Mac.
-    static func storageRows(_ storage: [LocalStoreUsage], settings: Settings = .default) -> [SettingsRow] {
-        storage.sorted { storageRank($0.entry) < storageRank($1.entry) }.compactMap { usage in
-            storageLabel(usage.entry).map { label in
-                SettingsRow(
-                    id: "storage.\(usage.entry.rawValue)",
-                    label: label,
-                    explanation: storageExplanation(usage, settings: settings),
-                    control: .status(usage.bytes.formatted(.byteCount(style: .file))))
-            }
-        }
+    /// How long copied text and pictures stay in the clipboard history, and what keeps dictation clips apart.
+    private static func clipboardRetentionRow(_ settings: Settings) -> SettingsRow {
+        SettingsRow(
+            id: "clipboardRetention",
+            label: "Keep clipboard history for",
+            explanation:
+                "Dictation clips follow Keep transcripts for. Pinned, named and filed clips have no time limit.",
+            control: .menu(
+                options: SettingsRetention.offeredDays.map { offered in
+                    SettingsOption(
+                        id: String(offered), title: SettingsRetention.title(days: offered),
+                        change: .clipboardRetention(days: offered))
+                },
+                selectedID: String(settings.clipboardRetentionDays)),
+            icon: .symbol("list.clipboard", .info))
     }
 
-    /// How many files a store holds, how old the oldest is, and the rule that removes them, when one exists.
-    static func storageExplanation(_ usage: LocalStoreUsage, settings: Settings) -> String {
-        var parts: [String] = []
-        if usage.files == 0 {
-            parts.append("Nothing stored")
-        } else {
-            parts.append(counted(usage.files, "file", "files"))
-            if let oldest = usage.oldest {
-                parts.append("oldest from \(oldest.formatted(date: .abbreviated, time: .omitted))")
-            }
-        }
-        if let rule = storageRetention(usage.entry, settings: settings) { parts.append(rule) }
-        return parts.joined(separator: ". ")
+    /// The fixed bounds the clipboard keeps within, read from the budget the store enforces.
+    private static var clipboardLimitsRow: SettingsRow {
+        let budget = ClipboardBudget.standard
+        func size(_ bytes: Int) -> String { bytes.formatted(.byteCount(style: .file)) }
+        let picture =
+            budget.images.days.map { "Pictures are kept for \($0) days at most" } ?? "Pictures are limited"
+        return SettingsRow(
+            id: "clipboardLimits",
+            label: "Clipboard limits",
+            explanation:
+                "Up to \(budget.copied.items) clips of each kind, \(size(budget.largestClip)) each. "
+                + "\(picture), within \(size(budget.images.bytes)) of thumbnails and \(size(budget.disk)) of files. "
+                + "The clip used least recently goes first.",
+            control: .status("Fixed"),
+            icon: .symbol("gauge.with.dots.needle.50percent", .info))
     }
 
-    /// The retention each store is swept by, named only where a setting or a fixed period decides it.
-    private static func storageRetention(_ entry: LocalStoreEntry, settings: Settings) -> String? {
-        switch entry {
-        case .dictationHistory: keepRule(days: settings.transcriptRetentionDays)
-        case .clipboard: keepRule(days: settings.clipboardRetentionDays)
-        case .recordings: "Deleted after 24 hours"
-        default: nil
-        }
+    /// Clears the history and says what stays; the store call spares pinned, named and filed clips.
+    private static var clearClipboardRow: SettingsRow {
+        let kept = "Pinned, named and filed clips, your dictionary, snippets and settings stay."
+        return SettingsRow(
+            id: "clearClipboard",
+            label: "Clear clipboard history",
+            explanation: "Deletes copied text, pictures and dictation clips. \(kept)",
+            control: .removal(
+                SettingsRemoval(
+                    reset: .clipboardHistory, title: "Clear…",
+                    confirmation: SettingsConfirmation(
+                        title: "Clear clipboard history?",
+                        message: "This deletes every clip that is not pinned, named or filed. \(kept) "
+                            + "This cannot be undone.",
+                        confirmTitle: "Clear", cancelTitle: "Cancel"))),
+            unavailability: SettingsEditor.unavailability(
+                of: .clipboardHistory, given: .nothing),
+            icon: .symbol("list.clipboard", .danger))
     }
-
-    private static func keepRule(days: Int) -> String {
-        SettingsRetention.isAlways(days: days)
-            ? "Kept until you delete it" : "Deleted after \(SettingsRetention.title(days: days))"
-    }
-
-    /// Where a store sits in the list: the order ``storageLabel(_:)`` names them in, speech first.
-    private static func storageRank(_ entry: LocalStoreEntry) -> Int {
-        storageOrder.firstIndex(of: entry) ?? storageOrder.count
-    }
-
-    private static let storageOrder: [LocalStoreEntry] = [
-        .dictationHistory, .recordings, .personalDictionary, .snippets, .evidenceLedger, .predict,
-        .predictConsent, .clipboard, .clipboardImages, .savedClips, .notSecretClips, .clipboardPreferences,
-        .networkActivity,
-        .speechModels, .speechModelLoads,
-    ]
 
     /// The name each store goes by in the Privacy pane; the key and the lock are the app's own, so they have none.
     static func storageLabel(_ entry: LocalStoreEntry) -> String? {
         switch entry {
-        case .dictationHistory: "Transcripts"
+        case .dictationHistory: "Dictations"
         case .recordings: "Recordings"
         case .personalDictionary: "Dictionary"
         case .snippets: "Snippets"
@@ -1134,7 +1128,7 @@ public enum SettingsPresenter {
     /// The transcript half, or `nil` when there are none saved.
     private static func transcriptsPhrase(_ personalisation: SettingsPersonalisation) -> String? {
         guard personalisation.transcripts > 0 else { return nil }
-        return counted(personalisation.transcripts, "saved transcript", "saved transcripts")
+        return counted(personalisation.transcripts, "saved dictation", "saved dictations")
     }
 
     /// A number and the noun that agrees with it, in one place, so "1 words" cannot appear.
@@ -1180,6 +1174,7 @@ public enum SettingsPresenter {
         case .suggestionsEnabled: settings.suggestions.isEnabled
         case .quietSuggestions: settings.suggestions.isQuiet
         case .learnsFromDictation: settings.learnsFromDictation
+        case .confirmsHiddenClipPaste: settings.confirmsHiddenClipPaste
         }
     }
 }

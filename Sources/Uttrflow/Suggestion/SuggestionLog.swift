@@ -30,9 +30,9 @@ enum SuggestionLog {
 
     /// Why nothing is drawn for the focused field's current line.
     static func quiet(
-        typed: String, reason: String, rejections: Int, silencedHere: Bool, enabled: Bool
+        typed: String, reason: String, rejections: Int, enabled: Bool
     ) -> String {
-        "QUIET typedChars=\(typed.count) reason=\(reason) rejections=\(rejections) silencedHere=\(silencedHere) enabled=\(enabled)"
+        "QUIET typedChars=\(typed.count) reason=\(reason) rejections=\(rejections) enabled=\(enabled)"
     }
 
     /// A model pass that threw, named by its error's type and case.

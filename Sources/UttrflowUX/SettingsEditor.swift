@@ -36,6 +36,12 @@ public enum SettingsEditor {
             if let clash = clash(for: action, binding: binding, in: updated) { throw clash }
             updated.shortcuts.replace(at: 0, with: binding, for: action)
             updated.shortcutsReturnedToDefault.remove(action)
+        case .clearShortcut(let action):
+            updated.shortcuts.removeAll(from: action)
+            updated.shortcutsReturnedToDefault.remove(action)
+        case .restoreDefaultShortcuts:
+            updated.shortcuts = .default
+            updated.shortcutsReturnedToDefault = []
         case .tidying(let level):
             try applyTidying(level, to: &updated, given: capabilities)
         case .spokenLanguage(let code, let isSpoken):
@@ -77,6 +83,8 @@ public enum SettingsEditor {
             updated.endOnSilenceSeconds = seconds
         case .retention(let days):
             try applyRetention(days: days, to: &updated)
+        case .clipboardRetention(let days):
+            try applyRetention(days: days, to: &updated, field: \.clipboardRetentionDays)
         case .cleaningStep(let step, let isOn):
             try applyCleaningStep(step, isOn: isOn, to: &updated)
         case .appDestination(let bundle, let name, let destination):
@@ -137,6 +145,7 @@ public enum SettingsEditor {
         case .suggestionsEnabled: settings.suggestions.isEnabled = isOn
         case .quietSuggestions: settings.suggestions.isQuiet = isOn
         case .learnsFromDictation: settings.learnsFromDictation = isOn
+        case .confirmsHiddenClipPaste: settings.confirmsHiddenClipPaste = isOn
         }
     }
 
@@ -176,7 +185,7 @@ public enum SettingsEditor {
             capabilities.canCheckForUpdates
                 ? nil
                 : "This build has no update feed, so there is nothing to check."
-        case .suggestionsEnabled, .sendsCrashReports, .learnsFromDictation:
+        case .suggestionsEnabled, .sendsCrashReports, .learnsFromDictation, .confirmsHiddenClipPaste:
             nil
         case .quietSuggestions:
             settings.suggestions.isEnabled ? nil : suggestionsAreOff
@@ -315,7 +324,7 @@ public enum SettingsEditor {
         if case .unavailable(let reason) = capabilities.foundationModelAvailability {
             return reason.diagnosticDescription + ". Uttrflow will still apply its rules."
         }
-        return "Full tidying is not available on this Mac yet, so Uttrflow will still apply its rules."
+        return "Full clean-up is not available on this Mac yet, so Uttrflow will still apply its rules."
     }
 
     // MARK: - Languages
@@ -404,6 +413,9 @@ public enum SettingsEditor {
         case .everything:
             // Always available: there are always preferences to put back.
             nil
+        case .clipboardHistory:
+            // The history is not counted here, and clearing an empty one is harmless.
+            nil
         case .suggestions(let application):
             personalisation.suggestions(from: application) > 0
                 ? nil
@@ -424,6 +436,8 @@ public enum SettingsEditor {
         switch reset {
         case .learnedWords, .suggestions, .persona, .personaFact:
             "Uttrflow could not write to the disk, so nothing was forgotten. Try again."
+        case .clipboardHistory:
+            "Uttrflow could not write to the disk, so some clips may still be here. Try again."
         case .everything:
             "Uttrflow could not write to the disk, so some of this may still be here. Try again."
         }
@@ -434,12 +448,13 @@ public enum SettingsEditor {
     /// Writes a retention period, refusing any the store would not round-trip.
     private static func applyRetention(
         days: Int,
-        to settings: inout Settings
+        to settings: inout Settings,
+        field: WritableKeyPath<Settings, Int> = \.transcriptRetentionDays
     ) throws(SettingsRejection) {
         guard SettingsRetention.offeredDays.contains(days) else {
             throw SettingsRejection(
                 reason: "Choose one of the periods offered; anything else is not kept.")
         }
-        settings.transcriptRetentionDays = days
+        settings[keyPath: field] = days
     }
 }

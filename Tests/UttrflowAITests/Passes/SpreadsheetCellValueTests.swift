@@ -17,7 +17,7 @@ struct SpreadsheetCellValueTests {
         "writes each value shape the same way under either grouping",
         arguments: [
             ("twelve thousand", "12,000"), ("five percent", "5%"), ("twelve point five", "12.5"),
-            ("twelve dollars fifty", "12 dollars 50"), ("minus forty two", "-42"),
+            ("twelve dollars fifty", "12.50 dollars"), ("minus forty two", "-42"),
             ("three point one four", "3.14"), ("twenty five thousand rupees", "25,000 rupees"),
             ("zero point five percent", "0.5%"),
         ])

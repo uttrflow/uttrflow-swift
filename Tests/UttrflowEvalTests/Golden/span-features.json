@@ -1,0 +1,2021 @@
+{
+  "arpa" : "\\data\\\nngram 1=45\nngram 2=13\n\n\\1-grams:\n-2.0 <unk>\n-1.0 a -0.4\n-1.3 bare\n-1.6 bear\n-1.9 cache\n-2.2 cash\n-2.5 check\n-2.8 file\n-1.0 flour\n-1.3 flower\n-1.6 hear\n-1.9 here\n-2.2 hit\n-2.5 knew\n-2.8 kovlin\n-1.0 kuvlin\n-1.3 list\n-1.6 load\n-1.9 mail\n-2.2 male\n-2.5 meat\n-2.8 meet\n-1.0 miss\n-1.3 my -0.4\n-1.6 new\n-1.9 open\n-2.2 plain\n-2.5 plane\n-2.8 please\n-1.0 queue\n-1.3 right\n-1.6 sea\n-1.9 see\n-2.2 store\n-2.5 the -0.4\n-2.8 their\n-1.0 there\n-1.3 to\n-1.6 two\n-1.9 vector\n-2.2 vektor\n-2.5 we -0.4\n-2.8 write\n-1.0 zorblat\n-1.3 zorplat\n\n\\2-grams:\n-1.1 the cache\n-0.6 the cash\n-2.9 my file\n-2.9 we hit\n-1.1 a list\n-2.2 check the\n-0.6 open the\n-0.6 please check\n-2.9 the queue\n-2.9 cache hit\n-1.1 hit the\n-0.3 load the\n-0.6 the store\n\n\\end\\\n",
+  "cases" : [
+    {
+      "after" : [
+        "check"
+      ],
+      "agreement" : 1,
+      "before" : [
+
+      ],
+      "candidate" : "here",
+      "expected" : [
+        "2.01896517995e-01",
+        "-8.60436650970e-01",
+        "6.65612347580e-02",
+        "1.00000000000e+00",
+        "1.00000000000e+00",
+        "1.00000000000e+00",
+        "0.00000000000e+00",
+        "-3.00000190735e-01",
+        "-7.14589639821e-02"
+      ],
+      "firstSource" : 1,
+      "heard" : "hear",
+      "persona" : {
+        "counts" : {
+          "hear" : 28,
+          "here" : 26
+        }
+      },
+      "tokens" : [
+        {
+          "alternatives" : [
+            -2
+          ],
+          "logProb" : -1.6
+        },
+        {
+          "alternatives" : [
+            -1.2,
+            -2
+          ],
+          "logProb" : -1.6
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+
+      ],
+      "agreement" : 3,
+      "before" : [
+        "queue"
+      ],
+      "candidate" : "bare",
+      "expected" : [
+        "7.11770322763e-01",
+        "-1.73121051718e-01",
+        "9.04837418036e-01",
+        "1.00000000000e+00",
+        "3.00000000000e+00",
+        "1.00000000000e+00",
+        "0.00000000000e+00",
+        "0.00000000000e+00",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 1,
+      "heard" : "bear",
+      "tokens" : [
+        {
+          "alternatives" : [
+
+          ],
+          "logProb" : -0.1
+        },
+        {
+          "alternatives" : [
+
+          ],
+          "logProb" : -0.9
+        },
+        {
+          "alternatives" : [
+            -3.1,
+            -2
+          ],
+          "logProb" : -0.02
+        }
+      ],
+      "useContext" : false
+    },
+    {
+      "after" : [
+
+      ],
+      "agreement" : 3,
+      "before" : [
+        "we",
+        "queue"
+      ],
+      "candidate" : "their",
+      "expected" : [
+        "4.06569659741e-01",
+        "-1.13623544951e+00",
+        "1.05375447828e-01",
+        "1.00000000000e+00",
+        "3.00000000000e+00",
+        "1.00000000000e+00",
+        "0.00000000000e+00",
+        "-1.79999995232e+00",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 1,
+      "heard" : "there",
+      "tokens" : [
+        {
+          "alternatives" : [
+            -1.2,
+            -4.5,
+            -1.2
+          ],
+          "logProb" : -0.9
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+        "queue"
+      ],
+      "agreement" : 3,
+      "before" : [
+
+      ],
+      "candidate" : "there",
+      "expected" : [
+        "5.00000000000e-01",
+        "-6.93147180560e-01",
+        "0.00000000000e+00",
+        "3.00000000000e+00",
+        "3.00000000000e+00",
+        "1.00000000000e+00",
+        "0.00000000000e+00",
+        "1.79999995232e+00",
+        "1.76930708159e-01"
+      ],
+      "firstSource" : 3,
+      "heard" : "their",
+      "persona" : {
+        "counts" : {
+          "their" : 30,
+          "there" : 36
+        }
+      },
+      "tokens" : [
+
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+        "file",
+        "miss"
+      ],
+      "agreement" : 2,
+      "before" : [
+
+      ],
+      "candidate" : "their list",
+      "expected" : [
+        "6.31283645507e-01",
+        "-9.82038067930e-01",
+        "1.05375447828e-01",
+        "1.00000000000e+00",
+        "2.00000000000e+00",
+        "1.11111111111e+00",
+        "4.00000000000e+00",
+        "-1.99999809265e-01",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 1,
+      "heard" : "there the",
+      "tokens" : [
+        {
+          "alternatives" : [
+            -3.1,
+            -3.1,
+            -1.2
+          ],
+          "logProb" : -0.9
+        },
+        {
+          "alternatives" : [
+            -1.2,
+            -1.2
+          ],
+          "logProb" : -0.02
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+        "open",
+        "queue"
+      ],
+      "agreement" : 2,
+      "before" : [
+        "a"
+      ],
+      "candidate" : "vektor",
+      "expected" : [
+        "6.70320046036e-01",
+        "-2.35071623130e-01",
+        "6.25270843642e-01",
+        "1.00000000000e+00",
+        "2.00000000000e+00",
+        "1.00000000000e+00",
+        "4.00000000000e+00",
+        "0.00000000000e+00",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 1,
+      "heard" : "vector",
+      "tokens" : [
+        {
+          "alternatives" : [
+            -3.1
+          ],
+          "logProb" : -0.4
+        }
+      ],
+      "useContext" : false
+    },
+    {
+      "after" : [
+        "we"
+      ],
+      "agreement" : 1,
+      "before" : [
+        "the"
+      ],
+      "candidate" : "bear",
+      "expected" : [
+        "3.80348756589e-01",
+        "-5.64445739183e-01",
+        "3.69125834123e-01",
+        "1.00000000000e+00",
+        "1.00000000000e+00",
+        "1.00000000000e+00",
+        "0.00000000000e+00",
+        "-3.00000190735e-01",
+        "1.33500106673e+00"
+      ],
+      "firstSource" : 1,
+      "heard" : "bare",
+      "persona" : {
+        "counts" : {
+          "bare" : 4,
+          "bear" : 18
+        }
+      },
+      "tokens" : [
+        {
+          "alternatives" : [
+            -1.2,
+            -1.2
+          ],
+          "logProb" : -0.4
+        },
+        {
+          "alternatives" : [
+
+          ],
+          "logProb" : -0.9
+        },
+        {
+          "alternatives" : [
+            -1.2
+          ],
+          "logProb" : -1.6
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+        "the",
+        "file"
+      ],
+      "agreement" : 2,
+      "before" : [
+        "my"
+      ],
+      "candidate" : "vector",
+      "expected" : [
+        "1.65298888222e-01",
+        "-4.57678880662e-01",
+        "-2.19109213288e-01",
+        "1.00000000000e+00",
+        "2.00000000000e+00",
+        "1.00000000000e+00",
+        "4.00000000000e+00",
+        "3.00000190735e-01",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 1,
+      "heard" : "vektor",
+      "tokens" : [
+        {
+          "alternatives" : [
+            -1.2
+          ],
+          "logProb" : -2.5
+        },
+        {
+          "alternatives" : [
+
+          ],
+          "logProb" : -2.5
+        },
+        {
+          "alternatives" : [
+            -2,
+            -4.5,
+            -2
+          ],
+          "logProb" : -0.4
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+
+      ],
+      "agreement" : 2,
+      "before" : [
+        "queue",
+        "we"
+      ],
+      "candidate" : "new",
+      "expected" : [
+        "5.00000000000e-01",
+        "-6.93147180560e-01",
+        "0.00000000000e+00",
+        "0.00000000000e+00",
+        "2.00000000000e+00",
+        "7.50000000000e-01",
+        "0.00000000000e+00",
+        "9.00000095367e-01",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 0,
+      "heard" : "knew",
+      "tokens" : [
+
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+
+      ],
+      "agreement" : 3,
+      "before" : [
+
+      ],
+      "candidate" : "mail",
+      "expected" : [
+        "4.06569659741e-01",
+        "0.00000000000e+00",
+        "4.06569659741e-01",
+        "3.00000000000e+00",
+        "3.00000000000e+00",
+        "1.00000000000e+00",
+        "0.00000000000e+00",
+        "0.00000000000e+00",
+        "1.38629436112e+00"
+      ],
+      "firstSource" : 3,
+      "heard" : "male",
+      "persona" : {
+        "counts" : {
+          "mail" : 39,
+          "male" : 9
+        }
+      },
+      "tokens" : [
+        {
+          "alternatives" : [
+
+          ],
+          "logProb" : -0.9
+        }
+      ],
+      "useContext" : false
+    },
+    {
+      "after" : [
+        "the"
+      ],
+      "agreement" : 1,
+      "before" : [
+        "please"
+      ],
+      "candidate" : "see",
+      "expected" : [
+        "3.11403223915e-01",
+        "-6.02644422392e-01",
+        "-5.32502846127e-02",
+        "1.00000000000e+00",
+        "1.00000000000e+00",
+        "1.00000000000e+00",
+        "0.00000000000e+00",
+        "-3.00000190735e-01",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 1,
+      "heard" : "sea",
+      "tokens" : [
+        {
+          "alternatives" : [
+            -2,
+            -2,
+            -2
+          ],
+          "logProb" : -2.5
+        },
+        {
+          "alternatives" : [
+            -4.5,
+            -2
+          ],
+          "logProb" : -0.1
+        },
+        {
+          "alternatives" : [
+
+          ],
+          "logProb" : -0.9
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+        "file"
+      ],
+      "agreement" : 2,
+      "before" : [
+        "the"
+      ],
+      "candidate" : "see",
+      "expected" : [
+        "3.19819021816e-01",
+        "-6.19134322823e-01",
+        "1.05375447828e-01",
+        "2.00000000000e+00",
+        "2.00000000000e+00",
+        "1.00000000000e+00",
+        "0.00000000000e+00",
+        "-2.99999713898e-01",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 2,
+      "heard" : "sea",
+      "tokens" : [
+        {
+          "alternatives" : [
+            -4.5,
+            -1.2,
+            -4.5
+          ],
+          "logProb" : -0.9
+        },
+        {
+          "alternatives" : [
+            -1.2
+          ],
+          "logProb" : -2.5
+        },
+        {
+          "alternatives" : [
+            -3.1,
+            -2
+          ],
+          "logProb" : -0.02
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+
+      ],
+      "agreement" : 1,
+      "before" : [
+
+      ],
+      "candidate" : "zorplat",
+      "expected" : [
+        "4.96585303791e-01",
+        "-3.60869591841e-01",
+        "9.04837418036e-01",
+        "3.00000000000e+00",
+        "1.00000000000e+00",
+        "1.00000000000e+00",
+        "4.00000000000e+00",
+        "-2.99999952316e-01",
+        "-5.59615787935e-01"
+      ],
+      "firstSource" : 3,
+      "heard" : "zorblat",
+      "persona" : {
+        "counts" : {
+          "zorblat" : 34,
+          "zorplat" : 19
+        }
+      },
+      "tokens" : [
+        {
+          "alternatives" : [
+
+          ],
+          "logProb" : -0.1
+        },
+        {
+          "alternatives" : [
+            -1.2,
+            -1.2
+          ],
+          "logProb" : -1.6
+        },
+        {
+          "alternatives" : [
+
+          ],
+          "logProb" : -0.4
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+        "miss",
+        "queue"
+      ],
+      "agreement" : 3,
+      "before" : [
+        "load"
+      ],
+      "candidate" : "sea a",
+      "expected" : [
+        "5.00000000000e-01",
+        "-6.93147180560e-01",
+        "0.00000000000e+00",
+        "2.00000000000e+00",
+        "3.00000000000e+00",
+        "8.33333333333e-01",
+        "4.00000000000e+00",
+        "0.00000000000e+00",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 2,
+      "heard" : "see my",
+      "tokens" : [
+
+      ],
+      "useContext" : false
+    },
+    {
+      "after" : [
+
+      ],
+      "agreement" : 2,
+      "before" : [
+
+      ],
+      "candidate" : "zorplat",
+      "expected" : [
+        "2.46596963942e-01",
+        "-7.19300923562e-01",
+        "8.59788215642e-01",
+        "2.00000000000e+00",
+        "2.00000000000e+00",
+        "1.00000000000e+00",
+        "4.00000000000e+00",
+        "-2.99999952316e-01",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 2,
+      "heard" : "zorblat",
+      "tokens" : [
+        {
+          "alternatives" : [
+            -3.1,
+            -4.5
+          ],
+          "logProb" : -0.1
+        },
+        {
+          "alternatives" : [
+            -3.1,
+            -3.1
+          ],
+          "logProb" : -1.6
+        },
+        {
+          "alternatives" : [
+            -2,
+            -2
+          ],
+          "logProb" : -2.5
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+        "the",
+        "file"
+      ],
+      "agreement" : 2,
+      "before" : [
+        "file"
+      ],
+      "candidate" : "plane",
+      "expected" : [
+        "1.82683524053e-01",
+        "-5.19595268279e-01",
+        "-2.19109213288e-01",
+        "3.00000000000e+00",
+        "2.00000000000e+00",
+        "1.00000000000e+00",
+        "0.00000000000e+00",
+        "-3.00000190735e-01",
+        "-9.55511445027e-01"
+      ],
+      "firstSource" : 3,
+      "heard" : "plain",
+      "persona" : {
+        "counts" : {
+          "plain" : 38,
+          "plane" : 14
+        }
+      },
+      "tokens" : [
+        {
+          "alternatives" : [
+            -3.1,
+            -3.1,
+            -1.2
+          ],
+          "logProb" : -2.5
+        },
+        {
+          "alternatives" : [
+
+          ],
+          "logProb" : -0.9
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+        "the",
+        "file"
+      ],
+      "agreement" : 1,
+      "before" : [
+        "load"
+      ],
+      "candidate" : "sea",
+      "expected" : [
+        "9.04837418036e-01",
+        "-5.62049208961e-01",
+        "6.03643206124e-01",
+        "0.00000000000e+00",
+        "1.00000000000e+00",
+        "1.00000000000e+00",
+        "0.00000000000e+00",
+        "3.00000190735e-01",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 0,
+      "heard" : "see",
+      "tokens" : [
+        {
+          "alternatives" : [
+            -1.2
+          ],
+          "logProb" : -0.1
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+        "a"
+      ],
+      "agreement" : 3,
+      "before" : [
+
+      ],
+      "candidate" : "cash",
+      "expected" : [
+        "8.20849986239e-02",
+        "-8.25030169149e-01",
+        "-5.32502846127e-02",
+        "2.00000000000e+00",
+        "3.00000000000e+00",
+        "8.00000000000e-01",
+        "0.00000000000e+00",
+        "0.00000000000e+00",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 2,
+      "heard" : "cache",
+      "tokens" : [
+        {
+          "alternatives" : [
+            -2,
+            -4.5
+          ],
+          "logProb" : -2.5
+        }
+      ],
+      "useContext" : false
+    },
+    {
+      "after" : [
+
+      ],
+      "agreement" : 1,
+      "before" : [
+        "file",
+        "file"
+      ],
+      "candidate" : "mail",
+      "expected" : [
+        "5.00000000000e-01",
+        "-6.93147180560e-01",
+        "0.00000000000e+00",
+        "2.00000000000e+00",
+        "1.00000000000e+00",
+        "1.00000000000e+00",
+        "0.00000000000e+00",
+        "3.00000071526e-01",
+        "1.73460105539e+00"
+      ],
+      "firstSource" : 2,
+      "heard" : "male",
+      "persona" : {
+        "counts" : {
+          "mail" : 33,
+          "male" : 5
+        }
+      },
+      "tokens" : [
+
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+        "please",
+        "queue"
+      ],
+      "agreement" : 3,
+      "before" : [
+
+      ],
+      "candidate" : "vektor",
+      "expected" : [
+        "5.63643492224e-01",
+        "-7.89867708368e-01",
+        "6.03643206124e-01",
+        "3.00000000000e+00",
+        "3.00000000000e+00",
+        "1.00000000000e+00",
+        "4.00000000000e+00",
+        "-3.00000190735e-01",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 3,
+      "heard" : "vector",
+      "tokens" : [
+        {
+          "alternatives" : [
+            -2,
+            -1.2
+          ],
+          "logProb" : -0.1
+        },
+        {
+          "alternatives" : [
+            -2,
+            -4.5
+          ],
+          "logProb" : -0.02
+        },
+        {
+          "alternatives" : [
+            -4.5,
+            -2,
+            -1.2
+          ],
+          "logProb" : -1.6
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+
+      ],
+      "agreement" : 2,
+      "before" : [
+        "queue"
+      ],
+      "candidate" : "flower",
+      "expected" : [
+        "8.10584245970e-01",
+        "-4.16385473379e-02",
+        "9.80198673307e-01",
+        "2.00000000000e+00",
+        "2.00000000000e+00",
+        "1.20000000000e+00",
+        "4.00000000000e+00",
+        "-2.99999952316e-01",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 2,
+      "heard" : "flour",
+      "tokens" : [
+        {
+          "alternatives" : [
+
+          ],
+          "logProb" : -0.02
+        },
+        {
+          "alternatives" : [
+            -4.5
+          ],
+          "logProb" : -0.4
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+        "list",
+        "the"
+      ],
+      "agreement" : 1,
+      "before" : [
+        "my"
+      ],
+      "candidate" : "there",
+      "expected" : [
+        "9.80198673307e-01",
+        "0.00000000000e+00",
+        "9.80198673307e-01",
+        "3.00000000000e+00",
+        "1.00000000000e+00",
+        "1.00000000000e+00",
+        "0.00000000000e+00",
+        "0.00000000000e+00",
+        "-1.65822807660e+00"
+      ],
+      "firstSource" : 3,
+      "heard" : "their",
+      "persona" : {
+        "counts" : {
+          "their" : 20,
+          "there" : 3
+        }
+      },
+      "tokens" : [
+        {
+          "alternatives" : [
+
+          ],
+          "logProb" : -0.02
+        }
+      ],
+      "useContext" : false
+    },
+    {
+      "after" : [
+        "load"
+      ],
+      "agreement" : 1,
+      "before" : [
+        "my"
+      ],
+      "candidate" : "cache file",
+      "expected" : [
+        "2.01896517995e-01",
+        "-9.02260042398e-01",
+        "-9.92976939175e-02",
+        "0.00000000000e+00",
+        "1.00000000000e+00",
+        "1.11111111111e+00",
+        "4.00000000000e+00",
+        "-1.19999980927e+00",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 0,
+      "heard" : "cash list",
+      "tokens" : [
+        {
+          "alternatives" : [
+            -1.2,
+            -3.1
+          ],
+          "logProb" : -1.6
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+        "check"
+      ],
+      "agreement" : 1,
+      "before" : [
+        "queue"
+      ],
+      "candidate" : "meet",
+      "expected" : [
+        "5.00000000000e-01",
+        "-6.93147180560e-01",
+        "0.00000000000e+00",
+        "2.00000000000e+00",
+        "1.00000000000e+00",
+        "1.00000000000e+00",
+        "0.00000000000e+00",
+        "-3.00000190735e-01",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 2,
+      "heard" : "meat",
+      "tokens" : [
+
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+
+      ],
+      "agreement" : 3,
+      "before" : [
+        "check"
+      ],
+      "candidate" : "zorplat",
+      "expected" : [
+        "4.06569659741e-01",
+        "-8.70587529221e-01",
+        "6.03643206124e-01",
+        "0.00000000000e+00",
+        "3.00000000000e+00",
+        "1.00000000000e+00",
+        "4.00000000000e+00",
+        "-2.99999952316e-01",
+        "-2.32727770558e+00"
+      ],
+      "firstSource" : 0,
+      "heard" : "zorblat",
+      "persona" : {
+        "counts" : {
+          "zorblat" : 40,
+          "zorplat" : 3
+        }
+      },
+      "tokens" : [
+        {
+          "alternatives" : [
+            -2,
+            -3.1,
+            -1.2
+          ],
+          "logProb" : -0.1
+        },
+        {
+          "alternatives" : [
+            -2
+          ],
+          "logProb" : -0.1
+        },
+        {
+          "alternatives" : [
+            -3.1,
+            -3.1,
+            -2
+          ],
+          "logProb" : -2.5
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+        "load"
+      ],
+      "agreement" : 3,
+      "before" : [
+
+      ],
+      "candidate" : "there",
+      "expected" : [
+        "2.86504796860e-01",
+        "-3.41011244713e-01",
+        "1.05375447828e-01",
+        "0.00000000000e+00",
+        "3.00000000000e+00",
+        "1.00000000000e+00",
+        "0.00000000000e+00",
+        "0.00000000000e+00",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 0,
+      "heard" : "their",
+      "tokens" : [
+        {
+          "alternatives" : [
+            -1.2
+          ],
+          "logProb" : -0.9
+        },
+        {
+          "alternatives" : [
+
+          ],
+          "logProb" : -1.6
+        }
+      ],
+      "useContext" : false
+    },
+    {
+      "after" : [
+        "list",
+        "miss"
+      ],
+      "agreement" : 3,
+      "before" : [
+        "my"
+      ],
+      "candidate" : "vector",
+      "expected" : [
+        "6.70320046036e-01",
+        "-7.75770174668e-01",
+        "3.69125834123e-01",
+        "1.00000000000e+00",
+        "3.00000000000e+00",
+        "1.00000000000e+00",
+        "4.00000000000e+00",
+        "3.00000190735e-01",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 1,
+      "heard" : "vektor",
+      "tokens" : [
+        {
+          "alternatives" : [
+            -2,
+            -1.2
+          ],
+          "logProb" : -0.4
+        },
+        {
+          "alternatives" : [
+            -3.1,
+            -3.1,
+            -3.1
+          ],
+          "logProb" : -0.4
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+
+      ],
+      "agreement" : 2,
+      "before" : [
+
+      ],
+      "candidate" : "kuvlin",
+      "expected" : [
+        "9.80198673307e-01",
+        "-5.05660986309e-01",
+        "6.79004461395e-01",
+        "1.00000000000e+00",
+        "2.00000000000e+00",
+        "1.00000000000e+00",
+        "4.00000000000e+00",
+        "1.79999995232e+00",
+        "1.66500776359e+00"
+      ],
+      "firstSource" : 1,
+      "heard" : "kovlin",
+      "persona" : {
+        "counts" : {
+          "kovlin" : 6,
+          "kuvlin" : 36
+        }
+      },
+      "tokens" : [
+        {
+          "alternatives" : [
+            -4.5,
+            -1.2
+          ],
+          "logProb" : -0.02
+        },
+        {
+          "alternatives" : [
+            -4.5,
+            -2
+          ],
+          "logProb" : -0.02
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+        "list",
+        "load"
+      ],
+      "agreement" : 3,
+      "before" : [
+        "store"
+      ],
+      "candidate" : "meat",
+      "expected" : [
+        "5.00000000000e-01",
+        "-6.93147180560e-01",
+        "0.00000000000e+00",
+        "3.00000000000e+00",
+        "3.00000000000e+00",
+        "1.00000000000e+00",
+        "0.00000000000e+00",
+        "2.99999952316e-01",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 3,
+      "heard" : "meet",
+      "tokens" : [
+
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+        "check"
+      ],
+      "agreement" : 1,
+      "before" : [
+        "miss"
+      ],
+      "candidate" : "hear",
+      "expected" : [
+        "3.41867059181e-01",
+        "-7.31271125601e-01",
+        "-9.92976939175e-02",
+        "2.00000000000e+00",
+        "1.00000000000e+00",
+        "1.00000000000e+00",
+        "0.00000000000e+00",
+        "0.00000000000e+00",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 2,
+      "heard" : "here",
+      "tokens" : [
+        {
+          "alternatives" : [
+            -1.2,
+            -3.1
+          ],
+          "logProb" : -1.6
+        },
+        {
+          "alternatives" : [
+            -4.5,
+            -3.1
+          ],
+          "logProb" : -1.6
+        },
+        {
+          "alternatives" : [
+            -3.1,
+            -2,
+            -3.1
+          ],
+          "logProb" : -0.02
+        }
+      ],
+      "useContext" : false
+    },
+    {
+      "after" : [
+
+      ],
+      "agreement" : 3,
+      "before" : [
+        "open",
+        "hit"
+      ],
+      "candidate" : "right",
+      "expected" : [
+        "8.10584245970e-01",
+        "0.00000000000e+00",
+        "6.70320046036e-01",
+        "0.00000000000e+00",
+        "3.00000000000e+00",
+        "1.00000000000e+00",
+        "0.00000000000e+00",
+        "1.50000000000e+00",
+        "-8.32909122935e-01"
+      ],
+      "firstSource" : 0,
+      "heard" : "write",
+      "persona" : {
+        "counts" : {
+          "right" : 9,
+          "write" : 22
+        }
+      },
+      "tokens" : [
+        {
+          "alternatives" : [
+
+          ],
+          "logProb" : -0.4
+        },
+        {
+          "alternatives" : [
+
+          ],
+          "logProb" : -0.02
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+
+      ],
+      "agreement" : 1,
+      "before" : [
+        "load"
+      ],
+      "candidate" : "cache queue",
+      "expected" : [
+        "2.01896517995e-01",
+        "-7.93316033837e-01",
+        "6.65612347580e-02",
+        "3.00000000000e+00",
+        "1.00000000000e+00",
+        "1.57142857143e+00",
+        "4.00000000000e+00",
+        "1.79999971390e+00",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 3,
+      "heard" : "cash we",
+      "tokens" : [
+        {
+          "alternatives" : [
+            -2,
+            -4.5
+          ],
+          "logProb" : -1.6
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+
+      ],
+      "agreement" : 2,
+      "before" : [
+
+      ],
+      "candidate" : "knew",
+      "expected" : [
+        "2.83654026500e-01",
+        "-4.23801037772e-01",
+        "6.79004461395e-01",
+        "3.00000000000e+00",
+        "2.00000000000e+00",
+        "1.33333333333e+00",
+        "0.00000000000e+00",
+        "-8.99999976158e-01",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 3,
+      "heard" : "new",
+      "tokens" : [
+        {
+          "alternatives" : [
+            -1.2,
+            -4.5,
+            -2
+          ],
+          "logProb" : -0.02
+        },
+        {
+          "alternatives" : [
+
+          ],
+          "logProb" : -2.5
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+        "a"
+      ],
+      "agreement" : 2,
+      "before" : [
+        "hit"
+      ],
+      "candidate" : "to",
+      "expected" : [
+        "5.00000000000e-01",
+        "-6.93147180560e-01",
+        "0.00000000000e+00",
+        "1.00000000000e+00",
+        "2.00000000000e+00",
+        "6.66666666667e-01",
+        "0.00000000000e+00",
+        "0.00000000000e+00",
+        "-1.57553636076e+00"
+      ],
+      "firstSource" : 1,
+      "heard" : "two",
+      "persona" : {
+        "counts" : {
+          "to" : 5,
+          "two" : 28
+        }
+      },
+      "tokens" : [
+
+      ],
+      "useContext" : false
+    },
+    {
+      "after" : [
+        "check",
+        "list"
+      ],
+      "agreement" : 1,
+      "before" : [
+        "miss"
+      ],
+      "candidate" : "vektor",
+      "expected" : [
+        "3.11403223915e-01",
+        "-5.25349417258e-01",
+        "-2.19109213288e-01",
+        "0.00000000000e+00",
+        "1.00000000000e+00",
+        "1.00000000000e+00",
+        "4.00000000000e+00",
+        "-2.99999713898e-01",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 0,
+      "heard" : "vector",
+      "tokens" : [
+        {
+          "alternatives" : [
+            -1.2
+          ],
+          "logProb" : -2.5
+        },
+        {
+          "alternatives" : [
+            -2
+          ],
+          "logProb" : -0.9
+        },
+        {
+          "alternatives" : [
+            -2,
+            -4.5,
+            -4.5
+          ],
+          "logProb" : -0.1
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+
+      ],
+      "agreement" : 3,
+      "before" : [
+        "please",
+        "file"
+      ],
+      "candidate" : "mail",
+      "expected" : [
+        "3.11403223915e-01",
+        "-3.86649975684e-01",
+        "9.04837418036e-01",
+        "2.00000000000e+00",
+        "3.00000000000e+00",
+        "1.00000000000e+00",
+        "0.00000000000e+00",
+        "3.00000071526e-01",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 2,
+      "heard" : "male",
+      "tokens" : [
+        {
+          "alternatives" : [
+
+          ],
+          "logProb" : -0.1
+        },
+        {
+          "alternatives" : [
+
+          ],
+          "logProb" : -0.9
+        },
+        {
+          "alternatives" : [
+            -1.2,
+            -3.1,
+            -2
+          ],
+          "logProb" : -2.5
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+        "store",
+        "my"
+      ],
+      "agreement" : 3,
+      "before" : [
+        "a"
+      ],
+      "candidate" : "bear",
+      "expected" : [
+        "2.01896517995e-01",
+        "-4.75051563692e-01",
+        "1.56847315601e-01",
+        "2.00000000000e+00",
+        "3.00000000000e+00",
+        "1.00000000000e+00",
+        "0.00000000000e+00",
+        "-2.99999713898e-01",
+        "1.25276296850e+00"
+      ],
+      "firstSource" : 2,
+      "heard" : "bare",
+      "persona" : {
+        "counts" : {
+          "bare" : 9,
+          "bear" : 34
+        }
+      },
+      "tokens" : [
+        {
+          "alternatives" : [
+            -3.1
+          ],
+          "logProb" : -1.6
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+
+      ],
+      "agreement" : 2,
+      "before" : [
+        "miss"
+      ],
+      "candidate" : "right",
+      "expected" : [
+        "8.63581790042e-01",
+        "-4.18292268365e-01",
+        "9.69089676769e-01",
+        "0.00000000000e+00",
+        "2.00000000000e+00",
+        "1.00000000000e+00",
+        "0.00000000000e+00",
+        "0.00000000000e+00",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 0,
+      "heard" : "write",
+      "tokens" : [
+        {
+          "alternatives" : [
+            -4.5
+          ],
+          "logProb" : -0.02
+        },
+        {
+          "alternatives" : [
+            -2,
+            -3.1
+          ],
+          "logProb" : -0.02
+        },
+        {
+          "alternatives" : [
+            -4.5,
+            -1.2
+          ],
+          "logProb" : -0.4
+        }
+      ],
+      "useContext" : false
+    },
+    {
+      "after" : [
+
+      ],
+      "agreement" : 2,
+      "before" : [
+        "hit"
+      ],
+      "candidate" : "cash",
+      "expected" : [
+        "5.00000000000e-01",
+        "-6.93147180560e-01",
+        "0.00000000000e+00",
+        "0.00000000000e+00",
+        "2.00000000000e+00",
+        "8.00000000000e-01",
+        "0.00000000000e+00",
+        "-3.00000071526e-01",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 0,
+      "heard" : "cache",
+      "tokens" : [
+
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+
+      ],
+      "agreement" : 2,
+      "before" : [
+
+      ],
+      "candidate" : "zorblat",
+      "expected" : [
+        "3.21958271538e-01",
+        "-1.77023754209e-01",
+        "3.61520457347e-01",
+        "1.00000000000e+00",
+        "2.00000000000e+00",
+        "1.00000000000e+00",
+        "4.00000000000e+00",
+        "2.99999952316e-01",
+        "-3.04452243772e+00"
+      ],
+      "firstSource" : 1,
+      "heard" : "zorplat",
+      "persona" : {
+        "counts" : {
+          "zorblat" : 0,
+          "zorplat" : 20
+        }
+      },
+      "tokens" : [
+        {
+          "alternatives" : [
+            -4.5,
+            -3.1,
+            -4.5
+          ],
+          "logProb" : -0.9
+        },
+        {
+          "alternatives" : [
+
+          ],
+          "logProb" : -0.9
+        },
+        {
+          "alternatives" : [
+
+          ],
+          "logProb" : -1.6
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+
+      ],
+      "agreement" : 2,
+      "before" : [
+        "a"
+      ],
+      "candidate" : "see file",
+      "expected" : [
+        "2.01896517995e-01",
+        "-9.02260042398e-01",
+        "-9.92976939175e-02",
+        "1.00000000000e+00",
+        "2.00000000000e+00",
+        "1.00000000000e+00",
+        "4.00000000000e+00",
+        "-1.19999980927e+00",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 1,
+      "heard" : "sea open",
+      "tokens" : [
+        {
+          "alternatives" : [
+            -3.1,
+            -1.2
+          ],
+          "logProb" : -1.6
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+
+      ],
+      "agreement" : 1,
+      "before" : [
+        "check"
+      ],
+      "candidate" : "cash",
+      "expected" : [
+        "9.80198673307e-01",
+        "-6.14743715069e-02",
+        "9.69089676769e-01",
+        "3.00000000000e+00",
+        "1.00000000000e+00",
+        "8.00000000000e-01",
+        "0.00000000000e+00",
+        "0.00000000000e+00",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 3,
+      "heard" : "cache",
+      "tokens" : [
+        {
+          "alternatives" : [
+            -4.5
+          ],
+          "logProb" : -0.02
+        }
+      ],
+      "useContext" : false
+    },
+    {
+      "after" : [
+        "please"
+      ],
+      "agreement" : 1,
+      "before" : [
+        "miss"
+      ],
+      "candidate" : "vector",
+      "expected" : [
+        "4.27414931949e-01",
+        "-3.36770094177e-01",
+        "9.04837418036e-01",
+        "1.00000000000e+00",
+        "1.00000000000e+00",
+        "1.00000000000e+00",
+        "4.00000000000e+00",
+        "3.00000190735e-01",
+        "-3.93042588110e-01"
+      ],
+      "firstSource" : 1,
+      "heard" : "vektor",
+      "persona" : {
+        "counts" : {
+          "vector" : 26,
+          "vektor" : 39
+        }
+      },
+      "tokens" : [
+        {
+          "alternatives" : [
+
+          ],
+          "logProb" : -0.1
+        },
+        {
+          "alternatives" : [
+            -1.2
+          ],
+          "logProb" : -1.6
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+        "a",
+        "we"
+      ],
+      "agreement" : 1,
+      "before" : [
+        "my",
+        "miss"
+      ],
+      "candidate" : "cash",
+      "expected" : [
+        "5.00000000000e-01",
+        "-6.93147180560e-01",
+        "0.00000000000e+00",
+        "1.00000000000e+00",
+        "1.00000000000e+00",
+        "8.00000000000e-01",
+        "0.00000000000e+00",
+        "-2.99999952316e-01",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 1,
+      "heard" : "cache",
+      "tokens" : [
+
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+        "store"
+      ],
+      "agreement" : 3,
+      "before" : [
+
+      ],
+      "candidate" : "flower",
+      "expected" : [
+        "1.82683524053e-01",
+        "-7.94971887662e-01",
+        "3.61520457347e-01",
+        "1.00000000000e+00",
+        "3.00000000000e+00",
+        "1.20000000000e+00",
+        "4.00000000000e+00",
+        "-2.99999952316e-01",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 1,
+      "heard" : "flour",
+      "tokens" : [
+        {
+          "alternatives" : [
+            -4.5,
+            -3.1
+          ],
+          "logProb" : -0.9
+        },
+        {
+          "alternatives" : [
+            -3.1,
+            -2,
+            -1.2
+          ],
+          "logProb" : -2.5
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+
+      ],
+      "agreement" : 1,
+      "before" : [
+        "the",
+        "the"
+      ],
+      "candidate" : "see",
+      "expected" : [
+        "7.60839132311e-01",
+        "-5.81949153739e-01",
+        "8.44863390070e-01",
+        "1.00000000000e+00",
+        "1.00000000000e+00",
+        "1.00000000000e+00",
+        "0.00000000000e+00",
+        "0.00000000000e+00",
+        "-1.59064694630e-01"
+      ],
+      "firstSource" : 1,
+      "heard" : "sea",
+      "persona" : {
+        "counts" : {
+          "sea" : 33,
+          "see" : 28
+        }
+      },
+      "tokens" : [
+        {
+          "alternatives" : [
+            -3.1,
+            -2
+          ],
+          "logProb" : -0.02
+        },
+        {
+          "alternatives" : [
+            -1.2,
+            -3.1,
+            -3.1
+          ],
+          "logProb" : -0.4
+        },
+        {
+          "alternatives" : [
+            -3.1,
+            -4.5
+          ],
+          "logProb" : -0.4
+        }
+      ],
+      "useContext" : false
+    },
+    {
+      "after" : [
+        "store"
+      ],
+      "agreement" : 2,
+      "before" : [
+
+      ],
+      "candidate" : "flower",
+      "expected" : [
+        "1.28734903588e-01",
+        "-1.95949270766e-01",
+        "1.90787521456e-01",
+        "2.00000000000e+00",
+        "2.00000000000e+00",
+        "1.20000000000e+00",
+        "4.00000000000e+00",
+        "-2.99999952316e-01",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 2,
+      "heard" : "flour",
+      "tokens" : [
+        {
+          "alternatives" : [
+            -4.5,
+            -4.5
+          ],
+          "logProb" : -1.6
+        },
+        {
+          "alternatives" : [
+
+          ],
+          "logProb" : -2.5
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+        "list",
+        "my"
+      ],
+      "agreement" : 3,
+      "before" : [
+
+      ],
+      "candidate" : "zorplat",
+      "expected" : [
+        "9.04837418036e-01",
+        "-7.45693948262e-01",
+        "7.69502134799e-01",
+        "2.00000000000e+00",
+        "3.00000000000e+00",
+        "1.00000000000e+00",
+        "4.00000000000e+00",
+        "-2.99999952316e-01",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 2,
+      "heard" : "zorblat",
+      "tokens" : [
+        {
+          "alternatives" : [
+            -2,
+            -4.5,
+            -2
+          ],
+          "logProb" : -0.1
+        }
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+        "queue"
+      ],
+      "agreement" : 3,
+      "before" : [
+
+      ],
+      "candidate" : "cache",
+      "expected" : [
+        "5.00000000000e-01",
+        "-6.93147180560e-01",
+        "0.00000000000e+00",
+        "1.00000000000e+00",
+        "3.00000000000e+00",
+        "1.25000000000e+00",
+        "0.00000000000e+00",
+        "2.99999952316e-01",
+        "-6.35988766720e-01"
+      ],
+      "firstSource" : 1,
+      "heard" : "cash",
+      "persona" : {
+        "counts" : {
+          "cache" : 8,
+          "cash" : 16
+        }
+      },
+      "tokens" : [
+
+      ],
+      "useContext" : true
+    },
+    {
+      "after" : [
+        "the"
+      ],
+      "agreement" : 1,
+      "before" : [
+        "the",
+        "check"
+      ],
+      "candidate" : "kovlin check",
+      "expected" : [
+        "5.10005722197e-01",
+        "-4.34247420690e-01",
+        "-9.92976939175e-02",
+        "2.00000000000e+00",
+        "1.00000000000e+00",
+        "1.09090909091e+00",
+        "4.00000000000e+00",
+        "0.00000000000e+00",
+        "0.00000000000e+00"
+      ],
+      "firstSource" : 2,
+      "heard" : "kuvlin load",
+      "tokens" : [
+        {
+          "alternatives" : [
+            -3.1,
+            -4.5,
+            -1.2
+          ],
+          "logProb" : -1.6
+        },
+        {
+          "alternatives" : [
+            -3.1,
+            -4.5
+          ],
+          "logProb" : -0.02
+        },
+        {
+          "alternatives" : [
+            -4.5
+          ],
+          "logProb" : -0.4
+        }
+      ],
+      "useContext" : false
+    }
+  ],
+  "identifiers" : [
+    "decoderMeanProbability",
+    "decoderNegatedEntropy",
+    "decoderFirstMargin",
+    "sourceRank",
+    "sourceAgreement",
+    "lengthRatio",
+    "phoneticDistance",
+    "contextLeadLog10",
+    "personaLogLead"
+  ],
+  "specVersion" : 1
+}

@@ -297,7 +297,7 @@ struct OnboardingCard: View {
         }
     }
 
-    /// The hint, the terms and the link, each quiet and centred under the buttons.
+    /// The hint, the privacy link and the link, each quiet and centred under the buttons.
     @ViewBuilder private var footnotes: some View {
         if let hint = page.hint {
             Text(hint)
@@ -307,12 +307,11 @@ struct OnboardingCard: View {
                 .lineLimit(2)
                 .padding(.top, 12)
         }
-        if page.showsTerms {
-            Text("Terms · Privacy")
+        if let legal = page.legal {
+            Link(legal.title, destination: legal.destination)
                 .font(.system(size: 11))
-                .foregroundStyle(.white.opacity(0.42))
+                .foregroundStyle(.white.opacity(0.6))
                 .padding(.top, 12)
-                .accessibilityLabel("By continuing you agree to the Terms of Use and the Privacy Policy.")
         }
         if let link = page.link {
             Button(link.title) { press(link.intent) }

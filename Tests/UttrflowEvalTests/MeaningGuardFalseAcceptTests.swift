@@ -9,7 +9,7 @@ import Testing
 struct MeaningGuardFalseAcceptTests {
     /// Accepted mutations per class at the last measurement; the gate lets each fall and never rise.
     static let baseline: [ModelErrorClass: Int] = [
-        .dropContentWord: 10, .swapWords: 2, .appendClause: 2, .wrapInLabel: 1,
+        .swapWords: 2
     ]
 
     struct Judged {

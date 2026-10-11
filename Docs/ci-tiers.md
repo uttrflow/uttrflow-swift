@@ -3,11 +3,12 @@
 Which gate runs on every pull request, which runs nightly, and which runs weekly and before a
 release. A new gate names its tier here in the pull request that adds it.
 
-## What one run costs today
+## Timing probe before the lane split
 
-`ci.yml` is one `macos-26` job that runs `make verify` and then `make app-preflight` on every
-pull request and every push to `main`. Step durations of the ten most recent successful runs,
-read with `gh run view <id> --json jobs`:
+The probe measured the `ci.yml` job, which runs `make verify` and then `make app-preflight` on
+every pull request and every push to `main`. These ten successful runs precede the separate
+evaluation and benchmark lanes below; their step durations were read with
+`gh run view <id> --json jobs`:
 
 | Run | Event | Cache SwiftPM (min) | Verify (min) | App bundle (min) |
 |---|---|---|---|---|
@@ -22,9 +23,10 @@ read with `gh run view <id> --json jobs`:
 | 36359332521 | pull_request | 1.4 | 12.1 | 7.2 |
 | 36358541878 | pull_request | 1.4 | 11.1 | 5.5 |
 
-Median: about 1.4 + 12.7 + 6.7, so roughly 21 macOS minutes per pull request, the same for a
-docs-only change as for a change to the engine. `make verify` is not split into steps, so the
-share of the 12.7 minutes spent in the audits is not visible in these logs.
+The probe's median was about 1.4 + 12.7 + 6.7, roughly 21 macOS minutes per pull request.
+It is a historical measurement, not a before/after timing for the current lanes. The verify job
+still runs for documentation changes. `make verify` is not split into steps, so the share of the
+12.7 minutes spent in the audits is not visible in these logs.
 
 ## Lanes
 
@@ -52,12 +54,35 @@ scripts it reads.
 **`make bench`, nightly (`bench.yml`).** `perf-budget`, `offline-test`, `soak-test`, the scaling
 suites (`HeavyClipScans`, `PromptSizeGuaranteeTests`, `BIP39RecoveryPhraseScalingTests`) and the
 tests that hold a wall-clock budget (`BENCH_SUITES` in the `Makefile`): the clipboard store's first-list
-benchmark, the 20,000-entry suggestion migration, doubt placement's p95 and the deeply nested HTML
-copy. A test with a wall-clock limit belongs here, since a parallel test run cannot keep one honest.
+benchmark, the 20,000-entry suggestion migration, doubt placement's p95, the deeply nested HTML
+copy, the launch budget, the n-gram scorer's per-span probes, the SQL notation, field label,
+adapter validator and panel grouping speed checks, the settle-delay bound on an unconfirmed write,
+the formatter's TERM escalation and the huge-range correction count. Each one that has a logic
+twin keeps the twin in `make verify`. A test with a wall-clock limit belongs here, since a parallel test run cannot keep one honest.
 It never blocks a pull request; a failure opens an issue titled "Nightly bench failed on main", or
 comments on the open one.
 
-**By hand, weekly and before a release.** The oracle sweep (`oracle-sweep.yml`, also nightly),
-the mutation probe, `make bakeoff`, the transcription gate and the soak.
+**Oracle sweep (`oracle-sweep.yml`).** The full clipboard-reader seed sweep runs nightly and on
+pull requests that change its named reader sources, oracle tests or workflow. The fixed sample
+stays in `make verify`.
 
-Every job runs on the standard hosted `macos-26` runner, and each nightly job once a day.
+**By hand, weekly and before a release.** The mutation probe, `make bakeoff`, the transcription
+gate and the soak run on the Mac that supplies their models, corpus or permissions. Their
+evidence belongs to the release checks in [dictation-quality.md](dictation-quality.md).
+
+## Scheduled and manual runs
+
+The checked-in workflows declare these schedules in UTC:
+
+| Workflow | Command or suite | Nightly schedule | Pull requests |
+|---|---|---|---|
+| `ci.yml` | `make verify`, then `make app-preflight` | none; runs on pushes to `main` | every change, including documentation |
+| `eval.yml` | `make eval` | 03:30 | every change; the scope check skips Swift work when no lane input changed |
+| `bench.yml` | `make bench` | 02:00 | none |
+| `oracle-sweep.yml` | the full clipboard oracle seed sweep | 04:00 | its declared reader, oracle-test and workflow paths |
+
+`ci.yml` has no manual dispatch; its pull request, merge queue and main-push events run the
+same gate. Every job uses the standard hosted `macos-26` runner. The evaluation, benchmark and
+oracle workflows supply the manual dispatches; the weekly and release checks above are manual
+commands. This tier catalogue follows the existing workflows and does not introduce Linux
+jobs, a documentation-only runner bypass or a change to required checks.

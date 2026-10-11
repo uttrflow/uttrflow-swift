@@ -193,6 +193,16 @@ extension CodeShapes {
 
     // MARK: - The signals
 
+    /// Bytes a code operator pattern needs: the operators a line is code for, and the compound assignments.
+    private static let operatorHints = Situation.codeOperators + ["+=", "-=", "++"]
+
+    /// Bytes a declaration pattern needs besides an import keyword, which `importKeywords` holds.
+    private static let declarationHints = [
+        "func", "def", "fn", "sub", "class", "struct", "enum", "interface", "trait", "protocol", "actor",
+        "let",
+        "var", "const", "val", "public", "private", "internal", "static", "async", "await", "#include",
+    ]
+
     /// Whether the text carries two independent hints of code, read cheapest first and stopping at the second.
     static func hasTwoSignals(in text: String) -> Bool {
         tally?.record(text.utf8.count)
@@ -216,17 +226,12 @@ extension CodeShapes {
                     controlFlow,
                     needing: ["(", "return", "throw", "break", "continue", "yield", "else", "elif", "endif"])
             },
-            { has(codeOperator, needing: ["=>", "->", "::", "==", "&&", "||", "+=", "-=", "++", "!="]) },
             {
-                has(
-                    declaration,
-                    needing: [
-                        "func", "def", "fn", "sub", "class", "struct", "enum", "interface", "trait",
-                        "protocol",
-                        "actor", "let", "var", "const", "val", "public", "private", "internal", "static",
-                        "async",
-                        "await", "import", "from", "package", "using", "require", "#include",
-                    ])
+                ClipBytes.containsAny(text, operatorHints) && text.firstMatch(of: codeOperator) != nil
+            },
+            {
+                (ClipBytes.containsAny(text, declarationHints) || ClipBytes.containsAny(text, importKeywords))
+                    && text.firstMatch(of: declaration) != nil
             },
         ]
         var found = 0
