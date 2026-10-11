@@ -26,20 +26,24 @@ struct PanelAuxiliaryRenderingTests {
             title: "Synthetic recovery", symbolName: "magnifyingglass", intent: .keepQuery("synthetic"))
         var drawings: [Data] = []
         for (clear, recovery) in [(false, false), (true, false), (false, true), (true, true)] {
-            drawings.append(try image(PanelEmptyStateView(
-                state: state, showsClearSearch: clear, emptyAction: recovery ? action : nil,
-                onClearSearch: {}, onIntent: { _ in })))
+            drawings.append(
+                try image(
+                    PanelEmptyStateView(
+                        state: state, showsClearSearch: clear, emptyAction: recovery ? action : nil,
+                        onClearSearch: {}, onIntent: { _ in })))
         }
         #expect(Set(drawings).count == 4)
     }
 
     @Test("the application scope distinguishes everywhere from a confined synthetic draft")
     func scopesHaveDistinctDrawings() throws {
-        let everywhere = try image(ApplicationScopeRow(
-            line: ApplicationScopeLine(applications: []), applications: .constant([])))
-        let confined = try image(ApplicationScopeRow(
-            line: ApplicationScopeLine(applications: ["com.example.synthetic-editor"]),
-            applications: .constant(["com.example.synthetic-editor"])))
+        let everywhere = try image(
+            ApplicationScopeRow(
+                line: ApplicationScopeLine(applications: []), applications: .constant([])))
+        let confined = try image(
+            ApplicationScopeRow(
+                line: ApplicationScopeLine(applications: ["com.example.synthetic-editor"]),
+                applications: .constant(["com.example.synthetic-editor"])))
         #expect(everywhere != confined)
     }
 }

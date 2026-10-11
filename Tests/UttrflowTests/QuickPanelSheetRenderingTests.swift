@@ -22,23 +22,26 @@ struct QuickPanelSheetRenderingTests {
             kind: kind, title: "Synthetic sheet", draft: "Synthetic collection",
             placeholder: "Synthetic name", note: hasDetails ? "Synthetic explanation" : nil,
             conflict: hasDetails ? "Synthetic conflict" : nil,
-            collections: hasDetails ? [
-                PanelCollectionOption(name: "Synthetic collection", count: 2, isCurrent: true),
-                PanelCollectionOption(name: "Another collection", count: 0, isCurrent: false),
-            ] : [],
+            collections: hasDetails
+                ? [
+                    PanelCollectionOption(name: "Synthetic collection", count: 2, isCurrent: true),
+                    PanelCollectionOption(name: "Another collection", count: 0, isCurrent: false),
+                ] : [],
             confirmTitle: "Synthetic confirm", isConfirmDestructive: destructive,
             isConfirmEnabled: enabled,
-            diff: hasDetails ? [
-                TextDiff.Line(kind: .removed, text: "before"),
-                TextDiff.Line(kind: .added, text: "after"),
-                TextDiff.Line(kind: .same, text: ""),
-            ] : [])
+            diff: hasDetails
+                ? [
+                    TextDiff.Line(kind: .removed, text: "before"),
+                    TextDiff.Line(kind: .added, text: "after"),
+                    TextDiff.Line(kind: .same, text: ""),
+                ] : [])
     }
 
     private func panel(_ sheet: PanelSheetPresentation) -> QuickPanelView {
-        QuickPanelView(presentation: PanelPresentation(
-            rows: [], filters: [], categories: [], query: "", searchPlaceholder: "Synthetic search",
-            emptyState: nil, hint: "Synthetic hint", sheet: sheet))
+        QuickPanelView(
+            presentation: PanelPresentation(
+                rows: [], filters: [], categories: [], query: "", searchPlaceholder: "Synthetic search",
+                emptyState: nil, hint: "Synthetic hint", sheet: sheet))
     }
 
     private func picture(_ content: some View, width: CGFloat = 420) throws -> NSBitmapImageRep {
@@ -81,7 +84,9 @@ struct QuickPanelSheetRenderingTests {
         let details = try picture(panel(detailed).sheetOverlay(detailed), width: 320)
         #expect(details.pixelsWide == 320)
         #expect(details.pixelsHigh == 340)
-        #expect(details.representation(using: .png, properties: [:]) != plain.representation(using: .png, properties: [:]))
+        #expect(
+            details.representation(using: .png, properties: [:])
+                != plain.representation(using: .png, properties: [:]))
         let edge = try #require(details.colorAt(x: 5, y: 170))
         #expect(edge.alphaComponent < 0.6, "the dialog respects the panel's horizontal inset")
     }

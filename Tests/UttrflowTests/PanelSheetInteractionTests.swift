@@ -33,9 +33,10 @@ struct PanelSheetInteractionTests {
     }
 
     private func button(_ name: String, under host: NSView) throws -> AnyObject {
-        try #require(elements(under: host).first {
-            $0.accessibilityRole?() == .button && $0.accessibilityLabel?() as? String == name
-        })
+        try #require(
+            elements(under: host).first {
+                $0.accessibilityRole?() == .button && $0.accessibilityLabel?() as? String == name
+            })
     }
 
     private func panel(enabled: Bool = true, onKey: @escaping (PanelKey) -> Void) -> QuickPanelView {
@@ -44,9 +45,10 @@ struct PanelSheetInteractionTests {
             note: nil, conflict: nil,
             collections: [PanelCollectionOption(name: "Synthetic destination", count: 2, isCurrent: false)],
             confirmTitle: "Synthetic confirm", isConfirmEnabled: enabled)
-        return QuickPanelView(presentation: PanelPresentation(
-            rows: [], filters: [], categories: [], query: "", searchPlaceholder: "Synthetic search",
-            emptyState: nil, hint: "", sheet: sheet), onKey: onKey)
+        return QuickPanelView(
+            presentation: PanelPresentation(
+                rows: [], filters: [], categories: [], query: "", searchPlaceholder: "Synthetic search",
+                emptyState: nil, hint: "", sheet: sheet), onKey: onKey)
     }
 
     @Test("sheet cancel, confirm and collection controls relay only synthetic panel keys")
@@ -58,10 +60,11 @@ struct PanelSheetInteractionTests {
         let confirm = try button("Synthetic confirm", under: view)
         #expect(cancel.accessibilityPerformPress?() == true)
         #expect(confirm.accessibilityPerformPress?() == true)
-        let collection = try #require(elements(under: view).first {
-            $0.accessibilityRole?() == .button
-                && ($0.accessibilityLabel?() as? String)?.contains("Synthetic destination") == true
-        })
+        let collection = try #require(
+            elements(under: view).first {
+                $0.accessibilityRole?() == .button
+                    && ($0.accessibilityLabel?() as? String)?.contains("Synthetic destination") == true
+            })
         #expect(collection.accessibilityPerformPress?() == true)
         #expect(keys == [.escape, .return, .draft("Synthetic destination")])
     }
@@ -82,10 +85,12 @@ struct PanelSheetInteractionTests {
         var clears = 0
         var intents: [PanelIntent] = []
         let state = MainEmptyState(symbolName: "doc", title: "Synthetic title", message: "Synthetic message")
-        let action = PanelAction(title: "Synthetic recovery", symbolName: "magnifyingglass", intent: .keepQuery("synthetic"))
-        let (window, view) = await host(PanelEmptyStateView(
-            state: state, showsClearSearch: true, emptyAction: action,
-            onClearSearch: { clears += 1 }, onIntent: { intents.append($0) }))
+        let action = PanelAction(
+            title: "Synthetic recovery", symbolName: "magnifyingglass", intent: .keepQuery("synthetic"))
+        let (window, view) = await host(
+            PanelEmptyStateView(
+                state: state, showsClearSearch: true, emptyAction: action,
+                onClearSearch: { clears += 1 }, onIntent: { intents.append($0) }))
         defer { window.close() }
         #expect(try button("Clear search · Esc", under: view).accessibilityPerformPress?() == true)
         #expect(try button("Synthetic recovery", under: view).accessibilityPerformPress?() == true)
@@ -97,8 +102,9 @@ struct PanelSheetInteractionTests {
     func clearApplicationScope() async throws {
         var applications = ["com.example.synthetic-editor"]
         let binding = Binding(get: { applications }, set: { applications = $0 })
-        let (window, view) = await host(ApplicationScopeRow(
-            line: ApplicationScopeLine(applications: applications), applications: binding))
+        let (window, view) = await host(
+            ApplicationScopeRow(
+                line: ApplicationScopeLine(applications: applications), applications: binding))
         defer { window.close() }
         #expect(try button("Every App", under: view).accessibilityPerformPress?() == true)
         #expect(applications.isEmpty)
