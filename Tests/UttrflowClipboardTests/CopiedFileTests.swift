@@ -143,4 +143,31 @@ struct CopiedFileTests {
         #expect(clips.first?.files == [reference])
         #expect(clips.first?.kind == .file)
     }
+
+    @Test("a plain bookmark from an older build still resolves")
+    func plainBookmarkResolves() throws {
+        let made = try makeFiles(["old.txt"])
+        defer { try? FileManager.default.removeItem(at: made.folder) }
+        let plain = try made.urls[0].bookmarkData()
+        let moved = made.folder.appending(path: "older.txt", directoryHint: .notDirectory)
+        let reference = ClipFileReference(path: made.urls[0].path(percentEncoded: false), bookmark: plain)
+        try FileManager.default.moveItem(at: made.urls[0], to: moved)
+
+        #expect(reference.resolved()?.lastPathComponent == "older.txt")
+    }
+
+    @Test("only a file clip has a resolution, and the gone files of a list are named per clip")
+    func resolutionPerClip() throws {
+        let made = try makeFiles(["here.txt", "gone.txt"])
+        defer { try? FileManager.default.removeItem(at: made.folder) }
+        let references = made.urls.map(ClipFileReference.init(url:))
+        let whole = Clip(text: "here.txt\ngone.txt", kind: .file, copiedAt: noon, files: references)
+        let intact = Clip(text: "here.txt", kind: .file, copiedAt: noon, files: [references[0]])
+        let text = Clip(text: "words", kind: .text, copiedAt: noon)
+        try FileManager.default.removeItem(at: made.urls[1])
+
+        #expect(text.fileResolution == nil)
+        #expect(intact.fileResolution == .available([made.urls[0]]))
+        #expect(Clip.missingFiles(among: [whole, intact, text]) == [whole.id: ["gone.txt"]])
+    }
 }

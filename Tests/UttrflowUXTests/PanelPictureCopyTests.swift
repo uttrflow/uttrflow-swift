@@ -115,7 +115,7 @@ struct PanelPictureCopyTests {
             .copyConcealedAndSay, .closeAndCopyConcealed:
             true
         case .redraw, .close, .applyAndRedraw, .closeAndInsertImage, .say, .copyImageAndSay,
-            .closeAndCopyImage:
+            .closeAndCopyImage, .placeFiles:
             false
         }
     }

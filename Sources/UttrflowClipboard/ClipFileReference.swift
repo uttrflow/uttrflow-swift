@@ -9,13 +9,13 @@ public struct ClipFileReference: Sendable, Equatable, Codable {
     /// A bookmark to the file, or `nil` when macOS could not make one.
     public let bookmark: Data?
 
-    init(path: String, bookmark: Data? = nil) {
+    public init(path: String, bookmark: Data? = nil) {
         self.path = path
         self.bookmark = bookmark
     }
 
     /// A reference to the file at `url`, with a bookmark when macOS makes one.
-    init(url: URL) {
+    public init(url: URL) {
         let scoped = try? url.bookmarkData(options: .withSecurityScope)
         self.init(path: url.path(percentEncoded: false), bookmark: scoped ?? (try? url.bookmarkData()))
     }

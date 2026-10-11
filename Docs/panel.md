@@ -221,8 +221,14 @@ plain path text stays a file-path clip. Resolving the references is all or nothi
 gone or unreadable the whole selection is refused with the names that are missing, and the
 pasteboard is left unchanged. A file clip's words are not editable, since they are its files' names.
 
-Returning the files themselves to the pasteboard and the row's missing-file state are tracked in
-the issue that introduced this section.
+Return, ⌘-Return and a click put the files themselves on the pasteboard, in copy order, and
+paste them at the caret; Copy and the copy-only path put them on the pasteboard without a paste.
+The references are resolved before the panel closes, so a missing file is named in the panel's
+notice and the panel stays up. The same check runs when the list is drawn: a row with a file gone
+says which in the colour a missing picture uses, stays in the list, and a row of several files
+speaks every name in order. A file clip offers no edit, note or secret action, since each
+rewrites the words. Uttrflow's own write is not announced to the watcher; the watcher records it
+as the same files again, which the store merges into the clip that was pasted.
 
 ## What must not be decided in the view
 
