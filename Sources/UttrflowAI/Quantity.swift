@@ -196,8 +196,7 @@ enum Magnitude {
     /// Suffixes that scale only an amount of money, since "12B" is as often a flat, gate or seat.
     static let currencyOnlySuffixes: Set<String> = ["B"]
 
-    /// Suffixes said as their own letter after a number, with their factor; a spoken "b" is left out, since it
-    /// scales only an amount of money once written.
+    /// Suffixes said as their own letter after a number, with their factor; "b" has none, as it scales only money.
     static let spokenSuffixes: [String: Decimal] = ["k": 1_000, "m": 1_000_000]
 
     /// Scale words of a thousand and up, from the core number tables, so the guard and the number passes share one list.
