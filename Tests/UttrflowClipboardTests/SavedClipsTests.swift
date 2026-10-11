@@ -305,8 +305,8 @@ struct SavedClipsTests {
         #expect(clips.count == 6)
         // Every pinned clip stayed pinned, and stayed in the saved pool on disk.
         #expect(clips.filter(\.isPinned).map(\.text) == ["pinned older", "pinned newest", "pinned middle"])
-        let savedOnDisk = try JSONDecoder().decode(
-            [Clip].self, from: try Data(contentsOf: await reopened.savedFile))
+        let savedOnDisk = try JSONDecoder()
+            .decode(ClipboardIndex.self, from: Data(contentsOf: await reopened.savedFile)).clips
         #expect(Set(savedOnDisk.map(\.text)) == ["pinned older", "pinned middle", "pinned newest"])
         // Each pool kept its own order: the pasted clip first, then arrival order.
         #expect(
