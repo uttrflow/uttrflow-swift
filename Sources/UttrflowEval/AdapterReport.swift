@@ -18,6 +18,11 @@ struct AdapterReport: Sendable, Equatable, Codable {
         /// Required beginnings, endings and exact forms the outputs broke, summed; the gate holds this at 0.
         let shapeViolations: Int
 
+        fileprivate var hasValidCounts: Bool {
+            cases >= 0 && exactCases >= 0 && exactHits >= 0 && addedTokens >= 0 && shapeViolations >= 0
+                && exactHits <= exactCases && exactCases <= cases
+        }
+
         /// Exact-match rate over the exact cases, or `nil` when the adapter has none.
         var exactMatchRate: Double? {
             exactCases > 0 ? Double(exactHits) / Double(exactCases) : nil
@@ -82,6 +87,11 @@ struct AdapterReport: Sendable, Equatable, Codable {
         else {
             return .failure(
                 Incomparable(reason: "the adapters or their case counts differ from the baseline's"))
+        }
+        guard rows.allSatisfy(\.hasValidCounts), baseline.rows.allSatisfy(\.hasValidCounts) else {
+            return .failure(
+                Incomparable(
+                    reason: "adapter counts must be nonnegative with exactHits <= exactCases <= cases"))
         }
         return .success(
             rows.filter { now in

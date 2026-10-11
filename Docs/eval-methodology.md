@@ -39,6 +39,9 @@ and the class that moved, never alone.
 
 Saved adapter comparisons require unique adapter names in both reports. Duplicate rows return an
 incomparable result before constructing the baseline lookup; label mismatch retains precedence.
+After label, row identity and denominator checks, both reports must have nonnegative raw counts
+with `exactHits <= exactCases <= cases`; impossible saved counts return typed `Incomparable`
+rather than a clean verdict. Added-token and shape-violation sums may exceed the case count.
 Saved digit-string comparisons require unique shape names in each report before constructing their
 baseline lookup; label mismatch retains precedence.
 
