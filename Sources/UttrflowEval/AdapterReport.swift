@@ -71,7 +71,9 @@ struct AdapterReport: Sendable, Equatable, Codable {
         }
         let before = Dictionary(uniqueKeysWithValues: baseline.rows.map { ($0.adapter, $0) })
         guard rows.map(\.adapter) == baseline.rows.map(\.adapter),
-            rows.allSatisfy({ before[$0.adapter]?.cases == $0.cases })
+            rows.allSatisfy({
+                before[$0.adapter]?.cases == $0.cases && before[$0.adapter]?.exactCases == $0.exactCases
+            })
         else {
             return .failure(
                 Incomparable(reason: "the adapters or their case counts differ from the baseline's"))
