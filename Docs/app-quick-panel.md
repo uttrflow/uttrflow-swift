@@ -259,3 +259,11 @@ When the floating button is turned off, the announcement is the only surface.
 - [`panel.md`](panel.md): what the panel says and why.
 - [`ux-panel-geometry.md`](ux-panel-geometry.md) and [`ux-panel-insertion.md`](ux-panel-insertion.md).
 - [`app-dock.md`](app-dock.md): the floating button that reports after the panel closes.
+
+## Row activation through Accessibility
+
+Each row exposes a default Accessibility action that selects its clip with `.choose`, alongside
+its named actions. Grouping the row as one accessibility element does not inherit the inner
+button's press action, so the default action is registered explicitly. Pointer clicks still read
+the Command modifier to choose plain insertion. `QuickPanelRenderedActionTests` checks default
+activation both with and without named actions, and checks every named callback unchanged.

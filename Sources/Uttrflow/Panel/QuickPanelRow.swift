@@ -146,6 +146,7 @@ struct QuickPanelRow: View, @MainActor Equatable {
         .accessibilityLabel(QuickPanelSpeech.label(for: row))
         .accessibilityHint(hint)
         .accessibilityAddTraits(look.isSelected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityAction { choose(row, plain: false) }
         .accessibilityActions {
             // The same actions the pointer gets, spoken; the ⋯ button is hidden from VoiceOver.
             ForEach(row.actions) { action in
