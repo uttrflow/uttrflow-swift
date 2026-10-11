@@ -12,7 +12,7 @@ struct WaitLineTests {
         let short = DictationPresenter.dock(for: state, waited: WaitLine.stageAfter - .milliseconds(1))
 
         #expect(short == DictationPresenter.dock(for: .tidying))
-        #expect(short.primaryLine == "Tidying up…")
+        #expect(short.primaryLine == "Cleaning up…")
         #expect(WaitLine.announcement(for: state, waited: .seconds(1), alreadyAnnounced: false) == nil)
     }
 
@@ -22,7 +22,7 @@ struct WaitLineTests {
             DictationPresenter.dock(for: $0, waited: WaitLine.stageAfter).primaryLine
         }
 
-        #expect(lines == ["Transcribing…", "Tidying…", "Waiting for Notes…"])
+        #expect(lines == ["Transcribing…", "Cleaning up…", "Waiting for Notes…"])
         #expect(
             DictationPresenter.dock(for: .inserting(into: nil), waited: WaitLine.stageAfter).primaryLine
                 == "Waiting for the app…")
@@ -53,7 +53,7 @@ struct WaitLineTests {
         let first = WaitLine.announcement(for: .tidying, waited: .seconds(12), alreadyAnnounced: false)
         let again = WaitLine.announcement(for: .tidying, waited: .seconds(13), alreadyAnnounced: true)
 
-        #expect(first?.text == "Tidying.")
+        #expect(first?.text == "Cleaning up.")
         #expect(again == nil)
     }
 }

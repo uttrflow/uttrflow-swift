@@ -454,7 +454,7 @@ struct SettingsLanguagesPaneTests {
         #expect(example?.written == transformed)
         #expect(
             SettingsTidyingLevel.rowExplanation
-                == "Both levels remove filler sounds and stammers and add punctuation. Standard also repairs grammar slips, which adds a moment to each dictation. Neither level changes, reorders or drops the words you meant."
+                == "Both levels remove filler sounds and stammers and add punctuation. Standard also repairs grammar slips, which adds a moment to each dictation. Neither level changes, reorders or drops the words you meant. The steps that run are listed under Dictation, in Clean-up steps."
         )
     }
 
@@ -521,7 +521,7 @@ struct SettingsLanguagesPaneTests {
         #expect(row?.isEnabled == false)
         #expect(
             row?.unavailability
-                == "Full tidying is not available on this Mac yet, so Uttrflow will still apply its rules.")
+                == "Full clean-up is not available on this Mac yet, so Uttrflow will still apply its rules.")
     }
 
     @Test("shows the Apple Intelligence cause and offers Settings only when switched off")

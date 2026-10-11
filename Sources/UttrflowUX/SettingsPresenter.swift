@@ -506,16 +506,16 @@ public enum SettingsPresenter {
         switch reason {
         case .appleIntelligenceDisabled:
             label = "Apple Intelligence is switched off"
-            explanation = "Turn it on in System Settings to use full tidying."
+            explanation = "Turn it on in System Settings to use full clean-up."
             control = .action(
                 title: "Open System Settings", change: .openSystemSettings(.appleIntelligence))
         case .modelNotReady:
             label = "Apple Intelligence model is downloading"
-            explanation = "Full tidying will be available when the download finishes."
+            explanation = "Full clean-up will be available when the download finishes."
             control = .status("Downloading")
         case .deviceNotEligible:
             label = "This Mac cannot run Apple Intelligence"
-            explanation = "Uttrflow will continue tidying with its built-in rules."
+            explanation = "Uttrflow will continue cleaning up with its built-in rules."
             control = .status("Unavailable")
         case .other(let detail):
             label = "Apple Intelligence is unavailable"
@@ -554,7 +554,7 @@ public enum SettingsPresenter {
                     id: "spoken", title: "Languages you speak",
                     rows: [listenForRow(settings), pausesRow(settings)]),
                 SettingsGroup(
-                    id: "tidying", title: "Tidying up",
+                    id: "tidying", title: "Clean-up",
                     rows: [tidyingRow(level, capabilities)]
                         + [foundationModelAvailabilityRow(capabilities)].compactMap(\.self)),
             ],
@@ -576,7 +576,7 @@ public enum SettingsPresenter {
         _ personalisation: SettingsPersonalisation
     ) -> SettingsPane {
         let availabilityGroups = [foundationModelAvailabilityRow(capabilities)].compactMap { row in
-            row.map { SettingsGroup(id: "tidyingAvailability", title: "Tidying availability", rows: [$0]) }
+            row.map { SettingsGroup(id: "tidyingAvailability", title: "Clean-up availability", rows: [$0]) }
         }
         return SettingsPane(
             tab: .dictation,
@@ -896,7 +896,7 @@ public enum SettingsPresenter {
         let days = settings.transcriptRetentionDays
         return SettingsRow(
             id: "transcripts",
-            label: "Keep transcripts for",
+            label: "Keep dictations for",
             explanation: "Choose a limit to delete older ones automatically",
             control: .menu(
                 options: SettingsRetention.offeredDays.map { offered in
@@ -966,7 +966,7 @@ public enum SettingsPresenter {
     /// The name each store goes by in the Privacy pane; the key and the lock are the app's own, so they have none.
     static func storageLabel(_ entry: LocalStoreEntry) -> String? {
         switch entry {
-        case .dictationHistory: "Transcripts"
+        case .dictationHistory: "Dictations"
         case .recordings: "Recordings"
         case .personalDictionary: "Dictionary"
         case .snippets: "Snippets"
@@ -1125,7 +1125,7 @@ public enum SettingsPresenter {
     /// The transcript half, or `nil` when there are none saved.
     private static func transcriptsPhrase(_ personalisation: SettingsPersonalisation) -> String? {
         guard personalisation.transcripts > 0 else { return nil }
-        return counted(personalisation.transcripts, "saved transcript", "saved transcripts")
+        return counted(personalisation.transcripts, "saved dictation", "saved dictations")
     }
 
     /// A number and the noun that agrees with it, in one place, so "1 words" cannot appear.

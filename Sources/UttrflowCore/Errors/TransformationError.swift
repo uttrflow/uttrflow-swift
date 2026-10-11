@@ -13,7 +13,7 @@ public enum TransformationError: UttrflowFailure {
     public var userMessage: String {
         switch self {
         case .noCapableTransformer, .transformFailed, .outputRejected, .cancelled:
-            "Your words were captured, but couldn't be tidied up. The raw text is copied, so press ⌘V to paste it."
+            "Your words were captured, but couldn't be cleaned up. The raw text is copied, so press ⌘V to paste it."
         }
     }
 

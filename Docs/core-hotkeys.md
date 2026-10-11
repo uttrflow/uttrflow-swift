@@ -15,8 +15,8 @@ them; this page covers the decisions baked into the binding type.
 |---|---|---|---|
 | Dictate | ⌃⌥ held | `HotkeyBinding.controlOptionHold` | `.observed` |
 | Clipboard panel | ⇧⌘V | `HotkeyBinding.shiftCommandV` | `.claimed` |
-| Paste last transcript | ⌃⌘V | `HotkeyBinding.controlCommandV` | `.claimed` |
-| Copy last transcript | ⌃⌘C | `HotkeyBinding.controlCommandC` | `.claimed` |
+| Paste last dictation | ⌃⌘V | `HotkeyBinding.controlCommandV` | `.claimed` |
+| Copy last dictation | ⌃⌘C | `HotkeyBinding.controlCommandC` | `.claimed` |
 
 `ShortcutSet.default` holds these. An install that finished onboarding before ⌃⌥ held became the
 default keeps ⌥Space (`HotkeyBinding.optionSpace`, `ShortcutSet.earlierDefault`). Delivery is

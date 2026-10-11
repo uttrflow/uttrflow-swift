@@ -80,7 +80,7 @@ struct DiagnosticsLatencyTests {
         ])
 
         #expect(page.latency?.stages.map(\.stage) == [.transcription, .transformation, .insertion])
-        #expect(page.latency?.stages.map(\.title) == ["Transcribing", "Tidying up", "Inserting"])
+        #expect(page.latency?.stages.map(\.title) == ["Transcribing", "Clean-up", "Inserting"])
     }
 
     /// Every stage of the journey, named the way the rest of the product names it.
@@ -93,7 +93,7 @@ struct DiagnosticsLatencyTests {
             page.latency?.stages.map(\.title) == [
                 "Opening the microphone", "Shortcut to first audio", "Recording",
                 "Finishing the piece already under way",
-                "Transcribing", "Checking the dictionary", "Tidying up", "Expanding snippets",
+                "Transcribing", "Checking the dictionary", "Clean-up", "Expanding snippets",
                 "Inserting",
             ])
         #expect(page.latency?.unmeasured.isEmpty == true)
@@ -113,7 +113,7 @@ struct DiagnosticsLatencyTests {
             page.latency?.unmeasured.map(\.title) == [
                 "Opening the microphone", "Shortcut to first audio", "Recording",
                 "Finishing the piece already under way",
-                "Tidying up", "Expanding snippets", "Inserting",
+                "Clean-up", "Expanding snippets", "Inserting",
             ])
         #expect(page.latency?.unmeasured.allSatisfy { $0.detail == "Never run" } == true)
         #expect(page.latency?.unmeasured.allSatisfy { $0.state == .unknown } == true)

@@ -70,7 +70,7 @@ extension MainNotice {
         let drawing = Self.drawing(for: .degraded)
         return MainNotice(
             message:
-                "Inserted without clean-up. Tidying did not finish, so your words went in exactly as heard.",
+                "Inserted without clean-up. Clean-up did not finish, so your words went in exactly as heard.",
             symbolName: drawing.symbolName, tone: drawing.tone)
     }
 

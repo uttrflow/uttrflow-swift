@@ -57,7 +57,7 @@ struct DiagnosticsReportRedactionTests {
             for: Self.snapshot(), locale: DiagnosticsFixture.locale)
         #expect(report.contains("removed 1, rewrote 1, added 1"))
         #expect(report.contains(RefusalKind.lostWord.summary))
-        #expect(report.contains("Tidy outcomes, last 1 pieces"))
+        #expect(report.contains("Clean-up outcomes, last 1 pieces"))
         #expect(report.contains("  localModel: accepted 0, refused lostWord 1"))
         #expect(report.contains("  foundationModels: accepted 0, skipped other 1"))
         #expect(report.contains("  rules: accepted 1"))

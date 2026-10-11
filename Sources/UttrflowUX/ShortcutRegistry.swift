@@ -38,12 +38,12 @@ public enum ShortcutRegistry {
             delivery: .claimed),
         ShortcutDescriptor(
             action: .pasteLastTranscript,
-            label: "Paste last transcript",
+            label: "Paste last dictation",
             explanation: "Puts the last thing you dictated at the caret. Never uses the clipboard.",
             delivery: .claimed),
         ShortcutDescriptor(
             action: .copyLastTranscript,
-            label: "Copy last transcript",
+            label: "Copy last dictation",
             explanation: "Puts the last thing you dictated on the clipboard.",
             delivery: .claimed),
         ShortcutDescriptor(

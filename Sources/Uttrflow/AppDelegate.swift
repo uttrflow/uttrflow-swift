@@ -2094,8 +2094,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Shown and spoken, so a shortcut with nothing to act on never looks broken.
     private func sayNoLastTranscript(to verb: String) {
-        Self.log.notice("\(verb, privacy: .public) last transcript: nothing dictated yet")
-        let message = "There is no transcript to \(verb) yet."
+        Self.log.notice("\(verb, privacy: .public) last dictation: nothing dictated yet")
+        let message = "There is no dictation to \(verb) yet."
         actionNotice = MainNotice(message: message, symbolName: "info.circle", tone: .neutral)
         announce(message, urgently: false)
     }

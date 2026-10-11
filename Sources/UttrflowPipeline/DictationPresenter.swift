@@ -135,7 +135,7 @@ public enum DictationPresenter {
 
     /// The working orb, with the stage's words and, past `WaitLine.secondsAfter`, the seconds waited.
     static func working(_ stage: String?, waited: Duration) -> DockPresentation {
-        guard let stage else { return .working("Tidying up…", nil, label: "Working on what you said.") }
+        guard let stage else { return .working("Cleaning up…", nil, label: "Working on what you said.") }
         return .working(
             "\(stage)…", waited >= WaitLine.secondsAfter ? elapsed(waited) : nil, label: "\(stage).")
     }

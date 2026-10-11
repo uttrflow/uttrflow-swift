@@ -542,7 +542,7 @@ struct SettingsRemovalCopyTests {
         #expect(
             confirmation.message
                 == "This removes 46 words from your dictionary (34 it learned, 12 you added "
-                + "yourself), 142 saved transcripts, your whole clipboard history, pinned clips "
+                + "yourself), 142 saved dictations, your whole clipboard history, pinned clips "
                 + "included, your snippets and learned completions, and puts every preference "
                 + "back to its default. It cannot be undone.")
         #expect(confirmation.title == "Reset personalisation?")

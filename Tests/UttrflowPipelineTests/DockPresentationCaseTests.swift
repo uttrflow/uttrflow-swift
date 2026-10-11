@@ -49,7 +49,7 @@ struct DockPresentationCaseTests {
         #expect(
             DictationPresenter.dock(for: .transcribing)
                 == DockPresentation(
-                    symbolName: "sparkles", primaryLine: "Tidying up…", secondaryLine: nil,
+                    symbolName: "sparkles", primaryLine: "Cleaning up…", secondaryLine: nil,
                     showsWaveform: false, showsProgress: true, isRecording: false, action: nil,
                     accessibilityLabel: "Working on what you said."))
     }

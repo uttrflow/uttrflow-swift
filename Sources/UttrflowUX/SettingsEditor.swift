@@ -315,7 +315,7 @@ public enum SettingsEditor {
         if case .unavailable(let reason) = capabilities.foundationModelAvailability {
             return reason.diagnosticDescription + ". Uttrflow will still apply its rules."
         }
-        return "Full tidying is not available on this Mac yet, so Uttrflow will still apply its rules."
+        return "Full clean-up is not available on this Mac yet, so Uttrflow will still apply its rules."
     }
 
     // MARK: - Languages
