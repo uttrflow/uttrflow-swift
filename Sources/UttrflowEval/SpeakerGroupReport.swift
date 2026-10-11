@@ -127,7 +127,9 @@ public struct SpeakerGroupReport: Sendable, Equatable {
     public var lines: [String] {
         func percent(_ value: Double) -> String { String(format: "%.1f%%", value * 100) }
         func points(_ value: Double) -> String { String(format: "%+.1f", value * 100) }
-        var lines = ["group\tlabel\tspeakers\twords\tdecisions\tWER\tinterval\tMDD\tfalse override\tseams\tseam rate"]
+        var lines = [
+            "group\tlabel\tspeakers\twords\tdecisions\tWER\tinterval\tMDD\tfalse override\tseams\tseam rate"
+        ]
         for row in rows {
             let interval = row.interval.map { "\(points($0.lowerBound))..\(points($0.upperBound))" }
             let rate = row.interval == nil ? "insufficient evidence" : percent(row.errorRate)
@@ -141,7 +143,8 @@ public struct SpeakerGroupReport: Sendable, Equatable {
                 [
                     row.group, row.label.rawValue, "\(row.speakers)", "\(row.words)", "\(row.decisions)",
                     rate,
-                    interval ?? "-", row.minimumDetectableDifference.map(points) ?? "-", claim, "\(row.seams)",
+                    interval ?? "-", row.minimumDetectableDifference.map(points) ?? "-", claim,
+                    "\(row.seams)",
                     row.seamRate.map(percent) ?? "-",
                 ].joined(separator: "\t"))
         }
