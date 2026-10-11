@@ -134,9 +134,21 @@ enum PieceJoiner {
         func read(_ words: [String]) -> [String] {
             // A capital the date gives its month counts, so "march | third" is read as the one date.
             WordTokens.words(units.run(Draft(text: words.joined(separator: " "))).text, .display)
-                .map { WordShape($0).core }
         }
-        return read(Array(headWords + tailWords)) != read(Array(headWords)) + read(Array(tailWords))
+        let headRead = read(Array(headWords))
+        let apart = headRead + read(Array(tailWords))
+        let together = read(Array(headWords + tailWords))
+        guard together.map({ WordShape($0).core }) != apart.map({ WordShape($0).core }) else { return false }
+        return !gluesDigitGroups(together, from: apart, at: headRead.count)
+    }
+
+    /// Whether reading across the cut only fused two two-digit numbers at the cut into one year-like number, as "20" and "30" into "2030".
+    private static func gluesDigitGroups(_ together: [String], from apart: [String], at cut: Int) -> Bool {
+        guard cut > 0, cut < apart.count, together.count == apart.count - 1 else { return false }
+        let (before, after) = (apart[cut - 1], apart[cut])
+        guard before.count == 2, after.count == 2, (before + after).allSatisfy({ $0.isASCII && $0.isNumber })
+        else { return false }
+        return together == Array(apart[..<(cut - 1)]) + [before + after] + Array(apart[(cut + 1)...])
     }
 
     /// Whether a tidied piece leaves a double quotation open that the next one closes, so the cut falls inside the quoted words.

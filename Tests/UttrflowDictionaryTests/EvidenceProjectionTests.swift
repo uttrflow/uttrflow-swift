@@ -44,10 +44,8 @@ private struct EvidenceLedger {
     func netUses(_ subject: UUID) -> Int { used(subject) - reverted(subject) }
 
     /// The projection that replaces `DictionaryEntry.isTrustworthy`.
-    func isTrustworthy(_ subject: UUID) -> Bool {
-        let uses = used(subject)
-        guard uses >= 3 else { return true }
-        return Double(reverted(subject)) / Double(uses) < 0.5
+    func isTrustworthy(_ subject: UUID, origin: WordOrigin) -> Bool {
+        DictionaryEntry.isTrustworthy(origin: origin, used: used(subject), reverted: reverted(subject))
     }
 
     /// Folds each run of rows of one kind and subject between restores into one row.
@@ -79,7 +77,7 @@ struct EvidenceProjectionTests {
                 let ledger = EvidenceLedger(rows: EvidenceLedger.migrating(entry, on: 0))
                 #expect(ledger.netUses(entry.id) == entry.netUses, "used \(used), reverted \(reverted)")
                 #expect(
-                    ledger.isTrustworthy(entry.id) == entry.isTrustworthy,
+                    ledger.isTrustworthy(entry.id, origin: entry.origin) == entry.isTrustworthy,
                     "used \(used), reverted \(reverted)")
             }
         }
@@ -107,10 +105,13 @@ struct EvidenceProjectionTests {
             ledger.rows.append(EvidenceRow(kind: step, subject: entry.id, weight: 1, day: day))
             let current = try #require(stored)
             #expect(ledger.netUses(entry.id) == current.netUses, "after step \(day)")
-            #expect(ledger.isTrustworthy(entry.id) == current.isTrustworthy, "after step \(day)")
+            #expect(
+                ledger.isTrustworthy(entry.id, origin: entry.origin) == current.isTrustworthy,
+                "after step \(day)")
             #expect(ledger.compacted().netUses(entry.id) == current.netUses, "compacted, after step \(day)")
             #expect(
-                ledger.compacted().isTrustworthy(entry.id) == current.isTrustworthy, "compacted, step \(day)")
+                ledger.compacted().isTrustworthy(entry.id, origin: entry.origin) == current.isTrustworthy,
+                "compacted, step \(day)")
         }
     }
 }

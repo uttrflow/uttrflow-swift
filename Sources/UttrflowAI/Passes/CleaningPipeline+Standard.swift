@@ -49,7 +49,7 @@ extension CleaningPipeline {
                 mode: mode),
             SpokenEmojiPass(destination: destination),
             LayoutWordsPass(layout: layout, insertionPoint: insertionPoint),
-            NumberFormsPass(policy: numbers, digits: digits),
+            SpelledNamePass(destination: destination), NumberFormsPass(policy: numbers, digits: digits),
             ContractionsPass(), SpacingPass(),
             // Last, so a pause inside a number or a removed filler is read on the words left standing.
             PauseStopPass(destination: destination, pauses: pauses),
@@ -180,4 +180,9 @@ extension AppContext {
     var textOnScreen: [String] {
         [documentName, selectedText, precedingText, followingText].compactMap { $0 }
     }
+}
+
+extension PassID {
+    /// A listed name said as letters and number words, written fused.
+    static let spelledName: PassID = "spelledName"
 }

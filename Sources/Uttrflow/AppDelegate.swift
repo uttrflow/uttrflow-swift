@@ -862,7 +862,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// What runs in the background now, decided from the session and the settings together.
-    var surfaces: SessionSurfaces { SessionSurfaces(isSignedIn: isSignedIn, settings: settings) }
+    var surfaces: SessionSurfaces {
+        SessionSurfaces(
+            isSignedIn: isSignedIn, clipboardChoiceIsMade: onboardingRecordStore.hasChosenClipboard,
+            settings: settings)
+    }
 
     /// The session the surfaces were last opened or closed for, so a repeat changes nothing.
     private var appliedSession: Bool?
@@ -986,6 +990,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             if behavior == .developmentLaunch { onboarding?.closeIfNotRequired() }
         }
         onboarding.onSettingsChange = { [weak self] in self?.settingsChanged(to: $0) }
+        // A Keep changes no setting, so the answer itself is what starts recording.
+        onboarding.onClipboardAnswered = { [weak self] in self?.followTheClipboardSwitch() }
         onboarding.onFinish = { [weak self] _ in
             guard let self else { return }
             // Re-read, because the microphone check writes the language list through the same store.
@@ -1019,7 +1025,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             return .terminateCancel
         }
         completions?.stop()
-        let watchingClipboard = settings.clipboardEnabled && !isClipboardPaused
+        let watchingClipboard = surfaces.watchesTheClipboard && !isClipboardPaused
         let arrived: @Sendable (NoticedClip) async -> Void = { [weak self] noticed in
             await self?.clipArrived(noticed)
         }
@@ -2138,7 +2144,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         updates.refresh()
         let opened = quickPanel.opens
         // A copy since the last poll is taken now, started not awaited, so no read holds the panel shut (#895).
-        if settings.clipboardEnabled && !isClipboardPaused {
+        if surfaces.watchesTheClipboard && !isClipboardPaused {
             let arrived: @Sendable (NoticedClip) async -> Void = { [weak self] noticed in
                 await self?.clipArrived(noticed)
             }
@@ -3995,7 +4001,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 guard let record = await history.records(keeping: retention).first(where: { $0.id == id })
                 else { return }
                 let names = await dictionary.allEntries().map(\.word)
-                DictationReportSheet.present(DictationReport(record: record, names: names)) { text in
+                let info = Bundle.main
+                let version = info.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+                DictationReportSheet.present(
+                    DictationReport(record: record, names: names, appVersion: version)
+                ) { text in
                     // A concealed copy keeps a report holding a transcript out of clipboard history.
                     self?.putOnClipboard(text, concealed: true, used: nil) ?? false
                 }

@@ -371,3 +371,28 @@ struct SettingsAdapterModeTests {
         }
     }
 }
+
+@Suite("The example under a clean-up step")
+struct SettingsCleaningExampleTests {
+    private let previewer = CleaningPreviewer { step, steps in
+        CleaningStepSample(
+            without: "off \(step.id.rawValue)", with: steps.runs(step.id) ? "on-run" : "on")
+    }
+
+    @Test("with no previewer a row says only what the step does")
+    func noPreviewer() {
+        let group = SettingsDestinations.steps(.default)
+        #expect(group.rows.map(\.explanation) == CleaningSteps.offered.map(\.detail))
+    }
+
+    @Test("with a previewer the example is said both ways in the one explanation")
+    func withPreviewer() throws {
+        let group = SettingsDestinations.steps(.default, previewer: previewer)
+        let step = try #require(CleaningSteps.offered.first)
+        let text = try #require(group.rows.first?.explanation)
+        #expect(text.hasPrefix(step.detail))
+        #expect(text.contains("\u{201C}\(step.example)\u{201D}"))
+        #expect(text.contains("\u{201C}off \(step.id.rawValue)\u{201D}"))
+        #expect(text.contains("\u{201C}on-run\u{201D}"))
+    }
+}

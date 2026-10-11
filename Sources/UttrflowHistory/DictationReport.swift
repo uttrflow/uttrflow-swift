@@ -9,11 +9,12 @@ package struct DictationReport: Sendable, Equatable {
     package private(set) var lines: [String]
 
     /// Builds the report for `record`, masking secrets, email addresses, long digit runs and `names`.
-    package init(record: DictationRecord, names: [String] = []) {
+    package init(record: DictationRecord, names: [String] = [], appVersion: String? = nil) {
         let masker = ReportMasker(names: names)
         var lines = [
             "Uttrflow dictation report",
             "Audio: never included",
+            "Uttrflow version: \(appVersion ?? "unrecorded")",
             "Cleaned by: \(record.cleanedBy?.rawValue ?? "unrecorded")",
             "Application: \(record.applicationIdentifier ?? "unrecorded")",
             "Error class: \(record.flagReason?.rawValue ?? "unlabelled")",
@@ -22,8 +23,21 @@ package struct DictationReport: Sendable, Equatable {
             lines.append(
                 "Changed: \(masker.masked(correction.heard)) -> \(masker.masked(correction.wrote))")
         }
+        lines += Self.traceLines(for: record)
         lines.append("Text: \(masker.masked(record.text))")
         self.lines = lines
+    }
+
+    /// One line per cleaning pass that changed the text and one for the guard refusals; neither holds a word.
+    private static func traceLines(for record: DictationRecord) -> [String] {
+        var lines = (record.changeLedger ?? []).map { entry in
+            "Stage: \(entry.pass.rawValue) \(entry.kind.rawValue)"
+                + (entry.evidence.map { " (\($0.rawValue))" } ?? "")
+        }
+        if let refusals = record.guardRefusals, !refusals.isEmpty {
+            lines.append("Refused by guard: \(refusals.map(\.rawValue).joined(separator: ", "))")
+        }
+        return lines
     }
 
     /// The report as shared: every line followed by a line break.
