@@ -11,7 +11,10 @@ public enum Abbreviations {
     /// What kind of abbreviation the word is, case aside, read without its trailing stop; nil when it is not one.
     public static func kind(of word: String) -> Kind? {
         let key = word.lowercased()
-        if let row = rows[key] { return row.kind }
+        if let row = rows[key] {
+            // Lower-case "ms" is the unit; the title is written "Ms".
+            return row.kind == .title && row.symbol == word ? .unit : row.kind
+        }
         if isDottedAcronym(key) { return .acronym }
         if key.count == 1, key.first?.isLetter == true { return .initial }
         return nil
