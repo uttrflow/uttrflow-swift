@@ -74,6 +74,19 @@ struct SnippetArrivalTests {
         #expect(run.writes.first?.contains("EXPANDED") == fires, "\(arrives) -> \(run.writes)")
     }
 
+    @Test(
+        "a trigger that says a spoken command leaves the dictation as it is without the snippet",
+        arguments: ["new line thanks", "send a comma", "question mark reply"])
+    func commandTriggerLeavesDictationUnchanged(_ phrase: String) async {
+        let snippet = Snippet(trigger: phrase, expansion: "EXPANDED", created: .distantPast)
+        let without = await ScenarioDriver.run(scenario(hearing: phrase))
+        let with = await ScenarioDriver.run(scenario(hearing: phrase, snippets: [snippet]))
+
+        #expect(snippet.collidingCommand != nil)
+        #expect(with.writes == without.writes, "\(with.writes) vs \(without.writes)")
+        #expect(!(with.writes.first ?? "").contains("EXPANDED"))
+    }
+
     @Test("a snippet's caret marker moves the caret back to it once the words are written")
     func caretMarkerIsPlaced() async throws {
         let snippet = Snippet(trigger: "sign off", expansion: "Regards,{caret} team", created: .distantPast)
