@@ -123,15 +123,19 @@ struct NumberRoundTripTests {
 
     @Test(
         "a number written out in words reads back as its numeral", arguments: [NumberPolicy.fromTen, .always])
-    func roundTrip(policy: NumberPolicy) {
+    func roundTrip(policy: NumberPolicy) throws {
         let pass = NumberFormsPass(policy: policy)
         var failures: [String: [RoundTripCase]] = [:]
         var totals: [String: Int] = [:]
-        for item in RoundTripCorpus.all() {
+        for (index, item) in RoundTripCorpus.all().enumerated() {
             totals[item.bucket, default: 0] += 1
-            if cleaned(item.spoken, by: pass) != item.expected {
+            let written = cleaned(item.spoken, by: pass)
+            if written != item.expected {
                 failures[item.bucket, default: []].append(item)
             }
+            try QualityGridReport.emit(
+                suite: "number", id: "\(RoundTripCorpus.seed)/\(policy)/\(item.bucket)/\(index)", passed: nil,
+                measurements: ["matched": written == item.expected ? 1 : 0])
         }
         for bucket in totals.keys.sorted() {
             let failed = failures[bucket] ?? []
@@ -139,6 +143,9 @@ struct NumberRoundTripTests {
             print(
                 "round trip \(policy) \(bucket): \(totals[bucket, default: 0] - failed.count)/\(totals[bucket, default: 0])"
             )
+            try QualityGridReport.emit(
+                suite: "number", id: "\(policy)/\(bucket)", passed: failed.count <= allowed,
+                failed: failed.count, allowed: allowed, measurements: ["total": totals[bucket, default: 0]])
             let shortest = failed.min { $0.spoken.count < $1.spoken.count }
             #expect(
                 failed.count <= allowed,

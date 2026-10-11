@@ -2,6 +2,7 @@
 
 import Foundation
 import Testing
+import UttrflowTestSupport
 
 @testable import UttrflowCore
 
@@ -101,7 +102,7 @@ private enum Grid {
 @Suite("VoiceActivity under recording conditions")
 struct VoiceActivityConditionTests {
     @Test("reports the trim error for each level and condition")
-    func reportsGrid() {
+    func reportsGrid() throws {
         for level in [-25.0, -40.0, -55.0] {
             for condition in ["clean", "dc", "rumble", "step"] {
                 let trim = Grid.recording(speechLevel: level, condition: condition)
@@ -111,6 +112,14 @@ struct VoiceActivityConditionTests {
                     let error = Grid.error(of: found, for: trim)
                     let cell = error.map { "clip \($0.clip) ms, over \($0.over) ms" } ?? "rejected"
                     print("TRIMGRID \(trim.label) high-pass order \(order): \(cell)")
+                    var measurements = ["rejected": found == nil ? 1 : 0]
+                    if let error {
+                        measurements["clip"] = error.clip
+                        measurements["over"] = error.over
+                    }
+                    try QualityGridReport.emit(
+                        suite: "condition", id: "\(trim.label)/\(order)", passed: nil,
+                        measurements: measurements)
                 }
             }
         }
