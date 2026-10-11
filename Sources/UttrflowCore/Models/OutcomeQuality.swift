@@ -22,7 +22,7 @@ public enum OutcomeQuality: Sendable, Equatable {
     }
 
     /// Every value that is not complete, so a test can walk each rung and reason.
-    public static let incomplete: [OutcomeQuality] =
+    static let incomplete: [OutcomeQuality] =
         RulesReason.allCases.map(OutcomeQuality.tidiedByRules)
         + UntidiedReason.allCases.map(OutcomeQuality.untidied) + [.partial]
 
