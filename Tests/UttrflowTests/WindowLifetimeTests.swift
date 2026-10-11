@@ -13,15 +13,6 @@ import UttrflowUX
 
 @testable import Uttrflow
 
-/// Bytes in memory, so no test reads or writes the real defaults domain.
-private final class MemoryDefaults: KeyValueStore, SessionStorage, @unchecked Sendable {
-    private var values: [String: Data] = [:]
-
-    func data(forKey key: String) -> Data? { values[key] }
-
-    func set(_ data: Data?, forKey key: String) { values[key] = data }
-}
-
 /// A record of onboarding that says it has never been finished.
 private struct NeverFinished: OnboardingRecordStore {
     var hasFinished: Bool { false }

@@ -1,16 +1,9 @@
 // Folds each clip's text for search once per text for the life of the app.
-private import Synchronization
 import UttrflowClipboard
 
 /// Remembers each clip's search-folded text, so a keystroke does not rebuild every clip's text.
 final class FoldedTexts: Sendable {
-    /// Holds the source text and its bounded, folded search form.
-    private struct Entry {
-        let text: String
-        let searchable: String
-    }
-
-    private let entries = Mutex<[Clip.ID: Entry]>([:])
+    private let entries = Memo<Clip.ID, String, String>()
     private let fold: @Sendable (String) -> String?
 
     /// Builds an empty memo; `fold` is a seam so a test can count the folds.
@@ -20,17 +13,14 @@ final class FoldedTexts: Sendable {
 
     /// The clip's text as search compares it, folding only a text not folded before.
     func text(of clip: Clip) -> String {
-        if let known = entries.withLock({ $0[clip.id] }), known.text == clip.text {
-            return known.searchable
+        entries.value(for: clip.id, source: clip.text) {
+            let searchableText = String(SearchFolding.boundedPrefix(of: clip.text))
+            return fold(searchableText) ?? searchableText
         }
-        let searchableText = String(SearchFolding.boundedPrefix(of: clip.text))
-        let searchable = fold(searchableText) ?? searchableText
-        entries.withLock { $0[clip.id] = Entry(text: clip.text, searchable: searchable) }
-        return searchable
     }
 
     /// Drops folded text for clips outside the live clip list, so deleted clips cannot pile up.
     func prune(to liveIDs: Set<Clip.ID>) {
-        entries.withLock { $0 = $0.filter { liveIDs.contains($0.key) } }
+        entries.prune(to: liveIDs)
     }
 }
