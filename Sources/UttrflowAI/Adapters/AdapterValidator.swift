@@ -5,7 +5,8 @@ enum AdapterValidator {
     /// The verdict on `output` written at the caret of `situation`, judged only where the screen says notation is written.
     static func verdict(on output: String, in situation: Situation) -> AdapterVerdict {
         let screen = NotationEvidence.applicability(
-            destination: situation.destination, region: situation.intent.region)
+            destination: situation.destination, region: situation.intent.region,
+            mode: situation.adapterMode)
         guard screen.activates(at: NotationEvidence.activationThreshold) else { return .notApplicable }
         return balance(
             of: output, preceding: situation.insertion.precedingText ?? "",
