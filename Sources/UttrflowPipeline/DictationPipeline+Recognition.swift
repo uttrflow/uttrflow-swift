@@ -30,7 +30,7 @@ extension DictationPipeline {
                     continue
                 case .tidying(let running):
                     let task = running.task
-                    // The recognition after it can start before this tidy is done; the group still drains it first.
+                    // The next recognition can start while this tidy runs; the group drains the tidy first.
                     if let earlier = await tidying.next() { pieces.append(earlier) }
                     if spanIndex == work.indices.last {
                         await runningCleaner.reserveFinalPiece(dictationContext?.situation)

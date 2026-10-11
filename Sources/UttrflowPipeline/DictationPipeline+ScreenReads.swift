@@ -37,7 +37,7 @@ extension DictationPipeline {
     /// The words this dictation ranked once, or none when it never read a screen to rank them against.
     var rankedWords: [String] { dictationContext?.vocabulary ?? dictationWords ?? [] }
 
-    /// The screen as it was while the key was held, read once for every early piece.
+    /// The screen as it stands while the key is held, read once for every early piece.
     func earlyContextRead(_ mine: Int) async -> AppContext {
         if let seen = early.context { return seen }
         var read: AppContext

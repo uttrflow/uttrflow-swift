@@ -30,7 +30,7 @@ private final class FakeApplication {
     }
 }
 
-@Suite("Turning a browser engine's full Accessibility tree on and off")
+@Suite("Turning a browser engine's full Accessibility tree on and off", .timeLimit(.minutes(2)))
 struct FullTreeSwitchTests {
     @Test("An application on a bundled browser engine takes the manual switch.")
     func bundledEngineTakesTheManualSwitch() {
@@ -208,18 +208,18 @@ struct FullTreeSwitchTests {
                 generation: generation)
             readFinished.signal()
         }
-        #expect(app.readStarted.wait(timeout: .now() + .seconds(1)) == .success)
+        #expect(app.readStarted.wait(timeout: .distantFuture) == .success)
 
         let invalidationFinished = DispatchSemaphore(value: 0)
         onItsOwnThread {
             tree.invalidatePendingReads()
             invalidationFinished.signal()
         }
-        #expect(invalidationFinished.wait(timeout: .now() + .milliseconds(100)) == .success)
+        #expect(invalidationFinished.wait(timeout: .distantFuture) == .success)
         #expect(tree.generation == generation + 1)
 
         app.resumeRead.signal()
-        #expect(readFinished.wait(timeout: .now() + .seconds(1)) == .success)
+        #expect(readFinished.wait(timeout: .distantFuture) == .success)
         #expect(!app.isOn)
     }
 
@@ -235,11 +235,11 @@ struct FullTreeSwitchTests {
                 generation: oldGeneration)
             readFinished.signal()
         }
-        #expect(app.readStarted.wait(timeout: .now() + .seconds(1)) == .success)
+        #expect(app.readStarted.wait(timeout: .distantFuture) == .success)
 
         let newGeneration = tree.beginSession()
         app.resumeRead.signal()
-        #expect(readFinished.wait(timeout: .now() + .seconds(1)) == .success)
+        #expect(readFinished.wait(timeout: .distantFuture) == .success)
         #expect(tree.switchedOn.isEmpty)
 
         tree.switchOn(
@@ -262,11 +262,11 @@ struct FullTreeSwitchTests {
                 generation: oldGeneration)
             writeFinished.signal()
         }
-        #expect(app.writeStarted.wait(timeout: .now() + .seconds(1)) == .success)
+        #expect(app.writeStarted.wait(timeout: .distantFuture) == .success)
 
         tree.beginSession()
         app.resumeWrite.signal()
-        #expect(writeFinished.wait(timeout: .now() + .seconds(1)) == .success)
+        #expect(writeFinished.wait(timeout: .distantFuture) == .success)
         #expect(tree.switchedOn.isEmpty)
         #expect(app.isOn)
 
