@@ -78,6 +78,7 @@ public struct BackendCorpusClient: CorpusCatalogue, CorpusUploading {
         let byteSize: Int?
         let isHeldOut: Bool
         let cohort: String?
+        let speakerGroup: String?
 
         init(_ sample: CorpusSample) {
             slug = sample.slug
@@ -91,6 +92,7 @@ public struct BackendCorpusClient: CorpusCatalogue, CorpusUploading {
             byteSize = sample.byteSize
             isHeldOut = sample.isHeldOut
             cohort = sample.cohort
+            speakerGroup = sample.speakerGroup
         }
     }
 
