@@ -169,6 +169,8 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
     public let isMonospaced: Bool
     /// Whether the clip contains invisible or control characters.
     public let containsDisplayHazards: Bool
+    /// The real host of a link row, or `nil` for any other row.
+    public let linkHost: LinkHostDisplay?
     public let actions: [PanelAction]
 
     /// The bounded full-text preview, never on a masked row. See `Docs/panel.md`.
@@ -201,6 +203,7 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
         language: String? = nil,
         isMonospaced: Bool,
         containsDisplayHazards: Bool = false,
+        linkHost: LinkHostDisplay? = nil,
         actions: [PanelAction]
     ) {
         self.id = id
@@ -225,6 +228,7 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
         self.language = language
         self.isMonospaced = isMonospaced
         self.containsDisplayHazards = containsDisplayHazards
+        self.linkHost = linkHost
         self.actions = actions
     }
 }
@@ -487,7 +491,7 @@ public enum PanelPresenter {
             needle: snapshot.needle, locale: snapshot.locale, now: snapshot.now,
             imagesFolder: snapshot.imagesFolder, formattableLanguages: snapshot.formattableLanguages,
             revealed: snapshot.revealed, missingImages: snapshot.missingImages)
-        let rows = snapshot.rowMemo.rows(
+        let rows = PanelCache.current.rowMemo.rows(
             listID: results.listID, results: results.rows, context: context
         ) { result in
             row(for: result, in: snapshot, isSelected: false)
@@ -511,7 +515,7 @@ public enum PanelPresenter {
             // A sheet has its own keys, so the list's line would be teaching the wrong ones.
             hint: hint(for: snapshot, isEmpty: rows.isEmpty),
             sheet: sheet(for: snapshot),
-            groups: snapshot.rowMemo.groups(for: results.listID) {
+            groups: PanelCache.current.rowMemo.groups(for: results.listID) {
                 groups(for: rows, omitted: results.omitted, isSearching: snapshot.isSearching)
             },
             emptyAction: saysNothing ? emptyAction(for: snapshot) : nil,
@@ -521,7 +525,7 @@ public enum PanelPresenter {
             announcements: announcements(for: snapshot),
             announcementIDs: announcementIDs(for: snapshot),
             rowHint: rowHint(for: snapshot.insertion), selectedIndex: results.selectedIndex,
-            rowCacheID: snapshot.rowMemo.presentationID
+            rowCacheID: PanelCache.current.rowMemo.presentationID
         )
     }
 
@@ -571,6 +575,7 @@ public enum PanelPresenter {
             language: isMasked ? nil : clip.language?.chip,
             isMonospaced: isMonospaced(clip.kind),
             containsDisplayHazards: ClipTextSafety.containsDisplayHazards(clip.text),
+            linkHost: isMasked || clip.kind != .link ? nil : LinkHostDisplay.parse(clip.text),
             actions: actions(for: clip, isMasked: isMasked, in: snapshot)
         )
     }
@@ -643,7 +648,7 @@ public enum PanelPresenter {
                     title: "Format", symbolName: "wand.and.stars", intent: .format(clip.id),
                     shortcut: PanelRowAction.format.chord))
         }
-        if snapshot.reindentOffers.offers(clip) {
+        if PanelCache.current.reindentOffers.offers(clip) {
             actions.append(
                 PanelAction(
                     title: "Re-indent", symbolName: "text.alignleft",
@@ -694,7 +699,7 @@ public enum PanelPresenter {
 
     /// How many checklist boxes are checked, without copying any note text into the row.
     static func checklistProgress(of clip: Clip, in snapshot: PanelSnapshot) -> String? {
-        guard let progress = snapshot.checklistProgresses.progress(of: clip) else { return nil }
+        guard let progress = PanelCache.current.checklistProgresses.progress(of: clip) else { return nil }
         return "\(progress.done) of \(progress.total)"
     }
 

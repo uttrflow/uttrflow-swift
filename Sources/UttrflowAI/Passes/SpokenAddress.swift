@@ -162,6 +162,10 @@ struct SpokenAddress: Equatable {
             text += query.text
             end += query.length
         }
+        if let fragment = readFragment(at: end, within: run, in: live, of: draft) {
+            text += fragment.text
+            end += fragment.length
+        }
         let first = draft.shape(at: live[position])
         let last = draft.shape(at: live[end - 1])
         return SpokenAddress(length: end - position, text: first.prefix + text + last.suffix)
@@ -219,6 +223,19 @@ struct SpokenAddress: Equatable {
         }
         guard !pairs.isEmpty else { return nil }
         return SpokenAddress(length: place - position, text: "?" + pairs.joined(separator: "&"))
+    }
+
+    /// Reads a fragment said as "hash" and one label directly after an address, written "#label".
+    private static func readFragment(
+        at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft
+    ) -> SpokenAddress? {
+        guard position > 0, position + 1 < run.upperBound, draft.shape(at: live[position - 1]).suffix.isEmpty,
+            draft.shape(at: live[position]).key == "hash", draft.shape(at: live[position]).prefix.isEmpty,
+            draft.shape(at: live[position]).suffix.isEmpty
+        else { return nil }
+        let name = draft.shape(at: live[position + 1]).core
+        guard isLabel(name) else { return nil }
+        return SpokenAddress(length: 2, text: "#" + name)
     }
 
     /// A spoken or written whole number at `place` and how many words it used.
@@ -420,6 +437,12 @@ struct SpokenAddress: Equatable {
             shape.suffix.isEmpty
         {
             let next = draft.shape(at: live[place + 1])
+            // Inside a host or path a dash before spoken digits joins them, written as digits.
+            if side == .domain, joiner == "-",
+                let digits = spokenDigits(from: place + 1, within: run, in: live, of: draft)
+            {
+                return (String(joiner) + digits.text, 1 + digits.used, false)
+            }
             // A determiner after the joiner opens a noun phrase, so the joiner is a word: "results underscore the need".
             guard next.prefix.isEmpty, joiners[next.key] == nil, next.key != "dot", isLabel(next.core),
                 !MentionGuard.phraseOpeners.contains(next.key)
@@ -435,6 +458,22 @@ struct SpokenAddress: Equatable {
             .prefix { NumberWords.value(of: $0) != nil }
         guard let number = NumberWords.cardinal(ArraySlice(keys)) else { return nil }
         return (String(number.value), number.count, false)
+    }
+
+    /// The digits a run of spoken digit words from `place` reads as, with how many words it used.
+    private static func spokenDigits(
+        from place: Int, within run: Range<Int>, in live: [Int], of draft: Draft
+    ) -> (text: String, used: Int)? {
+        var text = ""
+        var end = place
+        while end < run.upperBound, draft.shape(at: live[end]).prefix.isEmpty,
+            let digit = NumberWords.spokenDigit(draft.shape(at: live[end]).key), digit < 10
+        {
+            text += String(digit)
+            end += 1
+            if !draft.shape(at: live[end - 1]).suffix.isEmpty { break }
+        }
+        return text.isEmpty ? nil : (text, end - place)
     }
 
     /// The word at `place` and how many words it spans: a run of two or more unmarked single letters is one spelled word.

@@ -84,25 +84,28 @@ struct QuickPanelRow: View, @MainActor Equatable {
                         // Sized to content, or an empty summary takes half the row and truncates this.
                         .fixedSize(horizontal: true, vertical: false)
                 }
-                Text(row.summary)
-                    .font(
-                        .system(
-                            size: row.isMasked ? 12 : 12.5,
-                            design: row.isMonospaced && !row.isMasked ? .monospaced : .default)
-                    )
-                    .foregroundStyle(row.isMasked ? Color.panelLabelDim : Color.panelLabel)
+                if let linkHost = row.linkHost, !linkHost.warnings.isEmpty { linkWarningBadge(linkHost) }
+                summaryText(row)
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     // Shows the whole line as a tooltip; whether there is one is `PanelRow.tooltip`'s answer.
-                    .help(row.tooltip ?? "")
+                    .help(row.linkHost?.tooltip ?? row.tooltip ?? "")
                 if row.additionalLineCount > 0 {
-                    Text("+\(row.additionalLineCount) lines")
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundStyle(Color.panelLabelDim)
-                        .fixedSize()
-                        .accessibilityLabel("\(row.additionalLineCount) additional lines")
-                        .help(row.tooltip ?? "")
+                    Text(
+                        String(
+                            localized: "+\(row.additionalLineCount) lines",
+                            comment: "Clip row, lines after the summary")
+                    )
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(Color.panelLabelDim)
+                    .fixedSize()
+                    .accessibilityLabel(
+                        String(
+                            localized: "\(row.additionalLineCount) additional lines",
+                            comment: "Clip row, lines after the summary spoken by VoiceOver")
+                    )
+                    .help(row.tooltip ?? "")
                 }
                 trailing(row, showsActions: look.showsActions)
             }
@@ -189,14 +192,47 @@ struct QuickPanelRow: View, @MainActor Equatable {
             .frame(height: 18)
             .background(Color.panelCode.opacity(0.12), in: .rect(cornerRadius: 5))
             .fixedSize()
-            .accessibilityLabel("\(text) code")
+            .accessibilityLabel(
+                String(localized: "\(text) code", comment: "Clip row, detected code language"))
+    }
+
+    /// A link row's host in strong weight, ahead of the address it came from.
+    @ViewBuilder private func summaryText(_ row: PanelRow) -> some View {
+        let size: CGFloat = row.isMasked ? 12 : 12.5
+        let design: Font.Design = row.isMonospaced && !row.isMasked ? .monospaced : .default
+        if let linkHost = row.linkHost {
+            HStack(spacing: 0) {
+                Text(linkHost.host)
+                    .font(.system(size: size, weight: .semibold, design: design))
+                    .foregroundStyle(Color.panelLabel)
+                    .lineLimit(1)
+                    .layoutPriority(1)
+                Text("  \(row.summary)")
+                    .font(.system(size: size, design: design))
+                    .foregroundStyle(Color.panelLabelDim)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+        } else {
+            Text(row.summary)
+                .font(.system(size: size, design: design))
+                .foregroundStyle(row.isMasked ? Color.panelLabelDim : Color.panelLabel)
+        }
+    }
+
+    private func linkWarningBadge(_ linkHost: LinkHostDisplay) -> some View {
+        Image(systemName: "exclamationmark.triangle.fill")
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundStyle(Color.panelDestructive)
+            .help(linkHost.warnings.joined(separator: "\n"))
+            .accessibilityHidden(true)
     }
 
     private var hiddenCharactersBadge: some View {
         HStack(spacing: 3) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 8, weight: .semibold))
-            Text("Hidden chars")
+            Text(String(localized: "Hidden chars", comment: "Clip row, hidden character warning badge"))
                 .font(.system(size: 9, weight: .semibold))
         }
         .foregroundStyle(Color.panelDestructive)

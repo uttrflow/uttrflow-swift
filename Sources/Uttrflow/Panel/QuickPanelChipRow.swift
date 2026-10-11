@@ -19,7 +19,7 @@ extension QuickPanelView {
                 .aspectRatio(contentMode: .fit)
                 .foregroundStyle(Color.panelAccentBright)
                 .frame(width: 20, height: 20)
-                .accessibilityLabel("Uttrflow")
+                .accessibilityLabel(String(localized: "Uttrflow", comment: "Quick panel logo, app name"))
         }
     }
 
@@ -44,10 +44,18 @@ extension QuickPanelView {
                         // On the chip, which is the thing renamed or deleted; All has no menu.
                         .contextMenu {
                             if let category = chip.category {
-                                Button("Rename…") { onIntent(.renameCategory(category)) }
-                                    .keyboardShortcut("r", modifiers: [.command, .shift])
-                                Button("Delete…") { onIntent(.deleteCategory(category)) }
-                                    .keyboardShortcut(.delete, modifiers: [.command, .shift])
+                                Button(
+                                    String(
+                                        localized: "Rename…",
+                                        comment: "Collection chip context menu, rename action")
+                                ) { onIntent(.renameCategory(category)) }
+                                .keyboardShortcut("r", modifiers: [.command, .shift])
+                                Button(
+                                    String(
+                                        localized: "Delete…",
+                                        comment: "Collection chip context menu, delete action")
+                                ) { onIntent(.deleteCategory(category)) }
+                                .keyboardShortcut(.delete, modifiers: [.command, .shift])
                             }
                         }
                     }
@@ -86,7 +94,7 @@ extension QuickPanelView {
                     .truncationMode(.tail)
                     .frame(maxWidth: 160)
                 if let shortcut {
-                    Text("⌘\(shortcut)")
+                    Text(verbatim: "⌘\(shortcut)")
                         .font(.system(size: 10, weight: .medium))
                         .opacity(0.65)
                 }
@@ -119,8 +127,12 @@ extension QuickPanelView {
         }
         .accessibilityActions {
             if let category {
-                Button("Rename collection") { onIntent(.renameCategory(category)) }
-                Button("Delete collection") { onIntent(.deleteCategory(category)) }
+                Button(
+                    String(localized: "Rename collection", comment: "Collection chip accessibility action")
+                ) { onIntent(.renameCategory(category)) }
+                Button(
+                    String(localized: "Delete collection", comment: "Collection chip accessibility action")
+                ) { onIntent(.deleteCategory(category)) }
             }
         }
     }

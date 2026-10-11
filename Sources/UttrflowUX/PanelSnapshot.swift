@@ -121,19 +121,14 @@ public struct PanelSnapshot: Sendable, Equatable {
     public var sheet: PanelSheet?
     /// Whether a protected collection delete has shown its review step before the final confirmation.
     var hasReviewedProtectedCategoryDeletion = false
+    /// Whether the first press on a rewrite with no diff is done, so the next press keeps it.
+    var hasAcknowledgedUnreviewableRewrite = false
     /// Whether Edit has said that saving this text would stop a kept clip being saved between launches.
     var hasWarnedOfUnsavedSecret = false
-    /// Keeps the formatting sheet last drawn, shared by every copy of this snapshot so an update does not diff again.
-    let formattingSheets = FormattingSheetMemo()
-
-    /// Hands the snapshot a sheet already drawn, so presenting it compares nothing on the caller's actor.
-    public func remember(_ prepared: PreparedFormattingSheet) { formattingSheets.remember(prepared) }
-    /// Keeps the last list of rows found, shared by every copy of this snapshot so a keystroke searches the history once and an arrow key not at all.
-    let searchMemo = PanelSearchMemo()
-    /// Keeps the rows last drawn, shared by every copy of this snapshot so an arrow key rebuilds none of them.
-    let rowMemo = PanelRowMemo()
-    /// Keeps note counts across copies of this snapshot, so typing does not parse formatted notes again.
-    let checklistProgresses = ChecklistProgresses()
+    /// Hands the panel cache a sheet already drawn, so presenting it compares nothing on the caller's actor.
+    public func remember(_ prepared: PreparedFormattingSheet) {
+        PanelCache.current.formattingSheets.remember(prepared)
+    }
 
     /// Whether a delete can still be taken back; set by the app, which alone still holds the clip.
     public var canUndoDelete: Bool = false
@@ -161,10 +156,6 @@ public struct PanelSnapshot: Sendable, Equatable {
 
     /// The languages a formatter is installed for; asked of the machine by the app when the panel opens.
     public var formattableLanguages: Set<CodeLanguage> = []
-    /// Remembers which code clips can be re-indented, shared across opens so neither a keystroke nor a reopen asks again.
-    let reindentOffers = ReindentOffers.shared
-    /// Remembers each clip's search-folded text, shared by every copy of this snapshot so a keystroke does not fold again.
-    let foldedTexts = FoldedTexts()
     /// The secrets the user has deliberately unmasked; a reveal never outlives the panel that asked.
     public var revealed: Set<Clip.ID>
     /// The clock the timestamps are measured against, injected so "2 minutes ago" is testable.
@@ -249,10 +240,12 @@ extension PanelSnapshot {
     ) {
         self.clips = clips
         revalidateTransientTargets()
-        checklistProgresses.prune(to: Set(clips.map(\.id)))
+        let liveIDs = Set(clips.map(\.id))
+        PanelCache.current.checklistProgresses.prune(to: liveIDs)
+        PanelCache.current.foldedTexts.prune(to: liveIDs)
         self.missingImages = missingImages
         self.formattableLanguages = formattableLanguages
-        reindentOffers.prune(to: Set(clips.map(\.id)))
+        PanelCache.current.reindentOffers.prune(to: liveIDs)
         self.now = now
         isAwaitingList = false
         // A3, A7 — the place the user left, restorable only now the list it has to exist in is here.

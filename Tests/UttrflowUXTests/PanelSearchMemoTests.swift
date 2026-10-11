@@ -319,10 +319,11 @@ struct PanelSearchMemoTests {
         let memo = PanelSearchMemo()
         let view = PanelSearchMemo.View(panel)
 
-        let (rows, _, _) = memo.rows(for: view, scanning: panel.matches(ruledIn:), ranking: panel.ranked)
+        let (rows, _, _, selected) = memo.rows(
+            for: view, selecting: clip.id, scanning: panel.matches(ruledIn:), ranking: panel.ranked)
 
         #expect(rows.filter { $0.id == clip.id }.count == 2)
-        #expect(memo.index(of: clip.id, for: view) == rows.firstIndex { $0.id == clip.id })
+        #expect(selected == rows.firstIndex { $0.id == clip.id })
     }
 
     @Test("walking a query back and forth lists what searching for it cold lists")

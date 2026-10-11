@@ -95,10 +95,11 @@ struct Bench: AsyncParsableCommand {
         let audio = try AudioFileReader.read(contentsOf: URL(fileURLWithPath: job.wav))
         let playback = PlaybackCaptureEngine(audio: audio, sharesEarly: true, realTime: job.realTime)
         let vocabulary = job.vocabulary
+        let backlog = BacklogRecorder()
         let pipeline = DictationPipeline(
             capture: playback, speech: speech, cleaner: cleaner, context: FixedScreen(context: job.context),
             inserter: PrintingInserter(), speechWords: { _ in vocabulary },
-            corrector: TimedCorrector(inner: job.dictionary, log: log),
+            corrector: TimedCorrector(inner: job.dictionary, log: log), metrics: backlog,
             profile: UserProfile(preferredLanguages: job.languages),
             earlyPoll: .milliseconds(Int(earlyPoll * 1000)))
         let states = await pipeline.states()
@@ -136,6 +137,11 @@ struct Bench: AsyncParsableCommand {
             "wait": keyUp.duration(to: at).inSeconds, "cpu": cost?.cpuSeconds ?? -1,
             "peakMB": megabytes(peak.bytes), "events": log.events(),
         ]
+        // Audio the early loop has not decoded at key-up; the tail grows with it once a piece takes longer to process than to say.
+        if let left = backlog.last {
+            result["backlogSeconds"] = left.seconds
+            result["backlogPieces"] = left.pieces
+        }
         switch ended {
         case .inserted(let outcome):
             result["text"] = outcome.text
@@ -209,6 +215,19 @@ private func emit(_ event: [String: Any]) {
 /// Bytes as megabytes, or -1 when the reading failed.
 private func megabytes(_ bytes: Int64?) -> Double {
     bytes.map { Double($0) / 1_048_576 } ?? -1
+}
+
+/// Keeps the backlog the pipeline reports at key-up, which `bench` prints with the wait.
+private final class BacklogRecorder: MetricsRecording {
+    private let latest = Mutex<WorkAheadBacklog?>(nil)
+
+    var last: WorkAheadBacklog? { latest.withLock { $0 } }
+
+    func record(_ measurement: StageMeasurement) async {}
+
+    func recordBacklog(_ backlog: WorkAheadBacklog) async {
+        latest.withLock { $0 = backlog }
+    }
 }
 
 /// The highest footprint seen across the samples of one dictation.

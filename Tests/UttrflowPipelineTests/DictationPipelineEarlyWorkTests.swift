@@ -691,7 +691,7 @@ struct DictationPipelineEarlyWorkTests {
         await pipeline.retry(recording.id)
 
         #expect(!cleaner.contexts.isEmpty)
-        #expect(cleaner.contexts.allSatisfy { $0 == AppContext() })
+        #expect(cleaner.contexts.allSatisfy { $0 == AppContext().readingSkipped() })
         #expect(await pipeline.currentState.outcome?.intoSecureField == false)
     }
 
@@ -1085,6 +1085,45 @@ struct DictationPipelineEarlyWorkTests {
         await pipeline.finishRecording()
 
         #expect(await metrics.reliability == [[judged], [judged], [judged]], "one per recognised piece")
+    }
+
+    @Test("audio not yet decoded at key-up reaches the recorder, whole when nothing ran ahead")
+    func backlogIsWholeRecordingWhenNothingRanAhead() async {
+        let metrics = RecordingMetricsRecorder()
+        let take = Take.threePieces
+        let capture = FakeAudioCaptureEngine(stopOutcome: .success(take))
+        await capture.setCaptured(take)
+        let pollClock = ManualClock()
+        let pipeline = makePipeline(capture: capture, metrics: metrics, pollClock: pollClock)
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        let backlogs = await metrics.backlogs
+        #expect(backlogs.count == 1)
+        let whole = Double(take.samples.count) / Double(take.sampleRate)
+        #expect(abs((backlogs.first?.seconds ?? 0) - whole) < 0.001)
+        #expect(backlogs.first?.pieces == 3)
+    }
+
+    @Test("a piece worked ahead before key-up leaves the backlog only the audio after it")
+    func backlogShrinksWithWorkAhead() async {
+        let metrics = RecordingMetricsRecorder()
+        let take = Take.threePieces
+        let capture = FakeAudioCaptureEngine(stopOutcome: .success(take))
+        await capture.setCaptured(take)
+        let pollClock = ManualClock()
+        let pipeline = makePipeline(capture: capture, metrics: metrics, pollClock: pollClock)
+
+        await pipeline.startRecording()
+        await workAhead(1, on: pollClock)
+        await pipeline.finishRecording()
+
+        let backlog = await metrics.backlogs.first
+        let whole = Double(take.samples.count) / Double(take.sampleRate)
+        #expect(backlog != nil)
+        #expect((backlog?.seconds ?? whole) < whole - 1, "the first piece's audio is no longer queued")
+        #expect((backlog?.pieces ?? 3) < 3)
     }
 
     @Test("a dictation done in pieces still reports one figure per stage")

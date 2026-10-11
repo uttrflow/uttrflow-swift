@@ -19,6 +19,7 @@ struct SpelledCodeDesignatorTests {
             ("take vitamin b twelve daily", "Take vitamin B12 daily."),
             ("s p o two is ninety eight", "SpO2 is 98."),
             ("her s p o two is low", "Her SpO2 is low."),
+            ("s p o two ninety eight percent on room air", "SpO2 98% on room air."),
             ("apartment twelve b", "Apartment 12B."),
             ("i live in flat four c", "I live in flat 4C."),
             ("go to gate b twelve", "Go to gate B12."),

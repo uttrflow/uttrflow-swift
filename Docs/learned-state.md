@@ -129,7 +129,7 @@ separate days on each side: more undone days than kept is `vetoed`, so one undo 
 kept on at least 3 separate days and more than undone is `confirmed`; anything else is inert. At most
 `ConfusionPairs.maximumNewPairsPerDay` (10) new pairs start counting on one day, the first written;
 a pair past that starts on the next day with room, so a field rewritten in bulk teaches no more than
-the cap a day. A kept replacement that is not Latin script writes no row. A
+the cap a day; `PairLedger` (Docs/app-dictionary.md) reads the same constant for pairs that become entries. A kept replacement that is not Latin script writes no row. A
 pair is a feature to the correction gate, never a rewrite on its own. An undone row on the
 Corrections page whose pair is vetoed says so, with an Allow action that writes `pairAllowed`; the
 projection then ignores every `pairVetoed` row for the pair on or before that day. The rows are ordinary
@@ -185,5 +185,6 @@ decay curve and compaction horizon need measurement on real use before a number 
 
 Settings, Privacy, "What Uttrflow noticed about you" lists `PersonaProfile.items`: each dictionary
 word with its recorded uses and undos, each kind of place with its style counts, and a count of
-words still being watched. Each item's Remove deletes only that fact's rows
+words still being watched, each heard-to-meant pair with the days it was kept and undone, and each
+respelling the user's edits taught. Each item's Remove deletes only that fact's rows
 (`EvidenceLedgerStore.forget`); Reset deletes the ledger and leaves declarations alone.
