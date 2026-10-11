@@ -60,6 +60,35 @@ def check_reporting(root: Path) -> None:
     check(not problems, "\n".join(problems))
 
 
+def check_ownership(root: Path) -> None:
+    """Checks that quarantine ownership names a positive ASCII issue number."""
+    quarantine = root / "owner-quarantine.json"
+    invalid = [" ", "no-issue", "-1", "0", "000", "1.5", "1 2", "١", "1\n", True, 1]
+    problems = []
+    for owner in invalid:
+        quarantine.write_text(json.dumps([
+            {"test": "Audio/timer()", "owner_issue": owner, "expires": "2026-01-10"}
+        ]), encoding="utf-8")
+        output, errors = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
+            code = flake_report.main([
+                "--check-quarantine", "--quarantine", str(quarantine), "--today", "2026-01-10"
+            ])
+        if code != 1 or "owner_issue" not in errors.getvalue():
+            problems.append(f"owner {owner!r}: expected ownership refusal, got exit {code}")
+    check(not problems, "\n".join(problems))
+    for owner in ["1", "42", "0001"]:
+        quarantine.write_text(json.dumps([
+            {"test": "Audio/timer()", "owner_issue": owner, "expires": "2026-01-10"}
+        ]), encoding="utf-8")
+        with contextlib.redirect_stdout(io.StringIO()):
+            code = flake_report.main([
+                "--check-quarantine", "--quarantine", str(quarantine), "--today", "2026-01-10"
+            ])
+        check(code == 0, f"valid owner {owner!r} was refused")
+    print("flake_report CLI: invalid owners refused, positive ASCII issue strings accepted")
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -83,6 +112,7 @@ def main() -> int:
         args = ["--check-quarantine", "--quarantine", str(file), "--today", "2026-01-10"]
         check(flake_report.main(args) == 1, "an expired quarantine passed the audit")
         check_reporting(root)
+        check_ownership(root)
     print("flake_report: differing outcomes found, expired quarantine refused")
     return 0
 
