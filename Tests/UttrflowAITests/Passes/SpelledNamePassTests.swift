@@ -39,10 +39,11 @@ struct SpelledNamePassTests {
 
     @Test("a name absent from the lexicon, and plain letters then a number, stay as today")
     func unlisted() async throws {
-        for spoken in ["plan b two", "a one", "i two"] {
-            let cleaned = try await clean("see \(spoken) today")
-            let fused = cleaned.range(of: #"[A-Za-z]\d|\d[A-Za-z]"#, options: .regularExpression)
-            #expect(fused == nil, "\(cleaned)")
+        let expected = [
+            "plan b two": "See plan B2 today.", "a one": "See a one today.", "i two": "See i two today.",
+        ]
+        for (spoken, cleaned) in expected {
+            #expect(try await clean("see \(spoken) today") == cleaned)
         }
     }
 

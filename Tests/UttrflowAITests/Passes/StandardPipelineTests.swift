@@ -12,7 +12,8 @@ struct StandardPipelineTests {
                 "fillers", "repeatedPhrase", "stammers", "selfCorrection", "spokenPunctuation",
                 "spokenCasing",
                 "layoutWords", "spelledName", "numberForms", "contractions", "spacing", "pauseStop",
-                "spelledInitialism", "acronymCasing", "sentenceBoundary", "firstWord", "commentMarker", "terminalStop",
+                "spelledInitialism", "acronymCasing", "sentenceBoundary", "firstWord", "commentMarker",
+                "terminalStop",
             ])
     }
 
