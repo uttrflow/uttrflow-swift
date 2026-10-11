@@ -976,7 +976,18 @@ public actor ClipboardStore {
     /// Rechecks both indexes before a cached store can write over a newer format from another process.
     private func validateCurrentIndexFormatsBeforeWrite() throws(ClipboardStoreError) {
         for url in [file, savedFile] where !unreplaceable.contains(url) {
-            if let version = try ClipIndexValidation.inspect(url, using: encryptedStore) {
+            let data: Data
+            do {
+                data = try Data(contentsOf: url)
+            } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
+                continue
+            } catch {
+                // A cached snapshot cannot safely replace a file it could not inspect now.
+                throw .couldNotWrite
+            }
+            if let version = try ClipIndexValidation.inspect(
+                data, fileName: url.lastPathComponent, using: encryptedStore)
+            {
                 unsupportedFormatVersions[url] = version
                 throw .unsupportedFormat
             }

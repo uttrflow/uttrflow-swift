@@ -14,12 +14,11 @@ struct ClipIndexValidationTests {
         func key(createIfMissing: Bool) throws -> SymmetricKey { value }
     }
 
-    @Test("absent indexes remain writable")
-    func absentIndex() throws {
-        let folder = try TemporaryFolder()
-        let url = folder.url.appending(path: "absent.json")
-        #expect(try ClipIndexValidation.inspect(url, using: nil) == nil)
-        #expect(!FileManager.default.fileExists(atPath: url.path))
+    @Test("empty encoded indexes remain opaque")
+    func emptyIndex() throws {
+        #expect(throws: ClipboardStoreError.couldNotWrite) {
+            try ClipIndexValidation.inspect(Data(), fileName: "index.json", using: nil)
+        }
     }
 
     @Test(
@@ -32,7 +31,9 @@ struct ClipIndexValidationTests {
         let url = folder.url.appending(path: "index.json")
         let data = Data(json.utf8)
         try data.write(to: url)
-        #expect(try ClipIndexValidation.inspect(url, using: nil) == nil)
+        #expect(
+            try ClipIndexValidation.inspect(
+                try Data(contentsOf: url), fileName: url.lastPathComponent, using: nil) == nil)
         #expect(try Data(contentsOf: url) == data)
     }
 
@@ -42,7 +43,9 @@ struct ClipIndexValidationTests {
         let url = folder.url.appending(path: "index.json")
         let data = Data(#"{"version":99,"futureField":{"keep":[1,2,3]}}"#.utf8)
         try data.write(to: url)
-        #expect(try ClipIndexValidation.inspect(url, using: nil) == 99)
+        #expect(
+            try ClipIndexValidation.inspect(
+                try Data(contentsOf: url), fileName: url.lastPathComponent, using: nil) == 99)
         #expect(try Data(contentsOf: url) == data)
     }
 
@@ -69,16 +72,18 @@ struct ClipIndexValidationTests {
         let data = Data(json.utf8)
         try data.write(to: url)
         #expect(throws: ClipboardStoreError.couldNotWrite) {
-            try ClipIndexValidation.inspect(url, using: nil)
+            try ClipIndexValidation.inspect(
+                try Data(contentsOf: url), fileName: url.lastPathComponent, using: nil)
         }
         #expect(try Data(contentsOf: url) == data)
     }
 
-    @Test("a file read failure remains a typed refusal")
-    func unreadableIndex() throws {
-        let folder = try TemporaryFolder()
+    @Test("sealed indexes remain bound to their file name")
+    func mismatchedFileName() throws {
+        let store = EncryptedStore(keys: Keys(value: SymmetricKey(size: .bits256)))
+        let data = try store.seal(Data("[]".utf8), for: "index.json")
         #expect(throws: ClipboardStoreError.couldNotWrite) {
-            try ClipIndexValidation.inspect(folder.url, using: nil)
+            try ClipIndexValidation.inspect(data, fileName: "saved.json", using: store)
         }
     }
 
@@ -90,13 +95,17 @@ struct ClipIndexValidationTests {
         let payload = Data(#"{"version":2,"clips":[]}"#.utf8)
         let data = try store.seal(payload, for: url.lastPathComponent)
         try data.write(to: url)
-        #expect(try ClipIndexValidation.inspect(url, using: store) == nil)
+        #expect(
+            try ClipIndexValidation.inspect(
+                try Data(contentsOf: url), fileName: url.lastPathComponent, using: store) == nil)
         #expect(throws: ClipboardStoreError.couldNotWrite) {
-            try ClipIndexValidation.inspect(url, using: nil)
+            try ClipIndexValidation.inspect(
+                try Data(contentsOf: url), fileName: url.lastPathComponent, using: nil)
         }
         let wrongKey = EncryptedStore(keys: Keys(value: SymmetricKey(size: .bits256)))
         #expect(throws: ClipboardStoreError.couldNotWrite) {
-            try ClipIndexValidation.inspect(url, using: wrongKey)
+            try ClipIndexValidation.inspect(
+                try Data(contentsOf: url), fileName: url.lastPathComponent, using: wrongKey)
         }
         #expect(try Data(contentsOf: url) == data)
     }
@@ -109,7 +118,9 @@ struct ClipIndexValidationTests {
         var data = try store.seal(Data("[]".utf8), for: url.lastPathComponent)
         data[EncryptedStore.sealedHeaderLength] = 99
         try data.write(to: url)
-        #expect(try ClipIndexValidation.inspect(url, using: nil) == 99)
+        #expect(
+            try ClipIndexValidation.inspect(
+                try Data(contentsOf: url), fileName: url.lastPathComponent, using: nil) == 99)
         #expect(try Data(contentsOf: url) == data)
     }
 
@@ -124,7 +135,8 @@ struct ClipIndexValidationTests {
         for data in [Data(sealed.prefix(EncryptedStore.sealedHeaderLength)), damaged] {
             try data.write(to: url)
             #expect(throws: ClipboardStoreError.couldNotWrite) {
-                try ClipIndexValidation.inspect(url, using: store)
+                try ClipIndexValidation.inspect(
+                    try Data(contentsOf: url), fileName: url.lastPathComponent, using: store)
             }
             #expect(try Data(contentsOf: url) == data)
         }

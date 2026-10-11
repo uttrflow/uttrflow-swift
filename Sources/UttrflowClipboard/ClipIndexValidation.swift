@@ -5,19 +5,10 @@ import UttrflowCore
 
 /// Validates an index without changing its bytes or the store's bookkeeping.
 enum ClipIndexValidation {
-    /// Returns an unsupported version, or nil when the index is supported or absent.
+    /// Returns an unsupported version, or nil when the encoded index is supported.
     static func inspect(
-        _ url: URL, using encryptedStore: EncryptedStore?
+        _ data: Data, fileName: String, using encryptedStore: EncryptedStore?
     ) throws(ClipboardStoreError) -> Int? {
-        let data: Data
-        do {
-            data = try Data(contentsOf: url)
-        } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
-            return nil
-        } catch {
-            // An unreadable index is opaque to a cached writer.
-            throw .couldNotWrite
-        }
         guard EncryptedStore.isSealed(data) else { return try inspectPayload(data) }
         guard data.count > EncryptedStore.sealedHeaderLength else { throw .couldNotWrite }
         let version = data[EncryptedStore.sealedHeaderLength]
@@ -26,7 +17,7 @@ enum ClipIndexValidation {
         guard let encryptedStore else { throw .couldNotWrite }
         let payload: Data
         do {
-            payload = try encryptedStore.open(data, for: url.lastPathComponent)
+            payload = try encryptedStore.open(data, for: fileName)
         } catch {
             // An unavailable key and failed authentication both leave the index opaque.
             throw .couldNotWrite
