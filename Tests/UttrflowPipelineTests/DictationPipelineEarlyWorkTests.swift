@@ -430,6 +430,7 @@ struct DictationPipelineEarlyWorkTests {
 
         await pipeline.startRecording()
         try await waitForCalls(2, on: speech)
+        try await eventually { cleaner.seen.count >= 1 }
         #expect(await pipeline.currentState == .recording)
         #expect(cleaner.seen.count >= 1, "the first piece is tidied while recording")
         await pipeline.finishRecording()
