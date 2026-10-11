@@ -22,8 +22,8 @@ public struct SpeakerClip: Sendable, Equatable {
     public let decisions: Int
     public let falseOverrides: Int
     /// Seams between joined pieces in the clip, and the artefacts they left.
-    public let seams: Int
-    public let seamArtefacts: Int
+    let seams: Int
+    let seamArtefacts: Int
 
     public init(
         speaker: String, group: String, label: AccentLabelKind, errors: Int, words: Int, decisions: Int = 0,
@@ -55,9 +55,9 @@ public struct SpeakerGroupReport: Sendable, Equatable {
         public let speakers: Int
         public let words: Int
         public let decisions: Int
-        public let seams: Int
+        let seams: Int
         /// Artefacts per seam; nil when the group has no seams to judge.
-        public let seamRate: Double?
+        let seamRate: Double?
         public let errorRate: Double
         /// Nil under two speakers, where there is no speaker spread to resample.
         public let interval: ClosedRange<Double>?
