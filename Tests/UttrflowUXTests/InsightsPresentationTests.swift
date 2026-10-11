@@ -470,98 +470,86 @@ struct InsightsWaitingTests {
         #expect(page.chrome.title == "Insights")
     }
 
-    /// A baseline drawn from three days is noise wearing a number's clothes, so the page waits.
-    @Test("fewer than seven days of speaking means the calendar waits")
-    func waits() {
-        let page = HistoryFixture.insights(entries: HistoryFixture.aWeek(days: 2))
-        #expect(page.calendar == nil)
-        #expect(page.ranges.isEmpty)
-        #expect(page.figures.isEmpty)
-        #expect(page.emptyState?.title == "Not enough to chart yet")
-        #expect(page.chrome.title == "Insights")
+    @Test("a first day of dictation draws the chart, with its range and coverage")
+    func firstDay() throws {
+        let page = HistoryFixture.insights(entries: HistoryFixture.aWeek(words: 5, days: 1))
+        #expect(page.emptyState == nil)
+        #expect(page.calendar != nil)
+        #expect(page.figures.first?.value == "5")
+        #expect(page.chartCaption?.hasPrefix("5 words · ") == true)
+        #expect(
+            page.chartCoverage
+                == "Dictated on 1 of 7 days shown. History is kept for 7 days. Earlier days are not counted.")
     }
 
-    @Test("the wait is measured in days spoken on, not dictations")
-    func daysNotDictations() {
-        let manyInOneDay = (0..<50).map { _ in HistoryFixture.entry() }
-        #expect(HistoryFixture.insights(entries: manyInOneDay).emptyState != nil)
+    @Test("a gapped week charts, the gap days staying kept and silent")
+    func gappedWeek() throws {
+        let entries = HistoryFixture.aWeek(days: 1) + HistoryFixture.aWeek(days: 1, from: 3)
+        let page = HistoryFixture.insights(entries: entries)
+        let calendar = try #require(page.calendar)
+        #expect(page.emptyState == nil)
+        #expect(page.chartCoverage?.hasPrefix("Dictated on 2 of 7 days shown.") == true)
+        let gap = try #require(calendar.days.first { $0.detail.hasPrefix("No dictation") })
+        #expect(gap.isKept && gap.isSilent)
     }
 
-    @Test("a day before the chart range does not complete its seven spoken days")
-    func priorDayDoesNotCompleteChartingThreshold() {
-        let first = InsightsPresenter.firstDay(
-            of: .week, now: HistoryFixture.now, calendar: HistoryFixture.mondayFirst)
-        let prior = HistoryFixture.entry("outside", when: first.addingTimeInterval(-1))
-        let entries = HistoryFixture.aWeek(days: 6) + [prior]
+    @Test("a one-day retention charts and marks the days before it as not kept")
+    func oneDay() throws {
         let page = HistoryFixture.insights(
-            entries: entries, settings: HistoryFixture.keeping(30), range: .week)
-
-        #expect(page.calendar == nil)
-        #expect(page.emptyState?.progress?.leading == "6 of 7 days")
+            entries: HistoryFixture.aWeek(days: 1), settings: HistoryFixture.keeping(1))
+        let calendar = try #require(page.calendar)
+        #expect(page.emptyState == nil)
+        let unknown = calendar.days.filter { !$0.isKept }
+        #expect(unknown.count == 5)
+        #expect(unknown.allSatisfy { $0.detail.hasPrefix("Not kept") && !$0.detail.contains("No dictation") })
+        #expect(page.chartCoverage?.contains("History is kept for 1 day.") == true)
+        #expect(page.chartCoverage?.hasPrefix("Dictated on 1 of 2 days shown.") == true)
+        #expect(page.figures[1].value == "5")
     }
 
-    @Test("the progress bar says how far along it is and when it finishes")
-    func progress() {
-        let empty = HistoryFixture.insights(entries: HistoryFixture.aWeek(days: 2)).emptyState
-        #expect(empty?.progress?.leading == "2 of 7 days")
-        #expect(empty?.progress?.trailing.hasPrefix("Charts appear on ") == true)
-        #expect(empty?.progress?.fraction == 2.0 / 7.0)
-        #expect(empty?.progress?.steps == 7)
-        #expect(empty?.progress?.stepsDone == 2)
-        #expect(empty?.message == "Dictate on 7 different days and your charts appear. 2 of 7 days so far.")
+    @Test("a three-day retention charts the days it reaches")
+    func threeDays() throws {
+        let page = HistoryFixture.insights(
+            entries: HistoryFixture.aWeek(days: 3), settings: HistoryFixture.keeping(3))
+        #expect(page.calendar != nil)
+        #expect(page.chartCoverage?.hasPrefix("Dictated on 3 of 4 days shown.") == true)
     }
 
-    @Test("a whole week ahead is next week's day, not today's name")
-    func aWeekAheadSaysNext() {
-        let now = HistoryFixture.now
-        let calendar = HistoryFixture.calendar
-        let locale = HistoryFixture.locale
-        let today = now.formatted(.dateTime.weekday(.wide).locale(locale))
-        #expect(
-            InsightsPresenter.remaining(spoken: 0, now: now, calendar: calendar, locale: locale)
-                == "Charts appear next \(today)")
-        #expect(
-            InsightsPresenter.remaining(spoken: 1, now: now, calendar: calendar, locale: locale)
-                .hasPrefix("Charts appear on "))
+    @Test("deleting the last kept dictation brings the empty state back at once")
+    func deletionUpdates() {
+        let one = HistoryFixture.insights(entries: HistoryFixture.aWeek(days: 2))
+        #expect(one.calendar != nil)
+        #expect(HistoryFixture.insights(entries: []).calendar == nil)
     }
 
-    @Test("the remaining-day estimate follows the calendar across spring DST")
-    func springDST() throws {
-        var calendar = Calendar(identifier: .gregorian)
-        let locale = Locale(identifier: "en_US")
-        calendar.locale = locale
-        calendar.timeZone = try #require(TimeZone(identifier: "America/New_York"))
-        let now = try #require(
-            calendar.date(
-                from: DateComponents(
-                    year: 2026, month: 3, day: 7, hour: 23, minute: 30)))
-        let expectedDate = try #require(calendar.date(byAdding: .day, value: 1, to: now))
-        let expectedWeekday = expectedDate.formatted(.dateTime.weekday(.wide).locale(locale))
-
-        #expect(
-            InsightsPresenter.remaining(spoken: 6, now: now, calendar: calendar, locale: locale)
-                == "Charts appear on \(expectedWeekday)")
+    @Test("an entry past retention is pruned from the chart")
+    func pruned() {
+        let old = HistoryFixture.aWeek(words: 9, days: 1, from: 20)
+        let page = HistoryFixture.insights(entries: old + HistoryFixture.aWeek(words: 5, days: 1))
+        #expect(page.figures.first?.value == "5")
+        #expect(HistoryFixture.insights(entries: old).emptyState != nil)
     }
 
-    /// The two numbers that are already true are given rather than withheld.
-    @Test("the figures that are honest on day two are given")
-    func chips() {
-        let empty = HistoryFixture.insights(
-            entries: HistoryFixture.aWeek(words: 5, days: 2)
-        ).emptyState
-        #expect(empty?.chips.map(\.caption) == ["dictations so far", "words so far"])
-        #expect(empty?.chips.map(\.value) == ["2", "10"])
-    }
-
-    @Test("a Mac that has never dictated has no figures to give")
+    @Test("a Mac with nothing kept says so and links to Privacy settings, naming no date")
     func nothingAtAll() {
         let empty = HistoryFixture.insights().emptyState
+        #expect(empty?.title == "Nothing to chart yet")
+        #expect(empty?.action?.intent == .go(.settings(.privacy)))
+        #expect(empty?.progress == nil)
         #expect(empty?.chips.isEmpty == true)
-        #expect(empty?.progress?.fraction == 0)
+        #expect(empty?.message.contains("kept for 7 days") == true)
+        #expect(empty?.message.contains("appear on") == false)
+        #expect(empty?.footnote == nil)
     }
 
-    @Test("the empty page has no closing line under it")
-    func noFootnote() {
-        #expect(HistoryFixture.insights().emptyState?.footnote == nil)
+    @Test("kept until deleted says nothing of a retention period")
+    func always() {
+        let settings = HistoryFixture.keeping(Settings.keepAlwaysDays)
+        let empty = HistoryFixture.insights(settings: settings).emptyState
+        #expect(empty?.message.contains("kept for") == false)
+        let page = HistoryFixture.insights(
+            entries: HistoryFixture.aWeek(days: 1), settings: settings)
+        #expect(page.chartCoverage?.contains("until you delete it") == true)
+        #expect(page.calendar?.days.allSatisfy(\.isKept) == true)
     }
 }

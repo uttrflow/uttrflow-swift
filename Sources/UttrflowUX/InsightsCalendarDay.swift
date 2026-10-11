@@ -14,6 +14,8 @@ public struct InsightsCalendarDay: Sendable, Equatable, Identifiable {
     public let isToday: Bool
     /// "1,284 words · 26 Sept", shown on hover and read aloud.
     public let detail: String
+    /// Whether history still reaches this day; a day it does not reach is unknown, not silent.
+    public let isKept: Bool
 
     /// The start of this calendar day, unique across a multi-month range even when day numbers repeat.
     public var id: Date { date }
@@ -36,7 +38,8 @@ public struct InsightsCalendarDay: Sendable, Equatable, Identifiable {
 
     /// Builds a tile; the fraction is clamped to 0…1.
     public init(
-        date: Date, number: String, words: Int, fraction: Double, isToday: Bool, detail: String
+        date: Date, number: String, words: Int, fraction: Double, isToday: Bool, detail: String,
+        isKept: Bool = true
     ) {
         self.date = date
         self.number = number
@@ -44,5 +47,6 @@ public struct InsightsCalendarDay: Sendable, Equatable, Identifiable {
         self.fraction = min(max(fraction, 0), 1)
         self.isToday = isToday
         self.detail = detail
+        self.isKept = isKept
     }
 }

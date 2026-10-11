@@ -19,7 +19,9 @@ struct InsightsPageView: View {
                     } else {
                         HStack(alignment: .top, spacing: 18) {
                             if let calendar = presentation.calendar {
-                                InsightsCalendarCard(calendar: calendar, caption: presentation.chartCaption)
+                                InsightsCalendarCard(
+                                    calendar: calendar, caption: presentation.chartCaption,
+                                    coverage: presentation.chartCoverage)
                             }
                             VStack(spacing: 12) {
                                 ForEach(presentation.figures) { InsightsFigureTile(figure: $0) }
@@ -143,6 +145,7 @@ struct InsightsRangeSwitch: View {
 struct InsightsCalendarCard: View {
     let calendar: InsightsCalendar
     let caption: String?
+    var coverage: String?
 
     /// Past this many weeks a square tile would push the grid off the window, so tiles flatten.
     private static let squareWeeks = 6
@@ -170,6 +173,11 @@ struct InsightsCalendarCard: View {
                 ForEach(calendar.days) { day in
                     InsightsDayTile(day: day, isSquare: calendar.weeks <= Self.squareWeeks)
                 }
+            }
+            if let coverage {
+                Text(coverage)
+                    .font(.system(size: 11))
+                    .foregroundStyle(PagePalette.faint)
             }
         }
         .padding(16)
@@ -207,6 +215,14 @@ struct InsightsDayTile: View {
         shaped(
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .fill(day.isSilent ? InsightsPalette.bareTile : InsightsPalette.heat.opacity(day.shade))
+                .opacity(day.isKept ? 1 : 0)
+                .overlay {
+                    if !day.isKept {
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .strokeBorder(
+                                InsightsPalette.cardEdge, style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                    }
+                }
         )
         .overlay {
             Text(day.number)
