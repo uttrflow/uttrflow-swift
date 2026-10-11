@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import UttrflowCore
+@testable import UttrflowCore
 
 @testable import UttrflowClipboard
 
