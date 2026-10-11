@@ -305,7 +305,8 @@ probes below measure the reader and scorer without loading production speech or 
 
 ### Synthetic CPU probes
 
-Measured on 2026-10-11, Apple M5 Pro, 48 GB, macOS 26.5.1 (25F80), with four compiler jobs:
+Measured on 2026-10-11 with production code at `0cd3f979da05`, Apple M5 Pro, 48 GB,
+macOS 26.5.1 (25F80), with four compiler jobs:
 `swift test -j 4 -c release --filter 'SpokenPunctuationPassTests|ContextScorerTests'`, then a
 second execution with `--skip-build`, and the same pair without `-c release` for Debug.
 Each execution reports `Test run with 40 tests in 2 suites passed`; the existing assertions are unchanged.
