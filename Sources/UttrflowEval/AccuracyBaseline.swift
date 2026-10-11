@@ -273,6 +273,7 @@ extension AccuracyBaseline {
         let shared = Set(before.keys).intersection(after.keys).sorted()
 
         let mismatch = incomparability(with: later, shared: shared, before: before, after: after)
+        if let invalid = invalidCountComparison(with: later, reason: mismatch) { return invalid }
         let sharedBefore = shared.compactMap { before[$0] }.filter { $0.condition == nil }
         let sharedAfter = shared.compactMap { after[$0] }.filter { $0.condition == nil }
         let degradedBefore = shared.compactMap { before[$0] }.filter { $0.condition != nil }
@@ -302,6 +303,23 @@ extension AccuracyBaseline {
             },
             reason: mismatch
         )
+    }
+
+    private func invalidCountComparison(
+        with later: AccuracyBaseline, reason: String?
+    ) -> BaselineComparison? {
+        let invalidCounts =
+            entries.contains { $0.errors < 0 || $0.referenceWordCount < 0 }
+            || later.entries.contains { $0.errors < 0 || $0.referenceWordCount < 0 }
+        guard invalidCounts else { return nil }
+        return BaselineComparison(
+            baselineLabel: label,
+            overall: .init(
+                label: "overall", before: nil, after: nil, referenceWordCount: 0,
+                verdict: .incomparable),
+            byLanguage: [], byStress: [], byCohort: [], byCondition: [], regressed: [], improved: [],
+            added: [], removed: [], newlyUnscorable: [],
+            reason: reason ?? "negative error or reference-word counts cannot describe an accuracy run")
     }
 
     private func change(

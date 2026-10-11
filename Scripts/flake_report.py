@@ -66,6 +66,15 @@ def quarantine_problems(entries: list[dict[str, str]], today: dt.date) -> list[s
         if missing:
             problems.append(f"entry {index} lacks {', '.join(missing)}")
             continue
+        owner = entry["owner_issue"]
+        if (
+            not isinstance(owner, str)
+            or not owner.isascii()
+            or not owner.isdecimal()
+            or not owner.strip("0")
+        ):
+            problems.append(f"{entry['test']}: owner_issue must be a positive ASCII issue number")
+            continue
         try:
             expires = dt.date.fromisoformat(entry["expires"])
         except ValueError:

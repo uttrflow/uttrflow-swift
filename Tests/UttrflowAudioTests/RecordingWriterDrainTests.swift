@@ -2,6 +2,7 @@
 import Foundation
 import Synchronization
 import Testing
+import UttrflowTestSupport
 
 @testable import UttrflowAudio
 @testable import UttrflowCore
@@ -24,6 +25,7 @@ struct RecordingWriterDrainTests {
         private let read = DispatchSemaphore(value: 0)
         private let gate = DispatchSemaphore(value: 0)
         private let started = Flag()
+        private let finished = Flag()
 
         init() throws {
             directory = URL(fileURLWithPath: NSTemporaryDirectory())
@@ -45,18 +47,22 @@ struct RecordingWriterDrainTests {
             let started = self.started
             let read = self.read
             let gate = self.gate
+            let finished = self.finished
             DispatchQueue.global().async {
                 _ = gate.wait(timeout: .now() + fallback.inSeconds)
                 started.set()
                 var buffer = [UInt8](repeating: 0, count: 65_536)
                 let deadline = Date().addingTimeInterval(60)
+                var receivedBytes = false
                 while Date() < deadline {
                     let count = buffer.withUnsafeMutableBytes {
                         Darwin.read(reader, $0.baseAddress, $0.count)
                     }
-                    if count == 0 { break }
-                    if count < 0 { usleep(1_000) }
+                    if count > 0 { receivedBytes = true }
+                    if count == 0, receivedBytes { break }
+                    if count <= 0 { usleep(1_000) }
                 }
+                finished.set()
                 read.signal()
             }
         }
@@ -66,6 +72,8 @@ struct RecordingWriterDrainTests {
 
         /// Whether the reader has begun, which is what a writer must not have waited for.
         var hasRead: Bool { started.isSet }
+
+        var hasFinishedReading: Bool { finished.isSet }
 
         /// Lets the reader finish before the pipe goes away under it.
         func waitForReader() { read.wait() }
@@ -78,6 +86,23 @@ struct RecordingWriterDrainTests {
 
     /// Roughly 400 kB of PCM, far more than a pipe holds, so the sink is still writing when the key is released.
     private let block = [Float](repeating: 0.3, count: 200_000)
+
+    @Test("the pipe reader stays available when the writer starts later")
+    func readerWaitsForWriter() async throws {
+        let file = try StalledFile()
+        file.readWhenLetGo()
+        file.letGo()
+        try await eventually { file.hasRead }
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(!file.hasFinishedReading)
+
+        let writer = RecordingWriter(url: file.url)
+        writer.append([0.3])
+        _ = writer.finish()
+        await writer.drained()
+        file.waitForReader()
+        #expect(file.hasFinishedReading)
+    }
 
     @Test("ending a recording answers for it without waiting for the bytes")
     func finishDoesNotWaitForTheDisk() async throws {

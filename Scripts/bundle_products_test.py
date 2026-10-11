@@ -6,6 +6,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -140,6 +141,203 @@ class BundleProductsTests(unittest.TestCase):
         (self.description / "manifest.json").unlink()
         with self.assertRaises(FileNotFoundError):
             bundle_products.bundle_products(self.description, self.products, "Uttrflow")
+
+    def native_cli(self, option, path):
+        return subprocess.run(["python3", str(ROOT / "Scripts/bundle_products.py"),
+                               str(self.derived), str(ROOT), str(self.products), "Uttrflow",
+                               f"--since={self.started}", option, str(path)],
+                              text=True, capture_output=True)
+
+    def native_snapshot(self):
+        self.started = time.time()
+        self.snapshot = self.derived / "before.json"
+        result = self.native_cli("--snapshot-out", self.snapshot)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def native_use(self, description=None):
+        description = description or self.description
+        now = time.time_ns()
+        os.utime(description, ns=(now, now))
+
+    def test_native_use_selects_reused_metadata_without_latest_fallback(self):
+        request = self.description / "build-request.json"
+        os.utime(request, (1, 1))
+        other = self.description.parent / "newer.xcbuilddata"
+        other.mkdir()
+        other_request = other / "build-request.json"
+        other_request.write_text(json.dumps(self.request))
+        (other / "manifest.json").write_text(json.dumps({"commands": {}}))
+        self.assertGreater(other_request.stat().st_mtime_ns, request.stat().st_mtime_ns)
+        self.native_snapshot()
+        before = request.read_bytes(), request.stat().st_mtime_ns
+        self.native_use()
+        result = self.native_cli("--snapshot", self.snapshot)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(set(Path(line).name for line in result.stdout.splitlines()), set(self.needed))
+        self.assertEqual((request.read_bytes(), request.stat().st_mtime_ns), before)
+
+    def test_native_use_requires_a_unique_matching_changed_directory(self):
+        self.native_snapshot()
+        result = self.native_cli("--snapshot", self.snapshot)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("missing or ambiguous", result.stderr)
+        self.native_use()
+        other = self.description.parent / "other.xcbuilddata"
+        other.mkdir()
+        shutil.copyfile(self.description / "build-request.json", other / "build-request.json")
+        result = self.native_cli("--snapshot", self.snapshot)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("missing or ambiguous", result.stderr)
+
+    def test_native_use_accepts_a_new_matching_description(self):
+        saved = self.description.with_suffix(".saved")
+        self.description.rename(saved)
+        self.native_snapshot()
+        self.description.mkdir()
+        for path in saved.iterdir():
+            if path.is_file():
+                shutil.copyfile(path, self.description / path.name)
+        result = self.native_cli("--snapshot", self.snapshot)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_native_use_preserves_request_identity_and_resource_validation(self):
+        original = json.dumps(self.request)
+        for field in ("repository", "scheme", "configuration", "products", "command"):
+            with self.subTest(field=field):
+                request = json.loads(original)
+                if field == "repository":
+                    request["containerPath"] = "/different/repository"
+                elif field == "scheme":
+                    request["configuredTargets"] = [{"guid": "PACKAGE-PRODUCT:uttrflow-eval"}]
+                elif field == "configuration":
+                    request["parameters"]["configurationName"] = "Debug"
+                elif field == "products":
+                    request["parameters"]["arenaInfo"]["buildProductsPath"] = "/different/products"
+                else:
+                    request["buildCommand"]["command"] = "clean"
+                (self.description / "build-request.json").write_text(json.dumps(request))
+                self.native_snapshot()
+                self.native_use()
+                result = self.native_cli("--snapshot", self.snapshot)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("missing or ambiguous", result.stderr)
+        (self.description / "build-request.json").write_text(original)
+        self.native_snapshot()
+        self.native_use()
+        (self.products / "mlx_Cmlx.bundle/default.metallib").unlink()
+        result = self.native_cli("--snapshot", self.snapshot)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("required build resource is missing", result.stderr)
+
+    def test_native_use_rejects_stale_malformed_snapshots_and_invalid_start(self):
+        self.native_snapshot()
+        valid = self.snapshot.read_text()
+        self.native_use()
+        cases = []
+        for key, value in (("derived", "/different/derived"), ("entries", []),
+                           ("captured_ns", 0), ("captured_ns", True),
+                           ("captured_ns", time.time_ns() + 1_000_000_000_000)):
+            snapshot = json.loads(valid)
+            snapshot[key] = value
+            cases.append(snapshot)
+        for name, identity in (("../app.xcbuilddata", {}), ("app.xcbuilddata", []),
+                               ("app.xcbuilddata", {"device": 1, "inode": True, "mtime_ns": 1}),
+                               ("app.xcbuilddata", {"device": 1, "inode": 1, "mtime_ns": -1})):
+            snapshot = json.loads(valid)
+            snapshot["entries"] = {name: identity}
+            cases.append(snapshot)
+        for snapshot in cases + [[], None]:
+            with self.subTest(snapshot=snapshot):
+                self.snapshot.write_text(json.dumps(snapshot))
+                result = self.native_cli("--snapshot", self.snapshot)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("bundle products:", result.stderr)
+        self.snapshot.write_text(valid)
+        os.utime(self.snapshot, (1, 1))
+        self.assertNotEqual(self.native_cli("--snapshot", self.snapshot).returncode, 0)
+        self.snapshot.write_text(valid)
+        for since in ("nan", "inf", "-inf", "-1"):
+            with self.subTest(since=since):
+                self.started = since
+                result = self.native_cli("--snapshot", self.snapshot)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("invalid Xcode description invocation start", result.stderr)
+
+    def test_native_use_rejects_replaced_nonadvancing_future_or_symlink_directories(self):
+        self.native_snapshot()
+        original = self.snapshot.read_text()
+        self.native_use()
+        for field in ("device", "inode", "mtime_ns"):
+            with self.subTest(field=field):
+                snapshot = json.loads(original)
+                identity = snapshot["entries"][self.description.name]
+                identity[field] = identity[field] + 1 if field != "mtime_ns" else time.time_ns() + 10**12
+                self.snapshot.write_text(json.dumps(snapshot))
+                result = self.native_cli("--snapshot", self.snapshot)
+                self.assertNotEqual(result.returncode, 0)
+        self.snapshot.write_text(original)
+        now = time.time_ns() + 10**12
+        os.utime(self.description, ns=(now, now))
+        self.assertNotEqual(self.native_cli("--snapshot", self.snapshot).returncode, 0)
+        saved = self.description.with_suffix(".saved")
+        self.description.rename(saved)
+        self.description.symlink_to(saved, target_is_directory=True)
+        result = self.native_cli("--snapshot", self.snapshot)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("invalid Xcode description directory", result.stderr)
+        result = self.native_cli("--snapshot-out", self.snapshot)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("invalid Xcode description directory", result.stderr)
+
+    def test_native_use_rejects_incomplete_description_graphs(self):
+        self.native_snapshot()
+        self.native_use()
+        request = self.description / "build-request.json"
+        manifest = self.description / "manifest.json"
+        request_bytes, manifest_bytes = request.read_bytes(), manifest.read_bytes()
+        for missing in (request, manifest):
+            with self.subTest(missing=missing.name):
+                missing.unlink()
+                result = self.native_cli("--snapshot", self.snapshot)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(missing.name, result.stderr)
+                request.write_bytes(request_bytes)
+                manifest.write_bytes(manifest_bytes)
+        manifest.write_text(json.dumps({"commands": {}}))
+        result = self.native_cli("--snapshot", self.snapshot)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("does not produce the app executable", result.stderr)
+        manifest.write_bytes(manifest_bytes)
+        shutil.rmtree(self.products / "mlx_Cmlx.bundle")
+        result = self.native_cli("--snapshot", self.snapshot)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("required build resource is missing", result.stderr)
+
+    def test_native_capture_preserves_build_failure_diagnostics_and_cleans_snapshot(self):
+        script = (ROOT / "Scripts/bundle.sh").read_text()
+        build = script.split('BUILD_DESCRIPTION_STARTED="$(date +%s)"', 1)[1].split("BUILT_BINARY=", 1)[0]
+        snapshots = self.derived / "snapshots"
+        snapshots.mkdir()
+        environment = dict(os.environ, TMPDIR=str(snapshots), SCHEME="Uttrflow", CONFIGURATION="Release",
+                           DERIVED_DATA=str(self.derived), PRODUCTS_DIR=str(self.products),
+                           SCRIPT_DIR=str(ROOT / "Scripts"), PACKAGE_ROOT=str(ROOT),
+                           BUILD_DESCRIPTION_STARTED="0")
+        for status in (0, 7):
+            with self.subTest(status=status):
+                command = "set -euo pipefail\nfail() { exit 1; }\n"
+                payload = ('import json,sys; snapshot=json.load(open(sys.argv[1])); '
+                           'assert snapshot["derived"] == sys.argv[2]; '
+                           'assert snapshot["entries"] and snapshot["captured_ns"] > 0')
+                command += f"xcodebuild() {{ python3 -c '{payload}' "
+                command += '"$BUILD_DESCRIPTION_SNAPSHOT" "$DERIVED_DATA" || return 99; '
+                command += f"printf 'warning: diagnostic\\n'; return {status}; }}\n"
+                command += build + "\nprintf 'selection reached\\n'\n"
+                result = subprocess.run(["bash", "-c", command], env=environment,
+                                        text=True, capture_output=True)
+                self.assertEqual(result.returncode, 0 if status == 0 else 1)
+                self.assertIn("warning: diagnostic", result.stdout + result.stderr)
+                self.assertEqual("selection reached" in result.stdout, status == 0)
+                self.assertEqual(list(snapshots.iterdir()), [])
 
 
 if __name__ == "__main__":

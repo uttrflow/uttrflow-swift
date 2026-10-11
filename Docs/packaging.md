@@ -65,9 +65,14 @@ named by that scheme's build description into `Contents/Resources` and every `*.
 then signs. Bundles and frameworks are discovered, never listed by name, so a new dependency
 that carries resources cannot go missing quietly.
 
-`Scripts/bundle_products.py` reads the matching Release app build request and its manifest's
-output paths. It includes resources without a literal bundle name in the executable, including
-Metal libraries and privacy manifests. Cached products from another scheme are excluded.
+`Scripts/bundle_products.py` snapshots build-description directory identities before Xcode runs.
+After a successful build, it requires exactly one new or natively updated directory matching the
+Release app request, then reads that manifest's output paths. Xcode marks cached description use
+by updating the directory timestamp, so unchanged older request files remain valid. Missing or
+ambiguous use markers fail closed. Selection assumes one producer uses this derived-data directory;
+Xcode's asynchronous cache-use update can be absent or delayed, which also stops packaging.
+It includes resources without a literal bundle name in the executable, including Metal libraries
+and privacy manifests. Cached products from another scheme are excluded.
 A missing resource or a missing, stale, ambiguous or mismatched build description stops
 packaging; it never falls back to copying the products directory. `make bundle-test` proves
 this selection with a needed Metal bundle beside an unrelated corpus bundle.
