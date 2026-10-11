@@ -46,6 +46,7 @@ jobs:
           PR_BASE: ${{ github.event.pull_request.base.sha }}
           QUEUE_BASE: ${{ github.event.merge_group.base_sha }}
         run: |
+          python3 Scripts/eval_scope_test.py
           base="${PR_BASE:-${QUEUE_BASE:-}}"
           if [[ -z "$base" ]]; then
             echo "base=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
@@ -53,7 +54,7 @@ jobs:
             exit 0
           fi
           echo "base=$base" >> "$GITHUB_OUTPUT"
-          read_by_the_lane='^(Sources/(UttrflowAI|UttrflowCore|UttrflowDictionary|UttrflowEval|UttrflowPipeline|UttrflowSpeech)/|Tests/UttrflowEvalTests/|Scripts/(rules_scorecard\.(py|json)|scorecard_accepted\.txt|seam_baseline\.json)$|Makefile$|Package\.(swift|resolved)$|\.github/workflows/eval\.yml$)'
+          read_by_the_lane='^(Sources/(UttrflowAI|UttrflowCore|UttrflowDictionary|UttrflowEval|UttrflowPipeline|UttrflowSpeech|UttrflowClipboard|UttrflowTestSupport)/|Tests/Uttrflow(Eval|AI|Core|Dictionary|Clipboard)Tests/|Scripts/(quality_grid_scorecard\.py|quality_grid_scorecard_test\.py|quality_grid_baseline\.json|eval_scope_test\.py|rules_scorecard\.(py|json)|scorecard_accepted\.txt|seam_baseline\.json)$|Makefile$|Package\.(swift|resolved)$|\.github/workflows/eval\.yml$)'
           if git diff --name-only "$base" HEAD | grep -qE "$read_by_the_lane"; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
