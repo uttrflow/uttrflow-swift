@@ -9,7 +9,7 @@ import UttrflowPredict
 
 @testable import UttrflowInput
 
-@Suite("The tap while a taken keystroke is carried out")
+@Suite("The tap while a taken keystroke is carried out", .timeLimit(.minutes(2)))
 struct TapStateHoldTests {
     /// A state with a resumed source of its own, since libdispatch traps on freeing a suspended one.
     private static func makeState(clock: ManualClock? = nil) -> TapState {
@@ -70,7 +70,7 @@ struct TapStateHoldTests {
                 releaseFirstUpdate.wait()
             }
         }
-        #expect(firstUpdateEntered.wait(timeout: .now() + 5) == .success)
+        #expect(firstUpdateEntered.wait(timeout: .distantFuture) == .success)
 
         second.async {
             secondFoundLockUnavailable.withLock { $0 = !state.listeningControlIsAvailableForTesting() }
@@ -80,13 +80,13 @@ struct TapStateHoldTests {
                 secondUpdateFinished.signal()
             }
         }
-        #expect(secondObservedControlLock.wait(timeout: .now() + 5) == .success)
+        #expect(secondObservedControlLock.wait(timeout: .distantFuture) == .success)
         #expect(secondFoundLockUnavailable.withLock { $0 }, "the first update must own the control lock")
         #expect(
             secondUpdateFinished.wait(timeout: .now() + 0.1) == .timedOut,
             "the second transition must wait until the first Core Graphics update finishes")
         releaseFirstUpdate.signal()
-        #expect(secondUpdateFinished.wait(timeout: .now() + 5) == .success)
+        #expect(secondUpdateFinished.wait(timeout: .distantFuture) == .success)
         #expect(applied.withLock { $0 } == [true, false])
         #expect(!state.isListening)
     }

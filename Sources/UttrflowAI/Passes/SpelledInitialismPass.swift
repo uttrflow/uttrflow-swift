@@ -130,10 +130,10 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         case word(String)
     }
 
-    private static let digitWords: [String: String] = [
-        "zero": "0", "one": "1", "two": "2", "three": "3", "four": "4",
-        "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9",
-    ]
+    /// The digit a spoken digit word stands for, "four" as "4".
+    private static func digit(named word: String) -> String? {
+        NumberWords.units[word].map { String($0) }
+    }
 
     /// What the word at `index` is inside a spoken code, or nil when it cannot be part of one.
     private static func codePiece(at index: Int, in draft: Draft, initialisms: Set<Int>) -> CodePiece? {
@@ -143,7 +143,7 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         if !shape.key.isEmpty, shape.key.allSatisfy({ $0.isASCII && $0.isNumber }) {
             return .digits(shape.key)
         }
-        return digitWords[shape.key].map(CodePiece.word)
+        return digit(named: shape.key).map(CodePiece.word)
     }
 
     /// Writes a letter run touching digits as one code, abstaining when one bare letter meets one number word.
@@ -181,7 +181,7 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
             let readings = pieces.map { piece in
                 switch piece {
                 case .letters(let text), .digits(let text): text
-                case .word(let word): digitWords[word] ?? word
+                case .word(let word): digit(named: word) ?? word
                 }
             }
             write(

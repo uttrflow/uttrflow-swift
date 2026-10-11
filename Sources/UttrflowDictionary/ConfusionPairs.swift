@@ -8,16 +8,16 @@ public enum ConfusionPairs {
     public static let daysBeforeConfirming = 3
 
     /// New pairs that may start counting on one day, so a field rewritten in bulk cannot teach many at once.
-    public static let maximumNewPairsPerDay = 10
+    static let maximumNewPairsPerDay = 10
 
     /// How alike, as the Dice coefficient of the two heard word lists, a dictation must be to the one before to respeak it.
-    public static let respeakSimilarity = 0.6
+    static let respeakSimilarity = 0.6
     /// The most pairs one re-dictation writes against, so a whole respoken paragraph cannot touch every pair at once.
-    public static let retriedPairsPerDictation = 3
+    static let retriedPairsPerDictation = 3
     /// Separate days a pair must be respoken on before its re-dictations count at all, so one retry changes nothing.
-    public static let daysBeforeRetryCounts = 2
+    static let daysBeforeRetryCounts = 2
     /// The most undone days re-dictations add to a pair, so they never outweigh a single kept day.
-    public static let retriedDaysCap = 1
+    static let retriedDaysCap = 1
 
     /// One correction a dictation applied: what the recogniser heard and the word written in its place.
     public struct Pair: Sendable, Equatable {

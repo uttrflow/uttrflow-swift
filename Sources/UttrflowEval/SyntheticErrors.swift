@@ -32,15 +32,8 @@ package enum ErrorSpanClass: String, Sendable, Equatable, CaseIterable, Codable 
         }
     }
 
-    private static let numberWords: Set<String> = [
-        "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven",
-        "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty",
-        "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety", "hundred", "thousand", "million",
-        "billion",
-    ]
-
     private static func isNumeral(_ word: String) -> Bool {
-        numberWords.contains(word) || word.contains(where: \.isNumber)
+        NumberWords.value(of: word) != nil || word.contains(where: \.isNumber)
     }
 }
 
