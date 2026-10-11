@@ -9,6 +9,8 @@ public final class FullTreeSwitch: Sendable {
     struct Host {
         let read: (_ attribute: String) -> Bool?
         let write: (_ attribute: String, _ isOn: Bool) -> Bool
+        /// Whether the application answers that it does not have the attribute at all, as a native application does.
+        var refuses: (_ attribute: String) -> Bool = { _ in false }
     }
 
     /// The switch an application built on a bundled browser engine offers, which changes nothing but the tree.
@@ -121,7 +123,7 @@ public final class FullTreeSwitch: Sendable {
                 let wrote = state.withLock { $0.written[processIdentifier]?.contains(attribute) ?? false }
                 if attemptAttribute(
                     attribute, decides: index == attributes.count - 1, wasWritten: wrote,
-                    request: request)
+                    mayRefuse: attributes.count == 1, request: request)
                 {
                     return
                 }
@@ -130,7 +132,7 @@ public final class FullTreeSwitch: Sendable {
     }
 
     private func attemptAttribute(
-        _ attribute: String, decides: Bool, wasWritten: Bool, request: SwitchRequest
+        _ attribute: String, decides: Bool, wasWritten: Bool, mayRefuse: Bool, request: SwitchRequest
     ) -> Bool {
         guard isCurrent(request.generation) else { return false }
         let wasOn = request.host.read(attribute)
@@ -157,8 +159,18 @@ public final class FullTreeSwitch: Sendable {
             isOn = request.host.read(attribute) == true
             guard isCurrent(request.generation) else { return false }
         }
+        if !isOn, mayRefuse, request.host.refuses(attribute) { return settleRefused(request) }
         guard isOn, decides else { return false }
         return settle(attribute, wasWritten: true, request: request)
+    }
+
+    /// Records an application that has no such attribute as settled, so a native application is asked once and not again.
+    private func settleRefused(_ request: SwitchRequest) -> Bool {
+        state.withLock { state in
+            guard state.generation == request.generation else { return false }
+            state.settled.insert(request.processIdentifier)
+            return true
+        }
     }
 
     private func settle(_ attribute: String, wasWritten: Bool, request: SwitchRequest) -> Bool {

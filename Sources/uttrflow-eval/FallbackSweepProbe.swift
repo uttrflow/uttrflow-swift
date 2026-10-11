@@ -33,6 +33,9 @@ struct FallbackSweepProbe: AsyncParsableCommand {
     @Option(name: .long, help: "Use only the first this many clips of each voice.")
     var perVoice = SpokenClips.sentences.count
 
+    @Option(name: .long, parsing: .upToNextOption, help: "Dictionary terms given to the recogniser.")
+    var vocabulary: [String] = []
+
     func validate() throws {
         if runs < 2 { throw ValidationError("--runs must be at least 2.") }
         if counts.contains(where: { $0 < 0 }) { throw ValidationError("--counts must not be negative.") }
@@ -65,7 +68,8 @@ struct FallbackSweepProbe: AsyncParsableCommand {
                 for (clip, samples) in zip(clips, inputs) {
                     var texts: [[String]] = []
                     for _ in 0..<runs {
-                        let heard = try await speech.transcribe(.canonical(samples), options: .init())
+                        let heard = try await speech.transcribe(
+                            .canonical(samples), options: .init(vocabulary: vocabulary))
                         let words = TextNormaliser.standard.words(heard.text)
                         texts.append(words)
                         tally.add(

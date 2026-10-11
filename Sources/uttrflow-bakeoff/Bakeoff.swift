@@ -13,7 +13,8 @@ struct Bakeoff: AsyncParsableCommand {
         commandName: "uttrflow-bakeoff",
         abstract: "Score clean-up engines against the evaluation corpus.",
         subcommands: [
-            Footprint.self, Profile.self, Complete.self, Score.self, GPUMemory.self, ReloadLeaks.self,
+            Footprint.self, Profile.self, Complete.self, Score.self, MidWord.self, GPUMemory.self,
+            ReloadLeaks.self,
             SpeechShape.self, Marks.self, HomophoneRepair.self, TidyGate.self,
         ]
     )
