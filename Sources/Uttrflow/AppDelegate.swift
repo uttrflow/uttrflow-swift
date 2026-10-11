@@ -22,32 +22,6 @@ import UttrflowSettings
 import UttrflowSpeech
 import UttrflowUX
 
-enum DictationSessionEndObserver {
-    static let screenIsLocked = Notification.Name("com.apple.screenIsLocked")
-
-    static let notices = [
-        NSWorkspace.sessionDidResignActiveNotification,
-        NSWorkspace.screensDidSleepNotification,
-        NSWorkspace.willSleepNotification,
-    ]
-
-    static func observe(
-        in center: NotificationCenter, onEnd: @escaping @Sendable () -> Void
-    )
-        -> [any NSObjectProtocol]
-    {
-        notices.map { name in
-            center.addObserver(forName: name, object: nil, queue: .main) { _ in onEnd() }
-        }
-    }
-
-    static func observeScreenLock(
-        in center: NotificationCenter, onEnd: @escaping @Sendable () -> Void
-    ) -> any NSObjectProtocol {
-        center.addObserver(forName: screenIsLocked, object: nil, queue: .main) { _ in onEnd() }
-    }
-}
-
 /// Assembles the product and relays between it and the interface, deciding nothing itself.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
@@ -462,10 +436,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var sorts: [MainTab: String] = [:]
 
     /// How long a finished result stays up, so the last dictation does not sit over every app.
-    static let successLingers = Duration.seconds(2)
+    static let successLingers = DockLingerPolicy.successLingers
     /// Longer, because a failure asks something of the user — but it still goes.
-    static let failureLingers = Duration.seconds(10)
-    static let voiceOverFailureLingers = Duration.seconds(20)
+    static let failureLingers = DockLingerPolicy.failureLingers
+    static let voiceOverFailureLingers = DockLingerPolicy.voiceOverFailureLingers
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Before the first read, so an install onboarded under ⌥Space keeps it. See `Docs/shortcuts.md`.
@@ -4485,26 +4459,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     nonisolated static func menuBarDictation(
         for state: DictationState, floatingButtonShown: Bool
     ) -> MenuBarState {
-        let activity: DictationActivity =
-            switch state {
-            case .idle, .failed: .idle
-            case .discarded: .discarded
-            case .executed: .executed
-            case .recording: .listening
-            case .transcribing, .tidying, .inserting: .working
-            case .inserted(let outcome):
-                DictationActivity.completion(
-                    method: outcome.method, arrival: outcome.arrival, quality: outcome.quality)
-            }
-        var failure: FailurePresentation?
-        if case .failed(let notice) = state {
-            failure = FailurePresenter.present(
-                message: notice.message, recovery: notice.recovery, severity: notice.severity,
-                floatingButtonShown: floatingButtonShown)
-        }
-        var quality = OutcomeQuality.complete
-        if case .inserted(let outcome) = state { quality = outcome.quality }
-        return MenuBarState(activity: activity, outcomeQuality: quality, failure: failure)
+        MenuBarDictationMapping.state(for: state, floatingButtonShown: floatingButtonShown)
     }
 
     /// Whether the floating button collapses to a grip when idle, as the running button has it now.
@@ -4548,24 +4503,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// How long a finished state stays up, or `nil` for a state that is not finished.
     static func linger(after state: DictationState, voiceOverEnabled: Bool = false) -> Duration? {
-        switch state {
-        // Copied rather than typed asks the user to paste, so it stays as long as a failure.
-        case .inserted(let outcome) where outcome.method == .clipboard: failureLingers
-        case .inserted: successLingers
-        // An informational notice asks nothing of the user, so it goes sooner.
-        case .failed(let notice):
-            if notice.severity == .informational {
-                successLingers
-            } else if voiceOverEnabled, notice.recovery != nil {
-                voiceOverFailureLingers
-            } else {
-                failureLingers
-            }
-        // A Restore on offer stays as long as a failure's button; with nothing to offer it goes sooner.
-        case .discarded(let discard): discard.keptRecording == nil ? successLingers : failureLingers
-        case .executed: successLingers
-        case .idle, .recording, .transcribing, .tidying, .inserting: nil
-        }
+        DockLingerPolicy.linger(after: state, voiceOverEnabled: voiceOverEnabled)
     }
 
     /// Returns the interface to rest once the user has had time to read the result.

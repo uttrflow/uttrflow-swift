@@ -39,6 +39,9 @@ and the class that moved, never alone.
 
 Saved adapter comparisons require unique adapter names in both reports. Duplicate rows return an
 incomparable result before constructing the baseline lookup; label mismatch retains precedence.
+After label, row identity and denominator checks, both reports must have nonnegative raw counts
+with `exactHits <= exactCases <= cases`; impossible saved counts return typed `Incomparable`
+rather than a clean verdict. Added-token and shape-violation sums may exceed the case count.
 Saved digit-string comparisons require unique shape names in each report before constructing their
 baseline lookup; label mismatch retains precedence.
 
@@ -48,6 +51,8 @@ baseline lookup; label mismatch retains precedence.
   was prepared to defend tells a fix from a trade.
 - The baseline is written only with `--save-baseline`. Writing it at the end of every run would
   make the gate compare a change with itself, so it could never fail.
+- A missing accuracy baseline exits nonzero when `--fail-on-regression` requires a verdict.
+  Exploratory comparisons retain their diagnostic; `--save-baseline` still writes before judging.
 - The samples that moved are printed capped, as evidence for the verdict, not as the verdict.
   At a thousand samples dozens move every run.
 - The normalisation rules are printed before the numbers, every time. The same transcripts
@@ -416,8 +421,9 @@ recogniser, model, audio or production formatting changes are involved.
   the proper-noun and digit passages of each language, the two stressors a fitted layer is most
   likely to memorise.
 - `SplitLeakAudit` fails when a passage has no side, when the table names a passage the corpus
-  lacks, when a passage outside `test` shares a run of 8 words with a test passage in any form
-  (the contamination audit's run length), or when a language has fewer than 2 test passages.
+  lacks, when passages on different sides share a run of 8 words in any form (the contamination
+  audit's run length), or when a language has fewer than 2 test passages. Existing test-side
+  findings come first; fit/calibration overlaps follow, with each pair checked once.
   It reports passage counts per side and language (`swift test --filter TranscriptionSplitTests`).
 - The corpus has one reader, so passage and speaker group coincide today; a second reader of a
   passage takes the passage's side.
@@ -825,6 +831,8 @@ work may assume that per-speaker learning helps, at any k.
 `accent-groups` rejects non-finite or non-positive `--decision-bound` values and rounded decision
 requirements outside the integer range before reading rows or decoding a manifest. Representable
 positive bounds retain the existing rounded 3/n requirement, including bounds above one.
+The saved rows parser rejects negative error, reference-word, decision and false-override counts
+before aggregation. Zero counts and insertion errors above reference-word counts keep their handling.
 
 The synthetic table above decides which classes are worth recording real speakers for; a
 real-speaker slice decides whether a group is served worse. This is the specification any
@@ -1208,6 +1216,8 @@ by prose alone.
 - A chosen value whose neighbour scores more than `--cliff-tolerance` worse is a cliff and is refused
   with exit 1; `--margin-steps N` moves the choice N grid steps toward the flatter, feasible
   neighbour instead.
+- Margin steps are capped at the grid endpoint before index arithmetic, so even the largest integer
+  margin remains bounded. The record retains the requested step count.
 - `--record` writes one JSON file: the grid, objective, seed, table digest, feature spec version,
   engine label, every trial, the chosen value, its neighbours, the margin and the test score.
   Rerunning on the same table gives the same bytes. Its `id` names the record.

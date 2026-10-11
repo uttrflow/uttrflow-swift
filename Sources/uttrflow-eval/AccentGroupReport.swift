@@ -99,7 +99,7 @@ struct AccentGroupReport: AsyncParsableCommand {
             let fields = line.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
             guard fields.count == 7, let label = AccentLabelKind(rawValue: fields[2]),
                 let errors = Int(fields[3]), let words = Int(fields[4]), let decisions = Int(fields[5]),
-                let overrides = Int(fields[6])
+                let overrides = Int(fields[6]), errors >= 0, words >= 0, decisions >= 0, overrides >= 0
             else { throw ValidationError("line \(number + 1) is not a counts row") }
             clips.append(
                 SpeakerClip(

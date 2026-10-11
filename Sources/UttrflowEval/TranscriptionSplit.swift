@@ -116,6 +116,20 @@ public struct SplitLeakAudit: Sendable {
                 found.append(.tooFewTestPassages(language: language, count: count))
             }
         }
-        return found
+        return found + fitCalibrationFindings
+    }
+
+    private var fitCalibrationFindings: [Finding] {
+        let fit = passages.filter { assignment[$0.id] == .fit }
+        let audit = ContaminationAudit(
+            passages: fit.flatMap { passage in passage.forms.map { (passage.id, $0) } },
+            shortestPhrase: ContaminationAudit.sharedRunWords)
+        return passages.filter { assignment[$0.id] == .calibration }.flatMap { passage in
+            passage.forms.flatMap { audit.findings(in: $0, asset: passage.id) }.map {
+                .sharedRun(
+                    passageID: passage.id, side: .calibration,
+                    testPassageID: $0.caseID, words: $0.words)
+            }
+        }
     }
 }

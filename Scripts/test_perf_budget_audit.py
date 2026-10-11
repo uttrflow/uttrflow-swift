@@ -1,6 +1,9 @@
 """Checks cache rules across same-module model extensions without an MLX import."""
 
 from pathlib import Path
+import json
+import subprocess
+import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
@@ -111,6 +114,120 @@ class SchedulerWakeupSiteTests(unittest.TestCase):
     def test_changed_expression_at_the_scheduler_is_rejected(self):
         self.assertTrue(any(self.scheduler in failure and "cannot resolve" in failure
                             for failure in self.failures(self.scheduler, ".milliseconds(max(delay, 2))")))
+
+
+class LatencySampleValidationTests(unittest.TestCase):
+    root = Path(__file__).resolve().parent.parent
+
+    def fixture(self, samples):
+        corpus, lines = [], []
+
+        def sample(stage, index):
+            values = samples.get(stage, [])
+            return values[index] if values else 0.0
+
+        for category in audit.LATENCY_WAIT_CATEGORIES:
+            for index in range(audit.LATENCY_MIN_SAMPLES):
+                clip_id = f"synthetic-{category}-{index}"
+                corpus.append({"id": clip_id, "category": category, "variant": "clean"})
+                events = [{"kind": "asr", **{
+                    field: str(sample(f"asr:{field}", index)) for field in audit.LATENCY_ASR_FIELDS}}]
+                events += [{"kind": kind, "t0": "0", "t1": str(sample(kind, index))}
+                           for kind in ("clean", "correct")]
+                lines.append("BENCH " + json.dumps({
+                    "event": "result", "id": clip_id, "mode": "rt", "cleaner": "shipping",
+                    "wait": str(sample(f"wait:{category}", index)), "events": events}, allow_nan=False))
+        return corpus, lines
+
+    def run_cli(self, samples):
+        corpus, lines = self.fixture(samples)
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            corpus_path, run_path = directory / "corpus.json", directory / "run.out"
+            corpus_path.write_text(json.dumps(corpus))
+            run_path.write_text("\n".join(lines) + "\n")
+            return subprocess.run(
+                [sys.executable, str(self.root / "Scripts/perf_budget_audit.py"),
+                 "--root", str(self.root), "--latency", str(run_path), "--corpus", str(corpus_path)],
+                text=True, capture_output=True, timeout=10)
+
+    def test_cli_rejects_invalid_samples_in_each_budgeted_stage(self):
+        targets = audit.latency_targets(audit.performance_doc(self.root))
+        for stage in targets:
+            for value in (float("nan"), float("inf"), float("-inf"), -1.0):
+                with self.subTest(stage=stage, value=value):
+                    result = self.run_cli({stage: [value] * audit.LATENCY_MIN_SAMPLES})
+                    self.assertEqual(result.returncode, 1, result.stdout)
+                    self.assertIn(stage, result.stderr)
+                    self.assertIn("non-finite or negative duration", result.stderr)
+
+    def test_cli_preserves_complete_zero_and_exact_budget_runs(self):
+        targets = audit.latency_targets(audit.performance_doc(self.root))
+        at_budget = {stage: [budget] * audit.LATENCY_MIN_SAMPLES for stage, (_, budget) in targets.items()}
+        for samples in ({}, at_budget):
+            with self.subTest(samples=samples):
+                result = self.run_cli(samples)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                expected = []
+                for stage, (_, budget) in sorted(targets.items()):
+                    count = 3 if stage.startswith("wait:") else 9
+                    value = budget if samples else 0.0
+                    expected.append(f"  ✓ {stage}: {count} samples, p95 {value:.3f}/{budget:.3f} s")
+                self.assertEqual(result.stdout, "\n".join(expected) + "\n")
+
+    def test_cli_preserves_slower_run_failures(self):
+        targets = audit.latency_targets(audit.performance_doc(self.root))
+        for stage, (_, budget) in targets.items():
+            with self.subTest(stage=stage):
+                result = self.run_cli({stage: [budget * 1.5] * audit.LATENCY_MIN_SAMPLES})
+                self.assertEqual(result.returncode, 1)
+                self.assertIn(stage, result.stderr)
+                self.assertIn("p95", result.stderr)
+
+    def test_cli_cannot_hide_one_invalid_sample_behind_good_samples(self):
+        stage = f"wait:{audit.LATENCY_WAIT_CATEGORIES[0]}"
+        result = self.run_cli({stage: [float("nan")] + [0.0] * (audit.LATENCY_MIN_SAMPLES - 1)})
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn(stage, result.stderr)
+        self.assertIn("non-finite or negative duration", result.stderr)
+
+    def test_minimum_sample_precedence_and_unbudgeted_stages_are_preserved(self):
+        stage, target = next(iter(audit.latency_targets(audit.performance_doc(self.root)).items()))
+        short = {stage: [float("nan")] * (audit.LATENCY_MIN_SAMPLES - 1)}
+        breaches, report = audit.latency_breaches({stage: target}, short)
+        self.assertEqual(len(breaches), 1)
+        self.assertIn(f"needs {audit.LATENCY_MIN_SAMPLES}", breaches[0])
+        self.assertEqual(report, [])
+        samples = {stage: [0.0] * audit.LATENCY_MIN_SAMPLES, "synthetic-unbudgeted": [float("nan")]}
+        breaches, report = audit.latency_breaches({stage: target}, samples)
+        self.assertEqual(breaches, [])
+        self.assertEqual(len(report), 1)
+
+    def test_existing_event_filters_ignore_ineligible_invalid_samples(self):
+        corpus, lines = self.fixture({})
+        for kind in ("fast", "rules", "failed", "unknown", "noise"):
+            event = json.loads(lines[0][6:])
+            event["wait"] = "nan"
+            for step in event["events"]:
+                for field in audit.LATENCY_ASR_FIELDS:
+                    step[field] = "nan"
+                step["t1"] = "nan"
+            if kind == "fast":
+                event["mode"] = "fast"
+            elif kind == "rules":
+                event["cleaner"] = "rules"
+            elif kind == "failed":
+                event["failed"] = "synthetic failure"
+            else:
+                event["id"] = kind
+                if kind == "noise":
+                    corpus.append({"id": kind, "category": "dur5", "variant": "noise"})
+            lines.append("BENCH " + json.dumps(event))
+        samples = audit.stage_samples(lines, {clip["id"]: clip for clip in corpus})
+        targets = audit.latency_targets(audit.performance_doc(self.root))
+        breaches, report = audit.latency_breaches(targets, samples)
+        self.assertEqual(breaches, [])
+        self.assertEqual(len(report), len(targets))
 
 
 if __name__ == "__main__":
