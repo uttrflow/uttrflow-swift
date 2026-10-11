@@ -148,14 +148,14 @@ struct TranscriptionScorerOutputRateTests {
         #expect(score.outputWordErrorRate?.rate == 0)
     }
 
-    @Test("a romanised spelling the reference does not use raises only the output rate")
+    @Test("an attested romanised variant does not raise the output rate")
     func spellingMissIsOutputOnly() {
         let respelt = TranscriptionCase(
             id: "sample-hi-respelt", language: .hindi, stressor: .everyday,
             romanised: "Haan theek hai", devanagari: "हाँ ठीक है")
         let score = TranscriptionScorer.score("हाँ ठीक है", against: respelt)
         #expect(score.wordErrorRate?.rate == 0)
-        #expect(score.outputWordErrorRate?.substitutions == 1)
+        #expect(score.outputWordErrorRate?.substitutions == 0)
     }
 
     @Test("a Latin answer has no separate output rate")

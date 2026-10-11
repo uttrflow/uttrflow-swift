@@ -32,7 +32,7 @@ private struct Opened {
 struct FindCommandTests {
     /// The app's real window over a sandbox, held by the app as opening a window holds it.
     private func opened(in root: URL) throws -> Opened {
-        let app = AppDelegate(container: root)
+        let app = AppDelegate(container: root, clipboardSource: InMemoryClipboardSource())
         let controller = app.makeMainWindow()
         app.mainWindow = controller
         let model = try #require(stored("model", of: controller, as: MainWindowModel.self))

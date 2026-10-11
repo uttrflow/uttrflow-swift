@@ -36,7 +36,7 @@ struct DictationReportSheetTests {
         host.frame = NSRect(x: 0, y: 0, width: 464, height: 224)
         host.layoutSubtreeIfNeeded()
         #expect(host.fittingSize.width > 0)
-        #expect(draft.report.lines.count == 6)
+        #expect(draft.report.lines.count == 7)
     }
 
     @Test("Copy hands the draft's text to the clipboard")

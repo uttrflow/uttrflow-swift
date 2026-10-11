@@ -121,4 +121,13 @@ struct FitTableTests {
         ]
         #expect(others.allSatisfy { !$0.description.isEmpty })
     }
+
+    @Test("A table built under another feature spec than the compiled one is refused")
+    func refusesOtherFeatureSpec() throws {
+        let table = try FitTable.read(Data(contentsOf: Self.url))
+        try table.requireFeatureSpec(1)
+        #expect(throws: FitTable.SchemaError.wrongFeatureSpec(table: 1, compiled: 2)) {
+            try table.requireFeatureSpec(2)
+        }
+    }
 }

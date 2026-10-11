@@ -1,5 +1,6 @@
 // Turns any failure into what the user sees: headline, detail, badge, severity, placement, and action.
 public import UttrflowCore
+import Foundation
 
 /// Which surface carries the notice.
 public enum FailurePlacement: Sendable, Equatable, CaseIterable {
@@ -83,12 +84,18 @@ public enum FailurePresenter {
         severity != .blocking && floatingButtonShown ? .floatingButton : .menuBar
     }
 
-    /// Splits a message at the first sentence break into the headline and the line that explains it.
+    /// Splits a message at its first sentence break, as its own language marks it, so `।` and `。` count.
     static func splitIntoSentences(_ message: String) -> (headline: String, detail: String?) {
-        guard let split = message.firstRange(of: ". ") else { return (message, nil) }
-        let detail = String(message[split.upperBound...])
-        // A message ending in ". " would leave an empty second line, which reads as a rendering fault.
-        return (String(message[..<split.lowerBound]) + ".", detail.isEmpty ? nil : detail)
+        var first: Range<String.Index>?
+        message.enumerateSubstrings(in: message.startIndex..., options: .bySentences) { _, range, _, stop in
+            first = range
+            stop = true
+        }
+        guard let first else { return (message, nil) }
+        let detail = message[first.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
+        // Blank space after the first sentence would leave an empty second line.
+        let headline = message[first].trimmingCharacters(in: .whitespacesAndNewlines)
+        return (headline, detail.isEmpty ? nil : detail)
     }
 
     /// The badge beside the message, naming the thing that needs attention rather than the failure.

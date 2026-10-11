@@ -92,14 +92,14 @@ public struct CalibrationProfile: Sendable, Equatable {
 
 extension EvidenceLedgerStore {
     /// Records a reading in place of any earlier one, so running it twice leaves one profile.
-    public func replaceCalibration(
+    func replaceCalibration(
         with profile: CalibrationProfile, day: Int, keeping window: RetentionWindow
     ) throws {
         try replace(kinds: [.calibration], with: profile.rows(day: day), keeping: window)
     }
 
     /// Deletes the recorded reading, which is how the person clears it.
-    public func clearCalibration() throws {
+    func clearCalibration() throws {
         try forget(kinds: [.calibration])
     }
 }

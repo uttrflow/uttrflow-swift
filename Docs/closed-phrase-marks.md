@@ -43,3 +43,7 @@ The local model owns commas and the rules own stops ([cleanup.md](cleanup.md)).
 A mark is never moved across the pause: the pause sits inside the phrase, and its other side is
 the word the phrase needs. The removal belongs in the rules' stop owner, keyed on the closed class
 of the word before the mark, not on any phrase.
+
+## Where it runs
+
+`SentenceBoundaryPass` removes the comma after a determiner, "of", "and", or a preposition that takes an object ("to", "for", "with", "from", "into", "by", "about", "at") when the next word opens a noun phrase and is not a subject pronoun. "on", "in" and "up" keep their comma because they close a phrasal verb ("hold on, wait"). A modal straight after a pronoun subject loses its stop when a verb follows ("I can. Finish it today" runs on). An auxiliary comma and the other auxiliaries' stops are left as the recogniser wrote them: "if you can, finish it" and "I do. Believe me" are both legal.

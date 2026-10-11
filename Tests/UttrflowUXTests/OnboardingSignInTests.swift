@@ -79,12 +79,12 @@ struct OnboardingSignInTests {
         #expect(announced == 1)
     }
 
-    @Test("says on the page itself what a person is agreeing to")
-    func theTermsAreOnThePage() async {
+    @Test("links the published Privacy page on the sign-in page")
+    func privacyIsLinkedOnThePage() async {
         let harness = Harness(signedIn: false)
         await harness.flow.start()
 
-        #expect(harness.page.showsTerms)
+        #expect(harness.page.legal == .privacy)
     }
 
     // MARK: Signing in

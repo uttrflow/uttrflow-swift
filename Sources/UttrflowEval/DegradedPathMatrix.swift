@@ -49,21 +49,43 @@ public struct DegradedPathMatrix: Sendable, Equatable {
     /// Each degraded path paired against the default set, in the order of `rows` after the first.
     package let contributions: [LayerContribution]
 
+    /// One case with the transcription the pipeline is handed for it: scripted for a corpus case, a stored decode for a recording.
+    package struct Subject: Sendable {
+        package let testCase: EvaluationCase
+        package let heard: Transcription
+
+        package init(testCase: EvaluationCase, heard: Transcription) {
+            self.testCase = testCase
+            self.heard = heard
+        }
+    }
+
     /// Runs `cases` through the default set, then through each degraded path, tidied by `cleaner`.
     public static func measure(
         _ cases: [EvaluationCase] = EvaluationCorpus.all, cleaner: any TranscriptCleaning,
         building: @escaping Building
     ) async -> DegradedPathMatrix {
-        let paths: [[QualityLayer]] = [[]] + QualityLayers.degradedPaths
+        await measure(
+            cases.map { Subject(testCase: $0, heard: $0.transcription) }, on: QualityLayers.degradedPaths,
+            cleaner: cleaner, building: building)
+    }
+
+    /// Runs `subjects` through the default set, then through each of `degraded`, tidied by `cleaner`.
+    package static func measure(
+        _ subjects: [Subject], on degraded: [[QualityLayer]], cleaner: any TranscriptCleaning,
+        building: @escaping Building
+    ) async -> DegradedPathMatrix {
+        let cases = subjects.map(\.testCase)
+        let paths: [[QualityLayer]] = [[]] + degraded
         let written = await withTaskGroup(of: (Int, [Written]).self) { group in
             var next = 0
-            var written = [[Written]](repeating: [], count: cases.count)
+            var written = [[Written]](repeating: [], count: subjects.count)
             func add() {
-                guard next < cases.count else { return }
+                guard next < subjects.count else { return }
                 let index = next
-                let testCase = cases[index]
+                let subject = subjects[index]
                 next += 1
-                group.addTask { (index, await outputs(of: testCase, on: paths, cleaner: cleaner, building)) }
+                group.addTask { (index, await outputs(of: subject, on: paths, cleaner: cleaner, building)) }
             }
             for _ in 0..<width { add() }
             for await (index, outputs) in group {
@@ -102,9 +124,10 @@ public struct DegradedPathMatrix: Sendable, Equatable {
 
     /// What one case writes on each path, sharing one `RememberedCleaning` warmed by an untimed default run.
     private static func outputs(
-        of testCase: EvaluationCase, on paths: [[QualityLayer]], cleaner: any TranscriptCleaning,
+        of subject: Subject, on paths: [[QualityLayer]], cleaner: any TranscriptCleaning,
         _ building: Building
     ) async -> [Written] {
+        let testCase = subject.testCase
         let remembering = RememberedCleaning(cleaner)
         let clock = ContinuousClock()
         var written: [Written] = []
@@ -112,7 +135,7 @@ public struct DegradedPathMatrix: Sendable, Equatable {
             let layers = QualityLayers(enabled: QualityLayers().enabled.subtracting(off))
             let pipeline = building(layers, corrector(for: testCase), speechWords(for: testCase), remembering)
             let start = clock.now
-            let cleaned = await pipeline.clean([testCase.transcription], seeing: testCase.context)
+            let cleaned = await pipeline.clean([subject.heard], seeing: testCase.context)
             written.append(Written(text: cleaned.text ?? "", time: clock.now - start))
         }
         return Array(written.dropFirst())
@@ -199,10 +222,13 @@ public struct DegradedPathMatrix: Sendable, Equatable {
 
     /// The contribution table with its measured latency, as `make release-quality` adds it to its result.
     package var contributionReport: String {
-        [
-            Self.contributionHeading, "", Self.contributionMethod, "",
-            LayerContribution.table(contributions, latency: true),
-        ].joined(separator: "\n") + "\n"
+        Self.contributionSection(contributions, latency: true) + "\n"
+    }
+
+    /// The contribution heading, method and table, the one shape every report of a layer's contribution takes.
+    package static func contributionSection(_ rows: [LayerContribution], latency: Bool) -> String {
+        [contributionHeading, "", contributionMethod, "", LayerContribution.table(rows, latency: latency)]
+            .joined(separator: "\n")
     }
 
     /// The heading of the page's section on each fallback rung, which the release accuracy report carries.
@@ -240,10 +266,7 @@ public struct DegradedPathMatrix: Sendable, Equatable {
                 "| \(row.name) | \(row.cases) | \(row.passed) | \(row.invented) | \(row.deleted) | \(row.lost) "
                     + "| \(row.brokeShape) | \(row.belowFloor.count) |")
         }
-        lines += [
-            "", Self.contributionHeading, "", Self.contributionMethod, "",
-            LayerContribution.table(contributions, latency: false),
-        ]
+        lines += ["", Self.contributionSection(contributions, latency: false)]
         lines += [
             "",
             Self.rungHeading,

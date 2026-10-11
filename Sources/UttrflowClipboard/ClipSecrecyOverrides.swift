@@ -34,7 +34,7 @@ struct ClipSecrecyOverrides {
 
     /// The clip with the user's answer about its text in place of the detector's, when there is one.
     mutating func applied(to clip: Clip) -> Clip {
-        guard clip.image == nil else { return clip }
+        guard clip.image == nil, clip.files == nil else { return clip }
         if clip.kind == .secret {
             let answers = persisted()
             guard !answers.isEmpty, let digest = digest(of: clip.text), answers.contains(digest) else {

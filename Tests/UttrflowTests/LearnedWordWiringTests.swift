@@ -14,7 +14,10 @@ struct LearnedWordWiringTests {
     @Test("with no window open, a learned word is a popover row, and Undo refuses it for good")
     func undoRefusesTheWord() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root, account: HeldSession(signedIn: true).layer)
+        let app = AppDelegate(
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
+            account: HeldSession(signedIn: true).layer)
         app.drawsWindows = false
         let store = PersonalDictionaryStore(file: PersonalDictionaryStore.defaultFile(in: sandbox.root))
         let context = AppContext(selectedText: "utter flow")

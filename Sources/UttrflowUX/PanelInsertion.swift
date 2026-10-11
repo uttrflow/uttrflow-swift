@@ -59,6 +59,16 @@ extension PanelNotice {
         PanelNotice(symbolName: "exclamationmark.triangle", message: why, action: nil)
     }
 
+    /// Some files of a copied selection are gone, so none of it is used.
+    public static func filesMissing(_ names: [String]) -> PanelNotice {
+        let list = names.joined(separator: ", ")
+        let message =
+            names.count == 1
+            ? "\(list) is no longer on this Mac"
+            : "\(names.count) files are no longer on this Mac: \(list)"
+        return PanelNotice(symbolName: "exclamationmark.triangle", message: message)
+    }
+
     /// A restored clip has no alias when another clip retains its name.
     public static var restoreWithoutAlias: PanelNotice {
         PanelNotice(

@@ -94,10 +94,13 @@ public enum FocusedElementKind: Sendable, Equatable {
     /// A focused element of any other role, such as a page body, a list or a file browser.
     case control
 
-    /// Classifies an element by its role, or `unpublished` when there is no element.
-    public static func of(role: String?, isPublished: Bool) -> Self {
-        guard isPublished else { return .unpublished }
-        return FocusedElementPreference.isTextEntry(role) ? .textEntry : .control
+    /// Classifies an element by its role; an unreadable role is as unknown as no element, and a web area, group or cell counts only while it is editable. See `Docs/insertion.md`.
+    public static func of(
+        role: String?, isPublished: Bool, isEditable: @autoclosure () -> Bool = false
+    ) -> Self {
+        guard isPublished, let role else { return .unpublished }
+        if FocusedElementPreference.isTextEntry(role) { return .textEntry }
+        return FocusedElementPreference.isEditableContainer(role) && isEditable() ? .textEntry : .control
     }
 }
 

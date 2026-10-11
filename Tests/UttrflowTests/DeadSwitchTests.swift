@@ -68,7 +68,7 @@ struct GripSettingWiringTests {
     @Test("turning the grip off and on again reaches the running button without a relaunch")
     func gripFollowsTheSetting() {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
 
         app.settingsChanged(to: Settings(showsFloatingButton: false, shrinksToGripWhenIdle: false))
         #expect(!app.dockShrinksToGrip)
@@ -134,7 +134,10 @@ struct LaunchAtLoginWiringTests {
     func registersWhenAsked() {
         let system = RecordedLoginItem(startingEnabled: false)
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root, loginItem: system.service)
+        let app = AppDelegate(
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
+            loginItem: system.service)
         app.settingsChanged(to: Settings(opensAtLogin: true))
 
         #expect(system.isEnabled)
@@ -145,7 +148,10 @@ struct LaunchAtLoginWiringTests {
     func removesWhenTurnedOff() {
         let system = RecordedLoginItem(startingEnabled: true)
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root, loginItem: system.service)
+        let app = AppDelegate(
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
+            loginItem: system.service)
         app.settingsChanged(to: Settings(opensAtLogin: false))
 
         #expect(!system.isEnabled)
@@ -157,7 +163,10 @@ struct LaunchAtLoginWiringTests {
     func doesNotRepeatItself() {
         let system = RecordedLoginItem(startingEnabled: true)
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root, loginItem: system.service)
+        let app = AppDelegate(
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
+            loginItem: system.service)
         app.settingsChanged(to: Settings(opensAtLogin: true))
         app.settingsChanged(to: Settings(opensAtLogin: true))
 
@@ -171,7 +180,8 @@ struct LaunchAtLoginWiringTests {
         let store = UserDefaultsSettingsStore(store: LoginSettingsStore(Settings(opensAtLogin: true)))
         let sandbox = Sandbox()
         let app = AppDelegate(
-            container: sandbox.root, loginItem: system.service, settingsStore: store)
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), loginItem: system.service, settingsStore: store)
         app.settingsChanged(to: store.load())
 
         system.setEnabledExternally(false)

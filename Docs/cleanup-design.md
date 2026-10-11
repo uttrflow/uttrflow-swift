@@ -177,6 +177,7 @@ destination — so `apply` sees only the draft. The passes, in the order they ru
 | `SpokenPunctuationPass` | "comma", "full stop", "question mark", "open quote…close quote", a spoken email address → marks | the word stands at a seam, not "put a comma there" | piece |
 | `SpokenCasingPass` | casing rows of `spoken-commands.json`: an identifier style in code; "all caps" (next word) and "all caps on … all caps off" (span) in prose | the row's destinations; in prose, not after a determiner, a preposition or a naming verb, nor before a form of "be" | piece |
 | `CodeEditorCommandsPass` | spoken symbol commands | a code editor, outside a comment | piece |
+| `MarkdownContinuationPass` | "next item", "new item", "new heading" → the next list mark or heading mark of the Markdown already before the caret | a Markdown document, `MarkdownPosition`; the phrase opens a sentence, outside a fence | piece |
 | `LayoutWordsPass` | "new line", "new paragraph", "bullet point", "number one" → layout | same | piece |
 | `NumberFormsPass` | fifteen → 15, sixteen point two → 16.2, two thirty pm → 2:30 pm | number-word grammar, `NumberPolicy`, `DigitGrouping` | piece |
 | `ContractionsPass` | dont → don't | word list | piece |
@@ -299,10 +300,45 @@ through `ContextScorer`: it keeps the sources' order and lifts first only the re
 model prefers over every other by the margin, so context is a tie-breaker, never the sole judge.
 Its model is an `InterpolatedLanguageModel` of an ARPA table (`ARPAReader`) and a user model
 counted on the device (`NGramModel.counted`, absolute discounting with back-off). Nothing selects
-it yet: it waits for the shipped technical table and a `make bakeoff` gain. Debug-build probe
-(`ContextScorerTests`): a synthetic 420,000 n-gram 3-gram loads in about 2 s into about 32 MB and
-scores ten two-word readings in 0.4 ms per span; a user model counted from 20,000 twelve-word
-sentences (416,000 n-grams) builds in about 3 s and scores in 0.35 ms per span.
+it yet: it waits for the shipped technical table and a `make bakeoff` gain. The synthetic CPU
+probes below measure the reader and scorer without loading production speech or tidy model weights.
+
+### Synthetic CPU probes
+
+Measured on 2026-10-11 with production code at `0cd3f979da05`, Apple M5 Pro, 48 GB,
+macOS 26.5.1 (25F80), with four compiler jobs:
+`swift test -j 4 -c release --filter 'SpokenPunctuationPassTests|ContextScorerTests'`, then a
+second execution with `--skip-build`, and the same pair without `-c release` for Debug.
+Each execution reports `Test run with 40 tests in 2 suites passed`; the existing assertions are unchanged.
+
+| Probe | Release first | Release repeat | Debug first | Debug repeat | CPU limit |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Rules-only 3,000-word transcript | 238.070417 ms | 244.850083 ms | 1,033.256167 ms | 940.537458 ms | 2,000 ms |
+| Counted model, ten two-word readings per span | 16.314292 µs | 13.979500 µs | 169.784459 µs | 140.687958 µs | 1,000 µs |
+| ARPA model, ten two-word readings per span | 21.003750 µs | 21.058167 µs | 204.160084 µs | 198.626459 µs | 1,000 µs |
+
+All three clocks use `CLOCK_THREAD_CPUTIME_ID`, so time another thread or process spends
+running is excluded. The rules clock starts after constructing the request and pipeline,
+immediately before romanising the draft, and stops after `RuleBasedTransformer.audited`
+returns. Its separate assertion verifies 3,000 output words. It is the whole rules pipeline,
+including the removal audit, rather than `SpokenPunctuationPass` alone.
+
+The scorer clock surrounds 1,000 verdicts and reports their mean, excluding fixture generation,
+model construction and loading. The counted fixture has 20,000 twelve-word sentences and
+416,058 n-grams; the ARPA fixture has 420,000 n-grams and interpolates the same table twice.
+These synthetic readings establish neither correction accuracy nor end-to-end dictation latency.
+
+Release counted-model construction takes 0.598706 and 0.619258 CPU seconds; ARPA loading takes
+0.519002 and 0.534123 CPU seconds. Debug takes 2.670219 and 1.709862 CPU seconds respectively.
+The first Release build takes 863.63 seconds before the tests; that compile time is excluded
+from every probe. Later executions reuse compiled artifacts, but each test constructs its model
+again. Process-footprint differences are not a model memory bound: concurrently running tests
+can allocate or release memory between the samples, including a negative Debug difference.
+
+These runs meet the existing limits without changing a cleaning rule or a scorer. They do not
+establish that the Debug rules probe never exceeds its budget under other runs or that every
+transcript fits the budget. A later failure needs its CPU measurement and build configuration
+before it can justify a performance change.
 
 The **chooser is the same model call**: the situation block lists each doubtful word
 with its candidates —

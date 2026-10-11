@@ -29,8 +29,11 @@ public struct RuleBasedTransformer: TextTransformationEngine {
     ) async throws(TransformationError) -> TransformationResult {
         let chosen = pipeline ?? Self.pipeline(for: request, steps: steps)
         // Romanised before the passes, so they read and write the Latin letters dictation inserts.
-        let romanised = LoanwordRestoration(personal: request.vocabulary).restoring(
+        let restored = LoanwordRestoration(personal: request.vocabulary).restoring(
             Draft(romanising: request.transcription))
+        let romanised = RomanisedNameCasing(
+            personal: request.vocabulary, onScreenNames: request.situation.app.onScreenNames
+        ).casing(restored)
         let (draft, ran) = Self.audited(chosen, over: romanised)
         return TransformationResult(
             text: draft.text, producedBy: kind,

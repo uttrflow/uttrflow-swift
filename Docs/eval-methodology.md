@@ -241,8 +241,16 @@ What is deliberately not done matters as much as what is:
 - **Fillers stay.** The corpus has passages written with false starts, read as written.
   Stripping "um" would hide the failure those passages exist to measure; clean-up removes them
   and is measured separately.
-- **Spelling variants stay.** "Colour" and "color" count as a substitution. Folding them needs a
-  dictionary that grows into an accuracy fudge factor.
+- **Recogniser spelling variants stay.** "Colour" and "color" count as a substitution. The
+  separate Latin output rate uses the fixed `romanised-variants.json` table through
+  `Romaniser.soundKey`, for plain ASCII letter tokens only. Unlisted words, identifiers,
+  numbers and accented spellings remain exact. Both rates are reported for Devanagari answers.
+- Output scores and baseline entries record `romanised-variants-v1:<digest>` as `outputNormalisation`,
+  alongside the existing normalisation rule list. Legacy exact-spelling results decode with
+  no output instrument. The gate refuses to compare those counts with variant-scored counts;
+  remeasure the baseline before comparing output rates. The digest is SHA-256 of the
+  sorted spelling-to-canonical-word mappings, so changes to those mappings automatically
+  change the instrument. Its algorithm version must change if scoring semantics change.
 - **Hindi number words stay words.** Only the Devanagari spellings map to digits, because "do"
   and "teen" are also English words. "एक" and "दो" are left out even so: one is the everyday word
   for "a", the other for "give". Nothing above ninety-nine is mapped; the corpus keeps large
@@ -314,24 +322,60 @@ What is deliberately not done matters as much as what is:
   more than 25% of the reference value apart, or more than 0.5 per 100 words where the reference
   is under 2. A class outside the margin gets cases added to the matrix, or a filed gap with case
   counts.
-- A reference is a public spontaneous-speech transcript set whose licence permits use of its
-  transcripts. Only the printed numbers and the set's name, version and licence are committed,
-  never its text. Until one is measured the reference column is empty.
+- The reference is the AMI Meeting Corpus manual annotation archive advertised as version
+  1.6.2 on its [official download page](https://groups.inf.ed.ac.uk/ami/download/). The included
+  README calls the same annotation payload release 1.7. Attribution: AMI Consortium, AMI Meeting
+  Corpus; [CC BY 4.0](https://groups.inf.ed.ac.uk/ami/corpus/license.shtml). Only aggregates are
+  published; its transcript text is neither included nor redistributed.
+- `Scripts/ami_transcript_lines.py` reads the downloaded ZIP offline, follows each manual
+  segment's inclusive word references in XML order, with streams sorted by filename, and writes
+  one nonempty segment per line outside any Git repository. Punctuation is attached to words rather than counted as additional
+  words; nonverbal events and punctuation-only segments are excluded. Synthetic XML tests cover
+  word order, inclusive ranges, punctuation, malformed input and the repository-output boundary.
+- This is an instrument comparison, not a human-annotated disfluency benchmark: the three
+  disfluency rows count words the same standard passes remove on each side. AMI's manual
+  disfluency ontology distinguishes hesitation, repetition, restart, replacement and other
+  phenomena; these are not mapped to the pipeline's removal grants. A missed disfluency remains
+  invisible to this probe. Segment length, annotation punctuation and conversational meeting
+  turns differ from isolated invented dictations. An unfinished segment tail counts as a
+  sentence; "restart" means any detected repetition or retraction. The figures describe these
+  text sets and do not estimate population speech rates.
 
-| Figure | Corpus (English `spoken`) | Reference |
-|---|---|---|
-| Words removed as sounds /100w | 0.90 | not measured |
-| Words removed as repetitions /100w | 0.83 | not measured |
-| Words removed as retractions /100w | 1.99 | not measured |
-| `.` /100w | 2.13 | not measured |
-| `,` /100w | 0.63 | not measured |
-| `?` /100w | 0.07 | not measured |
-| `!` /100w | 0.07 | not measured |
-| Other marks /100w | 1.46 | not measured |
-| Words per sentence | 6.81 | not measured |
-| Lines with a restart | 7.07% | not measured |
+| Figure | Corpus (English `spoken`) | AMI manual reference | Margin result |
+|---|---:|---:|---|
+| Words removed as sounds /100w | 0.28 | 4.00 | gap |
+| Words removed as repetitions /100w | 0.19 | 1.89 | gap |
+| Words removed as retractions /100w | 0.65 | 0.09 | gap |
+| `.` /100w | 0.96 | 10.31 | gap |
+| `,` /100w | 0.17 | 5.98 | gap |
+| `?` /100w | 0.02 | 1.01 | gap |
+| `!` /100w | 0.02 | 0.00 | within |
+| Other marks /100w | 0.48 | 6.43 | gap |
+| Words per sentence | 9.24 | 7.64 | within |
+| Lines with a restart | 2.60% | 11.40% | gap |
 
-The corpus column is 410 English cases, 3,011 words.
+The eight differences outside the predeclared margin are tracked in
+[the measured corpus gap](https://github.com/uttrflow/uttrflow-swift/issues/7434),
+with observed corpus event and affected-case counts. The gap's proposed case additions are
+planning estimates, not measured new cases; adding one class also changes the other denominators.
+Punctuation and segmentation differences are retained as annotation limitations rather than
+removed to improve the comparison. Rates are displayed to two decimal places; every classification
+is unchanged across the corresponding rounding interval.
+
+Reproduce with the unchanged `speech-shape` command and the local manual archive:
+
+```bash
+python3 Scripts/ami_transcript_lines.py /outside-repo/ami_public_manual_1.6.2.zip /outside-repo/ami-lines.txt
+uttrflow-bakeoff speech-shape
+uttrflow-bakeoff speech-shape --reference /outside-repo/ami-lines.txt
+python3 -m unittest discover -s Scripts -p test_ami_transcript_lines.py
+```
+
+Archive SHA-256: `b56e5babb2496b8795deeeda7e71178d7fbc9963f94276cf2a3f4b56ebbc9f9d`.
+The English corpus contains 1,271 cases and 12,449 words; the full exported AMI reference contains
+83,483 segments and 978,210 words across all 687 manual word streams. Four lexical word elements
+are outside the segment ranges and therefore absent from the reference. No reference sampling,
+recogniser, model, audio or production formatting changes are involved.
 
 ## The contamination audit
 
@@ -991,6 +1035,14 @@ uttrflow-eval noise
   A mix that would leave full scale is scaled down whole, so the ratio holds and nothing clips.
 - The run is reproducible byte for byte: each recording's noise comes from the run's `--seed`
   and the recording's identifier alone, through FNV-1a rather than Swift's salted hashing.
+- After the noises the same run replays three room and channel conditions
+  (`Sources/UttrflowEval/ChannelEffects.swift`), each its own row with WER and insertions per
+  language, never pooled and with no breakpoint, since they have no level to step through:
+  reverberation from a synthetic exponentially decaying impulse response of 0.3, 0.6 and 1.0 s
+  (60 dB decay, a direct path then seeded noise, level matched to the dry clip); band-limiting
+  to 8 kHz and 4 kHz by a windowed-sinc low-pass; and G.711 mu-law telephone coding (3.4 kHz band,
+  8 kHz sampling, 8-bit companding). A clip sampled at 16 kHz is already limited to 8 kHz, so
+  its `band 8 kHz` row is the clean read.
 - Each condition is its own row beside clean, never pooled with it, with the paired 95% interval
   on the change in word error rate (`ConditionTable`, the pooling `input-level` uses too).
 - Per language and noise, the report names the first step, mildest first, where word error rate
@@ -1064,3 +1116,110 @@ speaker raising their voice, sits between the synthetic 20 and 10 dB steps and c
 measurable; it is not evidence for the 5 and 0 dB steps. One speaker, one microphone, one room,
 and the noisy takes were a second reading of passages already read once, so no row here is a
 population claim.
+
+## Accuracy and piece cuts by speaking rate and pitch (`pace`)
+
+Every corpus passage is read at one pace by one voice, yet the repeated-sentence check
+(`RecognitionLoop.fastestSpeech`) and the piece cut (`SpeechWindowing`) are set in seconds and words
+a second. `uttrflow-eval pace` replays each recording at stepped speaking rates and pitches and
+reports what depends on pace.
+
+```bash
+uttrflow-eval pace
+uttrflow-eval pace --structure-only    # cuts and the loop check only; loads no model
+```
+
+- Variants are generated, never recorded or committed (`Sources/UttrflowEval/SpeechVariant.swift`).
+  Speaking rate uses waveform-similarity overlap-add, which keeps pitch, at 0.7, 0.85, 1.3, 1.6 and
+  1.9 times; pitch moves by -4, -2, +2, +4 and +6 semitones by stretching and resampling, which
+  keeps tempo. 1.0x is the reference. The same audio always gives the same variant.
+- Word error rate and insertions are pooled per language and condition with the paired 95%
+  interval on the change from 1.0x, as `noise` does (`ConditionTable`).
+- Per condition, pooled over every recording (`PaceStructure`, no recogniser involved):
+  - pieces: how many pieces `SpeechWindowing.windows` cuts the clip into;
+  - early: cuts that end a piece sooner than `SpeechWindowing.minimumLength` after it began;
+  - mid-word (with a recogniser only): cuts that fall strictly inside a word the recogniser
+    timed, over all cuts of recordings with timed words;
+  - said-twice cut: of the recordings with at least `RecognitionLoop.fewestCopyWords` words, how
+    many have their reference text said twice, at that pace, cut to one copy by
+    `RecognitionLoop.undone`. A sentence really said twice should keep both copies, so each is
+    a false positive;
+  - over 4.8 w/s: reference words over speech seconds above `RecognitionLoop.fastestSpeech`.
+
+### Measured on one speaker's recordings, cuts and loop check only
+
+One speaker, `reader-1`, built-in microphone, no recogniser: the structure half of the sweep on
+18 quiet passages, 6 deliberately fast English passages and 6 English passages read in a noisy
+room. The audio stays on the recording Mac. Pieces and early cuts are for the 18 quiet passages;
+the loop check is counted per recording.
+
+| condition | pieces | early | said-twice cut (quiet / fast / noisy) |
+|---|---|---|---|
+| 1.0x | 32 | 1 | 0/18 / 0/6 / 0/6 |
+| 0.7x | 53 | 0 | 0/18 / 0/6 / 0/6 |
+| 0.85x | 43 | 0 | 0/18 / 0/6 / 0/6 |
+| 1.3x | 25 | 1 | 0/18 / 0/6 / 0/6 |
+| 1.6x | 21 | 1 | 2/18 / 1/6 / 1/6 |
+| 1.9x | 19 | 1 | 6/18 / 6/6 / 5/6 |
+| -4 / -2 / +2 / +4 / +6 st | 32 / 33 / 32 / 37 / 37 | 2 / 1 / 1 / 2 / 2 | 0 in every session |
+
+- Slower speech is cut into more pieces (53 against 32 at 0.7x, 43 at 0.85x), and faster speech
+  into fewer (21 at 1.6x), because the pause lengths in `SpeechWindowing` are in seconds.
+- The repeated-sentence check cuts a sentence really said twice at 1.6x in 4 of 30 recordings and
+  at 1.9x in 17 of 30. Each is a false positive, and 1.6x is inside the 0.85x to 1.6x range, so
+  the limit needs a follow-up that changes it with before and after. The count is the count
+  of recordings whose words a second pass 4.8, so the speech rate alone decides it.
+- Pitch shifts move the piece count by at most 5 of 32 (+4 and +6 semitones), and no loop-check
+  hit.
+
+Not yet measured: word error rate per factor and pitch, cuts inside a word, and the word error
+rate floor at 1.3x and 1.6x for fast speakers. That run needs the shipping model on an otherwise
+idle machine:
+
+```bash
+uttrflow-eval pace --corpus-path <reader-1-quiet>
+```
+
+## One sweep for a layer threshold (`sweep`)
+
+`uttrflow-eval sweep --from-table <table> --parameter <name> --grid 0.30,0.31,... --false-flag-bound 0.05 --seed <s> --record <file>`
+chooses a threshold on a fit table feature and keeps what it tried, so a constant is never justified
+by prose alone.
+
+- The grid is scored on the development rows (fit side) and on half of the held-out rows (calibration
+  side); the seed splits the held-out rows, so the same seed always gives the same halves.
+- The choice is the value with the fewest wrong rows left unflagged on calibration, among values
+  whose false-flag share on the fit side is within the bound; a tie takes the stricter value.
+- The other half of the held-out rows (test side) is scored once, for the chosen value only, and no
+  step reads it to choose.
+- A chosen value whose neighbour scores more than `--cliff-tolerance` worse is a cliff and is refused
+  with exit 1; `--margin-steps N` moves the choice N grid steps toward the flatter, feasible
+  neighbour instead.
+- `--record` writes one JSON file: the grid, objective, seed, table digest, feature spec version,
+  engine label, every trial, the chosen value, its neighbours, the margin and the test score.
+  Rerunning on the same table gives the same bytes. Its `id` names the record.
+
+Not yet built: a constant's comment naming its record id, the `make verify` check that the record
+still matches the code, and sweeping by name from a layer registry.
+
+## Replaying the pair learner
+
+`AutoLearnReplay` feeds the default `PairLedger` a synthetic fortnight of edits and scores the
+dictionary it builds, so a learner is judged before it ships on. True fixes are the single-word
+substitutions between `spoken` and `expected` in the `homophone` corpus, each recurring on separate
+days except every third, which is seen once. Decoys are one-off typos, wording rewrites seen once
+or twice, and an autocorrection repeated in a burst on one day. The held-out set is the words of
+every other English case's reference. It reports precision, recall, pairs learnt from decoys and the
+false-override rate: the share of held-out words the learnt pairs would rewrite although the
+reference keeps them. The bounds are constants in `AutoLearnReplay`: false-learn at most 5%, 0
+decoy pairs, false overrides at most 1%.
+
+`uttrflow-eval autolearn-replay` prints the table and exits non-zero when a bound is missed. A
+decoy that recurs on separate days is learnt, since recurrence is the only rule the ledger applies.
+
+| Measure (default ledger) | Value |
+|---|---|
+| True-fix pairs / learnt | 6 / 4 |
+| Precision, recall | 100.0%, 66.7% |
+| Pairs learnt from decoys | 0 |
+| False overrides on held-out | 241 of 10532 (2.3%), from the common-word pair to/too |
