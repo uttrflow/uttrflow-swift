@@ -26,7 +26,8 @@ struct OutcomeQualityTests {
             OutcomeQuality(producedBy: .rules, account: Self.unavailable, missedPieces: 0)
                 == .tidiedByRules(.modelUnavailable))
         #expect(
-            OutcomeQuality(producedBy: .rules, account: failed, missedPieces: 0) == .tidiedByRules(.modelFailed))
+            OutcomeQuality(producedBy: .rules, account: failed, missedPieces: 0)
+                == .tidiedByRules(.modelFailed))
         #expect(
             OutcomeQuality(producedBy: .rules, account: refused, missedPieces: 0)
                 == .tidiedByRules(.answerRefused))

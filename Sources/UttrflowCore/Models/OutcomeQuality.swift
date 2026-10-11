@@ -96,7 +96,8 @@ public enum OutcomeQuality: Sendable, Equatable {
         let because = reason == .timedOut ? "clean-up ran out of time" : "clean-up did not finish"
         return Presentation(
             symbolName: Self.degradedSymbol, line: "Inserted — not tidied",
-            detail: "Your words went in as heard", sentence: "Your words went in exactly as heard, because \(because).")
+            detail: "Your words went in as heard",
+            sentence: "Your words went in exactly as heard, because \(because).")
     }
 
     /// The words and glyph for one degraded quality, sized for the dock, the menu bar and VoiceOver.
