@@ -54,6 +54,7 @@ public struct FitTable: Sendable, Equatable, Codable {
         case unexpectedField(path: String)
         case freeText(path: String)
         case wrongSchemaVersion(Int)
+        case wrongFeatureSpec(table: Int, compiled: Int)
         case ragged(ordinal: Int)
         case undecodable(String)
 
@@ -65,6 +66,8 @@ public struct FitTable: Sendable, Equatable, Codable {
             case .freeText(let path): "\(path) holds text outside its closed set"
             case .wrongSchemaVersion(let version):
                 "schema version \(version), expected \(FitTable.schemaVersion)"
+            case .wrongFeatureSpec(let table, let compiled):
+                "features built under spec \(table), but the compiled spec is \(compiled)"
             case .ragged(let ordinal): "row \(ordinal) has a different feature count from the first row"
             case .undecodable(let reason): "undecodable: \(reason)"
             }
@@ -125,6 +128,13 @@ public struct FitTable: Sendable, Equatable, Codable {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         return try encoder.encode(self)
+    }
+
+    /// Refuses a table whose vectors were built under another feature spec than the compiled `version`.
+    public func requireFeatureSpec(_ version: Int) throws {
+        guard featureSpecVersion == version else {
+            throw SchemaError.wrongFeatureSpec(table: featureSpecVersion, compiled: version)
+        }
     }
 
     /// The development rows as fit input; held-out rows are kept back to judge the fit.

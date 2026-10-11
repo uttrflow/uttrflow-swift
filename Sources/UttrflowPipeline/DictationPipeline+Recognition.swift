@@ -193,7 +193,7 @@ extension DictationPipeline {
         let screenReads = max(.zero, self.screenReads.cost.duration - readsBeforeRelease)
         let wait = DictationWait(
             wait: waited, stages: await tally.measurements, decoding: await tally.efforts,
-            screenReads: screenReads)
+            screenReads: screenReads, tidyColdStart: await tally.tidyColdStart)
         let timed = waits.classify(wait)
         await metrics.recordWait(timed)
         return timed.cause

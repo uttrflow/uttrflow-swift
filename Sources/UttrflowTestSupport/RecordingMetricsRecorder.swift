@@ -60,6 +60,13 @@ public actor RecordingMetricsRecorder: MetricsRecording {
         waits.append(wait)
     }
 
+    /// The cold tidier time each report carried, in the order recorded.
+    public private(set) var tidyColdStarts: [Duration] = []
+
+    public func recordTidyColdStart(_ duration: Duration) async {
+        tidyColdStarts.append(duration)
+    }
+
     public func measurements(for stage: PipelineStage) -> [StageMeasurement] {
         measurements.filter { $0.stage == stage }
     }
