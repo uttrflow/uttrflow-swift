@@ -1280,6 +1280,7 @@
     "UttrflowCore func current": 3,
     "UttrflowCore func day": 1,
     "UttrflowCore func decode": 1,
+    "UttrflowCore func decoded": 1,
     "UttrflowCore func defaultFile": 3,
     "UttrflowCore func destination": 3,
     "UttrflowCore func destinationAtLanding": 1,
@@ -1854,6 +1855,7 @@
     "UttrflowCore let reminders": 1,
     "UttrflowCore let removed": 1,
     "UttrflowCore let removedCount": 1,
+    "UttrflowCore let repairThreshold": 1,
     "UttrflowCore let repeatedPhrase": 1,
     "UttrflowCore let replaced": 1,
     "UttrflowCore let replacedCount": 1,
@@ -2176,6 +2178,7 @@
     "UttrflowCore var closingStopRate": 1,
     "UttrflowCore var collidingCommand": 1,
     "UttrflowCore var comfortableLength": 1,
+    "UttrflowCore var conditioning": 1,
     "UttrflowCore var confidence": 1,
     "UttrflowCore var confidencesAreReal": 1,
     "UttrflowCore var count": 2,
@@ -6186,5 +6189,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 8794
+  "total": 8797
 }

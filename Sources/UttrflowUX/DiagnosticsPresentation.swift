@@ -166,7 +166,7 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
     /// Why the last speech model load failed; absent when it did not, or nobody asked.
     public let speechLoadFailure: SpeechLoadFailureClass?
     /// How many recent pieces in a row were decoded without the user's words, from the local recorder.
-    public let unconditionedRun: Int
+    let unconditionedRun: Int
     /// What macOS has granted, for every permission asked about.
     public let permissions: [PermissionKind: PermissionStatus]
     /// Whether the dictation shortcut is armed; absent when its state has not been checked.

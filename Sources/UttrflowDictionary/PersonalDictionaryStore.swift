@@ -369,7 +369,7 @@ public actor PersonalDictionaryStore {
 
     /// Counts one observed edit of `heard` into `wrote`; the pair becomes an entry that says it like `heard` on recurrence. See `Docs/app-dictionary.md`.
     @discardableResult
-    public func learnEdit(
+    func learnEdit(
         heard: String, wrote: String, at moment: Date
     ) async throws(DictionaryStoreError) -> [DictionaryEntry] {
         guard let pair = LearnableWords.editedPair(heard: heard, wrote: wrote),
