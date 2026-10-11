@@ -1247,6 +1247,13 @@ final class SuggestionCoordinator {
         in snapshot: FocusedFieldSnapshot, choosing choices: [String] = [],
         since started: ContinuousClock.Instant
     ) async {
+        let logContext: @MainActor (Surroundings?, [String], GenerationSituation) -> Void = {
+            around, recent, situation in
+            // Lengths only, since what is on screen and what the person wrote are theirs and stay out of the log.
+            Self.log.debug(
+                "CONTEXT title=\(around?.windowTitle?.count ?? 0) around=\(around?.text?.count ?? 0) recent=\(recent.count) preceding=\(situation.preceding?.count ?? 0)"
+            )
+        }
         let completions: [String]
         // Whether the model wrote lines and the machine denied every one, which is a silence with its own name.
         var invented = false
@@ -1275,8 +1282,9 @@ final class SuggestionCoordinator {
                 try? await Task.sleep(for: quiet)
                 guard !Task.isCancelled else { return [String]() }
                 // The context is read only once a pass is certain, so a cancelled burst never pays for it.
-                let situation = await Self.situation(
-                    of: snapshot, for: query, store: store, cache: contextCache, turn: number
+                let situation = await SuggestionSituationBuilder.situation(
+                    of: snapshot, for: query, store: store, cache: contextCache, turn: number,
+                    readingWindow: FocusedFieldReader.surroundings, log: logContext
                 ).choosing(choices)
                 return try await generator.completions(for: query.typed, in: situation)
             }
@@ -1345,8 +1353,9 @@ final class SuggestionCoordinator {
             return await drawFresh(expanded, for: snapshot, turn: number)
         }
         let more = Task { [generator, store, contextCache] in
-            let situation = await Self.situation(
-                of: snapshot, for: query, store: store, cache: contextCache, turn: number)
+            let situation = await SuggestionSituationBuilder.situation(
+                of: snapshot, for: query, store: store, cache: contextCache, turn: number,
+                readingWindow: FocusedFieldReader.surroundings, log: logContext)
             return try await generator.alternatives(for: query.typed, in: situation, excluding: leader)
         }
         generating.store(more, for: number)
@@ -1391,39 +1400,7 @@ final class SuggestionCoordinator {
 
     /// Whether the window around this field is walked, which a terminal's is not since its value already holds the scrollback.
     nonisolated static func walksSurroundings(of snapshot: FocusedFieldSnapshot) -> Bool {
-        !TerminalApplications.contains(snapshot.bundleIdentifier)
-    }
-
-    /// The text around the field, or nothing where the window is not walked.
-    private static func surroundings(
-        of snapshot: FocusedFieldSnapshot, cache: SuggestionContextCache
-    ) async -> Surroundings? {
-        guard walksSurroundings(of: snapshot) else { return nil }
-        return await cache.surroundings(for: SuggestionMoment.windowKey(of: snapshot)) {
-            await FocusedFieldReader.surroundings()
-        }
-    }
-
-    /// Reads what is on screen and what this person wrote here, then maps them with ``SuggestionMoment``.
-    private static func situation(
-        of snapshot: FocusedFieldSnapshot, for query: SuggestionQuery, store: PredictStore,
-        cache: SuggestionContextCache, turn: Int
-    ) async -> GenerationSituation {
-        // The alternatives pass asks about the same line in the same turn, so it is told what the first pass was.
-        if let built = await cache.situation(forTurn: turn) { return built }
-        // Neither read needs the other, so the walk and the corpus query run side by side.
-        async let walk = surroundings(of: snapshot, cache: cache)
-        async let remembered =
-            (try? await store.recent(in: query.surface, limit: SuggestionMoment.recentLinesShown)) ?? []
-        let around = await walk
-        let recent = SuggestionMoment.recentLines(await remembered, typing: query.typed)
-        let situation = SuggestionMoment.situation(of: snapshot, surroundings: around, recentLines: recent)
-        // Lengths only, since what is on screen and what the person wrote are theirs and stay out of the log.
-        Self.log.debug(
-            "CONTEXT title=\(around?.windowTitle?.count ?? 0) around=\(around?.text?.count ?? 0) recent=\(recent.count) preceding=\(situation.preceding?.count ?? 0)"
-        )
-        await cache.remember(situation, forTurn: turn)
-        return situation
+        SuggestionSituationBuilder.walksSurroundings(of: snapshot)
     }
 
     /// Puts the head of the ranking through the gates and draws whatever survives them.
