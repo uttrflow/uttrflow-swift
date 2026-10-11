@@ -116,6 +116,10 @@ public struct Transcription: Sendable, Equatable {
     public let vocabularyPrompt: [String]
     /// Whether the recogniser could condition the decode on the user's words.
     public let conditioning: DecodeConditioning
+    /// The quiet before the first word of the audio, where the pipeline measures it.
+    package let leadingSilence: Duration
+    /// The quiet after the last word of the audio, where the pipeline measures it.
+    package let trailingSilence: Duration
 
     /// A transcription; everything but the text is optional.
     public init(
@@ -125,7 +129,9 @@ public struct Transcription: Sendable, Equatable {
         audioDuration: Duration = .zero,
         effort: DecodeEffort = .none,
         vocabularyPrompt: [String] = [],
-        conditioning: DecodeConditioning = .available
+        conditioning: DecodeConditioning = .available,
+        leadingSilence: Duration = .zero,
+        trailingSilence: Duration = .zero
     ) {
         self.text = text
         self.detectedLanguage = detectedLanguage
@@ -134,6 +140,8 @@ public struct Transcription: Sendable, Equatable {
         self.effort = effort
         self.vocabularyPrompt = vocabularyPrompt
         self.conditioning = conditioning
+        self.leadingSilence = leadingSilence
+        self.trailingSilence = trailingSilence
     }
 
     /// This transcription with `effort` added to what the recogniser already spent on it.
@@ -141,7 +149,15 @@ public struct Transcription: Sendable, Equatable {
         Transcription(
             text: text, detectedLanguage: detectedLanguage, segments: segments,
             audioDuration: audioDuration, effort: effort.adding(more), vocabularyPrompt: vocabularyPrompt,
-            conditioning: conditioning)
+            conditioning: conditioning, leadingSilence: leadingSilence, trailingSilence: trailingSilence)
+    }
+
+    /// This transcription with the quiet the audio holds either side of its words.
+    package func surrounded(by leading: Duration, and trailing: Duration) -> Transcription {
+        Transcription(
+            text: text, detectedLanguage: detectedLanguage, segments: segments,
+            audioDuration: audioDuration, effort: effort, vocabularyPrompt: vocabularyPrompt,
+            conditioning: conditioning, leadingSilence: leading, trailingSilence: trailing)
     }
 
     /// `true` when recognition contains no letter or digit — silence, or noise only.

@@ -72,6 +72,23 @@ public enum VoiceActivity: Sendable {
         return .seconds(Double(quiet) / Double(sampleRate))
     }
 
+    /// How long `samples` are quiet before their first speech and after their last, or `nil` when they hold none.
+    package static func edgeSilence(
+        in samples: [Float], sampleRate: Int
+    ) -> (leading: Duration, trailing: Duration)? {
+        let frameLength = max(1, Int(frameDuration * Double(sampleRate)))
+        let loudness = frameLoudness(of: samples, frameLength: frameLength)
+        let threshold = threshold(forFloor: percentile(loudness.sorted(), floorPercentile))
+        let minimumFrames = Swift.max(1, Int(minimumSpeech / frameDuration))
+        guard let voiced = voicedFrames(in: loudness, above: threshold, lasting: minimumFrames)
+        else { return nil }
+        let rate = Double(sampleRate)
+        return (
+            .seconds(Double(voiced.lowerBound * frameLength) / rate),
+            .seconds(Double(samples.count - voiced.upperBound * frameLength) / rate)
+        )
+    }
+
     /// Whether any whole frame in `samples` reaches ``absoluteFloor``, stopping at the first one.
     static func hasSpeech(in samples: ArraySlice<Float>, frameLength: Int) -> Bool {
         var start = samples.startIndex

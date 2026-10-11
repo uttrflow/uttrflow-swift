@@ -63,7 +63,14 @@ enum PieceJoiner {
             text: heardText.joined(separator: " "),
             detectedLanguage: first.heard.detectedLanguage,
             segments: pieces.flatMap(\.heard.segments),
-            audioDuration: pieces.reduce(.zero) { $0 + $1.heard.audioDuration })
+            audioDuration: pieces.reduce(.zero) { $0 + $1.heard.audioDuration },
+            leadingSilence: first.heard.leadingSilence,
+            trailingSilence: pieces.last?.heard.trailingSilence ?? .zero)
+        // The quiet closing a piece plus the quiet opening the next is the pause between them.
+        let pauses = pieces.indices.map { index in
+            index == 0
+                ? Duration.zero : pieces[index - 1].heard.trailingSilence + pieces[index].heard.leadingSilence
+        }
         return Piece(
             heard: heard,
             corrected: CorrectedTranscript(
@@ -72,7 +79,7 @@ enum PieceJoiner {
                 text: laidOut(
                     seamed(
                         pieces.map(\.cleaned.text), heard: heardText, under: formatter, grouping: grouping),
-                    under: formatter, steps: steps),
+                    under: formatter, steps: steps, pauses: pauses),
                 producedBy: producedBy, entriesTaken: pieces.flatMap(\.cleaned.entriesTaken)))
     }
 
@@ -411,13 +418,20 @@ enum PieceJoiner {
 
     /// The cleaned pieces as one text: a spoken list, a paragraph at a topic, a restatement across the seam, else a space.
     static func laidOut(
-        _ pieces: [String], under formatter: DestinationFormatter, steps: CleaningSteps = .default
+        _ pieces: [String], under formatter: DestinationFormatter, steps: CleaningSteps = .default,
+        pauses: [Duration] = []
     ) -> String {
         var draft = Draft(words: [])
         var starts: [Int] = []
-        for text in pieces {
+        // The pause before each piece, by the word it opens; a piece tidied to nothing hands its pause on.
+        var pauseBefore: [Int: Duration] = [:]
+        var owed = Duration.zero
+        for (index, text) in pieces.enumerated() {
             var piece = Draft(keepingLineBreaks: text)
+            owed += pauses.indices.contains(index) ? pauses[index] : .zero
             guard !piece.words.isEmpty else { continue }
+            pauseBefore[draft.words.count] = owed
+            owed = .zero
             let leadingBreaks = String(text.prefix(while: \.isNewline))
             if !leadingBreaks.isEmpty {
                 if piece.words[0].isListMark {
@@ -465,6 +479,7 @@ enum PieceJoiner {
             marks[last.bodyEnd] = "\n\n"
         }
         let swallowed = Set(absorbed.map { starts[$0] })
+        let breaking = starts.dropFirst().compactMap { pauseBefore[$0] }.filter { $0 > .zero }
         let openings = sentenceOpenings(in: draft, starts: starts)
         let counted = ordinalsBefore(openings, in: draft, starts: starts)
         for opening in openings.dropFirst() {
@@ -473,6 +488,7 @@ enum PieceJoiner {
                 opensTopic(
                     draft, at: opening, starts: starts, afterPause: starts.contains(opening),
                     counted: counted)
+                    || endsSubject(before: opening, in: draft, pause: pauseBefore[opening], among: breaking)
             else { continue }
             marks[opening] = "\n\n"
         }
@@ -783,6 +799,29 @@ enum PieceJoiner {
                         $0 == draft.shape(at: $1).key
                     }
             }
+    }
+
+    /// The shortest pause that sets a new subject apart.
+    private static let subjectPause = Duration.milliseconds(1500)
+
+    /// The multiple of the speaker's usual pause that a subject's pause must reach once there are enough pauses to know it.
+    private static let subjectPauseMultiple = 2.0
+
+    /// How many pauses it takes to know the speaker's usual one.
+    private static let pausesToKnowUsual = 3
+
+    /// Whether a sentence ends and a pause well past the usual one follows, which sets a new subject apart.
+    private static func endsSubject(
+        before word: Int, in draft: Draft, pause: Duration?, among pauses: [Duration]
+    ) -> Bool {
+        guard let pause, pause >= subjectPause else { return false }
+        let live = draft.presentIndices
+        guard let position = livePosition(of: word, in: live), position > 0,
+            draft.shape(at: live[position - 1]).endsSentence
+        else { return false }
+        guard pauses.count >= pausesToKnowUsual else { return true }
+        let usual = pauses.sorted()[pauses.count / 2]
+        return pause >= usual * subjectPauseMultiple
     }
 
     /// Whether a bare ordinal opens a piece and a clause after it: "first we fix the build", where "first place" names a rank.
