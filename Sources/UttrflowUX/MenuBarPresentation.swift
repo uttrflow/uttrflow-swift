@@ -149,7 +149,7 @@ public enum MenuBarFeature: String, Sendable, Equatable, CaseIterable {
 /// What the product is doing, in the only terms the menu bar needs it.
 public struct MenuBarState: Sendable, Equatable {
     public var activity: DictationActivity
-    /// How complete the last dictation was, which words the status line when it was not.
+    /// The last dictation's completeness, which determines the status wording for an incomplete result.
     public var outcomeQuality: OutcomeQuality
     /// The last thing that went wrong and has not yet been dealt with.
     public var failure: FailurePresentation?

@@ -1,6 +1,6 @@
 /// That notation ran on a dictation and how many conversions it made, holding no word. See Docs/core-history-decoding.md.
 public struct NotationUse: Sendable, Equatable, Codable {
-    /// The kind of place the notation was written for.
+    /// The destination kind for the notation.
     public let destination: Destination
     /// How many written places the notation pass changed; always above zero.
     public let conversions: Int
