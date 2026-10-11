@@ -28,6 +28,7 @@ refusal. The page on screen may quote words; the copy never does.
 | `readRungs` | one line counting screen reads per rung, summed across applications; no bundle identifier and no field text |
 | `engines`, `speechInUse`, `transformerAvailability`, `lastCleanedBy` | engine names and states |
 | `speechModel`, `speechReadiness`, `speechLoadFailure`, `suggestionModel` | model card status lines; a failed load names its class |
+| `unconditionedRun` | the speech card offers the repair once three pieces in a row ran without a tokenizer |
 | `permissions` | one granted or not-granted line per permission |
 | `dictationShortcutArmed`, `hasDefaultInputDevice` | availability lines |
 | `arrivals` | a count of kept dictations per arrival kind |

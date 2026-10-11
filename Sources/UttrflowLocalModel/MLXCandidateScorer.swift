@@ -1,9 +1,9 @@
-public import UttrflowAI
+import UttrflowAI
 public import UttrflowPredict
 
 // The MLX macros expand to code naming these types, so the imports cannot be private.
 public import Foundation
-public import UttrflowCore
+import UttrflowCore
 import HuggingFace
 import MLX
 import MLXHuggingFace
@@ -26,11 +26,11 @@ public struct JudgedToken: Sendable, Equatable {
 
 /// Judges and invents suggestions with one loaded model: scores a candidate, or generates one from nothing.
 public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassShowing, ReleasableModel {
-    private let model: LocalModel
+    let model: LocalModel
     private let maximumTokens: Int
     private let capacityForDownload: (@Sendable (URL) -> Int64?)?
     private let downloadHeadroomBytes: Int64
-    private var container: ModelContainer?
+    private(set) var container: ModelContainer?
     private let bufferCachePasses: BufferCachePasses
 
     /// Where a pass reports its timing and its failures: numbers and error text only, never the prompt.
@@ -246,32 +246,8 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
         let cache: [KVCache]
     }
 
-    /// The last pass's prompt tokens and the model's state after them, so the next pass reads only what changed. See `Docs/performance-suggestions.md`.
-    struct KeptPrefix<Cache>: @unchecked Sendable {
-        // Held by one pass at a time, which is what makes writing to it safe.
-        let tokens: [Int]
-        let cache: Cache
-    }
-
     /// What the last pass read, or nothing while a pass holds it and until a pass has read something.
     private var kept: KeptPrefix<[KVCache]>?
-
-    /// Restores a prefix a pass took only while no newer pass has left one and the model remains loaded.
-    static func restoring<Cache>(
-        current: KeptPrefix<Cache>?, taken: KeptPrefix<Cache>?, weightsLoaded: Bool
-    )
-        -> KeptPrefix<Cache>?
-    {
-        current ?? (weightsLoaded ? taken : nil)
-    }
-
-    /// How many opening tokens two prompts share, the last one always left to be read again so the model has a token to answer from, or nothing when that is no more than the warmed instructions hold.
-    static func sharedPrefix(of read: [Int], and all: [Int], beating warmed: Int) -> Int? {
-        guard !all.isEmpty else { return nil }
-        let shared = min(zip(read, all).prefix { $0 == $1 }.count, all.count - 1)
-        guard shared > warmed else { return nil }
-        return shared
-    }
 
     /// How many of `all`'s opening tokens the kept cache holds once the rest is trimmed off it, or nothing when it shares too little or cannot be trimmed.
     private static func trimmed(_ kept: KeptPrefix<[KVCache]>, to all: [Int], beating warmed: Int) -> Int? {
@@ -406,23 +382,6 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
         GeneratedConfidence.confidences(
             of: lines, typed: typed, written: run.written, text: run.text, tokens: run.tokens,
             logProbabilities: run.logProbabilities, bytes: run.bytes)
-    }
-
-    /// What the parser makes of a pass, withholding a budget-cut line that has not ended.
-    static func completions(
-        from run: Run, typed: String, asking ask: Ask, in situation: GenerationSituation
-    ) -> [String] {
-        guard !(ask == .one && run.stop == .length) else { return [] }
-        var response = run.written + run.text
-        if ask != .one, run.stop == .length, let last = response.last, !last.isNewline {
-            if let newline = response.lastIndex(where: \.isNewline) {
-                response = String(response[..<newline])
-            } else {
-                response = ""
-            }
-        }
-        return CompletionText.modelCompletions(
-            from: response, typed: typed, echoPolicy: .required, in: situation)
     }
 
     /// One pass over the model: prefilled under the container's lock, decoded outside it so a score never waits on a line; a pass that fails throws, so the caller can tell it from an empty answer.
@@ -752,39 +711,9 @@ extension WeightLoading<ModelContainer> {
         })
 }
 
-/// The same loaded weights tidy dictation, so the app holds one copy of the model for suggestions and clean-up.
-extension MLXCandidateScorer: CleanupModel {
-    /// The most tokens one tidied utterance may produce.
-    static let tidyTokens = 256
-
-    /// A reply a little longer than the prompt it tidies, so a runaway stops early and the guard declines it.
-    static func tidyBudget(for prompt: String) -> Int {
-        min(tidyTokens, 32 + prompt.utf8.count / 2)
-    }
-
-    /// Available only while the weights are loaded; a dictation never waits on a load.
-    public func availability(for language: LanguageCode?) async -> TransformerAvailability {
-        guard container != nil else { return .unavailable(reason: .other("the local model is not loaded")) }
-        guard let language else { return .available }
-        return model.supports(language) ? .available : .unsupportedLanguage(language)
-    }
-
-    /// One block of instructions, with no examples apart from it.
-    public func rewrite(
-        _ text: String, instructions: String, kind: TransformerKind
-    ) async throws(TransformationError) -> String {
-        try await tidy(text, system: instructions, examples: [], kind: kind)
-    }
-
-    /// The rules as the system turn and each worked example as an earlier exchange, so the model answers rather than reads on.
-    public func rewrite(
-        _ text: String, prompt: ModelPrompt, kind: TransformerKind
-    ) async throws(TransformationError) -> String {
-        try await tidy(text, system: prompt.rules, examples: prompt.examples, kind: kind)
-    }
-
+extension MLXCandidateScorer {
     /// Answers `text` after the system turn and the examples in a fresh session, so one utterance cannot bleed into the next.
-    private func tidy(
+    func tidy(
         _ text: String, system: String, examples: [WorkedExample], kind: TransformerKind
     ) async throws(TransformationError) -> String {
         guard let container else { throw .transformFailed(kind: kind, failure: .notReady) }

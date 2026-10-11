@@ -44,7 +44,8 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         }
         // Evidenced codes first, so a designator's joiner is kept before the general join reads the same words.
         let designated = Self.joinDesignatedCodes(in: draft, initialisms: joined)
-        return Self.writingMeridiems(in: Self.joinCodes(in: designated, initialisms: joined))
+        return Self.writingMeridiems(
+            in: Self.writingMultipliers(in: Self.joinCodes(in: designated, initialisms: joined)))
     }
 
     /// Writes each lexicon form said with a joiner as one token, "q and a" as "Q&A", unless `joinedForm` abstains.

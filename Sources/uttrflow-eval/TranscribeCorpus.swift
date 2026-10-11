@@ -432,21 +432,6 @@ struct TranscribeCorpus: AsyncParsableCommand {
         }
     }
 
-    /// Prints the rate on the romanised text the user receives beside the recogniser's, per language.
-    private func printOutputRates(_ report: TranscriptionReport) {
-        print("\nOutput word error rate (romanised, exact spelling; recogniser rate on the same passages)")
-        for language in TranscriptionCase.Language.allCases {
-            let passages = report.scored.filter {
-                $0.language == language && $0.outputWordErrorRate != nil
-            }
-            guard let output = report.outputWordErrorRate(in: language), !passages.isEmpty else {
-                continue
-            }
-            let heard = WordErrorRate.combined(passages.compactMap(\.wordErrorRate))
-            print("  \(language.rawValue)  \(percent(output.rate))  (\(percent(heard.rate)))")
-        }
-    }
-
     /// Prints one breakdown, each slice with the word count it rests on.
     private func printSlices(_ heading: String, _ slices: [ReportSlice], width: Int) {
         guard !slices.isEmpty else { return }
@@ -617,7 +602,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
         "\(engine) \(model.variant)\(planSuffix(" on "))\(hintLanguage ? ", language hinted" : ", language detected")"
     }
 
-    private func percent(_ value: Double?) -> String {
+    func percent(_ value: Double?) -> String {
         value.map { "\(String(format: "%.1f", $0 * 100))%" } ?? "n/a"
     }
 

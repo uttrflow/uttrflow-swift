@@ -241,8 +241,16 @@ What is deliberately not done matters as much as what is:
 - **Fillers stay.** The corpus has passages written with false starts, read as written.
   Stripping "um" would hide the failure those passages exist to measure; clean-up removes them
   and is measured separately.
-- **Spelling variants stay.** "Colour" and "color" count as a substitution. Folding them needs a
-  dictionary that grows into an accuracy fudge factor.
+- **Recogniser spelling variants stay.** "Colour" and "color" count as a substitution. The
+  separate Latin output rate uses the fixed `romanised-variants.json` table through
+  `Romaniser.soundKey`, for plain ASCII letter tokens only. Unlisted words, identifiers,
+  numbers and accented spellings remain exact. Both rates are reported for Devanagari answers.
+- Output scores and baseline entries record `romanised-variants-v1:<digest>` as `outputNormalisation`,
+  alongside the existing normalisation rule list. Legacy exact-spelling results decode with
+  no output instrument. The gate refuses to compare those counts with variant-scored counts;
+  remeasure the baseline before comparing output rates. The digest is SHA-256 of the
+  sorted spelling-to-canonical-word mappings, so changes to those mappings automatically
+  change the instrument. Its algorithm version must change if scoring semantics change.
 - **Hindi number words stay words.** Only the Devanagari spellings map to digits, because "do"
   and "teen" are also English words. "एक" and "दो" are left out even so: one is the everyday word
   for "a", the other for "give". Nothing above ninety-nine is mapped; the corpus keeps large
@@ -314,24 +322,60 @@ What is deliberately not done matters as much as what is:
   more than 25% of the reference value apart, or more than 0.5 per 100 words where the reference
   is under 2. A class outside the margin gets cases added to the matrix, or a filed gap with case
   counts.
-- A reference is a public spontaneous-speech transcript set whose licence permits use of its
-  transcripts. Only the printed numbers and the set's name, version and licence are committed,
-  never its text. Until one is measured the reference column is empty.
+- The reference is the AMI Meeting Corpus manual annotation archive advertised as version
+  1.6.2 on its [official download page](https://groups.inf.ed.ac.uk/ami/download/). The included
+  README calls the same annotation payload release 1.7. Attribution: AMI Consortium, AMI Meeting
+  Corpus; [CC BY 4.0](https://groups.inf.ed.ac.uk/ami/corpus/license.shtml). Only aggregates are
+  published; its transcript text is neither included nor redistributed.
+- `Scripts/ami_transcript_lines.py` reads the downloaded ZIP offline, follows each manual
+  segment's inclusive word references in XML order, with streams sorted by filename, and writes
+  one nonempty segment per line outside any Git repository. Punctuation is attached to words rather than counted as additional
+  words; nonverbal events and punctuation-only segments are excluded. Synthetic XML tests cover
+  word order, inclusive ranges, punctuation, malformed input and the repository-output boundary.
+- This is an instrument comparison, not a human-annotated disfluency benchmark: the three
+  disfluency rows count words the same standard passes remove on each side. AMI's manual
+  disfluency ontology distinguishes hesitation, repetition, restart, replacement and other
+  phenomena; these are not mapped to the pipeline's removal grants. A missed disfluency remains
+  invisible to this probe. Segment length, annotation punctuation and conversational meeting
+  turns differ from isolated invented dictations. An unfinished segment tail counts as a
+  sentence; "restart" means any detected repetition or retraction. The figures describe these
+  text sets and do not estimate population speech rates.
 
-| Figure | Corpus (English `spoken`) | Reference |
-|---|---|---|
-| Words removed as sounds /100w | 0.90 | not measured |
-| Words removed as repetitions /100w | 0.83 | not measured |
-| Words removed as retractions /100w | 1.99 | not measured |
-| `.` /100w | 2.13 | not measured |
-| `,` /100w | 0.63 | not measured |
-| `?` /100w | 0.07 | not measured |
-| `!` /100w | 0.07 | not measured |
-| Other marks /100w | 1.46 | not measured |
-| Words per sentence | 6.81 | not measured |
-| Lines with a restart | 7.07% | not measured |
+| Figure | Corpus (English `spoken`) | AMI manual reference | Margin result |
+|---|---:|---:|---|
+| Words removed as sounds /100w | 0.28 | 4.00 | gap |
+| Words removed as repetitions /100w | 0.19 | 1.89 | gap |
+| Words removed as retractions /100w | 0.65 | 0.09 | gap |
+| `.` /100w | 0.96 | 10.31 | gap |
+| `,` /100w | 0.17 | 5.98 | gap |
+| `?` /100w | 0.02 | 1.01 | gap |
+| `!` /100w | 0.02 | 0.00 | within |
+| Other marks /100w | 0.48 | 6.43 | gap |
+| Words per sentence | 9.24 | 7.64 | within |
+| Lines with a restart | 2.60% | 11.40% | gap |
 
-The corpus column is 410 English cases, 3,011 words.
+The eight differences outside the predeclared margin are tracked in
+[the measured corpus gap](https://github.com/uttrflow/uttrflow-swift/issues/7434),
+with observed corpus event and affected-case counts. The gap's proposed case additions are
+planning estimates, not measured new cases; adding one class also changes the other denominators.
+Punctuation and segmentation differences are retained as annotation limitations rather than
+removed to improve the comparison. Rates are displayed to two decimal places; every classification
+is unchanged across the corresponding rounding interval.
+
+Reproduce with the unchanged `speech-shape` command and the local manual archive:
+
+```bash
+python3 Scripts/ami_transcript_lines.py /outside-repo/ami_public_manual_1.6.2.zip /outside-repo/ami-lines.txt
+uttrflow-bakeoff speech-shape
+uttrflow-bakeoff speech-shape --reference /outside-repo/ami-lines.txt
+python3 -m unittest discover -s Scripts -p test_ami_transcript_lines.py
+```
+
+Archive SHA-256: `b56e5babb2496b8795deeeda7e71178d7fbc9963f94276cf2a3f4b56ebbc9f9d`.
+The English corpus contains 1,271 cases and 12,449 words; the full exported AMI reference contains
+83,483 segments and 978,210 words across all 687 manual word streams. Four lexical word elements
+are outside the segment ranges and therefore absent from the reference. No reference sampling,
+recogniser, model, audio or production formatting changes are involved.
 
 ## The contamination audit
 
@@ -1157,3 +1201,25 @@ by prose alone.
 
 Not yet built: a constant's comment naming its record id, the `make verify` check that the record
 still matches the code, and sweeping by name from a layer registry.
+
+## Replaying the pair learner
+
+`AutoLearnReplay` feeds the default `PairLedger` a synthetic fortnight of edits and scores the
+dictionary it builds, so a learner is judged before it ships on. True fixes are the single-word
+substitutions between `spoken` and `expected` in the `homophone` corpus, each recurring on separate
+days except every third, which is seen once. Decoys are one-off typos, wording rewrites seen once
+or twice, and an autocorrection repeated in a burst on one day. The held-out set is the words of
+every other English case's reference. It reports precision, recall, pairs learnt from decoys and the
+false-override rate: the share of held-out words the learnt pairs would rewrite although the
+reference keeps them. The bounds are constants in `AutoLearnReplay`: false-learn at most 5%, 0
+decoy pairs, false overrides at most 1%.
+
+`uttrflow-eval autolearn-replay` prints the table and exits non-zero when a bound is missed. A
+decoy that recurs on separate days is learnt, since recurrence is the only rule the ledger applies.
+
+| Measure (default ledger) | Value |
+|---|---|
+| True-fix pairs / learnt | 6 / 4 |
+| Precision, recall | 100.0%, 66.7% |
+| Pairs learnt from decoys | 0 |
+| False overrides on held-out | 241 of 10532 (2.3%), from the common-word pair to/too |

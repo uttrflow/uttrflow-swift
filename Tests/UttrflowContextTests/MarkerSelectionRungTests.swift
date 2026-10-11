@@ -3,6 +3,7 @@ import Foundation
 import Testing
 
 @testable import UttrflowContext
+import UttrflowCore
 
 /// A field that refuses its character range gives the dictation read the same caret text through text markers.
 struct MarkerSelectionRungTests {
@@ -43,6 +44,18 @@ struct MarkerSelectionRungTests {
         #expect(byMarker?.followingText == byRange?.followingText)
         #expect(!rangeMessages.contains("AXSelectedTextMarkerRange"))
         #expect(markerMessages.contains("AXSelectedTextMarkerRange"))
+    }
+
+    @Test func eachReadNamesTheRungThatAnswered() {
+        var answering = Self.base
+        answering["AXSelectedTextRange"] = .value(CFRange(location: Self.caret, length: 0))
+        answering["AXNumberOfCharacters"] = .value(Self.value.utf16.count)
+        var refusing = Self.base
+        refusing["AXSelectedTextMarkerRange"] = .value(
+            MarkerSelection(range: NSRange(location: Self.caret, length: 0), count: Self.value.utf16.count))
+        #expect(Self.read(field: answering).0?.readRung == .wholeValue)
+        #expect(Self.read(field: refusing).0?.readRung == .textMarkerRange)
+        #expect(Self.read(field: Self.base).0?.readRung == ContextReadRung.none)
     }
 
     @Test func markerPastTheFieldEndGivesNoCaretText() {

@@ -101,6 +101,12 @@ identifier and listed under the same row with an add button; an application adde
 `identity`. The engine resolves the level for the frontmost application before the focus-owner
 message, and again for a panel's owner before its window is read.
 
+`MessageBudgetTests` replays every fixture's focused-field read and holds its message count and
+simulated time (the sum of the recorded latencies) to `Tests/Fixtures/AccessibilityMessageBudget.json`.
+A read over its budget fails, and so does a budget above its read's cost, so a saving is recorded
+in the same change and the file only goes down; a pull request that raises a budget states why.
+The gate needs no clock and no other application.
+
 A text-entry role that publishes no text stays `refused`, so a field that failed to answer is
 never taken for a surface without text. `SurfaceFixtureReplayTests` replays
 `remote-screen-window.json` and `canvas-editor-drawn-text.json` through the window read. **Both are

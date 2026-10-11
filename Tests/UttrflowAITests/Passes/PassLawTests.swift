@@ -16,8 +16,8 @@ private let everyPass: [any CleaningPass] = {
     // Code commands and SQL layout run only with the caret in code, spoken emoji only when the user turns them on, at-mentions only in chat, email structure only in an email body.
     let offByDefault: [any CleaningPass] = [
         CodeEditorCommandsPass(), SQLLayoutPass(), SpokenEmojiPass(destination: .plain),
-        AtMentionPass(precedingText: nil),
-        EmailStructurePass(),
+        AtMentionPass(precedingText: nil), EmailStructurePass(),
+        MarkdownContinuationPass(position: .at("1. one")),
     ]
     return (pipelines.flatMap(\.passes) + offByDefault).filter { seen.insert($0.id).inserted }
 }()

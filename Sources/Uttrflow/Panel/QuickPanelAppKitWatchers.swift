@@ -19,10 +19,11 @@ struct RightClickWatch: NSViewRepresentable {
 
     final class Catcher: NSView {
         var clicked: (() -> Void)?
+        var currentEvent: () -> NSEvent? = { NSApp.currentEvent }
 
         override func hitTest(_ point: NSPoint) -> NSView? {
             guard bounds.contains(convert(point, from: superview)),
-                let event = NSApp.currentEvent
+                let event = currentEvent()
             else { return nil }
             switch event.type {
             case .rightMouseDown, .rightMouseUp, .rightMouseDragged:

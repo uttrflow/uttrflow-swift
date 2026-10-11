@@ -98,10 +98,10 @@ public enum Degradation: Sendable, Equatable, CustomStringConvertible {
         [.clean] + NoiseKind.allCases.flatMap { kind in snrSteps.map { .noise(kind, snr: $0) } }
 
     /// The reverberation times, in seconds, the channel sweep replays a passage in.
-    public static let reverbTimes: [Double] = [0.3, 0.6, 1.0]
+    static let reverbTimes: [Double] = [0.3, 0.6, 1.0]
 
     /// The bandwidths, in hertz, the channel sweep limits a passage to.
-    public static let bandLimits: [Double] = [8_000, 4_000]
+    static let bandLimits: [Double] = [8_000, 4_000]
 
     /// Every room and channel condition, clean not included; reported beside the noise sweep, never pooled with it.
     public static let channelSweep: [Degradation] =

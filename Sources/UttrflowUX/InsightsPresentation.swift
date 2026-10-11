@@ -70,6 +70,8 @@ public struct InsightsPresentation: Sendable, Equatable {
     public let ranges: [InsightsRangeOption]
     /// The words and locale-formatted date span covered by the chart.
     public let chartCaption: String?
+    /// How many reachable days hold a dictation, and how far back history reaches.
+    public let chartCoverage: String?
     /// The calendar. Absent when ``emptyState`` is set or the history is still being read.
     public let calendar: InsightsCalendar?
     /// Words, dictations, words per minute and the streak, in that order.
@@ -78,7 +80,7 @@ public struct InsightsPresentation: Sendable, Equatable {
     public let suggestionFigures: [MainStatistic]?
     /// Raw corpus counts retained so synchronous redraws do not drop the group.
     public let suggestionCounts: SuggestionCounts?
-    /// Shown until there is a week to show.
+    /// Shown only while no dictation is kept.
     public let emptyState: MainEmptyState?
 
     /// Builds the page from its parts.
@@ -86,6 +88,7 @@ public struct InsightsPresentation: Sendable, Equatable {
         chrome: MainPageChrome,
         ranges: [InsightsRangeOption],
         chartCaption: String? = nil,
+        chartCoverage: String? = nil,
         calendar: InsightsCalendar?,
         figures: [MainStatistic],
         emptyState: MainEmptyState?,
@@ -95,6 +98,7 @@ public struct InsightsPresentation: Sendable, Equatable {
         self.chrome = chrome
         self.ranges = ranges
         self.chartCaption = chartCaption
+        self.chartCoverage = chartCoverage
         self.calendar = calendar
         self.figures = figures
         self.emptyState = emptyState
@@ -105,9 +109,6 @@ public struct InsightsPresentation: Sendable, Equatable {
 
 /// Turns the kept dictations into a calendar and the figures that can honestly be given.
 public enum InsightsPresenter {
-    /// A week, because a baseline drawn from three days is noise wearing a number's clothes.
-    public static let daysBeforeCharting = 7
-
     /// Draws the Insights page from a snapshot.
     public static func page(
         for snapshot: InsightsSnapshot,
@@ -119,38 +120,43 @@ public enum InsightsPresenter {
         let range = chosen(snapshot.range, retention: retention)
         let inRange = within(range, kept, now: snapshot.now, calendar: calendar)
         let spoken = daysSpokenOn(inRange, calendar: calendar)
+        let keptFrom = firstKeptDay(retention: retention, now: snapshot.now, calendar: calendar)
         let chrome = MainPageChrome(
             title: "Insights",
             caption: "Where the words went, and how fast they arrived. Measured on this Mac.")
         let suggestionFigures = snapshot.suggestionCounts.map {
             Self.suggestionFigures(for: $0, locale: locale)
         }
-        // Before the store has answered, only the header is drawn, not "0 of 7 days".
+        // Before the store has answered, only the header is drawn, not an empty state.
         guard snapshot.hasReadHistory else {
             return InsightsPresentation(
                 chrome: chrome, ranges: [], calendar: nil, figures: [], emptyState: nil,
                 suggestionFigures: suggestionFigures, suggestionCounts: snapshot.suggestionCounts)
         }
 
-        guard spoken.count >= daysBeforeCharting else {
+        guard !kept.isEmpty else {
             return InsightsPresentation(
                 chrome: chrome, ranges: [], calendar: nil, figures: [],
-                emptyState: emptyState(
-                    for: inRange, daysSpokenOn: spoken.count, now: snapshot.now, calendar: calendar,
-                    locale: locale), suggestionFigures: suggestionFigures,
+                emptyState: emptyState(retention: retention), suggestionFigures: suggestionFigures,
                 suggestionCounts: snapshot.suggestionCounts)
         }
+
+        let today = calendar.startOfDay(for: snapshot.now)
+        let first = firstDay(of: range, now: snapshot.now, calendar: calendar)
+        let chartFrom = max(first, keptFrom ?? .distantPast)
+        let reach = (calendar.dateComponents([.day], from: chartFrom, to: today).day ?? 0) + 1
 
         return InsightsPresentation(
             chrome: chrome,
             ranges: options(selected: range, retention: retention),
             chartCaption: caption(
-                words: inRange.totalWords,
-                from: firstDay(of: range, now: snapshot.now, calendar: calendar),
-                to: calendar.startOfDay(for: snapshot.now), calendar: calendar, locale: locale),
+                words: inRange.totalWords, from: chartFrom, to: today, calendar: calendar, locale: locale),
+            chartCoverage: coverage(
+                spoken: spoken.count, reach: reach, retention: retention, locale: locale),
             calendar: self.calendar(
-                for: inRange, range: range, now: snapshot.now, calendar: calendar, locale: locale),
-            figures: figures(inRange: inRange, range: range, calendar: calendar, locale: locale),
+                for: inRange, range: range, keptFrom: keptFrom, now: snapshot.now, calendar: calendar,
+                locale: locale),
+            figures: figures(inRange: inRange, days: reach, calendar: calendar, locale: locale),
             emptyState: nil,
             suggestionFigures: suggestionFigures, suggestionCounts: snapshot.suggestionCounts)
     }
@@ -229,8 +235,8 @@ public enum InsightsPresenter {
 
     /// One tile per day of the range, oldest first, after the blanks that line the first up with its weekday.
     static func calendar(
-        for entries: [HistoryEntry], range: InsightsRange, now: Date, calendar: Calendar,
-        locale: Locale
+        for entries: [HistoryEntry], range: InsightsRange, keptFrom: Date? = nil, now: Date,
+        calendar: Calendar, locale: Locale
     ) -> InsightsCalendar {
         let today = calendar.startOfDay(for: now)
         let first = firstDay(of: range, now: now, calendar: calendar)
@@ -243,15 +249,19 @@ public enum InsightsPresenter {
             .map { day in
                 let words = totals[day] ?? 0
                 let date = day.formatted(style.day().month(.abbreviated))
+                let isKept = keptFrom.map { day >= $0 } ?? true
                 return InsightsCalendarDay(
                     date: day,
                     number: day.formatted(style.day()),
                     words: words,
                     fraction: Double(words) / Double(peak),
                     isToday: day == today,
-                    detail: words == 0
-                        ? "No dictation · \(date)"
-                        : "\(words.formatted(.number.locale(locale))) \(words == 1 ? "word" : "words") · \(date)"
+                    detail: !isKept
+                        ? "Not kept · \(date)"
+                        : words == 0
+                            ? "No dictation · \(date)"
+                            : "\(words.formatted(.number.locale(locale))) \(words == 1 ? "word" : "words") · \(date)",
+                    isKept: isKept
                 )
             }
 
@@ -300,14 +310,14 @@ public enum InsightsPresenter {
 
     /// Words in the range, their daily average, the pace across it, and the range's longest streak.
     static func figures(
-        inRange: [HistoryEntry], range: InsightsRange, calendar: Calendar, locale: Locale
+        inRange: [HistoryEntry], days: Int, calendar: Calendar, locale: Locale
     ) -> [MainStatistic] {
         let streak = longestStreak(in: inRange, calendar: calendar)
         let total = inRange.totalWords
         return [
             MainStatistic(value: total.formatted(.number.locale(locale)), caption: "words"),
             MainStatistic(
-                value: dailyAverage(of: total, over: range).formatted(.number.locale(locale)),
+                value: dailyAverage(of: total, days: days).formatted(.number.locale(locale)),
                 caption: "a day"),
             MainStatistic(
                 value: DictationPresenter.pace(of: inRange).map { "\($0)" } ?? "—",
@@ -316,9 +326,14 @@ public enum InsightsPresenter {
         ]
     }
 
-    /// Words in the range over every day it covers, silent days included, to the nearest word.
+    /// Words over every day of the range, silent days included, to the nearest word.
     static func dailyAverage(of words: Int, over range: InsightsRange) -> Int {
-        Int((Double(words) / Double(range.days)).rounded())
+        dailyAverage(of: words, days: range.days)
+    }
+
+    /// Words over every day history reaches in the range, silent days included, to the nearest word.
+    static func dailyAverage(of words: Int, days: Int) -> Int {
+        Int((Double(words) / Double(max(days, 1))).rounded())
     }
 
     /// The most days in a row with a dictation, anywhere in the entries given.
@@ -336,42 +351,38 @@ public enum InsightsPresenter {
         return longest
     }
 
-    // MARK: - Not yet
+    // MARK: - Retention
 
-    /// Waiting is not empty: says how long is left and gives the two figures already true.
-    static func emptyState(
-        for entries: [HistoryEntry], daysSpokenOn spoken: Int, now: Date, calendar: Calendar,
-        locale: Locale
-    ) -> MainEmptyState {
-        MainEmptyState(
-            symbolName: "chart.bar",
-            title: "Not enough to chart yet",
-            message: """
-                Dictate on \(daysBeforeCharting) different days and your charts appear. \
-                \(spoken) of \(daysBeforeCharting) days so far.
-                """,
-            chips: entries.isEmpty
-                ? []
-                : [
-                    MainStatistic(
-                        value: entries.count.formatted(.number.locale(locale)),
-                        caption: "dictations so far"),
-                    MainStatistic(
-                        value: entries.totalWords.formatted(.number.locale(locale)),
-                        caption: "words so far"),
-                ],
-            progress: MainProgress(
-                fraction: Double(spoken) / Double(daysBeforeCharting),
-                leading: "\(spoken) of \(daysBeforeCharting) days",
-                trailing: remaining(spoken: spoken, now: now, calendar: calendar, locale: locale),
-                steps: daysBeforeCharting))
+    /// The first calendar day history can still reach, or nil when it is kept until deleted.
+    static func firstKeptDay(retention: Int, now: Date, calendar: Calendar) -> Date? {
+        guard !SettingsRetention.isAlways(days: retention) else { return nil }
+        return calendar.startOfDay(for: now.addingTimeInterval(-Double(retention) * 86_400))
     }
 
-    /// "Charts appear on Tuesday", or "next Tuesday" a week ahead, assuming each day left is spoken on.
-    static func remaining(spoken: Int, now: Date, calendar: Calendar, locale: Locale) -> String {
-        let left = max(daysBeforeCharting - spoken, 1)
-        let day = calendar.date(byAdding: .day, value: left, to: now) ?? now
-        let weekday = day.formatted(.dateTime.weekday(.wide).locale(locale))
-        return left % 7 == 0 ? "Charts appear next \(weekday)" : "Charts appear on \(weekday)"
+    /// The days with a dictation out of the days history reaches, never a count of days it cannot see.
+    static func coverage(
+        spoken: Int, reach: Int, retention: Int, locale: Locale
+    ) -> String {
+        let kept =
+            SettingsRetention.isAlways(days: retention)
+            ? "History is kept until you delete it."
+            : "History is kept for \(MainFormatting.count(retention, "day", "days"))."
+        let days = "\(spoken.formatted(.number.locale(locale))) of \(reach.formatted(.number.locale(locale)))"
+        return "Dictated on \(days) days shown. \(kept) Earlier days are not counted."
+    }
+
+    // MARK: - Not yet
+
+    /// Nothing is kept: says so, and where the keeping is decided.
+    static func emptyState(retention: Int) -> MainEmptyState {
+        let kept =
+            SettingsRetention.isAlways(days: retention)
+            ? "Insights count the dictations kept on this Mac."
+            : "Insights count the dictations kept on this Mac, and history is kept for \(MainFormatting.count(retention, "day", "days"))."
+        return MainEmptyState(
+            symbolName: "chart.bar",
+            title: "Nothing to chart yet",
+            message: "Charts appear after your first dictation. \(kept)",
+            action: MainAction(title: "Change in Settings › Privacy", intent: .go(.settings(.privacy))))
     }
 }

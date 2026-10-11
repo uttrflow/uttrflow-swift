@@ -89,7 +89,7 @@ public enum PanelFilter: String, Sendable, Equatable, CaseIterable, Codable {
     public func admits(_ kind: ClipKind) -> Bool {
         switch self {
         case .all: true
-        case .text: kind == .text || kind == .secret || kind == .colour || kind == .filePath
+        case .text: kind == .text || kind == .secret || kind == .colour || kind == .filePath || kind == .file
         case .links: kind == .link
         case .code: kind == .code
         case .images: kind == .image
@@ -121,6 +121,8 @@ public struct PanelSnapshot: Sendable, Equatable {
     public var sheet: PanelSheet?
     /// Whether a protected collection delete has shown its review step before the final confirmation.
     var hasReviewedProtectedCategoryDeletion = false
+    /// Whether the first press on a rewrite with no diff is done, so the next press keeps it.
+    var hasAcknowledgedUnreviewableRewrite = false
     /// Whether Edit has said that saving this text would stop a kept clip being saved between launches.
     var hasWarnedOfUnsavedSecret = false
     /// Hands the panel cache a sheet already drawn, so presenting it compares nothing on the caller's actor.
@@ -151,6 +153,8 @@ public struct PanelSnapshot: Sendable, Equatable {
     public var imagesFolder: URL?
     /// The picture clips whose files are missing from disk; worked out by the app when it loads the list.
     public var missingImages: Set<Clip.ID> = []
+    /// The file clips with a file gone, each with the names missing; worked out by the app beside `missingImages`.
+    public var missingFiles: [Clip.ID: [String]] = [:]
 
     /// The languages a formatter is installed for; asked of the machine by the app when the panel opens.
     public var formattableLanguages: Set<CodeLanguage> = []
@@ -233,8 +237,8 @@ final class PanelClipListRevision: Sendable, Equatable {
 extension PanelSnapshot {
     /// Takes a new clip list with what the machine said about it, the one path for opening and refreshing.
     public mutating func install(
-        _ clips: [Clip], missingImages: Set<Clip.ID>, formattableLanguages: Set<CodeLanguage>,
-        now: Date
+        _ clips: [Clip], missingImages: Set<Clip.ID>, missingFiles: [Clip.ID: [String]] = [:],
+        formattableLanguages: Set<CodeLanguage>, now: Date
     ) {
         self.clips = clips
         revalidateTransientTargets()
@@ -242,6 +246,7 @@ extension PanelSnapshot {
         PanelCache.current.checklistProgresses.prune(to: liveIDs)
         PanelCache.current.foldedTexts.prune(to: liveIDs)
         self.missingImages = missingImages
+        self.missingFiles = missingFiles
         self.formattableLanguages = formattableLanguages
         PanelCache.current.reindentOffers.prune(to: liveIDs)
         self.now = now

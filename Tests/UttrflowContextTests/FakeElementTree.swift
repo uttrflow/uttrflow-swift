@@ -22,6 +22,8 @@ struct Node: Equatable {
 /// Which attributes a read asked, in order, so a test can count the messages one read sends.
 final class MessageLog {
     var asked: [String] = []
+    /// The recorded time of every answer given, which a replay adds up as simulated time.
+    var milliseconds = 0.0
     /// The range of every ranged read, so a test can bound how much text one read copies.
     var ranges: [NSRange] = []
 }

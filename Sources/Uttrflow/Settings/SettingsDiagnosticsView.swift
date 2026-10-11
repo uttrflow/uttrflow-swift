@@ -170,7 +170,7 @@ struct SettingsDiagnosticsView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text("Copy diagnostics")
                     .font(.system(size: 13.5))
-                Text("For a bug report; contains no transcripts")
+                Text("For a bug report; contains no dictations")
                     .font(.system(size: 11.5))
                     .foregroundStyle(PagePalette.faint)
             }

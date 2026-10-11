@@ -1213,6 +1213,20 @@ INJECTIONS = (
         "256 * 1_048_576", "1_024 * 1_048_576", "cache",
     ),
     (
+        "Sources/UttrflowLocalModel/MLXCandidateScoringBackend.swift",
+        "        bufferCachePasses.begin()\n        defer { bufferCachePasses.end() }\n"
+        "        return await container.perform { context in",
+        "        return await container.perform { context in",
+        "cache", "tokenise()",
+    ),
+    (
+        "Sources/UttrflowLocalModel/MLXCandidateScoringBackend.swift",
+        "        bufferCachePasses.begin()\n        defer { bufferCachePasses.end() }\n"
+        "        let cache = cache",
+        "        let cache = cache",
+        "cache", "score()",
+    ),
+    (
         "Sources/UttrflowEval/ResourceBudget.swift",
         "case .idleSuggestionsOff: return 300", "case .idleSuggestionsOff: return 900", "counters",
     ),
