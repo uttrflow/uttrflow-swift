@@ -3792,7 +3792,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
         case .keepDictationAsClip(let id):
             guard surfaces.watchesTheClipboard else { return }
-            Task { [weak self] in
+            intentWork = Task { [weak self] in
                 guard let self else { return }
                 await self.historyWrite?.value
                 let retention = Retention(days: self.settings.transcriptRetentionDays, now: Date())
