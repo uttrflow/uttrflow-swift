@@ -14,18 +14,22 @@ extension QuickPanelView {
     }
 
     /// Whether the field editor holds marked text, which is the one thing a key handler cannot read from the key.
-    @MainActor var isComposing: Bool { QuickPanel.isComposing(in: NSApp.keyWindow) }
+    @MainActor var isComposing: Bool { compositionStatus?() ?? QuickPanel.isComposing(in: NSApp.keyWindow) }
 
     /// One handler for the chords and the long moves; two `onKeyPress(phases:)` on one view do not compose.
     func keyPress(_ press: KeyPress) -> KeyPress.Result {
-        let jumped = jumpKey(press)
+        keyPress(key: press.key, characters: press.characters, modifiers: press.modifiers)
+    }
+
+    func keyPress(key: KeyEquivalent, characters: String, modifiers: EventModifiers) -> KeyPress.Result {
+        let jumped = jumpKey(key: key, modifiers: modifiers)
         guard jumped != .handled else { return jumped }
         let decision = PanelKeyHandling.decision(
-            characters: press.characters,
-            commandHeld: press.modifiers.contains(.command),
-            shiftHeld: press.modifiers.contains(.shift),
-            isReturn: press.key == .return,
-            isEscape: press.key == .escape,
+            characters: characters,
+            commandHeld: modifiers.contains(.command),
+            shiftHeld: modifiers.contains(.shift),
+            isReturn: key == .return,
+            isEscape: key == .escape,
             rowMenuOpen: rowMenu.rowID != nil,
             presentation: presentation)
         guard PanelComposition.panelMayTake(decision, whileComposing: isComposing) else { return .ignored }
@@ -44,8 +48,12 @@ extension QuickPanelView {
 
     /// The long moves through the list, which ↑↓ would take a thousand presses to make.
     func jumpKey(_ press: KeyPress) -> KeyPress.Result {
-        guard !press.modifiers.contains(.command) else { return .ignored }
-        switch press.key {
+        jumpKey(key: press.key, modifiers: press.modifiers)
+    }
+
+    func jumpKey(key: KeyEquivalent, modifiers: EventModifiers) -> KeyPress.Result {
+        guard !modifiers.contains(.command) else { return .ignored }
+        switch key {
         case .pageUp: return send(.jump(.pageUp))
         case .pageDown: return send(.jump(.pageDown))
         case .home: return send(.jump(.top))
