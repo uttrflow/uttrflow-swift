@@ -70,37 +70,14 @@ public actor ClipboardStore {
     private var hasMigratedLegacyImages = false
     /// Holds the background task that checks picture headers and seals plaintext files.
     private var legacyImageMigration: Task<Void, Never>?
-    /// Detector versions travel with each sealed index and survive launches.
-    private var classifierVersions: [URL: Int] = [:]
+    /// Reads clipboard indexes and holds their recovery state inside this actor.
+    private var indexReader: ClipboardIndexReader
     /// Holds detector migrations so reads can return while classification runs in the background.
     private var classifierMigrations: [URL: Task<Void, Never>] = [:]
     /// Pictures of deleted clips an undo can still bring back, left on disk until ``forgetHeldPictures()``.
     private var heldPictures: Set<String> = []
     /// Pictures written for a clip no index names yet, which only the write that follows can account for.
     private var unnamedPictures: Set<String> = []
-
-    /// Whether a file this process read was there and could not be read, so its pictures are unknown.
-    private var hasUnreadableIndex = false
-
-    /// Files that could not be read or moved aside, which no write may replace.
-    private var unreplaceable: Set<URL> = []
-
-    /// Copies of damaged indexes waiting for the app to tell the user where they were saved.
-    private var unreadableIndexSetAsides: [URL] = []
-
-    /// Records discovered since the last user notice.
-    private var unreadableRecordCount = 0
-
-    /// Records for which the whole original index could not be preserved.
-    private var unpreservedRecordCount = 0
-
-    /// Payload schemas written by newer builds, which this build must leave untouched.
-    private var unsupportedFormatVersions: [URL: Int] = [:]
-    private var reportedUnsupportedIndexVersions: Set<Int> = []
-    /// Indexes with fields this build cannot preserve if it rewrites the decoded clips.
-    private var unknownFieldIndexes: Set<URL> = []
-    /// Released bare-array payloads that can be safely upgraded after both files are inspected.
-    private var legacyIndexes: Set<URL> = []
 
     /// Records that memory holds a use or a refused change the disk lacks; the next write, or `flushUse`, carries it.
     private var hasUnwrittenUse = false
@@ -136,6 +113,7 @@ public actor ClipboardStore {
         policy = RetentionPolicy(budget: budget)
         self.useFlushDelay = useFlushDelay
         self.encryptedStore = encryptedStore
+        indexReader = ClipboardIndexReader(encryptedStore: encryptedStore)
         secrecy = ClipSecrecyOverrides(
             file: file.deletingLastPathComponent()
                 .appending(path: LocalStoreEntry.notSecretClips.name, directoryHint: .notDirectory),
@@ -160,29 +138,22 @@ public actor ClipboardStore {
 
     /// Returns each damaged index copy once, so the app can tell the user where it is kept.
     public func takeUnreadableIndexSetAsides() -> [URL] {
-        defer { unreadableIndexSetAsides = [] }
-        return unreadableIndexSetAsides
+        indexReader.takeUnreadableIndexSetAsides()
     }
 
     /// The number of malformed clip records found since the previous notice.
     public func takeUnreadableRecordCount() -> Int {
-        let count = unreadableRecordCount
-        unreadableRecordCount = 0
-        return count
+        indexReader.takeUnreadableRecordCount()
     }
 
     /// The number of records whose source index could not be preserved, once per notice.
     public func takeUnpreservedRecordCount() -> Int {
-        let count = unpreservedRecordCount
-        unpreservedRecordCount = 0
-        return count
+        indexReader.takeUnpreservedRecordCount()
     }
 
     /// Newer payload versions this build found, returned once for a clear read-only notice.
     package func takeUnsupportedFormatVersions() -> [Int] {
-        let pending = Set(unsupportedFormatVersions.values).subtracting(reportedUnsupportedIndexVersions)
-        reportedUnsupportedIndexVersions.formUnion(pending)
-        return pending.sorted()
+        indexReader.takeUnsupportedFormatVersions()
     }
 
     // MARK: - Writing
@@ -348,7 +319,7 @@ public actor ClipboardStore {
     /// Removes every clip, pinned ones included, and every answer about secrets, as resetting personalisation promises.
     public func forgetEverything() throws(ClipboardStoreError) {
         _ = loaded()
-        guard unreplaceable.isEmpty else { throw .couldNotWrite }
+        guard indexReader.unreplaceable.isEmpty else { throw .couldNotWrite }
         try save([])
         try secrecy.forget()
         forgetHeldPictures()
@@ -525,14 +496,14 @@ public actor ClipboardStore {
                     return nil
                 }
                 let setAside = LocalStore.setAside(url, now: Date())
-                if setAside == nil { unreplaceable.insert(url) }
+                if setAside == nil { indexReader.unreplaceable.insert(url) }
                 return nil
             }
         }
         switch encryptedStore.acceptsLegacyPlaintext() {
         case .open: break
         case .closed:
-            if LocalStore.setAside(url, now: Date()) == nil { unreplaceable.insert(url) }
+            if LocalStore.setAside(url, now: Date()) == nil { indexReader.unreplaceable.insert(url) }
             return nil
         case .unknown: return nil
         }
@@ -703,13 +674,13 @@ public actor ClipboardStore {
     private func loaded() -> [Clip] {
         if let wholeList { return wholeList }
         // A clipboard written before the split keeps its saved clips in the history file.
-        let rawSaved = read(savedFile).filter(Self.isPersistable)
+        let rawSaved = indexReader.read(savedFile).filter(Self.isPersistable)
         // A move interrupted between the two writes leaves a clip in both files, and the saved copy wins.
-        let rawHistory = read(file).filter(Self.isPersistable)
+        let rawHistory = indexReader.read(file).filter(Self.isPersistable)
         // Inspect both indexes before migration, since a save can rewrite both files.
         let canRewriteIndexes =
-            unsupportedFormatVersions.isEmpty && unknownFieldIndexes.isEmpty
-            && !hasUnreadableIndex
+            indexReader.unsupportedFormatVersions.isEmpty && indexReader.unknownFieldIndexes.isEmpty
+            && !indexReader.hasUnreadableIndex
         let fromSavedFile = rawSaved
         let fromHistoryFile = rawHistory
         if canRewriteIndexes {
@@ -719,7 +690,7 @@ public actor ClipboardStore {
         savedOnDisk = fromSavedFile
         let savedIDs = Set(fromSavedFile.map(\.id))
         // An unreplaceable file is unknown rather than empty, so every save still meets its refusal.
-        historyOnDisk = unreplaceable.contains(file) ? nil : fromHistoryFile
+        historyOnDisk = indexReader.unreplaceable.contains(file) ? nil : fromHistoryFile
         let stored = fromSavedFile + fromHistoryFile.filter { !savedIDs.contains($0.id) }
         let list = ClipOrdering.uniqueAliases(
             in: ClipOrdering.interleaving(
@@ -768,7 +739,7 @@ public actor ClipboardStore {
         switch encryptedStore?.acceptsLegacyPlaintext() {
         case .open?: break
         case .closed?:
-            if LocalStore.setAside(url, now: Date()) == nil { unreplaceable.insert(url) }
+            if LocalStore.setAside(url, now: Date()) == nil { indexReader.unreplaceable.insert(url) }
             return
         case .unknown?, nil: return
         }
@@ -778,7 +749,7 @@ public actor ClipboardStore {
 
     /// Schedules stale detector work after the current list returns.
     private func scheduleReclassification(_ clips: [Clip], at url: URL) {
-        guard classifierVersions[url, default: 0] < ClipboardIndex.currentClassifierVersion,
+        guard indexReader.classifierVersions[url, default: 0] < ClipboardIndex.currentClassifierVersion,
             classifierMigrations[url] == nil, canReclassify(url)
         else { return }
         let candidates = clips.filter { $0.image == nil && $0.files == nil }
@@ -803,8 +774,9 @@ public actor ClipboardStore {
     /// Whether an index may be rewritten with fresh detector results.
     private func canReclassify(_ url: URL) -> Bool {
         // A set-aside copy is left for the user to recover; it never makes this file unwritable.
-        guard !hasUnreadableIndex, !unreplaceable.contains(url), !LocalStore.hasSetAside(url),
-            unsupportedFormatVersions.isEmpty, unknownFieldIndexes.isEmpty
+        guard !indexReader.hasUnreadableIndex, !indexReader.unreplaceable.contains(url),
+            !LocalStore.hasSetAside(url),
+            indexReader.unsupportedFormatVersions.isEmpty, indexReader.unknownFieldIndexes.isEmpty
         else { return false }
         // Without the user's answers a clip they unmasked would be masked again and leave the disk.
         return secrecy.areKnown()
@@ -813,7 +785,7 @@ public actor ClipboardStore {
     /// Persists a completed background pass only when the source clips still match the loaded snapshot.
     private func finishReclassification(_ updated: [Clip], from snapshot: [Clip], at url: URL) {
         defer { classifierMigrations[url] = nil }
-        guard classifierVersions[url, default: 0] < ClipboardIndex.currentClassifierVersion,
+        guard indexReader.classifierVersions[url, default: 0] < ClipboardIndex.currentClassifierVersion,
             canReclassify(url)
         else { return }
         let merge = Self.mergeClassifierResults(updated, from: snapshot, into: currentClips(in: url))
@@ -830,7 +802,7 @@ public actor ClipboardStore {
         let persistable = merged.filter(Self.isPersistable)
         do {
             try persist(persistable, to: url, classifierVersion: ClipboardIndex.currentClassifierVersion)
-            classifierVersions[url] = ClipboardIndex.currentClassifierVersion
+            indexReader.classifierVersions[url] = ClipboardIndex.currentClassifierVersion
             replaceCurrentClips(persistable, in: url)
         } catch {
             // Leave the old index version so the detector retries on the next launch.
@@ -899,13 +871,14 @@ public actor ClipboardStore {
 
     /// Whether every file that can name a picture was read, so a file named by neither is an orphan.
     private var indexesAreTrustworthy: Bool {
-        unsupportedFormatVersions.isEmpty && unknownFieldIndexes.isEmpty && !hasUnreadableIndex
+        indexReader.unsupportedFormatVersions.isEmpty && indexReader.unknownFieldIndexes.isEmpty
+            && !indexReader.hasUnreadableIndex
             && !LocalStore.hasSetAside(file) && !LocalStore.hasSetAside(savedFile)
     }
 
     /// Rechecks both indexes before a cached store can write over a newer format from another process.
     private func validateCurrentIndexFormatsBeforeWrite() throws(ClipboardStoreError) {
-        for url in [file, savedFile] where !unreplaceable.contains(url) {
+        for url in [file, savedFile] where !indexReader.unreplaceable.contains(url) {
             let data: Data
             do {
                 data = try Data(contentsOf: url)
@@ -918,62 +891,22 @@ public actor ClipboardStore {
             if let version = try ClipIndexValidation.inspect(
                 data, fileName: url.lastPathComponent, using: encryptedStore)
             {
-                unsupportedFormatVersions[url] = version
+                indexReader.unsupportedFormatVersions[url] = version
                 throw .unsupportedFormat
             }
         }
     }
 
-    /// Reads one file, setting an unreadable one aside and remembering that its pictures are unknown.
-    private func read(_ url: URL) -> [Clip] {
-        guard !unreplaceable.contains(url) else { return [] }
-        let stored: StoredList<ClipboardIndex>
-        if let encryptedStore {
-            stored = encryptedStore.read(
-                ClipboardIndex.self, from: url, recoveringPreviousGeneration: true)
-        } else {
-            stored = LocalStore.read(ClipboardIndex.self, from: url)
-        }
-        if case .unsupportedVersion(let version) = stored {
-            unsupportedFormatVersions[url] = Int(version)
-            return []
-        }
-        if case .unreadable(let setAside) = stored {
-            hasUnreadableIndex = true
-            if let setAside {
-                unreadableIndexSetAsides.append(setAside)
-            } else {
-                unreplaceable.insert(url)
-            }
-        }
-        if case .recovered = stored {
-            unreadableRecordCount += stored.droppedRecordCount
-            hasUnreadableIndex = true
-            unreadableIndexSetAsides.append(contentsOf: stored.quarantineRecords)
-            if let copy = stored.preservedOriginal {
-                unreadableIndexSetAsides.append(copy)
-            }
-            if !stored.preservationSucceeded {
-                unreplaceable.insert(url)
-                unpreservedRecordCount += stored.droppedRecordCount
-            }
-        }
-        guard let index = stored.value else { return [] }
-        if index.isUnsupported { unsupportedFormatVersions[url] = index.version }
-        if index.hasUnknownJSONKeys { unknownFieldIndexes.insert(url) }
-        if index.isLegacy { legacyIndexes.insert(url) }
-        classifierVersions[url] = index.classifierVersion
-        return index.clips
-    }
-
     /// Upgrades a released bare array only after both indexes proved writable by this schema.
     private func migrateLegacyIndex(_ url: URL, clips: [Clip]) {
-        guard legacyIndexes.contains(url), !unreplaceable.contains(url), !LocalStore.hasSetAside(url) else {
+        guard indexReader.legacyIndexes.contains(url), !indexReader.unreplaceable.contains(url),
+            !LocalStore.hasSetAside(url)
+        else {
             return
         }
         do {
             try persist(clips.filter(Self.isPersistable), to: url)
-            legacyIndexes.remove(url)
+            indexReader.legacyIndexes.remove(url)
         } catch {
             // The legacy format remains readable and a later user write can retry the migration.
         }
@@ -983,9 +916,9 @@ public actor ClipboardStore {
     private func save(_ clips: [Clip]) throws(ClipboardStoreError) {
         let current = loaded()
         try validateCurrentIndexFormatsBeforeWrite()
-        guard unsupportedFormatVersions.isEmpty else { throw .unsupportedFormat }
+        guard indexReader.unsupportedFormatVersions.isEmpty else { throw .unsupportedFormat }
         // Validation cannot inspect an index another process removed after we read it.
-        guard unknownFieldIndexes.isEmpty else { throw .couldNotWrite }
+        guard indexReader.unknownFieldIndexes.isEmpty else { throw .couldNotWrite }
         // First, so the launch sweep this read can trigger still sees what is waiting to be named.
         let before = Set(current.compactMap(\.image?.file))
         let named = Set(clips.compactMap(\.image?.file))
@@ -1040,19 +973,19 @@ public actor ClipboardStore {
         _ clips: [Clip], to url: URL, classifierVersion: Int? = nil
     ) throws(ClipboardStoreError) {
         // A file that could be neither read nor moved aside is the user's only copy, so it is not replaced.
-        guard !unreplaceable.contains(url) else { throw .couldNotWrite }
+        guard !indexReader.unreplaceable.contains(url) else { throw .couldNotWrite }
         Self.beforePersistForTesting?(url)
         try validateCurrentIndexFormatsBeforeWrite()
         do {
             guard !clips.isEmpty else {
                 Self.writes?.record()
                 try removeFile(url)
-                legacyIndexes.remove(url)
+                indexReader.legacyIndexes.remove(url)
                 return
             }
             let index = ClipboardIndex(
                 clips: clips,
-                classifierVersion: classifierVersion ?? classifierVersions[url]
+                classifierVersion: classifierVersion ?? indexReader.classifierVersions[url]
                     ?? ClipboardIndex.currentClassifierVersion)
             let data = try JSONEncoder().encode(index)
             Self.writes?.record(data)
@@ -1061,7 +994,7 @@ public actor ClipboardStore {
             } else {
                 try PrivateFile.write(data, to: url)
             }
-            legacyIndexes.remove(url)
+            indexReader.legacyIndexes.remove(url)
         } catch {
             throw Self.writeFailure(error)
         }
