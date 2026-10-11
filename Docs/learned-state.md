@@ -129,7 +129,7 @@ separate days on each side: more undone days than kept is `vetoed`, so one undo 
 kept on at least 3 separate days and more than undone is `confirmed`; anything else is inert. At most
 `ConfusionPairs.maximumNewPairsPerDay` (10) new pairs start counting on one day, the first written;
 a pair past that starts on the next day with room, so a field rewritten in bulk teaches no more than
-the cap a day. A kept replacement that is not Latin script writes no row. A
+the cap a day; `PairLedger` (Docs/app-dictionary.md) reads the same constant for pairs that become entries. A kept replacement that is not Latin script writes no row. A
 pair is a feature to the correction gate, never a rewrite on its own. An undone row on the
 Corrections page whose pair is vetoed says so, with an Allow action that writes `pairAllowed`; the
 projection then ignores every `pairVetoed` row for the pair on or before that day. The rows are ordinary

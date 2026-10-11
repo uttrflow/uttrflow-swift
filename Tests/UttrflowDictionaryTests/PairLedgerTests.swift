@@ -58,17 +58,17 @@ struct PairLedgerTests {
         for index in 0..<1000 {
             learnt += record(&ledger, "heard\(index)x", "Meant\(index)y", day: 101, times: 2).count
         }
-        #expect(learnt == PairLedger.maximumLearntPerDay)
+        #expect(learnt == ConfusionPairs.maximumNewPairsPerDay)
     }
 
     @Test("A pair held back by the cap is learnt on a later day")
     func capDefers() {
         var ledger = PairLedger()
-        let pairs = (0..<5).map { ("heard\($0)x", "Meant\($0)y") }
+        let pairs = (0..<(ConfusionPairs.maximumNewPairsPerDay + 2)).map { ("heard\($0)x", "Meant\($0)y") }
         for pair in pairs { _ = record(&ledger, pair.0, pair.1, day: 100, times: 2) }
         var learnt = 0
         for pair in pairs { learnt += record(&ledger, pair.0, pair.1, day: 101).count }
-        #expect(learnt == PairLedger.maximumLearntPerDay)
+        #expect(learnt == ConfusionPairs.maximumNewPairsPerDay)
         for pair in pairs { learnt += record(&ledger, pair.0, pair.1, day: 102).count }
         #expect(learnt == pairs.count)
     }
@@ -108,7 +108,7 @@ struct PairLedgerTests {
     func capPersists() {
         var ledger = PairLedger()
         var rows: [EvidenceRow] = []
-        for index in 0..<PairLedger.maximumLearntPerDay {
+        for index in 0..<ConfusionPairs.maximumNewPairsPerDay {
             rows += ledger.record(heard: "heard\(index)x", meant: "Meant\(index)y", on: 100).rows
             rows += ledger.record(heard: "heard\(index)x", meant: "Meant\(index)y", on: 101).rows
             rows += ledger.record(heard: "heard\(index)x", meant: "Meant\(index)y", on: 101).rows

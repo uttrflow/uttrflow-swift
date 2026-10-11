@@ -8,8 +8,6 @@ struct PairLedger: Sendable {
     static let sightingsBeforeLearning = 3
     /// Separate days those sightings must fall on.
     static let daysBeforeLearning = 2
-    /// The most pairs made entries on one day, so a bulk rewrite cannot teach many at once.
-    static let maximumLearntPerDay = 3
     /// The most pending pairs kept at once.
     static let maximumPending = 128
     /// The most refusals kept at once; past it the oldest lapses.
@@ -92,7 +90,7 @@ struct PairLedger: Sendable {
         var learnt: ConfusionPairs.Pair?
         if days.values.reduce(0, +) >= Self.sightingsBeforeLearning,
             days.count >= Self.daysBeforeLearning,
-            learntOnDay[day, default: 0] < Self.maximumLearntPerDay
+            learntOnDay[day, default: 0] < ConfusionPairs.maximumNewPairsPerDay
         {
             rows += forget(subject)
             rows.append(Self.row(.pairLearnt, subject, day: day))

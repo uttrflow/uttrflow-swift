@@ -116,7 +116,7 @@ and keeps the refusals; removing everything clears both (`Docs/app-dictionary-st
 but a pair becomes an entry only at `sightingsBeforeLearning` (3) sightings on at least
 `daysBeforeLearning` (2) separate days: one edit may be a rewrite, an app's autocorrection or a
 scripted field, and a burst on one day is one day. A day holding three sightings of a pair adds no
-more rows. At most `maximumLearntPerDay` (3) pairs become entries on one day; a pair held back stays
+more rows. At most `ConfusionPairs.maximumNewPairsPerDay` (10, the one cap for pairs) become entries on one day; a pair held back stays
 pending and is released by its next sighting on a day with room. Pairs are counted under a keyed hash
 as `pairSighting` rows, and the day a pair became an entry is a `pairLearnt` row, so counts and the
 cap outlive a quit and no heard or written text is kept. A refused pair is never counted; its
