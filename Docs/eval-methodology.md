@@ -419,8 +419,9 @@ recogniser, model, audio or production formatting changes are involved.
   the proper-noun and digit passages of each language, the two stressors a fitted layer is most
   likely to memorise.
 - `SplitLeakAudit` fails when a passage has no side, when the table names a passage the corpus
-  lacks, when a passage outside `test` shares a run of 8 words with a test passage in any form
-  (the contamination audit's run length), or when a language has fewer than 2 test passages.
+  lacks, when passages on different sides share a run of 8 words in any form (the contamination
+  audit's run length), or when a language has fewer than 2 test passages. Existing test-side
+  findings come first; fit/calibration overlaps follow, with each pair checked once.
   It reports passage counts per side and language (`swift test --filter TranscriptionSplitTests`).
 - The corpus has one reader, so passage and speaker group coincide today; a second reader of a
   passage takes the passage's side.
