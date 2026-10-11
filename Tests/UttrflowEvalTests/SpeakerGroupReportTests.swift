@@ -90,3 +90,36 @@ struct SpeakerGroupReportTests {
         #expect(SpeakerGroupReport(clips: clips) == SpeakerGroupReport(clips: clips))
     }
 }
+
+@Suite("The speaker-group report's seam rate and corpus speaker group")
+struct SpeakerGroupSeamTests {
+    @Test("prints seams and artefacts per seam on every row")
+    func seamRate() throws {
+        let clips = (0..<4).flatMap { speaker in
+            (0..<2).map { _ in
+                SpeakerClip(
+                    speaker: "g-\(speaker)", group: "g", label: .verified, errors: 1, words: 20, seams: 5,
+                    seamArtefacts: speaker == 0 ? 2 : 0)
+            }
+        }
+        let row = try #require(SpeakerGroupReport(clips: clips).rows.first)
+        #expect(row.seams == 40)
+        #expect(row.seamRate == 4.0 / 40)
+        #expect(SpeakerGroupReport(clips: clips).lines[0].hasSuffix("seams\tseam rate"))
+    }
+
+    @Test("a group with no seams has no seam rate")
+    func noSeams() {
+        let clips = [SpeakerClip(speaker: "a", group: "g", label: .verified, errors: 0, words: 5)]
+        #expect(SpeakerGroupReport(clips: clips).rows.first?.seamRate == nil)
+    }
+
+    @Test("a corpus sample carries its speaker group through coding")
+    func sampleGroup() throws {
+        let sample = CorpusSample(
+            id: "1", slug: "ab", s3Key: "k", referenceText: "r", expectedTidiedText: "r", language: "en-IN",
+            stresses: [], durationMs: 1, sampleRateHz: 16_000, speakerGroup: "group-one")
+        let decoded = try JSONDecoder().decode(CorpusSample.self, from: JSONEncoder().encode(sample))
+        #expect(decoded.speakerGroup == "group-one")
+    }
+}
