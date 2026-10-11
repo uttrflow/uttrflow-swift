@@ -61,7 +61,7 @@ let package = Package(
         .package(url: "https://github.com/argmaxinc/WhisperKit.git", exact: "1.1.0"),
         .package(url: "https://github.com/ml-explore/mlx-swift-lm", exact: "3.31.4"),
         .package(url: "https://github.com/huggingface/swift-transformers", exact: "1.3.4"),
-        .package(url: "https://github.com/huggingface/swift-huggingface", exact: "0.10.1"),
+        .package(url: "https://github.com/huggingface/swift-huggingface", exact: "0.13.0"),
         // Updating the app in place. A dependency rather than something written here
         // because the hard part is not fetching a file — it is replacing a *running*
         // bundle without breaking its signature, its permissions or its menu bar item.
