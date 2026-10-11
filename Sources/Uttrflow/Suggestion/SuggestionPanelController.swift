@@ -5,12 +5,6 @@ import UttrflowCore
 import UttrflowPredict
 import UttrflowUX
 
-/// A window that never becomes the active one, so the caret stays in the field under it.
-final class SuggestionPanel: NSPanel {
-    override var canBecomeKey: Bool { false }
-    override var canBecomeMain: Bool { false }
-}
-
 /// What the surface was last asked to draw, so a display setting can change under it.
 private struct SuggestionRequest: Equatable {
     var suggestion: Suggestion = .silent
@@ -75,6 +69,8 @@ final class SuggestionPanelController {
     private var occlusionObserver: (any NSObjectProtocol)?
     /// Whether the system has taken the panel off screen, as Mission Control and App Exposé do; a test swaps it.
     var systemHidesPanel: @MainActor () -> Bool = { false }
+    /// Shows the window without taking the keyboard; synthetic fixtures can leave it hidden.
+    var frontWindow: @MainActor (NSWindow) -> Void = { $0.orderFrontRegardless() }
     private var announcer = SuggestionAnnouncer()
     var announcementCoalescer = SuggestionAnnouncementCoalescer()
     private var announcementTask: Task<Void, Never>?
@@ -301,7 +297,7 @@ final class SuggestionPanelController {
             return false
         }
         // `orderFrontRegardless`, never `makeKeyAndOrderFront`: no keyboard is taken; a panel already up is not fronted again.
-        if !isActuallyShowing || !panel.isVisible { panel.orderFrontRegardless() }
+        if !isActuallyShowing || !panel.isVisible { frontWindow(panel) }
         isActuallyShowing = true
         // The panel is out of VoiceOver's reach, so the offer and its accept key are spoken once as it appears.
         scheduleAnnouncement(announcer.announcement(for: presentation))
@@ -402,7 +398,7 @@ final class SuggestionPanelController {
             onWithdrawnUnasked?()
             return
         }
-        if !isActuallyShowing || !panel.isVisible { panel.orderFrontRegardless() }
+        if !isActuallyShowing || !panel.isVisible { frontWindow(panel) }
         isActuallyShowing = true
     }
 
