@@ -8,7 +8,7 @@ public enum RecognitionLoop {
     /// How far the two copies may differ, as a word error rate, and still be one loop.
     static let mostCopyDifference = 0.2
     /// The fewest words in a copy, since a word or two said twice is ordinary speech.
-    static let fewestCopyWords = 3
+    public static let fewestCopyWords = 3
 
     /// The transcription with a looped repeat kept once and quotes wrapped round the whole piece taken off.
     public static func undone(_ heard: Transcription, speechDuration: Duration) -> Transcription {

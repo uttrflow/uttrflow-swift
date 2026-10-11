@@ -35,7 +35,7 @@ public enum RemovalAudit {
     }
 
     /// The places of every removal no grant covers, in the order the words were said.
-    private static func unauthorisedPlaces(in draft: Draft, grants: [PassID: RemovalGrant]) -> [Int] {
+    static func unauthorisedPlaces(in draft: Draft, grants: [PassID: RemovalGrant]) -> [Int] {
         var found: Set<Int> = []
         for index in draft.words.indices {
             guard case .removed(let pass) = draft.words[index].state else { continue }
