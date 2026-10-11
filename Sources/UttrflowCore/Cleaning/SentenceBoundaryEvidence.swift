@@ -237,35 +237,19 @@ public enum SentenceBoundaryEvidence {
         keys.last == "look" && keys.dropLast().suffix(2).contains { determiners.contains($0) }
     }
 
-    private static let determiners: Set<String> = [
-        "a", "an", "the", "my", "your", "his", "her", "its", "their", "our", "this", "that",
-        "these", "those", "some", "any",
-    ]
+    private static let determiners = FunctionWords.boundaryDeterminers
     /// Words the tagger reads as a preposition, subordinator or adverb either way, which cannot close a sentence as a particle can ("move on", "let it through").
-    private static let neverLast: Set<String> = [
-        "of", "to", "at", "for", "with", "from", "by", "into", "onto", "upon", "between",
-        "during", "against", "within", "without", "among", "than",
-        "because", "although", "while", "if", "whether", "very",
-    ]
-    private static let neverFronted: Set<String> = [
-        "to", "of", "at", "with", "from", "by", "into", "onto", "upon", "between", "among",
-        "toward", "towards", "against", "without", "within", "beside", "behind", "beyond", "near", "past",
-    ]
+    private static let neverLast = FunctionWords.neverLast
+    private static let neverFronted = FunctionWords.neverFronted
     private static let clauseSubjects = QuestionShape.subjects.union(["nobody", "nothing"])
-    private static let imperativeObjects: Set<String> = ["me", "it", "him", "her", "us", "them"]
+    private static let imperativeObjects = FunctionWords.imperativeObjects
     private static let imperativeParticles: Set<String> = ["back", "out", "off"]
     /// Words a bare verb follows inside one clause: "if you can leave it", "if you want to leave it".
-    private static let bareVerbLeaders = QuestionShape.verbsBeforeSubject.union([
-        "do", "don't", "must", "to", "let", "make", "help", "please", "not",
-    ])
-    private static let modals: Set<String> = [
-        "will", "can", "would", "should", "could", "must", "might", "shall",
-    ]
+    private static let bareVerbLeaders = QuestionShape.verbsBeforeSubject.union(FunctionWords.bareVerbLeaders)
+    private static let modals = FunctionWords.modals
     /// Prepositions that take an object after a comma; "on", "in" and "up" close a phrasal verb ("hold on, wait").
-    private static let commaPrepositions: Set<String> = [
-        "to", "for", "with", "from", "into", "by", "about", "at",
-    ]
-    private static let seamPrepositions: Set<String> = ["on", "in", "up", "around"]
+    private static let commaPrepositions = FunctionWords.commaPrepositions
+    private static let seamPrepositions = FunctionWords.seamPrepositions
     private static let seamObjectEndings: [[String]] = [
         ["could", "finish"], ["pick", "up"], ["look"], ["covers"],
     ]
