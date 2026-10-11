@@ -232,7 +232,8 @@ struct MemoryPressureTests {
     /// An app over the caller's sandbox, which the caller keeps until the test ends.
     private func app(_ steps: Steps, in sandbox: borrowing Sandbox) -> AppDelegate {
         let app = AppDelegate(
-            container: sandbox.root, account: HeldSession(signedIn: true).layer,
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), account: HeldSession(signedIn: true).layer,
             prepareModel: { _ in await steps.record("load") },
             releaseModel: SuggestionModelCacheOperations(
                 release: { await steps.record("release") }, readBytes: { nil }, removeFiles: nil),
@@ -265,7 +266,8 @@ struct MemoryPressureTests {
         let model = IdleReleasingModel(model: inner, idleAfter: .seconds(600))
         let sandbox = Sandbox()
         let app = AppDelegate(
-            container: sandbox.root, account: HeldSession(signedIn: true).layer,
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), account: HeldSession(signedIn: true).layer,
             scoring: model, generating: model,
             prepareModel: { onProgress in try await model.prepare(onProgress: onProgress) },
             releaseModel: SuggestionModelCacheOperations(
@@ -407,7 +409,8 @@ struct MemoryPressureTests {
         }
         let sandbox = Sandbox()
         let app = AppDelegate(
-            container: sandbox.root, account: HeldSession(signedIn: true).layer,
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), account: HeldSession(signedIn: true).layer,
             scoring: model, generating: model,
             prepareModel: { onProgress in try await model.prepare(onProgress: onProgress) },
             releaseModel: SuggestionModelCacheOperations(
@@ -458,7 +461,8 @@ struct MemoryPressureTests {
     /// An app whose first model read runs until it is stopped.
     private func appWithSlowFirstLoad(_ steps: Steps, in sandbox: borrowing Sandbox) -> AppDelegate {
         let app = AppDelegate(
-            container: sandbox.root, account: HeldSession(signedIn: true).layer,
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), account: HeldSession(signedIn: true).layer,
             prepareModel: { onProgress in
                 let first = await steps.all.isEmpty
                 await steps.record("load")
@@ -508,7 +512,8 @@ struct MemoryPressureTests {
         let steps = Steps()
         let sandbox = Sandbox()
         let app = AppDelegate(
-            container: sandbox.root, account: HeldSession(signedIn: true).layer,
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), account: HeldSession(signedIn: true).layer,
             prepareModel: { _ in
                 let fetch = await steps.recordFetch()
                 if fetch == 1 { try await Task.sleep(for: .seconds(3_600)) }

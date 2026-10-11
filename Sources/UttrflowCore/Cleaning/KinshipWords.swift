@@ -20,14 +20,23 @@ public enum KinshipWords {
     /// The bundled table; see `Docs/data-tables.md`.
     static let table = DataTable<Row>.load("kinship-words", schema: 1, from: .module, fallback: [])
 
-    private static let words = Set(table.rows.map(\.id))
+    private static let words = Set(table.rows.filter { !$0.isAfterName }.map(\.id))
 
     /// The kinship words said in Hindi, romanised.
-    public static let hindiWords: [String] = table.rows.filter { $0.languages.contains(.hi) }.map(\.id)
+    public static let hindiWords: [String] = table.rows.filter {
+        $0.languages.contains(.hi) && !$0.isAfterName
+    }.map(\.id)
+
+    /// Every romanised Hindi word said after a name rather than in its place: the kinship words and the honorifics.
+    package static let hindiNameTails: [String] = table.rows.filter { $0.languages.contains(.hi) }.map(\.id)
 
     /// One kinship word and the languages it is said in.
     struct Row: DataTableRow {
         let id: String
         let languages: Set<Language>
+        /// Set for an honorific said after a name, which never stands for one.
+        let afterName: Bool?
+
+        var isAfterName: Bool { afterName ?? false }
     }
 }

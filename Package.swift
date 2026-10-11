@@ -61,7 +61,7 @@ let package = Package(
         .package(url: "https://github.com/argmaxinc/WhisperKit.git", exact: "1.1.0"),
         .package(url: "https://github.com/ml-explore/mlx-swift-lm", exact: "3.31.4"),
         .package(url: "https://github.com/huggingface/swift-transformers", exact: "1.3.4"),
-        .package(url: "https://github.com/huggingface/swift-huggingface", exact: "0.10.1"),
+        .package(url: "https://github.com/huggingface/swift-huggingface", exact: "0.13.0"),
         // Updating the app in place. A dependency rather than something written here
         // because the hard part is not fetching a file — it is replacing a *running*
         // bundle without breaking its signature, its permissions or its menu bar item.
@@ -349,13 +349,18 @@ let package = Package(
         ),
         .testTarget(
             name: "UttrflowAudioTests",
-            dependencies: ["UttrflowAudio", "UttrflowTestSupport"],
+            dependencies: ["UttrflowAudio", "UttrflowCore", "UttrflowTestSupport"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
             name: "UttrflowSpeechTests",
             dependencies: [
-                "UttrflowSpeech", "UttrflowAI", "UttrflowEval", "UttrflowTestSupport",
+                "UttrflowAI",
+                "UttrflowCore",
+                "UttrflowDictionary",
+                "UttrflowEval",
+                "UttrflowSpeech",
+                "UttrflowTestSupport",
                 .product(name: "WhisperKit", package: "whisperkit"),
             ],
             swiftSettings: sharedSwiftSettings
@@ -363,67 +368,119 @@ let package = Package(
         .testTarget(
             name: "UttrflowAITests",
             // The evaluation corpus supplies the real dictation the pass-law suite generates inputs from.
-            dependencies: ["UttrflowAI", "UttrflowEval", "UttrflowTestSupport"],
+            dependencies: [
+                "UttrflowAI",
+                "UttrflowCore",
+                "UttrflowDictionary",
+                "UttrflowEval",
+                "UttrflowTestSupport",
+            ],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
             name: "UttrflowLocalModelTests",
-            dependencies: ["UttrflowLocalModel", "UttrflowTestSupport"],
+            dependencies: [
+                "UttrflowAI",
+                "UttrflowCore",
+                "UttrflowLocalModel",
+                "UttrflowPredict",
+                "UttrflowTestSupport",
+            ],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
             name: "UttrflowTests",
-            dependencies: ["Uttrflow", "UttrflowPredict", "UttrflowTestSupport"],
+            dependencies: [
+                "Uttrflow",
+                "UttrflowAI",
+                "UttrflowAccount",
+                "UttrflowAudio",
+                "UttrflowClipboard",
+                "UttrflowContext",
+                "UttrflowCore",
+                "UttrflowDictionary",
+                "UttrflowHistory",
+                "UttrflowInput",
+                "UttrflowLocalModel",
+                "UttrflowPipeline",
+                "UttrflowPredict",
+                "UttrflowPredictCapture",
+                "UttrflowPredictStore",
+                "UttrflowSettings",
+                "UttrflowTestSupport",
+                "UttrflowUX",
+            ],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
             name: "UttrflowSettingsTests",
-            dependencies: ["UttrflowPredict", "UttrflowSettings", "UttrflowTestSupport"],
+            dependencies: ["UttrflowCore", "UttrflowPredict", "UttrflowSettings", "UttrflowTestSupport"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
             name: "UttrflowClipboardTests",
-            dependencies: ["UttrflowClipboard", "UttrflowTestSupport"],
+            dependencies: ["UttrflowClipboard", "UttrflowCore", "UttrflowTestSupport"],
             resources: [.process("Fixtures")],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
             name: "UttrflowDictionaryTests",
-            dependencies: ["UttrflowDictionary", "UttrflowTestSupport"],
+            dependencies: ["UttrflowCore", "UttrflowDictionary", "UttrflowTestSupport"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
             name: "UttrflowAccountTests",
-            dependencies: ["UttrflowAccount", "UttrflowTestSupport"],
+            dependencies: ["UttrflowAccount", "UttrflowCore", "UttrflowTestSupport"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
             name: "UttrflowHistoryTests",
-            dependencies: ["UttrflowHistory", "UttrflowTestSupport"],
+            dependencies: ["UttrflowCore", "UttrflowHistory", "UttrflowTestSupport"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
             name: "UttrflowUXTests",
             dependencies: [
-                "UttrflowAI", "UttrflowContext", "UttrflowPredict", "UttrflowUX", "UttrflowTestSupport",
+                "UttrflowAI",
+                "UttrflowAccount",
+                "UttrflowClipboard",
+                "UttrflowContext",
+                "UttrflowCore",
+                "UttrflowDictionary",
+                "UttrflowHistory",
+                "UttrflowPredict",
+                "UttrflowSettings",
+                "UttrflowTestSupport",
+                "UttrflowUX",
             ],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
             name: "UttrflowPipelineTests",
-            dependencies: ["UttrflowAI", "UttrflowPipeline", "UttrflowInput", "UttrflowTestSupport"],
+            dependencies: [
+                "UttrflowAI",
+                "UttrflowCore",
+                "UttrflowDictionary",
+                "UttrflowInput",
+                "UttrflowPipeline",
+                "UttrflowTestSupport",
+            ],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
             name: "UttrflowInputTests",
             dependencies: [
-                "UttrflowClipboard", "UttrflowInput", "UttrflowPredict", "UttrflowTestSupport",
+                "UttrflowClipboard",
+                "UttrflowCore",
+                "UttrflowInput",
+                "UttrflowPredict",
+                "UttrflowTestSupport",
             ],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
             name: "UttrflowContextTests",
-            dependencies: ["UttrflowContext", "UttrflowPredict", "UttrflowTestSupport"],
+            dependencies: ["UttrflowContext", "UttrflowCore", "UttrflowPredict", "UttrflowTestSupport"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
@@ -433,7 +490,7 @@ let package = Package(
         ),
         .testTarget(
             name: "UttrflowPredictStoreTests",
-            dependencies: ["UttrflowCore", "UttrflowPredictStore", "UttrflowTestSupport"],
+            dependencies: ["UttrflowCore", "UttrflowPredict", "UttrflowPredictStore", "UttrflowTestSupport"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
@@ -446,21 +503,32 @@ let package = Package(
         ),
         .testTarget(
             name: "UttrflowEvalTests",
-            dependencies: ["UttrflowAI", "UttrflowAudio", "UttrflowEval", "UttrflowTestSupport"],
+            dependencies: [
+                "UttrflowAI",
+                "UttrflowAudio",
+                "UttrflowCore",
+                "UttrflowDictionary",
+                "UttrflowEval",
+                "UttrflowPipeline",
+                "UttrflowTestSupport",
+            ],
             exclude: ["Golden"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
             name: "UttrflowBakeoffTests",
             dependencies: [
-                "uttrflow-bakeoff", "UttrflowPredict",
+                "UttrflowCore",
+                "UttrflowEval",
+                "UttrflowPredict",
+                "uttrflow-bakeoff",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
             name: "UttrflowPermissionsTests",
-            dependencies: ["UttrflowPermissions", "UttrflowTestSupport"],
+            dependencies: ["UttrflowCore", "UttrflowPermissions", "UttrflowTestSupport"],
             swiftSettings: sharedSwiftSettings
         ),
     ]

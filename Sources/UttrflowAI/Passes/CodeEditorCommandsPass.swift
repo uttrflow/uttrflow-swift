@@ -21,7 +21,7 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
             destination: destination, opening: words.first, given: evidence)
         let evidence = NotationEvidence.applicability(of: words, given: screen)
         guard evidence.activates(at: NotationEvidence.activationThreshold) else { return draft }
-        var draft = draft
+        var draft = NotationInput.settled(draft, by: Self.id)
         var position = 0
         while position < draft.presentIndices.count {
             let live = draft.presentIndices

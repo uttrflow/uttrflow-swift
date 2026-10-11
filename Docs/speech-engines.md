@@ -520,6 +520,11 @@ each, 16 minutes on a loaded machine. Every row is the same:
 | clean, 10 dB | 5, 0, 1, 2 | -1.0 | 0.0% | 0.000 | 0.00 | 100.0% | 0.0% |
 | clean, 10 dB | 5 | -0.7, -1.3 | 0.0% | 0.000 | 0.00 | 100.0% | 0.0% |
 
+Refitted under the dictionary prompt that closes on lower-case prose (`--vocabulary Kubernetes Grafana
+Postgres Terraform Okta`, the same 8 clips and 3 runs, clean and 10 dB): all 12 rows still show a 0.0%
+fallback rate, 0.000 mean and 0.00 worst extra seconds and 100.0% identical runs, with 0.0% word error
+clean and 1.6% at 10 dB for every count and threshold, so the shipping plan stays.
+
 A second sweep on the same clips, noisier (`--counts 0 1 2 5 --snrs 20 5 0`, 3 runs, release build):
 
 | Audio | Count | Log-prob | Fallback rate | Mean extra s | Worst extra s | Identical | WER |

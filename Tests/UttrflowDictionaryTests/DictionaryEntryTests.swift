@@ -39,6 +39,80 @@ struct DictionaryEntryTests {
         #expect(entry(used: 3, reverted: 3).isTrustworthy == false)
     }
 
+    private func entry(_ origin: WordOrigin, used: Int, reverted: Int) -> DictionaryEntry {
+        DictionaryEntry(
+            word: "Uttrflow", origin: origin, firstSeen: noon, timesUsed: used, timesReverted: reverted)
+    }
+
+    /// The rule before the bound, kept to compare against: half the uses undone, once there are three.
+    private func halfRule(used: Int, reverted: Int) -> Bool {
+        used >= 3 && Double(reverted) / Double(used) >= 0.5
+    }
+
+    /// The use count at which a word whose undos arrive at `rate` retires, or nil within `limit` uses.
+    private func retirementUse(
+        rate: Double, limit: Int = 300, rule: (Int, Int) -> Bool
+    ) -> Int? {
+        for used in 1...limit {
+            let reverted = Int((rate * Double(used)).rounded(.down))
+            if rule(used, reverted) { return used }
+        }
+        return nil
+    }
+
+    /// A word wrong 30% of the time was kept for ever by the half rule.
+    @Test("a learned word undone well above the allowed rate retires before half its uses are undone")
+    func learnedRetiresBelowHalf() {
+        #expect(entry(.learned, used: 20, reverted: 9).isTrustworthy == false)
+        #expect(entry(.observed, used: 20, reverted: 9).isTrustworthy == false)
+        #expect(entry(.learned, used: 30, reverted: 12).isTrustworthy == false)
+        #expect(entry(.learned, used: 30, reverted: 9).isTrustworthy)
+        #expect(entry(.learned, used: 10, reverted: 2).isTrustworthy)
+    }
+
+    /// Undos by a person who typed the word in can be about something else.
+    @Test("a word the person typed in is not retired by a few undos")
+    func addedWordNeedsMuchMoreEvidence() {
+        #expect(entry(.added, used: 2, reverted: 2).isTrustworthy)
+        #expect(entry(.added, used: 4, reverted: 3).isTrustworthy)
+        #expect(entry(.added, used: 9, reverted: 9).isTrustworthy)
+        #expect(entry(.added, used: 10, reverted: 10).isTrustworthy == false)
+        #expect(entry(.added, used: 30, reverted: 24).isTrustworthy == false)
+        #expect(entry(.added, used: 30, reverted: 10).isTrustworthy)
+    }
+
+    @Test("a shipped word follows the same rule as a typed one")
+    func shippedWordNeedsMuchMoreEvidence() {
+        #expect(entry(.shipped, used: 4, reverted: 3).isTrustworthy)
+        #expect(entry(.shipped, used: 10, reverted: 10).isTrustworthy == false)
+    }
+
+    /// A retired word is hidden from correction, not deleted; the counters are all that changes.
+    @Test("retirement only reads the counters, so restoring clears it")
+    func retirementReadsCounters() {
+        var retired = entry(.learned, used: 6, reverted: 4)
+        #expect(retired.isTrustworthy == false)
+        retired.timesReverted = 0
+        #expect(retired.isTrustworthy)
+    }
+
+    /// The simulation the design asks for: each revert-rate profile against today's rule.
+    @Test("retires wrong words at 40% and 60% undone and keeps 5% and 20% for ever")
+    func simulatedRevertRateProfiles() throws {
+        for origin in [WordOrigin.learned, .observed] {
+            let rule: (Int, Int) -> Bool = {
+                !DictionaryEntry.isTrustworthy(origin: origin, used: $0, reverted: $1)
+            }
+            #expect(retirementUse(rate: 0.05, rule: rule) == nil)
+            #expect(retirementUse(rate: 0.20, rule: rule) == nil)
+            let at40 = retirementUse(rate: 0.40, rule: rule)
+            let at60 = retirementUse(rate: 0.60, rule: rule)
+            #expect(at40 != nil)
+            #expect(retirementUse(rate: 0.40, rule: halfRule) == nil)
+            #expect(try #require(at60) <= 10)
+        }
+    }
+
     @Test("round-trips through Codable with every field")
     func codable() throws {
         let original = DictionaryEntry(

@@ -5,7 +5,7 @@ import Testing
 
 @testable import UttrflowUX
 
-@Suite("The quick panel: rows are built once per open")
+@Suite("The quick panel: rows are built once per open", OwnPanelCache())
 struct PanelRowMemoTests {
     static let clips = (0..<5_000).map { PanelFixture.clip("clip number \($0)", minutesAgo: $0) }
 
@@ -13,18 +13,18 @@ struct PanelRowMemoTests {
     func arrowBuildsNothing() {
         var panel = PanelFixture.panel(Self.clips)
         _ = PanelPresenter.present(panel)
-        let opened = panel.rowMemo.builds
-        let visited = panel.rowMemo.rowVisits
-        let grouped = panel.rowMemo.groupBuilds
+        let opened = PanelCache.current.rowMemo.builds
+        let visited = PanelCache.current.rowMemo.rowVisits
+        let grouped = PanelCache.current.rowMemo.groupBuilds
         var page = PanelPresenter.present(panel)
         for _ in 0..<1_000 {
             panel = panel.applying(.down).state
             page = PanelPresenter.present(panel)
         }
         #expect(opened == 5_000)
-        #expect(panel.rowMemo.rowVisits == visited)
-        #expect(panel.rowMemo.groupBuilds == grouped)
-        #expect(panel.searchMemo.searchScans == 1)
+        #expect(PanelCache.current.rowMemo.rowVisits == visited)
+        #expect(PanelCache.current.rowMemo.groupBuilds == grouped)
+        #expect(PanelCache.current.searchMemo.searchScans == 1)
         #expect(page.rows.filter(\.isSelected).map(\.id) == [Self.clips[1_000].id])
     }
 
@@ -34,7 +34,7 @@ struct PanelRowMemoTests {
         let original = Clip(text: "original", kind: .text, copiedAt: openedAt)
         let panel = PanelFixture.panel([original])
         _ = PanelPresenter.present(panel)
-        let beforeRefresh = panel.rowMemo.builds
+        let beforeRefresh = PanelCache.current.rowMemo.builds
         let copiedAt = openedAt.addingTimeInterval(90)
         let refreshedAt = copiedAt.addingTimeInterval(1)
         let arrived = Clip(text: "just copied", kind: .text, copiedAt: copiedAt)
@@ -42,13 +42,13 @@ struct PanelRowMemoTests {
         refreshed.install(
             [arrived, original], missingImages: [], formattableLanguages: [], now: refreshedAt)
         _ = PanelPresenter.present(refreshed)
-        let afterRefresh = refreshed.rowMemo.builds
+        let afterRefresh = PanelCache.current.rowMemo.builds
 
         refreshed = refreshed.applying(.down).state
         _ = PanelPresenter.present(refreshed)
 
         #expect(afterRefresh - beforeRefresh == 2)
-        #expect(refreshed.rowMemo.builds == afterRefresh)
+        #expect(PanelCache.current.rowMemo.builds == afterRefresh)
     }
 
     @Test("the rows drawn after an arrow key are the rows a fresh panel draws")

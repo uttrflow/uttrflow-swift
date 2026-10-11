@@ -165,3 +165,109 @@ struct CachedSnapshotStorageTests {
         #expect(FileManager.default.fileExists(atPath: cache.snapshot.path))
     }
 }
+
+/// A cache root whose real path is its own, so the removal's path check passes.
+private func removalRoot() throws -> URL {
+    let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath()
+        .appending(path: "removal-cache-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    return root
+}
+
+@Suite("Removing a model's cached files")
+struct CachedSnapshotRemovalTests {
+    private let identifier = "example-org/removed-model"
+
+    private func repository(in root: URL) -> URL {
+        root.appending(path: "models--example-org--removed-model", directoryHint: .isDirectory)
+    }
+
+    @Test("A repository with snapshots and blobs is removed whole, and a missing one is left alone.")
+    func removesWholeRepository() throws {
+        let root = try removalRoot()
+        try CachedSnapshot.remove(identifier: identifier, in: root)
+        let blobs = repository(in: root).appending(path: "blobs")
+        try FileManager.default.createDirectory(at: blobs, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(
+            at: repository(in: root).appending(path: "snapshots"), withIntermediateDirectories: true)
+        try Data([1]).write(to: blobs.appending(path: "weight"))
+        try CachedSnapshot.remove(identifier: identifier, in: root)
+        #expect(!FileManager.default.fileExists(atPath: repository(in: root).path))
+    }
+
+    @Test("A repository without snapshots is removed too.")
+    func removesRepositoryWithoutSnapshots() throws {
+        let root = try removalRoot()
+        try FileManager.default.createDirectory(at: repository(in: root), withIntermediateDirectories: true)
+        try CachedSnapshot.remove(identifier: identifier, in: root)
+        #expect(!FileManager.default.fileExists(atPath: repository(in: root).path))
+    }
+
+    @Test("A repository that is a file, or has a file for snapshots, is not removed.")
+    func refusesUnexpectedLayouts() throws {
+        let file = try removalRoot()
+        try Data([1]).write(to: repository(in: file))
+        #expect(throws: (any Error).self) { try CachedSnapshot.remove(identifier: identifier, in: file) }
+        #expect(FileManager.default.fileExists(atPath: repository(in: file).path))
+
+        let snapshots = try removalRoot()
+        try FileManager.default.createDirectory(
+            at: repository(in: snapshots), withIntermediateDirectories: true)
+        try Data([1]).write(to: repository(in: snapshots).appending(path: "snapshots"))
+        #expect(throws: (any Error).self) {
+            try CachedSnapshot.remove(identifier: identifier, in: snapshots)
+        }
+    }
+
+    @Test(
+        "A cache reached through a link, or an identifier that is not a repository name, is refused or ignored."
+    )
+    func refusesLinkedCacheAndIgnoresBadIdentifier() throws {
+        let real = try removalRoot()
+        let linked = real.deletingLastPathComponent().appending(path: "link-\(UUID().uuidString)")
+        try link(linked, to: real.path)
+        #expect(throws: (any Error).self) { try CachedSnapshot.remove(identifier: identifier, in: linked) }
+        try CachedSnapshot.remove(identifier: "../escape", in: real)
+    }
+
+    @Test("A blob another repository's snapshot links to keeps the repository in place.")
+    func sharedBlobBlocksRemoval() throws {
+        let root = try removalRoot()
+        let blobs = repository(in: root).appending(path: "blobs")
+        try FileManager.default.createDirectory(at: blobs, withIntermediateDirectories: true)
+        try Data([1]).write(to: blobs.appending(path: "weight"))
+        let other = root.appending(
+            path: "models--other-org--model/snapshots/\(String(repeating: "d4", count: 20))")
+        try FileManager.default.createDirectory(at: other, withIntermediateDirectories: true)
+        try link(
+            other.appending(path: "model.safetensors"),
+            to: "../../../models--example-org--removed-model/blobs/weight")
+        #expect(throws: (any Error).self) { try CachedSnapshot.remove(identifier: identifier, in: root) }
+        #expect(FileManager.default.fileExists(atPath: blobs.appending(path: "weight").path))
+    }
+}
+
+@Suite("Reading a snapshot directory")
+struct CachedSnapshotListingTests {
+    @Test("A directory that cannot be listed has no weight files.")
+    func missingDirectoryHasNoWeights() throws {
+        let missing = try removalRoot().appending(path: "absent")
+        #expect(CachedSnapshot.weightFiles(in: missing) == nil)
+    }
+
+    @Test("Superseded snapshots stay when one cannot be removed.")
+    func unremovableSnapshotIsKept() throws {
+        let cache = try FakeCache.PinnedCache()
+        let old = try addStaleSnapshot(
+            to: cache, revision: String(repeating: "a4", count: 20), blobName: "old-weight")
+        try cache.addConfiguration()
+        try cache.add("model.safetensors", FakeCache.weights(bytes: 256))
+        let snapshots = old.snapshot.deletingLastPathComponent()
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: snapshots.path)
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: snapshots.path)
+        }
+        #expect(!removeSuperseded(cache))
+        #expect(FileManager.default.fileExists(atPath: old.snapshot.path))
+    }
+}

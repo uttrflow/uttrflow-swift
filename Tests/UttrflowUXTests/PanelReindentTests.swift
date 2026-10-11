@@ -105,7 +105,7 @@ struct PanelReindentTests {
 }
 
 /// Whether a clip can be re-indented is asked once per text, never again on each keystroke.
-@Suite("D4 · offering re-indent costs nothing per keystroke", OwnReindentMemo())
+@Suite("D4 · offering re-indent costs nothing per keystroke", OwnPanelCache())
 struct PanelReindentCostTests {
     /// Code clips that are each worth offering Re-indent for, new to the shared memo on every call.
     static func codeClips() -> [Clip] {
@@ -213,13 +213,13 @@ struct PanelReindentCostTests {
     }
 }
 
-/// Gives each test a re-indent memo of its own, so a parallel test installing its clip list cannot prune it.
-struct OwnReindentMemo: SuiteTrait, TestTrait, TestScoping {
+/// Gives each test a panel cache of its own, so a parallel test installing its clip list cannot prune it.
+struct OwnPanelCache: SuiteTrait, TestTrait, TestScoping {
     var isRecursive: Bool { true }
 
     func provideScope(
         for test: Test, testCase: Test.Case?, performing function: @Sendable () async throws -> Void
     ) async throws {
-        try await ReindentOffers.$shared.withValue(ReindentOffers()) { try await function() }
+        try await PanelCache.$current.withValue(PanelCache()) { try await function() }
     }
 }

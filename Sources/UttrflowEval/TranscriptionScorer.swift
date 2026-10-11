@@ -3,6 +3,9 @@ public import UttrflowCore
 
 /// Scores one transcript by the edits needed to repair it; ``Scorer`` scores rewrites by overlap.
 public enum TranscriptionScorer {
+    package static let outputNormalisation = RomanisedVariants.scoringIdentity
+    private static let variantWords = Set(RomanisedVariants.words)
+
     /// Scores `transcript` against `passage` under `normaliser`; `stages` and `cohortID` ride on the score.
     public static func score(
         _ transcript: String,
@@ -48,7 +51,8 @@ public enum TranscriptionScorer {
             recordID: recordID,
             outputWordErrorRate: outputRate(
                 transcript, answeredIn: answeredIn, against: passage, normaliser: normaliser),
-            properNouns: properNouns(of: passage, normaliser: normaliser)
+            properNouns: properNouns(of: passage, normaliser: normaliser),
+            outputNormalisation: answeredIn == .devanagari ? outputNormalisation : nil
         )
     }
 
@@ -58,15 +62,21 @@ public enum TranscriptionScorer {
         return Array(Set(names.flatMap { normaliser.words($0.word) })).sorted()
     }
 
-    /// Scores the romanised text the user receives against the Latin reference, by exact spelling.
+    /// Scores the romanised text the user receives against the Latin reference, through the attested variant table.
     private static func outputRate(
         _ transcript: String, answeredIn: Script, against passage: TranscriptionCase,
         normaliser: TextNormaliser
     ) -> WordErrorRate? {
         guard answeredIn == .devanagari, let latin = passage.reference(in: .latin) else { return nil }
         return .measure(
-            reference: normaliser.words(latin),
-            hypothesis: normaliser.words(LatinScript.enforced(transcript)))
+            reference: normaliser.words(latin).map(outputWord),
+            hypothesis: normaliser.words(LatinScript.enforced(transcript)).map(outputWord))
+    }
+
+    private static func outputWord(_ word: String) -> String {
+        guard word.allSatisfy({ $0.isASCII && $0.isLetter }) else { return word }
+        let key = Romaniser.soundKey(word)
+        return variantWords.contains(key) ? key : word
     }
 
     /// Picks the reference form matching the transcript's script, transliterating only as a last resort.

@@ -301,6 +301,59 @@ struct CorrectionEngineTests {
         #expect(large.screens == 1, "the screen is read once per utterance, not once per doubted run")
     }
 
+    // MARK: A pass over a seam
+
+    /// `blocks` runs of "x m l" and filler either side of one "s q l"; the seam falls inside the "s q l".
+    private func seamed(blocks: Int) -> (utterance: Utterance, seam: Int) {
+        let block = "?x ?m ?l now then soon"
+        let before = Array(repeating: block, count: blocks / 2).joined(separator: " ")
+        let after = Array(repeating: block, count: blocks - blocks / 2).joined(separator: " ")
+        let utterance = CorrectionFixtures.spoken("\(before) ?s ?q ?l \(after)")
+        return (utterance, (blocks / 2) * 6 + 1)
+    }
+
+    /// Counted rather than timed, so load cannot fail it. The seam pass answers a local question.
+    @Test("a pass over one seam reads the same entries however long the dictation is")
+    func seamPassCostIsLocal() {
+        func read(blocks: Int, restricted: Bool) -> (proposals: [WordCorrection], entries: Int) {
+            let (utterance, seam) = seamed(blocks: blocks)
+            let tally = WorkTally()
+            var budget = CorrectionBudget()
+            let verdict = PhoneticIndex.$entriesRead.withValue(tally) {
+                engine.verdict(
+                    for: utterance, against: index, spending: &budget, hearing: 0,
+                    considering: { !restricted || ($0.lowerBound < seam && $0.upperBound > seam) })
+            }
+            return (verdict.proposals, tally.count)
+        }
+        let short = read(blocks: 24, restricted: true)
+        let long = read(blocks: 60, restricted: true)
+        #expect(short.entries > 0)
+        #expect(long.entries == short.entries, "the seam pass costs the windows, not the text")
+        #expect(read(blocks: 60, restricted: false).entries > long.entries)
+    }
+
+    /// Weighing fewer runs must not change what the seam pass keeps.
+    @Test("restricting the pass to a seam keeps exactly the proposals that cross it")
+    func restrictedPassEqualsFilteredPass() {
+        for blocks in [2, 24, 60] {
+            let (utterance, seam) = seamed(blocks: blocks)
+            func crosses(_ range: Range<Int>) -> Bool { range.lowerBound < seam && range.upperBound > seam }
+            var whole = CorrectionBudget()
+            let everything = engine.verdict(
+                for: utterance, against: index, spending: &whole, hearing: utterance.words.count)
+            var narrow = CorrectionBudget()
+            let restricted = engine.verdict(
+                for: utterance, against: index, spending: &narrow, hearing: utterance.words.count,
+                considering: crosses)
+            #expect(!everything.proposals.isEmpty)
+            #expect(
+                restricted.proposals.filter { crosses($0.wordRange) }
+                    == everything.proposals.filter { crosses($0.wordRange) })
+            #expect(restricted.proposals.allSatisfy { crosses($0.wordRange) })
+        }
+    }
+
     // MARK: Housekeeping
 
     @Test("an empty utterance is nothing to correct")

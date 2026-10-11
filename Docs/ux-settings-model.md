@@ -1,8 +1,9 @@
 # The settings screen's model
 
 Why the choices on the Settings page are shaped the way they are. The choices are in
-`Sources/UttrflowUX/SettingsChoices.swift`, what each tab shows in `SettingsPresenter.swift`, how a
-change is applied in `SettingsEditor.swift`, and what a reset removes in `SettingsReset.swift`; the
+`Sources/UttrflowUX/SettingsChoices.swift`, what each tab shows in `SettingsPresenter.swift`, how
+local-store usage rows are rendered in `SettingsPresenter+Storage.swift`, how a change is applied in
+`SettingsEditor.swift`, and what a reset removes in `SettingsReset.swift`; the
 stored values are `Settings` in `Sources/UttrflowSettings/SettingsStore.swift`. How the controls are
 drawn is in [`app-settings-controls.md`](app-settings-controls.md).
 
@@ -19,10 +20,10 @@ always runs. Offering an "off" would promise a state the pipeline has no way to 
 
 ## One copy for the tidying row
 
-`SettingsTidyingLevel.rowLabel` ("How much Uttrflow tidies") and `.rowExplanation` are held on the
+`SettingsTidyingLevel.rowLabel` ("How much clean-up") and `.rowExplanation` are held on the
 type, and `SettingsPresenter.tidyingRow` is the one row every screen draws, so the level has one
 wording everywhere; two wordings of one setting read as two settings. The row is on the Languages
-tab, in the "Tidying up" group, above the example that shows the level in force.
+tab, in the "Clean-up" group, above the example that shows the level in force.
 
 ## The preference order is normalised, not trusted
 
@@ -105,3 +106,17 @@ The dictation tab warns only when Fn is the shortcut, because it is the only key
 plans for. Uttrflow watches Fn rather than registering it (nothing can register a modifier), and
 watching cannot stop the emoji picker or Apple's own dictation opening on the same press. The
 warning tells the user to set System Settings → Keyboard → "Press 🌐 key to" to Do Nothing.
+
+## Glossary for strings people read
+
+Product names come from the Names table in `Docs/agents/product.md`; internal type and module names
+keep their own spelling.
+
+| Say | Not | Where |
+|---|---|---|
+| dictation, for a saved set of words | transcript | shortcut labels, retention row, storage list, reset counts |
+| clean-up, for the processing step | tidying, tidying up, the tidier | group and row titles, diagnostics stages, notices, errors |
+| cleaning up, for the working status | tidying up | menu bar, floating button, wait line |
+
+The clean-up level is edited in one place, Languages. The Dictation tab lists the clean-up steps
+and the level's explanation points to them, so no preference has two editable copies.

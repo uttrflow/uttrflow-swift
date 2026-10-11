@@ -455,16 +455,27 @@ struct PasteboardWatcherTests {
         let clipboard = FakeClipboard()
         let watcher = watcher(clipboard)
         clipboard.write(nil, html: String(repeating: "<ul><li>x", count: 200_000))
-        let clock = ContinuousClock()
-        let start = clock.now
 
         let clip = try #require(await watcher.newClip(at: noon)?.clip)
 
-        #expect(start.duration(to: clock.now) < .seconds(5))
         #expect(!clip.text.isEmpty)
         #expect(clip.text.utf8.count <= ClipboardBudget.standard.largestClip)
         #expect(clip.text.hasSuffix("…"))
         #expect(clip.richText == nil)
+    }
+
+    /// The time bound on the same copy runs in `make bench`, since a parallel test run cannot keep a wall-clock limit honest.
+    @Test("a deeply nested HTML copy is read within five seconds")
+    func deeplyNestedHTMLStaysFast() async throws {
+        let clipboard = FakeClipboard()
+        let watcher = watcher(clipboard)
+        clipboard.write(nil, html: String(repeating: "<ul><li>x", count: 200_000))
+        let clock = ContinuousClock()
+        let start = clock.now
+
+        _ = await watcher.newClip(at: noon)
+
+        #expect(start.duration(to: clock.now) < .seconds(5))
     }
 
     @Test("uses the watcher's output limit and keeps the bounded plain form")

@@ -2,14 +2,14 @@
 private import Foundation
 
 /// Changes the speaking rate of a clip without changing its pitch (waveform-similarity overlap-add).
-public enum TimeStretch {
+enum TimeStretch {
     /// Analysis window length in seconds.
     static let windowSeconds = 0.04
     /// How far either way the next window may move to line up with the last, in seconds.
     static let searchSeconds = 0.015
 
     /// `samples` played `rate` times as fast with the pitch kept; the result holds `samples.count / rate` samples.
-    public static func stretched(_ samples: [Float], sampleRate: Int, rate: Double) -> [Float] {
+    static func stretched(_ samples: [Float], sampleRate: Int, rate: Double) -> [Float] {
         guard rate > 0, rate.isFinite, sampleRate > 0, !samples.isEmpty, rate != 1 else { return samples }
         let window = max(8, (Int(windowSeconds * Double(sampleRate)) / 2) * 2)
         let hop = window / 2
@@ -87,9 +87,9 @@ public enum TimeStretch {
 }
 
 /// Changes the pitch of a clip without changing its length.
-public enum PitchShift {
+enum PitchShift {
     /// `samples` with every pitch moved by `semitones` and the length kept (stretch, then resample).
-    public static func shifted(_ samples: [Float], sampleRate: Int, semitones: Double) -> [Float] {
+    static func shifted(_ samples: [Float], sampleRate: Int, semitones: Double) -> [Float] {
         guard semitones != 0, semitones.isFinite, !samples.isEmpty else { return samples }
         let ratio = pow(2, semitones / 12)
         let slowed = TimeStretch.stretched(samples, sampleRate: sampleRate, rate: 1 / ratio)
@@ -107,9 +107,9 @@ public enum SpeechVariant: Sendable, Equatable, CustomStringConvertible {
     case pitch(Double)
 
     /// The speaking-rate factors of the sweep; 1.0 is the reference.
-    public static let rateFactors: [Double] = [0.7, 0.85, 1.3, 1.6, 1.9]
+    static let rateFactors: [Double] = [0.7, 0.85, 1.3, 1.6, 1.9]
     /// The pitch shifts of the sweep, in semitones.
-    public static let pitchSemitones: [Double] = [-4, -2, 2, 4, 6]
+    static let pitchSemitones: [Double] = [-4, -2, 2, 4, 6]
 
     /// Every condition the sweep replays a passage under, the original first.
     public static let sweep: [SpeechVariant] =

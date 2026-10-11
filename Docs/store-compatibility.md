@@ -47,3 +47,20 @@ that holds the persona, and the table at the end says how far it meets each rule
 | Projections (`netUses`, style rates, spelling and pair preferences) | recomputable | summed from the rows on every read |
 
 Ledger rows follow the History retention window ([learned-state.md](learned-state.md#where-the-ledger-lives)).
+
+## Counts follow the revision that produced them
+
+A count is an observation of the recogniser, prompt and word list that heard the dictation, so it
+means nothing under another set. Each learned store that keeps such counts records the
+`LearningRevision` they came from beside the file (the dictionary's is `dictionary.v1.produced.json`).
+
+1. **Choices stay.** Words, pronunciations, scopes and refusals are the person's and survive a revision change.
+2. **Observations follow their revision.** On a change, the counts of the revision being left are
+   set aside and every word starts counting afresh; a word the old model could not hear then needs no help.
+3. **A return restores.** Going back to a revision brings its counts back, so a downgrade never writes
+   counts under the newer revision and loses nothing. The last three revisions are kept.
+4. **Retirement restarts with the counts.** An undo-heavy word is retired from its counts, so it is
+   offered again until the new revision shows otherwise.
+5. **An unreadable record leaves counts alone** and refuses, as rule 5 above does.
+
+`PersonalDictionaryStore.settle(under:)` applies this; `LearningRevisionTests` holds the check.

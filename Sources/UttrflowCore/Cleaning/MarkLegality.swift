@@ -36,7 +36,8 @@ public enum MarkLegality {
     public static func state(of token: String) -> TokenState {
         let shape = WordShape(token)
         guard shape.core.contains(where: { $0.isLetter || $0.isNumber }) else { return .symbol }
-        if shape.suffix.last.map(closers.contains) == true { return .closer }
+        // A stop after the closer, as in "(a).", leaves the word closed rather than reading its core on its own.
+        if shape.suffix.contains(where: closers.contains) { return .closer }
         if shape.core.allSatisfy({ $0.isNumber || $0 == "." || $0 == "," }) { return .number }
         if TechnicalToken.classify(token) != nil { return .technical }
         if let kind = Abbreviations.kind(of: shape.core), kind != .initial {
