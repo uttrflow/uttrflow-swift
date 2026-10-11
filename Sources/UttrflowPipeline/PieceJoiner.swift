@@ -150,6 +150,7 @@ enum PieceJoiner {
     /// The destination's piece passes that read several words as one unit, the ones a cut can split.
     private static let unitReaders: Set<PassID> = [
         .spokenPunctuation, .numberForms, .codeEditorCommands, .spokenCasing,
+        .markdownContinuation,
     ]
 
     /// Attaches standalone spoken marks to adjacent words across piece boundaries.
