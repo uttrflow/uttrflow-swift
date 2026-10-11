@@ -64,7 +64,7 @@ public enum PanelSheet: Sendable, Equatable {
     }
 
     /// Whether this is a paste question, which only means something at once.
-    public var isPasteQuestion: Bool {
+    var isPasteQuestion: Bool {
         if case .confirmingPaste = self { return true }
         return false
     }
