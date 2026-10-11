@@ -29,6 +29,11 @@ public struct DigitStringBaseline: Sendable, Equatable, Codable {
         guard measured.label == label else {
             return .failure(Incomparable(reason: "measured \"\(measured.label)\", baseline \"\(label)\""))
         }
+        guard Set(shapes.map(\.shape)).count == shapes.count,
+            Set(measured.shapes.map(\.shape)).count == measured.shapes.count
+        else {
+            return .failure(Incomparable(reason: "shape names must be unique in each digit-string report"))
+        }
         let before = Dictionary(uniqueKeysWithValues: shapes.map { ($0.shape, $0) })
         guard measured.shapes.map(\.shape) == shapes.map(\.shape),
             measured.shapes.allSatisfy({ before[$0.shape]?.cases == $0.cases })
