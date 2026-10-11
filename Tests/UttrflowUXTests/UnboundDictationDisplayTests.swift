@@ -34,6 +34,18 @@ struct UnboundDictationDisplayTests {
         #expect(page.command(.startDictation) != nil)
     }
 
+    @Test(
+        "The legacy hint fallback stays hidden for either activation",
+        arguments: [
+            HotkeyActivation.holdToTalk, .pressToToggle,
+        ])
+    func legacyHint(_ activation: HotkeyActivation) {
+        let state = MenuBarState(shortcuts: unbound.shortcuts, activation: activation)
+        let fallback = MenuBarPresenter.hint(for: state)
+        #expect(fallback.keys == "fn")
+        #expect(MenuBarPresenter.present(state).header != .hint(fallback))
+    }
+
     @Test("Home removes the complete shortcut instruction and retains its direct action")
     func home() {
         let page = HistoryFixture.home(shortcut: SettingsShortcut.compact(unbound.hotkey), settings: unbound)

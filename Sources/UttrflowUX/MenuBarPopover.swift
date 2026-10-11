@@ -238,9 +238,9 @@ extension MenuBarPresenter {
         }
     }
 
-    /// The talk hint with the shortcut the user actually bound.
+    /// The legacy talk hint; the header draws it only for a bound shortcut.
     static func hint(for state: MenuBarState) -> MenuBarHint {
-        let binding = state.shortcuts.first(for: .dictate)
+        let binding = state.shortcuts.first(for: .dictate) ?? .functionHold
         return MenuBarHint(
             verb: state.activation == .holdToTalk ? "hold" : "press",
             keys: SettingsShortcut.compact(binding))
