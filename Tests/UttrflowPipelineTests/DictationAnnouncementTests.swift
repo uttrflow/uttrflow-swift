@@ -221,7 +221,8 @@ struct DictationAnnouncementTests {
             #expect(
                 said.withLock { $0 }
                     == (audible
-                        ? [] : [DictationAnnouncement(text: "Dictation ends in 4 seconds.", isUrgent: false)]))
+                        ? [] : [DictationAnnouncement(text: "Dictation ends in 4 seconds.", isUrgent: false)])
+            )
         }
     }
 
