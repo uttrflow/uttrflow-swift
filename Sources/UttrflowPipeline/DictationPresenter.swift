@@ -105,11 +105,15 @@ public enum DictationPresenter {
     /// `waited` is the time since key release, which names the stage once the wait runs long.
     public static func dock(
         for state: DictationState, advice: DictationAdvice = .keepGoing,
-        stopGesture: StopGesture = .letGo, heardSoFar: String? = nil, waited: Duration = .zero
+        stopGesture: StopGesture = .letGo, heardSoFar: String? = nil, waited: Duration = .zero,
+        silenceSecondsLeft: Int? = nil
     ) -> DockPresentation {
         switch state {
         case .idle: .notice("mic", nil, nil, label: "Uttrflow. Ready to listen.")
-        case .recording: listening(advice: advice, stopGesture: stopGesture, heardSoFar: heardSoFar)
+        case .recording:
+            listening(
+                advice: advice, stopGesture: stopGesture, heardSoFar: heardSoFar,
+                silenceSecondsLeft: silenceSecondsLeft)
         // One animation throughout; the line names the stage only once the wait has run long.
         case .transcribing, .tidying, .inserting:
             working(WaitLine.stage(of: state, waited: waited), waited: waited)
@@ -122,9 +126,13 @@ public enum DictationPresenter {
 
     /// The lit microphone, saying what to do rather than what is happening, since the waveform already says it.
     static func listening(
-        advice: DictationAdvice, stopGesture: StopGesture, heardSoFar: String?
+        advice: DictationAdvice, stopGesture: StopGesture, heardSoFar: String?,
+        silenceSecondsLeft: Int? = nil
     ) -> DockPresentation {
-        let remaining = RemainingTime.phrase(for: advice)
+        // The quiet about to end the recording is sooner than the cap, so it is said first.
+        let remaining =
+            silenceSecondsLeft.map { SilenceStop.phrase(secondsLeft: $0) }
+            ?? RemainingTime.phrase(for: advice)
         let prefix = stopGesture.recordingAccessibilityPrefix
         return .listening(
             stopGesture.recordingLine,
@@ -202,10 +210,11 @@ public enum DictationPresenter {
     public static func dock(
         for state: DictationState, advice: DictationAdvice = .keepGoing, speechModel: SpeechModelLoad?,
         download: Double? = nil, stopGesture: StopGesture = .letGo, heardSoFar: String? = nil,
-        waited: Duration = .zero
+        waited: Duration = .zero, silenceSecondsLeft: Int? = nil
     ) -> DockPresentation {
         let drawn = dock(
-            for: state, advice: advice, stopGesture: stopGesture, heardSoFar: heardSoFar, waited: waited)
+            for: state, advice: advice, stopGesture: stopGesture, heardSoFar: heardSoFar, waited: waited,
+            silenceSecondsLeft: silenceSecondsLeft)
         if case .idle = state, let download { return resting(downloading: download) }
         guard let load = speechModel else { return drawn }
         switch state {

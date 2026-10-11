@@ -222,6 +222,11 @@ needs only the gesture that starts a dictation.
   [`silence.md`](silence.md#the-quiet-after-the-last-word).
 - **It is watched with the cap**, under the same generation, so every path that stops the cap
   stops it too: a finish, Escape, a change of mode, the session ending. Escape still discards.
+- **It counts down from the same poll.** Once the quiet passes half the wait, the dock's second
+  line reads "Ending in N sec" (`SilenceStop.secondsLeft`); speech clears it, and so does any stop.
+  It is said once per countdown through `DictationWarningReporter.reportSilence`: the warning cue
+  when audible, words otherwise. It is separate from the cap's countdown, which rounds to ten
+  seconds. A held key shows none.
 - A changed choice applies from the next dictation.
 
 ## The cue

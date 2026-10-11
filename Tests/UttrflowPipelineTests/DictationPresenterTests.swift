@@ -502,6 +502,22 @@ struct HeardSoFarPresentationTests {
         #expect(DictationPresenter.dock(for: .recording, heardSoFar: nil) == plain)
     }
 
+    @Test("the dock counts down the quiet before End on silence ends the recording, for each wait")
+    func dockCountsDownTheSilence() throws {
+        for wait in SilenceStop.choices {
+            let stop = try #require(SilenceStop(seconds: wait))
+            let left = try #require(stop.secondsLeft(afterQuiet: .seconds(Double(wait) - 0.5)))
+            let dock = DictationPresenter.dock(
+                for: .recording, heardSoFar: "alpha", silenceSecondsLeft: left)
+            #expect(dock.primaryLine == "Let go to finish")
+            #expect(dock.secondaryLine == "Ending in \(left) sec")
+            #expect(dock.accessibilityLabel.contains("Ending in \(left) sec"))
+        }
+        #expect(
+            DictationPresenter.dock(for: .recording, silenceSecondsLeft: nil)
+                == DictationPresenter.dock(for: .recording))
+    }
+
     @Test("the words are drawn only while recording")
     func onlyWhileRecording() {
         for state in [DictationState.idle, .transcribing, .tidying] {

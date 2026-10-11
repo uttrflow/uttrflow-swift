@@ -173,6 +173,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// How the recording in progress is going against ``DictationLimit``.
     private var recordingAdvice: DictationAdvice = .keepGoing
+    private var silenceSecondsLeft: Int?
     /// The finished pieces' words while the key is held, drawn under the recording line.
     private var heardSoFar: String?
     private var heardTask: Task<Void, Never>?
@@ -782,7 +783,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         return DictationPresenter.dock(
             for: state, advice: recordingAdvice, speechModel: speechModelLoad,
             download: speechReadiness.download, stopGesture: recordingStopGesture,
-            heardSoFar: heardSoFar, waited: waitStarted.map { $0.duration(to: .now) } ?? .zero)
+            heardSoFar: heardSoFar, waited: waitStarted.map { $0.duration(to: .now) } ?? .zero,
+            silenceSecondsLeft: silenceSecondsLeft)
     }
 
     /// Asks each clean-up engine whether it could run, so Diagnostics has an answer to show; the task ends once it has.
@@ -1579,6 +1581,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     Task { @MainActor in self?.recordingAdviceChanged(to: advice) }
                 },
                 onWarning: reportWarning.report,
+                onSilenceCountdown: { [weak self] secondsLeft in
+                    Task { @MainActor in self?.silenceCountdownChanged(to: secondsLeft) }
+                },
+                onSilenceWarning: reportWarning.reportSilence,
                 onNearMissTap: { [weak self] in
                     Task { @MainActor in self?.announce(DictationPresenter.nearMissTapAnnouncement) }
                 },
@@ -1597,6 +1603,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         guard advice != recordingAdvice else { return }
         recordingAdvice = advice
         refreshMenuBar()
+        dock.update(with: dockPresentation(for: lastDictationState))
+    }
+
+    /// Redraws the floating button as End on silence counts down, or stops.
+    private func silenceCountdownChanged(to secondsLeft: Int?) {
+        guard secondsLeft != silenceSecondsLeft else { return }
+        silenceSecondsLeft = secondsLeft
         dock.update(with: dockPresentation(for: lastDictationState))
     }
 
@@ -2912,6 +2925,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // Cleared as soon as the recording ends, so a countdown cannot outlive it.
         if !state.isListening {
             recordingAdvice = .keepGoing
+            silenceSecondsLeft = nil
             recordingStopGesture = .letGo
         }
         menuBar.update(with: MenuBarPresenter.present(menuBarState(for: state)))

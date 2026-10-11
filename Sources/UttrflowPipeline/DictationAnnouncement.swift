@@ -100,6 +100,15 @@ public struct DictationWarningReporter: Sendable {
         self.announce = announce
     }
 
+    /// The warning cue when it is heard and the words otherwise, once as End on silence starts counting down.
+    public func reportSilence(secondsLeft: Int) {
+        let heard = cue.isAudible
+        cue.playWarning()
+        guard !heard else { return }
+        announce(
+            DictationAnnouncement(text: SilenceStop.sentence(secondsLeft: secondsLeft), isUrgent: false))
+    }
+
     /// Plays the distinct warning cue, and speaks the remaining time only when that cue is not heard.
     public func report(_ advice: DictationAdvice) {
         guard let announcement = DictationPresenter.warningAnnouncement(for: advice) else { return }

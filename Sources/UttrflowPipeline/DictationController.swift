@@ -31,6 +31,8 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     private var endOnSilence: SilenceStop?
     /// Listens for that quiet, under the same generation as the cap.
     private var silenceTask: Task<Void, Never>?
+    /// The seconds the dock is showing before End on silence ends the recording, if it is.
+    private var silenceSecondsLeft: Int?
     /// The last finished dictation's recognition and insertion, which run off the queue. See Docs/pipeline-gestures.md.
     private var processing: Task<Void, Never>?
 
@@ -77,6 +79,8 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         case limitReached(Int)
         /// This generation of dictation has been quiet for the chosen wait.
         case silenceReached(Int)
+        /// This generation of dictation has this many seconds of quiet left before it ends, or none once speech resets it.
+        case silenceCountdown(Int, Int?)
         /// The active session is ending, so an open dictation finishes before control leaves the user.
         case sessionEnding(CheckedContinuation<Void, Never>)
         /// Answered once the queue reaches it, whatever is still being processed.
@@ -90,7 +94,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
             case .drained(let handled), .reached(let handled),
                 .activation(_, let handled), .handsFree(_, let handled), .sessionEnding(let handled):
                 handled.resume()
-            case .key, .settled, .limitReached, .silenceReached: break
+            case .key, .settled, .limitReached, .silenceReached, .silenceCountdown: break
             }
         }
     }
@@ -131,6 +135,10 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         public var onAdvice: @Sendable (DictationAdvice) -> Void
         /// Told once when a dictation first reaches its warning point.
         public var onWarning: @Sendable (DictationAdvice) -> Void
+        /// Told the seconds left before End on silence finishes a recording, and `nil` once the quiet ends or the recording does.
+        public var onSilenceCountdown: @Sendable (Int?) -> Void
+        /// Told once per countdown, with the seconds left when it began.
+        public var onSilenceWarning: @Sendable (Int) -> Void
         /// Told when a tap lands after the double-tap window but within twice it, so the miss is not silent.
         public var onNearMissTap: @Sendable () -> Void
         /// Told when the gesture that ends a recording changes, so the dock can say so even mid-recording.
@@ -139,11 +147,15 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         public init(
             onAdvice: @escaping @Sendable (DictationAdvice) -> Void = { _ in },
             onWarning: @escaping @Sendable (DictationAdvice) -> Void = { _ in },
+            onSilenceCountdown: @escaping @Sendable (Int?) -> Void = { _ in },
+            onSilenceWarning: @escaping @Sendable (Int) -> Void = { _ in },
             onNearMissTap: @escaping @Sendable () -> Void = {},
             onStopGestureChange: @escaping @Sendable (StopGesture) -> Void = { _ in }
         ) {
             self.onAdvice = onAdvice
             self.onWarning = onWarning
+            self.onSilenceCountdown = onSilenceCountdown
+            self.onSilenceWarning = onSilenceWarning
             self.onNearMissTap = onNearMissTap
             self.onStopGestureChange = onStopGestureChange
         }
@@ -227,6 +239,8 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
             await finishAtTheLimit(generation)
         case .silenceReached(let generation):
             await finishOnSilence(generation)
+        case .silenceCountdown(let generation, let secondsLeft):
+            silenceCountdownChanged(to: secondsLeft, generation: generation)
         case .sessionEnding(let handled):
             await finishForSessionEnding()
             answer(handled)
@@ -721,10 +735,24 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         }
         silenceTask = endOnSilence.map { stop in
             Task { [pipeline, clock, gestureSink] in
-                do { try await pipeline.silence(reaching: stop, on: clock) } catch { return }
+                do {
+                    try await pipeline.silence(reaching: stop, on: clock) {
+                        gestureSink.yield(.silenceCountdown(generation, $0))
+                    }
+                } catch { return }
                 gestureSink.yield(.silenceReached(generation))
             }
         }
+    }
+
+    /// Passes the countdown on while the silence watch is the only thing that can end the recording; a held key outranks it.
+    private func silenceCountdownChanged(to secondsLeft: Int?, generation: Int) {
+        guard generation == limitGeneration, silenceTask != nil else { return }
+        let shown = currentStopGesture == .letGo ? nil : secondsLeft
+        guard shown != silenceSecondsLeft else { return }
+        if let shown, silenceSecondsLeft == nil { observers.onSilenceWarning(shown) }
+        silenceSecondsLeft = shown
+        observers.onSilenceCountdown(shown)
     }
 
     /// Ends a recording that fell quiet the way its stop gesture would; one a key still holds is left to the key.
@@ -758,6 +786,10 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         limitTask = nil
         silenceTask?.cancel()
         silenceTask = nil
+        if silenceSecondsLeft != nil {
+            silenceSecondsLeft = nil
+            observers.onSilenceCountdown(nil)
+        }
         observers.onAdvice(.keepGoing)
     }
 
