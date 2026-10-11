@@ -907,3 +907,25 @@ struct SettingsSuggestionsTests {
         #expect(try decode(#"{"contextLevelOverrides": 3}"#).contextLevelOverrides == .none)
     }
 }
+
+/// Whether a hidden clip's paste asks first is on until the user turns it off.
+@Suite("Confirming hidden clip pastes")
+struct HiddenClipConfirmationSettingTests {
+    @Test("it is on by default and when an older file lacks it")
+    func defaultsOn() throws {
+        #expect(Settings.default.confirmsHiddenClipPaste)
+        let older = try JSONDecoder().decode(Settings.self, from: Data("{}".utf8))
+        #expect(older.confirmsHiddenClipPaste)
+    }
+
+    @Test("turning it off survives a round trip")
+    func roundTrips() throws {
+        var settings = Settings.default
+        settings.confirmsHiddenClipPaste = false
+
+        let data = try JSONEncoder().encode(settings)
+        let decoded = try JSONDecoder().decode(Settings.self, from: data)
+
+        #expect(!decoded.confirmsHiddenClipPaste)
+    }
+}

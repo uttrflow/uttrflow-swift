@@ -35,7 +35,7 @@ public enum SentenceBoundaryEvidence {
     /// "without any. changes", "walked through. the old town": the last word's class, read with the next words, leads on into them.
     private static func leadsIntoNext(_ previous: [WordShape], _ following: [WordShape]) -> Bool {
         guard let last = previous.last, let first = following.first else { return false }
-        if neverLast.contains(last.key) { return true }
+        if MarkLegality.verdict(.stop, after: last.core) == .illegal { return true }
         let clauseEnd = following.firstIndex(where: \.endsSentence).map { $0 + 1 } ?? following.count
         let fragment = following.prefix(clauseEnd)
         let tags = LexicalClass.tags(
@@ -239,7 +239,6 @@ public enum SentenceBoundaryEvidence {
 
     private static let determiners = FunctionWords.boundaryDeterminers
     /// Words the tagger reads as a preposition, subordinator or adverb either way, which cannot close a sentence as a particle can ("move on", "let it through").
-    private static let neverLast = FunctionWords.neverLast
     private static let neverFronted = FunctionWords.neverFronted
     private static let clauseSubjects = QuestionShape.subjects.union(["nobody", "nothing"])
     private static let imperativeObjects = FunctionWords.imperativeObjects
