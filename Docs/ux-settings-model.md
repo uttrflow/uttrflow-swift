@@ -7,6 +7,9 @@ local-store usage rows are rendered in `SettingsPresenter+Storage.swift`, how a 
 stored values are `Settings` in `Sources/UttrflowSettings/SettingsStore.swift`. How the controls are
 drawn is in [`app-settings-controls.md`](app-settings-controls.md).
 
+Shortcut rows, activation choices and hands-free presentation are assembled in
+`SettingsPresenter+Shortcuts.swift`.
+
 ## Outcomes, not engines
 
 `SettingsTidyingLevel` is stated as an outcome (how much help), never as a list of
