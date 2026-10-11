@@ -1,6 +1,5 @@
 {
   "files": {
-    "Sources/UttrflowAI/ConfusionCost.swift": 1,
     "Sources/UttrflowAI/GuardSurvival.swift": 1,
     "Sources/UttrflowAI/MeaningPreservationGuard.swift": 2,
     "Sources/UttrflowAI/NotationEvidence.swift": 1,
@@ -26,7 +25,7 @@
     "Sources/UttrflowContext/FocusedWindowRead.swift": 1,
     "Sources/UttrflowContext/ShellPrompt.swift": 1,
     "Sources/UttrflowContext/Surroundings.swift": 2,
-    "Sources/UttrflowCore/Cleaning/QuestionShape.swift": 23,
+    "Sources/UttrflowCore/Cleaning/QuestionShape.swift": 19,
     "Sources/UttrflowCore/Cleaning/Restatement.swift": 5,
     "Sources/UttrflowCore/Cleaning/ReviewTag.swift": 2,
     "Sources/UttrflowCore/Cleaning/SentenceBoundaryEvidence.swift": 6,
@@ -43,7 +42,6 @@
     "Sources/UttrflowCore/Secrets/PathShape.swift": 1,
     "Sources/UttrflowCore/Secrets/SecretScanners.swift": 1,
     "Sources/UttrflowCore/Secrets/SecretShapes.swift": 1,
-    "Sources/UttrflowEval/ErrorClass.swift": 1,
     "Sources/UttrflowEval/FitTable.swift": 1,
     "Sources/UttrflowEval/GenreCorpus.swift": 4,
     "Sources/UttrflowEval/NumberGrammarScore.swift": 1,
@@ -76,5 +74,5 @@
     "Sources/uttrflow-eval/ClosedPhraseMarksProbe.swift": 4,
     "Sources/uttrflow-eval/SpokenClips.swift": 2
   },
-  "total": 243
+  "total": 237
 }
