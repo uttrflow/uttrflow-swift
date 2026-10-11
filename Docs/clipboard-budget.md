@@ -33,6 +33,12 @@ the others; a test checks the tiers against the ceiling (`ClipboardBudgetTests`)
 thumbnail is decoded at 68 pixels (`PanelThumbnails.maxPixel`), 68 × 68 × 4 bytes, about 18 KB,
 so 32 MB is roughly eighteen hundred of them.
 
+Thumbnail cache reads do not request a decode. `PanelThumbnails.prepare` starts or joins the
+request, and `waitForIdle` awaits its cache publication. `PanelThumbnailRequestTests` checks this
+boundary in 50 independent repetitions with the source held open: repeated prepares and reads
+before and after completion make exactly one request at `PanelThumbnails.maxPixel`. The fixture
+uses generated pixels, so it proves request coordination without measuring ImageIO throughput.
+
 Bytes and items bound different failures: bytes stop the pool being large; the count stops the
 file being long, and the file is rewritten whole on every copy, so a hundred thousand tiny clips
 would make every ⌘C a slow write.

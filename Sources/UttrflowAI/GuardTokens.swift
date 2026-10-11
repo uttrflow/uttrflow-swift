@@ -170,6 +170,26 @@ extension MeaningPreservationGuard {
         return joined
     }
 
+    /// Small words that place an event in time: dropping "before" reverses an instruction.
+    static let timeWords: Set<String> = ["before", "after", "while"]
+
+    /// Romanised Hindi classes whose words say who acts or how words relate, which a rewrite may not drop.
+    private static let carriedHindiClasses: Set<HindiWords.WordClass> = [
+        .pronoun, .possessive, .subject, .postposition, .conjunction,
+    ]
+
+    /// Whether a small word the guard does not otherwise carry must survive: a time word, a Hindi pronoun or postposition, or "that" as the subject of a verb.
+    static func isMeaningCarried(at index: Int, in tokens: [GrammarToken]) -> Bool {
+        let token = tokens[index]
+        if timeWords.contains(token.lookup) { return true }
+        if token.lookup == "that" {
+            let next = index + 1 < tokens.count ? tokens[index + 1].lookup : ""
+            return token.startsSentence || FunctionWords.auxiliaries.contains(next)
+        }
+        return !FunctionWords.english.contains(token.lookup)
+            && !HindiWords.classes(of: token.lookup).isDisjoint(with: carriedHindiClasses)
+    }
+
     /// A number and a mid-sentence capital are always content; the rest is unless the set below holds it.
     static func isContent(_ token: GrammarToken) -> Bool {
         if token.matching.contains(where: \.isNumber) { return true }

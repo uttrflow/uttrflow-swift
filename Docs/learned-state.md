@@ -185,5 +185,6 @@ decay curve and compaction horizon need measurement on real use before a number 
 
 Settings, Privacy, "What Uttrflow noticed about you" lists `PersonaProfile.items`: each dictionary
 word with its recorded uses and undos, each kind of place with its style counts, and a count of
-words still being watched. Each item's Remove deletes only that fact's rows
+words still being watched, each heard-to-meant pair with the days it was kept and undone, and each
+respelling the user's edits taught. Each item's Remove deletes only that fact's rows
 (`EvidenceLedgerStore.forget`); Reset deletes the ledger and leaves declarations alone.

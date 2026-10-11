@@ -71,6 +71,9 @@ public protocol MetricsRecording: Sendable {
 
     /// Keeps the time the tidier spent on a request that found no warm session.
     func recordTidyColdStart(_ duration: Duration) async
+
+    /// Keeps how much audio working ahead has not decoded at key-up.
+    func recordBacklog(_ backlog: WorkAheadBacklog) async
 }
 
 /// How many times one dictation read the screen, and how long those reads took together.
@@ -122,6 +125,9 @@ extension MetricsRecording {
 
     /// Most recorders do not track a cold tidier session.
     public func recordTidyColdStart(_ duration: Duration) async {}
+
+    /// Most recorders do not track the work-ahead backlog.
+    public func recordBacklog(_ backlog: WorkAheadBacklog) async {}
 }
 
 /// A recorder that discards everything, for callers that do not care about timings.
@@ -189,6 +195,10 @@ public struct MetricsFanOut: MetricsRecording {
 
     public func recordTidyColdStart(_ duration: Duration) async {
         for recorder in recorders { await recorder.recordTidyColdStart(duration) }
+    }
+
+    public func recordBacklog(_ backlog: WorkAheadBacklog) async {
+        for recorder in recorders { await recorder.recordBacklog(backlog) }
     }
 }
 

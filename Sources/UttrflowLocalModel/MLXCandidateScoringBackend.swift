@@ -6,14 +6,18 @@ import MLXNN
 /// The MLX end of candidate judging: the tokenizer and the forward pass, kept thin because MLX cannot run under `swift test`.
 struct MLXCandidateScoringBackend: CandidateScoringBackend {
     let container: ModelContainer
+    private let bufferCachePasses: BufferCachePasses
     private let cache = ModelCacheTransfer()
 
-    init(container: ModelContainer) {
+    init(container: ModelContainer, holding bufferCachePasses: BufferCachePasses) {
         self.container = container
+        self.bufferCachePasses = bufferCachePasses
     }
 
     func tokenise(whole: String, typed: String) async -> CandidateTokens {
-        await container.perform { context in
+        bufferCachePasses.begin()
+        defer { bufferCachePasses.end() }
+        return await container.perform { context in
             let ids = context.tokenizer.encode(text: whole)
             return CandidateTokens(
                 whole: ids, typed: context.tokenizer.encode(text: typed),
@@ -24,6 +28,8 @@ struct MLXCandidateScoringBackend: CandidateScoringBackend {
     func score(
         _ values: [Int], massOffset: Int?, massTokens: [Int]
     ) async throws -> CandidateScoringChunk {
+        bufferCachePasses.begin()
+        defer { bufferCachePasses.end() }
         let cache = cache
         return try await container.perform { modelContext in
             try Task.checkCancellation()
@@ -64,6 +70,7 @@ extension ChunkedCandidateJudge {
     ) async throws -> ChunkedCandidateJudgement {
         try await judge(
             candidate, following: context, vocabulary: vocabulary,
-            using: MLXCandidateScoringBackend(container: container), holding: bufferCachePasses)
+            using: MLXCandidateScoringBackend(container: container, holding: bufferCachePasses),
+            holding: bufferCachePasses)
     }
 }

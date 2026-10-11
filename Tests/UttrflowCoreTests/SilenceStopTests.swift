@@ -77,4 +77,25 @@ struct SilenceStopTests {
         #expect(SilenceStop(seconds: 3) == nil)
         #expect(try #require(SilenceStop(seconds: 8)).lookBack(atRate: Spoken.rate) == 13 * Spoken.rate)
     }
+
+    @Test("counts down only between half the wait and the wait, in whole seconds rounded up")
+    func countsDown() throws {
+        let stop = try #require(SilenceStop(seconds: 8))
+        #expect(stop.secondsLeft(afterQuiet: nil) == nil)
+        #expect(stop.secondsLeft(afterQuiet: .seconds(4)) == nil)
+        #expect(stop.secondsLeft(afterQuiet: .seconds(4.2)) == 4)
+        #expect(stop.secondsLeft(afterQuiet: .seconds(6.5)) == 2)
+        #expect(stop.secondsLeft(afterQuiet: .seconds(7.9)) == 1)
+        #expect(stop.secondsLeft(afterQuiet: .seconds(8)) == nil)
+        let short = try #require(SilenceStop(seconds: 2))
+        #expect(short.secondsLeft(afterQuiet: .seconds(1.2)) == 1)
+        #expect(short.secondsLeft(afterQuiet: .seconds(0.9)) == nil)
+    }
+
+    @Test("words the countdown for the dock and for VoiceOver")
+    func wordsTheCountdown() {
+        #expect(SilenceStop.phrase(secondsLeft: 3) == "Ending in 3 sec")
+        #expect(SilenceStop.sentence(secondsLeft: 1) == "Dictation ends in 1 second.")
+        #expect(SilenceStop.sentence(secondsLeft: 4) == "Dictation ends in 4 seconds.")
+    }
 }

@@ -46,11 +46,28 @@ struct DictationReportTests {
         #expect(lines.contains("Cleaned by: rules"))
     }
 
+    @Test("lists the app version, each cleaning stage and the guard refusals without any word")
+    func tracesStages() {
+        let record = DictationRecord(
+            text: "hello", when: .distantPast,
+            changeLedger: [
+                ChangeLedgerEntry(writtenIndex: 0, pass: .fillers, kind: .removed),
+                ChangeLedgerEntry(writtenIndex: 1, pass: .contractions, kind: .replaced, evidence: .single),
+            ],
+            guardRefusals: [.lostWord, .movedWord])
+        let lines = DictationReport(record: record, appVersion: "1.2.3").lines
+        #expect(lines.contains("Uttrflow version: 1.2.3"))
+        #expect(lines.contains("Stage: fillers removed"))
+        #expect(lines.contains("Stage: contractions replaced (single)"))
+        #expect(lines.contains("Refused by guard: lostWord, movedWord"))
+        #expect(DictationReport(record: record).lines.contains("Uttrflow version: unrecorded"))
+    }
+
     @Test("the shared bytes equal the previewed lines after an edit and a removal")
     func previewEqualsBytes() {
         var report = DictationReport(record: sensitive())
-        report.replaceLine(at: 3, with: "Application: withheld")
-        report.removeLine(at: 4)
+        report.replaceLine(at: 4, with: "Application: withheld")
+        report.removeLine(at: 5)
         report.removeLine(at: 99)
         let previewed = report.lines.map { $0 + "\n" }.joined()
         #expect(report.bytes == Data(previewed.utf8))

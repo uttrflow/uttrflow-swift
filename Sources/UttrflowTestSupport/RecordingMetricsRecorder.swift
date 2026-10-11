@@ -32,6 +32,13 @@ public actor RecordingMetricsRecorder: MetricsRecording {
         captureQualities.append(quality)
     }
 
+    /// The audio working ahead has not decoded at key-up, one per dictation, in the order they settled.
+    public private(set) var backlogs: [WorkAheadBacklog] = []
+
+    public func recordBacklog(_ backlog: WorkAheadBacklog) async {
+        backlogs.append(backlog)
+    }
+
     /// What reading the screen cost each dictation, in the order they settled.
     public private(set) var screenReads: [ScreenReadCost] = []
 

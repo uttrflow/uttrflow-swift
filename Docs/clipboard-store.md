@@ -25,6 +25,10 @@ until the app is updated. Neither unsupported version is set aside or rewritten.
 payload with an unrecognised JSON key is also refused for writing, so a newer field cannot be lost
 when this build rewrites an index.
 
+`ClipIndexValidation` validates each replaceable index's encoded envelope and payload before a
+cached write. `ClipboardStore` retains the local file read, unreadable-file refusal and
+unsupported-version bookkeeping, and decides which indexes can be replaced.
+
 A clip's `tags` field is written only when the clip has a tag. An untagged clip's record is the
 same as before the field existed, so a build from before tags can still rewrite an index nobody
 tagged anything in; a tagged clip makes such a build refuse writes, as for any unrecognised key.
@@ -170,8 +174,13 @@ list sorts it back where it was.
 
 | Store call | What it removes | Used by |
 | --- | --- | --- |
-| `deleteEverything(keeping:)` | the history and its set-aside copies; spares every named, filed and pinned clip and the saved file's set-aside copies | the store's API for clearing the history |
+| `deleteEverything(keeping:)` | the history and its set-aside copies; spares every named, filed and pinned clip and the saved file's set-aside copies | "Clear clipboard history" in Settings › Privacy (`SettingsReset.clipboardHistory`, target `.clipboardHistory`), after a confirmation |
 | `forgetEverything()` | every clip, pinned ones included, both files' set-aside copies, and the texts marked not secret ([`clipboard-secrets.md`](clipboard-secrets.md#the-users-answer-outranks-the-detector)) | "Reset personalisation" (`SettingsReset.everything`, target `.clipboard`) |
+
+Settings › Privacy also sets how long the history is kept (`Settings.clipboardRetentionDays`, seven
+days by default, the periods the transcripts offer). Dictation clips follow the transcript period
+instead, and the pane says so. It states the fixed limits beside the control, read from
+`ClipboardBudget.standard`.
 
 Clearing is a tidy-up and spares what somebody named, filed and pinned, the clips a user would be
 most upset to lose. "Reset personalisation" says it puts Uttrflow back to a fresh install, and a

@@ -5,7 +5,10 @@ import UttrflowCore
 struct MarkLegalityTests {
     @Test(
         "a word that leaves its clause open takes no stop, question or colon",
-        arguments: ["the", "and", "of", "my", "because", "Dr.", "e.g."])
+        arguments: [
+            "the", "and", "of", "my", "because", "Dr.", "e.g.", "at", "by", "upon", "between", "during",
+            "against", "within", "without", "among", "while", "very",
+        ])
     func open(token: String) {
         for mark in [MarkLegality.Mark.stop, .question, .exclamation, .colon] {
             #expect(MarkLegality.verdict(mark, after: token) == .illegal)
@@ -18,6 +21,13 @@ struct MarkLegalityTests {
     func closed(token: String) {
         #expect(MarkLegality.verdict(.stop, after: token) == .legal)
         #expect(MarkLegality.verdict(.comma, after: token) == .legal)
+    }
+
+    @Test(
+        "a closer followed by a stop still closes the word",
+        arguments: ["(a).", "my].", "(today),", "(yes)?"])
+    func closerWithStop(token: String) {
+        #expect(MarkLegality.state(of: token) == .closer)
     }
 
     @Test("each token is read into the state its row is keyed on")

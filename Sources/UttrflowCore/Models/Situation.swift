@@ -8,6 +8,8 @@ public struct Situation: Sendable, Equatable {
     public let numberStyle: NumberStyle
     /// How the person wants this app's words formatted; `auto` unless they chose otherwise in Settings.
     public let adapterMode: AdapterMode
+    /// The final stop and first letter the person fixed for this app; nothing is fixed unless they chose.
+    var punctuation = AppPunctuation.automatic
 
     public init(
         app: AppContext, insertion: InsertionPoint, destination: Destination,
@@ -35,12 +37,15 @@ public enum SituationResolver {
     public static func resolve(
         app: AppContext, insertion: InsertionPoint,
         rules: [DestinationRule] = DestinationRules.standard,
-        overrides: DestinationOverrides = .none
+        overrides: DestinationOverrides = .none, destination fixed: Destination? = nil
     ) -> Situation {
-        Situation(
+        var situation = Situation(
             app: app, insertion: insertion,
-            destination: DestinationClassifier.classify(app, rules: rules, overrides: overrides),
-            adapterMode: app.bundleIdentifier.map(overrides.mode(forBundleIdentifier:)) ?? .auto)
+            destination: fixed ?? DestinationClassifier.classify(app, rules: rules, overrides: overrides),
+            adapterMode: overrides.mode(for: app))
+        situation.punctuation =
+            app.bundleIdentifier.map(overrides.punctuation(forBundleIdentifier:)) ?? .automatic
+        return situation
     }
 
     /// The situation a context read carries, together with its own caret text.

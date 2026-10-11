@@ -297,6 +297,7 @@ struct DictationPipelineRecordingTests {
         #expect(words.withLock { $0.first?.bundleIdentifier } == "com.apple.dt.Xcode")
         #expect(request.context.documentName == nil)
         #expect(request.context.precedingText == nil)
+        #expect(request.context.availability == .absentByDesign)
     }
 
     /// Every attempt reads the dictionary as it is now, so a word added between attempts reaches the recogniser.
