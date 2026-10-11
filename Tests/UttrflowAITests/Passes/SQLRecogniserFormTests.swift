@@ -28,12 +28,21 @@ struct SQLRecogniserFormTests {
         return words.joined(separator: " ")
     }
 
-    private func written(_ testCase: EvaluationCase, spoken: String) async throws -> String {
+    private func written(
+        _ testCase: EvaluationCase, spoken: String, after preceding: String? = nil
+    ) async throws -> String {
         let base = testCase.transformationRequest()
+        let context = preceding.map { AppContext(precedingText: $0) } ?? base.context
+        let situation =
+            preceding.map { _ in
+                Situation(
+                    app: context, insertion: context.insertionPoint, destination: base.situation.destination,
+                    numberStyle: base.situation.numberStyle, adapterMode: base.situation.adapterMode)
+            } ?? base.situation
         let request = TransformationRequest(
             transcription: Transcription(
                 text: spoken, detectedLanguage: base.transcription.detectedLanguage, segments: []),
-            context: base.context, situation: base.situation)
+            context: context, situation: situation)
         return try await RuleBasedTransformer().transform(request).text
     }
 
@@ -56,9 +65,13 @@ struct SQLRecogniserFormTests {
     @Test("keeps an unspaced token and a said comma, and writes no stop the recogniser added")
     func keepsTokens() async throws {
         let base = try #require(Self.statements.first)
-        let said = try await written(base, spoken: "Select name comma email, from customers.")
+        // The field's existing statement supplies the one-line convention, as in SQLLayoutTests.followsOneLine.
+        let preceding = "select name from users "
+        let said = try await written(
+            base, spoken: "Select name comma email, from customers.", after: preceding)
         #expect(said == "SELECT name, email FROM customers")
-        let tokens = try await written(base, spoken: "Select * from users where created_at > 2026-01-01")
+        let tokens = try await written(
+            base, spoken: "Select * from users where created_at > 2026-01-01", after: preceding)
         #expect(tokens == "SELECT * FROM users WHERE created_at > 2026-01-01")
     }
 }
