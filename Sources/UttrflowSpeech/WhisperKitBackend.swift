@@ -177,7 +177,7 @@ public actor WhisperKitBackend: TranscriptionBackend {
             Self.report(transcript.effort)
             return transcript
         } catch {
-            throw .transcriptionFailed(description: error.localizedDescription)
+            throw .recognition(failedWith: error)
         }
     }
 
@@ -300,7 +300,7 @@ private struct RetryBackend: TranscriptionBackend {
                 vocabularyPrompt: decoded.vocabularyPrompt,
                 conditioning: decoded.conditioning, split: decoded.split)
         } catch {
-            throw .transcriptionFailed(description: error.localizedDescription)
+            throw .recognition(failedWith: error)
         }
     }
 }
