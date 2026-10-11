@@ -32,7 +32,7 @@ final class PanelRowMemo: Sendable {
 
     private struct Built {
         var context: Context?
-        var rows: [Clip.ID: (key: Key, row: PanelRow)] = [:]
+        var rows = Memo<Clip.ID, Key, PanelRow>()
         var builds = 0
         var presentationKey: PresentationKey?
         var presentationID = UUID()
@@ -114,10 +114,9 @@ final class PanelRowMemo: Sendable {
         let known = built.withLock { memo -> PanelRow? in
             if memo.context != context {
                 memo.context = context
-                memo.rows = [:]
+                memo.rows = Memo()
             }
-            guard let hit = memo.rows[key.result.id], hit.key == key else { return nil }
-            return hit.row
+            return memo.rows.cachedValue(for: key.result.id, source: key)
         }
         let row: PanelRow
         if let known {
@@ -125,7 +124,7 @@ final class PanelRowMemo: Sendable {
         } else {
             row = build()
             built.withLock { memo in
-                if memo.context == context { memo.rows[key.result.id] = (key, row) }
+                if memo.context == context { memo.rows.store(row, for: key.result.id, source: key) }
                 memo.builds += 1
             }
         }
