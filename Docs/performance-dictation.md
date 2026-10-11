@@ -372,8 +372,12 @@ over 528 decodes of the same corpus:
 - **Skipping Apple's model for longer dictations.** Identical to the rules on 117 of 120 synthetic
   English clips, and the tidier is most of the all-at-once wait; but synthetic speech has none of
   a person's pauses, fillers and slips, so this is not evidence that real dictation would match.
-- **A shorter vocabulary prompt.** The per-token cost above is real and so is the accuracy it buys;
-  trading one for the other needs vocabularies of the size people keep.
+- **A shorter vocabulary prompt than today's.** The listed words are already capped at 48 tokens
+  (`VocabularyPrompt.maximumWordTokens`) and `WorkingSet.isRelevant` already keeps entries nobody
+  uses out of the prompt (`Docs/speech-vocabulary-prompt.md`). A budget below 48 is not taken: the
+  per-token cost above is real and so is the accuracy it buys, and no measurement of term accuracy
+  at a lower budget on realistic manual and passively learned dictionaries, in English and Hindi, with
+  first-piece and later-piece latency at stable host load, has been recorded yet.
 
 ## Re-running the bench
 

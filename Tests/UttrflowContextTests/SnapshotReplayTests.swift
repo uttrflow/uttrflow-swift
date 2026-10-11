@@ -85,6 +85,25 @@ struct SnapshotReplayTests {
         #expect(asked == Self.wholeRead)
     }
 
+    @Test func ideEditorGivesTheTextAroundItsCaretInTheWholeRead() throws {
+        let (names, text, asked) = try Self.replay("ide-editor-caret-text.json")
+        let value = try #require(text.value)
+        let caret = try #require(text.selection)
+        #expect(names.role == "AXTextArea")
+        #expect(!text.isSecure)
+        #expect(String(value.prefix(caret.location)) == "// total\nlet ")
+        #expect(asked == Self.wholeRead)
+    }
+
+    @Test func secureFieldYieldsNoTextAndIsNeverAskedForItsValue() throws {
+        let (names, text, asked) = try Self.replay("secure-password-field.json")
+        #expect(names.isDeclaredSecure)
+        #expect(text.isSecure)
+        #expect(text.value == nil)
+        #expect(!asked.contains("AXValue"))
+        #expect(!asked.contains("AXStringForRange"))
+    }
+
     @Test func richTextViewPublishesListMarkersAndAttachmentsButNotLinkTargets() throws {
         let (_, text, asked) = try Self.replay("native-rich-text-view.json")
         let value = try #require(text.value)

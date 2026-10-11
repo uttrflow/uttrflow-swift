@@ -594,16 +594,4 @@ enum CompletionText {
         }
         return ""
     }
-
-    /// The first token the model is judged on, past the tokens the typed opening shares with the whole line.
-    static func firstScoredIndex(whole: [Int], typed: [Int]) -> Int? {
-        // Scoring starts where the two token streams actually diverge, since the join may retokenise.
-        var shared = 0
-        while shared < typed.count, shared < whole.count, typed[shared] == whole[shared] {
-            shared += 1
-        }
-        // The first token has nothing before it to be predicted from, so it is never scored.
-        let start = max(shared, 1)
-        return whole.count > start ? start : nil
-    }
 }
