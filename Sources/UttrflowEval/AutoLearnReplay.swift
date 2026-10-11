@@ -1,5 +1,6 @@
 // The offline replay that scores what the pair learner learns from synthetic edits. See Docs/eval-methodology.md.
 import Foundation
+import UttrflowCore
 private import UttrflowDictionary
 
 /// Feeds true fixes and decoy edits through the default pair learner and scores the dictionary that results.
@@ -162,7 +163,7 @@ package enum AutoLearnReplay {
     }
 
     private static func words(of text: String) -> [String] {
-        text.lowercased().split(whereSeparator: \.isWhitespace).compactMap { token in
+        WordTokens.words(text.lowercased(), .display).compactMap { token in
             let kept = token.trimmingCharacters(in: .punctuationCharacters)
             return kept.isEmpty ? nil : kept
         }
