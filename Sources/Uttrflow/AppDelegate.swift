@@ -1545,10 +1545,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         self.pipeline = pipeline
 
         controller = DictationController(
-            pipeline: pipeline,
-            monitor: ActivationMonitor(),
-            commandMonitor: ActivationMonitor(),
-            cue: cue,
+            dependencies: .init(
+                pipeline: pipeline, monitor: ActivationMonitor(),
+                commandMonitor: ActivationMonitor(), cue: cue),
             clock: ContinuousClock(),
             options: .init(
                 activation: settings.hotkeyActivation,

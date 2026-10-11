@@ -78,7 +78,8 @@ private func makeRig() -> Rig {
         clock: ManualClock()
     )
     let clock = ManualClock()
-    let controller = DictationController(pipeline: pipeline, monitor: QuietMonitor(), clock: clock)
+    let controller = DictationController(
+        dependencies: .init(pipeline: pipeline, monitor: QuietMonitor()), clock: clock)
     return Rig(
         controller: controller, pipeline: pipeline, capture: capture, inserter: inserter, clock: clock)
 }

@@ -146,9 +146,10 @@ private final class Rig {
         let cue = ChordCue()
         let clock = ManualClock()
         let controller = DictationController(
-            pipeline: pipeline,
-            monitor: QuietMonitor(),
-            cue: cue,
+            dependencies: .init(
+                pipeline: pipeline,
+                monitor: QuietMonitor(),
+                cue: cue),
             clock: clock,
             options: .init(
                 activation: activation
