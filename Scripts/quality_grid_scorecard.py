@@ -78,6 +78,20 @@ def compare(base, measured):
     return problems
 
 
+def absorb(measured_path, output):
+    measured = validate(records_from_text(Path(measured_path).read_text()))
+    previous = validate(records_from_text(output.read_text())) if output.exists() else {}
+    problems = compare(previous, measured)
+    for problem in problems:
+        print("quality grid scorecard: " + problem)
+    if problems:
+        return 1
+    records = [measured[key] for key in sorted(measured)]
+    output.write_text(json.dumps({"records": records}, indent=2, sort_keys=True) + "\n")
+    print(f"quality grid scorecard: absorbed {len(records)} records into {output}")
+    return 0
+
+
 def self_test():
     def record(identifier="case", **fields):
         return {"version": 1, "suite": "fixture", "id": identifier, "measurements": {}} | fields
@@ -127,7 +141,20 @@ def main():
     parser.add_argument("--measured")
     parser.add_argument("--base")
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--absorb")
+    parser.add_argument("--output")
     args = parser.parse_args()
+    if args.absorb:
+        if args.measured or args.base or args.self_test:
+            parser.error("--absorb cannot be combined with comparison or self-test")
+        try:
+            output = Path(args.output) if args.output else Path(__file__).with_name("quality_grid_baseline.json")
+            return absorb(args.absorb, output)
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            print(f"quality grid scorecard: {error}")
+            return 1
+    if args.output:
+        parser.error("--output requires --absorb")
     if args.self_test:
         return self_test()
     if not args.measured or not args.base:

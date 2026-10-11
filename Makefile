@@ -434,7 +434,7 @@ bench: ## Run the scale and timing checks: the energy budget, the scaling suites
 	@VERIFY_INNER=1 $(MAKE) --no-print-directory -j$(VERIFY_JOBS) bench
 else
 unexport VERIFY_INNER
-verify: predict-scorecard-test pii-audit snapshot-fixture-audit data-manifest audio-audit root-audit disclosure-audit issue-template-audit test-name-audit docs-audit design-audit comment-audit corpus-edit-audit match-audit closed-list-audit duplicate-table-audit word-split-audit accessibility-controls layering-audit public-api-audit string-audit type-name-audit python-imports-audit ratchet-test mutation-probe-test range-test hits-test hook-test pre-push-test pre-push-lock-test update-feed-test entitlement-gate-test issue-template-test dependabot-labels-test dependency-pin-test flake-audit uitest-arguments eval-arguments uitest-result-path developer-dir-test log-audit store-permissions pasteboard-audit context-reach-audit bundle-requirement-test bundle-test release-tag-test release-notes-test release-quality-test provider-mark-test release-order-test notarise-dmg-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test exclusion-audit size-budget lint build coverage offline-audit
+verify: quality-grid-scorecard-test predict-scorecard-test pii-audit snapshot-fixture-audit data-manifest audio-audit root-audit disclosure-audit issue-template-audit test-name-audit docs-audit design-audit comment-audit corpus-edit-audit match-audit closed-list-audit duplicate-table-audit word-split-audit accessibility-controls layering-audit public-api-audit string-audit type-name-audit python-imports-audit ratchet-test mutation-probe-test range-test hits-test hook-test pre-push-test pre-push-lock-test update-feed-test entitlement-gate-test issue-template-test dependabot-labels-test dependency-pin-test flake-audit uitest-arguments eval-arguments uitest-result-path developer-dir-test log-audit store-permissions pasteboard-audit context-reach-audit bundle-requirement-test bundle-test release-tag-test release-notes-test release-quality-test provider-mark-test release-order-test notarise-dmg-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test exclusion-audit size-budget lint build coverage offline-audit
 eval: seam-audit eval-tests rules-scorecard
 bench: perf-budget offline-test soak-test bench-tests
 
@@ -593,6 +593,12 @@ bakeoff: ## Score every clean-up engine. Downloads models; needs the Metal toolc
 
 PREDICT_FIXTURE_RUN := .build/predict/fixtures.json
 PREDICT_PRECISION_BASELINE := Scripts/predict_precision_baseline.json
+
+.PHONY: quality-grid-scorecard-test
+quality-grid-scorecard-test: ## Prove grid recording preserves its existing gates. Needs Python only.
+	@python3 Scripts/quality_grid_scorecard.py --self-test
+	@python3 Scripts/quality_grid_scorecard_test.py
+	@python3 Scripts/quality_grid_scorecard.py --measured Scripts/quality_grid_baseline.json --base Scripts/quality_grid_baseline.json
 
 .PHONY: predict-scorecard-test
 predict-scorecard-test: ## Prove the AI-suggestion precision ratchet. Needs Python only.
