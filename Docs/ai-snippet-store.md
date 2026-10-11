@@ -121,6 +121,38 @@ write is refused while the store holds an unreadable read so it cannot write ove
 writes are atomic, and an emptied list removes the file rather than writing `[]`.
 `deleteEverything()` also removes any copy set aside from an unreadable file.
 
+## Secret expansions at telemetry and log boundaries
+
+The `isSecret` flag added in #7215 masks presentation and conceals explicit copies. The
+remaining #3746 boundary sweep covers ordinary words marked secret, rather than relying on
+credential-shaped text being detected. `SecretSnippetTelemetryTests` expands the synthetic
+trigger `my passphrase` to `Cobalt meadow` using `SnippetExpander`, then exercises the app's
+`UsageTelemetry` with successful and failed delivery states. The captured sender reports are
+serialized with `TelemetryReport.encodedForIngest()`, the same serializer used by
+`HTTPTelemetrySender`: insertion counts remain present, while neither phrase appears in the
+bytes. All twelve insertion-error cases and an unforeseen error with the expansion in its
+localized description are exercised. These tests protect existing behavior; no new production
+defect or change to consent is claimed.
+
+The source inventory follows the expanded words through these boundaries:
+
+| Boundary | What can reach a log or report |
+| --- | --- |
+| `SnippetExpander`, `ExpandedTranscript`, pipeline cleaning and delivery | No logging sink. Delivery constructs the outcome from expanded text and preserves failed text separately in `DictationFailure.transcript`. Destination application names come from the captured application context, not the expansion. |
+| `SystemInput`, `TextInsertionCoordinator`, Accessibility and typed insertion engines, `SelectionWriter`, `EditTarget`, clipboard insertion routes | No text-logging sink. The input module's loggers belong to shortcut monitors and report registration errors, key codes and restart delays. Clipboard loggers report read limits and picture dimensions. |
+| `AppDelegate.render` success | Insertion method, character count, destination application, correction/snippet counts and secure-field boolean; never `outcome.text` or snippet bodies. |
+| `AppDelegate.render` failure | `notice.message` is public, so its producer matters: delivery uses `DictationFailure(error, transcript:)`. `TextInsertionError` messages discard description payloads; interruption messages contain counts. Unforeseen errors use a fixed message. The tests exercise these actual constructors and the retry-message recomposition, while retaining the separate transcript. |
+| `AppDelegate` copy/paste, history and evidence failures | Copy/paste reports insertion method/arrival or the same insertion-error messages. History storage errors use fixed `HistoryStoreError` messages. Evidence errors use `ErrorLog.failure`, which drops enum payloads and NSError localized descriptions; the tests exercise both payload forms. |
+| Snippet editing | Fixed store-error messages, except a refused command trigger: `SnippetStore.save` builds that phrase from the matched command's canonical words, not from the expansion. |
+| `UsageTelemetry`, telemetry collector/service and HTTP sender | Counts, durations and closed category tags. The sender serializes the report without a logging sink. `TelemetryPrivacyTests` also checks the report's stored types and serialized string vocabulary. |
+
+The log inventory is source evidence, reinforced by `make log-audit`; it is not a capture of
+macOS unified logs. The tests capture real report objects and ingest bytes with an in-memory
+sender, without sending to a backend, dictating audio or inserting into another application.
+Existing `DictationSecretPresentationTests` and `LastTranscriptForgetTests` cover masking and
+concealed copy/retry behavior separately. This sweep changes neither insertion output nor the
+telemetry opt-in policy.
+
 ## Related pages
 
 - `Docs/history-store-file.md` — the file-handling rules this store shares.
