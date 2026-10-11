@@ -248,7 +248,7 @@ What is deliberately not done matters as much as what is:
 - Output scores and baseline entries record `romanised-variants-v1:<digest>` as `outputNormalisation`,
   alongside the existing normalisation rule list. Legacy exact-spelling results decode with
   no output instrument. The gate refuses to compare those counts with variant-scored counts;
-  the operator must remeasure the baseline. The digest is SHA-256 of the
+  remeasure the baseline before comparing output rates. The digest is SHA-256 of the
   sorted spelling-to-canonical-word mappings, so changes to those mappings automatically
   change the instrument. Its algorithm version must change if scoring semantics change.
 - **Hindi number words stay words.** Only the Devanagari spellings map to digits, because "do"
