@@ -1697,12 +1697,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         shortcutArmingAttempt += 1
         let attempt = shortcutArmingAttempt
         guard let controller else { return }
-        guard surfaces.listensForDictation else {
+        guard surfaces.listensForDictation, let binding = settings.shortcuts.first(for: .dictate) else {
             shortcutArming.disarm()
             Task { await controller.stop() }
             return
         }
-        let binding = settings.hotkey
         let commandBinding = settings.shortcuts.first(for: .editCommand)
         let arming = shortcutArming
         // Kept as its own state on the menu bar and floating button, never shown as a failed dictation.
@@ -4410,7 +4409,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         applyLaunchAtLogin()
 
         // Acted on here, or the shortcut relabels itself and the old key keeps working.
-        if updated.hotkey != previous.hotkey || updated.dictationEnabled != previous.dictationEnabled
+        if updated.shortcuts.first(for: .dictate) != previous.shortcuts.first(for: .dictate)
+            || updated.dictationEnabled != previous.dictationEnabled
             || updated.shortcuts.first(for: .editCommand) != previous.shortcuts.first(for: .editCommand)
         {
             startWatchingForTheShortcut()
