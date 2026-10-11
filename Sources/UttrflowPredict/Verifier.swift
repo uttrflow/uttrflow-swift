@@ -16,10 +16,8 @@ public actor Verifier {
     private let budgetInMilliseconds: Int
     /// The clock every keystroke's deadline is set on.
     private let clock: any Clock<Duration>
-    /// The verdicts already reached, so most keystrokes cost nothing at all.
-    private var cache = VerdictCache()
-    /// Invalidates verdicts still being computed when a forget action arrives.
-    private var forgetGeneration: UInt64 = 0
+    /// The remembered decisions whose generation still belongs to this verifier.
+    private var session = VerificationSession()
     /// Candidate lines whose durable refusal has not yet landed.
     private var pendingSupersessions: [PendingSupersession] = []
     private var nextSupersessionID: UInt64 = 0
@@ -53,9 +51,9 @@ public actor Verifier {
     public func verified(
         _ candidates: [Candidate], in surface: Surface, typed: String, now: ContinuousClock.Instant
     ) async -> [Candidate] {
-        let generation = forgetGeneration
+        let generation = session.generation
         await retryPendingSupersessions()
-        guard generation == forgetGeneration else { return [] }
+        guard generation == session.generation else { return [] }
         let deadline = deadline()
         var kept: [Candidate] = []
         for candidate in candidates {
@@ -64,7 +62,7 @@ public actor Verifier {
             guard !refusedThisSession.contains(RefusedCandidate(text: candidate.text, surface: surface))
             else { continue }
             let allowed = await allowed(candidate, in: surface, typed: typed, now: now, before: deadline)
-            guard generation == forgetGeneration else { return [] }
+            guard generation == session.generation else { return [] }
             guard let allowed else { continue }
             let key = TextMatching.caseFoldedKey(allowed.text)
             if let same = kept.firstIndex(where: { TextMatching.caseFoldedKey($0.text) == key }) {
@@ -109,10 +107,11 @@ public actor Verifier {
         for candidate: Candidate, in surface: Surface, typed: String, now: ContinuousClock.Instant,
         before deadline: Deadline
     ) async -> Verdict {
-        let generation = forgetGeneration
-        let key = VerdictCache.Key(
-            candidate: candidate.text, context: Self.context(of: surface, typed: typed))
-        if let remembered = cache.verdict(for: key) { return remembered }
+        let operation = session.begin(
+            in: surface, aliases: AliasExpansionSnapshot(words: [:], revision: 0),
+            generation: session.generation)
+        let key = operation.key(for: candidate.text, typed: typed)
+        if let remembered = session.verdict(for: key) { return remembered }
         guard let token = CompletionToken(candidate.text) else { return .plausible }
 
         // Each lookup asks about its own word among its own kinds, so a path's name is not sought among whole paths.
@@ -130,7 +129,7 @@ public actor Verifier {
             let caseSensitive = lookup.kinds.contains(where: Self.requiresCaseSensitiveMatch)
             // Each kind attests under its own case rule, so a branch lookup cannot make a file name case-sensitive.
             guard !(await attests(lookup, in: surface, now: now)) else {
-                if generation == forgetGeneration { cache.remember(.attested, for: key) }
+                if session.isCurrent(operation) { session.remember(.attested, for: key) }
                 return .attested
             }
             if judged == nil { judged = (lookup.word, lookup.prefix, known, caseSensitive) }
@@ -146,46 +145,34 @@ public actor Verifier {
                 word: judged?.word ?? token.token, known: judged?.known ?? [],
                 modelObjects: Verification.objects(to: plausibility),
                 caseSensitive: judged?.caseSensitive ?? false),
-            on: candidate.text, leading: token.leading + (judged?.prefix ?? ""), in: surface,
+            on: candidate.text, leading: token.leading + (judged?.prefix ?? ""), in: operation,
             // A listing still unanswered may yet hold the word, so the verdict stands this time only and is not cached.
-            forGood: complete && judged != nil && Verification.isClosedVocabulary(for: token),
-            generation: generation)
-        if complete, generation == forgetGeneration { cache.remember(verdict, for: key) }
+            forGood: complete && judged != nil && Verification.isClosedVocabulary(for: token))
+        if complete, session.isCurrent(operation) { session.remember(verdict, for: key) }
         return verdict
     }
 
     /// The verdict in the whole line's terms, told to the store whenever it condemns the candidate for good.
     private func reported(
-        _ verdict: Verdict, on text: String, leading: String, in surface: Surface, forGood: Bool,
-        generation: UInt64
+        _ verdict: Verdict, on text: String, leading: String, in operation: VerificationOperation,
+        forGood: Bool
     ) async -> Verdict {
-        switch verdict {
-        case .corrected(let word):
-            let corrected = leading + word
-            // A file or branch the machine does not know today may exist tomorrow, so only a closed vocabulary supersedes.
-            if forGood, generation == forgetGeneration {
-                await record(
-                    .supersede(text, corrected), candidate: text, in: surface, generation: generation)
-            }
-            return .corrected(corrected)
-        case .rejected:
-            if forGood, generation == forgetGeneration {
-                await record(.reject(text), candidate: text, in: surface, generation: generation)
-            }
-            return .rejected
-        case .attested, .plausible:
-            return verdict
+        let report = operation.report(verdict, on: text, leading: leading)
+        if forGood, session.isCurrent(operation), let write = report.write {
+            await record(write, candidate: text, in: operation)
         }
+        return report.verdict
     }
 
     /// Writes a final refusal and holds it for retry when the store fails.
     private func record(
-        _ write: SupersessionWrite, candidate: String, in surface: Surface, generation: UInt64
+        _ write: SupersessionWrite, candidate: String, in operation: VerificationOperation
     ) async {
         guard let supersession else { return }
         await beginSupersessionOperation()
         defer { endSupersessionOperation() }
-        guard generation == forgetGeneration else { return }
+        guard session.isCurrent(operation) else { return }
+        let surface = operation.surface
         do {
             try await apply(write, using: supersession, in: surface)
         } catch {
@@ -217,9 +204,9 @@ public actor Verifier {
             do {
                 try await apply(pending.write, using: supersession, in: pending.surface)
                 if pendingSupersessions.first?.id == pending.id { pendingSupersessions.removeFirst() }
-                let candidate = Self.candidate(of: pending.write)
+                let candidate = pending.write.candidate
                 if !pendingSupersessions.contains(where: {
-                    $0.surface == pending.surface && Self.candidate(of: $0.write) == candidate
+                    $0.surface == pending.surface && $0.write.candidate == candidate
                 }) {
                     refusedThisSession.remove(RefusedCandidate(text: candidate, surface: pending.surface))
                 }
@@ -272,13 +259,6 @@ public actor Verifier {
         }
     }
 
-    /// The candidate whose refusal a store operation makes durable.
-    private static func candidate(of write: SupersessionWrite) -> String {
-        switch write {
-        case .supersede(let text, _), .reject(let text): text
-        }
-    }
-
     /// Names an error type and case without exposing a text payload.
     private static func failure(_ error: any Error) -> String {
         ErrorLog.failure(error)
@@ -299,8 +279,7 @@ public actor Verifier {
         if activeSupersessionOperations > 0 {
             await withCheckedContinuation { supersessionDrainWaiters.append($0) }
         }
-        forgetGeneration &+= 1
-        cache.forgetEverything()
+        session.forgetEverything()
         pendingSupersessions = []
         refusedThisSession = []
         await scoring?.forgetEverything()
@@ -313,7 +292,7 @@ public actor Verifier {
     }
 
     /// How many verdicts are remembered, which is what says a keystroke skipped the gates.
-    public var rememberedCount: Int { cache.count }
+    public var rememberedCount: Int { session.count }
 
     /// One candidate as the gates leave it, absent when they refuse it.
     private func allowed(
@@ -517,15 +496,8 @@ public actor Verifier {
 
     /// What a verdict is remembered against, which is this field and what has been typed into it.
     static func context(of surface: Surface, typed: String) -> String {
-        [
-            surface.bundleIdentifier, surface.role, surface.locator ?? "", surface.scope ?? "", typed,
-        ].joined(separator: "\u{0}")
+        VerificationOperation.identity(of: surface, typed: typed)
     }
-}
-
-private enum SupersessionWrite: Sendable {
-    case supersede(String, String)
-    case reject(String)
 }
 
 private struct PendingSupersession: Sendable {
