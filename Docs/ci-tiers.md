@@ -52,8 +52,11 @@ scripts it reads.
 **`make bench`, nightly (`bench.yml`).** `perf-budget`, `offline-test`, `soak-test`, the scaling
 suites (`HeavyClipScans`, `PromptSizeGuaranteeTests`, `BIP39RecoveryPhraseScalingTests`) and the
 tests that hold a wall-clock budget (`BENCH_SUITES` in the `Makefile`): the clipboard store's first-list
-benchmark, the 20,000-entry suggestion migration, doubt placement's p95 and the deeply nested HTML
-copy. A test with a wall-clock limit belongs here, since a parallel test run cannot keep one honest.
+benchmark, the 20,000-entry suggestion migration, doubt placement's p95, the deeply nested HTML
+copy, the launch budget, the n-gram scorer's per-span probes, the SQL notation, field label,
+adapter validator and panel grouping speed checks, the settle-delay bound on an unconfirmed write,
+the formatter's TERM escalation and the huge-range correction count. Each one that has a logic
+twin keeps the twin in `make verify`. A test with a wall-clock limit belongs here, since a parallel test run cannot keep one honest.
 It never blocks a pull request; a failure opens an issue titled "Nightly bench failed on main", or
 comments on the open one.
 
