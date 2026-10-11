@@ -6,7 +6,11 @@ public struct SpacingPass: PieceCleaningPass {
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
     public static let orderIndependentWith: Set<PassID> = [.pauseStop]
 
-    public init() {}
+    private let destination: Destination
+
+    public init() { self.destination = .plain }
+
+    init(destination: Destination) { self.destination = destination }
 
     public func apply(_ draft: Draft) -> Draft {
         var draft = draft
@@ -23,6 +27,11 @@ public struct SpacingPass: PieceCleaningPass {
         var previous: Int?
         for index in draft.presentIndices {
             let text = draft.words[index].text
+            if let previous, joinsRegistryVersion(draft.words[previous].text, with: text) {
+                draft.replace(at: previous, with: draft.words[previous].text + text, by: Self.id)
+                draft.remove(at: index, by: Self.id)
+                continue
+            }
             if let previous, text.allSatisfy(MarkSpacing.attachesBefore) {
                 let merged = WordShape.settlingMarks(draft.words[previous].text + text)
                 draft.replace(at: previous, with: merged, by: Self.id)
@@ -33,6 +42,17 @@ public struct SpacingPass: PieceCleaningPass {
             previous = index
         }
         return draft
+    }
+
+    /// Keeps a host-qualified registry path and its numeric version in one token in a code editor.
+    private func joinsRegistryVersion(_ left: String, with right: String) -> Bool {
+        guard destination == .codeEditor,
+            left.hasSuffix(":"), let slash = left.firstIndex(of: "/"),
+            TechnicalToken.classify(String(left[..<slash])) == .hostname,
+            TechnicalToken.classify(String(left.dropLast())) == .path,
+            TechnicalToken.classify(right) == .version
+        else { return false }
+        return true
     }
 
     /// "home—the" as "home —" and "the": every mark `MarkSpacing` spaces on both sides written as `WordShape.marked` writes a spoken one, or nil when it already is.
