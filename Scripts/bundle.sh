@@ -543,6 +543,12 @@ echo "Building $SCHEME ($CONFIGURATION) with xcodebuild — a few minutes from c
 # untrue. Step 11 below proves this is still working, since a setting that quietly stops
 # applying looks exactly like one that was never needed.
 BUILD_DESCRIPTION_STARTED="$(date +%s)"
+BUILD_DESCRIPTION_SNAPSHOT="$(mktemp "${TMPDIR:-/tmp}/uttrflow-xcode-description.XXXXXX")"
+trap 'rm -f "$BUILD_DESCRIPTION_SNAPSHOT"' EXIT
+python3 "$SCRIPT_DIR/bundle_products.py" \
+    "$DERIVED_DATA" "$PACKAGE_ROOT" "$PRODUCTS_DIR" "$SCHEME" \
+    --since "$BUILD_DESCRIPTION_STARTED" --snapshot-out "$BUILD_DESCRIPTION_SNAPSHOT" \
+    || fail "could not snapshot Xcode build descriptions"
 xcodebuild \
     -scheme "$SCHEME" \
     -configuration "$CONFIGURATION" \
@@ -555,6 +561,7 @@ xcodebuild \
     ENABLE_CODE_COVERAGE=NO \
     DEBUG_INFORMATION_FORMAT=dwarf-with-dsym \
     -quiet \
+    -jobs 4 \
     build \
     || fail "xcodebuild failed — rerun without -quiet in this script to see the whole log"
 
@@ -618,9 +625,13 @@ printf 'APPL????' > "$APP/Contents/PkgInfo"
 
 # Resource bundles come from this scheme's build description, not other cached schemes.
 RESOURCE_BUNDLES=()
+BUILD_DESCRIPTION_ARGUMENTS=(--since "$BUILD_DESCRIPTION_STARTED")
+if [[ -n "${BUILD_DESCRIPTION_SNAPSHOT:-}" ]]; then
+    BUILD_DESCRIPTION_ARGUMENTS+=(--snapshot "$BUILD_DESCRIPTION_SNAPSHOT")
+fi
 RESOURCE_BUNDLE_PATHS="$(python3 "$SCRIPT_DIR/bundle_products.py" \
     "$DERIVED_DATA" "$PACKAGE_ROOT" "$PRODUCTS_DIR" "$SCHEME" \
-    --since "$BUILD_DESCRIPTION_STARTED")" || fail "could not select the app's resource products"
+    "${BUILD_DESCRIPTION_ARGUMENTS[@]}")" || fail "could not select the app's resource products"
 while IFS= read -r bundle; do
     [[ -n "$bundle" ]] || continue
     RESOURCE_BUNDLES+=("$bundle")
