@@ -213,10 +213,10 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "c201adadf5ef58a47f5ff053228fa140925fadbd0829a8e34a62e82cfb918dfa",
+      "sha256": "8e7c3f2caba20a94875604df6b8e371f47bf1e256a4b76b7bf95aa3da2dfbca7",
       "path": "Sources/UttrflowCore/Resources/Tables/abbreviations.json",
       "origin": "authored",
-      "bytes": 5801
+      "bytes": 6209
     },
     {
       "note": "read through DataTable; see Docs/data-tables.md",
