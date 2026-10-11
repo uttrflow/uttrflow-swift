@@ -9,9 +9,7 @@ public struct DictationTextPresentation: Sendable, Equatable {
     /// Whether the text is a credential that must be hidden and written as concealed.
     public let isSecret: Bool
 
-    /// Detects secrets once so every dictation surface shares one classification.
-    ///
-    /// `secretPhrases` are the expansions of snippets the person marked secret; text holding one is a secret.
+    /// Detects secrets once, by shape or by holding the text of a snippet marked secret (`secretPhrases`).
     public init(_ text: String, secretPhrases: [String] = []) {
         self.text = text
         isSecret =

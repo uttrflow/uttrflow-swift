@@ -264,8 +264,8 @@ struct SnippetEditorView: View {
             get: { draft.text },
             set: {
                 draft = SnippetDraft(
-                    editing: draft.editing, trigger: draft.trigger, text: $0, applications: draft.applications,
-                    isSecret: draft.isSecret)
+                    editing: draft.editing, trigger: draft.trigger, text: $0,
+                    applications: draft.applications, isSecret: draft.isSecret)
             })
     }
 

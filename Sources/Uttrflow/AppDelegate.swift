@@ -4626,10 +4626,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             // Already on the clipboard, put there by the insertion floor before it reported failure.
             Task { await pipeline?.acknowledge() }
         case .copyTranscript:
-            if case .failed(let failure) = lastDictationState, let text = failure.wordsToKeep {
-                putOnClipboard(text, concealed: dictationText(text).isSecret, used: nil)
+            let kept: String? = if case .failed(let f) = lastDictationState { f.wordsToKeep } else { nil }
+            intentWork = Task { [weak self] in
+                guard let self else { return }
+                // Read now: the retry can come before any page has read the snippets.
+                knownSnippets = await snippets.snippets()
+                if let text = kept {
+                    putOnClipboard(text, concealed: dictationText(text).isSecret, used: nil)
+                }
+                await pipeline?.acknowledge()
             }
-            Task { await pipeline?.acknowledge() }
         case .showHistory:
             // Delivery was unconfirmed or the clipboard failed; History lists every kept dictation.
             show(.main(.history))

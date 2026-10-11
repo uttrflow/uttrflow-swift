@@ -217,6 +217,26 @@ struct LastTranscriptForgetTests {
         #expect(pasteboard.markers[transcript] == .concealed)
     }
 
+    @Test("the retry route's copy conceals a transcript holding a snippet marked secret")
+    func retryCopyConcealsSecretSnippets() async throws {
+        let sandbox = Sandbox()
+        let transcript = "my login is Sunny day tomorrow"
+        let pasteboard = MarkerRecordingPasteboard()
+        let app = AppDelegate(
+            container: sandbox.root, account: HeldSession(signedIn: true).layer, pasteboard: pasteboard)
+        app.carryOut(
+            .saveSnippet(
+                trigger: "my login", text: "Sunny day tomorrow", applications: [], replacing: nil,
+                isSecret: true))
+        await app.intentWork?.value
+        app.render(failed(transcript))
+
+        app.carryOut(MainIntent.recover(.copyTranscript))
+        await app.intentWork?.value
+
+        #expect(pasteboard.markers[transcript] == .concealed)
+    }
+
     @Test("copy-last marks an ordinary transcript transient")
     func copyLastTranscriptMarksOrdinaryTextTransient() async {
         let sandbox = Sandbox()

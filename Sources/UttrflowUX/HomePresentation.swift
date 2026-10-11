@@ -341,7 +341,8 @@ public enum HomePresenter {
                         now: snapshot.now),
                     calendar: calendar, now: snapshot.now, locale: locale)
                 : [],
-            recent: blocked == nil ? listed.map { row(for: $0, locale: locale, secretPhrases: snapshot.secretPhrases) } : [],
+            recent: blocked == nil
+                ? listed.map { row(for: $0, locale: locale, secretPhrases: snapshot.secretPhrases) } : [],
             recentTitle: title(for: listed, calendar: calendar, now: snapshot.now),
             seeAll: kept.count > listed.count
                 ? MainAction(title: "See all", intent: .show(.history)) : nil,
