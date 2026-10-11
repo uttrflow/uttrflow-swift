@@ -100,14 +100,9 @@ final class SuggestionCoordinator {
     private var modelPass = ModelPass()
     /// The model pass in flight, cancelled by the next keystroke so a burst never queues one pass per key.
     var generating = GeneratingTaskSlot()
-    /// A turn booked for the moment a rule stops refusing, so a prose pause is answered then, not at the next tick.
-    private var pendingWake: Task<Void, Never>?
-    /// Distinguishes the latest delayed wake from a canceled task that just finished sleeping.
-    private var pendingWakeGeneration = 0
+    private let scheduling = SuggestionTurnScheduling()
     /// The restart booked after macOS disabled the tap, cancelled by `stop()` so a turned-off tap stays off.
     let tapRest = TapRest()
-    /// The turn in flight, cancelled by the next keystroke so its scoring stops rather than running past the line it was for.
-    private var running: Task<Void, Never>?
     /// How long a burst of keystrokes must pause before the model is asked about its last prefix.
     nonisolated static let generationDebounceInMilliseconds = 120
     /// How long typing must pause before a field snapshot may begin.
@@ -160,11 +155,14 @@ final class SuggestionCoordinator {
     /// The last observed key-down, used to distinguish typing from edits made without a key.
     private var lastObservedKeyDown = Date.distantPast
     /// One turn at a time, with a turn that never returns left behind so the loop cannot die with it.
-    var turns = TurnGate()
+    var turns: TurnGate {
+        get { scheduling.turns }
+        set { scheduling.turns = newValue }
+    }
     /// How many turns have run or are running, so a test can hold each turn to one field read.
     var turnsAdmitted: Int { turns.admitted }
     /// Whether no turn is running and none is booked, so a test knows every key it sent has been answered.
-    var isSettled: Bool { !turns.isRunning && pendingWake == nil }
+    var isSettled: Bool { !turns.isRunning && !scheduling.hasPendingWake }
     /// The step the newest turn is waiting on and the bundle identifier it read, so a stall names where it stuck.
     private var progress: (turn: Int, step: SuggestionTurnStep, application: String)?
     /// What this turn has already been told about the moment, so one line costs one walk.
@@ -172,8 +170,14 @@ final class SuggestionCoordinator {
     /// True while an accepted completion is being inserted, so the keys it posts wake no further turn.
     private var isInserting = false
     /// Holds the pending wake and stopped state, so stop discards work a turn had queued.
-    private var wakeState = SuggestionWakeState()
-    private var runningTurn: Int?
+    private var wakeState: SuggestionWakeState {
+        get { scheduling.state }
+        set { scheduling.state = newValue }
+    }
+    private var runningTurn: Int? {
+        get { scheduling.runningTurn }
+        set { scheduling.runningTurn = newValue }
+    }
     var isActiveForUpdate: Bool {
         !wakeState.isStopped
             && (ticking.isRunning || armedOffer != nil || generating.turn != nil || runningTurn != nil)
@@ -500,7 +504,7 @@ final class SuggestionCoordinator {
         swallowed = nil
         generating.cancel()
         cancelPendingWake()
-        running?.cancel()
+        scheduling.cancelRunning()
         captureFeed.discard()
         ticker?.invalidate()
         ticker = nil
@@ -753,7 +757,7 @@ final class SuggestionCoordinator {
         session.invalidate()
         generating.cancel()
         cancelPendingWake()
-        running?.cancel()
+        scheduling.cancelRunning()
         FocusedFieldReader.cancelRead()
         interceptor.arm([])
         panel.hide()
@@ -941,7 +945,7 @@ final class SuggestionCoordinator {
         // Whatever was being worked out was for the shorter line, and the turn woken below reads the new one.
         generating.cancel()
         cancelPendingWake()
-        running?.cancel()
+        scheduling.cancelRunning()
         interceptor.arm(update.armed)
         armedOffer = update.suggestion.accepting
         guard panel.advance(to: session.typed, showing: update.suggestion) else { return false }
@@ -974,22 +978,14 @@ final class SuggestionCoordinator {
             cancelPendingWake()
             return
         }
-        cancelPendingWake()
-        pendingWakeGeneration += 1
-        let generation = pendingWakeGeneration
-        pendingWake = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(max(delay, 1)))
-            guard !Task.isCancelled, self?.pendingWakeGeneration == generation else { return }
-            self?.pendingWake = nil
+        scheduling.wake(reason, afterMilliseconds: delay) { [weak self] reason in
             self?.wake(reason)
         }
     }
 
     /// Cancels a booked wake and makes a task that already passed its sleep stale.
     private func cancelPendingWake() {
-        pendingWakeGeneration += 1
-        pendingWake?.cancel()
-        pendingWake = nil
+        scheduling.cancelPendingWake()
     }
 
     /// Runs one turn, or notes that another is wanted, so two never run at once and a stuck one never ends the loop.
@@ -1010,38 +1006,18 @@ final class SuggestionCoordinator {
                 return
             }
         }
-        switch turns.begin(at: ContinuousClock.now) {
-        case .busy:
-            // A Return or a switch waiting its turn is never overwritten by the tick that follows it.
-            _ = wakeState.queue(reason)
-        case .stalled(let turn):
-            Self.log.error(
-                "\(SuggestionLog.stall(step: self.progress?.step, application: self.progress?.application, afterSeconds: TurnGate.stallSeconds), privacy: .public)"
-            )
-            generating.cancel()
-            running?.cancel()
-            start(turn, because: reason)
-        case .free(let turn):
-            start(turn, because: reason)
-        }
-    }
-
-    /// Runs the turn the gate admitted and reports its end under the same number.
-    private func start(_ turn: Int, because reason: SuggestionReason) {
-        runningTurn = turn
-        running = Task { [weak self] in
-            await self?.turn(turn, because: reason)
-            self?.finished(turn)
-        }
-    }
-
-    /// Runs whatever arrived while the turn was in flight, unless the turn had already been left behind.
-    private func finished(_ turn: Int) {
-        if runningTurn == turn { runningTurn = nil }
-        guard !wakeState.isStopped, turns.end(turn), let next = wakeState.takeAfterTurn() else {
-            return
-        }
-        wake(next)
+        scheduling.wake(
+            reason, at: ContinuousClock.now,
+            stalled: {
+                Self.log.error(
+                    "\(SuggestionLog.stall(step: self.progress?.step, application: self.progress?.application, afterSeconds: TurnGate.stallSeconds), privacy: .public)"
+                )
+                generating.cancel()
+            },
+            run: { [weak self] turn, reason in
+                await self?.turn(turn, because: reason)
+            },
+            next: { [weak self] reason in self?.wake(reason) })
     }
 
     /// Notes the step a turn is about to wait on, ignored for a turn already left behind.
