@@ -1,4 +1,5 @@
 import Foundation
+import Hub
 import MLXLMCommon
 import Testing
 import Tokenizers
@@ -94,4 +95,40 @@ private struct CachedHealingTokenizer: MLXLMCommon.Tokenizer {
     ) throws -> [Int] {
         try upstream.applyChatTemplate(messages: messages, tools: tools, additionalContext: additionalContext)
     }
+}
+
+@Suite("Token healing reads the loaded tokenizer")
+struct TokenHealingTokenizerTests {
+    @Test("Byte-level tokenizer pieces retain written bytes and line endings")
+    func byteLevelTokenizerWritesBytesAndEndsLines() throws {
+        let tokenizer = try byteLevelTokenizer()
+        let vocabulary = TokenHealing.Vocabulary(
+            tokenizer: tokenizer, endOfTurn: ["<turn>"], endingIds: [6], prefixIndex: .init())
+
+        #expect(tokenizer.decode(tokenIds: [0]) == " hello")
+        #expect(tokenizer.decode(tokenIds: [1]) == "\n")
+        #expect(vocabulary.bytes[0] == Array(" hello".utf8))
+        #expect(vocabulary.bytes[1] == [0x0A])
+        #expect(vocabulary.bytes[2] == Array(" café".utf8))
+        #expect(vocabulary.bytes[8] == Array("é".utf8))
+        #expect(vocabulary.ending == [1, 3, 4, 6, 7])
+        #expect(vocabulary.startsNewWord[0])
+        #expect(!vocabulary.startsNewWord[5])
+        #expect(vocabulary.allowedIDs(owing: Array(" h".utf8), wordComplete: false) == [0])
+        #expect(vocabulary.allowedIDs(owing: [], wordComplete: true) == [0, 2])
+    }
+}
+
+private func byteLevelTokenizer() throws -> any MLXLMCommon.Tokenizer {
+    let pieces = ["Ġhello", "Ċ", "ĠcafÃ©", "<eos>", "<turn>", "tail", "<configured>", "tailĊ", "Ã©"]
+    let vocabulary = Dictionary(uniqueKeysWithValues: pieces.enumerated().map { ($0.element, $0.offset) })
+    let data: [String: Any] = [
+        "added_tokens": [],
+        "model": ["type": "BPE", "vocab": vocabulary, "merges": [] as [String]],
+        "decoder": ["type": "ByteLevel"],
+    ]
+    let config: [String: Any] = ["tokenizer_class": "PreTrainedTokenizer", "eos_token": "<eos>"]
+    let tokenizer = try PreTrainedTokenizer(
+        tokenizerConfig: Config(config as [NSString: Any]), tokenizerData: Config(data as [NSString: Any]))
+    return CachedHealingTokenizer(upstream: tokenizer)
 }
