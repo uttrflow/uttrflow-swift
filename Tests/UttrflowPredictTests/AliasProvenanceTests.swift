@@ -9,15 +9,44 @@ private struct ProvenanceLauncher: ProgramLaunching {
     func output(of launch: ProgramLaunch) async -> String? { nil }
 }
 
-private actor ProvenanceReader: AliasExpansionReading {
+private actor ProvenanceReader: AliasExpansionReading, EnvironmentReading {
     private var answer: AliasExpansionSnapshot
+    var reads = 0
     init(_ answer: AliasExpansionSnapshot) { self.answer = answer }
     func aliasExpansions() async -> [String: [String]]? { answer.words }
-    func aliasMetadata() async -> AliasExpansionSnapshot? { answer }
+    func aliasMetadata() async -> AliasExpansionSnapshot? {
+        reads += 1
+        return answer
+    }
     func replace(_ answer: AliasExpansionSnapshot) { self.answer = answer }
+    func values(of kind: EnvironmentKind, in directory: String, matching prefix: String) async -> [String]? {
+        nil
+    }
 }
 
 struct AliasProvenanceTests {
+    @Test func defaultIndexDoesNotOptIntoAliasReads() async {
+        let reader = ProvenanceReader(AliasExpansionSnapshot(words: ["g": ["git"]], revision: 0))
+        let index = EnvironmentIndex(reader: reader)
+        #expect(await index.aliasSnapshot().words == [:])
+        #expect(await reader.reads == 0)
+    }
+
+    @Test func indexOwnsAndForgetsOneMetadataCache() async {
+        let reader = ProvenanceReader(AliasExpansionSnapshot(words: ["g": ["git"]], revision: 0))
+        let cache = AliasExpansionCache(reader: reader, clock: ManualClock())
+        let index = EnvironmentIndex(reader: reader, seconds: { 0 }, aliases: cache)
+        #expect(await index.aliasSnapshot().words == nil)
+        await index.settle()
+        let first = await index.aliasSnapshot()
+        #expect(first.words == ["g": ["git"]])
+        await index.forgetAliases()
+        #expect(await index.aliasSnapshot().words == nil)
+        await index.settle()
+        let renewed = await index.aliasSnapshot()
+        #expect(renewed.words == first.words && renewed.revision > first.revision)
+    }
+
     private func read(_ text: String) async -> AliasExpansionSnapshot {
         let reader = SystemEnvironmentReader(
             launcher: ProvenanceLauncher(), programDirectories: [],

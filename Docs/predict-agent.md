@@ -77,7 +77,8 @@ unsupported alias leaves an unshadowed command certain. Text and flags share ref
 expiry and forgetting. The metadata overload of `LineShape.of` distinguishes uncertainty from a
 known free slot, records whether an alias supplies the grammar, and resolves supported aliases
 before wrappers; the dictionary overload keeps
-its existing contract.
+its existing contract. `EnvironmentIndex` owns an injected metadata provider and settles and
+forgets that provider; its default owner does not opt into configuration reads.
 
 `uttrflow-dev machine --directory <dir> --under <path>` prints everything the index lists there.
 
