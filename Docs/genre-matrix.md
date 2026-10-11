@@ -8,7 +8,7 @@ similarity is word agreement and marks is comma and sentence-end agreement, each
 
 | Genre | Cases | Spoken words | Rules exact | Rules passed | Similarity | Marks | Covered |
 |---|---|---|---|---|---|---|---|
-| customer-email | 3 | 195 | 0 of 3 | 3 of 3 | 99% | 48% | yes |
+| customer-email | 3 | 195 | 0 of 3 | 3 of 3 | 99% | 51% | yes |
 | chat-reply | 3 | 139 | 0 of 3 | 3 of 3 | 100% | 41% | yes |
 | meeting-minutes | 3 | 167 | 0 of 3 | 1 of 3 | 97% | 55% | yes |
 | status-report | 3 | 160 | 1 of 3 | 3 of 3 | 98% | 67% | yes |
