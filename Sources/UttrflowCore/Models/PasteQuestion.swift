@@ -1,6 +1,6 @@
 /// Decides whether a paste goes in at once or waits for the user, so every confirm-before-paste question has one source.
 public enum PasteQuestion {
-    /// What a hidden clip's destination field turned out to be.
+    /// The kind of field a hidden clip is headed for.
     public enum Field: Sendable, Equatable {
         /// A field that hides what is typed.
         case secure
@@ -51,7 +51,7 @@ public enum PasteQuestion {
 
     /// Why a paste the user agreed to is not made.
     public enum Refusal: Sendable, Equatable {
-        /// The cursor is in another field than the one the question was about.
+        /// The cursor is in another field than the one the question named.
         case fieldMoved
 
         /// What to tell the user.
@@ -85,7 +85,7 @@ public enum PasteQuestion {
 
         /// Whether the user already answered the question for this paste.
         public var isAgreed: Bool
-        /// For an agreed paste, whether the focus is still on the field the question was about.
+        /// For an agreed paste, whether the focus is still on the field the question named.
         public var fieldUnchanged: Bool
 
         /// Gathers what the decision reads.

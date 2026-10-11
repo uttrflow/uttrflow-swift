@@ -2,7 +2,7 @@ public import UttrflowCore
 
 /// The field a hidden clip would land in, read to decide whether to ask and read again before pasting.
 public struct HiddenPasteDestination: Sendable, Equatable {
-    /// What the focused field turned out to be.
+    /// The kind of field that has focus.
     public typealias Field = PasteQuestion.Field
 
     /// What kind of field has focus.
@@ -32,7 +32,7 @@ public struct HiddenPasteDestination: Sendable, Equatable {
         return .init(field: field, application: reading.application, identity: reading.identity)
     }
 
-    /// Whether the focus is still on what this was read from, so a confirmation never answers for another field.
+    /// Whether the focus is still on the field this reading describes, so a confirmation never answers for another field.
     public func isUnchanged(on focus: any AccessibilityFocus) async -> Bool {
         let now = await Self.read(from: focus)
         guard now.field == field else { return false }

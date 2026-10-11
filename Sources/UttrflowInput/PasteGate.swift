@@ -1,6 +1,6 @@
 public import UttrflowCore
 
-/// Holds the field a paste question was asked about, so agreeing is checked against it and never answers for another field.
+/// Holds the field a paste question names, so agreeing is checked against it and never answers for another field.
 @MainActor
 public final class PasteGate {
     private var asked: HiddenPasteDestination?
@@ -26,7 +26,7 @@ public final class PasteGate {
         return decision
     }
 
-    /// Whether the focus is still on the field the answered question was about; the question is spent either way.
+    /// Whether the focus is still on the field the answered question named; the question is spent either way.
     func agreementHolds(on focus: any AccessibilityFocus) async -> Bool {
         let question = asked
         asked = nil
