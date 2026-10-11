@@ -6,6 +6,10 @@ at `snippets.v1.json` under Application Support, written through `EncryptedStore
 history and the dictionary (`Docs/local-store-encryption.md`). `SnippetExpander` in
 `Sources/UttrflowAI/SnippetExpander.swift` matches triggers in a finished dictation.
 
+`StoredSnippets` in `Sources/Uttrflow/StoredSnippets.swift` connects the current store expansion
+to the pipeline's `ExpandedTranscript`. It preserves the expanded text, the identity, matched
+words and replacement of each firing, and the caret position.
+
 ## Its own file, beside the history and the dictionary rather than inside either
 
 These are neither the user's words nor a spelling the app learned: they are text the user
