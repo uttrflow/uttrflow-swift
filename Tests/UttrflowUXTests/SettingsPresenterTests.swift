@@ -249,6 +249,17 @@ struct SettingsGeneralPaneTests {
                     title: "Resume", change: .pauseClipboardCapture(isOn: false)))
     }
 
+    @Test("offers to turn the terminal paste question off or on from the stored choice")
+    func terminalPasteActionFollowsState() throws {
+        let on = try #require(general().row("clipboard-terminal-paste"))
+        #expect(on.control == .action(title: "Turn off", change: .confirmMultilinePaste(isOn: false)))
+        var capabilities = SettingsCapabilities.everything
+        capabilities.confirmsMultilinePaste = false
+        let off = try #require(general(.default, capabilities).row("clipboard-terminal-paste"))
+        #expect(off.control == .action(title: "Turn on", change: .confirmMultilinePaste(isOn: true)))
+        #expect(SettingsChange.confirmMultilinePaste(isOn: false).isRequestToAct)
+    }
+
     @Test("shows the shortcut in force on keycaps")
     func showsTheShortcut() {
         var settings = Settings.default
