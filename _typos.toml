@@ -42,6 +42,10 @@ extend-exclude = [
   "Design/",
   "Sources/UttrflowEval/TranscriptionCorpus.swift",
   "Sources/UttrflowDictionary/GeneralVocabulary.swift",
+  "Sources/UttrflowEval/MidWordCalibration.swift",
+  "Sources/UttrflowCore/Resources/Lexicon/letter-sounds.txt",
+  "Tests/UttrflowSpeechTests/UnsupportedLanguageProbeTests.swift",
+  "Tests/UttrflowAITests/Candidates/ContextScorerTests.swift",
   "Sources/UttrflowDictionary/DoubleMetaphone.swift",
   "Sources/UttrflowCore/Resources/Lexicon/pronunciation-lexicon.dict",
   "Sources/UttrflowCore/Resources/Tables/recogniser-words.json",
@@ -121,3 +125,5 @@ delpoy = "delpoy"
 MKE = "MKE"
 BCK = "BCK"
 IST = "IST"
+skool = "skool"
+foto = "foto"
