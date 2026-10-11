@@ -16,6 +16,12 @@ struct MotionBudgetObserverTests {
         var budget = MotionBudget()
     }
 
+    /// A workspace with its own notification centre, so no notice reaches the real one.
+    private struct FakeWorkspace: MotionWorkspace {
+        var reducesMotion = false
+        let notificationCenter = NotificationCenter()
+    }
+
     @Test("reads the budget when it is made")
     func readsAtStart() {
         let source = Source()
@@ -29,8 +35,9 @@ struct MotionBudgetObserverTests {
     @Test("re-reads the budget on each notice that can change it", arguments: [0, 1, 2])
     func rereadsOnNotice(_ index: Int) {
         let source = Source()
-        let observer = MotionBudgetObserver(read: { source.budget })
-        let notice = MotionBudget.changeNotices[index]
+        let workspace = FakeWorkspace()
+        let observer = MotionBudgetObserver(read: { source.budget }, workspace: workspace)
+        let notice = MotionBudget.changeNotices(in: workspace)[index]
         source.budget = MotionBudget(energy: EnergyConditions(isLowPowerMode: true))
 
         notice.centre.post(name: notice.name, object: nil)
@@ -50,13 +57,28 @@ struct MotionBudgetObserverTests {
 
     @Test("listens for power, thermal and Reduce Motion notices")
     func theNotices() {
-        let names = MotionBudget.changeNotices.map(\.name)
+        let workspace = FakeWorkspace()
+        let notices = MotionBudget.changeNotices(in: workspace)
+        let names = notices.map(\.name)
 
         #expect(names.contains(.NSProcessInfoPowerStateDidChange))
         #expect(names.contains(ProcessInfo.thermalStateDidChangeNotification))
         #expect(names.contains(NSWorkspace.accessibilityDisplayOptionsDidChangeNotification))
-        #expect(
-            MotionBudget.changeNotices.last?.centre === NSWorkspace.shared.notificationCenter)
+        #expect(notices.last?.centre === workspace.notificationCenter)
+    }
+
+    @Test("reads Reduce Motion from the workspace it is given")
+    func readsTheGivenWorkspace() {
+        #expect(MotionBudget.current(in: FakeWorkspace(reducesMotion: true)).reducesMotion)
+        #expect(!MotionBudget.current(in: FakeWorkspace(reducesMotion: false)).reducesMotion)
+    }
+
+    @Test("the system workspace is the shared one")
+    func theSystemWorkspace() {
+        let system = SystemWorkspace()
+
+        #expect(system.notificationCenter === NSWorkspace.shared.notificationCenter)
+        #expect(MotionBudget.changeNotices.last?.centre === system.notificationCenter)
     }
 
     @Test("session loss, screen sleep, and system sleep each end dictation")

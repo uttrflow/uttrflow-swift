@@ -65,7 +65,7 @@ struct PairLedger: Sendable {
         return forget(subject)
     }
 
-    /// Lifts the refusal of a pair, answering whether it was refused.
+    /// Lifts the refusal of a pair, answering whether the pair is refused.
     mutating func allow(heard: String, meant: String) -> Bool {
         let key = Self.refusalKey(heard: heard, meant: meant)
         guard refused.remove(key) != nil else { return false }
@@ -126,7 +126,7 @@ struct PairLedger: Sendable {
         EvidenceRow(kind: kind, subject: subject, weight: weight, day: day, provenance: .dictation)
     }
 
-    /// Adds a refusal, lapsing the oldest past the bound; answers whether it was new.
+    /// Adds a refusal, lapsing the oldest past the bound; answers whether the pair is new.
     private mutating func insertRefusal(_ key: String) -> Bool {
         guard refused.insert(key).inserted else { return false }
         refusalOrder.append(key)

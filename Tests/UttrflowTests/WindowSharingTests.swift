@@ -24,7 +24,7 @@ struct WindowSharingTests {
     @Test("the main window opts out")
     func mainWindowOptsOut() throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let controller = app.makeMainWindow()
         controller.show(.home)
         defer { controller.close() }
