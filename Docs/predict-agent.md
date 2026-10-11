@@ -17,6 +17,9 @@ the gates are in [predict.md](predict.md).
 The verifier's remembered decisions live in `VerificationSession`, whose generation invalidates
 captured `VerificationOperation` values when it forgets. An operation holds its field and exact
 whole-line refusal identity; the actor retains deadlines, corpus-write draining and retries.
+`EnvironmentVerification` owns listing unions, completeness and per-kind case rules. Capture and
+publication use one operation per batch and compare probes with live session state; its production
+metadata mode is disabled, so capture, revision checks and reset perform no alias-body reads.
 
 ## The shape: classify → tools → one constrained pass → verify
 
