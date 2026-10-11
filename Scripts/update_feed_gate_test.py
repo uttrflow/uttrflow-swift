@@ -156,6 +156,38 @@ class FeedGateTests(unittest.TestCase):
         candidate = self.write_appcast("26.0926.1-rc.1", "10")
         self.assertEqual(self.run_gate("check-order", broken, candidate).returncode, 1)
 
+    def test_malformed_ports_are_refused_by_classification_and_plist_checks(self):
+        for host in ("https://example.com", "http://[::1]"):
+            for port in ("not-a-port", "-1", "65536"):
+                url = f"{host}:{port}/appcast.xml"
+                plist = self.write_plist(
+                    SUFeedURL=url, SUPublicEDKey=KEY, SUVerifyUpdateBeforeExtraction=True)
+                for command, argument in (("classify", url), ("check-plist", plist)):
+                    with self.subTest(url=url, command=command):
+                        run = self.run_gate(command, argument)
+                        self.assertEqual(run.returncode, 1, run.stdout)
+                        self.assertEqual(run.stdout, "")
+                        self.assertEqual(
+                            run.stderr, f"update_feed_gate.py: SUFeedURL is not a valid URL: {url}\n")
+
+    def test_valid_port_boundaries_preserve_classification_and_plist_output(self):
+        cases = {
+            "https://example.com/appcast.xml": "https",
+            "https://example.com:0/appcast.xml": "https",
+            "https://example.com:65535/appcast.xml": "https",
+            "http://localhost:0/appcast.xml": "local",
+            "http://[::1]:65535/appcast.xml": "local",
+        }
+        for url, expected in cases.items():
+            plist = self.write_plist(
+                SUFeedURL=url, SUPublicEDKey=KEY, SUVerifyUpdateBeforeExtraction=True)
+            for command, argument in (("classify", url), ("check-plist", plist)):
+                with self.subTest(url=url, command=command):
+                    run = self.run_gate(command, argument)
+                    self.assertEqual(run.returncode, 0, run.stderr)
+                    self.assertEqual(run.stdout, expected + "\n")
+                    self.assertEqual(run.stderr, "")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)
