@@ -134,9 +134,7 @@ fileprivate let hinglishPlain: [TriggerCase] = [
 private let allCases = hinglishCorrections + hinglishPlain
 
 /// Sentences the current evidence still reads wrongly, each held here until a fix makes it pass; see `Docs/cleanup.md`.
-let owedTriggerCases: Set<String> = [
-    "chai or rather coffee pi lete hain"
-]
+let owedTriggerCases: Set<String> = []
 
 @Suite("Correction triggers, one table read by the same code for English and Hindi")
 struct CorrectionTriggerTableTests {
