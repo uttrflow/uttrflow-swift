@@ -201,9 +201,10 @@ it offers an alternative more often than it corrects one. A number on either sid
 is read the same way whether it is a digit, an English word or a romanised Hindi word, so
 "chai do cup no wait three cup" takes back "do cup". `CorrectionTriggerTableTests` holds 38
 Hinglish sentences with a correction and 41 with the same words said plainly, and fails when a
-row has no case of either kind. Measured on the table as shipped: 37 of 38 corrections apply
-and no plain sentence loses a word; the one that does not apply, a single word replaced at the
-start of a Hindi clause, is listed in `owedTriggerCases` until a fix makes it pass.
+row has no case of either kind. Measured on the table as shipped: all 38 corrections apply
+and no plain sentence loses a word. A word the tagger has no class for, as most romanised
+Hindi, does not veto a one-word swap (`WordSlot`); a sentence that still fails is listed in
+`owedTriggerCases` until a fix makes it pass.
 
 ## Tier 3 — never
 
