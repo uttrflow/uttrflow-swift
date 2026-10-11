@@ -437,8 +437,11 @@ DEEP_INK = "#04332F"
 FIGURE_CAPTIONS = ["words", "a day", "words / min", "longest streak"]
 SUGGESTION_CAPTIONS = ["Stored lines", "Recorded uses", "Accepted", "Typed past", "Self-sourced"]
 SUGGESTION_VALUES = ["23", "41", "12", "9", "7"]
-EMPTY_TITLE = "Not enough to chart yet"
-DAYS_BEFORE_CHARTING = 7
+EMPTY_TITLE = "Nothing to chart yet"
+EMPTY_MESSAGE = "Charts appear after your first dictation. {kept}"
+EMPTY_RETENTION_ALWAYS = "Insights count the dictations kept on this Mac."
+EMPTY_RETENTION_LIMITED = "Insights count the dictations kept on this Mac, and history is kept for {retention}."
+EMPTY_KEPT = EMPTY_RETENTION_ALWAYS
 
 
 def shade(words):
@@ -508,23 +511,11 @@ insights = f"""<div class="row" style="gap: 18px; align-items: flex-start">
         </div>
         {suggestion_insights}"""
 
-SPOKEN_SO_FAR = 2
 insights_empty = f"""<div class="empty">
           <div class="ring">{icon(CHART, size=34, width=1.4)}</div>
           <h3>{EMPTY_TITLE}</h3>
-          <p>Dictate on {DAYS_BEFORE_CHARTING} different days and your charts appear.
-            {SPOKEN_SO_FAR} of {DAYS_BEFORE_CHARTING} days so far.</p>
-          <div style="width: 280px; margin-top: 20px">
-            <div class="track"><i style="width: {SPOKEN_SO_FAR / DAYS_BEFORE_CHARTING * 100:.1f}%"></i></div>
-            <div class="row" style="justify-content: space-between; margin-top: 8px;
-                 font-size: var(--t-footnote); color: var(--label-2)">
-              <span>{SPOKEN_SO_FAR} of {DAYS_BEFORE_CHARTING} days</span><span>Charts appear on Tuesday</span>
-            </div>
-          </div>
-          <div class="chips">
-            <div class="chip"><div class="cv">68</div><div class="ck">dictations so far</div></div>
-            <div class="chip"><div class="cv">2,410</div><div class="ck">words so far</div></div>
-          </div>
+          <p>{EMPTY_MESSAGE.format(kept=EMPTY_KEPT)}</p>
+          <button class="btn primary">Change in Settings › Privacy</button>
         </div>
         {suggestion_insights}"""
 

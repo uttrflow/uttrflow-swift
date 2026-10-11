@@ -11,6 +11,11 @@ stories about the same moment. Window, focus and AppKit traps are in
 
 ## Row cache contexts
 
+`PanelSearchMemo` stores derived search lists through `Memo` and owns their ordered recent keys.
+It retains 32 entries, promotes a reused query, evicts the oldest on overflow, and forgets all
+earlier keys when the clip revision changes. Locale and revealed identities remain part of
+source matching; nonempty searches ignore browsing scope and collection as before.
+
 Per-clip row storage uses the shared `Memo` source-matching contract. A context change replaces
 that storage; a late builder stores its answer only while its original context remains current.
 The lookup can read a cached answer without building, including a remembered optional `nil`.
