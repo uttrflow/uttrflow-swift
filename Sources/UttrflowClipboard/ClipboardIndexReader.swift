@@ -53,6 +53,29 @@ struct ClipboardIndexReader {
         return pending.sorted()
     }
 
+    /// Rechecks both indexes before a cached store can write over a newer format from another process.
+    mutating func validateCurrentFormats(
+        in files: [URL], reading read: (URL) throws -> Data
+    ) throws(ClipboardStoreError) {
+        for url in files where !unreplaceable.contains(url) {
+            let data: Data
+            do {
+                data = try read(url)
+            } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
+                continue
+            } catch {
+                // A cached snapshot cannot safely replace a file it could not inspect now.
+                throw .couldNotWrite
+            }
+            if let version = try ClipIndexValidation.inspect(
+                data, fileName: url.lastPathComponent, using: encryptedStore)
+            {
+                unsupportedFormatVersions[url] = version
+                throw .unsupportedFormat
+            }
+        }
+    }
+
     mutating func read(_ url: URL) -> [Clip] {
         guard !unreplaceable.contains(url) else { return [] }
         let stored: StoredList<ClipboardIndex>
