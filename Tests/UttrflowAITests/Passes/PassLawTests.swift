@@ -110,7 +110,7 @@ private func shrunk(_ words: [String], failing: ([String]) -> Bool) -> [String] 
 struct PassLawTests {
     @Test("the suite covers every pass the shipped pipelines run")
     func coversEveryPass() {
-        #expect(everyPass.count == 25)
+        #expect(everyPass.count == 27)
     }
 
     @Test("each stated law holds on generated dictation", arguments: PassLaw.allCases)
