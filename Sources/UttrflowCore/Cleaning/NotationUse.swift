@@ -22,7 +22,7 @@ public struct NotationUse: Sendable, Equatable, Codable {
         let conversions = try values.decode(Int.self, forKey: .conversions)
         guard conversions > 0 else {
             throw DecodingError.dataCorruptedError(
-                forKey: .conversions, in: values, debugDescription: "A notation holds at least one conversion.")
+                forKey: .conversions, in: values, debugDescription: "A notation holds a conversion.")
         }
         destination = try values.decode(Destination.self, forKey: .destination)
         self.conversions = conversions

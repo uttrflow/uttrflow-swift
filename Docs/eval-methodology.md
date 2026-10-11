@@ -1064,3 +1064,66 @@ speaker raising their voice, sits between the synthetic 20 and 10 dB steps and c
 measurable; it is not evidence for the 5 and 0 dB steps. One speaker, one microphone, one room,
 and the noisy takes were a second reading of passages already read once, so no row here is a
 population claim.
+
+## Accuracy and piece cuts by speaking rate and pitch (`pace`)
+
+Every corpus passage is read at one pace by one voice, yet the repeated-sentence check
+(`RecognitionLoop.fastestSpeech`) and the piece cut (`SpeechWindowing`) are set in seconds and words
+a second. `uttrflow-eval pace` replays each recording at stepped speaking rates and pitches and
+reports what depends on pace.
+
+```bash
+uttrflow-eval pace
+uttrflow-eval pace --structure-only    # cuts and the loop check only; loads no model
+```
+
+- Variants are generated, never recorded or committed (`Sources/UttrflowEval/SpeechVariant.swift`).
+  Speaking rate uses waveform-similarity overlap-add, which keeps pitch, at 0.7, 0.85, 1.3, 1.6 and
+  1.9 times; pitch moves by -4, -2, +2, +4 and +6 semitones by stretching and resampling, which
+  keeps tempo. 1.0x is the reference. The same audio always gives the same variant.
+- Word error rate and insertions are pooled per language and condition with the paired 95%
+  interval on the change from 1.0x, as `noise` does (`ConditionTable`).
+- Per condition, pooled over every recording (`PaceStructure`, no recogniser involved):
+  - pieces: how many pieces `SpeechWindowing.windows` cuts the clip into;
+  - early: cuts that end a piece sooner than `SpeechWindowing.minimumLength` after it began;
+  - mid-word (with a recogniser only): cuts that fall strictly inside a word the recogniser
+    timed, over all cuts of recordings with timed words;
+  - said-twice cut: of the recordings with at least `RecognitionLoop.fewestCopyWords` words, how
+    many have their reference text said twice, at that pace, cut to one copy by
+    `RecognitionLoop.undone`. A sentence really said twice should keep both copies, so each is
+    a false positive;
+  - over 4.8 w/s: reference words over speech seconds above `RecognitionLoop.fastestSpeech`.
+
+### Measured on one speaker's recordings, cuts and loop check only
+
+One speaker, `reader-1`, built-in microphone, no recogniser: the structure half of the sweep on
+18 quiet passages, 6 deliberately fast English passages and 6 English passages read in a noisy
+room. The audio stays on the recording Mac. Pieces and early cuts are for the 18 quiet passages;
+the loop check is counted per recording.
+
+| condition | pieces | early | said-twice cut (quiet / fast / noisy) |
+|---|---|---|---|
+| 1.0x | 32 | 1 | 0/18 / 0/6 / 0/6 |
+| 0.7x | 53 | 0 | 0/18 / 0/6 / 0/6 |
+| 0.85x | 43 | 0 | 0/18 / 0/6 / 0/6 |
+| 1.3x | 25 | 1 | 0/18 / 0/6 / 0/6 |
+| 1.6x | 21 | 1 | 2/18 / 1/6 / 1/6 |
+| 1.9x | 19 | 1 | 6/18 / 6/6 / 5/6 |
+| -4 / -2 / +2 / +4 / +6 st | 32 / 33 / 32 / 37 / 37 | 2 / 1 / 1 / 2 / 2 | 0 in every session |
+
+- Slower speech is cut into more pieces (53 against 32 at 0.7x, 43 at 0.85x), and faster speech
+  into fewer (21 at 1.6x), because the pause lengths in `SpeechWindowing` are in seconds.
+- The repeated-sentence check cuts a sentence really said twice at 1.6x in 4 of 30 recordings and
+  at 1.9x in 17 of 30. Each is a false positive, and 1.6x is inside the 0.85x to 1.6x range, so
+  the limit needs a follow-up that changes it with before and after. The count is the count
+  of recordings whose words a second pass 4.8, so the speech rate alone decides it.
+- Pitch shifts move the piece count by at most 5 of 32 (+4 and +6 semitones), and no loop-check
+  hit.
+
+Not yet measured: word error rate per factor and pitch, cuts inside a word, and the word error
+rate floor at 1.3x and 1.6x for fast speakers. That run needs the shipping model on an otherwise
+idle machine:
+
+```bash
+uttrflow-eval pace --corpus-path <reader-1-quiet>
+```
