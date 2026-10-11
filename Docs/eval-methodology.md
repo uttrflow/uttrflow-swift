@@ -51,6 +51,10 @@ and the class that moved, never alone.
 - Matching a shared case ID is not enough: `recordingIdentity` (a WAV digest locally, a
   catalogue sample's own key from the backend) has to match too, or the gate reports it as
   unverifiable instead of comparing rates that may belong to two different takes.
+- Negative error or reference-word counts in either run make the comparison incomparable before
+  aggregation. Every raw entry is checked, including duplicate IDs and entries excluded from slices.
+  Zero-count and unscorable entries keep their existing handling; insertion errors may exceed
+  the reference-word count.
 
 ## What is scored and what is only timed
 
