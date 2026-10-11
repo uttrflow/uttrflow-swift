@@ -83,6 +83,14 @@ struct EndOnSilenceTests {
             }
         }
 
+        /// Polls until the countdown has been reported `count` times, waiting real time for the analysis, for at most five seconds.
+        func listen(untilReported count: Int) async {
+            for _ in 0..<500 where log.shown.count < count {
+                await clock.advanceWhenSomethingIsWaiting(by: SilenceStop.poll)
+                try? await Task.sleep(for: .milliseconds(10))
+            }
+        }
+
         /// Polls until the recording has stopped itself and its words have landed; nothing sleeps after the stop.
         func listenUntilInserted() async {
             while inserter.received.isEmpty, !Task.isCancelled {
@@ -192,16 +200,16 @@ struct EndOnSilenceTests {
         #expect(rig.log.shown.isEmpty)
 
         await rig.capture.appendCaptured(take(speaking: 0, thenQuietFor: 1))
-        await rig.listen(for: 1)
+        await rig.listen(untilReported: 1)
         #expect(rig.log.shown == [2])
         #expect(rig.log.warnings == [2])
 
         await rig.capture.appendCaptured(take(speaking: 1, thenQuietFor: 0))
-        await rig.listen(for: 1)
+        await rig.listen(untilReported: 2)
         #expect(rig.log.shown == [2, nil])
 
         await rig.capture.appendCaptured(take(speaking: 0, thenQuietFor: 3))
-        await rig.listen(for: 1)
+        await rig.listen(untilReported: 3)
         #expect(rig.log.shown == [2, nil, 1])
         #expect(rig.log.warnings == [2, 1])
         #expect(await rig.pipeline.currentState.isListening)
@@ -212,7 +220,7 @@ struct EndOnSilenceTests {
         let heard = take(speaking: 1, thenQuietFor: 3)
         let rig = Rig(.pressToToggle, endOnSilence: 4, heard: heard)
         await rig.start(heard)
-        await rig.listen(for: 1)
+        await rig.listen(untilReported: 1)
         #expect(rig.log.shown == [1])
 
         await rig.listenUntilInserted()
@@ -224,7 +232,7 @@ struct EndOnSilenceTests {
         let heard = take(speaking: 1, thenQuietFor: 3)
         let rig = Rig(.pressToToggle, endOnSilence: 4, heard: heard)
         await rig.start(heard)
-        await rig.listen(for: 1)
+        await rig.listen(untilReported: 1)
         await rig.controller.handle(.escapePressed)
         #expect(rig.log.shown == [1, nil])
     }
@@ -234,7 +242,7 @@ struct EndOnSilenceTests {
         let heard = take(speaking: 1, thenQuietFor: 3)
         let rig = Rig(.pressToToggle, endOnSilence: 4, heard: heard)
         await rig.start(heard)
-        await rig.listen(for: 1)
+        await rig.listen(untilReported: 1)
         await rig.controller.handle(.pressed)
         #expect(rig.log.shown == [1, nil])
     }
