@@ -20,11 +20,14 @@ Uttrflow is for is said on the sign-in page itself; there is no separate welcome
   once the model is on disk, and its Cancel stops the download and offers Try again rather than
   moving on. `OnboardingFlow` refuses a stray `.advance` on an unanswered page, so the rule holds
   even if a page offered one by mistake.
-- The clipboard page follows sign-in, because signing in is what starts recording copies. It says
+- The clipboard page follows sign-in, because the choice must come before any copy is recorded. It says
   how long copies are kept (the stored `clipboardRetentionDays`) and offers Keep and Turn off,
   which save `clipboardEnabled` at once, beside Continue. Keeping is the default, so the setting
   cannot say whether the page was answered: Continue writes that to `OnboardingRecordStore`, and
   the page is passed over from then on.
+  Copies are not recorded until then: `SessionSurfaces` holds the clipboard off until the page is
+  answered or onboarding had finished before the page existed (`hasChosenClipboard`), so an
+  install that chose Turn off never recorded a copy and a saved preference is kept as it was.
 - The one exception is a device policy (`.restricted`): granting is not on offer at all, so
   Continue is the only answer left, and the last page says what it cost.
 - A granted permission and a finished download stay on screen to say so, and the user presses

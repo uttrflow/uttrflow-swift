@@ -1,4 +1,5 @@
 // Tests for the onboarding flow: starting, permissions, the download, the first try, finishing, and stray intents.
+import Synchronization
 import Testing
 import UttrflowCore
 
@@ -53,6 +54,19 @@ struct OnboardingFlowTests {
         #expect(await harness.press("Continue"))
         #expect(harness.record.hasAnsweredClipboard)
         #expect(harness.step == .microphone)
+    }
+
+    @Test("tells the running app when the clipboard page is left, and not before")
+    func clipboardAnswerReachesTheApp() async {
+        let harness = Harness(hasAnsweredClipboard: false)
+        let answered = Mutex(0)
+        harness.flow.onClipboardAnswered = { answered.withLock { $0 += 1 } }
+        await harness.flow.start()
+
+        #expect(await harness.press("Keep"))
+        #expect(answered.withLock { $0 } == 0)
+        #expect(await harness.press("Continue"))
+        #expect(answered.withLock { $0 } == 1)
     }
 
     @Test("tells the running app about the clipboard choice as it is made")

@@ -52,7 +52,7 @@ public struct SessionSurfaces: Sendable, Equatable {
     public let listensForDictation: Bool
     /// The claimed shortcuts to register, in the registry's order.
     public let claimedShortcuts: [ShortcutAction]
-    /// Whether copies are recorded.
+    /// Whether copies are recorded; none until the install's clipboard choice is made.
     public let watchesTheClipboard: Bool
     /// Whether tab-to-complete runs.
     public let completesWhatIsTyped: Bool
@@ -60,10 +60,10 @@ public struct SessionSurfaces: Sendable, Equatable {
     public let showsTheFloatingButton: Bool
 
     /// Decides every surface at once, so no caller can forget the session.
-    public init(isSignedIn: Bool, settings: Settings) {
+    public init(isSignedIn: Bool, clipboardChoiceIsMade: Bool, settings: Settings) {
         listensForDictation = isSignedIn && settings.dictationEnabled
         claimedShortcuts = isSignedIn ? ShortcutRegistry.claimed(in: settings).map(\.action) : []
-        watchesTheClipboard = isSignedIn && settings.clipboardEnabled
+        watchesTheClipboard = isSignedIn && clipboardChoiceIsMade && settings.clipboardEnabled
         completesWhatIsTyped = isSignedIn && settings.suggestions.isEnabled
         showsTheFloatingButton = isSignedIn && settings.floatingButtonIsShown
     }

@@ -32,6 +32,9 @@ public final class OnboardingFlow {
     /// Called after onboarding changes a saved setting, so the running app applies it immediately.
     public var onSettingsChange: ((Settings) -> Void)?
 
+    /// Called when the user leaves the clipboard page, which is when copies may start to be recorded.
+    public var onClipboardAnswered: (() -> Void)?
+
     /// Called as soon as a sign-in's profile is kept, so the app opens before the rest of setup.
     public var onSignIn: (() -> Void)?
 
@@ -139,7 +142,10 @@ public final class OnboardingFlow {
         case .advance:
             // Every page but the last is answered before it is left; a stray advance is ignored.
             guard await isAnswered else { return }
-            if state.step == .clipboard { record.recordClipboardAnswered() }
+            if state.step == .clipboard {
+                record.recordClipboardAnswered()
+                onClipboardAnswered?()
+            }
             await moveOn(after: state.step)
         case .requestPermission(let kind):
             await ask(kind)
