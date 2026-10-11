@@ -6,15 +6,16 @@
     "Sources/UttrflowAI/Passes/ContractionsPass.swift": 1,
     "Sources/UttrflowAI/Passes/FillersPass.swift": 3,
     "Sources/UttrflowAI/Passes/FirstWordPass.swift": 3,
+    "Sources/UttrflowAI/Passes/LayoutWordsPass+EnumeratedSeries.swift": 2,
     "Sources/UttrflowAI/Passes/LetterRun.swift": 1,
     "Sources/UttrflowAI/Passes/MentionGuard.swift": 8,
-    "Sources/UttrflowAI/Passes/NumberFormsPass.swift": 8,
+    "Sources/UttrflowAI/Passes/NumberFormsPass.swift": 10,
     "Sources/UttrflowAI/Passes/RepeatedPhrasePass.swift": 8,
     "Sources/UttrflowAI/Passes/SelfCorrectionPass.swift": 1,
     "Sources/UttrflowAI/Passes/SpokenAddress.swift": 3,
     "Sources/UttrflowAI/Passes/SpokenPunctuationPass.swift": 1,
     "Sources/UttrflowAI/Passes/StammersPass.swift": 1,
-    "Sources/UttrflowAI/Passes/TerminalStopPass.swift": 2,
+    "Sources/UttrflowAI/Passes/TerminalStopPass.swift": 1,
     "Sources/UttrflowAI/ResponseUnwrapper.swift": 1,
     "Sources/UttrflowAI/WordForms.swift": 1,
     "Sources/UttrflowClipboard/CodeShapes.swift": 15,
@@ -26,7 +27,7 @@
     "Sources/UttrflowContext/ShellPrompt.swift": 1,
     "Sources/UttrflowContext/Surroundings.swift": 2,
     "Sources/UttrflowCore/Cleaning/QuestionShape.swift": 19,
-    "Sources/UttrflowCore/Cleaning/Restatement.swift": 5,
+    "Sources/UttrflowCore/Cleaning/Restatement.swift": 4,
     "Sources/UttrflowCore/Cleaning/ReviewTag.swift": 2,
     "Sources/UttrflowCore/Cleaning/TechnicalToken.swift": 2,
     "Sources/UttrflowCore/Cleaning/WordShape.swift": 1,
@@ -48,7 +49,7 @@
     "Sources/UttrflowLocalModel/SignOff.swift": 1,
     "Sources/UttrflowLocalModel/Specifics.swift": 3,
     "Sources/UttrflowPipeline/DoubtfulWordsLocating.swift": 1,
-    "Sources/UttrflowPipeline/PieceJoiner.swift": 3,
+    "Sources/UttrflowPipeline/PieceJoiner.swift": 2,
     "Sources/UttrflowPredict/DestructiveCommand.swift": 7,
     "Sources/UttrflowPredict/GitRepository.swift": 1,
     "Sources/UttrflowPredict/LineShape.swift": 5,
@@ -72,5 +73,5 @@
     "Sources/uttrflow-eval/ClosedPhraseMarksProbe.swift": 4,
     "Sources/uttrflow-eval/SpokenClips.swift": 2
   },
-  "total": 228
+  "total": 229
 }
