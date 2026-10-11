@@ -22,6 +22,8 @@ struct LineShape: Equatable, Sendable {
     let command: String?
     /// What the word may be.
     let kind: ArgumentKind
+    var isUncertain = false
+    var isAliasDependent = false
 
     /// The shape of the word a line ends on, from the words before it.
     static func of(_ token: CompletionToken) -> LineShape { of(token, aliases: [:]) }
@@ -30,19 +32,24 @@ struct LineShape: Equatable, Sendable {
     static func of(_ token: CompletionToken, aliases: [String: [String]]) -> LineShape {
         var words = CommandGrammar.simpleCommand(before: token.leading)
         while let first = words.first, CommandGrammar.wrappers.contains(first) {
-            words.removeFirst()
-            // A wrapper's own flags belong to it, not to the command it runs.
-            while let flag = words.first, flag.hasPrefix("-") {
-                words.removeFirst()
-                if CommandGrammar.wrapperValueFlags[first]?.contains(flag) == true, !words.isEmpty {
-                    words.removeFirst()
-                }
-            }
-            while first == "env", let assignment = words.first, CommandGrammar.isAssignment(assignment) {
-                words.removeFirst()
-            }
+            CommandGrammar.removeWrapper(from: &words)
         }
         words = expanded(words, aliases: aliases)
+        return classified(words)
+    }
+
+    static func of(_ token: CompletionToken, metadata: AliasExpansionSnapshot) -> LineShape {
+        let words = CommandGrammar.simpleCommand(before: token.leading)
+        guard !words.isEmpty else { return LineShape(command: nil, kind: .program) }
+        guard let aliases = metadata.words,
+            let resolved = resolved(words, aliases: aliases, metadata: metadata)
+        else { return LineShape(command: words.first, kind: .free, isUncertain: true) }
+        var shape = classified(resolved.words)
+        shape.isAliasDependent = resolved.isAliasDependent
+        return shape
+    }
+
+    private static func classified(_ words: [String]) -> LineShape {
         guard let command = words.first else { return LineShape(command: nil, kind: .program) }
         let rest = words.dropFirst()
         // A bare `--` ends the options, so every word after it is an operand whatever it begins with.
@@ -60,6 +67,38 @@ struct LineShape: Equatable, Sendable {
 }
 
 extension LineShape {
+
+    private static func resolved(
+        _ original: [String], aliases: [String: [String]], metadata: AliasExpansionSnapshot
+    ) -> (words: [String], isAliasDependent: Bool)? {
+        var words = original
+        var seen: Set<String> = []
+        var isAliasDependent = false
+        let names = aliases.keys.sorted()
+        while let first = words.first {
+            if let position = names.firstIndex(of: first), metadata.uncertainAliases.contains(position) {
+                return nil
+            }
+            if let body = aliases[first], !seen.contains(first) {
+                isAliasDependent = true
+                seen.insert(first)
+                words = body + words.dropFirst()
+                if body.first != first { continue }
+            } else if aliases[first] != nil {
+                return nil
+            }
+            guard let command = words.first else { break }
+            if let position = CommandGrammar.shadowableCommands.firstIndex(of: command),
+                metadata.blockedCommands.contains(position)
+            {
+                return nil
+            }
+            guard CommandGrammar.wrappers.contains(command) else { break }
+            CommandGrammar.removeWrapper(from: &words)
+        }
+        return (words, isAliasDependent)
+    }
+
     /// The words with a leading alias replaced by what it stands for, once for each name, as a shell does.
     private static func expanded(_ words: [String], aliases: [String: [String]]) -> [String] {
         var words = words
@@ -73,6 +112,20 @@ extension LineShape {
 
 /// What the common commands take, of the kind a shell's completion keeps: data in one place, read by position.
 enum CommandGrammar {
+    static func removeWrapper(from words: inout [String]) {
+        guard let first = words.first else { return }
+        words.removeFirst()
+        while let flag = words.first, flag.hasPrefix("-") {
+            words.removeFirst()
+            if CommandGrammar.wrapperValueFlags[first]?.contains(flag) == true, !words.isEmpty {
+                words.removeFirst()
+            }
+        }
+        while first == "env", let assignment = words.first, CommandGrammar.isAssignment(assignment) {
+            words.removeFirst()
+        }
+    }
+
     /// Programs that run another command, whose own name says nothing about the arguments.
     static let wrapperValueFlags: [String: Set<String>] = [
         "sudo": ["-u", "-g", "-h", "-p", "-C", "-D", "-r", "-t", "-U", "-T"],
@@ -121,6 +174,15 @@ enum CommandGrammar {
 
     /// Package managers whose `run` verb takes a script the project declares.
     static let scriptRunners: Set<String> = ["npm", "yarn", "pnpm", "bun"]
+
+    static let shadowableCommands = Array(
+        directoryCommands.union(fileCommands).union(interpreters).union(patternCommands)
+            .union(subcommandPrograms).union(targetPrograms).union(wrappers).union(["find"])
+    ).sorted()
+
+    static func shadowed(_ names: some Sequence<String>) -> Set<Int> {
+        Set(names.compactMap { shadowableCommands.firstIndex(of: $0) })
+    }
 
     /// Whether a program's verbs are read from the project here, so its answer belongs to this directory alone.
     static func readsTheProject(_ program: String) -> Bool {

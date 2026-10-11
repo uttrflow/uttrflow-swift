@@ -258,6 +258,12 @@ public struct SystemEnvironmentReader: EnvironmentReading, AliasExpansionReading
         return AliasExpansionCache<ContinuousClock>.bounded(ShellAliases.expansions(in: configuration))
     }
 
+    func aliasMetadata() async -> AliasExpansionSnapshot? {
+        guard let configuration = aliasConfiguration(requireComplete: true) else { return nil }
+        return AliasExpansionSnapshot.metadata(
+            ShellAliases.expansions(in: configuration), declared: Set(ShellAliases.names(in: configuration)))
+    }
+
     private func aliasConfiguration(requireComplete: Bool = false) -> String? {
         var configurations: [String] = []
         for file in Self.aliasFiles {
