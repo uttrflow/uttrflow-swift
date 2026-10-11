@@ -5426,6 +5426,7 @@
     "UttrflowUX let change": 1,
     "UttrflowUX let character": 1,
     "UttrflowUX let chartCaption": 1,
+    "UttrflowUX let chartCoverage": 1,
     "UttrflowUX let checklist": 1,
     "UttrflowUX let chips": 2,
     "UttrflowUX let choose": 1,
@@ -5464,7 +5465,6 @@
     "UttrflowUX let date": 1,
     "UttrflowUX let dateLine": 1,
     "UttrflowUX let days": 2,
-    "UttrflowUX let daysBeforeCharting": 1,
     "UttrflowUX let decoding": 2,
     "UttrflowUX let deepInkFloor": 1,
     "UttrflowUX let defaultCapacity": 1,
@@ -5578,6 +5578,7 @@
     "UttrflowUX let isInPrompt": 1,
     "UttrflowUX let isInstalled": 1,
     "UttrflowUX let isItalic": 1,
+    "UttrflowUX let isKept": 1,
     "UttrflowUX let isListening": 1,
     "UttrflowUX let isMasked": 2,
     "UttrflowUX let isMixedScript": 1,
@@ -6260,5 +6261,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 8892
+  "total": 8893
 }
