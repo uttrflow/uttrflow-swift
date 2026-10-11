@@ -12,22 +12,12 @@ struct MLXCandidateScoringBackend: CandidateScoringBackend {
         self.container = container
     }
 
-    func prepare(
-        candidate: String, following context: String, vocabulary: TokenHealing.Vocabulary
-    ) async -> CandidateScoringInput {
-        await container.perform { modelContext in
-            let tokens = MLXCandidateScorer.leadIn + candidate
-            let whole = modelContext.tokenizer.encode(text: tokens)
-            let typed = modelContext.tokenizer.encode(
-                text: MLXCandidateScorer.leadIn
-                    + CompletionText.typedPart(of: candidate, following: context))
-            return CandidateScoringInput(
-                tokens: whole,
-                typedTokens: typed,
-                texts: whole.map { modelContext.tokenizer.decode(tokenIds: [$0]) },
-                prefixStart: MLXCandidateScorer.requestedStart(
-                    whole, candidate: candidate, context: context,
-                    vocabulary: vocabulary, tokenizer: modelContext.tokenizer))
+    func tokenise(whole: String, typed: String) async -> CandidateTokens {
+        await container.perform { context in
+            let ids = context.tokenizer.encode(text: whole)
+            return CandidateTokens(
+                whole: ids, typed: context.tokenizer.encode(text: typed),
+                texts: ids.map { context.tokenizer.decode(tokenIds: [$0]) })
         }
     }
 
