@@ -10,7 +10,8 @@ struct LayoutNumberOrderTests {
         #expect(!LayoutWordsPass.orderIndependentWith.contains(.numberForms))
     }
 
-    @Test("shipped piece pipelines consume layout before interpreting numbers", arguments: Destination.allCases)
+    @Test(
+        "shipped piece pipelines consume layout before interpreting numbers", arguments: Destination.allCases)
     func shippedOrder(_ destination: Destination) throws {
         let formatter = DestinationFormatter.standard(for: destination)
         let pipelines = [
@@ -24,12 +25,14 @@ struct LayoutNumberOrderTests {
         }
     }
 
-    @Test("consumed commands do not leave a line-number cue", arguments: [
-        ("new new line three .", "new\nthree .", "new\n3 ."),
-        ("line three .", "line 3 .", "line 3 ."),
-        ("new line three .", "new line 3 .", "new line 3 ."),
-        ("new paragraph three .", "new paragraph three .", "new paragraph three ."),
-    ])
+    @Test(
+        "consumed commands do not leave a line-number cue",
+        arguments: [
+            ("new new line three .", "new\nthree .", "new\n3 ."),
+            ("line three .", "line 3 .", "line 3 ."),
+            ("new line three .", "new line 3 .", "new line 3 ."),
+            ("new paragraph three .", "new paragraph three .", "new paragraph three ."),
+        ])
     func contextualReading(_ input: String, _ layoutFirst: String, _ numbersFirst: String) {
         let draft = Draft(text: input)
         let layout = LayoutWordsPass()

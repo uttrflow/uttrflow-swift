@@ -25,6 +25,23 @@ struct VerificationSession {
                 || operation.aliases.revision == aliasRevision)
     }
 
+    func held<Value: Sendable>(
+        _ value: Value, in operation: VerificationOperation, revision: UInt64?
+    ) -> Value? {
+        guard isCurrent(operation), revision.map({ $0 == operation.aliases.revision }) ?? true else {
+            return nil
+        }
+        return value
+    }
+
+    mutating func publish(
+        _ verdict: Verdict, for key: VerdictCache.Key?, in operation: VerificationOperation, revision: UInt64?
+    ) -> Verdict? {
+        guard let verdict = held(verdict, in: operation, revision: revision) else { return nil }
+        if let key { cache.remember(verdict, for: key) }
+        return verdict
+    }
+
     mutating func verdict(for key: VerdictCache.Key) -> Verdict? { cache.verdict(for: key) }
     mutating func remember(_ verdict: Verdict, for key: VerdictCache.Key) {
         cache.remember(verdict, for: key)

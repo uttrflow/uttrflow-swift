@@ -217,12 +217,15 @@ class Tree:
         self.defaults = {}
         parameter = re.compile(r"[(,]\s*(?:\w+\s+)?(\w+)\s*:\s*(?:Duration|TimeInterval|Double)\s*=\s*([^,)\n]+(?:\([^)\n]*\))?)")
         for path, text in self.files.items():
+            types = type_ranges(text)
             for match in parameter.finditer(text):
-                self.defaults.setdefault(match.group(1), []).append((path, None, match.group(2).strip()))
+                owner = next((name for start, end, name in types if start < match.start() < end), None)
+                self.defaults.setdefault(match.group(1), []).append((path, owner, match.group(2).strip()))
 
 
 def type_ranges(text):
     """Every type declared in a file as (start, end, name), innermost first."""
+    text = re.sub(r"(?m)^[^\n]*\bimport\b[^\n]*$", lambda match: " " * len(match.group()), text)
     ranges = []
     for match in re.finditer(r"\b(?:struct|class|enum|actor|extension)\s+([\w.]+)[^{;]*\{", text):
         opening = match.end() - 1
@@ -265,7 +268,12 @@ def seconds(tree, expression, path, depth=0):
         local = [entry for entry in candidates if entry[0] == path]
         chosen = local or candidates
         if not chosen and not owner:
-            chosen = [entry for entry in tree.defaults.get(name, []) if entry[0] == path]
+            defaults = tree.defaults.get(name, [])
+            chosen = [entry for entry in defaults if entry[0] == path]
+            if not chosen:
+                owners = {name for _, _, name in type_ranges(tree.files.get(path, ""))}
+                chosen = [entry for entry in defaults
+                          if entry[0].split("/")[1] == path.split("/")[1] and entry[1] in owners]
         if len(chosen) != 1:
             raise LookupError(dotted)
         value = seconds(tree, chosen[0][2], chosen[0][0], depth + 1)
@@ -601,6 +609,18 @@ def functions(text):
 
 def check_cache(tree, findings, report):
     mlx_files = [path for path, text in tree.files.items() if re.search(r"^\s*(?:public\s+|private\s+)?import\s+MLX", text, re.M)]
+    model_types = {
+        (path.split("/")[1], name)
+        for path in mlx_files
+        for _, _, name in type_ranges(tree.files[path])
+    }
+    mlx_files.extend(
+        path for path, text in tree.files.items()
+        if path not in mlx_files and any(
+            (path.split("/")[1], match.group(1).split(".")[-1]) in model_types
+            for match in re.finditer(r"\bextension\s+([\w.]+)", text)
+        )
+    )
     passes = 0
     for path in mlx_files:
         text = tree.files[path]
@@ -1193,7 +1213,7 @@ INJECTIONS = (
         "paused: !attended || !motion.workingBarsMove", "paused: !motion.workingBarsMove", "motion",
     ),
     (
-        "Sources/UttrflowLocalModel/MLXCandidateScorer.swift",
+        "Sources/UttrflowLocalModel/MLXCandidateScorer+Lifecycle.swift",
         "        bufferCachePasses.begin()\n        await weights.unload()\n        bufferCachePasses.end()",
         "        await weights.unload()", "cache",
     ),

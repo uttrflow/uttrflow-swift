@@ -319,6 +319,7 @@ log-audit: ## Prove no log message carries text a person typed, read or said. Ne
 
 .PHONY: perf-budget
 perf-budget: ## Prove the source keeps to the energy and memory budget, and that each check still bites. No build.
+	@python3 -m unittest discover -s Scripts -p test_perf_budget_audit.py
 	@python3 Scripts/perf_budget_audit.py --self-test
 
 # Needs a `uttrflow-dev bench` run, so it runs on a Mac rather than in CI.
