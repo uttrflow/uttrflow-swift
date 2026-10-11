@@ -15,6 +15,7 @@ final class PanelRowMemo: Sendable {
         let formattableLanguages: Set<CodeLanguage>
         let revealed: Set<Clip.ID>
         let missingImages: Set<Clip.ID>
+        let missingFiles: [Clip.ID: [String]]
     }
 
     /// What one row was built from, compared before it is reused.

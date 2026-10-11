@@ -15,6 +15,8 @@ public enum ClipKind: String, Sendable, Equatable, CaseIterable, Codable {
     case image
     /// A path to a file or folder on this Mac; its row can name the folder instead of repeating a prefix.
     case filePath
+    /// Files copied in the file manager, kept as references so Return can put the files themselves back.
+    case file
 
     public init(from decoder: any Decoder) throws {
         let values = try decoder.singleValueContainer()
@@ -42,6 +44,8 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
     public internal(set) var richText: String?
     /// The picture this clip is, as much of it as a row needs; the bytes live in a file beside the clipboard.
     public internal(set) var image: ClipImage?
+    /// The files this clip is, in the order they were copied; `text` holds their names for search and display.
+    public internal(set) var files: [ClipFileReference]?
     public internal(set) var copiedAt: Date
     /// The wall-clock time of the latest use; eviction ranks by `lastUsedOrder` instead.
     public internal(set) var lastUsedAt: Date
@@ -73,7 +77,7 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
     }
 
     private enum CodingKeys: String, CodingKey, CaseIterable {
-        case id, text, kind, language, richText, image, copiedAt, lastUsedAt, lastUsedOrder
+        case id, text, kind, language, richText, image, files, copiedAt, lastUsedAt, lastUsedOrder
         case timesCopied, source, origin, dictations, dictatedText, alias, category, isPinned
         case storedTags = "tags"
     }
@@ -88,6 +92,7 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
         language: CodeLanguage? = nil,
         richText: String? = nil,
         image: ClipImage? = nil,
+        files: [ClipFileReference]? = nil,
         alias: String? = nil, tags: [String] = [], category: String? = nil, isPinned: Bool = false,
         timesCopied: Int = 1
     ) {
@@ -97,6 +102,7 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
         self.language = language
         self.richText = richText
         self.image = image
+        self.files = files
         self.copiedAt = copiedAt
         // Defaulted from the arrival, not the clock, so a test's fixed date is not silently touched.
         self.lastUsedAt = lastUsedAt ?? copiedAt
@@ -135,6 +141,7 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
             language: values.decodeIfPresent(CodeLanguage.self, forKey: .language),
             richText: values.decodeIfPresent(String.self, forKey: .richText),
             image: values.decodeIfPresent(ClipImage.self, forKey: .image),
+            files: values.decodeIfPresent([ClipFileReference].self, forKey: .files),
             alias: values.decodeIfPresent(String.self, forKey: .alias),
             tags: values.decodeIfPresent([String].self, forKey: .storedTags) ?? [],
             category: values.decodeIfPresent(String.self, forKey: .category),

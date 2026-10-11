@@ -15,6 +15,7 @@ struct ClipTransformationTests {
         lastUsedAt: noon.addingTimeInterval(-10), lastUsedOrder: 8, language: .swift,
         richText: "<p>formatted note</p>",
         image: ClipImage(file: "answer.png", width: 20, height: 10, bytes: 128, sha: "digest"),
+        files: [ClipFileReference(path: "/tmp/example.txt", bookmark: Data([1, 2]))],
         alias: "/answer", tags: ["work", "snippets"], category: "Notes", isPinned: true,
         timesCopied: 7)
 

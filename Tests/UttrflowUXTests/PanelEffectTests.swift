@@ -125,6 +125,7 @@ struct PanelUseReportingTests {
             used
         case .closeAndInsertImage(let clip), .copyImageAndSay(let clip, _), .closeAndCopyImage(let clip):
             clip.id
+        case .placeFiles(let clip, _): clip.id
         case .redraw, .close, .applyAndRedraw, .say: nil
         }
     }

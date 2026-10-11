@@ -36,7 +36,7 @@ leave a stale pass behind.
 ## Table
 
 <!-- accessibility-controls:begin -->
-115 controls; 0 walked; 0 with no accessible name found in the source.
+118 controls; 0 walked; 0 with no accessible name found in the source.
 
 | Screen | Control | Kind | Accessible name from | Keyboard and Voice Control |
 |---|---|---|---|---|
@@ -46,6 +46,7 @@ leave a stale pass behind.
 | Dock | `Sources/Uttrflow/Dock/DockNotices.swift#Button#2` | Button | label view | unchecked |
 | Dock | `Sources/Uttrflow/Dock/DockSetupView.swift#Button#1` | Button | label view | unchecked |
 | Dock | `Sources/Uttrflow/Dock/DockView.swift#Button#1` | Button | expression | unchecked |
+| Main window | `Sources/Uttrflow/Main/AccountPageView.swift#Link#1` | Link | expression | unchecked |
 | Main window | `Sources/Uttrflow/Main/AccountPageView.swift#Button#1` | Button | label view | unchecked |
 | Main window | `Sources/Uttrflow/Main/ApplicationScopeRow.swift#Button#1` | Button | expression | unchecked |
 | Main window | `Sources/Uttrflow/Main/ApplicationScopeRow.swift#Button#2` | Button | expression | unchecked |
@@ -110,6 +111,7 @@ leave a stale pass behind.
 | Menu bar | `Sources/Uttrflow/MenuBar/MenuBarPopoverView.swift#Button#6` | Button | accessibilityLabel | unchecked |
 | Onboarding | `Sources/Uttrflow/Onboarding/OnboardingCelebration.swift#Button#1` | Button | label view | unchecked |
 | Onboarding | `Sources/Uttrflow/Onboarding/OnboardingPieces.swift#Button#1` | Button | label view | unchecked |
+| Onboarding | `Sources/Uttrflow/Onboarding/OnboardingView.swift#Link#1` | Link | expression | unchecked |
 | Onboarding | `Sources/Uttrflow/Onboarding/OnboardingView.swift#Button#1` | Button | expression | unchecked |
 | Panel | `Sources/Uttrflow/Panel/PanelEmptyStateView.swift#Button#1` | Button | accessibilityLabel | unchecked |
 | Panel | `Sources/Uttrflow/Panel/PanelEmptyStateView.swift#Button#2` | Button | expression | unchecked |
@@ -146,7 +148,8 @@ leave a stale pass behind.
 | Settings | `Sources/Uttrflow/Settings/SettingsControlView.swift#Menu#1` | Menu | accessibilityLabel | unchecked |
 | Settings | `Sources/Uttrflow/Settings/SettingsControlView.swift#Button#4` | Button | expression | unchecked |
 | Settings | `Sources/Uttrflow/Settings/SettingsControlView.swift#Button#5` | Button | text "Cancel" | unchecked |
-| Settings | `Sources/Uttrflow/Settings/SettingsControlView.swift#Button#6` | Button | label view | unchecked |
+| Settings | `Sources/Uttrflow/Settings/SettingsControlView.swift#Button#6` | Button | text "Remove" | unchecked |
+| Settings | `Sources/Uttrflow/Settings/SettingsControlView.swift#Button#7` | Button | label view | unchecked |
 | Settings | `Sources/Uttrflow/Settings/SettingsDiagnosticsView.swift#Button#1` | Button | expression | unchecked |
 | Settings | `Sources/Uttrflow/Settings/SettingsDiagnosticsView.swift#Button#2` | Button | text "Copy" | unchecked |
 | Settings | `Sources/Uttrflow/Settings/SettingsDiagnosticsView.swift#Button#3` | Button | expression | unchecked |
