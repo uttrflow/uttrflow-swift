@@ -59,14 +59,15 @@ struct SuggestionSurfaceTests {
     func displayChangeWithdrawsTheVisibleSuggestion() throws {
         let screen = try #require(NSScreen.screens.first).visibleFrame
         let caret = CGRect(x: screen.minX + 200, y: screen.midY, width: 0, height: 17)
-        let panel = SuggestionPanelController()
+        let center = NotificationCenter()
+        let panel = SuggestionPanelController(screenNotificationCenter: center)
         defer { panel.hide() }
         var withdrewUnasked = false
         panel.onWithdrawnUnasked = { withdrewUnasked = true }
         panel.show(.certain("meeting"), placement: .inlineGhost, caret: caret)
         #expect(panel.isShowing)
 
-        NotificationCenter.default.post(
+        center.post(
             name: NSApplication.didChangeScreenParametersNotification, object: nil)
 
         #expect(!panel.isShowing)
