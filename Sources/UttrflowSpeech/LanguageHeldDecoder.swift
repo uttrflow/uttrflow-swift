@@ -11,7 +11,7 @@ struct AllowedLanguageSampler: TokenSampling {
     let allowedTokens: [Int]
     /// Every language token the model has, whose likeliest the sampler reads without letting it decide.
     var languageTokens: [Int] = []
-    /// What the model would have answered with had detection not been held.
+    /// What the model answers when detection is not held.
     let unrestricted = UnrestrictedLanguage()
 
     /// The allowed language token with the highest logit, appended with its probability among the allowed ones.
@@ -57,7 +57,7 @@ final class UnrestrictedLanguage: Sendable {
 
     private let observed = Mutex<Choice?>(nil)
 
-    /// The last observation, or `nil` when nothing was observed.
+    /// The last observation, or `nil` when there is none.
     var choice: Choice? { observed.withLock { $0 } }
 
     /// Records the likeliest of `tokens` given their `scores`, or forgets the last when there are none.
@@ -104,7 +104,7 @@ final class LanguageHeldDecoder: TextDecoding {
     let windows: DecodeWindowLog
     /// Prefill time, prompt steps and timestamp steps since the last `drainSplit`, which WhisperKit's timings omit.
     private let split = Mutex(RecognitionTimings.zero)
-    /// The language the last detection was certain of when the product does not transcribe it; the next decode refuses it.
+    /// The untranscribed language the last detection is certain of, which the next decode refuses.
     private let refusal = Mutex<LanguageCode?>(nil)
 
     init(
@@ -153,7 +153,7 @@ final class LanguageHeldDecoder: TextDecoding {
         return detected
     }
 
-    /// The language the model was certain of when the product does not transcribe it.
+    /// The untranscribed language the model is certain of, if any.
     private func refused(_ choice: UnrestrictedLanguage.Choice?) -> LanguageCode? {
         guard let choice, let token = tokenizer?.convertIdToToken(choice.token),
             let heard = UnsupportedLanguageRefusal.language(ofToken: token)
