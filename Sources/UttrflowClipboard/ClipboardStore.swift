@@ -39,8 +39,6 @@ package final class StoreWriteTally: Sendable {
 public actor ClipboardStore {
     /// Every bound this store applies: records per pool, memory, days, and the largest clip kept at all.
     public static let defaultBudget = ClipboardBudget.standard
-    /// Caps classifier work between cooperative background yields.
-    private static let classifierBatchSize = 100
 
     /// The history file, injected so a test writes into a temporary directory rather than a real clipboard.
     private let file: URL
@@ -701,16 +699,7 @@ public actor ClipboardStore {
         let candidates = clips.filter { $0.image == nil && $0.files == nil }
         let task = Task { [weak self] in
             let updated = await Task.detached(priority: .utility) {
-                var result: [Clip] = []
-                result.reserveCapacity(candidates.count)
-                for start in stride(from: 0, to: candidates.count, by: Self.classifierBatchSize) {
-                    let end = min(start + Self.classifierBatchSize, candidates.count)
-                    for clip in candidates[start..<end] {
-                        result.append(clip.reclassified(as: ClipKindDetector.classification(of: clip.text)))
-                    }
-                    await Task.yield()
-                }
-                return result
+                await ClipReclassification.classify(candidates)
             }.value
             await self?.finishReclassification(updated, from: clips, at: url)
         }
@@ -738,13 +727,7 @@ public actor ClipboardStore {
         // A changed or new clip has no detector result, so the next launch needs a fresh snapshot.
         guard merge.coversCurrentText else { return }
         // The rewritten index keeps the eviction orders the live list gave on load, so it reopens equal.
-        let orders = Dictionary(
-            (wholeList ?? []).compactMap { clip in clip.lastUsedOrder.map { (clip.id, $0) } },
-            uniquingKeysWith: { first, _ in first })
-        let merged = merge.clips.map { clip in
-            let ordered = orders[clip.id].map(clip.orderedForEviction) ?? clip
-            return ordered.image == nil && ordered.files == nil ? secrecy.applied(to: ordered) : ordered
-        }
+        let merged = ClipReclassification.ordered(merge.clips, in: wholeList ?? [], secrecy: &secrecy)
         let persistable = merged.filter(Self.isPersistable)
         do {
             try persist(persistable, to: url, classifierVersion: ClipboardIndex.currentClassifierVersion)
@@ -759,24 +742,7 @@ public actor ClipboardStore {
     package static func mergeClassifierResults(
         _ updated: [Clip], from snapshot: [Clip], into current: [Clip]
     ) -> (clips: [Clip], coversCurrentText: Bool) {
-        let replacements = Dictionary(updated.map { ($0.id, $0) }, uniquingKeysWith: { _, newer in newer })
-        let snapshotByID = Dictionary(snapshot.map { ($0.id, $0) }, uniquingKeysWith: { _, newer in newer })
-        var coversCurrentText = true
-        let clips = current.map { clip -> Clip in
-            // Pictures are classified from their bytes at arrival and never enter text detection.
-            guard clip.image == nil, clip.files == nil else { return clip }
-            guard let old = snapshotByID[clip.id], old.text == clip.text,
-                let replacement = replacements[clip.id]
-            else {
-                coversCurrentText = false
-                return clip
-            }
-            // A detector update never erases a clip the user pinned, named, tagged or filed: it keeps its stored kind.
-            guard !(clip.isKept && replacement.kind == .secret) else { return clip }
-            return clip.reclassified(
-                as: ClipClassification(kind: replacement.kind, language: replacement.language))
-        }
-        return (clips, coversCurrentText)
+        ClipReclassification.merge(updated, from: snapshot, into: current)
     }
 
     /// Returns the currently loaded clips belonging to one index.
