@@ -283,11 +283,14 @@ public struct AppliedChanges: Sendable, Equatable {
     public let scriptConversions: ScriptConversions
     /// The recogniser's words before any correction or tidying; nil when not carried.
     public let heard: String?
+    /// That spoken notation ran, as a count with the kind of place it writes for; nil when none ran.
+    public let notation: NotationUse?
 
     public init(
         corrections: [DictationCorrection] = [], snippets: [SnippetUse] = [],
         entriesTaken: [UUID] = [], spokenWords: Int? = nil, changeLedger: [ChangeLedgerEntry]? = nil,
-        scriptConversions: ScriptConversions = .none, heard: String? = nil
+        scriptConversions: ScriptConversions = .none, heard: String? = nil,
+        notation: NotationUse? = nil
     ) {
         self.corrections = corrections
         self.snippets = snippets
@@ -296,6 +299,7 @@ public struct AppliedChanges: Sendable, Equatable {
         self.changeLedger = changeLedger
         self.scriptConversions = scriptConversions
         self.heard = heard
+        self.notation = notation
     }
 
     /// A dictation that comes out exactly as said, which is what every caller gets without asking.

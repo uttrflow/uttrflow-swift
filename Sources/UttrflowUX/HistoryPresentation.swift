@@ -82,6 +82,10 @@ public struct HistoryRow: Sendable, Equatable, Identifiable {
     public let whatChanged: [String]
     /// The recogniser's words before clean-up, masked like the text; absent when unrecorded or unchanged.
     public let asHeard: String?
+    /// "Formatted as SQL" when spoken notation ran; absent for prose and for a record that kept no notation.
+    public let formattedAs: String?
+    /// Copies the recogniser's words, the form before notation; absent unless notation ran and those words were kept.
+    public let asSpoken: MainAction?
 
     /// Builds a row from its parts; everything after the text defaults to a bare dictation.
     public init(
@@ -89,7 +93,7 @@ public struct HistoryRow: Sendable, Equatable, Identifiable {
         time: String = "", length: String = "", tag: String? = nil, isFlagged: Bool = false,
         arrival: String? = nil, actions: [MainAction] = [], more: [MainAction] = [],
         recording: HistoryRecording? = nil, fixes: [MainAction] = [], whatChanged: [String] = [],
-        asHeard: String? = nil
+        asHeard: String? = nil, formattedAs: String? = nil, asSpoken: MainAction? = nil
     ) {
         self.id = id
         self.application = application
@@ -106,6 +110,8 @@ public struct HistoryRow: Sendable, Equatable, Identifiable {
         self.fixes = fixes
         self.whatChanged = whatChanged
         self.asHeard = asHeard
+        self.formattedAs = formattedAs
+        self.asSpoken = asSpoken
     }
 }
 
@@ -467,7 +473,25 @@ public enum HistoryPresenter {
                 + (entry.whatChanged ?? []).map(phrase(for:)),
             asHeard: entry.heard.map {
                 DictationTextPresentation($0, secretPhrases: secretPhrases).displayText
-            })
+            },
+            formattedAs: formattedAs(entry.notation),
+            asSpoken: asSpoken(for: entry))
+    }
+
+    /// Names the kind of writing notation ran for; absent for a kind with no notation, never a guessed name.
+    static func formattedAs(_ notation: NotationUse?) -> String? {
+        switch notation?.destination {
+        case .sqlEditor: "Formatted as SQL"
+        case .codeEditor: "Formatted as code"
+        case .terminal: "Formatted as a command"
+        case .document, .spreadsheet, .messaging, .email, .plain, nil: nil
+        }
+    }
+
+    /// The way back to the words as spoken, offered only where notation ran and the record kept them.
+    static func asSpoken(for entry: HistoryEntry) -> MainAction? {
+        guard formattedAs(entry.notation) != nil, let heard = entry.heard else { return nil }
+        return MainAction(title: "Copy as Spoken", symbolName: "text.quote", intent: .copy(heard))
     }
 
     /// One dictionary correction as one phrase naming the signal that decided it, in the order the stages ran.
