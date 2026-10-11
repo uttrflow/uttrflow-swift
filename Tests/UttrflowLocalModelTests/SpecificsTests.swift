@@ -336,3 +336,33 @@ struct SpecificsTests {
         #expect(Specifics.words(of: "paid") == ["paid"])
     }
 }
+
+@Suite("Mentions of dates, hyphenated numbers and amounts")
+struct SpecificsMentionEdgeTests {
+    private func mentions(_ text: String) -> [String] {
+        Specifics.mentions(in: text).map(\.token)
+    }
+
+    @Test("A year and a day beside a month each read as a date with the month.")
+    func yearMonthDay() {
+        #expect(mentions("on 2025 March 14") == ["2025 march", "march", "14 march"])
+        #expect(mentions("see you 14 March 2025") == ["14 march", "march", "2025 march"])
+        #expect(mentions("March 14 2025 works") == ["march", "14 march", "2025 march 14"])
+        #expect(mentions("2025 14 March") == ["2025 march 14", "14 march", "march"])
+    }
+
+    @Test("A hyphenated cardinal is one number, and an amount keeps its unit.")
+    func hyphenatedCardinal() {
+        #expect(mentions("twenty-one dollars") == ["21 dollar"])
+        #expect(mentions("twenty-five twenty-six") == ["25", "26"])
+    }
+
+    @Test("An email, a web address and an amount name an address or amount; a plain word does not.")
+    func namesAddressOrAmount() {
+        #expect(Specifics.namesAddressOrAmount("a@b.c"))
+        #expect(Specifics.namesAddressOrAmount("https://example.test/path"))
+        #expect(Specifics.namesAddressOrAmount("www.example.test"))
+        #expect(Specifics.namesAddressOrAmount("50%"))
+        #expect(!Specifics.namesAddressOrAmount("plain"))
+    }
+}

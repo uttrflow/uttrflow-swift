@@ -40,7 +40,7 @@ public enum SituationResolver {
         Situation(
             app: app, insertion: insertion,
             destination: DestinationClassifier.classify(app, rules: rules, overrides: overrides),
-            adapterMode: app.bundleIdentifier.map(overrides.mode(forBundleIdentifier:)) ?? .auto)
+            adapterMode: overrides.mode(for: app))
     }
 
     /// The situation a context read carries, together with its own caret text.

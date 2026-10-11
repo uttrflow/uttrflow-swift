@@ -58,6 +58,20 @@ struct Bakeoff: AsyncParsableCommand {
     @Option(name: .long, help: "Comma-separated quality layers to switch off, to measure what each adds.")
     var without: String?
 
+    /// Reads the test side only, since it judges a release; nothing is decoded and no model loads.
+    @Flag(
+        name: .long,
+        help:
+            "Switch each default-on layer off over the kept decodes of the test side and print its contribution."
+    )
+    var ablate = false
+
+    @Option(name: .long, help: "With --ablate: where the recorded corpus and its kept decodes live.")
+    var corpusPath = TranscriptionCorpusStore.defaultDirectoryName
+
+    @Option(name: .long, help: "With --ablate: the engine version the kept decodes were made under.")
+    var engineVersion: String?
+
     /// The layers this run measures; `validate` has refused a name that is not one.
     private var running: QualityLayers {
         QualityLayers.ablation(only: layers, without: without) ?? QualityLayers()
@@ -101,6 +115,19 @@ struct Bakeoff: AsyncParsableCommand {
     }
 
     func run() async throws {
+        if ablate {
+            let rules = TransformerRouter(
+                engines: [RuleBasedTransformer()], preference: [.rules], rulesAlone: .shortReplies)
+            do {
+                print(
+                    try await LayerAblation.report(
+                        corpus: URL(fileURLWithPath: corpusPath), engineVersion: engineVersion, cleaner: rules
+                    ))
+            } catch {
+                throw CleanExit.message("\(error)")
+            }
+            return
+        }
         let store = ResultStore(directory: URL(fileURLWithPath: storeDirectory))
         let outputStore = ResultStore(
             directory: URL(fileURLWithPath: against == nil ? storeDirectory : storeDirectory + "-compared"))

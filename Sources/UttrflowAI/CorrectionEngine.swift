@@ -31,7 +31,7 @@ public struct WordCorrectionEngine: Sendable {
             hearing: utterance.words.count)
     }
 
-    /// The verdict against a dictation's running budget: `hearing` new words, and only runs `considering` passes.
+    /// The verdict against a dictation's running budget: `hearing` new words, weighing only the runs `considering` passes.
     public func verdict(
         for utterance: Utterance,
         against dictionary: PhoneticIndex,
@@ -44,7 +44,8 @@ public struct WordCorrectionEngine: Sendable {
         let evidence = CorrectionEvidence(utterance: utterance, seeing: context)
         var wanted: [WordCorrection] = []
         var declined: [Range<Int>] = []
-        for span in UncertainSpan.spans(in: utterance) {
+        // A run that is not considered is never weighed, so a pass over a few windows costs the windows alone.
+        for span in UncertainSpan.spans(in: utterance) where isConsidered(span.range) {
             switch weigh(span, in: utterance, against: dictionary, given: evidence, pairs: pairs) {
             case .change(let proposal): wanted.append(proposal)
             case .keep: declined.append(span.range)
@@ -53,7 +54,9 @@ public struct WordCorrectionEngine: Sendable {
         }
         // A word heard surely is not doubted, but letters that spell no word may still be an entry the user added.
         for (index, word) in utterance.words.enumerated()
-        where DoubtPolicy.reason(text: word.text, confidence: word.confidence) == nil {
+        where DoubtPolicy.reason(text: word.text, confidence: word.confidence) == nil
+            && isConsidered(index..<(index + 1))
+        {
             let range = index..<(index + 1)
             switch respelling(
                 word.text, at: range, heardAt: word.confidence, in: utterance, against: dictionary,
@@ -67,8 +70,7 @@ public struct WordCorrectionEngine: Sendable {
         let recased = Self.recasings(of: utterance, against: dictionary, seeing: context)
         let chosen = Self.withoutOverlaps(
             wanted.filter { proposal in
-                isConsidered(proposal.wordRange)
-                    && !recased.contains { $0.wordRange.overlaps(proposal.wordRange) }
+                !recased.contains { $0.wordRange.overlaps(proposal.wordRange) }
             })
 
         // Each dictionary entry is one proposal, even when it replaces a multi-word run.
