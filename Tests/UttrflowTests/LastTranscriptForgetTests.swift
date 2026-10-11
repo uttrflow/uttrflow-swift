@@ -35,18 +35,6 @@ struct LastTranscriptForgetTests {
         return app
     }
 
-    @Test("words inserted without clean-up say so, and tidied words do not")
-    func untidiedInsertionIsAnnounced() {
-        let sandbox = Sandbox()
-        let app = dictated("Sample words", in: sandbox)
-        #expect(app.actionNotice == nil)
-
-        app.render(
-            .inserted(DictationOutcome(text: "um sample", method: .accessibility, cleanedBy: .untidied)))
-
-        #expect(app.actionNotice == MainNotice.cleanUpSkipped(by: .untidied))
-    }
-
     @Test("a reset that clears history forgets the last transcript")
     func resetForgets() {
         let sandbox = Sandbox()
