@@ -16,7 +16,7 @@ struct NumberGrammarStructureTests {
         ("the code is one two three four", "The code is 1234.", .telephone),
         ("music from the nineteen nineties", "Music from the 1990s.", .date),
         ("ten minus three is seven", "10 minus three is seven.", .cardinal),
-        ("it costs two ninety nine", "It costs 299.", .money),
+        ("it costs two ninety nine", "It costs 2.99.", .money),
         ("two thirds of the team", "Two thirds of the team.", .fraction),
         ("give me a second", "Give me a second.", .staysWords),
         ("no one came", "No one came.", .staysWords),
