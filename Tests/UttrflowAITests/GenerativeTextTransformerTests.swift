@@ -392,7 +392,7 @@ struct GenerativeTextTransformerTests {
                 GenerativeTextTransformer(
                     kind: .foundationModels, model: FakeCleanupModel { _ in "count plus one)" }),
                 RuleBasedTransformer(),
-            ], preference: [.foundationModels, .rules])
+            ], preference: [.foundationModels, .rules], clock: ManualClock())
 
         let result = try await router.transform(request)
 
