@@ -435,7 +435,7 @@ bench: ## Run the scale and timing checks: the energy budget, the scaling suites
 else
 unexport VERIFY_INNER
 verify: formatting-gap-ratchet-test eval-scope-test quality-grid-scorecard-test predict-scorecard-test pii-audit snapshot-fixture-audit data-manifest audio-audit root-audit disclosure-audit issue-template-audit test-name-audit docs-audit design-audit comment-audit corpus-edit-audit match-audit closed-list-audit duplicate-table-audit word-split-audit accessibility-controls layering-audit public-api-audit string-audit type-name-audit python-imports-audit ratchet-test mutation-probe-test range-test hits-test hook-test pre-push-test pre-push-lock-test update-feed-test entitlement-gate-test issue-template-test dependabot-labels-test dependency-pin-test flake-audit uitest-arguments eval-arguments uitest-result-path developer-dir-test log-audit store-permissions pasteboard-audit context-reach-audit bundle-requirement-test bundle-test release-tag-test release-notes-test release-quality-test provider-mark-test release-order-test notarise-dmg-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test exclusion-audit size-budget lint build coverage offline-audit
-eval: seam-audit eval-tests rules-scorecard
+eval: seam-audit eval-tests rules-scorecard quality-grid-scorecard
 bench: perf-budget offline-test soak-test bench-tests
 
 # Inside a lane every Swift step shares one coverage-instrumented build: `build` compiles the
@@ -444,12 +444,14 @@ VERIFY_SWIFT_FLAGS := --build-tests --enable-code-coverage
 COVERAGE_ARGS = --skip-build --skip '$(EVAL_SUITES)|$(BENCH_SUITES)'
 UTTRFLOW_DEV = .build/debug/uttrflow-dev
 SHELL := Scripts/verify_shell.sh
-coverage seam-audit offline-audit eval-arguments eval-tests rules-scorecard bench-tests: build
+coverage seam-audit offline-audit eval-arguments eval-tests rules-scorecard quality-grid-scorecard bench-tests: build
 seam-audit eval-arguments rules-scorecard bench-tests: export LLVM_PROFILE_FILE := $(CURDIR)/.build/verify-profraw/%p.profraw
 endif
 
 # The tests each lane owns, as `swift test` filters; `verify` runs every other test.
-EVAL_SUITES := UttrflowEvalTests|EndToEndWordSurvivalTests/wordsSurviveEveryStage|LoanwordRestorationProbeTests/probeTable|HomophonePolicyProbeTests|LearningDynamicsSimulatorTests|$\
+QUALITY_GRID_SUITES := VoiceActivityOnsetGridTests|VoiceActivityConditionTests|NumberRoundTripTests/roundTrip|$\
+	InflectedDictionaryFormsTests/probeOfferedRate|LexiconNeighboursTests/everyTermReported|ClipKindPrefilterQualityTests
+EVAL_SUITES := $(QUALITY_GRID_SUITES)|UttrflowEvalTests|EndToEndWordSurvivalTests/wordsSurviveEveryStage|LoanwordRestorationProbeTests/probeTable|HomophonePolicyProbeTests|LearningDynamicsSimulatorTests|$\
 	LearnedWordQualityReplayScoreTests|BrandRestorationShareTests|CodeShapesLanguageCorpusTests
 BENCH_SUITES := HeavyClipScans|PromptSizeGuaranteeTests|BIP39RecoveryPhraseScalingTests|ClipboardStoreClassifierVersionTests/firstListBenchmark|$\
 	SuggestionStoreStartupTests/largeLegacyCorpusMigratesOffMainThreadWithinBudget|$\
@@ -465,7 +467,7 @@ SCORECARD := .build/rules-scorecard.json
 
 .PHONY: eval-tests
 eval-tests: ## Run the corpus suites and hold the modules they cover to the coverage floor.
-	COVERAGE_LANE=eval ./Scripts/coverage.sh --skip-build --filter '$(EVAL_SUITES)'
+	UTTRFLOW_QUALITY_REPORT=1 COVERAGE_LANE=eval ./Scripts/coverage.sh --skip-build --filter '$(EVAL_SUITES)'
 
 .PHONY: bench-tests
 bench-tests: ## Run the scaling suites and the timing benchmarks.
@@ -479,6 +481,14 @@ rules-scorecard: ## Score the rules over the corpus and fail on a regression aga
 	@git show $(EVAL_BASE):Scripts/scorecard_accepted.txt > .build/scorecard-accepted-base.txt 2>/dev/null || rm -f .build/scorecard-accepted-base.txt
 	python3 Scripts/rules_scorecard.py --measured $(SCORECARD) --base .build/rules-scorecard-base.json \
 		--base-accepted .build/scorecard-accepted-base.txt --markdown .build/rules-scorecard.md
+
+QUALITY_GRID_LOG := .build/quality-grid.log
+
+.PHONY: quality-grid-scorecard
+quality-grid-scorecard: eval-tests ## Compare all six quality grids with the recorded outcomes at EVAL_BASE.
+	cp .build/swift-test-output.log $(QUALITY_GRID_LOG)
+	@git show $(EVAL_BASE):Scripts/quality_grid_baseline.json > .build/quality-grid-base.json 2>/dev/null || rm -f .build/quality-grid-base.json
+	python3 Scripts/quality_grid_scorecard.py --base .build/quality-grid-base.json --measured $(QUALITY_GRID_LOG)
 
 .PHONY: rules-scorecard-update
 rules-scorecard-update: ## Record the rules scorecard as Scripts/rules_scorecard.json, after `make rules-scorecard`.
