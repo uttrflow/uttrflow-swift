@@ -149,7 +149,7 @@ extension DictationPipeline {
             }
             return read
         case .copy:
-            return recordingDestination ?? AppContext()
+            return (recordingDestination ?? AppContext()).readingSkipped()
         }
     }
 }
