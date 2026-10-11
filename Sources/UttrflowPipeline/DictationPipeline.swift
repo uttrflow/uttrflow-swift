@@ -205,12 +205,12 @@ public actor DictationPipeline {
     }
 
     /// Sends the next dictation, and only that one, out as typed (`prose`) or as formatted (`auto`); nil takes the choice back.
-    public func format(next mode: AdapterMode?) {
+    func format(next mode: AdapterMode?) {
         nextFormat = mode
     }
 
     /// The choice waiting for the next dictation, or nil when none is, for the panel to show.
-    public var pendingFormat: AdapterMode? { nextFormat }
+    var pendingFormat: AdapterMode? { nextFormat }
 
     /// Takes the languages the user speaks as they stand now, for every dictation after this one.
     public func adopt(profile: UserProfile) {
