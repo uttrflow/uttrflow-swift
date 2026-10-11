@@ -69,18 +69,21 @@ Return is ever claimed for one — Tab is the only way to take it.
 
 | Keystroke | Effect |
 |---|---|
-| ⎋ | The suggestion goes; the dot stays |
-| ⎋⎋ | This field offers nothing more |
+| ⎋ | The suggestion goes, the dot stays, and the same ⎋ reaches the application |
 | ⌥⎋ | AI suggestions stop everywhere until turned back on |
 
-The bare ⎋ rungs apply where the accept key is Tab or ⌥⇥. In a terminal, whose accept key is
+One ⎋ does both jobs, so it still closes a find bar, a sheet or a dialog on the first press.
+The tap holds the key only long enough to dismiss, then gives it back (`dismissAndPassThrough`).
+The dot never claims a bare ⎋, so a second press is the application's alone.
+
+The bare ⎋ rung applies where the accept key is Tab or ⌥⇥. In a terminal, whose accept key is
 →, a bare ⎋ is never armed: the shell reads it as the Meta prefix (⎋ then `.`, `b`, `f`) or
 as vi's normal mode, so a suggestion there is dismissed by typing on. ⌥⎋ still turns
 suggestions off in a terminal. A terminal set to send Option as Meta loses Meta-⎋ while a
 suggestion is drawn; with nothing drawn it passes through untouched.
 
-⎋ with nothing drawn is not ours: it closes the application's own dialog, and a tap that
-swallows it is a tap the user has to quit the app to escape from.
+⎋ with nothing drawn, or with only the dot, is not ours: it closes the application's own
+dialog, and a tap that swallows it is a tap the user has to quit the app to escape from.
 
 ## Why the tap swallows from a bitmask
 

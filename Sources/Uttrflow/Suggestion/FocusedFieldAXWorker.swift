@@ -3,13 +3,16 @@ import ApplicationServices
 import Foundation
 
 /// Owns the AX observer state; unchecked Sendable holds because only the observer's serial queue touches it.
-final class SystemFocusedFieldAXWorker: FocusedFieldAXWorking, @unchecked Sendable {
-    private var observer: AXObserver?
-    private var application: AXUIElement?
-    private var focusedElement: AXUIElement?
+final class FocusedFieldAXWorker<Client: FocusedFieldAXClient>: FocusedFieldAXWorking, @unchecked Sendable {
+    private let client: Client
+    private var observer: Client.Observer?
+    private var application: Client.Element?
+    private var focusedElement: Client.Element?
     private var target: FocusedFieldObservationTarget?
     private var retainedCallbackContext: UnsafeMutableRawPointer?
     private var callbackContext: FocusedFieldValueObserverCallbackContext?
+
+    init(client: Client) { self.client = client }
 
     func observe(
         _ target: FocusedFieldObservationTarget?,
@@ -50,16 +53,11 @@ final class SystemFocusedFieldAXWorker: FocusedFieldAXWorking, @unchecked Sendab
     ) -> Bool {
         removeObserver()
         guard isCurrent() else { return false }
-        var created: AXObserver?
-        guard
-            AXObserverCreate(
-                target.processIdentifier, focusedFieldAXObserverCallback, &created) == .success,
-            let created
-        else { return isCurrent() }
+        guard let created = client.observer(for: target.processIdentifier) else { return isCurrent() }
         guard isCurrent() else { return false }
 
-        let application = AXUIElementCreateApplication(target.processIdentifier)
-        _ = AXUIElementSetMessagingTimeout(application, 0.2)
+        let application = client.application(for: target.processIdentifier)
+        _ = client.setTimeout(application)
         guard isCurrent() else { return false }
         let context = Unmanaged.passRetained(callbackContext).toOpaque()
         observer = created
@@ -67,12 +65,12 @@ final class SystemFocusedFieldAXWorker: FocusedFieldAXWorking, @unchecked Sendab
         self.target = target
         retainedCallbackContext = context
         self.callbackContext = callbackContext
-        CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(created), .commonModes)
+        client.addSource(created)
         guard isCurrent() else {
             removeObserver()
             return false
         }
-        _ = AXObserverAddNotification(
+        _ = client.addNotification(
             created, application, kAXFocusedUIElementChangedNotification as CFString, context)
         guard isCurrent() else {
             removeObserver()
@@ -82,23 +80,23 @@ final class SystemFocusedFieldAXWorker: FocusedFieldAXWorking, @unchecked Sendab
             registerOpened: {
                 guard isCurrent() else { return false }
                 let result =
-                    AXObserverAddNotification(
+                    client.addNotification(
                         created, application, kAXMenuOpenedNotification as CFString, context) == .success
                 return result && isCurrent()
             },
             registerClosed: {
                 guard isCurrent() else { return false }
                 let result =
-                    AXObserverAddNotification(
+                    client.addNotification(
                         created, application, kAXMenuClosedNotification as CFString, context) == .success
                 return result && isCurrent()
             },
             removeOpened: {
-                _ = AXObserverRemoveNotification(
+                _ = client.removeNotification(
                     created, application, kAXMenuOpenedNotification as CFString)
             },
             removeClosed: {
-                _ = AXObserverRemoveNotification(
+                _ = client.removeNotification(
                     created, application, kAXMenuClosedNotification as CFString)
             })
         guard isCurrent(), menuNotificationsRegistered else {
@@ -111,33 +109,28 @@ final class SystemFocusedFieldAXWorker: FocusedFieldAXWorking, @unchecked Sendab
     private func updateFocusedElement(isCurrent: @Sendable () -> Bool) -> Bool {
         guard isCurrent() else { return false }
         guard observer != nil, let application else { return true }
-        var value: CFTypeRef?
-        let result = AXUIElementCopyAttributeValue(
-            application, kAXFocusedUIElementAttribute as CFString, &value)
+        let focused = client.focusedElement(of: application)
         guard isCurrent() else { return false }
-        guard result == .success, let value, CFGetTypeID(value) == AXUIElementGetTypeID() else {
-            return setFocusedElement(nil, isCurrent: isCurrent)
-        }
-        let focused = unsafeDowncast(value, to: AXUIElement.self)
-        if let focusedElement, CFEqual(focusedElement, focused) { return true }
+        guard let focused else { return setFocusedElement(nil, isCurrent: isCurrent) }
+        if let focusedElement, client.equal(focusedElement, focused) { return true }
         return setFocusedElement(focused, isCurrent: isCurrent)
     }
 
     private func setFocusedElement(
-        _ focused: AXUIElement?, isCurrent: @Sendable () -> Bool
+        _ focused: Client.Element?, isCurrent: @Sendable () -> Bool
     ) -> Bool {
         guard isCurrent() else { return false }
         guard let observer else { return true }
         if let focusedElement {
-            _ = AXObserverRemoveNotification(
+            _ = client.removeNotification(
                 observer, focusedElement, kAXValueChangedNotification as CFString)
             guard isCurrent() else { return false }
         }
         focusedElement = focused
         if let focused, let retainedCallbackContext {
-            _ = AXUIElementSetMessagingTimeout(focused, 0.2)
+            _ = client.setTimeout(focused)
             guard isCurrent() else { return false }
-            _ = AXObserverAddNotification(
+            _ = client.addNotification(
                 observer, focused, kAXValueChangedNotification as CFString, retainedCallbackContext)
             guard isCurrent() else { return false }
         }
@@ -152,18 +145,18 @@ final class SystemFocusedFieldAXWorker: FocusedFieldAXWorking, @unchecked Sendab
             return
         }
         if let application {
-            _ = AXObserverRemoveNotification(
+            _ = client.removeNotification(
                 observer, application, kAXFocusedUIElementChangedNotification as CFString)
-            _ = AXObserverRemoveNotification(
+            _ = client.removeNotification(
                 observer, application, kAXMenuOpenedNotification as CFString)
-            _ = AXObserverRemoveNotification(
+            _ = client.removeNotification(
                 observer, application, kAXMenuClosedNotification as CFString)
         }
         if let focusedElement {
-            _ = AXObserverRemoveNotification(
+            _ = client.removeNotification(
                 observer, focusedElement, kAXValueChangedNotification as CFString)
         }
-        CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .commonModes)
+        client.removeSource(observer)
         self.observer = nil
         application = nil
         focusedElement = nil
@@ -183,13 +176,8 @@ final class SystemFocusedFieldAXWorker: FocusedFieldAXWorking, @unchecked Sendab
     }
 }
 
-private func focusedFieldAXObserverCallback(
-    _ observer: AXObserver, _ element: AXUIElement, _ notification: CFString,
-    _ context: UnsafeMutableRawPointer?
-) {
-    guard let context else { return }
-    let callbackContext = Unmanaged<FocusedFieldValueObserverCallbackContext>
-        .fromOpaque(context).takeUnretainedValue()
-    let notificationName = notification as String
-    MainActor.assumeIsolated { callbackContext.received(notificationName) }
+typealias SystemFocusedFieldAXWorker = FocusedFieldAXWorker<SystemFocusedFieldAXClient>
+
+extension FocusedFieldAXWorker where Client == SystemFocusedFieldAXClient {
+    convenience init() { self.init(client: SystemFocusedFieldAXClient()) }
 }

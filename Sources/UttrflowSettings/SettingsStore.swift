@@ -14,7 +14,7 @@ public struct Settings: Sendable, Equatable, Codable {
     public var cleaning: CleaningSteps
 
     /// The quality preset every app is dictated under unless ``destinations`` names one for it.
-    public var qualityPreset: QualityPreset.ID
+    var qualityPreset: QualityPreset.ID
 
     /// The apps the user has told Uttrflow to treat as somewhere other than the table says.
     public var destinations: DestinationOverrides
@@ -108,6 +108,9 @@ public struct Settings: Sendable, Equatable, Codable {
     /// How many days an unkept clip survives; a clip with an alias, category or pin has no clock.
     public var clipboardRetentionDays: Int
 
+    /// Whether pasting a hidden clip into a field not known to hide what is typed asks first.
+    public var confirmsHiddenClipPaste: Bool
+
     /// Seconds a copied secret stays on the system clipboard before it is cleared; 0 leaves it there.
     public var secretClipboardClearSeconds: Int
 
@@ -124,7 +127,7 @@ public struct Settings: Sendable, Equatable, Codable {
     public var contextLevelOverrides: ContextLevelOverrides
 
     /// The preset this app is dictated under: its own override, else the one chosen for every app.
-    public func qualityPreset(forBundleIdentifier bundle: String?) -> QualityPreset {
+    func qualityPreset(forBundleIdentifier bundle: String?) -> QualityPreset {
         let chosen = bundle.flatMap { destinations.preset(forBundleIdentifier: $0) } ?? qualityPreset
         return QualityPreset.preset(chosen)
     }
@@ -161,6 +164,7 @@ public struct Settings: Sendable, Equatable, Codable {
         keepsNoTranscripts: Bool = false,
         historyExcludedApplications: [String] = [],
         clipboardRetentionDays: Int = Settings.defaultRetentionDays,
+        confirmsHiddenClipPaste: Bool = true,
         secretClipboardClearSeconds: Int = Settings.defaultSecretClipboardClearSeconds,
         suggestions: SuggestionPreferences = .default,
         microphoneUID: String? = nil,
@@ -198,6 +202,7 @@ public struct Settings: Sendable, Equatable, Codable {
         self.keepsNoTranscripts = keepsNoTranscripts
         self.historyExcludedApplications = historyExcludedApplications
         self.clipboardRetentionDays = clipboardRetentionDays
+        self.confirmsHiddenClipPaste = confirmsHiddenClipPaste
         self.secretClipboardClearSeconds = secretClipboardClearSeconds
         self.suggestions = suggestions
         self.microphoneUID = microphoneUID
@@ -288,6 +293,7 @@ extension Settings {
         case keepsNoTranscripts
         case historyExcludedApplications
         case clipboardRetentionDays
+        case confirmsHiddenClipPaste
         case secretClipboardClearSeconds
         case suggestions
         case microphoneUID
@@ -378,6 +384,8 @@ extension Settings {
                 ),
                 default: fallback.clipboardRetentionDays
             ),
+            confirmsHiddenClipPaste: container.value(
+                forKey: .confirmsHiddenClipPaste, default: fallback.confirmsHiddenClipPaste),
             secretClipboardClearSeconds: Settings.secretClear(
                 container.value(
                     forKey: .secretClipboardClearSeconds, default: fallback.secretClipboardClearSeconds),
@@ -426,11 +434,19 @@ extension Settings {
             .map(\.1))
     }
 
+    /// Whether the file says outright that dictation has no shortcut, as opposed to saying nothing about it.
+    static func dictationSwitchedOff(in decoder: any Decoder) -> Bool {
+        guard let container = try? decoder.container(keyedBy: CodingKeys.self),
+            let stored = try? container.decodeIfPresent([String: [HotkeyBinding]].self, forKey: .shortcuts)
+        else { return false }
+        return stored[ShortcutAction.dictate.rawValue]?.isEmpty == true
+    }
+
     /// The shortcuts on disk, reading the two fields that came before them when they are all there is.
     static func shortcuts(from decoder: any Decoder, default fallback: ShortcutSet) -> ShortcutSet {
         if let container = try? decoder.container(keyedBy: CodingKeys.self),
             let stored = try? container.decodeIfPresent(ShortcutSet.self, forKey: .shortcuts),
-            stored.isBound(.dictate)
+            stored.isBound(.dictate) || Settings.dictationSwitchedOff(in: decoder)
         {
             return stored
         }

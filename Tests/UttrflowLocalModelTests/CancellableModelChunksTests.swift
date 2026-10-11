@@ -1,3 +1,6 @@
+import MLX
+import MLXLMCommon
+import MLXNN
 import Testing
 
 @testable import UttrflowLocalModel
@@ -87,5 +90,50 @@ struct CancellableModelChunksTests {
 
         #expect(chunks.flatMap { $0 } == inputs)
         #expect(chunks.map(\.count) == [4, 4, 3])
+    }
+}
+
+/// A model that only hands out caches, since no test here evaluates one.
+private final class CacheOnlyModel: Module, LanguageModel {
+    func prepare(_ input: LMInput, cache: [any KVCache], windowSize: Int?) throws -> PrepareResult {
+        .tokens(input.text)
+    }
+
+    func newCache(parameters: GenerateParameters?) -> [any KVCache] { [KVCacheSimple(), KVCacheSimple()] }
+}
+
+@Suite("The cache a pass keeps between model operations")
+struct ModelCacheTransferTests {
+    private let model = CacheOnlyModel()
+
+    @Test("A transfer holds the layers it was given and none when it was given none.")
+    func holdsGivenLayers() {
+        #expect(ModelCacheTransfer().layers == nil)
+        #expect(ModelCacheTransfer([KVCacheSimple()]).layers?.count == 1)
+    }
+
+    @Test("An empty source starts a fresh cache from the model, and later asks get the same layers back.")
+    func emptySourceAsksTheModel() {
+        let transfer = ModelCacheTransfer()
+        let first = transfer.obtain(from: .empty, kept: nil, warm: nil, model: model)
+        #expect(first.count == 2)
+        let again = transfer.obtain(from: .kept, kept: [KVCacheSimple()], warm: nil, model: model)
+        #expect(again.count == 2)
+    }
+
+    @Test("A kept source reuses the kept layers, or starts fresh when none were kept.")
+    func keptSource() {
+        #expect(
+            ModelCacheTransfer().obtain(from: .kept, kept: [KVCacheSimple()], warm: nil, model: model).count
+                == 1)
+        #expect(ModelCacheTransfer().obtain(from: .kept, kept: nil, warm: nil, model: model).count == 2)
+    }
+
+    @Test("A warm source copies the warm layers, or starts fresh when there are none.")
+    func warmSource() {
+        #expect(
+            ModelCacheTransfer().obtain(from: .warm, kept: nil, warm: [KVCacheSimple()], model: model).count
+                == 1)
+        #expect(ModelCacheTransfer().obtain(from: .warm, kept: nil, warm: nil, model: model).count == 2)
     }
 }

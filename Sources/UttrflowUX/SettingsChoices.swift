@@ -21,12 +21,13 @@ public enum SettingsTidyingLevel: String, Sendable, Equatable, CaseIterable {
     }
 
     /// What the row is called on both screens that draw it.
-    public static let rowLabel = "How much Uttrflow tidies"
+    public static let rowLabel = "How much clean-up"
     /// What the row says underneath on both screens that draw it.
     public static let rowExplanation = """
         Both levels remove filler sounds and stammers and add punctuation. Standard also \
         repairs grammar slips, which adds a moment to each dictation. \
-        Neither level changes, reorders or drops the words you meant.
+        Neither level changes, reorders or drops the words you meant. \
+        The steps that run are listed under Dictation, in Clean-up steps.
         """
 }
 

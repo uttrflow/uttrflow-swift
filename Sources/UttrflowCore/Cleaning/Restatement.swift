@@ -47,7 +47,7 @@ public enum Restatement {
     /// How many words back an anchor may reach when the restart repeats a phrase of two or more words.
     private static let repeatedPhraseReach = 12
 
-    private static let copulas: Set<String> = ["am", "is", "are", "was", "were", "be", "being", "been"]
+    private static let copulas = QuestionShape.copulaVerbs
 
     /// Words that head an answer, which a second answer pairs with rather than takes back.
     public static let answerHeads: Set<String> = [

@@ -18,7 +18,7 @@ public struct ArmedKeys: OptionSet, Sendable, Equatable {
     public static let rightArrow = ArmedKeys(rawValue: 1 << 2)
     /// Return, claimed only while a list is being walked.
     public static let `return` = ArmedKeys(rawValue: 1 << 3)
-    /// Escape, which minimises and then silences.
+    /// Escape, which minimises a drawn suggestion and is still handed to the application.
     public static let escape = ArmedKeys(rawValue: 1 << 4)
     /// ⌥Escape, which turns the feature off everywhere.
     public static let optionEscape = ArmedKeys(rawValue: 1 << 5)

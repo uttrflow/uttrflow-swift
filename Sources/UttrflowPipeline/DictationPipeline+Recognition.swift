@@ -9,10 +9,10 @@ extension DictationPipeline {
         delivery: Delivery, recording tally: StageTally, for mine: Int
     ) async -> Recognition {
         var appContext = read
-        var pieces: [Piece] = []
+        var pieces: [(position: Int, piece: Piece)] = []
         let vocabularyContext = earlyContext ?? AppContext()
         // One tidy runs beside the next recognition, which the two stages allow. See `Docs/early-transcription.md`.
-        let ending: Recognition? = await withTaskGroup(of: Piece.self) { tidying in
+        let ending: Recognition? = await withTaskGroup(of: (position: Int, piece: Piece).self) { tidying in
             // A span the early loop left unfinished is done here, in its place, so the words stay in order.
             let finalPending = work.indices.last(where: {
                 if case .pending = work[$0] { return true }
@@ -25,17 +25,16 @@ extension DictationPipeline {
                 if let heard = span.heard { precedingHeard = heard }
                 switch span {
                 case .done(let piece, _):
-                    if let earlier = await tidying.next() { pieces.append(earlier) }
-                    pieces.append(piece)
+                    // A finished piece waits for no tidy; the positions put it in its place.
+                    pieces.append((spanIndex, piece))
                     continue
                 case .tidying(let running):
                     let task = running.task
-                    // The next recognition can start while this tidy runs; the group drains the tidy first.
-                    if let earlier = await tidying.next() { pieces.append(earlier) }
+                    // The next recognition starts while this tidy runs; the next new tidy waits for it.
                     if spanIndex == work.indices.last {
                         await runningCleaner.reserveFinalPiece(dictationContext?.situation)
                     }
-                    tidying.addTask { await task.value }
+                    tidying.addTask { (spanIndex, await task.value) }
                     continue
                 case .pending(let range):
                     window = range
@@ -51,8 +50,8 @@ extension DictationPipeline {
                     return .failed(
                         Self.failure(error, in: audio, speechEngineKind: (retrySpeech ?? speech).kind))
                 }
-                // The tidy that ran beside this recognition is taken before the next one starts, so one is ever in flight.
-                if let earlier = await tidying.next() { pieces.append(earlier) }
+                // Every tidy that ran beside this recognition is taken before a new one starts, so one is ever in flight.
+                while let earlier = await tidying.next() { pieces.append(earlier) }
                 guard !wasCancelled(mine) else {
                     tidying.cancelAll()
                     return .abandoned
@@ -67,15 +66,16 @@ extension DictationPipeline {
                 let preceding = precedingHeard
                 precedingHeard = heard
                 tidying.addTask {
-                    await self.finish(
+                    let piece = await self.finish(
                         heard, seeing: seeing, correctionSeeing: seeing,
                         finalPiece: finalPiece, after: preceding, recording: tally, for: mine)
+                    return (spanIndex, piece)
                 }
             }
             while let last = await tidying.next() { pieces.append(last) }
             return nil
         }
-        return ending ?? .heard(pieces, seeing: appContext)
+        return ending ?? .heard(pieces.sorted { $0.position < $1.position }.map(\.piece), seeing: appContext)
     }
 
     /// Recognises one window of the audio, answering `nil` when nothing was said in it; speech with no words is decoded twice.
@@ -109,7 +109,10 @@ extension DictationPipeline {
             // Kept beside the timing, since a re-decode is most of what a long transcription time is.
             await metrics.recordDecoding(transcription.effort)
             await metrics.recordReliability(transcription.segments.compactMap(\.reliability))
-            return transcription
+            // The quiet either side of the words is what a seam's pause is made of.
+            guard let edges = VoiceActivity.edgeSilence(in: slice.samples, sampleRate: slice.sampleRate)
+            else { return transcription }
+            return transcription.surrounded(by: edges.leading, and: edges.trailing)
         case .nothing:
             return nil
         case .missed:

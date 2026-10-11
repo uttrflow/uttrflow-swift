@@ -60,7 +60,8 @@ struct ModelDownloadTests {
         let asks = Asks()
         let sandbox = Sandbox()
         let app = AppDelegate(
-            container: sandbox.root, account: HeldSession(signedIn: true).layer,
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), account: HeldSession(signedIn: true).layer,
             prepareModel: { _ in await asks.asked() })
         app.drawsWindows = false
         app.settingsChanged(to: settings(suggesting: false))
@@ -73,7 +74,8 @@ struct ModelDownloadTests {
         let asks = Asks()
         let sandbox = Sandbox()
         let app = AppDelegate(
-            container: sandbox.root, account: HeldSession(signedIn: true).layer,
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), account: HeldSession(signedIn: true).layer,
             prepareModel: { _ in await asks.asked() })
         app.drawsWindows = false
         app.settingsChanged(to: settings(suggesting: true))
@@ -94,7 +96,8 @@ struct ModelDownloadTests {
         let asks = Asks()
         let sandbox = Sandbox()
         let app = AppDelegate(
-            container: sandbox.root, account: HeldSession(signedIn: true).layer,
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), account: HeldSession(signedIn: true).layer,
             prepareModel: { _ in await asks.asked() },
             releaseModel: SuggestionModelCacheOperations(
                 release: { await asks.released() }, readBytes: { nil }, removeFiles: nil))
@@ -115,7 +118,8 @@ struct ModelDownloadTests {
         let gate = Gate()
         let sandbox = Sandbox()
         let app = AppDelegate(
-            container: sandbox.root, account: HeldSession(signedIn: true).layer,
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), account: HeldSession(signedIn: true).layer,
             prepareModel: { _ in
                 await gate.pass()
                 await asks.asked()
@@ -138,7 +142,8 @@ struct ModelDownloadTests {
         let gate = Gate()
         let sandbox = Sandbox()
         let app = AppDelegate(
-            container: sandbox.root, account: HeldSession(signedIn: true).layer,
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), account: HeldSession(signedIn: true).layer,
             prepareModel: { _ in
                 await gate.pass()
                 throw HubRefused()
@@ -158,7 +163,8 @@ struct ModelDownloadTests {
         let store = UserDefaultsSettingsStore(store: ModelDownloadSettingsStore())
         store.save(settings(suggesting: false))
         let app = AppDelegate(
-            container: sandbox.root, settingsStore: store,
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), settingsStore: store,
             account: HeldSession(signedIn: true).layer,
             prepareModel: { _ in
                 await asks.asked()
@@ -183,7 +189,8 @@ struct ModelDownloadTests {
         let asks = Asks()
         let sandbox = Sandbox()
         let app = AppDelegate(
-            container: sandbox.root, account: HeldSession(signedIn: true).layer,
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), account: HeldSession(signedIn: true).layer,
             prepareModel: { _ in
                 await asks.asked()
                 if await asks.count == 1 {
@@ -208,7 +215,8 @@ struct ModelDownloadTests {
         let asks = Asks()
         let sandbox = Sandbox()
         let app = AppDelegate(
-            container: sandbox.root, account: HeldSession(signedIn: true).layer,
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), account: HeldSession(signedIn: true).layer,
             prepareModel: { _ in await asks.asked() })
         app.drawsWindows = false
         app.suggestionModelWentMissing()
@@ -231,7 +239,8 @@ struct ModelDownloadTests {
     func progressIsReadable() async {
         let sandbox = Sandbox()
         let app = AppDelegate(
-            container: sandbox.root, account: HeldSession(signedIn: true).layer,
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), account: HeldSession(signedIn: true).layer,
             prepareModel: { report in
                 report(0.5)
                 report(1)

@@ -308,13 +308,17 @@ ALLOWED_TEXT_RESOURCES=(
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/hindi-words.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/html-elements.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/kinship-words.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/letter-sounds.txt"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/mark-spacing.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/number-cues.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/number-words.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/phoneme-classes.txt"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/quantity-words.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/recogniser-words.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/romanised-variants.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/sound-keys.txt"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/spoken-commands.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/sql-words.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/technical-lexicon.json"
     "Contents/Resources/Uttrflow_UttrflowUX.bundle/Contents/Resources/PropertyValueAliases.txt"
     "Contents/Resources/Uttrflow_UttrflowUX.bundle/Contents/Resources/ScriptExtensions.txt"
@@ -407,8 +411,25 @@ FIXTURE
     printf '           named text and JSON app resources.\n'
 }
 
+run_core_resource_self_test() {
+    local root app file bundled unapproved
+    root="$(mktemp -d -t uttrflow-core-resource-self-test)"
+    trap 'rm -rf "$root"' RETURN
+    app="$root/Fixture.app"
+    mkdir -p "$app/Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources"
+    while IFS= read -r -d '' file; do
+        bundled="Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/$(basename "$file")"
+        : > "$app/$bundled"
+    done < <(find "$PACKAGE_ROOT/Sources/UttrflowCore/Resources" -type f \
+        \( -iname '*.json' -o -iname '*.txt' \) -print0)
+    unapproved="$(unapproved_text_resources "$app")"
+    [[ -z "$unapproved" ]] \
+        || fail "the Core runtime resources are absent from the packaging inventory: $unapproved"
+}
+
 if [[ "$SELF_TEST" == "yes" ]]; then
     run_self_test
+    run_core_resource_self_test
     exit 0
 fi
 

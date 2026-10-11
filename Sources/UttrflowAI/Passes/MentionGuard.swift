@@ -57,7 +57,7 @@ public enum MentionGuard {
     /// Mark names that are also nouns a number or another noun may modify: "a waiting period", "the hundred metre dash".
     private static let nounHeads: Set<String> = ["period", "dash"]
 
-    static let determiners: Set<String> = [
+    package static let determiners: Set<String> = [
         "a", "an", "the", "put", "add", "insert", "with", "no", "this", "that", "these", "those", "each",
         "every",
         "my", "your", "his", "her", "its", "their", "our", "another", "any", "some", "same",

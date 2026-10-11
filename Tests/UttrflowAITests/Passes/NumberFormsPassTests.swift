@@ -160,7 +160,21 @@ struct NumberFormsPassTests {
             ("three dollars and five cents", "3 dollars and 5 cents"),
             ("nine dollars and nine cents", "9 dollars and 9 cents"),
             ("it costs five euros and five cents", "it costs 5 euros and 5 cents"),
-            ("two dollars fifty", "2 dollars 50"),
+            ("two dollars fifty", "2.50 dollars"),
+            ("three pounds fifty", "3.50 pounds"),
+            ("it costs four euros ninety nine.", "it costs 4.99 euros."),
+            ("ten rupees fifty", "10.50 rupees"),
+            ("two dollars five", "2.05 dollars"),
+            ("two dollars fifty cents", "2 dollars 50 cents"),
+            ("two dollars fifty people", "2 dollars 50 people"),
+            ("it costs two ninety nine", "it costs 2.99"),
+            ("the price is four ninety five.", "the price is 4.95."),
+            ("sold for two ninety nine", "sold for 2.99"),
+            ("it costs two fifty", "it costs 2.50"),
+            ("two fifty people came", "two 50 people came"),
+            ("meet at two fifty", "meet at 2:50"),
+            ("an alarm for seven thirty", "an alarm for 7:30"),
+            ("it costs two fifty people", "it costs two 50 people"),
             ("five pounds and fifty pence", "5 pounds and 50 pence"),
             ("twelve dollars and fifty cents", "12 dollars and 50 cents"),
             ("a dollar and five cents", "a dollar and five cents"),
@@ -1103,6 +1117,42 @@ struct NumberWordsTests {
         #expect(
             cleaned("extension four four two", by: NumberFormsPass(policy: .always, digits: .thousands))
                 == cleaned("extension four four two", by: NumberFormsPass(policy: .always, digits: .none)))
+    }
+
+    @Test(
+        "writes a numeral the recogniser already wrote in the place's grouping",
+        arguments: [
+            ("we sold 12,000 units", DigitGrouping.none, "we sold 12000 units"),
+            ("select 1,50,000 from t", .none, "select 150000 from t"),
+            ("we sold 12,000 units", .thousands, "we sold 12,000 units"),
+            ("we paid 150,000 rupees", .indian, "we paid 1,50,000 rupees"),
+            ("we paid 1,50,000 rupees", .thousands, "we paid 1,50,000 rupees"),
+            ("we paid 10000 rupees", .thousands, "we paid 10,000 rupees"),
+            ("we paid 5000 rupees", .indian, "we paid 5,000 rupees"),
+            ("a 12,000 percent rise", .none, "a 12000% rise"),
+        ] as [(String, DigitGrouping, String)]
+    )
+    func regroupsWrittenNumerals(input: String, grouping: DigitGrouping, expected: String) {
+        let sut = NumberFormsPass(policy: .fromTen, digits: grouping)
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "leaves a written numeral that is not a quantity in thousands alone",
+        arguments: [
+            ("call 9876543210 now", DigitGrouping.thousands),
+            ("zip 90210 please", .thousands),
+            ("the list 1,2,3 here", .none),
+            ("it was 12,34 then", .none),
+            ("code 007 ok", .none),
+            ("pi is 3.14159 here", .none),
+            ("at 2:30 today", .none),
+            ("we sold 5,000 units", .thousands),
+        ] as [(String, DigitGrouping)]
+    )
+    func keepsOtherWrittenNumerals(input: String, grouping: DigitGrouping) {
+        let sut = NumberFormsPass(policy: .fromTen, digits: grouping)
+        #expect(cleaned(input, by: sut) == input)
     }
 
     @Test("groups digits unless the destination says otherwise")

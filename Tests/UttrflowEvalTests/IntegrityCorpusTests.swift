@@ -5,7 +5,7 @@ import UttrflowTestSupport
 @testable import UttrflowAI
 @testable import UttrflowEval
 
-/// Holds every pass to the numbers, units and negators it was handed, over the corpora and generated sentences.
+/// Holds every pass to the numbers, units and negators in their input, over the corpora and generated sentences.
 @Suite("Numbers, units and negators across the cleaning passes")
 struct IntegrityCorpusTests {
     /// The cases where a pass alters or drops a protected word, once per pipeline that does it.

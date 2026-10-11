@@ -50,7 +50,7 @@ struct FitFromTable: ParsableCommand {
         }
     }
 
-    /// Refuses to fit when the golden file no longer matches the extractor this build compiled.
+    /// Refuses to fit when the golden file differs from the extractor this build compiled.
     private func checkSpanFeatures() throws {
         guard let data = FileManager.default.contents(atPath: spanGolden) else {
             throw ValidationError("cannot read the span feature golden file at \(spanGolden)")

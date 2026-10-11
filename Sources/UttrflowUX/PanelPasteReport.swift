@@ -11,6 +11,8 @@ public enum PanelPasteResult: Sendable, Equatable {
     case textCouldNotPaste
     /// The picture reached the clipboard and the paste keystroke was refused.
     case pictureRefused
+    /// The files may be on the clipboard but were not pasted.
+    case filesRefused
     /// The picture's file went between drawing the panel and pressing Return.
     case pictureMissing
     /// An explicit Copy placed this kind of content on the clipboard.
@@ -25,6 +27,8 @@ public enum PanelCopyContent: Sendable, Equatable {
     case hiddenText
     /// A picture.
     case picture
+    /// The files of a file clip.
+    case files
 }
 
 /// What the floating button says about a panel paste; one decision for text and pictures. See `Docs/app-quick-panel.md`.
@@ -41,13 +45,13 @@ public struct PanelPasteReport: Sendable, Equatable {
     /// Silent after a text insertion, except when the words are left on the clipboard.
     public static func after(_ result: PanelPasteResult) -> PanelPasteReport? {
         switch result {
-        case .copied(.text), .copied(.picture): copied
+        case .copied(.text), .copied(.picture), .copied(.files): copied
         case .copied(.hiddenText): copiedHidden
         case .text(let attempt) where attempt.method == .clipboard:
             copied
         case .text:
             nil
-        case .textRefused, .pictureRefused:
+        case .textRefused, .pictureRefused, .filesRefused:
             copied
         case .textCouldNotPaste:
             PanelPasteReport(

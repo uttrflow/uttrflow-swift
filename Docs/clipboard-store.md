@@ -7,6 +7,10 @@ one way that matters: this one keeps its list in memory as well as on disk. What
 in [`clipboard-budget.md`](clipboard-budget.md); when a clip ages out is in
 [`retention-clock.md`](retention-clock.md).
 
+`ClipboardStore+RecordTransforms.swift` owns clip identity matching and immutable record copies
+for rebuilding, relinking, arrival inheritance and undo restoration. `ClipboardStore` keeps actor
+coordination and file I/O; both use the same `isPersistable` predicate for memory-only secrets.
+
 | File | Holds |
 | --- | --- |
 | `clipboard.v1.json` | the history: every clip nobody named, tagged, filed or pinned |
@@ -24,6 +28,10 @@ clipboard changes read-only; because the payload cannot be opened, its clips can
 until the app is updated. Neither unsupported version is set aside or rewritten. A supported-version
 payload with an unrecognised JSON key is also refused for writing, so a newer field cannot be lost
 when this build rewrites an index.
+
+`ClipIndexValidation` validates each replaceable index's encoded envelope and payload before a
+cached write. `ClipboardStore` retains the local file read, unreadable-file refusal and
+unsupported-version bookkeeping, and decides which indexes can be replaced.
 
 A clip's `tags` field is written only when the clip has a tag. An untagged clip's record is the
 same as before the field existed, so a build from before tags can still rewrite an index nobody
@@ -106,6 +114,10 @@ it back. Each move writes the clip's destination before the file it is leaving, 
 refuses either write leaves at least one durable copy. Unpinning therefore writes the history
 first, while the saved file still holds the old copy, and only then rewrites the saved file.
 
+`ClipPersistencePlan` computes the intermediate saved list and compares its complete records
+independent of order. `ClipboardStore` retains the destination-before-source write sequence and
+the record of which clips each file holds.
+
 A move refused between its two writes leaves the clip in both files. Reading keeps the saved
 file's copy and drops the history's, so reopening finds exactly one clip, and the next write that
 succeeds removes the stale copy from the history.
@@ -170,8 +182,13 @@ list sorts it back where it was.
 
 | Store call | What it removes | Used by |
 | --- | --- | --- |
-| `deleteEverything(keeping:)` | the history and its set-aside copies; spares every named, filed and pinned clip and the saved file's set-aside copies | the store's API for clearing the history |
+| `deleteEverything(keeping:)` | the history and its set-aside copies; spares every named, filed and pinned clip and the saved file's set-aside copies | "Clear clipboard history" in Settings › Privacy (`SettingsReset.clipboardHistory`, target `.clipboardHistory`), after a confirmation |
 | `forgetEverything()` | every clip, pinned ones included, both files' set-aside copies, and the texts marked not secret ([`clipboard-secrets.md`](clipboard-secrets.md#the-users-answer-outranks-the-detector)) | "Reset personalisation" (`SettingsReset.everything`, target `.clipboard`) |
+
+Settings › Privacy also sets how long the history is kept (`Settings.clipboardRetentionDays`, seven
+days by default, the periods the transcripts offer). Dictation clips follow the transcript period
+instead, and the pane says so. It states the fixed limits beside the control, read from
+`ClipboardBudget.standard`.
 
 Clearing is a tidy-up and spares what somebody named, filed and pinned, the clips a user would be
 most upset to lose. "Reset personalisation" says it puts Uttrflow back to a fresh install, and a

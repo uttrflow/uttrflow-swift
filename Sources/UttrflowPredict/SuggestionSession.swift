@@ -98,8 +98,8 @@ public enum SuggestionAction: Sendable, Equatable {
     case acceptWord(String)
     /// Draw this instead, which a move or a dismissal produces.
     case redraw(SuggestionUpdate)
-    /// The keystroke means nothing here, so it goes back to the application as pressed.
-    case giveBack(KeyStroke)
+    /// The keystroke goes back to the application as pressed, after drawing `after` when one is given.
+    case giveBack(KeyStroke, after: SuggestionUpdate? = nil)
 }
 
 extension SuggestionAction {
@@ -136,9 +136,6 @@ public struct SuggestionSession: Sendable, Equatable {
 
     /// Whether the feature is on at all, which ⌥⎋ turns off.
     public private(set) var isEnabled = true
-
-    /// Whether this field has been silenced for the rest of its life, which ⎋⎋ does.
-    public private(set) var isSilencedHere = false
 
     /// How many suggestions have been typed past in this field.
     public private(set) var rejectionsHere = 0
@@ -462,10 +459,6 @@ public struct SuggestionSession: Sendable, Equatable {
         case .minimise:
             isMinimised = true
             return settle(.minimised, silence: .minimised)
-        case .silenceField:
-            isSilencedHere = true
-            isMinimised = false
-            return settle(.silent, silence: .turnedOffHere)
         case .turnOff:
             isEnabled = false
             isMinimised = false
@@ -494,7 +487,6 @@ public struct SuggestionSession: Sendable, Equatable {
         guard surface == self.surface else {
             self.surface = surface
             retained = nil
-            isSilencedHere = false
             isMinimised = false
             rejectionsHere = 0
             taken = nil
@@ -562,7 +554,7 @@ public struct SuggestionSession: Sendable, Equatable {
             typed: moment.typed, caretAtLineEnd: moment.caretAtLineEnd, hasSelection: moment.hasSelection,
             isComposing: moment.isComposing, isSecure: moment.isSecure, isProse: moment.isProse,
             millisecondsSinceKeystroke: moment.millisecondsSinceKeystroke,
-            isEnabledHere: isEnabled && !isSilencedHere, isMinimised: isMinimised,
+            isEnabledHere: isEnabled, isMinimised: isMinimised,
             rejectionsThisSession: rejectionsHere, canDraw: moment.canDraw, markedText: moment.markedText,
             isCommandLine: moment.isCommandLine, showsOwnList: moment.showsOwnList)
         context.applicationSupportsPickers = AppPicker.supportsPickers(in: surface.bundleIdentifier)

@@ -64,7 +64,7 @@ extension FieldReading {
     }
 
     /// Whether the window names itself as a private one, which is the only sign a browser publishes and not every browser publishes it.
-    public var isInPrivateWindow: Bool {
+    var isInPrivateWindow: Bool {
         guard let windowTitle else { return false }
         return Self.privateWindowMarkers.contains { windowTitle.localizedCaseInsensitiveContains($0) }
     }

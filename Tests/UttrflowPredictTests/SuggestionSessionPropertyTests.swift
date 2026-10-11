@@ -156,7 +156,7 @@ private struct Script {
             typed: context.typed, caretAtLineEnd: context.caretAtLineEnd, hasSelection: context.hasSelection,
             isSecure: context.isSecure, isProse: context.isProse,
             millisecondsSinceKeystroke: context.millisecondsSinceKeystroke,
-            isEnabledHere: session.isEnabled && !session.isSilencedHere,
+            isEnabledHere: session.isEnabled,
             rejectionsThisSession: session.rejectionsHere)
         if let refused = Quieting.reason(known) { return refused }
         if minimised { return .minimised }
@@ -294,16 +294,23 @@ private struct Script {
                 check(update)
                 last = update
             } else {
-                // One ⎋ leaves the dot; a further rung, or ⌥⎋, turns the field off and lifts the dot with it.
+                // One ⎋ leaves the dot; ⌥⎋ turns the field off and lifts the dot with it.
                 minimised = update.suggestion == .minimised
                 #expect(update.silence == (minimised ? .minimised : .turnedOffHere))
                 retire()
                 settled(update, generated: false)
             }
-        case .giveBack(let returned):
+        case .giveBack(let returned, nil):
             #expect(returned == stroke)
             #expect(!armed)
             #expect(session.suggestion == before)
+        case .giveBack(let returned, let update?):
+            #expect(returned == stroke)
+            #expect(armed)
+            minimised = update.suggestion == .minimised
+            #expect(update.silence == .minimised)
+            retire()
+            settled(update, generated: false)
         }
     }
 
@@ -342,7 +349,7 @@ private struct Script {
             #expect(armed.isEmpty)
             if !isQuiet { #expect(update.silence != .quietModeChoice) }
         case .minimised:
-            #expect(armed == (escapes ? [.escape, .optionEscape] : [.optionEscape]))
+            #expect(armed == [.optionEscape])
             #expect(update.silence == .minimised)
         case .certain(let text):
             #expect(armed.contains(accept) && armed.contains(.optionEscape))

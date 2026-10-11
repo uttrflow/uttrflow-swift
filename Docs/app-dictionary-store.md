@@ -219,7 +219,7 @@ user wanted it. It is provisional until `DictionaryEntry.promotionUses` later us
 undo. While provisional it ranks below every settled entry in the prompt, so it is never the word
 the recogniser is pointed at first, and a single undo removes it through `remove(_:)`, which also
 refuses the spelling so the same lesson is not learned again. Added, observed and shipped words are
-never provisional, and their retirement is the ratio below.
+never provisional, and their retirement is the rule below.
 
 A provisional word the user replaces by hand is vetoed the same way. `EditAway.editedAway` compares
 what a dictation inserted with what the field reads later, and names each applied word that is gone
@@ -240,8 +240,8 @@ other constant: `WorkingSet.recencyHalfLifeInDays`, 30 days.
 | 6 | 0/0 | 27/27 |
 
 No harmful entry is applied in the replay, so harm does not separate the counts; every real term
-survives 8 clean uses, so any count up to 8 promotes all of them. Three matches `isTrustworthy`'s use
-floor and leaves a misspelt word one undo or one edit from removal through its first three uses. The
+survives 8 clean uses, so any count up to 8 promotes all of them. Three matches the use floor of
+`DictionaryEntry.retirementRule(for:)` for learned and observed words and leaves a misspelt word one undo or one edit from removal through its first three uses. The
 test fails if a harmful entry is first undone after promotion or a kept term never reaches the count.
 
 ## Retirement and restoring
@@ -250,6 +250,29 @@ Entries that have retired themselves are excluded from the lookup, so they can d
 they are still listed. A user who is told a word has stopped being used and cannot then see it has
 been told nothing useful.
 
+A word retires when the lower bound of the 95% Wilson interval on its revert rate (undos over
+uses) exceeds the rate its origin may have, once it has the uses its origin needs. Retired means
+hidden from correction and the prompt, kept in the list and shown as retired, for every origin.
+`DictionaryEntry.retirementRule(for:)` is the one place the numbers live.
+
+| Origin | Minimum uses | Allowed revert rate | Why |
+|---|---|---|---|
+| learned, observed | 3 | 25% | inferred by the app, so held to the gate's small false-override tolerance |
+| added, shipped | 10 | 50% | the person or the build chose it; a few undos are usually about something else |
+
+A bound instead of the raw ratio keeps a word with two or three uses from being judged on noise,
+and retires one wrong 40% of the time, which the half rule kept in force for ever. Undos arriving
+at a steady rate, a learned word first retires at this use count:
+
+| Revert rate | Retired at, this rule | Retired at, half rule |
+|---|---|---|
+| 5% | never | never |
+| 20% | never | never |
+| 40% | 25 uses | never |
+| 60% | 5 uses | 4 uses |
+
+`swift test --filter DictionaryEntryTests` replays these profiles.
+
 `restore(_:)` clears the undo count rather than nudging it back below the threshold, because the
 counters are evidence and evidence the user has overruled is not evidence any more. Leaving one
 undo behind would retire the word again after a single further mistake, which is not what "Restore"
@@ -257,7 +280,7 @@ says on the button.
 
 `timesUsed` deliberately survives. How often a word has been applied is a fact about the past the
 user has not disputed, and it gives the restored word a longer leash rather than a shorter one:
-`isTrustworthy` is a ratio, so a word restored at twenty uses can be undone nine times before it
+the rule reads a rate, so a word restored at twenty uses can be undone nine times before it
 retires again, where one reset to zero would be back inside the three-use grace period and could
 retire on its fourth mistake.
 
@@ -290,7 +313,7 @@ substring: "Orvanta" inside "Orvantasoft" is not counted. Each entry still count
 dictation, whichever routes used it. Without this, a word the prompt helps most is counted least,
 leaves the working set once its unused lifetime passes, and comes back only after the recogniser
 misspells it again. Words sent to a secure field, or shaped like a credential, count nothing. Undo is unchanged: an
-undone dictation is one appearance and one revert, so the ratio retires a word the user keeps
+undone dictation is one appearance and one revert, so the rule retires a word the user keeps
 undoing exactly as before.
 
 Undo does not charge a taken reading. A taken reading is not a `DictationCorrection` — it has no
