@@ -43,10 +43,7 @@ public enum TechnicalToken: Equatable, Sendable {
     ]
 
     /// Hidden files whose whole name follows the dot, ".env", unlike an ending that follows a file's own name.
-    package static let dotFileNames: Set<String> = [
-        "env", "gitignore", "gitattributes", "gitmodules", "dockerignore", "editorconfig", "npmrc", "nvmrc",
-        "bashrc", "zshrc", "zshenv", "vimrc",
-    ]
+    package static let dotFileNames: Set<String> = ["env", "gitignore", "zshrc"]
 
     /// The endings the lexicon lists as file formats written ".ending".
     static var lexiconExtensions: [String] { endings(of: TechnicalLexicon.terms) }
