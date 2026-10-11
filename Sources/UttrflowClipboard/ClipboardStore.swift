@@ -994,54 +994,11 @@ public actor ClipboardStore {
                 // A cached snapshot cannot safely replace a file it could not inspect now.
                 throw .couldNotWrite
             }
-
-            let payload: Data
-            if EncryptedStore.isSealed(data) {
-                guard data.count > EncryptedStore.sealedHeaderLength else { throw .couldNotWrite }
-                let version = data[EncryptedStore.sealedHeaderLength]
-                guard version == EncryptedStore.currentEnvelopeVersion else {
-                    unsupportedFormatVersions[url] = Int(version)
-                    throw .unsupportedFormat
-                }
-                // Without a key, treat this file as opaque and protect it from stale-cache writes.
-                guard let encryptedStore else { throw .couldNotWrite }
-                do {
-                    payload = try encryptedStore.open(data, for: url.lastPathComponent)
-                } catch {
-                    // A temporarily unavailable key and an unauthenticatable file are both opaque.
-                    throw .couldNotWrite
-                }
-            } else {
-                payload = data
-            }
-
-            let root: Any
-            do {
-                root = try JSONSerialization.jsonObject(with: payload)
-            } catch {
-                throw .couldNotWrite
-            }
-            // The released array is the only unversioned shape this build knows how to migrate.
-            if root is [Any] {
-                guard ClipboardIndex.containsOnlyKnownJSONKeys(in: payload),
-                    (try? JSONDecoder().decode(ClipboardIndex.self, from: payload)) != nil
-                else {
-                    throw .couldNotWrite
-                }
-                continue
-            }
-            guard let object = root as? [String: Any], let version = object["version"] as? Int else {
-                throw .couldNotWrite
-            }
-            guard version == 1 || version == ClipboardIndex.currentVersion else {
+            if let version = try ClipIndexValidation.inspect(
+                data, fileName: url.lastPathComponent, using: encryptedStore)
+            {
                 unsupportedFormatVersions[url] = version
                 throw .unsupportedFormat
-            }
-            // Version alone is not proof that the cached contents can safely replace this file.
-            guard ClipboardIndex.containsOnlyKnownJSONKeys(in: payload),
-                (try? JSONDecoder().decode(ClipboardIndex.self, from: payload)) != nil
-            else {
-                throw .couldNotWrite
             }
         }
     }
