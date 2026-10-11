@@ -62,8 +62,11 @@ struct IllegalMarkSequencePropertyTests {
     private static let closers: Set<Character> = [")", "]", "}", "\u{201D}"]
 
     /// The properties `words` breaks when cleaned for `destination`.
-    static func broken(_ words: [String], in destination: Destination) -> Set<Property> {
-        let (text, again) = clean(words, in: destination)
+    static func broken(
+        _ words: [String], in destination: Destination,
+        cleaning: (([String], Destination) -> (once: String, twice: String))? = nil
+    ) -> Set<Property> {
+        let (text, again) = cleaning?(words, destination) ?? clean(words, in: destination)
         var found = shapes(of: text, saidAs: words)
         if text != again { found.insert(.notIdempotent) }
         return found
@@ -108,13 +111,16 @@ struct IllegalMarkSequencePropertyTests {
         return found
     }
 
-    static func shrunk(_ words: [String], _ property: Property, in destination: Destination) -> [String] {
+    static func shrunk(
+        _ words: [String], _ property: Property, in destination: Destination,
+        cleaning: (([String], Destination) -> (once: String, twice: String))? = nil
+    ) -> [String] {
         var current = words
         var index = 0
         while index < current.count {
             var smaller = current
             smaller.remove(at: index)
-            if !smaller.isEmpty, broken(smaller, in: destination).contains(property) {
+            if !smaller.isEmpty, broken(smaller, in: destination, cleaning: cleaning).contains(property) {
                 current = smaller
             } else {
                 index += 1
