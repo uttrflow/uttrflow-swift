@@ -250,6 +250,23 @@ public actor PasteboardWatcher {
         let clipSource = provenance.sourceName(
             frontmostName: application.name, isUnknown: provenanceIsUnknown)
 
+        // A file copy also carries its names as text, so files are asked first and win over that text.
+        let filesRead = await bounded({ [source] in source.fileURLs() })
+        if lastReadTimedOut {
+            retryOnNextTick = true
+            await reportCaptureDegradedOnce()
+            withdrawAnnouncements(forChange: count)
+            return nil
+        }
+        if let urls = filesRead, !urls.isEmpty {
+            guard source.changeCount() == count else { return nil }
+            let references = urls.map(ClipFileReference.init(url:))
+            return NoticedClip(
+                clip: Clip(
+                    text: references.map(\.name).joined(separator: "\n"), kind: .file,
+                    copiedAt: date, source: clipSource, files: references))
+        }
+
         // Fetched only now, and once, so an idle tick costs one integer read.
         let copiedRead = await bounded({ [source] in source.text() })
         if lastReadTimedOut {

@@ -49,6 +49,7 @@ struct RetentionPolicy: Sendable, Equatable {
     /// What a clip costs this process to hold: its words, and deliberately not its picture's file.
     static func weight(of clip: Clip) -> Int {
         clip.text.utf8.count + (clip.richText?.utf8.count ?? 0)
+            + (clip.files?.reduce(0) { $0 + $1.path.utf8.count + ($1.bookmark?.count ?? 0) } ?? 0)
     }
 
     /// Applies the same text-and-rich-text bound to copied clips and every stored edit.

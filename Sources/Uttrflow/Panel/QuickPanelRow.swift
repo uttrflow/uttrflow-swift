@@ -269,7 +269,7 @@ extension ClipKind {
         case .link: .panelLink
         case .code: .panelCode
         case .secret: .panelKey
-        case .text, .colour, .image, .filePath: .panelLabelDim
+        case .text, .colour, .image, .filePath, .file: .panelLabelDim
         }
     }
 }

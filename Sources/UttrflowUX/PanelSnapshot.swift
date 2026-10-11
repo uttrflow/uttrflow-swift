@@ -89,7 +89,7 @@ public enum PanelFilter: String, Sendable, Equatable, CaseIterable, Codable {
     public func admits(_ kind: ClipKind) -> Bool {
         switch self {
         case .all: true
-        case .text: kind == .text || kind == .secret || kind == .colour || kind == .filePath
+        case .text: kind == .text || kind == .secret || kind == .colour || kind == .filePath || kind == .file
         case .links: kind == .link
         case .code: kind == .code
         case .images: kind == .image
