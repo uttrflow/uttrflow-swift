@@ -691,7 +691,7 @@ struct DictationPipelineEarlyWorkTests {
         await pipeline.retry(recording.id)
 
         #expect(!cleaner.contexts.isEmpty)
-        #expect(cleaner.contexts.allSatisfy { $0 == AppContext() })
+        #expect(cleaner.contexts.allSatisfy { $0 == AppContext().readingSkipped() })
         #expect(await pipeline.currentState.outcome?.intoSecureField == false)
     }
 
