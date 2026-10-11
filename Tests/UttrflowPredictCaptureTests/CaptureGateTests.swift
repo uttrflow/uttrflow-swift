@@ -95,6 +95,40 @@ struct CaptureGateTests {
                 == .consentDeclined)
     }
 
+    @Test(
+        "A window that names itself private is refused even in an allowed browser, and its host is not kept.",
+        arguments: [
+            "Example - Google Chrome (Incognito)", "Example - InPrivate", "Example - Private Browsing",
+        ])
+    func privateWindowIsRefused(title: String) {
+        let reading = FieldReading(
+            bundleIdentifier: "com.example.browser", role: "AXTextField",
+            document: "https://example.com/page", windowTitle: title)
+        let refusal = CaptureGate.refusal(toRecord: "a plain sentence", from: reading, given: allowed)
+        #expect(refusal == .privateWindow)
+        let edit = EditedSpan(position: 0, old: ["tuesday"], new: ["thursday"])
+        #expect(CaptureGate.refusal(toHear: edit, from: reading, given: allowed) == .privateWindow)
+    }
+
+    @Test("An ordinary window of the same browser is still learned.")
+    func ordinaryWindowPasses() {
+        let reading = FieldReading(
+            bundleIdentifier: "com.example.browser", role: "AXTextField",
+            document: "https://example.com/page", windowTitle: "Example")
+        #expect(!reading.isInPrivateWindow)
+        #expect(CaptureGate.refusal(toRecord: "a plain sentence", from: reading, given: allowed) == nil)
+    }
+
+    @Test("A password manager is not learned from until the user allows it, and then it is.")
+    func passwordManagerIsOffUntilAllowed() {
+        let reading = FieldReading(bundleIdentifier: "com.bitwarden.desktop", role: "AXTextField")
+        #expect(
+            CaptureGate.refusal(toRecord: "a plain sentence", from: reading, given: CapturePreferences())
+                == .consentDeclined)
+        let allowedHere = CapturePreferences(consent: ["com.bitwarden.desktop": .allowed])
+        #expect(CaptureGate.refusal(toRecord: "a plain sentence", from: reading, given: allowedHere) == nil)
+    }
+
     @Test("A value one character long is refused, because completing it could never save a keystroke.")
     func oneCharacterIsRefused() {
         #expect(CaptureGate.refusal(toRecord: "y", from: field(), given: allowed) == .tooShort)

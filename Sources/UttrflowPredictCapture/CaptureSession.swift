@@ -1,6 +1,6 @@
 // One field at a time, watched for finished values and written through every refusal.
 public import UttrflowCore
-public import UttrflowPredict
+import UttrflowPredict
 
 public import struct Foundation.Date
 
@@ -54,8 +54,6 @@ public actor CaptureSession {
     private var isRetryingAcceptances = false
     /// True while a retraction retry runs, preventing re-entrant duplicate writes.
     private var isRetryingRetractions = false
-    /// True while a shell history import awaits its writes, so a second call cannot start the same import.
-    private var isImportingShellHistory = false
     /// The last acceptance written and the line it was taken over, watched for an undo until the line moves on or `undoWindow` passes.
     private var lastAcceptance: (text: String, over: String, surface: Surface, moment: Date)?
     /// How long after an acceptance a line cut back inside the accepted text reads as the person undoing it.
@@ -391,36 +389,6 @@ public actor CaptureSession {
         inFlightAcceptances = [:]
         lastAcceptance = nil
         detector.reset()
-    }
-
-    /// Seeds a terminal from the shell's history, once, and only because the user asked for it.
-    public func importShellHistory(
-        forHomeDirectory home: String, into surface: Surface, at moment: Date
-    ) async throws -> Int {
-        guard !preferences.hasImportedShellHistory, !isImportingShellHistory,
-            preferences.decision(for: surface.bundleIdentifier) == .proceed
-        else { return 0 }
-        isImportingShellHistory = true
-        defer { isImportingShellHistory = false }
-        var stored = 0
-        for path in ShellHistory.paths(inHomeDirectory: home) {
-            let commands = ShellHistory.read(atPath: path)
-            guard !commands.isEmpty else { continue }
-            for (index, command) in commands.enumerated()
-            where !DestructiveCommand.matches(command, failClosedOnUnresolved: true) {
-                // One second per line, oldest first, so eviction keeps the newest.
-                let age = Double(commands.count - 1 - index)
-                try await sink.record(
-                    command, in: surface, after: nil, as: .typed,
-                    at: moment.addingTimeInterval(-age))
-                stored += 1
-            }
-            break
-        }
-        // Marked done only once every command is written, so a failed write leaves the import to retry.
-        preferences.hasImportedShellHistory = true
-        try preferencesFile.save(preferences)
-        return stored
     }
 
     /// Ends the focused field with this event, so a half-finished value is not lost.

@@ -448,7 +448,8 @@ BENCH_SUITES := HeavyClipScans|PromptSizeGuaranteeTests|BIP39RecoveryPhraseScali
 	LaunchBudgetTests|AdapterValidatorTests/checksQuickly|ContextScorerTests/probe|$\
 	SQLNotationTests/latency|FieldLabelKindsTests/aLabelReadStaysWellUnderTwoMilliseconds|$\
 	SelectionWriterTests/acceptedButUnchangedReturnsAtOnce|PanelGroupsCostTests/longRunIsLinear|$\
-	FormatterRunTests/termEscalationStaysBounded|CorrectedWordsTests/hugeRangeStaysFast
+	FormatterRunTests/termEscalationStaysBounded|CorrectedWordsTests/hugeRangeStaysFast|$\
+	SeamNotationSweepTests/threeHundredWordsCost
 # The commit `eval` compares with: where this branch left main.
 EVAL_BASE ?= $(shell git merge-base HEAD origin/main 2>/dev/null)
 SCORECARD := .build/rules-scorecard.json
