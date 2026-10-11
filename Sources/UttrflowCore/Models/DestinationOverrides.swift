@@ -8,7 +8,7 @@ public struct DestinationOverride: Sendable, Equatable, Codable, Identifiable {
     /// Which adapter formats this app's words; an entry stored before modes existed reads as `auto`.
     public let mode: AdapterMode
     /// The quality preset this app is dictated under; nil follows the preset chosen for every app.
-    public let preset: QualityPreset.ID?
+    let preset: QualityPreset.ID?
 
     public var id: String { ApplicationKey.of(bundleIdentifier) }
 

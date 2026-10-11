@@ -2,7 +2,7 @@
 import Foundation
 import Testing
 import UttrflowCore
-import UttrflowEval
+@testable import UttrflowEval
 
 @Suite("Speech variants")
 struct SpeechVariantTests {
