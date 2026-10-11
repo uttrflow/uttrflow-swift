@@ -1,6 +1,7 @@
 public import struct Foundation.Date
 public import struct Foundation.Locale
 public import struct Foundation.ByteCountFormatStyle
+import UttrflowClipboard
 import UttrflowCore
 import UttrflowPredict
 public import UttrflowSettings
@@ -678,7 +679,8 @@ public enum SettingsPresenter {
                 SettingsGroup(
                     id: "retention",
                     title: "Your data",
-                    rows: [retentionRow(settings)] + storageRows(personalisation.storage, settings: settings)
+                    rows: [retentionRow(settings), clipboardRetentionRow(settings), clipboardLimitsRow]
+                        + storageRows(personalisation.storage, settings: settings)
                         + [
                             toggleRow(
                                 .sharesUsageStatistics,
@@ -704,7 +706,7 @@ public enum SettingsPresenter {
                 SettingsGroup(
                     id: "reset",
                     title: "Start over",
-                    rows: [forgetLearnedRow(personalisation), resetRow(personalisation)]),
+                    rows: [forgetLearnedRow(personalisation), clearClipboardRow, resetRow(personalisation)]),
             ],
             callout: SettingsCallout(
                 symbolName: "lock",
@@ -906,6 +908,59 @@ public enum SettingsPresenter {
                 },
                 selectedID: String(days)),
             icon: .symbol("clock", .info))
+    }
+
+    /// How long copied text and pictures stay in the clipboard history, and what keeps dictation clips apart.
+    private static func clipboardRetentionRow(_ settings: Settings) -> SettingsRow {
+        SettingsRow(
+            id: "clipboardRetention",
+            label: "Keep clipboard history for",
+            explanation:
+                "Dictation clips follow Keep transcripts for. Pinned, named and filed clips have no time limit.",
+            control: .menu(
+                options: SettingsRetention.offeredDays.map { offered in
+                    SettingsOption(
+                        id: String(offered), title: SettingsRetention.title(days: offered),
+                        change: .clipboardRetention(days: offered))
+                },
+                selectedID: String(settings.clipboardRetentionDays)),
+            icon: .symbol("list.clipboard", .info))
+    }
+
+    /// The fixed bounds the clipboard keeps within, read from the budget the store enforces.
+    private static var clipboardLimitsRow: SettingsRow {
+        let budget = ClipboardBudget.standard
+        func size(_ bytes: Int) -> String { bytes.formatted(.byteCount(style: .file)) }
+        let picture = budget.images.days.map { "Pictures are kept for \($0) days at most" } ?? "Pictures are limited"
+        return SettingsRow(
+            id: "clipboardLimits",
+            label: "Clipboard limits",
+            explanation:
+                "Up to \(budget.copied.items) clips of each kind, \(size(budget.largestClip)) each. "
+                + "\(picture), within \(size(budget.images.bytes)) of thumbnails and \(size(budget.disk)) of files. "
+                + "The clip used least recently goes first.",
+            control: .status("Fixed"),
+            icon: .symbol("gauge.with.dots.needle.50percent", .info))
+    }
+
+    /// Clears the history and says what stays; the store call spares pinned, named and filed clips.
+    private static var clearClipboardRow: SettingsRow {
+        let kept = "Pinned, named and filed clips, your dictionary, snippets and settings stay."
+        return SettingsRow(
+            id: "clearClipboard",
+            label: "Clear clipboard history",
+            explanation: "Deletes copied text, pictures and dictation clips. \(kept)",
+            control: .removal(
+                SettingsRemoval(
+                    reset: .clipboardHistory, title: "Clear…",
+                    confirmation: SettingsConfirmation(
+                        title: "Clear clipboard history?",
+                        message: "This deletes every clip that is not pinned, named or filed. \(kept) "
+                            + "This cannot be undone.",
+                        confirmTitle: "Clear", cancelTitle: "Cancel"))),
+            unavailability: SettingsEditor.unavailability(
+                of: .clipboardHistory, given: .nothing),
+            icon: .symbol("list.clipboard", .danger))
     }
 
     /// One read-only row per store a person would recognise, saying what it occupies on this Mac.

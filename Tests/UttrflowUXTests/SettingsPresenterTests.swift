@@ -684,7 +684,8 @@ struct SettingsPrivacyPaneTests {
         let pane = SettingsPresenter.pane(
             for: .privacy, settings: .default, capabilities: .everything, personalisation: personalisation)
         let rows = pane.groups.first { $0.id == "retention" }?.rows.map(\.id) ?? []
-        #expect(rows.prefix(2) == ["transcripts", "storage.dictationHistory"])
+        #expect(
+            rows.prefix(4) == ["transcripts", "clipboardRetention", "clipboardLimits", "storage.dictationHistory"])
         let size = { (bytes: Int64) in SettingsControl.status(bytes.formatted(.byteCount(style: .file))) }
         #expect(pane.row("storage.recordings")?.control == size(2_000_000))
         #expect(pane.row("storage.snippets")?.control == size(0))
@@ -723,6 +724,24 @@ struct SettingsPrivacyPaneTests {
         #expect(everyPane().allSatisfy { $0.banner == nil })
     }
 
+    @Test("offers clipboard retention on its own, seven days by default, and states the limits")
+    func clipboardRetentionRow() throws {
+        guard case .menu(let options, let selected)? = privacy().row("clipboardRetention")?.control
+        else {
+            Issue.record("the clipboard period is not a pop-up")
+            return
+        }
+        #expect(selected == String(Settings.defaultRetentionDays))
+        #expect(options.map(\.id) == SettingsRetention.offeredDays.map(String.init))
+        #expect(options.allSatisfy { $0.change == .clipboardRetention(days: Int($0.id) ?? -1) })
+        let rule = try #require(privacy().row("clipboardRetention")?.explanation)
+        #expect(rule.contains("Keep transcripts for"))
+        let limits = try #require(privacy().row("clipboardLimits")?.explanation)
+        #expect(limits.contains("500 clips"))
+        #expect(limits.contains("7 days"))
+        #expect(limits.contains("2 MB"))
+    }
+
     @Test("offers only periods the store will keep, and selects the stored one")
     func offersOnlySurvivablePeriods() {
         var settings = Settings.default
@@ -738,14 +757,14 @@ struct SettingsPrivacyPaneTests {
         #expect(options.allSatisfy { $0.change != .retention(days: 0) })
     }
 
-    /// One period, because the transcript is the one thing kept.
-    @Test("offers a period for the text and for nothing else")
-    func onlyTranscriptsHaveAPeriod() {
+    /// Two periods: the transcripts, and the clipboard history that dictation clips follow the first of.
+    @Test("offers a period for the transcripts and one for the clipboard history, and for nothing else")
+    func onlyTranscriptsAndClipsHaveAPeriod() {
         let periods = privacy().everyRow.filter {
             if case .menu = $0.control { return true }
             return false
         }
-        #expect(periods.map(\.id) == ["transcripts"])
+        #expect(periods.map(\.id) == ["transcripts", "clipboardRetention"])
     }
 
     @Test("offers the usage statistics switch, off by default, saying what is sent")

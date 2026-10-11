@@ -371,6 +371,8 @@ public enum SettingsChange: Sendable, Equatable {
     /// How long the user pauses while speaking.
     case pauses(PauseLength)
     case retention(days: Int)
+    /// How long clipboard history is kept; dictation clips follow ``retention(days:)``.
+    case clipboardRetention(days: Int)
     case appearance(AppAppearance)
     /// How much of the front application a dictation reads.
     case contextLevel(ContextLevel)

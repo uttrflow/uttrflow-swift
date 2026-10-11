@@ -3305,7 +3305,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Forgets what a reset removed before redrawing, so the page cannot repaint the words it took.
     func forget(after reset: SettingsReset) {
-        if reset.targets.contains(.clipboard) {
+        if reset.targets.contains(.clipboard) || reset.targets.contains(.clipboardHistory) {
             let deletion = undoOffer.pendingDelete
             undoOffer.withdraw()
             undoTask?.cancel()
