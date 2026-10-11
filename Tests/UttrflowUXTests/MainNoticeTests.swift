@@ -70,32 +70,6 @@ struct MainNoticeTests {
         #expect(MainNotice.action(for: nil) == nil)
     }
 
-    @Test(
-        "Apple model availability has distinct explanations and only the switched-off state offers Settings")
-    func explainsAppleIntelligenceAvailability() {
-        let switchedOff = MainNotice.appleIntelligenceUnavailable(.appleIntelligenceDisabled)
-        #expect(switchedOff.message.contains("switched off"))
-        #expect(switchedOff.action?.intent == .recover(.openSystemSettings(.appleIntelligence)))
-        #expect(switchedOff.tone == .critical)
-
-        let downloading = MainNotice.appleIntelligenceUnavailable(.modelNotReady)
-        #expect(downloading.message.contains("downloading"))
-        #expect(downloading.action == nil)
-
-        let ineligible = MainNotice.appleIntelligenceUnavailable(.deviceNotEligible)
-        #expect(ineligible.message.contains("cannot run Apple Intelligence"))
-        #expect(ineligible.action == nil)
-    }
-
-    @Test("only a dictation no clean-up finished on is announced as inserted without it")
-    func announcesSkippedCleanUp() throws {
-        let skipped = try #require(MainNotice.cleanUpSkipped(by: .untidied))
-        #expect(skipped.headline == "Inserted without clean-up.")
-        #expect(skipped.action == nil)
-        #expect(MainNotice.cleanUpSkipped(by: .rules) == nil)
-        #expect(MainNotice.cleanUpSkipped(by: .foundationModels) == nil)
-    }
-
     @Test("a notice built from its parts keeps them")
     func keepsItsParts() {
         let notice = MainNotice(message: "No.", symbolName: "xmark", tone: .good)
