@@ -44,6 +44,7 @@ struct HistoryRailRow: View {
                     Text(asHeard)
                 }
             }
+            if let asSpoken = row.asSpoken { menuItem(asSpoken) }
             ForEach(row.more) { menuItem($0) }
         }
     }
@@ -170,6 +171,12 @@ struct HistoryRailRow: View {
                     Label(tag, systemImage: "wand.and.stars")
                         .labelStyle(HistoryTagLabelStyle())
                         .foregroundStyle(PagePalette.suggestion)
+                }
+                if let formattedAs = row.formattedAs {
+                    Text("·")
+                    Label(formattedAs, systemImage: "chevron.left.forwardslash.chevron.right")
+                        .labelStyle(HistoryTagLabelStyle())
+                        .accessibilityLabel(formattedAs)
                 }
                 if let arrival = row.arrival {
                     Label(arrival, systemImage: "exclamationmark.circle")

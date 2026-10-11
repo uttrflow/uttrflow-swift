@@ -18,6 +18,7 @@ default, or it is not added. Only fields with an honest default get one.
 | `DictationRecord.isFlagged` | `false` | A file without the key and a dictation nobody flagged are the same fact. |
 | `DictationRecord.changes` | `nil` | Absent means unmeasured, not "nothing changed"; see [core-history-accuracy.md](core-history-accuracy.md). |
 | `DictationRecord.guardRefusals` | `nil` | Unrecorded; a kind this build lacks is left out of the list, never a discarded file. |
+| `DictationRecord.notation` | `nil` | No notation recorded; a destination this build lacks or a count not above zero reads as none, never a discarded file. It holds a kind of place and a count, no word. |
 | `DictationRecord.applicationName`, `applicationIdentifier`, `spokenFor` | `nil` | Unknown is their honest value. |
 | `RecordedCorrection.isUndone` | `false` | A file without the key and a change nobody undid are the same fact. |
 | `RecordedCorrection.writtenWordIndex` | `nil` | Unknown; undo falls back to the heard-space range ([core-history-undo.md](core-history-undo.md)). |

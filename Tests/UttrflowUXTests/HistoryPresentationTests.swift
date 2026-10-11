@@ -639,4 +639,43 @@ struct HistoryWordCountTests {
             for: record, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
         #expect(row.asHeard == nil)
     }
+
+    private func notation(in destination: Destination) -> NotationUse? {
+        NotationUse.reading(
+            [ChangeLedgerEntry(writtenIndex: 0, pass: .codeEditorCommands, kind: .replaced)],
+            in: destination)
+    }
+
+    @Test("an SQL dictation is labelled and offers the words as spoken; prose is not")
+    func formattedAsLabelsNotation() {
+        let sql = DictationRecord(
+            text: "SELECT *", when: HistoryFixture.now, heard: "select star",
+            notation: notation(in: .sqlEditor))
+        let prose = DictationRecord(text: "We shipped it.", when: HistoryFixture.now, heard: "we shipped it")
+        let sqlRow = HistoryPresenter.row(
+            for: sql, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+        let proseRow = HistoryPresenter.row(
+            for: prose, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+
+        #expect(sqlRow.formattedAs == "Formatted as SQL")
+        #expect(sqlRow.asSpoken?.intent == .copy("select star"))
+        #expect(proseRow.formattedAs == nil)
+        #expect(proseRow.asSpoken == nil)
+    }
+
+    @Test("each kind of writing with notation has a label, and a row with no kept words offers no way back")
+    func formattedAsNamesEachKind() {
+        let labels = [Destination.codeEditor, .terminal].map {
+            HistoryPresenter.formattedAs(notation(in: $0))
+        }
+        let bare = DictationRecord(
+            text: "x.y", when: HistoryFixture.now, notation: notation(in: .codeEditor))
+        let placed = Destination.allCases.filter {
+            HistoryPresenter.formattedAs(notation(in: $0)) != nil
+        }
+
+        #expect(labels == ["Formatted as code", "Formatted as a command"])
+        #expect(Set(placed) == [.sqlEditor, .codeEditor, .terminal])
+        #expect(HistoryPresenter.asSpoken(for: bare) == nil)
+    }
 }

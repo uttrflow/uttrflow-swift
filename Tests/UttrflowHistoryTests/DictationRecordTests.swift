@@ -202,6 +202,30 @@ struct DictationRecordTests {
         #expect(older.map(\.guardRefusals) == [[.lostWord], nil])
     }
 
+    @Test("notation survives a round trip; an old file, a new destination or a bad count read as none")
+    func keepsTheNotation() throws {
+        let when = Date(timeIntervalSinceReferenceDate: 721_692_800)
+        let ran = NotationUse.reading(
+            [ChangeLedgerEntry(writtenIndex: 1, pass: .codeEditorCommands, kind: .replaced)],
+            in: .sqlEditor)
+        let records = [DictationRecord(text: "SELECT *", when: when, notation: ran)]
+        let stored = """
+            [{"id":"6BA7B810-9DAD-11D1-80B4-00C04FD430C8","text":"Ship it","when":721692800},
+             {"id":"6BA7B811-9DAD-11D1-80B4-00C04FD430C8","text":"Ship it","when":721692800,\
+            "notation":{"destination":"fromTheFuture","conversions":2}},
+             {"id":"6BA7B812-9DAD-11D1-80B4-00C04FD430C8","text":"Ship it","when":721692800,\
+            "notation":{"destination":"sqlEditor","conversions":0}}]
+            """
+
+        let read = try JSONDecoder().decode(
+            [DictationRecord].self, from: JSONEncoder().encode(records))
+        let older = try JSONDecoder().decode([DictationRecord].self, from: Data(stored.utf8))
+
+        #expect(read == records)
+        #expect(ran?.conversions == 1)
+        #expect(older.map(\.notation) == [nil, nil, nil])
+    }
+
     @Test("an arrival this build does not know reads as unknown instead of refusing the file")
     func unknownArrivalReadsAsUnknown() throws {
         let stored = """

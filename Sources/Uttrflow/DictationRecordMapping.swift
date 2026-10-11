@@ -31,7 +31,8 @@ enum DictationRecordMapping {
                     spokenWords: outcome.changes.spokenWords),
                 cleanedBy: outcome.cleanedBy, arrival: RecordedArrival(outcome.arrival),
                 changeLedger: outcome.changes.changeLedger, slowCause: outcome.slowCause,
-                heard: outcome.heardToKeep, guardRefusals: outcome.guardRefusals)
+                heard: outcome.heardToKeep, guardRefusals: outcome.guardRefusals,
+                notation: outcome.changes.notation)
         case .failed(let failure):
             guard let text = failure.wordsToKeep, keeping.keeps(applicationIdentifier: nil)
             else { return nil }
