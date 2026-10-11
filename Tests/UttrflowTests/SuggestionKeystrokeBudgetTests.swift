@@ -3,6 +3,7 @@
 import AppKit
 import Foundation
 import Testing
+import UttrflowInput
 import UttrflowPredict
 import UttrflowPredictStore
 import UttrflowTestSupport
@@ -131,8 +132,10 @@ struct SuggestionKeystrokeBudgetTests {
         coordinator.keyPressed(.other, typing: text)
     }
 
-    @Test("a burst of keys and keys typed through the ghost read once a turn and never hide or redraw it")
-    func keystrokesKeepToTheBudget() async throws {
+    @Test(
+        "a burst of keys and keys typed through the ghost read once a turn and never hide or redraw it",
+        arguments: [false, true])
+    func keystrokesKeepToTheBudget(startsDictating: Bool) async throws {
         let readsPerTurn = try Self.documentedLimit("keystrokeReadsPerTurn")
         let duplicateDraws = try Self.documentedLimit("sameSuggestionDrawsPerKey")
         let screen = try #require(NSScreen.screens.first)
@@ -154,14 +157,20 @@ struct SuggestionKeystrokeBudgetTests {
 
         let field = TypedField(frame: frame, screenTop: screen.frame.maxY)
         let panel = SuggestionPanelController(screenNotificationCenter: NotificationCenter())
+        panel.frontWindow = { _ in }
+        panel.systemHidesPanel = { false }
         let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
+            secureInput: SecureInputWatch(isSecureInputOn: { false }),
             focusedSelectionReader: { field.selection() }, focusedFieldReader: { field.read() },
-            frontmostBundleIdentifier: { TypedField.application.bundleIdentifier }, panel: panel)
+            frontmostBundleIdentifier: { TypedField.application.bundleIdentifier },
+            workspaceCenter: NotificationCenter(), panel: panel)
         defer {
             coordinator.stop()
             panel.hide()
         }
+        coordinator.dictationChanged(isDictating: startsDictating)
+        coordinator.dictationChanged(isDictating: false)
         // The pause clock reads the field every second; an hour-long one leaves every turn here to a key.
         coordinator.noteActivity()
         coordinator.scheduleTicker(every: 3_600)
@@ -170,6 +179,7 @@ struct SuggestionKeystrokeBudgetTests {
         for letter in ["m", "e", "e", "t"] { Self.press(letter, in: field, to: coordinator) }
         try await eventually { coordinator.isSettled }
         #expect(panel.drawn.inline?.ghost == " later")
+        #expect(!panel.window.isVisible)
         #expect(coordinator.turnsAdmitted <= 2)
         #expect(field.reads <= coordinator.turnsAdmitted * readsPerTurn)
 
