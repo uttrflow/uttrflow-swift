@@ -23,12 +23,14 @@ struct ReplayTree: ElementTree {
 
     func attribute(_ name: String, of element: AccessibilitySnapshot.Element) -> FieldAnswer {
         messages.asked.append(name)
+        messages.milliseconds += element.attributes[name]?.milliseconds ?? 0
         return element.attributes[name]?.fieldAnswer ?? .unsupported
     }
 
     /// A ranged read cuts the recorded value unless the snapshot recorded a refusal for ranged reads.
     func attribute(_ name: String, of element: AccessibilitySnapshot.Element, range: NSRange) -> FieldAnswer {
         messages.asked.append(name)
+        messages.milliseconds += element.rangedText?.milliseconds ?? 0
         if let recorded = element.rangedText, recorded.kind != .value || recorded.text != nil {
             return recorded.fieldAnswer
         }
