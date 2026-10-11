@@ -92,4 +92,16 @@ struct AppContextTests {
     func secureAloneIsEmpty() {
         #expect(AppContext(isSecure: true).isEmpty)
     }
+
+    @Test("availability tells a read screen, a skipped read, a refused read and a secure field apart")
+    func availabilityKinds() {
+        #expect(AppContext(applicationName: "Notes").availability == .present)
+        #expect(AppContext(applicationName: "Notes").readingSkipped().availability == .absentByDesign)
+        #expect(AppContext(unavailable: .refused).availability == .unreadable)
+        #expect(AppContext(unavailable: .secure).availability == .secure)
+        #expect(AppContext(isSecure: true).readingSkipped().availability == .secure)
+        #expect(ContextAvailability.present.emptyTextIsEvidence)
+        #expect(!ContextAvailability.absentByDesign.emptyTextIsEvidence)
+        #expect(!ContextAvailability.unreadable.emptyTextIsEvidence)
+    }
 }

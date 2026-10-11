@@ -37,7 +37,7 @@ public enum RichTextPlainForm: Sendable {
 
         // Input with nothing recognisably HTML in it keeps its tags, so `Array<String>` survives.
         guard tokenizer.looksLikeMarkup() else {
-            var output = Output(maximumBytes: maximumOutputBytes)
+            var output = HTMLTextOutput(maximumBytes: maximumOutputBytes)
             output.append(HTMLEntities.decoding(html))
             return Rendering(text: output.result, wasTruncated: output.didReachLimit, checkboxes: [])
         }
@@ -46,7 +46,7 @@ public enum RichTextPlainForm: Sendable {
         while let token = tokenizer.next() { tokens.append(token) }
         tokens = HiddenContent.removed(from: tokens)
         var renderer = PlainTextRenderer(
-            itemCounts: PlainTextRenderer.itemCounts(in: tokens), maximumOutputBytes: maximumOutputBytes)
+            itemCounts: HTMLListInputs.itemCounts(in: tokens), maximumOutputBytes: maximumOutputBytes)
         for token in tokens {
             renderer.consume(token)
             if renderer.didReachLimit { break }
@@ -62,175 +62,13 @@ private struct Rendering {
     let checkboxes: [Bool]
 }
 
-// MARK: - Hidden content
-
-/// Drops what the page hides from its reader, since the page and not the browser chooses what the HTML flavour holds.
-enum HiddenContent {
-    /// The tokens a reader would see: every hidden element is removed with everything inside it.
-    static func removed(from tokens: [HTMLToken]) -> [HTMLToken] {
-        var kept: [HTMLToken] = []
-        kept.reserveCapacity(tokens.count)
-        var hiddenName: String?
-        var depth = 0
-        for token in tokens {
-            if let name = hiddenName {
-                guard case .tag(let tag) = token, tag.name == name else { continue }
-                depth += tag.isClosing ? -1 : 1
-                if depth == 0 { hiddenName = nil }
-                continue
-            }
-            if case .tag(let tag) = token, !tag.isClosing, isHidden(tag) {
-                if !HTMLElements.void.contains(tag.name) {
-                    hiddenName = tag.name
-                    depth = 1
-                }
-                continue
-            }
-            kept.append(token)
-        }
-        return kept
-    }
-
-    /// Whether a start tag hides its element: `hidden`, `aria-hidden="true"`, or an inline style that hides it.
-    static func isHidden(_ tag: HTMLTag) -> Bool {
-        if tag.attribute("hidden") != nil { return true }
-        if tag.attribute("aria-hidden")?.trimmingCharacters(in: .whitespaces).lowercased() == "true" {
-            return true
-        }
-        return tag.styleDeclarations.contains { declaration in
-            (declaration.property == "display" && declaration.value == "none")
-                || (declaration.property == "visibility" && declaration.value == "hidden")
-        }
-    }
-}
-
-// MARK: - Writing
-
-/// Accumulates output; breaks are requested, not written, so blank lines never pile up.
-private struct Output {
-    private static let truncationMarker = "…"
-
-    private let maximumBytes: Int?
-    private let truncationMarker: String?
-    private var text = ""
-    private var contentBytes = 0
-    private var pendingBreaks = 0
-    private var pendingSpace = false
-    private var didTruncate = false
-
-    init(maximumBytes: Int) {
-        let marker: String?
-        switch maximumBytes {
-        case ..<1: marker = nil
-        case 1...2: marker = String(repeating: ".", count: maximumBytes)
-        default: marker = Self.truncationMarker
-        }
-        truncationMarker = marker
-        self.maximumBytes = maximumBytes > 0 ? maximumBytes : nil
-    }
-
-    /// Asks for `count` newlines before the next content; the largest request wins.
-    mutating func requestBreak(_ count: Int) {
-        guard !didTruncate, !text.isEmpty else { return }
-        pendingBreaks = max(pendingBreaks, count)
-        pendingSpace = false
-    }
-
-    /// Asks for a single space, which a break already pending outranks.
-    mutating func requestSpace() {
-        guard !didTruncate, !text.isEmpty, !text.hasSuffix(" "), pendingBreaks == 0 else { return }
-        pendingSpace = true
-    }
-
-    mutating func append(_ content: String) {
-        guard !didTruncate, !content.isEmpty else { return }
-        settlePending()
-        guard !didTruncate else { return }
-        appendBounded(content)
-    }
-
-    /// A list marker, after which nothing may be inserted before the item's first word.
-    mutating func appendMarker(_ marker: String) {
-        guard !didTruncate else { return }
-        settlePending()
-        guard !didTruncate else { return }
-        appendBounded(marker)
-        pendingSpace = false
-    }
-
-    var result: String { text }
-    var didReachLimit: Bool { didTruncate }
-
-    private mutating func settlePending() {
-        if pendingBreaks > 0 {
-            // Verbatim content can end in its own newlines; counting them stops a blank line after `<pre>`.
-            let existing = trailingNewlines
-            if pendingBreaks > existing {
-                appendBounded(String(repeating: "\n", count: pendingBreaks - existing))
-            }
-        } else if pendingSpace {
-            appendBounded(" ")
-        }
-        pendingBreaks = 0
-        pendingSpace = false
-    }
-
-    private mutating func appendBounded(_ content: String) {
-        guard let maximumBytes else {
-            text += content
-            return
-        }
-        let remainingBytes = maximumBytes - contentBytes
-        let contentBytesToAppend = content.utf8.count
-        guard contentBytesToAppend <= remainingBytes else {
-            let markerBytes = truncationMarker?.utf8.count ?? 0
-            let contentLimit = max(0, maximumBytes - markerBytes)
-            let retained = Self.utf8Prefix(text, limitedTo: contentLimit)
-            text = retained
-            contentBytes = retained.utf8.count
-            let prefix = Self.utf8Prefix(content, limitedTo: max(0, contentLimit - contentBytes))
-            text += prefix
-            contentBytes += prefix.utf8.count
-            if let truncationMarker { text += truncationMarker }
-            didTruncate = true
-            return
-        }
-        text += content
-        contentBytes += contentBytesToAppend
-    }
-
-    private static func utf8Prefix(_ content: String, limitedTo byteLimit: Int) -> String {
-        var prefix = String.UnicodeScalarView()
-        var byteCount = 0
-        for scalar in content.unicodeScalars {
-            let scalarBytes = scalar.utf8.count
-            guard byteCount + scalarBytes <= byteLimit else { break }
-            prefix.append(scalar)
-            byteCount += scalarBytes
-        }
-        return String(prefix)
-    }
-
-    private var trailingNewlines: Int {
-        var found = 0
-        var index = text.endIndex
-        while index > text.startIndex, found < 2 {
-            let before = text.index(before: index)
-            guard text[before] == "\n" else { break }
-            found += 1
-            index = before
-        }
-        return found
-    }
-}
-
 // MARK: - Rendering
 
 /// Turns the token stream into the text a plain target receives.
 private struct PlainTextRenderer {
     private static let maximumListIndentDepth = 8
 
-    private var out: Output
+    private var out: HTMLTextOutput
     private var lists: [ListFrame] = []
     /// How many items each list holds directly, by the order the lists open in; a `reversed` list counts down from it.
     private let itemCounts: [Int]
@@ -263,41 +101,8 @@ private struct PlainTextRenderer {
     }
 
     init(itemCounts: [Int], maximumOutputBytes: Int) {
-        out = Output(maximumBytes: maximumOutputBytes)
+        out = HTMLTextOutput(maximumBytes: maximumOutputBytes)
         self.itemCounts = itemCounts
-    }
-
-    /// How many items each list holds directly, in the order the lists open, nesting as `apply` does.
-    static func itemCounts(in tokens: [HTMLToken]) -> [Int] {
-        var counts: [Int] = []
-        var open: [Int] = []
-        for case .tag(let tag) in tokens {
-            switch tag.name {
-            case "ul", "ol", "menu":
-                if tag.isClosing {
-                    if !open.isEmpty { open.removeLast() }
-                } else {
-                    open.append(counts.count)
-                    counts.append(0)
-                }
-            case "li" where !tag.isClosing:
-                if let list = open.last { counts[list] += 1 }
-            default:
-                break
-            }
-        }
-        return counts
-    }
-
-    /// An attribute's integer the way HTML reads one: leading space, a sign, then digits, and the rest ignored.
-    static func integer(_ text: String?) -> Int? {
-        guard let text else { return nil }
-        var rest = Substring(text.drop(while: \.isWhitespace))
-        let isNegative = rest.first == "-"
-        if rest.first == "-" || rest.first == "+" { rest = rest.dropFirst() }
-        let digits = rest.prefix(while: \.isASCII).prefix(while: \.isNumber)
-        guard !digits.isEmpty, let magnitude = Int(digits) else { return nil }
-        return isNegative ? -magnitude : magnitude
     }
 
     private struct LinkCapture {
@@ -451,7 +256,7 @@ private struct PlainTextRenderer {
         listsOpened += 1
         var frame = ListFrame(isOrdered: tag.name == "ol", isChecklist: isChecklist(tag))
         guard frame.isOrdered else { return frame }
-        let start = Self.integer(tag.attribute("start"))
+        let start = HTMLListInputs.integer(tag.attribute("start"))
         if tag.attribute("reversed") != nil {
             frame.next = start ?? items
             frame.step = -1
@@ -470,7 +275,7 @@ private struct PlainTextRenderer {
             pendingMarker = ItemMarker(indent: indent, box: false)
         } else if lists.last?.isOrdered == true {
             let last = lists.count - 1
-            if let value = Self.integer(tag.attribute("value")) { lists[last].next = value }
+            if let value = HTMLListInputs.integer(tag.attribute("value")) { lists[last].next = value }
             // Plain digits, so the tenth item is `10.` and the list stays a list.
             pendingMarker = ItemMarker(indent: indent, label: "\(lists[last].next). ")
             lists[last].next &+= lists[last].step
@@ -561,69 +366,5 @@ private struct PlainTextRenderer {
         var result = String(authority[..<host]) + authority[host...].lowercased() + rest[end...]
         while result.hasSuffix("/") { result.removeLast() }
         return result
-    }
-}
-
-// MARK: - Small string work
-
-/// A text run with its inner whitespace collapsed to one space and its edge whitespace remembered.
-private struct CollapsedRun {
-    let body: String
-    let hasLeadingSpace: Bool
-    let hasTrailingSpace: Bool
-
-    init(_ text: String) {
-        var out = String.UnicodeScalarView()
-        var leading = false
-        var pending = false
-        for scalar in text.unicodeScalars {
-            guard !scalar.properties.isWhitespace else {
-                pending = true
-                continue
-            }
-            if pending {
-                if out.isEmpty { leading = true } else { out.append(" ") }
-                pending = false
-            }
-            out.append(scalar)
-        }
-        body = String(out)
-        hasLeadingSpace = leading
-        // A run of only whitespace still separates its neighbours.
-        hasTrailingSpace = pending
-    }
-}
-
-extension String {
-    fileprivate func trimmedEdges() -> String {
-        String(trimmedTrailing().unicodeScalars.drop(while: \.properties.isWhitespace))
-    }
-
-    fileprivate func trimmingTrailingSpace() -> String {
-        var copy = self
-        while copy.hasSuffix(" ") { copy.removeLast() }
-        return copy
-    }
-
-    fileprivate func trimmedTrailing() -> String {
-        var scalars = unicodeScalars[...]
-        while let last = scalars.last, last.properties.isWhitespace { scalars.removeLast() }
-        return String(scalars)
-    }
-
-    /// The scheme of an absolute url; hand-written because `URL` accepts `page.html` as a url.
-    fileprivate func urlScheme() -> String? {
-        var scheme = String.UnicodeScalarView()
-        for scalar in unicodeScalars {
-            if scalar == ":" {
-                return scheme.isEmpty ? nil : String(scheme).lowercased()
-            }
-            guard
-                scalar.properties.isAlphabetic || ("0"..."9").contains(scalar)
-                    || "+-.".unicodeScalars.contains(scalar)
-            else { return nil }
-            scheme.append(scalar)
-        }
-        return nil
     }
 }

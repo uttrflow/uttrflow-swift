@@ -71,12 +71,15 @@ extension DictationPipeline {
             // A snippet changes the word count, so the ledger's positions hold only when none fired.
             changeLedger: expanded.snippets.isEmpty ? whole.cleaned.changeLedger : nil,
             scriptConversions: joined.scriptConversions + ScriptConversions(finalEnforcement),
-            heard: whole.heard.text)
+            heard: whole.heard.text,
+            notation: expanded.snippets.isEmpty
+                ? NotationUse.reading(whole.cleaned.changeLedger, in: landing.destination) : nil)
         guard
             let attempt = await insert(
                 toWrite, cleanedBy: whole.cleaned.producedBy, changes: changes,
                 doubtful: DoubtfulWordsOutcome.locating(whole.heard.saying(whole.corrected), in: toWrite),
                 delivery: delivery, generation: mine, recording: tally,
+                account: cleaningAccount(including: whole.cleaned.cleaning),
                 unavailableEngines: whole.cleaned.cleaning?.unavailableEngines ?? [],
                 guardRefusals: whole.cleaned.cleaning?.refusals.map(\.kind) ?? [],
                 destination: InsertionDestination(
@@ -153,7 +156,8 @@ extension DictationPipeline {
     private func insert(
         _ text: String, cleanedBy: TransformerKind, changes: AppliedChanges,
         doubtful: DoubtfulWordsOutcome = .notAvailable, delivery: Delivery, generation mine: Int,
-        recording tally: StageTally, unavailableEngines: [CleaningRecord.UnavailableEngine],
+        recording tally: StageTally, account: CleaningRecord,
+        unavailableEngines: [CleaningRecord.UnavailableEngine],
         guardRefusals: [RefusalKind],
         destination: InsertionDestination
     ) async -> InsertionAttempt? {
@@ -193,8 +197,10 @@ extension DictationPipeline {
                         spokenFor: spokenFor, changes: changes,
                         fromRecording: delivery == .copy, arrival: attempt.arrival,
                         intoSecureField: destinationIsSecure, missedPieces: missedPieces,
-                        unavailableEngines: unavailableEngines, doubtful: doubtful,
-                        slowCause: slowCause, guardRefusals: guardRefusals)))
+                        inputTooLoud: inputTooLoud, unavailableEngines: unavailableEngines, doubtful: doubtful,
+                        slowCause: slowCause, guardRefusals: guardRefusals,
+                        quality: OutcomeQuality(
+                            producedBy: cleanedBy, account: account, missedPieces: missedPieces))))
             return attempt
         } catch {
             guard !wasCancelled(mine) else { return nil }

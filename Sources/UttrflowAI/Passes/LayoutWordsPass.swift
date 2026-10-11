@@ -7,7 +7,7 @@ public struct LayoutWordsPass: PieceCleaningPass {
     public static let laws: Set<PassLaw> = [.idempotent, .addsNoWords, .latinOnly]
     public static let orderIndependentWith: Set<PassID> = [.numberForms]
 
-    private let layout: LayoutPolicy
+    let layout: LayoutPolicy
     private let insertionState: InsertionPoint.SentenceState
 
     /// The word that opens a numbered item. It has no row in `SpokenCommands.layout` because the number after it picks the mark.
@@ -68,6 +68,7 @@ public struct LayoutWordsPass: PieceCleaningPass {
             live.removeSubrange(position + 1..<position + found.length)
             position += 1
         }
+        layOutEnumeratedSeries(&draft)
         if layout.contains(.singleLine) { Self.joinOnOneLine(&draft, by: Self.id) }
         return draft
     }
@@ -330,7 +331,7 @@ public struct LayoutWordsPass: PieceCleaningPass {
     }
 
     /// The item number, spoken or already a numeral, and how many words it took. See `Docs/cleanup.md`.
-    private static func itemNumber(
+    static func itemNumber(
         at position: Int, in live: [Int], of draft: Draft
     ) -> (value: Int, count: Int)? {
         guard live.indices.contains(position) else { return nil }

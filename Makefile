@@ -281,6 +281,8 @@ docs-audit: ## Prove the documentation still describes this tree, including that
 .PHONY: data-manifest
 data-manifest: ## Prove every bundled resource file is in Resources/DataManifest.json with its digest. Needs no build.
 	@python3 Scripts/data_manifest_test.py
+	@python3 Scripts/provider_mark_test.py
+	@python3 Scripts/reproduce_assets_test.py
 	@python3 Scripts/data_manifest.py
 	@cd Scripts && python3 ngram_sources_test.py
 	@cd Scripts && python3 derive_lexicon_test.py
@@ -292,6 +294,11 @@ assets: ## Rebuild the derived data assets from the pinned sources, then check t
 	@python3 Scripts/ngram_sources.py --fetch --cache "$(ASSET_CACHE)"
 	@python3 Scripts/derive_lexicon.py --cache "$(ASSET_CACHE)"
 	@python3 Scripts/data_manifest.py
+
+.PHONY: reproduce-assets
+reproduce-assets: ## Rebuild every fitted asset from the recipe in TAG's manifest and compare digests; never tags. TAG=<tag>, optional ASSET_CACHE=folder.
+	@test -n "$(TAG)" || { echo "reproduce-assets: set TAG=<tag>; see Docs/data-manifest.md" >&2; exit 1; }
+	@python3 Scripts/reproduce_assets.py --tag "$(TAG)" $(if $(ASSET_CACHE),--cache "$(ASSET_CACHE)")
 
 .PHONY: claims-audit
 claims-audit: ## Refuse a privacy, accuracy or speed claim in user-facing text that Docs/claims.json does not back. Needs no build.
@@ -441,10 +448,11 @@ seam-audit eval-arguments rules-scorecard bench-tests: export LLVM_PROFILE_FILE 
 endif
 
 # The tests each lane owns, as `swift test` filters; `verify` runs every other test.
-EVAL_SUITES := UttrflowEvalTests|EndToEndWordSurvivalTests/wordsSurviveEveryStage|LoanwordRestorationProbeTests/probeTable|HomophonePolicyProbeTests|LearningDynamicsSimulatorTests
+EVAL_SUITES := UttrflowEvalTests|EndToEndWordSurvivalTests/wordsSurviveEveryStage|LoanwordRestorationProbeTests/probeTable|HomophonePolicyProbeTests|LearningDynamicsSimulatorTests|$\
+	LearnedWordQualityReplayScoreTests|BrandRestorationShareTests|CodeShapesLanguageCorpusTests
 BENCH_SUITES := HeavyClipScans|PromptSizeGuaranteeTests|BIP39RecoveryPhraseScalingTests|ClipboardStoreClassifierVersionTests/firstListBenchmark|$\
 	SuggestionStoreStartupTests/largeLegacyCorpusMigratesOffMainThreadWithinBudget|$\
-	DoubtfulWordsLocatingTests/placingStaysCheap|PasteboardWatcherTests/deeplyNestedHTMLKeepsItsBoundedPlainForm|$\
+	DoubtfulWordsLocatingTests/placingStaysCheap|PasteboardWatcherTests/deeplyNestedHTMLStaysFast|$\
 	LaunchBudgetTests|AdapterValidatorTests/checksQuickly|ContextScorerTests/probe|$\
 	SQLNotationTests/latency|FieldLabelKindsTests/aLabelReadStaysWellUnderTwoMilliseconds|$\
 	SelectionWriterTests/acceptedButUnchangedReturnsAtOnce|PanelGroupsCostTests/longRunIsLinear|$\

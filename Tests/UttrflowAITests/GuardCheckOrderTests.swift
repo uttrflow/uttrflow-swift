@@ -12,8 +12,8 @@ struct GuardCheckOrderTests {
     func order() {
         #expect(
             MeaningPreservationGuard.checks.map(\.name) == [
-                "empty", "preamble", "length", "numbers", "symbols", "spokenPunctuation", "removal",
-                "readings", "confidentHomophone", "layout", "grammar",
+                "empty", "preamble", "length", "numbers", "symbols", "spokenPunctuation",
+                "scriptWordCount", "removal", "readings", "confidentHomophone", "layout", "grammar",
             ])
     }
 

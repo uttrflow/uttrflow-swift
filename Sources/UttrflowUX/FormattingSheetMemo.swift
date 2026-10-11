@@ -3,7 +3,7 @@ private import Synchronization
 import UttrflowClipboard
 
 /// Remembers the last formatting sheet drawn, so a panel update does not compare the texts again.
-final class FormattingSheetMemo: Sendable, Equatable {
+final class FormattingSheetMemo: Sendable {
     /// Holds the two texts compared and the sheet drawn from them.
     private struct Drawn {
         let original: String
@@ -48,8 +48,6 @@ final class FormattingSheetMemo: Sendable, Equatable {
         }
     }
 
-    /// Compares equal to any other memo, because a cache is not part of what the panel shows.
-    static func == (lhs: FormattingSheetMemo, rhs: FormattingSheetMemo) -> Bool { true }
 }
 
 /// A formatting sheet drawn ahead of presenting, so the comparison can run off the main actor.

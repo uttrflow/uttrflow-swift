@@ -6,10 +6,27 @@ public import UttrflowCore
 public struct ClipboardPreferences: Sendable, Equatable, Codable {
     public private(set) var excludedBundleIdentifiers: Set<String>
     public var pausedUntil: Date?
+    /// Whether a multi-line clip asks before it is pasted into a terminal.
+    public var confirmsMultilinePaste: Bool
 
-    public init(excludedBundleIdentifiers: Set<String> = [], pausedUntil: Date? = nil) {
+    public init(
+        excludedBundleIdentifiers: Set<String> = [], pausedUntil: Date? = nil,
+        confirmsMultilinePaste: Bool = true
+    ) {
         self.excludedBundleIdentifiers = Set(excludedBundleIdentifiers.map { $0.lowercased() })
         self.pausedUntil = pausedUntil
+        self.confirmsMultilinePaste = confirmsMultilinePaste
+    }
+
+    /// Reads a file with no paste check entry as having the check on.
+    public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            excludedBundleIdentifiers: try values.decode(
+                Set<String>.self, forKey: .excludedBundleIdentifiers),
+            pausedUntil: try values.decodeIfPresent(Date.self, forKey: .pausedUntil),
+            confirmsMultilinePaste: try values.decodeIfPresent(Bool.self, forKey: .confirmsMultilinePaste)
+                ?? true)
     }
 
     public func excludes(_ bundleIdentifier: String?) -> Bool {

@@ -49,7 +49,7 @@ extension CleaningPipeline {
                 mode: mode),
             SpokenEmojiPass(destination: destination),
             LayoutWordsPass(layout: layout, insertionPoint: insertionPoint),
-            NumberFormsPass(policy: numbers, digits: digits),
+            SpelledNamePass(destination: destination), NumberFormsPass(policy: numbers, digits: digits),
             ContractionsPass(), SpacingPass(),
             // Last, so a pause inside a number or a removed filler is read on the words left standing.
             PauseStopPass(destination: destination, pauses: pauses),
@@ -70,6 +70,11 @@ extension CleaningPipeline {
             destination: destination, region: intent.region,
             statement: SQLPosition.at(insertionPoint.precedingText), markup: markup, mode: mode)
         if let layoutPosition = cleanings.firstIndex(where: { $0.id == .layoutWords }) {
+            // Only a Markdown document names its lists and headings by what is already written.
+            if CaretStructure.isMarkdown(documentName: screen.app.documentName) {
+                cleanings.insert(
+                    MarkdownContinuationPass(position: .at(insertionPoint.precedingText)), at: layoutPosition)
+            }
             if NotationEvidence.mayActivate(notation, in: destination, markup: markup) {
                 // Markup reads its colons, semicolons and dashes by slot, before punctuation takes them as marks.
                 let punctuation = cleanings.firstIndex { $0.id == .spokenPunctuation }
@@ -78,6 +83,13 @@ extension CleaningPipeline {
                         destination: destination, language: intent.language, markup: markup,
                         evidence: notation),
                     at: markup?.slot == nil ? layoutPosition : punctuation ?? layoutPosition)
+                // After the spoken layout words, so a spoken "new line" is a break by then.
+                if destination == .sqlEditor,
+                    let spoken = cleanings.firstIndex(where: { $0.id == .layoutWords })
+                {
+                    cleanings.insert(
+                        SQLLayoutPass(layout: SQLLayout.at(insertionPoint.precedingText)), at: spoken + 1)
+                }
             }
             // A code editor's comments and a code editor set to plain prose take no casing: its rows are identifiers.
             if (destination != .codeEditor || inCode) && !(mode == .prose && destination == .codeEditor) {
@@ -130,10 +142,12 @@ extension CleaningPipeline {
         let mentions: [any WholeTextCleaningPass] =
             formatter.destination == .messaging
             ? [AtMentionPass(precedingText: situation.insertion.precedingText)] : []
-        // Only an email body has a greeting and a sign-off to set apart; a subject or recipient field is one line.
+        // An email body, or a letter in a document, has a greeting and a sign-off to set apart; a subject or recipient field is one line.
+        let letterDestination = formatter.destination == .email || formatter.destination == .document
         let structure: [any WholeTextCleaningPass] =
-            formatter.destination == .email && situation.intent.fieldRole == .message
-                && formatter.layout.contains(.paragraphs) ? [EmailStructurePass()] : []
+            letterDestination && situation.intent.fieldRole == .message
+                && formatter.layout.contains(.paragraphs)
+            ? [EmailStructurePass(requiresLetter: formatter.destination == .document)] : []
         return CleaningPipeline(
             wholeText: initialisms(steps: steps) + [casing] + mentions + structure + [
                 SentenceBoundaryPass(),
@@ -185,4 +199,9 @@ extension AppContext {
     var textOnScreen: [String] {
         [documentName, selectedText, precedingText, followingText].compactMap { $0 }
     }
+}
+
+extension PassID {
+    /// A listed name said as letters and number words, written fused.
+    static let spelledName: PassID = "spelledName"
 }

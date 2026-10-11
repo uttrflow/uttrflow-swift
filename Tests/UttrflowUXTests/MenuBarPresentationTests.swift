@@ -50,7 +50,8 @@ struct MenuBarIconTests {
         #expect(
             icons == [
                 .mark, .symbol("mic.fill"), .symbol("sparkles"), .symbol("checkmark"),
-                .symbol("exclamationmark.circle"), .symbol("questionmark.circle"),
+                .symbol("exclamationmark.circle"), .symbol("exclamationmark.bubble"),
+                .symbol("questionmark.circle"),
                 .symbol("doc.on.clipboard"), .symbol("trash"), .symbol("checkmark.circle"),
             ])
         #expect(Set(icons).count == DictationActivity.allCases.count)
@@ -155,11 +156,25 @@ struct MenuBarIconTests {
 
     @Test("says part of the speech is missing only when a piece decoded to no words", arguments: [0, 1, 3])
     func missedPiecesReachTheStatusLine(missed: Int) {
-        let activity = DictationActivity.completion(method: .typed, arrival: .confirmed, missedPieces: missed)
-        let shown = MenuBarPresenter.present(MenuBarState(activity: activity))
+        let quality: OutcomeQuality = missed > 0 ? .partial : .complete
+        let activity = DictationActivity.completion(method: .typed, arrival: .confirmed, quality: quality)
+        let shown = MenuBarPresenter.present(MenuBarState(activity: activity, outcomeQuality: quality))
         #expect(activity == (missed > 0 ? .partial : .inserted))
         #expect(shown.statusLine == (missed > 0 ? MissedSpeech.line : "Inserted"))
         #expect(shown.accessibilityLabel.contains("part not transcribed") == (missed > 0))
+    }
+
+    @Test("every incomplete quality words the status line, and a complete one adds nothing")
+    func everyQualityReachesTheStatusLine() throws {
+        for quality in OutcomeQuality.incomplete {
+            let activity = DictationActivity.completion(method: .typed, arrival: .confirmed, quality: quality)
+            let shown = MenuBarPresenter.present(MenuBarState(activity: activity, outcomeQuality: quality))
+            let row = try #require(quality.presentation)
+            #expect(shown.statusLine == row.line, "\(quality)")
+            #expect(shown.icon == .symbol(row.symbolName), "\(quality)")
+        }
+        let complete = DictationActivity.completion(method: .typed, arrival: .confirmed, quality: .complete)
+        #expect(MenuBarPresenter.present(MenuBarState(activity: complete)).statusLine == "Inserted")
     }
 
     @Test("marks a live microphone even with nothing wrong")
@@ -181,7 +196,8 @@ struct MenuBarStatusTests {
         }
         #expect(
             lines == [
-                "Ready", "Listening…", "Tidying up…", "Inserted", "Inserted — part not transcribed",
+                "Ready", "Listening…", "Cleaning up…", "Inserted", "Inserted — part not transcribed",
+                "Inserted",
                 "Inserted — not confirmed", "Copied — press ⌘V", "Discarded", "Done",
             ])
         for (activity, line) in [
@@ -242,7 +258,7 @@ struct MenuBarStatusTests {
                 == "Uttrflow. Listening.")
         #expect(
             MenuBarPresenter.present(MenuBarState(activity: .working)).accessibilityLabel
-                == "Uttrflow. Tidying up.")
+                == "Uttrflow. Cleaning up.")
         // The failure's sentence ends in a full stop; a second is read out as a second pause.
         #expect(
             MenuBarPresenter.present(MenuBarState(failure: microphoneOff)).accessibilityLabel
@@ -460,7 +476,7 @@ struct MenuBarHeaderTests {
                 == .status(MenuBarStatus(title: "Listening…", emphasis: .live)))
         #expect(
             MenuBarPresenter.present(MenuBarState(activity: .working)).header
-                == .status(MenuBarStatus(title: "Tidying up…")))
+                == .status(MenuBarStatus(title: "Cleaning up…")))
     }
 
     @Test("counts a download with a bar, and slides one while the fraction is unknown")
@@ -884,7 +900,7 @@ struct MenuBarUpdateTests {
         #expect(listening.statusLine == "Listening…")
         #expect(listening.accessibilityLabel == "Uttrflow. Listening.")
         let working = MenuBarState(activity: .working, updateProgress: .downloading(fraction: 0.4))
-        #expect(MenuBarPresenter.present(working).statusLine == "Tidying up…")
+        #expect(MenuBarPresenter.present(working).statusLine == "Cleaning up…")
         let rested = MenuBarState(activity: .inserted, updateProgress: .readyToInstall)
         #expect(MenuBarPresenter.present(rested).statusLine == "Update ready — installing when you pause")
     }

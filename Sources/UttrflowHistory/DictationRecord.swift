@@ -34,6 +34,8 @@ public struct DictationRecord: Sendable, Equatable, Identifiable, Codable {
     public let heard: String?
     /// What the meaning guard found wrong with each model answer thrown away before the kept one, as kinds that name no word; `nil` is unrecorded, empty is none refused.
     public let guardRefusals: [RefusalKind]?
+    /// Whether spoken notation ran and how often, holding no word; `nil` is none ran or it is unrecorded.
+    public let notation: NotationUse?
 
     /// Builds a record; every field after `text` and `when` defaults to unknown or unflagged.
     public init(
@@ -43,7 +45,7 @@ public struct DictationRecord: Sendable, Equatable, Identifiable, Codable {
         flagReason: FlagReason? = nil, cleanedBy: TransformerKind? = nil,
         arrival: RecordedArrival? = nil, changeLedger: [ChangeLedgerEntry]? = nil,
         slowCause: SlowDictationCause? = nil, heard: String? = nil,
-        guardRefusals: [RefusalKind]? = nil
+        guardRefusals: [RefusalKind]? = nil, notation: NotationUse? = nil
     ) {
         self.id = id
         self.text = text
@@ -60,6 +62,7 @@ public struct DictationRecord: Sendable, Equatable, Identifiable, Codable {
         self.slowCause = slowCause
         self.heard = heard
         self.guardRefusals = guardRefusals
+        self.notation = notation
     }
 
     /// Reads ``isFlagged`` as `false` and ``flagReason`` as unlabelled when absent, since the store discards a file it cannot decode.
@@ -88,6 +91,8 @@ public struct DictationRecord: Sendable, Equatable, Identifiable, Codable {
         // Read as text so a kind a newer build adds is left out instead of discarding the file.
         guardRefusals = try values.decodeIfPresent([String].self, forKey: .guardRefusals)?
             .compactMap(RefusalKind.init(rawValue:))
+        // A destination a newer build adds, or a count that is not positive, reads as no notation, never a discarded file.
+        notation = try? values.decodeIfPresent(NotationUse.self, forKey: .notation)
     }
 
     /// Whether this is still within `days` of `now`; the one place "deleted after N days" is decided.

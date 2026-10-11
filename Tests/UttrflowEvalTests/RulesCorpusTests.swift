@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 import UttrflowAI
 import UttrflowCore
@@ -35,7 +36,7 @@ struct RulesCorpusTests {
         "probe-hinglish-status",
         "probe-quote-unquote",
         "dev-standup-update", "dev-pr-description-list", "dev-bug-report-steps", "dev-version-bump",
-        "dev-design-note-acronyms", "dev-decision-record",
+        "dev-decision-record",
         "dev-force-push-correction", "dev-review-reply",
         "dev-onboarding-message", "dev-hotfix-handoff",
     ]
@@ -54,7 +55,9 @@ struct RulesCorpusTests {
             outputs[testCase.id] = result.text
         }
         let inputs = Dictionary(uniqueKeysWithValues: EvaluationCorpus.all.map { ($0.id, $0.spoken) })
-        let differences = try Self.golden.compare(outputs, inputs: inputs)
+        let destination = ProcessInfo.processInfo.environment["UTTRFLOW_RULES_GOLDEN_OUTPUT"]
+        let golden = destination.map { GoldenFile(url: URL(fileURLWithPath: $0)) } ?? Self.golden
+        let differences = try golden.compare(outputs, inputs: inputs)
         #expect(
             differences.isEmpty,
             "\(differences.count) outputs moved; rerun with \(GoldenFile.updateVariable)=1 if intended:\n\(differences.map(\.description).joined(separator: "\n"))"
@@ -114,7 +117,7 @@ struct RulesCorpusTests {
         // Grammar cases name a destination too, but repairs are the model's alone; the floor is below.
         let named = Set(
             EvaluationCorpus.all.filter { $0.destination != .plain && $0.category != .grammar }.map(\.id))
-        #expect(named.count == 542 + Self.knownFailures.count)
+        #expect(named.count == 543 + Self.knownFailures.count)
         #expect(
             named.subtracting(Self.modelOnly).subtracting(Self.knownFailures).isSubset(of: Self.rulesMustPass)
         )

@@ -31,7 +31,7 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
             spellsTag
             ? Applicability(cues: [.markupTag]) : NotationEvidence.applicability(of: words, given: screen)
         guard evidence.activates(at: NotationEvidence.activationThreshold) else { return draft }
-        var draft = draft
+        var draft = NotationInput.settled(draft, by: Self.id)
         var slot = markup?.slot
         var position = 0
         while position < draft.presentIndices.count {

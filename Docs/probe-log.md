@@ -20,8 +20,9 @@ cites its row.
 - **Command** — what was run, with the binary named rather than located.
 - **Result** — the figures, on one line.
 
-Every `uttrflow-dev probe` subcommand prints its row after its own output, ready to paste.
-Pass `--issue N` to fill the first column. The row is built by `ProbeLogRow` in
+Every `uttrflow-dev probe` subcommand that measures a number (`surface`, `retrieval`, `tap`, `ime`,
+`modifiers`) prints its row after its own output, ready to paste; `snapshot` records a fixture and
+prints none. Pass `--issue N` to fill the first column. The row is built by `ProbeLogRow` in
 `Sources/UttrflowEval/ProbeLogRow.swift`, the single home of the format; a measurement taken
 by any other tool is written in the same columns by hand. Keep raw dated rows here: probe
 commands explicitly print this destination, and measurement pages cite the row while keeping

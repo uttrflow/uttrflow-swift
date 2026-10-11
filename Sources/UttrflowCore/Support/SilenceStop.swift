@@ -25,6 +25,25 @@ public struct SilenceStop: Sendable, Equatable {
 
     /// Whether `samples` end in a quiet at least as long as the wait, after speech.
     public func isReached(in samples: [Float], sampleRate: Int) -> Bool {
-        VoiceActivity.trailingSilence(in: samples, sampleRate: sampleRate).map { $0 >= wait } ?? false
+        quiet(in: samples, sampleRate: sampleRate).map { $0 >= wait } ?? false
+    }
+
+    /// How long `samples` have been quiet since the last speech, or `nil` when none was heard.
+    public func quiet(in samples: [Float], sampleRate: Int) -> Duration? {
+        VoiceActivity.trailingSilence(in: samples, sampleRate: sampleRate)
+    }
+
+    /// Whole seconds left, at least 1, once `quiet` passes half the wait and before it ends the recording; otherwise `nil`.
+    public func secondsLeft(afterQuiet quiet: Duration?) -> Int? {
+        guard let quiet, quiet > wait / 2, quiet < wait else { return nil }
+        return Swift.max(1, Int(((wait - quiet) / .seconds(1)).rounded(.up)))
+    }
+
+    /// The dock's words for the countdown.
+    public static func phrase(secondsLeft: Int) -> String { "Ending in \(secondsLeft) sec" }
+
+    /// The spoken form of the countdown, once per countdown.
+    public static func sentence(secondsLeft: Int) -> String {
+        "Dictation ends in \(secondsLeft) \(secondsLeft == 1 ? "second" : "seconds")."
     }
 }

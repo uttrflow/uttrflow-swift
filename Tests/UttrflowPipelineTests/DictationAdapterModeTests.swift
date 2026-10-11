@@ -72,4 +72,40 @@ struct DictationAdapterModeTests {
         #expect(await inserted(saying: spoken, overrides: other, in: editor)?.contains("limit = 12") == true)
         #expect(await inserted(saying: spoken, overrides: forced, in: editor)?.contains("limit = 12") == true)
     }
+
+    @Test("as typed applies to the next dictation only, shows while pending and can be taken back")
+    func oneShotAsTyped() async {
+        let spoken = "limit equals twelve"
+        let inserter = FakeTextInserter()
+        let router = TransformerRouter(
+            engines: [RuleBasedTransformer()], preference: [.rules], rulesAlone: .shortReplies)
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(Self.audio)),
+            speech: HeardSpeechEngine(heard: spoken), cleaner: router,
+            context: FakeContextEngine(context: editor), inserter: inserter,
+            speechWords: { _ in [] }, destinationOverrides: .none)
+        #expect(await pipeline.pendingFormat == nil)
+        await pipeline.format(next: .prose)
+        #expect(await pipeline.pendingFormat == .prose)
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+        #expect(inserter.received.last?.contains("=") == false, "\(inserter.received)")
+        #expect(await pipeline.pendingFormat == nil)
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+        #expect(inserter.received.last?.contains("limit = 12") == true, "\(inserter.received)")
+        await pipeline.format(next: .prose)
+        await pipeline.format(next: nil)
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+        #expect(inserter.received.last?.contains("limit = 12") == true, "\(inserter.received)")
+    }
+
+    @Test("a one-shot choice is never stored")
+    func oneShotIsNotStored() throws {
+        let held = DestinationOverrides.none.holding(oneShot: .prose)
+        let data = try JSONEncoder().encode(held)
+        #expect(try JSONDecoder().decode(DestinationOverrides.self, from: data).oneShotMode == nil)
+        #expect(held.mode(for: editor) == .prose)
+    }
 }

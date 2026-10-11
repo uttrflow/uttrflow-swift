@@ -18,11 +18,13 @@ public struct Snippet: Sendable, Equatable, Identifiable, Codable {
     public var lastUsed: Date?
     /// The bundle identifiers it fires in, as the person chose them; empty fires everywhere. See ``ApplicationScope``.
     public let applications: [String]
+    /// Whether the person marked the expansion a secret, so it is masked wherever the dictation shows.
+    public let isSecret: Bool
 
     /// A snippet with fresh counters unless told otherwise.
     public init(
         id: UUID = UUID(), trigger: String, expansion: String, created: Date,
-        timesUsed: Int = 0, lastUsed: Date? = nil, applications: [String] = []
+        timesUsed: Int = 0, lastUsed: Date? = nil, applications: [String] = [], isSecret: Bool = false
     ) {
         self.id = id
         self.trigger = trigger
@@ -31,10 +33,11 @@ public struct Snippet: Sendable, Equatable, Identifiable, Codable {
         self.timesUsed = timesUsed
         self.lastUsed = lastUsed
         self.applications = ApplicationScope.normalised(applications)
+        self.isSecret = isSecret
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, trigger, expansion, created, timesUsed, lastUsed, applications
+        case id, trigger, expansion, created, timesUsed, lastUsed, applications, isSecret
     }
 
     /// Decodes a file from before scopes as a snippet that fires everywhere.
@@ -47,10 +50,11 @@ public struct Snippet: Sendable, Equatable, Identifiable, Codable {
             created: try values.decode(Date.self, forKey: .created),
             timesUsed: try values.decode(Int.self, forKey: .timesUsed),
             lastUsed: try values.decodeIfPresent(Date.self, forKey: .lastUsed),
-            applications: try values.decodeIfPresent([String].self, forKey: .applications) ?? [])
+            applications: try values.decodeIfPresent([String].self, forKey: .applications) ?? [],
+            isSecret: try values.decodeIfPresent(Bool.self, forKey: .isSecret) ?? false)
     }
 
-    /// Writes the scope only when there is one, so an unconfined snippet's record keeps the shape every build reads.
+    /// Writes the scope and the secret mark only when set, so an unconfined snippet's record keeps the shape every build reads.
     public func encode(to encoder: any Encoder) throws {
         var values = encoder.container(keyedBy: CodingKeys.self)
         try values.encode(id, forKey: .id)
@@ -60,6 +64,7 @@ public struct Snippet: Sendable, Equatable, Identifiable, Codable {
         try values.encode(timesUsed, forKey: .timesUsed)
         try values.encodeIfPresent(lastUsed, forKey: .lastUsed)
         if !applications.isEmpty { try values.encode(applications, forKey: .applications) }
+        if isSecret { try values.encode(isSecret, forKey: .isSecret) }
     }
 
     /// The same snippet one use later, saturating at `Int.max` so a maxed-out counter cannot trap.
@@ -67,7 +72,8 @@ public struct Snippet: Sendable, Equatable, Identifiable, Codable {
         let (nextCount, overflowed) = timesUsed.addingReportingOverflow(1)
         return Snippet(
             id: id, trigger: trigger, expansion: expansion, created: created,
-            timesUsed: overflowed ? Int.max : nextCount, lastUsed: when, applications: applications)
+            timesUsed: overflowed ? Int.max : nextCount, lastUsed: when, applications: applications,
+            isSecret: isSecret)
     }
 
     /// Whether this snippet fires where `bundleIdentifier` is in front.
