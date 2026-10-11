@@ -16,18 +16,22 @@ public struct DictationWait: Sendable, Equatable {
         self.spent = spent
     }
 
-    /// Splits `wait` using the stages timed after key-up, the pieces' decode effort and the screen reads.
+    /// Splits `wait` using the stages timed after key-up, the pieces' decode effort, the screen reads and the tidier's cold starts.
     public init(
-        wait: Duration, stages: [StageMeasurement], decoding: [DecodeEffort], screenReads: Duration
+        wait: Duration, stages: [StageMeasurement], decoding: [DecodeEffort], screenReads: Duration,
+        tidyColdStart: Duration = .zero
     ) {
         var spent: [SlowDictationCause: Duration] = [:]
         spent[.fallbackDecode] = .seconds(decoding.reduce(0) { $0 + $1.fallbackSeconds })
         spent[.modelLoad] = .seconds(decoding.reduce(0) { $0 + $1.loadSeconds })
         spent[.cappedDecodeRetry] = .seconds(decoding.reduce(0) { $0 + $1.retrySeconds })
         spent[.contextRead] = screenReads
+        spent[.tidyColdSession] = tidyColdStart
         for stage in stages {
             switch stage.stage {
-            case .transformation where !stage.succeeded: spent[.tidyTimeout] = stage.duration
+            case .transformation where !stage.succeeded:
+                // The cold start is inside the tidier's time, so it is named once.
+                spent[.tidyTimeout] = max(.zero, stage.duration - tidyColdStart)
             case .insertion: spent[.insertionConfirmation] = stage.duration
             default: break
             }
