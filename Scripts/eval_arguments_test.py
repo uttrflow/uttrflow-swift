@@ -127,5 +127,53 @@ class AccentGroupBoundArgumentTests(unittest.TestCase):
                     self.assertNotIn("usage:", finished.stderr.lower())
 
 
+    def write_count_rows(self, path, counts):
+        with open(path, "w", encoding="utf-8") as output:
+            output.write("\n")
+            for speaker in ["speaker-a", "speaker-b"]:
+                fields = [speaker, "group-a", "verified", *(str(count) for count in counts)]
+                output.write("\t".join(fields) + "\n\n")
+
+    def test_negative_saved_count_fields_are_refused(self):
+        with tempfile.TemporaryDirectory(prefix="accent-count-") as folder:
+            rows = os.path.join(folder, "counts.tsv")
+            for field in range(4):
+                with self.subTest(field=field):
+                    counts = [0, 10, 2000, 0]
+                    counts[field] = -1
+                    self.write_count_rows(rows, counts)
+                    finished = self.run_with(rows)
+                    self.assertEqual(finished.returncode, 64, finished.stderr)
+                    self.assertIn("line 1 is not a counts row", finished.stderr)
+                    self.assertIn("usage:", finished.stderr.lower())
+                    self.assertNotIn("group\tlabel", finished.stdout)
+
+    def test_zero_and_insertion_counts_keep_the_existing_report(self):
+        header = (
+            "group\tlabel\tspeakers\twords\tdecisions\tWER\tinterval\tMDD\tfalse override\t"
+            "seams\tseam rate\n"
+        )
+        controls = [
+            ([0, 0, 0, 0],
+             "group-a\tverified\t2\t0\t0\t0.0%\t+0.0..+0.0\t+0.0\t"
+             "insufficient evidence (needs 3000 decisions)\t0\t-\n"),
+            ([20, 10, 0, 0],
+             "group-a\tverified\t2\t20\t0\t200.0%\t+200.0..+200.0\t+0.0\t"
+             "insufficient evidence (needs 3000 decisions)\t0\t-\n"),
+            ([0, 10, 1, 3],
+             "group-a\tverified\t2\t20\t2\t0.0%\t+0.0..+0.0\t+0.0\t"
+             "insufficient evidence (needs 3000 decisions)\t0\t-\n"),
+        ]
+        with tempfile.TemporaryDirectory(prefix="accent-count-") as folder:
+            rows = os.path.join(folder, "counts.tsv")
+            for counts, expected in controls:
+                with self.subTest(counts=counts):
+                    self.write_count_rows(rows, counts)
+                    finished = self.run_with(rows)
+                    self.assertEqual(finished.returncode, 0, finished.stderr)
+                    self.assertEqual(finished.stdout, header + expected)
+                    self.assertEqual(finished.stderr, "")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
