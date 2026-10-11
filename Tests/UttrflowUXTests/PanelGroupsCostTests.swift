@@ -18,7 +18,19 @@ struct PanelGroupsCostTests {
         #expect(page.groups.flatMap(\.rows).map(\.id) == page.rows.map(\.id))
     }
 
-    /// A quadratic build copies two hundred million rows here, which takes far longer than the bound.
+    @Test("forty thousand rows of one kind group into one group")
+    func longRunIsOneGroup() {
+        let clips = (0..<400).map { PanelFixture.clip("clip \($0)", minutesAgo: $0, category: "work") }
+        let rows = PanelPresenter.present(PanelFixture.panel(clips, query: "work")).rows
+        let many = Array(repeatElement(rows, count: 100).joined())
+
+        let groups = PanelPresenter.groups(for: many, omitted: [:], isSearching: true)
+
+        #expect(groups.count == 1)
+        #expect(groups.first?.rows.count == 40_000)
+    }
+
+    /// A quadratic build copies two hundred million rows here, which takes far longer than the bound; it runs in `make bench`.
     @Test("forty thousand rows of one kind group well inside a second")
     func longRunIsLinear() {
         let clips = (0..<400).map { PanelFixture.clip("clip \($0)", minutesAgo: $0, category: "work") }
@@ -26,13 +38,10 @@ struct PanelGroupsCostTests {
         let many = Array(repeatElement(rows, count: 100).joined())
 
         let clock = ContinuousClock()
-        var groups: [PanelResultGroup] = []
         let took = clock.measure {
-            groups = PanelPresenter.groups(for: many, omitted: [:], isSearching: true)
+            _ = PanelPresenter.groups(for: many, omitted: [:], isSearching: true)
         }
 
-        #expect(groups.count == 1)
-        #expect(groups.first?.rows.count == 40_000)
         #expect(took < .seconds(1))
     }
 

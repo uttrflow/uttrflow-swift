@@ -260,15 +260,23 @@ struct SelectionWriterTests {
     @Test("An unchanged write is unconfirmed without the settle delay", .bug(id: 5817))
     func acceptedButUnchangedIsAFailure() {
         let field = FakeSelectionField("Hello") { $0.ignoresText = true }
-        let clock = ContinuousClock()
-        let start = clock.now
         let error = #expect(throws: TextInsertionError.self) {
             try SelectionWriter(field: field).replaceSelection(with: " world")
         }
-        let elapsed = start.duration(to: clock.now)
         #expect(error == .insertionUnconfirmed)
         #expect(error?.stopsFallback == true, "the typed route must not write the words a second time")
-        #expect(elapsed < .milliseconds(200))
+    }
+
+    /// The time bound on the same write runs in `make bench`, since a parallel test run cannot keep a wall-clock limit honest.
+    @Test("An unchanged write is unconfirmed in under 200 ms", .bug(id: 5817))
+    func acceptedButUnchangedReturnsAtOnce() {
+        let field = FakeSelectionField("Hello") { $0.ignoresText = true }
+        let clock = ContinuousClock()
+        let start = clock.now
+        _ = #expect(throws: TextInsertionError.self) {
+            try SelectionWriter(field: field).replaceSelection(with: " world")
+        }
+        #expect(start.duration(to: clock.now) < .milliseconds(200))
     }
 
     @Test("A write that lands late is not retried", .bug(id: 5817))
