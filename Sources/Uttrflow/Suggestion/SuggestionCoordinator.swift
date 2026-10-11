@@ -1667,7 +1667,8 @@ final class SuggestionCoordinator {
                 let returnedKey = await Self.acceptKeyToReturnIfTakeFails(stroke) {
                     await take(
                         text, after: typed, in: reading,
-                        closingPunctuation: closingPunctuationAfterCaret, recordsAcceptance: action == .accept(text))
+                        closingPunctuation: closingPunctuationAfterCaret,
+                        recordsAcceptance: action == .accept(text))
                 } requestFreshRead: {
                     wake(.tick)
                 } completed: { outcome in

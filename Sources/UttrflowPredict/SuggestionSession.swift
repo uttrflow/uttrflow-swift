@@ -473,7 +473,7 @@ public struct SuggestionSession: Sendable, Equatable {
         }
     }
 
-    /// Forgets the remainder once the line is neither where the word left it nor where it was before.
+    /// Forgets the remainder once the line is neither where the word left it nor on the line it started from.
     private mutating func releaseRemainder(ifLeftBy line: String) {
         guard let retained else { return }
         let key = TextMatching.caseFoldedKey(line)
