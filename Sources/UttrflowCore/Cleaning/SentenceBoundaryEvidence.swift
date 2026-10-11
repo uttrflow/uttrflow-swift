@@ -219,13 +219,23 @@ public enum SentenceBoundaryEvidence {
     private static func completesFinalPhrase(_ previous: [WordShape], _ following: [WordShape]) -> Bool {
         guard let first = following.first else { return false }
         let previousKeys = previous.map(\.key)
-        let completesReportedVerb = seamObjectEndings.contains {
-            previousKeys.suffix($0.count).elementsEqual($0)
-        }
+        let completesReportedVerb =
+            seamObjectEndings.contains { previousKeys.suffix($0.count).elementsEqual($0) }
+            && !endsInNounLook(previousKeys)
         let startsObject =
             determiners.contains(first.key)
             || (following.count > 1 && first.core.first?.isUppercase == true)
         return completesReportedVerb && (startsObject || following.count > 1)
+    }
+
+    /// "take a look", "have a quick look": a determiner in the two words before "look" makes it a noun that closes the sentence.
+    private static func endsInNounLook(_ keys: [String]) -> Bool {
+        keys.last == "look" && keys.dropLast().suffix(2).contains { determiners.contains($0) }
+    }
+
+    /// Whether the text ends in a noun "look" ("take a look"), which closes a sentence.
+    public static func endsInNounLook(_ text: String) -> Bool {
+        endsInNounLook(WordTokens.words(text, .display).map { WordShape($0).key })
     }
 
     private static let determiners: Set<String> = [

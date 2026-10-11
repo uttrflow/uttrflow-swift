@@ -25,6 +25,10 @@ struct SentenceBoundaryPass: WholeTextCleaningPass {
             guard !Abbreviations.ownsStop(shape.core) else { continue }
             let following = Self.sentenceAfter(position, in: live, of: draft)
             guard
+                !SentenceBoundaryEvidence.endsInNounLook(
+                    Self.sentenceBefore(position, in: live, of: draft))
+            else { continue }
+            guard
                 SentenceBoundaryEvidence.sentenceRunsOn(
                     WordShape.withoutTrailingStop(draft.words[index].text), into: following
                 )
