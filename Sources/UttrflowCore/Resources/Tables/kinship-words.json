@@ -13,6 +13,7 @@
         {"id": "didi", "languages": ["hi"]},
         {"id": "grandma", "languages": ["en"]},
         {"id": "grandpa", "languages": ["en"]},
+        {"id": "ji", "languages": ["hi"], "afterName": true},
         {"id": "jiju", "languages": ["hi"]},
         {"id": "mama", "languages": ["en", "hi"]},
         {"id": "mami", "languages": ["hi"]},
@@ -22,6 +23,9 @@
         {"id": "mum", "languages": ["en"]},
         {"id": "mummy", "languages": ["en", "hi"]},
         {"id": "nani", "languages": ["hi"]},
-        {"id": "papa", "languages": ["en", "hi"]}
+        {"id": "papa", "languages": ["en", "hi"]},
+        {"id": "saab", "languages": ["hi"], "afterName": true},
+        {"id": "sahab", "languages": ["hi"], "afterName": true},
+        {"id": "sahib", "languages": ["hi"], "afterName": true}
     ]
 }

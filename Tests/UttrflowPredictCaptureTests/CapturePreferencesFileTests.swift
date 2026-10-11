@@ -94,7 +94,6 @@ struct CapturePreferencesFileTests {
         let file = CapturePreferencesFile(path: scratch.preferencesPath)
         var preferences = CapturePreferences()
         preferences.record(.allowed, for: "com.example.terminal")
-        preferences.hasImportedShellHistory = true
         try file.save(preferences)
         #expect(file.load() == preferences)
     }

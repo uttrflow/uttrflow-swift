@@ -14,7 +14,7 @@ public struct Settings: Sendable, Equatable, Codable {
     public var cleaning: CleaningSteps
 
     /// The quality preset every app is dictated under unless ``destinations`` names one for it.
-    public var qualityPreset: QualityPreset.ID
+    var qualityPreset: QualityPreset.ID
 
     /// The apps the user has told Uttrflow to treat as somewhere other than the table says.
     public var destinations: DestinationOverrides
@@ -124,7 +124,7 @@ public struct Settings: Sendable, Equatable, Codable {
     public var contextLevelOverrides: ContextLevelOverrides
 
     /// The preset this app is dictated under: its own override, else the one chosen for every app.
-    public func qualityPreset(forBundleIdentifier bundle: String?) -> QualityPreset {
+    func qualityPreset(forBundleIdentifier bundle: String?) -> QualityPreset {
         let chosen = bundle.flatMap { destinations.preset(forBundleIdentifier: $0) } ?? qualityPreset
         return QualityPreset.preset(chosen)
     }
