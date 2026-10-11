@@ -223,6 +223,11 @@ public struct DestinationFormatter: Sendable, Equatable {
 
     /// The destination formatter with an app rule's terminal-stop exception, when that rule still applies.
     public static func standard(for situation: Situation) -> DestinationFormatter {
+        situation.punctuation.applied(to: destinationDefault(for: situation))
+    }
+
+    /// The formatter the destination, the field and the app's row give, before the person's own punctuation choice.
+    private static func destinationDefault(for situation: Situation) -> DestinationFormatter {
         let base = standard(for: situation.destination)
         let preceding = situation.insertion.precedingText
         if situation.destination == .codeEditor {
