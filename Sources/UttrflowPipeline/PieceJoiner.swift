@@ -129,7 +129,7 @@ enum PieceJoiner {
             passes: CleaningPipeline.piece(
                 numbers: formatter.numbers, digits: situation.digits(for: formatter),
                 insertionPoint: situation.insertion, destination: formatter.destination,
-                intent: situation.intent
+                intent: situation.intent, mode: situation.adapterMode
             ).passes.filter { unitReaders.contains($0.id) })
         func read(_ words: [String]) -> [String] {
             // A capital the date gives its month counts, so "march | third" is read as the one date.

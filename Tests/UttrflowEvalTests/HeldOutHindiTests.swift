@@ -54,4 +54,15 @@ struct HeldOutHindiTests {
         #expect(score.words == 1)
         #expect(RomanisationScore.measure([("x", [])], romanise: { $0 }) == nil)
     }
+
+    @Test("counts an attested spelling variant as the same word when scored through the variant list")
+    func variantsCountAsEqual() throws {
+        let strict = try #require(
+            RomanisationScore.measure([("x", ["theek hai"])], romanise: { _ in "thik hai" }))
+        let folded = try #require(
+            RomanisationScore.measure(
+                [("x", ["theek hai"])], wordKey: Romaniser.soundKey, romanise: { _ in "thik hai" }))
+        #expect(strict.words == 0.5)
+        #expect(folded.words == 1)
+    }
 }
