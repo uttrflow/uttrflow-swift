@@ -58,6 +58,7 @@ struct PanelSheetInteractionTests {
         defer { window.close() }
         let cancel = try button("Cancel", under: view)
         let confirm = try button("Synthetic confirm", under: view)
+        keys.removeAll()
         #expect(cancel.accessibilityPerformPress?() == true)
         #expect(confirm.accessibilityPerformPress?() == true)
         let collection = try #require(
@@ -75,6 +76,7 @@ struct PanelSheetInteractionTests {
         let (window, view) = await host(panel(enabled: false) { keys.append($0) })
         defer { window.close() }
         let confirm = try button("Synthetic confirm", under: view)
+        keys.removeAll()
         #expect(confirm.isAccessibilityEnabled?() == false)
         _ = confirm.accessibilityPerformPress?()
         #expect(keys.isEmpty)
