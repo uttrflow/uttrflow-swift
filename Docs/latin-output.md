@@ -198,6 +198,21 @@ word heard in it as a stray recogniser capital. `BrandRestorationTests` measures
 M5 Pro: 16 of 20 names in a source restored, 0 restored wrongly, 0 of 122 Hindi words restored,
 and all 10 names in neither source left as the romaniser spells them.
 
+### Names, places and weekdays
+
+Devanagari has no case, so a romanised name carries no capital unless a source says it is one.
+`RomanisedNameCasing` runs after `LoanwordRestoration` and capitalises a word that came from
+Devanagari when its sound key matches a one-word capitalised dictionary entry, a name the screen
+shows, or a weekday (the weekday table is romanised by `Romaniser` itself, so the spellings agree).
+A name that is a listed romanised Hindi word ("Kal") or an ordinary word is never cased, and no
+word is capitalised by shape or position. `RomanisedNameCorpus` holds 24 invented sentences scored
+case-sensitively beside the case-folded word error rate: before the pass 12 of 19 sentences whose
+name a source the person owns can spell were written right, after it 19 of 19; the 4 sentences whose
+name only a shipped list of names and places could spell stay lower case, and the 1 control gains no
+capital. No shipped list exists; `LoanwordRestoration` already restores a respelled dictionary name.
+Honorific and kinship words after a name stay lower case unless `FirstWordPass` cases a kinship word
+as a name ("Didi"); that case is not yet handled.
+
 ## The script guard
 
 A model can answer Devanagari with a translation, with the prompt's own worked example, or in
