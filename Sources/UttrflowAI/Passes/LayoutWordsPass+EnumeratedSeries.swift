@@ -63,7 +63,7 @@ extension LayoutWordsPass {
             items[items.count - 1].append(index)
             if shape.suffix.contains(","), index + 1 < end { items.append([]) }
         }
-        // "milk, eggs and bread" has no comma before its last item, so a short count may split at the one "and".
+        // A series with no comma before its last item splits at its one "and" when the count is one short.
         if items.count + 1 == count.value, let last = items.last {
             let ands = last.indices.filter { $0 > 0 && draft.shape(at: live[last[$0]]).key == "and" }
             if ands.count == 1, let split = ands.first {
