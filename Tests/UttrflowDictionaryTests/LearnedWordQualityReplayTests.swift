@@ -82,7 +82,8 @@ struct LearnedWordQualityReplayScoreTests {
 struct LearnedWordQualityReplayTests {
     /// The words one replayed dictation teaches a fresh dictionary.
     private func learnt(from dictation: LearnedWordReplay.Dictation) async throws -> [String] {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         return try await store.learn(
             heard: dictation.heard, wrote: dictation.wrote,
             seeing: AppContext(
