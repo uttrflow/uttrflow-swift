@@ -403,7 +403,10 @@ alone. Some cleanings only make sense over the whole:
   <!-- value:SpeechWindowing.comfortableLength -->15 s the pause needed shrinks evenly to
   <!-- value:SpeechWindowing.anyPause -->0.4 s at <!-- value:SpeechWindowing.maximumLength -->30 s (`SpeechWindowing`), which reads as a sentence ending, so a seam
   ends as a sentence the way the place ends one: a full stop unless the place's stop policy
-  is `.never`, in which case a stop the recogniser wrote comes off. A pause is not always a
+  is `.never`, in which case a sentence stop the recogniser wrote comes off. A final dot owned
+  by a bundled abbreviation stays as part of its word under either policy; the seam reads that
+  ownership through `Abbreviations.ownsRegisteredStop`, without treating dotted file names as
+  abbreviations. A pause is not always a
   sentence end, so a seam takes no stop where a list item or a code line ends the piece, or
   where the words on either side of the cut show the sentence ran through it: the piece ends
   on a word no sentence ends on ("we moved the review to"), or the next piece opens on a
