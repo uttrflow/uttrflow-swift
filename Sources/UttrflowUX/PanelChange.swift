@@ -6,6 +6,8 @@ public import UttrflowCore
 public enum PanelChange: Sendable, Equatable {
     /// `nil` removes the alias, which can make a clip unkept again, and retention runs from that moment.
     case setAlias(Clip.ID, String?)
+    /// The name and the tags saved together from the rename sheet; used when the tags changed.
+    case setLabels(Clip.ID, alias: String?, tags: [String])
     /// `nil` takes it out of every collection without deleting it.
     case setCategory(Clip.ID, String?)
     /// Removes a clip; the app keeps it for an undo.
@@ -129,14 +131,20 @@ extension PanelSnapshot {
             return stayingOpen
 
         case .aliasing(let id, let draft):
-            let proposal = PanelAlias.propose(draft, for: id, among: clips, locale: locale)
+            let labels = PanelTags.parse(draft, locale: locale)
+            guard labels.fitsLimits else { return stayingOpen }
+            let proposal = PanelAlias.propose(labels.name, for: id, among: clips, locale: locale)
+            // Unchanged tags keep the name-only change, so a plain rename is the change it always was.
+            let unchanged = labels.tags == (clip(id)?.tags ?? [])
+            func saving(_ alias: String?) -> PanelChange {
+                unchanged ? .setAlias(id, alias) : .setLabels(id, alias: alias, tags: labels.tags)
+            }
             // An emptied field is how an alias is removed, and is always allowed.
             if proposal.corrected.isEmpty {
-                return PanelResponse(state: closingSheet(), outcome: .change(.setAlias(id, nil)))
+                return PanelResponse(state: closingSheet(), outcome: .change(saving(nil)))
             }
             guard proposal.isUsable else { return stayingOpen }
-            return PanelResponse(
-                state: closingSheet(), outcome: .change(.setAlias(id, proposal.corrected)))
+            return PanelResponse(state: closingSheet(), outcome: .change(saving(proposal.corrected)))
 
         case .moving(let id, let draft):
             let named = draft.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -258,7 +266,8 @@ extension PanelSnapshot {
 
     /// What the alias field opens showing: the clip's current alias, so renaming is the same gesture.
     func aliasDraft(for id: Clip.ID) -> String {
-        clip(id)?.alias ?? ""
+        guard let clip = clip(id) else { return "" }
+        return ([clip.alias].compactMap { $0 } + clip.tags.map { "#\($0)" }).joined(separator: " ")
     }
 
     /// The panel with no sheet over it.

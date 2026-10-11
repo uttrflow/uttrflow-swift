@@ -804,6 +804,25 @@ struct ClipboardStoreTests {
         #expect(try await store.setAlias(nil, of: subject.id, keeping: week())[0].alias == nil)
     }
 
+    @Test("sets a name and tags together, and keeps a tagged clip when the name goes")
+    func labelling() async throws {
+        let file = TemporaryFile()
+        let store = ClipboardStore(file: file.url)
+        let subject = clip("postgres://…")
+        try await store.record(subject, keeping: week())
+
+        let both = try await store.setLabels(
+            alias: "pgprod", tags: ["db", "prod"], of: subject.id, keeping: week())
+        #expect(both[0].alias == "pgprod")
+        #expect(both[0].tags == ["db", "prod"])
+        let tagsOnly = try await store.setLabels(
+            alias: nil, tags: ["db"], of: subject.id, keeping: week())
+        #expect(tagsOnly[0].alias == nil)
+        #expect(tagsOnly[0].isKept)
+        let reloaded = ClipboardStore(file: file.url)
+        #expect(await reloaded.clips(keeping: week())[0].tags == ["db"])
+    }
+
     @Test(
         "undoing a delete keeps the newer clip's alias and restores the older clip unnamed",
         .bug(id: 3750))
