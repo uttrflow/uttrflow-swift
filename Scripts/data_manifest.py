@@ -8,6 +8,8 @@ import json
 import os
 import sys
 
+import provider_mark
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MANIFEST = os.path.join("Resources", "DataManifest.json")
 ASSET_GLOB = os.path.join("Sources", "*", "Resources")
@@ -77,7 +79,7 @@ def update(root):
     changed = 0
     for entry in entries:
         path = entry.get("path")
-        if path not in bundled:
+        if path not in bundled or entry.get("optional") is True:
             continue
         full_path = os.path.join(root, path)
         values = {"sha256": digest(full_path), "bytes": os.path.getsize(full_path)}
@@ -109,6 +111,10 @@ def check(root):
         if path in listed:
             failures.append(f"{path}: listed twice")
         listed[path] = entry
+        if "optional" in entry and type(entry["optional"]) is not bool:
+            failures.append(f"{path}: optional must be a boolean")
+        if entry.get("optional") is True:
+            failures.extend(f"{path}: {problem}" for problem in provider_mark.metadata_problems(entry))
         missing = [key for key in REQUIRED if key not in entry]
         if entry.get("origin") == "third-party":
             missing += [key for key in THIRD_PARTY_REQUIRED if not entry.get(key)]
@@ -139,7 +145,8 @@ def check(root):
         if type(budget) is int and size > budget:
             failures.append(f"{path}: {size:,} bytes, over its budgetBytes of {budget:,}")
     for path in sorted(set(listed) - set(on_disk)):
-        failures.append(f"{path}: in {MANIFEST} but not bundled")
+        if listed[path].get("optional") is not True or provider_mark.metadata_problems(listed[path]):
+            failures.append(f"{path}: in {MANIFEST} but not bundled")
     return failures, notes
 
 
