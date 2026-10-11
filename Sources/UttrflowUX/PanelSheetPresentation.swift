@@ -104,27 +104,33 @@ extension PanelPresenter {
 
         switch sheet {
         case .aliasing(let id, let draft):
+            let labels = PanelTags.parse(draft, locale: snapshot.locale)
             let proposal = PanelAlias.propose(
-                draft, for: id, among: snapshot.clips, locale: snapshot.locale)
+                labels.name, for: id, among: snapshot.clips, locale: snapshot.locale)
             let holder = proposal.takenBy.flatMap(snapshot.clip)
             // An emptied field removes the alias, and the button says so rather than reading "Save".
             let isRemoval = proposal.corrected.isEmpty && clip?.alias != nil
-            return PanelSheetPresentation(
-                kind: .aliasing,
-                title: clip?.alias == nil ? "Name this clip" : "Rename this clip",
-                draft: draft,
-                placeholder: "pgprod",
-                note: note(for: proposal),
-                conflict: !proposal.canCompareUnicodeNames
+            let editsTags = labels.tags != (clip?.tags ?? [])
+            let conflict: String? =
+                !labels.fitsLimits
+                ? "Use at most \(PanelTags.maximumCount) tags of \(PanelTags.maximumLength) characters"
+                : !proposal.canCompareUnicodeNames
                     ? "Name comparison is unavailable"
                     : proposal.mixesScripts
                         ? "Use one writing system in a name"
                         : holder.map {
                             "“\(proposal.corrected)” already belongs to \(name(of: $0, in: snapshot))"
-                        },
+                        }
+            return PanelSheetPresentation(
+                kind: .aliasing,
+                title: clip?.alias == nil ? "Name this clip" : "Rename this clip",
+                draft: draft,
+                placeholder: "pgprod #db #prod",
+                note: note(for: proposal),
+                conflict: conflict,
                 collections: [],
-                confirmTitle: isRemoval ? "Remove name" : "Save",
-                isConfirmEnabled: proposal.isUsable || isRemoval)
+                confirmTitle: isRemoval && labels.tags.isEmpty ? "Remove name" : "Save",
+                isConfirmEnabled: labels.fitsLimits && (proposal.isUsable || isRemoval || editsTags))
 
         case .moving(let id, let draft):
             let named = draft.trimmingCharacters(in: .whitespacesAndNewlines)

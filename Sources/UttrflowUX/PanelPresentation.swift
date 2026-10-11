@@ -148,6 +148,8 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
     public let detail: String
     /// The handle the user gave it, shown as they typed it.
     public let alias: String?
+    /// The tags the user gave it, shown as chips after the name.
+    public let tags: [String]
     public let category: String?
     public let isPinned: Bool
     /// Whether bullets are drawn rather than the clip, so nothing mistakes one for the other.
@@ -189,6 +191,7 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
         when: String,
         detail: String = "",
         alias: String?,
+        tags: [String] = [],
         category: String?,
         isPinned: Bool,
         isMasked: Bool,
@@ -213,6 +216,7 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
         self.when = when
         self.detail = detail
         self.alias = alias
+        self.tags = tags
         self.category = category
         self.isPinned = isPinned
         self.isMasked = isMasked
@@ -554,6 +558,7 @@ public enum PanelPresenter {
             when: when,
             detail: detail(of: clip, when: when),
             alias: clip.alias,
+            tags: clip.tags,
             category: PanelSnapshot.name(clip.category),
             isPinned: clip.isPinned,
             isMasked: isMasked,

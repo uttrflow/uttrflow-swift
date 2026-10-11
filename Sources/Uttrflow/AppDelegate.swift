@@ -2353,6 +2353,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         switch change {
         case .setAlias(let id, let alias):
             _ = try await clipboard.setAlias(alias, of: id, keeping: retention)
+        case .setLabels(let id, let alias, let tags):
+            _ = try await clipboard.setLabels(alias: alias, tags: tags, of: id, keeping: retention)
         case .setCategory(let id, let category):
             _ = try await clipboard.setCategory(category, of: id, keeping: retention)
         case .setPinned(let id, let isPinned):

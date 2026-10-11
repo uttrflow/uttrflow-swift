@@ -72,6 +72,7 @@ struct QuickPanelRow: View, @MainActor Equatable {
                 mark(row)
                 if let file = row.imageFile { thumbnail(file, selected: isSelected) }
                 if let alias = row.alias { aliasChip(alias) }
+                ForEach(row.tags, id: \.self) { aliasChip("#" + $0) }
                 if let language = row.language { languageChip(language) }
                 if row.containsDisplayHazards { hiddenCharactersBadge }
                 if let measurements = row.measurements {
