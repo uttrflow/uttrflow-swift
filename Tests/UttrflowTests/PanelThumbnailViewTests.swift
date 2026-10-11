@@ -76,9 +76,10 @@ struct PanelThumbnailViewTests {
     @Test("a row scrolled back into view draws its cached picture at once")
     func aCachedPictureDrawsAtOnce() async throws {
         let file = try redPicture()
+        let thumbnails = PanelThumbnails()
         defer { try? FileManager.default.removeItem(at: file) }
-        #expect(await PanelThumbnails.shared.picture(for: file) != nil)
-        let colour = try #require(middle(of: PanelThumbnailView(file: file)))
+        #expect(await thumbnails.picture(for: file) != nil)
+        let colour = try #require(middle(of: PanelThumbnailView(file: file, thumbnails: thumbnails)))
         #expect(colour.redComponent > 0.9)
         #expect(colour.greenComponent < 0.3)
         #expect(colour.blueComponent < 0.3)
