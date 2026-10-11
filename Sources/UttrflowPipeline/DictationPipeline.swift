@@ -43,9 +43,9 @@ public actor DictationPipeline {
     /// How a recording is cut into pieces the recogniser and tidier take one at a time.
     private let windowing: SpeechWindowing
     /// How often the recording is looked at for a piece to work on while the key is held.
-    private let earlyPoll: Duration
+    let earlyPoll: Duration
     /// Paces that look on its own clock, so a test driving the stage clock wakes only stages.
-    private let pollClock: any Clock<Duration>
+    let pollClock: any Clock<Duration>
 
     var state: DictationState = .idle
     nonisolated let observers = RevisionedStateObservers()
@@ -516,7 +516,7 @@ public actor DictationPipeline {
     }
 
     /// Clears what one attempt learnt about its words, so the next asks afresh.
-    private func forgetTheLastAttempt() {
+    func forgetTheLastAttempt() {
         dictationWords = nil
         dictationContext = nil
         missedPieces = 0
@@ -587,118 +587,6 @@ public actor DictationPipeline {
     public func acknowledge() {
         guard !isBusy else { return }
         transition(to: .idle)
-    }
-
-    // MARK: Working ahead
-
-    /// Resolves the screen, vocabulary, language policy and initial warm session once for this dictation.
-    private func beginWorkingAhead(_ mine: Int) {
-        recordingFieldKind = nil
-        forgetTheLastAttempt()
-        show(heard: nil)
-        early.begin()
-        early.task = Task { [cleaner = runningCleaner, overrides = runningOverrides] in
-            let seeing = await self.earlyContextRead(mine)
-            guard self.isStillRunning(mine) else { return }
-            await self.resolveDictationContext(seeing, cleaner: cleaner, overrides: overrides)
-            await self.workAhead(mine)
-        }
-    }
-
-    /// Transcribes each piece the moment a pause ends it and tidies it beside the next one, until the key is released.
-    private func workAhead(_ mine: Int) async {
-        while state == .recording, generation == mine, !wasCancelled(mine), !Task.isCancelled {
-            try? await pollClock.sleep(for: earlyPoll)
-            guard state == .recording, generation == mine, !wasCancelled(mine), !Task.isCancelled
-            else { return }
-
-            // One sample before the cut is kept, so a later piece is never taken for the whole recording.
-            let lead = early.cut > 0 ? 1 : 0
-            let audio = await capture.capturedSoFar(from: early.cut - lead)
-            guard
-                let cut = runningWindowing.nextCut(
-                    in: audio.samples, sampleRate: audio.sampleRate, from: lead,
-                    boundaries: audio.discontinuities)
-            else { continue }
-            let start = early.cut
-            let end = early.cut - lead + cut
-
-            // Keep the previous tidy in its span while the next piece is recognised.
-            if let earlyTidy = early.tidyTask {
-                early.spans.append(.tidying(earlyTidy))
-
-                early.tidyTask = nil
-            }
-
-            let seeing = await earlyContextRead(mine)
-            if dictationContext == nil {
-                await resolveDictationContext(seeing, cleaner: runningCleaner, overrides: runningOverrides)
-            }
-            // Recognition only; a key released mid-tidy is not held to this, since the tidy runs on past it.
-            early.pieceInFlight = true
-            early.decodesInFlight += 1
-            early.recognising = true
-            defer { early.recognising = false }
-            let heard: Transcription?
-            do {
-                heard = try await transcribe(
-                    audio, lead..<cut, biasedTowards: await vocabulary(mine, seeing: seeing),
-                    recording: NoOpMetricsRecorder(), skippingAMiss: false, for: mine)
-            } catch {
-                early.decodesInFlight -= 1
-                guard generation == mine, !wasCancelled(mine) else { return }
-                // A failed piece is left for the end, where it is reported; the rest still work ahead.
-                early.spans.append(.pending(early.cut..<end))
-                early.cut = end
-                early.lastWindowStart = start
-                early.pieceInFlight = false
-                continue
-            }
-            early.decodesInFlight -= 1
-            guard generation == mine, !wasCancelled(mine) else { return }
-            // Cut here, before the tidy, so a key-up mid-tidy still knows what audio is left to recognise.
-            early.cut = end
-            early.lastWindowStart = heard == nil ? nil : start
-            if let heard {
-                // The piece before is read as heard, which every path has once it is recognised.
-                let preceding = early.spans.last?.heard
-                let previousTidy = early.spans.reversed().compactMap { span in
-                    if case .tidying(let tidying) = span { return tidying.task }
-                    return nil
-                }.first
-                let span = UUID()
-                let tidy = Task {
-                    if let previousTidy { _ = await previousTidy.value }
-                    guard !Task.isCancelled else {
-                        return Piece(
-                            heard: heard, corrected: .unchanged(heard.text),
-                            cleaned: TransformationResult(text: heard.text, producedBy: .untidied))
-                    }
-                    return await Self.$tidiedSpan.withValue(span) {
-                        await self.finish(
-                            heard, seeing: seeing, correctionSeeing: seeing, after: preceding,
-                            recording: NoOpMetricsRecorder(), for: mine)
-                    }
-                }
-                early.tidyTask = Span.Tidying(task: tidy, heard: heard, span: span)
-                // Warm for the next piece after this one finishes, without making key-up wait for warm-up.
-                Task {
-                    let piece = await tidy.value
-                    guard self.state == .recording, self.generation == mine,
-                        !self.wasCancelled(mine)
-                    else { return }
-                    let situation =
-                        self.dictationContext?.situation
-                        ?? SituationResolver.resolve(from: seeing, overrides: self.runningOverrides)
-                    self.early.running.fold(piece, going: situation)
-                    self.showFinished(piece)
-                    await self.runningCleaner.warm(
-                        for: SituationResolver.resolve(
-                            from: seeing, overrides: self.runningOverrides))
-                }
-            }
-            early.pieceInFlight = early.tidyTask != nil
-        }
     }
 
     /// The situation and languages a piece is tidied in: the dictation's own, or what this screen implies.
@@ -935,13 +823,13 @@ public actor DictationPipeline {
     }
 
     /// Adds a finished piece to what the panel shows, unless the field hides what is typed.
-    private func showFinished(_ piece: Piece) {
+    func showFinished(_ piece: Piece) {
         let words = TextTidy.collapseWhitespace(piece.cleaned.text)
         guard !destinationIsSecure, !words.isEmpty else { return }
         show(heard: heardSoFar.map { "\($0) \(words)" } ?? words)
     }
 
-    private func show(heard words: String?) {
+    func show(heard words: String?) {
         guard words != heardSoFar else { return }
         heardSoFar = words
         heardObservers.send(words)
