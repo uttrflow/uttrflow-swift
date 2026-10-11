@@ -21,6 +21,7 @@ Needs no build: it is a source-level check, like `design_contrast_audit.py`.
 """
 
 import argparse
+import ast
 import os
 import re
 import sys
@@ -62,6 +63,33 @@ def insights_section(text):
     return text[start:end]
 
 
+def empty_state_contract(swift):
+    """Read both retention explanations without accepting unknown interpolation."""
+    empty_state = re.search(
+        r"static func emptyState\(retention: Int\) -> MainEmptyState \{(.*?)\n    \}", swift, re.S)
+    empty_source = empty_state.group(1) if empty_state else ""
+    empty_title = re.search(r'^\s*title: "([^"\n]+)"', empty_source, re.M)
+    empty_message = re.search(r'^\s*message: "([^"\n]+)"', empty_source, re.M)
+    kept = re.search(
+        r'SettingsRetention.isAlways\(days: retention\)\s*\? "([^"\n]+)"\s*:\s*"([^\n]+)"',
+        empty_source)
+    if not all((empty_title, empty_message, kept)):
+        raise SystemExit("insights contract audit: missing empty-state title, message or retention branches")
+    retention_expression = '\\(MainFormatting.count(retention, "day", "days"))'
+    if empty_message.group(1).count("\\(kept)") != 1 or retention_expression not in kept.group(2):
+        raise SystemExit("insights contract audit: the empty-state interpolation shape changed")
+    empty_template = empty_message.group(1).replace("\\(kept)", "{kept}")
+    limited_retention = kept.group(2).replace(retention_expression, "{retention}")
+    if "\\(" in empty_template + kept.group(1) + limited_retention:
+        raise SystemExit("insights contract audit: an empty-state interpolation is not understood")
+    return {
+        "empty_title": empty_title.group(1),
+        "empty_message": empty_template,
+        "empty_retention_always": kept.group(1),
+        "empty_retention_limited": limited_retention,
+    }
+
+
 def presenter_contract(swift, range_swift, day_swift):
     """The ranges, legend, ink thresholds, figure captions and empty wording the presenter builds."""
     ranges = [int(days) for days in re.findall(r"case \w+ = \"(\d+)\"", range_swift)]
@@ -75,14 +103,10 @@ def presenter_contract(swift, range_swift, day_swift):
     suggestion_end = swift.find("// MARK: - The range", suggestion_start)
     suggestion_figures = swift[suggestion_start:suggestion_end]
     suggestion_captions = re.findall(r'caption: "([^"]+)"\)', suggestion_figures)
-    empty_title = re.search(r'title: "(Not enough[^"]*)"', swift)
-    empty_message = re.search(r"Dictate on \\\(daysBeforeCharting\) ([^\\]*)\\", swift)
-    before = re.search(r"static let daysBeforeCharting = (\d+)", swift)
     missing = [
         name for name, found in (
             ("InsightsRange.title", title), ("InsightsCalendar.legend", legend),
-            ("inkCeiling", ceiling), ("deepInkFloor", floor), ("the empty title", empty_title),
-            ("the empty message", empty_message), ("daysBeforeCharting", before),
+            ("inkCeiling", ceiling), ("deepInkFloor", floor),
         ) if not found
     ]
     if missing or not ranges or len(captions) != 4 or len(suggestion_captions) != 5:
@@ -97,9 +121,7 @@ def presenter_contract(swift, range_swift, day_swift):
         "deep_ink_floor": float(floor.group(1)),
         "captions": captions,
         "suggestion_captions": suggestion_captions,
-        "empty_title": empty_title.group(1),
-        "empty_message": f"Dictate on {before.group(1)} {empty_message.group(1).strip()}",
-        "days_before_charting": int(before.group(1)),
+        **empty_state_contract(swift),
     }
 
 
@@ -163,11 +185,22 @@ def audit_failures(section, screens, contract):
     # ---- 4. The empty state. --------------------------------------------------------------
     if f'EMPTY_TITLE = "{contract["empty_title"]}"' not in section:
         failures.append(f"the empty state does not say {contract['empty_title']!r}")
-    message = re.sub(r"\s+", " ", contract["empty_message"])
-    drawn = re.sub(r"\s+", " ", section).replace(
-        "{DAYS_BEFORE_CHARTING}", str(contract["days_before_charting"]))
-    if message not in drawn:
-        failures.append(f"the empty state's message does not say {message!r}")
+    for name, key in (
+        ("EMPTY_MESSAGE", "empty_message"),
+        ("EMPTY_RETENTION_ALWAYS", "empty_retention_always"),
+        ("EMPTY_RETENTION_LIMITED", "empty_retention_limited"),
+    ):
+        declaration = re.search(rf"^{name} = (.+)$", section, re.M)
+        try:
+            drawn = ast.literal_eval(declaration.group(1)) if declaration else None
+        except (ValueError, SyntaxError):
+            drawn = None
+        if drawn != contract[key]:
+            failures.append(f"{name} does not match the empty-state wording {contract[key]!r}")
+    if "{EMPTY_MESSAGE.format(kept=EMPTY_KEPT)}" not in empty_generator:
+        failures.append("the empty state does not draw its message with the retention explanation")
+    if re.search(r"DAYS_BEFORE_CHARTING|SPOKEN_SO_FAR|Charts appear on", empty_generator):
+        failures.append("the empty state still draws the retired multi-day waiting period")
 
     # ---- 5. Nothing retired comes back. ---------------------------------------------------
     for pattern, description in RETIRED:
