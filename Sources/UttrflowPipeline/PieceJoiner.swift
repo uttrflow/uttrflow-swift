@@ -293,10 +293,8 @@ enum PieceJoiner {
         "he", "she", "it", "we", "they", "you", "there", "his", "her", "its", "our", "their", "my", "your",
     ]
 
-    private static let determiners: Set<String> = [
-        "a", "an", "the", "put", "add", "insert", "with", "no", "this", "that", "these", "those", "each",
-        "every", "my", "your", "his", "her", "its", "their", "our", "another", "any", "some", "same",
-    ]
+    /// The words that open a noun phrase, as the mention guard reads them, without the relatives "which" and "whose".
+    private static let determiners = MentionGuard.determiners.subtracting(["which", "whose"])
 
     /// Completes a spoken scale amount with the smaller currency amount the next piece adds with "and".
     private static func joiningAmountsAcrossSeams(

@@ -3,7 +3,7 @@ import UttrflowCore
 /// The recogniser's text read for a grammar: its marks and capitals are pauses, never notation the speaker said.
 enum NotationInput {
     /// The marks a recogniser writes at a pause; a mark said aloud is a word of its own and is not touched.
-    private static let pauseMarks: Set<Character> = [",", ".", ";", ":", "!", "?"]
+    private static let pauseMarks = WordShape.clauseMarks
 
     /// The draft with each pause mark taken off its word and each capital that only opened a clause lowered.
     static func settled(_ draft: Draft, by pass: PassID) -> Draft {
