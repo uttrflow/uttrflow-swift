@@ -56,7 +56,9 @@ times a day and the user is looking at the screen waiting for it. Decoding five 
 from JSON on that path buys certainty nobody asked for at a cost everybody sees.
 
 So the indexes are read once, lazily, and every list read after that is a filter over an array
-already in memory. Each sealed index carries the version of the clip detector that judged it;
+already in memory. `ClipIndexSnapshot` owns the saved, history and combined cached lists, their
+initial reconciliation and committed detector-result replacement. The actor retains all write and
+cache-update ordering. Each sealed index carries the version of the clip detector that judged it;
 increment that version when detector changes alter stored classifications. When a stored version
 is older, the first list is returned before the store classifies clips in
 utility-priority batches; a completed pass writes the new classifications and version together.

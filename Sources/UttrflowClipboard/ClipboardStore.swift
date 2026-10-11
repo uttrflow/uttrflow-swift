@@ -49,14 +49,8 @@ public actor ClipboardStore {
     /// The retention rules over `budget`.
     private let policy: RetentionPolicy
 
-    /// What the saved file is known to hold, which the migration off one file makes differ from memory.
-    private var savedOnDisk: [Clip]?
-
-    /// What the history file is known to hold, so an edit to a kept clip leaves it unwritten.
-    private var historyOnDisk: [Clip]?
-
-    /// The history and the saved clips as one list, or `nil` before the files have been read.
-    private var wholeList: [Clip]?
+    /// The loaded index contents and their combined live list.
+    private var indexSnapshot = ClipIndexSnapshot()
 
     /// The latest persisted eviction order assigned by this store.
     private var lastUsedOrder: UInt64 = 0
@@ -248,7 +242,7 @@ public actor ClipboardStore {
             try? save(onDisk)
             return policy.retained(clips, keeping: retention)
         }
-        wholeList = onDisk
+        indexSnapshot.wholeList = onDisk
         hasUnwrittenUse = true
         scheduleUseFlush()
         return policy.retained(clips, keeping: retention)
@@ -258,7 +252,7 @@ public actor ClipboardStore {
     public func flushUse() {
         useFlush?.cancel()
         useFlush = nil
-        guard hasUnwrittenUse, let wholeList else { return }
+        guard hasUnwrittenUse, let wholeList = indexSnapshot.wholeList else { return }
         try? save(wholeList)
     }
 
@@ -631,7 +625,7 @@ public actor ClipboardStore {
 
     /// The list, read from disk the first time and from memory thereafter.
     private func loaded() -> [Clip] {
-        if let wholeList { return wholeList }
+        if let wholeList = indexSnapshot.wholeList { return wholeList }
         // A clipboard written before the split keeps its saved clips in the history file.
         let rawSaved = indexReader.read(savedFile).filter(Self.isPersistable)
         // A move interrupted between the two writes leaves a clip in both files, and the saved copy wins.
@@ -646,18 +640,11 @@ public actor ClipboardStore {
             migrateLegacyIndex(savedFile, clips: fromSavedFile)
             migrateLegacyIndex(file, clips: fromHistoryFile)
         }
-        savedOnDisk = fromSavedFile
-        let savedIDs = Set(fromSavedFile.map(\.id))
-        // An unreplaceable file is unknown rather than empty, so every save still meets its refusal.
-        historyOnDisk = indexReader.unreplaceable.contains(file) ? nil : fromHistoryFile
-        let stored = fromSavedFile + fromHistoryFile.filter { !savedIDs.contains($0.id) }
-        let list = ClipOrdering.uniqueAliases(
-            in: ClipOrdering.interleaving(
-                saved: ClipOrdering.orderedForDisplay(stored.filter(\.isKept)),
-                history: ClipOrdering.orderedForDisplay(stored.filter { !$0.isKept })))
-        let normalized = ClipOrdering.numberedForEviction(list)
+        let normalized = indexSnapshot.load(
+            saved: fromSavedFile, history: fromHistoryFile, at: file,
+            unreplaceable: indexReader.unreplaceable)
         lastUsedOrder = normalized.compactMap(\.lastUsedOrder).max() ?? 0
-        wholeList = normalized
+        indexSnapshot.wholeList = normalized
         if canRewriteIndexes {
             scheduleReclassification(fromSavedFile, at: savedFile)
             scheduleReclassification(fromHistoryFile, at: file)
@@ -727,7 +714,8 @@ public actor ClipboardStore {
         // A changed or new clip has no detector result, so the next launch needs a fresh snapshot.
         guard merge.coversCurrentText else { return }
         // The rewritten index keeps the eviction orders the live list gave on load, so it reopens equal.
-        let merged = ClipReclassification.ordered(merge.clips, in: wholeList ?? [], secrecy: &secrecy)
+        let merged = ClipReclassification.ordered(
+            merge.clips, in: indexSnapshot.wholeList ?? [], secrecy: &secrecy)
         let persistable = merged.filter(Self.isPersistable)
         do {
             try persist(persistable, to: url, classifierVersion: ClipboardIndex.currentClassifierVersion)
@@ -747,24 +735,12 @@ public actor ClipboardStore {
 
     /// Returns the currently loaded clips belonging to one index.
     private func currentClips(in url: URL) -> [Clip] {
-        url == savedFile ? (savedOnDisk ?? []) : (historyOnDisk ?? [])
+        indexSnapshot.current(in: url, savedFile: savedFile)
     }
 
     /// Replaces one index's clips in memory after its background detector pass commits.
     private func replaceCurrentClips(_ clips: [Clip], in url: URL) {
-        let byID = Dictionary(clips.map { ($0.id, $0) }, uniquingKeysWith: { _, newer in newer })
-        // A clip the pass judged secret is not persistable, so it leaves the list with its index entry.
-        let dropped = Set(currentClips(in: url).map(\.id)).subtracting(byID.keys)
-        if url == savedFile {
-            savedOnDisk = clips
-        } else {
-            historyOnDisk = clips
-        }
-        wholeList = wholeList?.compactMap { clip in
-            guard !dropped.contains(clip.id) else { return nil }
-            guard let fresh = byID[clip.id], fresh.text == clip.text else { return clip }
-            return clip.reclassified(as: ClipClassification(kind: fresh.kind, language: fresh.language))
-        }
+        indexSnapshot.replace(clips, in: url, savedFile: savedFile)
     }
 
     /// Waits for background detector migrations in store tests.
@@ -838,13 +814,13 @@ public actor ClipboardStore {
         let unnamed = unnamedPictures.subtracting(named).subtracting(heldPictures)
         unnamedPictures = []
         defer { pictureVault.removePictures(unnamed) }
-        let wasSaved = savedOnDisk ?? []
+        let wasSaved = indexSnapshot.savedOnDisk ?? []
         let persistable = clips.filter(Self.isPersistable)
         let nowSaved = persistable.filter(\.isKept)
         let nowHistory = persistable.filter { !$0.isKept }
 
         // Memory first and unconditionally, so a refusing disk does not also cost the change itself.
-        wholeList = clips
+        indexSnapshot.wholeList = clips
         // This write carries every use held in memory, so none is left waiting for its own.
         hasUnwrittenUse = false
         useFlush?.cancel()
@@ -857,15 +833,15 @@ public actor ClipboardStore {
         do throws(ClipboardStoreError) {
             if !ClipPersistencePlan.holdsTheSameClips(bridge, as: wasSaved) {
                 try persist(bridge, to: savedFile)
-                savedOnDisk = bridge
+                indexSnapshot.savedOnDisk = bridge
             }
-            if nowHistory != historyOnDisk {
+            if nowHistory != indexSnapshot.historyOnDisk {
                 try persist(nowHistory, to: file)
-                historyOnDisk = nowHistory
+                indexSnapshot.historyOnDisk = nowHistory
             }
             if nowSaved != bridge {
                 try persist(nowSaved, to: savedFile)
-                savedOnDisk = nowSaved
+                indexSnapshot.savedOnDisk = nowSaved
             }
         } catch {
             // The change stays in memory and is retried by the next write, the timed flush and quitting.
