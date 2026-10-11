@@ -288,6 +288,8 @@ enum PieceJoiner {
         "which", "while", "who", "with",
         // A form of "be" or "have" after a run-on seam is the verb of the clause the seam split.
         "is", "are", "was", "were", "has", "have", "had",
+        // A pronoun or possessive opens the clause the seam split and is never a name.
+        "he", "she", "it", "we", "they", "you", "there", "his", "her", "its", "our", "their", "my", "your",
     ]
 
     private static let determiners: Set<String> = [

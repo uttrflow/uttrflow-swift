@@ -1270,6 +1270,7 @@
     "UttrflowCore func closesItself": 1,
     "UttrflowCore func colloquialHundred": 1,
     "UttrflowCore func combined": 1,
+    "UttrflowCore func commaSplitsClosedPhrase": 1,
     "UttrflowCore func contains": 1,
     "UttrflowCore func containsDevanagari": 1,
     "UttrflowCore func contents": 1,
@@ -1387,6 +1388,7 @@
     "UttrflowCore func measuring": 1,
     "UttrflowCore func measuringInTime": 1,
     "UttrflowCore func merging": 1,
+    "UttrflowCore func modalAwaitsVerb": 1,
     "UttrflowCore func mode": 1,
     "UttrflowCore func model": 1,
     "UttrflowCore func modifier": 1,
@@ -6184,5 +6186,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 8792
+  "total": 8794
 }

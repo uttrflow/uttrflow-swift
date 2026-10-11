@@ -17,7 +17,9 @@ enum LearnableWords {
         heard: String, seeing context: AppContext,
         encoding encode: (String) -> WordSound = { WordSound(of: $0) }
     ) -> [String] {
-        guard let title = context.documentName else { return [] }
+        guard let title = context.documentName, PrivateDocumentTitles.category(of: title) == nil else {
+            return []
+        }
         return seenAndSaid(heard: heard, reading: title, encoding: encode)
     }
 

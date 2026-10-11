@@ -667,6 +667,22 @@ struct PieceJoinerSeamTests {
     }
 
     @Test(
+        "lowers a recognizer capital on a pronoun or verb that opens the clause after a run-on seam",
+        arguments: [
+            ("I called the supplier this morning and", "They said the parts ship on Friday", "they said"),
+            ("I called the supplier this morning and", "We agreed on a price", "we agreed"),
+            ("The review moved because", "She was out sick", "she was"),
+        ])
+    func lowersClauseOpeningAtRunOnSeam(first: String, next: String, expected: String) {
+        let whole = PieceJoiner.join(
+            [piece(first), piece(next)], under: .standard(for: .document))
+
+        #expect(whole.cleaned.text.lowercased().contains(expected))
+        let opening = next.prefix(while: \.isLetter)
+        #expect(!whole.cleaned.text.contains(" " + opening))
+    }
+
+    @Test(
         "preserves recognizer capitalization for names at run-on seams",
         arguments: [
             ("Thanks to.", "Marcus for the help.", "Thanks to Marcus for the help."),

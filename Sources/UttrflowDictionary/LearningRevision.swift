@@ -1,18 +1,18 @@
 // The revision of the recogniser, prompt and lexicon that produced a dictionary's counts. See `Docs/store-compatibility.md`.
 
-public import UttrflowCore
+import UttrflowCore
 import struct Foundation.UUID
 
 /// Which version of the system heard the dictations a count was taken from.
-public struct LearningRevision: Sendable, Equatable, Codable {
+struct LearningRevision: Sendable, Equatable, Codable {
     /// The speech model's revision.
-    public let recogniser: String
+    let recogniser: String
     /// The prompt's fingerprint, as `PromptBuilder.version` names it.
-    public let prompt: String
+    let prompt: String
     /// The shipped word list's version.
-    public let lexicon: Int
+    let lexicon: Int
 
-    public init(recogniser: String, prompt: String, lexicon: Int) {
+    init(recogniser: String, prompt: String, lexicon: Int) {
         self.recogniser = recogniser
         self.prompt = prompt
         self.lexicon = lexicon
@@ -23,7 +23,7 @@ public struct LearningRevision: Sendable, Equatable, Codable {
 }
 
 /// What opening the dictionary under a revision did to its counts.
-public enum LearningRevisionChange: Sendable, Equatable {
+enum LearningRevisionChange: Sendable, Equatable {
     /// The counts were already produced under this revision, or none were recorded before.
     case unchanged
     /// The counts were observations of another revision and were set aside; `entries` words start counting again.
@@ -55,7 +55,7 @@ extension PersonalDictionaryStore {
 
     /// Opens the dictionary under `revision`: choices stay, and counts follow the revision that produced them.
     @discardableResult
-    public func settle(
+    func settle(
         under revision: LearningRevision
     ) throws(DictionaryStoreError) -> LearningRevisionChange {
         let key = revision.key
