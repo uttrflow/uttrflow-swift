@@ -41,7 +41,7 @@ struct DiagnosticsEngineProbeTests {
     @Test("are asked, so the page has an answer rather than a pending check")
     func areAsked() async {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         #expect(app.transformerAvailability.isEmpty)
 
         let answered = await probed(app)
@@ -53,7 +53,7 @@ struct DiagnosticsEngineProbeTests {
     @Test("and every kind gets an answer, not only the ones that said yes")
     func everyKindIsAnswered() async {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let answered = await probed(app)
 
         for kind in TransformerKind.allCases {
@@ -67,6 +67,7 @@ struct DiagnosticsEngineProbeTests {
         let readiness = MutableTransformerReadiness([.foundationModels, .rules])
         let app = AppDelegate(
             container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
             transformerReadiness: { _ in await readiness.probe() })
         _ = await probed(app)
         #expect(app.transformerAvailability[.foundationModels] == true)
@@ -85,7 +86,8 @@ struct DiagnosticsEngineProbeTests {
         let readiness = MutableTransformerReadiness([.foundationModels, .rules])
         let session = HeldSession(signedIn: true)
         let app = AppDelegate(
-            container: sandbox.root, account: session.layer,
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), account: session.layer,
             transformerReadiness: { _ in await readiness.probe() })
         app.drawsWindows = false
         _ = await probed(app)
@@ -104,6 +106,7 @@ struct DiagnosticsEngineProbeTests {
         let readiness = MutableTransformerReadiness([.foundationModels, .rules])
         let app = AppDelegate(
             container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
             transformerReadiness: { _ in await readiness.probe() })
         _ = await probed(app)
         await readiness.set([.rules])
@@ -118,11 +121,12 @@ struct DiagnosticsEngineProbeTests {
         #expect(app.transformerAvailability[.foundationModels] == false)
     }
 
+
     /// #1668: the speech model row was never given an answer, so it read Not checked yet forever.
     @Test("the speech model is looked for on disk too")
     func speechModelIsLookedFor() async {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         #expect(app.speechModelPresence == nil)
 
         await app.probeSpeechModel().value

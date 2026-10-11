@@ -44,6 +44,21 @@ struct TelemetryCollectorTests {
         #expect(report.dictationCount == 5)
     }
 
+    /// Only an inserted dictation was finished by a rung; a cancellation or failure has none to name.
+    @Test("counts which fallback rung finished each inserted dictation")
+    func countsFallbackRungs() throws {
+        let collector = Telemetry.collector()
+        collector.recordDictation(.completed, language: .english, finishedBy: .model)
+        collector.recordDictation(.completed, language: .english, finishedBy: .model)
+        collector.recordDictation(.completed, language: .english, finishedBy: .raw)
+        collector.recordDictation(.cancelled, language: .english, finishedBy: .rules)
+        collector.recordDictation(.failed, language: .english, finishedBy: .rules)
+
+        let report = try #require(collector.takeReport(endedAt: Telemetry.anHourLater))
+        #expect(report.fallbackRungs.map(\.rung) == [.model, .raw])
+        #expect(report.fallbackRungs.map(\.dictationCount) == [2, 1])
+    }
+
     @Test("sums durations and characters, and counts languages")
     func sumsTheNumbers() throws {
         let collector = Telemetry.collector()

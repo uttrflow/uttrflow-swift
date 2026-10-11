@@ -24,7 +24,7 @@ package struct SpanFeatureGoldenCase: Codable, Sendable, Equatable {
     package var expected: [String]
 }
 
-/// The golden file: the spec it was written under, an invented language model and the cases.
+/// The golden file: the spec it records, an invented language model and the cases.
 package struct SpanFeatureGolden: Codable, Sendable, Equatable {
     package var specVersion: Int
     package var identifiers: [String]
@@ -58,7 +58,7 @@ package struct SpanFeatureGolden: Codable, Sendable, Equatable {
         (try? ARPAReader.model(from: arpa)).map { InterpolatedLanguageModel([.init(model: $0, weight: 1)]) }
     }
 
-    /// Why this file no longer matches the compiled spec, one line each; empty when it matches.
+    /// Why this file differs from the compiled spec, one line each; empty when it matches.
     package func disagreements() -> [String] {
         var found: [String] = []
         if specVersion != SpanFeatures.specVersion {

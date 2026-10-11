@@ -119,10 +119,14 @@ final class TreeWindowSource<Tree: ElementTree>: FocusedWindowSource {
 
     func text(of field: Tree.Element, names: FieldNames, at range: CFRange?) -> FieldText {
         cap(field)
-        return FocusedFieldRead.text(
+        let read = FocusedFieldRead.text(
             of: field, in: tree, names: names,
             at: range.map { NSRange(location: $0.location, length: $0.length) },
             count: { self.markerCount ?? self.count })
+        guard markerCount != nil, read.rung != .none else { return read }
+        return FieldText(
+            value: read.value, selection: read.selection, isSecure: read.isSecure, rung: .textMarkerRange,
+            refusal: read.refusal)
     }
 
     func selectedText(of field: Tree.Element, at range: CFRange?) -> String? {

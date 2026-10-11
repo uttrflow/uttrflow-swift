@@ -29,6 +29,15 @@ private enum Spoken {
 
 @Suite("Silence stop")
 struct SilenceStopTests {
+    @Test("measures the quiet before the first phrase and after the last, to within a frame")
+    func measuresEdgeQuiet() throws {
+        let samples = Spoken.room(0.8) + Spoken.phrase(2) + Spoken.room(1.4)
+        let edges = try #require(VoiceActivity.edgeSilence(in: samples, sampleRate: Spoken.rate))
+        #expect(abs(edges.leading.inSeconds - 0.8) < 0.15)
+        #expect(abs(edges.trailing.inSeconds - 1.4) < 0.15)
+        #expect(VoiceActivity.edgeSilence(in: Spoken.room(2), sampleRate: Spoken.rate) == nil)
+    }
+
     @Test("measures the quiet after the last phrase, to within a frame")
     func measuresTrailingQuiet() throws {
         let samples = Spoken.phrase(2) + Spoken.room(0.6) + Spoken.phrase(1) + Spoken.room(3)
@@ -67,5 +76,26 @@ struct SilenceStopTests {
         #expect(SilenceStop(seconds: 0) == nil)
         #expect(SilenceStop(seconds: 3) == nil)
         #expect(try #require(SilenceStop(seconds: 8)).lookBack(atRate: Spoken.rate) == 13 * Spoken.rate)
+    }
+
+    @Test("counts down only between half the wait and the wait, in whole seconds rounded up")
+    func countsDown() throws {
+        let stop = try #require(SilenceStop(seconds: 8))
+        #expect(stop.secondsLeft(afterQuiet: nil) == nil)
+        #expect(stop.secondsLeft(afterQuiet: .seconds(4)) == nil)
+        #expect(stop.secondsLeft(afterQuiet: .seconds(4.2)) == 4)
+        #expect(stop.secondsLeft(afterQuiet: .seconds(6.5)) == 2)
+        #expect(stop.secondsLeft(afterQuiet: .seconds(7.9)) == 1)
+        #expect(stop.secondsLeft(afterQuiet: .seconds(8)) == nil)
+        let short = try #require(SilenceStop(seconds: 2))
+        #expect(short.secondsLeft(afterQuiet: .seconds(1.2)) == 1)
+        #expect(short.secondsLeft(afterQuiet: .seconds(0.9)) == nil)
+    }
+
+    @Test("words the countdown for the dock and for VoiceOver")
+    func wordsTheCountdown() {
+        #expect(SilenceStop.phrase(secondsLeft: 3) == "Ending in 3 sec")
+        #expect(SilenceStop.sentence(secondsLeft: 1) == "Dictation ends in 1 second.")
+        #expect(SilenceStop.sentence(secondsLeft: 4) == "Dictation ends in 4 seconds.")
     }
 }

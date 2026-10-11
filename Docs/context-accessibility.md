@@ -12,6 +12,23 @@ path, so the readings below are of real applications on the desktop.
 The tables here also feed the `Value` column of [compatibility.md](compatibility.md). The budget
 and its numbers are in [context-budget.md](context-budget.md).
 
+## Applications on a bundled browser engine
+
+Chat, note and editor applications built on a bundled browser engine build their Accessibility tree only when an assistive client asks for it, so what they publish depends on whether anything has asked. This page, [predict-reliability.md](predict-reliability.md) and [input-paste-eligibility.md](input-paste-eligibility.md) record different results for such applications, and the difference is that tree being on or off.
+
+| Tree | Focused field | Window title and selection | Caret bounds |
+| --- | --- | --- | --- |
+| Off | may be absent | may be absent | zero-size rectangles in Chrome |
+| On | published | published | real bounds |
+
+What the code does today:
+
+- `FullTreeSwitch` writes `AXManualAccessibility` once per suggestion session for a text field read with no caret, and for a Chromium browser also `AXEnhancedUserInterface`. It never writes `AXEnhancedUserInterface` elsewhere, since that slows window animations.
+- An application that answers `kAXErrorAttributeUnsupported` for `AXManualAccessibility`, as a native application does, is asked once and then left alone for the session.
+- Only the suggestion reader calls it. The dictation context read does not, and a bundled-engine application with no focused element at all is not switched, because there is no text field read to prompt it.
+
+Not yet measured: the memory and CPU cost to the target application of leaving the tree on, per application kind. Until those numbers exist, the switch stays limited to the suggestion path and the dictation read does not set it.
+
 ## Identity is free; the window is not
 
 | Source | Cost | Permission | Can hang |
@@ -83,6 +100,12 @@ for a field that will not say.
 identifier and listed under the same row with an add button; an application added there starts at
 `identity`. The engine resolves the level for the frontmost application before the focus-owner
 message, and again for a panel's owner before its window is read.
+
+`MessageBudgetTests` replays every fixture's focused-field read and holds its message count and
+simulated time (the sum of the recorded latencies) to `Tests/Fixtures/AccessibilityMessageBudget.json`.
+A read over its budget fails, and so does a budget above its read's cost, so a saving is recorded
+in the same change and the file only goes down; a pull request that raises a budget states why.
+The gate needs no clock and no other application.
 
 A text-entry role that publishes no text stays `refused`, so a field that failed to answer is
 never taken for a surface without text. `SurfaceFixtureReplayTests` replays

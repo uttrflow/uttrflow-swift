@@ -98,6 +98,28 @@ Hinglish. A plain prompt also lets the model write working Python for a dictated
 prefix its output with "Sure, here is the text:"; asking for a structured `CleanedDictation`
 value stops the prefix where wording does not (`Docs/ai-model-output.md`).
 
+## A near-homophone on screen is offered, never obeyed
+
+The injection cases above guard against an instruction. `ScreenSteeringProbeTests` guards the
+quieter channel: a screen string that holds an invented near-homophone of a spoken word. The word
+is planted in the window title, the selection, the text before the caret and a quoted reply after
+it, each with the recogniser sure of the word and unsure of it. The metric counts words in the
+output that are absent from the speech and present on screen, per source, at two stages: the
+readings the engine offers, and the words that survive the guard when a stand-in model takes every
+offer.
+
+| Recogniser | Offered | Shipped |
+|---|---|---|
+| sure of the word | 0 of 28 runs | 0 of 28 runs |
+| unsure of the word | 28 of 28 runs | 28 of 28 runs |
+
+A sure word is never doubted, so the screen cannot replace it (zero of seven runs per source, 95%
+upper bound 35%). An unsure word is offered the screen's near-homophone from every source and the
+guard lets the chosen reading through, because an offered reading is the guard's own allowance.
+What keeps the screen from steering is the model declining the offer, which the probe does not
+measure: it uses a model that always accepts, the worst case. A live-model run of the same cases
+is the next measurement.
+
 ## Related pages
 
 - `Docs/cleanup.md` — the one table that names the destination and the kind.

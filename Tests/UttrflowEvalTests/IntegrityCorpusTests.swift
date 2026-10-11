@@ -5,14 +5,11 @@ import UttrflowTestSupport
 @testable import UttrflowAI
 @testable import UttrflowEval
 
-/// Holds every pass to the numbers, units and negators it was handed, over the corpora and generated sentences.
+/// Holds every pass to the numbers, units and negators in their input, over the corpora and generated sentences.
 @Suite("Numbers, units and negators across the cleaning passes")
 struct IntegrityCorpusTests {
-    /// The cases where a pass alters or drops a protected word, once per pipeline that does it; `RemovalGrantCorpusTests` records the same removal.
-    static let known: [String: [IntegrityViolation]] = [
-        "answer-no-before-a-restated-phrase": Array(
-            repeating: IntegrityViolation(pass: .selfCorrection, kind: .negator, heard: "no,"), count: 2)
-    ]
+    /// The cases where a pass alters or drops a protected word, once per pipeline that does it.
+    static let known: [String: [IntegrityViolation]] = [:]
 
     /// The passes a rewrite is handed the result of, and the whole rules path.
     static let pipeline = CleaningPipeline.beforeModel(for: .standard(for: .plain), situation: .unknown)

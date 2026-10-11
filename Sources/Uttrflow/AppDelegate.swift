@@ -22,32 +22,6 @@ import UttrflowSettings
 import UttrflowSpeech
 import UttrflowUX
 
-struct DismissalCountdown {
-    private(set) var remaining: Duration
-    private var startedAt: ContinuousClock.Instant?
-
-    init(_ duration: Duration, at instant: ContinuousClock.Instant) {
-        remaining = duration
-        startedAt = instant
-    }
-
-    mutating func pause(at instant: ContinuousClock.Instant) {
-        guard let startedAt else { return }
-        remaining = max(.zero, remaining - startedAt.duration(to: instant))
-        self.startedAt = nil
-    }
-
-    mutating func resume(at instant: ContinuousClock.Instant) {
-        guard startedAt == nil, remaining > .zero else { return }
-        startedAt = instant
-    }
-
-    func hasExpired(at instant: ContinuousClock.Instant) -> Bool {
-        guard let startedAt else { return false }
-        return startedAt.duration(to: instant) >= remaining
-    }
-}
-
 enum DictationSessionEndObserver {
     static let screenIsLocked = Notification.Name("com.apple.screenIsLocked")
 
@@ -173,6 +147,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// How the recording in progress is going against ``DictationLimit``.
     private var recordingAdvice: DictationAdvice = .keepGoing
+    private var silenceSecondsLeft: Int?
     /// The finished pieces' words while the key is held, drawn under the recording line.
     private var heardSoFar: String?
     private var heardTask: Task<Void, Never>?
@@ -272,7 +247,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Builds the app around one folder, which a test points at a temporary one.
     init(
-        container: URL = .applicationSupportDirectory, loginItem: LaunchAtLogin = LaunchAtLogin(),
+        container: URL = .applicationSupportDirectory,
+        clipboardSource: any ClipboardSource = SystemClipboardSource(),
+        loginItem: LaunchAtLogin = LaunchAtLogin(),
         settingsStore: UserDefaultsSettingsStore = UserDefaultsSettingsStore(),
         onboardingRecordStore: any OnboardingRecordStore = UserDefaultsOnboardingRecordStore(),
         account: OnboardingAccountLayer = .forThisBuild(),
@@ -290,6 +267,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         clipboardFailureAnnouncer: ((String) -> Void)? = nil
     ) {
         self.container = container
+        clipboardWatcher = PasteboardWatcher(source: clipboardSource)
         self.secureInput = secureInput
         self.onboardingRecordStore = onboardingRecordStore
         self.encryptedStore = encryptedStore
@@ -357,7 +335,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 canRestore: clipboardPreferencesSetAside != nil)
         }
     }
-    private let clipboardWatcher = PasteboardWatcher(source: SystemClipboardSource())
+    private let clipboardWatcher: PasteboardWatcher
     private let quickPanel = QuickPanelController()
 
     /// Keeping the app up to date, asking this delegate what it is doing rather than being told.
@@ -426,11 +404,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// A clipboard index that failed to persist remains unsaved until a later write succeeds.
     private(set) var clipboardWriteFailure: ClipboardStoreError?
     private var panelTarget: InsertionDestination?
+    private let pasteGate = PasteGate()
     /// Counts Format presses, so only the latest run's result may open its sheet.
     private var formatterRuns = 0
     /// Counts the store reads the panel has asked for, so an older list never replaces a newer one.
     private var panelReads = 0
-    private var clipboardArrivals = 0
+    private(set) var clipboardArrivals = 0
     private var clipboardWatchTask: Task<Void, Never>?
 
     /// F7, F9 — the clip a delete removed, held by the app because the undo outlives the panel.
@@ -780,7 +759,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         return DictationPresenter.dock(
             for: state, advice: recordingAdvice, speechModel: speechModelLoad,
             download: speechReadiness.download, stopGesture: recordingStopGesture,
-            heardSoFar: heardSoFar, waited: waitStarted.map { $0.duration(to: .now) } ?? .zero)
+            heardSoFar: heardSoFar, waited: waitStarted.map { $0.duration(to: .now) } ?? .zero,
+            silenceSecondsLeft: silenceSecondsLeft)
     }
 
     /// Asks each clean-up engine whether it could run, so Diagnostics has an answer to show; the task ends once it has.
@@ -857,7 +837,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// What runs in the background now, decided from the session and the settings together.
-    var surfaces: SessionSurfaces { SessionSurfaces(isSignedIn: isSignedIn, settings: settings) }
+    var surfaces: SessionSurfaces {
+        SessionSurfaces(
+            isSignedIn: isSignedIn, clipboardChoiceIsMade: onboardingRecordStore.hasChosenClipboard,
+            settings: settings)
+    }
 
     /// The session the surfaces were last opened or closed for, so a repeat changes nothing.
     private var appliedSession: Bool?
@@ -981,6 +965,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             if behavior == .developmentLaunch { onboarding?.closeIfNotRequired() }
         }
         onboarding.onSettingsChange = { [weak self] in self?.settingsChanged(to: $0) }
+        // A Keep changes no setting, so the answer itself is what starts recording.
+        onboarding.onClipboardAnswered = { [weak self] in self?.followTheClipboardSwitch() }
         onboarding.onFinish = { [weak self] _ in
             guard let self else { return }
             // Re-read, because the microphone check writes the language list through the same store.
@@ -1014,7 +1000,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             return .terminateCancel
         }
         completions?.stop()
-        let watchingClipboard = settings.clipboardEnabled && !isClipboardPaused
+        let watchingClipboard = surfaces.watchesTheClipboard && !isClipboardPaused
         let arrived: @Sendable (NoticedClip) async -> Void = { [weak self] noticed in
             await self?.clipArrived(noticed)
         }
@@ -1577,6 +1563,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     Task { @MainActor in self?.recordingAdviceChanged(to: advice) }
                 },
                 onWarning: reportWarning.report,
+                onSilenceCountdown: { [weak self] secondsLeft in
+                    Task { @MainActor in self?.silenceCountdownChanged(to: secondsLeft) }
+                },
+                onSilenceWarning: reportWarning.reportSilence,
                 onNearMissTap: { [weak self] in
                     Task { @MainActor in self?.announce(DictationPresenter.nearMissTapAnnouncement) }
                 },
@@ -1595,6 +1585,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         guard advice != recordingAdvice else { return }
         recordingAdvice = advice
         refreshMenuBar()
+        dock.update(with: dockPresentation(for: lastDictationState))
+    }
+
+    /// Redraws the floating button as End on silence counts down, or stops.
+    private func silenceCountdownChanged(to secondsLeft: Int?) {
+        guard secondsLeft != silenceSecondsLeft else { return }
+        silenceSecondsLeft = secondsLeft
         dock.update(with: dockPresentation(for: lastDictationState))
     }
 
@@ -1698,12 +1695,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         shortcutArmingAttempt += 1
         let attempt = shortcutArmingAttempt
         guard let controller else { return }
-        guard surfaces.listensForDictation else {
+        guard surfaces.listensForDictation, let binding = settings.shortcuts.first(for: .dictate) else {
             shortcutArming.disarm()
             Task { await controller.stop() }
             return
         }
-        let binding = settings.hotkey
         let commandBinding = settings.shortcuts.first(for: .editCommand)
         let arming = shortcutArming
         // Kept as its own state on the menu bar and floating button, never shown as a failed dictation.
@@ -1749,6 +1745,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Records copies while the Clipboard switch is on, and stops recording the moment it is off.
     private func followTheClipboardSwitch() {
         settingsPage.setClipboardCapturePaused(isClipboardPaused)
+        settingsPage.setConfirmsMultilinePaste(clipboardPreferences.confirmsMultilinePaste)
         if isClipboardPaused { startClipboardPauseTimerIfNeeded() }
         guard surfaces.watchesTheClipboard, !isClipboardPaused else {
             clipboardWatchTask?.cancel()
@@ -2090,10 +2087,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
+    /// A dictation's text classified with the shape rules and the snippets marked secret.
+    private func dictationText(_ text: String) -> DictationTextPresentation {
+        DictationTextPresentation(text, secretPhrases: knownSnippets.secretPhrases)
+    }
+
     /// Shown and spoken, so a shortcut with nothing to act on never looks broken.
     private func sayNoLastTranscript(to verb: String) {
-        Self.log.notice("\(verb, privacy: .public) last transcript: nothing dictated yet")
-        let message = "There is no transcript to \(verb) yet."
+        Self.log.notice("\(verb, privacy: .public) last dictation: nothing dictated yet")
+        let message = "There is no dictation to \(verb) yet."
         actionNotice = MainNotice(message: message, symbolName: "info.circle", tone: .neutral)
         announce(message, urgently: false)
     }
@@ -2104,8 +2106,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             sayNoLastTranscript(to: "copy")
             return
         }
+        // Read now: the shortcut can fire before any page has read the snippets.
+        knownSnippets = await snippets.snippets()
         let result: PasteboardWriteResult
-        if DictationTextPresentation(text).isSecret {
+        if dictationText(text).isSecret {
             result = announcingPasteboard.writeConcealedText(text)
             if result.didWrite { scheduleSecretClear(writtenAt: result.changeCount) }
         } else {
@@ -2115,7 +2119,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             showClipboardCopyFailure()
             return
         }
-        sayCopiedForMainWindow(secret: DictationTextPresentation(text).isSecret)
+        sayCopiedForMainWindow(secret: dictationText(text).isSecret)
     }
 
     /// The shortcut is a toggle, so the same key puts the panel away again.
@@ -2133,7 +2137,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         updates.refresh()
         let opened = quickPanel.opens
         // A copy since the last poll is taken now, started not awaited, so no read holds the panel shut (#895).
-        if settings.clipboardEnabled && !isClipboardPaused {
+        if surfaces.watchesTheClipboard && !isClipboardPaused {
             let arrived: @Sendable (NoticedClip) async -> Void = { [weak self] noticed in
                 await self?.clipArrived(noticed)
             }
@@ -2164,32 +2168,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         await PanelInsertion.decided(
             isAccessibilityGranted: accessibility.status() == .granted,
             isSelfFrontmost: focus.isSelfFrontmost())
-    }
-
-    /// B8, D5 — what only the machine knows about a list, asked on opening and on every refresh alike.
-    private func facts(
-        about clips: [Clip]
-    ) async -> (missing: Set<Clip.ID>, formattable: Set<CodeLanguage>) {
-        (await missingPictures(among: clips), await formattable(among: clips))
-    }
-
-    /// D5 — which languages present in the list have a formatter, asked per language and not per clip.
-    private func formattable(among clips: [Clip]) async -> Set<CodeLanguage> {
-        var answered: Set<CodeLanguage> = []
-        for language in Set(clips.compactMap(\.language)) {
-            if await formatter.isAvailable(for: language) { answered.insert(language) }
-        }
-        return answered
-    }
-
-    /// B8 — the picture clips whose files are gone, at one `stat` each and none for text.
-    private func missingPictures(among clips: [Clip]) async -> Set<Clip.ID> {
-        var missing: Set<Clip.ID> = []
-        for clip in clips {
-            guard let image = clip.image else { continue }
-            if !(await clipboard.hasImage(for: image)) { missing.insert(clip.id) }
-        }
-        return missing
     }
 
     /// I6, I7 — whether dictation can start and why not, so a dimmed button carries its reason.
@@ -2233,18 +2211,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
             closeAfterReading()
         case .closeAndInsertFormatted(let text, let richText, let used):
-            let destination = panelTarget ?? InsertionDestination(applicationName: nil, bundleIdentifier: nil)
-            closeQuickPanel()
-            insert(text, richText: richText, targeting: destination, used: used, forPanel: true)
+            insertFromPanel(text, richText: richText, concealed: false, used: used)
         case .closeAndInsert(let text, let used):
-            // Closed first: insertion declines outright while Uttrflow is frontmost.
-            let destination = panelTarget ?? InsertionDestination(applicationName: nil, bundleIdentifier: nil)
-            closeQuickPanel()
-            insert(text, targeting: destination, used: used, forPanel: true)
+            insertFromPanel(text, concealed: false, used: used)
         case .closeAndInsertConcealed(let text, let used):
-            let destination = panelTarget ?? InsertionDestination(applicationName: nil, bundleIdentifier: nil)
-            closeQuickPanel()
-            insert(text, concealed: true, targeting: destination, used: used, forPanel: true)
+            insertFromPanel(text, concealed: true, used: used)
+        case .closeAndInsertConfirmed(let text, let used):
+            insertFromPanel(text, concealed: false, used: used, agreed: true)
+        case .closeAndInsertConfirmedConcealed(let text, let used):
+            insertFromPanel(text, concealed: true, used: used, agreed: true)
         case .copyAndSay(let text, let notice, let used):
             // Stays open: the panel is the only surface left to say this on.
             let copied = putOnClipboard(text, used: used)
@@ -2313,7 +2288,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .applyAndRedraw(let change):
             if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
             apply(change)
+        case .placeFiles(let clip, let placement):
+            placeFiles(clip, placement)
         }
+    }
+
+    /// Resolved before the panel closes, so a missing file is said where the user is looking.
+    private func placeFiles(_ clip: Clip, _ placement: PanelFilePlacement) {
+        let resolution = PanelFilePaste.resolve(clip)
+        if case .refused(let notice) = resolution { return perform(.say(notice)) }
+        guard case .files(let urls) = resolution else { return }
+        let destination = panelTarget ?? InsertionDestination(applicationName: nil, bundleIdentifier: nil)
+        if case .paste = placement { closeQuickPanel() }
+        markUsed(clip.id)
+        let engine = PasteboardFileInsertionEngine(
+            focus: focus, pasteboard: announcingPasteboard, keystrokes: CGEventKeystrokeSender())
+        var failure: TextInsertionError?
+        do {
+            if case .paste = placement {
+                try engine.insert(urls, targeting: destination)
+            } else {
+                try engine.copy(urls)
+            }
+        } catch { failure = error }
+        let landing = PanelFilePaste.landing(
+            placement, failure: failure, copyFailed: Self.clipboardCopyFailedNotice)
+        if let effect = landing.effect { perform(effect) }
+        if let report = landing.report { reportPanelPaste(report) }
     }
 
     /// The notice for a picture whose file has gone, worded as Return words it.
@@ -2348,6 +2349,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         switch change {
         case .setAlias(let id, let alias):
             _ = try await clipboard.setAlias(alias, of: id, keeping: retention)
+        case .setLabels(let id, let alias, let tags):
+            _ = try await clipboard.setLabels(alias: alias, tags: tags, of: id, keeping: retention)
         case .setCategory(let id, let category):
             _ = try await clipboard.setCategory(category, of: id, keeping: retention)
         case .setPinned(let id, let isPinned):
@@ -2579,6 +2582,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
     }
 
+    /// Pastes a panel clip, or asks first in the panel when the shared decision holds it back.
+    private func insertFromPanel(
+        _ text: String, richText: String? = nil, concealed: Bool, used: Clip.ID, agreed: Bool = false
+    ) {
+        let destination = panelTarget ?? InsertionDestination(applicationName: nil, bundleIdentifier: nil)
+        let situation = PasteQuestion.Situation(
+            isConcealed: concealed, field: .secure, bundleIdentifier: destination.bundleIdentifier,
+            text: text,
+            confirmsHiddenClips: settings.confirmsHiddenClipPaste,
+            confirmsMultiline: clipboardPreferences.confirmsMultilinePaste, isAgreed: agreed)
+        let owner = PanelLateRequest(opens: quickPanel.opens, sheet: panel?.sheet)
+        Task { [weak self, focus, pasteGate] in
+            let decision = await pasteGate.decide(situation, focus: focus)
+            guard let self, owner.stillOwns(panel, opens: quickPanel.opens) else { return }
+            switch decision {
+            case .pasteNow:
+                // Closed first: insertion declines outright while Uttrflow is frontmost.
+                closeQuickPanel()
+                insert(
+                    text, richText: richText, concealed: concealed, targeting: destination, used: used,
+                    forPanel: true)
+            case .ask(let reason):
+                let original = panel?.clips.first { $0.id == used }?.text
+                panel = panel?.askingBeforePaste(of: used, cleaned: original != text, reason: reason)
+                if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
+            case .refuse(let refusal):
+                panel?.notice = PanelNotice(symbolName: "eye.slash", message: refusal.message)
+                if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
+                closeAfterReading()
+            }
+        }
+    }
+
     /// Notes a clip was reached for, from the three methods that place one so no path can forget.
     private func markUsed(_ id: Clip.ID?) {
         guard let id else { return }
@@ -2660,6 +2696,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
+    /// Stores the terminal paste choice with the other clipboard choices and redraws its row.
+    private func setConfirmsMultilinePaste(_ isOn: Bool) {
+        guard !clipboardPreferencesUnreadable else { return }
+        clipboardPreferences.confirmsMultilinePaste = isOn
+        settingsPage.setConfirmsMultilinePaste(isOn)
+        saveClipboardPreferences()
+    }
+
     /// Puts text where the caret is, through the coordinator whose last strategy cannot fail.
     private func insert(
         _ text: String, richText: String? = nil, concealed: Bool = false,
@@ -2728,12 +2772,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             clips = await clipboard.clips(keeping: retention)
             await reportUnreadableClipboardIndexes()
         }
-        let facts = await facts(about: clips)
+        let facts = await PanelListFacts.about(clips, clipboard: clipboard, formatter: formatter)
         // A read that started earlier never replaces a newer list, or a copy shown while opening would go.
         guard read == panelReads else { return }
         panel?.install(
-            clips, missingImages: facts.missing, formattableLanguages: facts.formattable,
-            now: Date())
+            clips, missingImages: facts.missingPictures, missingFiles: facts.missingFiles,
+            formattableLanguages: facts.formattable, now: Date())
         guard let snapshot = panel else { return }
         quickPanel.update(PanelPresenter.present(snapshot))
     }
@@ -2807,6 +2851,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         quickPanel.hide()
         panel = nil
         panelTarget = nil
+        pasteGate.forget()
         // The quiet minute an update waits for starts here, not at the next window event.
         updates.refresh()
     }
@@ -2895,6 +2940,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // Cleared as soon as the recording ends, so a countdown cannot outlive it.
         if !state.isListening {
             recordingAdvice = .keepGoing
+            silenceSecondsLeft = nil
             recordingStopGesture = .letGo
         }
         menuBar.update(with: MenuBarPresenter.present(menuBarState(for: state)))
@@ -3070,7 +3116,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             speechLoadElapsed: speechLoadStarted.map { $0.duration(to: .now) } ?? .zero,
             recordingAdvice: recordingAdvice,
             stopGesture: recordingStopGesture,
-            recents: recents.previews.map {
+            recents: recents.previews(secretPhrases: knownSnippets.secretPhrases).map {
                 MenuBarRecent(
                     id: $0.id,
                     title: $0.title,
@@ -3127,11 +3173,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             guard let recent = recents.entries.first(where: { $0.id == id }) else { return }
             // The app's own inserter: a fresh one would get the unannouncing pasteboard.
             insert(
-                recent.text, concealed: DictationTextPresentation(recent.text).isSecret, used: nil)
+                recent.text, concealed: dictationText(recent.text).isSecret, used: nil)
         case .copyRecent(let id):
             guard let recent = recents.entries.first(where: { $0.id == id }) else { return }
             // And through the helper that announces the write, for the same reason.
-            let isSecret = DictationTextPresentation(recent.text).isSecret
+            let isSecret = dictationText(recent.text).isSecret
             if !putOnClipboard(recent.text, concealed: isSecret, used: nil) {
                 showClipboardCopyFailure()
             } else {
@@ -3289,7 +3335,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Forgets what a reset removed before redrawing, so the page cannot repaint the words it took.
     func forget(after reset: SettingsReset) {
-        if reset.targets.contains(.clipboard) {
+        if reset.targets.contains(.clipboard) || reset.targets.contains(.clipboardHistory) {
             let deletion = undoOffer.pendingDelete
             undoOffer.withdraw()
             undoTask?.cancel()
@@ -3365,6 +3411,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             lastSegmentReliability = await diagnostics.reliability
             lastSpeechModelLoads = speechModelLoadLog.history().records
             lastCleaning = await diagnostics.lastCleaning
+            lastUnconditionedRun = await diagnostics.unconditionedRun
             lastTidyTally = await diagnostics.tidyTally
             lastScreenTextUnavailable = await diagnostics.screenTextUnavailable
             lastReadRungs = await diagnostics.readRungs
@@ -3376,6 +3423,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             knownRecordings = await recordings.waiting(now: Date())
             recents = RecentDictations(showing: kept)
             knownWords = await dictionary.allEntries()
+            knownRecency = await WordRecency.read(
+                from: evidence, entries: knownWords, retentionDays: settings.transcriptRetentionDays)
             knownRefusals = await dictionary.refusedWords()
             knownPairs = await readPairs()
             ledgerRefusal = await evidence?.refusal()
@@ -3436,7 +3485,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     systemName: NSFullUserName(),
                     shortcut: shortcut, settings: settings, now: now,
                     speechModel: speechModelLoad, speechDownload: speechReadiness.download,
-                    speechModelBytes: SpeechModel.default.downloadBytes, hasReadHistory: hasReadHistory)),
+                    speechModelBytes: SpeechModel.default.downloadBytes, hasReadHistory: hasReadHistory,
+                    secretPhrases: knownSnippets.secretPhrases)),
             sidebar: SidebarPresenter.sidebar(
                 for: SidebarSnapshot(
                     // The page the window shows, which may be the Settings page on one of its tabs.
@@ -3456,7 +3506,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     keepsRecordings: true, canKeepAsClip: surfaces.watchesTheClipboard,
                     recordings: knownRecordings,
                     retrying: retryingRecording, playing: playback.playing, now: now,
-                    hasReadHistory: hasReadHistory)),
+                    hasReadHistory: hasReadHistory, secretPhrases: knownSnippets.secretPhrases)),
             dictionary: dictionaryPage(at: now, corrections: corrections),
             corrections: CorrectionsPresenter.page(
                 for: CorrectionsSnapshot(
@@ -3477,6 +3527,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     transformerAvailability: transformerAvailability,
                     speechModel: speechModelPresence, speechReadiness: speechReadiness,
                     speechLoadFailure: speechLoadFailure,
+                    unconditionedRun: lastUnconditionedRun,
                     permissions: knownPermissions,
                     dictationShortcutArmed: surfaces.listensForDictation
                         && shortcutArming.failure == nil,
@@ -3506,7 +3557,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 query: query(for: .dictionary), filter: scope(for: .dictionary),
                 sort: sorts[.dictionary] ?? "", corrections: corrections, now: now,
                 packed: lastVocabularyPrompt.isEmpty ? nil : lastVocabularyPrompt,
-                refused: knownRefusals, trial: wordTrial))
+                refused: knownRefusals, trial: wordTrial, recency: knownRecency))
     }
 
     /// The Snippets page as the last reading of the snippets draws it.
@@ -3515,7 +3566,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             for: SnippetsSnapshot(
                 snippets: knownSnippets, draft: snippetDraft, refusal: snippetRefusal,
                 query: query(for: .snippets), sort: sorts[.snippets] ?? "", now: now,
-                arrival: snippetArrival, dictionary: knownWords))
+                arrival: snippetArrival, dictionary: knownWords, revealed: revealedSnippets))
     }
 
     /// Reads the account the pages draw from.
@@ -3550,6 +3601,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private func scope(for page: MainTab) -> String { scopes[page] ?? "" }
     /// What the clean-up steps did to the last dictation, read on the same hop as the timings.
     private var lastCleaning: CleaningRecord?
+    private var lastUnconditionedRun = 0
     /// How the tidy route ended for recent pieces, read on the same hop as the timings.
     private var lastTidyTally = TidyTally()
     /// Why the last dictation's screen read carried no field text, read on the same hop as the timings.
@@ -3564,6 +3616,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         repeatWindow: DictationController<ContinuousClock>.doubleTapWindow)
     private var announcementHold = AnnouncementHold()
     private var snippetEditorIsOpen = false
+    /// The secret snippets whose text the Snippets page shows right now.
+    private var revealedSnippets: Set<UUID> = []
     /// The same, for the word editor.
     private var wordEditorIsOpen = false
     /// Why the last Save was refused, per editor, until the next keystroke clears it.
@@ -3602,9 +3656,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// What the two stores held at the last refresh, cached because a page is built synchronously.
     private var knownWords: [DictionaryEntry] = []
+    /// When each word last appeared, from the ledger at the latest reading.
+    private var knownRecency = WordRecency.none
     /// The spellings the dictionary refuses to learn, newest first, from the latest reading.
     private var knownRefusals: [String] = []
-    private var knownSnippets: [Snippet] = []
+    var knownSnippets: [Snippet] = []
     private var knownEntitlement: Entitlement?
     /// When the signed-in account was created, from the unsigned profile beside the entitlement.
     private var knownMemberSince: Date?
@@ -3714,13 +3770,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .removeSuggestionModel:
             intentWork = releaseModel.removeCachedFiles { [weak self] in self?.report($0) }
         case .copy(let text):
-            let secret = DictationTextPresentation(text).isSecret
+            let secret = dictationText(text).isSecret
             if putOnClipboard(text, concealed: secret, used: nil) {
                 sayCopiedForMainWindow(secret: secret)
             } else {
                 showClipboardCopyFailure()
             }
-        case .insert(let text): insert(text, used: nil)
+        case .insert(let text): insert(text, concealed: dictationText(text).isSecret, used: nil)
         case .dictate:
             toggleDictation()
         case .search:
@@ -3770,8 +3826,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
         case .keepDictationAsClip(let id):
             guard surfaces.watchesTheClipboard else { return }
-            Task { [weak self] in
+            intentWork = Task { [weak self] in
                 guard let self else { return }
+                await self.historyWrite?.value
                 let retention = Retention(days: self.settings.transcriptRetentionDays, now: Date())
                 guard
                     let entry = await self.history.records(keeping: retention).first(where: { $0.id == id }),
@@ -3779,7 +3836,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 else { return }
                 await write.value
             }
-
         case .sort(let order):
             guard let page = mainWindow?.page else { return }
             sorts[page] = order
@@ -3851,12 +3907,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 editSnippet(
                     SnippetDraft(
                         editing: id, trigger: snippet.trigger, text: snippet.expansion,
-                        applications: snippet.applications))
+                        applications: snippet.applications, isSecret: snippet.isSecret))
             }
         case .cancelSnippetEdit:
             editSnippet(nil)
-        case .saveSnippet(let trigger, let text, let applications, let replacing):
-            saveSnippet(trigger: trigger, text: text, applications: applications, replacing: replacing)
+        case .saveSnippet(let trigger, let text, let applications, let replacing, let isSecret):
+            saveSnippet(
+                trigger: trigger, text: text, applications: applications, replacing: replacing,
+                isSecret: isSecret)
+        case .revealSnippet(let id):
+            revealedSnippets.insert(id)
+            redrawPages([.snippets])
+        case .hideSnippet(let id):
+            revealedSnippets.remove(id)
+            redrawPages([.snippets])
         case .forgetSnippet(let id):
             snippetUndoTask?.cancel()
             deletedSnippet = nil
@@ -3973,7 +4037,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 guard let record = await history.records(keeping: retention).first(where: { $0.id == id })
                 else { return }
                 let names = await dictionary.allEntries().map(\.word)
-                DictationReportSheet.present(DictationReport(record: record, names: names)) { text in
+                let info = Bundle.main
+                let version = info.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+                DictationReportSheet.present(
+                    DictationReport(record: record, names: names, appVersion: version)
+                ) { text in
                     // A concealed copy keeps a report holding a transcript out of clipboard history.
                     self?.putOnClipboard(text, concealed: true, used: nil) ?? false
                 }
@@ -4004,6 +4072,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             case .exportPersonalData: exportPersonalData()
             case .importPersonalData: importPersonalData()
             case .pauseClipboardCapture(let isOn): setClipboardPaused(isOn)
+            case .confirmMultilinePaste(let isOn): setConfirmsMultilinePaste(isOn)
             case .retrySuggestionModel:
                 guard settings.suggestions.isEnabled,
                     suggestionModel == .fetchFailed || suggestionModel == .loadFailed
@@ -4313,13 +4382,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Saves a snippet, closing the editor only once it is in, as saving a word does.
-    private func saveSnippet(trigger: String, text: String, applications: [String], replacing: UUID?) {
+    private func saveSnippet(
+        trigger: String, text: String, applications: [String], replacing: UUID?, isSecret: Bool
+    ) {
         intentWork = Task { [weak self] in
             guard let self else { return }
             do throws(SnippetStoreError) {
                 try await snippets.save(
                     trigger: trigger, expansion: text, replacing: replacing, created: Date(),
-                    applications: applications)
+                    applications: applications, isSecret: isSecret)
+                // A saved edit hides its text again.
+                if let replacing { revealedSnippets.remove(replacing) }
                 editSnippet(nil)
             } catch {
                 Self.log.error("could not save snippet: \(error.userMessage, privacy: .public)")
@@ -4346,7 +4419,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         applyLaunchAtLogin()
 
         // Acted on here, or the shortcut relabels itself and the old key keeps working.
-        if updated.hotkey != previous.hotkey || updated.dictationEnabled != previous.dictationEnabled
+        if updated.shortcuts.first(for: .dictate) != previous.shortcuts.first(for: .dictate)
+            || updated.dictationEnabled != previous.dictationEnabled
             || updated.shortcuts.first(for: .editCommand) != previous.shortcuts.first(for: .editCommand)
         {
             startWatchingForTheShortcut()
@@ -4590,10 +4664,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             // Already on the clipboard, put there by the insertion floor before it reported failure.
             Task { await pipeline?.acknowledge() }
         case .copyTranscript:
-            if case .failed(let failure) = lastDictationState, let text = failure.wordsToKeep {
-                putOnClipboard(text, concealed: DictationTextPresentation(text).isSecret, used: nil)
+            let kept: String? = if case .failed(let f) = lastDictationState { f.wordsToKeep } else { nil }
+            intentWork = Task { [weak self] in
+                guard let self else { return }
+                // Read now: the retry can come before any page has read the snippets.
+                knownSnippets = await snippets.snippets()
+                if let text = kept {
+                    putOnClipboard(text, concealed: dictationText(text).isSecret, used: nil)
+                }
+                await pipeline?.acknowledge()
             }
-            Task { await pipeline?.acknowledge() }
         case .showHistory:
             // Delivery was unconfirmed or the clipboard failed; History lists every kept dictation.
             show(.main(.history))
@@ -4648,29 +4728,6 @@ private struct StoredSnippets: SnippetExpanding {
                     snippetID: $0.snippetID, matched: $0.matched, expansion: $0.expansion)
             }, caret: expansion.caret)
     }
-}
-
-/// Gives one retry exclusive ownership of the history badge until it finishes.
-@MainActor
-final class RetryBadgeOwnership {
-    private(set) var recording: UUID?
-
-    /// Refuses to transfer an in-flight retry's badge to a later click.
-    func begin(_ id: UUID) -> Bool {
-        guard recording == nil else { return false }
-        recording = id
-        return true
-    }
-
-    /// Finishes only the retry that currently owns the badge.
-    @discardableResult
-    func finish(_ id: UUID) -> Bool {
-        guard recording == id else { return false }
-        recording = nil
-        return true
-    }
-
-    func clear() { recording = nil }
 }
 
 /// A menu is built from a snapshot, so an index that has gone stale must do nothing.

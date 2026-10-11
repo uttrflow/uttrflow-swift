@@ -147,6 +147,20 @@ public struct DecodeDump: Sendable, Equatable, Codable {
             words: transcription.segments.flatMap(\.words).map(DecodedWord.init))
     }
 
+    /// The decode as a recogniser handed it back, every word with the evidence the pipeline's layers read.
+    package var transcription: Transcription {
+        let heard = words.map { word in
+            TranscribedWord(
+                text: word.text.trimmingCharacters(in: .whitespaces), confidence: exp(word.logProbability),
+                start: .seconds(word.start), end: .seconds(word.end), tokens: word.evidence)
+        }
+        let text = heard.map(\.text).joined(separator: " ")
+        guard let first = words.first, let last = words.last else { return Transcription(text: text) }
+        let segment = TranscriptionSegment(
+            text: text, start: .seconds(first.start), end: .seconds(last.end), words: heard)
+        return Transcription(text: text, segments: [segment])
+    }
+
     /// The recognised words as a fit scores them, normalised, each with its tokens' evidence.
     package var heard: [(word: String, tokens: [TokenEvidence])] { Self.heard(in: words) }
 
@@ -161,12 +175,16 @@ public struct DecodeDump: Sendable, Equatable, Codable {
 /// Why a dump could not be read for a fit.
 public enum DecodeDumpError: Error, Sendable, Equatable, CustomStringConvertible {
     case engineMismatch(recordingIdentity: String, field: String)
+    case severalEngines(versions: [String])
     case store(EvaluationStoreError)
 
     public var description: String {
         switch self {
         case .engineMismatch(let recording, let field):
             "dump for \(recording) was decoded under a different engine: \(field) differs"
+        case .severalEngines(let versions):
+            "decodes under \(versions.count) engines (\(versions.joined(separator: "; "))); "
+                + "name one with --engine-version"
         case .store(let error): error.description
         }
     }
@@ -221,6 +239,28 @@ public struct DecodeDumpStore: Sendable {
 
     /// Every dump decoded under `engine`; any other identity is refused, naming the field that differs.
     public func dumps(decodedUnder engine: DecodeEngineIdentity) throws(DecodeDumpError) -> [DecodeDump] {
+        let dumps = try everyDump()
+        for dump in dumps {
+            if let field = dump.engine.differingField(from: engine) {
+                throw .engineMismatch(recordingIdentity: dump.recordingIdentity, field: field)
+            }
+        }
+        return dumps
+    }
+
+    /// The dumps of the one engine identity here, narrowed to `engineVersion` when named; several identities are refused.
+    package func dumps(engineVersion: String?) throws(DecodeDumpError) -> [DecodeDump] {
+        let dumps = try everyDump().filter {
+            engineVersion == nil || $0.engine.engineVersion == engineVersion
+        }
+        let identities = dumps.reduce(into: [DecodeEngineIdentity]()) { found, dump in
+            if !found.contains(dump.engine) { found.append(dump.engine) }
+        }
+        guard identities.count <= 1 else { throw .severalEngines(versions: identities.map(\.engineVersion)) }
+        return dumps
+    }
+
+    private func everyDump() throws(DecodeDumpError) -> [DecodeDump] {
         guard FileManager.default.fileExists(atPath: directory.path) else { return [] }
         let files: [URL]
         do {
@@ -242,9 +282,6 @@ public struct DecodeDumpStore: Sendable {
                 dump = try JSONDecoder().decode(DecodeDump.self, from: data)
             } catch {
                 throw .store(.couldNotRead(path: file.lastPathComponent, reason: "\(error)"))
-            }
-            if let field = dump.engine.differingField(from: engine) {
-                throw .engineMismatch(recordingIdentity: dump.recordingIdentity, field: field)
             }
             dumps.append(dump)
         }

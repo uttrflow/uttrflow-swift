@@ -192,6 +192,14 @@ also a whole word and no local rule can choose. Penalising only spaces is worse:
 onto other punctuation (`pan.`, `di-jon`), 56 breaks against 48, and a non-breaking space leaks
 through.
 
+The cached-tokenizer proof runs with
+`UTTRFLOW_BYTE_TOKENIZER_PROOF=1 swift test --filter CachedTokenHealingTests`.
+It loads only the tokenizer files at the Llama and Qwen revisions registered in `LocalModel`,
+checks the production healing vocabulary against each tokenizer's decoded space and newline,
+and checks the newline mask after the owed word is complete. Each case skips when its pinned
+tokenizer files are absent or the opt-in is unset; ordinary CI therefore does not establish this
+real-tokenizer proof. It reads no model weights and measures no completion precision or bake-off score.
+
 ### 6. Keep the fixed part and the last prompt warm
 
 At load, the instruction prefix — the exact token run two different prompts share, chat template

@@ -96,15 +96,15 @@ import UttrflowPredict
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: container) }
         let secureOn = OSAllocatedUnfairLock(initialState: false)
+        let workspace = NotificationCenter()
         let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
-            secureInput: SecureInputWatch { secureOn.withLock { $0 } })
+            secureInput: SecureInputWatch { secureOn.withLock { $0 } }, workspaceCenter: workspace)
         defer { coordinator.stop() }
         coordinator.start()
         coordinator.tapRest.schedule(after: .seconds(90)) {}
         secureOn.withLock { $0 = true }
-        NSWorkspace.shared.notificationCenter.post(
-            name: NSWorkspace.didActivateApplicationNotification, object: nil)
+        workspace.post(name: NSWorkspace.didActivateApplicationNotification, object: nil)
         while coordinator.tapRest.isPending { await Task.yield() }
         #expect(coordinator.isSecureInputBlocking)
     }

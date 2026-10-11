@@ -47,7 +47,7 @@ public enum Restatement {
     /// How many words back an anchor may reach when the restart repeats a phrase of two or more words.
     private static let repeatedPhraseReach = 12
 
-    private static let copulas: Set<String> = ["am", "is", "are", "was", "were", "be", "being", "been"]
+    private static let copulas = QuestionShape.copulaVerbs
 
     /// Words that head an answer, which a second answer pairs with rather than takes back.
     public static let answerHeads: Set<String> = [
@@ -173,15 +173,15 @@ public enum Restatement {
         return start
     }
 
-    /// A bare no after a copula and before a comma completes a reported answer clause.
+    /// A bare no that closes its own clause with a comma answers: after a copula, or with no pause before it.
     private static func isReportedAnswer(
         _ trigger: [String], before position: Int, in live: [Int], of draft: Draft
     ) -> Bool {
         guard trigger == ["no"], position > 0,
-            copulas.contains(draft.shape(at: live[position - 1]).key),
             draft.shape(at: live[position]).suffix.contains(",")
         else { return false }
-        return true
+        let before = draft.shape(at: live[position - 1])
+        return copulas.contains(before.key) || !before.endsClause
     }
 
     /// A number is taken back only when the phrase after it repeats, so ordinary negation and filler stay intact.

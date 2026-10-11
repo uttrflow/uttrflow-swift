@@ -196,7 +196,7 @@ struct MenuBarStatusTests {
         }
         #expect(
             lines == [
-                "Ready", "Listening…", "Tidying up…", "Inserted", "Inserted — part not transcribed",
+                "Ready", "Listening…", "Cleaning up…", "Inserted", "Inserted — part not transcribed",
                 "Inserted",
                 "Inserted — not confirmed", "Copied — press ⌘V", "Discarded", "Done",
             ])
@@ -258,7 +258,7 @@ struct MenuBarStatusTests {
                 == "Uttrflow. Listening.")
         #expect(
             MenuBarPresenter.present(MenuBarState(activity: .working)).accessibilityLabel
-                == "Uttrflow. Tidying up.")
+                == "Uttrflow. Cleaning up.")
         // The failure's sentence ends in a full stop; a second is read out as a second pause.
         #expect(
             MenuBarPresenter.present(MenuBarState(failure: microphoneOff)).accessibilityLabel
@@ -476,7 +476,7 @@ struct MenuBarHeaderTests {
                 == .status(MenuBarStatus(title: "Listening…", emphasis: .live)))
         #expect(
             MenuBarPresenter.present(MenuBarState(activity: .working)).header
-                == .status(MenuBarStatus(title: "Tidying up…")))
+                == .status(MenuBarStatus(title: "Cleaning up…")))
     }
 
     @Test("counts a download with a bar, and slides one while the fraction is unknown")
@@ -900,7 +900,7 @@ struct MenuBarUpdateTests {
         #expect(listening.statusLine == "Listening…")
         #expect(listening.accessibilityLabel == "Uttrflow. Listening.")
         let working = MenuBarState(activity: .working, updateProgress: .downloading(fraction: 0.4))
-        #expect(MenuBarPresenter.present(working).statusLine == "Tidying up…")
+        #expect(MenuBarPresenter.present(working).statusLine == "Cleaning up…")
         let rested = MenuBarState(activity: .inserted, updateProgress: .readyToInstall)
         #expect(MenuBarPresenter.present(rested).statusLine == "Update ready — installing when you pause")
     }

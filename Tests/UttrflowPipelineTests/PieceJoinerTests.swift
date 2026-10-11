@@ -156,6 +156,15 @@ struct PieceJoinerListTests {
         #expect(whole.cleaned.text == "Agenda.\n- Budget\n- Hiring\n- Roadmap")
     }
 
+    @Test("puts a bullet that opens a paused piece, written without its break, on its own line")
+    func bulletWithoutBreakAtPieceHead() {
+        let whole = PieceJoiner.join(
+            [piece("Agenda"), piece("- budget"), piece("- hiring"), piece("- roadmap")],
+            under: .standard(for: .document))
+
+        #expect(whole.cleaned.text == "Agenda.\n- Budget\n- Hiring\n- Roadmap")
+    }
+
     @Test("one sequence word is prose, however plainly it counts")
     func oneItemIsProse() {
         #expect(
@@ -329,6 +338,71 @@ struct PieceJoinerParagraphTests {
         #expect(
             joined(["let total = 0", "Next, we sum the rows"], .codeEditor)
                 == "let total = 0 Next, we sum the rows")
+    }
+}
+
+@Suite("PieceJoiner pauses")
+struct PieceJoinerPauseTests {
+    private let sentences = [
+        "We shipped the sync fix.", "The retry service now backs off.", "Billing is next.",
+    ]
+
+    private func laid(_ pieces: [String], pauses: [Double], _ destination: Destination = .email) -> String {
+        PieceJoiner.laidOut(
+            pieces, under: .standard(for: destination), pauses: pauses.map { .seconds($0) })
+    }
+
+    @Test("sets a new subject apart after a pause well past the usual one")
+    func longPauseBreaksParagraph() {
+        #expect(
+            laid(sentences, pauses: [0, 0.9, 2.5])
+                == "We shipped the sync fix. The retry service now backs off.\n\nBilling is next.")
+    }
+
+    @Test("leaves a pause no longer than the usual one as a space")
+    func ordinaryPauseKeepsSpace() {
+        #expect(
+            laid(sentences, pauses: [0, 1.0, 1.2])
+                == "We shipped the sync fix. The retry service now backs off. Billing is next.")
+    }
+
+    @Test("takes a lone long pause as a new subject")
+    func loneLongPause() {
+        #expect(
+            laid(Array(sentences.prefix(2)), pauses: [0, 2.0])
+                == "We shipped the sync fix.\n\nThe retry service now backs off.")
+    }
+
+    @Test("needs the sentence before the pause to have ended")
+    func midSentencePauseKeepsSpace() {
+        #expect(
+            laid(["We shipped the sync fix and", "the retry service now backs off."], pauses: [0, 3.0])
+                == "We shipped the sync fix and the retry service now backs off.")
+    }
+
+    @Test("keeps a place that holds one line to one line")
+    func singleLinePlace() {
+        #expect(
+            laid(Array(sentences.prefix(2)), pauses: [0, 3.0], .spreadsheet)
+                == "We shipped the sync fix. The retry service now backs off.")
+    }
+
+    @Test("reads the pause from the quiet either side of the cut")
+    func joinSumsTheQuietEitherSide() {
+        func piece(_ text: String, leading: Double, trailing: Double) -> Piece {
+            Piece(
+                heard: Transcription(
+                    text: text, leadingSilence: .seconds(leading), trailingSilence: .seconds(trailing)),
+                corrected: .unchanged(text),
+                cleaned: TransformationResult(text: text, producedBy: .rules))
+        }
+        let joined = PieceJoiner.join(
+            [
+                piece("We shipped the sync fix.", leading: 0.2, trailing: 1.2),
+                piece("Billing is next.", leading: 1.1, trailing: 0.3),
+            ],
+            under: .standard(for: .email))
+        #expect(joined.cleaned.text == "We shipped the sync fix.\n\nBilling is next.")
     }
 }
 
@@ -664,6 +738,22 @@ struct PieceJoinerSeamTests {
             under: .standard(for: .document))
 
         #expect(whole.cleaned.text == "We moved the review to the next slot works")
+    }
+
+    @Test(
+        "lowers a recognizer capital on a pronoun or verb that opens the clause after a run-on seam",
+        arguments: [
+            ("I called the supplier this morning and", "They said the parts ship on Friday", "they said"),
+            ("I called the supplier this morning and", "We agreed on a price", "we agreed"),
+            ("The review moved because", "She was out sick", "she was"),
+        ])
+    func lowersClauseOpeningAtRunOnSeam(first: String, next: String, expected: String) {
+        let whole = PieceJoiner.join(
+            [piece(first), piece(next)], under: .standard(for: .document))
+
+        #expect(whole.cleaned.text.lowercased().contains(expected))
+        let opening = next.prefix(while: \.isLetter)
+        #expect(!whole.cleaned.text.contains(" " + opening))
     }
 
     @Test(

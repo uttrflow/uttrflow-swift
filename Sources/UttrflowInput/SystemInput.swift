@@ -372,7 +372,8 @@ public struct AXAccessibilityFocus: AcceptanceFieldReader {
     public func focusedElementKind() -> FocusedElementKind {
         let element = focusedElement()
         return .of(
-            role: element.flatMap { stringAttribute(kAXRoleAttribute, of: $0) }, isPublished: element != nil)
+            role: element.flatMap { stringAttribute(kAXRoleAttribute, of: $0) }, isPublished: element != nil,
+            isEditable: element.map(isEditable) ?? false)
     }
 
     public func isTrusted() -> Bool { AXIsProcessTrusted() }
@@ -655,6 +656,17 @@ private struct AXSelectionAttributes: SelectionAttributes, @unchecked Sendable {
         guard let value = AXValueCreate(.cfRange, &range) else { return .illegalArgument }
         return AXUIElementSetAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, value)
     }
+}
+
+/// Whether the element says it is editable, or accepts a write to its value, as a web editor or spreadsheet cell does.
+private func isEditable(_ element: AXUIElement) -> Bool {
+    var editable: AnyObject?
+    if AXUIElementCopyAttributeValue(element, "AXEditable" as CFString, &editable) == .success,
+        (editable as? Bool) == true
+    {
+        return true
+    }
+    return attributeIsSettable(kAXValueAttribute as CFString, on: element)
 }
 
 /// Returns whether the Accessibility server confirms an attribute accepts writes.

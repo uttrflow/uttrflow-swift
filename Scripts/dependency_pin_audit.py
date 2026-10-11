@@ -14,7 +14,7 @@ PINS = {
     "swift-argument-parser": "1.8.2",
     "mlx-swift-lm": "3.31.4",
     "swift-transformers": "1.3.4",
-    "swift-huggingface": "0.10.1",
+    "swift-huggingface": "0.13.0",
 }
 PACKAGE = re.compile(r'\.package\(url:\s*"([^"]+)"\s*,\s*exact:\s*"([^"]+)"\)')
 FLAGS = ("-disableAutomaticPackageResolution", "-onlyUsePackageVersionsFromResolvedFile")

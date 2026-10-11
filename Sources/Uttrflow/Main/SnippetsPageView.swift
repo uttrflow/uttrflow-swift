@@ -219,6 +219,8 @@ struct SnippetEditorView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+            Toggle("Secret: hide this text everywhere and copy it concealed", isOn: isSecret)
+                .font(.system(size: 12))
             ApplicationScopeRow(line: editor.scope, applications: applications)
             PageEditorFooter(
                 problem: editor.problem, cancel: editor.cancel, save: save,
@@ -244,7 +246,7 @@ struct SnippetEditorView: View {
             title: editor.save.title,
             intent: .saveSnippet(
                 trigger: draft.trigger, text: draft.text, applications: draft.applications,
-                replacing: editor.editing))
+                replacing: editor.editing, isSecret: draft.isSecret))
     }
 
     private var trigger: Binding<String> {
@@ -252,7 +254,8 @@ struct SnippetEditorView: View {
             get: { draft.trigger },
             set: {
                 draft = SnippetDraft(
-                    editing: draft.editing, trigger: $0, text: draft.text, applications: draft.applications)
+                    editing: draft.editing, trigger: $0, text: draft.text, applications: draft.applications,
+                    isSecret: draft.isSecret)
             })
     }
 
@@ -261,8 +264,8 @@ struct SnippetEditorView: View {
             get: { draft.text },
             set: {
                 draft = SnippetDraft(
-                    editing: draft.editing, trigger: draft.trigger, text: $0, applications: draft.applications
-                )
+                    editing: draft.editing, trigger: draft.trigger, text: $0,
+                    applications: draft.applications, isSecret: draft.isSecret)
             })
     }
 
@@ -271,7 +274,18 @@ struct SnippetEditorView: View {
             get: { draft.applications },
             set: {
                 draft = SnippetDraft(
-                    editing: draft.editing, trigger: draft.trigger, text: draft.text, applications: $0)
+                    editing: draft.editing, trigger: draft.trigger, text: draft.text, applications: $0,
+                    isSecret: draft.isSecret)
+            })
+    }
+
+    private var isSecret: Binding<Bool> {
+        Binding(
+            get: { draft.isSecret },
+            set: {
+                draft = SnippetDraft(
+                    editing: draft.editing, trigger: draft.trigger, text: draft.text,
+                    applications: draft.applications, isSecret: $0)
             })
     }
 }

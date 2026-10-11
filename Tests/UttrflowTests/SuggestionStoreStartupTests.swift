@@ -162,7 +162,8 @@ struct SuggestionStoreStartupTests {
         let observation = SuggestionStartupThreadObservation()
         let encryptedStore = EncryptedStore(keys: SuggestionStartupKeys(observation: observation))
         let app = AppDelegate(
-            container: launchDirectory, settingsStore: settingsStore,
+            container: launchDirectory,
+            clipboardSource: InMemoryClipboardSource(), settingsStore: settingsStore,
             account: session.layer, prepareModel: { _ in }, encryptedStore: encryptedStore)
         app.drawsWindows = false
 

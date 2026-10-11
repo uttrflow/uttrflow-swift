@@ -753,3 +753,43 @@ genre-clinic-note-knee-review keeps the spoken unit word in the expected text, a
 genre-clinic-note-blood-pressure keeps the spoken unit word in the expected text, as Docs/cleanup.md "Unit words and symbols" decides, instead of its symbol (#5365)
 genre-product-description-rain-jacket keeps the spoken unit word in the expected text, as Docs/cleanup.md "Unit words and symbols" decides, instead of its symbol (#5365)
 probe-sql-join writes only what was spoken: no quoted literal, "is after" kept as words, no clause breaks the speaker did not ask for (#6906)
+sql-statement-star expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-everything expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-equals expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-comma-list expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-greater-than expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-less-than expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-at-least expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-at-most expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-greater-or-equal expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-less-or-equal expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-not-equals expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-and expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-or expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-in-words expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-in-numbers expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-between expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-is-null expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-is-not-null expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-like expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-order-by expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-order-by-desc expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-order-asc-limit expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-group-by expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-having expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-distinct expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-dot expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-join expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-inner-join expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-left-join expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-alias expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-not expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-delete expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-delete-less-than expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-update expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-update-rating expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-range expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-between-ratings expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+sql-statement-null-and expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+probe-sql-join expected statement laid out on clause lines with the joins indented, per the owner requirement of #4212
+sql-terminated-semicolon-said expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212

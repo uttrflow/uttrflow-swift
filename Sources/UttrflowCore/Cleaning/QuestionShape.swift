@@ -464,7 +464,7 @@ public enum QuestionShape {
         verbsBeforeSubject.union(pronounVerbs).union(lexicalQuestionVerbs).union(["sent", "saved"])
 
     /// Copulas need a complement beyond the verb, as in "the meeting is at three".
-    private static let copulaVerbs: Set<String> = ["is", "are", "was", "were", "am", "be", "been", "being"]
+    static let copulaVerbs: Set<String> = ["is", "are", "was", "were", "am", "be", "been", "being"]
 
     /// Predicates whose complement is "right" rather than a closing tag.
     private static let rightComplementVerbs: Set<String> = ["get", "gets", "got", "getting"]

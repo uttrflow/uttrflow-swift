@@ -67,4 +67,45 @@ struct DockVisibilityTests {
         #expect(dock.frame.minY == visibleFrame.minY + DockPlacement.margin)
         #expect(visibleFrame.contains(dock.frame))
     }
+
+    @Test("re-anchors on the surviving display when its own display is unplugged")
+    func reanchorsOnSurvivingDisplayAfterUnplug() {
+        let center = NotificationCenter()
+        let external = CGRect(x: -1920, y: -240, width: 1920, height: 1055)
+        let builtIn = CGRect(x: 0, y: 84, width: 1512, height: 862)
+        let displays = [external, builtIn]
+        let attached = Box(0)
+        let dock = DockPanelController(
+            anchor: .bottomLeft, notificationCenter: center,
+            visibleFrameProvider: { displays[attached.value] })
+        dock.show()
+        defer { dock.hide() }
+        #expect(external.contains(dock.frame))
+
+        attached.value = 1
+        center.post(name: NSApplication.didChangeScreenParametersNotification, object: nil)
+
+        #expect(builtIn.contains(dock.frame))
+        #expect(dock.frame.minX == builtIn.minX + DockPlacement.margin)
+        #expect(dock.frame.minY == builtIn.minY + DockPlacement.margin)
+    }
+
+    private final class Box: @unchecked Sendable {
+        var value: Int
+        init(_ value: Int) { self.value = value }
+    }
+
+    @Test("stays where it is when only focus or the pointer moves")
+    func staysPutWithoutATopologyChange() {
+        let visibleFrame = CGRect(x: 0, y: 0, width: 1200, height: 800)
+        let dock = DockPanelController(visibleFrameProvider: { visibleFrame })
+        dock.show()
+        defer { dock.hide() }
+        let placed = dock.frame
+
+        dock.update(with: DictationPresenter.dock(for: .idle))
+        dock.show()
+
+        #expect(dock.frame == placed)
+    }
 }
