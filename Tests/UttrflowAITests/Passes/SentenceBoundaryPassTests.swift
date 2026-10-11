@@ -27,6 +27,30 @@ struct SentenceBoundaryPassTests {
     }
 
     @Test(
+        "takes back a comma or stop inside a closed phrase",
+        arguments: [
+            ("We went to the, store", "We went to the store."),
+            ("She put the keys on the, green table", "She put the keys on the green table."),
+            ("A cup of, tea", "A cup of tea."),
+            ("We went to, the store", "We went to the store."),
+            ("I can. Finish it today", "I can finish it today."),
+        ])
+    func repairsClosedPhraseMarks(input: String, expected: String) {
+        #expect(cleaned(input) == expected)
+    }
+
+    @Test(
+        "keeps a comma or stop that closes its phrase",
+        arguments: [
+            ("Hold on, the page is loading", "Hold on, the page is loading."),
+            ("If you want me to, I will", "If you want me to, I will."),
+            ("Yes, I can. Thanks", "Yes, I can. Thanks."),
+        ])
+    func keepsLegalMarks(input: String, expected: String) {
+        #expect(cleaned(input) == expected)
+    }
+
+    @Test(
         "repairs a stop after a word whose class leads into the next words",
         arguments: [
             (
