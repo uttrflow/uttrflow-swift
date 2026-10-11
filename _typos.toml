@@ -36,16 +36,16 @@
 
 [files]
 extend-exclude = [
+  "Sources/UttrflowEval/MidWordCalibration.swift",
+  "Sources/UttrflowCore/Resources/Lexicon/letter-sounds.txt",
+  "Tests/UttrflowSpeechTests/UnsupportedLanguageProbeTests.swift",
+  "Tests/UttrflowAITests/Candidates/ContextScorerTests.swift",
   ".build/",
   "dist/",
   "Package.resolved",
   "Design/",
   "Sources/UttrflowEval/TranscriptionCorpus.swift",
   "Sources/UttrflowDictionary/GeneralVocabulary.swift",
-  "Sources/UttrflowEval/MidWordCalibration.swift",
-  "Sources/UttrflowCore/Resources/Lexicon/letter-sounds.txt",
-  "Tests/UttrflowSpeechTests/UnsupportedLanguageProbeTests.swift",
-  "Tests/UttrflowAITests/Candidates/ContextScorerTests.swift",
   "Sources/UttrflowDictionary/DoubleMetaphone.swift",
   "Sources/UttrflowCore/Resources/Lexicon/pronunciation-lexicon.dict",
   "Sources/UttrflowCore/Resources/Tables/recogniser-words.json",
@@ -125,5 +125,49 @@ delpoy = "delpoy"
 MKE = "MKE"
 BCK = "BCK"
 IST = "IST"
+
+# These spellings are fixture data or phonetic examples in the named files only.
+# typos resolves custom types by basename; a duplicate basename shares its map.
+[type.golden-scenarios]
+extend-glob = ["golden-scenarios.md"]
+[type.golden-scenarios.extend-words]
+PN = "PN"
+
+[type.latin-output]
+extend-glob = ["latin-output.md"]
+[type.latin-output.extend-words]
+skool = "skool"
+foto = "foto"
+
+[type.mid-word]
+extend-glob = ["MidWordCalibration.swift"]
+[type.mid-word.extend-words]
+bre = "bre"
+mak = "mak"
+
+[type.unsupported-language]
+extend-glob = ["UnsupportedLanguageProbeTests.swift"]
+[type.unsupported-language.extend-words]
+informe = "informe"
+termine = "termine"
+hace = "hace"
+profesor = "profesor"
+chambre = "chambre"
+bord = "bord"
+sie = "sie"
+vor = "vor"
+habe = "habe"
+
+[type.context-candidates]
+extend-glob = ["ContextScorerTests.swift"]
+[type.context-candidates.extend-words]
+cashe = "cashe"
+
+[type.letter-sounds]
+extend-glob = ["letter-sounds.txt"]
+[type.letter-sounds.extend-words]
+pn = "pn"
+ue = "ue"
+
 skool = "skool"
 foto = "foto"

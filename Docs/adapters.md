@@ -23,7 +23,12 @@ open clause, the keyword case, the tables and aliases named, and whether a strin
 caret; it answers `unknown` when its 300-character window may have cut the statement. It owns that
 detection: a caret inside a statement counts as evidence for notation and as mid-sentence for the first
 word (`SQLContinuationTests`), and the keyword-case stage of AD.10 reads `keywordCase` rather than
-detecting case itself. The bracket
+detecting case itself. `MarkdownPosition`
+(`Sources/UttrflowCore/Adapters/MarkdownPosition.swift`) reads the Markdown already before the caret: the
+list item and its next number, the blockquote marks, the last heading level and the language of an open
+fence. `MarkdownContinuationPass` writes the next mark only for the spoken words "next item", "new item"
+and "new heading" at the start of a sentence, in a Markdown document, and never inside a fence; running
+the fence's language adapter there is not built. `MarkdownContinuationPassTests` holds its cases. The bracket
 and quote balance check of section 5 is `AdapterValidator` returning `AdapterVerdict`. The “Today”
 columns and references to existing source files describe current behavior; the “With the adapter”
 columns describe the planned design.
@@ -166,7 +171,7 @@ into SQL. Each layer reads:
 `AdapterChoiceInputsTests` holds it: one utterance at one caret under an empty, a SQL-heavy
 and a prose-only persona, each with fifty dictations of ledger, gets the same formatter,
 output and prompt; `Situation` carries no field beyond what the screen said, the number
-style and the person's own per-app formatting mode (a setting they chose, never learned); and no file that chooses names a learned type. `UttrflowCore`, where the choice lives,
+style and the person's own per-app formatting mode and final-stop and first-letter choice (settings they chose, never learned); and no file that chooses names a learned type. `UttrflowCore`, where the choice lives,
 may import no other module (`make layering-audit`). The registry, which will sit in
 `UttrflowAI` beside `UttrflowDictionary`, keeps the same inputs: `applies(to:)` takes the
 situation, and the utterance where it needs one, and nothing else.

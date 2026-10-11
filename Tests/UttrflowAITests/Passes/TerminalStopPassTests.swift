@@ -9,6 +9,7 @@ struct TerminalStopPassTests {
     private let never = TerminalStopPass(policy: .never)
     private let short = TerminalStopPass(policy: .offForShortMessages(sentences: 2))
     private let email = TerminalStopPass(destination: .email)
+    private let document = TerminalStopPass(destination: .document)
 
     @Test(
         "finishes a sentence that has no ending",
@@ -457,6 +458,82 @@ struct TerminalStopPassTests {
         #expect(
             email.apply(Draft(keepingLineBreaks: "Hi Priya, please send the deck")).text
                 == "Hi Priya, please send the deck.")
+    }
+
+    @Test(
+        "leaves a letter's signature name open in a document",
+        arguments: [
+            (
+                "Dear Ms Rao\n\nI am applying for the role\n\nYours sincerely, Asha Verma.",
+                "Dear Ms Rao\n\nI am applying for the role.\n\nYours sincerely, Asha Verma"
+            ),
+            (
+                "Hello Tom\n\nThe parcel is late\n\nBest wishes, Mira.",
+                "Hello Tom\n\nThe parcel is late.\n\nBest wishes, Mira"
+            ),
+            (
+                "Hi Sam\n\nPlease send the deck today\n\nThanks, Ana.",
+                "Hi Sam\n\nPlease send the deck today.\n\nThanks, Ana"
+            ),
+            (
+                "Dear Sir\n\nI write about the notice\n\nYours faithfully, Ruth Calloway.",
+                "Dear Sir\n\nI write about the notice.\n\nYours faithfully, Ruth Calloway"
+            ),
+            (
+                "Dear hiring manager\n\nI would love to join the kitchen\n\nBest regards, Noor Haddad.",
+                "Dear hiring manager\n\nI would love to join the kitchen.\n\nBest regards, Noor Haddad"
+            ),
+            (
+                "Dear Tobin\n\nMy account is locked\n\nKind regards, Tobin.",
+                "Dear Tobin\n\nMy account is locked.\n\nKind regards, Tobin"
+            ),
+            (
+                "Hello team\n\nThe review is done\n\nCheers, Jo.",
+                "Hello team\n\nThe review is done.\n\nCheers, Jo"
+            ),
+            (
+                "Hi Priya\n\nThe visit moved to Friday\n\nRegards, Dev Rao.",
+                "Hi Priya\n\nThe visit moved to Friday.\n\nRegards, Dev Rao"
+            ),
+            (
+                "Dear Ms Lin\n\nThe lease is attached\n\nWarm regards, Eli.",
+                "Dear Ms Lin\n\nThe lease is attached.\n\nWarm regards, Eli"
+            ),
+            (
+                "Dear Ivo\n\nThanks for the quick reply\n\nSincerely, Pia Moss.",
+                "Dear Ivo\n\nThanks for the quick reply.\n\nSincerely, Pia Moss"
+            ),
+            (
+                "Dear Ed\n\nI enjoyed the tour of the site\n\nBest, Una.",
+                "Dear Ed\n\nI enjoyed the tour of the site.\n\nBest, Una"
+            ),
+            (
+                "Hi Kai\n\nThe draft is in the folder\n\nYours truly, Lena Ford.",
+                "Hi Kai\n\nThe draft is in the folder.\n\nYours truly, Lena Ford"
+            ),
+            (
+                "Dear Ms Rao, I am applying for the role. Yours sincerely, Asha Verma.",
+                "Dear Ms Rao, I am applying for the role. Yours sincerely, Asha Verma"
+            ),
+        ])
+    func documentLetters(text: String, expected: String) {
+        #expect(document.apply(Draft(keepingLineBreaks: text)).text == expected)
+    }
+
+    @Test(
+        "keeps the stop on running text in a document that is not a letter",
+        arguments: [
+            "Thanks to the team for the review.", "The report ends with best practice.",
+            "Dear colleagues, the review is done. Thanks to the team for the review.",
+            "Thanks, Sam.", "The notes end here.\n\nBest practice.",
+        ])
+    func documentNonLetters(text: String) {
+        #expect(document.apply(Draft(keepingLineBreaks: text)).text == text)
+    }
+
+    @Test("an email keeps the closings it already read")
+    func emailClosingsUnchanged() {
+        #expect(email.apply(Draft(keepingLineBreaks: "Thanks, Sam.")).text == "Thanks, Sam")
     }
 
     @Test("gives a list item no stop, at the end or before a blank line")

@@ -8,6 +8,10 @@ leaves only the last piece to do, so a two-minute dictation and a ten-second one
 same. [`pipeline.md`](pipeline.md) covers the stages; [`cleanup-design.md`](cleanup-design.md)
 covers how the pieces are joined.
 
+The same only holds while a piece is processed faster than it is spoken. Each dictation records the
+seconds of audio not yet decoded at key-up and the pieces they make (`WorkAheadBacklog`); Diagnostics
+keeps it and `uttrflow-dev bench` prints it as `backlogSeconds` and `backlogPieces` beside the wait.
+
 ## Why the work can move ahead of the key
 
 Measured on an M5 Pro, the shipping turbo Whisper model already loaded, Apple's on-device model

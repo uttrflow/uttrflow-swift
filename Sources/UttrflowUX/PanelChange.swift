@@ -1,5 +1,6 @@
 // What a panel keystroke asks the store to do, and the sheets that ask the user first.
 public import UttrflowClipboard
+public import UttrflowCore
 
 /// Something only the store can carry out, named as a value so the decision is testable without the actor.
 public enum PanelChange: Sendable, Equatable {
@@ -49,14 +50,23 @@ public enum PanelSheet: Sendable, Equatable {
     case reindenting(Clip.ID, formatted: String)
     /// Editing a clip's text; `draft` is the whole text as it now stands in the field.
     case editing(Clip.ID, draft: String)
+    /// Asks before a paste the shared decision holds back; `cleaned` keeps the chosen form.
+    case confirmingPaste(Clip.ID, cleaned: Bool, reason: PasteQuestion.Reason)
 
     /// Whether this sheet has a field to type into; one that has none keeps the list behind it still (#946).
     public var takesTyping: Bool {
         switch self {
         case .aliasing, .moving, .renamingCategory, .editing: true
-        case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting:
+        case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting,
+            .confirmingPaste:
             false
         }
+    }
+
+    /// Whether this is a paste question, which only means something at once.
+    public var isPasteQuestion: Bool {
+        if case .confirmingPaste = self { return true }
+        return false
     }
 
     /// The clip this sheet is about; `nil` for the two sheets that are about a collection.
@@ -64,7 +74,8 @@ public enum PanelSheet: Sendable, Equatable {
         switch self {
         case .aliasing(let id, _), .moving(let id, _), .confirmingDelete(let id),
             .confirmingMakeNote(let id),
-            .formatting(let id, _), .reindenting(let id, _), .editing(let id, _):
+            .formatting(let id, _), .reindenting(let id, _), .editing(let id, _),
+            .confirmingPaste(let id, _, _):
             id
         case .renamingCategory, .deletingCategory: nil
         }
@@ -76,7 +87,7 @@ public enum PanelSheet: Sendable, Equatable {
         case .renamingCategory(let name, _), .deletingCategory(let name, _):
             name
         case .aliasing, .moving, .confirmingDelete, .formatting, .reindenting, .editing: nil
-        case .confirmingMakeNote: nil
+        case .confirmingMakeNote, .confirmingPaste: nil
         }
     }
 
@@ -86,7 +97,8 @@ public enum PanelSheet: Sendable, Equatable {
         case .aliasing(_, let draft), .moving(_, let draft), .renamingCategory(_, let draft),
             .editing(_, let draft):
             draft
-        case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting:
+        case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting,
+            .confirmingPaste:
             ""
         }
     }
@@ -99,6 +111,7 @@ extension PanelSnapshot {
         next.sheet = sheet
         next.hasReviewedProtectedCategoryDeletion = false
         next.hasWarnedOfUnsavedSecret = false
+        next.hasAcknowledgedUnreviewableRewrite = false
         return PanelResponse(state: next, outcome: .open)
     }
 
@@ -149,7 +162,19 @@ extension PanelSnapshot {
                 state: closingSheet(),
                 outcome: .change(.setRichText(id, NotePromotion.note(from: clip.text))))
 
+        case .confirmingPaste(let id, let cleaned, let reason):
+            guard let clip = clip(id), clip.kind == .secret || !reason.isAboutHiddenClip else {
+                return PanelResponse(state: closingSheet(), outcome: .open)
+            }
+            return PanelResponse(
+                state: closingSheet(), outcome: .insertConfirmed(clip, cleaned: cleaned))
+
         case .formatting(let id, let formatted), .reindenting(let id, let formatted):
+            if !hasAcknowledgedUnreviewableRewrite, PanelPresenter.sheet(for: self)?.isUnreviewable == true {
+                var next = self
+                next.hasAcknowledgedUnreviewableRewrite = true
+                return PanelResponse(state: next, outcome: .open)
+            }
             return committingRewrite(id, to: formatted)
 
         case .editing(let id, let draft):
@@ -204,10 +229,17 @@ extension PanelSnapshot {
             // A warning holds only for the text it is shown for, so new text is judged again.
             next.hasWarnedOfUnsavedSecret = false
         case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting,
-            .none:
+            .confirmingPaste, .none:
             return self
         }
         return next
+    }
+
+    /// Opens the one question every confirm-before-paste asks, worded by its reason.
+    public func askingBeforePaste(
+        of id: Clip.ID, cleaned: Bool, reason: PasteQuestion.Reason
+    ) -> PanelSnapshot {
+        opening(.confirmingPaste(id, cleaned: cleaned, reason: reason)).state
     }
 
     /// Tidies a code clip, checking again at the moment it acts because the clip may have changed.
@@ -235,6 +267,7 @@ extension PanelSnapshot {
         next.sheet = nil
         next.hasReviewedProtectedCategoryDeletion = false
         next.hasWarnedOfUnsavedSecret = false
+        next.hasAcknowledgedUnreviewableRewrite = false
         return next
     }
 }

@@ -153,7 +153,7 @@ struct SuggestionKeystrokeBudgetTests {
         for _ in 0..<3 { try await store.record("meet later", in: surface, at: Date()) }
 
         let field = TypedField(frame: frame, screenTop: screen.frame.maxY)
-        let panel = SuggestionPanelController()
+        let panel = SuggestionPanelController(screenNotificationCenter: NotificationCenter())
         let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
             focusedSelectionReader: { field.selection() }, focusedFieldReader: { field.read() },

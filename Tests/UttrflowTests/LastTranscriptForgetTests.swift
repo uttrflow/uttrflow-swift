@@ -148,14 +148,14 @@ struct LastTranscriptForgetTests {
 
         #expect(await insertion.inserted.isEmpty)
         #expect(app.lastTranscript == nil)
-        #expect(app.actionNotice?.message.hasPrefix("There is no transcript to") == true)
+        #expect(app.actionNotice?.message.hasPrefix("There is no dictation to") == true)
     }
 
     @Test(
         "both shortcuts say so when there is nothing to put back",
         arguments: [
-            (ShortcutAction.pasteLastTranscript, "There is no transcript to paste yet."),
-            (ShortcutAction.copyLastTranscript, "There is no transcript to copy yet."),
+            (ShortcutAction.pasteLastTranscript, "There is no dictation to paste yet."),
+            (ShortcutAction.copyLastTranscript, "There is no dictation to copy yet."),
         ])
     func nothingToPutBackIsSaid(action: ShortcutAction, message: String) async {
         let sandbox = Sandbox()

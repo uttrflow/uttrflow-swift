@@ -44,7 +44,7 @@ public struct ThresholdSweep: Sendable, Equatable {
     /// Wrong rows left unflagged and right rows flagged at one grid value, as shares of each label.
     public struct Score: Sendable, Equatable, Codable {
         public let missed: Double
-        public let falseFlags: Double
+        let falseFlags: Double
         public let rows: Int
     }
 
@@ -84,11 +84,11 @@ public struct ThresholdSweep: Sendable, Equatable {
         public let feature: Int
         public let direction: Direction
         public let grid: [Double]
-        public let objective: String
+        let objective: String
         public let falseFlagBound: Double
         public let seed: String
-        public let tableDigest: String
-        public let featureSpecVersion: Int
+        let tableDigest: String
+        let featureSpecVersion: Int
         public let engine: String
         public let trials: [Trial]
         public let verdict: Verdict

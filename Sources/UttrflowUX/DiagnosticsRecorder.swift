@@ -83,6 +83,15 @@ public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording, TidyOutco
         }
     }
 
+    /// The audio still undecoded at key-up, newest last and bounded like the measurements.
+    public private(set) var backlogs: [WorkAheadBacklog] = []
+
+    public func recordBacklog(_ backlog: WorkAheadBacklog) async {
+        guard capacity > 0 else { return }
+        backlogs.append(backlog)
+        if backlogs.count > capacity { backlogs.removeFirst(backlogs.count - capacity) }
+    }
+
     /// Oldest first, which is the order they were measured in.
     public var recorded: [StageMeasurement] {
         measurements

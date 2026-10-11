@@ -166,10 +166,46 @@ public struct DictionaryEntry: Sendable, Equatable, Identifiable, Codable {
         origin == .learned && timesReverted == 0 && timesUsed < Self.promotionUses
     }
 
-    /// Whether the entry has earned its place: fewer than half its uses undone, once it has three.
+    /// Whether the entry has earned its place under its origin's rule. See `Docs/app-dictionary-store.md`.
     public var isTrustworthy: Bool {
-        guard timesUsed >= 3 else { return true }
-        return Double(timesReverted) / Double(timesUsed) < 0.5
+        Self.isTrustworthy(origin: origin, used: timesUsed, reverted: timesReverted)
+    }
+
+    /// When undo evidence retires a word: enough uses, then a revert rate provably above what is allowed.
+    struct RetirementRule: Equatable {
+        /// Uses below which no amount of undoing retires the word.
+        let minimumUses: Int
+        /// The revert rate the word may have; retirement needs the lower confidence bound above it.
+        let allowedRevertRate: Double
+    }
+
+    /// The one-sided 95% normal quantile the lower confidence bound uses.
+    static let retirementConfidenceZ = 1.645
+
+    /// Learned and observed words follow the gate's tolerance; typed and shipped words need far more evidence.
+    static func retirementRule(for origin: WordOrigin) -> RetirementRule {
+        switch origin {
+        case .learned, .observed: RetirementRule(minimumUses: 3, allowedRevertRate: 0.25)
+        case .added, .shipped: RetirementRule(minimumUses: 10, allowedRevertRate: 0.5)
+        }
+    }
+
+    /// The Wilson lower bound on the revert rate after `reverted` undos in `used` uses.
+    static func revertRateLowerBound(used: Int, reverted: Int) -> Double {
+        guard used > 0 else { return 0 }
+        let n = Double(used)
+        let p = min(Double(reverted), n) / n
+        let z2 = retirementConfidenceZ * retirementConfidenceZ
+        let centre = p + z2 / (2 * n)
+        let spread = retirementConfidenceZ * (p * (1 - p) / n + z2 / (4 * n * n)).squareRoot()
+        return (centre - spread) / (1 + z2 / n)
+    }
+
+    /// Whether counters of an origin keep the word in force, so a caller without an entry asks the same rule.
+    static func isTrustworthy(origin: WordOrigin, used: Int, reverted: Int) -> Bool {
+        let rule = retirementRule(for: origin)
+        guard used >= rule.minimumUses else { return true }
+        return revertRateLowerBound(used: used, reverted: reverted) <= rule.allowedRevertRate
     }
 
     /// Non-blank, distinct, in order and at most `limit`, so every path that builds an entry holds the same bound.
