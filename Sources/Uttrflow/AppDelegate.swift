@@ -3392,6 +3392,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             knownRecordings = await recordings.waiting(now: Date())
             recents = RecentDictations(showing: kept)
             knownWords = await dictionary.allEntries()
+            knownRecency = await WordRecency.read(
+                from: evidence, entries: knownWords, retentionDays: settings.transcriptRetentionDays)
             knownRefusals = await dictionary.refusedWords()
             knownPairs = await readPairs()
             ledgerRefusal = await evidence?.refusal()
@@ -3522,7 +3524,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 query: query(for: .dictionary), filter: scope(for: .dictionary),
                 sort: sorts[.dictionary] ?? "", corrections: corrections, now: now,
                 packed: lastVocabularyPrompt.isEmpty ? nil : lastVocabularyPrompt,
-                refused: knownRefusals, trial: wordTrial))
+                refused: knownRefusals, trial: wordTrial, recency: knownRecency))
     }
 
     /// The Snippets page as the last reading of the snippets draws it.
@@ -3618,6 +3620,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// What the two stores held at the last refresh, cached because a page is built synchronously.
     private var knownWords: [DictionaryEntry] = []
+    /// When each word last appeared, from the ledger at the latest reading.
+    private var knownRecency = WordRecency.none
     /// The spellings the dictionary refuses to learn, newest first, from the latest reading.
     private var knownRefusals: [String] = []
     private var knownSnippets: [Snippet] = []

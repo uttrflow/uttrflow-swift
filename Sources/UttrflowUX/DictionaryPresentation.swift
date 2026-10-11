@@ -51,6 +51,8 @@ public struct DictionaryRow: Sendable, Equatable, Identifiable {
     public let source: DictionarySource
     /// "12 Aug", or "12 Aug 2024" outside the current year.
     public let added: String
+    /// "12 Aug" for the newest use, "Never" for a word not yet applied, and an em dash when no use is on record.
+    public let lastUsed: String
     /// How often it has been applied, as text.
     public let timesUsed: String
     /// How often the user has undone it, as text.
@@ -86,6 +88,7 @@ public struct DictionaryRow: Sendable, Equatable, Identifiable {
         origin: String,
         source: DictionarySource,
         added: String,
+        lastUsed: String = "—",
         timesUsed: String,
         timesUndone: String,
         timesUsedSpoken: String,
@@ -109,6 +112,7 @@ public struct DictionaryRow: Sendable, Equatable, Identifiable {
         self.origin = origin
         self.source = source
         self.added = added
+        self.lastUsed = lastUsed
         self.timesUsed = timesUsed
         self.timesUndone = timesUndone
         self.timesUsedSpoken = timesUsedSpoken
@@ -344,6 +348,8 @@ public struct DictionarySnapshot: Sendable, Equatable {
     public let packed: [String]?
     /// The spellings deleted words are refused under, newest first, as the store lists them.
     public let refused: [String]
+    /// When each word last appeared and which learned or observed words are not used lately.
+    public let recency: WordRecency
     /// The try under way or last finished, and whose it is.
     public let trial: DictionaryTrial?
 
@@ -351,8 +357,10 @@ public struct DictionarySnapshot: Sendable, Equatable {
     public init(
         entries: [DictionaryEntry] = [], draft: DictionaryDraft? = nil, refusal: String? = nil,
         query: String = "", filter: String = "", sort: String = "", corrections: [Correction] = [],
-        now: Date, packed: [String]? = nil, refused: [String] = [], trial: DictionaryTrial? = nil
+        now: Date, packed: [String]? = nil, refused: [String] = [], trial: DictionaryTrial? = nil,
+        recency: WordRecency = .none
     ) {
+        self.recency = recency
         self.trial = trial
         self.packed = packed
         self.refused = refused
@@ -544,7 +552,7 @@ public enum DictionaryPresenter {
         let filter = self.filter(named: snapshot.filter)
         let sort = DictionarySort(named: snapshot.sort)
         let found = matches(snapshot.entries, query: snapshot.query, locale: locale)
-            .filter { filter == nil || DictionarySource($0) == filter }
+            .filter { filter?.admits($0, recency: snapshot.recency) ?? true }
         let listed = sort.ordered(found, id: \.id, locale: locale)
         let standings = WorkingSet.explain(
             entries: snapshot.entries, now: snapshot.now, packed: snapshot.packed)
@@ -552,7 +560,8 @@ public enum DictionaryPresenter {
         let rows = listed.map {
             row(
                 for: $0, standing: standings[$0.id], rival: rivals[$0.id], now: snapshot.now,
-                calendar: calendar, locale: locale, trial: snapshot.trial, corrections: snapshot.corrections)
+                calendar: calendar, locale: locale, trial: snapshot.trial, corrections: snapshot.corrections,
+                lastUsed: snapshot.recency.lastUsed[$0.id])
         }
         let editor = snapshot.draft.map { self.editor(for: $0, in: snapshot) }
         let today = fixedToday(in: snapshot, calendar: calendar)
@@ -647,22 +656,61 @@ public enum DictionaryPresenter {
 
     // MARK: - Filtering
 
-    /// The chips in order: every word, then each source a word can be listed under but shipped.
-    static let filterSources: [DictionarySource] = [.added, .learned, .seen, .retired]
+    /// What a chip lists: the words of one source, or the learned and observed words not used lately.
+    enum Filter: Equatable {
+        case source(DictionarySource)
+        case notUsedLately
+
+        /// The chip identifier of the not-used-lately list.
+        static let notUsedLatelyID = "notUsedLately"
+
+        var id: String {
+            switch self {
+            case .source(let source): source.rawValue
+            case .notUsedLately: Self.notUsedLatelyID
+            }
+        }
+
+        var title: String {
+            switch self {
+            case .source(let source): source.title
+            case .notUsedLately: "Not used lately"
+            }
+        }
+
+        /// What is true of no word when the list is empty.
+        var emptyPhrase: String {
+            switch self {
+            case .source(let source): "is listed as \(source.title.lowercased())"
+            case .notUsedLately: "has gone \(WordRecency.staleAfterDays) days without being used"
+            }
+        }
+
+        func admits(_ entry: DictionaryEntry, recency: WordRecency) -> Bool {
+            switch self {
+            case .source(let source): DictionarySource(entry) == source
+            case .notUsedLately: recency.stale.contains(entry.id)
+            }
+        }
+    }
+
+    /// The chips in order: every word, each source a word can be listed under but shipped, then the stale list.
+    static let filterOptions: [Filter] =
+        [.source(.added), .source(.learned), .source(.seen), .source(.retired), .notUsedLately]
 
     /// The chip identifier that lists every word.
     public static let allFilter = "all"
 
     /// The source a chip identifier names, or `nil` for every word.
-    static func filter(named id: String) -> DictionarySource? {
-        DictionarySource(rawValue: id).flatMap { filterSources.contains($0) ? $0 : nil }
+    static func filter(named id: String) -> Filter? {
+        filterOptions.first { $0.id == id }
     }
 
     /// The chips, with the chosen one selected.
-    static func filters(selecting chosen: DictionarySource?) -> [MainScopeOption] {
+    static func filters(selecting chosen: Filter?) -> [MainScopeOption] {
         [MainScopeOption(id: allFilter, title: "All", isSelected: chosen == nil)]
-            + filterSources.map {
-                MainScopeOption(id: $0.rawValue, title: $0.title, isSelected: $0 == chosen)
+            + filterOptions.map {
+                MainScopeOption(id: $0.id, title: $0.title, isSelected: $0 == chosen)
             }
     }
 
@@ -715,7 +763,7 @@ public enum DictionaryPresenter {
     static func row(
         for entry: DictionaryEntry, standing: WorkingSet.Standing?, rival: DictionaryEntry? = nil,
         now: Date, calendar: Calendar, locale: Locale, trial: DictionaryTrial? = nil,
-        corrections: [Correction] = []
+        corrections: [Correction] = [], lastUsed: Date? = nil
     ) -> DictionaryRow {
         let isRetired = !entry.isTrustworthy
         // Only a respelling is merged; two words that merely sound alike are the person's to keep.
@@ -732,6 +780,8 @@ public enum DictionaryPresenter {
             origin: title(for: entry.origin),
             source: DictionarySource(entry),
             added: MainFormatting.date(entry.firstSeen, now: now, calendar: calendar, locale: locale),
+            lastUsed: lastUsed.map { MainFormatting.date($0, now: now, calendar: calendar, locale: locale) }
+                ?? (entry.timesUsed == 0 ? "Never" : "—"),
             timesUsed: "\(entry.timesUsed)",
             timesUndone: "\(entry.timesReverted)",
             timesUsedSpoken: "Used \(MainFormatting.count(entry.timesUsed, "time", "times"))",
@@ -913,7 +963,7 @@ public enum DictionaryPresenter {
     // MARK: - Nothing to show
 
     /// No matches, nothing under the chosen chip, or no words at all.
-    static func emptyState(for snapshot: DictionarySnapshot, filter: DictionarySource?) -> MainEmptyState {
+    static func emptyState(for snapshot: DictionarySnapshot, filter: Filter?) -> MainEmptyState {
         guard !snapshot.entries.isEmpty else {
             return MainEmptyState(
                 symbolName: "character.book.closed",
@@ -931,7 +981,7 @@ public enum DictionaryPresenter {
                 title: "Nothing in this view",
                 message: """
                     \(MainFormatting.count(snapshot.entries.count, "word", "words")), and none of \
-                    them is listed as \(filter.title.lowercased()).
+                    them \(filter.emptyPhrase).
                     """)
         }
         return MainEmptyState(
