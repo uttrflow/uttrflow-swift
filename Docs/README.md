@@ -104,6 +104,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [command-lookups.md](command-lookups.md) | Command lookups in a terminal |
 | [predict-reliability.md](predict-reliability.md) | AI suggestions: reliability |
 | [predict-precision.md](predict-precision.md) | AI suggestions: accuracy is the product |
+| [predict-midword.md](predict-midword.md) | AI suggestions: the calibration set for a word cut mid-token |
 | [predict-terminal-paths.md](predict-terminal-paths.md) | AI suggestions in a terminal: only what exists from here |
 
 ## The clipboard and its panel

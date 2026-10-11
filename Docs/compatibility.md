@@ -152,7 +152,10 @@ An address bar, the fourth live-harness surface, is measured under Browsers.
 ## Office, spreadsheets, remote desktops and VMs, games
 
 Nothing measured. No page in this repository records a reading from a spreadsheet cell, a remote
-desktop, a VM window or a game, so there are no rows.
+desktop, a VM window or a game, so there are no rows. The remote-screen and canvas fixtures in
+`Tests/Fixtures/AccessibilitySnapshots` are hand-built from an assumed shape, not recorded, so they
+carry no application version and are not rows; the same holds for the IDE-editor and secure-field
+fixtures there, which replay the read rules but name no application.
 
 ## Panels that take focus without activating
 

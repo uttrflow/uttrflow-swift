@@ -27,7 +27,8 @@ struct ShippingCalibrationTests {
         .recogniser: "openai_whisper-large-v3-v20240930_turbo_632MB"
             + "@0f63a7800b00dd0226abd051b906c246e1907482",
         .phraseBias: "0.0",
-        .conditioningPrompt: "111|48|48| The words used here are|.",
+        .conditioningPrompt: "111|48|48| The words used here are|."
+            + " and the rest of what was said is in the usual lower case.",
     ]
 
     /// Every calibration the product ships, in fit order, with what it was fitted on and under.
@@ -35,7 +36,8 @@ struct ShippingCalibrationTests {
         [
             CalibrationRecord(
                 layer: .fallbackPlan, value: "5, -1.0",
-                corpus: "8 English clips, 3 runs, clean and 10 dB noise; Docs/speech-engines.md",
+                corpus: "8 English clips, 3 runs, clean and 10 dB noise, dictionary terms in the prompt;"
+                    + " Docs/speech-engines.md",
                 metric: "fallback rate, extra seconds, repeatability and WER", fittedUnder: recognition),
             CalibrationRecord(
                 layer: .certaintyThreshold, value: "0.5",
