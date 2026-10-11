@@ -256,8 +256,10 @@ struct ScorerLoadWiringTests {
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-            .appending(path: "Sources/UttrflowLocalModel/MLXCandidateScorer.swift")
-        let text = try String(contentsOf: file, encoding: .utf8)
+            .appending(path: "Sources/UttrflowLocalModel")
+        let text = try ["MLXCandidateScorer.swift", "MLXCandidateScorer+Lifecycle.swift"]
+            .map { try String(contentsOf: file.appending(path: $0), encoding: .utf8) }
+            .joined(separator: "\n")
         #expect(text.components(separatedBy: "QuantizedLoad.container(").count == 2)
         #expect(!text.contains("loadModelContainer("))
         #expect(text.contains("try await weights.load(from: directory)"))

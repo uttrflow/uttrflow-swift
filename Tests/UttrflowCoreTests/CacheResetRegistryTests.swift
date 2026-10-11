@@ -16,22 +16,22 @@ struct CacheResetRegistryTests {
         Entry(
             holder: "UttrflowPredict/VerdictCache.swift",
             holderForgets: "held.forgetEverything()",
-            reset: "UttrflowPredict/Verifier.swift",
+            reset: "UttrflowPredict/VerificationSession.swift",
             resetCalls: "cache.forgetEverything()"),
         Entry(
             holder: "UttrflowLocalModel/JudgementCache.swift",
             holderForgets: "held.forgetEverything()",
-            reset: "UttrflowLocalModel/MLXCandidateScorer.swift",
+            reset: "UttrflowLocalModel/MLXCandidateScorer+Lifecycle.swift",
             resetCalls: "judgementCache.forgetEverything()"),
         Entry(
             holder: "UttrflowLocalModel/GeneratedConfidence.swift",
             holderForgets: "scores.forgetEverything()",
-            reset: "UttrflowLocalModel/MLXCandidateScorer.swift",
+            reset: "UttrflowLocalModel/MLXCandidateScorer+Lifecycle.swift",
             resetCalls: "confidenceMemory.forgetEverything()"),
         Entry(
             holder: "UttrflowLocalModel/PromptTokens.swift",
             holderForgets: "$0.forgetEverything()",
-            reset: "UttrflowLocalModel/MLXCandidateScorer.swift",
+            reset: "UttrflowLocalModel/MLXCandidateScorer+Lifecycle.swift",
             resetCalls: "prompt?.forgetEverything()"),
         Entry(
             holder: "UttrflowContext/FieldReadBudget.swift",
@@ -48,6 +48,7 @@ struct CacheResetRegistryTests {
             call: "verifier.forgetEverything(then: clearingCorpus)"
         ),
         (file: "UttrflowPredict/Verifier.swift", call: "scoring?.forgetEverything()"),
+        (file: "UttrflowPredict/Verifier.swift", call: "session.forgetEverything()"),
     ]
 
     private static let sources = URL(filePath: #filePath)
