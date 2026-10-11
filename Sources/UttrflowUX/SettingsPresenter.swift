@@ -371,7 +371,6 @@ public enum SettingsPresenter {
         return SettingsGroup(id: "updates", title: "Updates", rows: rows)
     }
 
-    /// One way of holding the shortcut, as a segmented option.
     // MARK: - Languages
 
     /// The row saying which languages Uttrflow listens for, as chips with the rest to add.

@@ -86,6 +86,7 @@ extension SettingsPresenter {
             style: .inset)
     }
 
+    /// One way of holding the shortcut, as a segmented option.
     static func activationOption(_ activation: HotkeyActivation) -> SettingsOption {
         let title: String =
             switch activation {
