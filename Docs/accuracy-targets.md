@@ -58,7 +58,7 @@ zero.
 | `meaning-change` | annotated meaning-preservation failures in the clean-up corpus | required phrases missing from output (`mustKeep`) or forbidden phrases added (`mustNotAdd`); these are sentinels, not a comprehensive count of every class-1 change | `CaseScore.lost` and `CaseScore.invented` in the shipping-router row of `make bakeoff` |
 | `formatting` | formatting accuracy | marks and capitalisation matched against the reference, averaged over attempted cases | `CaseScore.markAccuracy` and `CaseScore.caseAccuracy` |
 | `cosmetic` | cosmetic errors | class-3 errors per case | not measured |
-| `seam-artefact` | seam-artefact rate | errors at the joins between separately recognised pieces (a duplicated, dropped or re-cased word, a stray stop) per join | not measured as a rate; `PieceJoiner` is tested by example |
+| `seam-artefact` | seam-artefact rate | errors at the joins between separately recognised pieces (a duplicated, dropped or re-cased word, a stray stop) per join | `uttrflow-dev seams` over every cut of the corpus ([piece-seams.md](piece-seams.md)), and `uttrflow-eval seam-score` on spoken long-form clips, which counts artefacts per clip and not yet a rate |
 | `silence-insertion` | silence-insertion rate | inputs with no speech that produce any inserted text, divided by such inputs | `uttrflow-eval nonspeech`, with the repetition-loop rate; see [silence.md](silence.md#measuring-what-still-gets-through) |
 | `latin-output` | non-Latin output | outputs containing Devanagari or a translation, divided by outputs | the last check before insertion, see [latin-output.md](latin-output.md) |
 | `tail-latency` | tail latency | the slowest dictations, from key release to words on screen | named here only; its stages, clocks and limits are set where latency is measured ([performance.md](performance.md)), not on this page |
@@ -78,7 +78,7 @@ zero failures observed.
 | `wer` | no slice whose `PairedBootstrap.standard` interval against the last release lies wholly above zero | slices under two shared utterances report as too few to judge | — |
 | `wer-biased`, `wer-unbiased` | neither worse than the last release; a bias change that lowers one by raising the other is a trade, and the pull request says so | as `wer` | not gated |
 | `formatting` | neither the `marks` nor the `case` figure worse than the last release | every case | — |
-| `seam-artefact` | 0 over every cut of the corpus, proved by a property over all cuts rather than by sampling | every cut | not gated |
+| `seam-artefact` | 0 over every cut of the corpus, proved by a property over all cuts rather than by sampling | every cut | `make seam-audit` fails on a cut that differs and did not before; `make seam-score` fails on a clip with more artefacts than its baseline |
 | `silence-insertion` | 0 on the silent inputs | 2,995 silent inputs to certify 1 in 1,000 | report the count and the bound |
 | `cosmetic` | 0 | — | reported, never blocks |
 | `tail-latency` | the limits set where latency is measured | — | — |
@@ -87,12 +87,16 @@ The `override-error` bound is the false-override target that correction work cit
 
 ## The release gate
 
-A release is tagged by hand, and only when every step below passes, in this order:
+A release is tagged by hand, and only when every step below passes. The order the maintainer
+runs them in, and `make release-quality`, which runs the accuracy, seam and bake-off steps
+together, are in [releasing.md](releasing.md#the-gate-before-a-release) and `RELEASING.md`; this
+section says which metric each step reads.
 
 1. **`make verify` exits 0.** The release workflow runs it again on the tagged commit
    (`RELEASING.md`).
 2. **The recogniser has not regressed.** `uttrflow-eval transcribe` against the last release's
-   baseline exits 0:
+   baseline exits 0 (`make accuracy-gate` runs it on the synthesised passages against
+   `Scripts/accuracy_baseline.json`):
 
    ```bash
    uttrflow-eval transcribe --corpus-path ./corpus \
@@ -108,7 +112,8 @@ A release is tagged by hand, and only when every step below passes, in this orde
    losing more required words), and `--verbose` lists no case in that row with `lost` or
    `invented` words. This gates `meaning-change`; `formatting` is read from the same row's
    `marks` and `case` columns. The comparison reports a regression with a message, not an exit
-   status, so the line `Regressions against` in its output is read, not the exit code.
+   status, so the line `Regressions against` in its output is read, not the exit code; only a
+   held-out score that fell exits non-zero.
 4. **Non-speech has not inserted text or looped.** `uttrflow-eval nonspeech` with its defaults
    reports no inserted text and no repetition loop:
 
