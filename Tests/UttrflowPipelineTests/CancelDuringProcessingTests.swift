@@ -115,7 +115,8 @@ private func makeRig(holding stage: HeldStage) -> Rig {
         clock: ManualClock()
     )
     let clock = ManualClock()
-    let controller = DictationController(pipeline: pipeline, monitor: QuietMonitor(), clock: clock)
+    let controller = DictationController(
+        dependencies: .init(pipeline: pipeline, monitor: QuietMonitor()), clock: clock)
     return Rig(
         controller: controller, pipeline: pipeline, inserter: inserter, recordings: recordings,
         recording: recording, gate: gate, clock: clock)

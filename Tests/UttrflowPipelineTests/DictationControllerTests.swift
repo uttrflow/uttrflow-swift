@@ -182,9 +182,10 @@ private func makeHarness(
     let clock = ManualClock()
     return ControllerHarness(
         controller: DictationController(
-            pipeline: pipeline,
-            monitor: monitor,
-            cue: cue,
+            dependencies: .init(
+                pipeline: pipeline,
+                monitor: monitor,
+                cue: cue),
             clock: clock,
             options: .init(
                 activation: activation,
@@ -399,15 +400,16 @@ struct DictationControllerTests {
     @Test("holds to talk unless it is told otherwise")
     func defaultActivationIsHoldToTalk() async {
         let controller = DictationController(
-            pipeline: DictationPipeline(
-                capture: FakeAudioCaptureEngine(),
-                speech: FakeSpeechEngine(),
-                cleaner: ControllerCleaner(),
-                context: FakeContextEngine(context: .fixture()),
-                inserter: ControllerInserter(),
-                clock: ManualClock()
-            ),
-            monitor: FakeHotkeyMonitor(),
+            dependencies: .init(
+                pipeline: DictationPipeline(
+                    capture: FakeAudioCaptureEngine(),
+                    speech: FakeSpeechEngine(),
+                    cleaner: ControllerCleaner(),
+                    context: FakeContextEngine(context: .fixture()),
+                    inserter: ControllerInserter(),
+                    clock: ManualClock()
+                ),
+                monitor: FakeHotkeyMonitor()),
             clock: ManualClock()
         )
 

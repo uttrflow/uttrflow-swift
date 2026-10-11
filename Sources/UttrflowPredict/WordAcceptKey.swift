@@ -2,9 +2,9 @@ public import UttrflowCore
 
 /// The key an application may take the next word of a suggestion with; no application has one until the user chooses it.
 public enum WordAcceptKey: String, Sendable, Equatable, CaseIterable, Codable {
-    /// ⌥→, which moves by word in most editors, so it is only ever armed where the user asked for it.
+    /// ⌥→, which moves by word in most editors, so it is armed only when chosen for that application.
     case optionRightArrow
-    /// ⌘→, which moves to the end of the line in most editors, so it is only ever armed where the user asked for it.
+    /// ⌘→, which moves to the end of the line in most editors, so it is armed only when chosen for that application.
     case commandRightArrow
 
     /// The keystroke that presses it.
