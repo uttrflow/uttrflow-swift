@@ -61,6 +61,21 @@ struct CodeShapesTests {
         #expect(falsePositives.isEmpty, "classified as code: \(falsePositives)")
     }
 
+    @Test("recognises one hand-picked snippet from each supported language family")
+    func namedLanguageSnippets() {
+        let snippets = [
+            "func alpha() {}", "def alpha():\n    return 1", "def alpha\n  puts 1\nend",
+            "function alpha() { return true; }", "interface alpha { id: string; }",
+            "fn alpha(x: i32) { println!(\"{}\", x); }", "public class alpha {}",
+        ]
+        let missed = snippets.filter { !CodeShapes.matches($0) }
+        #expect(missed.isEmpty, "not recognised: \(missed)")
+    }
+}
+
+/// The generated snippets of every supported language family, run by `make eval`; the unit lane keeps the named snippets above.
+@Suite("Code-shaped clipboard text across language families")
+struct CodeShapesLanguageCorpusTests {
     @Test("classifies at least 24 snippets in each supported language family")
     func languageCorpus() {
         let missed = Self.languageSamples.filter { !CodeShapes.matches($0.1) }

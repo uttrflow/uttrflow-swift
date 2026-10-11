@@ -367,3 +367,16 @@ struct PromptTokensTests {
         #expect(fast * 2 > (Self.gemmaCases ?? 0))
     }
 }
+
+@Suite("Forgetting the lines a prompt cached")
+struct PromptTokensForgetTests {
+    @Test("After forgetting, the same message tokenises the same from a cold cache.")
+    func forgettingKeepsTheTokens() async throws {
+        let (tokenizer, added) = try Fixture.tokenizer()
+        let prompt = try #require(await frame(for: tokenizer, added: added))
+        let encode: (String) -> [Int] = { tokenizer.encode(text: $0, addSpecialTokens: false) }
+        let before = prompt.tokens(for: "alpha\nbeta", encode: encode)
+        prompt.forgetEverything()
+        #expect(prompt.tokens(for: "alpha\nbeta", encode: encode) == before)
+    }
+}
