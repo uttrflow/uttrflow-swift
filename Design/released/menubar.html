@@ -1,0 +1,105 @@
+<meta charset="utf-8">
+<title>Menu Bar Options</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+:root{--pg:#F2F1EC;--ink:#101316;--mute:#5C6866;--line:#DEDCD4;--f:"Outfit",-apple-system,system-ui,sans-serif;--sys:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,Menlo,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--pg:#08090C;--ink:#F4F4F6;--mute:#8B90A0;--line:#1E212A}}
+:root[data-theme="dark"]{color-scheme:dark;--pg:#08090C;--ink:#F4F4F6;--mute:#8B90A0;--line:#1E212A}
+*{box-sizing:border-box}
+body{background:var(--pg);color:var(--ink);font-family:var(--sys);padding-block:28px 48px;padding-inline:16px}
+.shell{max-width:1260px;margin:0 auto}
+h1{font:600 24px var(--f);letter-spacing:-.02em;margin:0 0 4px}
+.lede{color:var(--mute);font-size:13px;margin:0 0 18px;max-width:80ch;line-height:1.5}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:20px}
+figure{margin:0;display:grid;gap:10px}
+figcaption{font-size:13px;color:var(--mute);line-height:1.45}figcaption b{color:var(--ink);font:600 14px var(--f);display:block}
+figcaption small{display:block;margin-top:4px;font:500 11px var(--mono);letter-spacing:.04em}
+.desk{position:relative;height:600px;border-radius:14px;overflow:hidden;background:radial-gradient(90% 70% at 30% 20%,#3E368A,transparent 70%),radial-gradient(80% 70% at 90% 90%,#128077,transparent 70%),#0B0C10}
+.mb{height:26px;display:flex;align-items:center;justify-content:flex-end;gap:16px;padding:0 14px;background:rgba(20,20,26,.55);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);font:500 12.5px var(--sys);color:#fff}
+.mb .on{display:grid;place-items:center;width:26px;height:20px;border-radius:5px;background:rgba(255,255,255,.22)}
+.pop{position:absolute;top:32px;right:92px;color:#fff}
+.menu{width:250px;padding:5px;border-radius:10px;background:rgba(38,38,44,.82);backdrop-filter:blur(30px) saturate(1.6);-webkit-backdrop-filter:blur(30px) saturate(1.6);box-shadow:0 0 0 .5px rgba(0,0,0,.6),inset 0 0 0 .5px rgba(255,255,255,.15),0 16px 40px rgba(0,0,0,.5);font:13px var(--sys)}
+.mi{display:flex;align-items:center;gap:8px;padding:4px 9px;border-radius:5px;white-space:nowrap}
+.mi:hover,.mi.hl{background:#1E6FE0}
+.mi .k{margin-left:auto;color:rgba(255,255,255,.5);font-size:12px}
+.sep{height:1px;margin:5px 9px;background:rgba(255,255,255,.12)}
+.sub{padding:4px 9px 2px;font:600 11px var(--sys);color:rgba(255,255,255,.45)}
+.glass{border-radius:18px;background:rgba(16,13,30,.62);backdrop-filter:blur(30px) saturate(1.5);-webkit-backdrop-filter:blur(30px) saturate(1.5);box-shadow:inset 0 0 0 1px rgba(255,255,255,.13),inset 0 1px 0 rgba(255,255,255,.18),0 24px 50px -16px rgba(0,0,0,.7)}
+.ib{all:unset;cursor:pointer;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:rgba(255,255,255,.8)}
+.ib:hover{background:rgba(255,255,255,.1)}
+kbd{font:500 11px var(--sys);padding:2px 6px;border-radius:5px;background:rgba(255,255,255,.12);box-shadow:inset 0 -1px 0 rgba(0,0,0,.3)}
+html.lt:root{color-scheme:light;--pg:#F2F1EC;--ink:#101316;--mute:#5C6866;--line:#DEDCD4}
+.lt .desk{background:radial-gradient(90% 70% at 30% 20%,#D9D2F5,transparent 70%),radial-gradient(80% 70% at 90% 90%,#BFE8E2,transparent 70%),#EEF0F3}
+.lt .mb{background:rgba(255,255,255,.6);color:#101316;box-shadow:0 .5px 0 rgba(0,0,0,.08)}
+.lt .mb .on{background:rgba(16,19,22,.12)}
+.lt .mb svg path[stroke="#fff"]{stroke:#101316}
+.lt .pop{color:#101316}
+.lt .glass{background:rgba(255,255,255,.85);box-shadow:0 0 0 .5px rgba(16,19,22,.14),inset 0 1px 0 rgba(255,255,255,.9),0 18px 40px -12px rgba(40,30,80,.28),0 4px 12px rgba(16,19,22,.08)!important}
+.lt .glass>div[style*="conic-gradient"]{opacity:.22!important}
+.lt .glass svg[viewBox="19 14 62 72"] path{stroke:#101316}
+.lt .glass button span{box-shadow:inset 0 0 0 1px rgba(16,19,22,.10)!important}
+.lt .glass button span:not([style*="#101316"]){background:rgba(16,19,22,.06)!important;color:#101316!important}
+.lt .glass button em{color:#5C6866!important}
+.lt kbd{background:rgba(16,19,22,.07);color:#101316;box-shadow:inset 0 -1px 0 rgba(16,19,22,.15)}
+.lt .ib{color:#5C6866}.lt .ib:hover{background:rgba(16,19,22,.06)}
+@keyframes blink{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+@keyframes mslide{0%{transform:translateX(-100%)}100%{transform:translateX(340%)}}
+</style>
+<div class="shell">
+<h1>Menu bar · V1</h1>
+<p class="lede">Mockups only. Same content in all five: ⌃⌥ hint, Talk / Clipboard / Settings / Quit, last dictation, 5 latest clipboard items. Only the look changes.</p>
+<div class="grid" id="g"></div>
+</div>
+<script>
+const sv=(p,s=16,c='currentColor',w=1.8)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const I={mic:s=>sv('<rect x="8.5" y="3" width="7" height="12" rx="3.5"/><path d="M5 11a7 7 0 0014 0M12 18v3"/>',s),
+ copy:s=>sv('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/>',s),
+ grid:s=>sv('<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>',s),
+ gear:s=>sv('<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',s),
+ power:s=>sv('<path d="M12 3v9M6.3 6.8a8 8 0 1011.4 0"/>',s),
+ update:s=>sv('<path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/>',s),
+ clip:s=>sv('<rect x="7" y="4" width="10" height="4" rx="1"/><path d="M8 6H6.5A1.5 1.5 0 005 7.5v12A1.5 1.5 0 006.5 21h11a1.5 1.5 0 001.5-1.5v-12A1.5 1.5 0 0017.5 6H16"/>',s),
+ search:s=>sv('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',s)};
+const mark=(s=14,c='#fff')=>`<svg width="${s*.8611}" height="${s}" viewBox="19 14 62 72"><path d="M26 37 L26 55 A24 24 0 0 0 74 55 L74 21" fill="none" stroke="${c}" stroke-width="14" stroke-linecap="round"/></svg>`;
+const RECENT=['See you Thursday at 10.','Can you send the deck before lunch?','Remind me to call the bank tomorrow.'];
+const bar=`<div class="mb"><span>${sv('<path d="M2 8.8a15 15 0 0120 0M5 12.5a10 10 0 0114 0M8.5 16a5 5 0 017 0M12 20h.01"/>',15)}</span><span class="on">${mark(13)}</span><span>${sv('<rect x="2" y="7" width="18" height="10" rx="2"/><path d="M22 11v2"/>',17)}</span><span>Sat 26 Sep 10:42</span></div>`;
+const bars=(n,h,c='#fff')=>`<div style="display:flex;align-items:center;gap:3px;height:${h}px">${Array.from({length:n},(_,i)=>{const e=Math.sin(Math.PI*(i+.5)/n);return `<i style="width:3px;border-radius:2px;height:${Math.round(20+80*e*(.5+.5*Math.abs(Math.sin(i*1.7))))}%;background:${c};opacity:${(.25+.75*e).toFixed(2)}"></i>`}).join('')}</div>`;
+const head=(extra='',noReady)=>`<div style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:#0B0C10;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)">${mark(15)}</span><div style="flex:1">${noReady?'':'<div style="font:600 14px var(--f)">Ready</div>'}<div style="font-size:11.5px;color:rgba(255,255,255,.55)">hold <kbd>⌃⌥</kbd> to talk</div></div>${extra}</div>`;
+const RB=[[I.mic(20),'Talk',1],[I.grid(20),'Home'],[I.gear(20),'Settings'],[I.power(20),'Quit']];
+const RB2=[[I.mic(20),'Talk',1],[I.clip(20),'Clipboard'],[I.gear(20),'Settings'],[I.power(20),'Quit']];
+const rounds=(sz=44,set=RB)=>`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">${set.map(([i,l,p])=>`<button style="all:unset;cursor:pointer;display:grid;justify-items:center;gap:6px"><span style="width:${sz}px;height:${sz}px;border-radius:50%;display:grid;place-items:center;background:${p?'#fff':'rgba(255,255,255,.1)'};color:${p?'#0B0C10':'#fff'}">${i}</span><em style="font:500 10.5px var(--sys);font-style:normal;color:rgba(255,255,255,.7)">${l}</em></button>`).join('')}</div>`;
+const recentsNative=RECENT.map(r=>`<div class="mi">${I.copy(13)}<span style="overflow:hidden;text-overflow:ellipsis">${r}</span></div>`).join('');
+const recentsGlass=RECENT.map(r=>`<div style="display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:8px;font-size:13px;color:rgba(255,255,255,.85)"><span style="color:rgba(255,255,255,.45);flex:none">${I.copy(13)}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r}</span></div>`).join('');
+const CLIPS=['https://uttrflow.com/download','Invoice #4821 – due 30 Sep','git checkout -b feat/menu-bar','priya@example.com','Meeting notes: move review to Thursday'];
+const rowG=r=>`<div style="display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:8px;font-size:13px;color:rgba(255,255,255,.85)"><span style="color:rgba(255,255,255,.45)">${I.copy(13)}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r}</span></div>`;
+const lab=t=>`<div style="font:600 11px var(--sys);color:rgba(255,255,255,.45);padding:0 8px 4px">${t}</div>`;
+const mixedList=`<div style="height:1px;background:rgba(255,255,255,.1);margin:14px 0 6px"></div>${lab('LAST DICTATION')}${rowG(RECENT[0])}<div style="height:1px;background:rgba(255,255,255,.1);margin:8px 0 6px"></div>${lab('CLIPBOARD')}${CLIPS.map(rowG).join('')}`;
+const CL=[['link','https://uttrflow.com/download','#6BB4F5'],['text','Invoice #4821 – due 30 Sep','#8B90A0'],['code','git checkout -b feat/menu-bar','#C49BF5'],['text','priya@example.com','#8B90A0'],['text','Meeting notes: move review to Thursday','#8B90A0']];
+const TI={link:s=>sv('<path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/>',s),code:s=>sv('<path d="m8 8-4 4 4 4M16 8l4 4-4 4"/>',s),text:s=>sv('<path d="M5 7h14M5 12h14M5 17h9"/>',s)};
+const hint=`<div style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:#0B0C10;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)">${mark(15)}</span><div style="font-size:12.5px;color:rgba(255,255,255,.7)">hold <kbd>⌃⌥</kbd> to talk</div></div>`;
+const RBX=[[I.mic(20),'Talk',1],[I.clip(20),'Clipboard'],[I.gear(20),'Settings'],[I.grid(20),'Home']];
+const R4=(sz=44,prim='#fff',ink='#0B0C10')=>`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">${RBX.map(([i,l,p])=>`<button style="all:unset;cursor:pointer;display:grid;justify-items:center;gap:6px"><span style="width:${sz}px;height:${sz}px;border-radius:50%;display:grid;place-items:center;background:${p?prim:'rgba(255,255,255,.1)'};color:${p?ink:'#fff'};box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)">${i}</span><em style="font:500 10.5px var(--sys);font-style:normal;color:rgba(255,255,255,.7)">${l}</em></button>`).join('')}</div>`;
+const L=t=>`<div style="font:600 10.5px var(--sys);letter-spacing:.06em;color:rgba(255,255,255,.45);padding:0 8px 4px">${t}</div>`;
+const HR=`<div style="height:1px;background:rgba(255,255,255,.1);margin:10px 0 8px"></div>`;
+const plainRow=t=>`<div style="display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:8px;font-size:13px;color:rgba(255,255,255,.85)"><span style="color:rgba(255,255,255,.45)">${I.copy(13)}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t}</span></div>`;
+const typeRow=([k,t,c],n)=>`<div style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:8px;font-size:13px;color:rgba(255,255,255,.88)"><span style="width:24px;height:24px;border-radius:7px;display:grid;place-items:center;background:color-mix(in srgb,${c} 20%,transparent);color:${c}">${TI[k](13)}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${k==='code'?'font:12px var(--mono)':''}">${t}</span>${n?`<span style="font:500 11px var(--sys);color:rgba(255,255,255,.35)">⌘${n}</span>`:''}</div>`;
+const dictRow=`<div style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:12px;background:linear-gradient(90deg,rgba(95,224,211,.16),rgba(95,224,211,.04));box-shadow:inset 0 0 0 1px rgba(95,224,211,.25);font-size:13px"><span style="width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:#5FE0D3;color:#04332F">${I.mic(13)}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${RECENT[0]}</span><span style="color:rgba(255,255,255,.5)">${I.copy(13)}</span></div>`;
+const wave=(w=240,h=46)=>{const n=40;return `<div style="display:flex;align-items:center;gap:3px;height:${h}px;width:${w}px;-webkit-mask:linear-gradient(90deg,transparent,#000 30%,#000 70%,transparent);mask:linear-gradient(90deg,transparent,#000 30%,#000 70%,transparent)">${Array.from({length:n},(_,i)=>{const e=Math.exp(-Math.pow(i/(n-1)-.5,2)*7);return `<i style="flex:1;border-radius:2px;height:${Math.round(10+85*e*(.45+.55*Math.abs(Math.sin(i*1.9))))}%;background:#fff"></i>`}).join('')}</div>`};
+const LONGD='Hi Priya, can we move the design review to Thursday at 10 so the team has one more day with the new onboarding screens?';
+const O=[
+ {n:'V1 · Aurora glow',d:'Chosen. Every row is one line; anything longer ends in “…”. The last dictation here is a long one to show the cut.',c:'Same content as option 2',
+  h:`<div class="glass" style="width:290px;padding:14px;position:relative;overflow:hidden"><div style="position:absolute;left:-40px;right:-40px;top:-90px;height:200px;background:conic-gradient(from 210deg at 50% 60%,#7A3FD1,#4B3FC0,#1F8FB0,#2FE0CF,#7A3FD1);filter:blur(40px);opacity:.55"></div><div style="position:relative">${hint}<div style="margin-top:14px">${R4()}</div>${HR}${L('LAST DICTATION')}${plainRow(LONGD)}${HR}${L('CLIPBOARD')}${CL.map(c=>plainRow(c[1])).join('')}</div></div>`},
+];
+const PANEL=(head,dis)=>`<div class="glass" style="width:290px;padding:14px;position:relative;overflow:hidden"><div style="position:absolute;left:-40px;right:-40px;top:-90px;height:200px;background:conic-gradient(from 210deg at 50% 60%,#7A3FD1,#4B3FC0,#1F8FB0,#2FE0CF,#7A3FD1);filter:blur(40px);opacity:.55"></div><div style="position:relative">${head}<div style="margin-top:14px;${dis?'':''}">${R4()}</div>${dis?`<style>.pop .dis button:first-child span{opacity:.35}</style>`:''}${HR}${L('LAST DICTATION')}${plainRow(LONGD)}${HR}${L('CLIPBOARD')}${CL.map(c=>plainRow(c[1])).join('')}</div></div>`;
+const MST=(t,sub,c,extra='')=>`<div style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:#0B0C10;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)">${mark(15)}</span><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:7px;font:600 12.5px var(--sys)"><span style="width:7px;height:7px;border-radius:50%;background:${c}"></span>${t}</div><div style="font-size:11.5px;color:rgba(255,255,255,.55);margin-top:2px">${sub}</div>${extra}</div></div>`;
+const MBAR=f=>`<div style="position:relative;height:3px;border-radius:2px;background:rgba(255,255,255,.12);margin-top:7px;overflow:hidden"><i style="position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:linear-gradient(90deg,#1F8FB0,#5FE0D3);${f==null?'width:30%;animation:mslide 1.6s ease-in-out infinite':'width:'+f+'%'}"></i></div>`;
+const MBTN=(t,c)=>`<span style="padding:5px 11px;border-radius:999px;background:${c};color:#0B0C10;font:600 11.5px var(--sys);white-space:nowrap">${t}</span>`;
+O.push(
+ {n:'Speech model · Setting up',d:'Downloading. Talk is disabled until it is ready; everything else works.',c:'NEW state',h:`<div class="dis">${PANEL(MST('Setting up… 42%','Downloading the speech model','#5FE0D3',MBAR(42)),1)}</div>`},
+ {n:'Speech model · Getting ready',d:'On disk, loading into memory. Talk is disabled.',c:'NEW state',h:`<div class="dis">${PANEL(MST('Getting ready…','Loading the speech model','#5FE0D3',MBAR(null)),1)}</div>`},
+ {n:'Speech model · Didn’t load',d:'One action: try again.',c:'NEW state',h:`<div class="dis">${PANEL(`<div style="display:flex;align-items:center;gap:10px">${MST('Model didn’t load','Nothing was lost','#FFB05C')}${MBTN('Try again','#FFB05C')}</div>`,1)}</div>`},
+ {n:'Speech model · Not installed',d:'One action: download.',c:'NEW state',h:`<div class="dis">${PANEL(`<div style="display:flex;align-items:center;gap:10px">${MST('Speech model needed','1.4 GB · works offline after','#FFB05C')}${MBTN('Download','#5FE0D3')}</div>`,1)}</div>`});
+g.innerHTML=O.map(o=>`<figure><div class="desk">${bar}<div class="pop">${o.h}</div></div><figcaption><b>${o.n}</b>${o.d}<small>${o.c}</small></figcaption></figure>`).join('');
+</script>
+<script src="light.js?v=7"></script>

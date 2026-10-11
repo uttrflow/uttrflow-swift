@@ -1,0 +1,90 @@
+<meta charset="utf-8">
+<title>Model Loading Options</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+:root{--pg:#08090C;--ink:#F4F4F6;--mute:#8B90A0;--line:#1E212A;--f:"Outfit",-apple-system,system-ui,sans-serif;--sys:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,Menlo,monospace;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--pg);color:var(--ink);font-family:var(--sys);padding-block:28px 60px;padding-inline:16px}
+.shell{max-width:1180px;margin:0 auto}
+h1{font:700 26px var(--f);letter-spacing:-.02em;margin:0 0 6px}
+.lede{color:var(--mute);font-size:13.5px;line-height:1.55;margin:0 0 8px;max-width:95ch}
+.facts{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 22px}
+.facts span{font:500 12px var(--sys);padding:5px 10px;border-radius:999px;border:1px solid var(--line);color:var(--mute)}
+.facts b{color:var(--ink);font-weight:600}
+.opt{display:grid;grid-template-columns:1fr 300px;gap:18px;align-items:start;padding:18px;border:1px solid var(--line);border-radius:18px;margin-bottom:16px;background:#0B0C12}
+@media (max-width:900px){.opt{grid-template-columns:1fr}}
+.opt.old{border-style:dashed}
+.lab{font:600 11px var(--mono);letter-spacing:.08em;color:#5FE0D3;margin-bottom:4px}
+.opt.old .lab{color:#8B90A0}
+.opt h2{font:600 18px var(--f);margin:0 0 6px}
+.opt p{color:var(--mute);font-size:13px;line-height:1.5;margin:0 0 10px}
+.pros{font-size:12.5px;line-height:1.55;color:#C9CCD6}
+.pros i{font-style:normal;color:#5FE0D3}.pros u{text-decoration:none;color:#FFB05C}
+.hero{position:relative;height:250px;border-radius:20px;overflow:hidden;background:radial-gradient(70% 90% at 80% 50%,rgba(31,143,176,.28),transparent 60%),radial-gradient(60% 80% at 10% 100%,rgba(122,63,209,.2),transparent 60%),#0E111A;box-shadow:inset 0 0 0 1px rgba(95,224,211,.28)}
+.hero .pic{position:absolute;right:0;top:0;bottom:0;width:300px;background:url(../../Sources/Uttrflow/Resources/Mood/panda-morning.jpg) center 40%/cover;-webkit-mask:linear-gradient(90deg,transparent 0,#000 45%);mask:linear-gradient(90deg,transparent 0,#000 45%)}
+.hero .in{position:absolute;left:32px;top:30px;width:430px}
+.hw{font:800 36px/1.05 var(--f);letter-spacing:-.035em}
+.hw em{font-style:normal;background:linear-gradient(90deg,#5FE0D3,#C49BF5,#FFB05C);-webkit-background-clip:text;background-clip:text;color:transparent}
+.roles{font:500 13px var(--f);margin:6px 0 16px}
+.st{display:flex;align-items:center;gap:9px;font:600 14px var(--sys)}
+.dot{width:8px;height:8px;border-radius:50%;background:#5FE0D3;flex:none}
+.sub{margin:4px 0 0 17px;font-size:12.5px;color:rgba(255,255,255,.58)}
+.bar{position:relative;width:300px;height:4px;border-radius:2px;background:rgba(255,255,255,.1);margin:10px 0 0 17px;overflow:hidden}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:linear-gradient(90deg,#1F8FB0,#5FE0D3)}
+.bar i.sl{width:30%;animation:slide 1.6s ease-in-out infinite}
+@keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(340%)}}
+.pill{margin-top:16px;display:inline-flex;align-items:center;gap:10px;padding:10px 22px;border-radius:999px;font:500 14px var(--sys);opacity:.4;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.3)}
+.side{display:grid;gap:12px;justify-items:start}
+.desk{width:100%;height:120px;border-radius:14px;background:linear-gradient(135deg,#2A2150,#10202A);display:grid;place-items:center;position:relative}
+.desk small{position:absolute;left:10px;top:8px;font:600 10px var(--mono);letter-spacing:.06em;color:rgba(255,255,255,.5)}
+.gl{background:rgba(22,22,34,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),0 10px 30px -8px rgba(0,0,0,.6);color:#fff}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.steps{display:grid;gap:8px;margin:2px 0 0}
+.steps div{display:flex;align-items:center;gap:10px;font-size:13.5px}
+.steps .ck{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:11px;flex:none}
+.wv{display:flex;align-items:center;gap:3px;height:50px;width:360px;-webkit-mask:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);mask:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+.wv i{flex:1;border-radius:2px;background:#fff}
+.oldpage{height:250px;border-radius:14px;background:#0C0D14;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);display:grid;place-items:center;text-align:center;padding:20px}
+</style>
+<div class="shell">
+<h1>Speech model loading at app start</h1>
+<p class="lede">After a Mac restart the speech model has to be read into memory before anyone can dictate. Everything else in the app works during that time (History, Dictionary, Clipboard…). Only dictation waits. Below: how it looks today, what the redesign currently shows, and five ways to make the wait feel shorter and clearer. Each option shows the Home hero and the floating button.</p>
+<div class="facts"><span>Cold load after restart <b>≈ 2–3 min</b></span><span>Warm load <b>≈ 2 s</b></span><span>The app knows <b>elapsed time</b>, not a true %</span><span>Estimate appears after <b>5 s</b></span></div>
+<div id="out"></div>
+</div>
+<script>
+const MIC='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="8.5" y="3" width="7" height="12" rx="3.5"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg>';
+const HG='<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#8B90A0" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12M6 21h12M7 3c0 5 10 5 10 9s-10 4-10 9M17 3c0 5-10 5-10 9"/></svg>';
+const ring=(p,c='#5FE0D3',sz=18)=>`<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" style="transform:rotate(-90deg);flex:none"><circle cx="12" cy="12" r="10" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="3"/><circle cx="12" cy="12" r="10" fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round" stroke-dasharray="${2*Math.PI*10*p} 100"/></svg>`;
+const spin=`<svg width="18" height="18" viewBox="0 0 24 24" style="animation:spin 1.1s linear infinite;flex:none"><circle cx="12" cy="12" r="10" fill="none" stroke="#5FE0D3" stroke-width="3" stroke-linecap="round" stroke-dasharray="16 60"/></svg>`;
+document.head.insertAdjacentHTML('beforeend','<style>@keyframes spin{to{transform:rotate(360deg)}}</style>');
+const head=`<div class="hw">Your voice, <em>finished for you.</em></div><div class="roles"><span style="color:#5FE0D3">Dictation</span> · <span style="color:#C49BF5">AI suggestions</span> · <span style="color:#FFB05C">Clipboard</span></div>`;
+const pill=`<div class="pill">${MIC}Start speaking</div>`;
+const H=inner=>`<div class="hero"><div class="pic"></div><div class="in">${head}${inner}</div></div>`;
+const FB=(inner,w)=>`<div class="desk"><small>FLOATING BUTTON</small><div class="gl" style="display:flex;align-items:center;gap:10px;${w?`width:${w}px;`:''}padding:8px 14px;border-radius:18px;font-size:12.5px">${inner}</div></div>`;
+const wave=f=>{const n=48;return `<div class="wv">${Array.from({length:n},(_,i)=>{const u=i/(n-1),e=Math.exp(-Math.pow(u-.5,2)*9),h=10+90*e*(.45+.55*Math.abs(Math.sin(i*1.7)));const on=u<=f;return `<i style="height:${on?h:6}%;opacity:${on?.35+.6*e:.18}"></i>`}).join('')}</div>`};
+const O=[
+ {old:1,id:'TODAY · BEFORE THE REDESIGN',t:'Dictation page empty state + two-line floating button',p:'An hourglass page ("Loading the speech model…") lived on the Dictation page, which the redesign removed from the sidebar. After 5 s it adds "The first load after a restart can take about 2–3 minutes."',
+  hero:`<div class="oldpage"><div>${HG}<div style="font:600 16px var(--sys);margin:10px 0 6px">Loading the speech model…</div><div style="font-size:13px;color:#8B90A0;max-width:340px">The first load after a restart can take about 2–3 minutes. Dictation starts working as soon as it’s ready.</div></div></div>`,
+  fb:FB(`<div><div style="font-weight:600">Loading speech model…</div><div style="opacity:.6;font-size:11.5px">First load after restart: about 2–3 min</div></div>`,250),
+  pros:'<u>−</u> Hidden on a page nobody opens now · <u>−</u> no sense of progress · <u>−</u> wordy'},
+ {id:'CURRENT REDESIGN (MERGED)',t:'“Getting ready…” with a sliding bar',p:'What is in main now. Clean, but for a 2–3 minute wait it gives no clue how long is left, and looks the same at 5 s as at 2 min.',
+  hero:H(`<div class="st"><span class="dot"></span>Getting ready…</div><div class="sub">Loading the speech model, usually a few seconds</div><div class="bar"><i class="sl"></i></div>${pill}`),
+  fb:FB(`${spin}Getting ready…`),pros:'<i>+</i> Already built · <u>−</u> “usually a few seconds” is wrong after a restart · <u>−</u> no time cue'},
+ {id:'OPTION A',t:'Honest timer',p:'Same layout, plus a running timer and the real explanation once it passes 5 s. Tells the truth, costs almost nothing to build.',
+  hero:H(`<div class="st"><span class="dot"></span>Getting ready… <span class="mono" style="color:rgba(255,255,255,.55);font-weight:500">0:42</span></div><div class="sub">First start after a restart takes about 2–3 min. After that it’s instant.</div><div class="bar"><i class="sl"></i></div>${pill}`),
+  fb:FB(`${spin}<span>Getting ready</span><span class="mono" style="opacity:.55">0:42</span>`),pros:'<i>+</i> Truthful · <i>+</i> tiny change · <u>−</u> still no “how much is left”'},
+ {id:'OPTION B',t:'Estimated time left',p:'A filling bar paced to the usual 2–3 min load, easing to 90 % and holding there until the model is really ready, then jumping to done. Shows “about 1 min left”.',
+  hero:H(`<div class="st"><span class="dot"></span>Getting ready · about 1 min left</div><div class="sub">Only after a restart. Everything else already works.</div><div class="bar"><i style="width:55%"></i></div>${pill}`),
+  fb:FB(`${ring(.55)}<span>Getting ready</span><span style="opacity:.55">~1 min</span>`),pros:'<i>+</i> Feels fastest · <i>+</i> ring on the button · <u>−</u> an estimate, can be off on slow Macs'},
+ {id:'OPTION C',t:'Steps checklist',p:'Three plain steps so people see it is working, not stuck. The middle step carries the timer.',
+  hero:H(`<div class="steps"><div><span class="ck" style="background:#5FE0D3;color:#04332F">✓</span>Speech model found</div><div>${spin}<span>Loading into memory</span><span class="mono" style="color:rgba(255,255,255,.5)">0:42</span></div><div style="color:rgba(255,255,255,.4)"><span class="ck" style="box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.3)"></span>Ready to dictate</div></div><div class="sub" style="margin-left:0;margin-top:10px">Only after a restart, about 2–3 min.</div>${pill}`),
+  fb:FB(`${spin}<span>Loading · step 2 of 3</span>`),pros:'<i>+</i> Reassuring · <i>+</i> no fake numbers · <u>−</u> busier hero'},
+ {id:'OPTION D',t:'Waveform warms up',p:'The brand waveform itself fills from left to right as the load runs (paced like B), bars rising from flat to full. When it completes the waveform is “alive” and Start speaking lights up.',
+  hero:H(`<div class="st"><span class="dot"></span>Warming up your speech model</div><div class="sub">About 1 min left · only after a restart</div>${wave(.55)}${pill}`),
+  fb:FB(`${ring(.55)}<span>Warming up</span><span style="opacity:.55">~1 min</span>`),pros:'<i>+</i> Most on-brand, no extra UI · <i>+</i> natural hand-off to Ready · <u>−</u> an estimate, like B'},
+ {id:'OPTION E (ADD-ON TO ANY)',t:'The “Ready” moment',p:'When loading finishes: the hero shows a brief check and “Ready. Hold ⌃⌥ and talk.” for a few seconds, the floating button says Ready, and the new end sound plays once. If the app is in the background, a macOS notification says the same.',
+  hero:H(`<div class="st"><span class="dot" style="background:#5CD97E"></span>Ready. Hold <span style="padding:1px 7px;border-radius:6px;background:rgba(255,255,255,.12);font-weight:500">⌃⌥</span> and talk.</div><div class="sub">Speech model loaded in 2:14</div><div class="pill" style="opacity:1;box-shadow:inset 0 0 0 1.5px #5FE0D3,0 0 24px -6px rgba(95,224,211,.7)">${MIC}Start speaking</div>`),
+  fb:FB(`<span style="width:18px;height:18px;border-radius:50%;display:grid;place-items:center;background:#5CD97E;color:#06210F;font-size:11px">✓</span>Ready · hold ⌃⌥`),pros:'<i>+</i> People know exactly when they can start · <i>+</i> works with A–D'}];
+out.innerHTML=O.map(o=>`<section class="opt${o.old?' old':''}"><div><div class="lab">${o.id}</div><h2>${o.t}</h2><p>${o.p}</p>${o.hero}</div><div class="side">${o.fb}<div class="pros">${o.pros}</div></div></section>`).join('');
+</script>

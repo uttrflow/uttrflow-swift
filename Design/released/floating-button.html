@@ -1,0 +1,117 @@
+<meta charset="utf-8">
+<title>Floating Button Options</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+:root{--pg:#F2F1EC;--ink:#101316;--mute:#5C6866;--line:#DEDCD4;--f:"Outfit",-apple-system,system-ui,sans-serif;--sys:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,Menlo,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--pg:#08090C;--ink:#F4F4F6;--mute:#8B90A0;--line:#1E212A}}
+:root[data-theme="dark"]{color-scheme:dark;--pg:#08090C;--ink:#F4F4F6;--mute:#8B90A0;--line:#1E212A}
+*{box-sizing:border-box}
+body{background:var(--pg);color:var(--ink);font-family:var(--sys);padding-block:28px 48px;padding-inline:16px}
+.shell{max-width:1260px;margin:0 auto}
+h1{font:600 24px var(--f);letter-spacing:-.02em;margin:0 0 4px}
+.lede{color:var(--mute);font-size:13px;margin:0 0 14px;max-width:85ch;line-height:1.5}
+.bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+.pk{all:unset;cursor:pointer;font:500 12.5px var(--f);padding:6px 12px;border-radius:999px;border:1px solid var(--line);color:var(--mute)}
+.pk[aria-pressed="true"]{background:var(--ink);color:var(--pg);border-color:var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:20px}
+figure{margin:0;display:grid;gap:10px}
+figcaption{font-size:13px;color:var(--mute);line-height:1.45}figcaption b{color:var(--ink);font:600 14px var(--f);display:block}
+.desk{position:relative;height:170px;border-radius:14px;overflow:hidden;background:radial-gradient(90% 70% at 20% 10%,#3E368A,transparent 70%),radial-gradient(80% 70% at 90% 90%,#128077,transparent 70%),#0B0C10}
+.doc{position:absolute;left:30px;right:30px;top:24px;height:150px;border-radius:10px;background:rgba(250,250,247,.92);padding:14px 16px;font:14px/1.5 var(--sys);color:#101316}
+.doc .c{display:inline-block;width:2px;height:16px;background:#128077;vertical-align:-3px;animation:blink 1s steps(1) infinite}
+.dockbar{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);width:220px;height:34px;border-radius:12px;background:rgba(255,255,255,.14);backdrop-filter:blur(10px)}
+.fb{position:absolute;left:50%;bottom:58px;transform:translateX(-50%);color:#fff;font-family:var(--sys)}
+.gl{background:rgba(16,13,30,.72);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),inset 0 1px 0 rgba(255,255,255,.18),0 14px 30px -10px rgba(0,0,0,.7)}
+kbd{font:500 11px var(--sys);padding:2px 6px;border-radius:5px;background:rgba(255,255,255,.14)}
+@keyframes blink{50%{opacity:0}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+h2{font:600 18px var(--f);letter-spacing:-.01em;margin:34px 0 4px}
+.sd{color:var(--mute);font-size:13px;margin:0 0 12px}
+.grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))!important;gap:14px!important}
+.fb2{position:absolute;inset:0;display:grid;place-items:center;color:#fff}
+.edge{position:absolute;right:0;top:50%;transform:translateY(-50%);color:#fff}
+@keyframes bob{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1)}}
+@keyframes sweep{to{background-position:200% 0}}
+.lt:root{color-scheme:light;--pg:#F2F1EC;--ink:#101316;--mute:#5C6866;--line:#DEDCD4}
+.lt .desk{background:radial-gradient(90% 70% at 20% 10%,rgba(122,79,196,.16),transparent 70%),radial-gradient(80% 70% at 90% 90%,rgba(18,128,119,.14),transparent 70%),#E9E7E0;box-shadow:inset 0 0 0 1px rgba(16,19,22,.06)}
+.lt .dockbar{background:rgba(255,255,255,.6);box-shadow:inset 0 0 0 1px rgba(16,19,22,.08)}
+.lt .fb,.lt .fb2,.lt .edge{color:#101316}
+.lt .gl{background:rgba(255,255,255,.9);box-shadow:inset 0 0 0 1px rgba(16,19,22,.10),inset 0 1px 0 rgba(255,255,255,.9),0 10px 24px -10px rgba(16,19,22,.28)}
+.lt .gl i[style*="background:#fff"]{background:#101316!important}
+.lt kbd{background:rgba(16,19,22,.07);color:#5C6866}
+</style>
+<div class="shell">
+<h1>Floating button · chosen</h1>
+<p class="lede">Your picks, one per state: Idle 0, Grip 0, Listening 2 (meter + time, no logo), Working 2 (orb with settling bars), Typed 0, Copied 0, Blocked 0.</p>
+<div id="out"></div>
+</div>
+<script>
+const sv=(p,s=16,c='currentColor',w=1.8)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const I={ret:s=>sv('<path d="M9 10 4 15l5 5"/><path d="M20 4v7a4 4 0 01-4 4H4"/>',s),ibeam:s=>sv('<path d="M9 4h6M9 20h6M12 4v16"/>',s),arrowIn:s=>sv('<path d="M4 12h10m-4-4 4 4-4 4M18 5v14"/>',s),warn:s=>sv('<path d="M10.3 3.9 2.4 17.5A2 2 0 004.1 20.5h15.8a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/><path d="M12 9.5v4M12 17h.01"/>',s),text:s=>sv('<path d="M5 7h14M5 12h14M5 17h9"/>',s)};
+const mark=(s=14,c='#fff')=>`<svg width="${s*.8611}" height="${s}" viewBox="19 14 62 72"><path d="M26 37 L26 55 A24 24 0 0 0 74 55 L74 21" fill="none" stroke="${c}" stroke-width="14" stroke-linecap="round"/></svg>`;
+const W=(w,h,mode='talk')=>`<canvas class="wv" data-mode="${mode}" width="600" height="220" style="width:${w}px;height:${h}px"></canvas>`;
+const G='class="gl"';
+const bars3=(c='rgba(255,255,255,.55)',hs=[6,11,7],w=2.5)=>hs.map(h=>`<i style="width:${w}px;height:${h}px;border-radius:2px;background:${c}"></i>`).join('');
+const orb=(inner,sz=30,extra='')=>`<div ${G} style="width:${sz}px;height:${sz}px;border-radius:50%;display:flex;align-items:center;justify-content:center;gap:2.5px;${extra}">${inner}</div>`;
+const hint=(extra='')=>`<div ${G} style="display:flex;align-items:center;gap:8px;height:30px;padding:0 15px;border-radius:15px;font-size:13px;white-space:nowrap;${extra}">Dictate<kbd>⌃⌥</kbd></div>`;
+const spinRing=(sz,c='#fff',w=2.4)=>`<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" style="position:absolute;inset:0;animation:spin 1.1s linear infinite"><circle cx="12" cy="12" r="10.5" fill="none" stroke="${c}" stroke-width="${w/ (sz/24)}" stroke-linecap="round" stroke-dasharray="16 60"/></svg>`;
+const SEC=[
+ {h:'1 · Idle',s:'Starting from today’s orb + “Dictate ⌃⌥” hint, made richer.',v:[
+  ['Today',`<div style="display:flex;align-items:center;gap:9px">${hint()}${orb(bars3())}</div>`],
+  ['Chalk bars',`<div style="display:flex;align-items:center;gap:9px">${hint()}${orb(bars3('#fff',[7,14,9],3),36,'background:linear-gradient(160deg,rgba(255,255,255,.2),rgba(255,255,255,.04))')}</div>`],
+  ['Teal bars',`<div style="display:flex;align-items:center;gap:9px">${hint()}${orb(bars3('linear-gradient(180deg,#8FF5EC,#29C0B4)',[7,14,9],3),36)}</div>`],
+  ['Aurora orb',`<div style="display:flex;align-items:center;gap:9px">${hint()}<div ${G} style="position:relative;overflow:hidden;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;gap:2.5px"><span style="position:absolute;inset:-8px;background:conic-gradient(from 210deg,#7A3FD1,#4B3FC0,#1F8FB0,#2FE0CF,#7A3FD1);filter:blur(8px);opacity:.75"></span><span style="position:relative;display:flex;gap:2.5px;align-items:center">${bars3('#fff',[7,14,9],3)}</span></div></div>`],
+  ['One capsule',`<div ${G} style="display:flex;align-items:center;gap:10px;height:36px;padding:0 6px 0 16px;border-radius:18px;font-size:13px;white-space:nowrap">Dictate<kbd>⌃⌥</kbd><span style="width:26px;height:26px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;gap:2px">${bars3('#0B0C10',[5,10,6],2.5)}</span></div>`],
+  ['Mark orb',`<div style="display:flex;align-items:center;gap:9px">${hint()}${orb(mark(15),36)}</div>`]]},
+ {h:'2 · Grip',s:'Today’s three dots at the screen edge, six vertical takes.',edge:1,v:[
+  ['Today',`<div style="display:grid;gap:3px;padding:4px 3px">${'<i style="width:3px;height:3px;border-radius:50%;background:rgba(255,255,255,.6)"></i>'.repeat(3)}</div>`],
+  ['Glass dots',`<div ${G} style="display:grid;gap:4px;padding:8px 5px;border-radius:8px 0 0 8px">${'<i style="width:4px;height:4px;border-radius:50%;background:#fff"></i>'.repeat(3)}</div>`],
+  ['Bar',`<div ${G} style="width:6px;height:40px;border-radius:3px 0 0 3px"></div>`],
+  ['Teal line',`<div style="width:4px;height:44px;border-radius:2px;background:linear-gradient(180deg,#8FF5EC,#29C0B4);box-shadow:0 0 12px rgba(95,224,211,.6)"></div>`],
+  ['Mini bars',`<div ${G} style="display:grid;justify-items:center;gap:3px;padding:8px 5px;border-radius:8px 0 0 8px">${[6,11,7].map(w=>`<i style="width:${w}px;height:2.5px;border-radius:2px;background:#fff"></i>`).join('')}</div>`],
+  ['Aurora sliver',`<div style="position:relative;overflow:hidden;width:8px;height:48px;border-radius:4px 0 0 4px"><span style="position:absolute;inset:0;background:linear-gradient(180deg,#7A3FD1,#1F8FB0,#2FE0CF)"></span></div>`],
+  ['Five dots',`<div style="display:grid;gap:3px;padding:4px 3px">${[.35,.6,1,.6,.35].map(o=>`<i style="width:3px;height:3px;border-radius:50%;background:rgba(255,255,255,${o})"></i>`).join('')}</div>`]]},
+ {h:'3 · Listening',s:'Today’s meter with the logo removed.',v:[
+  ['Today',`<div ${G} style="display:flex;align-items:center;gap:8px;height:32px;padding:0 10px;border-radius:16px">${W(90,26)}${mark(12)}</div>`],
+  ['Meter only',`<div ${G} style="display:flex;align-items:center;height:32px;padding:0 12px;border-radius:16px">${W(110,26)}</div>`],
+  ['Meter + time',`<div ${G} style="display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:16px">${W(100,26)}<span style="font:500 11px var(--mono);color:rgba(255,255,255,.6)">0:04</span></div>`],
+  ['Meter + red dot',`<div ${G} style="display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:16px"><i style="width:7px;height:7px;border-radius:50%;background:#FF383C"></i>${W(100,26)}</div>`]]},
+ {h:'4 · Working',s:'Round like B-Orb, a few ways to say “writing it up”.',v:[
+  ['B · Orb',`<div ${G} style="position:relative;width:40px;height:40px;border-radius:50%">${spinRing(40)}</div>`],
+  ['Orb + ring on mark',`<div ${G} style="position:relative;width:40px;height:40px;border-radius:50%;display:grid;place-items:center">${spinRing(40,'#5FE0D3')}${mark(14)}</div>`],
+  ['Orb, settling bars',`<div ${G} style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;gap:3px">${[8,14,10].map((h,i)=>`<i style="width:3px;height:${h}px;border-radius:2px;background:#fff;animation:bob 1s ${i*.15}s ease-in-out infinite"></i>`).join('')}</div>`],
+  ['Aurora ring',`<div style="position:relative;width:40px;height:40px;border-radius:50%;padding:2px;background:conic-gradient(from 0deg,#7A3FD1,#2FE0CF,transparent 70%);animation:spin 1.4s linear infinite"><div style="width:100%;height:100%;border-radius:50%;background:rgba(16,13,30,.95)"></div></div>`],
+  ['Orb, text lines',`<div ${G} style="width:40px;height:40px;border-radius:50%;display:grid;place-items:center"><div style="display:grid;gap:3px">${[14,10,12].map(w=>`<i style="display:block;width:${w}px;height:2.5px;border-radius:2px;background:linear-gradient(90deg,rgba(255,255,255,.3),#fff,rgba(255,255,255,.3));background-size:200% 100%;animation:sweep 1.2s linear infinite"></i>`).join('')}</div></div>`]]},
+ {h:'5 · Typed',s:'Today’s small disc, no word. Brief, then it goes back to idle.',v:[
+  ['Today',`<div ${G} style="width:26px;height:26px;border-radius:50%;display:grid;place-items:center;color:#5FE0D3">${I.ret(13)}</div>`],
+  ['Teal fill',`<div style="width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(160deg,#8FF5EC,#29C0B4);color:#04332F;box-shadow:0 6px 16px -4px rgba(41,192,180,.7)">${I.ret(15)}</div>`],
+  ['Text cursor',`<div ${G} style="width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#5FE0D3">${I.ibeam(15)}</div>`],
+  ['Lines in',`<div ${G} style="width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#5FE0D3">${I.text(15)}</div>`],
+  ['Arrow in',`<div ${G} style="width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#5FE0D3">${I.arrowIn(15)}</div>`]]},
+ {h:'6 · Copied',s:'Keeping today’s design, as you said.',v:[['Today · keep',`<div ${G} style="display:flex;align-items:center;gap:8px;height:28px;padding:0 9px;border-radius:14px;font-size:11px;white-space:nowrap"><kbd style="color:#FFB05C">⌘V</kbd><span style="opacity:.72">Copied, not typed</span></div>`]]},
+ {h:'7 · Blocked',s:'Keeping today’s design, as you said.',v:[['Today · keep',`<div ${G} style="display:flex;align-items:center;gap:10px;width:200px;padding:8px 12px;border-radius:18px;font-size:12px"><span style="width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:rgba(255,176,92,.2);color:#FFB05C;flex:none">${I.warn(13)}</span><span style="flex:1">Typing is blocked — paste it</span><span style="padding:3px 8px;border-radius:6px;background:rgba(255,255,255,.14)">Fix</span></div>`]]},
+ {h:'8 · Setting up',s:'Speech model downloading. Pressing the shortcut shows this instead of listening.',v:[['Downloading',`<div ${G} style="display:flex;align-items:center;gap:10px;height:34px;padding:0 14px;border-radius:17px;font-size:12.5px;white-space:nowrap"><span style="position:relative;width:18px;height:18px;flex:none"><svg width="18" height="18" viewBox="0 0 24 24" style="transform:rotate(-90deg)"><circle cx="12" cy="12" r="10" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="3"/><circle cx="12" cy="12" r="10" fill="none" stroke="#5FE0D3" stroke-width="3" stroke-linecap="round" stroke-dasharray="${2*Math.PI*10*.42} 100"/></svg></span>Setting up<span style="opacity:.55;font-variant-numeric:tabular-nums">42%</span></div>`]]},
+ {h:'9 · Getting ready',s:'Speech model on disk, loading into memory (cold start).',v:[['Loading',`<div ${G} style="display:flex;align-items:center;gap:10px;height:34px;padding:0 14px;border-radius:17px;font-size:12.5px;white-space:nowrap"><span style="position:relative;width:18px;height:18px;flex:none">${spinRing(18,'#5FE0D3',2.6)}</span>Getting ready…</div>`]]},
+ {h:'10 · Didn’t load',s:'The load ended without a usable model. One action.',v:[['Failed',`<div ${G} style="display:flex;align-items:center;gap:10px;width:264px;padding:8px 12px;border-radius:18px;font-size:12px"><span style="width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:rgba(255,176,92,.2);color:#FFB05C;flex:none">${I.warn(13)}</span><span style="flex:1">Speech model didn’t load</span><span style="padding:4px 10px;border-radius:999px;background:#FFB05C;color:#0B0C10;font-weight:600">Retry</span></div>`]]},
+ {h:'11 · Not installed',s:'No speech model yet. Opens the download.',v:[['Missing',`<div ${G} style="display:flex;align-items:center;gap:10px;width:250px;padding:8px 12px;border-radius:18px;font-size:12px"><span style="width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:rgba(95,224,211,.18);color:#5FE0D3;flex:none">${I.warn(13)}</span><span style="flex:1">Speech model needed</span><span style="padding:4px 10px;border-radius:999px;background:#5FE0D3;color:#0B0C10;font-weight:600">Download</span></div>`]]},
+];
+const PICK={'1 · Idle':0,'2 · Grip':0,'3 · Listening':2,'4 · Working':2,'5 · Typed':0,'6 · Copied':0,'7 · Blocked':0,'8 · Setting up':0,'9 · Getting ready':0,'10 · Didn’t load':0,'11 · Not installed':0};
+SEC.forEach(sec=>{sec.v=[sec.v[PICK[sec.h]]]});
+out.innerHTML=SEC.map(sec=>`<h2>${sec.h}</h2><p class="sd">${sec.s}</p><div class="grid">${sec.v.map(([n,h],i)=>`<figure><div class="desk">${sec.edge?`<div class="edge">${h}</div>`:`<div class="fb2">${h}</div>`}<span style="position:absolute;top:8px;left:10px;font:600 10.5px var(--mono);letter-spacing:.05em;padding:3px 8px;border-radius:999px;background:${n.startsWith('Today')?'#FFB05C':'rgba(255,255,255,.14)'};color:${n.startsWith('Today')?'#1a0d00':'#fff'}">${n.startsWith('Today')?'TODAY':'NEW'}</span></div><figcaption><b>${n}</b></figcaption></figure>`).join('')}</div>`).join('');
+(()=>{const N=44,W=600,H=220,bw=6,gap=(W-40-N*bw)/(N-1);const cur=new Float32Array(N).fill(.04);
+let t=0,syl=0,sylT=0,phrase=1,phraseT=0,L=0,last=performance.now();
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function loud(dt){phraseT-=dt;if(phraseT<=0){phrase=phrase>0?0:1;phraseT=phrase?1.6+Math.random()*2.2:.35+Math.random()*.5}
+ sylT-=dt;if(sylT<=0){sylT=.11+Math.random()*.16;syl=.45+Math.random()*.55}return phrase*syl}
+function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;t+=dt;const lt=reduce?.7:loud(dt);
+ document.querySelectorAll('canvas.wv').forEach(cv=>{if(!cv._s)cv._s={cur:new Float32Array(N).fill(.04),L:0};const cur=cv._s.cur;let L=cv._s.L;const mode=cv.dataset.mode;const target=mode==='flat'?0:mode==='prog'?.55:mode==='idle'?.22+.08*Math.sin(t*1.6):lt;const pp=+(cv.dataset.p||100)/100;L+=(target-L)*(target>L?.35:.12);
+  const x=cv.getContext('2d');x.clearRect(0,0,W,H);x.fillStyle=cv.dataset.c||'#FFFFFF';x.globalAlpha=mode==='flat'?.45:.95;
+  for(let i=0;i<N;i++){const u=i/(N-1)-.5,env=Math.exp(-u*u*7);const n=.55+.25*Math.sin(t*5.1+i*.7)+.2*Math.sin(t*8.3-i*1.3)+.15*Math.sin(t*2.2+i*.31);
+   const tgt=Math.max(.04,L*env*n);cur[i]+=(tgt-cur[i])*.22;const h=Math.max(bw,cur[i]*(H-30)),X=20+i*(bw+gap),Y=(H-h)/2;
+   x.globalAlpha=mode==='prog'&&i/(N-1)>pp?.18:(mode==='flat'?.45:.95);x.beginPath();x.roundRect?x.roundRect(X,Y,bw,h,bw/2):x.rect(X,Y,bw,h);x.fill()}
+  x.globalAlpha=1;x.globalCompositeOperation='destination-in';const fg=x.createLinearGradient(0,0,W,0);fg.addColorStop(0,'rgba(0,0,0,0)');fg.addColorStop(.3,'#000');fg.addColorStop(.7,'#000');fg.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=fg;x.fillRect(0,0,W,H);x.globalCompositeOperation='source-over';cv._s.L=L});
+ requestAnimationFrame(frame)}
+requestAnimationFrame(frame)})();
+</script>
+<script src="light.js?v=7"></script>

@@ -1,0 +1,67 @@
+<meta charset="utf-8">
+<title>Empty State Options</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+:root{--pg:#F2F1EC;--ink:#101316;--mute:#5C6866;--line:#DEDCD4;--f:"Outfit",-apple-system,system-ui,sans-serif;--sys:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,Menlo,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--pg:#08090C;--ink:#F4F4F6;--mute:#8B90A0;--line:#1E212A}}
+:root[data-theme="dark"]{color-scheme:dark;--pg:#08090C;--ink:#F4F4F6;--mute:#8B90A0;--line:#1E212A}
+*{box-sizing:border-box}
+body{background:var(--pg);color:var(--ink);font-family:var(--sys);padding-block:28px 48px;padding-inline:16px}
+.shell{max-width:1000px;margin:0 auto}
+h1{font:600 24px var(--f);letter-spacing:-.02em;margin:0 0 4px}
+.lede{color:var(--mute);font-size:13px;margin:0 0 14px;max-width:90ch;line-height:1.5}
+.bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
+.lbl{font:600 10.5px var(--mono);letter-spacing:.06em;color:var(--mute);width:60px}
+.pk{all:unset;cursor:pointer;font:500 12.5px var(--f);padding:6px 12px;border-radius:999px;border:1px solid var(--line);color:var(--mute)}
+.pk[aria-pressed="true"]{background:var(--ink);color:var(--pg);border-color:var(--ink)}
+.note{font-size:13.5px;margin:4px 0 14px;line-height:1.5}
+.stage{border-radius:16px;overflow:hidden;border:1px solid var(--line)}
+.pane{position:relative;width:760px;height:500px;transform-origin:top left;overflow:hidden;background:#0B0C10;color:#fff;padding:36px 30px;font-family:var(--sys)}
+.h{font:600 28px var(--f);letter-spacing:-.03em;margin:0}
+kbd{display:inline-grid;place-items:center;min-width:26px;height:26px;padding:0 8px;border-radius:7px;background:linear-gradient(180deg,rgba(255,255,255,.2),rgba(255,255,255,.06));box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 2px 0 rgba(0,0,0,.5);font:500 12px var(--sys);color:#fff}
+@keyframes blink{50%{opacity:0}}
+</style>
+<div class="shell">
+<h1>Empty states · Glow + scene (frozen)</h1>
+<p class="lede">Mockups only. What each page shows before there is anything to show. One style is used across all pages, so pick the style, then check it on each page. Wording follows today’s app. Each page keeps the colour its icon already has in the app.</p>
+<div class="bar"><span class="lbl">STYLE</span><span id="sy" style="display:contents"></span></div>
+<div class="bar"><span class="lbl">PAGE</span><span id="pg" style="display:contents"></span></div>
+<p class="note" id="nt"></p>
+<div class="stage"><div id="w"></div></div>
+</div>
+<script>
+const sv=(p,s=16,c='currentColor',w=1.8)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const I={mic:'<rect x="8.5" y="3" width="7" height="12" rx="3.5"/><path d="M5 11a7 7 0 0014 0M12 18v3"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',book:'<path d="M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3z"/><path d="M5 17a3 3 0 013-3h11"/>',snip:'<path d="m8 8-4 4 4 4M16 8l4 4-4 4"/>',chart:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',plus:'<path d="M12 5v14M5 12h14"/>',check:'<path d="M5 12.5 10 17 19 7"/>'};
+const ic=(k,s=16)=>sv(I[k],s);
+const P={
+ Home:{t:'Home',c:'#5FE0D3',k:'mic',title:'Nothing dictated yet',msg:'Hold the shortcut anywhere and talk.',btn:'Try it now',ghost:['Hi Priya, can we move the review to Thursday?','Can you send the deck before lunch?'],steps:['Hold ⌃⌥ and say a sentence','Let go and watch it type','Press Tab when a grey ending appears']},
+ History:{t:'History',c:'#5FE0D3',k:'clock',title:'Nothing dictated yet',msg:'Every dictation lands here, kept on this Mac.',btn:'Try it now',ghost:['Book a table for four at 8 tonight.','Running a bit late, start without me.'],steps:['Hold ⌃⌥ anywhere','Say anything','It appears here, ready to copy again']},
+ Dictionary:{t:'Dictionary',c:'#FFB05C',k:'book',title:'No words of your own yet',msg:'Add names and terms Uttrflow would otherwise get wrong.',btn:'Add Word',ghost:['Uttrflow · “utter flow”','Priya · “pree-ya”'],steps:['Add a name it gets wrong','Say how it sounds','Uttrflow writes it right from now on']},
+ Snippets:{t:'Snippets',c:'#C49BF5',k:'snip',title:'No snippets yet',msg:'Say a short phrase, and Uttrflow types the whole thing.',btn:'New Snippet',ghost:['my address → Flat 402, Example Residences','sign off → Best, Alex'],steps:['Pick a short phrase to say','Write what it should type','Say the phrase in any app']},
+ Insights:{t:'Insights',c:'#6BB4F5',k:'chart',title:'Not enough to chart yet',msg:'Dictate on 5 different days and your charts appear. 3 of 5 days so far.',btn:'',ghost:['','',''],steps:['Dictated on 3 days','2 more days to go','Charts appear on Monday'],prog:[3,5]},
+};
+const PAGES=Object.keys(P);
+const btn=(l,c)=>l?`<span style="display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:11px;background:#fff;color:#0B0C10;font:600 13px var(--sys);box-shadow:0 10px 26px -10px ${c}">${ic('plus',14)}${l}</span>`:'';
+const prog=(p,c)=>p?`<div style="display:flex;gap:6px;margin-top:6px">${Array.from({length:p[1]},(_,i)=>`<i style="width:34px;height:6px;border-radius:3px;background:${i<p[0]?c:'rgba(255,255,255,.12)'}"></i>`).join('')}</div>`:'';
+const S=[
+ {n:'A · Icon + line',d:'Calm and consistent: one tinted icon, a title, one sentence, one button. Easiest to build.',
+  r:x=>`<div style="position:absolute;inset:90px 0 0;display:grid;place-items:center;text-align:center"><div style="display:grid;justify-items:center;gap:10px;max-width:420px"><span style="width:56px;height:56px;border-radius:16px;display:grid;place-items:center;background:color-mix(in srgb,${x.c} 16%,transparent);color:${x.c};box-shadow:inset 0 0 0 1px color-mix(in srgb,${x.c} 32%,transparent)">${ic(x.k,26)}</span><div style="font:600 18px var(--f)">${x.title}</div><div style="font-size:13.5px;color:rgba(255,255,255,.6);line-height:1.5">${x.msg}</div>${prog(x.prog,x.c)}<div style="margin-top:8px">${btn(x.btn,x.c)}</div></div></div>`},
+ {n:'B · Glow + scene',d:'The page’s colour glows softly behind a small live scene (a waveform for dictation, keycaps for the shortcut), then the same title and button.',
+  r:x=>`<div style="position:absolute;left:20%;right:20%;top:120px;height:240px;background:${x.c};filter:blur(90px);opacity:.22"></div><div style="position:absolute;inset:90px 0 0;display:grid;place-items:center;text-align:center"><div style="display:grid;justify-items:center;gap:12px;max-width:440px"><div style="display:flex;align-items:center;gap:6px;height:56px">${x.k==='mic'||x.k==='clock'?`<kbd>⌃</kbd><kbd>⌥</kbd><span style="display:flex;align-items:center;gap:3px;height:30px;margin-left:10px">${Array.from({length:22},(_,i)=>`<i style="width:3px;border-radius:2px;height:${Math.round(20+80*Math.abs(Math.sin(i*1.3))*Math.sin(Math.PI*(i+.5)/22))}%;background:${x.c}"></i>`).join('')}</span>`:x.k==='chart'?`<span style="display:flex;align-items:flex-end;gap:5px;height:50px">${[3,5,2,0,0].map((h,i)=>`<i style="width:14px;height:${h?h*9:4}px;border-radius:3px 3px 0 0;background:${h?x.c:'rgba(255,255,255,.12)'}"></i>`).join('')}</span>`:`<span style="padding:8px 14px;border-radius:12px;background:color-mix(in srgb,${x.c} 16%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,${x.c} 35%,transparent);font:500 14px var(--sys)">${x.ghost[0].split(/→|·/)[0]}</span>`}</div><div style="font:600 20px var(--f)">${x.title}</div><div style="font-size:13.5px;color:rgba(255,255,255,.62);line-height:1.5">${x.msg}</div>${prog(x.prog,x.c)}<div style="margin-top:6px">${btn(x.btn,x.c)}</div></div></div>`},
+ {n:'C · Ghost preview',d:'Shows faded example rows of what the page will look like once used, with a small card on top explaining how to fill it.',
+  r:x=>`<div style="position:absolute;left:30px;right:30px;top:96px;display:grid;gap:10px;opacity:.28;filter:blur(.3px)">${(x.k==='chart'?[0,1,2]:x.ghost.concat(x.ghost)).map((g,i)=>x.k==='chart'?`<div style="height:${[120,70,70][i]}px;border-radius:14px;border:1.5px dashed rgba(255,255,255,.25)"></div>`:`<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;border:1.5px dashed rgba(255,255,255,.25)"><i style="width:26px;height:26px;border-radius:7px;background:${x.c}"></i><span style="font-size:13.5px">${g}</span></div>`).join('')}</div><div style="position:absolute;left:50%;top:200px;transform:translateX(-50%);width:400px;padding:20px;border-radius:18px;background:rgba(18,16,30,.94);box-shadow:inset 0 0 0 1px color-mix(in srgb,${x.c} 35%,transparent),0 24px 50px rgba(0,0,0,.6);text-align:center;display:grid;justify-items:center;gap:8px"><span style="color:${x.c}">${ic(x.k,22)}</span><div style="font:600 17px var(--f)">${x.title}</div><div style="font-size:13px;color:rgba(255,255,255,.62)">${x.msg}</div>${prog(x.prog,x.c)}<div style="margin-top:6px">${btn(x.btn,x.c)}</div></div>`},
+ {n:'D · Three steps',d:'A short getting-started checklist for each page, so an empty page teaches instead of just saying “nothing here”.',
+  r:x=>`<div style="position:absolute;inset:100px 30px 0;display:grid;grid-template-columns:1fr 1fr;gap:26px;align-items:center"><div><span style="color:${x.c}">${ic(x.k,26)}</span><div style="font:600 22px var(--f);margin:10px 0 8px">${x.title}</div><div style="font-size:13.5px;color:rgba(255,255,255,.62);line-height:1.5;margin-bottom:16px">${x.msg}</div>${btn(x.btn,x.c)}</div><div style="display:grid;gap:10px">${x.steps.map((s,i)=>`<div style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:14px;background:rgba(255,255,255,.045);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)"><span style="width:26px;height:26px;border-radius:50%;display:grid;place-items:center;flex:none;font:600 12px var(--f);${x.prog&&i<1?`background:${x.c};color:#08131A`:`background:color-mix(in srgb,${x.c} 16%,transparent);color:${x.c}`}">${i+1}</span><span style="font-size:13.5px">${s}</span></div>`).join('')}</div></div>`},
+ {n:'E · Big type',d:'Editorial: one large sentence in the page’s colour and a single button. Bold, very little else.',
+  r:x=>`<div style="position:absolute;inset:110px 40px 0"><div style="font:600 40px/1.1 var(--f);letter-spacing:-.035em;max-width:560px"><span style="color:${x.c}">${x.title}.</span> <span style="color:rgba(255,255,255,.55)">${x.msg}</span></div>${prog(x.prog,x.c)}<div style="margin-top:26px">${btn(x.btn,x.c)}</div></div>`},
+];
+S.splice(0,1);S.splice(1);let si=0,pi=0;
+function fit(){const el=w.firstElementChild;const sc=Math.min(1,document.querySelector('.stage').clientWidth/760);el.style.transform=`scale(${sc})`;w.style.height=500*sc+'px'}
+function draw(){sy.innerHTML=S.map((s,j)=>`<button class="pk" data-s="${j}" aria-pressed="${j===si}">${s.n}</button>`).join('');pg.innerHTML=PAGES.map((p,j)=>`<button class="pk" data-p="${j}" aria-pressed="${j===pi}">${p}</button>`).join('');nt.textContent=S[si].d;const x=P[PAGES[pi]];
+ w.innerHTML=`<div class="pane"><h2 class="h">${x.t}</h2>${S[si].r(x)}</div>`;fit()}
+document.addEventListener('click',e=>{const a=e.target.closest('[data-s]');if(a){si=+a.dataset.s;draw()}const b=e.target.closest('[data-p]');if(b){pi=+b.dataset.p;draw()}});
+addEventListener('resize',fit);draw();
+</script>
+
+<script>/* light hook */</script>
+<script src="light.js?v=7"></script>

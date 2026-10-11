@@ -1,0 +1,68 @@
+<meta charset="utf-8">
+<title>Dialog Options</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+:root{--pg:#F2F1EC;--ink:#101316;--mute:#5C6866;--line:#DEDCD4;--f:"Outfit",-apple-system,system-ui,sans-serif;--sys:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,Menlo,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--pg:#08090C;--ink:#F4F4F6;--mute:#8B90A0;--line:#1E212A}}
+:root[data-theme="dark"]{color-scheme:dark;--pg:#08090C;--ink:#F4F4F6;--mute:#8B90A0;--line:#1E212A}
+*{box-sizing:border-box}
+body{background:var(--pg);color:var(--ink);font-family:var(--sys);padding-block:28px 48px;padding-inline:16px}
+.shell{max-width:1000px;margin:0 auto}
+h1{font:600 24px var(--f);letter-spacing:-.02em;margin:0 0 4px}
+.lede{color:var(--mute);font-size:13px;margin:0 0 14px;max-width:90ch;line-height:1.5}
+.bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
+.lbl{font:600 10.5px var(--mono);letter-spacing:.06em;color:var(--mute);width:60px}
+.pk{all:unset;cursor:pointer;font:500 12.5px var(--f);padding:6px 12px;border-radius:999px;border:1px solid var(--line);color:var(--mute)}
+.pk[aria-pressed="true"]{background:var(--ink);color:var(--pg);border-color:var(--ink)}
+.note{font-size:13.5px;margin:4px 0 14px;line-height:1.5}
+.stage{border-radius:16px;overflow:hidden;border:1px solid var(--line)}
+.win{position:relative;width:900px;height:540px;transform-origin:top left;overflow:hidden;background:#0B0C10;color:#fff;font-family:var(--sys)}
+.page{position:absolute;inset:0;padding:40px 44px;opacity:.9}
+.row{height:48px;border-radius:12px;background:rgba(255,255,255,.045);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);margin-bottom:10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+<div class="shell">
+<h1>Dialogs &amp; errors · Glass toast (frozen)</h1>
+<p class="lede">Mockups only. Four real moments from the app: Reset personalisation (destructive), Sign out, an update being ready, and the microphone being blocked (an error). Pick one style; it is applied to every dialog. Same wording and choices as the app today.</p>
+<div class="bar"><span class="lbl">STYLE</span><span id="sy" style="display:contents"></span></div>
+<div class="bar"><span class="lbl">DIALOG</span><span id="dg" style="display:contents"></span></div>
+<p class="note" id="nt"></p>
+<div class="stage"><div id="w"></div></div>
+</div>
+<script>
+const sv=(p,s=16,c='currentColor',w=1.8)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const I={trash:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',out:'<path d="M15 4h3a2 2 0 012 2v12a2 2 0 01-2 2h-3M10 17l5-5-5-5M15 12H4"/>',dl:'<path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/>',micoff:'<path d="M15.5 10V6.5a3.5 3.5 0 00-6.6-1.6M8.5 9v2.5a3.5 3.5 0 005.4 2.9M5 11a7 7 0 0011.4 5.4M19 11a7 7 0 01-.5 2.5M12 18v3M3 3l18 18"/>',x:'<path d="m7 7 10 10M17 7 7 17"/>'};
+const ic=(k,s=16)=>sv(I[k],s);
+const D={
+ 'Reset personalisation':{k:'trash',c:'#FF6B6E',title:'Reset personalisation?',msg:'Everything Uttrflow learned about how you speak and write goes back to day one. Your history and snippets stay.',ok:'Reset',cancel:'Cancel',danger:1},
+ 'Sign out':{k:'out',c:'#FFB05C',title:'Sign out of Uttrflow?',msg:'Your dictations stay on this Mac. You’ll need to sign in again to keep using Uttrflow.',ok:'Sign out',cancel:'Cancel',danger:1},
+ 'Update ready':{k:'dl',c:'#5FE0D3',title:'Uttrflow v26.2809.0 is ready',msg:'Faster start-up and a new clipboard look. It installs when you’re not dictating.',ok:'Install and relaunch',cancel:'Later'},
+ 'Mic blocked (error)':{k:'micoff',c:'#FF6B6E',title:'Microphone is off',msg:'Uttrflow can’t hear you. Turn it on in System Settings › Privacy & Security › Microphone.',ok:'Open System Settings',cancel:'Not now',err:1},
+};
+const DK=Object.keys(D);
+const okBtn=(x,st='')=>`<span style="display:inline-flex;align-items:center;justify-content:center;padding:8px 16px;border-radius:10px;font:600 13px var(--sys);${x.danger?`background:rgba(255,107,110,.16);color:#FF8A8C;box-shadow:inset 0 0 0 1px rgba(255,107,110,.4)`:'background:#fff;color:#0B0C10'};${st}">${x.ok}</span>`;
+const noBtn=(x,st='')=>`<span style="display:inline-flex;align-items:center;justify-content:center;padding:8px 16px;border-radius:10px;font:500 13px var(--sys);background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);${st}">${x.cancel}</span>`;
+const tile=(x,sz=44)=>`<span style="width:${sz}px;height:${sz}px;border-radius:${sz*.3}px;display:grid;place-items:center;flex:none;background:color-mix(in srgb,${x.c} 16%,transparent);color:${x.c};box-shadow:inset 0 0 0 1px color-mix(in srgb,${x.c} 32%,transparent)">${ic(x.k,sz*.48)}</span>`;
+const dim='<div style="position:absolute;inset:0;background:rgba(5,5,10,.55);backdrop-filter:blur(2px)"></div>';
+const S=[
+ {n:'A · Aurora sheet',d:'Matches the frozen shortcut sheet in Settings: a centred glass card, a soft glow in the dialog’s colour, icon tile, title, text, buttons at the bottom right.',
+  r:x=>`${dim}<div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:440px;overflow:hidden;padding:26px;border-radius:22px;background:rgba(18,16,32,.96);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),0 40px 80px -20px rgba(0,0,0,.9)"><div style="position:absolute;left:-20%;right:-20%;top:-140px;height:220px;background:${x.c};filter:blur(60px);opacity:.25"></div><div style="position:relative">${tile(x)}<div style="font:600 20px var(--f);letter-spacing:-.02em;margin:16px 0 8px">${x.title}</div><div style="font-size:13.5px;line-height:1.55;color:rgba(255,255,255,.65)">${x.msg}</div><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:22px;padding-top:16px;border-top:1px solid rgba(255,255,255,.08)">${noBtn(x)}${okBtn(x)}</div></div></div>`},
+ {n:'B · Mac alert',d:'Like a native macOS alert: centred icon and text, full-width stacked buttons. Instantly familiar.',
+  r:x=>`${dim}<div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:300px;padding:22px 18px 16px;border-radius:16px;background:rgba(36,34,48,.97);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12),0 30px 60px rgba(0,0,0,.8);text-align:center;display:grid;justify-items:center;gap:8px">${tile(x,54)}<div style="font:700 14px var(--sys);margin-top:6px">${x.title}</div><div style="font-size:12px;line-height:1.5;color:rgba(255,255,255,.7)">${x.msg}</div><div style="display:grid;gap:6px;width:100%;margin-top:10px">${okBtn(x,'width:100%')}${noBtn(x,'width:100%')}</div></div>`},
+ {n:'C · Next to the button',d:'Confirmations open as a small popover right next to the button you pressed; errors appear as a bar at the top of the page. Nothing covers the whole window.',
+  r:x=>x.err?`<div style="position:absolute;left:44px;right:44px;top:30px;display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:14px;background:color-mix(in srgb,${x.c} 12%,#12141B);box-shadow:inset 0 0 0 1px color-mix(in srgb,${x.c} 40%,transparent),0 14px 30px rgba(0,0,0,.5)">${tile(x,36)}<div style="flex:1"><div style="font:600 14px var(--sys)">${x.title}</div><div style="font-size:12px;color:rgba(255,255,255,.65);margin-top:2px">${x.msg}</div></div>${okBtn(x,'padding:7px 12px;font-size:12.5px')}<span style="color:rgba(255,255,255,.5)">${ic('x',14)}</span></div>`:`<div style="position:absolute;left:470px;top:230px;padding:8px 14px;border-radius:9px;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);font:500 13px var(--sys)">${x.ok}…</div><div style="position:absolute;left:300px;top:280px;width:330px;padding:16px;border-radius:14px;background:rgba(24,22,38,.97);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),0 20px 40px rgba(0,0,0,.7)"><i style="position:absolute;top:-6px;left:210px;width:12px;height:12px;transform:rotate(45deg);background:rgba(24,22,38,.97);box-shadow:-1px -1px 0 rgba(255,255,255,.14)"></i><div style="font:600 14px var(--sys);margin-bottom:6px">${x.title}</div><div style="font-size:12px;line-height:1.5;color:rgba(255,255,255,.65)">${x.msg}</div><div style="display:flex;justify-content:flex-end;gap:6px;margin-top:12px">${noBtn(x,'padding:6px 12px;font-size:12.5px')}${okBtn(x,'padding:6px 12px;font-size:12.5px')}</div></div>`},
+ {n:'D · Hold to confirm',d:'Like A, but destructive actions need you to press and hold the red button for a second (a fill shows progress). Prevents accidents without extra typing.',
+  r:x=>`${dim}<div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:440px;overflow:hidden;padding:26px;border-radius:22px;background:rgba(18,16,32,.96);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),0 40px 80px -20px rgba(0,0,0,.9)"><div style="position:absolute;left:-20%;right:-20%;top:-140px;height:220px;background:${x.c};filter:blur(60px);opacity:.25"></div><div style="position:relative">${tile(x)}<div style="font:600 20px var(--f);margin:16px 0 8px">${x.title}</div><div style="font-size:13.5px;line-height:1.55;color:rgba(255,255,255,.65)">${x.msg}</div><div style="display:grid;gap:8px;margin-top:22px">${x.danger?`<div style="position:relative;overflow:hidden;height:42px;border-radius:12px;background:rgba(255,107,110,.12);box-shadow:inset 0 0 0 1px rgba(255,107,110,.4);display:grid;place-items:center;font:600 13px var(--sys);color:#FF8A8C"><i style="position:absolute;left:0;top:0;bottom:0;width:58%;background:rgba(255,107,110,.28)"></i><span style="position:relative">Hold to ${x.ok.toLowerCase()}</span></div>`:okBtn(x,'height:42px')}${noBtn(x,'height:38px')}</div></div></div>`},
+ {n:'E · Glass toast',d:'Errors and updates arrive as a glass notice in the top-right corner that you can act on or dismiss; confirmations stay a compact centred sheet.',
+  r:x=>x.err||!x.danger?`<div style="position:absolute;right:20px;top:20px;width:360px;overflow:hidden;padding:14px;border-radius:16px;background:rgba(18,16,32,.9);backdrop-filter:blur(20px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),0 24px 50px rgba(0,0,0,.7)"><div style="position:absolute;left:-30%;top:-80px;width:200px;height:160px;background:${x.c};filter:blur(50px);opacity:.3"></div><div style="position:relative;display:flex;gap:12px">${tile(x,36)}<div style="flex:1"><div style="display:flex;justify-content:space-between"><span style="font:600 13.5px var(--sys)">${x.title}</span><span style="color:rgba(255,255,255,.45)">${ic('x',13)}</span></div><div style="font-size:12px;line-height:1.5;color:rgba(255,255,255,.65);margin-top:3px">${x.msg}</div><div style="display:flex;gap:6px;margin-top:10px">${okBtn(x,'padding:6px 12px;font-size:12px')}${noBtn(x,'padding:6px 12px;font-size:12px')}</div></div></div></div>`:`${dim}<div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:380px;padding:20px;border-radius:18px;background:rgba(18,16,32,.96);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),0 30px 60px rgba(0,0,0,.8)"><div style="display:flex;gap:12px">${tile(x,36)}<div><div style="font:600 15px var(--sys)">${x.title}</div><div style="font-size:12.5px;line-height:1.5;color:rgba(255,255,255,.65);margin-top:4px">${x.msg}</div></div></div><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">${noBtn(x)}${okBtn(x)}</div></div>`},
+];
+S.splice(0,4);let si=0,di=0;
+const page=`<div class="page"><div style="font:600 28px var(--f);margin-bottom:22px">Settings</div>${'<div class="row"></div>'.repeat(6)}</div>`;
+function fit(){const el=w.firstElementChild;const sc=Math.min(1,document.querySelector('.stage').clientWidth/900);el.style.transform=`scale(${sc})`;w.style.height=540*sc+'px'}
+function draw(){sy.innerHTML=S.map((s,j)=>`<button class="pk" data-s="${j}" aria-pressed="${j===si}">${s.n}</button>`).join('');dg.innerHTML=DK.map((d,j)=>`<button class="pk" data-d="${j}" aria-pressed="${j===di}">${d}</button>`).join('');nt.textContent=S[si].d;w.innerHTML=`<div class="win">${page}${S[si].r(D[DK[di]])}</div>`;fit()}
+document.addEventListener('click',e=>{const a=e.target.closest('[data-s]');if(a){si=+a.dataset.s;draw()}const b=e.target.closest('[data-d]');if(b){di=+b.dataset.d;draw()}});
+addEventListener('resize',fit);draw();
+</script>
+
+<script>/* light hook */</script>
+<script src="light.js?v=7"></script>

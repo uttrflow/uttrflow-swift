@@ -1,0 +1,32 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta charset="utf-8">
+<title>Uttrflow Redesign</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600&display=swap">
+<style>
+:root{--pg:#F2F1EC;--ink:#101316;--mute:#5C6866;--line:#DEDCD4;--card:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--pg:#08090C;--ink:#F4F4F6;--mute:#8B90A0;--line:#1E212A;--card:#0E1016}}
+:root[data-theme="dark"]{color-scheme:dark;--pg:#08090C;--ink:#F4F4F6;--mute:#8B90A0;--line:#1E212A;--card:#0E1016}
+*{box-sizing:border-box}html,body{height:100%}
+body{margin:0;background:var(--pg);color:var(--ink);font-family:-apple-system,system-ui,sans-serif;display:flex;flex-direction:column;padding-inline:16px}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:14px;padding-block:14px}
+h1{font:600 20px "Outfit",system-ui,sans-serif;letter-spacing:-.02em;margin:0}
+nav{display:flex;gap:6px;flex-wrap:wrap}
+nav button,#tn button{all:unset;cursor:pointer;font:500 13px "Outfit",system-ui,sans-serif;padding:6px 14px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--mute);display:inline-flex;gap:8px;align-items:center}
+nav button[aria-pressed="true"],#tn button[aria-pressed="true"]{background:var(--ink);color:var(--pg);border-color:var(--ink)}
+nav button:focus-visible{outline:2px solid #29C0B4;outline-offset:2px}
+nav small{font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.06em;color:#128077}
+nav button[aria-pressed="true"] small{color:#5FE0D3}
+iframe{flex:1;width:100%;border:1px solid var(--line);border-radius:14px;background:var(--pg);min-height:720px;margin-bottom:16px}
+</style>
+<header><h1>Uttrflow redesign</h1><nav id="nav"></nav><nav id="tn" style="margin-left:auto"></nav></header>
+<iframe id="f" title="Design page"></iframe>
+<script>
+let f=document.getElementById('f');
+const P=[['model-loading','Model loading (B)','FROZEN'],['home','Home','FROZEN'],['onboarding','Onboarding','FROZEN'],['menubar','Menu bar','FROZEN'],['floating-button','Floating button','FROZEN'],['sidebar','Sidebar','FROZEN'],['profile','Profile','FROZEN'],['settings','Settings','FROZEN'],['snippets','Snippets','FROZEN'],['dictionary','Dictionary','FROZEN'],['insights','Insights','FROZEN'],['history','History','FROZEN'],['clipboard','Clipboard panel','FROZEN'],['empty-states','Empty states','FROZEN'],['dialogs','Dialogs','FROZEN']];
+let cur='onboarding',LT=false;const LIGHTOK=P.map(p=>p[0]).filter(k=>k!=='onboarding');try{const h=location.hash.slice(1);if(P.some(p=>p[0]===h))cur=h}catch(e){}
+function go(k){cur=k;const n=f.cloneNode();f.replaceWith(n);f=n;f.src=k+'.html'+(LT&&LIGHTOK.includes(k)?'#light':'');tn.innerHTML=['Dark','Light'].map((t,i)=>`<button data-theme-t="${i}" aria-pressed="${!!i===LT}">${t}</button>`).join('');nav.innerHTML=P.map(([id,l,t])=>`<button data-k="${id}" aria-pressed="${id===cur}">${l}<small>${t}</small></button>`).join('')}
+tn.onclick=e=>{const b=e.target.closest('[data-theme-t]');if(b){LT=b.dataset.themeT==='1';go(cur)}};
+nav.onclick=e=>{const b=e.target.closest('[data-k]');if(b)go(b.dataset.k)};go(cur);
+</script>
+
+</body></html>
