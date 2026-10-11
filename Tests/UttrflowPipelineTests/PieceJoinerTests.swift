@@ -678,7 +678,8 @@ struct PieceJoinerSeamTests {
             [piece(first), piece(next)], under: .standard(for: .document))
 
         #expect(whole.cleaned.text.lowercased().contains(expected))
-        #expect(!whole.cleaned.text.contains(" " + next.prefix(1) + next.dropFirst().prefix(while: \.isLetter)))
+        let opening = next.prefix(while: \.isLetter)
+        #expect(!whole.cleaned.text.contains(" " + opening))
     }
 
     @Test(
