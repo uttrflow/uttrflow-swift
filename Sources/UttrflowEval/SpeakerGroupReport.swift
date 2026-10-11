@@ -21,10 +21,13 @@ public struct SpeakerClip: Sendable, Equatable {
     /// Correction decisions in the clip, and how many of them override a right word.
     public let decisions: Int
     public let falseOverrides: Int
+    /// Seams between joined pieces in the clip, and the artefacts they left.
+    public let seams: Int
+    public let seamArtefacts: Int
 
     public init(
         speaker: String, group: String, label: AccentLabelKind, errors: Int, words: Int, decisions: Int = 0,
-        falseOverrides: Int = 0
+        falseOverrides: Int = 0, seams: Int = 0, seamArtefacts: Int = 0
     ) {
         self.speaker = speaker
         self.group = group
@@ -33,6 +36,8 @@ public struct SpeakerClip: Sendable, Equatable {
         self.words = words
         self.decisions = decisions
         self.falseOverrides = falseOverrides
+        self.seams = seams
+        self.seamArtefacts = seamArtefacts
     }
 }
 
@@ -50,6 +55,9 @@ public struct SpeakerGroupReport: Sendable, Equatable {
         public let speakers: Int
         public let words: Int
         public let decisions: Int
+        public let seams: Int
+        /// Artefacts per seam; nil when the group has no seams to judge.
+        public let seamRate: Double?
         public let errorRate: Double
         /// Nil under two speakers, where there is no speaker spread to resample.
         public let interval: ClosedRange<Double>?
@@ -89,7 +97,9 @@ public struct SpeakerGroupReport: Sendable, Equatable {
             rows.append(
                 Row(
                     group: key.group, label: key.label, speakers: speakers.count, words: total.words,
-                    decisions: total.decisions, errorRate: total.errorRate, interval: estimate?.interval,
+                    decisions: total.decisions, seams: total.seams,
+                    seamRate: total.seams > 0 ? Double(total.seamArtefacts) / Double(total.seams) : nil,
+                    errorRate: total.errorRate, interval: estimate?.interval,
                     minimumDetectableDifference: estimate?.reach,
                     decisionClaim: Self.decisionClaim(speakers, total, needed, bootstrap, &generator)))
         }
@@ -117,7 +127,9 @@ public struct SpeakerGroupReport: Sendable, Equatable {
     public var lines: [String] {
         func percent(_ value: Double) -> String { String(format: "%.1f%%", value * 100) }
         func points(_ value: Double) -> String { String(format: "%+.1f", value * 100) }
-        var lines = ["group\tlabel\tspeakers\twords\tdecisions\tWER\tinterval\tMDD\tfalse override"]
+        var lines = [
+            "group\tlabel\tspeakers\twords\tdecisions\tWER\tinterval\tMDD\tfalse override\tseams\tseam rate"
+        ]
         for row in rows {
             let interval = row.interval.map { "\(points($0.lowerBound))..\(points($0.upperBound))" }
             let rate = row.interval == nil ? "insufficient evidence" : percent(row.errorRate)
@@ -132,6 +144,8 @@ public struct SpeakerGroupReport: Sendable, Equatable {
                     row.group, row.label.rawValue, "\(row.speakers)", "\(row.words)", "\(row.decisions)",
                     rate,
                     interval ?? "-", row.minimumDetectableDifference.map(points) ?? "-", claim,
+                    "\(row.seams)",
+                    row.seamRate.map(percent) ?? "-",
                 ].joined(separator: "\t"))
         }
         for difference in differences {
@@ -160,6 +174,8 @@ public struct SpeakerGroupReport: Sendable, Equatable {
         var words = 0
         var decisions = 0
         var falseOverrides = 0
+        var seams = 0
+        var seamArtefacts = 0
 
         static let zero = Counts()
         var errorRate: Double { words > 0 ? Double(errors) / Double(words) : 0 }
@@ -169,7 +185,8 @@ public struct SpeakerGroupReport: Sendable, Equatable {
             Counts(
                 errors: lhs.errors + rhs.errors, words: lhs.words + rhs.words,
                 decisions: lhs.decisions + rhs.decisions,
-                falseOverrides: lhs.falseOverrides + rhs.falseOverrides)
+                falseOverrides: lhs.falseOverrides + rhs.falseOverrides, seams: lhs.seams + rhs.seams,
+                seamArtefacts: lhs.seamArtefacts + rhs.seamArtefacts)
         }
     }
 
@@ -181,7 +198,8 @@ public struct SpeakerGroupReport: Sendable, Equatable {
                 $0
                     + Counts(
                         errors: $1.errors, words: $1.words, decisions: $1.decisions,
-                        falseOverrides: $1.falseOverrides)
+                        falseOverrides: $1.falseOverrides, seams: $1.seams,
+                        seamArtefacts: $1.seamArtefacts)
             }
         }
     }
