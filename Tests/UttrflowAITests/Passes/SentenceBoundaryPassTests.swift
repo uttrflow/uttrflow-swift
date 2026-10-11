@@ -94,6 +94,10 @@ struct SentenceBoundaryPassTests {
                 "The keys are on the desk. if the door is locked ring the bell",
                 "The keys are on the desk. If the door is locked ring the bell."
             ),
+            (
+                "QA signed off an hour ago. if the error budget drops overnight roll back with the runbook",
+                "QA signed off an hour ago. If the error budget drops overnight roll back with the runbook."
+            ),
         ])
     func keepsStopBeforeConditionalWithImperative(input: String, expected: String) {
         #expect(cleaned(input) == expected)
