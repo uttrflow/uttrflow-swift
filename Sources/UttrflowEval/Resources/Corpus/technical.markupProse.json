@@ -1,0 +1,417 @@
+[
+  {
+    "id": "markup-prose-open-form",
+    "spoken": "please open the form and close the window",
+    "expected": "Please open the form and close the window.",
+    "mustKeep": [
+      "open",
+      "form",
+      "close",
+      "window"
+    ],
+    "mustNotAdd": [
+      "<",
+      ">",
+      "</",
+      "/>",
+      "=",
+      "{",
+      "}",
+      ";",
+      "#"
+    ],
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n<p>"
+    },
+    "destination": "codeEditor",
+    "classes": [
+      "abstention"
+    ],
+    "origin": "synthetic",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-prose-open-table",
+    "spoken": "open table seven for dinner and close the tab",
+    "expected": "Open table 7 for dinner and close the tab.",
+    "mustKeep": [
+      "open",
+      "table",
+      "dinner",
+      "close",
+      "tab"
+    ],
+    "mustNotAdd": [
+      "<",
+      ">",
+      "</",
+      "/>",
+      "=",
+      "{",
+      "}",
+      ";",
+      "#"
+    ],
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n<p>"
+    },
+    "destination": "codeEditor",
+    "classes": [
+      "abstention"
+    ],
+    "origin": "synthetic",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-prose-dot-hash",
+    "spoken": "the dot on the hash key is worth a look",
+    "expected": "The dot on the hash key is worth a look.",
+    "mustKeep": [
+      "dot",
+      "hash",
+      "key",
+      "worth",
+      "look"
+    ],
+    "mustNotAdd": [
+      "<",
+      ">",
+      "</",
+      "/>",
+      "=",
+      "{",
+      "}",
+      ";",
+      "#"
+    ],
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n<p>"
+    },
+    "destination": "codeEditor",
+    "classes": [
+      "abstention"
+    ],
+    "origin": "synthetic",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-prose-camel-case",
+    "spoken": "camel case is a style for naming things",
+    "expected": "Camel case is a style for naming things.",
+    "mustKeep": [
+      "camel",
+      "case",
+      "style",
+      "naming",
+      "things"
+    ],
+    "mustNotAdd": [
+      "<",
+      ">",
+      "</",
+      "/>",
+      "=",
+      "{",
+      "}",
+      ";",
+      "#"
+    ],
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n<p>"
+    },
+    "destination": "codeEditor",
+    "classes": [
+      "abstention"
+    ],
+    "origin": "synthetic",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-prose-color-red",
+    "spoken": "set the color to red and move on",
+    "expected": "Set the color to red and move on.",
+    "mustKeep": [
+      "set",
+      "color",
+      "red",
+      "move"
+    ],
+    "mustNotAdd": [
+      "<",
+      ">",
+      "</",
+      "/>",
+      "=",
+      "{",
+      "}",
+      ";",
+      "#"
+    ],
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n<p>"
+    },
+    "destination": "codeEditor",
+    "classes": [
+      "abstention"
+    ],
+    "origin": "synthetic",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-prose-open-ticket",
+    "spoken": "I will open a ticket and close it by friday",
+    "expected": "I will open a ticket and close it by friday.",
+    "mustKeep": [
+      "open",
+      "ticket",
+      "close",
+      "friday"
+    ],
+    "mustNotAdd": [
+      "<",
+      ">",
+      "</",
+      "/>",
+      "=",
+      "{",
+      "}",
+      ";",
+      "#"
+    ],
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n<p>"
+    },
+    "destination": "codeEditor",
+    "classes": [
+      "abstention"
+    ],
+    "origin": "synthetic",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-prose-equals-sign",
+    "spoken": "an equals sign belongs after the name",
+    "expected": "An equals sign belongs after the name.",
+    "mustKeep": [
+      "equals",
+      "sign",
+      "belongs",
+      "name"
+    ],
+    "mustNotAdd": [
+      "<",
+      ">",
+      "</",
+      "/>",
+      "=",
+      "{",
+      "}",
+      ";",
+      "#"
+    ],
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n<p>"
+    },
+    "destination": "codeEditor",
+    "classes": [
+      "abstention"
+    ],
+    "origin": "synthetic",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-prose-open-nav",
+    "spoken": "open nav close to the footer",
+    "expected": "Open nav close to the footer.",
+    "mustKeep": [
+      "open",
+      "nav",
+      "close",
+      "footer"
+    ],
+    "mustNotAdd": [
+      "<",
+      ">",
+      "</",
+      "/>",
+      "=",
+      "{",
+      "}",
+      ";",
+      "#"
+    ],
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n<p>"
+    },
+    "destination": "codeEditor",
+    "classes": [
+      "abstention"
+    ],
+    "origin": "synthetic",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-prose-slash-price",
+    "spoken": "slash the price and close the sale",
+    "expected": "Slash the price and close the sale.",
+    "mustKeep": [
+      "slash",
+      "price",
+      "close",
+      "sale"
+    ],
+    "mustNotAdd": [
+      "<",
+      ">",
+      "</",
+      "/>",
+      "=",
+      "{",
+      "}",
+      ";",
+      "#"
+    ],
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n<p>"
+    },
+    "destination": "codeEditor",
+    "classes": [
+      "abstention"
+    ],
+    "origin": "synthetic",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-prose-semicolon",
+    "spoken": "the semicolon ends a line in many languages",
+    "expected": "The semicolon ends a line in many languages.",
+    "mustKeep": [
+      "semicolon",
+      "ends",
+      "line",
+      "languages"
+    ],
+    "mustNotAdd": [
+      "<",
+      ">",
+      "</",
+      "/>",
+      "=",
+      "{",
+      "}",
+      ";",
+      "#"
+    ],
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n<p>"
+    },
+    "destination": "codeEditor",
+    "classes": [
+      "abstention"
+    ],
+    "origin": "synthetic",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-prose-tag-in-comment",
+    "spoken": "open div class equals hero close",
+    "expected": "open div class equals hero close.",
+    "mustKeep": [
+      "open",
+      "div",
+      "class",
+      "equals",
+      "hero",
+      "close"
+    ],
+    "mustNotAdd": [
+      "<",
+      ">",
+      "</",
+      "/>",
+      "=",
+      "{",
+      "}",
+      ";",
+      "#"
+    ],
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<!-- "
+    },
+    "destination": "codeEditor",
+    "classes": [
+      "abstention"
+    ],
+    "origin": "synthetic",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-prose-tag-in-attribute",
+    "spoken": "open div class equals hero close",
+    "expected": "open div class equals hero close",
+    "mustKeep": [
+      "open",
+      "div",
+      "class",
+      "equals",
+      "hero",
+      "close"
+    ],
+    "mustNotAdd": [
+      "<",
+      ">",
+      "</",
+      "/>",
+      "=",
+      "{",
+      "}",
+      ";",
+      "#"
+    ],
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<a title=\""
+    },
+    "destination": "codeEditor",
+    "classes": [
+      "abstention"
+    ],
+    "origin": "synthetic",
+    "addedFor": 4239
+  }
+]

@@ -594,11 +594,20 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "2adedeea268cdcb0364fb24be495f407319c6f303de19dae683700b964a2ff52",
+      "sha256": "b6c854fa7ad20bd6d21b296e79306eeabf3791ba1e936d914faab6f9c9d76e44",
+      "path": "Sources/UttrflowEval/Resources/Corpus/technical.markupProse.json",
+      "origin": "authored",
+      "redistribution": true,
+      "bytes": 8346,
+      "licence": "MIT"
+    },
+    {
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "e214c0bf8029240f6e2d6637e3f618c392fbd3ea6513b05625ca01be1df38445",
       "path": "Sources/UttrflowEval/Resources/Corpus/technical.markupNotation.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 24584,
+      "bytes": 16265,
       "licence": "MIT"
     },
     {

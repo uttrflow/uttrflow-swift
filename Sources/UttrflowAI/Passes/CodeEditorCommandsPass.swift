@@ -24,9 +24,12 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
             destination: destination, opening: words.first, given: evidence)
         // A spelled tag is evidence enough: its element may be a small word such as "a", and words outside a tag stay text.
         let spellsTag =
-            markup == .slot(.text) && screen == .noEvidence && NotationEvidence.spellsTag(in: draft.presentIndices.map { Self.markupKey(draft.words[$0].text) })
+            markup == .slot(.text) && screen == .noEvidence
+            && NotationEvidence.spellsTag(
+                in: draft.presentIndices.map { Self.markupKey(draft.words[$0].text) })
         let evidence =
-            spellsTag ? Applicability(cues: [.markupTag]) : NotationEvidence.applicability(of: words, given: screen)
+            spellsTag
+            ? Applicability(cues: [.markupTag]) : NotationEvidence.applicability(of: words, given: screen)
         guard evidence.activates(at: NotationEvidence.activationThreshold) else { return draft }
         var draft = draft
         var slot = markup?.slot

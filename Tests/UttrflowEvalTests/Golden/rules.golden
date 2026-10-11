@@ -546,6 +546,46 @@ lowercase-start-after-complete-sentence-pronoun	Please send it today. I will che
 lowercase-start-after-complete-sentence-she	He is here. She is not.
 lowercase-start-after-complete-sentence-that	The price is 5 dollars. That is cheap.
 lowercase-start-after-complete-sentence-vitals	The patient is stable. Vitals are normal.
+markup-css-align	text-align: center;
+markup-css-before	a::before {
+markup-css-child	ul > li {
+markup-css-class-rule	.hero {
+markup-css-close	}
+markup-css-colour	color: red;
+markup-css-declare-and-close	display: none;}
+markup-css-descendant	.nav .active {
+markup-css-display	display: flex;
+markup-css-element	body {
+markup-css-group	nav, footer {
+markup-css-hex	background: #fff;
+markup-css-hover	a:hover {
+markup-css-hyphen-property	font-size: larger;
+markup-css-id-rule	#main {
+markup-css-root	:root {
+markup-css-style-element	.hero {
+markup-css-two-declarations	color: red; background: blue;
+markup-css-z-index	z-index: 10;
+markup-css-zero	margin: 0;
+markup-html-anchor-quoted	<a href="about.html">
+markup-html-break	<br />
+markup-html-button	<button type=submit>
+markup-html-continue-tag	class=hero>
+markup-html-data-attribute	<div data-id=abc>
+markup-html-div-class	<div class=hero>
+markup-html-div-quoted-class	<div class="hero banner">
+markup-html-end-body	</body>
+markup-html-end-div	</div>
+markup-html-end-item	</li>
+markup-html-heading-id	<h1 id=title>
+markup-html-image	<img src=logo.png />
+markup-html-input	<input type=text name=email />
+markup-html-item-class	<li class=item>
+markup-html-link	<link rel=stylesheet href=main.css />
+markup-html-list	<ul>
+markup-html-meta	<meta name=viewport>
+markup-html-paragraph	<p>
+markup-html-section	<section id=intro>
+markup-html-span	<span>
 message-at-home-stays	I'm at home
 message-at-mention	@Sam, can you take a look?
 message-at-possessive-stays	Let's meet at Sam's place

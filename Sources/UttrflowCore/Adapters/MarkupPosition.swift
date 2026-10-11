@@ -143,7 +143,9 @@ package enum MarkupPosition: Sendable, Equatable {
                     continue
                 }
                 if character == "\"" || character == "'" {
-                    guard let end = closing(quote: character, in: text, from: index + 1) else { return .quoted }
+                    guard let end = closing(quote: character, in: text, from: index + 1) else {
+                        return .quoted
+                    }
                     prelude.append(character)
                     index = end
                     continue

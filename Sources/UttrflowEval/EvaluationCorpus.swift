@@ -151,8 +151,11 @@ public enum EvaluationCorpus {
 
     // MARK: Markup notation. See Docs/adapters.md.
 
-    /// Tags, attributes, selectors and declarations dictated into HTML and CSS, and prose in HTML text that stays as spoken.
+    /// Tags, attributes, selectors and declarations dictated into HTML and CSS, as each writes them.
     static let markupNotation: [EvaluationCase] = CorpusFile.cases(in: .technical, set: "markupNotation")
+
+    /// Invented prose full of markup words, dictated into HTML text, a comment and a quoted value, which stays as spoken.
+    package static let markupProse: [EvaluationCase] = CorpusFile.cases(in: .technical, set: "markupProse")
 
     // MARK: Command mentions. See Docs/commands.md.
 

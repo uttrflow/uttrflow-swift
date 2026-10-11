@@ -58,7 +58,9 @@ extension CodeEditorCommandsPass {
             return position
         default:
             draft.replace(at: live[position], with: command.text + suffix, by: Self.id)
-            if consumed > 1 { for offset in (position + 1)...last { draft.remove(at: live[offset], by: Self.id) } }
+            if consumed > 1 {
+                for offset in (position + 1)...last { draft.remove(at: live[offset], by: Self.id) }
+            }
             return position + 1
         }
     }
@@ -73,10 +75,15 @@ extension CodeEditorCommandsPass {
         let first = start + opening.words.count
         let limit = min(live.count, first + Self.maximumValueWords)
         for end in first..<limit {
-            guard let closing = quotes.first(where: { $0.placement == .closing && draft.spells($0.words, at: end, in: live) })
+            guard
+                let closing = quotes.first(where: {
+                    $0.placement == .closing && draft.spells($0.words, at: end, in: live)
+                })
             else { continue }
             let value = Self.valueText(of: (first..<end).map { draft.words[live[$0]].text })
-            let suffix = draft.shape(at: live[end + closing.words.count - 1]).suffix.filter { !".?!".contains($0) }
+            let suffix = draft.shape(at: live[end + closing.words.count - 1]).suffix.filter {
+                !".?!".contains($0)
+            }
             return ("\"" + value + "\"", suffix, end + closing.words.count)
         }
         return nil

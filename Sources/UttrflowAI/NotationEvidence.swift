@@ -80,7 +80,8 @@ enum NotationEvidence {
         let body = words[(element + 1)..<end]
         if body.isEmpty { return true }
         guard !isEnd, body.count <= maximumAttributeWords,
-            !unquoted(Array(body)).contains(where: FunctionWords.holds), let first = body.first, let last = body.last, first != "equals", last != "equals"
+            !outsideQuotation(Array(body)).contains(where: FunctionWords.holds), let first = body.first,
+            let last = body.last, first != "equals", last != "equals"
         else { return false }
         return body.contains("equals")
             && !zip(body, body.dropFirst()).contains { $0 == "equals" && $1 == "equals" }
@@ -94,13 +95,14 @@ enum NotationEvidence {
     }
 
     /// The words outside any quotation, which are the attribute names and bare values; a quoted value may hold any word.
-    private static func unquoted(_ words: [String]) -> [String] {
+    private static func outsideQuotation(_ words: [String]) -> [String] {
         var kept: [String] = []
         var isQuoting = false
         for (index, word) in words.enumerated() {
             let previous = index > 0 ? words[index - 1] : nil
             if isQuoting {
-                let endsQuote = word == "unquote" || (word == "quote" && (previous == "close" || previous == "end"))
+                let endsQuote =
+                    word == "unquote" || (word == "quote" && (previous == "close" || previous == "end"))
                 if endsQuote { isQuoting = false }
             } else if word == "quote" {
                 isQuoting = true

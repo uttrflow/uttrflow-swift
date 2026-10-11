@@ -63,7 +63,7 @@ extension CleaningPipeline {
         let markup =
             destination == .codeEditor
             ? MarkupPosition.at(insertionPoint.precedingText, language: intent.language) : nil
-        // Text between tags and a comment or quoted value are prose, whatever the region says.
+        // Text between tags and a comment or quoted value are prose to the casing commands, whatever the region says.
         let inCode =
             destination == .codeEditor && intent.region.isCode && markup != .slot(.text) && markup != .quoted
         let notation = NotationEvidence.applicability(
