@@ -19,10 +19,11 @@ public struct RomanisationScore: Sendable, Equatable {
     public let words: Double
     public let characters: Double
 
-    /// Pooled over `pairs`, each scored against whichever of its references `romanise` comes closest to.
+    /// Pooled over `pairs`, each scored against whichever of its references `romanise` comes closest to; words count as equal when `wordKey` agrees.
     public static func measure(
         _ pairs: [(devanagari: String, references: [String])],
         normaliser: TextNormaliser = .standard,
+        wordKey: (String) -> String = { $0 },
         romanise: (String) -> String
     ) -> RomanisationScore? {
         var wordErrors = 0
@@ -34,7 +35,8 @@ public struct RomanisationScore: Sendable, Equatable {
             let scored = pair.references.map { text in
                 let reference = normaliser.words(text)
                 return (
-                    words: WordErrorRate.measure(reference: reference, hypothesis: hypothesis),
+                    words: WordErrorRate.measure(
+                        reference: reference.map(wordKey), hypothesis: hypothesis.map(wordKey)),
                     characters: WordErrorRate.measure(
                         reference: reference.joined(separator: " ").map(String.init),
                         hypothesis: hypothesis.joined(separator: " ").map(String.init))
@@ -93,8 +95,12 @@ public enum HeldOutHindi {
         HeldOutSentence(id: "ho-30", devanagari: "धन्यवाद, आपकी मदद के बिना यह काम समय पर पूरा नहीं होता।"),
     ]
 
-    /// The held-out score of `romanise`, or nil while no sentence has a reference yet.
-    public static func score(_ romanise: (String) -> String) -> RomanisationScore? {
-        RomanisationScore.measure(all.map { ($0.devanagari, $0.references) }, romanise: romanise)
+    /// The held-out score of `romanise`, or nil while no sentence has a reference yet; `viaVariants` counts attested spelling variants as equal words.
+    public static func score(viaVariants: Bool = false, _ romanise: (String) -> String) -> RomanisationScore?
+    {
+        RomanisationScore.measure(
+            all.map { ($0.devanagari, $0.references) },
+            wordKey: viaVariants ? Romaniser.soundKey : { $0 },
+            romanise: romanise)
     }
 }
