@@ -29,6 +29,8 @@ public struct SuggestionSelection: Sendable, Equatable {
 public enum KeyDecision: Sendable, Equatable {
     /// Swallow it and insert this text.
     case accept(String)
+    /// Swallow it and insert the next word of this line.
+    case acceptWord(String)
     /// Swallow it and move the highlight here.
     case moveSelection(SuggestionSelection)
     /// Swallow it and go this far quiet.
@@ -46,7 +48,8 @@ public enum KeyRouting {
         for stroke: KeyStroke,
         showing suggestion: Suggestion,
         selection: SuggestionSelection = .untouched,
-        acceptKey: AcceptKey = .tab
+        acceptKey: AcceptKey = .tab,
+        wordKey: WordAcceptKey? = nil
     ) -> KeyDecision {
         switch suggestion {
         case .silent:
@@ -56,10 +59,12 @@ public enum KeyRouting {
             // A dot never claims a bare ⎋, so the application's own cancel is not delayed by it.
             return stroke == Self.turnOffStroke ? .dismiss(.turnOff) : .passThrough
         case .certain(let text):
-            return decision(for: stroke, over: [text], selection: selection, acceptKey: acceptKey)
+            return decision(
+                for: stroke, over: [text], selection: selection, acceptKey: acceptKey, wordKey: wordKey)
         case .choice(let leader, let others):
             return decision(
-                for: stroke, over: [leader] + others, selection: selection, acceptKey: acceptKey)
+                for: stroke, over: [leader] + others, selection: selection, acceptKey: acceptKey,
+                wordKey: wordKey)
         }
     }
 
@@ -67,11 +72,13 @@ public enum KeyRouting {
     public static func arming(
         showing suggestion: Suggestion,
         selection: SuggestionSelection = .untouched,
-        acceptKey: AcceptKey = .tab
+        acceptKey: AcceptKey = .tab,
+        wordKey: WordAcceptKey? = nil
     ) -> ArmedKeys {
-        ArmedKeys.slots.reduce(into: ArmedKeys()) { armed, entry in
+        (ArmedKeys.slots + ArmedKeys.wordSlots).reduce(into: ArmedKeys()) { armed, entry in
             let decided = decision(
-                for: entry.stroke, showing: suggestion, selection: selection, acceptKey: acceptKey)
+                for: entry.stroke, showing: suggestion, selection: selection, acceptKey: acceptKey,
+                wordKey: wordKey)
             if decided != .passThrough { armed.insert(entry.slot) }
         }
     }
@@ -87,11 +94,13 @@ public enum KeyRouting {
     /// The same decision once the offered texts are in hand, leader first.
     private static func decision(
         for stroke: KeyStroke, over offered: [String], selection: SuggestionSelection,
-        acceptKey: AcceptKey
+        acceptKey: AcceptKey, wordKey: WordAcceptKey?
     ) -> KeyDecision {
         if stroke == turnOffStroke { return .dismiss(.turnOff) }
         let index = min(max(selection.index, 0), offered.count - 1)
         if stroke == acceptKey.stroke { return .accept(offered[index]) }
+        // The word key is the user's own choice for this application, so a stroke nobody chose is never ours.
+        if let wordKey, stroke == wordKey.stroke { return .acceptWord(offered[index]) }
 
         // A single suggestion is not a list, so the keys that walk one are not ours.
         let navigable = offered.count > 1

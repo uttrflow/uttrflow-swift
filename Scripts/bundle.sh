@@ -428,6 +428,7 @@ run_core_resource_self_test() {
 }
 
 if [[ "$SELF_TEST" == "yes" ]]; then
+    python3 "$SCRIPT_DIR/bundle_products_test.py" || fail "resource product selection self-test failed"
     run_self_test
     run_core_resource_self_test
     exit 0
@@ -506,6 +507,7 @@ echo "Building $SCHEME ($CONFIGURATION) with xcodebuild — a few minutes from c
 # counters — so a build that also passed it would be teaching the next reader something
 # untrue. Step 11 below proves this is still working, since a setting that quietly stops
 # applying looks exactly like one that was never needed.
+BUILD_DESCRIPTION_STARTED="$(date +%s)"
 xcodebuild \
     -scheme "$SCHEME" \
     -configuration "$CONFIGURATION" \
@@ -585,14 +587,15 @@ cp "$ICON" "$APP/Contents/Resources/$(basename "$ICON")"
 # with no creator code.
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 
-# Every resource bundle the build produced, discovered rather than listed. A new
-# dependency that carries resources gets one of these, and if it is not copied the
-# app dies at the accessor's fatalError the first time that dependency is used — so
-# naming them here would be a list that is wrong exactly when it matters.
+# Resource bundles come from this scheme's build description, not other cached schemes.
 RESOURCE_BUNDLES=()
+RESOURCE_BUNDLE_PATHS="$(python3 "$SCRIPT_DIR/bundle_products.py" \
+    "$DERIVED_DATA" "$PACKAGE_ROOT" "$PRODUCTS_DIR" "$SCHEME" \
+    --since "$BUILD_DESCRIPTION_STARTED")" || fail "could not select the app's resource products"
 while IFS= read -r bundle; do
+    [[ -n "$bundle" ]] || continue
     RESOURCE_BUNDLES+=("$bundle")
-done < <(find "$PRODUCTS_DIR" -maxdepth 1 -mindepth 1 -type d -name '*.bundle' | LC_ALL=C sort)
+done <<< "$RESOURCE_BUNDLE_PATHS"
 
 for bundle in ${RESOURCE_BUNDLES[@]+"${RESOURCE_BUNDLES[@]}"}; do
     # Into Contents/Resources, which is where the Xcode-generated accessor looks

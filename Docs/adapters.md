@@ -39,6 +39,20 @@ and quote balance check of section 5 is `AdapterValidator` returning `AdapterVer
 columns and references to existing source files describe current behavior; the “With the adapter”
 columns describe the planned design.
 
+Markup notation (AD.35) is `markup` rows of `spoken-commands.json`, each naming the slot of HTML or
+CSS it is read in. `MarkupPosition` (`Sources/UttrflowCore/Adapters/MarkupPosition.swift`) reads the
+slot from the text before the caret: text between tags, inside a tag, a selector, a property, a
+value, or a comment or quoted value that is the writer's own. The slot is found from the preceding
+text alone, so the region classifier is enough. `CodeEditorCommandsPass` walks the speech with the
+slot, each row moving it on (`close` leaves a tag, `open brace` enters a block), and runs before
+spoken punctuation so a colon, a semicolon and a dash are read by slot. In text between tags nothing
+is notation until the speech spells a whole tag, an element, attributes said as name equals value, and
+`close`; a tag cut by a pause, a body of small words, or a `close` followed by one is prose. The
+pass writes only what was said: it never closes a tag, adds an attribute or a unit, or changes the
+case of an element, and a quotation mark is written only where a quotation was spoken.
+`MarkupNotationTests` holds twenty HTML and twenty CSS cases to their exact text and the prose cases
+to their words. Not covered: entities, units, attribute selectors, and a tag said across two pieces.
+
 ## 0. Why the current seam cannot carry this
 
 `Destination` (eight cases, `Sources/UttrflowCore/Models/Destination.swift`) answers which

@@ -1,0 +1,562 @@
+[
+  {
+    "id": "markup-html-div-class",
+    "spoken": "open div class equals hero close",
+    "expected": "<div class=hero>",
+    "expectedExact": "<div class=hero>",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n"
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-html-div-quoted-class",
+    "spoken": "open div class equals quote hero banner unquote close",
+    "expected": "<div class=\"hero banner\">",
+    "expectedExact": "<div class=\"hero banner\">",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n"
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-html-end-div",
+    "spoken": "open slash div close",
+    "expected": "</div>",
+    "expectedExact": "</div>",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n"
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-html-span",
+    "spoken": "open span close",
+    "expected": "<span>",
+    "expectedExact": "<span>",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n"
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-html-paragraph",
+    "spoken": "open p close",
+    "expected": "<p>",
+    "expectedExact": "<p>",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n"
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-html-heading-id",
+    "spoken": "open h1 id equals title close",
+    "expected": "<h1 id=title>",
+    "expectedExact": "<h1 id=title>",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n"
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-html-image",
+    "spoken": "open img src equals logo dot png slash close",
+    "expected": "<img src=logo.png />",
+    "expectedExact": "<img src=logo.png />",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n"
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-html-anchor-quoted",
+    "spoken": "open a href equals open quote about dot html close quote close",
+    "expected": "<a href=\"about.html\">",
+    "expectedExact": "<a href=\"about.html\">",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n"
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-html-break",
+    "spoken": "open br slash close",
+    "expected": "<br />",
+    "expectedExact": "<br />",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n"
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-html-input",
+    "spoken": "open input type equals text name equals email slash close",
+    "expected": "<input type=text name=email />",
+    "expectedExact": "<input type=text name=email />",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n"
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-html-list",
+    "spoken": "open ul close",
+    "expected": "<ul>",
+    "expectedExact": "<ul>",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n"
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-html-item-class",
+    "spoken": "open li class equals item close",
+    "expected": "<li class=item>",
+    "expectedExact": "<li class=item>",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n"
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-html-end-item",
+    "spoken": "open slash li close",
+    "expected": "</li>",
+    "expectedExact": "</li>",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n"
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-html-button",
+    "spoken": "open button type equals submit close",
+    "expected": "<button type=submit>",
+    "expectedExact": "<button type=submit>",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n"
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-html-section",
+    "spoken": "open section id equals intro close",
+    "expected": "<section id=intro>",
+    "expectedExact": "<section id=intro>",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n"
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-html-data-attribute",
+    "spoken": "open div data dash id equals abc close",
+    "expected": "<div data-id=abc>",
+    "expectedExact": "<div data-id=abc>",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n"
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-html-meta",
+    "spoken": "open meta name equals viewport close",
+    "expected": "<meta name=viewport>",
+    "expectedExact": "<meta name=viewport>",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n"
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-html-link",
+    "spoken": "open link rel equals stylesheet href equals main dot css slash close",
+    "expected": "<link rel=stylesheet href=main.css />",
+    "expectedExact": "<link rel=stylesheet href=main.css />",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n"
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-html-end-body",
+    "spoken": "open slash body close",
+    "expected": "</body>",
+    "expectedExact": "</body>",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n"
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-html-continue-tag",
+    "spoken": "class equals hero close",
+    "expected": "class=hero>",
+    "expectedExact": "class=hero>",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<body>\n<div "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-css-class-rule",
+    "spoken": "dot hero open brace",
+    "expected": ".hero {",
+    "expectedExact": ".hero {",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "site.css",
+      "precedingText": ""
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-css-id-rule",
+    "spoken": "hash main open brace",
+    "expected": "#main {",
+    "expectedExact": "#main {",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "site.css",
+      "precedingText": ""
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-css-hover",
+    "spoken": "a colon hover open brace",
+    "expected": "a:hover {",
+    "expectedExact": "a:hover {",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "site.css",
+      "precedingText": ""
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-css-before",
+    "spoken": "a double colon before open brace",
+    "expected": "a::before {",
+    "expectedExact": "a::before {",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "site.css",
+      "precedingText": ""
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-css-descendant",
+    "spoken": "dot nav dot active open brace",
+    "expected": ".nav .active {",
+    "expectedExact": ".nav .active {",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "site.css",
+      "precedingText": ""
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-css-root",
+    "spoken": "colon root open brace",
+    "expected": ":root {",
+    "expectedExact": ":root {",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "site.css",
+      "precedingText": ""
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-css-element",
+    "spoken": "body open brace",
+    "expected": "body {",
+    "expectedExact": "body {",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "site.css",
+      "precedingText": ""
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-css-group",
+    "spoken": "nav comma footer open brace",
+    "expected": "nav, footer {",
+    "expectedExact": "nav, footer {",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "site.css",
+      "precedingText": ""
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-css-child",
+    "spoken": "ul greater than li open brace",
+    "expected": "ul > li {",
+    "expectedExact": "ul > li {",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "site.css",
+      "precedingText": ""
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-css-colour",
+    "spoken": "color colon red semicolon",
+    "expected": "color: red;",
+    "expectedExact": "color: red;",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "site.css",
+      "precedingText": ".card {\n  "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-css-hex",
+    "spoken": "background colon hash fff semicolon",
+    "expected": "background: #fff;",
+    "expectedExact": "background: #fff;",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "site.css",
+      "precedingText": ".card {\n  "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-css-zero",
+    "spoken": "margin colon zero semicolon",
+    "expected": "margin: 0;",
+    "expectedExact": "margin: 0;",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "site.css",
+      "precedingText": ".card {\n  "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-css-display",
+    "spoken": "display colon flex semicolon",
+    "expected": "display: flex;",
+    "expectedExact": "display: flex;",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "site.css",
+      "precedingText": ".card {\n  "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-css-hyphen-property",
+    "spoken": "font dash size colon larger semicolon",
+    "expected": "font-size: larger;",
+    "expectedExact": "font-size: larger;",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "site.css",
+      "precedingText": ".card {\n  "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-css-align",
+    "spoken": "text dash align colon center semicolon",
+    "expected": "text-align: center;",
+    "expectedExact": "text-align: center;",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "site.css",
+      "precedingText": ".card {\n  "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-css-z-index",
+    "spoken": "z dash index colon ten semicolon",
+    "expected": "z-index: 10;",
+    "expectedExact": "z-index: 10;",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "site.css",
+      "precedingText": ".card {\n  "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-css-close",
+    "spoken": "close brace",
+    "expected": "}",
+    "expectedExact": "}",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "site.css",
+      "precedingText": ".card {\n  color: red;\n"
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-css-two-declarations",
+    "spoken": "color colon red semicolon background colon blue semicolon",
+    "expected": "color: red; background: blue;",
+    "expectedExact": "color: red; background: blue;",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "site.css",
+      "precedingText": ".card {\n  "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-css-declare-and-close",
+    "spoken": "display colon none semicolon close brace",
+    "expected": "display: none;}",
+    "expectedExact": "display: none;}",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "site.css",
+      "precedingText": ".card {\n  "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  },
+  {
+    "id": "markup-css-style-element",
+    "spoken": "dot hero open brace",
+    "expected": ".hero {",
+    "expectedExact": ".hero {",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "index.html",
+      "precedingText": "<style>\n"
+    },
+    "destination": "codeEditor",
+    "addedFor": 4239
+  }
+]

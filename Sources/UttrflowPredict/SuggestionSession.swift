@@ -94,10 +94,24 @@ public struct SuggestionTurn: Sendable, Equatable {
 public enum SuggestionAction: Sendable, Equatable {
     /// Take this text: insert what it adds to what is typed, and count it as accepted.
     case accept(String)
+    /// Take only the next word: this is the whole line the field holds afterwards, and it is neither a full acceptance nor a rejection.
+    case acceptWord(String)
     /// Draw this instead, which a move or a dismissal produces.
     case redraw(SuggestionUpdate)
     /// The keystroke goes back to the application as pressed, after drawing `after` when one is given.
     case giveBack(KeyStroke, after: SuggestionUpdate? = nil)
+}
+
+extension SuggestionAction {
+    /// The one word the log carries for a routed keystroke.
+    public var logName: String {
+        switch self {
+        case .accept: "accept"
+        case .acceptWord: "acceptWord"
+        case .redraw: "redraw"
+        case .giveBack: "giveBack"
+        }
+    }
 }
 
 /// Sequences the whole tab-to-complete loop without touching a store, a clock or a screen.
@@ -138,6 +152,10 @@ public struct SuggestionSession: Sendable, Equatable {
     private var isMinimised = false
     /// The key this application accepts with, told to the session each turn.
     var acceptKey = AcceptKey.tab
+    /// The key this application takes the next word with, or nil when the user chose none.
+    var wordKey: WordAcceptKey?
+    /// What is left of a suggestion after its next word was taken, offered again while the line stays where the word left it.
+    var retained: RetainedRemainder?
     /// Whether only a completion this session is sure of may be drawn, never a list to choose from.
     private var isQuiet = false
     /// The moment an answer still in flight is being judged against.
@@ -204,13 +222,16 @@ public struct SuggestionSession: Sendable, Equatable {
     /// Takes one moment in one field and answers with what to do about it; `sawKeystrokes` is the count as its read began.
     public mutating func turn(
         in surface: Surface?, at moment: PredictionContext, acceptKey: AcceptKey = .tab,
-        isQuiet: Bool = false, sawKeystrokes: Int? = nil, now: Date = Date()
+        wordKey: WordAcceptKey? = nil, isQuiet: Bool = false, sawKeystrokes: Int? = nil,
+        now: Date = Date()
     ) -> SuggestionTurn {
         self.acceptKey = acceptKey
+        self.wordKey = wordKey
         self.isQuiet = isQuiet
         // Held for this turn's offer, so the one still on screen keeps its own count until something replaces it.
         pendingKeystroke = sawKeystrokes ?? keystrokes
         let rejected = adopt(surface, typing: moment.typed, now: now)
+        releaseRemainder(ifLeftBy: moment.typed)
         typed = moment.typed
         // Every turn is a new moment, so an answer to any earlier one is stale whether or not this one asks anything.
         generation += 1
@@ -237,6 +258,13 @@ public struct SuggestionSession: Sendable, Equatable {
             return settled(because: .nonLatinLine, rejected: rejected)
         }
 
+        if let retained,
+            TextMatching.caseFoldedKey(context.typed) == TextMatching.caseFoldedKey(retained.expected)
+        {
+            let update = settle(.certain(retained.line), silence: nil)
+            shownIsGenerated = retained.isGenerated
+            return SuggestionTurn(step: .settled(update), rejected: rejected)
+        }
         let query = SuggestionQuery(surface: surface, typed: context.typed, generation: generation)
         return SuggestionTurn(step: .query(query), rejected: rejected)
     }
@@ -438,6 +466,17 @@ public struct SuggestionSession: Sendable, Equatable {
         }
     }
 
+    /// Forgets the remainder once the line is neither where the word left it nor on the line it started from.
+    private mutating func releaseRemainder(ifLeftBy line: String) {
+        guard let retained else { return }
+        let key = TextMatching.caseFoldedKey(line)
+        if key != TextMatching.caseFoldedKey(retained.expected)
+            && key != TextMatching.caseFoldedKey(retained.over)
+        {
+            self.retained = nil
+        }
+    }
+
     /// Follows identified fields, forgetting what belonged to the field being left.
     private mutating func adopt(_ surface: Surface?, typing: String, now: Date) -> String? {
         guard let surface else {
@@ -447,6 +486,7 @@ public struct SuggestionSession: Sendable, Equatable {
         }
         guard surface == self.surface else {
             self.surface = surface
+            retained = nil
             isMinimised = false
             rejectionsHere = 0
             taken = nil
@@ -550,7 +590,8 @@ public struct SuggestionSession: Sendable, Equatable {
     func armed(showing next: Suggestion, silence: Quieting.Reason?) -> SuggestionUpdate {
         SuggestionUpdate(
             suggestion: next,
-            armed: KeyRouting.arming(showing: next, selection: selection, acceptKey: acceptKey),
+            armed: KeyRouting.arming(
+                showing: next, selection: selection, acceptKey: acceptKey, wordKey: wordKey),
             silence: next.accepting == nil ? silence : nil)
     }
 
@@ -560,6 +601,18 @@ public struct SuggestionSession: Sendable, Equatable {
         selection = .untouched
         shownIsGenerated = false
     }
+}
+
+/// The rest of a suggestion whose next word was taken, and the line the field should hold for it to be offered again.
+struct RetainedRemainder: Sendable, Equatable {
+    /// The whole suggestion, of which the field now holds the start.
+    let line: String
+    /// The line the field held before the word was taken.
+    let over: String
+    /// The line the field holds once the word is in.
+    let expected: String
+    /// Whether the model invented the suggestion, which decides what typing past it means.
+    let isGenerated: Bool
 }
 
 /// A line the person took and the line it was taken over, which is what an undo goes back to.

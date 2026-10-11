@@ -35,10 +35,14 @@ struct SpokenCommandsTests {
                 var seen: Set<String> = []
                 for row in SpokenCommands.table.rows
                 where row.isEnabled(in: destination) && row.isEnabled(for: language) {
-                    let key = "\(row.action) \(row.words.joined(separator: " "))"
-                    #expect(
-                        seen.insert(key).inserted,
-                        "\(key) is said twice in \(destination) for \(language?.rawValue ?? "no language")")
+                    // A markup row is read in the slots it names, so one phrase may be a row in each slot.
+                    for slot in row.slots?.map(\.rawValue).sorted() ?? [""] {
+                        let key = "\(row.action) \(row.words.joined(separator: " ")) \(slot)"
+                        #expect(
+                            seen.insert(key).inserted,
+                            "\(key) is said twice in \(destination) for \(language?.rawValue ?? "no language")"
+                        )
+                    }
                 }
             }
         }

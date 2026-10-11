@@ -285,6 +285,8 @@ private struct Script {
             retire()
             shownGenerated = false
             last = .quiet(because: .nothingOffered)
+        case .acceptWord:
+            Issue.record("no word key is chosen in this run, so a word is never taken")
         case .redraw(let update):
             #expect(armed)
             if update.suggestion == before {
