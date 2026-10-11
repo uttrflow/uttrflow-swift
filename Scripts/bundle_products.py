@@ -3,6 +3,8 @@
 
 import argparse
 import json
+import math
+import time
 from pathlib import Path
 
 
@@ -21,6 +23,67 @@ def matches_request(request, repository, products, scheme):
         and parameters.get("configurationName") == products.name
         and arena.get("buildProductsPath") == str(products.parent)
     )
+
+
+def directory_identity(path):
+    stat = path.stat()
+    return {"device": stat.st_dev, "inode": stat.st_ino, "mtime_ns": stat.st_mtime_ns}
+
+
+def snapshot_descriptions(derived):
+    root = derived / "Build/Intermediates.noindex/XCBuildData"
+    entries = {}
+    for path in root.glob("*.xcbuilddata"):
+        if not path.is_dir() or path.is_symlink():
+            raise ValueError("invalid Xcode description directory")
+        entries[path.name] = directory_identity(path)
+    return {"derived": str(derived), "entries": entries, "captured_ns": time.time_ns()}
+
+
+def read_snapshot(path, derived, since):
+    if not math.isfinite(since) or since < 0:
+        raise ValueError("invalid Xcode description invocation start")
+    snapshot = read_json(path)
+    if not isinstance(snapshot, dict) or snapshot.get("derived") != str(derived):
+        raise ValueError("invalid Xcode description snapshot")
+    if not isinstance(snapshot.get("entries"), dict):
+        raise ValueError("invalid Xcode description snapshot")
+    captured = snapshot.get("captured_ns")
+    if type(captured) is not int or captured < since * 1_000_000_000 or captured > time.time_ns():
+        raise ValueError("stale or invalid Xcode description snapshot")
+    if path.stat().st_mtime < since:
+        raise ValueError("stale Xcode description snapshot file")
+    for name, identity in snapshot["entries"].items():
+        if not name.endswith(".xcbuilddata") or Path(name).name != name:
+            raise ValueError("invalid Xcode description snapshot name")
+        if not isinstance(identity, dict) or set(identity) != {"device", "inode", "mtime_ns"}:
+            raise ValueError("invalid Xcode description snapshot identity")
+        if any(type(value) is not int or value < 0 for value in identity.values()):
+            raise ValueError("invalid Xcode description snapshot identity")
+    return snapshot
+
+
+def select_used_description(snapshot, derived, repository, products, scheme):
+    root = derived / "Build/Intermediates.noindex/XCBuildData"
+    matches = []
+    for path in root.glob("*.xcbuilddata"):
+        if not path.is_dir() or path.is_symlink():
+            raise ValueError("invalid Xcode description directory")
+        identity = directory_identity(path)
+        prior = snapshot["entries"].get(path.name)
+        if prior is not None and identity == prior:
+            continue
+        if identity["mtime_ns"] <= snapshot["captured_ns"] or identity["mtime_ns"] > time.time_ns():
+            raise ValueError("invalid Xcode description use timestamp")
+        if prior is not None and identity["mtime_ns"] <= prior["mtime_ns"]:
+            raise ValueError("Xcode description use timestamp did not advance")
+        if prior is not None and any(identity[key] != prior[key] for key in ("device", "inode")):
+            raise ValueError("Xcode description directory was replaced during the build")
+        if matches_request(read_json(path / "build-request.json"), repository, products, scheme):
+            matches.append(path)
+    if len(matches) != 1:
+        raise ValueError("missing or ambiguous current Xcode build description use")
+    return matches[0]
 
 
 def select_description(derived, repository, products, scheme, since=0):
@@ -65,11 +128,21 @@ def main():
     for argument in ("derived", "repository", "products", "scheme"):
         parser.add_argument(argument)
     parser.add_argument("--since", type=float, required=True)
+    snapshot_mode = parser.add_mutually_exclusive_group()
+    snapshot_mode.add_argument("--snapshot-out", type=Path)
+    snapshot_mode.add_argument("--snapshot", type=Path)
     arguments = parser.parse_args()
     derived, repository, products = (Path(getattr(arguments, name)).resolve()
                                      for name in ("derived", "repository", "products"))
     try:
-        description = select_description(derived, repository, products, arguments.scheme, arguments.since)
+        if arguments.snapshot_out:
+            arguments.snapshot_out.write_text(json.dumps(snapshot_descriptions(derived)))
+            return
+        if arguments.snapshot:
+            snapshot = read_snapshot(arguments.snapshot, derived, arguments.since)
+            description = select_used_description(snapshot, derived, repository, products, arguments.scheme)
+        else:
+            description = select_description(derived, repository, products, arguments.scheme, arguments.since)
         for bundle in bundle_products(description, products, arguments.scheme):
             print(bundle)
     except (OSError, ValueError, KeyError) as error:

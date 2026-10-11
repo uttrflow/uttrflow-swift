@@ -434,7 +434,7 @@ bench: ## Run the scale and timing checks: the energy budget, the scaling suites
 	@VERIFY_INNER=1 $(MAKE) --no-print-directory -j$(VERIFY_JOBS) bench
 else
 unexport VERIFY_INNER
-verify: eval-scope-test quality-grid-scorecard-test predict-scorecard-test pii-audit snapshot-fixture-audit data-manifest audio-audit root-audit disclosure-audit issue-template-audit test-name-audit docs-audit design-audit comment-audit corpus-edit-audit match-audit closed-list-audit duplicate-table-audit word-split-audit accessibility-controls layering-audit public-api-audit string-audit type-name-audit python-imports-audit ratchet-test mutation-probe-test range-test hits-test hook-test pre-push-test pre-push-lock-test update-feed-test entitlement-gate-test issue-template-test dependabot-labels-test dependency-pin-test flake-audit uitest-arguments eval-arguments uitest-result-path developer-dir-test log-audit store-permissions pasteboard-audit context-reach-audit bundle-requirement-test bundle-test release-tag-test release-notes-test release-quality-test provider-mark-test release-order-test notarise-dmg-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test exclusion-audit size-budget lint build coverage offline-audit
+verify: formatting-gap-ratchet-test eval-scope-test quality-grid-scorecard-test predict-scorecard-test pii-audit snapshot-fixture-audit data-manifest audio-audit root-audit disclosure-audit issue-template-audit test-name-audit docs-audit design-audit comment-audit corpus-edit-audit match-audit closed-list-audit duplicate-table-audit word-split-audit accessibility-controls layering-audit public-api-audit string-audit type-name-audit python-imports-audit ratchet-test mutation-probe-test range-test hits-test hook-test pre-push-test pre-push-lock-test update-feed-test entitlement-gate-test issue-template-test dependabot-labels-test dependency-pin-test flake-audit uitest-arguments eval-arguments uitest-result-path developer-dir-test log-audit store-permissions pasteboard-audit context-reach-audit bundle-requirement-test bundle-test release-tag-test release-notes-test release-quality-test provider-mark-test release-order-test notarise-dmg-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test exclusion-audit size-budget lint build coverage offline-audit
 eval: seam-audit eval-tests rules-scorecard quality-grid-scorecard
 bench: perf-budget offline-test soak-test bench-tests
 
@@ -641,3 +641,7 @@ clean: ## Remove build products.
 help: ## List available targets.
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
 		| awk 'BEGIN {FS = ":.*?## "}; {names[NR] = $$1; descriptions[NR] = $$2; if (length($$1) > width) width = length($$1)} END {for (i = 1; i <= NR; i++) printf "  \033[36m%-*s\033[0m %s\n", width, names[i], descriptions[i]}'
+
+.PHONY: formatting-gap-ratchet-test
+formatting-gap-ratchet-test: ## Prove scoped formatting updates reject unrelated output changes. No build.
+	@python3 Scripts/formatting_gap_ratchet_test.py
