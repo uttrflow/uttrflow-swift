@@ -21,7 +21,13 @@ open clause, the keyword case, the tables and aliases named, and whether a strin
 caret; it answers `unknown` when its 300-character window may have cut the statement. It owns that
 detection: a caret inside a statement counts as evidence for notation and as mid-sentence for the first
 word (`SQLContinuationTests`), and the keyword-case stage of AD.10 reads `keywordCase` rather than
-detecting case itself. The bracket
+detecting case itself.
+`SQLLayout` (`Sources/UttrflowCore/Adapters/SQLLayout.swift`) reads how that statement is laid out: clauses
+on their own lines or sharing a line, and the indent unit (tab or spaces) the script uses. `SQLLayoutPass`
+writes only whitespace: a line break and indent before a clause keyword the notation wrote. The field's
+convention wins; with none, a statement of two or more spoken clauses goes on clause lines with its joins
+indented two spaces, and a single clause or fragment stays on one line. A spoken "new line" always stands,
+and no break is written inside parentheses. The bracket
 and quote balance check of section 5 uses `AdapterValidator` returning `AdapterVerdict`. The “Today”
 columns and
 references to existing source files describe current behavior; the “With the adapter” columns
