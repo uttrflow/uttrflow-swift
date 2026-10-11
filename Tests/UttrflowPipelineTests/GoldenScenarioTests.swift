@@ -200,7 +200,7 @@ enum GoldenScenarios {
 
     static let paragraphRows: [GoldenRow] = [
         GoldenRow(
-            "G4.1", "points separated by long pauses are separate paragraphs", knownIssue: "#3348",
+            "G4.1", "points separated by long pauses are separate paragraphs",
             scenario(
                 notes,
                 [
