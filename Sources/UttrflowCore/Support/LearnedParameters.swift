@@ -127,6 +127,8 @@ struct LearnedParameters: Equatable, Sendable {
         self.engine = engine
         self.features = features
         self.arrays = arrays
+        let bytes = encoded().count
+        guard bytes <= limits.maxBytes else { throw .tooLarge(bytes: bytes) }
     }
 
     /// The values of the array called `name`, or nil when the file holds none.

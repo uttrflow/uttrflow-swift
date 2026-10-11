@@ -166,7 +166,8 @@ feed with nothing to verify against installs whatever it is handed. It parses th
 scheme and host: `https` with a host ships, and `http` is accepted only for exact loopback
 hosts (`127.0.0.1`, `localhost`, `::1`), for rehearsing an update on one Mac.
 `bundle.sh distribution` and `publish.sh` both refuse a loopback feed. `make update-feed-test`
-proves the parsing.
+proves the parsing. The gate also reads the parsed port, refusing nonnumeric, negative or
+out-of-range ports. Default and valid numeric ports keep their existing classification.
 
 `SUVerifyUpdateBeforeExtraction` is `true`, so Sparkle checks the archive against
 `SUPublicEDKey` before it unpacks anything, and accepts no substitute for that signature but a

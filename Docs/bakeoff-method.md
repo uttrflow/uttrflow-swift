@@ -12,6 +12,11 @@ It links MLX, which needs Metal shaders that Swift Package Manager's command lin
 so it is not a subcommand of `uttrflow-dev`. `make bakeoff` builds it with `xcodebuild` (Debug)
 and runs it with `ARGS`.
 
+Thrown transform failures are scored as empty output and also reported on standard error by
+case identifier and the closed failure category. Successful empty answers and declined cases
+do not emit a failure diagnostic. The observer diagnostic excludes error descriptions and
+payloads, and its printing occurs after the transform duration is captured.
+
 Each candidate's result is written to disk as it finishes, so a model that stalls mid-download
 costs only its own run. Two candidates can share a family name — Gemma 3 at 1B and 4B — so the
 stored file is keyed by size as well, and the report prints the size.

@@ -137,8 +137,9 @@ The floating button can be switched off, and is hidden while nobody is signed in
 bar has to carry every dictation state on its own. `FailurePresenter.placement` decides a
 failure's surface from its severity and from whether the button is shown: a blocking failure,
 or any failure while the button is not shown, takes the menu bar's attention form for the same
-`AppDelegate.linger` the button would have used, then clears with the state. The VoiceOver
+`DockLingerPolicy` interval the button would have used, then clears with the state. The VoiceOver
 label is `MenuBarPresenter.spokenForm` of the status line, so it follows that column.
+`MenuBarDictationMapping` projects activity, outcome quality and failure without app coordination.
 `MenuBarSurfaceTableTests` fails when a `DictationState` has no row here or when a row's state
 shows the resting icon or status line.
 

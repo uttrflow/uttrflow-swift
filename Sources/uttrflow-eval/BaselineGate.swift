@@ -26,9 +26,14 @@ struct BaselineGate {
             return
         }
         guard FileManager.default.fileExists(atPath: url.path) else {
-            throw CleanExit.message(
+            let message =
                 "No baseline at \(path). Write one with --save-baseline once you are happy "
-                    + "with these numbers.")
+                + "with these numbers."
+            if failOnRegression {
+                print(message)
+                throw ExitCode.failure
+            }
+            throw CleanExit.message(message)
         }
 
         let stored = try AccuracyBaseline.read(from: url)
