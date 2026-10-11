@@ -54,11 +54,11 @@ public actor DictationPipeline {
     private let heardObservers = StateObservers<String?>()
 
     /// Counts dictations, so a cancel can name the one it abandoned.
-    private(set) var generation = 0
+    var generation = 0
     private var cancelledGeneration: Int?
 
     /// Held across every await before the state shows a dictation's next step, so no second entry slips in.
-    private var hasTurn = false
+    var hasTurn = false
 
     /// How long `prepare()` waits for the speech model before calling the load failed.
     private let speechLoadLimit: Duration
@@ -66,7 +66,7 @@ public actor DictationPipeline {
     private var loadsUnderWay = 0
 
     /// Reads how long the microphone has been open, closing over the injected clock.
-    private var stopwatch: (() -> Duration)?
+    var stopwatch: (() -> Duration)?
     var spokenFor: Duration?
     /// Reads how long ago the key came up, so the wait it costs the user is timed; `nil` for a retry.
     var sinceRelease: (() -> Duration)?
@@ -119,23 +119,23 @@ public actor DictationPipeline {
     }
 
     /// What the clean-up steps did to each piece of the dictation under way, reported as one when it ends.
-    private var cleaningRecords: [KeptRecord] = []
+    var cleaningRecords: [KeptRecord] = []
     /// Early spans the release join dropped, whose records are not part of the dictation's account.
-    private var droppedSpans: Set<UUID> = []
+    var droppedSpans: Set<UUID> = []
     /// The early span the running task tidies, so its record can be withdrawn if the span is dropped.
     @TaskLocal static var tidiedSpan: UUID?
 
     /// One piece's cleaning record and the early span it came from, if any.
-    private struct KeptRecord {
+    struct KeptRecord {
         let span: UUID?
         let record: CleaningRecord
     }
     /// Runs what is said while the command key is held, in place of inserting it.
     let commands: EditCommandRegistry
     /// Where the next recording goes, set by the key that opens it and spent when it opens.
-    private var nextRoute: UtteranceRoute = .dictation
+    var nextRoute: UtteranceRoute = .dictation
     /// Where the recording under way goes.
-    private var recordingRoute: UtteranceRoute = .dictation
+    var recordingRoute: UtteranceRoute = .dictation
 
     public init(
         capture: any AudioCaptureEngine,
@@ -239,7 +239,7 @@ public actor DictationPipeline {
     public var speechKind: SpeechEngineKind { speech.kind }
 
     /// Fixes all three for the dictation about to begin, spending the one-shot format choice when it is a new recording.
-    private func takeSettings(spendingFormat: Bool = true) {
+    func takeSettings(spendingFormat: Bool = true) {
         let held = spendingFormat ? nextFormat : nil
         if spendingFormat { nextFormat = nil }
         inUse = (cleaner, destinationOverrides.holding(oneShot: held), profile)
@@ -309,106 +309,7 @@ public actor DictationPipeline {
     // MARK: The sequence
 
     /// Whether a new dictation can begin, counting one that holds the turn before its state has moved.
-    private var isBusy: Bool { hasTurn || state.isBusy || early.decodesInFlight > 0 }
-
-    /// Begins listening. Does nothing if a dictation is already under way.
-    public func startRecording() async {
-        guard !isBusy, early.pendingCaptureElapsed == nil else { return }
-        // Said rather than recorded: the words would wait behind the load, under a button saying nothing.
-        guard !isLoading else { return transition(to: .failed(.stillLoading)) }
-        hasTurn = true
-        generation += 1
-        let mine = generation
-        observers.updateGeneration(mine)
-        defer { hasTurn = false }
-        await speech.warm()
-        await startRecordingUsingOpenCapture(for: mine)
-    }
-
-    /// Opens the microphone before a modifier shortcut settles, keeping speech from key-down onward.
-    public func beginModifierPress(measuring elapsed: @escaping @Sendable () -> Duration) async {
-        guard early.pendingCapture == nil, !isBusy, !isLoading else { return }
-        generation += 1
-        let mine = generation
-        observers.updateGeneration(mine)
-        early.pendingCaptureElapsed = elapsed
-        do {
-            try await metrics.measuring(.microphoneOpen, clock: clock, generation: mine) { [capture] in
-                try await capture.start()
-            }
-        } catch {
-            early.pendingCaptureElapsed = nil
-            transition(to: .failed(DictationFailure(error)))
-            return
-        }
-        early.pendingCapture = Task {}
-    }
-
-    /// Makes a modifier press's already-open microphone the recording under way.
-    @discardableResult
-    public func adoptModifierPress() async -> Bool {
-        guard !isBusy, !isLoading else {
-            await cancelModifierPress()
-            // Told as a shortcut press is told, so the press is not met with silence.
-            if !isBusy { transition(to: .failed(.stillLoading)) }
-            return false
-        }
-        hasTurn = true
-        let mine = generation
-        defer { hasTurn = false }
-        await speech.warm()
-        await startRecordingUsingOpenCapture(for: mine)
-        return state.isListening
-    }
-
-    /// Cancels a modifier press that became another shortcut before it settled.
-    public func cancelModifierPress() async {
-        guard early.pendingCapture != nil else { return }
-        early.pendingCapture = nil
-        early.pendingCaptureElapsed = nil
-        await capture.cancel()
-    }
-
-    /// Adopts audio already arriving as a dictation after the modifier press settles.
-    private func startRecordingUsingOpenCapture(for mine: Int) async {
-        screenReads = DictationScreenReads()
-        if let pendingCapture = early.pendingCapture {
-            await pendingCapture.value
-            early.pendingCapture = nil
-            let elapsed = early.pendingCaptureElapsed
-            early.pendingCaptureElapsed = nil
-            if let elapsed {
-                await metrics.record(
-                    .init(stage: .keyDownToAudio, duration: elapsed(), succeeded: true, generation: mine))
-            }
-        } else {
-            do {
-                try await metrics.measuring(.microphoneOpen, clock: clock, generation: mine) { [capture] in
-                    try await capture.start()
-                }
-            } catch {
-                guard !wasCancelled(mine) else { return }
-                transition(to: .failed(DictationFailure(error)))
-                return
-            }
-        }
-        guard !wasCancelled(mine) else {
-            await capture.cancel()
-            return
-        }
-        recordingRoute = nextRoute
-        nextRoute = .dictation
-        stopwatch = UttrflowCore.stopwatch(from: clock)
-        takeSettings()
-        spokenFor = nil
-        insertedInto = nil
-        insertedIntoIdentifier = nil
-        destinationIsSecure = false
-        cleaningRecords = []
-        droppedSpans = []
-        transition(to: .recording)
-        beginWorkingAhead(mine)
-    }
+    var isBusy: Bool { hasTurn || state.isBusy || early.decodesInFlight > 0 }
 
     /// Stops listening and runs the rest: transcribe, tidy, insert.
     public func finishRecording() async {
