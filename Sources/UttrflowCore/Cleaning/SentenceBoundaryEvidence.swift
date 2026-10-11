@@ -91,6 +91,7 @@ public enum SentenceBoundaryEvidence {
             let tail = fragment[split...].map(\.core)
             guard let last = head.last, !bareVerbLeaders.contains(last.key),
                 imperativeObjects.contains(fragment[split + 1].key)
+                    || imperativeParticles.contains(fragment[split + 1].key)
                     || FunctionWords.determiners.contains(fragment[split + 1].key)
             else { continue }
             let headHasVerb =
@@ -212,6 +213,7 @@ public enum SentenceBoundaryEvidence {
     ]
     private static let clauseSubjects = QuestionShape.subjects.union(["nobody", "nothing"])
     private static let imperativeObjects: Set<String> = ["me", "it", "him", "her", "us", "them"]
+    private static let imperativeParticles: Set<String> = ["back", "out", "off"]
     /// Words a bare verb follows inside one clause: "if you can leave it", "if you want to leave it".
     private static let bareVerbLeaders = QuestionShape.verbsBeforeSubject.union([
         "do", "don't", "must", "to", "let", "make", "help", "please", "not",
