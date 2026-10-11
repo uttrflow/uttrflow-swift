@@ -54,6 +54,7 @@ struct SpacingPassTests {
             ("milk,,eggs", "milk,,eggs"),
             ("add the.env file to.gitignore", "add the .env file to .gitignore"),
             ("The.env file", "The .env file"),
+            ("source my.zshrc", "source my .zshrc"),
         ]
     )
     func gluedMark(input: String, expected: String) {
@@ -86,6 +87,7 @@ struct SpacingPassTests {
             "api:latest", "note:buy", "first;second", "so…", "Self.id", "draft.words", "com.apple.iCal",
             "net.example.App",
             "agents.md", "home.ssh", "package.json",
+            "out.txt", "in.txt", "up.sh", "about.md", "out.log", "in.sql", "up.cpp", "about.svg", "on.c", "out.h",
             "https://example.com/a", "src/app/main.swift", "user_id", "k8s", "x,y", "a.b", "etc.Next",
         ]
     )
