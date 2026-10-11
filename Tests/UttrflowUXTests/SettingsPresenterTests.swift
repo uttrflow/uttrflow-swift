@@ -249,6 +249,17 @@ struct SettingsGeneralPaneTests {
                     title: "Resume", change: .pauseClipboardCapture(isOn: false)))
     }
 
+    @Test("offers to turn the terminal paste question off or on from the stored choice")
+    func terminalPasteActionFollowsState() throws {
+        let on = try #require(general().row("clipboard-terminal-paste"))
+        #expect(on.control == .action(title: "Turn off", change: .confirmMultilinePaste(isOn: false)))
+        var capabilities = SettingsCapabilities.everything
+        capabilities.confirmsMultilinePaste = false
+        let off = try #require(general(.default, capabilities).row("clipboard-terminal-paste"))
+        #expect(off.control == .action(title: "Turn on", change: .confirmMultilinePaste(isOn: true)))
+        #expect(SettingsChange.confirmMultilinePaste(isOn: false).isRequestToAct)
+    }
+
     @Test("shows the shortcut in force on keycaps")
     func showsTheShortcut() {
         var settings = Settings.default
@@ -454,7 +465,7 @@ struct SettingsLanguagesPaneTests {
         #expect(example?.written == transformed)
         #expect(
             SettingsTidyingLevel.rowExplanation
-                == "Both levels remove filler sounds and stammers and add punctuation. Standard also repairs grammar slips, which adds a moment to each dictation. Neither level changes, reorders or drops the words you meant."
+                == "Both levels remove filler sounds and stammers and add punctuation. Standard also repairs grammar slips, which adds a moment to each dictation. Neither level changes, reorders or drops the words you meant. The steps that run are listed under Dictation, in Clean-up steps."
         )
     }
 
@@ -521,7 +532,7 @@ struct SettingsLanguagesPaneTests {
         #expect(row?.isEnabled == false)
         #expect(
             row?.unavailability
-                == "Full tidying is not available on this Mac yet, so Uttrflow will still apply its rules.")
+                == "Full clean-up is not available on this Mac yet, so Uttrflow will still apply its rules.")
     }
 
     @Test("shows the Apple Intelligence cause and offers Settings only when switched off")
@@ -684,7 +695,10 @@ struct SettingsPrivacyPaneTests {
         let pane = SettingsPresenter.pane(
             for: .privacy, settings: .default, capabilities: .everything, personalisation: personalisation)
         let rows = pane.groups.first { $0.id == "retention" }?.rows.map(\.id) ?? []
-        #expect(rows.prefix(2) == ["transcripts", "storage.dictationHistory"])
+        let expected = [
+            "transcripts", "clipboardRetention", "clipboardLimits", "storage.dictationHistory",
+        ]
+        #expect(Array(rows.prefix(4)) == expected)
         let size = { (bytes: Int64) in SettingsControl.status(bytes.formatted(.byteCount(style: .file))) }
         #expect(pane.row("storage.recordings")?.control == size(2_000_000))
         #expect(pane.row("storage.snippets")?.control == size(0))
@@ -723,6 +737,24 @@ struct SettingsPrivacyPaneTests {
         #expect(everyPane().allSatisfy { $0.banner == nil })
     }
 
+    @Test("offers clipboard retention on its own, seven days by default, and states the limits")
+    func clipboardRetentionRow() throws {
+        guard case .menu(let options, let selected)? = privacy().row("clipboardRetention")?.control
+        else {
+            Issue.record("the clipboard period is not a pop-up")
+            return
+        }
+        #expect(selected == String(Settings.defaultRetentionDays))
+        #expect(options.map(\.id) == SettingsRetention.offeredDays.map(String.init))
+        #expect(options.allSatisfy { $0.change == .clipboardRetention(days: Int($0.id) ?? -1) })
+        let rule = try #require(privacy().row("clipboardRetention")?.explanation)
+        #expect(rule.contains("Keep transcripts for"))
+        let limits = try #require(privacy().row("clipboardLimits")?.explanation)
+        #expect(limits.contains("500 clips"))
+        #expect(limits.contains("7 days"))
+        #expect(limits.contains("2 MB"))
+    }
+
     @Test("offers only periods the store will keep, and selects the stored one")
     func offersOnlySurvivablePeriods() {
         var settings = Settings.default
@@ -738,14 +770,14 @@ struct SettingsPrivacyPaneTests {
         #expect(options.allSatisfy { $0.change != .retention(days: 0) })
     }
 
-    /// One period, because the transcript is the one thing kept.
-    @Test("offers a period for the text and for nothing else")
-    func onlyTranscriptsHaveAPeriod() {
+    /// Two periods: the transcripts, and the clipboard history that dictation clips follow the first of.
+    @Test("offers a period for the transcripts and one for the clipboard history, and for nothing else")
+    func onlyTranscriptsAndClipsHaveAPeriod() {
         let periods = privacy().everyRow.filter {
             if case .menu = $0.control { return true }
             return false
         }
-        #expect(periods.map(\.id) == ["transcripts"])
+        #expect(periods.map(\.id) == ["transcripts", "clipboardRetention"])
     }
 
     @Test("offers the usage statistics switch, off by default, saying what is sent")
@@ -1156,6 +1188,46 @@ struct UnarmedShortcutTests {
     func armedIsUnchanged() throws {
         let shown = try #require(row(.everything))
         #expect(shown.explanation != SettingsPresenter.unarmed(.shortcutUnavailable))
+    }
+}
+
+@Suite("Switching shortcuts off and restoring them")
+struct ShortcutRemovalPresentationTests {
+    private func row(_ id: String, in settings: Settings) -> SettingsRow? {
+        SettingsPresenter.pane(for: .general, settings: settings, capabilities: .everything)
+            .groups.flatMap(\.rows).first { $0.id == id }
+    }
+
+    @Test("a claimed shortcut says it takes its keys from other apps, and an observed one does not")
+    func claimedRowsSayTheyTakeTheKeys() throws {
+        let claimed = try #require(row("shortcut.pasteLastTranscript", in: .default))
+        let observed = try #require(row("shortcut.dictate", in: .default))
+
+        #expect(claimed.explanation?.hasSuffix(SettingsPresenter.claimsTheKeys) == true)
+        #expect(observed.explanation?.contains(SettingsPresenter.claimsTheKeys) == false)
+    }
+
+    @Test("a claimed shortcut with no keys draws None and no longer says it takes any")
+    func clearedRowDrawsNone() throws {
+        var settings = Settings.default
+        settings.shortcuts.removeAll(from: .pasteLastTranscript)
+
+        let shown = try #require(row("shortcut.pasteLastTranscript", in: settings))
+
+        #expect(shown.control == .shortcut(action: .pasteLastTranscript, keys: []))
+        #expect(shown.explanation?.contains(SettingsPresenter.claimsTheKeys) == false)
+    }
+
+    @Test("Restore Defaults is offered once a shortcut differs, and asks for the restore change")
+    func restoreIsOfferedWhenChanged() throws {
+        #expect(try #require(row("restoreDefaultShortcuts", in: .default)).isEnabled == false)
+
+        var settings = Settings.default
+        settings.shortcuts.removeAll(from: .clipboard)
+        let shown = try #require(row("restoreDefaultShortcuts", in: settings))
+
+        #expect(shown.isEnabled)
+        #expect(shown.control == .action(title: "Restore Defaults", change: .restoreDefaultShortcuts))
     }
 }
 

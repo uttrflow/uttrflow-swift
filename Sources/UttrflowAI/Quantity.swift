@@ -38,6 +38,24 @@ enum Quantities {
         "euros": "\u{20AC}", "rupee": "\u{20B9}", "rupees": "\u{20B9}", "yen": "\u{00A5}",
     ]
 
+    /// Each currency's major nouns and the minor nouns of its hundredth part, so a new currency is a row and no code.
+    static let currencyUnits: [(majors: Set<String>, minors: Set<String>)] = [
+        (["dollar", "dollars"], ["cent", "cents"]),
+        (["pound", "pounds"], ["penny", "pence"]),
+        (["euro", "euros"], ["cent", "cents"]),
+        (["rupee", "rupees"], ["paisa", "paise"]),
+    ]
+
+    /// Whether `word` names the hundredth part of some currency.
+    static func isMinorUnit(_ word: String) -> Bool {
+        currencyUnits.contains { $0.minors.contains(word) }
+    }
+
+    /// Whether `word` names a currency that has a hundredth part.
+    static func hasMinorUnit(_ word: String) -> Bool {
+        currencyUnits.contains { $0.majors.contains(word) }
+    }
+
     /// A percent said as a word after the amount, so "50 percent" and "50%" are one quantity; "degrees" stays out, since it is as often a qualification.
     static let percentWords: [String: String] = ["percent": "%", "per cent": "%"]
 
@@ -196,8 +214,7 @@ enum Magnitude {
     /// Suffixes that scale only an amount of money, since "12B" is as often a flat, gate or seat.
     static let currencyOnlySuffixes: Set<String> = ["B"]
 
-    /// Suffixes said as their own letter after a number, with their factor; a spoken "b" is left out, since it
-    /// scales only an amount of money once written.
+    /// Suffixes said as their own letter after a number, with their factor; "b" has none, as it scales only money.
     static let spokenSuffixes: [String: Decimal] = ["k": 1_000, "m": 1_000_000]
 
     /// Scale words of a thousand and up, from the core number tables, so the guard and the number passes share one list.

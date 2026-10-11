@@ -55,6 +55,36 @@ public enum FunctionWords {
     /// The English small words alone.
     package static let english = words(in: .function)
 
+    /// Determiners a sentence-boundary check reads as opening a noun phrase.
+    static let boundaryDeterminers = words(in: .boundaryDeterminer)
+
+    /// Words that cannot close a sentence, whatever the tagger reads them as ("of", "with", "because").
+    static let neverLast = words(in: .neverLast)
+
+    /// Words that cannot open a sentence, so a stop before them is a stop inside a phrase ("to", "toward").
+    static let neverFronted = words(in: .neverFronted)
+
+    /// Object pronouns an imperative takes straight after its verb ("let it", "give them").
+    static let imperativeObjects = words(in: .imperativeObject)
+
+    /// Words a bare verb follows inside one clause, beyond the inverting verbs ("do", "must", "let").
+    static let bareVerbLeaders = words(in: .bareVerbLeader)
+
+    /// Modal verbs, which need a verb after them.
+    static let modals = words(in: .modal)
+
+    /// Prepositions that take an object after a comma.
+    static let commaPrepositions = words(in: .commaPreposition)
+
+    /// Prepositions that close a phrasal verb ("hold on, wait").
+    static let seamPrepositions = words(in: .seamPreposition)
+
+    /// Verbs that are everyday words and name an HTTP method when a path follows ("get", "post", "delete").
+    package static let httpMethods = words(in: .httpMethod)
+
+    /// Words after a spoken "x" that show it is a multiplier ("ten x faster").
+    package static let multiplierComparisons = words(in: .multiplierComparison)
+
     /// The bundled word list; a word is added by adding its row to `function-words.json`.
     static let table = DataTable<Row>.load("function-words", schema: 1, from: .module, fallback: [])
 
@@ -65,7 +95,8 @@ public enum FunctionWords {
     /// The lists a small word belongs to.
     enum Role: String, Decodable, Sendable {
         case function, leadsOn, meaningBearing, caseSensitive, determiner, prose, subordinator, closingTag,
-            auxiliary
+            auxiliary, boundaryDeterminer, neverLast, neverFronted, imperativeObject, bareVerbLeader, modal,
+            commaPreposition, seamPreposition, httpMethod, multiplierComparison
     }
 
     /// One small word and the lists it belongs to.

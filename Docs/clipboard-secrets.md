@@ -33,6 +33,12 @@ clip, and the switch "Confirm hidden clips" in Settings turns it off. The detect
 `HiddenPasteDestination` in `Sources/UttrflowInput/`; it is separate from the arrival check that
 `ConcealingPasteboard` routes use.
 
+The same question, from the same decision (`PasteQuestion` in `Sources/UttrflowCore/Models/`), also
+guards a clip with a line break pasted into a terminal, where each line would run as it arrives;
+the General switch "Ask before pasting several lines into a terminal" turns that one off. A paste
+asks once, and a hidden clip's question comes before the terminal one. `PasteGate` in
+`Sources/UttrflowInput/` keeps the field a question was about.
+
 ## What a password manager marks
 
 Password managers commonly mark what they copy with the nspasteboard.org types, and

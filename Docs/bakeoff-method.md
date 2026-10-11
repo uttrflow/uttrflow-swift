@@ -29,11 +29,13 @@ the macOS build, chip and memory, and whether context was withheld. Results are 
 | `--summarise` | prints what is already stored and stops |
 | `--verbose` | prints every failed case, not only the summary |
 | `--case <id>` | scores only that case of `EvaluationCorpus.all` and prints why it failed; the result is not stored |
+| `--repeat <n>` | runs every model-backed case n times, keeps the first run's score, and prints the cases whose output changed between runs and the share that never did |
 | `--sample` | prints what a model writes, before any scoring |
 | `--ignore-context` | withholds everything on screen |
 | `--results-path` | where results are kept (default `.bakeoff`) |
 | `--layers a,b` | runs only the named quality layers; a set other than the defaults is stored in its own `-layers-` sibling |
 | `--without a` | switches the named quality layers off, so one command measures what a layer adds |
+| `--ablate` | prints each default-on layer's contribution over the kept decodes of the test side; `--corpus-path` and `--engine-version` choose them |
 | `--against <file>` | compares each measured candidate with a saved result and fails on a regression; output goes to a `-compared` sibling |
 | `--allow-difference a,b` | with `--against`, lets the named header fields differ (`corpus`, `system`, `hardware`, `context`, `layers`) |
 | `--ledger <path>` | writes the last stored run per prompt version and macOS build as a Markdown table, and stops |

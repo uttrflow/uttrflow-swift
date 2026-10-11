@@ -288,6 +288,10 @@ short replies would replace all three tables.
 - WhisperKit re-runs detection for every fallback temperature and samples it the same way it
   samples text, top-k at that temperature. The allowed sampler ignores the temperature, so one
   window cannot change its language between retries.
+- The same detection step also reads the likeliest of all languages. When the model is at least 95%
+  sure of one the product does not transcribe, other than Urdu, the window's decode is refused
+  with an informational notice instead of being written in English. See `Docs/latin-output.md`,
+  "Speech in a language the product does not transcribe".
 
 ## Short Hindi replies under an English and Hindi profile
 
@@ -515,6 +519,11 @@ each, 16 minutes on a loaded machine. Every row is the same:
 |---|---|---|---|---|---|---|---|
 | clean, 10 dB | 5, 0, 1, 2 | -1.0 | 0.0% | 0.000 | 0.00 | 100.0% | 0.0% |
 | clean, 10 dB | 5 | -0.7, -1.3 | 0.0% | 0.000 | 0.00 | 100.0% | 0.0% |
+
+Refitted under the dictionary prompt that closes on lower-case prose (`--vocabulary Kubernetes Grafana
+Postgres Terraform Okta`, the same 8 clips and 3 runs, clean and 10 dB): all 12 rows still show a 0.0%
+fallback rate, 0.000 mean and 0.00 worst extra seconds and 100.0% identical runs, with 0.0% word error
+clean and 1.6% at 10 dB for every count and threshold, so the shipping plan stays.
 
 A second sweep on the same clips, noisier (`--counts 0 1 2 5 --snrs 20 5 0`, 3 runs, release build):
 

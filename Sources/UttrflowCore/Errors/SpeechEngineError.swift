@@ -1,3 +1,5 @@
+import Foundation
+
 /// A failure while turning audio into text.
 public enum SpeechEngineError: UttrflowFailure {
     /// The speech model has not been downloaded yet.
@@ -22,6 +24,8 @@ public enum SpeechEngineError: UttrflowFailure {
     case recogniserTimedOut
     /// The recogniser ran and reported a fault; `description` is for the log, never the screen.
     case transcriptionFailed(description: String)
+    /// The recogniser is certain the speech is in `language`, which the product does not transcribe, so nothing is written.
+    case unsupportedLanguage(LanguageCode)
 
     /// A plain sentence per case, never naming the engine.
     public var userMessage: String {
@@ -48,7 +52,14 @@ public enum SpeechEngineError: UttrflowFailure {
             "Speech recognition took too long, so your recording was kept. Close some apps and try again."
         case .transcriptionFailed:
             "Speech recognition ran into an error. Try again, and report it if it keeps happening."
+        case .unsupportedLanguage(let language):
+            "That sounded like \(Self.name(of: language)), which Uttrflow can't write yet."
         }
+    }
+
+    /// The language's English name, or a plain phrase when the system has no name for it.
+    static func name(of language: LanguageCode) -> String {
+        Locale(identifier: "en").localizedString(forLanguageCode: language.value) ?? "another language"
     }
 
     /// The failure without its remedy, so a kept recording can replace the advice to try again.
@@ -59,7 +70,7 @@ public enum SpeechEngineError: UttrflowFailure {
         case .recogniserTimedOut: "Speech recognition took too long."
         case .transcriptionFailed: "Speech recognition ran into an error."
         case .modelNotInstalled, .modelDownloadFailed, .notEnoughSpace, .modelDamaged, .audioTooShort,
-            .nothingHeard, .noSignal:
+            .nothingHeard, .noSignal, .unsupportedLanguage:
             userMessage
         }
     }
@@ -71,15 +82,15 @@ public enum SpeechEngineError: UttrflowFailure {
         case .modelLoadFailed, .speechWithoutWords, .recogniserTimedOut, .transcriptionFailed: .retry
         case .noSignal: .openSystemSettings(.soundInput)
         // Nothing to press: the remedy is to speak again, or hold longer, which the shortcut already is.
-        case .audioTooShort, .nothingHeard: nil
+        case .audioTooShort, .nothingHeard, .unsupportedLanguage: nil
         }
     }
 
-    /// Informational for silence, which is not a fault; recoverable for the rest, which a retry gets past.
+    /// Informational for silence and a language it does not write, which are not faults; recoverable for the rest, which a retry gets past.
     public var severity: FailureSeverity {
         switch self {
         // Silence is drawn grey with a single "Got it", so it cannot be mistaken for a broken transcription.
-        case .audioTooShort, .nothingHeard: .informational
+        case .audioTooShort, .nothingHeard, .unsupportedLanguage: .informational
         // Setup keeps its progress, so asking again resumes rather than restarting the download.
         case .modelNotInstalled, .modelDownloadFailed, .notEnoughSpace, .modelLoadFailed,
             .modelDamaged, .noSignal, .speechWithoutWords, .recogniserTimedOut, .transcriptionFailed:

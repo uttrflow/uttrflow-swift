@@ -54,6 +54,7 @@ struct UsageTelemetryTests {
         #expect(report.audioTotalMs == 2000)
         #expect(report.latencyP50Ms == 400)
         #expect(report.languages.map(\.language).sorted { $0.rawValue < $1.rawValue } == [.english, .other])
+        #expect(report.fallbackRungs == [.init(rung: .model, dictationCount: 1)])
     }
 
     @Test("counts a recording cancelled back to idle without treating it as a failure")

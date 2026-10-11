@@ -340,11 +340,13 @@ Every dictation from the microphone times its wait from key-up to the words plac
 cause (`DictationWait`): from `DecodeEffort`, fallback seconds, the wait for the speech model to
 load (`BackedSpeechEngine`) and the time spent decoding a piece again after a capped or empty decode
 (`CappedDecodeRetry` and the pipeline's unprompted second decode); then a tidy that timed out, the
-insertion, and screen reads made after key-up; the rest is "other". The target,
+insertion, screen reads made after key-up, and a tidier session that found no warm one
+(`ColdStartMeter`, filled by `AppleFoundationCleanupModel`); the rest is "other". The target,
 `DictationWait.target`, is 4 s, the spoken-reply p95 in the table above. A wait past it is named by
 the cause furthest past its median over the last 100 dictations (`DictationWaits`). The cause is kept
 on the History record on this Mac; Diagnostics shows p50 and p95 per dictation and the count per
-cause. A cold tidier session has no separate timing yet, so its time falls under "other".
+cause. The cold-session figure is the whole model call when no warm session was available, so it is
+an upper bound that includes generation; splitting out the first-token time needs a quiet-machine run.
 
 ### What the recognising time is made of
 
@@ -370,8 +372,12 @@ over 528 decodes of the same corpus:
 - **Skipping Apple's model for longer dictations.** Identical to the rules on 117 of 120 synthetic
   English clips, and the tidier is most of the all-at-once wait; but synthetic speech has none of
   a person's pauses, fillers and slips, so this is not evidence that real dictation would match.
-- **A shorter vocabulary prompt.** The per-token cost above is real and so is the accuracy it buys;
-  trading one for the other needs vocabularies of the size people keep.
+- **A shorter vocabulary prompt than today's.** The listed words are already capped at 48 tokens
+  (`VocabularyPrompt.maximumWordTokens`) and `WorkingSet.isRelevant` already keeps entries nobody
+  uses out of the prompt (`Docs/speech-vocabulary-prompt.md`). A budget below 48 is not taken: the
+  per-token cost above is real and so is the accuracy it buys, and no measurement of term accuracy
+  at a lower budget on realistic manual and passively learned dictionaries, in English and Hindi, with
+  first-piece and later-piece latency at stable host load, has been recorded yet.
 
 ## Re-running the bench
 

@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UttrflowCore
 import UttrflowClipboard
 
 @testable import UttrflowUX
@@ -10,8 +11,8 @@ struct PanelHiddenPasteConfirmationTests {
     private static let secret = PanelFixture.clip("sk-live-abcdef123456", kind: .secret)
 
     private static func asking(unclassified: Bool = false, cleaned: Bool = false) -> PanelSnapshot {
-        PanelFixture.panel([secret]).askingBeforeHiddenPaste(
-            of: secret.id, cleaned: cleaned, unclassified: unclassified)
+        PanelFixture.panel([secret]).askingBeforePaste(
+            of: secret.id, cleaned: cleaned, reason: unclassified ? .hiddenIntoUnreadableField : .hiddenIntoVisibleField)
     }
 
     @Test("choosing a hidden clip asks the app to classify the field before anything is pasted")
@@ -43,8 +44,8 @@ struct PanelHiddenPasteConfirmationTests {
     @Test("the cleaned form stays the cleaned form after agreeing")
     func cleanedSurvives() {
         let dirty = PanelFixture.clip("sk-live\u{200B}abcdef123456", kind: .secret)
-        let snapshot = PanelFixture.panel([dirty]).askingBeforeHiddenPaste(
-            of: dirty.id, cleaned: true, unclassified: false)
+        let snapshot = PanelFixture.panel([dirty]).askingBeforePaste(
+            of: dirty.id, cleaned: true, reason: .hiddenIntoVisibleField)
 
         let effect = snapshot.applying(.return).outcome.effect
 
@@ -54,12 +55,12 @@ struct PanelHiddenPasteConfirmationTests {
     @Test("the question never carries the clip's words")
     func questionHidesTheClip() throws {
         for unclassified in [false, true] {
-            let sheet = try #require(PanelPresenter.present(Self.asking(unclassified: unclassified)).sheet)
+            let sheet = try #require(PanelPresenter.present(Self.asking(reason: unclassified ? .hiddenIntoUnreadableField : .hiddenIntoVisibleField)).sheet)
             let drawn = [
                 sheet.title, sheet.note ?? "", sheet.confirmTitle, sheet.draft, sheet.conflict ?? "",
             ]
 
-            #expect(sheet.kind == .confirmingHiddenPaste)
+            #expect(sheet.kind == .confirmingPaste)
             #expect(sheet.isConfirmEnabled)
             #expect(drawn.allSatisfy { !$0.contains("sk-live") })
         }
@@ -96,8 +97,8 @@ struct PanelHiddenPasteConfirmationTests {
     @Test("agreeing to a clip that is no longer hidden pastes nothing")
     func staleQuestion() {
         let plain = PanelFixture.clip("hello")
-        let snapshot = PanelFixture.panel([plain]).askingBeforeHiddenPaste(
-            of: plain.id, cleaned: false, unclassified: false)
+        let snapshot = PanelFixture.panel([plain]).askingBeforePaste(
+            of: plain.id, cleaned: false, reason: .hiddenIntoVisibleField)
 
         #expect(snapshot.applying(.return).outcome.effect == .redraw)
     }

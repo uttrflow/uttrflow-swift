@@ -34,6 +34,13 @@ clip's text is still searched as before, so a word that only appears in the midd
 finds the clip by its text or not at all. Tag matches are listed after the names you gave and
 before collections and contents; a whole tag leads a tag the query only begins.
 
+Tags are edited in the same sheet as the name: words that start with `#` are tags, split at spaces or
+commas, and the rest is the name, so `pgprod #db #prod` names the clip and tags it. A tag is reduced
+like an alias, repeats are dropped, a clip takes at most 8 tags of at most 24 characters, and a field
+beyond that stays open with the reason. The sheet opens showing the name and its `#` tags, a name
+whose tags are unchanged saves as a plain rename, and an empty field removes the name and the tags.
+Tags are drawn as chips after the name chip.
+
 Content search bounds a clip containing a grapheme longer than 32 Unicode scalars to its first
 1,000 Unicode scalars. This keeps a single combining-mark cluster from making each keystroke
 work over an unbounded grapheme.
@@ -205,12 +212,30 @@ query.
 The **application**, not the pixel dimensions: the question a row has to answer is "which
 screenshot is this", and 922 × 1362 does not answer it. A file name would be better and never
 exists: a screenshot copied with the keyboard puts raw PNG on the pasteboard with no URL and no
-name, and an image file copied in Finder arrives as a path, which becomes a file clip whose row
-already shows it. Dimensions are the fallback for clips recorded without a source.
+name, and an image file copied in Finder arrives as file references, which become a file clip
+whose row already shows it. Dimensions are the fallback for clips recorded without a source.
 
 When the file has gone, the reason **replaces** the numbers rather than joining them: the size
 of a file that is not there is not the useful half. The row itself stays, because the clip is
 still a real record of something copied and removing it would look like the app had lost it.
+
+## What a copied file is
+
+Files copied in the file manager are one **file** clip: ordered local references (a path and a
+bookmark, so a moved file is still found), never a copy of the contents, with the file names as
+the clip's text for search and display. A file copy's name text is not recorded as ordinary text;
+plain path text stays a file-path clip. Resolving the references is all or nothing: if any file is
+gone or unreadable the whole selection is refused with the names that are missing, and the
+pasteboard is left unchanged. A file clip's words are not editable, since they are its files' names.
+
+Return, ⌘-Return and a click put the files themselves on the pasteboard, in copy order, and
+paste them at the caret; Copy and the copy-only path put them on the pasteboard without a paste.
+The references are resolved before the panel closes, so a missing file is named in the panel's
+notice and the panel stays up. The same check runs when the list is drawn: a row with a file gone
+says which in the colour a missing picture uses, stays in the list, and a row of several files
+speaks every name in order. A file clip offers no edit, note or secret action, since each
+rewrites the words. Uttrflow's own write is not announced to the watcher; the watcher records it
+as the same files again, which the store merges into the clip that was pasted.
 
 ## What must not be decided in the view
 

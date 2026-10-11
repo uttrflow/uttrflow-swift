@@ -15,6 +15,7 @@ struct AccountPageView: View {
             VStack(spacing: 0) {
                 MainEmptyStateView(state: empty, onIntent: onIntent)
                 MainCalloutView(callout: presentation.callout)
+                AccountPrivacyLink(link: presentation.privacy)
             }
             .padding(.horizontal, 34)
             .padding(.top, 44)
@@ -42,6 +43,7 @@ struct AccountPageView: View {
                                 action: deletion, help: AccountPagePresenter.deletionHelp, onIntent: onIntent)
                         }
                     }
+                    AccountPrivacyLink(link: presentation.privacy)
                 }
                 .padding(.horizontal, 34)
                 .padding(.top, 44)
@@ -50,6 +52,16 @@ struct AccountPageView: View {
             }
             .scrollBounceBehavior(.basedOnSize)
         }
+    }
+}
+
+/// The Privacy page as a link, which the browser opens and VoiceOver announces as a link.
+struct AccountPrivacyLink: View {
+    let link: PublishedLegalLink
+
+    var body: some View {
+        Link(link.title, destination: link.destination)
+            .font(.system(size: 12, weight: .medium))
     }
 }
 

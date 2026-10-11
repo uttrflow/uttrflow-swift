@@ -97,7 +97,8 @@ struct PanelPasteOutcomeTests {
         let effect = Self.panel(insertion).applying(.return).outcome.effect
 
         switch effect {
-        case .closeAndInsert(let text, _), .closeAndInsertFormatted(let text, _, _):
+        case .closeAndInsert(let text, _), .closeAndInsertFormatted(let text, _, _),
+            .closeAndInsertConfirmed(let text, _):
             #expect(!text.isEmpty)
         case .copyAndSay(let text, let notice, _):
             #expect(!text.isEmpty)
@@ -112,6 +113,8 @@ struct PanelPasteOutcomeTests {
         case .copyConcealedAndSay(let text, let notice, _):
             #expect(!text.isEmpty)
             #expect(!notice.message.isEmpty, "copied, and said so")
+        case .placeFiles(let clip, _):
+            #expect(clip.files != nil)
         case .say(let notice):
             // B8 — there was nothing to paste, and the panel says exactly that.
             #expect(!notice.message.isEmpty)

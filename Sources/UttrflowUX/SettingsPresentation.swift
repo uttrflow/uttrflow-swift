@@ -367,11 +367,17 @@ public enum SettingsChange: Sendable, Equatable {
     case activation(HotkeyActivation)
     case anchor(DockAnchor)
     case shortcut(ShortcutAction, HotkeyBinding)
+    /// Leaves one shortcut with no keys, so its action is reached from the menu alone.
+    case clearShortcut(ShortcutAction)
+    /// Puts every shortcut back to what the product ships with and touches nothing else.
+    case restoreDefaultShortcuts
     case tidying(SettingsTidyingLevel)
     case spokenLanguage(LanguageCode, isSpoken: Bool)
     /// How long the user pauses while speaking.
     case pauses(PauseLength)
     case retention(days: Int)
+    /// How long clipboard history is kept; dictation clips follow ``retention(days:)``.
+    case clipboardRetention(days: Int)
     case appearance(AppAppearance)
     /// How much of the front application a dictation reads.
     case contextLevel(ContextLevel)
@@ -415,6 +421,9 @@ public enum SettingsChange: Sendable, Equatable {
     /// Pauses clipboard capture for one hour, or resumes it early.
     case pauseClipboardCapture(isOn: Bool)
 
+    /// Turns the question before a multi-line clip is pasted into a terminal on or off.
+    case confirmMultilinePaste(isOn: Bool)
+
     /// Asks the update feed now rather than waiting for the next scheduled check.
     case checkForUpdatesNow
 
@@ -448,7 +457,7 @@ public enum SettingsChange: Sendable, Equatable {
         case .checkForUpdatesNow, .chooseApplicationToTurnOffSuggestions, .chooseApplicationForDestination,
             .chooseApplicationForContextLevel, .retrySuggestionModel, .exportPersonalData,
             .importPersonalData, .manageClipboardExclusions,
-            .pauseClipboardCapture, .openSystemSettings, .openPage:
+            .pauseClipboardCapture, .confirmMultilinePaste, .openSystemSettings, .openPage:
             true
         default: false
         }

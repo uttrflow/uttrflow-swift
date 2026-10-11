@@ -210,9 +210,7 @@ AI suggestions screen. The answer is kept in
 `~/Library/Application Support/Uttrflow/predict-consent.v1.json` (`CapturePreferencesFile`, written
 through `PrivateFile`), written the first time the loop meets an application the screen allows and
 rewritten when a switch there moves. An application the loop has met is listed whether or not it
-has taught anything. Importing a shell's history (`ShellHistory`) asks the same question of the
-terminal it seeds: an application not yet allowed, or declined, gets nothing, and the one-time
-import stays unspent until it is allowed.
+has taught anything. Nothing reads a shell's history: the terminal learns only from what is typed in it.
 
 Dictation asks the same file before it learns (`LearningConsent` in `UttrflowCore`): the dictionary
 learner and the usage counts write nothing about an application the user declined. An application
@@ -224,6 +222,15 @@ teaches nothing whatever the answer. One reset removes the file, so it forgets t
 
 The importer reads history from the end in 64 KiB chunks, keeps the newest 5,000 distinct
 commands in chronological order, and skips Bash's epoch timestamp lines.
+
+Typing capture also refuses two cases the application's answer cannot see. A window whose title
+carries `(Incognito)`, `InPrivate` or `Private Browsing` (`FieldReading.isInPrivateWindow`) teaches
+nothing whatever the application's answer, and its page host is never written as a scope. Titles are
+the only sign of a private window the capture path reads, so a browser that does not put one in the
+title is not detected: the limit is the browser's, not a promise. The applications in
+`SuggestionApplications.privateByDefault` (password managers, remote-desktop clients, virtual
+machines) are not learned from until the user allows them on the AI suggestions screen. No list of
+banking applications ships.
 
 Both sides file an application under `ApplicationKey`, its bundle identifier lowercased, because
 macOS is not consistent about case and the switch and the field reading see the identifier from
@@ -572,7 +579,7 @@ say why nothing was drawn:
 
 | Order | Reason | When |
 |---|---|---|
-| 1 | `turnedOffHere` | Off in this field (⎋⎋, ⌥⎋ or the preferences) |
+| 1 | `turnedOffHere` | Off in this field (⌥⎋ or the preferences) |
 | 2 | `secureField` | The field hides what is typed |
 | 3 | `composing` | The field reports marked text ([predict-ime.md](predict-ime.md)) |
 | 4 | `unknownWritingDirection` | The glyph bounds do not say which side the continuation belongs on |
@@ -603,12 +610,20 @@ refused rather than written to.
 |---|---|---|
 | Entries per surface, evicted by fragment status, acceptance, uses and age | `PredictStore.entriesPerSurface` | 2,000 |
 | Scopes kept per field, least recently used evicted | `PredictStore.surfacesPerField` | 64 |
+| Entries in the whole corpus, weakest evicted first by the same order | `PredictStore.entriesPerStore` | 20,000 |
 | Most recent scopes a lookup reads | `PredictStore.scopeLimit` | 8 |
 | Candidates a lookup returns | `PredictStore.candidateLimit` | 16 |
 
 An entry carries `count`, `accepted`, `rejected`, `self_sourced`, `finished` and `last_used`. A
 `superseded_by` value marks text the gates replaced or refused, and a superseded entry is never
 proposed again. Forgetting works at three sizes: one entry, one application, everything.
+
+**Age.** At start the store drops every entry whose own `Frecency.score` has fallen below
+`PredictionEngine.supportFloor` (0.15), because it can no longer be offered: about 46 days for
+one typed use, and longer with more uses. `PredictStore.expireStale(now:)` decides through
+`RetentionWindow.mayDelete`, so a clock that is wrong hides rather than deletes
+([retention-clock.md](retention-clock.md)). Superseded and refused lines are kept, since they
+withhold a line.
 
 A write protects its new entry and succession pair from its own eviction. Later pressure removes
 fragments first, then entries with fewer acceptances, fewer uses and older `last_used` values;

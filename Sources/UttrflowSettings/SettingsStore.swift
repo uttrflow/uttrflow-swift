@@ -13,6 +13,9 @@ public struct Settings: Sendable, Equatable, Codable {
     /// Which clean-up steps run, so a user can switch one off and see what it was doing.
     public var cleaning: CleaningSteps
 
+    /// The quality preset every app is dictated under unless ``destinations`` names one for it.
+    var qualityPreset: QualityPreset.ID
+
     /// The apps the user has told Uttrflow to treat as somewhere other than the table says.
     public var destinations: DestinationOverrides
 
@@ -123,11 +126,18 @@ public struct Settings: Sendable, Equatable, Codable {
     /// Applications read at a level of their own instead of ``contextLevel``.
     public var contextLevelOverrides: ContextLevelOverrides
 
+    /// The preset this app is dictated under: its own override, else the one chosen for every app.
+    func qualityPreset(forBundleIdentifier bundle: String?) -> QualityPreset {
+        let chosen = bundle.flatMap { destinations.preset(forBundleIdentifier: $0) } ?? qualityPreset
+        return QualityPreset.preset(chosen)
+    }
+
     /// Takes the shipped default for anything the caller does not choose.
     public init(
         engines: EngineConfiguration = .default,
         profile: UserProfile = .default,
         cleaning: CleaningSteps = .default,
+        qualityPreset: QualityPreset.ID = .standard,
         destinations: DestinationOverrides = .none,
         shortcuts: ShortcutSet = .default,
         hotkeyActivation: HotkeyActivation = .holdToTalk,
@@ -164,6 +174,7 @@ public struct Settings: Sendable, Equatable, Codable {
         self.engines = engines
         self.profile = profile
         self.cleaning = cleaning
+        self.qualityPreset = qualityPreset
         self.destinations = destinations
         self.shortcuts = shortcuts
         self.hotkeyActivation = hotkeyActivation
@@ -255,6 +266,7 @@ extension Settings {
         case engines
         case profile
         case cleaning
+        case qualityPreset
         case destinations
         case shortcuts
         case hotkeyActivation
@@ -300,6 +312,7 @@ extension Settings {
             engines: container.value(forKey: .engines, default: fallback.engines),
             profile: container.value(forKey: .profile, default: fallback.profile),
             cleaning: container.value(forKey: .cleaning, default: fallback.cleaning),
+            qualityPreset: container.value(forKey: .qualityPreset, default: fallback.qualityPreset),
             destinations: container.value(forKey: .destinations, default: fallback.destinations),
             // A saved file with no dictation shortcut predates ⌃⌥ held, so it keeps ⌥Space.
             shortcuts: Settings.shortcuts(from: decoder, default: .earlierDefault),
@@ -421,11 +434,19 @@ extension Settings {
             .map(\.1))
     }
 
+    /// Whether the file says outright that dictation has no shortcut, as opposed to saying nothing about it.
+    static func dictationSwitchedOff(in decoder: any Decoder) -> Bool {
+        guard let container = try? decoder.container(keyedBy: CodingKeys.self),
+            let stored = try? container.decodeIfPresent([String: [HotkeyBinding]].self, forKey: .shortcuts)
+        else { return false }
+        return stored[ShortcutAction.dictate.rawValue]?.isEmpty == true
+    }
+
     /// The shortcuts on disk, reading the two fields that came before them when they are all there is.
     static func shortcuts(from decoder: any Decoder, default fallback: ShortcutSet) -> ShortcutSet {
         if let container = try? decoder.container(keyedBy: CodingKeys.self),
             let stored = try? container.decodeIfPresent(ShortcutSet.self, forKey: .shortcuts),
-            stored.isBound(.dictate)
+            stored.isBound(.dictate) || Settings.dictationSwitchedOff(in: decoder)
         {
             return stored
         }

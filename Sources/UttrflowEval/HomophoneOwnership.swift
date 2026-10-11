@@ -1,7 +1,7 @@
 // AC.21's decision: which one stage may change each homophone class, read from what decides the class's carriers.
 
 /// The one stage that may change a homophone class; the guard judges every swap and owns none.
-public enum HomophoneOwner: String, Sendable, CaseIterable {
+enum HomophoneOwner: String, Sendable, CaseIterable {
     /// The on-device model chooses from the offered reading, because grammar or meaning around the slot decides it.
     case model
     /// The personal dictionary or the screen offers the reading, because only the app or field decides it.
@@ -11,9 +11,9 @@ public enum HomophoneOwner: String, Sendable, CaseIterable {
 }
 
 /// Assigns every class in the carriers exactly one owner, from the carriers' decider tags.
-public enum HomophoneOwnership {
+enum HomophoneOwnership {
     /// The owner of the class holding `spelling`: the model for role or sense, the place for domain only, else none.
-    public static func owner(of spelling: String) -> HomophoneOwner? {
+    static func owner(of spelling: String) -> HomophoneOwner? {
         guard let members = classOf(spelling) else { return nil }
         let deciders = Set(
             (HomophoneCarriers.all + HomophoneCarriers.lexicon)
@@ -23,7 +23,7 @@ public enum HomophoneOwnership {
     }
 
     /// Every class with carriers, in order, with its owner.
-    public static var table: [(members: [String], owner: HomophoneOwner)] {
+    static var table: [(members: [String], owner: HomophoneOwner)] {
         (HomophoneCarriers.classes + HomophoneLexiconClasses.all).compactMap { members in
             owner(of: members[0]).map { (members, $0) }
         }

@@ -1,0 +1,12 @@
+{
+    "schema": 1,
+    "rows": [
+        {"id": "dozen", "lists": ["quantity"]},
+        {"id": "first", "lists": ["numeral"]},
+        {"id": "half", "lists": ["quantity", "numeral"]},
+        {"id": "percent", "lists": ["quantity", "numeral"]},
+        {"id": "quarter", "lists": ["quantity"]},
+        {"id": "second", "lists": ["numeral"]},
+        {"id": "third", "lists": ["numeral"]}
+    ]
+}

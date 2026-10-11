@@ -37,15 +37,16 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
 
     public init(
         destination: Destination = .plain, fieldRole: FieldRole = .unknown,
-        region: CaretStructure.Region = .unrecognised, pauses: PauseLength = .usual
+        region: CaretStructure.Region = .unrecognised, pauses: PauseLength = .usual,
+        mode: AdapterMode = .auto
     ) {
         self.destination = destination
         self.sentencePause = PauseStopPass.sentencePause(for: pauses)
         // The flag rows name where options are typed; the one notation rule rules out a comment or prose body there.
-        let screen = NotationEvidence.applicability(destination: destination, region: region)
+        let screen = NotationEvidence.applicability(destination: destination, region: region, mode: mode)
         self.isCommandLine =
             SpokenCommands.flags.contains { $0.isEnabled(in: destination) }
-            && screen != .ruledOut(by: .caretInProse)
+            && screen != .ruledOut(by: .caretInProse) && screen != .ruledOut(by: .proseByChoice)
         self.expected = SpokenAddress.Expectation()
             .union(fieldRole == .recipient ? .addresses : []).union(destination == .terminal ? .paths : [])
     }

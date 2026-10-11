@@ -88,9 +88,9 @@ for the application to take the words: transcribing, tidying and inserting are o
 person waiting, so they are one animation. Under Reduce Motion the bars hold still at full
 height, per `MotionBudget`.
 
-The line is "Tidying up…" for every stage until the wait passes `WaitLine.stageAfter` (10 s, the
+The line is "Cleaning up…" for every stage until the wait passes `WaitLine.stageAfter` (10 s, the
 current p95 wait for a dictation of about 10 s in [performance.md](performance.md#latency-budget-per-stage)).
-It then names the true stage, "Transcribing…", "Tidying…" or "Waiting for <app>…" with the app the
+It then names the true stage, "Transcribing…", "Cleaning up…" or "Waiting for <app>…" with the app the
 words are going to, and past `WaitLine.secondsAfter` (20 s) adds the seconds waited beneath it.
 VoiceOver hears the stage once, at the first change. `WaitLineTests` holds these.
 
@@ -142,9 +142,9 @@ shows the resting icon or status line.
 | --- | --- | --- | --- |
 | `idle` | the mark | the mark | Ready |
 | `recording` | `mic.fill` | `mic.fill` | Listening… |
-| `transcribing` | `sparkles` | `sparkles` | Tidying up… |
-| `tidying` | `sparkles` | `sparkles` | Tidying up… |
-| `inserting` | `sparkles` | `sparkles` | Tidying up… |
+| `transcribing` | `sparkles` | `sparkles` | Cleaning up… |
+| `tidying` | `sparkles` | `sparkles` | Cleaning up… |
+| `inserting` | `sparkles` | `sparkles` | Cleaning up… |
 | `inserted`, confirmed | `checkmark` | `checkmark` | Inserted |
 | `inserted`, unconfirmed | `questionmark.circle` | `questionmark.circle` | Inserted — not confirmed |
 | `inserted`, partial | `exclamationmark.circle` | `exclamationmark.circle` | the missed-speech line |

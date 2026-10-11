@@ -12,9 +12,14 @@ private struct DictionaryPromptTokenizer: PromptTokenizer {
     func encode(text: String) -> [Int] { text.unicodeScalars.map { Int($0.value) } }
 }
 
+/// A worst-case tokeniser: a long word costs one token per byte, an ordinary word one token.
 private struct BytePromptTokenizer: PromptTokenizer {
     let firstSpecialToken = 50_257
-    func encode(text: String) -> [Int] { text.utf8.map { Int($0) } }
+    func encode(text: String) -> [Int] {
+        text.split(separator: " ").flatMap { word -> [Int] in
+            word.utf8.count > 12 ? word.utf8.map { Int($0) } : [word.utf8.reduce(0) { $0 &+ Int($1) }]
+        }
+    }
 }
 
 private struct WhisperDictionaryPromptTokenizer: PromptTokenizer {

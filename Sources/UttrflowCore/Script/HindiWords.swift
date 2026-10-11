@@ -5,17 +5,28 @@ public enum HindiWords {
     public enum WordClass: String, Decodable, Sendable {
         case copula, negation, postposition, conjunction, questionWord, pronoun, possessive, verbStem
         case auxiliary, particle, subject
+        case finiteVerb, closingVerb, questionCopula, embeddingWord
     }
+
+    /// Classes that only `QuestionShape` reads; they never make a word a grammar word, a function word or a listed Hindi spelling.
+    private static let shapeClasses: Set<WordClass> = [
+        .finiteVerb, .closingVerb, .questionCopula, .embeddingWord,
+    ]
 
     /// The classes of the word, in its exact lowercased spelling; empty when it is not listed.
     public static func classes(of word: String) -> Set<WordClass> {
-        rowsBySpelling[word.lowercased()]?.classes ?? []
+        rowsBySpelling[word.lowercased()]?.grammarClasses ?? []
+    }
+
+    /// The spellings of one question-shape class, in every listed spelling.
+    static func spellings(of shapeClass: WordClass) -> Set<String> {
+        Set(table.rows.filter { $0.classes.contains(shapeClass) }.map(\.id))
     }
 
     /// Spellings that carry structure rather than content, leaving out those that are also English content words ("main", "use"); auxiliaries and particles are read only as `grammarWords`.
     public static let functionWords: Set<String> = Set(
         table.rows.filter {
-            !$0.english && !$0.classes.subtracting([.verbStem, .auxiliary, .particle]).isEmpty
+            !$0.english && !$0.grammarClasses.subtracting([.verbStem, .auxiliary, .particle]).isEmpty
         }
         .map(\.id))
 
@@ -33,7 +44,7 @@ public enum HindiWords {
 
     /// The word a spelling is a variant of ("nahin" is "nahi"), or nil when the spelling is not listed.
     public static func spellingKey(of word: String) -> String? {
-        rowsBySpelling[word].map { $0.word ?? $0.id }
+        rowsBySpelling[word].flatMap { $0.grammarClasses.isEmpty ? nil : $0.word ?? $0.id }
     }
 
     /// Copulas, auxiliaries, postpositions and particles, by sound key: words that tie a sentence together and carry no content.
@@ -55,7 +66,7 @@ public enum HindiWords {
         uniquingKeysWith: { first, _ in first })
 
     /// Every listed romanised spelling.
-    public static let spellings: [String] = table.rows.map(\.id)
+    public static let spellings: [String] = table.rows.filter { !$0.grammarClasses.isEmpty }.map(\.id)
 
     /// The bundled table; see `Docs/data-tables.md`.
     static let table = DataTable<Row>.load("hindi-words", schema: 1, from: .module, fallback: [])
@@ -70,6 +81,9 @@ public enum HindiWords {
         let word: String?
         let caseOf: String?
         let english: Bool
+
+        /// The classes other passes read, without the ones only `QuestionShape` reads.
+        var grammarClasses: Set<WordClass> { classes.subtracting(HindiWords.shapeClasses) }
 
         enum CodingKeys: String, CodingKey { case id, classes, word, caseOf, english }
 

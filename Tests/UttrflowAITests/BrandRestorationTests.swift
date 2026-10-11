@@ -41,21 +41,14 @@ struct BrandRestorationTests {
         text.lowercased().split(whereSeparator: { !$0.isLetter }).map(String.init)
     }
 
-    /// Every name written in English is the right one, and at least the measured share of names is restored.
-    @Test func restoresNamesFromTheDictionaryAndTheLexicon() async throws {
-        let personal = Self.personalBrands.map(\.1)
-        var restored = 0
-        var wrong: [String] = []
-        for (devanagari, english) in Self.personalBrands + Self.lexiconBrands {
-            let text = try await Self.cleaned(Self.sentence(devanagari), personal: personal)
-            let sources = Set((personal + TechnicalLexicon.terms.map(\.id)).map { $0.lowercased() })
-            let names = Self.words(text).filter { sources.contains($0) }
-            if text.contains(english) { restored += 1 } else if !names.isEmpty { wrong.append(text) }
-            #expect(!text.unicodeScalars.contains { (0x0900...0x097F).contains($0.value) })
-        }
-        print("BRANDS restored \(restored) of 20, wrong \(wrong)")
-        #expect(wrong.isEmpty)
-        #expect(restored >= 15)
+    /// A name from the person's dictionary and a name from the lexicon each come back in English, with no Devanagari left.
+    @Test(arguments: [
+        ("ओरवांटा", "Orvanta"), ("पाइथन", "Python"), ("लिनक्स", "Linux"),
+    ])
+    func restoresANamedBrand(devanagari: String, english: String) async throws {
+        let text = try await Self.cleaned(Self.sentence(devanagari), personal: Self.personalBrands.map(\.1))
+        #expect(text.contains(english), "\(text)")
+        #expect(!text.unicodeScalars.contains { (0x0900...0x097F).contains($0.value) })
     }
 
     @Test func leavesNamesInNeitherSourceAsSpoken() async throws {
@@ -74,5 +67,28 @@ struct BrandRestorationTests {
             return restoration.restored(romanised).map { "\(romanised)->\($0)" }
         }
         #expect(wrong.isEmpty, "\(wrong)")
+    }
+}
+
+/// The share of names restored over the whole list, run by `make eval`; the unit lane keeps the named brands above.
+@Suite("Brand restoration share")
+struct BrandRestorationShareTests {
+    private typealias Brands = BrandRestorationTests
+
+    /// Every name written in English is the right one, and at least the measured share of names is restored.
+    @Test func restoresNamesFromTheDictionaryAndTheLexicon() async throws {
+        let personal = Brands.personalBrands.map(\.1)
+        var restored = 0
+        var wrong: [String] = []
+        for (devanagari, english) in Brands.personalBrands + Brands.lexiconBrands {
+            let text = try await Brands.cleaned(Brands.sentence(devanagari), personal: personal)
+            let sources = Set((personal + TechnicalLexicon.terms.map(\.id)).map { $0.lowercased() })
+            let names = Brands.words(text).filter { sources.contains($0) }
+            if text.contains(english) { restored += 1 } else if !names.isEmpty { wrong.append(text) }
+            #expect(!text.unicodeScalars.contains { (0x0900...0x097F).contains($0.value) })
+        }
+        print("BRANDS restored \(restored) of 20, wrong \(wrong)")
+        #expect(wrong.isEmpty)
+        #expect(restored >= 15)
     }
 }

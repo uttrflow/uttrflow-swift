@@ -19,7 +19,6 @@ struct HiddenPasteDestinationTests {
         let read = await HiddenPasteDestination.read(from: focus)
 
         #expect(read.field == .secure)
-        #expect(!read.needsConfirmation)
     }
 
     @Test("a non-secure field needs confirmation")
@@ -29,7 +28,6 @@ struct HiddenPasteDestinationTests {
         let read = await HiddenPasteDestination.read(from: focus)
 
         #expect(read.field == .nonSecure)
-        #expect(read.needsConfirmation)
     }
 
     @Test("a focus that cannot be classified needs confirmation")
@@ -39,7 +37,6 @@ struct HiddenPasteDestinationTests {
         let read = await HiddenPasteDestination.read(from: focus)
 
         #expect(read.field == .unclassified)
-        #expect(read.needsConfirmation)
     }
 
     @Test("the same field is unchanged")
@@ -87,7 +84,7 @@ struct HiddenPasteDestinationTests {
 }
 
 /// A reader that answers fixed focus facts and nothing else.
-private struct ScriptedFocus: AccessibilityFocus {
+struct ScriptedFocus: AccessibilityFocus {
     let secure: Bool
     let identity: FieldIdentity?
     let application: InsertionDestination?

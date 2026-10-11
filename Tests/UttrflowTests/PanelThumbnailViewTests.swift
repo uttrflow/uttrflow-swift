@@ -10,6 +10,34 @@ import Testing
 @MainActor
 @Suite("A picture clip's thumbnail")
 struct PanelThumbnailViewTests {
+    @MainActor
+    private final class RetryWait {
+        private(set) var now = ContinuousClock.now
+        private var waiting: CheckedContinuation<Void, Never>?
+        private var entered: CheckedContinuation<Void, Never>?
+        private var isWaiting = false
+
+        func wait() async {
+            await withCheckedContinuation { continuation in
+                waiting = continuation
+                isWaiting = true
+                entered?.resume()
+                entered = nil
+            }
+        }
+
+        func waitUntilEntered() async {
+            if isWaiting { return }
+            await withCheckedContinuation { entered = $0 }
+        }
+
+        func release(after duration: Duration) {
+            now = now.advanced(by: duration)
+            waiting?.resume()
+            waiting = nil
+        }
+    }
+
     private final class RetrySourceState: @unchecked Sendable {
         private let state = Mutex((calls: 0, restored: false))
         var calls: Int { state.withLock { $0.calls } }
@@ -48,9 +76,10 @@ struct PanelThumbnailViewTests {
     @Test("a row scrolled back into view draws its cached picture at once")
     func aCachedPictureDrawsAtOnce() async throws {
         let file = try redPicture()
+        let thumbnails = PanelThumbnails()
         defer { try? FileManager.default.removeItem(at: file) }
-        #expect(await PanelThumbnails.shared.picture(for: file) != nil)
-        let colour = try #require(middle(of: PanelThumbnailView(file: file)))
+        #expect(await thumbnails.picture(for: file) != nil)
+        let colour = try #require(middle(of: PanelThumbnailView(file: file, thumbnails: thumbnails)))
         #expect(colour.redComponent > 0.9)
         #expect(colour.greenComponent < 0.3)
         #expect(colour.blueComponent < 0.3)
@@ -70,8 +99,11 @@ struct PanelThumbnailViewTests {
     func aVisibleRowRetriesAMiss() async throws {
         let file = URL(fileURLWithPath: "/tmp/uttrflow-retry-\(UUID().uuidString).png")
         let state = RetrySourceState()
+        let retry = RetryWait()
+        let retryAfter = Duration.milliseconds(20)
         let thumbnails = PanelThumbnails(
-            source: PanelThumbnailSource { _, _ in state.load() }, retryAfter: .milliseconds(20))
+            source: PanelThumbnailSource { _, _ in state.load() }, retryAfter: retryAfter,
+            retryWait: { _ in await retry.wait() }, now: { retry.now })
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 40, height: 40), styleMask: .borderless,
             backing: .buffered, defer: false)
@@ -81,9 +113,10 @@ struct PanelThumbnailViewTests {
         window.orderFrontRegardless()
         defer { window.close() }
 
-        for _ in 0..<1_000 where state.calls == 0 { try await Task.sleep(for: .milliseconds(1)) }
+        await retry.waitUntilEntered()
         #expect(state.calls == 1)
         state.restore()
+        retry.release(after: retryAfter)
         for _ in 0..<1_000 where thumbnails.cached(file) == nil {
             try await Task.sleep(for: .milliseconds(1))
         }

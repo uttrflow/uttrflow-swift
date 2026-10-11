@@ -262,6 +262,8 @@ public struct HomeSnapshot: Sendable, Equatable {
     public let speechModelBytes: Int64?
     /// Whether ``entries`` has been read from the store yet; false only before the first reading.
     public let hasReadHistory: Bool
+    /// The text of every snippet marked secret; a dictation holding one is masked.
+    public let secretPhrases: [String]
 
     /// Builds a snapshot; everything but the shortcut and the clock defaults to empty.
     public init(
@@ -275,8 +277,10 @@ public struct HomeSnapshot: Sendable, Equatable {
         speechModel: SpeechModelLoad? = nil,
         speechDownload: Double? = nil,
         speechModelBytes: Int64? = nil,
-        hasReadHistory: Bool = true
+        hasReadHistory: Bool = true,
+        secretPhrases: [String] = []
     ) {
+        self.secretPhrases = secretPhrases
         self.permissions = permissions
         self.entries = entries
         self.account = account
@@ -337,7 +341,8 @@ public enum HomePresenter {
                         now: snapshot.now),
                     calendar: calendar, now: snapshot.now, locale: locale)
                 : [],
-            recent: blocked == nil ? listed.map { row(for: $0, locale: locale) } : [],
+            recent: blocked == nil
+                ? listed.map { row(for: $0, locale: locale, secretPhrases: snapshot.secretPhrases) } : [],
             recentTitle: title(for: listed, calendar: calendar, now: snapshot.now),
             seeAll: kept.count > listed.count
                 ? MainAction(title: "See all", intent: .show(.history)) : nil,
@@ -359,7 +364,9 @@ public enum HomePresenter {
                 : [],
             activity: blocked == nil
                 ? kept.prefix(HomeDashboard.activityShown).map {
-                    HomeDashboard.activity(for: $0, calendar: calendar, locale: locale)
+                    HomeDashboard.activity(
+                        for: $0, calendar: calendar, locale: locale,
+                        secretPhrases: snapshot.secretPhrases)
                 } : [],
             viewAll: kept.isEmpty ? nil : MainAction(title: "View all", intent: .show(.history)),
             search: HomeDashboard.search,
@@ -513,11 +520,11 @@ public enum HomePresenter {
     // MARK: - One dictation
 
     /// One dictation as a home row whose action copies its text.
-    static func row(for entry: HistoryEntry, locale: Locale) -> HomeRow {
+    static func row(for entry: HistoryEntry, locale: Locale, secretPhrases: [String] = []) -> HomeRow {
         HomeRow(
             id: entry.id,
             when: MainFormatting.time(entry.when, locale: locale),
-            text: DictationTextPresentation(entry.text).displayText,
+            text: DictationTextPresentation(entry.text, secretPhrases: secretPhrases).displayText,
             application: HistoryPresenter.application(for: entry),
             // Copying is what people want from a glance; everything else is on the page this row leads to.
             open: MainAction(title: "Copy", symbolName: "doc.on.doc", intent: .copy(entry.text)))

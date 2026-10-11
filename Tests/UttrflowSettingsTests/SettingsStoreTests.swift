@@ -550,6 +550,27 @@ struct SettingsTests {
         #expect(restored.shortcuts.first(for: .dictate) == .controlOptionHold)
     }
 
+    @Test("keeps a dictation shortcut switched off through a round trip")
+    func noDictationShortcutSurvivesARoundTrip() throws {
+        var settings = Settings.default
+        settings.shortcuts.removeAll(from: .dictate)
+        settings.shortcuts.removeAll(from: .clipboard)
+
+        let restored = try JSONDecoder().decode(Settings.self, from: JSONEncoder().encode(settings))
+
+        #expect(!restored.shortcuts.isBound(.dictate))
+        #expect(!restored.shortcuts.isBound(.clipboard))
+        #expect(restored.shortcuts.first(for: .copyLastTranscript) == .controlCommandC)
+    }
+
+    @Test("still gives a file that says nothing about dictation the earlier default")
+    func silentFileKeepsTheEarlierDefault() throws {
+        let settings = try decode(
+            #"{"shortcuts": {"clipboard": [{"keyCode": 9, "modifiers": ["command"]}]}}"#)
+
+        #expect(settings.shortcuts.first(for: .dictate) == .optionSpace)
+    }
+
     @Test("returns nothing, and notes nothing, for shortcuts the user could press")
     func notesNothingForUsableShortcuts() throws {
         #expect(try decode("{}").shortcutsReturnedToDefault.isEmpty)

@@ -10,7 +10,7 @@ public struct TerminalStopPass: WholeTextCleaningPass {
     public let insertionPoint: InsertionPoint
     public let destination: Destination?
     /// What the caret sits in, which with the words decides whether a query editor holds a statement.
-    public let region: CaretStructure.Region
+    let region: CaretStructure.Region
 
     public init(
         policy: TerminalStopPolicy = .always, layout: LayoutPolicy = .paragraphs,
@@ -31,7 +31,7 @@ public struct TerminalStopPass: WholeTextCleaningPass {
             LayoutWordsPass.joinOnOneLine(&draft, by: Self.id, separated: destination != .terminal)
         }
         if layout.contains(.paragraphs), policy != .never {
-            Self.stopParagraphs(&draft, destination: destination)
+            Self.stopParagraphs(&draft, isLetter: appliesLetterRules(to: draft))
         }
         Self.separateLeadingReviewTag(&draft, layout: layout)
         Self.separateLeadingQuestionOpener(&draft, layout: layout)
@@ -40,7 +40,7 @@ public struct TerminalStopPass: WholeTextCleaningPass {
         Self.separateHindiAsides(&draft, layout: layout)
         guard let last = draft.presentIndices.last, !draft.words[last].isLayoutMark else { return draft }
         let word = draft.words[last].text
-        if destination == .email, Self.isEmailGreetingOrSignOff(draft) {
+        if appliesLetterRules(to: draft), Self.isEmailGreetingOrSignOff(draft) {
             draft.replace(at: last, with: WordShape.withoutTrailingStop(word), by: Self.id)
             return draft
         }
@@ -259,7 +259,7 @@ public struct TerminalStopPass: WholeTextCleaningPass {
     }
 
     /// Ends each paragraph of three or more words before a blank line with a full stop; a list item gets none.
-    private static func stopParagraphs(_ draft: inout Draft, destination: Destination?) {
+    private static func stopParagraphs(_ draft: inout Draft, isLetter: Bool) {
         var opening: Draft.Word?
         var paragraph: [Int] = []
         for index in draft.presentIndices {
@@ -269,7 +269,7 @@ public struct TerminalStopPass: WholeTextCleaningPass {
                 continue
             }
             let greetsOrSignsOff =
-                destination == .email && Self.isEmailGreetingOrSignOff(paragraph, in: draft)
+                isLetter && Self.isEmailGreetingOrSignOff(paragraph, in: draft)
             if word.text.hasPrefix("\n\n"), let last = paragraph.last, greetsOrSignsOff {
                 // A greeting or a closing takes no stop, a stop the model wrote included.
                 let unstopped = WordShape.withoutTrailingStop(draft.words[last].text)
@@ -326,15 +326,8 @@ public struct TerminalStopPass: WholeTextCleaningPass {
             }
             let suffix = live[position...].filter { !draft.words[$0].isLayoutMark }
             guard let first = suffix.first else { continue }
-            let opening = firstWord(draft.words[first].text)
-            let closingWords =
-                opening == "best"
-                    && suffix.dropFirst().first.map { firstWord(draft.words[$0].text) == "regards" } == true
-                ? 2
-                : 1
-            guard ["thanks", "regards", "cheers", "best", "sincerely"].contains(opening),
-                suffix.count > closingWords
-            else { continue }
+            let closingWords = closingLength(of: suffix.map { draft.words[$0].text })
+            guard closingWords > 0, suffix.count > closingWords else { continue }
             let nameCount = suffix.count - closingWords
             guard (1...2).contains(nameCount) else { continue }
             let name = suffix.dropFirst(closingWords)
@@ -342,6 +335,33 @@ public struct TerminalStopPass: WholeTextCleaningPass {
             if draft.words[first].text.hasSuffix(",") || closingWords == 2 || nameCount == 1 { return first }
         }
         return nil
+    }
+
+    /// The closings a sign-off opens with, longest first; one list for an email and a letter in a document.
+    private static let closings: [[String]] = [
+        ["yours", "sincerely"], ["yours", "faithfully"], ["yours", "truly"], ["best", "regards"],
+        ["kind", "regards"], ["warm", "regards"], ["best", "wishes"],
+        ["thanks"], ["regards"], ["cheers"], ["best"], ["sincerely"],
+    ]
+
+    /// How many words of `words` spell a closing, or 0 when they open with none.
+    private static func closingLength(of words: [String]) -> Int {
+        let heard = words.prefix(2).map(firstWord)
+        return closings.first { heard.starts(with: $0) }?.count ?? 0
+    }
+
+    /// Whether the greeting and sign-off rules apply: always in an email, in a document only for a letter.
+    func appliesLetterRules(to draft: Draft) -> Bool {
+        destination == .email || destination == .document && Self.isLetter(draft)
+    }
+
+    /// Whether the text opens with "dear", "hello" or "hi" and ends with a closing and a name, the evidence a letter is meant.
+    static func isLetter(_ draft: Draft) -> Bool {
+        guard let first = paragraphWords(in: draft).first,
+            greetingOpenerLength(first, in: draft) != nil,
+            ["dear", "hello", "hi"].contains(firstWord(draft.words[first[0]].text))
+        else { return false }
+        return emailSignOffStart(in: draft) != nil
     }
 
     /// The words in a draft split at paragraph marks, ignoring layout marks.

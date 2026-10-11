@@ -111,11 +111,12 @@ struct PanelPictureCopyTests {
     /// Whether an effect writes a string, which for a picture would be its empty text.
     private static func carriesText(_ effect: PanelEffect) -> Bool {
         switch effect {
-        case .closeAndInsert, .closeAndInsertFormatted, .copyAndSay, .closeAndCopy, .closeAndInsertConcealed,
+        case .closeAndInsert, .closeAndInsertConfirmed, .closeAndInsertFormatted, .copyAndSay, .closeAndCopy,
+            .closeAndInsertConcealed,
             .closeAndInsertConfirmedConcealed, .copyConcealedAndSay, .closeAndCopyConcealed:
             true
         case .redraw, .close, .applyAndRedraw, .closeAndInsertImage, .say, .copyImageAndSay,
-            .closeAndCopyImage:
+            .closeAndCopyImage, .placeFiles:
             false
         }
     }

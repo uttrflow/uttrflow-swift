@@ -87,7 +87,12 @@ public enum MainIntent: Sendable, Equatable {
     /// Restore valid clipboard privacy settings from their set-aside file.
     case restoreClipboardPreferences
     /// Commit the inline editor; `replacing` is the snippet being edited, or `nil` for a new one.
-    case saveSnippet(trigger: String, text: String, applications: [String], replacing: UUID?)
+    case saveSnippet(
+        trigger: String, text: String, applications: [String], replacing: UUID?, isSecret: Bool = false)
+    /// Show a secret snippet's text on the Snippets page until it is hidden again.
+    case revealSnippet(UUID)
+    /// Mask a secret snippet's text on the Snippets page again.
+    case hideSnippet(UUID)
     /// Close the inline snippet editor unchanged.
     case cancelSnippetEdit
 

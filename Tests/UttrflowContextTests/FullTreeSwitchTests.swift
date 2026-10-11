@@ -26,11 +26,12 @@ private final class FakeApplication {
                 guard self.supported.contains(attribute) else { return false }
                 self.values[attribute] = isOn
                 return !self.reportsFailure
-            })
+            },
+            refuses: { !self.supported.contains($0) })
     }
 }
 
-@Suite("Turning a browser engine's full Accessibility tree on and off")
+@Suite("Turning a browser engine's full Accessibility tree on and off", .timeLimit(.minutes(2)))
 struct FullTreeSwitchTests {
     @Test("An application on a bundled browser engine takes the manual switch.")
     func bundledEngineTakesTheManualSwitch() {
@@ -88,6 +89,18 @@ struct FullTreeSwitchTests {
             tree.switchOn(processIdentifier: 9, bundleIdentifier: "com.google.Chrome", host: chrome.host)
         }
         #expect(chrome.writes.count == 2)
+    }
+
+    @Test("A native application that has no such attribute is asked once, not again after the wait.")
+    func aNativeRefusalIsAskedOnce() {
+        let tree = FullTreeSwitch()
+        let native = FakeApplication(supported: [])
+        tree.switchOn(processIdentifier: 5, bundleIdentifier: "com.example.native", host: native.host, at: 0)
+        tree.switchOn(
+            processIdentifier: 5, bundleIdentifier: "com.example.native", host: native.host,
+            at: 2 * FullTreeSwitch.retryInNanoseconds)
+        #expect(native.writes.count == 1)
+        #expect(tree.switchedOn.isEmpty)
     }
 
     @Test("A tree something else turned on is left on when the loop stops.")
@@ -208,18 +221,18 @@ struct FullTreeSwitchTests {
                 generation: generation)
             readFinished.signal()
         }
-        #expect(app.readStarted.wait(timeout: .now() + .seconds(1)) == .success)
+        #expect(app.readStarted.wait(timeout: .distantFuture) == .success)
 
         let invalidationFinished = DispatchSemaphore(value: 0)
         onItsOwnThread {
             tree.invalidatePendingReads()
             invalidationFinished.signal()
         }
-        #expect(invalidationFinished.wait(timeout: .now() + .milliseconds(100)) == .success)
+        #expect(invalidationFinished.wait(timeout: .distantFuture) == .success)
         #expect(tree.generation == generation + 1)
 
         app.resumeRead.signal()
-        #expect(readFinished.wait(timeout: .now() + .seconds(1)) == .success)
+        #expect(readFinished.wait(timeout: .distantFuture) == .success)
         #expect(!app.isOn)
     }
 
@@ -235,11 +248,11 @@ struct FullTreeSwitchTests {
                 generation: oldGeneration)
             readFinished.signal()
         }
-        #expect(app.readStarted.wait(timeout: .now() + .seconds(1)) == .success)
+        #expect(app.readStarted.wait(timeout: .distantFuture) == .success)
 
         let newGeneration = tree.beginSession()
         app.resumeRead.signal()
-        #expect(readFinished.wait(timeout: .now() + .seconds(1)) == .success)
+        #expect(readFinished.wait(timeout: .distantFuture) == .success)
         #expect(tree.switchedOn.isEmpty)
 
         tree.switchOn(
@@ -262,11 +275,11 @@ struct FullTreeSwitchTests {
                 generation: oldGeneration)
             writeFinished.signal()
         }
-        #expect(app.writeStarted.wait(timeout: .now() + .seconds(1)) == .success)
+        #expect(app.writeStarted.wait(timeout: .distantFuture) == .success)
 
         tree.beginSession()
         app.resumeWrite.signal()
-        #expect(writeFinished.wait(timeout: .now() + .seconds(1)) == .success)
+        #expect(writeFinished.wait(timeout: .distantFuture) == .success)
         #expect(tree.switchedOn.isEmpty)
         #expect(app.isOn)
 

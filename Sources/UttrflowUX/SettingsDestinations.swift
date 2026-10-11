@@ -59,8 +59,10 @@ public enum SettingsDestinations {
     public static let automaticID = "automatic"
     static let automaticTitle = "Work it out"
 
-    /// The rows offering the clean-up steps, one tick each, in the order they run.
-    public static func steps(_ steps: CleaningSteps) -> SettingsGroup {
+    /// The rows offering the clean-up steps, one tick each, in the order they run, each with its example.
+    public static func steps(
+        _ steps: CleaningSteps, previewer: CleaningPreviewer = .none
+    ) -> SettingsGroup {
         SettingsGroup(
             id: "cleaningSteps",
             title: "Clean-up steps",
@@ -69,10 +71,19 @@ public enum SettingsDestinations {
                 return SettingsRow(
                     id: "step-\(step.id.rawValue)",
                     label: step.name,
-                    explanation: step.detail,
+                    explanation: explanation(of: step, steps, previewer),
                     control: .tick(
                         isTicked: isOn, change: .cleaningStep(step.id, isOn: !isOn)))
             })
+    }
+
+    /// The step's detail, then its example said both ways in the one explanation, so VoiceOver reads it as a unit.
+    static func explanation(
+        of step: CleaningStep, _ steps: CleaningSteps, _ previewer: CleaningPreviewer
+    ) -> String {
+        guard let sample = previewer.sample(of: step, under: steps) else { return step.detail }
+        return step.detail + " Say \u{201C}\(step.example)\u{201D}."
+            + " Off: \u{201C}\(sample.without)\u{201D}. On: \u{201C}\(sample.with)\u{201D}."
     }
 
     /// The override rows: apps in kept history newest first, then other overrides, then a way to add an app.
@@ -91,12 +102,12 @@ public enum SettingsDestinations {
     }
 
     /// The option that leaves an app's formatting to Uttrflow.
-    public static let automaticModeID = "auto"
+    static let automaticModeID = "auto"
     /// The option that writes an app's words as plain prose, never as notation.
-    public static let proseModeID = "prose"
+    static let proseModeID = "prose"
 
     /// One row per app saying how its words are formatted and letting the person switch notation off.
-    public static func adapterModes(
+    static func adapterModes(
         _ overrides: DestinationOverrides, recentApps: [SettingsApp]
     ) -> SettingsGroup? {
         let listed = apps(recentApps, overrides).apps

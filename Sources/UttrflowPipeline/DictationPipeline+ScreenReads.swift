@@ -8,10 +8,8 @@ extension DictationPipeline {
         _ app: AppContext, cleaner: any TranscriptCleaning, overrides: DestinationOverrides
     ) async {
         recordingDestination = app
-        let situation =
-            recordingFieldKind.map {
-                Situation(app: app, insertion: app.insertionPoint, destination: $0)
-            } ?? SituationResolver.resolve(from: app, overrides: overrides)
+        let situation = SituationResolver.resolve(
+            app: app, insertion: app.insertionPoint, overrides: overrides, destination: recordingFieldKind)
         let words = await speechWords(app)
         let fixedCorrector = await corrector.fixed(for: app)
         dictationWords = words
@@ -35,7 +33,7 @@ extension DictationPipeline {
     /// The words this dictation ranked once, or none when it never read a screen to rank them against.
     var rankedWords: [String] { dictationContext?.vocabulary ?? dictationWords ?? [] }
 
-    /// The screen as it was while the key was held, read once for every early piece.
+    /// The screen as it stands while the key is held, read once for every early piece.
     func earlyContextRead(_ mine: Int) async -> AppContext {
         if let seen = early.context { return seen }
         var read: AppContext
@@ -151,7 +149,7 @@ extension DictationPipeline {
             }
             return read
         case .copy:
-            return recordingDestination ?? AppContext()
+            return (recordingDestination ?? AppContext()).readingSkipped()
         }
     }
 }

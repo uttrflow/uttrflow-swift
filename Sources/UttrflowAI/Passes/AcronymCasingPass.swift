@@ -94,6 +94,7 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
             }
             draft.replace(at: index, with: shape.replacingCore(with: form), by: Self.id)
         }
+        HTTPSlots.apply(to: &draft)
         return draft
     }
 
@@ -239,7 +240,7 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
 
     /// The lexicon categories whose written form is a name with its own casing; a one-word file stem such as README is one, unless it is an everyday word.
     private static let namedCategories: Set<TechnicalTerm.Category> = [
-        .acronym, .tool, .language, .fileFormat,
+        .acronym, .tool, .language, .fileFormat, .spelledName,
     ]
 
     /// The forms whose first letter is lower case, kept as written at a sentence start.

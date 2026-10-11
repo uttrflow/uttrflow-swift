@@ -72,8 +72,11 @@ public struct AppleFoundationCleanupModel: CleanupModel {
         _ text: String, instructions: String, kind: TransformerKind
     ) async throws(TransformationError) -> String {
         // A fresh session per utterance, so one sentence's context cannot bleed into the next.
-        let session =
-            await Self.warmed.take(for: instructions) ?? LanguageModelSession(instructions: instructions)
+        let warm = await Self.warmed.take(for: instructions)
+        let session = warm ?? LanguageModelSession(instructions: instructions)
+        // With no warm session the whole call is the cold start's upper bound, and the pipeline names it as such.
+        let began = ContinuousClock.now
+        defer { if warm == nil { ColdStartMeter.current?.add(began.duration(to: .now)) } }
         guard let ceiling = await Self.responseCeiling(text, instructions: instructions) else {
             throw .transformFailed(kind: kind, failure: .contextTooLarge)
         }

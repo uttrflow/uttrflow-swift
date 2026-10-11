@@ -120,9 +120,10 @@ public enum WordDoubtEvaluation {
         return Interval(value: value, low: low, high: high)
     }
 
-    private struct SplitMix {
+    package struct SplitMix {
         var state: UInt64
-        mutating func next() -> UInt64 {
+        package init(state: UInt64) { self.state = state }
+        package mutating func next() -> UInt64 {
             state &+= 0x9E37_79B9_7F4A_7C15
             var mixed = state
             mixed = (mixed ^ (mixed >> 30)) &* 0xBF58_476D_1CE4_E5B9

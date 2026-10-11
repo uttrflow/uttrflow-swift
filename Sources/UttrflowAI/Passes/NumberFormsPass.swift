@@ -362,6 +362,11 @@ public struct NumberFormsPass: PieceCleaningPass {
         at position: Int, keys: [String], shapes: [WordShape], policy: NumberPolicy = .fromTen,
         digits: DigitGrouping = .thousands
     ) -> Phrase? {
+        if let price = minorAmount(at: position, keys: keys, shapes: shapes, digits: digits)
+            ?? priceShorthand(at: position, keys: keys, shapes: shapes)
+        {
+            return price
+        }
         let fixedShapes: [(Int, [String], [WordShape]) -> Phrase?] = [
             score, readingOver, zoneOffset, signedDigitRun, numericDate, cuedYear, cuedClock,
             twentyFourHourClock, dottedNumber, spokenDigitRun, leadingDecimal, decade,
@@ -384,6 +389,72 @@ public struct NumberFormsPass: PieceCleaningPass {
         }
         return cardinal(at: position, keys: keys, shapes: shapes, policy: policy, digits: digits)
     }
+
+    /// A major amount, its currency word and a smaller number, "two dollars fifty", written "2.50 dollars".
+    private static func minorAmount(
+        at position: Int, keys: [String], shapes: [WordShape], digits: DigitGrouping
+    ) -> Phrase? {
+        guard let major = item(at: position, keys: keys, shapes: shapes), let value = major.value else {
+            return nil
+        }
+        let currency = position + major.count
+        guard joined(currency, shapes), Quantities.hasMinorUnit(keys[currency]), joined(currency + 1, shapes),
+            let minor = hundredth(at: currency + 1, keys: keys, shapes: shapes)
+        else { return nil }
+        let end = currency + 1 + minor.count
+        if joined(end, shapes),
+            Quantities.isMinorUnit(keys[end])
+                || LexicalClass.tag(ofWordAt: end, in: keys) == .noun
+        {
+            return nil
+        }
+        let whole = major.spoken ? NumberWords.render(value, grouping: digits, isAmount: true) : major.text
+        return Phrase(
+            text: "\(whole).\(twoDigits(minor.value)) \(shapes[currency].core)", count: end - position)
+    }
+
+    /// Words before a price said as two numbers, "two ninety nine", that mark it as money and not a time.
+    static let priceCues: Set<String> = ["cost", "costs", "price", "priced", "for"]
+
+    /// Words that may stand between a price cue and the price, "the price is two ninety nine".
+    static let priceLinks: Set<String> = ["is", "was", "of", "only", "just"]
+
+    /// A one-digit amount and a two-digit part after a price cue, "costs two ninety nine", written "2.99".
+    private static func priceShorthand(at position: Int, keys: [String], shapes: [WordShape]) -> Phrase? {
+        guard position > 0, joined(position, shapes), !startsASentence(position, shapes) else { return nil }
+        var cue = position - 1
+        if priceLinks.contains(keys[cue]), cue > 0, joined(cue, shapes) { cue -= 1 }
+        guard priceCues.contains(keys[cue]), !hasTimeCue(before: position, keys: keys, shapes: shapes),
+            let whole = NumberWords.cardinal(unbroken(from: position, keys: keys, shapes: shapes)),
+            whole.count == 1, (1...9).contains(whole.value),
+            joined(position + 1, shapes), let part = hundredth(at: position + 1, keys: keys, shapes: shapes),
+            part.value >= 10, keys[cue] != "for" || part.value > 59
+        else { return nil }
+        let end = position + 1 + part.count
+        if joined(end, shapes),
+            isMeridiem(at: end, keys: keys, shapes: shapes)
+                || LexicalClass.tag(ofWordAt: end, in: keys) == .noun
+        {
+            return nil
+        }
+        return Phrase(text: "\(whole.value).\(twoDigits(part.value))", count: end - position)
+    }
+
+    /// The number from one to ninety-nine at `start`, spoken or in digits, that is the hundredth part of an amount.
+    private static func hundredth(
+        at start: Int, keys: [String], shapes: [WordShape]
+    ) -> (value: Int, count: Int)? {
+        let read: (value: Int, count: Int)?
+        if let written = NumberWords.digits(keys[start]) {
+            read = Int(written).map { ($0, 1) }
+        } else {
+            read = NumberWords.cardinal(unbroken(from: start, keys: keys, shapes: shapes))
+        }
+        guard let read, (1...99).contains(read.value) else { return nil }
+        return read
+    }
+
+    private static func twoDigits(_ value: Int) -> String { value < 10 ? "0\(value)" : String(value) }
 
     /// "plus" followed by spoken digits, as a dialling prefix.
     private static func signedDigitRun(at position: Int, keys: [String], shapes: [WordShape]) -> Phrase? {
@@ -456,7 +527,16 @@ public struct NumberFormsPass: PieceCleaningPass {
     private static func cardinal(
         at position: Int, keys: [String], shapes: [WordShape], policy: NumberPolicy, digits: DigitGrouping
     ) -> Phrase? {
-        guard let item = item(at: position, keys: keys, shapes: shapes) else { return nil }
+        guard var item = item(at: position, keys: keys, shapes: shapes) else { return nil }
+        let written = item.text
+        if !item.spoken {
+            let end = position + item.count
+            let quantity =
+                joined(end, shapes) && (currencies.contains(keys[end]) || measures.contains(keys[end]))
+            item = Item(
+                value: item.value, text: regrouped(item.text, digits: digits, quantity: quantity),
+                count: item.count, spoken: false)
+        }
         let inContext = hasLabelCue(at: position, keys: keys, shapes: shapes)
         if let measured = decimalAndPercent(item, at: position, keys: keys, shapes: shapes) {
             return measured
@@ -475,9 +555,29 @@ public struct NumberFormsPass: PieceCleaningPass {
         if inContext, item.spoken, let run = contextDigits(item, at: position, keys: keys, shapes: shapes) {
             return run
         }
-        return plainNumber(
+        if let plain = plainNumber(
             item, at: position, inContext: inContext, keys: keys, shapes: shapes, policy: policy,
             digits: digits)
+        {
+            return plain
+        }
+        return item.text == written ? nil : Phrase(text: item.text, count: item.count)
+    }
+
+    /// A written numeral in the grouping `digits` says, at the same value; plain digits gain commas only as a quantity.
+    static func regrouped(_ key: String, digits: DigitGrouping, quantity: Bool) -> String {
+        let plain = key.filter { $0 != "," }
+        guard plain.allSatisfy({ $0.isASCII && $0.isNumber }), plain.first != "0", let value = Int(plain)
+        else { return key }
+        guard key.contains(",") else {
+            let reads = quantity && (4...9).contains(plain.count)
+            guard reads, digits != .none else { return key }
+            return NumberWords.render(value, grouping: digits, isAmount: true)
+        }
+        guard DigitGrouping.thousands.matches(key) || DigitGrouping.indian.matches(key) else { return key }
+        // Prose keeps a person's Indian grouping; only an explicit style or a parsed place rewrites commas.
+        return digits == .thousands || digits.matches(key) && digits != .none
+            ? key : NumberWords.render(value, grouping: digits)
     }
 
     /// Decimal places joined with "point", then "percent" or "per cent", or a letter for a magnitude.
@@ -790,11 +890,7 @@ public struct NumberFormsPass: PieceCleaningPass {
             || NumberWords.scales[previous] != nil
     }
 
-    /// The written magnitude for a lone "k", "m" or "b" at `index`, or nil when it is a unit, a code or a name.
-    ///
-    /// "k" counts thousands and stays lower case; "m" and "b" are millions and billions, written "M" and "B".
-    /// "m" and "b" are also a metre and a label, so they count only with a decimal before them or a noun or currency
-    /// word after them: "two point five m", "ten b dollars", but not "five m long".
+    /// The written magnitude of a lone "k", "m" or "b" at `index`: "m" and "b" count only after a decimal or before a noun, else nil.
     private static func magnitudeMark(
         at index: Int, after position: Int, decimal: Bool, keys: [String], shapes: [WordShape]
     ) -> String? {

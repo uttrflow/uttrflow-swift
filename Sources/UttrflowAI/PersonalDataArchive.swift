@@ -200,6 +200,6 @@ extension Snippet {
     fileprivate func withFreshID() -> Snippet {
         Snippet(
             trigger: trigger, expansion: expansion, created: created, timesUsed: timesUsed,
-            lastUsed: lastUsed, applications: applications)
+            lastUsed: lastUsed, applications: applications, isSecret: isSecret)
     }
 }

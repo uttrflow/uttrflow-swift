@@ -7,6 +7,8 @@ import hashlib
 import json
 import os
 import sys
+import re
+
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MANIFEST = os.path.join("Resources", "DataManifest.json")
@@ -16,11 +18,62 @@ SYNTHETIC_AUDIO = os.path.join("Tests", "Fixtures", "SyntheticAudio")
 ORIGINS = ("authored", "generated", "third-party", "unrecorded")
 REQUIRED = ("path", "origin", "licence", "redistribution", "sha256", "bytes")
 THIRD_PARTY_REQUIRED = ("source", "revision")
+RECIPE_REQUIRED = ("fitToolRevision", "featureSpecVersion", "inputs", "seeds", "engine", "command")
+INPUT_WHERE = ("tree", "cache")
+
+
+MARK_PATH = "Sources/Uttrflow/Resources/GoogleG.png"
+MARK_SOURCE = "https://developers.google.com/static/identity/images/signin-assets.zip"
+MARK_LICENCE = "LicenseRef-GoogleSignInBranding"
+MARK_PRODUCED_BY = "Scripts/select-google-mark.sh and Scripts/lift-google-mark.swift"
+
+def provider_metadata_problems(entry):
+    problems = []
+    expected = {"path": MARK_PATH, "origin": "third-party", "source": MARK_SOURCE,
+                "licence": MARK_LICENCE, "redistribution": True, "producedBy": MARK_PRODUCED_BY}
+    for key, value in expected.items():
+        if entry.get(key) != value:
+            problems.append(f"optional provider artwork requires {key} {value}")
+    if not re.fullmatch(r"sha256:[0-9a-f]{64}", str(entry.get("revision", ""))):
+        problems.append("optional provider artwork requires its archive SHA-256 revision")
+    if not re.fullmatch(r"[0-9a-f]{64}", str(entry.get("sha256", ""))):
+        problems.append("optional provider artwork requires its output SHA-256")
+    if type(entry.get("bytes")) is not int or entry["bytes"] <= 0:
+        problems.append("optional provider artwork requires a positive output size")
+    return problems
 
 
 def digest(path):
     with open(path, "rb") as handle:
         return hashlib.sha256(handle.read()).hexdigest()
+
+
+def recipe_problems(entry):
+    """What is wrong with an entry's fit recipe; an empty list when it has none or it is whole."""
+    recipe = entry.get("recipe")
+    if recipe is None:
+        return []
+    if not isinstance(recipe, dict):
+        return ["recipe must be an object"]
+    problems = [f"recipe missing {key}" for key in RECIPE_REQUIRED if key not in recipe]
+    for key in ("fitToolRevision", "featureSpecVersion", "engine"):
+        if key in recipe and (not isinstance(recipe[key], str) or not recipe[key]):
+            problems.append(f"recipe {key} must be a non-empty string")
+    seeds = recipe.get("seeds")
+    if "seeds" in recipe and (not isinstance(seeds, list) or any(type(seed) is not int for seed in seeds)):
+        problems.append("recipe seeds must be a list of whole numbers")
+    command = recipe.get("command")
+    if "command" in recipe and (not isinstance(command, list) or not command or not all(isinstance(part, str) for part in command)):
+        problems.append("recipe command must be a non-empty list of strings")
+    inputs = recipe.get("inputs")
+    if "inputs" in recipe:
+        if not isinstance(inputs, list):
+            problems.append("recipe inputs must be a list")
+        else:
+            for item in inputs:
+                if not isinstance(item, dict) or not item.get("path") or not item.get("sha256") or item.get("where") not in INPUT_WHERE:
+                    problems.append(f"recipe input needs path, sha256 and where ({', '.join(INPUT_WHERE)})")
+    return problems
 
 
 def bundled_files(root):
@@ -47,7 +100,7 @@ def update(root):
     changed = 0
     for entry in entries:
         path = entry.get("path")
-        if path not in bundled:
+        if path not in bundled or entry.get("optional") is True:
             continue
         full_path = os.path.join(root, path)
         values = {"sha256": digest(full_path), "bytes": os.path.getsize(full_path)}
@@ -79,6 +132,10 @@ def check(root):
         if path in listed:
             failures.append(f"{path}: listed twice")
         listed[path] = entry
+        if "optional" in entry and type(entry["optional"]) is not bool:
+            failures.append(f"{path}: optional must be a boolean")
+        if entry.get("optional") is True:
+            failures.extend(f"{path}: {problem}" for problem in provider_metadata_problems(entry))
         missing = [key for key in REQUIRED if key not in entry]
         if entry.get("origin") == "third-party":
             missing += [key for key in THIRD_PARTY_REQUIRED if not entry.get(key)]
@@ -91,6 +148,7 @@ def check(root):
         budget = entry.get("budgetBytes")
         if budget is not None and (type(budget) is not int or budget <= 0):
             failures.append(f"{path}: budgetBytes must be a positive whole number of bytes")
+        failures.extend(f"{path}: {problem}" for problem in recipe_problems(entry))
         if entry.get("origin") == "unrecorded":
             notes.append(f"{path}: origin unrecorded, owner to confirm source and licence")
     on_disk = bundled_files(root)
@@ -108,7 +166,8 @@ def check(root):
         if type(budget) is int and size > budget:
             failures.append(f"{path}: {size:,} bytes, over its budgetBytes of {budget:,}")
     for path in sorted(set(listed) - set(on_disk)):
-        failures.append(f"{path}: in {MANIFEST} but not bundled")
+        if listed[path].get("optional") is not True or provider_metadata_problems(listed[path]):
+            failures.append(f"{path}: in {MANIFEST} but not bundled")
     return failures, notes
 
 

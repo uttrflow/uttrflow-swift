@@ -12,7 +12,11 @@ import Testing
 @Suite("Dictations and the Clipboard switch", .serialized)
 struct DictationClipSwitchTests {
     private func app(clipboardOn: Bool, in sandbox: borrowing Sandbox) -> AppDelegate {
-        let app = AppDelegate(container: sandbox.root, account: HeldSession(signedIn: true).layer)
+        let app = AppDelegate(
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
+            onboardingRecordStore: isolatedOnboardingRecord(clipboardAnswered: true),
+            account: HeldSession(signedIn: true).layer)
         app.drawsWindows = false
         app.settingsChanged(to: Settings(clipboardEnabled: clipboardOn))
         return app
@@ -46,6 +50,7 @@ struct DictationClipSwitchTests {
 
         let dictation = try #require(app.lastTranscriptID)
         app.carryOut(.keepDictationAsClip(dictation))
+        await app.intentWork?.value
         for _ in 0..<50 {
             if await keptClips(in: sandbox) == ["Sample words"] { return }
             try await Task.sleep(for: .milliseconds(20))
@@ -53,4 +58,18 @@ struct DictationClipSwitchTests {
 
         #expect(await keptClips(in: sandbox) == ["Sample words"])
     }
+
+    @Test("keeping a dictation exposes completion after a fresh clipboard store can read its clip")
+    func keepCompletionCoversPersistence() async throws {
+        let sandbox = Sandbox()
+        let app = app(clipboardOn: true, in: sandbox)
+        app.render(
+            .inserted(DictationOutcome(text: "Synthetic clip", method: .accessibility, cleanedBy: .rules)))
+        let dictation = try #require(app.lastTranscriptID)
+        app.carryOut(.keepDictationAsClip(dictation))
+        let completion = try #require(app.intentWork)
+        await completion.value
+        #expect(await keptClips(in: sandbox) == ["Synthetic clip"])
+    }
+
 }

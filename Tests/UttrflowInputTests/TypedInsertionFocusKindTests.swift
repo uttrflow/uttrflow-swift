@@ -88,7 +88,34 @@ struct TypedInsertionFocusKindTests {
     func classifiesRoles() {
         #expect(FocusedElementKind.of(role: "AXTextArea", isPublished: true) == .textEntry)
         #expect(FocusedElementKind.of(role: "AXWebArea", isPublished: true) == .control)
-        #expect(FocusedElementKind.of(role: nil, isPublished: true) == .control)
+        #expect(FocusedElementKind.of(role: "AXStaticText", isPublished: true) == .control)
         #expect(FocusedElementKind.of(role: nil, isPublished: false) == .unpublished)
+    }
+
+    @Test("A role that cannot be read is treated as an unpublished element, not a control.")
+    func unreadableRoleIsUnpublished() {
+        #expect(FocusedElementKind.of(role: nil, isPublished: true) == .unpublished)
+    }
+
+    @Test(
+        "Web area, group and cell roles are text entry only while editable.",
+        arguments: ["AXWebArea", "AXGroup", "AXCell"])
+    func editorRolesFollowEditableState(role: String) {
+        #expect(FocusedElementKind.of(role: role, isPublished: true, isEditable: true) == .textEntry)
+        #expect(FocusedElementKind.of(role: role, isPublished: true, isEditable: false) == .control)
+        #expect(FocusedElementKind.of(role: role, isPublished: true) == .control)
+    }
+
+    @Test("Editable state is not asked for a role that already takes text.")
+    func editableNotReadForTextRoles() {
+        var asked = false
+        let kind = FocusedElementKind.of(
+            role: "AXTextField", isPublished: true,
+            isEditable: {
+                asked = true
+                return true
+            }())
+        #expect(kind == .textEntry)
+        #expect(!asked)
     }
 }

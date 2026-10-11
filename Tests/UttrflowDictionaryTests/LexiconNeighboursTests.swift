@@ -2,16 +2,25 @@
 
 import Testing
 import UttrflowCore
+import UttrflowTestSupport
 
 @testable import UttrflowDictionary
 
 @Suite("The technical lexicon's neighbour report")
 struct LexiconNeighboursTests {
     @Test("the shipped seed holds at least 300 terms, each with one report line")
-    func everyTermReported() {
+    func everyTermReported() throws {
         let report = LexiconNeighbours.report()
         #expect(TechnicalLexicon.terms.count >= 300)
         #expect(report.map(\.id) == TechnicalLexicon.terms.map(\.id))
+        try QualityGridReport.emit(
+            suite: "lexicon", id: "seed-minimum", passed: TechnicalLexicon.terms.count >= 300,
+            measurements: ["terms": TechnicalLexicon.terms.count])
+        for (index, term) in TechnicalLexicon.terms.enumerated() {
+            try QualityGridReport.emit(
+                suite: "lexicon", id: "term/\(term.id)",
+                passed: report.indices.contains(index) && report[index].id == term.id)
+        }
         let near = report.filter { !$0.neighbours.isEmpty }
         let ordinary = report.filter(\.isOrdinary).count
         print(
