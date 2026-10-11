@@ -1212,6 +1212,8 @@ by prose alone.
 - A chosen value whose neighbour scores more than `--cliff-tolerance` worse is a cliff and is refused
   with exit 1; `--margin-steps N` moves the choice N grid steps toward the flatter, feasible
   neighbour instead.
+- Margin steps are capped at the grid endpoint before index arithmetic, so even the largest integer
+  margin remains bounded. The record retains the requested step count.
 - `--record` writes one JSON file: the grid, objective, seed, table digest, feature spec version,
   engine label, every trial, the chosen value, its neighbours, the margin and the test score.
   Rerunning on the same table gives the same bytes. Its `id` names the record.

@@ -258,7 +258,9 @@ public struct ThresholdSweep: Sendable, Equatable {
         }
         guard let flatter else { return (nil, .cliff) }
         let direction = flatter >= best ? 1 : -1
-        return (min(max(best + direction * request.marginSteps, 0), trials.count - 1), .chosen)
+        let distance = direction > 0 ? trials.count - 1 - best : best
+        let steps = min(request.marginSteps, distance)
+        return (best + direction * steps, .chosen)
     }
 
     static func neighbours(of index: Int, count: Int) -> [Int] {
