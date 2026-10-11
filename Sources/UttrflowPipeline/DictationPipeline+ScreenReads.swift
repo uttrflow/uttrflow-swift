@@ -8,12 +8,8 @@ extension DictationPipeline {
         _ app: AppContext, cleaner: any TranscriptCleaning, overrides: DestinationOverrides
     ) async {
         recordingDestination = app
-        let situation =
-            recordingFieldKind.map {
-                Situation(
-                    app: app, insertion: app.insertionPoint, destination: $0,
-                    adapterMode: app.bundleIdentifier.map(overrides.mode(forBundleIdentifier:)) ?? .auto)
-            } ?? SituationResolver.resolve(from: app, overrides: overrides)
+        let situation = SituationResolver.resolve(
+            app: app, insertion: app.insertionPoint, overrides: overrides, destination: recordingFieldKind)
         let words = await speechWords(app)
         let fixedCorrector = await corrector.fixed(for: app)
         dictationWords = words
