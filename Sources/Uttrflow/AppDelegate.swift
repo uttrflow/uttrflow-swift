@@ -435,7 +435,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var formatterRuns = 0
     /// Counts the store reads the panel has asked for, so an older list never replaces a newer one.
     private var panelReads = 0
-    /// Counts the copies the watcher handed over, so a newer one supersedes an older and a test sees one arrive.
     private(set) var clipboardArrivals = 0
     private var clipboardWatchTask: Task<Void, Never>?
 
