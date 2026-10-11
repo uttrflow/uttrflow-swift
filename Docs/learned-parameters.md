@@ -38,4 +38,7 @@ refuses a file that does not match it.
 A mismatch is a refusal, not a warning. `LearnedParametersState.resolve` returns `.dark` with
 the reason and logs a fault under the `parameters` category, and the layer runs as if it were
 switched off. `LearnedParameters.init` applies the same value checks, so the writer cannot
-produce a file the reader refuses for its values.
+produce a file the reader refuses for its values. It also encodes a temporary copy to check the
+complete file against the supplied byte limit, including UTF-8 names and container overhead.
+This allocates encoded bytes during construction, including when the reader delegates to the
+constructor; `encoded()` remains the one owner of the layout.
