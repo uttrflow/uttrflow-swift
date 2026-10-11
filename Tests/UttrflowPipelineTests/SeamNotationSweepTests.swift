@@ -56,7 +56,6 @@ struct SeamNotationSweepTests {
         }
         seconds.sort()
         let p95 = seconds[Int(Double(seconds.count - 1) * 0.95)]
-        print("seam p95 300 words: \(p95) s")
         #expect(p95 < 5)
     }
 
