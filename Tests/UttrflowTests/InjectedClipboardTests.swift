@@ -60,6 +60,7 @@ struct InjectedClipboardTests {
         let source = InMemoryClipboardSource()
         let app = AppDelegate(
             container: sandbox.root, clipboardSource: source,
+            onboardingRecordStore: isolatedOnboardingRecord(clipboardAnswered: true),
             account: HeldSession(signedIn: true).layer)
         app.drawsWindows = false
         app.settingsChanged(to: Settings(clipboardEnabled: true))
