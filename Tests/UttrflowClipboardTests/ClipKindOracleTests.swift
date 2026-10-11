@@ -34,7 +34,7 @@ extension HeavyClipScans {
         ]
 
         /// A clip of a few to a few hundred lines, sometimes with a planted secret or a near-miss spliced in.
-        private static func realisticText(_ random: inout Seeded) -> String {
+        fileprivate static func realisticText(_ random: inout Seeded) -> String {
             var built: [String] = []
             for _ in 0..<Int.random(in: 1...(random.chance(0.05) ? 200 : 12), using: &random) {
                 built.append(random.pick(lines))
@@ -103,41 +103,8 @@ extension HeavyClipScans {
             #expect(failures.isEmpty, "\(failures)")
         }
 
-        @Test("A keyword-stem prefilter sends fewer realistic non-secret clips to the named scan")
-        func namedSecretPrefilterSelectivity() throws {
-            var random = Seeded(seed: 463_000)
-            var nonSecrets: [String] = []
-            while nonSecrets.count < 292 {
-                let text = Self.realisticText(&random)
-                if !SecretShapes.matches(text) { nonSecrets.append(text) }
-            }
-            let before = nonSecrets.filter(Self.passesInitialPrefilter).count
-            let after = nonSecrets.filter(NamedSecretStems.present).count
-
-            print(
-                "Named-secret scan fraction: \(before)/\(nonSecrets.count) before, \(after)/\(nonSecrets.count) after"
-            )
-            #expect(after * 4 < before, "named-secret scans: \(before) before, \(after) after")
-            try QualityGridReport.emit(
-                suite: "clip-prefilter", id: "463000/292", passed: after * 4 < before,
-                measurements: ["before": before, "after": after, "total": nonSecrets.count])
-        }
-
-        @Test("Every named-secret keyword stem reaches the scanner regardless of ASCII case")
-        func namedSecretStemsPreserveKeywordRecall() {
-            let missing = NamedSecretScan.keywords.compactMap { bytes -> String? in
-                let keyword = String(decoding: bytes, as: UTF8.self)
-                let text = "APP_\(keyword.uppercased())=a1"
-                var scan = NamedSecretScan(text)
-                guard scan.matches() else { return nil }
-                return NamedSecretStems.present(in: text) ? nil : keyword
-            }
-
-            #expect(missing.isEmpty, "prefilter missed accepted keywords: \(missing)")
-        }
-
         /// Whether the prior initial-letter gate would have sent this clip to the named scanner.
-        private static func passesInitialPrefilter(_ text: String) -> Bool {
+        fileprivate static func passesInitialPrefilter(_ text: String) -> Bool {
             ClipBytes.read(text) { _, bytes in
                 guard ClipBytes.contains(bytes, ":") || ClipBytes.contains(bytes, "=") else { return false }
                 return bytes.contains { byte in
@@ -298,5 +265,44 @@ enum WholeClipDetector {
         guard !text.contains(where: \.isNewline) else { return false }
         if text.hasPrefix("$ ") || text.hasPrefix("./") { return true }
         return CodeShapes.isShellCommandByCharacter(text)
+    }
+}
+
+@Suite("Named-secret prefilter quality")
+struct ClipKindPrefilterQualityTests {
+    @Test("A keyword-stem prefilter sends fewer realistic non-secret clips to the named scan")
+    func namedSecretPrefilterSelectivity() throws {
+        var random = Seeded(seed: 463_000)
+        var nonSecrets: [String] = []
+        while nonSecrets.count < 292 {
+            let text = HeavyClipScans.ClipKindOracleTests.realisticText(&random)
+            if !SecretShapes.matches(text) { nonSecrets.append(text) }
+        }
+        let before = nonSecrets.filter(HeavyClipScans.ClipKindOracleTests.passesInitialPrefilter).count
+        let after = nonSecrets.filter(NamedSecretStems.present).count
+
+        print(
+            "Named-secret scan fraction: \(before)/\(nonSecrets.count) before, \(after)/\(nonSecrets.count) after"
+        )
+        #expect(after * 4 < before, "named-secret scans: \(before) before, \(after) after")
+        try QualityGridReport.emit(
+            suite: "clip-prefilter", id: "463000/292", passed: after * 4 < before,
+            measurements: ["before": before, "after": after, "total": nonSecrets.count])
+    }
+}
+
+@Suite("Named-secret keyword recall")
+struct NamedSecretKeywordRecallTests {
+    @Test("Every named-secret keyword stem reaches the scanner regardless of ASCII case")
+    func namedSecretStemsPreserveKeywordRecall() {
+        let missing = NamedSecretScan.keywords.compactMap { bytes -> String? in
+            let keyword = String(decoding: bytes, as: UTF8.self)
+            let text = "APP_\(keyword.uppercased())=a1"
+            var scan = NamedSecretScan(text)
+            guard scan.matches() else { return nil }
+            return NamedSecretStems.present(in: text) ? nil : keyword
+        }
+
+        #expect(missing.isEmpty, "prefilter missed accepted keywords: \(missing)")
     }
 }

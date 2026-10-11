@@ -154,6 +154,18 @@ struct NumberRoundTripTests {
         }
     }
 
+    @Test(
+        "writes named cardinal, currency, percent and decimal cases",
+        arguments: [
+            ("we counted forty two items", "we counted 42 items"),
+            ("it costs forty two dollars", "it costs 42 dollars"),
+            ("about fifteen percent", "about 15%"),
+            ("the value is twelve point five", "the value is 12.5"),
+        ])
+    func namedNumberEdges(spoken: String, expected: String) {
+        #expect(cleaned(spoken, by: NumberFormsPass(policy: .fromTen)) == expected)
+    }
+
     @Test("number words that are not a number come back unchanged", arguments: RoundTripCorpus.idioms)
     func idiom(phrase: String) {
         #expect(cleaned(phrase, by: NumberFormsPass(policy: .fromTen)) == phrase)
