@@ -753,6 +753,7 @@
     "UttrflowClipboard func setAlias": 1,
     "UttrflowClipboard func setCategory": 1,
     "UttrflowClipboard func setExcludedApplications": 1,
+    "UttrflowClipboard func setLabels": 1,
     "UttrflowClipboard func setPinned": 1,
     "UttrflowClipboard func setRichText": 1,
     "UttrflowClipboard func setSecret": 1,
@@ -5824,6 +5825,7 @@
     "UttrflowUX let tab": 2,
     "UttrflowUX let tabs": 2,
     "UttrflowUX let tag": 2,
+    "UttrflowUX let tags": 1,
     "UttrflowUX let takenBy": 1,
     "UttrflowUX let text": 16,
     "UttrflowUX let textLabel": 1,
@@ -6259,5 +6261,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 8891
+  "total": 8893
 }
