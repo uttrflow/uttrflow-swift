@@ -7,17 +7,20 @@ public struct DestinationOverride: Sendable, Equatable, Codable, Identifiable {
     public let destination: Destination
     /// Which adapter formats this app's words; an entry stored before modes existed reads as `auto`.
     public let mode: AdapterMode
+    /// The quality preset this app is dictated under; nil follows the preset chosen for every app.
+    public let preset: QualityPreset.ID?
 
     public var id: String { ApplicationKey.of(bundleIdentifier) }
 
     public init(
         bundleIdentifier: String, applicationName: String? = nil, destination: Destination,
-        mode: AdapterMode = .auto
+        mode: AdapterMode = .auto, preset: QualityPreset.ID? = nil
     ) {
         self.bundleIdentifier = bundleIdentifier
         self.applicationName = applicationName
         self.destination = destination
         self.mode = mode
+        self.preset = preset
     }
 
     /// What to call this app on screen.
@@ -27,7 +30,7 @@ public struct DestinationOverride: Sendable, Equatable, Codable, Identifiable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case bundleIdentifier, applicationName, destination, mode, adapter
+        case bundleIdentifier, applicationName, destination, mode, adapter, preset
     }
 
     private static let proseWord = "prose"
@@ -46,6 +49,7 @@ public struct DestinationOverride: Sendable, Equatable, Codable, Identifiable {
         case (Self.forcedWord, .some(let adapter)): mode = .forced(adapter)
         default: mode = .auto
         }
+        preset = (try? container.decodeIfPresent(QualityPreset.ID.self, forKey: .preset)) ?? nil
     }
 
     /// Writes `auto` as no mode at all, so an entry nobody changed is stored in the form that predates modes.
@@ -54,6 +58,7 @@ public struct DestinationOverride: Sendable, Equatable, Codable, Identifiable {
         try container.encode(bundleIdentifier, forKey: .bundleIdentifier)
         try container.encodeIfPresent(applicationName, forKey: .applicationName)
         try container.encode(destination, forKey: .destination)
+        try container.encodeIfPresent(preset, forKey: .preset)
         switch mode {
         case .auto: break
         case .prose: try container.encode(Self.proseWord, forKey: .mode)
@@ -96,7 +101,13 @@ public struct DestinationOverrides: Sendable, Equatable, Codable {
         return overrides.first { $0.id == wanted }?.mode ?? .auto
     }
 
-    /// The same overrides with this app treated as `destination`, replacing any earlier answer but keeping its mode.
+    /// The preset this app is dictated under, or nothing when no override names one for it.
+    public func preset(forBundleIdentifier bundle: String) -> QualityPreset.ID? {
+        let wanted = bundle.lowercased()
+        return overrides.first { $0.id == wanted }?.preset
+    }
+
+    /// The same overrides with this app treated as `destination`, replacing any earlier answer but keeping its mode and preset.
     public func setting(
         _ destination: Destination, for bundleIdentifier: String, named applicationName: String?
     ) -> DestinationOverrides {
@@ -104,7 +115,8 @@ public struct DestinationOverrides: Sendable, Equatable, Codable {
             [
                 DestinationOverride(
                     bundleIdentifier: bundleIdentifier, applicationName: applicationName,
-                    destination: destination, mode: mode(forBundleIdentifier: bundleIdentifier))
+                    destination: destination, mode: mode(forBundleIdentifier: bundleIdentifier),
+                    preset: preset(forBundleIdentifier: bundleIdentifier))
             ] + overrides)
     }
 
@@ -119,7 +131,23 @@ public struct DestinationOverrides: Sendable, Equatable, Codable {
                 DestinationOverride(
                     bundleIdentifier: bundleIdentifier,
                     applicationName: applicationName ?? kept?.applicationName,
-                    destination: kept?.destination ?? fallback, mode: mode)
+                    destination: kept?.destination ?? fallback, mode: mode, preset: kept?.preset)
+            ] + overrides)
+    }
+
+    /// The same overrides with this app dictated under `preset` (nil to follow every app's), keeping its kind and mode, else `fallback`.
+    public func setting(
+        preset: QualityPreset.ID?, for bundleIdentifier: String, named applicationName: String?,
+        fallback: Destination
+    ) -> DestinationOverrides {
+        let kept = overrides.first { $0.id == ApplicationKey.of(bundleIdentifier) }
+        return DestinationOverrides(
+            [
+                DestinationOverride(
+                    bundleIdentifier: bundleIdentifier,
+                    applicationName: applicationName ?? kept?.applicationName,
+                    destination: kept?.destination ?? fallback, mode: kept?.mode ?? .auto,
+                    preset: preset)
             ] + overrides)
     }
 

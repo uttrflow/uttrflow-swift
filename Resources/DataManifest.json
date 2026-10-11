@@ -342,6 +342,15 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "a351f3592bcc6933f0bd6627aa107a77b3e81f37920b71783b610c6155859090",
+      "path": "Sources/UttrflowCore/Resources/Tables/quantity-words.json",
+      "origin": "authored",
+      "bytes": 399
+    },
+    {
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
       "sha256": "ad99ca019ba9beda4e718769596e4c5b22956c1425cdad138e157f9a387b6d5e",
       "path": "Sources/UttrflowCore/Resources/Tables/sql-words.json",
       "origin": "authored",

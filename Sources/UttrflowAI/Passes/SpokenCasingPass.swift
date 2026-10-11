@@ -28,6 +28,15 @@ public struct SpokenCasingPass: PieceCleaningPass {
 
     private enum Style: String {
         case camel, snake, kebab, upper, hashtag
+
+        /// The joined style a spoken identifier command writes; the other commands join no words.
+        var nameStyle: NameStyle {
+            switch self {
+            case .snake: .snake
+            case .kebab: .kebab
+            default: .camel
+            }
+        }
     }
 
     /// One command found: the words it covers and how many trailing words close it.
@@ -109,18 +118,8 @@ public struct SpokenCasingPass: PieceCleaningPass {
         let last = cased.covered.upperBound - 1 + cased.closing
         let suffix = draft.shape(at: live[last]).suffix
         switch cased.style {
-        case .camel:
-            let joined = values.enumerated().map { index, value in
-                index == 0 ? value.lowercased() : WordShape.capitalised(value.lowercased())
-            }.joined()
-            write(joined + suffix, over: position..<(last + 1), in: live, to: &draft)
-            live.removeSubrange((position + 1)..<(last + 1))
-        case .snake:
-            let joined = values.map { $0.lowercased() }.joined(separator: "_")
-            write(joined + suffix, over: position..<(last + 1), in: live, to: &draft)
-            live.removeSubrange((position + 1)..<(last + 1))
-        case .kebab:
-            let joined = values.map { $0.lowercased() }.joined(separator: "-")
+        case .camel, .snake, .kebab:
+            let joined = cased.style.nameStyle.write(values)
             write(joined + suffix, over: position..<(last + 1), in: live, to: &draft)
             live.removeSubrange((position + 1)..<(last + 1))
         case .hashtag:
