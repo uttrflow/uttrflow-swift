@@ -313,6 +313,11 @@ one `RequestFailure` (obeyed, answered, translated, wrapped, refused), and
 
 ## Where the words are going
 
+The notation input keeps a literal colon after a host and image path when a version follows.
+Hosts, paths and versions use `TechnicalToken` classification; ordinary paths, prose colons
+and other pause marks keep their existing settling. A retained tag colon starts no clause
+and leaves a following version's capital `V` intact.
+
 Two of the Tier 2 cleanings depend on the place rather than the speech, and
 `Docs/cleanup-design.md` gives that place a name. `Situation` is what the screen said when
 the key went down, read once per dictation within the context engine's 100 ms budget: the
