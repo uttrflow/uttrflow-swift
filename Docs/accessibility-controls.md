@@ -36,7 +36,7 @@ leave a stale pass behind.
 ## Table
 
 <!-- accessibility-controls:begin -->
-118 controls; 0 walked; 0 with no accessible name found in the source.
+119 controls; 0 walked; 0 with no accessible name found in the source.
 
 | Screen | Control | Kind | Accessible name from | Keyboard and Voice Control |
 |---|---|---|---|---|
@@ -96,6 +96,7 @@ leave a stale pass behind.
 | Main window | `Sources/Uttrflow/Main/PageParts.swift#Button#3` | Button | accessibilityLabel | unchecked |
 | Main window | `Sources/Uttrflow/Main/PageParts.swift#Picker#1` | Picker | accessibilityLabel | unchecked |
 | Main window | `Sources/Uttrflow/Main/SnippetsPageView.swift#TextField#1` | TextField | container label | unchecked |
+| Main window | `Sources/Uttrflow/Main/SnippetsPageView.swift#Toggle#1` | Toggle | text "Secret: hide this text everywhere and copy it concealed" | unchecked |
 | Main window | `Sources/Uttrflow/Sidebar/SidebarView.swift#Button#1` | Button | accessibilityLabel | unchecked |
 | Main window | `Sources/Uttrflow/Sidebar/SidebarView.swift#Button#2` | Button | accessibilityLabel | unchecked |
 | Main window | `Sources/Uttrflow/Sidebar/SidebarView.swift#Button#3` | Button | accessibilityLabel | unchecked |
