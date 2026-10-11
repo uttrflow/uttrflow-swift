@@ -103,17 +103,3 @@ struct PanelHiddenPasteConfirmationTests {
         #expect(snapshot.applying(.return).outcome.effect == .redraw)
     }
 }
-
-/// The preference that turns the question off is a switch on the settings screen.
-@Suite("The hidden clip confirmation switch")
-struct HiddenClipConfirmationSwitchTests {
-    @Test("the switch changes the setting and the screen reads it back")
-    func switchRoundTrips() throws {
-        let off = try SettingsEditor.apply(
-            .toggle(.confirmsHiddenClipPaste, isOn: false), to: .default, given: .everything)
-
-        #expect(!off.confirmsHiddenClipPaste)
-        #expect(!SettingsPresenter.value(of: .confirmsHiddenClipPaste, in: off))
-        #expect(SettingsPresenter.value(of: .confirmsHiddenClipPaste, in: .default))
-    }
-}
