@@ -4140,7 +4140,7 @@
     "UttrflowPipeline func weigh": 2,
     "UttrflowPipeline func weighAcrossSeams": 2,
     "UttrflowPipeline func wordsHeardSoFar": 1,
-    "UttrflowPipeline init init": 31,
+    "UttrflowPipeline init init": 32,
     "UttrflowPipeline let accessibilityLabel": 1,
     "UttrflowPipeline let action": 1,
     "UttrflowPipeline let arrival": 1,
@@ -4224,6 +4224,7 @@
     "UttrflowPipeline struct AppliedChanges": 1,
     "UttrflowPipeline struct CleanedDictation": 1,
     "UttrflowPipeline struct CorrectedTranscript": 1,
+    "UttrflowPipeline struct Dependencies": 1,
     "UttrflowPipeline struct DictationAnnouncement": 1,
     "UttrflowPipeline struct DictationAnnouncer": 1,
     "UttrflowPipeline struct DictationCorrection": 1,
@@ -6303,5 +6304,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 8952
+  "total": 8954
 }

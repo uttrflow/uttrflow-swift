@@ -54,9 +54,10 @@ private actor HandsFreeProbe {
             inserter: inserter,
             clock: ManualClock())
         controller = DictationController(
-            pipeline: pipeline,
-            monitor: SilentMonitor(),
-            commandMonitor: SilentMonitor(),
+            dependencies: .init(
+                pipeline: pipeline,
+                monitor: SilentMonitor(),
+                commandMonitor: SilentMonitor()),
             clock: clock,
             options: .init(
                 activation: .holdToTalk

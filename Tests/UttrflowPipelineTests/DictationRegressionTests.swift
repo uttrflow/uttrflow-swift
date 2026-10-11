@@ -243,8 +243,9 @@ private func makeGestureHarness(startGate: RegressionGate? = nil) -> GestureHarn
     )
     return GestureHarness(
         controller: DictationController(
-            pipeline: pipeline,
-            monitor: RegressionMonitor(),
+            dependencies: .init(
+                pipeline: pipeline,
+                monitor: RegressionMonitor()),
             clock: SteppingClock(),
             options: .init(
                 activation: .holdToTalk
@@ -301,8 +302,9 @@ struct DictationRegressionTests {
             context: FakeContextEngine(context: .fixture()), inserter: inserter,
             clock: ManualClock())
         let controller = DictationController(
-            pipeline: pipeline,
-            monitor: OwingMonitor(),
+            dependencies: .init(
+                pipeline: pipeline,
+                monitor: OwingMonitor()),
             clock: SteppingClock(),
             options: .init(
                 activation: .holdToTalk

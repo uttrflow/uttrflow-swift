@@ -69,7 +69,8 @@ struct ActivationModeConsistencyTests {
         let session = await ScenarioDriver.session(Scenario(pieces: pieces, context: context))
         let clock = ManualClock()
         let controller = Controller(
-            pipeline: session.pipeline, monitor: SilentMonitor(), commandMonitor: SilentMonitor(),
+            dependencies: .init(
+                pipeline: session.pipeline, monitor: SilentMonitor(), commandMonitor: SilentMonitor()),
             clock: clock,
             options: .init(activation: gesture == .toggle ? .pressToToggle : .holdToTalk))
         switch gesture {
