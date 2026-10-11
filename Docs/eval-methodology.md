@@ -991,6 +991,14 @@ uttrflow-eval noise
   A mix that would leave full scale is scaled down whole, so the ratio holds and nothing clips.
 - The run is reproducible byte for byte: each recording's noise comes from the run's `--seed`
   and the recording's identifier alone, through FNV-1a rather than Swift's salted hashing.
+- After the noises the same run replays three room and channel conditions
+  (`Sources/UttrflowEval/ChannelEffects.swift`), each its own row with WER and insertions per
+  language, never pooled and with no breakpoint, since they have no level to step through:
+  reverberation from a synthetic exponentially decaying impulse response of 0.3, 0.6 and 1.0 s
+  (60 dB decay, a direct path then seeded noise, level matched to the dry clip); band-limiting
+  to 8 kHz and 4 kHz by a windowed-sinc low-pass; and G.711 mu-law telephone coding (3.4 kHz band,
+  8 kHz sampling, 8-bit companding). A clip sampled at 16 kHz is already limited to 8 kHz, so
+  its `band 8 kHz` row is the clean read.
 - Each condition is its own row beside clean, never pooled with it, with the paired 95% interval
   on the change in word error rate (`ConditionTable`, the pooling `input-level` uses too).
 - Per language and noise, the report names the first step, mildest first, where word error rate
@@ -1127,3 +1135,25 @@ idle machine:
 ```bash
 uttrflow-eval pace --corpus-path <reader-1-quiet>
 ```
+
+## One sweep for a layer threshold (`sweep`)
+
+`uttrflow-eval sweep --from-table <table> --parameter <name> --grid 0.30,0.31,... --false-flag-bound 0.05 --seed <s> --record <file>`
+chooses a threshold on a fit table feature and keeps what it tried, so a constant is never justified
+by prose alone.
+
+- The grid is scored on the development rows (fit side) and on half of the held-out rows (calibration
+  side); the seed splits the held-out rows, so the same seed always gives the same halves.
+- The choice is the value with the fewest wrong rows left unflagged on calibration, among values
+  whose false-flag share on the fit side is within the bound; a tie takes the stricter value.
+- The other half of the held-out rows (test side) is scored once, for the chosen value only, and no
+  step reads it to choose.
+- A chosen value whose neighbour scores more than `--cliff-tolerance` worse is a cliff and is refused
+  with exit 1; `--margin-steps N` moves the choice N grid steps toward the flatter, feasible
+  neighbour instead.
+- `--record` writes one JSON file: the grid, objective, seed, table digest, feature spec version,
+  engine label, every trial, the chosen value, its neighbours, the margin and the test score.
+  Rerunning on the same table gives the same bytes. Its `id` names the record.
+
+Not yet built: a constant's comment naming its record id, the `make verify` check that the record
+still matches the code, and sweeping by name from a layer registry.

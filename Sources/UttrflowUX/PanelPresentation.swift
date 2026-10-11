@@ -487,7 +487,7 @@ public enum PanelPresenter {
             needle: snapshot.needle, locale: snapshot.locale, now: snapshot.now,
             imagesFolder: snapshot.imagesFolder, formattableLanguages: snapshot.formattableLanguages,
             revealed: snapshot.revealed, missingImages: snapshot.missingImages)
-        let rows = snapshot.rowMemo.rows(
+        let rows = PanelCache.current.rowMemo.rows(
             listID: results.listID, results: results.rows, context: context
         ) { result in
             row(for: result, in: snapshot, isSelected: false)
@@ -511,7 +511,7 @@ public enum PanelPresenter {
             // A sheet has its own keys, so the list's line would be teaching the wrong ones.
             hint: hint(for: snapshot, isEmpty: rows.isEmpty),
             sheet: sheet(for: snapshot),
-            groups: snapshot.rowMemo.groups(for: results.listID) {
+            groups: PanelCache.current.rowMemo.groups(for: results.listID) {
                 groups(for: rows, omitted: results.omitted, isSearching: snapshot.isSearching)
             },
             emptyAction: saysNothing ? emptyAction(for: snapshot) : nil,
@@ -521,7 +521,7 @@ public enum PanelPresenter {
             announcements: announcements(for: snapshot),
             announcementIDs: announcementIDs(for: snapshot),
             rowHint: rowHint(for: snapshot.insertion), selectedIndex: results.selectedIndex,
-            rowCacheID: snapshot.rowMemo.presentationID
+            rowCacheID: PanelCache.current.rowMemo.presentationID
         )
     }
 
@@ -643,7 +643,7 @@ public enum PanelPresenter {
                     title: "Format", symbolName: "wand.and.stars", intent: .format(clip.id),
                     shortcut: PanelRowAction.format.chord))
         }
-        if snapshot.reindentOffers.offers(clip) {
+        if PanelCache.current.reindentOffers.offers(clip) {
             actions.append(
                 PanelAction(
                     title: "Re-indent", symbolName: "text.alignleft",
@@ -694,7 +694,7 @@ public enum PanelPresenter {
 
     /// How many checklist boxes are checked, without copying any note text into the row.
     static func checklistProgress(of clip: Clip, in snapshot: PanelSnapshot) -> String? {
-        guard let progress = snapshot.checklistProgresses.progress(of: clip) else { return nil }
+        guard let progress = PanelCache.current.checklistProgresses.progress(of: clip) else { return nil }
         return "\(progress.done) of \(progress.total)"
     }
 

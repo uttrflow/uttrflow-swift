@@ -16,11 +16,41 @@ SYNTHETIC_AUDIO = os.path.join("Tests", "Fixtures", "SyntheticAudio")
 ORIGINS = ("authored", "generated", "third-party", "unrecorded")
 REQUIRED = ("path", "origin", "licence", "redistribution", "sha256", "bytes")
 THIRD_PARTY_REQUIRED = ("source", "revision")
+RECIPE_REQUIRED = ("fitToolRevision", "featureSpecVersion", "inputs", "seeds", "engine", "command")
+INPUT_WHERE = ("tree", "cache")
 
 
 def digest(path):
     with open(path, "rb") as handle:
         return hashlib.sha256(handle.read()).hexdigest()
+
+
+def recipe_problems(entry):
+    """What is wrong with an entry's fit recipe; an empty list when it has none or it is whole."""
+    recipe = entry.get("recipe")
+    if recipe is None:
+        return []
+    if not isinstance(recipe, dict):
+        return ["recipe must be an object"]
+    problems = [f"recipe missing {key}" for key in RECIPE_REQUIRED if key not in recipe]
+    for key in ("fitToolRevision", "featureSpecVersion", "engine"):
+        if key in recipe and (not isinstance(recipe[key], str) or not recipe[key]):
+            problems.append(f"recipe {key} must be a non-empty string")
+    seeds = recipe.get("seeds")
+    if "seeds" in recipe and (not isinstance(seeds, list) or any(type(seed) is not int for seed in seeds)):
+        problems.append("recipe seeds must be a list of whole numbers")
+    command = recipe.get("command")
+    if "command" in recipe and (not isinstance(command, list) or not command or not all(isinstance(part, str) for part in command)):
+        problems.append("recipe command must be a non-empty list of strings")
+    inputs = recipe.get("inputs")
+    if "inputs" in recipe:
+        if not isinstance(inputs, list):
+            problems.append("recipe inputs must be a list")
+        else:
+            for item in inputs:
+                if not isinstance(item, dict) or not item.get("path") or not item.get("sha256") or item.get("where") not in INPUT_WHERE:
+                    problems.append(f"recipe input needs path, sha256 and where ({', '.join(INPUT_WHERE)})")
+    return problems
 
 
 def bundled_files(root):
@@ -91,6 +121,7 @@ def check(root):
         budget = entry.get("budgetBytes")
         if budget is not None and (type(budget) is not int or budget <= 0):
             failures.append(f"{path}: budgetBytes must be a positive whole number of bytes")
+        failures.extend(f"{path}: {problem}" for problem in recipe_problems(entry))
         if entry.get("origin") == "unrecorded":
             notes.append(f"{path}: origin unrecorded, owner to confirm source and licence")
     on_disk = bundled_files(root)

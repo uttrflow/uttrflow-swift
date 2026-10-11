@@ -34,6 +34,7 @@ public actor DictationPipeline {
     private var inUse:
         (cleaner: any TranscriptCleaning, overrides: DestinationOverrides, profile: UserProfile)?
     var dictationContext: DictationContext?
+    private var nextFormat: AdapterMode?
     let recordings: any RecordingKeeper
     /// Where a retried dictation's words go, since the field they were meant for is gone.
     let clipboard: any TextInserting
@@ -203,6 +204,14 @@ public actor DictationPipeline {
         if !isBusy { inUse = nil }
     }
 
+    /// Sends the next dictation, and only that one, out as typed (`prose`) or as formatted (`auto`); nil takes the choice back.
+    public func format(next mode: AdapterMode?) {
+        nextFormat = mode
+    }
+
+    /// The choice waiting for the next dictation, or nil when none is, for the panel to show.
+    public var pendingFormat: AdapterMode? { nextFormat }
+
     /// Takes the languages the user speaks as they stand now, for every dictation after this one.
     public func adopt(profile: UserProfile) {
         self.profile = profile
@@ -227,9 +236,11 @@ public actor DictationPipeline {
     /// Which recogniser the next dictation is transcribed by.
     public var speechKind: SpeechEngineKind { speech.kind }
 
-    /// Fixes all three for the dictation about to begin.
-    private func takeSettings() {
-        inUse = (cleaner, destinationOverrides, profile)
+    /// Fixes all three for the dictation about to begin, spending the one-shot format choice when it is a new recording.
+    private func takeSettings(spendingFormat: Bool = true) {
+        let held = spendingFormat ? nextFormat : nil
+        if spendingFormat { nextFormat = nil }
+        inUse = (cleaner, destinationOverrides.holding(oneShot: held), profile)
     }
 
     public var currentState: DictationState { state }
@@ -484,7 +495,7 @@ public actor DictationPipeline {
         // A cancel during the read abandons the retry before it claims the recording as its own.
         guard !wasCancelled(mine) else { return false }
         stopwatch = nil
-        takeSettings()
+        takeSettings(spendingFormat: false)
         spokenFor = audio.duration
         let kept = (await recordings.waiting(now: Date())).first(where: { $0.id == recording })
         recordingDestination = kept?.destination.map(AppContext.init(identity:))

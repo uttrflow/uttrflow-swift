@@ -15,7 +15,9 @@ struct RemovalAuditTests {
     }
 
     /// A draft in which a correction pass removes an answer no with the phrase before it, as no rule does.
-    private func draftWithAnswerNoTaken(_ spoken: String = "tell the landlord no, the landlord has to wait")
+    private func draftWithAnswerNoTaken(
+        _ spoken: String = "tell the landlord no, the landlord has to wait"
+    )
         -> Draft
     {
         var draft = Draft(text: spoken)

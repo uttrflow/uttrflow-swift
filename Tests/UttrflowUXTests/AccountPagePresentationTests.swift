@@ -200,9 +200,9 @@ struct AccountFactsTests {
     }
 }
 
-@Suite("Account when the subscription could not be checked")
+@Suite("Account when the sign-in could not be re-checked")
 struct AccountNoticeTests {
-    @Test("a current subscription has nothing to say")
+    @Test("a current sign-in has nothing to say")
     func quiet() {
         #expect(HistoryFixture.accountPage(access: .allowed).notice == nil)
     }
@@ -214,6 +214,7 @@ struct AccountNoticeTests {
         #expect(notice?.symbolName == "wifi.slash")
         #expect(notice?.tone == .neutral)
         #expect(notice?.message.contains("carried on without it") == true)
+        #expect(notice?.message.localizedCaseInsensitiveContains("subscription") == false)
     }
 
     @Test("a renewal worth attempting is offered as a suggestion, not a requirement")
@@ -221,6 +222,7 @@ struct AccountNoticeTests {
         let notice = HistoryFixture.accountPage(access: .allowedPendingSignIn).notice
         #expect(notice?.tone == .warning)
         #expect(notice?.message.contains("Dictation carries on either way") == true)
+        #expect(notice?.message.localizedCaseInsensitiveContains("subscription") == false)
     }
 
     /// Nobody signed in draws the empty state, where the invitation already is; a notice would repeat it.

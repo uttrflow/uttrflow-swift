@@ -61,3 +61,26 @@ make data-manifest
 
 `--update` changes only `sha256` and `bytes` for entries whose files are bundled. It does not add
 entries or change their origin or other metadata. Review the manifest diff before committing it.
+
+## Reproducing a fitted asset from its tag
+
+A fitted file's entry may carry a `recipe`, the four inputs that decide its bytes plus the engine
+the fit assumed:
+
+| Field | Meaning |
+|---|---|
+| `fitToolRevision` | the git commit of the fit tool; it must exist in this repository |
+| `featureSpecVersion` | the version of the feature spec the fit read |
+| `inputs` | each source: `path`, `sha256`, and `where` it lives, `tree` (committed) or `cache` (the pinned archives) |
+| `seeds` | the whole-number seeds, passed to the command as `RECIPE_SEEDS` |
+| `engine` | the identity of the engine the fit assumed, passed as `RECIPE_ENGINE` |
+| `command` | the argument list, run from the tag's root; it writes the asset to `RECIPE_OUTPUT` |
+
+```bash
+make reproduce-assets TAG=<tag> [ASSET_CACHE=<folder>]
+```
+
+It checks the tag out in a scratch worktree, checks each input against its digest, deletes the
+committed asset, runs the command and compares the new digest with the tag's manifest. It exits 1
+and names the asset on any difference, a changed seed or input digest included, and it needs no
+network when the cache is warm. It only builds and compares; it never tags.
