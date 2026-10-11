@@ -65,16 +65,11 @@ public actor ClipboardStore {
     private var indexReader: ClipboardIndexReader
     /// Holds detector migrations so reads can return while classification runs in the background.
     private var classifierMigrations: [URL: Task<Void, Never>] = [:]
-    /// Pictures of deleted clips an undo can still bring back, left on disk until ``forgetHeldPictures()``.
-    private var heldPictures: Set<String> = []
-    /// Pictures written for a clip no index names yet, which only the write that follows can account for.
-    private var unnamedPictures: Set<String> = []
+    /// Holds picture references across undo, new arrivals and refused index writes.
+    private var pictureReferences = PictureReferences()
 
     /// Records that memory holds a use or a refused change the disk lacks; the next write, or `flushUse`, carries it.
     private var hasUnwrittenUse = false
-
-    /// Pictures of clips a refused write dropped, removed once a later write lands without naming them.
-    private var picturesAwaitingWrite: Set<String> = []
 
     /// Sets how long a use waits in memory for another write before it is written on its own.
     private let useFlushDelay: Duration
@@ -279,7 +274,7 @@ public actor ClipboardStore {
         _ id: UUID, keeping retention: ClipRetention, holdingPicture: Bool = false
     ) throws(ClipboardStoreError) -> [Clip] {
         if holdingPicture, let file = loaded().first(where: { $0.id == id })?.image?.file {
-            heldPictures.insert(file)
+            pictureReferences.heldPictures.insert(file)
         }
         return try settled(loaded().filter { $0.id != id }, keeping: retention)
     }
@@ -461,7 +456,7 @@ public actor ClipboardStore {
         } catch {
             throw Self.writeFailure(error)
         }
-        unnamedPictures.insert(name)
+        pictureReferences.unnamedPictures.insert(name)
         return ClipImage(
             file: name, width: width, height: height, bytes: data.count,
             sha: sha ?? ClipboardStore.digest(of: data))
@@ -488,8 +483,8 @@ public actor ClipboardStore {
 
     /// Releases the pictures held for an undo, deleting each one no clip has taken back.
     public func forgetHeldPictures() {
-        let released = heldPictures.subtracting(loaded().compactMap(\.image?.file))
-        heldPictures = []
+        let released = pictureReferences.heldPictures.subtracting(loaded().compactMap(\.image?.file))
+        pictureReferences.heldPictures = []
         pictureVault.removePictures(released)
     }
 
@@ -502,8 +497,7 @@ public actor ClipboardStore {
                 at: imagesFolder, includingPropertiesForKeys: nil)) ?? []
         // A picture waiting for the write that will name it is not an orphan yet.
         pictureVault.removePictures(
-            Set(onDisk.map(\.lastPathComponent)).subtracting(wanted)
-                .subtracting(heldPictures).subtracting(unnamedPictures))
+            pictureReferences.orphaned(onDisk: Set(onDisk.map(\.lastPathComponent)), wanted: wanted))
     }
 
     /// Replaces a clip's formatted note, leaving its plain form recoverable.
@@ -561,7 +555,7 @@ public actor ClipboardStore {
     ) throws(ClipboardStoreError) -> [Clip] {
         let clips = loaded()
         let deleted = clips.filter { $0.category == name }
-        heldPictures.formUnion(deleted.compactMap(\.image?.file))
+        pictureReferences.heldPictures.formUnion(deleted.compactMap(\.image?.file))
         _ = try settled(clips.filter { $0.category != name }, keeping: retention)
         return deleted
     }
@@ -811,8 +805,7 @@ public actor ClipboardStore {
         let before = Set(current.compactMap(\.image?.file))
         let named = Set(clips.compactMap(\.image?.file))
         // A picture written for a clip this list drops is ours to remove, whether the writes below land or not.
-        let unnamed = unnamedPictures.subtracting(named).subtracting(heldPictures)
-        unnamedPictures = []
+        let unnamed = pictureReferences.takeUnnamed(naming: named)
         defer { pictureVault.removePictures(unnamed) }
         let wasSaved = indexSnapshot.savedOnDisk ?? []
         let persistable = clips.filter(Self.isPersistable)
@@ -829,7 +822,7 @@ public actor ClipboardStore {
         // Every clip reaches its new file before leaving its old one, so a refusing disk never loses one.
         let bridge = ClipPersistencePlan.bridging(persistable, from: wasSaved, into: nowHistory)
         // The bridge only has to hold every clip somewhere; the same clips in another order are already on disk.
-        let dropped = before.union(picturesAwaitingWrite).subtracting(named)
+        let dropped = pictureReferences.dropped(before: before, naming: named)
         do throws(ClipboardStoreError) {
             if !ClipPersistencePlan.holdsTheSameClips(bridge, as: wasSaved) {
                 try persist(bridge, to: savedFile)
@@ -846,14 +839,14 @@ public actor ClipboardStore {
         } catch {
             // The change stays in memory and is retried by the next write, the timed flush and quitting.
             hasUnwrittenUse = true
-            picturesAwaitingWrite = dropped
+            pictureReferences.picturesAwaitingWrite = dropped
             scheduleUseFlush()
             throw error
         }
-        picturesAwaitingWrite = []
+        pictureReferences.picturesAwaitingWrite = []
 
         // Only the files that stopped being referenced, so a picture no read could vouch for is never touched.
-        pictureVault.removePictures(dropped.subtracting(heldPictures))
+        pictureVault.removePictures(pictureReferences.unheld(dropped))
     }
 
     /// Writes a whole list atomically, or removes its file when nothing is left to keep.
