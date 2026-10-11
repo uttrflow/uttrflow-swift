@@ -579,7 +579,7 @@ say why nothing was drawn:
 
 | Order | Reason | When |
 |---|---|---|
-| 1 | `turnedOffHere` | Off in this field (⎋⎋, ⌥⎋ or the preferences) |
+| 1 | `turnedOffHere` | Off in this field (⌥⎋ or the preferences) |
 | 2 | `secureField` | The field hides what is typed |
 | 3 | `composing` | The field reports marked text ([predict-ime.md](predict-ime.md)) |
 | 4 | `unknownWritingDirection` | The glyph bounds do not say which side the continuation belongs on |

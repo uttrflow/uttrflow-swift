@@ -36,7 +36,7 @@ public enum Quieting {
 
     /// Why nothing is on offer, from the moment's own rules or from the turn that followed them.
     public enum Reason: String, Sendable, Equatable, CaseIterable {
-        /// Suggestions are off in this field, by ⎋⎋, by ⌥⎋ or by the preferences.
+        /// Suggestions are off in this field, by ⌥⎋ or by the preferences.
         case turnedOffHere
         /// The field hides what is typed into it.
         case secureField

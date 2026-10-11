@@ -202,7 +202,7 @@ public struct SuggestionPresentation: Sendable, Equatable {
     /// What VoiceOver hears automatically when the offer changes, without exposing unselected candidates.
     var announcementLabel: String {
         guard let leader = inline else {
-            return style == .dot ? (escapeIsRouted ? Self.dotLabel : "AI suggestion hidden.") : ""
+            return style == .dot ? Self.dotLabel : ""
         }
         let take = "\(acceptKey.spokenName) to accept\(Self.cost(of: leader))."
         return "AI suggestion: \(leader.candidate). \(take)"
@@ -223,8 +223,8 @@ public struct SuggestionPresentation: Sendable, Equatable {
         return accessibilityLabel
     }
 
-    /// What VoiceOver is told the dot left by Escape is, and what a second Escape does.
-    public static let dotLabel = "AI suggestion hidden. Escape again to turn suggestions off in this field."
+    /// What VoiceOver is told the dot that Escape leaves is.
+    public static let dotLabel = "AI suggestion hidden."
 
     /// Says how much of the user's own typing a row takes back, and nothing when it only adds.
     private static func cost(of row: Row) -> String {
