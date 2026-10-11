@@ -8,6 +8,9 @@ stored values are `Settings` in `Sources/UttrflowSettings/SettingsStore.swift`. 
 drawn is in [`app-settings-controls.md`](app-settings-controls.md). The microphone menu choices
 are assembled in `SettingsPresenter+Microphone.swift`.
 
+Theme options, their titles and the selected appearance row are assembled in
+`SettingsPresenter+Appearance.swift`.
+
 Shortcut rows, activation choices and hands-free presentation are assembled in
 `SettingsPresenter+Shortcuts.swift`.
 

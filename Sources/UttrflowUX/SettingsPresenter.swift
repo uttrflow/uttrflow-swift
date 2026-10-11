@@ -699,34 +699,6 @@ public enum SettingsPresenter {
         "Audio is deleted the moment it becomes text, and kept on this Mac for a day only "
         + "if some of it couldn’t be, so you can retry."
 
-    /// The order the theme is offered in: following the Mac first, then the two fixed looks.
-    static let offeredAppearances: [AppAppearance] = [.system, .light, .dark]
-
-    /// What a theme is called on the segmented control.
-    static func title(of appearance: AppAppearance) -> String {
-        switch appearance {
-        case .system: "System"
-        case .light: "Light"
-        case .dark: "Dark"
-        }
-    }
-
-    /// Light, dark, or the same as the Mac.
-    static func appearanceRow(_ settings: Settings) -> SettingsRow {
-        SettingsRow(
-            id: "appearance",
-            label: "Theme",
-            explanation:
-                "Uttrflow is drawn dark unless you would rather have it light, or the same as your Mac.",
-            control: .segmented(
-                options: offeredAppearances.map { offered in
-                    SettingsOption(
-                        id: offered.rawValue, title: title(of: offered), change: .appearance(offered))
-                },
-                selectedID: settings.appearance.rawValue),
-            icon: .symbol("moon", .suggestion))
-    }
-
     /// What each context level is called in its menu.
     static func title(of level: ContextLevel) -> String {
         switch level {
