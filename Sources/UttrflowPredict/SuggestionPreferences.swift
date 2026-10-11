@@ -132,6 +132,9 @@ public struct SuggestionPreferences: Sendable, Equatable, Codable {
     /// The accept key the user chose per application, keyed by bare lowercased bundle identifier alone, so an identifier reused by another app inherits it.
     public var chosenAcceptKeys: [String: AcceptKey]
 
+    /// The key the user chose per application to take only the next word, keyed as ``chosenAcceptKeys`` is; an application without one has no word key.
+    public var chosenWordAcceptKeys: [String: WordAcceptKey]
+
     /// Whether only a completion it is sure of may be drawn, never a list to choose from.
     public var isQuiet: Bool
 
@@ -144,6 +147,7 @@ public struct SuggestionPreferences: Sendable, Equatable, Codable {
         turnedOff: Set<String> = [],
         turnedOn: Set<String> = [],
         chosenAcceptKeys: [String: AcceptKey] = [:],
+        chosenWordAcceptKeys: [String: WordAcceptKey] = [:],
         isQuiet: Bool = false,
         pausedUntil: Date? = nil
     ) {
@@ -151,6 +155,9 @@ public struct SuggestionPreferences: Sendable, Equatable, Codable {
         self.turnedOff = Set(turnedOff.map { $0.lowercased() })
         self.turnedOn = Set(turnedOn.map { $0.lowercased() })
         self.chosenAcceptKeys = chosenAcceptKeys.reduce(into: [:]) {
+            $0[ApplicationKey.of($1.key)] = $1.value
+        }
+        self.chosenWordAcceptKeys = chosenWordAcceptKeys.reduce(into: [:]) {
             $0[ApplicationKey.of($1.key)] = $1.value
         }
         self.isQuiet = isQuiet
@@ -198,6 +205,11 @@ public struct SuggestionPreferences: Sendable, Equatable, Codable {
         AcceptKeys(overrides: chosenAcceptKeys)
     }
 
+    /// The key that takes the next word in this application, or nil when the user chose none.
+    public func wordAcceptKey(forBundleIdentifier bundleIdentifier: String) -> WordAcceptKey? {
+        chosenWordAcceptKeys[ApplicationKey.of(bundleIdentifier)]
+    }
+
     /// Every application the screen has something to say about, the shipped editors always among them so a switch that ships off can still be found.
     public func knownApplications(learnedIn learned: Set<String> = []) -> [SuggestionApplication] {
         var identifiers = Set(SuggestionApplications.shippedOff.map(\.bundleIdentifier))
@@ -236,6 +248,11 @@ public struct SuggestionPreferences: Sendable, Equatable, Codable {
         chosenAcceptKeys[ApplicationKey.of(bundleIdentifier)] = key
     }
 
+    /// Chooses the key that takes the next word of a suggestion in one application, or none with nil.
+    public mutating func setWordAcceptKey(_ key: WordAcceptKey?, in bundleIdentifier: String) {
+        chosenWordAcceptKeys[ApplicationKey.of(bundleIdentifier)] = key
+    }
+
     /// Removes the per-application off override and keeps the chosen accept key.
     public mutating func removePreferences(for bundleIdentifier: String) {
         let identifier = ApplicationKey.of(bundleIdentifier)
@@ -270,6 +287,9 @@ extension SuggestionPreferences {
             chosenAcceptKeys: (try? container.decode(
                 [String: ReadableSetting<AcceptKey>].self, forKey: .chosenAcceptKeys))?
                 .compactMapValues(\.value) ?? Self.default.chosenAcceptKeys,
+            chosenWordAcceptKeys: (try? container.decode(
+                [String: ReadableSetting<WordAcceptKey>].self, forKey: .chosenWordAcceptKeys))?
+                .compactMapValues(\.value) ?? Self.default.chosenWordAcceptKeys,
             isQuiet: (try? container.decode(Bool.self, forKey: .isQuiet)) ?? Self.default.isQuiet,
             pausedUntil: try? container.decode(Date.self, forKey: .pausedUntil))
     }

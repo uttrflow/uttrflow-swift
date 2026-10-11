@@ -31,6 +31,25 @@ arrow. Browser-based Google Sheets, Docs and Excel are identified by their windo
 prompt from the line. An application added to a row is a terminal or an editor to dictation and
 to AI suggestions at once; two lists would drift apart.
 
+## Taking one word
+
+A user may choose, per application, a second key that takes only the next word of the offer
+(Settings store: `chosenWordAcceptKeys`; ⌥→ or ⌘→). No application has one until it is chosen,
+because both keys already move the caret in most editors and ⌥→ is a word move in terminals, so
+the stroke is the application's everywhere else. `KeyRouting` returns `.acceptWord` for it and
+`ArmedKeys` gets its slot only through that decision, so the mask and the rule still agree.
+
+`WordAcceptance.next` returns the line the field holds once the next word is in: the leading
+whitespace plus the characters up to the next whitespace. The last word, or a line that rewrites
+typed characters, is taken whole as `.accept`. The session keeps the rest of the line
+(`RetainedRemainder`) and draws it again, without asking the store, while the field holds exactly
+what the word left; typing anything else, a refused insertion or another field drops it.
+
+A word is neither an acceptance nor a rejection: the coordinator does not write it to the corpus,
+and the line it leaves is a prefix of the offer, so `adopt` counts no rejection. The list footer
+names the chosen key. Recording a word as its own capture event, and the Settings control that
+chooses the key, are not built yet.
+
 ## Return is the dangerous key
 
 A suggestion on screen does **not** entitle us to Return. Stealing it runs a command in a

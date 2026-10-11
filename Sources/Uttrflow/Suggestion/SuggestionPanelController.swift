@@ -27,6 +27,8 @@ private struct SuggestionRequest: Equatable {
     var selection: SuggestionSelection = .untouched
     /// The key that accepts in this field, so the hint drawn after the ghost is the key that works.
     var acceptKey: AcceptKey = .tab
+    /// The key the user chose to take the next word in this field, shown in the list footer.
+    var wordAcceptKey: WordAcceptKey?
     /// The field's own font family, so the ghost is set in the face the line is.
     var fontFamily: String?
     var isBold = false
@@ -127,6 +129,7 @@ final class SuggestionPanelController {
         fieldPointSize: CGFloat? = nil,
         selection: SuggestionSelection = .untouched,
         acceptKey: AcceptKey = .tab,
+        wordAcceptKey: WordAcceptKey? = nil,
         fontFamily: String? = nil,
         isBold: Bool = false,
         isItalic: Bool = false,
@@ -135,8 +138,8 @@ final class SuggestionPanelController {
         let next = SuggestionRequest(
             suggestion: suggestion, typed: typed, placement: placement, direction: direction, caret: caret,
             window: window, field: field, fieldPointSize: fieldPointSize, selection: selection,
-            acceptKey: acceptKey, fontFamily: fontFamily, isBold: isBold, isItalic: isItalic,
-            textColor: textColor)
+            acceptKey: acceptKey, wordAcceptKey: wordAcceptKey, fontFamily: fontFamily, isBold: isBold,
+            isItalic: isItalic, textColor: textColor)
         // The same offer at the same caret is already on screen, so nothing is laid out, placed or fronted again.
         if isActuallyShowing, next.draws(sameAs: request) { return true }
         request = next
@@ -169,7 +172,8 @@ final class SuggestionPanelController {
         next.suggestion = suggestion
         let after = SuggestionPresentation(
             suggestion, typed: typed, selection: next.selection, fieldPointSize: next.fieldPointSize,
-            appearance: Self.appearance(), acceptKey: next.acceptKey, fontFamily: next.fontFamily,
+            appearance: Self.appearance(), acceptKey: next.acceptKey, wordAcceptKey: next.wordAcceptKey,
+            fontFamily: next.fontFamily,
             isBold: next.isBold, isItalic: next.isItalic,
             fieldTextColor: next.textColor,
             direction: next.direction == .rightToLeft ? .rightToLeft : .leftToRight)
@@ -265,7 +269,8 @@ final class SuggestionPanelController {
         var presentation = SuggestionPresentation(
             request.suggestion, typed: request.typed, selection: request.selection,
             fieldPointSize: request.fieldPointSize, appearance: Self.appearance(),
-            acceptKey: request.acceptKey, fontFamily: request.fontFamily,
+            acceptKey: request.acceptKey, wordAcceptKey: request.wordAcceptKey,
+            fontFamily: request.fontFamily,
             isBold: request.isBold, isItalic: request.isItalic,
             fieldTextColor: request.textColor, statusMessage: statusMessage,
             maximumWidth: room,

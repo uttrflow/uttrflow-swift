@@ -1167,6 +1167,7 @@ final class SuggestionCoordinator {
                     applicationName: snapshot.applicationName,
                     bundleIdentifier: snapshot.bundleIdentifier,
                     documentName: snapshot.windowTitle)),
+            wordKey: preferences.wordAcceptKey(forBundleIdentifier: snapshot.bundleIdentifier),
             isQuiet: preferences.isQuiet, sawKeystrokes: keystrokesSeen)
         if let rejected = turn.rejected, let surface = reading.surface {
             entering(.reject, turn: number)
@@ -1587,6 +1588,7 @@ final class SuggestionCoordinator {
                     applicationName: snapshot.applicationName,
                     bundleIdentifier: snapshot.bundleIdentifier,
                     documentName: snapshot.windowTitle)),
+            wordAcceptKey: preferences.wordAcceptKey(forBundleIdentifier: snapshot.bundleIdentifier),
             fontFamily: snapshot.fontFamily, isBold: snapshot.isBold, isItalic: snapshot.isItalic,
             textColor: snapshot.textColor)
         // An offer the panel could not show whole claims no key, so Tab never inserts what was not drawn.
@@ -1655,7 +1657,8 @@ final class SuggestionCoordinator {
                 "SWALLOWED key=\(String(describing: stroke.key), privacy: .public) modifiers=\(stroke.modifiers.rawValue) decision=\(Self.name(of: action), privacy: .public)"
             )
             switch action {
-            case .accept(let text):
+            case .accept(let text), .acceptWord(let text):
+                let isWord = action == .acceptWord(text)
                 stopWatchingSelection()
                 panel.hide()
                 interceptor.arm([])
@@ -1665,7 +1668,7 @@ final class SuggestionCoordinator {
                 let returnedKey = await Self.acceptKeyToReturnIfTakeFails(stroke) {
                     await take(
                         text, after: typed, in: reading,
-                        closingPunctuation: closingPunctuationAfterCaret)
+                        closingPunctuation: closingPunctuationAfterCaret, recordsAcceptance: !isWord)
                 } requestFreshRead: {
                     wake(.tick)
                 } completed: { outcome in
@@ -1723,6 +1726,7 @@ final class SuggestionCoordinator {
     private static func name(of action: SuggestionAction) -> String {
         switch action {
         case .accept: "accept"
+        case .acceptWord: "acceptWord"
         case .redraw: "redraw"
         case .giveBack: "giveBack"
         }
@@ -1754,7 +1758,8 @@ final class SuggestionCoordinator {
 
     /// Puts the tail into the field and queues the taken line for capture, reporting uncertain writes.
     private func take(
-        _ text: String, after typed: String, in reading: FieldReading?, closingPunctuation: String
+        _ text: String, after typed: String, in reading: FieldReading?, closingPunctuation: String,
+        recordsAcceptance: Bool = true
     ) async -> UttrflowPredict.AcceptanceOutcome {
         // What the gates left is a whole line, so taking it may replace characters as well as add.
         guard let windowNumber = reading?.surface?.windowNumber else {
@@ -1784,7 +1789,8 @@ final class SuggestionCoordinator {
         Self.log.debug(
             "\(SuggestionLog.accept(text: text, typed: typed, via: via), privacy: .public)"
         )
-        guard let reading else { return .inserted }
+        // A word taken from a longer line is neither the line's acceptance nor its rejection, so the corpus hears nothing.
+        guard recordsAcceptance, let reading else { return .inserted }
         let moment = Date()
         let log = Self.log
         let bytes = AcceptanceQueue.estimatedBytes(

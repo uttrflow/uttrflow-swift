@@ -27,6 +27,11 @@ public struct ArmedKeys: OptionSet, Sendable, Equatable {
     /// ⌥↑, claimed only once the list has been walked; a bare ↑ is always the application's.
     public static let optionUpArrow = ArmedKeys(rawValue: 1 << 7)
 
+    /// ⌥→, claimed only in an application whose user chose it to take the next word.
+    public static let optionRightArrow = ArmedKeys(rawValue: 1 << 8)
+    /// ⌘→, claimed only in an application whose user chose it to take the next word.
+    public static let commandRightArrow = ArmedKeys(rawValue: 1 << 9)
+
     /// Every slot with the keystroke that fills it, so arming can be derived from the decision itself.
     public static let slots: [(stroke: KeyStroke, slot: ArmedKeys)] = [
         (KeyStroke(.tab), .tab),
@@ -37,6 +42,12 @@ public struct ArmedKeys: OptionSet, Sendable, Equatable {
         (KeyStroke(.escape, modifiers: .option), .optionEscape),
         (KeyStroke(.downArrow, modifiers: .option), .optionDownArrow),
         (KeyStroke(.upArrow, modifiers: .option), .optionUpArrow),
+    ]
+
+    /// The slots a user may add by choosing a word key, kept apart because no application has one by default.
+    public static let wordSlots: [(stroke: KeyStroke, slot: ArmedKeys)] = [
+        (KeyStroke(.rightArrow, modifiers: .option), .optionRightArrow),
+        (KeyStroke(.rightArrow, modifiers: .command), .commandRightArrow),
     ]
 
     /// The one slot a keystroke occupies, in integer work only because the tap's callback may not allocate.
@@ -60,8 +71,17 @@ public struct ArmedKeys: OptionSet, Sendable, Equatable {
         }
     }
 
+    /// The slot the tap catches a stroke in: the slot of the stroke, or one of the word keys a user may choose.
+    public static func takenSlot(of stroke: KeyStroke) -> ArmedKeys {
+        switch stroke {
+        case KeyStroke(.rightArrow, modifiers: .option): .optionRightArrow
+        case KeyStroke(.rightArrow, modifiers: .command): .commandRightArrow
+        default: slot(of: stroke)
+        }
+    }
+
     /// The keystroke a single slot stands for, so a caught bit can be reported as a key.
     public static func stroke(of slot: ArmedKeys) -> KeyStroke? {
-        slots.first { $0.slot == slot }?.stroke
+        (slots + wordSlots).first { $0.slot == slot }?.stroke
     }
 }
