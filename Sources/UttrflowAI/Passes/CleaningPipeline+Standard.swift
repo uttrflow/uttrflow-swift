@@ -65,6 +65,11 @@ extension CleaningPipeline {
             destination: destination, region: intent.region,
             statement: SQLPosition.at(insertionPoint.precedingText), mode: mode)
         if let layoutPosition = cleanings.firstIndex(where: { $0.id == .layoutWords }) {
+            // Only a Markdown document names its lists and headings by what is already written.
+            if CaretStructure.isMarkdown(documentName: screen.app.documentName) {
+                cleanings.insert(
+                    MarkdownContinuationPass(position: .at(insertionPoint.precedingText)), at: layoutPosition)
+            }
             if NotationEvidence.mayActivate(notation, in: destination) {
                 cleanings.insert(
                     CodeEditorCommandsPass(

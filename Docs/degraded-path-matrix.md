@@ -12,19 +12,19 @@ below the floor fails the test.
 
 | Off | Cases | Passed | Invented | Deleted | Lost | Broke shape | Below floor |
 |---|---|---|---|---|---|---|---|
-| none (default) | 1386 | 1282 | 33 | 11 | 17 | 74 | 0 |
-| recogniser-bias | 1386 | 1276 | 33 | 11 | 17 | 80 | 0 |
-| evidence-capture | 1386 | 1281 | 33 | 11 | 17 | 75 | 0 |
-| candidate-generation | 1386 | 1281 | 33 | 11 | 17 | 75 | 0 |
-| scoring | 1386 | 1281 | 33 | 11 | 17 | 75 | 0 |
-| override-gate | 1386 | 1281 | 33 | 11 | 17 | 75 | 0 |
+| none (default) | 1386 | 1284 | 33 | 11 | 17 | 72 | 0 |
+| recogniser-bias | 1386 | 1278 | 33 | 11 | 17 | 78 | 0 |
+| evidence-capture | 1386 | 1283 | 33 | 11 | 17 | 73 | 0 |
+| candidate-generation | 1386 | 1283 | 33 | 11 | 17 | 73 | 0 |
+| scoring | 1386 | 1283 | 33 | 11 | 17 | 73 | 0 |
+| override-gate | 1386 | 1283 | 33 | 11 | 17 | 73 | 0 |
 | formatting | 1386 | 605 | 152 | 4 | 257 | 684 | 0 |
-| recogniser-bias + evidence-capture | 1386 | 1276 | 33 | 11 | 17 | 80 | 0 |
-| evidence-capture + candidate-generation | 1386 | 1281 | 33 | 11 | 17 | 75 | 0 |
-| evidence-capture + scoring | 1386 | 1281 | 33 | 11 | 17 | 75 | 0 |
-| candidate-generation + scoring | 1386 | 1281 | 33 | 11 | 17 | 75 | 0 |
-| candidate-generation + override-gate | 1386 | 1281 | 33 | 11 | 17 | 75 | 0 |
-| scoring + override-gate | 1386 | 1281 | 33 | 11 | 17 | 75 | 0 |
+| recogniser-bias + evidence-capture | 1386 | 1278 | 33 | 11 | 17 | 78 | 0 |
+| evidence-capture + candidate-generation | 1386 | 1283 | 33 | 11 | 17 | 73 | 0 |
+| evidence-capture + scoring | 1386 | 1283 | 33 | 11 | 17 | 73 | 0 |
+| candidate-generation + scoring | 1386 | 1283 | 33 | 11 | 17 | 73 | 0 |
+| candidate-generation + override-gate | 1386 | 1283 | 33 | 11 | 17 | 73 | 0 |
+| scoring + override-gate | 1386 | 1283 | 33 | 11 | 17 | 73 | 0 |
 | recogniser-bias + formatting | 1386 | 605 | 152 | 4 | 257 | 684 | 0 |
 | override-gate + formatting | 1386 | 605 | 152 | 4 | 257 | 684 | 0 |
 
@@ -39,15 +39,15 @@ Each degraded path paired against the default set over the same cases, as the ch
 | candidate-generation | +0.07 | [0.00, +0.22] | +0.20 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
 | scoring | +0.07 | [0.00, +0.22] | +0.20 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
 | override-gate | +0.07 | [0.00, +0.22] | +0.20 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
-| formatting | +48.85 | [+46.18, +51.59] | +3.86 | +3.06 | [+2.56, +3.58] | +0.72 | 3 (+0.22) | keep |
+| formatting | +48.99 | [+46.32, +51.73] | +3.87 | +3.06 | [+2.56, +3.58] | +0.72 | 3 (+0.22) | keep |
 | recogniser-bias + evidence-capture | +0.43 | [+0.14, +0.79] | +0.51 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | keep |
 | evidence-capture + candidate-generation | +0.07 | [0.00, +0.22] | +0.20 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
 | evidence-capture + scoring | +0.07 | [0.00, +0.22] | +0.20 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
 | candidate-generation + scoring | +0.07 | [0.00, +0.22] | +0.20 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
 | candidate-generation + override-gate | +0.07 | [0.00, +0.22] | +0.20 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
 | scoring + override-gate | +0.07 | [0.00, +0.22] | +0.20 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
-| recogniser-bias + formatting | +48.85 | [+46.18, +51.59] | +3.86 | +3.06 | [+2.56, +3.58] | +0.72 | 3 (+0.22) | keep |
-| override-gate + formatting | +48.85 | [+46.18, +51.59] | +3.86 | +3.06 | [+2.56, +3.58] | +0.72 | 3 (+0.22) | keep |
+| recogniser-bias + formatting | +48.99 | [+46.32, +51.73] | +3.87 | +3.06 | [+2.56, +3.58] | +0.72 | 3 (+0.22) | keep |
+| override-gate + formatting | +48.99 | [+46.32, +51.73] | +3.87 | +3.06 | [+2.56, +3.58] | +0.72 | 3 (+0.22) | keep |
 
 ## The user's own words on each fallback rung
 

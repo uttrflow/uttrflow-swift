@@ -122,7 +122,12 @@ pending and is released by its next sighting on a day with room. Pairs are count
 as `pairSighting` rows, and the day a pair became an entry is a `pairLearnt` row, so counts and the
 cap outlive a quit and no heard or written text is kept. A refused pair is never counted; its
 refusal is the closed-up heard words and the lowercased written word, bounded at 512 like the word
-refusals. The ledger is not yet fed by any edit source.
+refusals. No edit source feeds it yet; `PersonalDictionaryStore.learnEdit(heard:wrote:at:)` is the entry point.
+
+`learnEdit` asks no sound likeness of the pair: the restraint is the recurrence rule, one to three Latin words on
+each side, every written word one `GeneralVocabulary` would not know, and the word-refusal list. A pair that
+recurs becomes a learnt entry whose pronunciation is the lowercased heard words ("cooper nettys" for
+"Kubernetes"), so it is filed under that sound as well as its spelling.
 
 ### The unit of evidence
 

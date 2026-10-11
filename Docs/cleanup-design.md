@@ -177,6 +177,7 @@ destination — so `apply` sees only the draft. The passes, in the order they ru
 | `SpokenPunctuationPass` | "comma", "full stop", "question mark", "open quote…close quote", a spoken email address → marks | the word stands at a seam, not "put a comma there" | piece |
 | `SpokenCasingPass` | casing rows of `spoken-commands.json`: an identifier style in code; "all caps" (next word) and "all caps on … all caps off" (span) in prose | the row's destinations; in prose, not after a determiner, a preposition or a naming verb, nor before a form of "be" | piece |
 | `CodeEditorCommandsPass` | spoken symbol commands | a code editor, outside a comment | piece |
+| `MarkdownContinuationPass` | "next item", "new item", "new heading" → the next list mark or heading mark of the Markdown already before the caret | a Markdown document, `MarkdownPosition`; the phrase opens a sentence, outside a fence | piece |
 | `LayoutWordsPass` | "new line", "new paragraph", "bullet point", "number one" → layout | same | piece |
 | `NumberFormsPass` | fifteen → 15, sixteen point two → 16.2, two thirty pm → 2:30 pm | number-word grammar, `NumberPolicy`, `DigitGrouping` | piece |
 | `ContractionsPass` | dont → don't | word list | piece |
