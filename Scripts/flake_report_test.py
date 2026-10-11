@@ -3,7 +3,9 @@
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
+import io
 import importlib.util
 import json
 import sys
@@ -30,6 +32,34 @@ def check(condition: bool, message: str) -> None:
         raise SystemExit(1)
 
 
+def check_reporting(root: Path) -> None:
+    """Checks executed denominators and unobserved counts through the CLI parser."""
+    green, red, skipped, missing = [root / f"{name}.xml" for name in ("green", "red", "skip", "missing")]
+    green.write_text(RUN.format(timer=""), encoding="utf-8")
+    red.write_text(RUN.format(timer="<failure/>"), encoding="utf-8")
+    skipped.write_text(RUN.format(timer="<skipped/>"), encoding="utf-8")
+    missing.write_text("<testsuites/>", encoding="utf-8")
+    quarantine = root / "report-quarantine.json"
+    quarantine.write_text(json.dumps([{"test": "Audio/timer()"}]), encoding="utf-8")
+    cases = [
+        ("complete", [green, red, red], "2/3 failed  Audio/timer() [quarantined]"),
+        ("skipped", [green, red, skipped], "1/2 failed  Audio/timer() [quarantined] [1 unobserved]"),
+        ("missing", [green, red, missing], "1/2 failed  Audio/timer() [quarantined] [1 unobserved]"),
+        ("both", [green, red, skipped, missing], "1/2 failed  Audio/timer() [quarantined] [2 unobserved]"),
+    ]
+    problems = []
+    for name, paths, expected in cases:
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            code = flake_report.main([*(str(path) for path in paths), "--quarantine", str(quarantine)])
+        lines = output.getvalue().splitlines()
+        if code != 0 or lines[1:] != ["  " + expected]:
+            problems.append(f"{name}: expected {expected!r}, got {lines[1:]!r} (exit {code})")
+        else:
+            print(f"flake_report CLI: {name} observed-count control passed")
+    check(not problems, "\n".join(problems))
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -52,6 +82,7 @@ def main() -> int:
         file.write_text(json.dumps([expired]), encoding="utf-8")
         args = ["--check-quarantine", "--quarantine", str(file), "--today", "2026-01-10"]
         check(flake_report.main(args) == 1, "an expired quarantine passed the audit")
+        check_reporting(root)
     print("flake_report: differing outcomes found, expired quarantine refused")
     return 0
 

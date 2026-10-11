@@ -13,8 +13,10 @@ python3 Scripts/flake_report.py "$TMPDIR"/run*-swift-testing.xml
 ```
 
 `Scripts/flake_report.py` reads two or more JUnit files and prints each test that passed in
-one run and failed in another, with how many runs it failed. A test that fails in every run is
-broken, not flaky, and is not listed.
+one run and failed in another, with failures divided by the runs in which that test executed.
+Skipped or absent observations are reported together as `unobserved`; neither counts as a pass
+or enlarges the failure-rate denominator. A complete cohort retains its failure count over all
+runs. A test that fails in every observed run is broken, not flaky, and is not listed.
 
 ## Quarantine
 
