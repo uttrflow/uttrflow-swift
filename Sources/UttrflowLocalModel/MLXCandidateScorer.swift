@@ -30,8 +30,8 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
     private let maximumTokens: Int
     private let capacityForDownload: (@Sendable (URL) -> Int64?)?
     private let downloadHeadroomBytes: Int64
-    private(set) var container: ModelContainer?
-    private let bufferCachePasses: BufferCachePasses
+    var container: ModelContainer?
+    let bufferCachePasses: BufferCachePasses
 
     /// Where a pass reports its timing and its failures: numbers and error text only, never the prompt.
     private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "predict")
@@ -66,17 +66,17 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
     }
 
     /// The model's modules, built on the first load and only emptied and refilled after it. See `Docs/performance-suggestions.md`.
-    private let weights: ReloadableWeights<ModelContainer>
+    let weights: ReloadableWeights<ModelContainer>
 
     /// How many passes are using the model now, which a release waits out before it empties the weights.
-    private var passesRunning = 0
-    private var waitingForPasses: [CheckedContinuation<Void, Never>] = []
+    var passesRunning = 0
+    var waitingForPasses: [CheckedContinuation<Void, Never>] = []
 
     /// The Hugging Face cache a whole model is loaded from without asking the hub.
     private let cache: URL
 
     /// Shares model loading and lets a download caller retry a disk-only miss.
-    private let inFlightLoad = InFlightModelLoad()
+    let inFlightLoad = InFlightModelLoad()
 
     /// Loads the weights from disk when they are whole there, downloading them only when they are not.
     public func prepare(onProgress: @escaping @Sendable (Double) -> Void = { _ in }) async throws {
@@ -131,58 +131,23 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
         if container == nil { forgetReadings() }
     }
 
-    /// Empties the weights once every pass using them has ended, and hands the freed GPU buffers back to the system.
-    public func release() async {
-        container = nil
-        await inFlightLoad.cancel()
-        forgetReadings()
-        await passesEnded()
-        bufferCachePasses.begin()
-        await weights.unload()
-        bufferCachePasses.end()
-    }
-
-    /// Empties the prefix buckets kept across releases; for a release no query will undo, unlike an idle one.
-    public nonisolated func forgetPrefixIndex() {
-        prefixIndex.forget()
-    }
-
     /// Builds the model's modules from placeholders and reads its weights, so even the first load leaves no quantize graph.
     static func buildContainer(from directory: URL) async throws -> ModelContainer {
         try await QuantizedLoad.container(from: directory, using: #huggingFaceTokenizerLoader())
     }
 
-    /// Drops everything read from the weights.
-    private func forgetReadings() {
-        warm = nil
-        prompt = nil
-        vocabulary = nil
-        kept = nil
-        judgementCache.forgetEverything()
-        confidenceMemory.forgetEverything()
-    }
-
     /// How sure each recent pass was of the lines it wrote.
-    private var confidenceMemory = ConfidenceMemory()
+    var confidenceMemory = ConfidenceMemory()
 
     /// Changes whenever retained model output is forgotten, so an older in-flight pass cannot restore it.
-    private var forgetGeneration = 0
+    var forgetGeneration = 0
 
     public func confidence(ofGenerated line: String) -> Double? {
         confidenceMemory.confidence(of: line)
     }
 
-    /// Forgets every judged candidate, confidence and tokenised prompt line without releasing the model.
-    public func forgetEverything() async {
-        forgetGeneration &+= 1
-        kept = nil
-        prompt?.forgetEverything()
-        judgementCache.forgetEverything()
-        confidenceMemory.forgetEverything()
-    }
-
     /// Per-candidate log-softmax rows the model has already produced, so a keystroke only re-averages from the new `start`.
-    private var judgementCache = JudgementCache()
+    var judgementCache = JudgementCache()
 
     /// How many candidate lines remain cached, for diagnostics and tests of forgetting.
     var judgementCacheCount: Int { judgementCache.count }
@@ -193,33 +158,11 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
     /// Times `judgedTokens` had to run the forward pass because nothing for this candidate was cached, for the tests about a cache that holds.
     public private(set) var judgementCacheMisses = 0
 
-    /// Marks a pass as using the model.
-    func beginPass() {
-        bufferCachePasses.begin()
-        passesRunning += 1
-    }
-
-    /// Marks a pass as done, resuming a release that was waiting for the last one.
-    func endPass() {
-        passesRunning -= 1
-        bufferCachePasses.end()
-        guard passesRunning == 0 else { return }
-        let waiting = waitingForPasses
-        waitingForPasses = []
-        waiting.forEach { $0.resume() }
-    }
-
-    /// Returns once no pass is using the model.
-    private func passesEnded() async {
-        guard passesRunning > 0 else { return }
-        await withCheckedContinuation { waitingForPasses.append($0) }
-    }
-
     /// The instructions as the model has already read them, so a pass pays only for the moment's own tokens.
-    private var warm: WarmInstructions?
+    var warm: WarmInstructions?
 
     /// The template's frame and the message's lines already tokenised, so a pass tokenises only the lines that changed.
-    private var prompt: PromptTokens?
+    var prompt: PromptTokens?
 
     /// Reads the template's frame once, or nothing when the tokenizer cannot promise lines tokenise alone as they do together.
     private func promptTokens(addedTokens: [AddedToken]?) async -> PromptTokens? {
@@ -234,20 +177,20 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
     }
 
     /// Every token's text, read once, so a pass can hold the model to the word being typed.
-    private var vocabulary: TokenHealing.Vocabulary?
+    var vocabulary: TokenHealing.Vocabulary?
 
     /// Keeps queried prefix indexes for this scorer's pinned tokenizer across weight releases.
-    private let prefixIndex = TokenHealing.Vocabulary.PrefixIndex()
+    let prefixIndex = TokenHealing.Vocabulary.PrefixIndex()
 
     /// The tokens every prompt opens with and the model's state after reading them, copied for each pass.
-    private struct WarmInstructions: @unchecked Sendable {
+    struct WarmInstructions: @unchecked Sendable {
         // Built once and only ever copied afterwards, which is what makes sharing it across passes safe.
         let tokens: [Int]
         let cache: [KVCache]
     }
 
     /// What the last pass read, or nothing while a pass holds it and until a pass has read something.
-    private var kept: KeptPrefix<[KVCache]>?
+    var kept: KeptPrefix<[KVCache]>?
 
     /// How many of `all`'s opening tokens the kept cache holds once the rest is trimmed off it, or nothing when it shares too little or cannot be trimmed.
     private static func trimmed(_ kept: KeptPrefix<[KVCache]>, to all: [Int], beating warmed: Int) -> Int? {

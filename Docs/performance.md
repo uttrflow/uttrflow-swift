@@ -597,3 +597,16 @@ on the first run and cached; a changed passage or voice is spoken again. Every f
 read off a `PerformanceReport` built by `PerformanceProfiler`, where the phase order, the leak
 rules and the scaling verdict are covered by tests. The end-to-end bench is in
 [`performance-dictation.md`](performance-dictation.md).
+
+## Main-window presentation boundary
+
+`AppDelegate` reads the current state into `MainContentSnapshot`. The immutable internal value
+invokes the eight inline page presenters and forwards the existing Account presentation into
+complete, nonoptional `MainContent`. Dictionary and Snippets redraws reuse their snapshot builders.
+Account remains eager because the persistent header draws its picture on every page.
+
+`MainContentSnapshotTests` compare all nine page values with the existing presenters for empty,
+concealed and revealed synthetic data, and check notice, keycaps, account picture and diagnostics
+storage forwarding. Presenter mappings use their snapshot clock; History's shared formatter cache
+holds only locale formatters. Page presentation remains eager: this extraction supplies a testable
+boundary for later selective redraw work and makes no latency or allocation improvement claim.

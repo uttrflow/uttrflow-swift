@@ -2531,7 +2531,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
-    /// D5–D7 — runs the formatter and guards its output before anybody is offered a diff.
+    /// D5–D7 — runs the formatter through the panel's guarded formatting owner.
     private func runFormatter(on id: Clip.ID) {
         guard let clip = panel?.clips.first(where: { $0.id == id }), let language = clip.language
         else { return }
@@ -2539,46 +2539,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let request = PanelFormatRequest(
             owner: PanelLateRequest(opens: quickPanel.opens, sheet: panel?.sheet),
             clip: id, text: clip.text, run: formatterRuns)
-
         Task { [formatter] in
-            guard let produced = await formatter.format(clip.text, as: language) else {
-                Self.log.info("formatter produced nothing for \(language.rawValue, privacy: .public)")
-                endFormatting(request, with: .unreadable)
-                return
-            }
-            let original = clip.text
-            // Guarded and compared off the main actor, because both walk the whole clip.
-            let prepared = await Task.detached(priority: .utility) { () -> PreparedFormattingSheet?? in
-                guard FormatterGuard.isFaithful(produced, to: original) else { return .none }
-                guard produced != original else { return .some(nil) }
-                return .some(PreparedFormattingSheet(from: original, to: produced))
-            }.value
-            guard let prepared else {
-                // Logged loudly: a formatter changing what code means, caught by the guard.
-                Self.log.error(
-                    "formatter output discarded: not faithful (\(language.rawValue, privacy: .public))"
-                )
-                endFormatting(request, with: .unfaithful)
-                return
-            }
-            guard let prepared else {
-                endFormatting(request, with: .alreadyFormatted)
-                return
-            }
-            // A panel closed, reopened, re-sheeted, edited or formatted again since is left alone.
-            guard request.accepts(into: panel, opens: quickPanel.opens, latestRun: formatterRuns)
-            else { return }
-            panel?.remember(prepared)
-            panel?.sheet = .formatting(id, formatted: produced)
-            if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
+            await PanelFormattingCoordinator(formatter: formatter, log: Self.log).run(
+                text: clip.text, language: language,
+                actions: .init(
+                    isCurrent: { [self] in
+                        request.accepts(into: panel, opens: quickPanel.opens, latestRun: formatterRuns)
+                    },
+                    finish: { [self] ending in
+                        panel?.notice = ending.notice
+                        if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
+                    },
+                    present: { [self] prepared, produced in
+                        panel?.remember(prepared)
+                        panel?.sheet = .formatting(id, formatted: produced)
+                        if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
+                    }))
         }
-    }
-
-    /// Says how a Format run ended without a sheet, unless the panel has moved on since the question.
-    private func endFormatting(_ request: PanelFormatRequest, with ending: PanelFormatEnding) {
-        guard request.accepts(into: panel, opens: quickPanel.opens, latestRun: formatterRuns) else { return }
-        panel?.notice = ending.notice
-        if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
     }
 
     /// Pastes a panel clip, or asks first in the panel when the shared decision holds it back.
@@ -3320,9 +3297,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         var content = mainWindow.content
         let now = Date()
         if pages.contains(.dictionary) {
-            content.dictionary = dictionaryPage(at: now, corrections: CorrectionHistory(of: kept).corrections)
+            content.dictionary = DictionaryPresenter.page(
+                for: dictionarySnapshot(at: now, corrections: CorrectionHistory(of: kept).corrections))
         }
-        if pages.contains(.snippets) { content.snippets = snippetsPage(at: now) }
+        if pages.contains(.snippets) {
+            content.snippets = SnippetsPresenter.page(for: snippetsSnapshot(at: now))
+        }
         mainWindow.update(content)
     }
 
@@ -3474,98 +3454,91 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let changed = CorrectionHistory(of: entries)
         let corrections = changed.corrections
 
-        return MainContent(
+        return MainContentSnapshot(
             notice: actionNotice,
-            home: HomePresenter.page(
-                for: HomeSnapshot(
-                    permissions: knownPermissions, entries: entries,
-                    account: knownEntitlement?.account,
-                    // The name macOS knows, read here so a test decides who is greeted.
-                    systemName: NSFullUserName(),
-                    shortcut: shortcut, settings: settings, now: now,
-                    speechModel: speechModelLoad, speechDownload: speechReadiness.download,
-                    speechModelBytes: SpeechModel.default.downloadBytes, hasReadHistory: hasReadHistory,
-                    secretPhrases: knownSnippets.secretPhrases)),
-            sidebar: SidebarPresenter.sidebar(
-                for: SidebarSnapshot(
-                    // The page the window shows, which may be the Settings page on one of its tabs.
-                    selection: mainWindow?.isShowingSettings == true
-                        ? .settings(settingsPage.tab) : .page(mainWindow?.page ?? .home),
-                    entries: entries,
-                    correctionsToday: corrections.filter {
-                        Calendar.autoupdatingCurrent.isDate($0.when, inSameDayAs: now)
-                            && !$0.isUndone
-                    }.count,
-                    shortcutKeys: SettingsShortcut.keycaps(for: settings.shortcuts.first(for: .dictate)),
-                    settings: settings, version: .ofThisBuild,
-                    now: now)),
-            history: HistoryPresenter.page(
-                for: HistorySnapshot(
-                    entries: entries, query: query(for: .history), settings: settings,
-                    keepsRecordings: true, canKeepAsClip: surfaces.watchesTheClipboard,
-                    recordings: knownRecordings,
-                    retrying: retryingRecording, playing: playback.playing, now: now,
-                    hasReadHistory: hasReadHistory, secretPhrases: knownSnippets.secretPhrases)),
-            dictionary: dictionaryPage(at: now, corrections: corrections),
-            corrections: CorrectionsPresenter.page(
-                for: CorrectionsSnapshot(
-                    corrections: corrections, dictations: entries,
-                    query: query(for: .corrections),
-                    scope: CorrectionsScope(rawValue: scope(for: .corrections)) ?? .all,
-                    settings: settings,
-                    now: now, pairs: knownPairs)),
-            insights: InsightsPresenter.page(
-                for: InsightsSnapshot(
-                    entries: entries, settings: settings,
-                    range: InsightsRange(rawValue: scope(for: .insights)), now: now,
-                    hasReadHistory: hasReadHistory, suggestionCounts: suggestionCounts)),
-            snippets: snippetsPage(at: now),
-            diagnostics: DiagnosticsPresenter.page(
-                for: DiagnosticsSnapshot(
-                    engines: settings.engines, speechInUse: speechInUse,
-                    transformerAvailability: transformerAvailability,
-                    speechModel: speechModelPresence, speechReadiness: speechReadiness,
-                    speechLoadFailure: speechLoadFailure,
-                    unconditionedRun: lastUnconditionedRun,
-                    permissions: knownPermissions,
-                    dictationShortcutArmed: surfaces.listensForDictation
-                        && shortcutArming.failure == nil,
-                    hasDefaultInputDevice: SettingsCapabilities.hasAudioInput,
-                    measurements: measurements, captureSkips: lastCaptureSkips,
-                    vocabularyPrompt: lastVocabularyPrompt,
-                    decoding: lastDecoding, segmentReliability: lastSegmentReliability,
-                    waits: lastWaits,
-                    speechModelLoads: lastSpeechModelLoads,
-                    cleaning: lastCleaning,
-                    tidyTally: lastTidyTally, screenTextUnavailable: lastScreenTextUnavailable,
-                    readRungs: lastReadRungs,
-                    lastCleanedBy: lastCleanedBy,
-                    suggestionModel: suggestionModel, version: .ofThisBuild,
-                    machine: MachineDescription.current, arrivals: entries.map(\.arrival),
-                    qualityLayers: qualityLayers, learnedState: ledgerRefusal),
-                suggestionModelBytesOnDisk: releaseModel.cachedBytesOnDisk),
+            home: HomeSnapshot(
+                permissions: knownPermissions, entries: entries,
+                account: knownEntitlement?.account,
+                // The name macOS knows, read here so a test decides who is greeted.
+                systemName: NSFullUserName(),
+                shortcut: shortcut, settings: settings, now: now,
+                speechModel: speechModelLoad, speechDownload: speechReadiness.download,
+                speechModelBytes: SpeechModel.default.downloadBytes, hasReadHistory: hasReadHistory,
+                secretPhrases: knownSnippets.secretPhrases),
+            sidebar: SidebarSnapshot(
+                // The page the window shows, which may be the Settings page on one of its tabs.
+                selection: mainWindow?.isShowingSettings == true
+                    ? .settings(settingsPage.tab) : .page(mainWindow?.page ?? .home),
+                entries: entries,
+                correctionsToday: corrections.filter {
+                    Calendar.autoupdatingCurrent.isDate($0.when, inSameDayAs: now)
+                        && !$0.isUndone
+                }.count,
+                shortcutKeys: SettingsShortcut.keycaps(for: settings.shortcuts.first(for: .dictate)),
+                settings: settings, version: .ofThisBuild,
+                now: now),
+            history: HistorySnapshot(
+                entries: entries, query: query(for: .history), settings: settings,
+                keepsRecordings: true, canKeepAsClip: surfaces.watchesTheClipboard,
+                recordings: knownRecordings,
+                retrying: retryingRecording, playing: playback.playing, now: now,
+                hasReadHistory: hasReadHistory, secretPhrases: knownSnippets.secretPhrases),
+            dictionary: dictionarySnapshot(at: now, corrections: corrections),
+            corrections: CorrectionsSnapshot(
+                corrections: corrections, dictations: entries,
+                query: query(for: .corrections),
+                scope: CorrectionsScope(rawValue: scope(for: .corrections)) ?? .all,
+                settings: settings,
+                now: now, pairs: knownPairs),
+            insights: InsightsSnapshot(
+                entries: entries, settings: settings,
+                range: InsightsRange(rawValue: scope(for: .insights)), now: now,
+                hasReadHistory: hasReadHistory, suggestionCounts: suggestionCounts),
+            snippets: snippetsSnapshot(at: now),
+            diagnostics: DiagnosticsSnapshot(
+                engines: settings.engines, speechInUse: speechInUse,
+                transformerAvailability: transformerAvailability,
+                speechModel: speechModelPresence, speechReadiness: speechReadiness,
+                speechLoadFailure: speechLoadFailure,
+                unconditionedRun: lastUnconditionedRun,
+                permissions: knownPermissions,
+                dictationShortcutArmed: surfaces.listensForDictation
+                    && shortcutArming.failure == nil,
+                hasDefaultInputDevice: SettingsCapabilities.hasAudioInput,
+                measurements: measurements, captureSkips: lastCaptureSkips,
+                vocabularyPrompt: lastVocabularyPrompt,
+                decoding: lastDecoding, segmentReliability: lastSegmentReliability,
+                waits: lastWaits,
+                speechModelLoads: lastSpeechModelLoads,
+                cleaning: lastCleaning,
+                tidyTally: lastTidyTally, screenTextUnavailable: lastScreenTextUnavailable,
+                readRungs: lastReadRungs,
+                lastCleanedBy: lastCleanedBy,
+                suggestionModel: suggestionModel, version: .ofThisBuild,
+                machine: MachineDescription.current, arrivals: entries.map(\.arrival),
+                qualityLayers: qualityLayers, learnedState: ledgerRefusal),
+            suggestionModelBytesOnDisk: releaseModel.cachedBytesOnDisk,
             account: accountPage(at: now),
-            shortcutKeycaps: SettingsShortcut.keycaps(for: settings.shortcuts.first(for: .dictate)))
+            shortcutKeycaps: SettingsShortcut.keycaps(for: settings.shortcuts.first(for: .dictate))
+        ).presented()
     }
 
-    /// The Dictionary page as the last reading of the words draws it.
-    private func dictionaryPage(at now: Date, corrections: [Correction]) -> DictionaryPresentation {
-        DictionaryPresenter.page(
-            for: DictionarySnapshot(
-                entries: knownWords, draft: wordDraft, refusal: wordRefusal,
-                query: query(for: .dictionary), filter: scope(for: .dictionary),
-                sort: sorts[.dictionary] ?? "", corrections: corrections, now: now,
-                packed: lastVocabularyPrompt.isEmpty ? nil : lastVocabularyPrompt,
-                refused: knownRefusals, trial: wordTrial, recency: knownRecency))
+    /// The last reading of the words, ready for the Dictionary presenter.
+    private func dictionarySnapshot(at now: Date, corrections: [Correction]) -> DictionarySnapshot {
+        DictionarySnapshot(
+            entries: knownWords, draft: wordDraft, refusal: wordRefusal,
+            query: query(for: .dictionary), filter: scope(for: .dictionary),
+            sort: sorts[.dictionary] ?? "", corrections: corrections, now: now,
+            packed: lastVocabularyPrompt.isEmpty ? nil : lastVocabularyPrompt,
+            refused: knownRefusals, trial: wordTrial, recency: knownRecency)
     }
 
-    /// The Snippets page as the last reading of the snippets draws it.
-    private func snippetsPage(at now: Date) -> SnippetsPresentation {
-        SnippetsPresenter.page(
-            for: SnippetsSnapshot(
-                snippets: knownSnippets, draft: snippetDraft, refusal: snippetRefusal,
-                query: query(for: .snippets), sort: sorts[.snippets] ?? "", now: now,
-                arrival: snippetArrival, dictionary: knownWords, revealed: revealedSnippets))
+    /// The last reading of the snippets, ready for the Snippets presenter.
+    private func snippetsSnapshot(at now: Date) -> SnippetsSnapshot {
+        SnippetsSnapshot(
+            snippets: knownSnippets, draft: snippetDraft, refusal: snippetRefusal,
+            query: query(for: .snippets), sort: sorts[.snippets] ?? "", now: now,
+            arrival: snippetArrival, dictionary: knownWords, revealed: revealedSnippets)
     }
 
     /// Reads the account the pages draw from.

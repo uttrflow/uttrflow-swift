@@ -76,3 +76,7 @@ is offered only when `isAvailable(for:)` finds the program.
 
 `format(_:as:)` answers `nil` for a fragment that is invalid on its own, which is the common case
 for a clip, and on any other refusal.
+
+The app shell’s internal `PanelFormattingCoordinator` owns formatter execution, the output guard
+and off-main diff preparation. It checks the captured panel request before publishing an ending
+or a prepared sheet; `AppDelegate` wires those results into the current panel.
