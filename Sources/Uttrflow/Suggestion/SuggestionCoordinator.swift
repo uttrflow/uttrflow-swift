@@ -138,6 +138,8 @@ final class SuggestionCoordinator {
     private var sessionEndObservers: SuggestionSessionEndObservers?
     /// The Space and sleep observers, each of which leaves a ghost with no field under it.
     private var spaceObservers: [any NSObjectProtocol] = []
+    /// Withdraws the ghost when a display is unplugged or rearranged while the Mac stays awake.
+    private var screenChangeObserver: (center: NotificationCenter, token: any NSObjectProtocol)?
     /// Whether a held mouse button can still move the focused window under a ghost.
     private var isPointerGestureActive = false
     private var ticker: Timer?
@@ -386,6 +388,7 @@ final class SuggestionCoordinator {
                     workspaceCenter.removeObserver(observer)
                 }
                 self.spaceObservers = []
+                self.removeScreenChangeObserver()
                 self.sessionEndObservers?.remove()
                 self.sessionEndObservers = nil
                 self.onTapRestChanged?(.failure(KeyInterceptorFailure.accessibilityDenied))
@@ -516,6 +519,7 @@ final class SuggestionCoordinator {
         sessionEndObservers = nil
         for observer in spaceObservers { workspaceCenter.removeObserver(observer) }
         spaceObservers = []
+        removeScreenChangeObserver()
         focusedFieldValueObserver.stop()
         // A browser's full Accessibility tree stays on only while suggestions do.
         FocusedFieldReader.releaseFullTrees()
@@ -532,6 +536,7 @@ final class SuggestionCoordinator {
     /// Keystrokes elsewhere, the application in front changing, and a clock for the pauses.
     private func watchForActivity() {
         watchFocusedFieldValues()
+        observeScreenChanges()
         observeSessionEnd(
             in: workspaceCenter,
             screenLockCenter: DistributedNotificationCenter.default())
@@ -613,6 +618,22 @@ final class SuggestionCoordinator {
                     [weak self] _ in MainActor.assumeIsolated { self?.withdraw() }
                 })
         }
+    }
+
+    /// Withdraws the ghost when the screen layout changes, since its frame may sit on a display that is gone.
+    func observeScreenChanges(in center: NotificationCenter = .default) {
+        guard screenChangeObserver == nil else { return }
+        let token = center.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.withdraw() }
+        }
+        screenChangeObserver = (center, token)
+    }
+
+    private func removeScreenChangeObserver() {
+        if let screenChangeObserver { screenChangeObserver.center.removeObserver(screenChangeObserver.token) }
+        screenChangeObserver = nil
     }
 
     func observeSessionEnd(in workspaceCenter: NotificationCenter, screenLockCenter: NotificationCenter) {
