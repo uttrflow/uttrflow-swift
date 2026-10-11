@@ -196,12 +196,12 @@ extension PanelPresenter {
         case .formatting(let id, let formatted):
             let original = snapshot.clip(id)?.text ?? ""
             return warningOfUnsavedSecret(
-                snapshot.formattingSheets.sheet(from: original, to: formatted), in: snapshot)
+                PanelCache.current.formattingSheets.sheet(from: original, to: formatted), in: snapshot)
 
         case .reindenting(let id, let formatted):
             let original = snapshot.clip(id)?.text ?? ""
             return warningOfUnsavedSecret(
-                snapshot.formattingSheets.sheet(
+                PanelCache.current.formattingSheets.sheet(
                     from: original, to: formatted, title: "Re-indent this code?",
                     confirmTitle: "Apply re-indent", kind: .reindenting),
                 in: snapshot)

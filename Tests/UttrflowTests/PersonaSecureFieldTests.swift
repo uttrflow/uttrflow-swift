@@ -111,7 +111,9 @@ struct PersonaSecureFieldTests {
         let sandbox = Sandbox()
         let keys = EncryptedStore(keys: Keys())
         let app = AppDelegate(
-            container: sandbox.root, account: HeldSession(signedIn: true).layer, encryptedStore: keys)
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
+            account: HeldSession(signedIn: true).layer, encryptedStore: keys)
         app.drawsWindows = false
         let ledger = EvidenceLedgerStore(
             file: EvidenceLedgerStore.defaultFile(in: sandbox.root), encryptedStore: keys)

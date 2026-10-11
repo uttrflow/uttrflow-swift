@@ -90,7 +90,10 @@ private let samples: [MenuBarIntent] =
 /// A signed-in app that draws nothing, so where a request went is read rather than seen.
 @MainActor
 private func signedInApp(in sandbox: borrowing Sandbox) -> AppDelegate {
-    let app = AppDelegate(container: sandbox.root, account: HeldSession(signedIn: true).layer)
+    let app = AppDelegate(
+        container: sandbox.root,
+        clipboardSource: InMemoryClipboardSource(),
+        account: HeldSession(signedIn: true).layer)
     app.drawsWindows = false
     return app
 }
@@ -150,7 +153,9 @@ struct MenuBarIntentWiringTests {
         store.save(try SettingsEditor.apply(.toggle(feature.setting, isOn: !isOn), to: .default))
         let sandbox = Sandbox()
         let app = AppDelegate(
-            container: sandbox.root, settingsStore: store, account: HeldSession(signedIn: true).layer,
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
+            settingsStore: store, account: HeldSession(signedIn: true).layer,
             prepareModel: { _ in })
         app.drawsWindows = false
 
@@ -165,7 +170,9 @@ struct MenuBarIntentWiringTests {
         let store = UserDefaultsSettingsStore(store: ModelDownloadSettingsStore())
         let sandbox = Sandbox()
         let app = AppDelegate(
-            container: sandbox.root, settingsStore: store, account: HeldSession(signedIn: true).layer,
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
+            settingsStore: store, account: HeldSession(signedIn: true).layer,
             prepareModel: { _ in })
         app.drawsWindows = false
         app.carryOut(.setFeature(.suggestions, isOn: true))

@@ -7,7 +7,7 @@ import Testing
 @testable import UttrflowUX
 
 /// A formatter rewrites code nobody asked it to touch, so most of this is about when it is not offered.
-@Suite("D5, D6, D8 · formatting a clip")
+@Suite("D5, D6, D8 · formatting a clip", OwnPanelCache())
 struct PanelFormatTests {
     /// A Swift clip with a confident language.
     static let swiftCode = Clip(
