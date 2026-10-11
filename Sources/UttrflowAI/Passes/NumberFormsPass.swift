@@ -456,7 +456,16 @@ public struct NumberFormsPass: PieceCleaningPass {
     private static func cardinal(
         at position: Int, keys: [String], shapes: [WordShape], policy: NumberPolicy, digits: DigitGrouping
     ) -> Phrase? {
-        guard let item = item(at: position, keys: keys, shapes: shapes) else { return nil }
+        guard var item = item(at: position, keys: keys, shapes: shapes) else { return nil }
+        let written = item.text
+        if !item.spoken {
+            let end = position + item.count
+            let quantity =
+                joined(end, shapes) && (currencies.contains(keys[end]) || measures.contains(keys[end]))
+            item = Item(
+                value: item.value, text: regrouped(item.text, digits: digits, quantity: quantity),
+                count: item.count, spoken: false)
+        }
         let inContext = hasLabelCue(at: position, keys: keys, shapes: shapes)
         if let measured = decimalAndPercent(item, at: position, keys: keys, shapes: shapes) {
             return measured
@@ -475,9 +484,29 @@ public struct NumberFormsPass: PieceCleaningPass {
         if inContext, item.spoken, let run = contextDigits(item, at: position, keys: keys, shapes: shapes) {
             return run
         }
-        return plainNumber(
+        if let plain = plainNumber(
             item, at: position, inContext: inContext, keys: keys, shapes: shapes, policy: policy,
             digits: digits)
+        {
+            return plain
+        }
+        return item.text == written ? nil : Phrase(text: item.text, count: item.count)
+    }
+
+    /// A written numeral in the grouping `digits` says, at the same value; plain digits gain commas only as a quantity.
+    static func regrouped(_ key: String, digits: DigitGrouping, quantity: Bool) -> String {
+        let plain = key.filter { $0 != "," }
+        guard plain.allSatisfy({ $0.isASCII && $0.isNumber }), plain.first != "0", let value = Int(plain)
+        else { return key }
+        guard key.contains(",") else {
+            let reads = quantity && (4...9).contains(plain.count)
+            guard reads, digits != .none else { return key }
+            return NumberWords.render(value, grouping: digits, isAmount: true)
+        }
+        guard DigitGrouping.thousands.matches(key) || DigitGrouping.indian.matches(key) else { return key }
+        // Prose keeps a person's Indian grouping; only an explicit style or a parsed place rewrites commas.
+        return digits == .thousands || digits.matches(key) && digits != .none
+            ? key : NumberWords.render(value, grouping: digits)
     }
 
     /// Decimal places joined with "point", then "percent" or "per cent", or a letter for a magnitude.
