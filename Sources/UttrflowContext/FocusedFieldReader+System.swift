@@ -151,6 +151,11 @@ public enum FocusedFieldReader {
             write: { attribute, isOn in
                 AXUIElementSetAttributeValue(
                     application, attribute as CFString, isOn ? kCFBooleanTrue : kCFBooleanFalse) == .success
+            },
+            refuses: { attribute in
+                var value: AnyObject?
+                return AXUIElementCopyAttributeValue(application, attribute as CFString, &value)
+                    == .attributeUnsupported
             })
     }
 
