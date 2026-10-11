@@ -44,14 +44,14 @@ extension MeaningPreservationGuard {
         return .accepted
     }
 
-    /// Refuses a rewrite of Devanagari that writes more or fewer words than were said, since romanising keeps each word; a number may join words.
+    /// Refuses a rewrite of Devanagari with more or fewer words than the draft, since romanising keeps each word; a number may join words.
     static func scriptWordCountVerdict(original: String, rewritten: String) -> GuardVerdict {
         guard Romaniser.containsDevanagari(original),
             !original.contains(where: \.isNumber), !rewritten.contains(where: \.isNumber)
         else { return .accepted }
         let spoken = TextTidy.words(original)
         let said = spoken.count
-        // A word said twice running is a false start the rewrite may write once.
+        // A word spoken twice running is a false start, which the rewrite may keep once.
         let repeated = zip(spoken, spoken.dropFirst()).count { $0 == $1 }
         let written = TextTidy.words(rewritten).count
         if written < said - repeated {
