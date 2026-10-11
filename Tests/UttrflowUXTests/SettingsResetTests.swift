@@ -71,8 +71,8 @@ struct SettingsResetLevelTests {
 
     /// Every level, listed rather than enumerated because one of them names an application.
     static let everyLevel: [SettingsReset] = [
-        .learnedWords, .everything, .suggestions(inApplication: "com.example.editor"),
-        .persona, .personaFact(.noticedWords),
+        .learnedWords, .everything, .clipboardHistory,
+        .suggestions(inApplication: "com.example.editor"), .persona, .personaFact(.noticedWords),
     ]
 
     /// The switch is exhaustive, so a sixth level cannot be added without this failing to build.
@@ -80,7 +80,8 @@ struct SettingsResetLevelTests {
     func everyLevelIsSwept() {
         for level in Self.everyLevel {
             switch level {
-            case .learnedWords, .everything, .suggestions, .persona, .personaFact: continue
+            case .learnedWords, .everything, .clipboardHistory, .suggestions, .persona, .personaFact:
+                continue
             }
         }
         #expect(Set(Self.everyLevel).count == Self.everyLevel.count)
@@ -542,7 +543,7 @@ struct SettingsRemovalCopyTests {
         #expect(
             confirmation.message
                 == "This removes 46 words from your dictionary (34 it learned, 12 you added "
-                + "yourself), 142 saved transcripts, your whole clipboard history, pinned clips "
+                + "yourself), 142 saved dictations, your whole clipboard history, pinned clips "
                 + "included, your snippets and learned completions, and puts every preference "
                 + "back to its default. It cannot be undone.")
         #expect(confirmation.title == "Reset personalisation?")
@@ -618,7 +619,7 @@ struct SettingsRemovalCopyTests {
                 found[tab, default: []].append(removal.reset)
             }
         }
-        #expect(found == [.privacy: [.learnedWords, .everything]])
+        #expect(found == [.privacy: [.learnedWords, .clipboardHistory, .everything]])
     }
 }
 
@@ -814,4 +815,89 @@ struct SettingsResetLeftoverTests {
 private struct FixedKeys: StoreKeyProviding {
     let value = SymmetricKey(size: .bits256)
     func key(createIfMissing: Bool) throws -> SymmetricKey { value }
+}
+
+// MARK: - Clearing the clipboard history
+
+@Suite("Clearing the clipboard history")
+struct ClipboardHistoryClearTests {
+    @Test("names only the history, and asks first")
+    func levelIsConfirmedAndNarrow() {
+        #expect(SettingsReset.clipboardHistory.targets == [.clipboardHistory])
+        #expect(!SettingsReset.clipboardHistory.targets.contains(.clipboard))
+        #expect(!SettingsReset.clipboardHistory.targets.contains(.preferences))
+        #expect(SettingsReset.clipboardHistory.isConfirmed)
+        #expect(!SettingsReset.clipboardHistory.forgetsTheLastDictation)
+    }
+
+    @Test("empties the history, spares pinned and named clips, the dictionary and the transcripts")
+    func spareswhatWasSaved() async throws {
+        try await inATemporaryDirectory { directory in
+            let now = Date()
+            let dictionary = PersonalDictionaryStore(file: directory.appending(path: "dictionary.json"))
+            let history = DictationHistoryStore(file: directory.appending(path: "history.json"))
+            try await dictionary.add(entry("kubectl", .added))
+            try await history.append(
+                DictationRecord(text: "one", when: now), keeping: Retention(days: 7, now: now))
+            let clipboard = ClipboardStore(file: directory.appending(path: "clipboard.json"))
+            let retention = ClipRetention(days: 7, now: now)
+            for text in ["plain one", "plain two", "pinned one", "named one"] {
+                try await clipboard.record(Clip(text: text, kind: .text, copiedAt: now), keeping: retention)
+            }
+            let all = await clipboard.clips(keeping: retention)
+            let pinned = try #require(all.first { $0.text == "pinned one" })
+            let named = try #require(all.first { $0.text == "named one" })
+            try await clipboard.setPinned(true, of: pinned.id, keeping: retention)
+            try await clipboard.setAlias("keeper", of: named.id, keeping: retention)
+            let store = FilePersonalisationStore(
+                dictionary: dictionary, history: history, clipboard: clipboard,
+                ledger: NetworkActivityLedger(file: nil))
+
+            try await store.carryOut(.clipboardHistory)
+
+            let left = await clipboard.clips(keeping: retention)
+            #expect(Set(left.map(\.text)) == ["pinned one", "named one"])
+            #expect(await dictionary.allEntries().map(\.word) == ["kubectl"])
+            #expect(await history.records(keeping: Retention(days: 7, now: now)).count == 1)
+        }
+    }
+
+    @Test("the Privacy pane offers it with a confirmation that says what stays")
+    func rowSaysWhatStays() throws {
+        let pane = SettingsPresenter.pane(for: .privacy, settings: .default)
+        let row = try #require(pane.groups.flatMap(\.rows).first { $0.id == "clearClipboard" })
+        guard case .removal(let removal) = row.control else {
+            Issue.record("the clear row is not a removal")
+            return
+        }
+        #expect(removal.reset == .clipboardHistory)
+        #expect(removal.title.hasSuffix("…"))
+        let message = try #require(removal.confirmation?.message)
+        #expect(message.contains("Pinned, named and filed clips"))
+        #expect(message.contains("dictionary, snippets and settings stay"))
+        #expect(removal.confirmation?.cancelTitle == "Cancel")
+    }
+
+    @Test("cancelling the question deletes nothing and hands back no reset")
+    func cancelDeletesNothing() throws {
+        var session = SettingsSession(settings: .default, personalisation: .nothing)
+        session.tab = .privacy
+        let row = try #require(
+            session.presentation.pane.groups.flatMap(\.rows).first { $0.id == "clearClipboard" })
+        guard case .removal(let removal) = row.control else {
+            Issue.record("the clear row is not a removal")
+            return
+        }
+
+        #expect(session.request(removal) == nil)
+        #expect(session.pendingRemoval == removal)
+        session.dismissRemoval()
+        #expect(session.pendingRemoval == nil)
+        #expect(session.settings == .default)
+    }
+
+    @Test("a refused disk is reported as clips possibly remaining")
+    func failureWording() {
+        #expect(SettingsEditor.reason(forFailed: .clipboardHistory).contains("some clips may still be here"))
+    }
 }

@@ -7,7 +7,7 @@ import Testing
 @testable import UttrflowUX
 
 /// A formatter rewrites code nobody asked it to touch, so most of this is about when it is not offered.
-@Suite("D5, D6, D8 · formatting a clip")
+@Suite("D5, D6, D8 · formatting a clip", OwnPanelCache())
 struct PanelFormatTests {
     /// A Swift clip with a confident language.
     static let swiftCode = Clip(
@@ -117,6 +117,38 @@ struct PanelFormatTests {
         #expect(
             PanelPresenter.formattingSheet(.tooLarge(before: 1, after: 1), changes: false).isConfirmEnabled
                 == false)
+    }
+
+    /// With no diff to read, one Return must not be enough to replace the original.
+    @Test("D6 · a change too large to compare needs a second, explicit press to keep")
+    func tooLargeNeedsTwoPresses() {
+        let original = (0..<(TextDiff.lineLimit + 1)).map { "let a\($0) = 1" }.joined(separator: "\n")
+        let formatted = original + "\nlet z = 2"
+        let clip = PanelFixture.clip(original)
+        var snapshot = PanelFixture.panel([clip])
+        snapshot.sheet = .formatting(clip.id, formatted: formatted)
+
+        let first = PanelPresenter.present(snapshot).sheet
+        #expect(first?.diff.isEmpty == true)
+        #expect(first?.confirmTitle == "Keep without a diff")
+
+        let asked = snapshot.applying(.return)
+        #expect(asked.outcome == .open, "the first Return keeps nothing")
+        let second = PanelPresenter.present(asked.state).sheet
+        #expect(second?.confirmTitle == "Keep it anyway")
+        #expect(second?.conflict?.contains("could be compared") == true)
+
+        #expect(asked.state.applying(.return).outcome == .change(.rewriteText(clip.id, formatted)))
+        #expect(asked.state.applying(.escape).state.sheet == nil)
+    }
+
+    @Test("a change that can be compared still keeps on one press")
+    func comparableKeepsOnOnePress() {
+        var snapshot = Self.panel()
+        snapshot.sheet = .formatting(Self.swiftCode.id, formatted: "func a() {\n    let x = 1\n}")
+
+        #expect(PanelPresenter.present(snapshot).sheet?.isUnreviewable == false)
+        #expect(snapshot.applying(.return).outcome != .open)
     }
 
     /// How many diff steps `work` took.

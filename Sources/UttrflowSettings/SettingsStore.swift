@@ -108,6 +108,9 @@ public struct Settings: Sendable, Equatable, Codable {
     /// How many days an unkept clip survives; a clip with an alias, category or pin has no clock.
     public var clipboardRetentionDays: Int
 
+    /// Whether pasting a hidden clip into a field not known to hide what is typed asks first.
+    public var confirmsHiddenClipPaste: Bool
+
     /// Seconds a copied secret stays on the system clipboard before it is cleared; 0 leaves it there.
     public var secretClipboardClearSeconds: Int
 
@@ -161,6 +164,7 @@ public struct Settings: Sendable, Equatable, Codable {
         keepsNoTranscripts: Bool = false,
         historyExcludedApplications: [String] = [],
         clipboardRetentionDays: Int = Settings.defaultRetentionDays,
+        confirmsHiddenClipPaste: Bool = true,
         secretClipboardClearSeconds: Int = Settings.defaultSecretClipboardClearSeconds,
         suggestions: SuggestionPreferences = .default,
         microphoneUID: String? = nil,
@@ -198,6 +202,7 @@ public struct Settings: Sendable, Equatable, Codable {
         self.keepsNoTranscripts = keepsNoTranscripts
         self.historyExcludedApplications = historyExcludedApplications
         self.clipboardRetentionDays = clipboardRetentionDays
+        self.confirmsHiddenClipPaste = confirmsHiddenClipPaste
         self.secretClipboardClearSeconds = secretClipboardClearSeconds
         self.suggestions = suggestions
         self.microphoneUID = microphoneUID
@@ -288,6 +293,7 @@ extension Settings {
         case keepsNoTranscripts
         case historyExcludedApplications
         case clipboardRetentionDays
+        case confirmsHiddenClipPaste
         case secretClipboardClearSeconds
         case suggestions
         case microphoneUID
@@ -378,6 +384,8 @@ extension Settings {
                 ),
                 default: fallback.clipboardRetentionDays
             ),
+            confirmsHiddenClipPaste: container.value(
+                forKey: .confirmsHiddenClipPaste, default: fallback.confirmsHiddenClipPaste),
             secretClipboardClearSeconds: Settings.secretClear(
                 container.value(
                     forKey: .secretClipboardClearSeconds, default: fallback.secretClipboardClearSeconds),

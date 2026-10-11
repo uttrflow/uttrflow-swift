@@ -20,7 +20,7 @@ struct LaunchBudgetTests {
         for _ in 0..<3 {
             let sandbox = Sandbox()
             let start = clock.now
-            let app = AppDelegate(container: sandbox.root)
+            let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
             fastest = min(fastest, start.duration(to: clock.now))
             _ = app
         }

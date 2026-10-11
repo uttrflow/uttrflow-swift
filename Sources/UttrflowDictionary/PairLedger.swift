@@ -1,9 +1,9 @@
 // What a heard-to-written pair must show before it becomes a dictionary entry. See Docs/app-dictionary.md.
 
-import UttrflowCore
+package import UttrflowCore
 
 /// Counts each edited pair by keyed hash and releases it only on enough sightings across separate days.
-struct PairLedger: Sendable {
+package struct PairLedger: Sendable {
     /// Sightings a pair needs in total before it becomes an entry.
     static let sightingsBeforeLearning = 3
     /// Separate days those sightings must fall on.
@@ -25,7 +25,7 @@ struct PairLedger: Sendable {
     private let digest: @Sendable (String) -> String?
 
     /// Starts from earlier refusals, oldest first, and earlier `pairSighting` and `pairLearnt` rows.
-    init(
+    package init(
         refusing earlier: [String] = [], remembering rows: [EvidenceRow] = [],
         digest: @escaping @Sendable (String) -> String? = { $0 }
     ) {
@@ -65,7 +65,7 @@ struct PairLedger: Sendable {
         return forget(subject)
     }
 
-    /// Lifts the refusal of a pair, answering whether it was refused.
+    /// Lifts the refusal of a pair, answering whether the pair is refused.
     mutating func allow(heard: String, meant: String) -> Bool {
         let key = Self.refusalKey(heard: heard, meant: meant)
         guard refused.remove(key) != nil else { return false }
@@ -74,7 +74,7 @@ struct PairLedger: Sendable {
     }
 
     /// Counts one edit on `day`, answering the pair when it now meets the rule and the rows to append.
-    mutating func record(
+    package mutating func record(
         heard: String, meant: String, on day: Int
     ) -> (learnt: ConfusionPairs.Pair?, rows: [EvidenceRow]) {
         let key = Self.refusalKey(heard: heard, meant: meant)
@@ -126,7 +126,7 @@ struct PairLedger: Sendable {
         EvidenceRow(kind: kind, subject: subject, weight: weight, day: day, provenance: .dictation)
     }
 
-    /// Adds a refusal, lapsing the oldest past the bound; answers whether it was new.
+    /// Adds a refusal, lapsing the oldest past the bound; answers whether the pair is new.
     private mutating func insertRefusal(_ key: String) -> Bool {
         guard refused.insert(key).inserted else { return false }
         refusalOrder.append(key)

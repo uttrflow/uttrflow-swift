@@ -62,6 +62,7 @@ and a word gets in only by defeating all of them. Every learnt word is thrown aw
   word first, so numbered files share one spelling. At most `WorkingSet.maximumWordsOnScreen`
   (64) title words are read.
 - Never from the application name, which is on screen for every dictation in that app.
+- Never from a window title naming a sensitive kind of document (medical, legal, financial, tax, identity, employment, immigration): `PrivateDocumentTitles` holds whole-word phrases per category as data, and a matching title yields no sighting, so nothing is counted.
 - Never from the selected text: both insertion routes write over the selection, so every word
   in it is a word the user is deleting.
 
@@ -121,7 +122,12 @@ pending and is released by its next sighting on a day with room. Pairs are count
 as `pairSighting` rows, and the day a pair became an entry is a `pairLearnt` row, so counts and the
 cap outlive a quit and no heard or written text is kept. A refused pair is never counted; its
 refusal is the closed-up heard words and the lowercased written word, bounded at 512 like the word
-refusals. The ledger is not yet fed by any edit source.
+refusals. No edit source feeds it yet; `PersonalDictionaryStore.learnEdit(heard:wrote:at:)` is the entry point.
+
+`learnEdit` asks no sound likeness of the pair: the restraint is the recurrence rule, one to three Latin words on
+each side, every written word one `GeneralVocabulary` would not know, and the word-refusal list. A pair that
+recurs becomes a learnt entry whose pronunciation is the lowercased heard words ("cooper nettys" for
+"Kubernetes"), so it is filed under that sound as well as its spelling.
 
 ### The unit of evidence
 

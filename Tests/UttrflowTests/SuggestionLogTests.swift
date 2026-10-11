@@ -30,7 +30,7 @@ struct SuggestionLogTests {
         (
             "quiet",
             SuggestionLog.quiet(
-                typed: typed, reason: "writingFluently", rejections: 0, silencedHere: false, enabled: true)
+                typed: typed, reason: "writingFluently", rejections: 0, enabled: true)
         ),
         ("generateFailed", SuggestionLog.generateFailed(typed: typed, error: InventedFailure.wrote(offered))),
         (

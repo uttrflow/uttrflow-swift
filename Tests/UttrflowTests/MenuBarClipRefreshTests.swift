@@ -29,7 +29,10 @@ struct MenuBarClipRefreshTests {
     @Test("a captured clip action still inserts its clip after a newer copy shifts the list")
     func capturedClipActionUsesIdentity() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root, account: HeldSession(signedIn: true).layer)
+        let app = AppDelegate(
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
+            account: HeldSession(signedIn: true).layer)
         let store = ClipboardStore(file: ClipboardStore.defaultFile(in: sandbox.root))
         let retention = ClipRetention(days: 30, now: .now)
         let selected = Clip(text: "The clip the user chose", kind: .text, copiedAt: .now)
@@ -53,7 +56,10 @@ struct MenuBarClipRefreshTests {
     @Test("a captured recent action still inserts its dictation after a newer one arrives")
     func capturedRecentActionUsesIdentity() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root, account: HeldSession(signedIn: true).layer)
+        let app = AppDelegate(
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
+            account: HeldSession(signedIn: true).layer)
         app.drawsWindows = false
         app.render(
             .inserted(
@@ -76,7 +82,10 @@ struct MenuBarClipRefreshTests {
     @Test("refreshing after a panel edit updates an already-drawn menu presentation")
     func panelEditRefreshesMenuSnapshot() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root, account: HeldSession(signedIn: true).layer)
+        let app = AppDelegate(
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
+            account: HeldSession(signedIn: true).layer)
         let store = ClipboardStore(file: ClipboardStore.defaultFile(in: sandbox.root))
         let retention = ClipRetention(days: 30, now: .now)
         let recorded = try await store.record(
@@ -100,6 +109,7 @@ struct MenuBarClipRefreshTests {
         try Data().write(to: file)
         let app = AppDelegate(
             container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
             account: HeldSession(signedIn: true).layer,
             encryptedStore: EncryptedStore(keys: Keys()))
 
@@ -119,7 +129,10 @@ struct MenuBarClipRefreshTests {
         try FileManager.default.createDirectory(
             at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Data(#"{"version":99,"clips":[]}"#.utf8).write(to: file)
-        let app = AppDelegate(container: sandbox.root, account: HeldSession(signedIn: true).layer)
+        let app = AppDelegate(
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
+            account: HeldSession(signedIn: true).layer)
 
         await app.readMenuClips()
 
@@ -146,6 +159,7 @@ struct MenuBarClipRefreshTests {
         try data.write(to: file)
         let app = AppDelegate(
             container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
             account: HeldSession(signedIn: true).layer,
             encryptedStore: EncryptedStore(
                 keys: Keys(), markerURL: sandbox.root.appending(path: "legacy-migration.marker")))
