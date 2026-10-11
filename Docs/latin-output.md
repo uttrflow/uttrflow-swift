@@ -307,3 +307,42 @@ word, and is the smallest change that puts the stop on the right side. It is a f
 character, so the meaning guard does not count it as a word and the history text stores the
 dictation without it. It waits on the dictation read carrying the paragraph direction, which
 the one focused-field reader (CX.1.a) provides.
+
+## Speech in a language the product does not transcribe
+
+Detection is held to English and Hindi (`LanguageHeldDecoder`), so speech in any other language is
+decoded under one of those two tokens. This section is what the shipping recogniser writes for it.
+
+### Measured
+
+Host: Apple M5 Pro, macOS 26. The shipping turbo model, `LanguageHeldDecoder`, the shipping
+`VocabularyPrompt.decodingOptions(languageHint: nil)`, no vocabulary. Ten invented sentences per
+language, spoken by a system voice (Spanish Mónica, French Thomas, German Anna, Japanese Kyoko) and
+resampled to 16 kHz mono. `UnsupportedLanguageProbe` (set `UTTRFLOW_PROBE_UNSUPPORTED`) prints each
+clip's held choice, the unrestricted detector's top language and the text. Counts are read by hand.
+
+| Language | Held choice | Unrestricted detector | Text kept in its own language | English the audio did not say | Phonetic English rendering | Other script | Empty |
+|---|---|---|---|---|---|---|---|
+| Spanish | 9 en, 1 hi | 9 en, 1 hi | 2 | 0 | 7 | 1 (Devanagari) | 0 |
+| French | 10 en | 10 fr | 4 | 6 | 0 | 0 | 0 |
+| German | 10 en | 10 de | 3 | 7 | 0 | 0 | 0 |
+| Japanese | 10 en | 10 ja | 0 | 4 | 0 | 6 (Japanese) | 0 |
+| Total | | | 9 | 17 | 7 | 7 | 0 |
+
+17 of 40 clips insert a translation, so the hypothesis holds: Whisper under the English token writes
+English for French, German and Japanese speech, and the output is often wrong as well (a car for an
+umbrella). Seven Spanish clips are written as English-looking nonsense, one as Devanagari. The
+Japanese clips that stay in Japanese are a script-guard case, not a translation.
+
+### Decision
+
+For French, German and Japanese the unrestricted detector is certain (every clip's log-probability
+rounds to -0.00 for the right language) while the held choice is English. That is the signal the
+issue asks for, and it catches all 17 translations. It does not catch Spanish: the unrestricted
+detector itself hears these clips as English, so no detection margin separates them, and those
+clips are the 7 phonetic renderings. Refusing on a confident unrestricted answer outside the
+allowed set is therefore the smallest rule that removes the translations, and it leaves Spanish
+speech an open case that detection cannot reach. The rule also refuses the 7 clips in French and
+German that came out in their own language, because the decode cannot tell them apart before it
+runs. It is not built yet: it needs the unrestricted verdict carried out of `detectLanguage` and the
+informational notice worded.
