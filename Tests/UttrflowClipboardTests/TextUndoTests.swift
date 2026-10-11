@@ -1,5 +1,4 @@
-// Tests that a deleted text clip comes back whole for as long as an undo can bring it back —
-// the text-side counterpart of PictureUndoTests, across pastes made before the undo.
+// Tests that undo restores a deleted text clip whole across intervening pastes, as PictureUndoTests does for images.
 
 import Foundation
 import Testing
