@@ -18,10 +18,13 @@ final class MotionBudgetObserver {
         []
 
     /// Reads the budget with `read` now, and again whenever the system says it may have changed.
-    init(read: @escaping @MainActor () -> MotionBudget) {
+    init(
+        read: @escaping @MainActor () -> MotionBudget,
+        workspace: any MotionWorkspace = SystemWorkspace()
+    ) {
         self.read = read
         budget = read()
-        observers = MotionBudget.changeNotices.map { notice in
+        observers = MotionBudget.changeNotices(in: workspace).map { notice in
             let token = notice.centre.addObserver(forName: notice.name, object: nil, queue: .main) {
                 [weak self] _ in
                 MainActor.assumeIsolated { self?.refresh() }

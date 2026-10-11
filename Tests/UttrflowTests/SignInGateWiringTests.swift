@@ -15,7 +15,10 @@ import UttrflowUX
 @MainActor
 private func app(signedIn: Bool, in sandbox: borrowing Sandbox) -> (AppDelegate, HeldSession) {
     let session = HeldSession(signedIn: signedIn)
-    let app = AppDelegate(container: sandbox.root, account: session.layer)
+    let app = AppDelegate(
+        container: sandbox.root,
+        clipboardSource: InMemoryClipboardSource(),
+        account: session.layer)
     app.drawsWindows = false
     return (app, session)
 }
@@ -113,6 +116,7 @@ struct SignedOutGateTests {
         let service = InMemoryAuthenticationService()
         let app = AppDelegate(
             container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
             account: OnboardingAccountLayer(
                 authentication: service,
                 profiles: UserDefaultsProfileCache(storage: storage, verifier: service.verifier)))
@@ -205,6 +209,7 @@ struct SessionLossTests {
         let session = HeldSession(signedIn: true)
         let app = AppDelegate(
             container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
             account: OnboardingAccountLayer(authentication: EndedSession(), profiles: session))
         app.drawsWindows = false
         app.mainWindow = app.makeMainWindow()
@@ -223,6 +228,7 @@ struct SessionLossTests {
         let session = HeldSession(signedIn: true)
         let app = AppDelegate(
             container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
             account: OnboardingAccountLayer(authentication: UnreachableServer(), profiles: session))
         app.drawsWindows = false
         let window = app.makeMainWindow()
