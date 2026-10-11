@@ -30,7 +30,7 @@ struct CandidateCheckpointTests {
         await #expect(throws: Interrupted.self) {
             try await Bakeoff.measureCandidates(
                 baselines: [{ measurement() }, { throw Interrupted.candidate }], locals: { [] },
-                header: header, outputStore: store, baselineURL: nil, storesResults: true)
+                header: header, storage: .fullRun(store, baselineURL: nil))
         }
         let saved = try store.history()
         #expect(saved.count == 1)
@@ -49,7 +49,7 @@ struct CandidateCheckpointTests {
                 locals: {
                     #expect(try store.history().count == 1)
                     throw Interrupted.candidate
-                }, header: header, outputStore: store, baselineURL: nil, storesResults: true)
+                }, header: header, storage: .fullRun(store, baselineURL: nil))
         }
         #expect(try store.history().count == 1)
     }
@@ -60,7 +60,7 @@ struct CandidateCheckpointTests {
         defer { try? FileManager.default.removeItem(at: store.directory) }
         let measured = try await Bakeoff.measureCandidates(
             baselines: [{ measurement() }], locals: { [{ measurement(.appleOnDevice) }] },
-            header: header, outputStore: store, baselineURL: nil, storesResults: true)
+            header: header, storage: .fullRun(store, baselineURL: nil))
         #expect(
             measured.map { $0.description.fileName } == [
                 CandidateDescription.rules.fileName, CandidateDescription.appleOnDevice.fileName,
@@ -80,7 +80,7 @@ struct CandidateCheckpointTests {
         defer { try? FileManager.default.removeItem(at: store.directory) }
         let measured = try await Bakeoff.measureCandidates(
             baselines: [{ measurement() }], locals: { [] }, header: header,
-            outputStore: store, baselineURL: nil, storesResults: false)
+            storage: .singleCase)
         #expect(measured.count == 1)
         #expect(measured.first?.header?.runID == header.runID)
         #expect(try store.history().isEmpty)
@@ -99,7 +99,7 @@ struct CandidateCheckpointTests {
         await #expect(throws: (any Error).self) {
             try await Bakeoff.measureCandidates(
                 baselines: [{ measurement() }], locals: { [] }, header: header,
-                outputStore: store, baselineURL: url, storesResults: true)
+                storage: .fullRun(store, baselineURL: url))
         }
         #expect(try Data(contentsOf: url) == bytes)
     }

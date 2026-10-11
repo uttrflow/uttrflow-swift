@@ -195,8 +195,8 @@ struct Bakeoff: AsyncParsableCommand {
                 guard !baselinesOnly else { return [] }
                 return try selectedModels().map { model in { await measureLocal(model) } }
             },
-            header: header, outputStore: outputStore, baselineURL: baselineURL,
-            storesResults: caseID == nil)
+            header: header,
+            storage: caseID == nil ? .fullRun(outputStore, baselineURL: baselineURL) : .singleCase)
 
         if against != nil || caseID != nil {
             report(measured)
