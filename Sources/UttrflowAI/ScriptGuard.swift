@@ -44,6 +44,25 @@ extension MeaningPreservationGuard {
         return .accepted
     }
 
+    /// Refuses a rewrite of Devanagari that writes more or fewer words than were said, since romanising keeps each word; a number may join words.
+    static func scriptWordCountVerdict(original: String, rewritten: String) -> GuardVerdict {
+        guard Romaniser.containsDevanagari(original),
+            !original.contains(where: \.isNumber), !rewritten.contains(where: \.isNumber)
+        else { return .accepted }
+        let spoken = TextTidy.words(original)
+        let said = spoken.count
+        // A word said twice running is a false start the rewrite may write once.
+        let repeated = zip(spoken, spoken.dropFirst()).count { $0 == $1 }
+        let written = TextTidy.words(rewritten).count
+        if written < said - repeated {
+            return .rejected(reason: "the rewrite romanised fewer words than were said", kind: .lostWord)
+        }
+        if written > said {
+            return .rejected(reason: "the rewrite romanised more words than were said", kind: .inventedWord)
+        }
+        return .accepted
+    }
+
     /// The first letter outside ASCII the rewrite writes that the romanised draft never does, or `nil`.
     static func inventedAccent(said: String, written: String) -> Character? {
         let kept = Set(said.lowercased().filter { !$0.isASCII })
