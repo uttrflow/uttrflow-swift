@@ -4,6 +4,7 @@ from pathlib import Path
 import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 import perf_budget_audit as audit
 
@@ -75,6 +76,41 @@ class ExtensionIntervalTests(unittest.TestCase):
 
     def test_ambiguous_default_intervals_remain_unresolved(self):
         self.assertIsNone(self.resolved(duplicate=True))
+
+
+class SchedulerWakeupSiteTests(unittest.TestCase):
+    expression = ".milliseconds(max(delay, 1))"
+    scheduler = "Sources/Uttrflow/Suggestion/SuggestionTurnScheduling.swift"
+    retired = "Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift"
+
+    def failures(self, path, expression=None):
+        interval = expression or self.expression
+        text = f"func wake() {{ Task {{ try? await sleep({interval}); wake(reason) }} }}"
+        tree = SimpleNamespace(files={path: audit.blanked(text)}, constants={}, defaults={})
+        findings = audit.Findings()
+        registration = {key: value for key, value in audit.WAKEUPS_ALLOWED.items()
+                        if key[1] == self.expression}
+        with patch.dict(audit.WAKEUPS_ALLOWED, registration, clear=True), \
+                patch.dict(audit.WAKEUPS_BOUND_BY, {}, clear=True):
+            audit.check_wakeups(tree, findings, [])
+        return findings.failures
+
+    def test_extracted_scheduler_retains_its_exact_site_exception(self):
+        self.assertEqual(self.failures(self.scheduler), [])
+
+    def test_retired_coordinator_site_is_rejected(self):
+        failures = self.failures(self.retired)
+        self.assertTrue(any(self.retired in failure and "cannot resolve" in failure for failure in failures))
+        self.assertTrue(any(self.scheduler in failure and "no longer has a site" in failure for failure in failures))
+
+    def test_same_expression_in_another_file_is_rejected(self):
+        unrelated = "Sources/Synthetic/Other.swift"
+        self.assertTrue(any(unrelated in failure and "cannot resolve" in failure
+                            for failure in self.failures(unrelated)))
+
+    def test_changed_expression_at_the_scheduler_is_rejected(self):
+        self.assertTrue(any(self.scheduler in failure and "cannot resolve" in failure
+                            for failure in self.failures(self.scheduler, ".milliseconds(max(delay, 2))")))
 
 
 if __name__ == "__main__":
