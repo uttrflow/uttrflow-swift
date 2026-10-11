@@ -38,7 +38,8 @@ struct SeamNotationSweepTests {
         for cut in 1..<words.count {
             let pieces = [words[..<cut].joined(separator: " "), words[cut...].joined(separator: " ")]
             let text = await written(pieces)
-            #expect(text == whole, "cut \(pieces.joined(separator: " | ")) wrote \(text ?? "") not \(whole ?? "")")
+            let cutAt = pieces.joined(separator: " | ")
+            #expect(text == whole, "cut \(cutAt) wrote \(text ?? "") not \(whole ?? "")")
         }
     }
 
