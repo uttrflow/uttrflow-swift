@@ -16,6 +16,8 @@ that storage; a late builder stores its answer only while its original context r
 The lookup can read a cached answer without building, including a remembered optional `nil`.
 
 `PanelRowMemo` keys whole lists and grouped rows by list identity and the complete row context.
+Each uses a one-entry `Memo`; completing a new list resets the grouped-row memo and replaces
+the presentation identity. Their builders run outside the state and memo locks.
 Per-clip rows use a separate context: a list finishing cannot relabel rows from another build,
 and a row finishing after its context changes is returned to its caller without entering that
 context's cache. Builders run outside the mutex. `PanelRowContextTests` exercises nested row,
