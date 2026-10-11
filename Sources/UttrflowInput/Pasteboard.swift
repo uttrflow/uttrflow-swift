@@ -1,5 +1,6 @@
 public import UttrflowCore
 public import struct Foundation.Data
+public import struct Foundation.URL
 
 /// Whether the pasteboard accepted a write, and the generation it created when observable.
 public enum PasteboardWriteResult: Sendable, Equatable {
@@ -49,6 +50,9 @@ public protocol Pasteboard: Sendable {
 
     /// K4 — replaces the contents with a picture, as PNG bytes, so no caller needs the platform clipboard.
     func setImage(_ data: Data) -> PasteboardWriteResult
+
+    /// Replaces the contents with these files, in order, so a paste hands the receiver the files themselves.
+    func setFiles(_ urls: [URL]) -> PasteboardWriteResult
 }
 
 /// Sends the keystroke that pastes.
@@ -65,6 +69,9 @@ extension KeystrokeSender {
 }
 
 extension Pasteboard {
+    /// A pasteboard that cannot carry files refuses them.
+    public func setFiles(_ urls: [URL]) -> PasteboardWriteResult { .refused }
+
     /// Test doubles and pasteboards without ownership tracking may decline this check.
     public func changeCount() -> Int? { nil }
 

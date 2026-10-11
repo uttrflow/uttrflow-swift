@@ -78,7 +78,7 @@ struct QuickPanelRow: View, @MainActor Equatable {
                     Text(measurements)
                         .font(.system(size: 11.5))
                         .foregroundStyle(
-                            row.isImageMissing ? Color.panelKey : Color.panelLabelSoft
+                            row.isImageMissing || row.isFileMissing ? Color.panelKey : Color.panelLabelSoft
                         )
                         .lineLimit(1)
                         // Sized to content, or an empty summary takes half the row and truncates this.

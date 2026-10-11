@@ -7,7 +7,7 @@ extension PanelSnapshot {
 
     /// Any text on screen, except one whose formatted form plain editing would discard. See `Docs/panel.md`.
     func isEditable(_ clip: Clip) -> Bool {
-        clip.image == nil && clip.richText == nil && !isMasked(clip)
+        clip.image == nil && clip.files == nil && clip.richText == nil && !isMasked(clip)
     }
 
     /// Opens Edit on the clip's whole text; a clip that cannot be edited opens nothing.

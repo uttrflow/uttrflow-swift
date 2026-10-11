@@ -163,6 +163,10 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
     public let imageFile: URL?
     /// B8 — the picture has gone from disk, though the row stays. See `Docs/panel.md`.
     public let isImageMissing: Bool
+    /// The names of a file clip's files in copy order, which a row of several shows only the first of.
+    public let fileNames: [String]
+    /// Some of a file clip's files have gone, so Return would refuse it; `measurements` says which.
+    public let isFileMissing: Bool
     /// D1 — the language chip, short enough for a 420-point row: "ts", not "TypeScript".
     public let language: String?
     /// Whether the summary is monospaced, decided here so the view has no judgement to get wrong.
@@ -198,6 +202,8 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
         checklist: String? = nil,
         imageFile: URL? = nil,
         isImageMissing: Bool = false,
+        fileNames: [String] = [],
+        isFileMissing: Bool = false,
         language: String? = nil,
         isMonospaced: Bool,
         containsDisplayHazards: Bool = false,
@@ -222,6 +228,8 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
         self.checklist = checklist
         self.imageFile = imageFile
         self.isImageMissing = isImageMissing
+        self.fileNames = fileNames
+        self.isFileMissing = isFileMissing
         self.language = language
         self.isMonospaced = isMonospaced
         self.containsDisplayHazards = containsDisplayHazards
@@ -486,7 +494,8 @@ public enum PanelPresenter {
         let context = PanelRowMemo.Context(
             needle: snapshot.needle, locale: snapshot.locale, now: snapshot.now,
             imagesFolder: snapshot.imagesFolder, formattableLanguages: snapshot.formattableLanguages,
-            revealed: snapshot.revealed, missingImages: snapshot.missingImages)
+            revealed: snapshot.revealed, missingImages: snapshot.missingImages,
+            missingFiles: snapshot.missingFiles)
         let rows = snapshot.rowMemo.rows(
             listID: results.listID, results: results.rows, context: context
         ) { result in
@@ -567,6 +576,8 @@ public enum PanelPresenter {
                     snapshot.imagesFolder?.appending(path: image.file, directoryHint: .notDirectory)
                 },
             isImageMissing: isGone,
+            fileNames: clip.files?.map(\.name) ?? [],
+            isFileMissing: snapshot.missingFiles[clip.id] != nil,
             // Never on a masked row, which says as little as possible until asked.
             language: isMasked ? nil : clip.language?.chip,
             isMonospaced: isMonospaced(clip.kind),
@@ -598,7 +609,7 @@ public enum PanelPresenter {
         var actions = [
             PanelAction(title: "Insert", symbolName: "arrow.down.doc", intent: .insert(clip.id))
         ]
-        if clip.image == nil, ClipTextSafety.containsDisplayHazards(clip.text) {
+        if clip.image == nil, clip.files == nil, ClipTextSafety.containsDisplayHazards(clip.text) {
             actions.append(
                 PanelAction(
                     title: "Paste cleaned", symbolName: "text.badge.minus",
@@ -651,7 +662,7 @@ public enum PanelPresenter {
                     intent: .reindent(clip.id), shortcut: PanelRowAction.reindent.chord))
         }
         // E6 — never on a note already, or promoting replaces what the user wrote, and never on a picture, which has no text.
-        if clip.richText == nil, clip.image == nil {
+        if clip.richText == nil, clip.image == nil, clip.files == nil {
             actions.append(
                 PanelAction(
                     title: "Make a note", symbolName: "square.and.pencil",
@@ -663,7 +674,7 @@ public enum PanelPresenter {
                 PanelAction(
                     title: "This is not a secret", symbolName: "lock.open", intent: .markNotSecret(clip.id),
                     shortcut: PanelRowAction.secrecy.chord))
-        } else if clip.image == nil {
+        } else if clip.image == nil, clip.files == nil {
             actions.append(
                 PanelAction(
                     title: "Treat as secret", symbolName: "lock", intent: .markSecret(clip.id),
@@ -679,6 +690,7 @@ public enum PanelPresenter {
 
     /// What a picture or formatted-text row says, or why a picture cannot. See `Docs/panel.md`.
     static func measurements(of clip: Clip, in snapshot: PanelSnapshot) -> String? {
+        if clip.files != nil { return snapshot.missingFiles[clip.id].map { PanelNotice.filesMissing($0).message } }
         guard let image = clip.image else {
             guard clip.richText != nil else { return nil }
             return "\(clip.text.count) characters"

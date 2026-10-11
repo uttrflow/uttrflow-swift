@@ -158,6 +158,8 @@ public struct PanelSnapshot: Sendable, Equatable {
     public var imagesFolder: URL?
     /// The picture clips whose files are missing from disk; worked out by the app when it loads the list.
     public var missingImages: Set<Clip.ID> = []
+    /// The file clips with a file gone, each with the names missing; worked out by the app beside `missingImages`.
+    public var missingFiles: [Clip.ID: [String]] = [:]
 
     /// The languages a formatter is installed for; asked of the machine by the app when the panel opens.
     public var formattableLanguages: Set<CodeLanguage> = []
@@ -244,13 +246,14 @@ final class PanelClipListRevision: Sendable, Equatable {
 extension PanelSnapshot {
     /// Takes a new clip list with what the machine said about it, the one path for opening and refreshing.
     public mutating func install(
-        _ clips: [Clip], missingImages: Set<Clip.ID>, formattableLanguages: Set<CodeLanguage>,
-        now: Date
+        _ clips: [Clip], missingImages: Set<Clip.ID>, missingFiles: [Clip.ID: [String]] = [:],
+        formattableLanguages: Set<CodeLanguage>, now: Date
     ) {
         self.clips = clips
         revalidateTransientTargets()
         checklistProgresses.prune(to: Set(clips.map(\.id)))
         self.missingImages = missingImages
+        self.missingFiles = missingFiles
         self.formattableLanguages = formattableLanguages
         reindentOffers.prune(to: Set(clips.map(\.id)))
         self.now = now
