@@ -56,13 +56,6 @@ struct LearnedParametersExpectation: Equatable, Sendable {
     let engine: String
     /// The ordered feature identifiers the layer computes.
     let features: [String]
-
-    init(specVersion: UInt32, layer: String, engine: String, features: [String]) {
-        self.specVersion = specVersion
-        self.layer = layer
-        self.engine = engine
-        self.features = features
-    }
 }
 
 /// The size limits a learned-parameter file is checked against before any value is kept.
@@ -77,14 +70,6 @@ struct LearnedParametersLimits: Equatable, Sendable {
     let maxValues: Int
     /// The most UTF-8 bytes in any one name.
     let maxNameBytes: Int
-
-    init(maxBytes: Int, maxFeatures: Int, maxArrays: Int, maxValues: Int, maxNameBytes: Int) {
-        self.maxBytes = maxBytes
-        self.maxFeatures = maxFeatures
-        self.maxArrays = maxArrays
-        self.maxValues = maxValues
-        self.maxNameBytes = maxNameBytes
-    }
 
     /// Room for a reranker's weights or a threshold table; larger files are a different kind of asset.
     static let standard = LearnedParametersLimits(
@@ -101,13 +86,6 @@ struct LearnedArray: Equatable, Sendable {
     let upper: Float
     /// The values, in file order.
     let values: [Float]
-
-    init(name: String, lower: Float, upper: Float, values: [Float]) {
-        self.name = name
-        self.lower = lower
-        self.upper = upper
-        self.values = values
-    }
 }
 
 /// A layer's fitted numbers with the specification, engine and layer they were fitted for; layout in `Docs/learned-parameters.md`.
