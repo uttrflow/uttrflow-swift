@@ -97,12 +97,20 @@ struct QuickPanelRow: View, @MainActor Equatable {
                     // Shows the whole line as a tooltip; whether there is one is `PanelRow.tooltip`'s answer.
                     .help(row.tooltip ?? "")
                 if row.additionalLineCount > 0 {
-                    Text("+\(row.additionalLineCount) lines")
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundStyle(Color.panelLabelDim)
-                        .fixedSize()
-                        .accessibilityLabel("\(row.additionalLineCount) additional lines")
-                        .help(row.tooltip ?? "")
+                    Text(
+                        String(
+                            localized: "+\(row.additionalLineCount) lines",
+                            comment: "Clip row, lines after the summary")
+                    )
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(Color.panelLabelDim)
+                    .fixedSize()
+                    .accessibilityLabel(
+                        String(
+                            localized: "\(row.additionalLineCount) additional lines",
+                            comment: "Clip row, lines after the summary spoken by VoiceOver")
+                    )
+                    .help(row.tooltip ?? "")
                 }
                 trailing(row, showsActions: look.showsActions)
             }
@@ -189,14 +197,15 @@ struct QuickPanelRow: View, @MainActor Equatable {
             .frame(height: 18)
             .background(Color.panelCode.opacity(0.12), in: .rect(cornerRadius: 5))
             .fixedSize()
-            .accessibilityLabel("\(text) code")
+            .accessibilityLabel(
+                String(localized: "\(text) code", comment: "Clip row, detected code language"))
     }
 
     private var hiddenCharactersBadge: some View {
         HStack(spacing: 3) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 8, weight: .semibold))
-            Text("Hidden chars")
+            Text(String(localized: "Hidden chars", comment: "Clip row, hidden character warning badge"))
                 .font(.system(size: 9, weight: .semibold))
         }
         .foregroundStyle(Color.panelDestructive)
