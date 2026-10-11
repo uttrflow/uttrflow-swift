@@ -121,6 +121,8 @@ public struct PanelSnapshot: Sendable, Equatable {
     public var sheet: PanelSheet?
     /// Whether a protected collection delete has shown its review step before the final confirmation.
     var hasReviewedProtectedCategoryDeletion = false
+    /// Whether the first press on a rewrite with no diff is done, so the next press keeps it.
+    var hasAcknowledgedUnreviewableRewrite = false
     /// Whether Edit has said that saving this text would stop a kept clip being saved between launches.
     var hasWarnedOfUnsavedSecret = false
     /// Keeps the formatting sheet last drawn, shared by every copy of this snapshot so an update does not diff again.

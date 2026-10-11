@@ -67,6 +67,8 @@ public struct PanelSheetPresentation: Sendable, Equatable {
     public let diff: [TextDiff.Line]
     /// Whether Return would do anything; the reason it would not is in ``note`` or ``conflict``.
     public let isConfirmEnabled: Bool
+    /// Whether the change cannot be compared here, so keeping it takes a second, explicit confirmation.
+    let isUnreviewable: Bool
 
     /// Builds the sheet; the diff is empty unless given.
     public init(
@@ -80,7 +82,8 @@ public struct PanelSheetPresentation: Sendable, Equatable {
         confirmTitle: String,
         isConfirmDestructive: Bool = false,
         isConfirmEnabled: Bool,
-        diff: [TextDiff.Line] = []
+        diff: [TextDiff.Line] = [],
+        isUnreviewable: Bool = false
     ) {
         self.kind = kind
         self.title = title
@@ -93,6 +96,7 @@ public struct PanelSheetPresentation: Sendable, Equatable {
         self.isConfirmDestructive = isConfirmDestructive
         self.isConfirmEnabled = isConfirmEnabled
         self.diff = diff
+        self.isUnreviewable = isUnreviewable
     }
 }
 
@@ -253,6 +257,7 @@ extension PanelPresenter {
         let note: String
         let diff: [TextDiff.Line]
         let isConfirmEnabled: Bool
+        var isUnreviewable = false
         switch comparison {
         case .lines(let all):
             let changed = TextDiff.changedLines(in: all)
@@ -265,6 +270,7 @@ extension PanelPresenter {
                 "Too large to compare line by line: \(before) line\(before == 1 ? "" : "s") before, \(after) after"
             diff = []
             isConfirmEnabled = changes
+            isUnreviewable = changes
         }
         return PanelSheetPresentation(
             kind: kind,
@@ -276,20 +282,32 @@ extension PanelPresenter {
             collections: [],
             confirmTitle: confirmTitle,
             isConfirmEnabled: isConfirmEnabled,
-            diff: diff)
+            diff: diff,
+            isUnreviewable: isUnreviewable)
     }
 
-    /// A rewrite sheet whose conflict line becomes the unsaved-secret warning once it has been given.
+    /// A rewrite sheet worded for its step: the unsaved-secret warning, or the two presses to keep a change with no diff.
     private static func warningOfUnsavedSecret(
         _ sheet: PanelSheetPresentation, in snapshot: PanelSnapshot
     ) -> PanelSheetPresentation {
-        guard snapshot.hasWarnedOfUnsavedSecret else { return sheet }
+        let acknowledged = snapshot.hasAcknowledgedUnreviewableRewrite
+        let words = sheet.isUnreviewable
+        guard snapshot.hasWarnedOfUnsavedSecret || words else { return sheet }
+        let conflict: String? =
+            snapshot.hasWarnedOfUnsavedSecret
+            ? PanelSnapshot.unsavedSecretWarning
+            : (words && acknowledged
+                ? "Nothing here could be compared. Keeping it replaces the original and cannot be undone."
+                : sheet.conflict)
         return PanelSheetPresentation(
             kind: sheet.kind, title: sheet.title, draft: sheet.draft, placeholder: sheet.placeholder,
-            note: sheet.note, conflict: PanelSnapshot.unsavedSecretWarning,
-            collections: sheet.collections, confirmTitle: sheet.confirmTitle,
+            note: sheet.note, conflict: conflict,
+            collections: sheet.collections,
+            confirmTitle: words
+                ? (acknowledged ? "Keep it anyway" : "Keep without a diff") : sheet.confirmTitle,
             isConfirmDestructive: sheet.isConfirmDestructive,
-            isConfirmEnabled: sheet.isConfirmEnabled, diff: sheet.diff)
+            isConfirmEnabled: sheet.isConfirmEnabled, diff: sheet.diff,
+            isUnreviewable: sheet.isUnreviewable)
     }
 
     /// What the conflict line calls the clip holding an alias, which says nothing of a masked secret's text.

@@ -99,6 +99,7 @@ extension PanelSnapshot {
         next.sheet = sheet
         next.hasReviewedProtectedCategoryDeletion = false
         next.hasWarnedOfUnsavedSecret = false
+        next.hasAcknowledgedUnreviewableRewrite = false
         return PanelResponse(state: next, outcome: .open)
     }
 
@@ -150,6 +151,11 @@ extension PanelSnapshot {
                 outcome: .change(.setRichText(id, NotePromotion.note(from: clip.text))))
 
         case .formatting(let id, let formatted), .reindenting(let id, let formatted):
+            if !hasAcknowledgedUnreviewableRewrite, PanelPresenter.sheet(for: self)?.isUnreviewable == true {
+                var next = self
+                next.hasAcknowledgedUnreviewableRewrite = true
+                return PanelResponse(state: next, outcome: .open)
+            }
             return committingRewrite(id, to: formatted)
 
         case .editing(let id, let draft):
@@ -235,6 +241,7 @@ extension PanelSnapshot {
         next.sheet = nil
         next.hasReviewedProtectedCategoryDeletion = false
         next.hasWarnedOfUnsavedSecret = false
+        next.hasAcknowledgedUnreviewableRewrite = false
         return next
     }
 }
