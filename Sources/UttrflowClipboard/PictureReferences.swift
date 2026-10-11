@@ -21,12 +21,12 @@ struct PictureReferences {
         before.union(picturesAwaitingWrite).subtracting(named)
     }
 
-    /// Keeps pictures named by neither an index nor the in-process undo and arrival state.
+    /// Selects disk pictures no index, undo or arrival state references.
     func orphaned(onDisk: Set<String>, wanted: Set<String>) -> Set<String> {
         onDisk.subtracting(wanted).subtracting(heldPictures).subtracting(unnamedPictures)
     }
 
-    /// Keeps undo-held bytes after their index references have been successfully removed.
+    /// Selects dropped pictures not held for undo.
     func unheld(_ dropped: Set<String>) -> Set<String> {
         dropped.subtracting(heldPictures)
     }
