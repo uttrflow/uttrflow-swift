@@ -23,7 +23,7 @@ enum IntegrityAudit {
         in draft: Draft, grants: [PassID: RemovalGrant]
     ) -> [IntegrityViolation] {
         let unauthorised = Set(RemovalAudit.unauthorisedPlaces(in: draft, grants: grants))
-        let written = Set(draft.text.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init))
+        let written = Set(WordTokens.words(draft.text.lowercased(), .comparison))
         var found: [IntegrityViolation] = []
         var afterNumber = false
         for index in draft.words.indices {
@@ -91,7 +91,7 @@ enum IntegrityAudit {
 
     /// The runs of letters in a word, so "--no-cache" still holds the "no" said inside it.
     private static func letterRuns(_ key: String) -> [String] {
-        key.split { !$0.isLetter }.map(String.init)
+        WordTokens.words(key, .letters)
     }
 
     /// The digits of a word alone, so grouping and decimal marks do not read as a change.
