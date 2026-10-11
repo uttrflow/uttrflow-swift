@@ -165,6 +165,8 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
     public let speechReadiness: SpeechModelReadiness?
     /// Why the last speech model load failed; absent when it did not, or nobody asked.
     public let speechLoadFailure: SpeechLoadFailureClass?
+    /// How many recent pieces in a row were decoded without the user's words, from the local recorder.
+    public let unconditionedRun: Int
     /// What macOS has granted, for every permission asked about.
     public let permissions: [PermissionKind: PermissionStatus]
     /// Whether the dictation shortcut is armed; absent when its state has not been checked.
@@ -216,6 +218,7 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         speechModel: DiagnosticsModelPresence? = nil,
         speechReadiness: SpeechModelReadiness? = nil,
         speechLoadFailure: SpeechLoadFailureClass? = nil,
+        unconditionedRun: Int = 0,
         permissions: [PermissionKind: PermissionStatus] = [:],
         dictationShortcutArmed: Bool? = nil,
         hasDefaultInputDevice: Bool? = nil,
@@ -244,6 +247,7 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         self.speechModel = speechModel
         self.speechReadiness = speechReadiness
         self.speechLoadFailure = speechLoadFailure
+        self.unconditionedRun = unconditionedRun
         self.permissions = permissions
         self.dictationShortcutArmed = dictationShortcutArmed
         self.hasDefaultInputDevice = hasDefaultInputDevice
@@ -517,6 +521,10 @@ public enum DiagnosticsPresenter {
         case .loadFailed where inUse: return .failed(.retry)
         case .loadFailedAgain where inUse: return .failed(.downloadSpeechModel)
         case .ready, .loading, .loadFailed, .loadFailedAgain, nil: break
+        }
+        // A model that loads but keeps decoding unconditioned has lost its tokenizer, which a fresh download repairs.
+        if inUse, snapshot.unconditionedRun >= DecodeConditioning.repairThreshold {
+            return .failed(.downloadSpeechModel)
         }
         guard let model = snapshot.speechModel else { return .unchecked }
         return model.isInstalled ? .ready : .notInstalled
@@ -958,10 +966,19 @@ public enum DiagnosticsPresenter {
                 title: "Stage skipped", detail: "\($0.stage.rawValue): \($0.reason.rawValue)",
                 state: .attention)
         }
+        // Without a tokenizer the decode had no vocabulary prompt or bias, which nothing else in the dictation shows.
+        let unconditioned: [DiagnosticsRow] =
+            record.conditioning == .available
+            ? []
+            : [
+                DiagnosticsRow(
+                    title: "Recognition", detail: "Ran without your words (tokenizer unavailable)",
+                    state: .attention)
+            ]
         guard changed.isEmpty, off.isEmpty, refused.isEmpty, unavailable.isEmpty, failures.isEmpty,
-            skipped.isEmpty
+            skipped.isEmpty, unconditioned.isEmpty
         else {
-            return skipped + unavailable + failures + refused + changed + off
+            return unconditioned + skipped + unavailable + failures + refused + changed + off
         }
         return [
             DiagnosticsRow(
@@ -1030,6 +1047,8 @@ public enum DiagnosticsPresenter {
             }
             + record.engineFailures.map { "  engine failed (\($0.engine)): \($0.failureClass.summary)" }
             + record.skippedStages.map { "  stage skipped (\($0.stage.rawValue)): \($0.reason.rawValue)" }
+            + (record.conditioning == .available
+                ? [] : ["  recognition ran without conditioning: tokenizer unavailable"])
     }
 
     // MARK: - Permissions
