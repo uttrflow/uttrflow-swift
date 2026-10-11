@@ -1105,6 +1105,42 @@ struct NumberWordsTests {
                 == cleaned("extension four four two", by: NumberFormsPass(policy: .always, digits: .none)))
     }
 
+    @Test(
+        "writes a numeral the recogniser already wrote in the place's grouping",
+        arguments: [
+            ("we sold 12,000 units", DigitGrouping.none, "we sold 12000 units"),
+            ("select 1,50,000 from t", .none, "select 150000 from t"),
+            ("we sold 12,000 units", .thousands, "we sold 12,000 units"),
+            ("we paid 150,000 rupees", .indian, "we paid 1,50,000 rupees"),
+            ("we paid 1,50,000 rupees", .thousands, "we paid 1,50,000 rupees"),
+            ("we paid 10000 rupees", .thousands, "we paid 10,000 rupees"),
+            ("we paid 5000 rupees", .indian, "we paid 5,000 rupees"),
+            ("a 12,000 percent rise", .none, "a 12000% rise"),
+        ] as [(String, DigitGrouping, String)]
+    )
+    func regroupsWrittenNumerals(input: String, grouping: DigitGrouping, expected: String) {
+        let sut = NumberFormsPass(policy: .fromTen, digits: grouping)
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "leaves a written numeral that is not a quantity in thousands alone",
+        arguments: [
+            ("call 9876543210 now", DigitGrouping.thousands),
+            ("zip 90210 please", .thousands),
+            ("the list 1,2,3 here", .none),
+            ("it was 12,34 then", .none),
+            ("code 007 ok", .none),
+            ("pi is 3.14159 here", .none),
+            ("at 2:30 today", .none),
+            ("we sold 5,000 units", .thousands),
+        ] as [(String, DigitGrouping)]
+    )
+    func keepsOtherWrittenNumerals(input: String, grouping: DigitGrouping) {
+        let sut = NumberFormsPass(policy: .fromTen, digits: grouping)
+        #expect(cleaned(input, by: sut) == input)
+    }
+
     @Test("groups digits unless the destination says otherwise")
     func groupingDefaultsToProse() {
         #expect(DestinationFormatter.standard(for: .plain).digits == .thousands)
