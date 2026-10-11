@@ -38,7 +38,7 @@ private final class ScriptedAXClient: FocusedFieldAXClient {
 @Suite("AX observer ownership with private handles")
 struct FocusedFieldAXWorkerTests {
     private let target = FocusedFieldObservationTarget(
-        processIdentifier: -1, bundleIdentifier: "org.example.fixture")
+        processIdentifier: -1, bundleIdentifier: "com.example.editor")
 
     private func context(
         reset: @escaping @MainActor () -> Void = {}
