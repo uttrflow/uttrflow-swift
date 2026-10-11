@@ -634,7 +634,7 @@ time, telephone or code digits, and plain words. Each known ambiguity, and what 
 | Digit run against one cardinal | "one two three four" | order: `spokenDigitRun` is tried before the cardinal |
 | Decade against year | "nineteen nineties" | order: `decade` is tried before `year` |
 | Sign against subtraction | "ten minus three" | order: the sign reader runs on any joined `minus`, so it is a sign |
-| Price against time against hundred | "two ninety nine" | order, as for "two thirty"; no price reading exists |
+| Price against time against hundred | "it costs two ninety nine" | `priceShorthand` reads a decimal amount after a price cue before the competing readers; a time cue, meridiem or following noun keeps it out, and "for" needs a minor amount above 59 |
 | Fraction against ordinal | "two thirds", "a third" | no fraction reading; the ordinal reader decides |
 | Ordinal against unit of time | "give me a second" | context: `second` is left out of `measures`; one-word ordinals stay words |
 | Pronoun "one" against numeral | "no one", "which one" | not settled: `.always` writes the digit |
