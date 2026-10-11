@@ -131,18 +131,17 @@ final class SuggestionCoordinator {
     private var screenChangeObserver: (center: NotificationCenter, token: any NSObjectProtocol)?
     /// Whether a held mouse button can still move the focused window under a ghost.
     private var isPointerGestureActive = false
-    private var ticker: Timer?
     /// Polls secure keyboard entry while it pauses suggestions, since no key or field event arrives to end the pause.
     private var secureInputRecheck: Timer?
     /// Whether field observation is active or kept alive by a visible ghost.
-    private var ticking = SuggestionTicking()
+    private let ticking = SuggestionActivityClock()
     private var swallowed: Task<Void, Never>?
     /// Closing punctuation already present after the caret of the current offer.
     private var closingPunctuationAfterCaret = ""
     /// The line the accept key takes as last armed by a draw, so a later answer never inherits that claim.
     private(set) var armedOffer: String?
     var isSelectionPolling: Bool { selectionPolling.isScheduled }
-    var isTickerScheduled: Bool { ticker != nil }
+    var isTickerScheduled: Bool { ticking.isScheduled }
     var isSecureInputRecheckScheduled: Bool { secureInputRecheck != nil }
     private var lastKeystroke = Date.distantPast
     private var lastFluentKeystroke = Date.distantPast
@@ -500,9 +499,7 @@ final class SuggestionCoordinator {
         cancelPendingWake()
         scheduling.cancelRunning()
         captureFeed.discard()
-        ticker?.invalidate()
-        ticker = nil
-        ticking = SuggestionTicking()
+        ticking.reset()
         isPointerGestureActive = false
         for monitor in monitors { NSEvent.removeMonitor(monitor) }
         monitors = []
@@ -648,9 +645,7 @@ final class SuggestionCoordinator {
     }
 
     private func endSessionObservation() {
-        ticker?.invalidate()
-        ticker = nil
-        ticking = SuggestionTicking()
+        ticking.reset()
         withdraw()
     }
 
@@ -866,19 +861,18 @@ final class SuggestionCoordinator {
 
     /// Stops the activity clock when a disabled application becomes frontmost.
     private func stopTicker() {
-        ticker?.invalidate()
-        ticker = nil
-        ticking = SuggestionTicking()
+        ticking.reset()
     }
 
     /// Schedules field observation at the cadence for the current phase.
     func scheduleTicker(every interval: TimeInterval) {
-        ticker?.invalidate()
-        let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) {
-            [weak self] _ in MainActor.assumeIsolated { self?.tick() }
+        ticking.schedule {
+            let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) {
+                [weak self] _ in MainActor.assumeIsolated { self?.tick() }
+            }
+            timer.tolerance = min(SuggestionTicking.tolerance, interval / 5)
+            return timer
         }
-        timer.tolerance = min(SuggestionTicking.tolerance, interval / 5)
-        ticker = timer
     }
 
     /// Wakes a turn while a field can change beneath a visible ghost.
@@ -895,8 +889,7 @@ final class SuggestionCoordinator {
             followSelectionCadence()
             wake(.tick)
         case .stop:
-            ticker?.invalidate()
-            ticker = nil
+            ticking.suspend()
         }
     }
 
