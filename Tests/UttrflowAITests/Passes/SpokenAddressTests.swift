@@ -333,6 +333,10 @@ struct SpokenAddressTests {
             ),
             ("open lib slash utils slash date underscore format dot ts", "open lib/utils/date_format.ts"),
             ("open scripts slash build dash app dot sh", "open scripts/build-app.sh"),
+            (
+                "join at meet dot example dot com slash retro dash team dash one two three and bring notes",
+                "join at meet.example.com/retro-team-123 and bring notes"
+            ),
             ("open src slash main dot rs.", "open src/main.rs."),
             (
                 "Open app slash models slash user dot rb, then run it.",
