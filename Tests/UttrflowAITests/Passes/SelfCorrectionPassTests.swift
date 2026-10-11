@@ -230,6 +230,24 @@ struct SelfCorrectionPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test(
+        "keeps an answer no that closes its own clause before a restated phrase",
+        arguments: [
+            (
+                "Tell the landlord no, the landlord has to wait",
+                "Tell the landlord no, the landlord has to wait"
+            ),
+            ("Tell the landlord no, the tenant has to wait", "Tell the landlord no, the tenant has to wait"),
+            ("Say no, say it twice", "Say no, say it twice"),
+            ("the red, no, the blue", "the blue"),
+            ("the red, no blue", "the blue"),
+            ("call me no call me later", "call me later"),
+        ]
+    )
+    func keepsAnswerNo(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     /// A number anchor may not reach back through a full stop, because the number in the sentence before was not the one corrected. See `Docs/cleanup.md`.
     @Test(
         "leaves a number the speaker said in the sentence before the correction",

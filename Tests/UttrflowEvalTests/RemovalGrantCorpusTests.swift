@@ -9,8 +9,7 @@ import UttrflowCore
 struct RemovalGrantCorpusTests {
     /// The cases where a pass removes a word it has no grant for, and what it removes.
     static let overreaching: [String: [UnauthorisedRemoval]] = [
-        "acronym-spelled-like-a-filler": [UnauthorisedRemoval(pass: .fillers, text: "ER")],
-        "answer-no-before-a-restated-phrase": [UnauthorisedRemoval(pass: .selfCorrection, text: "no,")],
+        "acronym-spelled-like-a-filler": [UnauthorisedRemoval(pass: .fillers, text: "ER")]
     ]
 
     @Test(
