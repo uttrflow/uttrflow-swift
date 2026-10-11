@@ -1166,7 +1166,7 @@ public struct NumberFormsPass: PieceCleaningPass {
     static let digitCues = contextWords.union(NumberCues.words(for: .digitRun))
 
     /// Whether a label word cues the number, across a sign and English function words such as "to"; a Hindi word or a lone letter ends it.
-    static func hasLabelCue(at position: Int, keys: [String], shapes: [WordShape]) -> Bool {
+    package static func hasLabelCue(at position: Int, keys: [String], shapes: [WordShape]) -> Bool {
         guard position > 0, !startsASentence(position, shapes) else { return false }
         var cuePosition = position - 1
         if keys[cuePosition].count == 1, keys[cuePosition].allSatisfy(\.isLetter) { return false }

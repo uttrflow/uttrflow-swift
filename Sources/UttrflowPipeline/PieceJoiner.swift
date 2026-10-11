@@ -146,7 +146,10 @@ enum PieceJoiner {
         let apart = headRead + read(Array(tailWords))
         let together = read(Array(headWords + tailWords))
         guard together.map({ WordShape($0).core }) != apart.map({ WordShape($0).core }) else { return false }
-        return !gluesDigitGroups(together, from: apart, at: headRead.count)
+        let shapes = apart.map(WordShape.init)
+        let cued = NumberFormsPass.hasLabelCue(
+            at: headRead.count - 1, keys: shapes.map(\.key), shapes: shapes)
+        return cued || !gluesDigitGroups(together, from: apart, at: headRead.count)
     }
 
     /// Whether reading across the cut only fused two two-digit numbers at the cut into one year-like number, as "20" and "30" into "2030".

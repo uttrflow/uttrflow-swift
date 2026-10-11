@@ -178,6 +178,49 @@ struct SeamRecleaningTests {
         #expect(text.lowercased().contains("period of time"))
     }
 
+    @Test(
+        "a cued port retains all four digits across every internal digit cut",
+        arguments: [
+            "set the port to eight zero eight zero",
+            "set the port to eight zero eight zero and restart",
+            "set the port to eight zero eight zero and the timeout to twenty one seconds",
+            "the server listens on port eight zero eight zero",
+        ])
+    func cuedPortAcrossDigitCuts(sentence: String) async {
+        let words = sentence.split(separator: " ").map(String.init)
+        guard let start = words.firstIndex(of: "eight") else {
+            Issue.record("the fixture has no port digit")
+            return
+        }
+        let whole = await written([sentence])
+        #expect(whole?.contains("8080") == true)
+        for cut in (start + 1)..<(start + 4) {
+            let pieces = [words[..<cut].joined(separator: " "), words[cut...].joined(separator: " ")]
+            #expect(await written(pieces) == whole, "cut at \(cut): \(sentence)")
+        }
+    }
+
+    @Test(
+        "repeated tens identified as a port remain one number across the pause",
+        arguments: [
+            "set the port to eighty eighty",
+            "set the port to eighty eighty and restart",
+            "set the port to eighty eighty and the timeout to twenty one seconds",
+            "the server listens on port eighty eighty",
+        ])
+    func cuedRepeatedPortAcrossPause(sentence: String) async {
+        let words = sentence.split(separator: " ").map(String.init)
+        guard let start = words.firstIndex(of: "eighty") else {
+            Issue.record("the fixture has no port number")
+            return
+        }
+        let whole = await written([sentence])
+        #expect(whole?.contains("8080") == true)
+        let cut = start + 1
+        let pieces = [words[..<cut].joined(separator: " "), words[cut...].joined(separator: " ")]
+        #expect(await written(pieces) == whole)
+    }
+
     private func written(_ pieces: [String], seeing context: AppContext = AppContext()) async -> String? {
         await pipeline.clean(pieces.map { Transcription(text: $0) }, seeing: context).text
     }
