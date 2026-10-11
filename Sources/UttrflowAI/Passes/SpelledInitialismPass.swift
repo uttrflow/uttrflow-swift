@@ -171,7 +171,9 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
                 let piece = codePiece(at: live[end], in: draft, initialisms: initialisms)
             {
                 // A letter run takes one spoken digit; the number said after it stays its own token.
-                if case .digits = piece, end > position, let split = spokenDigitSplit(at: live[end], in: draft) {
+                if case .digits = piece, end > position,
+                    let split = spokenDigitSplit(at: live[end], in: draft)
+                {
                     pieces.append(.digits(split.head))
                     tail = split.tail
                     end += 1
