@@ -11,6 +11,11 @@ import UttrflowUX
 import Network
 import SwiftUI
 
+enum OnboardingPresentationBehavior: Equatable {
+    case standard
+    case developmentLaunch
+}
+
 /// The onboarding window and everything real behind it; every decision is `OnboardingFlow`'s.
 @MainActor
 final class OnboardingWindowController: NSObject, NSWindowDelegate {
@@ -20,6 +25,10 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
     var onClose: (() -> Void)?
     /// Called as soon as a sign-in's profile is kept, before the setup pages after it.
     var onSignIn: (() -> Void)?
+    /// Called when the clipboard page is left, so recording can start for a Keep.
+    var onClipboardAnswered: (() -> Void)? {
+        didSet { flow.onClipboardAnswered = onClipboardAnswered }
+    }
     /// Applies onboarding choices to the running app.
     var onSettingsChange: ((UttrflowSettings.Settings) -> Void)? {
         didSet { flow.onSettingsChange = onSettingsChange }
@@ -27,6 +36,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
 
     private let flow: OnboardingFlow
     private let model: OnboardingModel
+    private let signsInAsStandIn: Bool
     private var window: NSWindow?
 
     /// `account` has no default because `OnboardingAccountLayer.development()` mints a fresh key per call.
@@ -38,6 +48,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
         account: OnboardingAccountLayer,
         network: any NetworkReachability = SystemNetworkReachability()
     ) {
+        signsInAsStandIn = account.authentication.signsInAsStandIn
         flow = OnboardingFlow(
             microphone: MicrophonePermissionGate(),
             accessibility: AccessibilityPermissionGate(),
@@ -87,6 +98,18 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
 
     /// Whether the user has never been through this.
     var isRequired: Bool { flow.isRequired }
+
+    /// Starts development sign-in only when this build uses the local stand-in.
+    func signInAsStandInIfNeeded() {
+        guard signsInAsStandIn else { return }
+        Task { await flow.perform(.signIn(.google)) }
+    }
+
+    /// Closes launch onboarding when a completed setup only needed a new stand-in session.
+    func closeIfNotRequired() {
+        guard !flow.isRequired else { return }
+        close()
+    }
 
     /// Puts the window on screen and brings the app forward; a first run is the one moment that is right.
     func present() {
@@ -152,7 +175,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
         case .inserted(let outcome): .heard(outcome.text)
         case .failed(.stillLoading): .stillLoading
         case .failed(let failure): .heard(failure.transcript ?? "")
-        case .idle, .transcribing, .tidying, .inserting: nil
+        case .idle, .transcribing, .tidying, .inserting, .executed, .discarded: nil
         }
     }
 

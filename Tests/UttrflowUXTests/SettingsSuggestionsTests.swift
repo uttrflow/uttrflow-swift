@@ -178,6 +178,7 @@ struct SettingsSuggestionsPaneTests {
         #expect(SettingsPresenter.applicationSentence(.on) == nil)
         #expect(SettingsPresenter.applicationSentence(.turnedOff)?.isEmpty == false)
         #expect(SettingsPresenter.applicationSentence(.offByDefault)?.contains("its own suggestions") == true)
+        #expect(SettingsPresenter.applicationSentence(.offAsPrivate)?.contains("private information") == true)
     }
 }
 
@@ -185,7 +186,7 @@ struct SettingsSuggestionsPaneTests {
 
 @Suite("Everything switched off is findable")
 struct SettingsSuggestionApplicationListTests {
-    @Test("lists both shipped editors, each with the button that takes it off the list")
+    @Test("lists both shipped editors with a button that says it turns suggestions on")
     func theShippedEditorsAreListed() throws {
         let shown = pane(switchedOn())
         for editor in SuggestionApplications.offByDefault {
@@ -194,7 +195,7 @@ struct SettingsSuggestionApplicationListTests {
             #expect(
                 listed.control
                     == .action(
-                        title: "Remove",
+                        title: "Turn on",
                         change: .suggestionsHere(application: editor.bundleIdentifier, isOn: true)))
         }
     }
@@ -210,8 +211,8 @@ struct SettingsSuggestionApplicationListTests {
                 == .action(title: "Remove", change: .suggestionsHere(application: notes, isOn: true)))
     }
 
-    @Test("removing an absent application's row clears its saved per-app choices")
-    func removingAnAbsentApplicationPrunesItsChoices() throws {
+    @Test("removing an absent application's off override keeps its accept-key choice")
+    func removingAnAbsentApplicationKeepsItsAcceptKeyChoice() throws {
         let absent = "com.example.uninstalled"
         var settings = switchedOn()
         settings.suggestions.set(absent, isOn: false)
@@ -228,8 +229,9 @@ struct SettingsSuggestionApplicationListTests {
 
         #expect(!pruned.suggestions.turnedOff.contains(absent))
         #expect(!pruned.suggestions.turnedOn.contains(absent))
-        #expect(pruned.suggestions.chosenAcceptKeys[absent] == nil)
-        #expect(!pruned.suggestions.knownApplications().contains { $0.bundleIdentifier == absent })
+        #expect(pruned.suggestions.acceptKeys.key(forBundleIdentifier: absent) == .rightArrow)
+        #expect(pruned.suggestions.knownApplications().contains { $0.bundleIdentifier == absent })
+        #expect(row("suggestionAcceptKey.\(absent)", in: pane(pruned)) != nil)
     }
 
     @Test("removing a shipped opt-out leaves it switched on")
@@ -261,6 +263,8 @@ struct SettingsSuggestionApplicationListTests {
 
         settings.suggestions.set(vscode, isOn: true)
         let key = try #require(row("suggestionAcceptKey.\(vscode)", in: pane(settings)))
+        #expect(key.label.contains("Visual Studio Code"))
+        #expect(key.accessibilityLabel.contains("Visual Studio Code"))
         #expect(
             key.control
                 == .menu(
@@ -352,8 +356,8 @@ struct SettingsSuggestionEditorTests {
             #expect(!key.title.isEmpty)
         }
         #expect(AcceptKey.tab.explanation == nil)
-        #expect(AcceptKey.rightArrow.explanation?.isEmpty == false)
-        #expect(AcceptKey.optionTab.explanation?.isEmpty == false)
+        #expect(AcceptKey.rightArrow.explanation == "Escape will not dismiss suggestions.")
+        #expect(AcceptKey.optionTab.explanation == nil)
     }
 }
 

@@ -28,7 +28,7 @@ The clipboard charges each clip to a pool (`ClipClass` in
 | Copied text | 7 days | `Settings.clipboardRetentionDays`, default `Settings.defaultRetentionDays` = 7 (no control in Settings) | 500 | `ClipboardBudget.standard.copied.items` |
 | Dictations Uttrflow put on the clipboard | the user's transcript period, the same setting as the history | `ClipRetention.dictationDays` = `Settings.transcriptRetentionDays` | 500 | `ClipboardBudget.standard.dictation.items` |
 | Pictures | 7 days, whatever the setting | `ClipboardBudget.standard.images.days` = 7 | 500 | `ClipboardBudget.standard.images.items` |
-| Kept: a clip with an alias, a category or a pin (`Clip.isKept`) | none | `ClipboardBudget.tier(for: .kept)` is `nil` | none | — |
+| Kept: a clip with an alias, a tag, a category or a pin (`Clip.isKept`) | none | `ClipboardBudget.tier(for: .kept)` is `nil` | none | — |
 
 A pinned clip outlives both the window and the cap: kept clips are never candidates for either
 (`ClipClass.isEvictable` is `false`). Kept pictures still count toward the pictures' disk budget,

@@ -1,0 +1,1262 @@
+[
+  {
+    "id": "source-swift-double-equals",
+    "spoken": "if count double equals zero open brace",
+    "expected": "if count == 0 {",
+    "expectedExact": "if count == 0 {",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-not-equals",
+    "spoken": "guard index not equals end else open brace",
+    "expected": "guard index != end else {",
+    "expectedExact": "guard index != end else {",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-plus-equals",
+    "spoken": "total plus equals price",
+    "expected": "total += price",
+    "expectedExact": "total += price",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-minus-equals",
+    "spoken": "remaining minus equals 1",
+    "expected": "remaining -= 1",
+    "expectedExact": "remaining -= 1",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-times-equals",
+    "spoken": "scale times equals 2",
+    "expected": "scale *= 2",
+    "expectedExact": "scale *= 2",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-divide-equals",
+    "spoken": "width divide equals 2",
+    "expected": "width /= 2",
+    "expectedExact": "width /= 2",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-triple-equals",
+    "spoken": "if lhs triple equals rhs open brace",
+    "expected": "if lhs === rhs {",
+    "expectedExact": "if lhs === rhs {",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-strict-not-equals",
+    "spoken": "if left not triple equals right",
+    "expected": "if left !== right",
+    "expectedExact": "if left !== right",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-greater-than",
+    "spoken": "if count greater than limit",
+    "expected": "if count > limit",
+    "expectedExact": "if count > limit",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-less-than",
+    "spoken": "while index less than end open brace",
+    "expected": "while index < end {",
+    "expectedExact": "while index < end {",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-greater-or-equal",
+    "spoken": "if score greater than or equals 90",
+    "expected": "if score >= 90",
+    "expectedExact": "if score >= 90",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-less-or-equal",
+    "spoken": "if age less than or equals 12",
+    "expected": "if age <= 12",
+    "expectedExact": "if age <= 12",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-logical-and",
+    "spoken": "if ready logical and visible",
+    "expected": "if ready && visible",
+    "expectedExact": "if ready && visible",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-logical-or",
+    "spoken": "if empty logical or hidden",
+    "expected": "if empty || hidden",
+    "expectedExact": "if empty || hidden",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-arrow-return",
+    "spoken": "let handler colon open paren close paren arrow void",
+    "expected": "let handler: () -> void",
+    "expectedExact": "let handler: () -> void",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-arrow-closure",
+    "spoken": "open brace value arrow bool in",
+    "expected": "{ value -> bool in",
+    "expectedExact": "{ value -> bool in",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-arrow-throws",
+    "spoken": "close paren throws arrow data open brace",
+    "expected": ") throws -> data {",
+    "expectedExact": ") throws -> data {",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-fat-arrow-stays-literal",
+    "spoken": "let mapping equals key fat arrow value",
+    "expected": "let mapping = key => value",
+    "expectedExact": "let mapping = key => value",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-equals-assign",
+    "spoken": "let limit equals 10",
+    "expected": "let limit = 10",
+    "expectedExact": "let limit = 10",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-compare-chain",
+    "spoken": "if low less than or equals mid logical and mid less than high",
+    "expected": "if low <= mid && mid < high",
+    "expectedExact": "if low <= mid && mid < high",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-not-equals-nil",
+    "spoken": "if delegate not equals nil open brace",
+    "expected": "if delegate != nil {",
+    "expectedExact": "if delegate != nil {",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-double-equals-string",
+    "spoken": "if status double equals ready",
+    "expected": "if status == ready",
+    "expectedExact": "if status == ready",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-minus-equals-offset",
+    "spoken": "offset minus equals step",
+    "expected": "offset -= step",
+    "expectedExact": "offset -= step",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-plus-equals-count",
+    "spoken": "count plus equals 1",
+    "expected": "count += 1",
+    "expectedExact": "count += 1",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-greater-than-zero",
+    "spoken": "guard balance greater than 0 else open brace",
+    "expected": "guard balance > 0 else {",
+    "expectedExact": "guard balance > 0 else {",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-brace-close",
+    "spoken": "close brace",
+    "expected": "}",
+    "expectedExact": "}",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-logical-or-guard",
+    "spoken": "guard first logical or second else open brace",
+    "expected": "guard first || second else {",
+    "expectedExact": "guard first || second else {",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-identity-check",
+    "spoken": "return lhs triple equals rhs",
+    "expected": "return lhs === rhs",
+    "expectedExact": "return lhs === rhs",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-power-not-swift",
+    "spoken": "let area equals side double star 2",
+    "expected": "let area = side double star 2",
+    "expectedExact": "let area = side double star 2",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-swift-triple-equals-guard",
+    "spoken": "guard lhs triple equals rhs else open brace",
+    "expected": "guard lhs === rhs else {",
+    "expectedExact": "guard lhs === rhs else {",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Totals.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-double-equals",
+    "spoken": "if count double equals 0 colon",
+    "expected": "if count == 0:",
+    "expectedExact": "if count == 0:",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-not-equals",
+    "spoken": "if name not equals none colon",
+    "expected": "if name != none:",
+    "expectedExact": "if name != none:",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-plus-equals",
+    "spoken": "total plus equals price",
+    "expected": "total += price",
+    "expectedExact": "total += price",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-minus-equals",
+    "spoken": "remaining minus equals 1",
+    "expected": "remaining -= 1",
+    "expectedExact": "remaining -= 1",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-times-equals",
+    "spoken": "scale times equals 2",
+    "expected": "scale *= 2",
+    "expectedExact": "scale *= 2",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-divide-equals",
+    "spoken": "width divide equals 2",
+    "expected": "width /= 2",
+    "expectedExact": "width /= 2",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-power",
+    "spoken": "area equals side double star 2",
+    "expected": "area = side ** 2",
+    "expectedExact": "area = side ** 2",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-not-equals-default",
+    "spoken": "if mode not equals default colon",
+    "expected": "if mode != default:",
+    "expectedExact": "if mode != default:",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-arrow-fragment",
+    "spoken": "close paren arrow int colon",
+    "expected": ") -> int:",
+    "expectedExact": ") -> int:",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-arrow-self",
+    "spoken": "open paren self close paren arrow str colon",
+    "expected": "(self) -> str:",
+    "expectedExact": "(self) -> str:",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-arrow-list",
+    "spoken": "close paren arrow list colon",
+    "expected": ") -> list:",
+    "expectedExact": ") -> list:",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-greater-than",
+    "spoken": "if count greater than limit colon",
+    "expected": "if count > limit:",
+    "expectedExact": "if count > limit:",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-less-than",
+    "spoken": "while index less than end colon",
+    "expected": "while index < end:",
+    "expectedExact": "while index < end:",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-greater-or-equal",
+    "spoken": "if score greater than or equals 90 colon",
+    "expected": "if score >= 90:",
+    "expectedExact": "if score >= 90:",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-less-or-equal",
+    "spoken": "if age less than or equals 12 colon",
+    "expected": "if age <= 12:",
+    "expectedExact": "if age <= 12:",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-equals-assign",
+    "spoken": "limit equals 10",
+    "expected": "limit = 10",
+    "expectedExact": "limit = 10",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-compare-chain",
+    "spoken": "if low less than or equals mid colon",
+    "expected": "if low <= mid:",
+    "expectedExact": "if low <= mid:",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-double-equals-string",
+    "spoken": "if status double equals ready colon",
+    "expected": "if status == ready:",
+    "expectedExact": "if status == ready:",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-power-assign",
+    "spoken": "cube equals side double star 3",
+    "expected": "cube = side ** 3",
+    "expectedExact": "cube = side ** 3",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-times-equals-rate",
+    "spoken": "price times equals rate",
+    "expected": "price *= rate",
+    "expectedExact": "price *= rate",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-not-equals-end",
+    "spoken": "while chunk not equals end colon",
+    "expected": "while chunk != end:",
+    "expectedExact": "while chunk != end:",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-plus-equals-count",
+    "spoken": "count plus equals 1",
+    "expected": "count += 1",
+    "expectedExact": "count += 1",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-not-equals-zero",
+    "spoken": "if remainder not equals 0 colon",
+    "expected": "if remainder != 0:",
+    "expectedExact": "if remainder != 0:",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-greater-than-zero",
+    "spoken": "if balance greater than 0 colon",
+    "expected": "if balance > 0:",
+    "expectedExact": "if balance > 0:",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-brace-dict",
+    "spoken": "config equals open brace close brace",
+    "expected": "config = {}",
+    "expectedExact": "config = {}",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-triple-equals-not-python",
+    "spoken": "if left triple equals right colon",
+    "expected": "if left triple = right:",
+    "expectedExact": "if left triple = right:",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-logical-and-not-python",
+    "spoken": "if ready logical and visible colon",
+    "expected": "if ready logical and visible:",
+    "expectedExact": "if ready logical and visible:",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-logical-or-not-python",
+    "spoken": "if empty logical or hidden colon",
+    "expected": "if empty logical or hidden:",
+    "expectedExact": "if empty logical or hidden:",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-fat-arrow-stays-literal",
+    "spoken": "mapping equals key fat arrow value",
+    "expected": "mapping = key => value",
+    "expectedExact": "mapping = key => value",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-python-arrow-float",
+    "spoken": "close paren arrow float colon",
+    "expected": ") -> float:",
+    "expectedExact": ") -> float:",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.py",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-javascript-arrow-function",
+    "spoken": "const square equals open paren value close paren arrow value times value",
+    "expected": "const square = (value) => value times value",
+    "expectedExact": "const square = (value) => value times value",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.js",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-javascript-arrow-callback",
+    "spoken": "items map open paren item arrow item close paren",
+    "expected": "items map (item => item)",
+    "expectedExact": "items map (item => item)",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.js",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-javascript-fat-arrow",
+    "spoken": "const twice equals value fat arrow value",
+    "expected": "const twice = value => value",
+    "expectedExact": "const twice = value => value",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.js",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-javascript-triple-equals",
+    "spoken": "if left triple equals right open brace",
+    "expected": "if left === right {",
+    "expectedExact": "if left === right {",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.js",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-javascript-strict-not-equals",
+    "spoken": "if left not triple equals right open brace",
+    "expected": "if left !== right {",
+    "expectedExact": "if left !== right {",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.js",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-javascript-double-equals",
+    "spoken": "if count double equals 0 open brace",
+    "expected": "if count == 0 {",
+    "expectedExact": "if count == 0 {",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.js",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-javascript-not-equals",
+    "spoken": "if name not equals null open brace",
+    "expected": "if name != null {",
+    "expectedExact": "if name != null {",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.js",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-javascript-plus-equals",
+    "spoken": "total plus equals price",
+    "expected": "total += price",
+    "expectedExact": "total += price",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.js",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-javascript-minus-equals",
+    "spoken": "remaining minus equals 1",
+    "expected": "remaining -= 1",
+    "expectedExact": "remaining -= 1",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.js",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-javascript-times-equals",
+    "spoken": "scale times equals 2",
+    "expected": "scale *= 2",
+    "expectedExact": "scale *= 2",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.js",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-javascript-divide-equals",
+    "spoken": "width divide equals 2",
+    "expected": "width /= 2",
+    "expectedExact": "width /= 2",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.js",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-javascript-power",
+    "spoken": "const area equals side double star 2",
+    "expected": "const area = side ** 2",
+    "expectedExact": "const area = side ** 2",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.js",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-javascript-logical-and",
+    "spoken": "if ready logical and visible open brace",
+    "expected": "if ready && visible {",
+    "expectedExact": "if ready && visible {",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.js",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-javascript-logical-or",
+    "spoken": "const label equals name logical or fallback",
+    "expected": "const label = name || fallback",
+    "expectedExact": "const label = name || fallback",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.js",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-javascript-greater-than",
+    "spoken": "if count greater than limit open brace",
+    "expected": "if count > limit {",
+    "expectedExact": "if count > limit {",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.js",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-javascript-less-than",
+    "spoken": "while index less than end open brace",
+    "expected": "while index < end {",
+    "expectedExact": "while index < end {",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.js",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-javascript-greater-or-equal",
+    "spoken": "if score greater than or equals 90 open brace",
+    "expected": "if score >= 90 {",
+    "expectedExact": "if score >= 90 {",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.js",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-javascript-less-or-equal",
+    "spoken": "if age less than or equals 12 open brace",
+    "expected": "if age <= 12 {",
+    "expectedExact": "if age <= 12 {",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.js",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-typescript-arrow-return",
+    "spoken": "const total equals open paren close paren arrow 0",
+    "expected": "const total = () => 0",
+    "expectedExact": "const total = () => 0",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.ts",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-typescript-triple-equals",
+    "spoken": "if status triple equals ready open brace",
+    "expected": "if status === ready {",
+    "expectedExact": "if status === ready {",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.ts",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-typescript-logical-and",
+    "spoken": "return ready logical and loaded",
+    "expected": "return ready && loaded",
+    "expectedExact": "return ready && loaded",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.ts",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-typescript-plus-equals",
+    "spoken": "count plus equals 1",
+    "expected": "count += 1",
+    "expectedExact": "count += 1",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.ts",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-typescript-not-triple-equals",
+    "spoken": "if user not triple equals undefined open brace",
+    "expected": "if user !== undefined {",
+    "expectedExact": "if user !== undefined {",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.ts",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-typescript-power",
+    "spoken": "const cube equals side double star 3",
+    "expected": "const cube = side ** 3",
+    "expectedExact": "const cube = side ** 3",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.ts",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-typescript-arrow-handler",
+    "spoken": "const handle equals open paren event close paren arrow open brace",
+    "expected": "const handle = (event) => {",
+    "expectedExact": "const handle = (event) => {",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.ts",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-typescript-close-brace",
+    "spoken": "close brace",
+    "expected": "}",
+    "expectedExact": "}",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.ts",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-typescript-equals-assign",
+    "spoken": "let limit equals 10",
+    "expected": "let limit = 10",
+    "expectedExact": "let limit = 10",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.ts",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-typescript-logical-or",
+    "spoken": "return first logical or second",
+    "expected": "return first || second",
+    "expectedExact": "return first || second",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.ts",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-javascript-arrow-identity",
+    "spoken": "const same equals open paren value close paren arrow value",
+    "expected": "const same = (value) => value",
+    "expectedExact": "const same = (value) => value",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.js",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  },
+  {
+    "id": "source-typescript-compare-chain",
+    "spoken": "if low less than or equals mid logical and mid less than high open brace",
+    "expected": "if low <= mid && mid < high {",
+    "expectedExact": "if low <= mid && mid < high {",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "totals.ts",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4204
+  }
+]

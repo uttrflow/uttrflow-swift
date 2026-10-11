@@ -16,9 +16,37 @@ struct WordTokensTests {
             ])
     }
 
+    @Test func lettersCutOnDigitsAndMarks() {
+        #expect(WordTokens.words("B2B new-york", .letters) == ["B", "B", "new", "york"])
+    }
+
+    @Test func grammarCutsOnHyphenAndSlashAndKeepsOtherMarks() {
+        #expect(
+            WordTokens.words("well-known and/or p.m. don't", .grammar) == [
+                "well", "known", "and", "or", "p.m.", "don't",
+            ])
+    }
+
+    @Test func echoCutsOnSpaceAndPunctuationButNotOtherWhitespace() {
+        #expect(WordTokens.words("p.m. don't\tstop", .echo) == ["p", "m", "don", "t\tstop"])
+    }
+
+    @Test func lineKeepsEachLineWhole() {
+        #expect(WordTokens.words("first line\r\n\n  second  ", .line) == ["first line", "  second  "])
+    }
+
+    @Test func identifierKeepsUnderscoresAndCutsOnEveryOtherMark() {
+        #expect(
+            WordTokens.words("_user_id.count = getValue(x2)", .identifier) == [
+                "_user_id", "count", "getValue", "x2",
+            ])
+    }
+
     @Test func eachTokenRangeCoversItsTextInTheSource() {
-        let text = "  and/or  मेरा नाम."
-        for profile in [WordTokens.Profile.display, .comparison] {
+        let text = "  and/or  मेरा नाम.\nwell-known"
+        for profile in [
+            WordTokens.Profile.display, .comparison, .letters, .grammar, .echo, .line, .identifier,
+        ] {
             for token in WordTokens.tokens(text, profile) { #expect(String(text[token.range]) == token.text) }
         }
     }

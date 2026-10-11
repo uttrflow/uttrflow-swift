@@ -1,0 +1,11 @@
+# How a sound key reads phonemes. See Docs/pronunciation-lexicon.md.
+# fold PHONE INTO...: the key reads the phoneme as these, so two hearings of one word meet.
+fold CH SH
+fold JH SH
+fold ZH SH
+fold ER AA R
+# drop PHONE: after its first sound, a key drops this phoneme's class.
+drop AA
+drop W
+drop Y
+drop HH

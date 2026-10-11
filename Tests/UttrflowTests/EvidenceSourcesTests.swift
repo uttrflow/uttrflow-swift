@@ -7,6 +7,7 @@ import UttrflowAI
 import UttrflowCore
 import UttrflowDictionary
 import UttrflowHistory
+import UttrflowPredictCapture
 
 @testable import Uttrflow
 
@@ -78,6 +79,75 @@ struct EvidenceSourcesTests {
             nil, from: records, dictionary: dictionary, overrides: .none, keeping: window)
     }
 
+    @Test("an unreadable ledger is kept aside, rebuilt from History by the sweep, and named")
+    func unreadableLedgerIsRebuiltFromHistory() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let encrypted = EncryptedStore(keys: Keys())
+        let file = EvidenceLedgerStore.defaultFile(in: root)
+        try FileManager.default.createDirectory(
+            at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try encrypted.seal(Data("not a ledger".utf8), for: file.lastPathComponent).write(to: file)
+        let ledger = EvidenceLedgerStore(file: file, encryptedStore: encrypted)
+        let dictionary = PersonalDictionaryStore(file: PersonalDictionaryStore.defaultFile(in: root))
+        try await dictionary.add(word: "Kubernetes", pronunciation: "", at: now)
+        let records = [
+            DictationRecord(text: "Deploy it on Kubernetes.", when: now.addingTimeInterval(-86_400))
+        ]
+        let window = RetentionWindow(days: RetentionWindow.keepAlwaysDays, now: now)
+
+        await EvidenceSources.backfill(
+            ledger, from: records, dictionary: dictionary, overrides: .none, keeping: window)
+
+        let rebuilt = await ledger.rows(keeping: window)
+        #expect(rebuilt.contains { $0.kind == .use && $0.provenance == .migration })
+        #expect(await ledger.refusal() == .setAside)
+    }
+
+    @Test("one undo through History vetoes that heard-to-meant pairing only, and blames its entry")
+    func undoVetoesItsPairing() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let history = DictationHistoryStore(file: DictationHistoryStore.defaultFile(in: root))
+        let retention = Retention(days: 30, now: .now)
+        let entry = UUID()
+        let correction = RecordedCorrection(
+            heard: "nickel", wrote: "Nikhil", wordRange: 2..<3, entryID: entry,
+            reason: .saidClearlyElsewhere, heardConfidence: 0.3)
+        try await history.append(
+            DictationRecord(
+                text: "ask the Nikhil", when: .now,
+                changes: RecordedChanges(corrections: [correction], snippets: [])),
+            keeping: retention)
+
+        let reverted = try #require(try await history.undoCorrection(correction.id, keeping: retention))
+        let rows =
+            EvidenceSources.undone(reverted, day: today)
+            + ConfusionPairs.confirming(heard: "pickle", meant: "Nikhil", day: today)
+
+        #expect(rows.first == EvidenceSources.revert(of: entry, day: today))
+        #expect(
+            ConfusionPairs.project(rows) == [ConfusionPairs.key(heard: "nickel", meant: "Nikhil"): .vetoed])
+    }
+
+    @Test("an edit replacing inserted words confirms that pairing on its day; additions and long runs do not")
+    func keptEditConfirms() {
+        let key = ConfusionPairs.key(heard: "nickel", meant: "Nikhil")
+        let edit = EditedSpan(position: 2, old: ["nickel,"], new: ["Nikhil,"])
+        #expect(EvidenceSources.pair(kept: edit, day: today).map(\.subject) == [key])
+        let threeDays = (1...3).flatMap { EvidenceSources.pair(kept: edit, day: today + $0) }
+        #expect(ConfusionPairs.project(threeDays) == [key: .confirmed])
+        #expect(ConfusionPairs.project(Array(threeDays.prefix(2))).isEmpty)
+        #expect(
+            EvidenceSources.pair(kept: EditedSpan(position: 0, old: [], new: ["Nikhil"]), day: today).isEmpty)
+        #expect(
+            EvidenceSources.pair(kept: EditedSpan(position: 0, old: ["nickel"], new: []), day: today).isEmpty)
+        let long = EditedSpan(position: 0, old: ["a", "b", "c", "d"], new: ["Nikhil"])
+        #expect(EvidenceSources.pair(kept: long, day: today).isEmpty)
+    }
+
     @Test(
         "a landed dictation tells the ledger exactly the entries the dictionary counted, and nothing when none"
     )
@@ -102,5 +172,30 @@ struct EvidenceSourcesTests {
         try await counters.recordUse(ofSnippets: [])
 
         #expect(await noted.ids == [[entry.id]])
+    }
+
+    @Test(
+        "a re-dictation in the same app within the respeak window writes a retry row for a dropped correction"
+    )
+    func reDictationRetriesItsPairing() {
+        let correction = RecordedCorrection(
+            heard: "nickel", wrote: "Nikhil", wordRange: 1..<2, entryID: UUID(),
+            reason: .saidClearlyElsewhere, heardConfidence: 0.3)
+        let first = DictationRecord(
+            text: "Ask Nikhil about the meeting.", when: now, applicationIdentifier: "com.example.notes",
+            changes: RecordedChanges(corrections: [correction]), arrival: .confirmed,
+            heard: "ask nickel about the meeting")
+        let retry = { (seconds: Double, app: String) in
+            DictationRecord(
+                text: "Ask Nikhel about the meeting.", when: self.now.addingTimeInterval(seconds),
+                applicationIdentifier: app, arrival: .confirmed, heard: "ask Nikhel about the meeting")
+        }
+        let key = ConfusionPairs.key(heard: "nickel", meant: "Nikhil")
+        #expect(
+            EvidenceSources.retried(first, by: retry(5, "com.example.notes")) == [
+                EvidenceRow(kind: .pairRetried, subject: key, day: today, provenance: .dictation)
+            ])
+        #expect(EvidenceSources.retried(first, by: retry(31, "com.example.notes")).isEmpty)
+        #expect(EvidenceSources.retried(first, by: retry(5, "com.example.mail")).isEmpty)
     }
 }

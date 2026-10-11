@@ -27,7 +27,7 @@ public struct SystemFileSystem: FileSystemProbing {
     /// How a remote stat is held to its budget, injected so a test can miss the deadline without blocking a thread.
     private let timeBox: @Sendable (DispatchTimeInterval, @escaping @Sendable () -> PathKind) -> PathKind?
     /// The clock a slow volume is remembered on.
-    private let now: @Sendable () -> Date
+    private let now: @Sendable () -> ContinuousClock.Instant
     /// The volumes that missed a deadline, and until when they are skipped.
     private let slow = SlowVolumes()
     /// The volumes with a worker still out, so a retry never starts a second one while the first has not returned.
@@ -40,7 +40,7 @@ public struct SystemFileSystem: FileSystemProbing {
         probe: @escaping @Sendable (String) -> PathKind = Self.statKind,
         timeBox: @escaping @Sendable (DispatchTimeInterval, @escaping @Sendable () -> PathKind) -> PathKind? =
             { Self.timeBoxed(within: $0, $1) },
-        now: @escaping @Sendable () -> Date = { Date() }
+        now: @escaping @Sendable () -> ContinuousClock.Instant = { .now }
     ) {
         let listed =
             ["/etc/paths"]
@@ -90,7 +90,8 @@ public struct SystemFileSystem: FileSystemProbing {
                     return kind
                 })
         else {
-            slow.markSlow(volume, until: now().addingTimeInterval(Self.slowVolumeLifetimeInSeconds))
+            let cooldown = Duration.seconds(Self.slowVolumeLifetimeInSeconds)
+            slow.markSlow(volume, until: now().advanced(by: cooldown))
             return .unknown
         }
         return kind
@@ -168,25 +169,28 @@ private final class Outcome<Value: Sendable>: Sendable {
 
 /// The volumes that missed a deadline, each skipped until its time is up.
 private final class SlowVolumes: Sendable {
-    private let until = Mutex<[String: Date]>([:])
+    private let until = Mutex<[String: ContinuousClock.Instant]>([:])
 
-    func isSlow(_ volume: String, at moment: Date) -> Bool {
-        until.withLock { ($0[volume] ?? .distantPast) > moment }
+    func isSlow(_ volume: String, at moment: ContinuousClock.Instant) -> Bool {
+        until.withLock { $0[volume].map { moment < $0 } ?? false }
     }
 
-    func markSlow(_ volume: String, until moment: Date) {
+    func markSlow(_ volume: String, until moment: ContinuousClock.Instant) {
         until.withLock { $0[volume] = moment }
     }
 }
 
 /// The volumes with a probe out right now, each claim lapsing after a set time so a stat that never returns cannot hold it.
 private final class InFlightVolumes: Sendable {
-    private let claims = Mutex<(next: Int, held: [String: (id: Int, since: Date)])>((0, [:]))
+    private let claims = Mutex<(next: Int, held: [String: (id: Int, since: ContinuousClock.Instant)])>(
+        (0, [:]))
 
     /// Claims this volume for one probe when it is free or its claim has lapsed, answering the claim that may later end it.
-    func begin(_ volume: String, at moment: Date, lapsingAfter lifetime: Double) -> Int? {
+    func begin(_ volume: String, at moment: ContinuousClock.Instant, lapsingAfter lifetime: Double) -> Int? {
         claims.withLock {
-            if let held = $0.held[volume], moment.timeIntervalSince(held.since) < lifetime { return nil }
+            if let held = $0.held[volume], held.since.duration(to: moment) < .seconds(lifetime) {
+                return nil
+            }
             $0.next += 1
             $0.held[volume] = ($0.next, moment)
             return $0.next

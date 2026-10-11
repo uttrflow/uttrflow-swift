@@ -58,8 +58,20 @@ final class FixtureTextView: NSTextView {
     private func apply(_ text: String, by route: FixtureRoute) {
         guard let edit = mode.edit(string, replacing: selectedRange(), with: text, by: route) else { return }
         unmarkText()
-        string = edit.text
-        setSelectedRange(NSRange(location: edit.caret, length: 0))
+        restore(edit.text, caret: edit.caret)
+    }
+
+    /// Sets the contents and caret as one undoable step, so the fixture's Undo takes back one write whole.
+    private func restore(_ text: String, caret: Int) {
+        let (before, caretBefore) = (string, selectedRange().location)
+        // A group of its own: an Accessibility write arrives with no event, so grouping by event would merge writes.
+        let undo = window?.undoManager
+        undo?.groupsByEvent = false
+        undo?.beginUndoGrouping()
+        undo?.registerUndo(withTarget: self) { $0.restore(before, caret: caretBefore) }
+        undo?.endUndoGrouping()
+        string = text
+        setSelectedRange(NSRange(location: caret, length: 0))
         onChange()
     }
 }

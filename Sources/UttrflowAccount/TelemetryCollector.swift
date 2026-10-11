@@ -53,13 +53,20 @@ public final class TelemetryCollector: MetricsRecording {
         }
     }
 
+    /// Drops the current window while leaving the user's reporting choice alone.
+    func resetWindow(at moment: Date) {
+        state.withLock { $0.reset(at: moment) }
+    }
+
     /// Records one dictation; `processing` feeds both the total and the latency sample, so the two agree.
+    /// `finishedBy` is counted for a completed dictation only, since nothing else was finished by a rung.
     public func recordDictation(
         _ outcome: DictationOutcome,
         language: TelemetryLanguage,
         audio: Duration = .zero,
         processing: Duration = .zero,
-        charactersInserted: Int = 0
+        charactersInserted: Int = 0,
+        finishedBy rung: TelemetryFallbackRung? = nil
     ) {
         mutate { state in
             state.dictationCount += 1
@@ -68,7 +75,9 @@ public final class TelemetryCollector: MetricsRecording {
             state.processingTotalMs += processing.inWholeMilliseconds
             state.charactersInserted += max(charactersInserted, 0)
             switch outcome {
-            case .completed: state.latencies.append(processing.inWholeMilliseconds)
+            case .completed:
+                state.latencies.append(processing.inWholeMilliseconds)
+                if let rung { state.fallbackRungs[rung, default: 0] += 1 }
             case .cancelled: state.cancelledCount += 1
             case .failed: state.failureCount += 1
             }
@@ -139,6 +148,8 @@ extension TelemetryCollector {
         var stageLatencies: [TelemetryStage: Samples] = [:]
         /// Failures per stage.
         var stageFailures: [TelemetryStage: Int] = [:]
+        /// Inserted dictations per fallback rung.
+        var fallbackRungs: [TelemetryFallbackRung: Int] = [:]
 
         /// The window's report, or `nil` when ``TelemetryReport`` refuses it.
         func report(endedAt moment: Date) -> TelemetryReport? {
@@ -157,7 +168,8 @@ extension TelemetryCollector {
                 latencyP90Ms: latencies.percentile(0.90),
                 latencyP99Ms: latencies.percentile(0.99),
                 languages: languages,
-                stages: stageOutcomes
+                stages: stageOutcomes,
+                fallbackRungs: fallbackRungs
             )
         }
 

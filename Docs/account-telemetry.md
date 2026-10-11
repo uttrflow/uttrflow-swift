@@ -44,14 +44,16 @@ closed enumeration:
 | `latencyP50Ms`, `latencyP90Ms`, `latencyP99Ms` | end-to-end wait percentiles of inserted dictations |
 | `languages` | dictations per `TelemetryLanguage`, sorted by tag |
 | `stages` | per `TelemetryStage`: failure count and p50/p90 latency, sorted by name |
+| `fallbackRungs` | inserted dictations per `TelemetryFallbackRung` (`model`, `rules`, `raw`): which rung of the tidy ladder finished each one, in ladder order, rungs with none omitted |
 
 ## What feeds it?
 
 `UsageTelemetry.observe` receives every pipeline state change. It starts the wait clock when
 the pipeline leaves recording, and on `.inserted` or `.failed` calls
-`TelemetryCollector.recordDictation` with the outcome, the wait, the spoken duration and the
-inserted text's length; the language is the first of the user's preferred languages in
-Settings. When an active dictation returns directly to `.idle`, it records a cancellation, with
+`TelemetryCollector.recordDictation` with the outcome, the wait, the spoken duration, the
+inserted text's length and, for an inserted dictation, the rung its `cleanedBy` engine stands on
+(every model engine is `model`, so no engine name is sent); the language is the first of the
+user's preferred languages in Settings. When an active dictation returns directly to `.idle`, it records a cancellation, with
 no audio or latency sample. The pipeline's stage timings reach the collector through
 `MetricsFanOut`, beside the diagnostics recorder, so the pipeline needs no telemetry-specific code.
 
@@ -190,6 +192,17 @@ one, so a counter added later cannot be left holding the previous window's data.
 The opt-out is enforced at one door: every accumulation goes through `mutate`, `state` is
 private, and a recording method added later cannot forget to check. `flush` re-checks
 `isEnabled` under the outbox lock, so an opt-out that lands mid-flush still drops the report.
+
+Signing out or deleting an account also clears the current counters and reports still waiting
+to send, while keeping the user's opt-in choice. A dictation already in flight at that boundary
+cannot contribute its outcome or stage timings to the next account. Each stage sample carries
+the pipeline generation that produced it, so the recorder fences the old generation even when
+its terminal state observer is delayed. Measurements from a later dictation are retained after
+the boundary snapshot, and revisioned state events that arrive while that snapshot is pending
+are replayed if they belong to the new generation. The hourly timer is restarted at its saved
+interval, and a flush cancelled while resolving its bearer token stops before creating a network
+request. A request already handed to the transport can still finish, but its response is not
+acknowledged into the local ledger after the reset.
 
 ## The outbox and the ledger
 

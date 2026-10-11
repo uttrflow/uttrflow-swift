@@ -151,7 +151,8 @@ one kind is a single label query.
 Priority follows the class: `quality:meaning` is P1, and P0 when nothing was inserted.
 
 An accuracy fix names the corpus case it adds, failing before the fix and passing after, or says
-why no case can exist.
+why no case can exist. Adding a case is one JSON object; [`Docs/adding-a-corpus-case.md`](Docs/adding-a-corpus-case.md)
+gives the schema, the checks and the command that scores the case alone.
 
 ## Licence
 

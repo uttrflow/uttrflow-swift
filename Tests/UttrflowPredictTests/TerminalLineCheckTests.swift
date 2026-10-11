@@ -356,8 +356,8 @@ struct TerminalLineCheckTests {
             "yarn build", "go test ./...", "npm run dev", "cargo --help", "git checkout gone", "docker ps",
         ]
         let candidates = lines.map { Candidate(text: $0, source: .personal) }
-        #expect(await verifier.verified(candidates, in: terminal, typed: "", now: moment).isEmpty)
-        #expect(await verifier.standing(lines, after: "", in: terminal, now: moment).isEmpty)
+        #expect(await verifier.verified(candidates, in: terminal, typed: "", now: instant).isEmpty)
+        #expect(await verifier.standing(lines, after: "", in: terminal, now: instant).isEmpty)
         // Only the shell's aliases are asked for, and they are read from its configuration as text.
         #expect(await reader.asked.allSatisfy { $0 == .alias })
         // The disk is the rest of what verification touched, and it offers nothing but a stat, a read and a listing.

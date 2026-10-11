@@ -33,6 +33,9 @@ struct FallbackSweepProbe: AsyncParsableCommand {
     @Option(name: .long, help: "Use only the first this many clips of each voice.")
     var perVoice = SpokenClips.sentences.count
 
+    @Option(name: .long, parsing: .upToNextOption, help: "Dictionary terms given to the recogniser.")
+    var vocabulary: [String] = []
+
     func validate() throws {
         if runs < 2 { throw ValidationError("--runs must be at least 2.") }
         if counts.contains(where: { $0 < 0 }) { throw ValidationError("--counts must not be negative.") }
@@ -56,7 +59,7 @@ struct FallbackSweepProbe: AsyncParsableCommand {
         print("| Audio | Count | Log-prob | Fallback rate | Mean extra s | Worst extra s | Identical | WER |")
         print("|---|---|---|---|---|---|---|---|")
         for snr in snrs {
-            let inputs = clips.map { snr.isInfinite ? $0.samples : FallbackSweep.noisy($0.samples, snr: snr) }
+            let inputs = clips.map { snr.isInfinite ? $0.samples : WhiteNoise.added($0.samples, snr: snr) }
             for plan in plans {
                 let speech = SpeechEngineFactory.make(
                     kind: .whisperKit, model: model, modelFolder: folder, fallback: plan)
@@ -65,7 +68,8 @@ struct FallbackSweepProbe: AsyncParsableCommand {
                 for (clip, samples) in zip(clips, inputs) {
                     var texts: [[String]] = []
                     for _ in 0..<runs {
-                        let heard = try await speech.transcribe(.canonical(samples), options: .init())
+                        let heard = try await speech.transcribe(
+                            .canonical(samples), options: .init(vocabulary: vocabulary))
                         let words = TextNormaliser.standard.words(heard.text)
                         texts.append(words)
                         tally.add(
@@ -125,16 +129,13 @@ private enum FallbackSweep {
             ].joined(separator: " | ")
         }
     }
+}
 
+/// White noise added at a fixed level, shared by the probes that measure noisy audio.
+enum WhiteNoise {
     /// The samples with white noise at `snr` dB below their power, seeded so every run hears the same audio.
-    static func noisy(_ samples: [Float], snr: Double) -> [Float] {
-        let power = samples.reduce(0.0) { $0 + Double($1 * $1) } / Double(max(samples.count, 1))
-        let scale = Float(sqrt(3 * power / pow(10, snr / 10)))
-        var state: UInt64 = 0x9E37_79B9_7F4A_7C15
-        return samples.map { sample in
-            state = state &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
-            let uniform = Float(Double(state >> 11) / Double(1 << 53)) * 2 - 1
-            return sample + uniform * scale
-        }
+    static func added(_ samples: [Float], snr: Double) -> [Float] {
+        Degradation.noise(.white, snr: snr).applied(
+            to: samples, sampleRate: AudioSamples.canonicalSampleRate, seed: 0)
     }
 }

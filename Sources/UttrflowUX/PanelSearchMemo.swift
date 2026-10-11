@@ -10,10 +10,11 @@ struct PanelMatch: Sendable, Equatable {
 }
 
 /// Remembers the recent lists drawn, so a query searched earlier in this open is not searched again and one that grew is searched in what a shorter one found.
-final class PanelSearchMemo: Sendable, Equatable {
+final class PanelSearchMemo: Sendable {
     /// Everything that decides which rows are listed; a change to anything else, the selection above all, reuses them.
     struct View: Sendable, Equatable {
         let clips: [Clip]
+        let clipsRevision: UUID
         let needle: String
         let filter: PanelFilter
         let scope: PanelScope
@@ -25,9 +26,17 @@ final class PanelSearchMemo: Sendable, Equatable {
     /// What one view found, and the rows it was ranked and capped into.
     private struct Listed {
         let view: View
+        let id: UUID
         let matches: [PanelMatch]
         let rows: [PanelResult]
+        let indexByID: [Clip.ID: Int]
         let omitted: [PanelMatchField: Int]
+
+        /// The row `selection` stands on, the top row when it is not listed, and `nil` for an empty list.
+        func selectedIndex(of selection: Clip.ID?) -> Int? {
+            guard !rows.isEmpty else { return nil }
+            return selection.flatMap { indexByID[$0] } ?? 0
+        }
     }
 
     /// How many recent lists are kept, most recent last; enough to walk back a long word one Backspace at a time.
@@ -35,42 +44,56 @@ final class PanelSearchMemo: Sendable, Equatable {
 
     private let listed = Mutex<[Listed]>([])
     /// Length-changing folds can make a longer query match text that the shorter query did not.
-    private let foldingProfile = Mutex<([Clip], Locale, Bool)?>(nil)
+    private let foldingProfile = Mutex<(UUID, Locale, Bool)?>(nil)
+    private let searches = Mutex(0)
+
+    var searchScans: Int { searches.withLock { $0 } }
 
     init() {}
 
-    /// The rows for this view: a recent list when one had the same view, and otherwise a scan told which clips a shorter query has already ruled out.
+    /// The rows for this view and the row `selection` stands on, read in one step; a recent list for the same view, otherwise a scan told which clips a shorter query ruled out.
     func rows(
-        for view: View,
+        for view: View, selecting selection: Clip.ID? = nil,
         scanning scan: (Set<Clip.ID>?) -> [PanelMatch],
         ranking rank: ([PanelMatch]) -> ([PanelResult], [PanelMatchField: Int])
-    ) -> ([PanelResult], [PanelMatchField: Int]) {
+    ) -> ([PanelResult], [PanelMatchField: Int], UUID, Int?) {
         let recent = listed.withLock { $0 }
         if let hit = recent.last(where: { $0.view == view }) {
             remember(hit)
-            return (hit.rows, hit.omitted)
+            return (hit.rows, hit.omitted, hit.id, hit.selectedIndex(of: selection))
         }
         // The narrowest earlier list that still bounds this query rules in the fewest clips.
         let candidates = recent.filter { $0.view.narrows(to: view) }
         let bound =
-            candidates.isEmpty || hasLengthChangingFold(in: view.clips, locale: view.locale)
+            candidates.isEmpty
+                || hasLengthChangingFold(
+                    in: view.clips, revision: view.clipsRevision, locale: view.locale)
             ? nil
             : candidates.min { $0.matches.count < $1.matches.count }
         let ruledIn = bound.map { Set($0.matches.map(\.result.id)) }
+        searches.withLock { $0 += 1 }
         let matches = scan(ruledIn)
         let (rows, omitted) = rank(matches)
-        remember(Listed(view: view, matches: matches, rows: rows, omitted: omitted))
-        return (rows, omitted)
+        // The store does not drop a repeated id from an index file, so a clip listed twice selects its first row.
+        let indexByID = Dictionary(rows.enumerated().map { ($1.id, $0) }) { first, _ in first }
+        let id = UUID()
+        let entry = Listed(
+            view: view, id: id, matches: matches, rows: rows, indexByID: indexByID,
+            omitted: omitted)
+        remember(entry)
+        return (rows, omitted, id, entry.selectedIndex(of: selection))
     }
 
     /// Whether any clip's searchable text has a fold that changes scalar count, cached for this clip list and locale.
-    private func hasLengthChangingFold(in clips: [Clip], locale: Locale) -> Bool {
+    private func hasLengthChangingFold(
+        in clips: [Clip], revision: UUID, locale: Locale
+    ) -> Bool {
         foldingProfile.withLock { profile in
-            if let profile, profile.0 == clips, profile.1 == locale { return profile.2 }
+            if let profile, profile.0 == revision, profile.1 == locale { return profile.2 }
             let found = clips.contains { clip in
                 hasLengthChangingSearchFold(in: clip.text, locale: locale)
             }
-            profile = (clips, locale, found)
+            profile = (revision, locale, found)
             return found
         }
     }
@@ -78,21 +101,29 @@ final class PanelSearchMemo: Sendable, Equatable {
     /// Keeps `entry` as the most recent list, dropping lists of another clip list, which can never be reused.
     private func remember(_ entry: Listed) {
         listed.withLock { recent in
-            recent.removeAll { $0.view == entry.view || $0.view.clips != entry.view.clips }
+            recent.removeAll {
+                $0.view == entry.view || $0.view.clipsRevision != entry.view.clipsRevision
+            }
             recent.append(entry)
             if recent.count > Self.depth { recent.removeFirst(recent.count - Self.depth) }
         }
     }
 
-    /// Compares equal to any other memo, because a cache is not part of what the panel shows.
-    static func == (lhs: PanelSearchMemo, rhs: PanelSearchMemo) -> Bool { true }
 }
 
 extension PanelSearchMemo.View {
-    /// Whether what this view found still bounds `later`: the same clips under the same tabs, and a query that only grew.
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        guard lhs.clipsRevision == rhs.clipsRevision, lhs.needle == rhs.needle, lhs.filter == rhs.filter,
+            lhs.locale == rhs.locale, lhs.revealed == rhs.revealed
+        else { return false }
+        // A search spans every scope and collection, so only an empty query lists by them.
+        return !lhs.needle.isEmpty || (lhs.scope == rhs.scope && lhs.category == rhs.category)
+    }
+
+    /// Whether what this view found still bounds `later`: the same clips under the same kind tab, and a query that only grew.
     func narrows(to later: Self) -> Bool {
-        guard clips == later.clips, filter == later.filter, scope == later.scope,
-            category == later.category, locale == later.locale, revealed == later.revealed,
+        guard clipsRevision == later.clipsRevision, filter == later.filter, locale == later.locale,
+            revealed == later.revealed,
             !needle.isEmpty, !later.needle.isEmpty,
             !hasLengthChangingSearchFold(in: needle, locale: locale),
             !hasLengthChangingSearchFold(in: later.needle, locale: locale)
@@ -104,7 +135,8 @@ extension PanelSearchMemo.View {
     /// The view a panel is listing.
     init(_ snapshot: PanelSnapshot) {
         self.init(
-            clips: snapshot.clips, needle: snapshot.needle, filter: snapshot.filter,
+            clips: snapshot.clips,
+            clipsRevision: snapshot.clipsRevision.id, needle: snapshot.needle, filter: snapshot.filter,
             scope: snapshot.scope, category: snapshot.category, locale: snapshot.locale,
             revealed: snapshot.revealed)
     }

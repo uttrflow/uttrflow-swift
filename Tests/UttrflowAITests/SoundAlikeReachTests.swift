@@ -1,30 +1,30 @@
 import Testing
 import UttrflowAI
 
-/// Each gate is measured on its own, so a pair the key links but the opening letters refuse shows as such.
+/// Each gate is measured on its own, so a pair the key links but phoneme distance refuses shows as such.
 @Suite("SoundAlikeReach")
 struct SoundAlikeReachTests {
-    @Test("A pair sharing a key but not its opening letters is stopped by the restraint")
+    @Test("A pair sharing a key but more than one phoneme apart is stopped by the distance")
     func keyWithoutOpening() {
-        let reach = SoundAlikeReach(heard: "vest", meant: "west")
+        let reach = SoundAlikeReach(heard: "clean", meant: "colin")
         #expect(reach.sharesKey)
-        #expect(!reach.passesOpening)
+        #expect(!reach.passesDistance)
         #expect(!reach.entrySpells)
     }
 
     @Test("A pair with different keys is reached by no gate")
     func differentKeys() {
-        let reach = SoundAlikeReach(heard: "rock", meant: "lock")
+        let reach = SoundAlikeReach(heard: "rock", meant: "milk")
         #expect(!reach.sharesKey)
-        #expect(!reach.passesOpening)
+        #expect(!reach.passesDistance)
         #expect(!reach.entrySpells)
     }
 
-    @Test("A pair sharing key and opening passes both, and the entry accepts it")
+    @Test("A pair sharing key and within one phoneme passes both, and the entry accepts it")
     func keyAndOpening() {
         let reach = SoundAlikeReach(heard: "ship", meant: "sheep")
         #expect(reach.sharesKey)
-        #expect(reach.passesOpening)
+        #expect(reach.passesDistance)
         #expect(reach.entrySpells)
     }
 

@@ -357,6 +357,8 @@ public enum SettingsToggleField: String, Sendable, Equatable, CaseIterable {
     case sendsCrashReports
     case suggestionsEnabled
     case quietSuggestions
+    case learnsFromDictation
+    case confirmsHiddenClipPaste
 }
 
 /// Everything the user can ask for on this screen; only ``SettingsEditor`` decides what happens.
@@ -370,10 +372,22 @@ public enum SettingsChange: Sendable, Equatable {
     /// How long the user pauses while speaking.
     case pauses(PauseLength)
     case retention(days: Int)
+    /// How long clipboard history is kept; dictation clips follow ``retention(days:)``.
+    case clipboardRetention(days: Int)
     case appearance(AppAppearance)
+    /// How much of the front application a dictation reads.
+    case contextLevel(ContextLevel)
+    /// Reads one application at a level of its own, whatever every other application gets.
+    case appContextLevel(bundleIdentifier: String, name: String?, level: ContextLevel)
+    /// Puts one application back on the level every application gets.
+    case forgetAppContextLevel(bundleIdentifier: String)
+    /// The input device dictation opens, by UID; nil follows the system default.
+    case microphone(uid: String?)
     case handsFreeDoubleTap(milliseconds: Int)
     /// How long a press may last and still count as a tap.
     case handsFreeHold(milliseconds: Int)
+    /// Seconds of quiet that end a recording no key is holding; 0 is off.
+    case endOnSilence(seconds: Int)
 
     /// Switch one clean-up step on or off; a step nobody offers is refused.
     case cleaningStep(PassID, isOn: Bool)
@@ -381,6 +395,9 @@ public enum SettingsChange: Sendable, Equatable {
     /// Treat one app as a kind of place, whatever the table says it is.
     case appDestination(
         bundleIdentifier: String, name: String?, destination: UttrflowCore.Destination)
+
+    /// Format one app's words in this mode: left to the registry, as plain prose, or by one adapter.
+    case appAdapterMode(bundleIdentifier: String, name: String?, mode: AdapterMode)
 
     /// Put one app back on the table's answer.
     case forgetAppDestination(bundleIdentifier: String)
@@ -400,11 +417,20 @@ public enum SettingsChange: Sendable, Equatable {
     /// Pauses clipboard capture for one hour, or resumes it early.
     case pauseClipboardCapture(isOn: Bool)
 
+    /// Turns the question before a multi-line clip is pasted into a terminal on or off.
+    case confirmMultilinePaste(isOn: Bool)
+
     /// Asks the update feed now rather than waiting for the next scheduled check.
     case checkForUpdatesNow
 
     /// Asks the user to pick an application to turn suggestions off in, which stores nothing until one is picked.
     case chooseApplicationToTurnOffSuggestions
+
+    /// Asks the user to pick an installed application to say what kind of place it is.
+    case chooseApplicationForDestination
+
+    /// Asks the user to pick an installed application to give a context level of its own.
+    case chooseApplicationForContextLevel
 
     /// Fetches the suggestion model again after a failed attempt.
     case retrySuggestionModel
@@ -424,9 +450,10 @@ public enum SettingsChange: Sendable, Equatable {
     /// Whether this asks for something to happen now rather than for something to be stored.
     public var isRequestToAct: Bool {
         switch self {
-        case .checkForUpdatesNow, .chooseApplicationToTurnOffSuggestions, .retrySuggestionModel,
-            .exportPersonalData, .importPersonalData, .manageClipboardExclusions, .pauseClipboardCapture,
-            .openSystemSettings, .openPage:
+        case .checkForUpdatesNow, .chooseApplicationToTurnOffSuggestions, .chooseApplicationForDestination,
+            .chooseApplicationForContextLevel, .retrySuggestionModel, .exportPersonalData,
+            .importPersonalData, .manageClipboardExclusions,
+            .pauseClipboardCapture, .confirmMultilinePaste, .openSystemSettings, .openPage:
             true
         default: false
         }

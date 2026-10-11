@@ -3,6 +3,7 @@
   "sources": [
     {
       "name": "swift-book",
+      "kind": "text",
       "publisher": "The Swift Project",
       "url": "https://codeload.github.com/swiftlang/swift-book/tar.gz/refs/tags/swift-6.4-fcs",
       "revision": "swift-6.4-fcs",
@@ -13,6 +14,7 @@
     },
     {
       "name": "cpython",
+      "kind": "text",
       "publisher": "Python Software Foundation",
       "url": "https://codeload.github.com/python/cpython/tar.gz/refs/tags/v3.13.0",
       "revision": "v3.13.0",
@@ -23,6 +25,7 @@
     },
     {
       "name": "django",
+      "kind": "text",
       "publisher": "Django Software Foundation",
       "url": "https://codeload.github.com/django/django/tar.gz/refs/tags/5.2",
       "revision": "5.2",
@@ -30,6 +33,19 @@
       "archive": "django-5.2.tar.gz",
       "sha256": "25dd8b612f50bde9a395b370a2e7f6dd768ae125d92203781150aec672074d09",
       "fetched": "2026-10-06"
+    },
+    {
+      "name": "cmudict",
+      "kind": "lexicon",
+      "publisher": "Carnegie Mellon University",
+      "url": "https://codeload.github.com/cmusphinx/cmudict/tar.gz/74790861f652b15e4ac49015a90074ad62a27690",
+      "revision": "74790861f652b15e4ac49015a90074ad62a27690",
+      "licence": "BSD-2-Clause",
+      "archive": "cmudict-74790861f652.tar.gz",
+      "sha256": "741c592660bbf10ab93fe3d5aa709b73a3b5ba91e3291a066715440f4137a58d",
+      "fetched": "2026-10-07",
+      "notice": "Resources/Notices/cmudict-LICENSE.txt",
+      "noticeInArchive": "cmudict-74790861f652b15e4ac49015a90074ad62a27690/LICENSE"
     }
   ]
 }

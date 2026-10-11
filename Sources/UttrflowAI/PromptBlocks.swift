@@ -30,6 +30,14 @@ public struct WorkedExample: Sendable, Equatable {
 
     /// The two sentences a corpus case must not reuse.
     public var sentences: [String] { [spoken, cleaned] }
+
+    /// An example of commands said by name, cleaned by the destination's rules, which write them from `spoken-commands.json`.
+    static func notation(typedInto: String, spoken: String, in destination: Destination) -> WorkedExample {
+        let situation = Situation(app: .unknown, insertion: .unknown, destination: destination)
+        let rules = CleaningPipeline.standard(for: .standard(for: destination), situation: situation)
+        let cleaned = rules.run(Draft(text: spoken)).text
+        return WorkedExample(typedInto: typedInto, spoken: spoken, cleaned: cleaned)
+    }
 }
 
 /// The style rules and worked examples for one kind of place: decisions, never code.
@@ -129,10 +137,7 @@ public enum PromptBlocks {
             - no full stop at the end
             """,
         examples: [
-            WorkedExample(
-                typedInto: "a terminal",
-                spoken: "docker compose up dash d",
-                cleaned: "docker compose up -d")
+            .notation(typedInto: "a terminal", spoken: "docker compose up dash d", in: .terminal)
         ])
 
     static let messaging = PromptBlock(

@@ -95,6 +95,40 @@ struct CaptureGateTests {
                 == .consentDeclined)
     }
 
+    @Test(
+        "A window that names itself private is refused even in an allowed browser, and its host is not kept.",
+        arguments: [
+            "Example - Google Chrome (Incognito)", "Example - InPrivate", "Example - Private Browsing",
+        ])
+    func privateWindowIsRefused(title: String) {
+        let reading = FieldReading(
+            bundleIdentifier: "com.example.browser", role: "AXTextField",
+            document: "https://example.com/page", windowTitle: title)
+        let refusal = CaptureGate.refusal(toRecord: "a plain sentence", from: reading, given: allowed)
+        #expect(refusal == .privateWindow)
+        let edit = EditedSpan(position: 0, old: ["tuesday"], new: ["thursday"])
+        #expect(CaptureGate.refusal(toHear: edit, from: reading, given: allowed) == .privateWindow)
+    }
+
+    @Test("An ordinary window of the same browser is still learned.")
+    func ordinaryWindowPasses() {
+        let reading = FieldReading(
+            bundleIdentifier: "com.example.browser", role: "AXTextField",
+            document: "https://example.com/page", windowTitle: "Example")
+        #expect(!reading.isInPrivateWindow)
+        #expect(CaptureGate.refusal(toRecord: "a plain sentence", from: reading, given: allowed) == nil)
+    }
+
+    @Test("A password manager is not learned from until the user allows it, and then it is.")
+    func passwordManagerIsOffUntilAllowed() {
+        let reading = FieldReading(bundleIdentifier: "com.bitwarden.desktop", role: "AXTextField")
+        #expect(
+            CaptureGate.refusal(toRecord: "a plain sentence", from: reading, given: CapturePreferences())
+                == .consentDeclined)
+        let allowedHere = CapturePreferences(consent: ["com.bitwarden.desktop": .allowed])
+        #expect(CaptureGate.refusal(toRecord: "a plain sentence", from: reading, given: allowedHere) == nil)
+    }
+
     @Test("A value one character long is refused, because completing it could never save a keystroke.")
     func oneCharacterIsRefused() {
         #expect(CaptureGate.refusal(toRecord: "y", from: field(), given: allowed) == .tooShort)
@@ -117,16 +151,55 @@ struct CaptureGateTests {
     func shortNumericWebValuesAreRefused() {
         let browser = FieldReading(bundleIdentifier: "com.example.browser", role: "AXTextField")
 
-        for value in ["12", "1234", "123456", "01011990", "12 34", "123 456", "12-3456", "4111.1111"] {
+        for value in ["12", "1234", "123456", "01011990", "123 456", "12-3456", "4111.1111"] {
             #expect(CaptureGate.refusal(toRecord: value, from: browser, given: allowed) == .sensitiveValue)
         }
     }
 
-    @Test("Malformed groups and values over eight digits remain ordinary text.")
-    func malformedOrLongGroupedNumbersPass() {
-        for value in ["1--2", "-1234", "1234.", "1 2 3 4 5 6 7 8 9"] {
+    @Test("Ordinary decimals, ISO dates, and two-value pairs pass in non-terminal fields.")
+    func ordinaryNumericShapesPass() {
+        let browser = FieldReading(bundleIdentifier: "com.example.browser", role: "AXTextField")
+        for value in ["3.14", "10.5", "2026-10-03", "10 20", "12 34"] {
+            #expect(CaptureGate.refusal(toRecord: value, from: browser, given: allowed) == nil)
+        }
+    }
+
+    @Test(
+        "Identity, phone, account and card numbers of any length are refused, with or without separators.",
+        arguments: [
+            "123456789", "123 45 6789", "9876543210", "98765-43210", "123456789012", "1234 5678 9012",
+            "4000123412341234", "4000-1234-1234-1234", "1 2 3 4 5 6 7 8 9",
+        ])
+    func longNumericWebValuesAreRefused(value: String) {
+        let browser = FieldReading(bundleIdentifier: "com.example.browser", role: "AXTextField")
+        #expect(CaptureGate.refusal(toRecord: value, from: browser, given: allowed) == .sensitiveValue)
+    }
+
+    @Test(
+        "Expiry dates, times, punctuated and parenthesised codes are refused in non-terminal fields.",
+        arguments: [
+            "12/25", "12:34", "1234_5678", "1,234", "123-456.", "123456!", "(123456)", "(123) 456-7890",
+        ])
+    func punctuatedNumericWebValuesAreRefused(value: String) {
+        let browser = FieldReading(bundleIdentifier: "com.example.browser", role: "AXTextField")
+        #expect(CaptureGate.refusal(toRecord: value, from: browser, given: allowed) == .sensitiveValue)
+    }
+
+    @Test("Ordinary numeric shapes keep passing when written with trailing punctuation.")
+    func punctuatedOrdinaryNumericShapesPass() {
+        let browser = FieldReading(bundleIdentifier: "com.example.browser", role: "AXTextField")
+        for value in ["3.14.", "2026-10-03.", "10.5,"] {
+            #expect(CaptureGate.refusal(toRecord: value, from: browser, given: allowed) == nil)
+        }
+    }
+
+    @Test("Malformed digit groups remain ordinary text.")
+    func malformedGroupedNumbersPass() {
+        for value in ["1--2", "-1234"] {
             #expect(CaptureGate.refusal(toRecord: value, from: field(), given: allowed) == nil)
         }
+        // A number ending in a full stop alone is an ordered-list marker, refused as too short to be an item.
+        #expect(CaptureGate.refusal(toRecord: "1234.", from: field(), given: allowed) == .tooShort)
     }
 
     @Test(
@@ -134,6 +207,9 @@ struct CaptureGateTests {
     func shortNumericTerminalValuesPass() {
         let terminalAllowed = CapturePreferences(consent: ["com.apple.terminal": .allowed])
         #expect(CaptureGate.refusal(toRecord: "123456", from: terminalField(), given: terminalAllowed) == nil)
+        #expect(
+            CaptureGate.refusal(toRecord: "123456789012", from: terminalField(), given: terminalAllowed)
+                == nil)
     }
 
     @Test("A destructive command is refused, so it can never be stored to complete later.")
@@ -156,7 +232,7 @@ struct CaptureGateTests {
     @Test("A credential is refused by the same rules the clipboard hides one with.")
     func secretsAreRefused() {
         let secrets = [
-            "export AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMIK7MDENGbPxRfiCYEXAMPLEKEY",
+            "export AWS_SECRET_ACCESS_KEY=Qv7RkT2mXeL9pAz4NbHc8FwJdY3gS6uH",
             "-----BEGIN RSA PRIVATE KEY-----",
             "psql postgres://someone:s3cretpassword@db.example.com/records",
         ]
@@ -188,8 +264,29 @@ struct CaptureGateTests {
 
     @Test("The credential rules are the clipboard's, asked rather than copied.")
     func secretRuleIsShared() {
-        #expect(CaptureGate.looksLikeSecret("AKIAIOSFODNN7EXAMPLE"))
+        #expect(CaptureGate.looksLikeSecret("ASIAY34FZKBOKMUTVV7A"))
         #expect(!CaptureGate.looksLikeSecret("git commit -m 'fix the thing'"))
+    }
+
+    @Test(
+        "A credential on any line of a multi-line value is a secret, as it is on one line.",
+        arguments: [
+            ("docker run", "  -e DB=a8Kd93jfLq02xZpVnQ7r", "  img"),
+            ("curl https://api.example.com", "  -d a8Kd93jfLq02xZpVnQ7rT5", "  --fail"),
+            ("echo start", "Bearer a8Kd93jfLq02xZpVnQ7r", "echo done"),
+            ("echo start", "secret a8Kd93jfLq02xZpV", "echo done"),
+        ])
+    func continuationLineSecretIsRefused(lines: (String, String, String)) {
+        let oneLine = [lines.0, lines.1, lines.2].joined(separator: " ")
+        let continued = [lines.0, lines.1, lines.2].joined(separator: "\n")
+        #expect(CaptureGate.looksLikeSecret(oneLine))
+        #expect(CaptureGate.looksLikeSecret(continued))
+        #expect(CaptureGate.refusal(toRecord: continued, from: field(), given: allowed) == .looksLikeSecret)
+    }
+
+    @Test("A multi-line value with no credential on any line is not a secret.")
+    func multiLineOrdinaryValuePasses() {
+        #expect(!CaptureGate.looksLikeSecret("docker run \\\n  -e MODE=production \\\n  img"))
     }
 }
 

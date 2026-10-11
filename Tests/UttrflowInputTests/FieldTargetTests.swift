@@ -56,6 +56,30 @@ struct FieldTargetTests {
         #expect(field.replacements == ["hello"])
     }
 
+    @Test("refuses as a closed field when the window it was read in is gone, and writes nothing")
+    func refusesAClosedWindow() async {
+        let field = FakeTextField()
+        let focus = FieldSwitchFocus(field: field, focused: nil, openWindows: [])
+
+        await #expect(throws: TextInsertionError.insertionFieldClosed) {
+            try await AccessibilityTextInsertionEngine(focus: focus).insert(
+                "hello", targeting: Self.destination)
+        }
+        #expect(field.replacements.isEmpty)
+        #expect(TextInsertionError.insertionFieldClosed.stopsFallback)
+        #expect(TextInsertionError.insertionFieldClosed.recovery == .showHistory)
+    }
+
+    @Test("writes when the window it was read in is still open")
+    func writesWhileTheWindowIsOpen() async throws {
+        let field = FakeTextField()
+        let focus = FieldSwitchFocus(field: field, focused: Self.read, openWindows: [1])
+
+        _ = try await AccessibilityTextInsertionEngine(focus: focus).insert(
+            "hello", targeting: Self.destination)
+        #expect(field.replacements == ["hello"])
+    }
+
     @Test("a window only one read could name does not make two fields differ")
     func unnamedWindowStillMatches() {
         let unnamed = FieldIdentity(processIdentifier: 7, windowNumber: nil, element: 3)
@@ -70,10 +94,12 @@ struct FieldTargetTests {
 private final class FieldSwitchFocus: AccessibilityFocus, Sendable {
     private let field: any FocusedTextField
     private let focused: FieldIdentity?
+    private let openWindows: Set<UInt32>?
 
-    init(field: any FocusedTextField, focused: FieldIdentity?) {
+    init(field: any FocusedTextField, focused: FieldIdentity?, openWindows: Set<UInt32>? = nil) {
         self.field = field
         self.focused = focused
+        self.openWindows = openWindows
     }
 
     func focusedTextField() -> (any FocusedTextField)? { field }
@@ -84,4 +110,5 @@ private final class FieldSwitchFocus: AccessibilityFocus, Sendable {
         InsertionDestination(applicationName: "Browser", bundleIdentifier: "com.example.browser")
     }
     func focusedFieldIdentity() -> FieldIdentity? { focused }
+    func windowIsOpen(_ windowNumber: UInt32) -> Bool? { openWindows.map { $0.contains(windowNumber) } }
 }

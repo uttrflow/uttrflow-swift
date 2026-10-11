@@ -14,12 +14,15 @@ enum AppQuitCoordinator {
         budget: Duration,
         clock: any Clock<Duration>,
         pipeline: Pipeline?,
+        catchUpClipboard: @escaping @Sendable () async -> Void,
         flushClipboard: @escaping @Sendable () async -> Void,
         finishCompletions: @escaping @Sendable () async -> Void,
         stopController: @escaping @Sendable () async -> Void,
         reply: @escaping @Sendable () async -> Void
     ) async {
         _ = try? await withStageTimeout(budget, clock: clock) {
+            // A copy since the last poll is lost for good otherwise: the next launch starts past it.
+            await catchUpClipboard()
             await flushClipboard()
             await finishCompletions()
             if let pipeline, await pipeline.currentState().isListening {

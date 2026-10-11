@@ -5,6 +5,11 @@ public struct WordShape: Equatable, Sendable {
     public let suffix: String
 
     public init(_ text: String) {
+        // Most words begin and end on a letter or digit, so they have no marks to split off.
+        if let first = text.first, let last = text.last, !Self.isMark(first), !Self.isMark(last) {
+            (prefix, core, suffix) = ("", text, "")
+            return
+        }
         let leading = text.prefix(while: Self.isMark)
         let rest = text.dropFirst(leading.count)
         let trailing = rest.reversed().prefix(while: Self.isMark).reversed()
@@ -24,6 +29,17 @@ public struct WordShape: Equatable, Sendable {
     /// Whether the word closes a clause or a sentence.
     public var endsClause: Bool { suffix.contains(where: { ",.;:!?".contains($0) }) }
 
+    /// Whether the word is a command option such as "-i" or "--force", whose letters are case-sensitive.
+    public var isOption: Bool {
+        (prefix == "-" || prefix == "--") && core.first.map { $0.isLetter || $0.isNumber } == true
+    }
+
+    /// Whether the word is a hashtag, "#launchday": a hash straight before letters and digits, one of them a letter.
+    public var isHashtag: Bool {
+        prefix == "#" && core.contains(where: \.isLetter)
+            && core.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" }
+    }
+
     /// Whether the word is a spoken cut-off: letters left hanging on a bare hyphen.
     public var isCutOff: Bool { suffix == "-" && !core.isEmpty }
 
@@ -32,7 +48,47 @@ public struct WordShape: Equatable, Sendable {
 
     /// Whether marks after a word are an ellipsis with no question or exclamation mark, which is a pause rather than a stop.
     public static func trailsOff(_ marks: String) -> Bool {
-        (marks.contains("\u{2026}") || marks.contains("..")) && !marks.contains(where: { "?!".contains($0) })
+        (marks.contains("\u{2026}") || marks.contains("...")) && !marks.contains(where: { "?!".contains($0) })
+    }
+
+    /// The word with each run of clause marks after it reduced to its one legal form. See `Docs/cleanup.md`.
+    public static func settlingMarks(_ text: String) -> String {
+        let shape = WordShape(text)
+        // An abbreviation's own stop is part of the word, so a mark said after it settles apart: "etc.!", "p.m.,".
+        let owned = shape.suffix.first == "." && Abbreviations.ownsStop(shape.core) ? "." : ""
+        var settled = ""
+        var run = ""
+        for mark in shape.suffix.dropFirst(owned.count) {
+            if runMarks.contains(mark) {
+                run.append(mark)
+                continue
+            }
+            settled += legalRun(run) + String(mark)
+            run = ""
+        }
+        var tail = settled + legalRun(run)
+        // A stop after the abbreviation's own is the same stop, as "etc." ends a sentence once.
+        if !owned.isEmpty, tail == "." { tail = "" }
+        return shape.prefix + shape.core + owned + tail
+    }
+
+    /// Marks that combine into one run after a word.
+    private static let runMarks = clauseMarks.union(["\u{2026}"])
+
+    /// One run as a single mark, a pause or an interrobang pair; otherwise its strongest member.
+    private static func legalRun(_ run: String) -> String {
+        guard run.count > 1 else { return run }
+        let ask = run.firstIndex(of: "?")
+        let exclaim = run.firstIndex(of: "!")
+        if let ask, let exclaim { return ask < exclaim ? "?!" : "!?" }
+        if ask != nil { return "?" }
+        if exclaim != nil { return "!" }
+        if run.contains("\u{2026}") { return "\u{2026}" }
+        let dots = run.filter { $0 == "." }.count
+        if dots >= 3 { return "..." }
+        if dots > 0 { return "." }
+        let pauses: [Character] = [";", ":", ","]
+        return pauses.first(where: { run.contains($0) }).map { String($0) } ?? run
     }
 
     /// The same word with a new core, keeping the punctuation around it.
@@ -65,9 +121,9 @@ public struct WordShape: Equatable, Sendable {
         String(text.drop(while: \.isWhitespace).prefix(while: { !$0.isWhitespace }))
     }
 
-    /// Whether a word is cased as written: an internal capital, or a technical token such as a path or URL.
+    /// Whether a word is cased as written: an internal capital, a hashtag, or a technical token such as a path or URL.
     public static func keepsWrittenCase(_ text: String) -> Bool {
-        hasInternalCapital(text) || TechnicalToken.classify(text) != nil
+        hasInternalCapital(text) || WordShape(text).isHashtag || TechnicalToken.classify(text) != nil
     }
 
     /// Whether a word carries an uppercase letter after its first letter.
@@ -76,8 +132,11 @@ public struct WordShape: Equatable, Sendable {
         return text[text.index(after: first)...].contains(where: { $0.isUppercase })
     }
 
+    /// The six Latin marks that end a clause or a sentence.
+    package static let clauseMarks: Set<Character> = [",", ".", ";", ":", "!", "?"]
+
     /// Marks that end a text already: a clause mark or an ellipsis; a closing bracket may stand before a stop and is not one.
-    static let finishers: Set<Character> = [",", ".", ";", ":", "!", "?", "\u{2026}", "।", "॥"]
+    static let finishers: Set<Character> = clauseMarks.union(["\u{2026}", "।", "॥"])
 
     /// Each closing bracket mapped to the bracket that opens it.
     public static let bracketOpeners: [Character: Character] = [")": "(", "]": "[", "}": "{"]
@@ -119,7 +178,7 @@ public struct WordShape: Equatable, Sendable {
 
     /// Whether the quotation the last word closes is speech: it opens its sentence, follows a verb of saying, or opens on a subject.
     private static func quotationIsSpeech(_ preceding: String) -> Bool {
-        let line = preceding.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).last ?? ""
+        let line = CaretStructure.caretLine(of: preceding)
         let words = WordTokens.words(line, .display).map(WordShape.init)
         guard let start = words.lastIndex(where: { $0.prefix.contains(where: openingQuotes.contains) }) else {
             return true
@@ -175,7 +234,7 @@ public struct WordShape: Equatable, Sendable {
 
     /// The word with `mark` on its end; a clause mark replaces one already there, a quote follows it.
     public static func marked(_ text: String, with mark: String) -> String {
-        if mark == "\u{2014}" { return text + " " + mark }
+        if mark.count == 1, let only = mark.first, MarkSpacing.spacesJoin(only) { return text + " " + mark }
         if let last = text.last, ",.;:!?".contains(last), ",.;:!?".contains(mark) {
             if last == ".", Abbreviations.ownsStop(WordShape(text).core) {
                 return mark == "." ? text : text + mark
@@ -205,8 +264,11 @@ public struct WordShape: Equatable, Sendable {
 }
 
 extension Draft {
-    /// The shape of the word at `index`.
-    public func shape(at index: Int) -> WordShape { WordShape(words[index].text) }
+    /// The shape of the word at `index`, counted while a test has `wordsRead` bound.
+    public func shape(at index: Int) -> WordShape {
+        Self.wordsRead?.record()
+        return WordShape(words[index].text)
+    }
 
     /// The live positions from `position` to the end of the sentence it sits in, which one spoken phrase cannot run past.
     public func sentenceRun(from position: Int, in live: [Int]) -> Range<Int> {
@@ -236,8 +298,9 @@ extension Draft {
     public func spells(
         _ words: [String], at position: Int, in live: [Int], acrossSentences: Bool = false
     ) -> Bool {
+        // The words are compared first: most positions fail on the first word, before the sentence is read.
         position + words.count <= live.count
-            && (acrossSentences || sentenceContains(words.count, from: position, in: live))
             && zip(words, live[position..<position + words.count]).allSatisfy { $0 == shape(at: $1).key }
+            && (acrossSentences || sentenceContains(words.count, from: position, in: live))
     }
 }

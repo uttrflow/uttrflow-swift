@@ -61,6 +61,25 @@ public struct TextInsertionCoordinator: TextInserting {
         }
     }
 
+    /// Moves the caret back into the newest confirmed write, verified against the ledger; `false` leaves it at the end.
+    public func placeCaret(back units: Int) async -> Bool {
+        guard units > 0 else { return true }
+        guard let ledger, let focus else { return false }
+        return await AccessibilityThread.run(orElse: false) {
+            guard let place = focus.focusedFieldPlace(), let record = ledger.records(in: place.field).last,
+                let field = focus.focusedTextField()
+            else { return false }
+            let target = EditTarget(
+                record: record, focused: place.field, isSecure: focus.focusedFieldIsSecure())
+            do {
+                try field.placeCaret(in: target, back: units)
+                return true
+            } catch {
+                return false
+            }
+        }
+    }
+
     /// Reads the caret after the write, so the ledger holds the span the words occupy now.
     private func remember(_ attempt: InsertionAttempt, text: String) async {
         guard let ledger else { return }
@@ -120,7 +139,8 @@ public struct TextInsertionCoordinator: TextInserting {
             let canType = strategies.contains { $0.method == .typed }
             if canType, !keepsClipboard {
                 switch failure {
-                case .clipboardChanged, .insertionUnconfirmed, .insertionTargetChanged, .insertionInterrupted:
+                case .clipboardChanged, .insertionUnconfirmed, .insertionTargetChanged, .insertionFieldClosed,
+                    .insertionInterrupted:
                     throw failure
                 default: throw .insertionNeedsCopy(description: failure.userMessage)
                 }

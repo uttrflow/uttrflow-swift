@@ -1,4 +1,5 @@
 public import UttrflowCore
+import UttrflowDictionary
 
 /// A step's example cleaned with that step on and with it off, by the same rules dictation runs.
 public struct CleaningStepPreview: Sendable, Equatable {
@@ -25,7 +26,7 @@ public struct CleaningStepPreview: Sendable, Equatable {
     static func cleaned(_ spoken: String, steps: CleaningSteps) -> String {
         let pipeline = CleaningPipeline.standard(
             for: .standard(for: .unknown), situation: .unknown, steps: steps)
-        let draft = Draft(romanising: Transcription(text: spoken))
+        let draft = LoanwordRestoration().restoring(Draft(romanising: Transcription(text: spoken)))
         return RuleBasedTransformer.audited(pipeline, over: draft).draft.text
     }
 }

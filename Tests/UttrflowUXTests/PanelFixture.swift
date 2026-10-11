@@ -18,6 +18,7 @@ enum PanelFixture {
         kind: ClipKind = .text,
         minutesAgo: Int = 0,
         alias: String? = nil,
+        tags: [String] = [],
         category: String? = nil,
         isPinned: Bool = false,
         origin: ClipOrigin = .copied
@@ -25,7 +26,7 @@ enum PanelFixture {
         Clip(
             text: text, kind: kind, copiedAt: now.addingTimeInterval(Double(-minutesAgo) * 60),
             origin: origin,
-            alias: alias, category: category, isPinned: isPinned)
+            alias: alias, tags: tags, category: category, isPinned: isPinned)
     }
 
     /// Three clips newest first, held rather than rebuilt so a test can compare identities.

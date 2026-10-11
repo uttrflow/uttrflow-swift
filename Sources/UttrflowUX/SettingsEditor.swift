@@ -45,6 +45,21 @@ public enum SettingsEditor {
         case .appearance(let appearance):
             // No capability to check: every Mac can draw itself light or dark.
             updated.appearance = appearance
+        case .contextLevel(let level):
+            // No capability to check: reading less never needs a permission.
+            updated.contextLevel = level
+        case .appContextLevel(let bundle, let name, let level):
+            guard !bundle.isEmpty else {
+                throw SettingsRejection(
+                    reason: "Uttrflow could not tell which app that was, so it cannot remember this.")
+            }
+            updated.contextLevelOverrides = updated.contextLevelOverrides.setting(
+                level, for: bundle, named: name)
+        case .forgetAppContextLevel(let bundle):
+            updated.contextLevelOverrides = updated.contextLevelOverrides.removing(bundle)
+        case .microphone(let uid):
+            // An absent device is kept: capture falls back to the default until it is plugged in again.
+            updated.microphoneUID = uid
         case .handsFreeDoubleTap(let milliseconds):
             guard Settings.handsFreeDoubleTapChoices.contains(milliseconds) else {
                 throw SettingsRejection(reason: "Choose a listed hands-free interval.")
@@ -55,12 +70,21 @@ public enum SettingsEditor {
                 throw SettingsRejection(reason: "Choose a listed hold length.")
             }
             updated.handsFreeHoldMilliseconds = milliseconds
+        case .endOnSilence(let seconds):
+            guard seconds == 0 || SilenceStop(seconds: seconds) != nil else {
+                throw SettingsRejection(reason: "Choose a listed wait.")
+            }
+            updated.endOnSilenceSeconds = seconds
         case .retention(let days):
             try applyRetention(days: days, to: &updated)
+        case .clipboardRetention(let days):
+            try applyRetention(days: days, to: &updated, field: \.clipboardRetentionDays)
         case .cleaningStep(let step, let isOn):
             try applyCleaningStep(step, isOn: isOn, to: &updated)
         case .appDestination(let bundle, let name, let destination):
             try applyDestination(destination, for: bundle, named: name, to: &updated)
+        case .appAdapterMode(let bundle, let name, let mode):
+            try applyAdapterMode(mode, for: bundle, named: name, to: &updated)
         case .forgetAppDestination(let bundle):
             updated.destinations = updated.destinations.removing(bundle)
         case .suggestionsHere(let application, let isOn):
@@ -76,9 +100,10 @@ public enum SettingsEditor {
         case .pauseSuggestions(let isOn):
             try requireSuggestionsAreOn(in: settings)
             updated.suggestions.setPaused(isOn, at: moment)
-        case .checkForUpdatesNow, .chooseApplicationToTurnOffSuggestions, .retrySuggestionModel,
-            .exportPersonalData, .importPersonalData, .manageClipboardExclusions, .pauseClipboardCapture,
-            .openSystemSettings, .openPage:
+        case .checkForUpdatesNow, .chooseApplicationToTurnOffSuggestions, .chooseApplicationForDestination,
+            .chooseApplicationForContextLevel, .retrySuggestionModel, .exportPersonalData,
+            .importPersonalData, .manageClipboardExclusions,
+            .pauseClipboardCapture, .confirmMultilinePaste, .openSystemSettings, .openPage:
             // Named rather than left to a `default`, which would swallow the next case added.
             break
         }
@@ -113,6 +138,8 @@ public enum SettingsEditor {
         case .sendsCrashReports: settings.sendsCrashReports = isOn
         case .suggestionsEnabled: settings.suggestions.isEnabled = isOn
         case .quietSuggestions: settings.suggestions.isQuiet = isOn
+        case .learnsFromDictation: settings.learnsFromDictation = isOn
+        case .confirmsHiddenClipPaste: settings.confirmsHiddenClipPaste = isOn
         }
     }
 
@@ -152,7 +179,7 @@ public enum SettingsEditor {
             capabilities.canCheckForUpdates
                 ? nil
                 : "This build has no update feed, so there is nothing to check."
-        case .suggestionsEnabled, .sendsCrashReports:
+        case .suggestionsEnabled, .sendsCrashReports, .learnsFromDictation, .confirmsHiddenClipPaste:
             nil
         case .quietSuggestions:
             settings.suggestions.isEnabled ? nil : suggestionsAreOff
@@ -238,7 +265,10 @@ public enum SettingsEditor {
 
     /// Refuses Dictate key combinations that type into the focused app or invoke macOS actions.
     private static func dictateCombinationConflict(_ binding: HotkeyBinding) -> String? {
-        if binding.modifiers.contains(.option), printableKeyCodes.contains(binding.keyCode) {
+        // Option types a character only alone or with Shift; Control or Command turns it into a shortcut.
+        if binding.modifiers.contains(.option), binding.modifiers.isSubset(of: [.option, .shift]),
+            printableKeyCodes.contains(binding.keyCode)
+        {
             return
                 "Option with a character key can type into the app you are using. Choose another Dictate shortcut."
         }
@@ -288,7 +318,7 @@ public enum SettingsEditor {
         if case .unavailable(let reason) = capabilities.foundationModelAvailability {
             return reason.diagnosticDescription + ". Uttrflow will still apply its rules."
         }
-        return "Full tidying is not available on this Mac yet, so Uttrflow will still apply its rules."
+        return "Full clean-up is not available on this Mac yet, so Uttrflow will still apply its rules."
     }
 
     // MARK: - Languages
@@ -344,6 +374,26 @@ public enum SettingsEditor {
             destination, for: bundleIdentifier, named: name)
     }
 
+    private static func applyAdapterMode(
+        _ mode: AdapterMode,
+        for bundleIdentifier: String,
+        named name: String?,
+        to settings: inout Settings
+    ) throws(SettingsRejection) {
+        guard !bundleIdentifier.isEmpty else {
+            throw SettingsRejection(
+                reason: "Uttrflow could not tell which app that was, so it cannot remember this.")
+        }
+        // An app nobody has overridden has nothing to keep when the answer is the default one.
+        if mode == .auto, settings.destinations.mode(forBundleIdentifier: bundleIdentifier) == .auto {
+            return
+        }
+        let table = SettingsDestinations.automaticDestination(
+            for: SettingsApp(bundleIdentifier: bundleIdentifier, name: name))
+        settings.destinations = settings.destinations.setting(
+            mode: mode, for: bundleIdentifier, named: name, fallback: table)
+    }
+
     // MARK: - Forgetting
 
     /// Why a reset cannot be asked for, shared by the row and by ``SettingsSession/request(_:)``.
@@ -356,6 +406,9 @@ public enum SettingsEditor {
                 ? nil : "Uttrflow has not picked up any words of its own yet."
         case .everything:
             // Always available: there are always preferences to put back.
+            nil
+        case .clipboardHistory:
+            // The history is not counted here, and clearing an empty one is harmless.
             nil
         case .suggestions(let application):
             personalisation.suggestions(from: application) > 0
@@ -377,6 +430,8 @@ public enum SettingsEditor {
         switch reset {
         case .learnedWords, .suggestions, .persona, .personaFact:
             "Uttrflow could not write to the disk, so nothing was forgotten. Try again."
+        case .clipboardHistory:
+            "Uttrflow could not write to the disk, so some clips may still be here. Try again."
         case .everything:
             "Uttrflow could not write to the disk, so some of this may still be here. Try again."
         }
@@ -387,12 +442,13 @@ public enum SettingsEditor {
     /// Writes a retention period, refusing any the store would not round-trip.
     private static func applyRetention(
         days: Int,
-        to settings: inout Settings
+        to settings: inout Settings,
+        field: WritableKeyPath<Settings, Int> = \.transcriptRetentionDays
     ) throws(SettingsRejection) {
         guard SettingsRetention.offeredDays.contains(days) else {
             throw SettingsRejection(
                 reason: "Choose one of the periods offered; anything else is not kept.")
         }
-        settings.transcriptRetentionDays = days
+        settings[keyPath: field] = days
     }
 }

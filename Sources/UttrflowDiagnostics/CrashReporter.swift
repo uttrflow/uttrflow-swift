@@ -1,6 +1,7 @@
 // Opt-in crash and hang reports: when the reporter runs, what it is allowed to collect, and the scrubbing of each event.
 import Foundation
 public import Sentry
+public import UttrflowCore
 
 import struct Synchronization.Mutex
 
@@ -21,22 +22,22 @@ public final class CrashReporter: Sendable {
     public let dsn: String?
     /// `uttrflow@<version>+<build>`, or `nil` when the bundle does not say.
     public let release: String?
+    /// The quality layers this launch runs, written as the one tag a report keeps.
+    public let layers: QualityLayers
     /// Starts and stops the SDK.
     private let sdk: any CrashReportingSDK
-    /// Told once for each event that survives scrubbing, which is each one that leaves this Mac.
-    private let onSend: @Sendable () -> Void
     /// Whether the SDK is running.
     private let running = Mutex(false)
 
     /// Reads the DSN and release from `info`, which is the bundle's Info.plist.
     public init(
-        info: [String: Any], sdk: any CrashReportingSDK, onSend: @escaping @Sendable () -> Void = {}
+        info: [String: Any], sdk: any CrashReportingSDK, layers: QualityLayers = QualityLayers()
     ) {
         self.dsn = (info[Self.dsnKey] as? String).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .flatMap { $0.isEmpty ? nil : $0 }
         self.release = Self.release(in: info)
+        self.layers = layers
         self.sdk = sdk
-        self.onSend = onSend
     }
 
     /// Whether reports are being collected.
@@ -53,8 +54,8 @@ public final class CrashReporter: Sendable {
         guard let change else { return }
         if change, let dsn {
             let release = release
-            let onSend = onSend
-            sdk.start { Self.configure($0, dsn: dsn, release: release, onSend: onSend) }
+            let layers = layers
+            sdk.start { Self.configure($0, dsn: dsn, release: release, layers: layers) }
         } else {
             sdk.close()
         }
@@ -70,7 +71,7 @@ public final class CrashReporter: Sendable {
 
     /// Crashes and hangs only: no PII, no tracing, no breadcrumbs, and every event scrubbed before it leaves.
     public static func configure(
-        _ options: Options, dsn: String, release: String?, onSend: @escaping @Sendable () -> Void = {}
+        _ options: Options, dsn: String, release: String?, layers: QualityLayers = QualityLayers()
     ) {
         options.dsn = dsn
         options.releaseName = release
@@ -91,12 +92,14 @@ public final class CrashReporter: Sendable {
         options.enableCrashHandler = true
         options.enableAppHangTracking = true
         options.enableAutoSessionTracking = true
-        options.beforeSend = { event in
-            let scrubbed = scrub(event)
-            if scrubbed != nil { onSend() }
-            return scrubbed
-        }
+        options.urlSession = CrashReportSession.make()
+        options.beforeSend = { event in scrub(event) }
         options.beforeBreadcrumb = { _ in nil }
+        let tag = layersTag(layers)
+        options.initialScope = { scope in
+            scope.setTag(value: tag, key: layersTagKey)
+            return scope
+        }
     }
 
     // MARK: - Scrubbing
@@ -108,6 +111,26 @@ public final class CrashReporter: Sendable {
         "app": ["app_version", "app_build", "app_identifier", "app_name", "build_type"],
     ]
 
+    /// The one tag a report keeps: which quality layers ran, so a crash can be tied to a layer.
+    static let layersTagKey = "layers"
+
+    /// The enabled layers' identifiers, comma-separated in declaration order, or `none`.
+    static func layersTag(_ layers: QualityLayers) -> String {
+        layers.names.isEmpty ? "none" : layers.names.joined(separator: ",")
+    }
+
+    /// The layers tag rebuilt from `value` when every part names a layer, or `nil` when anything else is in it.
+    static func keptLayersTag(_ value: String?) -> String? {
+        guard let value else { return nil }
+        if value == "none" { return value }
+        var enabled = Set<QualityLayer>()
+        for name in value.split(separator: ",", omittingEmptySubsequences: false) {
+            guard let layer = QualityLayer(rawValue: String(name)) else { return nil }
+            enabled.insert(layer)
+        }
+        return layersTag(QualityLayers(enabled: enabled))
+    }
+
     /// Hang kinds, whose value the SDK writes; a crash's value can carry a Swift trap's message, so it never leaves.
     static let sdkWrittenValues: Set<String> = ["AppHang", "app_hang"]
 
@@ -118,7 +141,7 @@ public final class CrashReporter: Sendable {
         event.serverName = nil
         event.breadcrumbs = nil
         event.extra = nil
-        event.tags = nil
+        event.tags = keptLayersTag(event.tags?[layersTagKey]).map { [layersTagKey: $0] }
         event.modules = nil
         event.request = nil
         event.message = nil
@@ -177,5 +200,49 @@ public final class CrashReporter: Sendable {
             return trimmed.hasPrefix("~") && trimmed.split(separator: "/").count <= 1
                 ? "~" : lastComponent(trimmed)
         }
+    }
+}
+
+/// Counts session envelopes and redirected requests at task creation without widening a shared module API.
+enum CrashReportSession {
+    static func make(
+        ledger: NetworkActivityLedger = .shared,
+        configuration: URLSessionConfiguration = .ephemeral
+    ) -> URLSession {
+        URLSession(
+            configuration: configuration,
+            delegate: CrashReportRequestCounter(ledger: ledger),
+            delegateQueue: nil)
+    }
+}
+
+private final class CrashReportRequestCounter: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    private let ledger: NetworkActivityLedger
+
+    init(ledger: NetworkActivityLedger) {
+        self.ledger = ledger
+    }
+
+    func urlSession(_ session: URLSession, didCreateTask task: URLSessionTask) {
+        countCreatedCrashRequest()
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping (URLRequest?) -> Void
+    ) {
+        countRedirectedCrashRequest()
+        completionHandler(request)
+    }
+
+    private func countCreatedCrashRequest() {
+        ledger.record(.crashReport)
+    }
+
+    private func countRedirectedCrashRequest() {
+        ledger.record(.crashReport)
     }
 }

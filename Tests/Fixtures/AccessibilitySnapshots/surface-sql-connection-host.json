@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "family": "SQL client: connection dialog host",
+  "windowTitle": "New Connection",
+  "document": null,
+  "focused": {
+    "attributes": {
+      "AXRole": { "kind": "value", "text": "AXTextField" },
+      "AXSubrole": { "kind": "noValue" },
+      "AXIdentifier": { "kind": "unsupported" },
+      "AXTitle": { "kind": "value", "text": "Host" },
+      "AXPlaceholderValue": { "kind": "noValue" },
+      "AXDescription": { "kind": "noValue" },
+      "AXNumberOfCharacters": { "kind": "value", "number": 0 },
+      "AXValue": { "kind": "value", "text": "" }
+    },
+    "rangedText": { "kind": "value" },
+    "children": []
+  }
+}

@@ -67,6 +67,11 @@ struct OneAppTableTests {
         DestinationClassifier.classify(AppContext(bundleIdentifier: identifier)) != .plain
     }
 
+    /// Whether the table knows the identifier or it is one the package names on purpose without a row.
+    private func isAccountedFor(_ identifier: String) -> Bool {
+        isKnown(identifier) || BundleIdentifierLiteralTests.resolves(identifier)
+    }
+
     /// An audit that scans nothing reports success, so the scan proves it found the source first.
     @Test("the scan reads the shipped source")
     func theScanReadsSomething() throws {
@@ -77,7 +82,7 @@ struct OneAppTableTests {
     @Test("every app the source names is one the table knows")
     func everyNamedAppIsClassified() throws {
         let unknown = try namedIdentifiers()
-            .filter { !Self.owed.contains($0.key) && !isKnown($0.key) }
+            .filter { !Self.owed.contains($0.key) && !isAccountedFor($0.key) }
             .map { "\($0.key) (\($0.value[0]))" }
             .sorted()
         #expect(

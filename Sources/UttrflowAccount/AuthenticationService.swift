@@ -72,6 +72,9 @@ public protocol AuthenticationService: Sendable {
     /// Forgets the credential locally, then tells the server; never throws, as signing out must work offline.
     func signOut() async
 
+    /// Deletes the account on the server, then forgets the session here; throws unless the server confirmed it.
+    func deleteAccount() async throws(AccountError)
+
     /// Whether sign-in mints a stand-in account on this Mac instead of asking a real provider.
     var signsInAsStandIn: Bool { get }
 }

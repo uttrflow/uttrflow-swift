@@ -20,17 +20,70 @@ public enum FunctionWords {
         return meaningBearing.contains(key)
     }
 
+    /// Whether a capital on this small word can name something, as "I", the month "May" and the name "Will" do, so the capital is the speaker's.
+    package static func isCaseSensitive(_ word: String) -> Bool {
+        caseSensitive.contains(word.lowercased().replacingOccurrences(of: "\u{2019}", with: "'"))
+    }
+
+    /// Small words a capital turns into a name or the pronoun "I".
+    static let caseSensitive = words(in: .caseSensitive)
+
     /// Pronouns, modals, copula and perfect aux, and prepositions that set a direction; their removal or substitution changes what was said.
     public static let meaningBearing = words(in: .meaningBearing)
 
     /// Articles, demonstratives and possessives, which mark the noun after them as a common noun ("my", "the").
     public static let determiners = words(in: .determiner)
 
+    /// Articles and plural demonstratives code is never dictated with, so any of them marks an utterance as prose.
+    public static let prose = words(in: .prose)
+
     /// Articles, possessives, conjunctions, prepositions that take an object, and the copula.
     static let leadingOn = words(in: .leadsOn)
 
+    /// Auxiliaries and modals, which a following "not" negates ("is not", "can not").
+    package static let auxiliaries = words(in: .auxiliary)
+
+    /// Conjunctions that open a clause which cannot stand as a sentence by itself ("if", "unless", "whereas").
+    static let subordinators = words(in: .subordinator)
+
+    /// English words that ask for agreement when they close a Hindi sentence ("right", "okay", "no").
+    static let closingTags = words(in: .closingTag)
+
     /// Articles, determiners, prepositions, conjunctions, auxiliaries and pronouns, English and romanised Hindi; dialect stays content.
-    public static let all = words(in: .function).union(HindiWords.functionWords)
+    public static let all = english.union(HindiWords.functionWords)
+
+    /// The English small words alone.
+    package static let english = words(in: .function)
+
+    /// Determiners a sentence-boundary check reads as opening a noun phrase.
+    static let boundaryDeterminers = words(in: .boundaryDeterminer)
+
+    /// Words that cannot close a sentence, whatever the tagger reads them as ("of", "with", "because").
+    static let neverLast = words(in: .neverLast)
+
+    /// Words that cannot open a sentence, so a stop before them is a stop inside a phrase ("to", "toward").
+    static let neverFronted = words(in: .neverFronted)
+
+    /// Object pronouns an imperative takes straight after its verb ("let it", "give them").
+    static let imperativeObjects = words(in: .imperativeObject)
+
+    /// Words a bare verb follows inside one clause, beyond the inverting verbs ("do", "must", "let").
+    static let bareVerbLeaders = words(in: .bareVerbLeader)
+
+    /// Modal verbs, which need a verb after them.
+    static let modals = words(in: .modal)
+
+    /// Prepositions that take an object after a comma.
+    static let commaPrepositions = words(in: .commaPreposition)
+
+    /// Prepositions that close a phrasal verb ("hold on, wait").
+    static let seamPrepositions = words(in: .seamPreposition)
+
+    /// Verbs that are everyday words and name an HTTP method when a path follows ("get", "post", "delete").
+    package static let httpMethods = words(in: .httpMethod)
+
+    /// Words after a spoken "x" that show it is a multiplier ("ten x faster").
+    package static let multiplierComparisons = words(in: .multiplierComparison)
 
     /// The bundled word list; a word is added by adding its row to `function-words.json`.
     static let table = DataTable<Row>.load("function-words", schema: 1, from: .module, fallback: [])
@@ -41,7 +94,9 @@ public enum FunctionWords {
 
     /// The lists a small word belongs to.
     enum Role: String, Decodable, Sendable {
-        case function, leadsOn, meaningBearing, determiner
+        case function, leadsOn, meaningBearing, caseSensitive, determiner, prose, subordinator, closingTag,
+            auxiliary, boundaryDeterminer, neverLast, neverFronted, imperativeObject, bareVerbLeader, modal,
+            commaPreposition, seamPreposition, httpMethod, multiplierComparison
     }
 
     /// One small word and the lists it belongs to.

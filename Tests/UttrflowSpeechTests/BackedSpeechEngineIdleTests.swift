@@ -9,7 +9,9 @@ import UttrflowTestSupport
 @Suite("BackedSpeechEngine idle release")
 struct BackedSpeechEngineIdleTests {
     private func audio(seconds: Double) -> AudioSamples {
-        .canonical(Array(repeating: 0.1, count: Int(Double(AudioSamples.canonicalSampleRate) * seconds)))
+        // A tone, not a constant level: loudness is measured about the frame's mean, so a DC level is silence.
+        let count = Int(Double(AudioSamples.canonicalSampleRate) * seconds)
+        return .canonical((0..<count).map { 0.1 * Float(sin(Double($0) * 0.07)) })
     }
 
     @Test("an engine with no idle window never lets the recogniser go")

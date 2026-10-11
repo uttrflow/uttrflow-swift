@@ -25,7 +25,7 @@ struct HomeChromeTests {
     @Test("the collapsed sidebar is wide enough to hold the traffic lights")
     func railHoldsTheTrafficLights() throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let controller = app.makeMainWindow()
         app.mainWindow = controller
         controller.show(.home)

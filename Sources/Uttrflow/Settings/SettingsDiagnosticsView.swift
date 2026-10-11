@@ -21,6 +21,9 @@ struct SettingsDiagnosticsView: View {
                     ForEach(presentation.models) { SettingsModelCardView(card: $0) }
                 }
             }
+            section("Model storage") {
+                rows(presentation.storage)
+            }
             section("This Mac") {
                 rows(presentation.system + presentation.permissions + presentation.availability)
             }
@@ -38,6 +41,16 @@ struct SettingsDiagnosticsView: View {
             if !presentation.decoding.isEmpty {
                 section("Recognition effort") {
                     rows(presentation.decoding)
+                }
+            }
+            if !presentation.waits.isEmpty {
+                section("Wait after release") {
+                    rows(presentation.waits)
+                }
+            }
+            if !presentation.captureSkips.isEmpty {
+                section("Suggestion lines not learned") {
+                    rows(presentation.captureSkips)
                 }
             }
             if !presentation.reliability.isEmpty {
@@ -157,7 +170,7 @@ struct SettingsDiagnosticsView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text("Copy diagnostics")
                     .font(.system(size: 13.5))
-                Text("For a bug report; contains no transcripts")
+                Text("For a bug report; contains no dictations")
                     .font(.system(size: 11.5))
                     .foregroundStyle(PagePalette.faint)
             }

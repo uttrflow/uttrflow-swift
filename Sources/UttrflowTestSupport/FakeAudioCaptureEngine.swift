@@ -7,6 +7,7 @@ public actor FakeAudioCaptureEngine: AudioCaptureEngine {
         case start
         case stop
         case cancel
+        case cancelKeepingRecording
     }
 
     public let calls = CallLog<Event>()
@@ -45,6 +46,11 @@ public actor FakeAudioCaptureEngine: AudioCaptureEngine {
 
     public func cancel() async {
         await calls.append(.cancel)
+        currentState = .idle
+    }
+
+    public func cancelKeepingRecording() async {
+        await calls.append(.cancelKeepingRecording)
         currentState = .idle
     }
 

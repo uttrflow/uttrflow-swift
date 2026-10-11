@@ -163,6 +163,10 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
     public let speechModel: DiagnosticsModelPresence?
     /// Whether the speech model can dictate, from the same state Home, the menu bar and the floating button read.
     public let speechReadiness: SpeechModelReadiness?
+    /// Why the last speech model load failed; absent when it did not, or nobody asked.
+    public let speechLoadFailure: SpeechLoadFailureClass?
+    /// How many recent pieces in a row were decoded without the user's words, from the local recorder.
+    let unconditionedRun: Int
     /// What macOS has granted, for every permission asked about.
     public let permissions: [PermissionKind: PermissionStatus]
     /// Whether the dictation shortcut is armed; absent when its state has not been checked.
@@ -171,16 +175,28 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
     public let hasDefaultInputDevice: Bool?
     /// Every stage timing recorded since the app started.
     public let measurements: [StageMeasurement]
+    /// Counts of suggestion lines capture excluded, by closed reason.
+    public let captureSkips: [CaptureSkipReason: Int]
     /// The words the active recogniser last kept in its prompt, from the local recorder.
     public let vocabularyPrompt: [String]
     /// The bounded per-piece decode effort recorded since the app started.
     public let decoding: [DecodeEffort]
+    /// The decoder's judgement of each recent segment; empty when the engine reports none.
+    public let segmentReliability: [SegmentReliability]
+    /// The last dictations' waits after key-up, each with the cause named for it.
+    public let waits: [TimedWait]
     /// The speech model's last loads, oldest first, kept across launches.
     public let speechModelLoads: [SpeechModelLoadRecord]
     /// What the clean-up steps did to the last dictation, absent until one has been tidied.
     public let cleaning: CleaningRecord?
     /// Which engine tidied the last inserted dictation, including `.untidied` when none did.
     public let lastCleanedBy: TransformerKind?
+    /// How the tidy route ended for recent pieces, per engine.
+    public let tidyTally: TidyTally
+    /// Why the last dictation's screen read carried no field text, or `nil` when it did or none was read.
+    public let screenTextUnavailable: ContextUnavailableReason?
+    /// Which rung answered each screen read since launch, per application, without field text.
+    public let readRungs: ContextReadTally
     /// How far along the model AI suggestions need is.
     public let suggestionModel: SuggestionModelReadiness
     /// Which build is running.
@@ -191,6 +207,8 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
     public let arrivals: [RecordedArrival?]
     /// Which quality layers the running pipeline was built with.
     let qualityLayers: QualityLayers
+    /// Why the learned-state ledger cannot be used, or `nil` when it can or there is none.
+    let learnedState: EvidenceLedgerError?
 
     /// Builds a snapshot; everything defaults to not yet checked.
     public init(
@@ -199,40 +217,58 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         transformerAvailability: [TransformerKind: Bool] = [:],
         speechModel: DiagnosticsModelPresence? = nil,
         speechReadiness: SpeechModelReadiness? = nil,
+        speechLoadFailure: SpeechLoadFailureClass? = nil,
+        unconditionedRun: Int = 0,
         permissions: [PermissionKind: PermissionStatus] = [:],
         dictationShortcutArmed: Bool? = nil,
         hasDefaultInputDevice: Bool? = nil,
         measurements: [StageMeasurement] = [],
+        captureSkips: [CaptureSkipReason: Int] = [:],
         vocabularyPrompt: [String] = [],
         decoding: [DecodeEffort] = [],
+        segmentReliability: [SegmentReliability] = [],
+        waits: [TimedWait] = [],
         speechModelLoads: [SpeechModelLoadRecord] = [],
         cleaning: CleaningRecord? = nil,
+        tidyTally: TidyTally = TidyTally(),
+        screenTextUnavailable: ContextUnavailableReason? = nil,
+        readRungs: ContextReadTally = ContextReadTally(),
         lastCleanedBy: TransformerKind? = nil,
         suggestionModel: SuggestionModelReadiness = .notAsked,
         version: AppVersion = .unknown,
         machine: String? = nil,
         arrivals: [RecordedArrival?] = [],
-        qualityLayers: QualityLayers = QualityLayers()
+        qualityLayers: QualityLayers = QualityLayers(),
+        learnedState: EvidenceLedgerError? = nil
     ) {
         self.engines = engines
         self.speechInUse = speechInUse
         self.transformerAvailability = transformerAvailability
         self.speechModel = speechModel
         self.speechReadiness = speechReadiness
+        self.speechLoadFailure = speechLoadFailure
+        self.unconditionedRun = unconditionedRun
         self.permissions = permissions
         self.dictationShortcutArmed = dictationShortcutArmed
         self.hasDefaultInputDevice = hasDefaultInputDevice
         self.measurements = measurements
+        self.captureSkips = captureSkips
         self.vocabularyPrompt = vocabularyPrompt
         self.decoding = decoding
+        self.segmentReliability = segmentReliability
+        self.waits = waits
         self.speechModelLoads = speechModelLoads
         self.cleaning = cleaning
+        self.tidyTally = tidyTally
+        self.screenTextUnavailable = screenTextUnavailable
+        self.readRungs = readRungs
         self.lastCleanedBy = lastCleanedBy
         self.suggestionModel = suggestionModel
         self.version = version
         self.machine = machine
         self.arrivals = arrivals
         self.qualityLayers = qualityLayers
+        self.learnedState = learnedState
     }
 }
 
@@ -269,6 +305,10 @@ public struct DiagnosticsPresentation: Sendable, Equatable {
     public let reliability: [MainStatistic]
     /// Aggregate counts of pieces that took extra decodes and empty-result retries.
     public let decoding: [DiagnosticsRow]
+    /// The wait after key-up per dictation, and how often each cause made it run past the target.
+    public let waits: [DiagnosticsRow]
+    /// Why suggestion lines were not learned, counted without keeping their words.
+    public let captureSkips: [DiagnosticsRow]
     /// How many kept dictations reached a field, by arrival. Empty until History holds one.
     public let arrivals: [DiagnosticsRow]
     /// The speech model's last loads, newest first, each saying whether a recompile explains it.
@@ -301,6 +341,8 @@ public struct DiagnosticsPresentation: Sendable, Equatable {
         latencyEmptyState: MainEmptyState?,
         reliability: [MainStatistic],
         decoding: [DiagnosticsRow],
+        waits: [DiagnosticsRow] = [],
+        captureSkips: [DiagnosticsRow] = [],
         speechModelLoads: [DiagnosticsRow] = [],
         arrivals: [DiagnosticsRow] = [],
         engines: [DiagnosticsRow],
@@ -320,6 +362,8 @@ public struct DiagnosticsPresentation: Sendable, Equatable {
         self.latencyEmptyState = latencyEmptyState
         self.reliability = reliability
         self.decoding = decoding
+        self.waits = waits
+        self.captureSkips = captureSkips
         self.speechModelLoads = speechModelLoads
         self.arrivals = arrivals
         self.engines = engines
@@ -352,7 +396,8 @@ public enum DiagnosticsPresenter {
         let engines = engineRows(for: snapshot)
         let permissions = permissionRows(for: snapshot)
         let availability = availabilityRows(for: snapshot)
-        let storage = storageRows(for: snapshot, locale: locale)
+        let storage =
+            storageRows(for: snapshot, locale: locale) + learnedStateRows(for: snapshot.learnedState)
 
         return DiagnosticsPresentation(
             summary: summary(
@@ -363,11 +408,17 @@ public enum DiagnosticsPresenter {
             latency: summaries.isEmpty ? nil : latency(for: summaries, missing: missing),
             latencyEmptyState: summaries.isEmpty ? noTimingsYet : nil,
             reliability: reliability(for: snapshot.measurements, locale: locale),
-            decoding: decodingRows(for: snapshot.decoding, locale: locale),
+            decoding: decodingRows(
+                for: snapshot.decoding, segments: snapshot.segmentReliability, locale: locale),
+            waits: waitRows(for: snapshot.waits, locale: locale),
+            captureSkips: captureSkipRows(for: snapshot.captureSkips),
             speechModelLoads: speechModelLoadRows(for: snapshot.speechModelLoads, locale: locale),
             arrivals: arrivalRows(for: snapshot.arrivals),
             engines: engines,
-            cleanUp: cleanUpRows(for: snapshot.cleaning),
+            cleanUp: cleanUpRows(for: snapshot.cleaning)
+                + screenTextRows(for: snapshot.screenTextUnavailable)
+                + readRungRows(for: snapshot.readRungs)
+                + tidyTallyRows(for: snapshot.tidyTally),
             vocabularyPrompt: DiagnosticsRow(
                 title: "Words in recogniser prompt",
                 detail: snapshot.vocabularyPrompt.isEmpty
@@ -381,6 +432,20 @@ public enum DiagnosticsPresenter {
             footnote: footnote,
             copyAction: MainAction(
                 title: "Copy Diagnostics", intent: .copy(report(for: snapshot, locale: locale))))
+    }
+
+    /// Names only the fixed detector reasons, never the line that was skipped.
+    static func captureSkipRows(for counts: [CaptureSkipReason: Int]) -> [DiagnosticsRow] {
+        CaptureSkipReason.allCases.compactMap { reason in
+            guard let count = counts[reason], count > 0 else { return nil }
+            let title: String
+            switch reason {
+            case .insertedText: title = "Text not typed"
+            case .unmatchedKeys: title = "Text did not match typed keys"
+            }
+            return DiagnosticsRow(
+                title: title, detail: MainFormatting.count(count, "line", "lines"), state: .unknown)
+        }
     }
 
     // MARK: - Models
@@ -421,7 +486,9 @@ public enum DiagnosticsPresenter {
         case .loading:
             return card(downloaded, facts(snapshot.speechModel, locale: locale), "Loading", .unknown)
         case .failed(let fix):
-            let status = fix == .downloadSpeechModel ? damaged : "Failed to load"
+            let failed =
+                snapshot.speechLoadFailure.map { "Failed to load: \($0.summary)" } ?? "Failed to load"
+            let status = fix == .downloadSpeechModel ? damaged : failed
             return card(downloaded, facts(snapshot.speechModel, locale: locale), status, .attention)
         case .ready:
             return card(
@@ -454,6 +521,10 @@ public enum DiagnosticsPresenter {
         case .loadFailed where inUse: return .failed(.retry)
         case .loadFailedAgain where inUse: return .failed(.downloadSpeechModel)
         case .ready, .loading, .loadFailed, .loadFailedAgain, nil: break
+        }
+        // A model that loads but keeps decoding unconditioned has lost its tokenizer, which a fresh download repairs.
+        if inUse, snapshot.unconditionedRun >= DecodeConditioning.repairThreshold {
+            return .failed(.downloadSpeechModel)
         }
         guard let model = snapshot.speechModel else { return .unchecked }
         return model.isInstalled ? .ready : .notInstalled
@@ -508,6 +579,8 @@ public enum DiagnosticsPresenter {
             case .loading: ("Loading", .unknown)
             case .ready: ("Loaded", .good)
             case .releasedForMemory: ("Set aside for memory", .unknown)
+            case .insufficientSpace(let neededBytes):
+                ("Needs \(neededBytes.formatted(.byteCount(style: .file))) free", .attention)
             case .fetchFailed, .failed: ("Could not be fetched", .attention)
             case .loadFailed: ("Could not be loaded", .attention)
             }
@@ -579,7 +652,8 @@ public enum DiagnosticsPresenter {
 
     /// Counts only aggregate decode outcomes, never the pieces or their words.
     static func decodingRows(
-        for decoding: [DecodeEffort], locale: Locale = .autoupdatingCurrent
+        for decoding: [DecodeEffort], segments: [SegmentReliability] = [],
+        locale: Locale = .autoupdatingCurrent
     ) -> [DiagnosticsRow] {
         guard !decoding.isEmpty else { return [] }
         let repeated = decoding.count { $0.fallbacks > 0 || $0.retriedWithoutPrompt }
@@ -593,6 +667,64 @@ public enum DiagnosticsPresenter {
                 detail: MainFormatting.count(retried, "retry", "retries"), state: .good),
         ]
         return rows + [recognitionSplitRow(for: decoding, locale: locale)].compactMap(\.self)
+            + segmentRows(for: segments, locale: locale)
+    }
+
+    /// How the decoder judges its segments, as counts and spreads only; nothing when no engine reports it.
+    static func segmentRows(for segments: [SegmentReliability], locale: Locale) -> [DiagnosticsRow] {
+        guard !segments.isEmpty else { return [] }
+        let hotter = segments.count { $0.temperature > 0 }
+        let scores = segments.map(\.averageLogProbability).sorted()
+        func value(_ number: Double) -> String {
+            number.formatted(.number.locale(locale).grouping(.never).precision(.fractionLength(2)))
+        }
+        return [
+            DiagnosticsRow(
+                title: "Segments kept from a hotter decode",
+                detail: "\(hotter) of \(segments.count) segments", state: .good),
+            DiagnosticsRow(
+                title: "Segment log-probability, p50 / lowest",
+                detail: value(scores[(scores.count - 1) / 2]) + " / " + value(scores[0]), state: .good),
+        ]
+    }
+
+    /// The wait after key-up at p50 and p95 over the kept dictations, then one row per cause named.
+    static func waitRows(
+        for waits: [TimedWait], locale: Locale = .autoupdatingCurrent
+    ) -> [DiagnosticsRow] {
+        let log = DictationWaits(waits)
+        guard let typical = log.typical, let tail = log.tail else { return [] }
+        let over = log.timed.count { $0.cause != nil }
+        let counts = log.causeCounts
+        let causes = SlowDictationCause.allCases.compactMap { cause -> DiagnosticsRow? in
+            guard let count = counts[cause] else { return nil }
+            return DiagnosticsRow(
+                title: title(for: cause), detail: MainFormatting.count(count, "dictation", "dictations"),
+                state: .good)
+        }
+        return [
+            DiagnosticsRow(
+                title: "Wait after release, p50 / p95",
+                detail: MainFormatting.secondsValue(typical, locale: locale) + " / "
+                    + MainFormatting.secondsValue(tail, locale: locale), state: .good),
+            DiagnosticsRow(
+                title: "Over the \(MainFormatting.secondsValue(DictationWait.target, locale: locale)) target",
+                detail: "\(over) of \(log.timed.count) dictations", state: .good),
+        ] + causes
+    }
+
+    /// How a cause of a slow wait is named on the page.
+    static func title(for cause: SlowDictationCause) -> String {
+        switch cause {
+        case .modelLoad: "Loading the speech model"
+        case .fallbackDecode: "Decoding again at a higher temperature"
+        case .cappedDecodeRetry: "Decoding a piece again after a cut-off"
+        case .tidyTimeout: "Clean-up ran out of time"
+        case .tidyColdSession: "Starting clean-up"
+        case .contextRead: "Reading the field"
+        case .insertionConfirmation: "Placing the words"
+        case .other: "Nothing named"
+        }
     }
 
     /// One row per kept load, newest first: when, how long, on which macOS build and model revision, and why.
@@ -699,7 +831,7 @@ public enum DiagnosticsPresenter {
         case .drain: "Finishing the piece already under way"
         case .transcription: "Transcribing"
         case .correction: "Checking the dictionary"
-        case .transformation: "Tidying up"
+        case .transformation: "Clean-up"
         case .expansion: "Expanding snippets"
         case .insertion: "Inserting"
         }
@@ -834,15 +966,63 @@ public enum DiagnosticsPresenter {
                 title: "Stage skipped", detail: "\($0.stage.rawValue): \($0.reason.rawValue)",
                 state: .attention)
         }
+        // Without a tokenizer the decode had no vocabulary prompt or bias, which nothing else in the dictation shows.
+        let unconditioned: [DiagnosticsRow] =
+            record.conditioning == .available
+            ? []
+            : [
+                DiagnosticsRow(
+                    title: "Recognition", detail: "Ran without your words (tokenizer unavailable)",
+                    state: .attention)
+            ]
         guard changed.isEmpty, off.isEmpty, refused.isEmpty, unavailable.isEmpty, failures.isEmpty,
-            skipped.isEmpty
+            skipped.isEmpty, unconditioned.isEmpty
         else {
-            return skipped + unavailable + failures + refused + changed + off
+            return unconditioned + skipped + unavailable + failures + refused + changed + off
         }
         return [
             DiagnosticsRow(
                 title: "Clean-up steps", detail: "Nothing needed changing", state: .good)
         ]
+    }
+
+    /// Why the last dictation read no field text, so a blank screen is never taken for an empty field.
+    static func screenTextRows(for unavailable: ContextUnavailableReason?) -> [DiagnosticsRow] {
+        guard let unavailable else { return [] }
+        return [
+            DiagnosticsRow(title: "Screen text", detail: "none (\(name(of: unavailable)))", state: .unknown)
+        ]
+    }
+
+    /// The reason as Diagnostics words it.
+    static func name(of unavailable: ContextUnavailableReason) -> String {
+        switch unavailable {
+        case .notTrusted: "not trusted"
+        case .noFocusedElement: "no focused field"
+        case .refused: "refused"
+        case .timedOut: "timed out"
+        case .secure: "secure"
+        case .notTextSurface: "no text surface"
+        case .restricted: "restricted by your setting"
+        }
+    }
+
+    /// One row per application counting which rung answered its screen reads; nothing before the first read.
+    static func readRungRows(for tally: ContextReadTally) -> [DiagnosticsRow] {
+        tally.entries.map {
+            DiagnosticsRow(title: "Screen reads, \($0.bundleIdentifier)", detail: $0.counts, state: .unknown)
+        }
+    }
+
+    /// One row per engine counting how its last pieces ended; nothing while no piece was tidied.
+    static func tidyTallyRows(for tally: TidyTally) -> [DiagnosticsRow] {
+        guard !tally.outcomes.isEmpty else { return [] }
+        let pieces = tally.outcomes.count
+        return tally.entries.map {
+            DiagnosticsRow(
+                title: "Clean-up outcomes, \($0.name), last \(pieces) pieces",
+                detail: $0.counts, state: .unknown)
+        }
     }
 
     /// What one step did, in the first few words it did it to and a count of the rest.
@@ -868,6 +1048,8 @@ public enum DiagnosticsPresenter {
             }
             + record.engineFailures.map { "  engine failed (\($0.engine)): \($0.failureClass.summary)" }
             + record.skippedStages.map { "  stage skipped (\($0.stage.rawValue)): \($0.reason.rawValue)" }
+            + (record.conditioning == .available
+                ? [] : ["  recognition ran without conditioning: tokenizer unavailable"])
     }
 
     // MARK: - Permissions
@@ -969,6 +1151,34 @@ public enum DiagnosticsPresenter {
         }
     }
 
+    /// A row only when the learned-state file is set aside, since what was learned is then not in use.
+    static func learnedStateRows(for refusal: EvidenceLedgerError?) -> [DiagnosticsRow] {
+        switch refusal {
+        case nil:
+            return []
+        case .newerVersion:
+            return [
+                DiagnosticsRow(
+                    title: "Learned state",
+                    detail: "Saved by a newer version of Uttrflow, so it is left untouched and not used",
+                    state: .attention)
+            ]
+        case .unreadable:
+            return [
+                DiagnosticsRow(
+                    title: "Learned state", detail: "Could not be read, so it is left untouched and not used",
+                    state: .attention)
+            ]
+        case .setAside:
+            return [
+                DiagnosticsRow(
+                    title: "Learned state",
+                    detail: "Could not be read, so it was kept aside and rebuilt from History",
+                    state: .attention)
+            ]
+        }
+    }
+
     // MARK: - Copying it out
 
     /// The same facts as plain text for a bug report, built from the page so the two cannot differ.
@@ -996,9 +1206,22 @@ public enum DiagnosticsPresenter {
         if snapshot.decoding.isEmpty {
             lines += ["", "Decode effort: none recorded yet"]
         } else {
-            let decoding = decodingRows(for: snapshot.decoding, locale: locale)
+            let decoding = decodingRows(
+                for: snapshot.decoding, segments: snapshot.segmentReliability, locale: locale)
             lines += ["", "Decode effort (\(snapshot.decoding.count) pieces)"]
             lines += decoding.map { "  \($0.title): \($0.detail)" }
+        }
+
+        let waits = waitRows(for: snapshot.waits, locale: locale)
+        if !waits.isEmpty {
+            lines += ["", "Wait after release (\(snapshot.waits.count) dictations)"]
+            lines += waits.map { "  \($0.title): \($0.detail)" }
+        }
+
+        let captureSkips = captureSkipRows(for: snapshot.captureSkips)
+        if !captureSkips.isEmpty {
+            lines += ["", "Suggestion lines not learned"]
+            lines += captureSkips.map { "  \($0.title): \($0.detail)" }
         }
 
         let arrivals = arrivalRows(for: snapshot.arrivals)
@@ -1014,6 +1237,18 @@ public enum DiagnosticsPresenter {
         if !counted.isEmpty {
             lines += ["", "Clean-up steps, last dictation"] + counted
         }
+        // The reason only, never the field: this string is pasted elsewhere.
+        if let screenText = screenTextRows(for: snapshot.screenTextUnavailable).first {
+            lines += ["", "\(screenText.title): \(screenText.detail)"]
+        }
+        // Summed across applications, never per app: this string is pasted elsewhere.
+        if !snapshot.readRungs.counts.isEmpty {
+            lines += ["", "Screen reads by rung, all apps: \(snapshot.readRungs.allApplications)"]
+        }
+        if !snapshot.tidyTally.outcomes.isEmpty {
+            lines += ["", "Clean-up outcomes, last \(snapshot.tidyTally.outcomes.count) pieces"]
+            lines += snapshot.tidyTally.lines.map { "  \($0)" }
+        }
 
         let models = models(for: snapshot, locale: locale).map {
             DiagnosticsRow(title: $0.title, detail: $0.status, state: $0.state)
@@ -1023,7 +1258,10 @@ public enum DiagnosticsPresenter {
             ("Engines", engineRows(for: snapshot)),
             ("Permissions", permissionRows(for: snapshot)),
             ("Availability", availabilityRows(for: snapshot)),
-            ("On disk", storageRows(for: snapshot, locale: locale)),
+            (
+                "On disk",
+                storageRows(for: snapshot, locale: locale) + learnedStateRows(for: snapshot.learnedState)
+            ),
         ]
         for (heading, rows) in sections {
             lines += ["", heading]

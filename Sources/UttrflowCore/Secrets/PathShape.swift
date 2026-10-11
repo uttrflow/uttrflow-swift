@@ -5,6 +5,12 @@ package enum PathShape {
     /// The prefixes that make a path a path; bare `Users/x` is how people write most things with slashes.
     package static let starts = ["/", "~/", "./", "../"]
 
+    /// The top-level folders of a Mac's disk; a rooted clip under anything else is a URL route unless it names a file.
+    private static let roots: Set<Substring> = [
+        "Applications", "bin", "cores", "dev", "etc", "home", "Library", "net", "Network", "opt",
+        "private", "sbin", "System", "tmp", "Users", "usr", "var", "Volumes",
+    ]
+
     package static func matches(_ text: String) -> Bool {
         // One line: a path with a newline in it is a list or a paragraph.
         guard !text.contains(where: \.isNewline) else { return false }
@@ -18,6 +24,7 @@ package enum PathShape {
         guard !parts.contains(where: { $0.hasPrefix("-") }) else { return false }
         // `./` and `../` carry their own slash; a rooted path needs a second one to name more than a top folder.
         guard !text.hasPrefix("/") || text.dropFirst().contains("/") else { return false }
+        guard !text.hasPrefix("/") || hasDiskRoot(text) || namesFile(text) else { return false }
         guard !isSentenceOrCommand(text) else { return false }
 
         // Characters no filesystem path carries, which code and prose use constantly.
@@ -33,5 +40,17 @@ package enum PathShape {
         let folder = text[..<slash]
         if folder.hasSuffix("/bin") || folder.hasSuffix("/sbin") { return true }
         return words.dropLast().contains { $0.contains(/\.[A-Za-z][A-Za-z0-9]{0,4}$/) }
+    }
+
+    private static func hasDiskRoot(_ path: String) -> Bool {
+        roots.contains(path.dropFirst().prefix { $0 != "/" })
+    }
+
+    /// A last component with an extension, such as `report.pdf`, names a file wherever it sits.
+    private static func namesFile(_ path: String) -> Bool {
+        guard let name = path.split(separator: "/").last, let dot = name.lastIndex(of: ".") else {
+            return false
+        }
+        return dot != name.startIndex && name.index(after: dot) < name.endIndex
     }
 }

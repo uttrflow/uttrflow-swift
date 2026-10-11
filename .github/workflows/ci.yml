@@ -14,9 +14,10 @@
 name: CI
 
 on:
-  # Pull requests into `main` and pushes to `main` run the same verification gate.
+  # Pull requests into `main`, the merge queue and pushes to `main` run the same verification gate.
   pull_request:
     branches: [main]
+  merge_group:
   push:
     branches: [main]
 
@@ -73,7 +74,8 @@ jobs:
         run: echo "VERIFY_START=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Verify
-        run: make verify
+        # Keep independent checks visible while preserving a failing job for any failed prerequisite.
+        run: make --keep-going verify
 
       # The delivery budget in Docs/performance.md is read from this line, run by run.
       - name: Record verify time
@@ -114,3 +116,8 @@ jobs:
       # none is available to a fork's pull request.
       - name: Build and verify the app bundle
         run: make app-preflight
+
+      # Reports the idle app's wakeups and processor time without failing the job until a whole-process line is agreed.
+      - name: Count the idle app's wakeups
+        continue-on-error: true
+        run: make idle-wakeups

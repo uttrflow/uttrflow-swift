@@ -1,7 +1,7 @@
 // Checks each tap buffer against the hardware's sample clock, so a lost buffer is noticed instead of joining its neighbours.
 internal import AVFoundation
 private import Synchronization
-private import UttrflowCore
+internal import UttrflowCore
 
 /// The hardware sample clock seen through the tap, so continuity is checked rather than assumed. See Docs/audio-capture.md.
 struct CaptureTimeline: Sendable, Equatable {
@@ -31,7 +31,12 @@ struct CaptureTimeline: Sendable, Equatable {
     }
 
     /// Total time no buffer carried, in milliseconds.
-    var gapMilliseconds: Double { sampleRate > 0 ? Double(gapFrames) * 1000 / sampleRate : 0 }
+    var gapMilliseconds: Double { Self.milliseconds(gapFrames, at: sampleRate) }
+
+    /// `frames` of hardware time at `sampleRate`, in milliseconds.
+    static func milliseconds(_ frames: Int64, at sampleRate: Double) -> Double {
+        sampleRate > 0 ? Double(frames) * 1000 / sampleRate : 0
+    }
 
     /// Judges the time between the last delivered buffer and this one, which starts at `sampleTime`.
     mutating func arrived(at sampleTime: Int64?, frames: Int) -> Step {
@@ -66,6 +71,10 @@ final class TapClock: @unchecked Sendable {
     private let zeros: [Float]
     /// Set on the audio thread and taken on the handoff's, so a refusal never takes a lock in the callback.
     private let broke = Atomic<Bool>(false)
+    /// The timeline's counts, copied after each buffer so another thread reads them without touching the timeline.
+    private let holes = Atomic<Int>(0)
+    private let holeFrames = Atomic<Int64>(0)
+    private let lost = Atomic<Int>(0)
 
     init(sampleRate: Double) {
         timeline = CaptureTimeline(sampleRate: sampleRate)
@@ -98,6 +107,18 @@ final class TapClock: @unchecked Sendable {
             // Silence already handed on covers the hole before this buffer, so only this buffer is lost.
             timeline.dropped(resumingAt: pushed ? sampleTime : nil)
         }
+        holes.store(timeline.gaps, ordering: .relaxed)
+        holeFrames.store(timeline.gapFrames, ordering: .relaxed)
+        lost.store(timeline.droppedBuffers, ordering: .relaxed)
+    }
+
+    /// What this engine's timeline has counted so far, safe to read from any thread.
+    var gaps: CaptureGaps {
+        CaptureGaps(
+            holes: holes.load(ordering: .relaxed),
+            milliseconds: CaptureTimeline.milliseconds(
+                holeFrames.load(ordering: .relaxed), at: timeline.sampleRate),
+            lostBuffers: lost.load(ordering: .relaxed))
     }
 
     /// Whether a hole too long to fill has been seen since the last call, clearing it.

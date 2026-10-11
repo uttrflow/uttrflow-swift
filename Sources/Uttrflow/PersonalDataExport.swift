@@ -13,8 +13,9 @@ enum PersonalDataExport {
     static let disclosureMessage =
         "The export file is not encrypted. You can exclude snippets that contain recognized credentials, or include every snippet."
 
+    /// `refused` is oldest first, as the archive keeps it.
     static func archive(
-        dictionary: [DictionaryEntry], snippets: [Snippet], choice: Choice
+        dictionary: [DictionaryEntry], snippets: [Snippet], refused: [String] = [], choice: Choice
     ) -> PersonalDataArchive {
         let exportedSnippets: [Snippet]
         switch choice {
@@ -25,6 +26,6 @@ enum PersonalDataExport {
         case .includeAllSnippets:
             exportedSnippets = snippets
         }
-        return PersonalDataArchive(dictionary: dictionary, snippets: exportedSnippets)
+        return PersonalDataArchive(dictionary: dictionary, snippets: exportedSnippets, refused: refused)
     }
 }

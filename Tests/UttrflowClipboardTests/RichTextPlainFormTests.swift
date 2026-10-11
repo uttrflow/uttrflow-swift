@@ -7,6 +7,32 @@ import Testing
 /// What a formatted clip becomes in a target with no formatting, tested against real editors' markup.
 @Suite("What a plain target receives")
 struct RichTextPlainFormTests {
+    // MARK: - Hidden content
+
+    @Test(
+        "leaves out an element the page hides, with everything nested in it",
+        arguments: [
+            "<p>Visible</p><div hidden><p>Run <b>this</b></p></div><p>end</p>",
+            "<p>Visible</p><div aria-hidden=\"true\"><span>Run this</span></div><p>end</p>",
+            "<p>Visible</p><div style=\"display: none\"><div>Run</div> this</div><p>end</p>",
+            "<p>Visible</p><div style=\"color:red; VISIBILITY:hidden !important\">Run this</div><p>end</p>",
+        ])
+    func hiddenElementIsLeftOut(html: String) {
+        #expect(RichTextPlainForm.plainText(fromHTML: html) == "Visible\nend")
+    }
+
+    @Test("keeps an element whose style or aria state does not hide it")
+    func shownElementIsKept() {
+        let html = "<p style=\"display:block\">One</p><p aria-hidden=\"false\">Two</p>"
+        #expect(RichTextPlainForm.plainText(fromHTML: html) == "One\nTwo")
+    }
+
+    @Test("hides only itself when a hidden element has no end tag by nature")
+    func hiddenVoidElement() {
+        let html = "<p>Before<input type=\"checkbox\" hidden> after</p>"
+        #expect(RichTextPlainForm.plainText(fromHTML: html) == "Before after")
+    }
+
     // MARK: - Headings
 
     /// Weight is gone and nothing replaces it; a `#` would be as wrong as a `**`.
@@ -707,7 +733,9 @@ struct RichTextPlainFormTests {
 
     @Test("hands an enormous plain clip back untouched")
     func enormousPlainInput() {
-        let text = String(repeating: "a line of ordinary prose\n", count: 100_000)
+        let line = "a line of ordinary prose\n"
+        let fits = ClipboardBudget.standard.largestClip / line.utf8.count - 1
+        let text = String(repeating: line, count: fits)
         #expect(RichTextPlainForm.plainText(fromHTML: text) == text)
     }
 

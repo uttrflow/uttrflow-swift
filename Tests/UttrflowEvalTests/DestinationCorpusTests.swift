@@ -92,14 +92,10 @@ struct DestinationCorpusTests {
     }
 
     /// The deterministic floor is what these cases are first measured against, and it has to pass all but the model's own.
-    /// Cases the rules pass but the caret padding then breaks, which is a padding defect, not the rules'.
-    static let failsOnlyPadded: Set<String> = ["code-editor-spoken-empty-parentheses"]
-
     @Test("the rules engine passes every case that names its destination and is not the model's alone")
     func rulesPassDestinationCases() async throws {
         let cases = EvaluationCorpus.cases(in: .contextual).filter {
             $0.destination != .plain && !RulesCorpusTests.modelOnly.contains($0.id)
-                && !Self.failsOnlyPadded.contains($0.id)
         }
         #expect(cases.count >= 15)
         for testCase in cases {

@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "family": "native rich text view",
+  "windowTitle": "Rich.rtfd",
+  "document": null,
+  "focused": {
+    "attributes": {
+      "AXRole": { "kind": "value", "text": "AXTextArea", "milliseconds": 0.14 },
+      "AXSubrole": { "kind": "unsupported", "milliseconds": 0.00 },
+      "AXIdentifier": { "kind": "unsupported", "milliseconds": 0.00 },
+      "AXPlaceholderValue": { "kind": "unsupported", "milliseconds": 0.00 },
+      "AXDescription": { "kind": "unsupported", "milliseconds": 0.00 },
+      "AXNumberOfCharacters": { "kind": "value", "number": 71, "milliseconds": 0.02 },
+      "AXSelectedTextRange": { "kind": "value", "text": "{20, 0}", "milliseconds": 0.01 },
+      "AXValue": { "kind": "value", "text": "Shopping notes\n\t•\tApples\n\t•\tPears\nSee the guide and the picture ￼ here.", "milliseconds": 0.01 }
+    },
+    "rangedText": { "kind": "value" },
+    "children": []
+  }
+}

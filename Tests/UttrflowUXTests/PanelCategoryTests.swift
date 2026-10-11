@@ -104,16 +104,38 @@ struct PanelDeleteCategoryTests {
         #expect(response.outcome == .change(.deleteCategory("Work", movingClipsTo: nil)))
     }
 
-    @Test("choosing to delete them says so, and warns that it cannot be undone")
+    @Test("choosing to delete them explains the undo window")
     func deletingTheClips() {
         var panel = PanelFixture.panel(Self.clips)
         panel.sheet = .deletingCategory("Work", keepingClips: false)
 
         let sheet = PanelPresenter.present(panel).sheet
-        #expect(sheet?.conflict?.contains("cannot be undone") == true)
+        #expect(sheet?.conflict?.contains("Undo is available for 8 seconds") == true)
         #expect(sheet?.confirmTitle == "Delete both")
         #expect(sheet?.isConfirmDestructive == true)
         #expect(panel.applying(.return).outcome == .change(.deleteCategoryAndClips("Work")))
+    }
+
+    @Test("deleting pinned or named clips requires a second confirmation")
+    func protectedClipsRequireSecondConfirmation() {
+        let clips = [
+            PanelFixture.clip("pinned", category: "Work", isPinned: true),
+            PanelFixture.clip("named", alias: "important", category: "Work"),
+        ]
+        var panel = PanelFixture.panel(clips)
+        panel.sheet = .deletingCategory("Work", keepingClips: false)
+
+        let firstSheet = PanelPresenter.present(panel).sheet
+        #expect(firstSheet?.note == "Its 2 clips include 1 pinned and 1 named.")
+        #expect(firstSheet?.confirmTitle == "Review deletion")
+        let review = panel.applying(.return)
+        #expect(review.outcome == .open)
+        #expect(review.state.sheet == .deletingCategory("Work", keepingClips: false))
+        #expect(review.state.hasReviewedProtectedCategoryDeletion)
+        #expect(PanelPresenter.present(review.state).sheet?.title == "Delete kept clips from “Work”?")
+        #expect(PanelPresenter.present(review.state).sheet?.confirmTitle == "Delete both")
+        #expect(
+            review.state.applying(.return).outcome == .change(.deleteCategoryAndClips("Work")))
     }
 
     /// An empty collection is not a decision, and should not be dressed as one.

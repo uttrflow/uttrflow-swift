@@ -6,6 +6,8 @@ public enum SnippetStoreError: UttrflowFailure {
     case triggerHasNoWords
     /// Another snippet already answers to that trigger.
     case triggerAlreadyUsed
+    /// The trigger says a spoken command, such as "new line", which fights the snippet for those words.
+    case triggerIsSpokenCommand(phrase: String)
     /// There is no text to expand to.
     case expansionIsEmpty
 
@@ -15,6 +17,8 @@ public enum SnippetStoreError: UttrflowFailure {
         case .couldNotWrite: "Your snippets could not be updated on this Mac."
         case .triggerHasNoWords: "A snippet needs a trigger you can say out loud."
         case .triggerAlreadyUsed: "Another snippet already uses that trigger."
+        case .triggerIsSpokenCommand(let phrase):
+            "That trigger says the spoken command “\(phrase)”, so the command would win."
         case .expansionIsEmpty: "A snippet needs some text to expand to."
         }
     }
@@ -28,7 +32,8 @@ public enum SnippetStoreError: UttrflowFailure {
         // Dictation still works; what was lost is a shortcut for next time.
         case .couldNotWrite: .degraded
         // Nothing went wrong. The editor asked, and this is the answer.
-        case .triggerHasNoWords, .triggerAlreadyUsed, .expansionIsEmpty: .informational
+        case .triggerHasNoWords, .triggerAlreadyUsed, .triggerIsSpokenCommand, .expansionIsEmpty:
+            .informational
         }
     }
 }

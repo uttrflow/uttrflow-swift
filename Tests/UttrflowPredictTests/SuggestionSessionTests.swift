@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UttrflowCore
 
 @testable import UttrflowPredict
 
@@ -111,7 +112,7 @@ struct SuggestionSessionTests {
     @Test("A document's whole value is not a prefix worth matching.")
     func longValuesAreQuiet() {
         var session = SuggestionSession()
-        let essay = String(repeating: "a", count: SuggestionSession.maximumTypedLength + 1)
+        let essay = String(repeating: "a", count: TypedLine.maximumLength + 1)
         #expect(
             settled(session.turn(in: field, at: PredictionContext(typed: essay)))
                 == .quiet(because: .lineTooLong))
@@ -718,17 +719,29 @@ struct SuggestionRoutingTests {
         #expect(session.route(KeyStroke(.return)) == .accept("git checkout"))
     }
 
-    @Test("Escape minimises to the dot, which still answers a second escape.")
+    @Test("Escape minimises to the dot and is handed back, so one press also closes a dialog.")
     func escapeMinimises() throws {
         var session = SuggestionSession()
         _ = try draw(&session, typing: "git c")
-        guard case .redraw(let update) = session.route(KeyStroke(.escape)) else {
-            Issue.record("escape should have redrawn")
+        guard case .giveBack(let returned, let drawn) = session.route(KeyStroke(.escape)), let update = drawn
+        else {
+            Issue.record("escape should have redrawn and been handed back")
             return
         }
+        #expect(returned == KeyStroke(.escape))
         #expect(update.suggestion == .minimised)
         #expect(update.silence == .minimised)
-        #expect(update.armed.contains(.escape))
+        #expect(!update.armed.contains(.escape))
+    }
+
+    @Test("A second escape, with only the dot left, is the application's and changes nothing here.")
+    func secondEscapeIsTheApplications() throws {
+        var session = SuggestionSession()
+        _ = try draw(&session, typing: "git c")
+        _ = session.route(KeyStroke(.escape))
+        #expect(session.route(KeyStroke(.escape)) == .giveBack(KeyStroke(.escape)))
+        #expect(session.suggestion == .minimised)
+        #expect(session.isEnabled)
     }
 
     @Test("A minimised field stays minimised while its own value keeps growing.")
@@ -749,26 +762,6 @@ struct SuggestionRoutingTests {
         #expect(
             settled(session.turn(in: field, at: PredictionContext(typed: ""))) == .quiet(because: .emptyLine))
         #expect(try draw(&session, typing: "git c")?.suggestion == .certain("git commit -m"))
-    }
-
-    @Test("A second escape silences the field for the rest of its life.")
-    func secondEscapeSilencesTheField() throws {
-        var session = SuggestionSession()
-        _ = try draw(&session, typing: "git c")
-        _ = session.route(KeyStroke(.escape))
-        #expect(session.route(KeyStroke(.escape)) == .redraw(.quiet(because: .turnedOffHere)))
-        #expect(session.isSilencedHere)
-        #expect(try draw(&session, typing: "git c") == .quiet(because: .turnedOffHere))
-    }
-
-    @Test("Leaving the field lifts the silence, since it belonged to the field.")
-    func silenceDoesNotFollowTheUser() throws {
-        var session = SuggestionSession()
-        _ = try draw(&session, typing: "git c")
-        _ = session.route(KeyStroke(.escape))
-        _ = session.route(KeyStroke(.escape))
-        _ = session.turn(in: other, at: PredictionContext(typed: ""))
-        #expect(!session.isSilencedHere)
     }
 
     @Test("Option-escape turns the whole feature off, everywhere.")

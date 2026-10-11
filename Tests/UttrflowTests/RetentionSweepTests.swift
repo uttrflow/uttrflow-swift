@@ -1,7 +1,7 @@
 // Tests that expired recordings and transcripts leave the disk with no window open.
 
 import Foundation
-import UttrflowAudio
+@testable import UttrflowAudio
 import UttrflowClipboard
 import UttrflowCore
 import UttrflowHistory
@@ -16,12 +16,14 @@ import Testing
 struct RetentionSweepTests {
     private struct Refused: Error {}
 
-    /// Writes a recording file whose creation date says it began at `when`.
+    /// Writes a recording file whose creation date says it began at `when`. The file holds one frame so the store keeps it instead of discarding it as a crash leftover.
     private func recording(in root: URL, began when: Date) throws -> URL {
         let folder = RecordingStore.defaultDirectory(in: root)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let file = folder.appending(path: "\(UUID().uuidString).wav")
-        try Data(count: 44).write(to: file)
+        var data = WAVEncoder.header(frames: 0, sampleRate: AudioSamples.canonicalSampleRate)
+        data.append(WAVEncoder.pcm([0]))
+        try data.write(to: file)
         try FileManager.default.setAttributes([.creationDate: when], ofItemAtPath: file.path)
         return file
     }
@@ -29,7 +31,7 @@ struct RetentionSweepTests {
     @Test("a dictation ending deletes a recording older than a day")
     func dictationEndingSweepsRecordings() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let stale = try recording(in: sandbox.root, began: Date().addingTimeInterval(-2 * 86_400))
         let fresh = try recording(in: sandbox.root, began: Date())
 
@@ -44,7 +46,7 @@ struct RetentionSweepTests {
     @Test("a finished dictation sweeps too")
     func insertedSweepsRecordings() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let stale = try recording(in: sandbox.root, began: Date().addingTimeInterval(-2 * 86_400))
 
         let outcome = DictationOutcome(text: "Sample words", method: .accessibility, cleanedBy: .rules)
@@ -57,7 +59,7 @@ struct RetentionSweepTests {
     @Test("a sweep deletes transcripts past the retention setting")
     func sweepDropsExpiredTranscripts() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         app.settingsChanged(to: Settings(transcriptRetentionDays: 30))
         let file = DictationHistoryStore.defaultFile(in: sandbox.root)
         let writer = DictationHistoryStore(file: file)
@@ -76,7 +78,7 @@ struct RetentionSweepTests {
     @Test("a sweep under the default keeps every transcript")
     func defaultKeepsTranscripts() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let file = DictationHistoryStore.defaultFile(in: sandbox.root)
         let writer = DictationHistoryStore(file: file)
         let old = DictationRecord(text: "Sample words", when: Date().addingTimeInterval(-60 * 86_400))
@@ -92,7 +94,7 @@ struct RetentionSweepTests {
     @Test("a retention sweep deletes expired clipboard clips and their picture files")
     func sweepDropsExpiredClipboardClips() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let now = Date()
 
         let file = ClipboardStore.defaultFile(in: sandbox.root)
@@ -115,7 +117,9 @@ struct RetentionSweepTests {
 
         app.settingsChanged(to: Settings(clipboardRetentionDays: 1))
         await app.sweeping?.value
-        let afterSettingChange = try JSONDecoder().decode([Clip].self, from: Data(contentsOf: file))
+        let afterSettingChange = try JSONDecoder().decode(
+            ClipboardIndex.self, from: Data(contentsOf: file)
+        ).clips
         #expect(afterSettingChange.map(\.id) == [recent.id, imageID])
 
         app.sweepExpired(now: now.addingTimeInterval(2 * 86_400))

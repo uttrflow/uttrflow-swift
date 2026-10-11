@@ -85,6 +85,18 @@ extension SelectionWriter {
         return EditUndo(written: now, removed: target.record.text, before: leftOf, after: rightOf)
     }
 
+    /// Selects the recorded span, refusing anything it cannot verify.
+    func select(_ target: EditTarget) throws(TextInsertionError) {
+        let span = target.record.range
+        _ = try verified(target)
+        let range = CFRange(location: span.lowerBound, length: span.count)
+        guard field.setSelectedRange(range) == .success, let selected = field.selectedRange(),
+            selected.location == range.location, selected.length == range.length
+        else {
+            throw .insertionRejected(description: "the field will not select the range")
+        }
+    }
+
     /// Moves the caret `units` back from the end of the recorded span, staying inside it, refusing what it cannot verify.
     func placeCaret(in target: EditTarget, back units: Int) throws(TextInsertionError) {
         let span = target.record.range

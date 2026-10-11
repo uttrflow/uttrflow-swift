@@ -52,8 +52,7 @@ func downloadTokenizer(for model: SpeechModel, into destination: URL) async thro
         }
 
         // No token and no endpoint of anybody's choosing: this fetches a public file and says who nobody is.
-        NetworkActivityLedger.shared.record(.modelDownload)
-        let (data, response) = try await URLSession.shared.data(from: url)
+        let (data, response) = try await countedTokenizerData(from: url, using: .shared)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
             throw TokenizerFetchFailure(
@@ -73,6 +72,13 @@ func downloadTokenizer(for model: SpeechModel, into destination: URL) async thro
         // Atomic, so a dropped connection cannot leave a truncated file that passes as a tokenizer.
         try PrivateFile.write(data, to: destination.appending(path: name))
     }
+}
+
+private func countedTokenizerData(
+    from url: URL, using session: URLSession
+) async throws -> (Data, URLResponse) {
+    NetworkActivityLedger.shared.record(.modelDownload)
+    return try await session.data(from: url)
 }
 
 private func completedPinnedWeightBytes(for model: SpeechModel, in destination: URL) throws -> Int64 {
@@ -194,7 +200,7 @@ private func downloadSpeechAsset(
     _ request: URLRequest, to partial: URL, startingAt offset: Int64,
     onProgress: @escaping @Sendable (Int64) -> Void
 ) async throws -> URLResponse {
-    NetworkActivityLedger.shared.record(.modelDownload)
+    recordSpeechAssetRequest()
     let download = SpeechAssetURLSessionDownload(
         partial: partial, requestedOffset: offset, onProgress: onProgress)
     return try await withTaskCancellationHandler {
@@ -204,6 +210,10 @@ private func downloadSpeechAsset(
     } onCancel: {
         download.cancel()
     }
+}
+
+private func recordSpeechAssetRequest() {
+    NetworkActivityLedger.shared.record(.modelDownload)
 }
 
 private final class SpeechAssetURLSessionDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable {

@@ -9,6 +9,9 @@ public protocol FocusedTextField: Sendable {
     func replaceSelection(
         replacing replaced: String, with text: String
     ) throws(TextInsertionError)
+
+    /// Moves the caret `units` back from the end of a recorded insertion, refusing what it cannot verify.
+    func placeCaret(in target: EditTarget, back units: Int) throws(TextInsertionError)
 }
 
 extension FocusedTextField {
@@ -20,6 +23,11 @@ extension FocusedTextField {
             throw .insertionRejected(description: "the field cannot select backwards")
         }
         try replaceSelection(with: text)
+    }
+
+    /// A field that cannot select a range cannot move its caret, so the caret stays after the words.
+    public func placeCaret(in target: EditTarget, back units: Int) throws(TextInsertionError) {
+        guard units == 0 else { throw .insertionRejected(description: "the field cannot move the caret") }
     }
 }
 
@@ -67,6 +75,9 @@ public protocol AccessibilityFocus: Sendable {
     /// The focused element, secure or not, or `nil` when it cannot be told apart from another.
     func focusedFieldIdentity() -> FieldIdentity?
 
+    /// Whether the window server still has `windowNumber`, or `nil` when this reader cannot ask.
+    func windowIsOpen(_ windowNumber: UInt32) -> Bool?
+
     /// Whether macOS lets this process drive other apps, read when an insertion fails so the cause is named.
     func isTrusted() -> Bool
 
@@ -83,10 +94,13 @@ public enum FocusedElementKind: Sendable, Equatable {
     /// A focused element of any other role, such as a page body, a list or a file browser.
     case control
 
-    /// Classifies an element by its role, or `unpublished` when there is no element.
-    public static func of(role: String?, isPublished: Bool) -> Self {
-        guard isPublished else { return .unpublished }
-        return FocusedElementPreference.isTextEntry(role) ? .textEntry : .control
+    /// Classifies an element by its role; an unreadable role is as unknown as no element, and a web area, group or cell counts only while it is editable. See `Docs/insertion.md`.
+    public static func of(
+        role: String?, isPublished: Bool, isEditable: @autoclosure () -> Bool = false
+    ) -> Self {
+        guard isPublished, let role else { return .unpublished }
+        if FocusedElementPreference.isTextEntry(role) { return .textEntry }
+        return FocusedElementPreference.isEditableContainer(role) && isEditable() ? .textEntry : .control
     }
 }
 
@@ -138,6 +152,9 @@ extension AccessibilityFocus {
 
     /// A reader that cannot tell one field from another cannot place a write.
     public func focusedFieldPlace() -> FieldPlace? { nil }
+
+    /// A reader with no window server behind it cannot say a window closed.
+    public func windowIsOpen(_ windowNumber: UInt32) -> Bool? { nil }
 
     /// A reader that cannot tell one field from another cannot refuse a write for being in another.
     public func focusedFieldIdentity() -> FieldIdentity? { nil }

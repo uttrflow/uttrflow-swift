@@ -3,10 +3,7 @@ private import Synchronization
 import UttrflowClipboard
 
 /// Remembers whether a clip can be re-indented, so neither drawing the list nor opening the panel re-indents every clip.
-final class ReindentOffers: Sendable, Equatable {
-    /// The one memo every panel open shares, so an answer outlives the snapshot that asked.
-    static let shared = ReindentOffers()
-
+final class ReindentOffers: Sendable {
     /// A compact identity for the last text asked about, without keeping that text alive.
     private struct TextFingerprint: Equatable {
         let utf8Count: Int
@@ -60,6 +57,4 @@ final class ReindentOffers: Sendable, Equatable {
         return offers
     }
 
-    /// Compares equal to any other memo, because a cache is not part of what the panel shows.
-    static func == (lhs: ReindentOffers, rhs: ReindentOffers) -> Bool { true }
 }

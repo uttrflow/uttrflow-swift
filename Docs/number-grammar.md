@@ -25,7 +25,7 @@ and false conversions (numerals beyond the reference's). Every class counts unde
 | time | always | 0 | 0 | 0 | 0 |
 | telephone | from-ten | 0 | 0 | 0 | 0 |
 | telephone | always | 0 | 0 | 0 | 0 |
-| electronic | from-ten | 0 | 0 | 0 | 0 |
+| electronic | from-ten | 4 | 4 | 0 | 0 |
 | electronic | always | 0 | 0 | 0 | 0 |
 | stays-words | from-ten | 1 | 1 | 0 | 0 |
 | stays-words | always | 0 | 0 | 0 | 0 |

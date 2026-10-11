@@ -36,6 +36,26 @@ struct PredictionEngineTests {
         #expect(result != .choice(leader: "Hello", others: ["hello"]))
     }
 
+    @Test("Case-only evidence combines before separation, keeping a clear leader certain.")
+    func caseOnlyEvidenceCombinesBeforeSeparation() {
+        let result = suggestion(
+            [
+                remembered("Git status", count: 9), remembered("git status", count: 8),
+                remembered("git stash", count: 1),
+            ], PredictionContext(typed: "git s"))
+        #expect(result == .certain("Git status"))
+    }
+
+    @Test("An irreversible case twin cannot be offered through its safer spelling.")
+    func caseTwinCannotBypassIrreversibleGuard() {
+        let result = suggestion([
+            remembered("git push --force", count: 9),
+            remembered("Git push --force", count: 8, irreversible: true),
+            remembered("git push", count: 1),
+        ])
+        #expect(result == .silent)
+    }
+
     @Test("Nothing to say means nothing is drawn.")
     func noCandidates() {
         #expect(suggestion([]) == .silent)

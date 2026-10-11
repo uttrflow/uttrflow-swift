@@ -24,6 +24,24 @@ struct ScorerTests {
             mustBeginWith: begin, mustEndWith: end)
     }
 
+    @Test("fails a long rewrite that closes fewer sentences than the case requires")
+    func failsTooFewSentences() {
+        let reference = EvaluationCase(
+            id: "case", category: .longInput, spoken: "spoken",
+            expected: "One thing. Two things. Three things.", minimumSentences: 2)
+        let runOn = Scorer.score("One thing two things three things.", against: reference)
+        #expect(runOn.brokeShape == ["closes 2 sentences"])
+        #expect(!runOn.passed)
+        #expect(Scorer.score("One thing. Two things. Three things.", against: reference).passed)
+    }
+
+    @Test("names at least three hundred words in its long-input case, which is what the category guards")
+    func longInputIsLong() throws {
+        let testCase = try #require(EvaluationCorpus.cases(in: .longInput).first)
+        #expect(testCase.spoken.split(whereSeparator: \.isWhitespace).count >= 300)
+        #expect(Scorer.score(testCase.expected, against: testCase).passed)
+    }
+
     @Test("fails a rewrite that drops a reference word even when similarity clears the floor")
     func failsAnyDeletedWord() {
         let reference = reference(expected: "My manager wants the slides by noon.")
@@ -738,9 +756,9 @@ struct GrammarRepairTests {
         #expect(!score.passed, "\(testCase.id) passes with the slip left in")
     }
 
-    @Test("counts sixteen grammar cases as asking for a repair, so the check above is not vacuous")
+    @Test("counts twenty-four grammar cases as asking for a repair, so the check above is not vacuous")
     func repairCasesAreCounted() {
-        #expect(EvaluationCorpus.cases(in: .grammar).filter(Self.asksForARepair).count == 16)
+        #expect(EvaluationCorpus.cases(in: .grammar).filter(Self.asksForARepair).count == 24)
     }
 
     @Test(

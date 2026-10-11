@@ -12,11 +12,26 @@ public enum WordTokens {
         case display
         /// Anything but a letter or a digit ends a word, so "don't" is "don" and "t": the unit comparisons count in.
         case comparison
+        /// Anything but a letter ends a word, so "B2B" is "B" and "B": the letters a name is read by.
+        case letters
+        /// Whitespace, a hyphen or a slash ends a word, so "and/or" is two words: the units grammar reads.
+        case grammar
+        /// A space or a punctuation mark ends a word, so "p.m." is "p" and "m": the units an echo is matched in.
+        case echo
+        /// Only a line break ends a token, so each token is one line as written, its spaces kept.
+        case line
+        /// Anything but a letter, a digit or an underscore ends a word, so "user_id.count" is "user_id" and "count": the units code names are read in.
+        case identifier
 
         func isBoundary(_ character: Character) -> Bool {
             switch self {
             case .display: character.isWhitespace
             case .comparison: !character.isLetter && !character.isNumber
+            case .letters: !character.isLetter
+            case .grammar: character.isWhitespace || character == "-" || character == "/"
+            case .echo: character == " " || character.isPunctuation
+            case .line: character.isNewline
+            case .identifier: !(character.isLetter || character.isNumber || character == "_")
             }
         }
     }

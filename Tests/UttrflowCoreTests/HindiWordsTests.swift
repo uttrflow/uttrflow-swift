@@ -25,6 +25,48 @@ struct HindiWordsTests {
         }
     }
 
+    @Test("every grammar word the script guard held in code is a row with a grammar class")
+    func guardGrammarWordsAreRows() {
+        let words = [
+            "hai", "hain", "hoon", "hun", "tha", "thi", "the", "raha", "rahi", "rahe",
+            "ko", "ka", "ki", "ke", "se", "mein", "par", "ne", "to", "toh", "bhi", "hi",
+        ]
+        for word in words { #expect(HindiWords.grammarWords.contains(Romaniser.soundKey(word)), "\(word)") }
+        for word in ["nahi", "yah", "kar", "aur"] {
+            #expect(!HindiWords.grammarWords.contains(Romaniser.soundKey(word)), "\(word)")
+        }
+    }
+
+    @Test("every word of QuestionShape's old Hindi verb, copula and embedding tables is a row with its class")
+    func questionShapeWordsAreRows() {
+        let closing = ["hai", "hain", "ho", "hoon", "tha", "thi", "the", "hoga", "hogi", "honge"]
+        let finite =
+            closing + [
+                "hu", "h", "hua", "hui", "hue", "gaya", "gayi", "gaye", "di", "dia", "diya", "kiye", "kiya",
+                "ki", "li", "lia", "liya", "kar", "karta", "karte", "karti", "karoge", "karogi", "karega",
+                "karegi", "karunga", "karungi", "karna", "chahiye", "sakte", "sakti", "sakta",
+            ]
+        let copulas = ["hai", "hain", "ho", "hoga"]
+        let embedding = [
+            "ki", "pata", "kaha", "bola", "pucha", "poocha", "bataya", "batayi", "bataye", "batao", "yaad",
+            "dekh", "dekha", "dekho", "maloom", "malum", "samajh", "samjha", "samjho", "suna", "socha",
+        ]
+        #expect(HindiWords.spellings(of: .closingVerb) == Set(closing))
+        #expect(HindiWords.spellings(of: .finiteVerb) == Set(finite))
+        #expect(HindiWords.spellings(of: .questionCopula) == Set(copulas))
+        #expect(HindiWords.spellings(of: .embeddingWord) == Set(embedding))
+    }
+
+    @Test("a word listed only for question shape is not a grammar word, a function word or a Hindi spelling")
+    func shapeClassesStayPrivate() {
+        for word in ["hua", "gayi", "pata", "karoge", "li"] {
+            #expect(HindiWords.classes(of: word).isEmpty, "\(word)")
+            #expect(!HindiWords.functionWords.contains(word), "\(word)")
+            #expect(!HindiWords.spellings.contains(word), "\(word)")
+            #expect(HindiWords.spellingKey(of: word) == nil, "\(word)")
+        }
+    }
+
     @Test("demonstrative cases group under the pronoun they are")
     func pronounCases() {
         #expect(HindiWords.pronounCases[Romaniser.soundKey("ise")] == "yah")

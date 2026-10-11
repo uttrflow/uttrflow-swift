@@ -85,16 +85,18 @@ public actor DictationHistoryStore {
         return retained(left, keeping: retention)
     }
 
-    /// Puts one change back, answering with the dictionary entry to count it against, or `nil`.
+    /// Puts one change back, answering with the change itself, whose entry the undo counts against, or `nil`.
     public func undoCorrection(
         _ id: UUID, keeping retention: Retention
-    ) throws(HistoryStoreError) -> UUID? {
+    ) throws(HistoryStoreError) -> RecordedCorrection? {
         var records = load()
         for (index, record) in records.enumerated() {
-            guard let (undone, entryID) = record.undoing(id) else { continue }
+            guard let (undone, _) = record.undoing(id),
+                let reverted = record.changes?.corrections.first(where: { $0.id == id })
+            else { continue }
             records[index] = undone
             try persist(keptOnDisk(records, keeping: retention))
-            return entryID
+            return reverted
         }
         return nil
     }

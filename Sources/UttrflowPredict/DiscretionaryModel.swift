@@ -50,8 +50,8 @@ public struct DiscretionaryModel<Model: ReleasableModel>: CandidateScoring {
 }
 
 extension DiscretionaryModel {
-    /// Sets what the idle-releasing model inside tells when a query's reload finds the weights gone from disk.
-    public func whenReloadFails<Inner>(_ handler: @escaping @Sendable () -> Void) async
+    /// Sets what the idle-releasing model inside tells, with the error, when a query's reload fails.
+    public func whenReloadFails<Inner>(_ handler: @escaping @Sendable (any Error) -> Void) async
     where Model == IdleReleasingModel<Inner> {
         await model.whenReloadFails(handler)
     }

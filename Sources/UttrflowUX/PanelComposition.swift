@@ -9,7 +9,7 @@ public enum PanelComposition {
         // Return commits the candidate, the arrows walk the candidate list, and Escape cancels the word.
         case .return, .returnPlain, .up, .down, .escape, .jump: return false
         // A collection number is a command chord; everything else is a chip or committed field text.
-        case .category: return false
+        case .category, .showShortcuts, .clearSearch: return false
         default: return true
         }
     }

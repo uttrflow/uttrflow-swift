@@ -14,8 +14,7 @@ extension CleaningPipeline {
                 numbers: formatter.numbers, digits: situation.digits(for: formatter),
                 layout: formatter.layout,
                 insertionPoint: situation.insertion, destination: formatter.destination,
-                precedingText: situation.insertion.precedingText, documentName: situation.app.documentName,
-                steps: steps, pauses: pauses
+                intent: situation.intent, steps: steps, pauses: pauses, mode: situation.adapterMode
             ).passes + initialisms(steps: steps))
     }
 
@@ -28,37 +27,57 @@ extension CleaningPipeline {
             passes: piece(
                 numbers: formatter.numbers, digits: situation.digits(for: formatter),
                 insertionPoint: situation.insertion,
-                destination: formatter.destination, precedingText: situation.insertion.precedingText,
-                documentName: situation.app.documentName, steps: steps, pauses: pauses
+                destination: formatter.destination, intent: situation.intent, steps: steps,
+                pauses: pauses, screen: situation, mode: situation.adapterMode
             ).passes
                 + message(for: formatter, situation: situation, steps: steps, vocabulary: vocabulary).passes)
     }
 
-    /// The passes that are right on any piece of a message, which is why no casing or stop policy can reach them.
+    /// The passes right on any piece of a message; `screen` holds the identifiers a doubted run may be bound to.
     public static func piece(
         numbers: NumberPolicy, digits: DigitGrouping, layout: LayoutPolicy = [.paragraphs, .lists],
         insertionPoint: InsertionPoint = .unknown, destination: Destination = .plain,
-        precedingText: String? = nil, documentName: String? = nil,
-        steps: CleaningSteps = .default, pauses: PauseLength = .usual
+        intent: WritingIntent = .unknown, steps: CleaningSteps = .default, pauses: PauseLength = .usual,
+        screen: Situation = .unknown, mode: AdapterMode = .auto
     ) -> CleaningPipeline {
+        let identifiers = ScreenVocabulary(screen)
         var cleanings: [any PieceCleaningPass] = [
             FillersPass(), RepeatedPhrasePass(), StammersPass(), SelfCorrectionPass(),
             // Spoken punctuation must mark a stop before LayoutWordsPass checks for a break after it.
-            SpokenPunctuationPass(destination: destination),
+            SpokenPunctuationPass(
+                destination: destination, fieldRole: intent.fieldRole, region: intent.region, pauses: pauses,
+                mode: mode),
             SpokenEmojiPass(destination: destination),
             LayoutWordsPass(layout: layout, insertionPoint: insertionPoint),
-            NumberFormsPass(policy: numbers, digits: digits),
+            SpelledNamePass(destination: destination), NumberFormsPass(policy: numbers, digits: digits),
             ContractionsPass(), SpacingPass(),
             // Last, so a pause inside a number or a removed filler is read on the words left standing.
             PauseStopPass(destination: destination, pauses: pauses),
         ]
-        let inCode =
-            destination == .codeEditor
-            && CaretStructure.region(precedingText: precedingText, documentName: documentName).isCode
+        // Only a screen showing an identifier adds the pass, so every other pipeline keeps its list of passes.
+        if !identifiers.identifiers.isEmpty,
+            let afterCorrection = cleanings.firstIndex(where: { $0.id == .selfCorrection })
+        {
+            cleanings.insert(ScreenIdentifierPass(vocabulary: identifiers), at: afterCorrection + 1)
+        }
+        let inCode = destination == .codeEditor && intent.region.isCode
+        let notation = NotationEvidence.applicability(
+            destination: destination, region: intent.region,
+            statement: SQLPosition.at(insertionPoint.precedingText), mode: mode)
         if let layoutPosition = cleanings.firstIndex(where: { $0.id == .layoutWords }) {
-            if inCode { cleanings.insert(CodeEditorCommandsPass(), at: layoutPosition) }
-            // A code editor's comments take no casing: its rows are identifiers, which a comment is not.
-            if destination != .codeEditor || inCode {
+            // Only a Markdown document names its lists and headings by what is already written.
+            if CaretStructure.isMarkdown(documentName: screen.app.documentName) {
+                cleanings.insert(
+                    MarkdownContinuationPass(position: .at(insertionPoint.precedingText)), at: layoutPosition)
+            }
+            if NotationEvidence.mayActivate(notation, in: destination) {
+                cleanings.insert(
+                    CodeEditorCommandsPass(
+                        destination: destination, language: intent.language, evidence: notation),
+                    at: layoutPosition)
+            }
+            // A code editor's comments and a code editor set to plain prose take no casing: its rows are identifiers.
+            if (destination != .codeEditor || inCode) && !(mode == .prose && destination == .codeEditor) {
                 cleanings.insert(SpokenCasingPass(destination: destination), at: layoutPosition)
             }
         }
@@ -84,9 +103,11 @@ extension CleaningPipeline {
         digits: DigitGrouping, situation: Situation, heard: String? = nil, spoken: String? = nil
     ) -> CleaningPipeline {
         CleaningPipeline(piece: [
-            SpokenPunctuationPass(destination: situation.destination),
+            SpokenPunctuationPass(
+                destination: situation.destination, fieldRole: situation.intent.fieldRole,
+                region: situation.intent.region, mode: situation.adapterMode),
             CaretEchoPass(
-                state: situation.insertion.sentenceState, precedingText: situation.insertion.precedingText,
+                state: sentenceState(in: situation), precedingText: situation.insertion.precedingText,
                 spokenText: heard),
             CaretCloserPass(precedingText: situation.insertion.precedingText, spokenText: spoken),
             DigitGroupingPass(digits: digits, spokenText: spoken),
@@ -100,16 +121,25 @@ extension CleaningPipeline {
     ) -> CleaningPipeline {
         let casing = AcronymCasingPass(
             destination: formatter.destination, vocabulary: vocabulary, onScreen: situation.app.textOnScreen)
+        // Only a chat takes "at Sam" as a mention; everywhere else it is a word.
+        let mentions: [any WholeTextCleaningPass] =
+            formatter.destination == .messaging
+            ? [AtMentionPass(precedingText: situation.insertion.precedingText)] : []
+        // An email body, or a letter in a document, has a greeting and a sign-off to set apart; a subject or recipient field is one line.
+        let letterDestination = formatter.destination == .email || formatter.destination == .document
+        let structure: [any WholeTextCleaningPass] =
+            letterDestination && situation.intent.fieldRole == .message
+                && formatter.layout.contains(.paragraphs)
+            ? [EmailStructurePass(requiresLetter: formatter.destination == .document)] : []
         return CleaningPipeline(
-            wholeText: initialisms(steps: steps) + [
-                casing,
+            wholeText: initialisms(steps: steps) + [casing] + mentions + structure + [
                 SentenceBoundaryPass(),
                 FirstWordPass(
-                    policy: formatter.firstWord, state: situation.insertion.sentenceState,
+                    policy: formatter.firstWord, state: sentenceState(in: situation),
                     onScreen: situation.app.textOnScreen, heard: heard,
                     capitaliseCalendarWords: formatter.firstWord == .fromInsertionPoint
                         && formatter.destination != .codeEditor,
-                    vocabulary: vocabulary, casing: casing),
+                    vocabulary: vocabulary, casing: casing, keepsCommandCase: formatter.keepsCommandCase),
                 CommentMarkerPass(
                     opensComment: formatter.destination == .codeEditor
                         && CaretStructure.opensComment(
@@ -118,7 +148,8 @@ extension CleaningPipeline {
                 ),
                 TerminalStopPass(
                     policy: terminalStop(formatter, in: situation), layout: formatter.layout,
-                    insertionPoint: situation.insertion, destination: formatter.destination),
+                    insertionPoint: situation.insertion, destination: formatter.destination,
+                    region: situation.intent.region),
             ])
     }
 
@@ -127,14 +158,22 @@ extension CleaningPipeline {
         [SpelledInitialismPass()].filter { steps.runs($0.id) }
     }
 
+    /// The caret's sentence state, except a query editor's caret inside a statement is mid-sentence: the grammar position outranks the prose position.
+    private static func sentenceState(in situation: Situation) -> InsertionPoint.SentenceState {
+        guard situation.destination == .sqlEditor,
+            SQLPosition.at(situation.insertion.precedingText).isMidStatement
+        else {
+            return situation.insertion.sentenceState
+        }
+        return .midSentence
+    }
+
     /// The formatter's stop policy, except a code editor takes `.always` when the caret sits in a comment.
     private static func terminalStop(
         _ formatter: DestinationFormatter, in situation: Situation
     ) -> TerminalStopPolicy {
         guard formatter.destination == .codeEditor else { return formatter.terminalStop }
-        let region = CaretStructure.region(
-            precedingText: situation.insertion.precedingText, documentName: situation.app.documentName)
-        return region == .comment ? .always : formatter.terminalStop
+        return situation.intent.region == .comment ? .always : formatter.terminalStop
     }
 }
 
@@ -143,4 +182,9 @@ extension AppContext {
     var textOnScreen: [String] {
         [documentName, selectedText, precedingText, followingText].compactMap { $0 }
     }
+}
+
+extension PassID {
+    /// A listed name said as letters and number words, written fused.
+    static let spelledName: PassID = "spelledName"
 }

@@ -128,6 +128,19 @@ struct ErrorPresentationTests {
         #expect(shown.detail == "Connect one and try again.")
     }
 
+    @Test(
+        "splits at the sentence mark of Hindi and Japanese text",
+        arguments: [
+            ("माइक्रोफ़ोन नहीं मिला। कृपया एक जोड़ें।", "माइक्रोफ़ोन नहीं मिला।", "कृपया एक जोड़ें।"),
+            ("マイクが見つかりません。接続してください。", "マイクが見つかりません。", "接続してください。"),
+        ])
+    func splitsOnNonLatinSentenceMarks(message: String, headline: String, detail: String) {
+        let shown = FailurePresenter.present(
+            message: message, recovery: nil, severity: .blocking, floatingButtonShown: true)
+        #expect(shown.headline == headline)
+        #expect(shown.detail == detail)
+    }
+
     @Test("leaves a one-sentence message with nothing underneath it")
     func keepsASingleSentenceWhole() {
         let shown = FailurePresenter.present(

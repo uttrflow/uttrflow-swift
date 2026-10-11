@@ -21,6 +21,14 @@ struct MainMenuTests {
                 == ["Uttrflow", "Edit", "View", "Window", "Help"])
     }
 
+    /// The item holding each menu is what VoiceOver and Voice Control name, so it carries the menu's title.
+    @Test("names each menu-bar item after the menu it opens")
+    func holdersAreNamed() {
+        let bar = MainMenu.build()
+        #expect(bar.items.map(\.title) == bar.items.map { $0.submenu?.title ?? "" })
+        #expect(!bar.items.contains { $0.title.isEmpty })
+    }
+
     /// The sidebar toggle is the only item in View, on the system's own shortcut.
     @Test("puts the sidebar toggle in View, on the system's own shortcut")
     func sidebarToggle() {

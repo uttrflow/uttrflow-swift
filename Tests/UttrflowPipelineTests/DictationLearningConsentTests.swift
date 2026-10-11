@@ -66,6 +66,20 @@ struct DictationLearningConsentTests {
         #expect(await lessons(given: OneAnswer(answer: .allowed), isSecure: true).isEmpty)
     }
 
+    @Test("the switch in Settings, turned off, stops learning even where the user allowed it")
+    func switchOffLearnsNothing() async {
+        let off = SwitchedLearningConsent(isOn: { false }, answers: OneAnswer(answer: .allowed))
+        #expect(await lessons(given: off).isEmpty)
+    }
+
+    @Test("the switch in Settings, left on, leaves each application's answer in charge")
+    func switchOnDefersToTheApplication() async {
+        let unknown = SwitchedLearningConsent(isOn: { true }, answers: OneAnswer(answer: .unknown))
+        let declined = SwitchedLearningConsent(isOn: { true }, answers: OneAnswer(answer: .declined))
+        #expect(await lessons(given: unknown).count == 1)
+        #expect(await lessons(given: declined).isEmpty)
+    }
+
     @Test("only a refusal stops dictation learning")
     func theDefaultIsWrittenOnce() {
         #expect(ConsentState.allCases.filter { !$0.dictationMayLearn } == [.declined])

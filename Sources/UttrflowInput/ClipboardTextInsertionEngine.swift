@@ -54,7 +54,7 @@ public struct ClipboardTextInsertionEngine: TextInsertionEngine {
         {
             throw .clipboardChanged
         }
-        guard readback == text else { throw .clipboardUnavailable }
+        guard InsertionPasteboardReadback.matches(readback, for: text) else { throw .clipboardUnavailable }
         try PasteboardInsertionCancellation.requireLive(
             on: pasteboard, afterWritingAt: writeChangeCount)
         return .notReported

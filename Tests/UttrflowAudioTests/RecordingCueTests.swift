@@ -111,6 +111,28 @@ struct SoundPlayingRecordingCueTests {
         #expect(player.requested == [.warning])
     }
 
+    @Test("plays the discarded sound once, and owes no stop after it")
+    func playsDiscarded() {
+        let player = SpyPlayer()
+        let cue = SoundPlayingRecordingCue(player: player)
+
+        cue.playStart()
+        cue.playDiscarded()
+        cue.playStop()
+
+        #expect(player.requested == [.start, .discarded])
+    }
+
+    @Test("the discarded sound obeys the sound setting")
+    func discardedObeysSetting() {
+        let player = SpyPlayer()
+        let cue = SoundPlayingRecordingCue(player: player, soundsEnabled: { false })
+
+        cue.playDiscarded()
+
+        #expect(player.requested.isEmpty)
+    }
+
     @Test("says nothing when asked to stop what never started")
     func stopWithoutStartIsSilent() {
         let player = SpyPlayer()
@@ -179,7 +201,7 @@ struct SoundPlayingRecordingCueTests {
             player: player, startSound: frog, stopSound: purr
         )
 
-        #expect(player.prewarmed == [frog, purr, .warning])
+        #expect(player.prewarmed == [frog, purr, .warning, .discarded])
         #expect(player.requested.isEmpty, "warming must not be audible")
     }
 
@@ -222,6 +244,17 @@ struct SoundPlayingRecordingCueTests {
         cue.playWarning()
 
         #expect(player.requested == [.start])
+    }
+
+    @Test("is audible exactly when the sound setting is on, read at each ask")
+    func audibleFollowsTheSetting() {
+        let setting = SoundsSetting(true)
+        let cue = SoundPlayingRecordingCue(player: SpyPlayer(), soundsEnabled: setting.reader)
+
+        #expect(cue.isAudible)
+        setting.turn(on: false)
+        #expect(!cue.isAudible)
+        #expect(!SilentCue().isAudible)
     }
 
     @Test("does not owe a stop cue to the next recording")

@@ -53,3 +53,28 @@ public struct PanelFormatRequest: Sendable, Equatable {
         return snapshot.clips.first(where: { $0.id == clip })?.text == text
     }
 }
+
+/// How a Format run ends with no sheet to show; each is said in the panel, never left to the log.
+public enum PanelFormatEnding: Sendable, Equatable, CaseIterable {
+    /// The formatter changed nothing.
+    case alreadyFormatted
+    /// The formatter timed out, crashed or exited with an error.
+    case unreadable
+    /// The guard refused output that changed more than layout.
+    case unfaithful
+
+    /// What the panel says for this ending.
+    public var notice: PanelNotice {
+        switch self {
+        case .alreadyFormatted:
+            PanelNotice(symbolName: "checkmark.circle", message: "Already formatted")
+        case .unreadable:
+            PanelNotice(
+                symbolName: "exclamationmark.triangle", message: "The formatter could not read this")
+        case .unfaithful:
+            PanelNotice(
+                symbolName: "exclamationmark.triangle",
+                message: "The formatter changed more than layout, so nothing was kept")
+        }
+    }
+}

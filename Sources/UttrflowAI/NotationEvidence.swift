@@ -1,0 +1,86 @@
+import UttrflowCore
+
+/// The one rule for when spoken code symbols are written: the screen's cues, then the speech's, against one threshold.
+enum NotationEvidence {
+    /// The confidence notation needs; one screen cue reaches it and no speech cue alone does. See `Docs/adapters.md` §2.
+    static let activationThreshold = 1.0
+
+    /// What the screen says before a word is read: a command line or a caret in code for, a comment or prose body against.
+    static func applicability(
+        destination: Destination, region: CaretStructure.Region, mode: AdapterMode = .auto
+    ) -> Applicability {
+        // The person's own word comes before any cue: plain prose is never given notation.
+        if mode == .prose { return Applicability(cues: [.proseByChoice]) }
+        if destination == .terminal { return Applicability(cues: [.commandLine]) }
+        // A query's string literal is a value the speaker words, so it is no more a statement than a comment is.
+        if destination == .sqlEditor, region != .code, region != .unrecognised {
+            return Applicability(cues: [.caretInProse])
+        }
+        guard destination == .codeEditor else { return .noEvidence }
+        switch region {
+        case .code, .string: return Applicability(cues: [.caretInCode])
+        case .comment, .prose: return Applicability(cues: [.caretInProse])
+        case .unrecognised: return .noEvidence
+        }
+    }
+
+    /// A query editor's screen evidence with the statement already in the field read: a comment or string holds the caret, or a clause is open.
+    static func applicability(
+        destination: Destination, region: CaretStructure.Region, statement: SQLPosition,
+        mode: AdapterMode = .auto
+    ) -> Applicability {
+        let screen = applicability(destination: destination, region: region, mode: mode)
+        guard destination == .sqlEditor, mode != .prose else { return screen }
+        if statement.inComment || statement.inString { return Applicability(cues: [.caretInProse]) }
+        return screen == .noEvidence && statement.isMidStatement
+            ? Applicability(cues: [.queryStatement]) : screen
+    }
+
+    /// Whether a notation pass belongs in the pipeline: on the screen's evidence, or in a query editor the screen does not rule out.
+    static func mayActivate(_ screen: Applicability, in destination: Destination) -> Bool {
+        screen.activates(at: activationThreshold) || (destination == .sqlEditor && screen == .noEvidence)
+    }
+
+    /// A query editor's evidence, read from the opening word: a statement opens with a statement keyword, a sentence about one does not.
+    static func applicability(
+        destination: Destination, opening word: String?, given screen: Applicability
+    ) -> Applicability {
+        guard destination == .sqlEditor, screen == .noEvidence, let word, statementOpeners.contains(word)
+        else {
+            return screen
+        }
+        return Applicability(cues: [.queryStatement])
+    }
+
+    /// The words a dictated statement opens with; the rest of its keywords are rows of the notation table.
+    static let statementOpeners: Set<String> = ["select", "insert", "update", "delete"]
+
+    /// Whether `words` are a statement in a query editor, read from the evidence that writes its notation.
+    static func isQueryStatement(
+        words: [String], destination: Destination, region: CaretStructure.Region
+    ) -> Bool {
+        guard destination == .sqlEditor else { return false }
+        let screen = applicability(destination: destination, region: region)
+        let opened = applicability(destination: destination, opening: words.first, given: screen)
+        return applicability(of: words, given: opened).activates(at: activationThreshold)
+    }
+
+    /// The screen's evidence with the speech's cues added: an article, or a determiner before a longer non-notation word ("our costs", not "this dot").
+    static func applicability(of words: [String], given screen: Applicability) -> Applicability {
+        let readsAsProse = words.indices.contains { index in
+            if FunctionWords.prose.contains(words[index]) { return true }
+            guard FunctionWords.determiners.contains(words[index]), index + 1 < words.count else {
+                return false
+            }
+            let next = words[index + 1]
+            return next.count > 1 && FunctionWords.isContent(next) && !notationWords.contains(next)
+        }
+        return readsAsProse ? screen.adding([.proseWord]) : screen
+    }
+
+    /// A word that, just before a notation word, makes it a noun ("a dot") rather than a command.
+    static let nounMarker = "a"
+
+    /// Every word that begins a spoken notation command.
+    private static let notationWords: Set<String> = Set(SpokenCommands.codeSymbols.compactMap(\.words.first))
+}

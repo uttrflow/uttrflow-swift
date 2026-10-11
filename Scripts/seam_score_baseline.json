@@ -1,0 +1,40 @@
+{
+  "clips" : {
+    "long-form-correcting-an-item-in-a-list" : {
+      "dropped" : 0,
+      "duplicated" : 0,
+      "strayStops" : 0,
+      "wrongCapitals" : 0
+    },
+    "long-form-eight-sentence-note-with-a-list-and-two-paragraphs" : {
+      "dropped" : 0,
+      "duplicated" : 0,
+      "strayStops" : 0,
+      "wrongCapitals" : 0
+    },
+    "long-form-hesitating-status-paragraph-at-a-pause" : {
+      "dropped" : 0,
+      "duplicated" : 0,
+      "strayStops" : 0,
+      "wrongCapitals" : 0
+    },
+    "long-form-listing-steps-by-ordinal" : {
+      "dropped" : 0,
+      "duplicated" : 0,
+      "strayStops" : 0,
+      "wrongCapitals" : 0
+    },
+    "long-form-rambling-email-two-topics" : {
+      "dropped" : 0,
+      "duplicated" : 0,
+      "strayStops" : 0,
+      "wrongCapitals" : 0
+    },
+    "long-form-rambling-without-a-pause-past-the-recogniser-window" : {
+      "dropped" : 0,
+      "duplicated" : 0,
+      "strayStops" : 0,
+      "wrongCapitals" : 0
+    }
+  }
+}

@@ -13,6 +13,9 @@ public struct Settings: Sendable, Equatable, Codable {
     /// Which clean-up steps run, so a user can switch one off and see what it was doing.
     public var cleaning: CleaningSteps
 
+    /// The quality preset every app is dictated under unless ``destinations`` names one for it.
+    var qualityPreset: QualityPreset.ID
+
     /// The apps the user has told Uttrflow to treat as somewhere other than the table says.
     public var destinations: DestinationOverrides
 
@@ -30,6 +33,9 @@ public struct Settings: Sendable, Equatable, Codable {
 
     /// How long a Dictate press may last and still count as a tap rather than a hold.
     public var handsFreeHoldMilliseconds: Int
+
+    /// Seconds of quiet that end a recording no key is holding; 0, the default, leaves it to the stop gesture.
+    public var endOnSilenceSeconds: Int
 
     /// Shortcuts that were a modifier held alone and are back to their defaults, until the user chooses again.
     public var shortcutsReturnedToDefault: Set<ShortcutAction>
@@ -84,29 +90,61 @@ public struct Settings: Sendable, Equatable, Codable {
     /// Whether crash and hang reports go to Uttrflow; off until the user turns it on. See `Docs/crash-reporting.md`.
     public var sendsCrashReports: Bool
 
+    /// Whether dictation learns words in any application; off, every application is treated as declined.
+    public var learnsFromDictation: Bool
+
     /// Whether the interface is drawn light, dark, or however the Mac is set.
     public var appearance: AppAppearance
 
     /// How many days finished text is kept before it is deleted automatically; ``keepAlwaysDays`` keeps it.
     public var transcriptRetentionDays: Int
 
+    /// Whether no dictation is written to history at all, whatever app it went into.
+    public var keepsNoTranscripts: Bool
+
+    /// Bundle identifiers of apps whose dictations are inserted and then forgotten.
+    public var historyExcludedApplications: [String]
+
     /// How many days an unkept clip survives; a clip with an alias, category or pin has no clock.
     public var clipboardRetentionDays: Int
 
+    /// Whether pasting a hidden clip into a field not known to hide what is typed asks first.
+    public var confirmsHiddenClipPaste: Bool
+
+    /// Seconds a copied secret stays on the system clipboard before it is cleared; 0 leaves it there.
+    public var secretClipboardClearSeconds: Int
+
     /// Everything the user has decided about tab-to-complete.
     public var suggestions: SuggestionPreferences
+
+    /// The input device dictation opens, by its stable UID; nil follows the system default.
+    public var microphoneUID: String?
+
+    /// How much of the front application a dictation reads: its name only, or the text around the caret too.
+    public var contextLevel: ContextLevel
+
+    /// Applications read at a level of their own instead of ``contextLevel``.
+    public var contextLevelOverrides: ContextLevelOverrides
+
+    /// The preset this app is dictated under: its own override, else the one chosen for every app.
+    func qualityPreset(forBundleIdentifier bundle: String?) -> QualityPreset {
+        let chosen = bundle.flatMap { destinations.preset(forBundleIdentifier: $0) } ?? qualityPreset
+        return QualityPreset.preset(chosen)
+    }
 
     /// Takes the shipped default for anything the caller does not choose.
     public init(
         engines: EngineConfiguration = .default,
         profile: UserProfile = .default,
         cleaning: CleaningSteps = .default,
+        qualityPreset: QualityPreset.ID = .standard,
         destinations: DestinationOverrides = .none,
         shortcuts: ShortcutSet = .default,
         hotkeyActivation: HotkeyActivation = .holdToTalk,
         handsFreeEnabled: Bool = true,
         handsFreeDoubleTapMilliseconds: Int = 450,
         handsFreeHoldMilliseconds: Int = 200,
+        endOnSilenceSeconds: Int = 0,
         shortcutsReturnedToDefault: Set<ShortcutAction> = [],
         dictationEnabled: Bool = true,
         clipboardEnabled: Bool = true,
@@ -120,14 +158,23 @@ public struct Settings: Sendable, Equatable, Codable {
         installsUpdatesAutomatically: Bool = true,
         sharesUsageStatistics: Bool = false,
         sendsCrashReports: Bool = false,
+        learnsFromDictation: Bool = true,
         appearance: AppAppearance = .dark,
         transcriptRetentionDays: Int = Settings.defaultTranscriptRetentionDays,
+        keepsNoTranscripts: Bool = false,
+        historyExcludedApplications: [String] = [],
         clipboardRetentionDays: Int = Settings.defaultRetentionDays,
-        suggestions: SuggestionPreferences = .default
+        confirmsHiddenClipPaste: Bool = true,
+        secretClipboardClearSeconds: Int = Settings.defaultSecretClipboardClearSeconds,
+        suggestions: SuggestionPreferences = .default,
+        microphoneUID: String? = nil,
+        contextLevel: ContextLevel = .nearCaret,
+        contextLevelOverrides: ContextLevelOverrides = .none
     ) {
         self.engines = engines
         self.profile = profile
         self.cleaning = cleaning
+        self.qualityPreset = qualityPreset
         self.destinations = destinations
         self.shortcuts = shortcuts
         self.hotkeyActivation = hotkeyActivation
@@ -135,6 +182,7 @@ public struct Settings: Sendable, Equatable, Codable {
         self.handsFreeDoubleTapMilliseconds = Self.validDoubleTapMilliseconds(
             handsFreeDoubleTapMilliseconds)
         self.handsFreeHoldMilliseconds = Self.validHoldMilliseconds(handsFreeHoldMilliseconds)
+        self.endOnSilenceSeconds = SilenceStop(seconds: endOnSilenceSeconds) == nil ? 0 : endOnSilenceSeconds
         self.shortcutsReturnedToDefault = shortcutsReturnedToDefault
         self.dictationEnabled = dictationEnabled
         self.clipboardEnabled = clipboardEnabled
@@ -148,14 +196,30 @@ public struct Settings: Sendable, Equatable, Codable {
         self.installsUpdatesAutomatically = installsUpdatesAutomatically
         self.sharesUsageStatistics = sharesUsageStatistics
         self.sendsCrashReports = sendsCrashReports
+        self.learnsFromDictation = learnsFromDictation
         self.appearance = appearance
         self.transcriptRetentionDays = transcriptRetentionDays
+        self.keepsNoTranscripts = keepsNoTranscripts
+        self.historyExcludedApplications = historyExcludedApplications
         self.clipboardRetentionDays = clipboardRetentionDays
+        self.confirmsHiddenClipPaste = confirmsHiddenClipPaste
+        self.secretClipboardClearSeconds = secretClipboardClearSeconds
         self.suggestions = suggestions
+        self.microphoneUID = microphoneUID
+        self.contextLevel = contextLevel
+        self.contextLevelOverrides = contextLevelOverrides
     }
 
     /// A week: how long an unkept clip lives unless the user chooses otherwise.
     public static let defaultRetentionDays = 7
+
+    /// A copied secret leaves the clipboard after this many seconds.
+    public static let defaultSecretClipboardClearSeconds = 60
+
+    /// Keeps a stored clear delay that is zero (off) or positive; a negative one falls back.
+    static func secretClear(_ seconds: Int, default fallback: Int) -> Int {
+        seconds >= 0 ? seconds : fallback
+    }
 
     /// The period that stands for "keep until I delete it", longer than anything can be kept waiting.
     public static let keepAlwaysDays = RetentionWindow.keepAlwaysDays
@@ -202,12 +266,14 @@ extension Settings {
         case engines
         case profile
         case cleaning
+        case qualityPreset
         case destinations
         case shortcuts
         case hotkeyActivation
         case handsFreeEnabled
         case handsFreeDoubleTapMilliseconds
         case handsFreeHoldMilliseconds
+        case endOnSilenceSeconds
         case shortcutsReturnedToDefault
         case dictationEnabled
         case clipboardEnabled
@@ -221,10 +287,18 @@ extension Settings {
         case installsUpdatesAutomatically
         case sharesUsageStatistics
         case sendsCrashReports
+        case learnsFromDictation
         case appearance
         case transcriptRetentionDays
+        case keepsNoTranscripts
+        case historyExcludedApplications
         case clipboardRetentionDays
+        case confirmsHiddenClipPaste
+        case secretClipboardClearSeconds
         case suggestions
+        case microphoneUID
+        case contextLevel
+        case contextLevelOverrides
     }
 
     /// Decodes field by field, defaulting anything missing or unreadable. See `Docs/settings-decoding.md`.
@@ -238,6 +312,7 @@ extension Settings {
             engines: container.value(forKey: .engines, default: fallback.engines),
             profile: container.value(forKey: .profile, default: fallback.profile),
             cleaning: container.value(forKey: .cleaning, default: fallback.cleaning),
+            qualityPreset: container.value(forKey: .qualityPreset, default: fallback.qualityPreset),
             destinations: container.value(forKey: .destinations, default: fallback.destinations),
             // A saved file with no dictation shortcut predates ⌃⌥ held, so it keeps ⌥Space.
             shortcuts: Settings.shortcuts(from: decoder, default: .earlierDefault),
@@ -251,6 +326,8 @@ extension Settings {
                 default: fallback.handsFreeDoubleTapMilliseconds),
             handsFreeHoldMilliseconds: container.value(
                 forKey: .handsFreeHoldMilliseconds, default: fallback.handsFreeHoldMilliseconds),
+            endOnSilenceSeconds: container.value(
+                forKey: .endOnSilenceSeconds, default: fallback.endOnSilenceSeconds),
             shortcutsReturnedToDefault: container.value(
                 forKey: .shortcutsReturnedToDefault, default: fallback.shortcutsReturnedToDefault
             ).union(Settings.shortcutsReturned(from: decoder)),
@@ -288,6 +365,8 @@ extension Settings {
             ),
             sendsCrashReports: container.value(
                 forKey: .sendsCrashReports, default: fallback.sendsCrashReports),
+            learnsFromDictation: container.value(
+                forKey: .learnsFromDictation, default: fallback.learnsFromDictation),
             appearance: container.value(forKey: .appearance, default: fallback.appearance),
             transcriptRetentionDays: Settings.retention(
                 container.value(
@@ -295,13 +374,27 @@ extension Settings {
                 ),
                 default: fallback.transcriptRetentionDays, keepsAlways: true
             ),
+            keepsNoTranscripts: container.value(
+                forKey: .keepsNoTranscripts, default: fallback.keepsNoTranscripts),
+            historyExcludedApplications: container.value(
+                forKey: .historyExcludedApplications, default: fallback.historyExcludedApplications),
             clipboardRetentionDays: Settings.retention(
                 container.value(
                     forKey: .clipboardRetentionDays, default: fallback.clipboardRetentionDays
                 ),
                 default: fallback.clipboardRetentionDays
             ),
-            suggestions: container.value(forKey: .suggestions, default: fallback.suggestions)
+            confirmsHiddenClipPaste: container.value(
+                forKey: .confirmsHiddenClipPaste, default: fallback.confirmsHiddenClipPaste),
+            secretClipboardClearSeconds: Settings.secretClear(
+                container.value(
+                    forKey: .secretClipboardClearSeconds, default: fallback.secretClipboardClearSeconds),
+                default: fallback.secretClipboardClearSeconds),
+            suggestions: container.value(forKey: .suggestions, default: fallback.suggestions),
+            microphoneUID: (try? container.decodeIfPresent(String.self, forKey: .microphoneUID)) ?? nil,
+            contextLevel: container.value(forKey: .contextLevel, default: fallback.contextLevel),
+            contextLevelOverrides: container.value(
+                forKey: .contextLevelOverrides, default: fallback.contextLevelOverrides)
         )
     }
 

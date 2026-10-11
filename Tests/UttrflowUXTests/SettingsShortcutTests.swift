@@ -12,7 +12,7 @@ struct SettingsShortcutDrawingTests {
         #expect(
             SettingsShortcut.accessibilityLabel(
                 for: .pasteLastTranscript, keys: keys, isRecording: false)
-                == "Paste last transcript shortcut, Control Command V")
+                == "Paste last dictation shortcut, Control Command V")
     }
 
     @Test("says none when a shortcut has no keys")
@@ -20,7 +20,7 @@ struct SettingsShortcutDrawingTests {
         #expect(
             SettingsShortcut.accessibilityLabel(
                 for: .copyLastTranscript, keys: [], isRecording: false)
-                == "Copy last transcript shortcut, none")
+                == "Copy last dictation shortcut, none")
     }
 
     @Test("explains that recording is listening and Escape cancels")
@@ -401,12 +401,13 @@ struct SettingsShortcutRecorderTests {
             var r = SettingsShortcutRecorder(binding: .functionHold)
             r.beginRecording()
             _ = r.hold(keyCode: 58, modifiers: [.option])
-            #expect(
-                r.record(keyCode: 49, modifiers: [.option]) == .recorded(.shortcut(.dictate, .optionSpace)))
-            #expect(r.binding == .optionSpace)
+            // F1 rather than Space: Option with a key that types is refused, and that is a separate test.
+            let optionF1 = HotkeyBinding(keyCode: 122, modifiers: [.option])
+            #expect(r.record(keyCode: 122, modifiers: [.option]) == .recorded(.shortcut(.dictate, optionF1)))
+            #expect(r.binding == optionF1)
             // The modifier coming up afterwards must not overwrite what was just recorded.
             #expect(r.release() == .ignored)
-            #expect(r.binding == .optionSpace)
+            #expect(r.binding == optionF1)
         }
 
         /// Two modifiers and a key, pressed in the order a hand presses them.

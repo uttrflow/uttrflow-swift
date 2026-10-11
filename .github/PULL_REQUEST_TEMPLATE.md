@@ -16,7 +16,14 @@ For changes to `Sources/UttrflowAI/PromptBuilder.swift` or the rules, include th
 `make bakeoff ARGS="--against <saved-result.json>"` comparison output, or explain why a
 corpus comparison could not be run. `Docs/measure-a-change.md` says which command a change needs.
 
+For a change to prompts or guards in `Sources/UttrflowAI`: the `*LiveModelTests` result from a Mac
+with Apple Intelligence, with `PromptBuilder.version` and the macOS build. `make verify` prints
+`live-model tests: N run, M skipped`; a skipped suite proves nothing.
+
 For a change to `technical-lexicon.json`: the corpus slice it affects, and its bench before and after ([guide](../Docs/lexicon.md)): <!-- slice, or why none -->
+
+For a change to `weightsRevision`, `tokenizerRevision` or the `WhisperKit` version: the
+`make accuracy-gate` output, and the new baseline it asks for ([steps](../Docs/speech-model-install.md#pinned-model-files)).
 
 For a fix to a wrong dictation: corpus case added (fails before, passes after): <!-- case id, or why none can exist -->
 

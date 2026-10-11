@@ -10,6 +10,18 @@ struct PhoneticIndexTests {
     // MARK: Lookup
 
     /// The reason the index is keyed on sound: an entry has to be reachable from what was heard instead.
+    @Test("the revision is equal for equal contents and moves when a word is added or used")
+    func revisionFollowsTheContents() {
+        let entry = word("Zorvex", from: .added)
+        var used = entry
+        used.timesUsed += 1
+        let same = PhoneticIndex(entries: [entry]).revision
+        #expect(PhoneticIndex(entries: [entry]).revision == same)
+        #expect(PhoneticIndex(entries: [entry, word("Quillon", from: .learned)]).revision != same)
+        #expect(PhoneticIndex(entries: [used]).revision != same)
+        #expect(PhoneticIndex(entries: []).revision != same)
+    }
+
     @Test("finds an entry from the word a recogniser heard instead")
     func findsByMishearing() {
         let index = PhoneticIndex(entries: [word("Claude", from: .added)])

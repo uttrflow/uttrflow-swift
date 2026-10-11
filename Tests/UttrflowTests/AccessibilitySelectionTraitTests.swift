@@ -47,23 +47,8 @@ struct AccessibilitySelectionTraitTests {
         return [root] + children.flatMap { elements(under: $0) }
     }
 
-    private func askAsAnAssistiveApp() {
-        let done = DispatchSemaphore(value: 0)
-        Thread.detachNewThread {
-            var value: CFTypeRef?
-            _ = AXUIElementCopyAttributeValue(
-                AXUIElementCreateApplication(getpid()), kAXChildrenAttribute as CFString, &value)
-            done.signal()
-        }
-        let deadline = Date().addingTimeInterval(5)
-        while done.wait(timeout: .now()) == .timedOut && Date() < deadline {
-            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
-        }
-        RunLoop.main.run(until: Date().addingTimeInterval(0.2))
-    }
-
     @Test("the selected trait moves off the previous tab and onto the new tab")
-    func traitMovesWithSelection() {
+    func traitMovesWithSelection() async {
         NSApplication.shared.setActivationPolicy(.accessory)
         NSApplication.shared.finishLaunching()
         let window = NSWindow(
@@ -78,7 +63,7 @@ struct AccessibilitySelectionTraitTests {
         window.contentView = host
         window.orderFrontRegardless()
         host.layoutSubtreeIfNeeded()
-        askAsAnAssistiveApp()
+        await askAsAnAssistiveApp()
 
         func selectedLabels() -> Set<String> {
             Set(
@@ -95,7 +80,7 @@ struct AccessibilitySelectionTraitTests {
         host.rootView = SelectionHarness(
             selectedTab: .general, selectedPage: .home, isAccountSelected: false)
         host.layoutSubtreeIfNeeded()
-        askAsAnAssistiveApp()
+        await askAsAnAssistiveApp()
 
         #expect(selectedLabels() == ["General", "Home"])
     }

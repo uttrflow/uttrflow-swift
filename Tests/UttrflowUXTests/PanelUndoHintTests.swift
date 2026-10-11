@@ -49,6 +49,14 @@ struct PanelUndoHintTests {
         #expect(PanelPresenter.present(snapshot).hint == PanelPresenter.sheetHint)
     }
 
+    @Test("a search keeps the undo offer and teaches Escape to clear it")
+    func searchKeepsUndoOffer() {
+        var snapshot = PanelFixture.panel([], query: "needle")
+        snapshot.canUndoDelete = true
+        let presentation = PanelPresenter.present(snapshot)
+        #expect(presentation.hint == PanelPresenter.searchUndoHint && presentation.offersUndo)
+    }
+
     /// The panel cannot answer an undo, since only the app still holds the clip, so it maps to no key.
     @Test("undo is an intent the panel deliberately cannot answer")
     func undoIsNotAKey() {

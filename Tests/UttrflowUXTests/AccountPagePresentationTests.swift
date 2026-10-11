@@ -52,7 +52,7 @@ struct AccountIdentityTests {
     /// A stock silhouette tells the user nothing about which of their accounts this is.
     @Test("the circle carries the initials of the name")
     func initials() {
-        #expect(HistoryFixture.accountPage().identity?.initials == "N")
+        #expect(HistoryFixture.accountPage().identity?.initials == "A")
         #expect(AccountPagePresenter.initials(of: "Ada Byron Lovelace") == "A")
         // "PR" would read as a company; one name gives one initial.
         #expect(AccountPagePresenter.initials(of: "Prince") == "P")
@@ -174,6 +174,16 @@ struct AccountFactsTests {
         #expect(page.actionHelp?.contains("stay on this Mac") == true)
     }
 
+    @Test("deleting the account sits beside signing out, in red, and asks first")
+    func deletion() {
+        let page = Self.everything
+        #expect(page.deletion?.intent == .deleteAccount)
+        #expect(page.deletion?.isDestructive == true)
+        #expect(page.deletion?.confirmation == .deleteAccount)
+        #expect(AccountPagePresenter.deletionHelp.contains("stay on this Mac"))
+        #expect(HistoryFixture.accountPage(account: nil).deletion == nil)
+    }
+
     /// The question an account on this product invites, answered beside the invitation to sign in.
     @Test("the promise about local data is kept for the invitation")
     func promise() {
@@ -190,9 +200,9 @@ struct AccountFactsTests {
     }
 }
 
-@Suite("Account when the subscription could not be checked")
+@Suite("Account when the sign-in could not be re-checked")
 struct AccountNoticeTests {
-    @Test("a current subscription has nothing to say")
+    @Test("a current sign-in has nothing to say")
     func quiet() {
         #expect(HistoryFixture.accountPage(access: .allowed).notice == nil)
     }
@@ -204,6 +214,7 @@ struct AccountNoticeTests {
         #expect(notice?.symbolName == "wifi.slash")
         #expect(notice?.tone == .neutral)
         #expect(notice?.message.contains("carried on without it") == true)
+        #expect(notice?.message.localizedCaseInsensitiveContains("subscription") == false)
     }
 
     @Test("a renewal worth attempting is offered as a suggestion, not a requirement")
@@ -211,6 +222,7 @@ struct AccountNoticeTests {
         let notice = HistoryFixture.accountPage(access: .allowedPendingSignIn).notice
         #expect(notice?.tone == .warning)
         #expect(notice?.message.contains("Dictation carries on either way") == true)
+        #expect(notice?.message.localizedCaseInsensitiveContains("subscription") == false)
     }
 
     /// Nobody signed in draws the empty state, where the invitation already is; a notice would repeat it.
@@ -259,5 +271,17 @@ struct AccountEmptyTests {
         let without = HistoryFixture.accountPage()
         #expect(without.identity?.picture == nil)
         #expect(without.identity?.initials == withPicture.identity?.initials)
+    }
+}
+
+@Suite("Account: the published Privacy page")
+struct AccountPrivacyLinkTests {
+    @Test("signed in or not, the page carries the verified Privacy destination")
+    func privacyIsReachableAfterOnboarding() {
+        for account in [HistoryFixture.account(), nil] {
+            let link = HistoryFixture.accountPage(account: account).privacy
+            #expect(link.title == "Privacy Policy")
+            #expect(link.destination.absoluteString == "https://uttrflow.com/privacy")
+        }
     }
 }

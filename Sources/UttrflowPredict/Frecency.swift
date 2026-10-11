@@ -25,10 +25,11 @@ public enum Frecency {
     /// The score of one candidate at a moment in time.
     public static func score(_ candidate: Candidate, now: Date) -> Double {
         guard let evidence = candidate.evidence else { return environmentWeight / distancePenalty(candidate) }
+        guard !isRetiredByRefusal(evidence) else { return 0 }
         let uses = effectiveCount(evidence)
-        guard uses > 0, !isRetiredByRefusal(evidence) else { return 0 }
-        return log(1 + uses) * decay(evidence.lastUsed, now: now) * acceptance(evidence)
-            / distancePenalty(candidate)
+        let learned = uses > 0 ? log(1 + uses) * decay(evidence.lastUsed, now: now) * acceptance(evidence) : 0
+        let confirmed = candidate.isConfirmedByEnvironment ? environmentWeight : 0
+        return (learned + confirmed) / distancePenalty(candidate)
     }
 
     /// Uses, with the ones we suggested ourselves discounted so acceptance cannot feed itself.

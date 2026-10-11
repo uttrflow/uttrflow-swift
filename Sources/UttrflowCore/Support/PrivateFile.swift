@@ -32,11 +32,82 @@ public enum PrivateFile {
     /// Writes `data` to `url` atomically, keeping the owner's own bits where the file already had some.
     public static func write(_ data: Data, to url: URL) throws {
         try makeDirectory(at: url.deletingLastPathComponent())
-        // Read first: an atomic write replaces the file, and the replacement is the umask's, not the old file's.
-        let kept = (try? mode(at: url)).map { $0 & 0o700 }
-        try data.write(to: url, options: .atomic)
+        let kept = (try? mode(at: url)).map { $0 & 0o700 } ?? fileMode
+        try writeAtomically(data, to: url, mode: kept)
+    }
+
+    /// The sealed previous generation, stored beside the live file and bound to the live name.
+    static func backupURL(for url: URL) -> URL {
+        url.appendingPathExtension("bak")
+    }
+
+    /// Durably saves already-authenticated bytes before the live generation is replaced.
+    static func preserveSealedGeneration(_ data: Data, from url: URL) throws {
+        try makeDirectory(at: url.deletingLastPathComponent())
+        try writeAtomically(data, to: backupURL(for: url), mode: fileMode)
+    }
+
+    /// Restores bytes already authenticated using the live file's logical name.
+    static func restore(_ data: Data, to url: URL) throws {
+        try makeDirectory(at: url.deletingLastPathComponent())
+        let kept = (try? mode(at: url)).map { $0 & 0o700 } ?? fileMode
+        try writeAtomically(data, to: url, mode: kept)
+    }
+
+    private static func writeAtomically(_ data: Data, to url: URL, mode: Int) throws {
+        let folder = url.deletingLastPathComponent()
+        let temporary = folder.appending(
+            path: ".\(url.lastPathComponent).\(UUID().uuidString).tmp", directoryHint: .notDirectory)
+        let descriptor = open(
+            temporary.path(percentEncoded: false), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC,
+            mode_t(fileMode))
+        guard descriptor >= 0 else { throw posixError() }
+        var descriptorIsOpen = true
+        var shouldRemoveTemporary = true
+        defer {
+            if descriptorIsOpen { _ = Darwin.close(descriptor) }
+            if shouldRemoveTemporary { _ = unlink(temporary.path(percentEncoded: false)) }
+        }
+
+        try data.withUnsafeBytes { bytes in
+            guard let baseAddress = bytes.baseAddress else { return }
+            var offset = 0
+            while offset < bytes.count {
+                let written = Darwin.write(
+                    descriptor, baseAddress.advanced(by: offset), bytes.count - offset)
+                if written < 0, errno == EINTR { continue }
+                guard written > 0 else { throw posixError() }
+                offset += written
+            }
+        }
+        guard fchmod(descriptor, mode_t(mode)) == 0 else { throw posixError() }
+        try synchronizeFile(descriptor)
+        guard Darwin.close(descriptor) == 0 else {
+            descriptorIsOpen = false
+            throw posixError()
+        }
+        descriptorIsOpen = false
+
+        guard rename(temporary.path(percentEncoded: false), url.path(percentEncoded: false)) == 0
+        else { throw posixError() }
+        shouldRemoveTemporary = false
         try? excludeFromBackup(at: url)
-        try set(kept ?? fileMode, at: url)
+        try synchronizeDirectory(at: folder)
+    }
+
+    private static func synchronizeFile(_ descriptor: Int32) throws {
+        #if os(macOS)
+            if fcntl(descriptor, F_FULLFSYNC) == 0 { return }
+            guard errno == EINVAL || errno == ENOTSUP || errno == ENOTTY else { throw posixError() }
+        #endif
+        guard fsync(descriptor) == 0 else { throw posixError() }
+    }
+
+    static func synchronizeDirectory(at directory: URL) throws {
+        let descriptor = open(directory.path(percentEncoded: false), O_RDONLY | O_CLOEXEC)
+        guard descriptor >= 0 else { throw posixError() }
+        defer { _ = Darwin.close(descriptor) }
+        guard fsync(descriptor) == 0 else { throw posixError() }
     }
 
     /// Replaces a chosen export with a sibling file created owner-only before its bytes are written.

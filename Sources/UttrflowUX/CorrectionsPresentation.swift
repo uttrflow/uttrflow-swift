@@ -1,5 +1,6 @@
 // The Corrections page: dictionary-backed substitutions, why, and the way to put them back.
 public import Foundation
+public import UttrflowDictionary
 public import UttrflowHistory
 public import UttrflowSettings
 import UttrflowCore
@@ -28,6 +29,8 @@ public struct CorrectionRow: Sendable, Equatable, Identifiable {
     public let application: HistoryApplication?
     /// Absent on a change that has already been put back — there is nothing left to undo.
     public let undo: MainAction?
+    /// Set when an undo vetoed this heard-to-meant pairing: what that means, and the way to allow it again.
+    public let veto: CorrectionVeto?
 
     /// Builds a row from its parts.
     public init(
@@ -38,7 +41,8 @@ public struct CorrectionRow: Sendable, Equatable, Identifiable {
         reason: MainPill,
         when: String,
         application: HistoryApplication?,
-        undo: MainAction?
+        undo: MainAction?,
+        veto: CorrectionVeto? = nil
     ) {
         self.id = id
         self.heard = heard
@@ -48,6 +52,21 @@ public struct CorrectionRow: Sendable, Equatable, Identifiable {
         self.when = when
         self.application = application
         self.undo = undo
+        self.veto = veto
+    }
+}
+
+/// An undone pairing Uttrflow will not make again, and the action that lifts that.
+public struct CorrectionVeto: Sendable, Equatable {
+    /// "Won't change “nickel” to “Nikhil” again".
+    public let note: String
+    /// Lets the pairing be made again.
+    public let allow: MainAction
+
+    /// Builds the veto from its parts.
+    public init(note: String, allow: MainAction) {
+        self.note = note
+        self.allow = allow
     }
 }
 
@@ -65,6 +84,8 @@ public struct CorrectionsSnapshot: Sendable, Equatable {
     public let settings: Settings
     /// The clock the page is drawn against.
     public let now: Date
+    /// What the user's keeps and undos say about each heard-to-meant pairing, keyed by `ConfusionPairs.key`.
+    public let pairs: [String: ConfusionPairs.Feature]
 
     /// Builds a snapshot; everything but the clock defaults to empty.
     public init(
@@ -73,8 +94,10 @@ public struct CorrectionsSnapshot: Sendable, Equatable {
         query: String = "",
         scope: CorrectionsScope = .all,
         settings: Settings = .default,
-        now: Date
+        now: Date,
+        pairs: [String: ConfusionPairs.Feature] = [:]
     ) {
+        self.pairs = pairs
         self.corrections = corrections
         self.dictations = dictations
         self.query = query
@@ -131,7 +154,7 @@ public enum CorrectionsPresenter {
         let inWindow = retained(snapshot)
         let listed = matches(
             snapshot.scope.matching(inWindow), query: snapshot.query, locale: locale)
-        let rows = listed.map { row(for: $0, locale: locale) }
+        let rows = listed.map { row(for: $0, locale: locale, pairs: snapshot.pairs) }
 
         return CorrectionsPresentation(
             chrome: chrome(for: snapshot, anyKept: !inWindow.isEmpty),
@@ -210,8 +233,10 @@ public enum CorrectionsPresenter {
 
     // MARK: - Drawing one
 
-    /// One correction as a row, with Undo unless it is already undone.
-    static func row(for correction: Correction, locale: Locale) -> CorrectionRow {
+    /// One correction as a row, with Undo unless it is already undone, and the veto its pairing carries.
+    static func row(
+        for correction: Correction, locale: Locale, pairs: [String: ConfusionPairs.Feature] = [:]
+    ) -> CorrectionRow {
         CorrectionRow(
             id: correction.id,
             heard: correction.heard,
@@ -226,7 +251,22 @@ public enum CorrectionsPresenter {
                 ? nil
                 : MainAction(
                     title: "Undo", symbolName: "arrow.uturn.backward",
-                    intent: .undoCorrection(correction.id)))
+                    intent: .undoCorrection(correction.id)),
+            veto: veto(of: correction, pairs: pairs))
+    }
+
+    /// Present only on an undone change whose pairing the undos still veto.
+    static func veto(
+        of correction: Correction, pairs: [String: ConfusionPairs.Feature]
+    ) -> CorrectionVeto? {
+        guard correction.isUndone,
+            pairs[ConfusionPairs.key(heard: correction.heard, meant: correction.wrote)] == .vetoed
+        else { return nil }
+        return CorrectionVeto(
+            note: "Won’t change “\(correction.heard)” to “\(correction.wrote)” again",
+            allow: MainAction(
+                title: "Allow", symbolName: "arrow.uturn.forward",
+                intent: .allowPairing(heard: correction.heard, meant: correction.wrote)))
     }
 
     // MARK: - Nothing to show

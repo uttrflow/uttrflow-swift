@@ -64,22 +64,25 @@ struct MotionBudget: Equatable {
 
     /// What this process reads from the system right now.
     @MainActor
-    static func current() -> MotionBudget {
-        MotionBudget(
-            reducesMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
-            energy: .current())
+    static func current(in workspace: any MotionWorkspace = SystemWorkspace()) -> MotionBudget {
+        MotionBudget(reducesMotion: workspace.reducesMotion, energy: .current())
     }
 
     /// Every notice after which `current()` may answer differently, with the centre that posts it.
     @MainActor
     static var changeNotices: [(centre: NotificationCenter, name: Notification.Name)] {
+        changeNotices(in: SystemWorkspace())
+    }
+
+    /// The same notices with the Reduce Motion one posted on `workspace`.
+    @MainActor
+    static func changeNotices(
+        in workspace: any MotionWorkspace
+    ) -> [(centre: NotificationCenter, name: Notification.Name)] {
         [
             (.default, .NSProcessInfoPowerStateDidChange),
             (.default, ProcessInfo.thermalStateDidChangeNotification),
-            (
-                NSWorkspace.shared.notificationCenter,
-                NSWorkspace.accessibilityDisplayOptionsDidChangeNotification
-            ),
+            (workspace.notificationCenter, NSWorkspace.accessibilityDisplayOptionsDidChangeNotification),
         ]
     }
 }

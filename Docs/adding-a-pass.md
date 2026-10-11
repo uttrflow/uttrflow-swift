@@ -50,10 +50,10 @@ job is a defect ([code-quality.md](agents/code-quality.md#fixing-a-defect)).
    `CleaningSteps.offered` in `Sources/UttrflowCore/Cleaning/CleaningSteps.swift` with a plain
    name, a one-line detail and an invented example sentence; filter it with `steps.runs` where it
    is registered. `ContractionsPass` is offered as "Contractions". A pass not offered always runs.
-10. **Cover its formatting class in the corpus.** Tag cases in
-    `Sources/UttrflowEval/EvaluationCorpus.swift` with the class the pass serves. A class counts
-    as covered at 5 tagged cases ([formatting-matrix.md](formatting-matrix.md)); regenerate that
-    page with `UTTRFLOW_UPDATE_GOLDEN=1 swift test --filter FormattingMatrixTests`, never by hand.
+10. **Cover its formatting class in the corpus.** Tag cases in the category files under
+    `Sources/UttrflowEval/Resources/Corpus/` with the class the pass serves (`"classes"`). A class
+    counts as covered at 5 tagged cases ([formatting-matrix.md](formatting-matrix.md)); regenerate
+    that page with `UTTRFLOW_UPDATE_GOLDEN=1 swift test --filter FormattingMatrixTests`, never by hand.
     Corpus sentences may not appear in the prompt ([bakeoff.md](bakeoff.md)).
 11. **Stay inside the budget.** Every pass runs inside `StageTimeout.transformation`
     ([pipeline.md](pipeline.md)); no pass declares its own budget yet. A pass that scans the draft

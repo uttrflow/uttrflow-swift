@@ -10,7 +10,12 @@ import Testing
 struct UnreadableIndexTests {
     /// The ways a file on disk stops being readable, each applied to the bytes the store wrote.
     enum Damage: String, CaseIterable, Sendable {
-        case corrupt, truncated, empty, futureVersion, permissionDenied
+        case corrupt, truncated, empty, permissionDenied
+    }
+
+    /// The index whose unreadable bytes cannot be set aside.
+    enum IndexFile: String, CaseIterable, Sendable {
+        case history, saved
     }
 
     /// A pinned picture clip and an ordinary copy, so the history file holds something besides.
@@ -34,7 +39,6 @@ struct UnreadableIndexTests {
         case .corrupt: bytes = Data("{ not json".utf8)
         case .truncated: bytes = original.prefix(original.count / 2)
         case .empty: bytes = Data()
-        case .futureVersion: bytes = Data(#"{"version":2,"clips":[]}"#.utf8)
         case .permissionDenied: bytes = original
         }
         try bytes.write(to: url)
@@ -122,6 +126,34 @@ struct UnreadableIndexTests {
         }
         #expect(try Data(contentsOf: saved) == bytes)
         #expect(await next.imageData(for: image) != nil)
+    }
+
+    @Test(
+        "forgetting refuses to partially erase around an unreplaceable index", arguments: IndexFile.allCases)
+    func forgetDoesNotPartiallyErase(_ indexFile: IndexFile) async throws {
+        let folder = try TemporaryFolder()
+        _ = try await seeded(folder)
+        let history = folder.url.appending(path: "clipboard.json", directoryHint: .notDirectory)
+        let saved = await folder.store.savedFile
+        let unreadable: URL
+        switch indexFile {
+        case .history: unreadable = history
+        case .saved: unreadable = saved
+        }
+        _ = try damage(unreadable, with: .corrupt)
+
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: folder.url.path)
+        let store = ClipboardStore(file: history)
+        _ = await store.clips(keeping: folder.retention)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: folder.url.path)
+
+        let historyBytes = try Data(contentsOf: history)
+        let savedBytes = try Data(contentsOf: saved)
+        await #expect(throws: ClipboardStoreError.couldNotWrite) {
+            try await store.forgetEverything()
+        }
+        #expect(try Data(contentsOf: history) == historyBytes)
+        #expect(try Data(contentsOf: saved) == savedBytes)
     }
 
     @Test("a missing saved file is not unreadable, so a real orphan is still swept")

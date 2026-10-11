@@ -1,4 +1,6 @@
+import Foundation
 import UttrflowCore
+import UttrflowPredict
 import UttrflowSettings
 import Testing
 
@@ -30,6 +32,40 @@ struct FeatureSwitchesTests {
     @Test("the menu starts with dictation and clipboard on and suggestions off")
     func defaults() {
         #expect(MenuBarFeatures(Settings.default) == MenuBarFeatures())
+    }
+
+    @Test("the suggestions tick follows the shared pause and application gate")
+    func suggestionsTickReflectsCurrentAvailability() {
+        let moment = Date(timeIntervalSince1970: 1_800_000_000)
+        let application = "com.example.notes"
+        let paused = Settings(
+            suggestions: SuggestionPreferences(
+                isEnabled: true, pausedUntil: moment.addingTimeInterval(60)))
+        let turnedOff = Settings(
+            suggestions: SuggestionPreferences(isEnabled: true, turnedOff: [application]))
+        let offByDefault = Settings(suggestions: SuggestionPreferences(isEnabled: true))
+        let explicitlyTurnedOn = Settings(
+            suggestions: SuggestionPreferences(isEnabled: true, turnedOn: ["com.microsoft.VSCode"]))
+
+        #expect(
+            !MenuBarFeatures(
+                paused, applicationBundleIdentifier: application, at: moment
+            ).suggestions)
+        #expect(!MenuBarFeatures(paused, at: moment).suggestions)
+        #expect(
+            !MenuBarFeatures(
+                turnedOff, applicationBundleIdentifier: application, at: moment
+            ).suggestions)
+        #expect(
+            !MenuBarFeatures(
+                offByDefault, applicationBundleIdentifier: "com.microsoft.VSCode", at: moment
+            )
+            .suggestions)
+        #expect(
+            MenuBarFeatures(
+                explicitlyTurnedOn, applicationBundleIdentifier: "com.microsoft.VSCode", at: moment
+            )
+            .suggestions)
     }
 
     @Test("turning the clipboard off releases its shortcut and keeps the others")

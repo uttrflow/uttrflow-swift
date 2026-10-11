@@ -16,17 +16,29 @@ struct PanelUndoOfferTests {
         var offer = PanelUndoOffer()
         let first = clip("first")
         let second = clip("second")
-        let firstTicket = offer.offer(first)
-        let secondTicket = offer.offer(second)
+        let firstTicket = offer.offer([first])
+        let secondTicket = offer.offer([second])
         #expect(offer.clip == second)
         #expect(!offer.isLatest(firstTicket))
         #expect(offer.isLatest(secondTicket))
     }
 
+    @Test("one offer can restore every clip removed together")
+    func offerRestoresAGroup() {
+        var offer = PanelUndoOffer()
+        let clips = [clip("first"), clip("second")]
+        _ = offer.offer(clips)
+
+        let claim = offer.claimForRestore()
+
+        #expect(claim?.clips == clips)
+        #expect(offer.clips.isEmpty)
+    }
+
     @Test("a withdrawn offer supersedes a delete still in flight")
     func withdrawSupersedes() {
         var offer = PanelUndoOffer()
-        let ticket = offer.offer(clip("gone"))
+        let ticket = offer.offer([clip("gone")])
         offer.withdraw()
         #expect(offer.clip == nil)
         #expect(!offer.isLatest(ticket))
@@ -43,7 +55,7 @@ struct PanelUndoOfferTests {
     func undoWaitsForDelete() async {
         var offer = PanelUndoOffer()
         let clip = clip("gone")
-        let ticket = offer.offer(clip)
+        let ticket = offer.offer([clip])
         let gate = DeleteGate()
         let deletion = Task {
             await gate.wait()
@@ -53,6 +65,7 @@ struct PanelUndoOfferTests {
 
         let claim = offer.claimForRestore()
         #expect(claim?.clip == clip)
+        #expect(claim?.clips == [clip])
         #expect(offer.clip == nil)
 
         let restoreSignal = RestoreSignal()
@@ -89,7 +102,7 @@ struct PanelUndoOfferTests {
         #expect(await store.imageData(for: image) == bytes)
 
         var offer = PanelUndoOffer()
-        _ = offer.offer(clip)
+        _ = offer.offer([clip])
         let release = ReleaseGate()
         let expiry = Task {
             await PanelUndoExpiry.expire(

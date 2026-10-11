@@ -1,0 +1,1 @@
+# One line per corpus case this branch accepts the rules no longer pass: <case id> <reason>.

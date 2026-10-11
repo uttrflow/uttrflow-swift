@@ -6,7 +6,6 @@ import UttrflowUX
 
 /// How a row is drawn given the presenter's selection and the pointer, which only the view knows.
 struct QuickPanelRowAppearance: Sendable, Equatable {
-    /// Draws the ring, on exactly the row `PanelRow.isSelected` names.
     let isSelected: Bool
     /// Draws the fill; selection and hover both fill, which is why the ring exists as well.
     let isFilled: Bool
@@ -16,13 +15,19 @@ struct QuickPanelRowAppearance: Sendable, Equatable {
     let showsActions: Bool
 
     /// Selection beats hover on the same row; `hasSelection` says whether there is a ring to dim against.
-    static func of(_ row: PanelRow, hovered: UUID?, hasSelection: Bool) -> QuickPanelRowAppearance {
+    static func of(
+        _ row: PanelRow, isSelected: Bool, hovered: UUID?, hasSelection: Bool
+    ) -> QuickPanelRowAppearance {
         let isHovered = row.id == hovered
         return QuickPanelRowAppearance(
-            isSelected: row.isSelected,
-            isFilled: row.isSelected || isHovered,
-            isSubdued: isHovered && !row.isSelected && hasSelection,
-            showsActions: row.isSelected || isHovered)
+            isSelected: isSelected,
+            isFilled: isSelected || isHovered,
+            isSubdued: isHovered && !isSelected && hasSelection,
+            showsActions: isSelected || isHovered)
+    }
+
+    static func of(_ row: PanelRow, hovered: UUID?, hasSelection: Bool) -> QuickPanelRowAppearance {
+        of(row, isSelected: row.isSelected, hovered: hovered, hasSelection: hasSelection)
     }
 }
 
@@ -47,6 +52,10 @@ enum QuickPanelSpeech {
             : [
                 row.measurements,
                 row.checklist,
+                row.linkHost.map { "host \($0.host)" },
+                row.linkHost.flatMap {
+                    $0.warnings.isEmpty ? nil : "warning, " + $0.warnings.joined(separator: ", ")
+                },
                 row.language.map { "\($0) code" },
                 row.category.map { "Collection \($0)" },
             ]

@@ -5,6 +5,9 @@ import Foundation
 /// The one instant every suite measures from, so a decay or a lifetime is exact rather than nearly right.
 let moment = Date(timeIntervalSince1970: 1_800_000_000)
 
+/// The monotonic instant the machine lookups and the gates measure their lifetimes from.
+let instant = ContinuousClock.now
+
 /// An instant this many days before ``moment``.
 func daysAgo(_ days: Double) -> Date {
     moment.addingTimeInterval(-days * 86_400)

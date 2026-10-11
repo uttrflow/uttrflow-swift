@@ -149,6 +149,12 @@ Put the commit in `tokenizerRevision` and the digests in `tokenizerDigests`, and
 app should follow it. `Scripts/offline_audit.sh` fails on `resolve/main/`, so a revision cannot
 quietly become a branch again.
 
+**After either bump**, or a change to the `WhisperKit` version in `Package.swift`, run
+`make accuracy-gate` and paste its output in the pull request. The committed baseline records the
+recogniser pins it was measured with, so the gate fails with "baseline is for a different model"
+until the same pull request saves a new baseline with `--save-baseline`
+([measuring-accuracy.md](measuring-accuracy.md#the-committed-baseline)).
+
 ## A load that fails
 
 A load checks only that each pinned file is present at its byte count, so a file damaged at the
@@ -156,9 +162,11 @@ same size passes that check and fails inside Core ML. When a load fails, `Weight
 reads the files: a missing or wrong-size file or tokenizer is `modelNotInstalled`; a file whose
 SHA-256 no longer matches its pin is `modelDamaged`, whose recovery is the download, and the
 revision record is withdrawn so the next install re-verifies through staging and fetches only the
-bad files; anything else stays `modelLoadFailed` with its retry. Nothing is downloaded until the
-person asks. Hashing the 618 MB large-v3 turbo install takes about 1.3 s on an Apple M5 Pro
-(`shasum -a 256` over its `.bin` files), paid only on the failure path, off the main actor.
+bad files; anything else stays `modelLoadFailed` with its retry, marked `outOfMemory` when the
+error or one it wraps is the system's `ENOMEM`, so Diagnostics reads "Failed to load: out of
+memory". Nothing is downloaded until the person asks. Hashing the 618 MB large-v3 turbo install
+takes about 1.3 s on an Apple M5 Pro (`shasum -a 256` over its `.bin` files), paid only on the
+failure path, off the main actor.
 
 ## `FileManager`
 

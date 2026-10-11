@@ -171,36 +171,55 @@ struct SettingsAcceptKeyGuidanceTests {
 
         let pane = SettingsPresenter.pane(for: .suggestions, settings: settings)
         func explanation(_ bundleIdentifier: String) throws -> String? {
-            try #require(
+            let identifier = bundleIdentifier.lowercased()
+            return try #require(
                 pane.groups.flatMap(\.rows).first {
-                    $0.id == "suggestionAcceptKey.\(bundleIdentifier)"
+                    $0.id == "suggestionAcceptKey.\(identifier)"
                 }
             ).explanation
         }
-        #expect(try explanation("com.apple.Terminal") == "Tab also has a job in this app.")
-        #expect(try explanation("com.apple.dt.Xcode") == "Tab also has a job in this app.")
-        #expect(try explanation("com.tinyapp.TablePlus") == "Tab also has a job in this app.")
-        #expect(try explanation("com.microsoft.Excel") == "Tab also has a job in this app.")
-        #expect(try explanation("com.apple.Notes") == nil)
+        #expect(
+            try explanation("com.apple.Terminal") == "Tab accepts suggestions instead of shell completion.")
+        #expect(
+            try explanation("com.apple.dt.Xcode")
+                == "Tab accepts suggestions instead of indentation and editor completion.")
+        #expect(
+            try explanation("com.tinyapp.TablePlus")
+                == "Tab accepts suggestions instead of indentation and SQL completion.")
+        #expect(
+            try explanation("com.microsoft.Excel") == "Tab accepts suggestions instead of cell navigation.")
+        #expect(
+            try explanation("com.apple.Notes")
+                == "Tab accepts suggestions instead of the notes app's own behavior.")
         #expect(try explanation("com.example.unknown") == nil)
     }
 
-    @Test("preserves the alternate key descriptions")
-    func alternateKeyDescriptionsRemain() throws {
+    @Test("describes the selected key for this app and explains the Right arrow Escape behavior")
+    func alternateKeyDescriptionsFitTheApplication() throws {
         var settings = Settings.default
         settings.suggestions.set("com.apple.Terminal", isOn: true)
         settings.suggestions.set("com.apple.dt.Xcode", isOn: true)
+        settings.suggestions.set("com.apple.Notes", isOn: true)
+        settings.suggestions.set("com.example.unknown", isOn: true)
         settings.suggestions.setAcceptKey(.rightArrow, in: "com.apple.Terminal")
+        settings.suggestions.setAcceptKey(.rightArrow, in: "com.apple.Notes")
         settings.suggestions.setAcceptKey(.optionTab, in: "com.apple.dt.Xcode")
+        settings.suggestions.setAcceptKey(.optionTab, in: "com.example.unknown")
 
         let pane = SettingsPresenter.pane(for: .suggestions, settings: settings)
         let rows = Dictionary(uniqueKeysWithValues: pane.groups.flatMap(\.rows).map { ($0.id, $0) })
         #expect(
             rows["suggestionAcceptKey.com.apple.terminal"]?.explanation
-                == "Leaves Tab to the shell's own completion.")
+                == "Leaves Tab to the shell's own completion. Escape will not dismiss suggestions.")
         #expect(
             rows["suggestionAcceptKey.com.apple.dt.xcode"]?.explanation
-                == "Leaves Tab to indent, and to the editor's own completion.")
+                == "Leaves Tab to indentation and editor completion.")
+        #expect(
+            rows["suggestionAcceptKey.com.apple.notes"]?.explanation
+                == "Leaves Tab to the notes app's own behavior. Escape will not dismiss suggestions.")
+        #expect(
+            rows["suggestionAcceptKey.com.example.unknown"]?.explanation
+                == "Leaves Tab available in this app.")
     }
 }
 
@@ -228,6 +247,17 @@ struct SettingsGeneralPaneTests {
             resumed.control
                 == .action(
                     title: "Resume", change: .pauseClipboardCapture(isOn: false)))
+    }
+
+    @Test("offers to turn the terminal paste question off or on from the stored choice")
+    func terminalPasteActionFollowsState() throws {
+        let on = try #require(general().row("clipboard-terminal-paste"))
+        #expect(on.control == .action(title: "Turn off", change: .confirmMultilinePaste(isOn: false)))
+        var capabilities = SettingsCapabilities.everything
+        capabilities.confirmsMultilinePaste = false
+        let off = try #require(general(.default, capabilities).row("clipboard-terminal-paste"))
+        #expect(off.control == .action(title: "Turn on", change: .confirmMultilinePaste(isOn: true)))
+        #expect(SettingsChange.confirmMultilinePaste(isOn: false).isRequestToAct)
     }
 
     @Test("shows the shortcut in force on keycaps")
@@ -423,19 +453,19 @@ struct SettingsLanguagesPaneTests {
         #expect(chips.allSatisfy { $0.removal == nil })
     }
 
-    @Test("shows the tidying example as the level in force writes it, under the tidying card")
-    func showsTheExample() {
+    @Test("shows the tidying example as the shipped rules write it, under the tidying card")
+    func showsTheExample() async throws {
         let example = languages().example
+        let spoken = Transcription(text: SettingsPresenter.exampleSpoken)
+        let transformed = try await RuleBasedTransformer().transform(.init(transcription: spoken)).text
         #expect(example?.groupID == "tidying")
         #expect(example?.spoken == "um so i think we should uh ship it on friday")
         #expect(example?.writtenLabel == "Uttrflow writes · Standard")
         #expect(example?.written == "So I think we should ship it on Friday.")
-        #expect(SettingsPresenter.tidied(at: .light) == "So I think we should ship it on friday.")
-        let rulesOutput = CleaningPipeline.standard.run(Draft(text: SettingsPresenter.exampleSpoken)).text
-        #expect(SettingsPresenter.tidied(at: .light) == rulesOutput)
+        #expect(example?.written == transformed)
         #expect(
             SettingsTidyingLevel.rowExplanation
-                == "Both levels remove filler sounds and stammers and add punctuation. Standard also repairs grammar slips with an on-device model, which adds a moment to each dictation. Neither level changes, reorders or drops the words you meant."
+                == "Both levels remove filler sounds and stammers and add punctuation. Standard also repairs grammar slips, which adds a moment to each dictation. Neither level changes, reorders or drops the words you meant. The steps that run are listed under Dictation, in Clean-up steps."
         )
     }
 
@@ -445,9 +475,9 @@ struct SettingsLanguagesPaneTests {
         let claims = ["rewrite", "word choice", "polish", "improve your", "rephrase"]
         let copy = SettingsTidyingLevel.rowExplanation.lowercased()
         #expect(claims.allSatisfy { !copy.contains($0) })
-        let light = SettingsPresenter.tidied(at: .light).split(separator: " ").map { $0.lowercased() }
-        let standard = SettingsPresenter.tidied(at: .standard).split(separator: " ").map { $0.lowercased() }
-        #expect(light == standard)
+        let light = SettingsPresenter.tidyExample(.light)
+        #expect(light.writtenLabel == "Uttrflow writes · Light")
+        #expect(light.written == SettingsPresenter.tidyExample(.standard).written)
     }
 
     @Test("keeps each language's own name in its offer")
@@ -502,7 +532,7 @@ struct SettingsLanguagesPaneTests {
         #expect(row?.isEnabled == false)
         #expect(
             row?.unavailability
-                == "Full tidying is not available on this Mac yet, so Uttrflow will still apply its rules.")
+                == "Full clean-up is not available on this Mac yet, so Uttrflow will still apply its rules.")
     }
 
     @Test("shows the Apple Intelligence cause and offers Settings only when switched off")
@@ -560,6 +590,24 @@ struct SettingsSuggestionModelFailureTests {
         #expect(pane.row("retrySuggestionModel")?.explanation?.contains("connection") == true)
     }
 
+    @Test("names the required free space and offers the right recovery")
+    func insufficientSpace() throws {
+        let readiness = SuggestionModelReadiness.insufficientSpace(neededBytes: 3_230_000_000)
+        let pane = pane(for: readiness)
+        let requiredSpace = try #require(readiness.requiredSpaceDescription)
+
+        #expect(requiredSpace.contains("3"))
+        #expect(requiredSpace.contains("GB"))
+        #expect(pane.banner?.title == "Not enough disk space")
+        #expect(
+            pane.banner?.message
+                == "This Mac needs \(requiredSpace) free to download AI suggestions. Free some up, then retry."
+        )
+        #expect(pane.row("retrySuggestionModel")?.label == "Suggestion model needs disk space")
+        #expect(pane.row("retrySuggestionModel")?.explanation?.contains(requiredSpace) == true)
+        #expect(pane.row("retrySuggestionModel")?.explanation?.contains("connection") == false)
+    }
+
     @Test("names a failed disk load without connection advice")
     func diskLoadFailure() {
         let pane = pane(for: .loadFailed)
@@ -588,6 +636,18 @@ struct SettingsDictationPaneTests {
     @Test("says dictation needs no connection")
     func carriesTheOfflineNote() {
         #expect(dictation().callout?.message.contains("internet") == true)
+    }
+
+    @Test("offers the one switch that stops learning in every application, reading the stored choice")
+    func offersTheLearningSwitch() throws {
+        let field = SettingsToggleField.learnsFromDictation
+        #expect(dictation().row(field.rawValue)?.control == .toggle(field: field, isOn: true))
+        var off = Settings.default
+        off.learnsFromDictation = false
+        #expect(dictation(off).row(field.rawValue)?.control == .toggle(field: field, isOn: false))
+        let updated = try SettingsEditor.apply(
+            .toggle(field, isOn: false), to: .default, given: .everything)
+        #expect(!updated.learnsFromDictation)
     }
 
     @Test("opens Corrections, the one page with neither a sidebar row nor a tab here")
@@ -625,6 +685,49 @@ struct SettingsPrivacyPaneTests {
         #expect(pane.row("onDevice") == nil)
     }
 
+    @Test("lists what each store keeps under the retention row, hiding the app's own key and lock")
+    func listsLocalStorage() {
+        let storage = LocalStoreEntry.allCases.map {
+            LocalStoreUsage(entry: $0, files: 1, bytes: $0 == .recordings ? 2_000_000 : 0, oldest: nil)
+        }
+        let personalisation = SettingsPersonalisation(
+            learnedWords: 0, addedWords: 0, transcripts: 0, storage: storage)
+        let pane = SettingsPresenter.pane(
+            for: .privacy, settings: .default, capabilities: .everything, personalisation: personalisation)
+        let rows = pane.groups.first { $0.id == "retention" }?.rows.map(\.id) ?? []
+        let expected = [
+            "transcripts", "clipboardRetention", "clipboardLimits", "storage.dictationHistory",
+        ]
+        #expect(Array(rows.prefix(4)) == expected)
+        let size = { (bytes: Int64) in SettingsControl.status(bytes.formatted(.byteCount(style: .file))) }
+        #expect(pane.row("storage.recordings")?.control == size(2_000_000))
+        #expect(pane.row("storage.snippets")?.control == size(0))
+        #expect(pane.row("storage.encryptionKey") == nil)
+        #expect(pane.row("storage.instanceLock") == nil)
+        #expect(pane.row("storage.legacyMigrationMarker") == nil)
+        #expect(rows.count(where: { $0.hasPrefix("storage.") }) == LocalStoreEntry.allCases.count - 3)
+    }
+
+    @Test("says in each storage row how much is kept, since when, and what removes it")
+    func explainsLocalStorage() {
+        let day = Date(timeIntervalSince1970: 1_700_000_000)
+        let rows = SettingsPresenter.storageRows(
+            [
+                LocalStoreUsage(entry: .dictationHistory, files: 1, bytes: 10, oldest: day),
+                LocalStoreUsage(entry: .recordings, files: 3, bytes: 30, oldest: day),
+                LocalStoreUsage(entry: .snippets, files: 0, bytes: 0, oldest: nil),
+            ],
+            settings: Settings(transcriptRetentionDays: 7))
+        let day8 = day.formatted(date: .abbreviated, time: .omitted)
+        let byID = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
+        let history = "1 file. oldest from \(day8). Deleted after 7 days"
+        let recordings = "3 files. oldest from \(day8). Deleted after 24 hours"
+        #expect(byID["storage.dictationHistory"]?.explanation == history)
+        #expect(byID["storage.recordings"]?.explanation == recordings)
+        #expect(byID["storage.snippets"]?.explanation == "Nothing stored")
+        #expect(byID["storage.recordings"]?.accessibilityLabel.contains("Deleted after 24 hours") == true)
+    }
+
     @Test("renders every purpose at zero on a Mac that has made no request")
     func rendersForZeroActivity() {
         let rows = privacy().groups.first { $0.id == "network" }?.rows ?? []
@@ -632,6 +735,24 @@ struct SettingsPrivacyPaneTests {
         #expect(privacy().callout?.message.contains(SettingsPresenter.privacyPromise) == true)
         // A banner is only ever the suggestion model's news, which the capable Mac here has none of.
         #expect(everyPane().allSatisfy { $0.banner == nil })
+    }
+
+    @Test("offers clipboard retention on its own, seven days by default, and states the limits")
+    func clipboardRetentionRow() throws {
+        guard case .menu(let options, let selected)? = privacy().row("clipboardRetention")?.control
+        else {
+            Issue.record("the clipboard period is not a pop-up")
+            return
+        }
+        #expect(selected == String(Settings.defaultRetentionDays))
+        #expect(options.map(\.id) == SettingsRetention.offeredDays.map(String.init))
+        #expect(options.allSatisfy { $0.change == .clipboardRetention(days: Int($0.id) ?? -1) })
+        let rule = try #require(privacy().row("clipboardRetention")?.explanation)
+        #expect(rule.contains("Keep transcripts for"))
+        let limits = try #require(privacy().row("clipboardLimits")?.explanation)
+        #expect(limits.contains("500 clips"))
+        #expect(limits.contains("7 days"))
+        #expect(limits.contains("2 MB"))
     }
 
     @Test("offers only periods the store will keep, and selects the stored one")
@@ -649,14 +770,14 @@ struct SettingsPrivacyPaneTests {
         #expect(options.allSatisfy { $0.change != .retention(days: 0) })
     }
 
-    /// One period, because the transcript is the one thing kept.
-    @Test("offers a period for the text and for nothing else")
-    func onlyTranscriptsHaveAPeriod() {
+    /// Two periods: the transcripts, and the clipboard history that dictation clips follow the first of.
+    @Test("offers a period for the transcripts and one for the clipboard history, and for nothing else")
+    func onlyTranscriptsAndClipsHaveAPeriod() {
         let periods = privacy().everyRow.filter {
             if case .menu = $0.control { return true }
             return false
         }
-        #expect(periods.map(\.id) == ["transcripts"])
+        #expect(periods.map(\.id) == ["transcripts", "clipboardRetention"])
     }
 
     @Test("offers the usage statistics switch, off by default, saying what is sent")
@@ -694,6 +815,68 @@ struct SettingsPrivacyPaneTests {
         #expect(on.sendsCrashReports)
         let off = try SettingsEditor.apply(.toggle(.sendsCrashReports, isOn: false), to: on)
         #expect(!off.sendsCrashReports)
+    }
+
+    @Test("offers what dictation reads, text near the cursor by default, and writes a choice through")
+    func offersTheContextLevel() throws {
+        let row = try #require(privacy().row("contextLevel"))
+        guard case .segmented(let options, let selectedID) = row.control else {
+            Issue.record("the context level is a segmented choice")
+            return
+        }
+        #expect(selectedID == ContextLevel.nearCaret.rawValue)
+        #expect(options.map(\.title) == ["App name only", "Text near the cursor"])
+        #expect(row.explanation?.contains("text around your cursor") == true)
+
+        let identity = try SettingsEditor.apply(.contextLevel(.identity), to: .default)
+        #expect(identity.contextLevel == .identity)
+        let identityRow = try #require(privacy(identity).row("contextLevel"))
+        #expect(identityRow.explanation?.contains("falls back to its defaults") == true)
+        let back = try SettingsEditor.apply(.contextLevel(.nearCaret), to: identity)
+        #expect(back.contextLevel == .nearCaret)
+    }
+
+    @Test("lists each application with a context level of its own, and a way to add and remove one")
+    func offersContextLevelsPerApplication() throws {
+        #expect(
+            privacy().groups.first { $0.id == "context" }?.rows.map(\.id) == [
+                "contextLevel", "addContextApp",
+            ])
+        #expect(
+            privacy().row("addContextApp")?.control
+                == .action(
+                    title: "Add an app", change: .chooseApplicationForContextLevel))
+
+        let picked = SettingsApp(bundleIdentifier: "com.example.Vault", name: "Vault")
+        let added = try SettingsEditor.apply(SettingsPresenter.addingContextLevelApp(picked), to: .default)
+        #expect(
+            added.contextLevelOverrides.level(forBundleIdentifier: "com.example.vault", default: .nearCaret)
+                == .identity)
+        let row = try #require(privacy(added).row("contextApp-com.example.vault"))
+        #expect(row.label == "Vault")
+        guard case .menu(let options, let selectedID) = row.control else {
+            Issue.record("an application's level is a menu")
+            return
+        }
+        #expect(selectedID == ContextLevel.identity.rawValue)
+        #expect(
+            options.map(\.title) == [
+                "Same as every app (Text near the cursor)", "App name only", "Text near the cursor",
+            ])
+
+        let nearCaret = try SettingsEditor.apply(try #require(options.last?.change), to: added)
+        #expect(nearCaret.contextLevelOverrides.overrides.map(\.level) == [.nearCaret])
+        let removed = try SettingsEditor.apply(try #require(options.first?.change), to: nearCaret)
+        #expect(removed.contextLevelOverrides == .none)
+        #expect(privacy(removed).row("contextApp-com.example.vault") == nil)
+    }
+
+    @Test("refuses a context level for an application it cannot name")
+    func refusesAnUnnamedApplication() {
+        #expect(throws: SettingsRejection.self) {
+            try SettingsEditor.apply(
+                .appContextLevel(bundleIdentifier: "", name: nil, level: .identity), to: .default)
+        }
     }
 }
 

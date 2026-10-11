@@ -35,6 +35,26 @@ extension LearningConsent {
     }
 }
 
+/// Per-application answers behind the one switch in Settings: while it is off, every application is declined.
+public struct SwitchedLearningConsent: LearningConsent {
+    /// Whether the person lets dictation learn at all, read at each dictation so a change counts at once.
+    private let isOn: @Sendable () async -> Bool
+    /// What was said about each application, consulted only while the switch is on.
+    private let answers: any LearningConsent
+
+    /// Answers that hold only while `isOn` says so.
+    public init(isOn: @escaping @Sendable () async -> Bool, answers: any LearningConsent) {
+        self.isOn = isOn
+        self.answers = answers
+    }
+
+    /// Declined everywhere while the switch is off, otherwise what was said about this application.
+    public func state(of bundleIdentifier: String?) async -> ConsentState {
+        guard await isOn() else { return .declined }
+        return await answers.state(of: bundleIdentifier)
+    }
+}
+
 /// Consent where nothing has been asked about any application, for callers without a store.
 public struct NothingAskedYet: LearningConsent {
     /// Consent with no answers.

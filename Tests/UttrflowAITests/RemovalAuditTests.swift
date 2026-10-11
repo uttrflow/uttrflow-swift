@@ -14,6 +14,18 @@ struct RemovalAuditTests {
         pipeline.run(Draft(text: spoken))
     }
 
+    /// A draft in which a correction pass removes an answer no with the phrase before it, as no rule does.
+    private func draftWithAnswerNoTaken(
+        _ spoken: String = "tell the landlord no, the landlord has to wait"
+    )
+        -> Draft
+    {
+        var draft = Draft(text: spoken)
+        let answer = draft.text.split(separator: " ").firstIndex { $0 == "no," } ?? 0
+        for position in (answer - 2)...answer { draft.remove(at: position, by: .selfCorrection) }
+        return draft
+    }
+
     private func unauthorised(_ spoken: String) -> [UnauthorisedRemoval] {
         RemovalAudit.unauthorised(in: draft(spoken), grants: pipeline.grants)
     }
@@ -69,8 +81,21 @@ struct RemovalAuditTests {
     @Test("finds a negating trigger whose correction took nothing back")
     func findsUnretractedNegation() {
         #expect(
-            unauthorised("tell the landlord no, the landlord has to wait")
+            RemovalAudit.unauthorised(in: draftWithAnswerNoTaken(), grants: pipeline.grants)
                 == [UnauthorisedRemoval(pass: .selfCorrection, text: "no,")])
+        #expect(unauthorised("tell the landlord no, the landlord has to wait").isEmpty)
+    }
+
+    @Test("lets a rewrite put back what a correction took with its unretracted negation, and nothing granted")
+    func restorableRun() {
+        #expect(
+            RemovalAudit.restorable(
+                in: draftWithAnswerNoTaken(), grants: pipeline.grants)
+                == ["the", "landlord", "no,"])
+        #expect(
+            RemovalAudit.restorable(
+                in: draft("let's meet at four no sorry at five on tuesday"), grants: pipeline.grants
+            ).isEmpty)
     }
 
     @Test("finds a repetition with nothing said again after it")
@@ -99,8 +124,11 @@ struct RemovalAuditTests {
     // MARK: The guard
 
     private func verdict(_ spoken: String, _ rewritten: String) -> GuardVerdict {
-        MeaningPreservationGuard().verdict(
-            draft: draft(spoken), rewritten: rewritten, grants: pipeline.grants)
+        verdict(of: draft(spoken), rewritten)
+    }
+
+    private func verdict(of draft: Draft, _ rewritten: String) -> GuardVerdict {
+        MeaningPreservationGuard().verdict(draft: draft, rewritten: rewritten, grants: pipeline.grants)
     }
 
     @Test("refuses a rewrite that leaves out an acronym the filler pass took")
@@ -122,7 +150,7 @@ struct RemovalAuditTests {
     @Test("refuses a rewrite that leaves out a negation a correction took back for nothing")
     func refusesLostNegation() {
         #expect(
-            verdict("tell the landlord no, the landlord has to wait", "Tell the landlord has to wait.")
+            verdict(of: draftWithAnswerNoTaken(), "Tell the landlord has to wait.")
                 == .rejected(
                     reason: "the selfCorrection step took out 'no' and the rewrite does not put it back",
                     kind: .removedWordNotRestored))
@@ -131,9 +159,7 @@ struct RemovalAuditTests {
     @Test("accepts a rewrite that puts the negation back")
     func acceptsRestoredNegation() {
         #expect(
-            verdict(
-                "tell the landlord no, the landlord has to wait",
-                "Tell the landlord no, the landlord has to wait.")
+            verdict(of: draftWithAnswerNoTaken(), "Tell the landlord no, the landlord has to wait.")
                 == .accepted)
     }
 
@@ -141,7 +167,7 @@ struct RemovalAuditTests {
     func countsRestoredNegationOverKept() {
         #expect(
             !verdict(
-                "do not tell the landlord no, the landlord has to wait",
+                of: draftWithAnswerNoTaken("do not tell the landlord no, the landlord has to wait"),
                 "Do not tell the landlord has to wait."
             )
             .isAccepted)
@@ -173,14 +199,20 @@ struct RemovalAuditTests {
     @Test(
         "keeps a word the rules took beyond their grant, leaving that pass out",
         arguments: [
-            ("we rushed him to ER before midnight", "ER", PassID.fillers),
-            ("tell the landlord no, the landlord has to wait", "no", PassID.selfCorrection),
+            ("we rushed him to ER before midnight", "ER", PassID.fillers)
         ])
     func rulesKeepUngrantedWord(spoken: String, word: String, pass: PassID) async throws {
         let result = try await rulesText(spoken)
         #expect(result.producedBy == .rules)
         #expect(MeaningPreservationGuard.isWritten(word, in: result.text), "\(result.text)")
         #expect(result.cleaning?.switchedOff.contains(pass) == true)
+    }
+
+    @Test("keeps an answer no, which no correction trigger introduces, so the rules need no pass left out")
+    func rulesKeepAnswerNo() async throws {
+        let result = try await rulesText("tell the landlord no, the landlord has to wait")
+        #expect(MeaningPreservationGuard.isWritten("no", in: result.text), "\(result.text)")
+        #expect(result.cleaning?.switchedOff.isEmpty == true)
     }
 
     @Test("still makes the removals the rules are granted")
@@ -193,8 +225,7 @@ struct RemovalAuditTests {
     @Test(
         "falls back from a refused rewrite to rules that keep the word the rewrite lost",
         arguments: [
-            ("we rushed him to ER before midnight", "We rushed him to before midnight.", "ER"),
-            ("tell the landlord no, the landlord has to wait", "Tell the landlord has to wait.", "no"),
+            ("we rushed him to ER before midnight", "We rushed him to before midnight.", "ER")
         ])
     func routerFallbackKeepsWord(spoken: String, answer: String, word: String) async throws {
         let model = FakeCleanupModel { _ in answer }
@@ -202,7 +233,7 @@ struct RemovalAuditTests {
             engines: [
                 GenerativeTextTransformer(kind: .foundationModels, model: model), RuleBasedTransformer(),
             ],
-            preference: [.foundationModels, .rules])
+            preference: [.foundationModels, .rules], clock: ManualClock())
         let result = try await router.transform(
             TransformationRequest(transcription: .fixture(text: spoken, language: .english)))
         #expect(result.producedBy == .rules)

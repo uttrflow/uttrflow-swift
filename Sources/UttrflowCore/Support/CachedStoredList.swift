@@ -66,7 +66,7 @@ public struct CachedStoredList<Value: Decodable & Encodable & Sendable>: Sendabl
             generation += 1
             return nil
         }
-        isUnreadable = false
+        isUnreadable = read.isLeftInPlace
         replace(with: read.value, stamp: stamp)
         return read.value
     }

@@ -63,6 +63,20 @@ struct RunToRunSpreadTests {
         #expect(spread.passages.first?.spreadPercentagePoints == 0)
     }
 
+    @Test("prints the methodology table row with the machine it was measured on")
+    func tableRow() {
+        let spread = RunToRunSpread(runs: [
+            run("ship the build on friday morning", "the review is due today"),
+            run("ship the bill on friday morning", "the review is due today"),
+        ])
+        let machine = MachineDescription(
+            chip: "Example Chip", memoryBytes: 0, operatingSystem: "macOS Version 1.0 (Build 1A1)")
+        #expect(
+            spread.tableRow(on: machine)
+                == "| Example Chip | macOS Version 1.0 (Build 1A1) | 2 | 1 of 2 (50.0%) | 9.09 | first |")
+        #expect(RunToRunSpread(runs: []).tableRow(on: machine).hasSuffix("| 0 | n/a | n/a | none |"))
+    }
+
     @Test("reports nothing measured for no runs rather than zero spread")
     func empty() {
         let spread = RunToRunSpread(runs: [])

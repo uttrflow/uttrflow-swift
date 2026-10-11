@@ -70,6 +70,24 @@ Each deviation is deliberate and current. The page named beside it holds the mea
 
 §31 is not a deviation: no build assembles the local model (see the table above).
 
+## Accessibility for new screens
+
+For every new screen or report, record these checks in its pull request:
+
+- VoiceOver announces each control's label, role and state. Each persona item is one
+  accessibility element with named edit and remove actions.
+- The whole screen works from the keyboard, including reaching every control and
+  confirming a delete or reset. Focus returns to a useful place after an action.
+- Information remains readable without colour alone. The contrast audit includes the
+  new surface and passes.
+- The layout holds at the largest supported accessibility text size, with no clipped
+  labels or unreachable controls.
+- With reduced motion enabled, the screen remains usable and respects that setting.
+
+Use the commands and manual checks in `Docs/ui-tests.md`. A screen's keyboard and
+accessibility-label UI tests ship with that screen; a checklist entry alone does not
+prove that the screen passed.
+
 ## What this page cannot tell you
 
 - Whether a requirement exists that nobody implemented. No trace, no row.

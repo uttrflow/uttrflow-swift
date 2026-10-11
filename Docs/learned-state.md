@@ -30,6 +30,14 @@ migration below start from one folded row.
 `used`, `confirmed`, `vetoed`, `stale`, domain mix and pair features. Only a projection is
 shown or acted on; nothing stores its result.
 
+## The guided read is one replaceable set of `calibration` rows
+
+`CalibrationProfile` records the aggregates of one guided reading at setup as `calibration` rows,
+subject to subject: words a minute, median and long pause in milliseconds, median confidence in
+percent, the number of technical terms asked for, and `missed:<term>` for each term that came out
+wrong. It holds no audio and no passage text. A new reading replaces the whole set in one write
+(`EvidenceLedgerStore.replace`), so running it twice never adds, and `clearCalibration` removes it.
+
 ## `restore` is a marker, not a subtraction
 
 `PersonalDictionaryStore.restore` sets `timesReverted` to 0 and keeps uses. A ledger cannot
@@ -99,7 +107,51 @@ subject `heard>meant` in lower case; a pair that is not two spellings of one wor
 that changes the word count, writes nothing. The projection prefers `meant` once its rows fall
 on at least 3 separate days and outweigh edits the other way, so a lone edit is inert. Deleting
 the preference writes `spellingPreferenceCleared`, which hides every earlier row for the pair in
-both directions. Applying the projection waits on the canonical-spelling step.
+both directions. `PreferredSpelling` applies the projection in the pipeline's join, right after the
+text is made Latin, as one whole-word step; a stored pair whose sides are not two spellings of one
+listed word is refused on projection as well as on recording.
+
+A dictionary entry that is a listed Hindi word (`theek`) is a spelling preference too, applied by
+the same step with no confidence gate: `SpellingPreferences.preferred` writes every other listed
+spelling of the word as the entry does, except a spelling that is also English (`main`). The entry
+decides every spelling of its word, so a learnt pair for that word is dropped; of two entries for
+one word, one the user typed outranks one learnt, then the newer wins. Deleting the entry restores
+the default at the next dictation, and the entry is counted in `timesUsed` whenever its spelling
+lands.
+
+## Heard-to-meant pairs
+
+`ConfusionPairs` (`Sources/UttrflowDictionary/ConfusionPairs.swift`) is the one record of what
+the recogniser heard paired with what the user meant, which veto, alias and preference read. A
+kept correction writes a `pairConfirmed` row and an undo writes a `pairVetoed` row, with the
+subject `heard>meant`, `heard` closed up by `ReadingRestraint.closedUp`. The projection counts
+separate days on each side: more undone days than kept is `vetoed`, so one undo vetoes the pair;
+kept on at least 3 separate days and more than undone is `confirmed`; anything else is inert. At most
+`ConfusionPairs.maximumNewPairsPerDay` (10) new pairs start counting on one day, the first written;
+a pair past that starts on the next day with room, so a field rewritten in bulk teaches no more than
+the cap a day; `PairLedger` (Docs/app-dictionary.md) reads the same constant for pairs that become entries. A kept replacement that is not Latin script writes no row. A
+pair is a feature to the correction gate, never a rewrite on its own. An undone row on the
+Corrections page whose pair is vetoed says so, with an Allow action that writes `pairAllowed`; the
+projection then ignores every `pairVetoed` row for the pair on or before that day. The rows are ordinary
+ledger rows, so History retention, reset and the ledger's encryption cover them.
+
+A re-dictation is a weaker undo. When a dictation lands in the same application within
+`InsertionLedger.respeakWindow` (30 seconds) of the one before, and its heard words match that
+dictation's by a Dice coefficient of at least `ConfusionPairs.respeakSimilarity` (0.6), each
+correction of the earlier dictation whose written word the retry no longer writes gets a
+`pairRetried` row, at most `retriedPairsPerDictation` (3) per re-dictation. In the projection,
+re-dictations count only once a pair has them on `daysBeforeRetryCounts` (2) separate days, and then
+add at most `retriedDaysCap` (1) undone day, so one retry changes nothing and retries alone never
+outweigh a single kept day. Allow lifts them as it lifts undos.
+
+Three paths write them, all through `EvidenceSources`: a re-dictation writes `retried`, undoing a
+correction on the Corrections page writes `undone` (a `revert` for the entry plus the pair's
+veto), and an edit of inserted words that the suggestion capture hears (`EditedSpan`, one to
+three words on each side, punctuation aside) writes `pair(kept:)`. The capture runs only while
+suggestions are on, so with them off only undo and re-dictation feed the record. `DictionaryCorrections` reads the projection once per
+dictation and hands it to `WordCorrectionEngine`: a vetoed pair's candidate is skipped, so the
+run is held as heard when no other candidate earns its place, and a confirmed pair's candidate
+is weighed first, still needing the gate's own evidence.
 
 ## The persona projection
 
@@ -107,7 +159,10 @@ both directions. Applying the projection waits on the canonical-spelling step.
 persona: kept recent use per dictionary entry, `use` rows minus `revert` rows not covered by a
 `restore`, each weighted on the `WorkingSet` recency curve. It is computed on read and stored
 nowhere. `WorkingSet` adds it to an entry's value as `p / (1 + p)`, at most one, the same ceiling
-as frequency. `DictionaryVocabulary` reads the ledger for it only while the `persona-vocabulary`
+as frequency. `PersonaProjection.lastUse` is the day of an entry's newest `use` row, so an undo
+never moves it; `WorkingSet` measures recency from that day when it is later than `firstSeen`, so
+a word said yesterday outranks one last said months ago whatever day either was added.
+`DictionaryVocabulary` reads the ledger for it only while the `persona-vocabulary`
 quality layer is on, which it is not by default: the layer turns on only after the
 developer-vocabulary corpus measures `wer-biased` with it on and off.
 
@@ -130,5 +185,6 @@ decay curve and compaction horizon need measurement on real use before a number 
 
 Settings, Privacy, "What Uttrflow noticed about you" lists `PersonaProfile.items`: each dictionary
 word with its recorded uses and undos, each kind of place with its style counts, and a count of
-words still being watched. Each item's Remove deletes only that fact's rows
+words still being watched, each heard-to-meant pair with the days it was kept and undone, and each
+respelling the user's edits taught. Each item's Remove deletes only that fact's rows
 (`EvidenceLedgerStore.forget`); Reset deletes the ledger and leaves declarations alone.

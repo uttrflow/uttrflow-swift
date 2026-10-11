@@ -86,6 +86,17 @@ struct HomeGreetingTests {
     }
 
     @Test(
+        "a name stored in one case is greeted in title case, a mixed-case one as spelled",
+        arguments: [("ada", "Ada"), ("ADA", "Ada"), ("ada lovelace", "Ada"), ("McKay Stone", "McKay")]
+    )
+    func nameCase(stored: String, greeted: String) {
+        let page = HistoryFixture.home(
+            account: HistoryFixture.account(name: stored), at: HistoryFixture.atHour(19))
+        #expect(page.greeting == "Good evening, \(greeted)")
+        #expect(HomePresenter.firstName(of: stored) == greeted)
+    }
+
+    @Test(
         "the time of day is the one it actually is",
         arguments: [(6, "Good morning"), (13, "Good afternoon"), (19, "Good evening"), (2, "Working late")]
     )
@@ -354,7 +365,7 @@ struct HomeAccountTests {
             account: HistoryFixture.account(name: "Nadia\tStone")
         ).account
 
-        #expect(corner == .signedIn(initials: "N", name: "Nadia\tStone", open: .account))
+        #expect(corner == .signedIn(initials: "N", name: "Nadia", open: .account))
     }
 
     @Test("uses the Account page fallback for names without letters")
@@ -373,7 +384,7 @@ struct HomeAccountTests {
             account: HistoryFixture.account(name: "avery")
         ).account
 
-        #expect(corner == .signedIn(initials: "A", name: "avery", open: .account))
+        #expect(corner == .signedIn(initials: "A", name: "Avery", open: .account))
     }
 
     /// The defect this suite exists for: a signed-out window must not show the Mac owner's monogram.

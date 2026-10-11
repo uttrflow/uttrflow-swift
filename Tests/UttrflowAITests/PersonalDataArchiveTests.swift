@@ -64,6 +64,17 @@ struct PersonalDataArchiveTests {
         #expect(snippets.duplicates == 1)
     }
 
+    @Test("every pronunciation travels through export and import")
+    func everyPronunciationRoundTrips() throws {
+        let said = DictionaryEntry(
+            word: "Zentrova", pronunciations: ["zen trova", "jen trova"], origin: .added,
+            firstSeen: .distantPast)
+        let decoded = try PersonalDataArchive.decode(
+            PersonalDataArchive(dictionary: [said], snippets: []).encoded())
+        let words = decoded.mergedDictionary(into: [], importedAt: importedAt)
+        #expect(words.records.map(\.pronunciations) == [["zen trova", "jen trova"]])
+    }
+
     @Test("unsupported versions, malformed JSON and invalid records are refused")
     func refusesInvalidArchive() throws {
         let unsupported = try JSONEncoder().encode(
@@ -166,5 +177,86 @@ struct PersonalDataArchiveTests {
         #expect(Set(words.map(\.id)).count == 2)
         #expect(snippets.map(\.trigger) == ["my address", "home address"])
         #expect(Set(snippets.map(\.id)).count == 2)
+    }
+
+    @Test("a spelling or trigger holding a control or bidirectional character is refused")
+    func refusesHiddenCharacters() throws {
+        for hidden in ["\u{0007}", "\u{202E}", "\u{2066}", "\u{200F}"] {
+            let word = DictionaryEntry(word: "exam\(hidden)ple", origin: .added, firstSeen: .distantPast)
+            let snippet = Snippet(trigger: "my\(hidden) note", expansion: "Saved text", created: .distantPast)
+            for archive in [
+                PersonalDataArchive(dictionary: [word], snippets: []),
+                PersonalDataArchive(dictionary: [], snippets: [snippet]),
+            ] {
+                let bytes = try JSONEncoder().encode(archive)
+                #expect(throws: PersonalDataArchiveError.hiddenCharacters) {
+                    try PersonalDataArchive.decode(bytes)
+                }
+            }
+        }
+        let lines = Snippet(trigger: "sign off", expansion: "Thanks,\n\tSam", created: .distantPast)
+        let bytes = try JSONEncoder().encode(PersonalDataArchive(dictionary: [], snippets: [lines]))
+        #expect(try PersonalDataArchive.decode(bytes).snippets.count == 1)
+    }
+
+    @Test("ten thousand mutated archives are each refused or decoded valid, never a crash")
+    func mutatedArchivesNeverCrash() throws {
+        let valid = try PersonalDataArchive(dictionary: [word], snippets: [snippet]).encoded()
+        var random = SeededBytes(seed: 0x5EED)
+        for round in 0..<10_000 {
+            let mutated = Self.mutate(valid, round: round, random: &random)
+            do {
+                let archive = try PersonalDataArchive.decode(mutated)
+                #expect(throws: Never.self) { try archive.encoded() }
+            } catch is PersonalDataArchiveError, is DecodingError {
+                continue
+            } catch {
+                Issue.record("round \(round) failed with an unexpected error: \(error)")
+            }
+        }
+    }
+
+    /// One mutation of a valid archive, chosen by the round so every kind is covered.
+    private static func mutate(_ data: Data, round: Int, random: inout SeededBytes) -> Data {
+        var bytes = [UInt8](data)
+        switch round % 6 {
+        case 0:
+            return Data(bytes.prefix(random.next(below: bytes.count)))
+        case 1:
+            for _ in 0...random.next(below: 4) {
+                bytes[random.next(below: bytes.count)] = UInt8(truncatingIfNeeded: random.next(below: 256))
+            }
+            return Data(bytes)
+        case 2:
+            let depth = 1 + random.next(below: 4_000)
+            return Data((String(repeating: "[", count: depth) + String(repeating: "]", count: depth)).utf8)
+        case 3:
+            let text = String(decoding: bytes, as: UTF8.self)
+            return Data(text.replacingOccurrences(of: "{\"", with: "{\"version\":1,\"").utf8)
+        case 4:
+            let text = String(decoding: bytes, as: UTF8.self)
+            return Data(text.replacingOccurrences(of: "\"version\":1", with: "\"version\":\"1\"").utf8)
+        default:
+            let text = String(decoding: bytes, as: UTF8.self)
+            let huge = ["1e400", "-99999999999999999999999", "18446744073709551616"][random.next(below: 3)]
+            return Data(text.replacingOccurrences(of: "\"timesUsed\":3", with: "\"timesUsed\":\(huge)").utf8)
+        }
+    }
+}
+
+/// A small seeded generator, so a failing mutation is reproduced by its round; the word-list fuzz case shares it.
+struct SeededBytes {
+    private var state: UInt64
+
+    init(seed: UInt64) { state = seed }
+
+    /// A value in `0..<bound`, or 0 when the bound is 0.
+    mutating func next(below bound: Int) -> Int {
+        state &+= 0x9E37_79B9_7F4A_7C15
+        var mixed = state
+        mixed = (mixed ^ (mixed >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        mixed = (mixed ^ (mixed >> 27)) &* 0x94D0_49BB_1331_11EB
+        mixed ^= mixed >> 31
+        return bound > 0 ? Int(mixed % UInt64(bound)) : 0
     }
 }

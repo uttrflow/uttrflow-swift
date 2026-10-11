@@ -1,4 +1,5 @@
 public import UttrflowCore
+import UttrflowDictionary
 
 /// The floor beneath every other transformer: the deterministic passes alone, which cannot invent or refuse.
 public struct RuleBasedTransformer: TextTransformationEngine {
@@ -28,10 +29,15 @@ public struct RuleBasedTransformer: TextTransformationEngine {
     ) async throws(TransformationError) -> TransformationResult {
         let chosen = pipeline ?? Self.pipeline(for: request, steps: steps)
         // Romanised before the passes, so they read and write the Latin letters dictation inserts.
-        let (draft, ran) = Self.audited(chosen, over: Draft(romanising: request.transcription))
+        let restored = LoanwordRestoration(personal: request.vocabulary).restoring(
+            Draft(romanising: request.transcription))
+        let romanised = RomanisedNameCasing(
+            personal: request.vocabulary, onScreenNames: request.situation.app.onScreenNames
+        ).casing(restored)
+        let (draft, ran) = Self.audited(chosen, over: romanised)
         return TransformationResult(
             text: draft.text, producedBy: kind,
-            cleaning: CleaningRecord(draft: draft, ran: ran.ids))
+            cleaning: CleaningRecord(draft: draft, ran: ran.ids), changeLedger: draft.changeLedger)
     }
 
     /// Runs the passes, leaving out each one that took a word the meaning guard needs back, until none is missing.
@@ -65,9 +71,8 @@ public struct RuleBasedTransformer: TextTransformationEngine {
             .piece(
                 numbers: formatter.numbers, digits: request.situation.digits(for: formatter),
                 layout: formatter.layout, destination: formatter.destination,
-                precedingText: request.situation.insertion.precedingText,
-                documentName: request.situation.app.documentName, steps: steps,
-                pauses: request.profile.pauses)
+                intent: request.situation.intent, steps: steps, pauses: request.profile.pauses,
+                screen: request.situation, mode: request.situation.adapterMode)
         }
     }
 }

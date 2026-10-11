@@ -4,11 +4,11 @@ public import UttrflowCore
 /// Keeps one copy of a piece the recogniser repeated faster than speech allows. See `Docs/speech-engines.md`.
 public enum RecognitionLoop {
     /// Words a second past which a piece cannot be what one person said; see `Docs/speech-engines.md`.
-    public static let fastestSpeech = 4.5
+    public static let fastestSpeech = 4.8
     /// How far the two copies may differ, as a word error rate, and still be one loop.
     static let mostCopyDifference = 0.2
     /// The fewest words in a copy, since a word or two said twice is ordinary speech.
-    static let fewestCopyWords = 3
+    public static let fewestCopyWords = 3
 
     /// The transcription with a looped repeat kept once and quotes wrapped round the whole piece taken off.
     public static func undone(_ heard: Transcription, speechDuration: Duration) -> Transcription {
@@ -20,7 +20,8 @@ public enum RecognitionLoop {
         } else if let half = loopedHalf(tokens, speechDuration: speechDuration) {
             tokens = Array(tokens.prefix(half))
         }
-        let unquoted = tokens
+        // Again once the loop is cut, since quotes round each copy only wrap the whole piece after it.
+        let unquoted = withoutWrappingQuotes(tokens)
         guard unquoted != original else {
             return heard
         }
@@ -136,7 +137,7 @@ public enum RecognitionLoop {
             result.append(
                 TranscriptionSegment(
                     text: taken.joined(separator: " "), start: segment.start, end: segment.end,
-                    words: words))
+                    words: words, reliability: segment.reliability))
         }
         return result
     }

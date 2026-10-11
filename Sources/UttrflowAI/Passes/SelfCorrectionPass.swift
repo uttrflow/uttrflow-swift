@@ -3,6 +3,8 @@ public import UttrflowCore
 /// Removes the discarded half of a spoken correction a trigger phrase announces. See `Docs/cleanup.md`.
 public struct SelfCorrectionPass: PieceCleaningPass {
     public static let id: PassID = .selfCorrection
+    public static let laws: Set<PassLaw> = [.idempotent, .addsNoWords, .latinOnly]
+    public static let orderIndependentWith: Set<PassID> = [.spokenPunctuation]
     public static let removes: RemovalGrant = .retraction
 
     public init() {}
@@ -101,7 +103,9 @@ public struct SelfCorrectionPass: PieceCleaningPass {
         guard trigger > 0, position > 0, position + trigger < live.count,
             !followsOpeningMark(position, in: live, of: draft),
             let start = Restatement.discardedStart(
-                before: position, after: position + trigger, in: live, of: draft)
+                before: position, after: position + trigger, in: live, of: draft,
+                asksForLayout: LayoutWordsPass.asksForLayout),
+            restatesWholeOption(from: start, restart: position + trigger, in: live, of: draft)
         else { return nil }
         let through = Restatement.standsAlone(position, before: position + trigger, in: live, of: draft)
         return (start..<(position + trigger), through)
@@ -113,6 +117,24 @@ public struct SelfCorrectionPass: PieceCleaningPass {
             let start = position - opening.words.count
             return start >= 0 && draft.spells(opening.words, at: start, in: live, acrossSentences: true)
         }
+    }
+
+    /// Whether a restart takes back a spoken long option marker only with that same marker, so a lone dash is neither its anchor nor anchored inside one.
+    private func restatesWholeOption(from start: Int, restart: Int, in live: [Int], of draft: Draft) -> Bool {
+        let markers = SpokenCommands.flags.filter { $0.words.count > 1 }
+        guard
+            let marker = markers.first(where: {
+                draft.spells($0.words, at: restart, in: live, acrossSentences: true)
+            })
+        else {
+            return !markers.contains { marker in
+                (0..<marker.words.count).contains { offset in
+                    start >= offset
+                        && draft.spells(marker.words, at: start - offset, in: live, acrossSentences: true)
+                }
+            }
+        }
+        return draft.spells(marker.words, at: start, in: live, acrossSentences: true)
     }
 
     /// Lowers the restart's capital when the word it replaces was lower case, since only the stop gave it one.

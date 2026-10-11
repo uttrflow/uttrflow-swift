@@ -1,0 +1,502 @@
+[
+  {
+    "id": "agreement-there-is",
+    "spoken": "there is three of them waiting outside",
+    "expected": "There are three of them waiting outside.",
+    "mustKeep": ["three", "waiting"],
+    "mustNotAdd": ["is"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Site visit.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "There",
+    "mustEndWith": "outside."
+  },
+  {
+    "id": "agreement-he-dont",
+    "spoken": "he don't know about the meeting yet",
+    "expected": "He doesn't know about the meeting yet.",
+    "mustKeep": ["meeting"],
+    "mustNotAdd": ["don't"],
+    "context": {
+      "applicationName": "Microsoft Word",
+      "bundleIdentifier": "com.microsoft.Word",
+      "documentName": "Handover notes.docx"
+    },
+    "destination": "document",
+    "mustBeginWith": "He",
+    "mustEndWith": "yet."
+  },
+  {
+    "id": "participle-have-went",
+    "spoken": "I have went through the whole report twice",
+    "expected": "I have gone through the whole report twice.",
+    "mustKeep": ["report", "twice"],
+    "mustNotAdd": ["went"],
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Review"
+    },
+    "destination": "document",
+    "mustBeginWith": "I have gone",
+    "mustEndWith": "twice."
+  },
+  {
+    "id": "participle-have-wrote",
+    "spoken": "I have wrote the summary already",
+    "expected": "I have written the summary already.",
+    "mustKeep": ["summary", "already"],
+    "mustNotAdd": ["wrote"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Meeting notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "I have written",
+    "mustEndWith": "already."
+  },
+  {
+    "id": "participle-had-took",
+    "spoken": "I had took the wrong turn",
+    "expected": "I had taken the wrong turn.",
+    "mustKeep": ["wrong", "turn"],
+    "mustNotAdd": ["took"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Travel notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "I had taken",
+    "mustEndWith": "turn."
+  },
+  {
+    "id": "participle-should-have-ate",
+    "spoken": "I should have ate before the call",
+    "expected": "I should have eaten before the call.",
+    "mustKeep": ["before", "call"],
+    "mustNotAdd": ["ate"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Call notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "I should have eaten",
+    "mustEndWith": "call."
+  },
+  {
+    "id": "participle-was-wrote",
+    "spoken": "It was wrote in the notes",
+    "expected": "It was written in the notes.",
+    "mustKeep": ["notes"],
+    "mustNotAdd": ["wrote"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Project notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "It was written",
+    "mustEndWith": "notes."
+  },
+  {
+    "id": "participle-has-began",
+    "spoken": "The project has began already",
+    "expected": "The project has begun already.",
+    "mustKeep": ["project", "already"],
+    "mustNotAdd": ["began"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Project notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "The project has begun",
+    "mustEndWith": "already."
+  },
+  {
+    "id": "participle-have-spoke",
+    "spoken": "I have spoke with them",
+    "expected": "I have spoken with them.",
+    "mustKeep": ["them"],
+    "mustNotAdd": ["spoke"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Project notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "I have spoken",
+    "mustEndWith": "them."
+  },
+  {
+    "id": "participle-was-broke",
+    "spoken": "The window was broke during transit",
+    "expected": "The window was broken during transit.",
+    "mustKeep": ["window", "transit"],
+    "mustNotAdd": ["broke"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Delivery notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "The window was broken",
+    "mustEndWith": "transit."
+  },
+  {
+    "id": "participle-has-drove",
+    "spoken": "She has drove this route before",
+    "expected": "She has driven this route before.",
+    "mustKeep": ["route", "before"],
+    "mustNotAdd": ["drove"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Travel notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "She has driven",
+    "mustEndWith": "before."
+  },
+  {
+    "id": "article-a-apple",
+    "spoken": "there was a apple left in the bowl",
+    "expected": "There was an apple left in the bowl.",
+    "mustKeep": ["apple", "bowl"],
+    "context": {
+      "applicationName": "TextEdit",
+      "bundleIdentifier": "com.apple.TextEdit",
+      "documentName": "Untitled"
+    },
+    "destination": "document",
+    "mustBeginWith": "There was an apple",
+    "mustEndWith": "."
+  },
+  {
+    "id": "tense-drift",
+    "spoken": "yesterday I open the file and it crashes immediately",
+    "expected": "Yesterday I opened the file and it crashed immediately.",
+    "mustKeep": ["file", "immediately"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Incident write-up.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Yesterday",
+    "mustEndWith": "immediately."
+  },
+  {
+    "id": "tense-drift-over-a-stem",
+    "note": "A repair that spells a stem — try/tried — which a prefix match between the two words cannot see.",
+    "spoken": "yesterday I try to fix the build twice",
+    "expected": "Yesterday I tried to fix the build twice.",
+    "mustKeep": ["tried", "build"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Incident write-up.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Yesterday",
+    "mustEndWith": "twice."
+  },
+  {
+    "id": "preposition-slip",
+    "spoken": "she is good in maths and physics",
+    "expected": "She is good at maths and physics.",
+    "mustKeep": ["good at", "maths", "physics"],
+    "mustNotAdd": ["good in"],
+    "context": {
+      "applicationName": "Microsoft Word",
+      "bundleIdentifier": "com.microsoft.Word",
+      "documentName": "Reference letter.docx"
+    },
+    "destination": "document",
+    "mustBeginWith": "She",
+    "mustEndWith": "physics."
+  },
+  {
+    "id": "plural-slip",
+    "spoken": "we need two more developer on this team",
+    "expected": "We need two more developers on this team.",
+    "mustKeep": ["developers", "team"],
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Hiring plan"
+    },
+    "destination": "document",
+    "mustBeginWith": "We",
+    "mustEndWith": "team."
+  },
+  {
+    "id": "agreement-here-is-two",
+    "note": "Slips worded unlike any example the prompt quotes, one pair per class, so a score says whether a repair generalises.",
+    "spoken": "here is two options for the launch",
+    "expected": "Here are two options for the launch.",
+    "mustKeep": ["two", "options", "launch"],
+    "mustNotAdd": ["is"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Launch plan.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Here are",
+    "mustEndWith": "launch."
+  },
+  {
+    "id": "agreement-each-of-have",
+    "spoken": "each of the boxes have a label on the lid",
+    "expected": "Each of the boxes has a label on the lid.",
+    "mustKeep": ["boxes", "label", "lid"],
+    "mustNotAdd": ["have"],
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Packing"
+    },
+    "destination": "document",
+    "mustBeginWith": "Each of the boxes has",
+    "mustEndWith": "lid."
+  },
+  {
+    "id": "article-an-before-consonant-sound",
+    "spoken": "we ordered an unicorn cake for the party",
+    "expected": "We ordered a unicorn cake for the party.",
+    "mustKeep": ["unicorn", "cake", "party"],
+    "mustNotAdd": ["an unicorn"],
+    "context": {
+      "applicationName": "TextEdit",
+      "bundleIdentifier": "com.apple.TextEdit",
+      "documentName": "Untitled"
+    },
+    "destination": "document",
+    "mustBeginWith": "We ordered a unicorn",
+    "mustEndWith": "party."
+  },
+  {
+    "id": "article-a-before-silent-h",
+    "spoken": "she is a honest reviewer",
+    "expected": "She is an honest reviewer.",
+    "mustKeep": ["honest", "reviewer"],
+    "mustNotAdd": ["a honest"],
+    "context": {
+      "applicationName": "Microsoft Word",
+      "bundleIdentifier": "com.microsoft.Word",
+      "documentName": "Reference letter.docx"
+    },
+    "destination": "document",
+    "mustBeginWith": "She is an honest",
+    "mustEndWith": "reviewer."
+  },
+  {
+    "id": "preposition-discussed-about",
+    "spoken": "we discussed about the budget on monday",
+    "expected": "We discussed the budget on Monday.",
+    "mustKeep": ["discussed", "budget", "Monday"],
+    "mustNotAdd": ["about"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Minutes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "We discussed the budget",
+    "mustEndWith": "Monday."
+  },
+  {
+    "id": "preposition-depends-of",
+    "spoken": "the date depends of the weather",
+    "expected": "The date depends on the weather.",
+    "mustKeep": ["date", "weather"],
+    "mustNotAdd": ["depends of"],
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Garden party"
+    },
+    "destination": "document",
+    "mustBeginWith": "The date depends on",
+    "mustEndWith": "weather."
+  },
+  {
+    "id": "tense-drift-last-night",
+    "spoken": "last night I finish the draft and send it to the editor",
+    "expected": "Last night I finished the draft and sent it to the editor.",
+    "mustKeep": ["draft", "editor"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Week notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Last night I finished",
+    "mustEndWith": "editor."
+  },
+  {
+    "id": "tense-drift-last-week",
+    "spoken": "last week the printer jams twice and nobody fixes it",
+    "expected": "Last week the printer jammed twice and nobody fixed it.",
+    "mustKeep": ["printer", "twice"],
+    "context": {
+      "applicationName": "Microsoft Word",
+      "bundleIdentifier": "com.microsoft.Word",
+      "documentName": "Office log.docx"
+    },
+    "destination": "document",
+    "mustBeginWith": "Last week the printer jammed",
+    "mustEndWith": "it."
+  },
+  {
+    "id": "dialect-gonna",
+    "note": "Dialect and deliberate informality are not slips, even where the policy is repair.",
+    "spoken": "we're gonna ship it friday",
+    "expected": "We're gonna ship it Friday.",
+    "mustKeep": ["gonna", "Friday"],
+    "mustNotAdd": ["going"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Release notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "We're gonna",
+    "mustEndWith": "Friday."
+  },
+  {
+    "id": "dialect-aint",
+    "spoken": "that ain't going to work for the client",
+    "expected": "That ain't going to work for the client.",
+    "mustKeep": ["ain't", "client"],
+    "mustNotAdd": ["isn't"],
+    "context": {
+      "applicationName": "Microsoft Word",
+      "bundleIdentifier": "com.microsoft.Word",
+      "documentName": "Proposal.docx"
+    },
+    "destination": "document",
+    "mustBeginWith": "That ain't",
+    "mustEndWith": "client."
+  },
+  {
+    "id": "dialect-me-and-him",
+    "spoken": "me and him went through the numbers again",
+    "expected": "Me and him went through the numbers again.",
+    "mustKeep": ["me and him", "numbers"],
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Budget"
+    },
+    "destination": "document",
+    "mustBeginWith": "Me and him",
+    "mustEndWith": "again."
+  },
+  {
+    "id": "double-negative-keep",
+    "note": "The product's line: a double negative is dialect, never a slip.",
+    "spoken": "we didn't do nothing wrong in that release",
+    "expected": "We didn't do nothing wrong in that release.",
+    "mustKeep": ["nothing", "release"],
+    "mustNotAdd": ["anything"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Postmortem.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "We didn't do nothing",
+    "mustEndWith": "release."
+  },
+  {
+    "id": "message-he-dont",
+    "note": "The same slips where the formatter's grammar policy is asSpoken: no repair, no stop.",
+    "spoken": "he don't know yet",
+    "expected": "He don't know yet",
+    "mustKeep": ["know"],
+    "mustNotAdd": ["doesn't"],
+    "context": {
+      "applicationName": "WhatsApp",
+      "bundleIdentifier": "net.whatsapp.WhatsApp",
+      "documentName": "Rohan"
+    },
+    "destination": "messaging",
+    "mustBeginWith": "He don't",
+    "mustEndWith": "yet"
+  },
+  {
+    "id": "message-there-is",
+    "spoken": "there is three of them",
+    "expected": "There is three of them",
+    "mustKeep": ["three"],
+    "mustNotAdd": ["are"],
+    "context": {
+      "applicationName": "Slack",
+      "bundleIdentifier": "com.tinyspeck.slackmacgap",
+      "documentName": "#ops"
+    },
+    "destination": "messaging",
+    "mustBeginWith": "There is",
+    "mustEndWith": "them"
+  },
+  {
+    "id": "message-dialect-we-was",
+    "spoken": "we was just talking about you",
+    "expected": "We was just talking about you",
+    "context": {
+      "applicationName": "Slack",
+      "bundleIdentifier": "com.tinyspeck.slackmacgap",
+      "documentName": "#team"
+    },
+    "destination": "messaging",
+    "mustBeginWith": "We was",
+    "mustEndWith": "you"
+  },
+  {
+    "id": "message-dialect-they-was",
+    "spoken": "they was at the shop",
+    "expected": "They was at the shop",
+    "context": {
+      "applicationName": "WhatsApp",
+      "bundleIdentifier": "net.whatsapp.WhatsApp",
+      "documentName": "Rohan"
+    },
+    "destination": "messaging",
+    "mustBeginWith": "They was",
+    "mustEndWith": "shop"
+  },
+  {
+    "id": "message-dialect-i-seen",
+    "spoken": "i seen it yesterday",
+    "expected": "I seen it yesterday",
+    "context": {
+      "applicationName": "Messages",
+      "bundleIdentifier": "com.apple.MobileSMS",
+      "documentName": "Priya"
+    },
+    "destination": "messaging",
+    "mustBeginWith": "I seen",
+    "mustEndWith": "yesterday"
+  },
+  {
+    "id": "message-dialect-he-come",
+    "spoken": "he come by yesterday",
+    "expected": "He come by yesterday",
+    "context": {
+      "applicationName": "Slack",
+      "bundleIdentifier": "com.tinyspeck.slackmacgap",
+      "documentName": "#team"
+    },
+    "destination": "messaging",
+    "mustBeginWith": "He come",
+    "mustEndWith": "yesterday"
+  }
+]

@@ -105,8 +105,8 @@ extension TypedTextInsertionEngine: CompletionWriting {
         let current = await AccessibilityThread.run(orElse: nil) { focus.focusedApplication() }
         let target = current.flatMap { $0.isKnown ? $0 : nil }
         let count = replaced.count
-        if count > 0, target == nil { throw .insertionUnconfirmed }
         try refuseIfStale(target)
+        if count > 0, target == nil { throw .insertionUnconfirmed }
         if count > 0 {
             // A blind backspace could eat a shell prompt, so what is there is checked when the field will say.
             let preceding: String?

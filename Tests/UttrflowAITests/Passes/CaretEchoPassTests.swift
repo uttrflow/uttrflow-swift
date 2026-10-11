@@ -96,7 +96,8 @@ struct CaretEchoPassTests {
     func inactiveElsewhere() {
         #expect(cleaned("Done. the next step", by: pass("Done. ")) == "Done. the next step")
         #expect(cleaned("and then we go", by: pass(nil)) == "and then we go")
-        let broken = Draft(words: ["and", "\n", "then", "we", "go"].map { Draft.Word($0) })
+        let broken = Draft(
+            words: ["and", "\n", "then", "we", "go"].map { Draft.Word($0, evidence: .unknown) })
         #expect(pass("and then ").apply(broken).text == "and\nthen we go")
     }
 

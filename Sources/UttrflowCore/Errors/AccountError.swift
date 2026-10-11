@@ -20,7 +20,7 @@ public enum AccountError: UttrflowFailure {
         case .providerRefused:
             "Uttrflow could not confirm that sign-in."
         case .sessionMalformed:
-            "Uttrflow could not confirm your subscription on this Mac."
+            "Uttrflow could not verify this sign-in. Sign in again to continue."
         case .sessionCouldNotBeKept:
             "Uttrflow could not save your sign-in on this Mac."
         }

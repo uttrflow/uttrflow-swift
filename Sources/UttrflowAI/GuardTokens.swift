@@ -47,14 +47,18 @@ extension MeaningPreservationGuard {
         var parts: [String] = []
         var current = ""
         var previous: Character?
-        for character in identifier where character != "'" && character != "\u{2019}" {
+        let characters = Array(identifier.filter { $0 != "'" && $0 != "\u{2019}" })
+        for (index, character) in characters.enumerated() {
             guard character.isLetter || character.isNumber else {
                 if !current.isEmpty { parts.append(current) }
                 current = ""
                 previous = nil
                 continue
             }
-            if character.isUppercase, previous.map({ $0.isLowercase || $0.isNumber }) == true {
+            if character.isUppercase,
+                previous.map({ $0.isLowercase || $0.isNumber }) == true
+                    || opensWordAfterCapitals(characters, at: index)
+            {
                 parts.append(current)
                 current = ""
             }
@@ -65,12 +69,30 @@ extension MeaningPreservationGuard {
         return parts
     }
 
+    /// Whether the capital at `index` ends a run of capitals and opens a lower-case word, as `Auth` in `OAuth`; a plural's "s" opens none, as in `URLs`.
+    private static func opensWordAfterCapitals(_ characters: [Character], at index: Int) -> Bool {
+        guard index > 0, characters[index].isUppercase, characters[index - 1].isUppercase,
+            index + 1 < characters.count, characters[index + 1].isLowercase
+        else { return false }
+        let rest = characters[(index + 1)...].prefix { $0.isLetter && !$0.isUppercase }
+        return rest != ["s"]
+    }
+
+    /// Whether a rewrite writes the kept words in their order, differing only in case, layout and the marks at a word's edges; a mark inside a word, as in "it's" or "3.5", is part of it.
+    static func sameWords(_ kept: String, _ rewritten: String) -> Bool {
+        wordKeys(kept) == wordKeys(rewritten)
+    }
+
+    /// Each written word lower-cased with the marks at its edges trimmed, a run of marks alone dropped.
+    private static func wordKeys(_ text: String) -> [String] {
+        WordTokens.words(text, .display).map { WordShape($0).key }.filter { !$0.isEmpty }
+    }
+
     /// Splits on whitespace and hyphens, trimming punctuation and tracking sentence starts.
     static func grammarTokens(_ text: String) -> [GrammarToken] {
         var tokens: [GrammarToken] = []
         var startsSentence = true
-        let pieces = withoutThousandsSeparators(text)
-            .split(whereSeparator: { $0.isWhitespace || $0 == "-" || $0 == "/" })
+        let pieces = WordTokens.words(withoutThousandsSeparators(text), .grammar)
         for raw in pieces {
             let endsSentence = raw.contains { ".!?".contains($0) }
             let trimmed = raw.drop(while: { !$0.isLetter && !$0.isNumber })
@@ -94,8 +116,7 @@ extension MeaningPreservationGuard {
     static func grammarTokenGaps(_ text: String) -> [String] {
         var gaps = [""]
         var raw: [GrammarToken] = []
-        let pieces = withoutThousandsSeparators(text)
-            .split(whereSeparator: { $0.isWhitespace || $0 == "-" || $0 == "/" })
+        let pieces = WordTokens.words(withoutThousandsSeparators(text), .grammar)
         for piece in pieces {
             let leading = piece.prefix(while: { !$0.isLetter && !$0.isNumber })
             let trailing = String(
@@ -147,6 +168,26 @@ extension MeaningPreservationGuard {
             index += 1
         }
         return joined
+    }
+
+    /// Small words that place an event in time: dropping "before" reverses an instruction.
+    static let timeWords: Set<String> = ["before", "after", "while"]
+
+    /// Romanised Hindi classes whose words say who acts or how words relate, which a rewrite may not drop.
+    private static let carriedHindiClasses: Set<HindiWords.WordClass> = [
+        .pronoun, .possessive, .subject, .postposition, .conjunction,
+    ]
+
+    /// Whether a small word the guard does not otherwise carry must survive: a time word, a Hindi pronoun or postposition, or "that" as the subject of a verb.
+    static func isMeaningCarried(at index: Int, in tokens: [GrammarToken]) -> Bool {
+        let token = tokens[index]
+        if timeWords.contains(token.lookup) { return true }
+        if token.lookup == "that" {
+            let next = index + 1 < tokens.count ? tokens[index + 1].lookup : ""
+            return token.startsSentence || FunctionWords.auxiliaries.contains(next)
+        }
+        return !FunctionWords.english.contains(token.lookup)
+            && !HindiWords.classes(of: token.lookup).isDisjoint(with: carriedHindiClasses)
     }
 
     /// A number and a mid-sentence capital are always content; the rest is unless the set below holds it.

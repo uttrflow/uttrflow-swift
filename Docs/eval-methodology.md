@@ -82,6 +82,8 @@ and the class that moved, never alone.
   audio digest and the engine identity, with no audio. A re-decode writes a second file, never
   over the first, because fallback retries make two decodes of one clip differ. A fit reads
   dumps only and refuses one made under another engine identity, naming the field that differs.
+  `transcribe` writes one per recording it decodes and prints their total size;
+  `word-doubt --from-dumps <corpus>` scores every doubt feature from them with no model loaded.
 
 ## Local recordings and the catalogue
 
@@ -131,6 +133,10 @@ and the class that moved, never alone.
 - A recogniser answering in Devanagari is itself a finding. Uttrflow's Hindi output is romanised
   Hinglish, so such a transcript hands clean-up a transliteration job on top of everything else.
   The rate says how well it heard; the count of Devanagari answers says how much work it left.
+- A Devanagari answer is also scored as the user receives it: `LatinScript.enforced` against the
+  romanised reference. The regression gate judges that output rate wherever it exists, so a
+  romaniser break fails the gate; a baseline entry records which text it counted, and a run that
+  counts the other text for a shared passage is refused, not compared.
 - `mustKeep` terms are only ever words spelled the same in either script. Demanding a romanised
   spelling of a Hindi name would fail every Hindi passage every time.
 - A passage's `stresses` is a list, because a real recording stresses several things at once
@@ -174,10 +180,16 @@ and the class that moved, never alone.
   different normalisation rule set. Both mean the numbers are not about the same thing.
 - Baseline entries store error and reference-word counts, never a rate. A stored rate cannot be
   re-aggregated, and storing both is how the two come to disagree.
+- Layout is judged the same way. `StructureComparison`
+  (`Sources/UttrflowEval/StructureComparison.swift`) pairs two `StructureScore` runs by case and,
+  per destination and over all cases, bootstraps missed breaks (one less recall), wrong breaks (one
+  less precision), missed list items and output breaks per 100 words. The last has no better
+  direction, since over-segmentation is best at zero, so it prints its interval without a verdict.
+  Breaks inside a sentence are a count that must stay at zero and take no interval.
 
 ### Run-to-run and machine-to-machine spread
 
-- Decoder run-to-run spread is not yet measured. A recogniser running through CoreML can give
+- Decoder run-to-run spread is measured on one machine and not yet across machines. A recogniser running through CoreML can give
   different words on different chip generations and OS builds, and hosted CI runners have no
   Neural Engine, so a baseline from one machine and a gate run on another can disagree for
   reasons that are not the code.
@@ -185,13 +197,18 @@ and the class that moved, never alone.
   configuration over the same audio into the numbers a verdict must sit above: per passage,
   the identical-text rate (transcripts compared character for character) and the rate spread; over
   the corpus, the share of passages every run agreed on and the headline spread between runs.
+  `uttrflow-eval transcribe --repeat 8` runs the corpus eight times with one model load and prints
+  the differing passages and this table's row, with the chip and OS build read from the machine.
+  `--repeat` refuses `--baseline` and `--summarise`: spread is the gate's floor, not its subject.
 - A verdict counts only when its interval clears the measured spread, and the baseline records chip and OS
   build. Until a second machine reproduces the table, the gate runs only on the machine that
-  recorded the baseline.
+  recorded the baseline. The cross-machine columns (a second chip generation and OS build) stay
+  open as a named follow-up: only one Mac was available, so the gate's tolerance cannot yet be set
+  from a measured cross-machine spread.
 
   | chip | OS build | runs | identical passages | headline spread (points) | differing passages |
   |---|---|---|---|---|---|
-  | not yet measured | | 8 | | | |
+  | Apple M5 Pro | macOS 26.5.1 (25F80) | 8 | 18 of 18 (100.0%) | 0.0 | none |
 
 ## The upload outbox
 
@@ -297,24 +314,60 @@ What is deliberately not done matters as much as what is:
   more than 25% of the reference value apart, or more than 0.5 per 100 words where the reference
   is under 2. A class outside the margin gets cases added to the matrix, or a filed gap with case
   counts.
-- A reference is a public spontaneous-speech transcript set whose licence permits use of its
-  transcripts. Only the printed numbers and the set's name, version and licence are committed,
-  never its text. Until one is measured the reference column is empty.
+- The reference is the AMI Meeting Corpus manual annotation archive advertised as version
+  1.6.2 on its [official download page](https://groups.inf.ed.ac.uk/ami/download/). The included
+  README calls the same annotation payload release 1.7. Attribution: AMI Consortium, AMI Meeting
+  Corpus; [CC BY 4.0](https://groups.inf.ed.ac.uk/ami/corpus/license.shtml). Only aggregates are
+  published; its transcript text is neither included nor redistributed.
+- `Scripts/ami_transcript_lines.py` reads the downloaded ZIP offline, follows each manual
+  segment's inclusive word references in XML order, with streams sorted by filename, and writes
+  one nonempty segment per line outside any Git repository. Punctuation is attached to words rather than counted as additional
+  words; nonverbal events and punctuation-only segments are excluded. Synthetic XML tests cover
+  word order, inclusive ranges, punctuation, malformed input and the repository-output boundary.
+- This is an instrument comparison, not a human-annotated disfluency benchmark: the three
+  disfluency rows count words the same standard passes remove on each side. AMI's manual
+  disfluency ontology distinguishes hesitation, repetition, restart, replacement and other
+  phenomena; these are not mapped to the pipeline's removal grants. A missed disfluency remains
+  invisible to this probe. Segment length, annotation punctuation and conversational meeting
+  turns differ from isolated invented dictations. An unfinished segment tail counts as a
+  sentence; "restart" means any detected repetition or retraction. The figures describe these
+  text sets and do not estimate population speech rates.
 
-| Figure | Corpus (English `spoken`) | Reference |
-|---|---|---|
-| Words removed as sounds /100w | 0.90 | not measured |
-| Words removed as repetitions /100w | 0.83 | not measured |
-| Words removed as retractions /100w | 1.99 | not measured |
-| `.` /100w | 2.13 | not measured |
-| `,` /100w | 0.63 | not measured |
-| `?` /100w | 0.07 | not measured |
-| `!` /100w | 0.07 | not measured |
-| Other marks /100w | 1.46 | not measured |
-| Words per sentence | 6.81 | not measured |
-| Lines with a restart | 7.07% | not measured |
+| Figure | Corpus (English `spoken`) | AMI manual reference | Margin result |
+|---|---:|---:|---|
+| Words removed as sounds /100w | 0.28 | 4.00 | gap |
+| Words removed as repetitions /100w | 0.19 | 1.89 | gap |
+| Words removed as retractions /100w | 0.65 | 0.09 | gap |
+| `.` /100w | 0.96 | 10.31 | gap |
+| `,` /100w | 0.17 | 5.98 | gap |
+| `?` /100w | 0.02 | 1.01 | gap |
+| `!` /100w | 0.02 | 0.00 | within |
+| Other marks /100w | 0.48 | 6.43 | gap |
+| Words per sentence | 9.24 | 7.64 | within |
+| Lines with a restart | 2.60% | 11.40% | gap |
 
-The corpus column is 410 English cases, 3,011 words.
+The eight differences outside the predeclared margin are tracked in
+[the measured corpus gap](https://github.com/uttrflow/uttrflow-swift/issues/7434),
+with observed corpus event and affected-case counts. The gap's proposed case additions are
+planning estimates, not measured new cases; adding one class also changes the other denominators.
+Punctuation and segmentation differences are retained as annotation limitations rather than
+removed to improve the comparison. Rates are displayed to two decimal places; every classification
+is unchanged across the corresponding rounding interval.
+
+Reproduce with the unchanged `speech-shape` command and the local manual archive:
+
+```bash
+python3 Scripts/ami_transcript_lines.py /outside-repo/ami_public_manual_1.6.2.zip /outside-repo/ami-lines.txt
+uttrflow-bakeoff speech-shape
+uttrflow-bakeoff speech-shape --reference /outside-repo/ami-lines.txt
+python3 -m unittest discover -s Scripts -p test_ami_transcript_lines.py
+```
+
+Archive SHA-256: `b56e5babb2496b8795deeeda7e71178d7fbc9963f94276cf2a3f4b56ebbc9f9d`.
+The English corpus contains 1,271 cases and 12,449 words; the full exported AMI reference contains
+83,483 segments and 978,210 words across all 687 manual word streams. Four lexical word elements
+are outside the segment ranges and therefore absent from the reference. No reference sampling,
+recogniser, model, audio or production formatting changes are involved.
 
 ## The contamination audit
 
@@ -329,6 +382,9 @@ The corpus column is 410 English cases, 3,011 words.
 - Measured on Apple M5 Pro: 0 findings across the prompt contract, rules and worked examples, and
   across every `.txt` and `.json` asset in the data manifest, so 0 false positives today
   (`swift test --filter ContaminationAuditTests`).
+- The string literals in `Sources/UttrflowAI/Passes`, `Sources/UttrflowCore/Cleaning` and
+  `Sources/UttrflowPipeline` are audited the same way (`SourceLiteralContaminationTests`). The copies
+  already there are listed in that test and the list only falls; a new copy fails it.
 - The assets audited are the ones [`Resources/DataManifest.json`](data-manifest.md) lists, so a
   new lexicon, vocabulary pack or n-gram text is audited as soon as it is bundled.
 
@@ -348,6 +404,9 @@ The corpus column is 410 English cases, 3,011 words.
   It reports passage counts per side and language (`swift test --filter TranscriptionSplitTests`).
 - The corpus has one reader, so passage and speaker group coincide today; a second reader of a
   passage takes the passage's side.
+- `uttrflow-eval transcribe --purpose fit|calibrate|release` reads only that purpose's side
+  (`SplitPurpose`); `--side test` without `--purpose release`, or a side the purpose may not read,
+  exits non-zero. A run with neither flag still measures every side.
 
 ## Recogniser confidence on homophones (`homophone-confidence`)
 
@@ -378,6 +437,181 @@ right ones (AUC 0.69 for programmer pairs, 1.00 for everyday pairs), so a misrea
 sentence, not low in absolute terms. Putting the term in the vocabulary prompt cut programmer errors from 17% to
 6% without a prefix, which a fixed threshold never could.
 
+## Generated homophone repair cases (`HomophoneCaseSet`)
+
+`HomophoneCaseSet.cases(classes:)` builds repair cases from `HomophoneCarriers.all`: two
+invented carrier sentences for every spelling in `HomophoneCarriers.classes`, each holding a slot `_`.
+For every carrier and every other member of its class, the input has the other member at the
+slot and the expected output has the meant spelling. A new class or carrier needs no case written
+by hand.
+
+Each carrier is tagged by what decides the spelling: `role` (the grammar around the slot),
+`sense` (the meaning of the other words), `domain` (the app or field) or `none` (nothing in the
+sentence decides, so a repair is a guess and the case measures harm).
+
+| Classes | Spellings | Carriers | Cases | role | sense | domain | none |
+|---|---|---|---|---|---|---|---|
+| 59 | 125 | 250 | 292 | 137 | 138 | 14 | 3 |
+
+`HomophoneCaseSetTests` holds the counts' shape: two carriers per spelling, one slot, no class
+member in the carrier, and one changed word per case. Per-tag bakeoff rates are #6257, and
+replacing AC.21's hand-built set #6258.
+
+`HomophoneLexiconClasses.all` adds 56 classes of common words, exact homophones and pairs one
+sound apart ("accept"/"except", "then"/"than"), with two invented carriers per spelling in
+`HomophoneCarriers.lexicon`. Both sets are for evaluation only: the repair path reads the
+pronunciation lexicon, and none of the added spellings is in `HomophoneCarriers.classes`. Whether the recogniser ever
+writes one for the other is measured from its output on synthetic speech, never assumed from
+these lists.
+
+| Classes | Spellings | Carriers | Cases | role | sense | domain | none |
+|---|---|---|---|---|---|---|---|
+| 115 | 237 | 474 | 516 | 233 | 249 | 28 | 6 |
+
+### Repair and harm per decider (`uttrflow-bakeoff homophones`)
+
+`uttrflow-bakeoff homophones` runs every clean-up engine (rules, Apple on-device, the shipping
+router, and any `--models`) twice per case: on the input, where writing the meant spelling at
+the slot is a **repair**, and on the expected sentence, where changing it is **harm**
+(`HomophoneRepairRates`). Words are compared without case or edge punctuation; when an engine
+changes the word count the whole sentence must match. One row per engine per decider tag.
+
+Measured on all 292 cases, without a local model (the local models' rows need the Metal build
+from `make bakeoff`):
+
+| Engine | Decider | Cases | Repair | Harm |
+|---|---|---|---|---|
+| rules | role / sense / domain / none | 137 / 138 / 14 / 3 | 0% / 0% / 0% / 0% | 0% / 0% / 0% / 0% |
+| Apple on-device | role / sense / domain / none | 137 / 138 / 14 / 3 | 1.5% / 2.2% / 0% / 0% | 0% / 0% / 0% / 0% |
+| shipping router | role / sense / domain / none | 137 / 138 / 14 / 3 | 1.5% / 2.2% / 0% / 0% | 0% / 0% / 0% / 0% |
+
+Apple on-device declined or failed 26 of 584 runs; those count as unchanged. No engine harms a
+right spelling, and none repairs more than about one wrong spelling in fifty: the clean-up
+engines do not fix homophones from sentence context today.
+
+### Class-by-class error table (AC.21)
+
+AC.21's table reads only these generated cases; there is no hand-built sentence set for it.
+`uttrflow-eval homophone-table` prints one row per class: cases, the error rate as heard (`raw`,
+100% by construction, since every input holds the wrong member) and after the standard cleaning
+rules (`rules`). Words are compared lower-cased with marks dropped but apostrophes kept, so a
+capitalised first word or an added stop is not an error and "its" stays apart from "it's".
+
+| Classes | Cases | raw errors | rules errors |
+|---|---|---|---|
+| 59 | 292 | 292 (100%) | 292 (100%) |
+
+The rules repair no case in any class: no class is owned by the rules, so ownership lies between
+the model and the guard, and that column needs the on-device model (measured in `make bakeoff`
+per #6257). A raw rate from the recogniser itself needs audio of the carriers.
+
+## Confusable pairs by cost of the error (`confusable-pairs`)
+
+Some confusions turn the meaning: "can" for "can't", "fifteen" for "fifty", "accept" for
+"except", a dropped "not". `ConfusablePairs` (`Sources/UttrflowEval/ConfusablePairs.swift`) holds
+them as data, each an invented carrier sentence with one slot and two readings, in five groups:
+
+| Group | Pairs | Examples |
+|---|---|---|
+| negation | 8 | can / can't, will / won't, now / not, not / (dropped) |
+| hindiNegation | 4 | nahi, mat, na, each present or dropped; one Hinglish carrier |
+| teenTen | 7 | thirteen / thirty through nineteen / ninety |
+| nearQuantity | 8 | hundred / thousand, million / billion, a / one, an / a, on / one, two / to, four / for, ate / eight |
+| meaningSwap | 3 | accept / except, affect / effect, lose / loose |
+
+The cost class of each pair is `ConfusionCost.of` on its two readings, the same call
+`DoubtPolicy`'s `OverridePolicy` and `FlagPolicy` read (see
+[ai-correction-thresholds.md](ai-correction-thresholds.md#two-directions-of-doubt-override-less-flag-more));
+the inventory holds no tier of its own. `ConfusablePairsTests` pins the class each group lands in:
+every negation pair is `meaningFlip`, every teen/ten pair and every amount word `numberFlip`, and
+"a", "an", "on" and the meaning swaps `cosmetic`. A pair moves to a costlier class only when its
+measured flip rate below says so, by changing `ConfusionCost`, never by a list here.
+
+```bash
+uttrflow-eval confusable-pairs
+```
+
+Each pair is read both ways, by `say` voices Samantha (en_US) and Rishi (en_IN) at 150, 190 and
+240 words a minute, clean and with seeded white noise at 20 and 10 dB: 36 decodes per pair. Both
+sides are normalised (`TextNormaliser.standard`, so "fifteen" and "15" are one word). A decode is
+**right** when it equals the spoken reading, **flipped** when it is fewer word edits from the other
+reading than from the spoken one, and otherwise an **other error**. `--compute gpu` keeps the
+Neural Engine free when another process holds its compiler.
+
+Measured on an Apple M5 Pro with 48 GB, `--compute gpu`, 1,080 decodes (36 per pair).
+
+| Group | Pair | Cost class | Decodes | Flip rate | Error rate | Most written when wrong |
+|---|---|---|---|---|---|---|
+| negation | can / can't | meaningFlip | 36 | 0.0% | 0.0% |  |
+| negation | will / won't | meaningFlip | 36 | 0.0% | 47.2% | "the build will pass on the old lappa top" ×3 |
+| negation | did / didn't | meaningFlip | 36 | 0.0% | 5.6% | "she didnt reply to the invites" ×2 |
+| negation | was / wasn't | meaningFlip | 36 | 0.0% | 0.0% |  |
+| negation | could / couldn't | meaningFlip | 36 | 0.0% | 8.3% | "we could find a spare key" ×2 |
+| negation | do / don't | meaningFlip | 36 | 0.0% | 25.0% | "please do send the draft yes" ×4 |
+| negation | now / not | meaningFlip | 36 | 0.0% | 0.0% |  |
+| negation | not / (dropped) | meaningFlip | 36 | 0.0% | 5.6% | "tests are not passing on the branch" ×1 |
+| hindiNegation | nahi / (dropped) | meaningFlip | 36 | 5.6% | 100.0% | "main call office nahin a anger" ×6 |
+| hindiNegation | mat / (dropped) | meaningFlip | 36 | 0.0% | 100.0% | "ava file video" ×5 |
+| hindiNegation | na / (dropped) | meaningFlip | 36 | 5.6% | 100.0% | written in Devanagari ×9 |
+| hindiNegation | nahi / (dropped) | meaningFlip | 36 | 27.8% | 100.0% | "the bildabi chalraha" ×4 |
+| teenTen | thirteen / thirty | numberFlip | 36 | 0.0% | 52.8% | "we need 30 cheyaras for the haul" ×6 |
+| teenTen | fourteen / forty | numberFlip | 36 | 0.0% | 0.0% |  |
+| teenTen | fifteen / fifty | numberFlip | 36 | 0.0% | 11.1% | "or the 15 boxes of paper" ×2 |
+| teenTen | sixteen / sixty | numberFlip | 36 | 0.0% | 0.0% |  |
+| teenTen | seventeen / seventy | numberFlip | 36 | 0.0% | 0.0% |  |
+| teenTen | eighteen / eighty | numberFlip | 36 | 0.0% | 0.0% |  |
+| teenTen | nineteen / ninety | numberFlip | 36 | 0.0% | 0.0% |  |
+| nearQuantity | hundred / thousand | numberFlip | 36 | 0.0% | 2.8% | "the hall seats 100 guests" ×1 |
+| nearQuantity | million / billion | numberFlip | 36 | 0.0% | 11.1% | "to fundraise a million dollars" ×2 |
+| nearQuantity | a / one | cosmetic | 36 | 0.0% | 33.3% | "i ordered a coffee for the days" ×6 |
+| nearQuantity | an / a | cosmetic | 36 | 22.2% | 22.2% | "it was an honest mistake" ×8 |
+| nearQuantity | on / one | cosmetic | 36 | 0.0% | 58.3% | "the potlite stayed 1 all night" ×6 |
+| nearQuantity | two / to | numberFlip | 36 | 50.0% | 52.8% | "add 2 eggs to the bowl" ×18 |
+| nearQuantity | four / for | numberFlip | 36 | 27.8% | 50.0% | "we need 4 more chayaras" ×11 |
+| nearQuantity | ate / eight | numberFlip | 36 | 50.0% | 50.0% | "we ate at the hotel" ×18 |
+| meaningSwap | accept / except | cosmetic | 36 | 50.0% | 50.0% | "we accept all the changes" ×18 |
+| meaningSwap | affect / effect | cosmetic | 36 | 50.0% | 55.6% | "the new cache will affect the speed" ×15 |
+| meaningSwap | lose / loose | cosmetic | 36 | 50.0% | 52.8% | "do not lose the receipt" ×18 |
+
+| Cost class | Rate | Noise | Decodes | Flip rate | Error rate |
+|---|---|---|---|---|---|
+| cosmetic | all | all | 216 | 28.7% | 45.4% |
+| cosmetic | 150 | all | 72 | 29.2% | 45.8% |
+| cosmetic | 190 | all | 72 | 27.8% | 44.4% |
+| cosmetic | 240 | all | 72 | 29.2% | 45.8% |
+| cosmetic | all | clean | 72 | 29.2% | 37.5% |
+| cosmetic | all | 20 dB | 72 | 27.8% | 44.4% |
+| cosmetic | all | 10 dB | 72 | 29.2% | 54.2% |
+| numberFlip | all | all | 432 | 10.6% | 19.2% |
+| numberFlip | 150 | all | 144 | 10.4% | 18.8% |
+| numberFlip | 190 | all | 144 | 10.4% | 18.1% |
+| numberFlip | 240 | all | 144 | 11.1% | 20.8% |
+| numberFlip | all | clean | 144 | 10.4% | 18.1% |
+| numberFlip | all | 20 dB | 144 | 10.4% | 17.4% |
+| numberFlip | all | 10 dB | 144 | 11.1% | 22.2% |
+| meaningFlip | all | all | 432 | 3.2% | 41.0% |
+| meaningFlip | 150 | all | 144 | 2.8% | 42.4% |
+| meaningFlip | 190 | all | 144 | 2.8% | 39.6% |
+| meaningFlip | 240 | all | 144 | 4.2% | 41.0% |
+| meaningFlip | all | clean | 144 | 4.2% | 38.9% |
+| meaningFlip | all | 20 dB | 144 | 2.1% | 39.6% |
+| meaningFlip | all | 10 dB | 144 | 3.5% | 44.4% |
+
+What the run says:
+
+- Negation rarely flips to the opposite reading (3.2% of 432 decodes) but is often wrong in another
+  way (41.0%). Nearly all of the errors come from `will / won't`, `do / don't` and the Hindi
+  carriers, where the negator is dropped or, for Hindi, the line is written in Devanagari.
+- Number flips sit at 10.6%, almost all in `two / to`, `four / for` and `ate / eight`, which sound
+  alike; the teen/ty pairs flip 0.0% and err 0.0% to 52.8% (`thirteen / thirty` is written as 30).
+- The `cosmetic` meaning swaps (`accept / except`, `affect / effect`, `lose / loose`) flip 50.0%
+  with no change across rate or noise.
+  Noise raises the error rate in every class and leaves the flip rate near its clean value.
+
+Every pair keeps the class `ConfusionCost` gives it; this run changes none. Moving the meaning
+swaps up a class is a separate decision, because it would make the override harder for every
+accept/except in running text.
+
 ## Accent classes and the correction gates (`accent`)
 
 `uttrflow-eval accent` has `say` read 400 invented carrier sentences (`AccentProbeCorpus`): 30
@@ -385,7 +619,8 @@ target words for each of 10 accent classes, and 50 technical terms in an English
 in a Hindi one. Each clip is transcribed by the shipping recogniser; the words between the
 carrier's own words are what was heard. For every miss, `SoundAlikeReach` asks whether the word
 meant, were it in the dictionary, is reached by (a) the sound key alone, (b) the key plus
-`ReadingRestraint.opensAlike`, and (c) `WordCorrectionEngine.spells` for an entry spelt that way.
+`ReadingRestraint.soundsNear` (the column was the opening-letters gate when the table below was
+measured), and (c) `WordCorrectionEngine.spells` for an entry spelt that way.
 Each share is of the misses in that row.
 
 Measured on an Apple M5 Pro with 48 GB. Engine: whisperKit
@@ -434,3 +669,549 @@ How far to trust it:
   English hint is the worst case: the recogniser fuses `mujhe` with the term, so most of its 167
   misses are extraction failures, not mishearings.
 - (c) asks without the doubt and evidence conditions the engine also checks, so it is a ceiling.
+
+## Proper names by origin and frequency band (`names`)
+
+`uttrflow-eval names` has `say` read every name in `NameClassCorpus`
+(`Sources/UttrflowEval/Resources/Corpus/Names/names.json`): 159 names, each tagged with an origin
+(english, southAsian, eastAsian, african, slavic, irishScottish, arabic), a band (common, uncommon,
+rare) and a kind. Every origin holds, per band, three given names, two surnames and two places;
+twelve English given names that are also ordinary words ("Will", "Grace", "Hope") form the
+`wordAlike` kind, four per band. Each kind is read in one fixed carrier (`NameClassItem.Kind.carrier`),
+and the words between the carrier's own are what was heard.
+
+- Every clip is transcribed twice under an English hint: plain, and with the name as the
+  dictation's vocabulary, which is the path a personal-dictionary entry takes into the prompt.
+- *Exact* keeps case and drops apostrophes, so a word-alike name heard in lower case is a miss;
+  *spelled* also folds case. Both are printed per origin and band, per band over every origin and
+  per kind, with the confusion list (meant against heard, clips per condition) by band and origin.
+  The rows file keeps every transcript for comparison with a later run.
+- The band is the author's judgement of how often the name is written in English text, not a
+  measured frequency; a row compares origins and bands, it does not rank single names.
+- The file holds given names and surnames on their own and public place names only, never a full
+  name, so no entry identifies a person.
+- `--compute gpu` keeps the Neural Engine free when other loads hold it; the plan is printed with
+  the engine.
+
+Measured on Apple M5 Pro, 48 GB; whisperKit `openai_whisper-large-v3-v20240930_turbo_632MB`,
+`--compute gpu`, English hint; `say` voices Samantha and Rishi, so each name is two plain clips and two
+dictionary clips. Exact and spelled agree in every row of this run, so only exact is shown.
+
+| Origin | Common, plain | Common, dictionary | Uncommon, plain | Uncommon, dictionary | Rare, plain | Rare, dictionary |
+|---|---|---|---|---|---|---|
+| english | 95.5% | 100.0% | 86.4% | 100.0% | 50.0% | 90.9% |
+| southAsian | 100.0% | 100.0% | 64.3% | 100.0% | 21.4% | 92.9% |
+| eastAsian | 100.0% | 100.0% | 71.4% | 92.9% | 21.4% | 85.7% |
+| african | 78.6% | 100.0% | 57.1% | 100.0% | 21.4% | 100.0% |
+| slavic | 92.9% | 100.0% | 50.0% | 100.0% | 7.1% | 100.0% |
+| irishScottish | 100.0% | 100.0% | 42.9% | 100.0% | 21.4% | 78.6% |
+| arabic | 92.9% | 92.9% | 71.4% | 100.0% | 21.4% | 92.9% |
+| all | 94.3% | 99.1% | 65.1% | 99.1% | 25.5% | 91.5% |
+
+| Kind | Clips per condition | Exact, plain | Exact, dictionary |
+|---|---|---|---|
+| given | 126 | 57.1% | 97.6% |
+| surname | 84 | 60.7% | 95.2% |
+| place | 84 | 60.7% | 95.2% |
+| wordAlike | 24 | 91.7% | 100.0% |
+
+- **The weakest band is `rare`**: 25.5% exact plain, against 65.1% uncommon and 94.3% common. Within
+  it, slavic is lowest plain (7.1%) and irishScottish lowest with the dictionary (78.6%).
+- A rare name is spelled by sound ("Szczecin" heard as "success in", "Kumbakonam" as "come back in
+  them"); the dictionary lifts the rare band to 91.5%, so the entry, not the recogniser, carries it.
+- Misses left with the dictionary include the name heard as another real word or name
+  ("Xiong" as "Zhang", "Colquhoun" as "Cahoon", "Cairo" as "Kahira").
+- Two synthetic voices only; readers are later work, and a band row of 14 clips moves 7 points per
+  clip.
+
+## Dropped words and the coverage signal (`omission-coverage`)
+
+A dropped "not", "no" or "a" carries no score, so no doubt mechanism sees it. The probe asks
+whether voiced audio that no recognised word covers predicts a deletion. `uttrflow-eval
+omission-coverage` has `say` read 16 invented sentences dense in negators, articles,
+auxiliaries and numbers, aligns each decode against its reference (`OmissionCoverage`), places
+every deleted reference word between the recognised words either side of it, classes it by the
+on-device tagger in its sentence, and finds the voiced runs (inside
+`VoiceActivity.speechRange`) that no word's time range covers. A run of at least d ms within
+120 ms of a deletion's window counts as a hit.
+
+Run with whisperKit large-v3 turbo, voices Samantha, Daniel, Karen and Rishi at 175, 260 and
+340 wpm: 192 clips, 1,680 reference words, 5.2 words per voiced second.
+
+| Class | Deletions |
+|---|---|
+| negator | 0 |
+| article | 0 |
+| auxiliary | 2 |
+| number | 0 |
+| other | 12 |
+
+| d (ms) | Uncovered runs | Precision | Recall | False alarms per 100 words |
+|---|---|---|---|---|
+| 150 | 100 | 0% | 0% | 6.0 |
+| 300 | 21 | 0% | 0% | 1.2 |
+| 500 | 0 | – | 0% | 0.0 |
+
+**No-go** for feeding the signal to the review strip: precision stays under the 50% floor
+(`OmissionCoverage.precisionFloor`) at every swept length. On synthetic speech the recogniser
+drops no meaning-bearing word, and the deletions it does make (mostly "can not" read as one
+word) leave no uncovered voiced run, while ordinary pauses leave runs with nothing missing.
+
+How far to trust it:
+- The voices are synthetic and read cleanly; a real speaker's swallowed "not" is the case this
+  cannot show. `--manifest <file>` (tab-separated audio path and reference) runs the same scoring
+  on recorded clips; the run on the recorded transcription corpus decides whether the no-go
+  holds for real speech.
+- Only the shipping whisperKit model is installed on the measuring Mac; the faster path is
+  measured by passing `--model <variant>` once it is installed.
+- The tolerance is fixed at 120 ms until LT.9's word-timing accuracy result sets it.
+## Per-speaker confusion learning curve
+
+`ConfusionLearningCurve` (`Sources/UttrflowEval/ConfusionLearningCurve.swift`) is the model and
+scorer for the question "after how many corrections does learning one speaker's confusions rank
+the meant word better than the global key, without overturning more right answers". Nothing in
+it ships. It fits two levels from a speaker's first k corrections, in time order: sound-class
+counts with add-one (Dirichlet) smoothing toward uniform, and word-pair counts; `backOff` uses the
+pair when it was seen and the class otherwise. Each level's log-ratio is added to the global
+key's score on the candidate lists the existing sources produce, and reported as top-1 recall of
+the meant word and the false-override rate (trials the key had right that the model overturned).
+`poisoned` replaces a stated share of the fit events with random pairs, for the 10% and 30%
+poisoning rows; `storedBytes` is the size of the fitted model.
+
+`uttrflow-eval learning-curve --manifest <tsv>` runs it. It reads the manifest
+`harvest-confusions` reads (audio path, reference, first-language group, speaker), decodes each
+clip with the shipping path, aligns with `WordErrorRate.measure`, and holds each speaker out in
+turn: the global key is the smoothed share of each heard-to-meant pair over the other speakers,
+and the candidates are the heard word, the meant word and every word the others' pairs offer. It
+prints, per level, k (0, 5, 10, 20, 50) and poisoning (0, 10%, 30%), the trials, top-1 recall with a
+95% interval from resampling whole speakers, the false-override rate and the mean stored bytes.
+
+**Reduced run, synthetic speech only.** Eight system voices (en_AU, en_GB, en_IE, two en_IN, en_ZA,
+two en_US), each reading 63 carrier sentences from `HomophoneCarriers`: 504 clips, 63 substitutions,
+shipping model, debug build on a loaded machine.
+
+| level | k=0 | k=5 | k=10 | k=20 | false override |
+|---|---|---|---|---|---|
+| global key | 60.3% (63) | 60.6% (33) | 59.1% (22) | 41.7% (12) | - |
+| soundClass, backOff | 60.3% | 90.9% (50.0-100.0) | 95.5% | 91.7% | 0.0% at 0, 10%, 30% poisoning |
+| wordPair | 60.3% | 60.6% | 59.1% | 41.7% | 0.0% |
+
+Trials in brackets after the global key. Stored size is 200 bytes at k=5 and 590 at k=20; no
+speaker had 50 errors. The sound-class level beats the global key from k=5 with no false
+overrides, and the word-pair level adds nothing, because a synthetic voice repeats its sound
+contrast but rarely the same word. This does not decide the question: a system voice is not a
+speaker, the substitutions are few, and from k=10 only one or two voices are left to test, so the
+interval collapses. Until the full run on public accented read speech is recorded here, no channel
+work may assume that per-speaker learning helps, at any k.
+## Real-speaker accent slices: what a group row may claim
+
+The synthetic table above decides which classes are worth recording real speakers for; a
+real-speaker slice decides whether a group is served worse. This is the specification any
+per-group report (word error rate, false override or seam rate by speaker group) follows.
+
+**Datasets and labels, stated exactly.**
+
+| dataset | licence | access | accent label |
+|---|---|---|---|
+| Common Voice (English) | CC0 | open download | self-described by the contributor; reported as "self-described" |
+| Svarah (Indian-accented English) | CC BY 4.0 | gated: request access, accept terms | first language and region from collected speaker metadata; reported as "verified" |
+
+- Neither is committed or redistributed: the user downloads the slice, the run reads a local
+  path, and no audio or transcript enters the repository. Only the dataset name, version,
+  licence, sample seed and the printed counts are committed.
+- A group label comes from verified metadata where the dataset has it, and every row says which
+  kind of label it carries. Self-described and verified groups are never pooled into one row.
+
+**Every group row carries its sample, not only its rate.** Speaker count, reference-word count,
+and for a decision rate (false override) the number of decisions. A rate without these is not
+printed.
+
+**Intervals resample speakers, not clips.** Clips from one speaker share a voice, a microphone and
+a room, so they are correlated; resampling clips understates the interval. The bootstrap draws
+speakers with replacement and keeps every clip of a drawn speaker, using the same confidence,
+power, resample count and fixed seed as `PairedBootstrap` above.
+
+**The minimum detectable difference is computed, not assumed.** At about 400 reference words and
+an 8% word error rate, the binomial standard error is sqrt(0.08 x 0.92 / 400), about 1.4 points,
+so the 95% interval is about plus or minus 2.7 points before speaker correlation widens it.
+40 clips per group therefore cannot resolve a 5-point spread reliably; each row prints its own
+minimum detectable difference.
+
+**Decision-rate bounds need their own sample size.** With zero false overrides in n decisions the
+95% upper bound is about 3/n, so a bound of 1 in 1,000 needs about 3,000 decisions in that
+group. A group whose decision count cannot support the stated bound prints "insufficient
+evidence", never a rate.
+
+**What files an issue.** A difference between two groups is reported when its speaker-resampled
+interval excludes zero, not when the point spread passes a fixed number of points. A difference
+inside the interval is "no difference detectable at this sample", with the minimum detectable
+difference beside it.
+
+**The report.** `uttrflow-eval accent-groups --rows <counts.tsv>` implements this specification
+(`Sources/UttrflowEval/SpeakerGroupReport.swift`). It reads a local table of per-clip counts
+(speaker, group, label kind, errors, words, decisions, false overrides), never audio, and prints
+one row per group and label kind and one line per same-label pair. A group under two speakers, or
+whose decisions fall short of the 3/n count for `--decision-bound` (default 1 in 1,000), prints
+"insufficient evidence". `SpeakerGroupReportTests` fixes these rows over an invented slice.
+
+With `--manifest` in place of `--rows`, the command reads the `harvest-confusions` manifest
+(audio path, reference text, accent group, speaker) of a slice already downloaded, decodes a
+seeded sample of each group with the shipping recogniser (`ManifestDecoder`), and scores each clip
+with the standard normaliser and `WordErrorRate`; only those counts reach the report. The sample
+(`AccentSlice.sample`) takes `--clips-per-group` clips (200 by default: about 2,000 reference words
+on ten-word clips, a binomial interval of about plus or minus 1.2 points at 8%, before speaker
+correlation widens it), one clip per speaker per round in seeded order, so the budget reaches every
+speaker the group has. The first printed line names the dataset, version, label kind, seed, clip
+budget and engine, and is pasted above the table. Nothing is fetched and no audio is written.
+
+```bash
+uttrflow-eval accent-groups --manifest <slice>/manifest.tsv --label self-described \
+  --dataset "Common Voice English" --dataset-version <release> --seed 1
+```
+
+Not yet measured: no real-speaker slice has been run through it. The per-accent table belongs here
+once a slice is downloaded; each difference whose interval excludes zero is filed as its own issue.
+
+## Word-score calibration by accent group (`accent-calibration`)
+
+`uttrflow-eval accent-calibration` has each voice read the `accent` corpus (reusing its clips),
+aligns every reference word against the decode with `HomophoneConfidence.outcome`, and reports per
+accent group (`GroupCalibration`): reliability (the share right in each score bin), and, at
+`DoubtPolicy.certaintyThreshold`, the share of errors written below it (**seen**, a candidate
+source is asked), at or above it (**confident**, never asked), and the share of right words below it
+(**falsely doubted**, put at risk of replacement), each with a 95% Wilson interval. A dropped word
+counts as an error that is neither seen nor confident. A group whose seen share and the best
+group's lie outside each other's intervals is listed as standing apart, and is filed as its own
+issue. No threshold is changed from this table. Per-person calibration reads the confident share
+per group from here.
+
+Not yet measured: the run takes several hours of recogniser time per voice on an otherwise idle Mac.
+Run it with `swift run -c release uttrflow-eval accent-calibration` and paste both tables here.
+
+Real accented read speech goes through the same report with `--manifest`, which reads the
+`harvest-confusions` manifest (audio path, reference text, first-language group, speaker) in place
+of the voices, so both reports share one alignment and one table. Run it over the same local slice
+the harvest reads and paste the per-group table here beside the synthetic one. Until that slice is
+downloaded, synthetic voices are the only stand-in for accent groups: they share one synthesiser's
+prosody, so a gap between them understates the gap between real speakers.
+
+Both runs end with one line measuring the score against the doubtful-word strip's floor
+([ai-correction-thresholds.md](ai-correction-thresholds.md#showing-doubtful-words-after-insertion-not-built)):
+the lowest-scored words flagged at 3 per 100, with recall, precision and the unflaggable share.
+
+## What one guided read measures (`guided-read`)
+
+`uttrflow-eval guided-read` decodes one reading of `GuidedRead.passage` per speaker, from `say`
+voices (`--voices`) or recordings of a person reading it (`--recordings`), and prints one row each
+(`GuidedRead.measure`). The passage is invented English; its targets are its words written as one
+technical-lexicon term, so a term added to the lexicon is tracked without a code change.
+
+| Column | Measured as |
+|---|---|
+| Words a minute | words heard over the span from the first timed word's start to the last one's end |
+| Median pause, 90th pause | gaps between two timed words of one sentence; the gap after a word ending `.`, `?` or `!` is left out |
+| Median confidence | the recogniser's confidence over every word heard |
+| Pause setting | the first `PauseLength` whose `sentencePause` the 90th pause stays under |
+| Missed | targets `HomophoneConfidence.outcome` finds wrong or dropped |
+
+Nothing here changes a setting or a threshold, and no audio or row is kept by the app: this measures
+whether a reading at setup separates speakers enough to tune anything. Synthetic voices share one
+synthesiser's prosody, so their pause columns say little; recordings of people are the evidence
+that counts. Still to measure before any of it reaches setup: first-week word error rate on corpus
+speakers with the pause setting a reading picks against the default.
+
+## Confusions on accented read speech (`harvest-confusions`)
+
+`uttrflow-eval harvest-confusions` decodes a locally downloaded slice of public accented read
+speech and writes a table of `(reference word, recognised word, first-language group, count)`
+and confusion-class counts per group (`ConfusionHarvest`). Nothing else leaves the run: no
+sentence, no audio, no speaker identifier. A group read by fewer than `--minimum-speakers`
+speakers (10 by default) is merged into `other`.
+
+The input is a tab-separated manifest the maintainer builds from the downloaded slice, one clip
+per line: audio path, reference text, first-language group, speaker. Speakers are split by a
+seeded hash: one half builds the table, the other half measures coverage, the share of its
+substitutions whose word pair the table holds. Two runs over the same slice and engine give the
+same digest, which the command prints.
+
+```bash
+uttrflow-eval harvest-confusions --manifest <slice>/manifest.tsv \
+  --dataset Svarah --dataset-version <release> --licence CC-BY-4.0 --seed 1 \
+  --output .uttrflow-eval/confusions-svarah.json
+```
+
+Sources and their terms:
+
+| Dataset | Publisher | Licence | Access |
+|---|---|---|---|
+| Svarah | AI4Bharat | CC BY 4.0, attribution required | gated download from its Hugging Face page |
+| Common Voice English, accent field | Mozilla | CC0 | public download |
+
+A committed table names its dataset, release, licence and engine in its `provenance` block and
+carries the CC BY attribution "Svarah, AI4Bharat, CC BY 4.0" wherever it is shipped. The classes
+are read from the two spellings, so `other` holds every pair whose contrast the spelling does not
+show. The class rules are deliberately the probe's, not the engine's: the harvest reads no
+lexicon, phonetic index or candidate source, and `ConfusionHarvestTests` checks that.
+
+### System voices as a second source (`synthesise-harvest`)
+
+Recognition errors of real users never leave the Mac, so system voices reading invented text are
+the other source of rows. `uttrflow-eval synthesise-harvest` has each `--voice Name:class` read
+each sentence at each `--rate`, and writes the clips and a manifest in the same four-field form:
+the voice class is the group, `Name@rate` the speaker. The harvest that follows is the same
+`harvest-confusions` decode and `ConfusionHarvest` table, not a second one, and the source
+(`SyntheticHarvestSource`) reads no lexicon, phonetic index or candidate source either. Without
+`--text`, the English fit-split passages are read, so coverage on the calibration split is never
+measured on text the table was built from.
+
+With `--calibration-results` naming a `transcribe` results folder, every clip builds the table and
+coverage is the share of real substitutions on calibration-split recordings whose pair the table
+holds. A voice class has only as many speakers as rates, so pass `--minimum-speakers 1`.
+
+```bash
+uttrflow-eval synthesise-harvest --output-directory <dir> \
+  --voice Samantha:en_US --voice Daniel:en_GB --voice Rishi:en_IN --rate 160 --rate 220
+uttrflow-eval harvest-confusions --manifest <dir>/manifest.tsv \
+  --dataset synthetic --dataset-version <text set> --licence none --minimum-speakers 1 \
+  --calibration-results .uttrflow-eval/whisperKit-<model> --output .uttrflow-eval/confusions-synthetic.json
+```
+
+The table's `provenance.engine` names the model that decoded it; a table from another engine is
+rebuilt, not reused.
+
+## Wrong forms from synthetic voices as bias paths (`path-coverage`)
+
+The question is whether the wrong forms the recogniser writes for a rare term, spoken by system
+voices when the term is added, predict the wrong form a further speaker gets. If they do, those
+forms can be added as extra paths to the one bias trie and the one candidate generator. The decode
+is `harvest-confusions`'s (`ManifestDecoder`), not a second harvest. `SyntheticPathCoverage`
+(`Sources/UttrflowEval/SyntheticPathCoverage.swift`) holds each speaker out in turn and counts a
+misheard clip as covered when another speaker produced the same wrong form for that term, with a
+95% Wilson interval.
+
+```bash
+uttrflow-eval path-coverage --manifest <dir>/manifest.tsv
+```
+
+Each manifest line is one term read alone: audio path, term, group, speaker.
+
+**Reduced run, synthetic speech only.** 50 invented terms, each read alone by six system voices
+(en_GB, en_IN, en_AU, en_IE, en_US, en_ZA): 300 clips, shipping model, debug build.
+
+| misheard clips | covered by the other five voices | wrong forms per misheard term | terms always right |
+|---|---|---|---|
+| 232 of 300 | 100 (43.1%, 95% 36.9-49.5%) | 3.4 | 1 |
+
+Synthetic voices cover about two in five of another synthetic voice's wrong forms, at a cost of
+about three paths per term. This does not decide the question: a system voice is not a speaker,
+and the clips are terms read alone, not in sentences. The decision needs two runs that are not
+done yet: the same coverage with a consenting contributor's recorded clips as the held-out
+speaker (the audio stays local), and biased-word error and false insertions with and without
+the paths, which needs the decode-time trie. Until both are recorded here, the harvested paths
+are not added to the trie or the candidate generator.
+
+## Accuracy in noise (`noise`)
+
+Every recorded passage is a clean read, so the corpus alone cannot say where accuracy falls off
+in a noisy room. `uttrflow-eval noise` replays each recording clean and then with one noise added
+at 20, 10, 5 and 0 dB signal-to-noise ratio, and pools the word errors per condition and language.
+
+```bash
+uttrflow-eval noise
+```
+
+- The noises are generated, never recorded or committed (`Sources/UttrflowEval/Degradation.swift`):
+  white and pink hiss, a 100 Hz hum with harmonics to 500 Hz, babble summed from six synthetic
+  voices, and a synthetic chord sequence.
+- The noise is scaled so speech power over noise power is the stated ratio across the whole clip.
+  A mix that would leave full scale is scaled down whole, so the ratio holds and nothing clips.
+- The run is reproducible byte for byte: each recording's noise comes from the run's `--seed`
+  and the recording's identifier alone, through FNV-1a rather than Swift's salted hashing.
+- After the noises the same run replays three room and channel conditions
+  (`Sources/UttrflowEval/ChannelEffects.swift`), each its own row with WER and insertions per
+  language, never pooled and with no breakpoint, since they have no level to step through:
+  reverberation from a synthetic exponentially decaying impulse response of 0.3, 0.6 and 1.0 s
+  (60 dB decay, a direct path then seeded noise, level matched to the dry clip); band-limiting
+  to 8 kHz and 4 kHz by a windowed-sinc low-pass; and G.711 mu-law telephone coding (3.4 kHz band,
+  8 kHz sampling, 8-bit companding). A clip sampled at 16 kHz is already limited to 8 kHz, so
+  its `band 8 kHz` row is the clean read.
+- Each condition is its own row beside clean, never pooled with it, with the paired 95% interval
+  on the change in word error rate (`ConditionTable`, the pooling `input-level` uses too).
+- Per language and noise, the report names the first step, mildest first, where word error rate
+  passes clean by more than 5 points (`NoiseBreakpoint`).
+- The insertions column counts inserted words over reference words in speech. Text invented from
+  sound with no speech in it is `nonspeech`'s rate.
+- `--baseline <path>` gates the run like `transcribe` does, with `--save-baseline` and
+  `--fail-on-regression`. Each degraded replay is its own `BaselineEntry` with a `condition`; the
+  overall, language, stress and cohort slices hold clean reads only, and each condition gets its
+  own `byCondition` slice, so a regression under one noise fails the gate without moving the
+  headline.
+
+### Measured on one speaker's recordings
+
+One speaker, `reader-1`, built-in microphone: 18 passages read in a quiet room (6 each English,
+Hindi, Hinglish) and the 6 English passages read again in a real noisy room. Shipping model
+(`openai_whisper-large-v3-v20240930_turbo_632MB`), shipping compute, seed `0x5EED`. The audio and
+the saved baselines stay on the recording Mac.
+
+```bash
+uttrflow-eval noise --corpus-path <reader-1-quiet> --baseline <outside the repo> --save-baseline
+uttrflow-eval noise --corpus-path <reader-1-noisy> --baseline <outside the repo> --save-baseline
+```
+
+Word error rate per condition. The last column adds the same synthetic noise to the noisy-room
+takes, so its clean row is the real room.
+
+| condition | English | Hindi | Hinglish | English, noisy room |
+|---|---|---|---|---|
+| clean | 23.0% | 24.4% | 48.1% | 18.4% |
+| white 20 / 10 / 5 / 0 dB | 24.9 / 34.4 / 80.7 / 100.0% | 24.9 / 33.3 / 89.6 / 92.5% | 45.9 / 72.1 / 82.0 / 89.1% | 21.6 / 31.1 / 52.1 / 70.8% |
+| pink 20 / 10 / 5 / 0 dB | 21.6 / 27.9 / 48.5 / 100.0% | 23.9 / 30.3 / 59.2 / 93.5% | 54.1 / 55.2 / 84.2 / 88.5% | 20.0 / 27.9 / 40.7 / 69.5% |
+| hum 20 / 10 / 5 / 0 dB | 22.0 / 29.8 / 71.5 / 99.3% | 25.4 / 28.4 / 62.7 / 65.7% | 48.1 / 42.1 / 72.7 / 67.8% | 20.0 / 20.7 / 20.7 / 24.6% |
+| babble 20 / 10 / 5 / 0 dB | 23.0 / 31.8 / 52.8 / 90.2% | 25.4 / 30.3 / 51.2 / 74.1% | 44.8 / 50.8 / 60.1 / 76.5% | 19.3 / 23.3 / 32.5 / 53.4% |
+| music 20 / 10 / 5 / 0 dB | 23.6 / 33.8 / 63.0 / 100.0% | 24.4 / 31.3 / 65.7 / 62.7% | 48.6 / 50.8 / 67.2 / 60.7% | 18.4 / 20.0 / 23.6 / 20.0% |
+
+First SNR at which word error rate passes clean by more than 5 points (`NoiseBreakpoint`):
+
+| noise | English | Hindi | Hinglish | English, noisy room |
+|---|---|---|---|---|
+| white | 10 dB | 10 dB | 10 dB | 10 dB |
+| pink | 5 dB | 10 dB | 20 dB | 10 dB |
+| hum | 10 dB | 5 dB | 5 dB | 0 dB |
+| babble | 10 dB | 10 dB | 5 dB | 5 dB |
+| music | 10 dB | 10 dB | 5 dB | 5 dB |
+
+At 20 dB no noise is measurably worse than clean in English or Hindi. At 10 dB white noise is
+measurably worse in every language, and at 5 dB every noise is in English and Hindi. Hinglish
+starts at 48.1% and its intervals are wide: its 20 dB pink step passes the 5-point margin while
+its interval still includes no change.
+
+**The real room.** On the same 6 English passages the noisy-room takes scored 56 errors in 305
+reference words (18.4%) against 70 (23.0%) in the quiet room, fewer on 5 of 6 passages. The room
+did not lower the estimated SNR either: the quietest frames rose by about 8 dB and the whole clip
+by about 9 dB, so the speaker spoke up over the noise. SNR is estimated as the probe defines it,
+whole-clip speech power over noise power, with noise power taken as the mean power of the
+quietest 30 ms frames and speech power as clip power minus that. The estimate depends on how many
+frames count as quiet:
+
+| quietest frames | quiet room, median (range) | noisy room, median (range) |
+|---|---|---|
+| 2% | 14.9 dB (13.5-16.1) | 18.7 dB (17.7-20.2) |
+| 5% | 12.8 dB (11.1-13.6) | 15.9 dB (15.2-16.8) |
+| 10% | 11.5 dB (9.8-12.2) | 13.9 dB (13.5-15.0) |
+
+Two limits follow. The clean takes already carry a microphone and room floor about 11 to 15 dB
+below the speech, so each synthetic step is added on top of that floor, not to silence. And a
+quietest-frame estimate misses noise that rises and falls with speech, as a television or another
+voice does, so the noisy room may sit lower than measured. Read together: this room, with this
+speaker raising their voice, sits between the synthetic 20 and 10 dB steps and costs nothing
+measurable; it is not evidence for the 5 and 0 dB steps. One speaker, one microphone, one room,
+and the noisy takes were a second reading of passages already read once, so no row here is a
+population claim.
+
+## Accuracy and piece cuts by speaking rate and pitch (`pace`)
+
+Every corpus passage is read at one pace by one voice, yet the repeated-sentence check
+(`RecognitionLoop.fastestSpeech`) and the piece cut (`SpeechWindowing`) are set in seconds and words
+a second. `uttrflow-eval pace` replays each recording at stepped speaking rates and pitches and
+reports what depends on pace.
+
+```bash
+uttrflow-eval pace
+uttrflow-eval pace --structure-only    # cuts and the loop check only; loads no model
+```
+
+- Variants are generated, never recorded or committed (`Sources/UttrflowEval/SpeechVariant.swift`).
+  Speaking rate uses waveform-similarity overlap-add, which keeps pitch, at 0.7, 0.85, 1.3, 1.6 and
+  1.9 times; pitch moves by -4, -2, +2, +4 and +6 semitones by stretching and resampling, which
+  keeps tempo. 1.0x is the reference. The same audio always gives the same variant.
+- Word error rate and insertions are pooled per language and condition with the paired 95%
+  interval on the change from 1.0x, as `noise` does (`ConditionTable`).
+- Per condition, pooled over every recording (`PaceStructure`, no recogniser involved):
+  - pieces: how many pieces `SpeechWindowing.windows` cuts the clip into;
+  - early: cuts that end a piece sooner than `SpeechWindowing.minimumLength` after it began;
+  - mid-word (with a recogniser only): cuts that fall strictly inside a word the recogniser
+    timed, over all cuts of recordings with timed words;
+  - said-twice cut: of the recordings with at least `RecognitionLoop.fewestCopyWords` words, how
+    many have their reference text said twice, at that pace, cut to one copy by
+    `RecognitionLoop.undone`. A sentence really said twice should keep both copies, so each is
+    a false positive;
+  - over 4.8 w/s: reference words over speech seconds above `RecognitionLoop.fastestSpeech`.
+
+### Measured on one speaker's recordings, cuts and loop check only
+
+One speaker, `reader-1`, built-in microphone, no recogniser: the structure half of the sweep on
+18 quiet passages, 6 deliberately fast English passages and 6 English passages read in a noisy
+room. The audio stays on the recording Mac. Pieces and early cuts are for the 18 quiet passages;
+the loop check is counted per recording.
+
+| condition | pieces | early | said-twice cut (quiet / fast / noisy) |
+|---|---|---|---|
+| 1.0x | 32 | 1 | 0/18 / 0/6 / 0/6 |
+| 0.7x | 53 | 0 | 0/18 / 0/6 / 0/6 |
+| 0.85x | 43 | 0 | 0/18 / 0/6 / 0/6 |
+| 1.3x | 25 | 1 | 0/18 / 0/6 / 0/6 |
+| 1.6x | 21 | 1 | 2/18 / 1/6 / 1/6 |
+| 1.9x | 19 | 1 | 6/18 / 6/6 / 5/6 |
+| -4 / -2 / +2 / +4 / +6 st | 32 / 33 / 32 / 37 / 37 | 2 / 1 / 1 / 2 / 2 | 0 in every session |
+
+- Slower speech is cut into more pieces (53 against 32 at 0.7x, 43 at 0.85x), and faster speech
+  into fewer (21 at 1.6x), because the pause lengths in `SpeechWindowing` are in seconds.
+- The repeated-sentence check cuts a sentence really said twice at 1.6x in 4 of 30 recordings and
+  at 1.9x in 17 of 30. Each is a false positive, and 1.6x is inside the 0.85x to 1.6x range, so
+  the limit needs a follow-up that changes it with before and after. The count is the count
+  of recordings whose words a second pass 4.8, so the speech rate alone decides it.
+- Pitch shifts move the piece count by at most 5 of 32 (+4 and +6 semitones), and no loop-check
+  hit.
+
+Not yet measured: word error rate per factor and pitch, cuts inside a word, and the word error
+rate floor at 1.3x and 1.6x for fast speakers. That run needs the shipping model on an otherwise
+idle machine:
+
+```bash
+uttrflow-eval pace --corpus-path <reader-1-quiet>
+```
+
+## One sweep for a layer threshold (`sweep`)
+
+`uttrflow-eval sweep --from-table <table> --parameter <name> --grid 0.30,0.31,... --false-flag-bound 0.05 --seed <s> --record <file>`
+chooses a threshold on a fit table feature and keeps what it tried, so a constant is never justified
+by prose alone.
+
+- The grid is scored on the development rows (fit side) and on half of the held-out rows (calibration
+  side); the seed splits the held-out rows, so the same seed always gives the same halves.
+- The choice is the value with the fewest wrong rows left unflagged on calibration, among values
+  whose false-flag share on the fit side is within the bound; a tie takes the stricter value.
+- The other half of the held-out rows (test side) is scored once, for the chosen value only, and no
+  step reads it to choose.
+- A chosen value whose neighbour scores more than `--cliff-tolerance` worse is a cliff and is refused
+  with exit 1; `--margin-steps N` moves the choice N grid steps toward the flatter, feasible
+  neighbour instead.
+- `--record` writes one JSON file: the grid, objective, seed, table digest, feature spec version,
+  engine label, every trial, the chosen value, its neighbours, the margin and the test score.
+  Rerunning on the same table gives the same bytes. Its `id` names the record.
+
+Not yet built: a constant's comment naming its record id, the `make verify` check that the record
+still matches the code, and sweeping by name from a layer registry.
+
+## Replaying the pair learner
+
+`AutoLearnReplay` feeds the default `PairLedger` a synthetic fortnight of edits and scores the
+dictionary it builds, so a learner is judged before it ships on. True fixes are the single-word
+substitutions between `spoken` and `expected` in the `homophone` corpus, each recurring on separate
+days except every third, which is seen once. Decoys are one-off typos, wording rewrites seen once
+or twice, and an autocorrection repeated in a burst on one day. The held-out set is the words of
+every other English case's reference. It reports precision, recall, pairs learnt from decoys and the
+false-override rate: the share of held-out words the learnt pairs would rewrite although the
+reference keeps them. The bounds are constants in `AutoLearnReplay`: false-learn at most 5%, 0
+decoy pairs, false overrides at most 1%.
+
+`uttrflow-eval autolearn-replay` prints the table and exits non-zero when a bound is missed. A
+decoy that recurs on separate days is learnt, since recurrence is the only rule the ledger applies.
+
+| Measure (default ledger) | Value |
+|---|---|
+| True-fix pairs / learnt | 6 / 4 |
+| Precision, recall | 100.0%, 66.7% |
+| Pairs learnt from decoys | 0 |
+| False overrides on held-out | 241 of 10532 (2.3%), from the common-word pair to/too |

@@ -32,6 +32,18 @@ struct HistoryRailRow: View {
             if !row.fixes.isEmpty {
                 Menu("Fix Word") { ForEach(row.fixes) { menuItem($0) } }
             }
+            // Read-only: each change is a disabled item, so VoiceOver reads it as one phrase and nothing runs.
+            if !row.whatChanged.isEmpty {
+                Menu("What Changed") {
+                    ForEach(Array(row.whatChanged.enumerated()), id: \.offset) { Text($0.element) }
+                }
+            }
+            // Read-only, as above: the words before clean-up, so a wrong row tells mis-hearing from tidying.
+            if let asHeard = row.asHeard {
+                Menu(String(localized: "As Heard", comment: "History row menu: the words before clean-up")) {
+                    Text(asHeard)
+                }
+            }
             ForEach(row.more) { menuItem($0) }
         }
     }
@@ -136,7 +148,7 @@ struct HistoryRailRow: View {
         }
     }
 
-    /// The text on one line, then app · time · length · tag, the arrival and the flag when there are.
+    /// The text on one line, then app · time · length · tag, the arrival and the flag, then a flagged row's words as heard.
     private var words: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(row.text)
@@ -173,6 +185,14 @@ struct HistoryRailRow: View {
             .font(.system(size: 11.5))
             .foregroundStyle(PagePalette.quiet)
             .lineLimit(1)
+            if row.isFlagged, let asHeard = row.asHeard {
+                Text(String(localized: "As heard: \(asHeard)", comment: "History row: words before clean-up"))
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(PagePalette.quiet)
+                    .lineLimit(2)
+                    .truncationMode(.tail)
+                    .textSelection(.enabled)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

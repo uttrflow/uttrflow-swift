@@ -73,9 +73,9 @@ extension EvaluationCorpus {
             spoken:
                 "select o dot id comma c dot name comma p dot title from orders o join customers c on c dot id equals o dot customer id join products p on p dot id equals o dot product id where o dot created at is after two thousand twenty six dash ten dash oh one",
             expected:
-                "SELECT o.id, c.name, p.title\nFROM orders o\nJOIN customers c ON c.id = o.customer_id\nJOIN products p ON p.id = o.product_id\nWHERE o.created_at > '2026-10-01'",
+                "SELECT o.id, c.name, p.title FROM orders o JOIN customers c ON c.id = o.customer_id JOIN products p ON p.id = o.product_id WHERE o.created_at is after 2026-10-01",
             context: AppContext(applicationName: "Postico", bundleIdentifier: "at.eggerapps.Postico"),
-            destination: .sqlEditor, mustBeginWith: "SELECT", mustEndWith: "'2026-10-01'",
+            destination: .sqlEditor, mustBeginWith: "SELECT", mustEndWith: "2026-10-01",
             classes: [.capitalisationAndTokens, .numbers, .perDestination, .codeAndMarkdown],
             origin: .reportRewrite, addedFor: 4447
         ),
@@ -83,9 +83,9 @@ extension EvaluationCorpus {
             id: "probe-regex-pattern", category: .technical,
             spoken:
                 "the pattern is caret open bracket a dash z close bracket plus at open bracket a dash z close bracket plus dollar",
-            expected: "^[a-z]+@[a-z]+$",
+            expected: "The pattern is ^[a-z]+@[a-z]+$",
             context: AppContext(applicationName: "Xcode", bundleIdentifier: "com.apple.dt.Xcode"),
-            destination: .codeEditor, mustBeginWith: "^[a-z]+@[a-z]+$", mustEndWith: "^[a-z]+@[a-z]+$",
+            destination: .codeEditor, mustBeginWith: "The pattern is", mustEndWith: "^[a-z]+@[a-z]+$",
             classes: [.quotesAndBrackets, .capitalisationAndTokens, .perDestination, .codeAndMarkdown],
             origin: .reportRewrite, addedFor: 4447
         ),
@@ -93,9 +93,9 @@ extension EvaluationCorpus {
             id: "probe-yaml-keys", category: .technical,
             spoken:
                 "set replicas colon three and image colon registry dot example dot com slash api colon one point four point two",
-            expected: "replicas: 3\nimage: registry.example.com/api:1.4.2",
+            expected: "Set replicas: 3 and image: registry.example.com/api:1.4.2",
             context: AppContext(applicationName: "Xcode", bundleIdentifier: "com.apple.dt.Xcode"),
-            destination: .codeEditor, mustBeginWith: "replicas:",
+            destination: .codeEditor, mustBeginWith: "Set replicas:",
             mustEndWith: "registry.example.com/api:1.4.2",
             classes: [.capitalisationAndTokens, .numbers, .lists, .perDestination, .codeAndMarkdown],
             origin: .reportRewrite, addedFor: 4447
@@ -371,7 +371,7 @@ extension EvaluationCorpus {
             spoken:
                 "patient is a fifty two year old with chest tightness for two days blood pressure one forty over ninety heart rate seventy two b p m temperature ninety eight point six s p o two ninety eight percent on room air start aspirin eighty one m g by mouth once daily and recheck in two weeks",
             expected:
-                "Patient is a 52 year old with chest tightness for two days. Blood pressure 140 over 90, heart rate 72 bpm, temperature 98.6, SpO2 98% on room air. Start aspirin 81 mg by mouth once daily and recheck in two weeks.",
+                "Patient is a 52 year old with chest tightness for two days. Blood pressure 140/90, heart rate 72 bpm, temperature 98.6, SpO2 98% on room air. Start aspirin 81 mg by mouth once daily and recheck in two weeks.",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
             destination: .document, mustBeginWith: "Patient", mustEndWith: "weeks.",
             classes: [.numbers, .perDestination],

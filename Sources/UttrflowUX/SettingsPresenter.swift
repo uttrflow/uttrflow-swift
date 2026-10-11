@@ -1,5 +1,7 @@
 public import struct Foundation.Date
 public import struct Foundation.Locale
+public import struct Foundation.ByteCountFormatStyle
+import UttrflowClipboard
 import UttrflowCore
 import UttrflowPredict
 public import UttrflowSettings
@@ -256,6 +258,19 @@ public enum SettingsPresenter {
                     options: HotkeyActivation.allCases.map(activationOption),
                     selectedID: settings.hotkeyActivation.rawValue),
                 icon: .symbol("hand.raised", .info)))
+        shortcuts.append(
+            SettingsRow(
+                id: "endOnSilenceSeconds",
+                label: "End on silence",
+                explanation: "Finishes the dictation once you stop talking, unless you are holding the keys.",
+                control: .menu(
+                    options: ([0] + SilenceStop.choices).map { seconds in
+                        SettingsOption(
+                            id: String(seconds), title: seconds == 0 ? "Off" : "After \(seconds) s",
+                            change: .endOnSilence(seconds: seconds))
+                    },
+                    selectedID: String(settings.endOnSilenceSeconds)),
+                icon: .symbol("timer", .info)))
 
         return SettingsPane(
             tab: .general,
@@ -300,6 +315,7 @@ public enum SettingsPresenter {
                     id: "system",
                     title: "Sound & startup",
                     rows: [
+                        microphoneRow(settings, capabilities),
                         toggleRow(
                             .playsSoundWhenRecordingStarts,
                             label: "Play a sound when recording starts",
@@ -324,15 +340,22 @@ public enum SettingsPresenter {
                             .clipboardEnabled,
                             label: "Clipboard",
                             explanation:
-                                "Off, copies are not kept and the clipboard shortcut is released. Exclusions use the frontmost app at detection time.",
+                                "Off, copies are not kept and the clipboard shortcut is released. Exclusions use the declared writer when available, or the frontmost app.",
                             settings, capabilities
                         ).with(icon: .symbol("list.clipboard", .suggestion))
                             .with(badge: BetaFeature.label),
                         SettingsRow(
                             id: "clipboard-exclusions", label: "Excluded apps",
-                            explanation: "Copies detected while these apps are frontmost are skipped.",
+                            explanation: "Copies attributed to these apps are skipped.",
                             control: .action(title: "Manage…", change: .manageClipboardExclusions),
                             icon: .symbol("hand.raised", .amber)),
+                        toggleRow(
+                            .confirmsHiddenClipPaste,
+                            label: "Confirm hidden clips",
+                            explanation:
+                                "Ask before a hidden clip is pasted into a field that may show it. Hidden fields still paste at once.",
+                            settings, capabilities
+                        ).with(icon: .symbol("eye.slash", .amber)),
                         SettingsRow(
                             id: "clipboard-pause", label: "Clipboard capture",
                             explanation: capabilities.clipboardCapturePaused
@@ -343,6 +366,15 @@ public enum SettingsPresenter {
                                 change: .pauseClipboardCapture(isOn: !capabilities.clipboardCapturePaused)),
                             icon: .symbol(
                                 capabilities.clipboardCapturePaused ? "play" : "pause", .neutral)),
+                        SettingsRow(
+                            id: "clipboard-terminal-paste",
+                            label: "Ask before pasting several lines into a terminal",
+                            explanation:
+                                "A new line runs the command before it. Off, a multi-line clip pastes into a terminal without a question.",
+                            control: .action(
+                                title: capabilities.confirmsMultilinePaste ? "Turn off" : "Turn on",
+                                change: .confirmMultilinePaste(isOn: !capabilities.confirmsMultilinePaste)),
+                            icon: .symbol("terminal", .amber)),
                     ]),
             ],
             callout: nil)
@@ -491,16 +523,16 @@ public enum SettingsPresenter {
         switch reason {
         case .appleIntelligenceDisabled:
             label = "Apple Intelligence is switched off"
-            explanation = "Turn it on in System Settings to use full tidying."
+            explanation = "Turn it on in System Settings to use full clean-up."
             control = .action(
                 title: "Open System Settings", change: .openSystemSettings(.appleIntelligence))
         case .modelNotReady:
             label = "Apple Intelligence model is downloading"
-            explanation = "Full tidying will be available when the download finishes."
+            explanation = "Full clean-up will be available when the download finishes."
             control = .status("Downloading")
         case .deviceNotEligible:
             label = "This Mac cannot run Apple Intelligence"
-            explanation = "Uttrflow will continue tidying with its built-in rules."
+            explanation = "Uttrflow will continue cleaning up with its built-in rules."
             control = .status("Unavailable")
         case .other(let detail):
             label = "Apple Intelligence is unavailable"
@@ -515,19 +547,14 @@ public enum SettingsPresenter {
     /// The sentence the example is spoken as; it needs filler and a slip to show anything.
     static let exampleSpoken = "um so i think we should uh ship it on friday"
 
-    /// The example at each level; a `switch`, so a third level cannot be added without writing its line.
-    static func tidied(at level: SettingsTidyingLevel) -> String {
-        switch level {
-        case .light: "So I think we should ship it on friday."
-        case .standard: "So I think we should ship it on Friday."
-        }
-    }
+    /// The example as the rules every level ends in write it; a test runs them and fails when the two differ.
+    static let exampleWritten = "So I think we should ship it on Friday."
 
-    /// The example as the level in force writes it.
+    /// The example under the level in force.
     static func tidyExample(_ level: SettingsTidyingLevel) -> SettingsTidyExample {
         SettingsTidyExample(
             groupID: "tidying", spoken: exampleSpoken,
-            writtenLabel: "Uttrflow writes · \(level.title)", written: tidied(at: level))
+            writtenLabel: "Uttrflow writes · \(level.title)", written: exampleWritten)
     }
 
     /// Languages: which languages Uttrflow listens for, and how much it tidies, shown on an example.
@@ -544,7 +571,7 @@ public enum SettingsPresenter {
                     id: "spoken", title: "Languages you speak",
                     rows: [listenForRow(settings), pausesRow(settings)]),
                 SettingsGroup(
-                    id: "tidying", title: "Tidying up",
+                    id: "tidying", title: "Clean-up",
                     rows: [tidyingRow(level, capabilities)]
                         + [foundationModelAvailabilityRow(capabilities)].compactMap(\.self)),
             ],
@@ -566,7 +593,7 @@ public enum SettingsPresenter {
         _ personalisation: SettingsPersonalisation
     ) -> SettingsPane {
         let availabilityGroups = [foundationModelAvailabilityRow(capabilities)].compactMap { row in
-            row.map { SettingsGroup(id: "tidyingAvailability", title: "Tidying availability", rows: [$0]) }
+            row.map { SettingsGroup(id: "tidyingAvailability", title: "Clean-up availability", rows: [$0]) }
         }
         return SettingsPane(
             tab: .dictation,
@@ -574,16 +601,29 @@ public enum SettingsPresenter {
             banner: nil,
             groups: [
                 SettingsDestinations.places(
-                    settings.destinations, lastApp: personalisation.lastDictationApp),
+                    settings.destinations, recentApps: personalisation.recentDictationApps),
+                SettingsDestinations.adapterModes(
+                    settings.destinations, recentApps: personalisation.recentDictationApps),
+                SettingsDestinations.plainTextApps(
+                    personalisation.plainTextApps, overrides: settings.destinations),
 
-                SettingsDestinations.steps(settings.cleaning),
+                SettingsDestinations.steps(settings.cleaning, previewer: capabilities.cleaningPreviewer),
                 SettingsGroup(
                     id: "learned",
                     title: "What Uttrflow has picked up",
-                    rows: [learnedWordsRow(personalisation)]),
+                    rows: [
+                        toggleRow(
+                            .learnsFromDictation,
+                            label: "Learn from my dictation",
+                            explanation:
+                                "On in every app you have not turned off. Off, no new words are learned anywhere.",
+                            settings, capabilities
+                        ).with(icon: .symbol("brain", .amber)),
+                        learnedWordsRow(personalisation),
+                    ]),
                 personalDataTransferGroup,
                 pages,
-            ] + availabilityGroups,
+            ].compactMap(\.self) + availabilityGroups,
             callout: SettingsCallout(
                 symbolName: "info.circle",
                 message:
@@ -640,335 +680,6 @@ public enum SettingsPresenter {
             icon: .symbol("text.badge.checkmark", .info))
     }
 
-    // MARK: - Suggestions
-
-    /// The master switch, the quiet switch and the pause, then where suggestions are left alone.
-    private static func suggestions(
-        _ settings: Settings,
-        _ personalisation: SettingsPersonalisation,
-        _ capabilities: SettingsCapabilities,
-        _ moment: Date
-    ) -> SettingsPane {
-        SettingsPane(
-            tab: .suggestions,
-            title: title(of: .suggestions),
-            banner: suggestionModelBanner(settings, capabilities),
-            groups: [
-                SettingsGroup(
-                    id: "suggestions",
-                    title: "AI suggestions",
-                    rows: [
-                        toggleRow(
-                            .suggestionsEnabled,
-                            label: "Turn on AI suggestions",
-                            explanation: suggestionsExplanation,
-                            settings, .everything
-                        ).with(icon: .symbol("power", .suggestion))
-                            .with(badge: BetaFeature.label),
-                        toggleRow(
-                            .quietSuggestions,
-                            label: "Only suggest when it is sure",
-                            explanation: "Never offers a list to choose between.",
-                            settings, .everything
-                        ).with(icon: .symbol("bolt", .amber)),
-                        pauseRow(settings, moment),
-                    ] + (retrySuggestionModelRow(settings, capabilities).map { [$0] } ?? [])),
-                applicationGroup(settings, personalisation),
-                acceptKeyGroup(settings, personalisation),
-            ].compactMap(\.self),
-            callout: SettingsCallout(symbolName: "lock", message: suggestionsPromise, tint: .suggestion),
-            unavailability: settings.suggestions.isEnabled ? nil : SettingsEditor.suggestionsAreOff)
-    }
-
-    /// What switching suggestions on lets Uttrflow read, write and keep.
-    static let suggestionsExplanation =
-        "Reads the text in and around the field you are typing in, and suggests the rest of the "
-        + "line from lines you have sent before, from this Mac, or written by AI that runs on it. "
-        + "Remembers the lines you send. Off until you ask for it."
-
-    /// Where suggestions run, where everything they read and keep stays, and where to turn them off or forget them.
-    static let suggestionsPromise =
-        "Suggestions work in every app except the ones listed. What it reads stays on this Mac. "
-        + "The lines it remembers are kept in Uttrflow's own folder. Nothing is uploaded, and "
-        + "password, one-time-code, PIN, card security code and recovery-answer fields are never "
-        + "read. Turn it off for one application, or forget what it learned there, in the lists above."
-
-    /// Says what the model is doing, since a switch that is on and silent is indistinguishable from broken.
-    static func suggestionModelBanner(
-        _ settings: Settings, _ capabilities: SettingsCapabilities
-    ) -> SettingsBanner? {
-        guard settings.suggestions.isEnabled else { return nil }
-        switch capabilities.suggestionRuntime {
-        case .starting:
-            return SettingsBanner(
-                symbolName: "clock", title: "Starting suggestions…",
-                message: "Suggestions will be ready shortly.")
-        case .tapResting:
-            return SettingsBanner(
-                symbolName: "clock", title: "Suggestions are paused briefly",
-                message: "Suggestions will resume automatically.")
-        case .restarting:
-            return SettingsBanner(
-                symbolName: "clock", title: "Restarting suggestions…",
-                message: "Suggestions will resume automatically.")
-        case .secureInputBlocked:
-            return SettingsBanner(
-                symbolName: "lock", title: "Suggestions are paused",
-                message: "A secure input field is active. Suggestions resume when you leave it.")
-        case .tapFailed:
-            return SettingsBanner(
-                symbolName: "exclamationmark.triangle", title: "Suggestions could not start",
-                message:
-                    "Allow Uttrflow to monitor input in Privacy & Security, then turn suggestions off and on again."
-            )
-        case .corpusFailed:
-            return SettingsBanner(
-                symbolName: "exclamationmark.triangle", title: "Suggestions could not start",
-                message:
-                    "Uttrflow could not open its saved suggestions file (predict.v1.sqlite). "
-                    + "Check that the Uttrflow folder in Application Support is available, then "
-                    + "turn suggestions off and on again."
-            )
-        case .idle, .running:
-            break
-        }
-        // Nothing to explain while the feature is off: the model is not fetched until it is asked for.
-        guard let title = capabilities.suggestionModel.headline else { return nil }
-        switch capabilities.suggestionModel {
-        case .ready, .notAsked, .downloading:
-            return SettingsBanner(
-                symbolName: "arrow.down.circle",
-                title: title,
-                message:
-                    "Uttrflow is fetching the model that finishes your lines, about 3 GB, once. "
-                    + "AI suggestions start when it lands.")
-        case .loading:
-            return SettingsBanner(
-                symbolName: "clock",
-                title: title,
-                message: "The model is being read into memory. This happens once per launch.")
-        case .releasedForMemory:
-            return SettingsBanner(
-                symbolName: "memorychip",
-                title: title,
-                message:
-                    "This Mac is short of memory, so the model that finishes your lines has been "
-                    + "set aside. AI suggestions come back on their own once memory frees up.")
-        case .fetchFailed, .failed:
-            return SettingsBanner(
-                symbolName: "exclamationmark.triangle",
-                title: title,
-                message: "AI suggestions cannot run without it. Check your connection, then try again.")
-        case .loadFailed:
-            return SettingsBanner(
-                symbolName: "exclamationmark.triangle",
-                title: title,
-                message: "AI suggestions cannot run without it. Try loading it again.")
-        }
-    }
-
-    /// Offers recovery only after a failed fetch or disk load.
-    private static func retrySuggestionModelRow(
-        _ settings: Settings, _ capabilities: SettingsCapabilities
-    ) -> SettingsRow? {
-        guard settings.suggestions.isEnabled else { return nil }
-        let advice: String
-        switch capabilities.suggestionModel {
-        case .fetchFailed, .failed:
-            advice = "Check your connection, then fetch the model again."
-        case .loadFailed:
-            advice = "Try loading the model again."
-        default:
-            return nil
-        }
-        let label =
-            capabilities.suggestionModel == .loadFailed
-            ? "Suggestion model could not be loaded" : "Suggestion model could not be fetched"
-        return SettingsRow(
-            id: "retrySuggestionModel", label: label,
-            explanation: advice,
-            control: .action(title: "Retry", change: .retrySuggestionModel),
-            icon: .symbol("arrow.clockwise", .suggestion))
-    }
-
-    /// The half-hour pause, which lifts itself and so is a button rather than a switch.
-    static func pauseRow(_ settings: Settings, _ moment: Date) -> SettingsRow {
-        let remaining = settings.suggestions.pauseRemaining(at: moment)
-        return SettingsRow(
-            id: "pauseSuggestions",
-            label: "Pause for a while",
-            explanation: pauseSentence(remaining),
-            control: .action(
-                title: remaining == nil ? "Pause 30 min" : "Resume",
-                change: .pauseSuggestions(isOn: remaining == nil)),
-            unavailability: settings.suggestions.isEnabled ? nil : SettingsEditor.suggestionsAreOff,
-            icon: .symbol("pause", .mint))
-    }
-
-    /// What a running pause has left, rounded up so a pause never reads as "0 minutes left".
-    static func pauseSentence(_ remaining: Double?) -> String {
-        guard let remaining else {
-            return "Stops for 30 minutes, then comes back on its own."
-        }
-        let minutes = max(1, Int((remaining / 60).rounded(.up)))
-        return "Paused. Comes back on its own in \(counted(minutes, "minute", "minutes"))."
-    }
-
-    /// Every application suggestions are off in, each with the button that turns them back on.
-    static func applicationGroup(
-        _ settings: Settings, _ personalisation: SettingsPersonalisation
-    ) -> SettingsGroup {
-        let preferences = settings.suggestions
-        let rows =
-            preferences
-            .knownApplications(learnedIn: personalisation.applicationsWithSuggestions)
-            .filter { !preferences.state(of: $0.bundleIdentifier).isOn }
-            .flatMap { application in
-                [offApplicationRow(application, preferences, settings)]
-                    + forgetRows(application, personalisation)
-            }
-        return SettingsGroup(
-            id: "suggestionApplications", title: "Not used in these apps",
-            rows: rows + [addApplicationRow(settings)])
-    }
-
-    /// Every application suggestions run in that has a choice or a corpus to show, or nothing when none has.
-    static func acceptKeyGroup(
-        _ settings: Settings, _ personalisation: SettingsPersonalisation
-    ) -> SettingsGroup? {
-        let preferences = settings.suggestions
-        let off = settings.suggestions.isEnabled ? nil : SettingsEditor.suggestionsAreOff
-        let rows =
-            preferences
-            .knownApplications(learnedIn: personalisation.applicationsWithSuggestions)
-            .filter { preferences.state(of: $0.bundleIdentifier).isOn }
-            .flatMap { application in
-                [
-                    onApplicationRow(application, unavailability: off),
-                    acceptKeyRow(application, preferences, unavailability: off),
-                ] + forgetRows(application, personalisation)
-            }
-        guard !rows.isEmpty else { return nil }
-        return SettingsGroup(id: "suggestionKeys", title: "Used in these apps", rows: rows)
-    }
-
-    /// One application suggestions run in, and the button that leaves it alone from now on.
-    private static func onApplicationRow(
-        _ application: SuggestionApplication, unavailability: String?
-    ) -> SettingsRow {
-        let identifier = application.bundleIdentifier
-        return SettingsRow(
-            id: "suggestionsIn.\(identifier)",
-            label: application.name,
-            control: .action(
-                title: "Leave Alone", change: .suggestionsHere(application: identifier, isOn: false)),
-            unavailability: unavailability,
-            icon: .application(bundleIdentifier: identifier, name: application.name))
-    }
-
-    /// Turns suggestions off in an application before anything has been drawn or learned there.
-    static func addApplicationRow(_ settings: Settings) -> SettingsRow {
-        SettingsRow(
-            id: "addSuggestionApplication",
-            label: "Add an app to leave alone",
-            control: .action(
-                title: "Add an app to leave alone", change: .chooseApplicationToTurnOffSuggestions),
-            unavailability: settings.suggestions.isEnabled ? nil : SettingsEditor.suggestionsAreOff,
-            style: .add)
-    }
-
-    /// One application suggestions are off in, and the button that takes it off the list.
-    private static func offApplicationRow(
-        _ application: SuggestionApplication,
-        _ preferences: SuggestionPreferences,
-        _ settings: Settings
-    ) -> SettingsRow {
-        let identifier = application.bundleIdentifier
-        return SettingsRow(
-            id: "suggestionsIn.\(identifier)",
-            label: application.name,
-            explanation: applicationSentence(preferences.state(of: identifier)),
-            control: .action(
-                title: "Remove", change: .suggestionsHere(application: identifier, isOn: true)),
-            unavailability: settings.suggestions.isEnabled ? nil : SettingsEditor.suggestionsAreOff,
-            icon: .application(bundleIdentifier: identifier, name: application.name))
-    }
-
-    /// The forget row for an application that has taught something, or nothing.
-    private static func forgetRows(
-        _ application: SuggestionApplication, _ personalisation: SettingsPersonalisation
-    ) -> [SettingsRow] {
-        personalisation.suggestions(from: application.bundleIdentifier) > 0
-            ? [forgetSuggestionsRow(application, personalisation)] : []
-    }
-
-    /// Why an application is off, said only when the reason is not the user's own choice.
-    static func applicationSentence(_ state: SuggestionApplicationState) -> String? {
-        switch state {
-        case .on: nil
-        case .turnedOff: "You turned AI suggestions off here."
-        case .offByDefault: "Off here by default (it has its own suggestions)"
-        }
-    }
-
-    /// Which key takes a completion here, since Tab is spoken for in terminals and editors.
-    private static func acceptKeyRow(
-        _ application: SuggestionApplication,
-        _ preferences: SuggestionPreferences,
-        unavailability: String?
-    ) -> SettingsRow {
-        let identifier = application.bundleIdentifier
-        let key = preferences.acceptKeys.key(forBundleIdentifier: identifier)
-        let kind = DestinationClassifier.kind(for: AppContext(bundleIdentifier: identifier))
-        let explanation: String? =
-            if key == .tab,
-                kind == .spreadsheet || kind == .terminal || kind == .codeEditor
-                    || kind == .sqlEditor
-            {
-                "Tab also has a job in this app."
-            } else {
-                key.explanation
-            }
-        return SettingsRow(
-            id: "suggestionAcceptKey.\(identifier)",
-            label: "Accept with",
-            explanation: explanation,
-            control: .menu(
-                options: AcceptKey.allCases.map { offered in
-                    SettingsOption(
-                        id: offered.rawValue, title: offered.title,
-                        change: .suggestionAcceptKey(application: identifier, key: offered))
-                },
-                selectedID: key.rawValue),
-            unavailability: unavailability,
-            style: .inset)
-    }
-
-    /// The fifth level: everything one application taught, counted before it is taken.
-    private static func forgetSuggestionsRow(
-        _ application: SuggestionApplication,
-        _ personalisation: SettingsPersonalisation
-    ) -> SettingsRow {
-        let reset = SettingsReset.suggestions(inApplication: application.bundleIdentifier)
-        let learned = personalisation.suggestions(from: application.bundleIdentifier)
-        return SettingsRow(
-            id: "forgetSuggestions.\(application.bundleIdentifier)",
-            label: "Forget what it learned here",
-            explanation:
-                "Forget \(counted(learned, "completion", "completions")) from "
-                + "\(application.name). Everywhere else is untouched.",
-            control: .removal(
-                SettingsRemoval(
-                    reset: reset, title: "Forget…",
-                    confirmation: SettingsConfirmation(
-                        title: "Forget learned completions?",
-                        message:
-                            "This removes \(counted(learned, "completion", "completions")) from \(application.name). This cannot be undone.",
-                        confirmTitle: "Forget", cancelTitle: "Cancel"))),
-            unavailability: SettingsEditor.unavailability(of: reset, given: personalisation),
-            style: .inset)
-    }
-
     // MARK: - Privacy
 
     /// Privacy: what stays on this Mac and for how long, how Uttrflow looks, and starting over.
@@ -984,23 +695,25 @@ public enum SettingsPresenter {
                 SettingsGroup(
                     id: "retention",
                     title: "Your data",
-                    rows: [
-                        retentionRow(settings),
-                        toggleRow(
-                            .sharesUsageStatistics,
-                            label: "Share usage statistics",
-                            explanation:
-                                "Counts and timings, linked to your account when you are signed in. "
-                                + "Never what you dictate.",
-                            settings, capabilities
-                        ).with(icon: .symbol("chart.bar", .info)),
-                        toggleRow(
-                            .sendsCrashReports,
-                            label: "Send crash reports",
-                            explanation: SettingsPresenter.crashReportsExplanation,
-                            settings, .everything
-                        ).with(icon: .symbol("exclamationmark.bubble", .neutral)),
-                    ]),
+                    rows: [retentionRow(settings), clipboardRetentionRow(settings), clipboardLimitsRow]
+                        + storageRows(personalisation.storage, settings: settings)
+                        + [
+                            toggleRow(
+                                .sharesUsageStatistics,
+                                label: "Share usage statistics",
+                                explanation:
+                                    "Counts and timings, linked to your account when you are signed in. "
+                                    + "Never what you dictate.",
+                                settings, capabilities
+                            ).with(icon: .symbol("chart.bar", .info)),
+                            toggleRow(
+                                .sendsCrashReports,
+                                label: "Send crash reports",
+                                explanation: SettingsPresenter.crashReportsExplanation,
+                                settings, .everything
+                            ).with(icon: .symbol("exclamationmark.bubble", .neutral)),
+                        ]),
+                SettingsGroup(id: "context", title: "Context", rows: contextRows(settings)),
                 SettingsGroup(
                     id: "network", title: "Network, last \(NetworkActivity.windowDays) days",
                     rows: networkRows(personalisation.network)),
@@ -1009,7 +722,7 @@ public enum SettingsPresenter {
                 SettingsGroup(
                     id: "reset",
                     title: "Start over",
-                    rows: [forgetLearnedRow(personalisation), resetRow(personalisation)]),
+                    rows: [forgetLearnedRow(personalisation), clearClipboardRow, resetRow(personalisation)]),
             ],
             callout: SettingsCallout(
                 symbolName: "lock",
@@ -1067,6 +780,34 @@ public enum SettingsPresenter {
         "Audio is deleted the moment it becomes text, and kept on this Mac for a day only "
         + "if some of it couldn’t be, so you can retry."
 
+    /// The menu id of following the system default input.
+    static let systemDefaultMicrophone = "system-default"
+
+    /// System default first, then every input present; a chosen device that is absent stays listed as missing.
+    static func microphoneRow(_ settings: Settings, _ capabilities: SettingsCapabilities) -> SettingsRow {
+        let present = capabilities.microphones.map { device in
+            SettingsOption(id: device.uid, title: device.name, change: .microphone(uid: device.uid))
+        }
+        let chosen = settings.microphoneUID
+        let absent =
+            chosen.flatMap { uid in
+                present.contains { $0.id == uid }
+                    ? nil
+                    : SettingsOption(
+                        id: uid, title: "Chosen microphone (not connected)", change: .microphone(uid: uid))
+            }
+        let systemDefault = SettingsOption(
+            id: systemDefaultMicrophone, title: "System default", change: .microphone(uid: nil))
+        return SettingsRow(
+            id: "microphone",
+            label: "Microphone",
+            explanation: "When the chosen one is not connected, dictation uses the system default.",
+            control: .menu(
+                options: [systemDefault] + present + [absent].compactMap(\.self),
+                selectedID: chosen ?? systemDefaultMicrophone),
+            icon: .symbol("mic", .dictation))
+    }
+
     /// The order the theme is offered in: following the Mac first, then the two fixed looks.
     static let offeredAppearances: [AppAppearance] = [.system, .light, .dark]
 
@@ -1095,12 +836,85 @@ public enum SettingsPresenter {
             icon: .symbol("moon", .suggestion))
     }
 
+    /// What each context level is called in its menu.
+    static func title(of level: ContextLevel) -> String {
+        switch level {
+        case .identity: "App name only"
+        case .nearCaret: "Text near the cursor"
+        }
+    }
+
+    /// How much of the app in front a dictation reads: its name only, or the text around the cursor too.
+    static func contextLevelRow(_ settings: Settings) -> SettingsRow {
+        SettingsRow(
+            id: "contextLevel",
+            label: "What dictation reads",
+            explanation: settings.contextLevel == .identity
+                ? "Only the name of the app you dictate into. Formatting falls back to its defaults."
+                : "The app's name, its window title and the text around your cursor, to format your words.",
+            control: .segmented(
+                options: ContextLevel.allCases.map { level in
+                    SettingsOption(id: level.rawValue, title: title(of: level), change: .contextLevel(level))
+                },
+                selectedID: settings.contextLevel.rawValue),
+            icon: .symbol("eye", .info))
+    }
+
+    /// The level every application gets, then each application with its own, then a way to add one.
+    static func contextRows(_ settings: Settings) -> [SettingsRow] {
+        [contextLevelRow(settings)]
+            + settings.contextLevelOverrides.overrides.map {
+                contextLevelRow(for: $0, every: settings.contextLevel)
+            }
+            + [addContextLevelAppRow]
+    }
+
+    /// One application's own level, and the option that puts it back on the level every application gets.
+    static func contextLevelRow(for override: ContextLevelOverride, every level: ContextLevel) -> SettingsRow
+    {
+        let everyApp = SettingsOption(
+            id: everyAppContextLevelID, title: "Same as every app (\(title(of: level)))",
+            change: .forgetAppContextLevel(bundleIdentifier: override.bundleIdentifier))
+        return SettingsRow(
+            id: "contextApp-\(override.id)",
+            label: override.title,
+            explanation: override.level == .identity
+                ? "Only this app's name is read."
+                : "This app's window title and the text around your cursor are read.",
+            control: .menu(
+                options: [everyApp]
+                    + ContextLevel.allCases.map { offered in
+                        SettingsOption(
+                            id: offered.rawValue, title: title(of: offered),
+                            change: .appContextLevel(
+                                bundleIdentifier: override.bundleIdentifier, name: override.applicationName,
+                                level: offered))
+                    },
+                selectedID: override.level.rawValue),
+            icon: .application(bundleIdentifier: override.bundleIdentifier, name: override.title))
+    }
+
+    /// The menu option that removes an application's own level.
+    static let everyAppContextLevelID = "everyApp"
+
+    /// Asks for an installed application, so it can be read at a level of its own.
+    static let addContextLevelAppRow = SettingsRow(
+        id: "addContextApp",
+        label: "Set an app apart",
+        control: .action(title: "Add an app", change: .chooseApplicationForContextLevel),
+        style: .add)
+
+    /// The change that stores a picked application as read by name only, the least it can be read.
+    public static func addingContextLevelApp(_ app: SettingsApp) -> SettingsChange {
+        .appContextLevel(bundleIdentifier: app.bundleIdentifier, name: app.name, level: .identity)
+    }
+
     /// How long the text of a dictation survives, offering only periods the store round-trips.
     private static func retentionRow(_ settings: Settings) -> SettingsRow {
         let days = settings.transcriptRetentionDays
         return SettingsRow(
             id: "transcripts",
-            label: "Keep transcripts for",
+            label: "Keep dictations for",
             explanation: "Choose a limit to delete older ones automatically",
             control: .menu(
                 options: SettingsRetention.offeredDays.map { offered in
@@ -1110,6 +924,137 @@ public enum SettingsPresenter {
                 },
                 selectedID: String(days)),
             icon: .symbol("clock", .info))
+    }
+
+    /// How long copied text and pictures stay in the clipboard history, and what keeps dictation clips apart.
+    private static func clipboardRetentionRow(_ settings: Settings) -> SettingsRow {
+        SettingsRow(
+            id: "clipboardRetention",
+            label: "Keep clipboard history for",
+            explanation:
+                "Dictation clips follow Keep transcripts for. Pinned, named and filed clips have no time limit.",
+            control: .menu(
+                options: SettingsRetention.offeredDays.map { offered in
+                    SettingsOption(
+                        id: String(offered), title: SettingsRetention.title(days: offered),
+                        change: .clipboardRetention(days: offered))
+                },
+                selectedID: String(settings.clipboardRetentionDays)),
+            icon: .symbol("list.clipboard", .info))
+    }
+
+    /// The fixed bounds the clipboard keeps within, read from the budget the store enforces.
+    private static var clipboardLimitsRow: SettingsRow {
+        let budget = ClipboardBudget.standard
+        func size(_ bytes: Int) -> String { bytes.formatted(.byteCount(style: .file)) }
+        let picture =
+            budget.images.days.map { "Pictures are kept for \($0) days at most" } ?? "Pictures are limited"
+        return SettingsRow(
+            id: "clipboardLimits",
+            label: "Clipboard limits",
+            explanation:
+                "Up to \(budget.copied.items) clips of each kind, \(size(budget.largestClip)) each. "
+                + "\(picture), within \(size(budget.images.bytes)) of thumbnails and \(size(budget.disk)) of files. "
+                + "The clip used least recently goes first.",
+            control: .status("Fixed"),
+            icon: .symbol("gauge.with.dots.needle.50percent", .info))
+    }
+
+    /// Clears the history and says what stays; the store call spares pinned, named and filed clips.
+    private static var clearClipboardRow: SettingsRow {
+        let kept = "Pinned, named and filed clips, your dictionary, snippets and settings stay."
+        return SettingsRow(
+            id: "clearClipboard",
+            label: "Clear clipboard history",
+            explanation: "Deletes copied text, pictures and dictation clips. \(kept)",
+            control: .removal(
+                SettingsRemoval(
+                    reset: .clipboardHistory, title: "Clear…",
+                    confirmation: SettingsConfirmation(
+                        title: "Clear clipboard history?",
+                        message: "This deletes every clip that is not pinned, named or filed. \(kept) "
+                            + "This cannot be undone.",
+                        confirmTitle: "Clear", cancelTitle: "Cancel"))),
+            unavailability: SettingsEditor.unavailability(
+                of: .clipboardHistory, given: .nothing),
+            icon: .symbol("list.clipboard", .danger))
+    }
+
+    /// One read-only row per store a person would recognise, saying what it occupies on this Mac.
+    static func storageRows(_ storage: [LocalStoreUsage], settings: Settings = .default) -> [SettingsRow] {
+        storage.sorted { storageRank($0.entry) < storageRank($1.entry) }.compactMap { usage in
+            storageLabel(usage.entry).map { label in
+                SettingsRow(
+                    id: "storage.\(usage.entry.rawValue)",
+                    label: label,
+                    explanation: storageExplanation(usage, settings: settings),
+                    control: .status(usage.bytes.formatted(.byteCount(style: .file))))
+            }
+        }
+    }
+
+    /// How many files a store holds, how old the oldest is, and the rule that removes them, when one exists.
+    static func storageExplanation(_ usage: LocalStoreUsage, settings: Settings) -> String {
+        var parts: [String] = []
+        if usage.files == 0 {
+            parts.append("Nothing stored")
+        } else {
+            parts.append(counted(usage.files, "file", "files"))
+            if let oldest = usage.oldest {
+                parts.append("oldest from \(oldest.formatted(date: .abbreviated, time: .omitted))")
+            }
+        }
+        if let rule = storageRetention(usage.entry, settings: settings) { parts.append(rule) }
+        return parts.joined(separator: ". ")
+    }
+
+    /// The retention each store is swept by, named only where a setting or a fixed period decides it.
+    private static func storageRetention(_ entry: LocalStoreEntry, settings: Settings) -> String? {
+        switch entry {
+        case .dictationHistory: keepRule(days: settings.transcriptRetentionDays)
+        case .clipboard: keepRule(days: settings.clipboardRetentionDays)
+        case .recordings: "Deleted after 24 hours"
+        default: nil
+        }
+    }
+
+    private static func keepRule(days: Int) -> String {
+        SettingsRetention.isAlways(days: days)
+            ? "Kept until you delete it" : "Deleted after \(SettingsRetention.title(days: days))"
+    }
+
+    /// Where a store sits in the list: the order ``storageLabel(_:)`` names them in, speech first.
+    private static func storageRank(_ entry: LocalStoreEntry) -> Int {
+        storageOrder.firstIndex(of: entry) ?? storageOrder.count
+    }
+
+    private static let storageOrder: [LocalStoreEntry] = [
+        .dictationHistory, .recordings, .personalDictionary, .snippets, .evidenceLedger, .predict,
+        .predictConsent, .clipboard, .clipboardImages, .savedClips, .notSecretClips, .clipboardPreferences,
+        .networkActivity,
+        .speechModels, .speechModelLoads,
+    ]
+
+    /// The name each store goes by in the Privacy pane; the key and the lock are the app's own, so they have none.
+    static func storageLabel(_ entry: LocalStoreEntry) -> String? {
+        switch entry {
+        case .dictationHistory: "Dictations"
+        case .recordings: "Recordings"
+        case .personalDictionary: "Dictionary"
+        case .snippets: "Snippets"
+        case .evidenceLedger: "What Uttrflow has learned about you"
+        case .predict: "AI suggestions"
+        case .predictConsent: "AI suggestion choices"
+        case .clipboard: "Clipboard history"
+        case .clipboardImages: "Copied images"
+        case .savedClips: "Saved clips"
+        case .notSecretClips: "Clips marked not secret"
+        case .clipboardPreferences: "Clipboard settings"
+        case .networkActivity: "Network log"
+        case .speechModels: "Speech recognition"
+        case .speechModelLoads: "Speech start-up times"
+        case .encryptionKey, .legacyMigrationMarker, .instanceLock: nil
+        }
     }
 
     // MARK: - Persona
@@ -1221,12 +1166,16 @@ public enum SettingsPresenter {
     /// What a reset takes, built only from the parts there are. See `Docs/ux-settings-model.md`.
     private static func resetSentence(_ personalisation: SettingsPersonalisation) -> String {
         let preferences = "puts every preference back to its default. It cannot be undone."
+        // Uncounted, as no count reaches here, but always named: the loss least expected.
+        let uncounted =
+            "your whole clipboard history, pinned clips included, your snippets and learned "
+            + "completions"
         let parts = [wordsPhrase(personalisation), transcriptsPhrase(personalisation)]
             .compactMap(\.self)
         guard !parts.isEmpty else {
-            return "There is nothing of yours saved, so this only \(preferences)"
+            return "This removes \(uncounted), and \(preferences)"
         }
-        return "This removes \(parts.joined(separator: " and ")), and \(preferences)"
+        return "This removes \(parts.joined(separator: ", ")), \(uncounted), and \(preferences)"
     }
 
     /// The dictionary half, split the way the gentler level splits it, or `nil` when it is empty.
@@ -1248,18 +1197,18 @@ public enum SettingsPresenter {
     /// The transcript half, or `nil` when there are none saved.
     private static func transcriptsPhrase(_ personalisation: SettingsPersonalisation) -> String? {
         guard personalisation.transcripts > 0 else { return nil }
-        return counted(personalisation.transcripts, "saved transcript", "saved transcripts")
+        return counted(personalisation.transcripts, "saved dictation", "saved dictations")
     }
 
     /// A number and the noun that agrees with it, in one place, so "1 words" cannot appear.
-    private static func counted(_ count: Int, _ singular: String, _ plural: String) -> String {
+    static func counted(_ count: Int, _ singular: String, _ plural: String) -> String {
         "\(count) \(count == 1 ? singular : plural)"
     }
 
     // MARK: - Rows
 
     /// A switch row, taking its reason for being off from the ``SettingsEditor`` that refuses it.
-    private static func toggleRow(
+    static func toggleRow(
         _ field: SettingsToggleField,
         label: String,
         explanation: String? = nil,
@@ -1293,6 +1242,8 @@ public enum SettingsPresenter {
         case .sendsCrashReports: settings.sendsCrashReports
         case .suggestionsEnabled: settings.suggestions.isEnabled
         case .quietSuggestions: settings.suggestions.isQuiet
+        case .learnsFromDictation: settings.learnsFromDictation
+        case .confirmsHiddenClipPaste: settings.confirmsHiddenClipPaste
         }
     }
 }

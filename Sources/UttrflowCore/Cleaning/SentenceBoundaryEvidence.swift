@@ -1,16 +1,23 @@
-/// The closed-class and phrase evidence that decides whether a stop fell inside a sentence.
+import NaturalLanguage
+
+/// The lexical-class and phrase evidence that decides whether a stop fell inside a sentence.
 public enum SentenceBoundaryEvidence {
-    /// Whether the words on both sides show that the sentence carried on.
-    public static func sentenceRunsOn(_ text: String, into next: String) -> Bool {
+    /// Whether the words on both sides show that the sentence carried on; `leading` is the sentence's words before `text`, read only to tell a noun "look".
+    public static func sentenceRunsOn(_ text: String, into next: String, after leading: String = "") -> Bool {
         let previous = WordTokens.words(text, .display).map(WordShape.init)
         let following = WordTokens.words(next, .display).map(WordShape.init)
-        guard let last = previous.last, let first = following.first else { return false }
+        guard !previous.isEmpty, let first = following.first else { return false }
         let previousKeys = previous.map(\.key)
+        if endsInNounLook(WordTokens.words(leading, .display).map { WordShape($0).key } + previousKeys) {
+            return false
+        }
         let followingKeys = following.map(\.key)
         if text.last == ".", subordinators.contains(previous[0].key) { return true }
-        if neverLast.contains(last.key) || opensWithAPhrase(previous, following)
+        if opensOnPostmodifier(following) || opensDependentFragment(following) { return true }
+        if leadsIntoNext(previous, following) || opensWithAPhrase(previous, following)
             || completesFinalPhrase(previous, following) || completesSeamPreposition(previous, following)
             || splitsSubjectFromPredicate(previous, following) || awaitsComplement(previous, following)
+            || takesObject(previous, following)
         {
             return true
         }
@@ -25,6 +32,35 @@ public enum SentenceBoundaryEvidence {
         }
     }
 
+    /// "without any. changes", "walked through. the old town": the last word's class, read with the next words, leads on into them.
+    private static func leadsIntoNext(_ previous: [WordShape], _ following: [WordShape]) -> Bool {
+        guard let last = previous.last, let first = following.first else { return false }
+        if neverLast.contains(last.key) { return true }
+        let clauseEnd = following.firstIndex(where: \.endsSentence).map { $0 + 1 } ?? following.count
+        let fragment = following.prefix(clauseEnd)
+        let tags = LexicalClass.tags(
+            ofWords: previous.map(\.core) + [first.key] + fragment.dropFirst().map(\.core))
+        let lastIndex = previous.count - 1
+        let next = tags[previous.count]
+        switch tags[lastIndex] {
+        case .conjunction:
+            return true
+        case .determiner:
+            let modifiers: Set<NLTag> = [.adjective, .number, .otherWord]
+            let head = tags.dropFirst(previous.count).first { $0.map(modifiers.contains) != true }
+            return FunctionWords.leadsOn(last.core) || head == .noun
+                || (lastIndex > 0 && tags[lastIndex - 1] == .preposition)
+        case .particle:
+            return next == .verb
+        case .preposition:
+            let opensNounPhrase: Set<NLTag> = [.determiner, .noun, .pronoun, .number, .adjective]
+            guard let next, opensNounPhrase.contains(next) else { return false }
+            return !tags.dropFirst(previous.count).contains(.verb)
+        default:
+            return false
+        }
+    }
+
     /// "failed. on the release branch" runs on; "taken. in the morning we moved it" is a fronted phrase opening a clause.
     private static func opensWithAPhrase(_ previous: [WordShape], _ following: [WordShape]) -> Bool {
         guard following.count > 1,
@@ -32,6 +68,66 @@ public enum SentenceBoundaryEvidence {
         else { return false }
         if neverFronted.contains(following[0].key) { return true }
         return seamPrepositions.contains(following[0].key) && isVerbless(following, after: previous)
+    }
+
+    /// "at noon. if the hall is booked.": a subordinate clause up to the next stop with no main clause of its own.
+    public static func opensDependentFragment(_ next: String) -> Bool {
+        opensDependentFragment(WordTokens.words(next, .display).map(WordShape.init))
+    }
+
+    private static func opensDependentFragment(_ following: [WordShape]) -> Bool {
+        guard following.count > 1, subordinators.contains(following[0].key) else { return false }
+        let clauseEnd = following.firstIndex(where: \.endsSentence).map { $0 + 1 } ?? following.count
+        let fragment = following.prefix(clauseEnd)
+        if fragment.last?.suffix.contains("?") == true { return false }
+        if fragment.dropLast().contains(where: \.endsClause) { return false }
+        if endsOnImperative(Array(fragment)) { return false }
+        return subjectVerbPairs(LexicalClass.tags(ofWords: fragment.dropFirst().map(\.core))) < 2
+    }
+
+    /// "if nobody answers leave it with the shop": a clause with its own verb, then a bare verb taking an object, is a whole sentence.
+    private static func endsOnImperative(_ fragment: [WordShape]) -> Bool {
+        guard fragment.count > 3 else { return false }
+        let headTags = LexicalClass.tags(ofWords: fragment.dropLast().map(\.core))
+        for split in 2..<(fragment.count - 1) {
+            let head = fragment[1..<split]
+            let tail = fragment[split...].map(\.core)
+            guard let last = head.last, !bareVerbLeaders.contains(last.key),
+                imperativeObjects.contains(fragment[split + 1].key)
+                    || imperativeParticles.contains(fragment[split + 1].key)
+                    || FunctionWords.determiners.contains(fragment[split + 1].key)
+            else { continue }
+            let headHasVerb =
+                headTags[1..<split].contains(.verb)
+                || (head.count > 1 && clauseSubjects.contains(head[head.startIndex].key))
+            guard headHasVerb, headTags[split - 1] != .pronoun,
+                LexicalClass.tags(ofWords: tail).first == .verb,
+                LexicalClass.lemma(ofWordAt: 0, in: tail) == fragment[split].key
+            else { continue }
+            return true
+        }
+        return false
+    }
+
+    /// How many subject-then-verb runs the tags hold: one for a lone subordinate clause, two once a main clause follows.
+    private static func subjectVerbPairs(_ tags: [NLTag?]) -> Int {
+        var pairs = 0
+        var sawSubject = false
+        for tag in tags {
+            if tag == .pronoun || tag == .noun || tag == .personalName {
+                sawSubject = true
+            } else if tag == .verb, sawSubject {
+                pairs += 1
+                sawSubject = false
+            }
+        }
+        return pairs
+    }
+
+    /// "a new line. of shoes": "of" attaches a phrase to the noun before it and opens no sentence, bar the idiom "of course".
+    private static func opensOnPostmodifier(_ following: [WordShape]) -> Bool {
+        guard following.count > 1, following[0].key == "of" else { return false }
+        return following[1].key != "course"
     }
 
     /// Whether the words up to the next stop hold no verb, read in context with the words before them.
@@ -42,7 +138,7 @@ public enum SentenceBoundaryEvidence {
         return !tags.contains(.verb)
     }
 
-    /// "on. A4 paper": a verbless fragment is the object of a preposition not closing a phrasal verb. See `Docs/cleanup.md`.
+    /// "on. A4 paper", "see you in. Boston": a verbless fragment is the object of a preposition not closing a phrasal verb. See `Docs/cleanup.md`.
     private static func completesSeamPreposition(_ previous: [WordShape], _ following: [WordShape]) -> Bool {
         guard let last = previous.last, seamPrepositions.contains(last.key), following.count > 1 else {
             return false
@@ -50,7 +146,10 @@ public enum SentenceBoundaryEvidence {
         let clauseEnd = following.firstIndex(where: \.endsSentence).map { $0 + 1 } ?? following.count
         let fragment = following.prefix(clauseEnd)
         let allTags = LexicalClass.tags(ofWords: (previous + fragment).map(\.core))
-        if previous.count > 1, allTags[previous.count - 2] == .pronoun { return false }
+        let words = (previous + fragment).map(\.core)
+        let opensOnName = LexicalClass.isNamed(
+            fragment[fragment.startIndex].core, in: words.joined(separator: " "))
+        if previous.count > 1, allTags[previous.count - 2] == .pronoun, !opensOnName { return false }
         let tags = allTags.dropFirst(previous.count)
         guard !tags.contains(.verb), !tags.contains(.otherWord), let opening = tags.first else {
             return false
@@ -65,8 +164,9 @@ public enum SentenceBoundaryEvidence {
     ) -> Bool {
         let headStart = previous.dropLast().lastIndex(where: \.endsSentence).map { $0 + 1 } ?? 0
         let head = previous[headStart...]
+        guard head.count > 1 else { return false }
         let tags = LexicalClass.tags(ofWords: (head + following).map(\.core))
-        guard head.count > 1, tags.count > head.count, tags[head.count] == .verb,
+        guard tags.count > head.count, tags[head.count] == .verb,
             tags[0] != .preposition, tags[head.count - 1] == .noun
         else { return false }
         return !tags.prefix(head.count).contains(.verb)
@@ -74,42 +174,84 @@ public enum SentenceBoundaryEvidence {
 
     /// "my pin is. 2244": a form of "be" straight after its noun subject leaves its complement to the next words.
     private static func awaitsComplement(_ previous: [WordShape], _ following: [WordShape]) -> Bool {
-        guard previous.count > 1, let last = previous.last, copulas.contains(last.key), !following.isEmpty
-        else { return false }
-        let tags = LexicalClass.tags(ofWords: (previous + following).map(\.core))
+        guard previous.count > 1, !following.isEmpty else { return false }
+        let words = (previous + following).map(\.core)
+        guard LexicalClass.lemma(ofWordAt: previous.count - 1, in: words) == "be" else { return false }
+        let tags = LexicalClass.tags(ofWords: words)
         return tags[previous.count - 2] == .noun
+    }
+
+    /// "i can. finish it today": a modal straight after its pronoun subject leaves its verb to the next words.
+    public static func modalAwaitsVerb(_ text: String, into next: String) -> Bool {
+        awaitsVerb(
+            WordTokens.words(text, .display).map(WordShape.init),
+            WordTokens.words(next, .display).map(WordShape.init))
+    }
+
+    private static func awaitsVerb(_ previous: [WordShape], _ following: [WordShape]) -> Bool {
+        guard previous.count > 1, let last = previous.last, modals.contains(last.key), !following.isEmpty
+        else {
+            return false
+        }
+        let tags = LexicalClass.tags(ofWords: (previous.map(\.core) + following.prefix(2).map(\.key)))
+        return tags[previous.count] == .verb
+            && (tags[previous.count - 2] == .pronoun
+                || QuestionShape.subjects.contains(previous[previous.count - 2].key))
+    }
+
+    /// "went to the, store": a comma after a word that cannot end a phrase splits it, and the model places the comma it owns.
+    public static func commaSplitsClosedPhrase(_ word: String, into next: String) -> Bool {
+        let shape = WordShape(word)
+        guard shape.suffix == ",", shape.prefix.isEmpty else { return false }
+        let key = shape.key
+        let upcoming = WordTokens.words(next, .display).prefix(1).map { $0.lowercased() }
+        if let word = upcoming.first, QuestionShape.subjects.contains(word) { return false }
+        if determiners.contains(key) || key == "of" || key == "and" { return true }
+        guard commaPrepositions.contains(key) else { return false }
+        let tags = LexicalClass.tags(ofWords: [shape.core] + WordTokens.words(next, .display).prefix(1))
+        guard tags.count > 1, let opening = tags[1] else { return false }
+        return [.determiner, .noun, .adjective, .number].contains(opening)
+    }
+
+    /// "please review. the notes for the release": a verbless phrase opening on a determiner is the object of the verb before the seam.
+    private static func takesObject(_ previous: [WordShape], _ following: [WordShape]) -> Bool {
+        guard following.count > 1, determiners.contains(following[0].key) else { return false }
+        let tags = LexicalClass.tags(ofWords: (previous + following).map(\.core))
+        return tags[previous.count - 1] == .verb && isVerbless(following, after: previous)
     }
 
     private static func completesFinalPhrase(_ previous: [WordShape], _ following: [WordShape]) -> Bool {
         guard let first = following.first else { return false }
         let previousKeys = previous.map(\.key)
-        let completesReportedVerb = seamObjectEndings.contains {
-            previousKeys.suffix($0.count).elementsEqual($0)
-        }
+        let completesReportedVerb =
+            seamObjectEndings.contains { previousKeys.suffix($0.count).elementsEqual($0) }
+            && !endsInNounLook(previousKeys)
         let startsObject =
             determiners.contains(first.key)
             || (following.count > 1 && first.core.first?.isUppercase == true)
         return completesReportedVerb && (startsObject || following.count > 1)
     }
 
-    private static let determiners: Set<String> = [
-        "a", "an", "the", "my", "your", "his", "her", "its", "their", "our", "this", "that",
-        "these", "those", "some", "any",
-    ]
-    private static let neverLast: Set<String> = [
-        "a", "an", "the", "my", "your", "its", "our", "their",
-        "of", "to", "at", "for", "with", "from", "by", "into", "onto", "upon", "between",
-        "during", "against", "within", "without", "among", "than",
-        "and", "or", "but", "because", "although", "while", "if", "whether", "nor", "very",
-    ]
-    private static let neverFronted: Set<String> = [
-        "to", "of", "at", "with", "from", "by", "into", "onto", "upon", "between", "among",
-        "toward", "towards", "against", "without", "within", "beside", "behind", "beyond", "near", "past",
-    ]
-    private static let seamPrepositions: Set<String> = ["on", "in", "up", "around"]
+    /// "take a look", "have a quick look": a determiner in the two words before "look" makes it a noun that closes the sentence.
+    private static func endsInNounLook(_ keys: [String]) -> Bool {
+        keys.last == "look" && keys.dropLast().suffix(2).contains { determiners.contains($0) }
+    }
+
+    private static let determiners = FunctionWords.boundaryDeterminers
+    /// Words the tagger reads as a preposition, subordinator or adverb either way, which cannot close a sentence as a particle can ("move on", "let it through").
+    private static let neverLast = FunctionWords.neverLast
+    private static let neverFronted = FunctionWords.neverFronted
+    private static let clauseSubjects = QuestionShape.subjects.union(["nobody", "nothing"])
+    private static let imperativeObjects = FunctionWords.imperativeObjects
+    private static let imperativeParticles: Set<String> = ["back", "out", "off"]
+    /// Words a bare verb follows inside one clause: "if you can leave it", "if you want to leave it".
+    private static let bareVerbLeaders = QuestionShape.verbsBeforeSubject.union(FunctionWords.bareVerbLeaders)
+    private static let modals = FunctionWords.modals
+    /// Prepositions that take an object after a comma; "on", "in" and "up" close a phrasal verb ("hold on, wait").
+    private static let commaPrepositions = FunctionWords.commaPrepositions
+    private static let seamPrepositions = FunctionWords.seamPrepositions
     private static let seamObjectEndings: [[String]] = [
         ["could", "finish"], ["pick", "up"], ["look"], ["covers"],
     ]
-    private static let copulas: Set<String> = ["is", "are", "was", "were"]
-    private static let subordinators: Set<String> = ["although", "because", "if", "when"]
+    private static let subordinators = FunctionWords.subordinators
 }

@@ -19,7 +19,7 @@ struct Corpus: ~Copyable {
 
     /// Removes the file and the two SQLite writes beside it.
     func remove() {
-        for suffix in ["", "-wal", "-shm"] {
+        for suffix in ["", "-wal", "-shm", ".lock"] {
             try? FileManager.default.removeItem(atPath: path + suffix)
         }
     }
@@ -76,17 +76,35 @@ struct EncryptedPredictStoreTests {
     func encryptedRoundTrip() async throws {
         let corpus = Corpus()
         let key = CorpusKeys(value: SymmetricKey(size: .bits256))
-        let store = try PredictStore(path: corpus.path, encryptedStore: EncryptedStore(keys: key))
-        try await store.record("distinctive corpus phrase", in: terminal, at: moment)
+        do {
+            let store = try PredictStore(path: corpus.path, encryptedStore: EncryptedStore(keys: key))
+            try await store.record("distinctive corpus phrase", in: terminal, at: moment)
 
-        let bytes = try Data(contentsOf: URL(filePath: corpus.path))
-        #expect(EncryptedStore.isSealed(bytes))
-        #expect(!String(decoding: bytes, as: UTF8.self).contains("distinctive corpus phrase"))
-        #expect(!FileManager.default.fileExists(atPath: corpus.path + "-wal"))
-        #expect(!FileManager.default.fileExists(atPath: corpus.path + "-shm"))
+            let bytes = try Data(contentsOf: URL(filePath: corpus.path))
+            #expect(EncryptedStore.isSealed(bytes))
+            #expect(!String(decoding: bytes, as: UTF8.self).contains("distinctive corpus phrase"))
+            #expect(!FileManager.default.fileExists(atPath: corpus.path + "-wal"))
+            #expect(!FileManager.default.fileExists(atPath: corpus.path + "-shm"))
+        }
 
         let reopened = try PredictStore(path: corpus.path, encryptedStore: EncryptedStore(keys: key))
         #expect(try await reopened.recent(in: terminal, limit: 5) == ["distinctive corpus phrase"])
+    }
+
+    @Test("an encrypted corpus refuses a second open while its first store is live", .bug(id: 5267))
+    func encryptedCorpusHasOneOpenWriter() throws {
+        let corpus = Corpus()
+        let key = CorpusKeys(value: SymmetricKey(size: .bits256))
+        let first = try PredictStore(path: corpus.path, encryptedStore: EncryptedStore(keys: key))
+
+        do {
+            _ = try PredictStore(path: corpus.path, encryptedStore: EncryptedStore(keys: key))
+            Issue.record("A second encrypted store unexpectedly opened the same snapshot")
+        } catch let error {
+            #expect(error == .cannotOpen(corpus.path))
+        }
+
+        _ = first
     }
 
     @Test("legacy plaintext databases migrate with their rows into an encrypted snapshot")
@@ -106,12 +124,45 @@ struct EncryptedPredictStoreTests {
         _ = legacy
     }
 
+    @Test("a legacy database whose sidecars are gone still migrates into an encrypted snapshot")
+    func migratesLegacyDatabaseWithoutSidecars() async throws {
+        let corpus = Corpus()
+        do {
+            let legacy = try Database(path: corpus.path)
+            try Schema.migrate(legacy)
+            try legacy.run("INSERT INTO surface (bundle_id, role) VALUES (?, ?)") {
+                $0.bind(1, terminal.bundleIdentifier)
+                $0.bind(2, terminal.role)
+            }
+            try legacy.run("INSERT INTO entry (surface_id, text, text_lower, last_used) VALUES (1, ?, ?, ?)")
+            {
+                $0.bind(1, "lone legacy phrase")
+                $0.bind(2, "lone legacy phrase")
+                $0.bind(3, moment.timeIntervalSince1970)
+            }
+        }
+        // Closing checkpointed the log, so the main file alone holds every row.
+        for suffix in ["-wal", "-shm"] { try FileManager.default.removeItem(atPath: corpus.path + suffix) }
+
+        let migrated = try PredictStore(
+            path: corpus.path,
+            encryptedStore: EncryptedStore(keys: CorpusKeys(value: SymmetricKey(size: .bits256))))
+
+        #expect(try await migrated.recent(in: terminal, limit: 5) == ["lone legacy phrase"])
+        #expect(EncryptedStore.isSealed(try Data(contentsOf: URL(filePath: corpus.path))))
+        #expect(!FileManager.default.fileExists(atPath: corpus.path + "-wal"))
+        #expect(!FileManager.default.fileExists(atPath: corpus.path + "-shm"))
+    }
+
     @Test("a wrong key refuses to open and leaves the encrypted snapshot untouched")
     func wrongKeyDoesNotReplaceSnapshot() throws {
         let corpus = Corpus()
         let original = CorpusKeys(value: SymmetricKey(size: .bits256))
-        let store = try PredictStore(path: corpus.path, encryptedStore: EncryptedStore(keys: original))
-        let bytes = try Data(contentsOf: URL(filePath: corpus.path))
+        let bytes: Data
+        var store: PredictStore? = try PredictStore(
+            path: corpus.path, encryptedStore: EncryptedStore(keys: original))
+        bytes = try Data(contentsOf: URL(filePath: corpus.path))
+        store = nil
         let wrong = CorpusKeys(value: SymmetricKey(size: .bits256))
 
         do {
@@ -130,9 +181,11 @@ struct EncryptedPredictStoreTests {
         let corpus = Corpus()
         let keys = RevocableCorpusKeys()
         let encryptedStore = EncryptedStore(keys: keys)
-        let store = try PredictStore(path: corpus.path, encryptedStore: encryptedStore)
-        try await store.record("private saved line", in: terminal, at: moment)
-        let original = try Data(contentsOf: URL(filePath: corpus.path))
+        let original: Data
+        var store: PredictStore? = try PredictStore(path: corpus.path, encryptedStore: encryptedStore)
+        try await store?.record("private saved line", in: terminal, at: moment)
+        original = try Data(contentsOf: URL(filePath: corpus.path))
+        store = nil
 
         try encryptedStore.revokeKey()
         let reopened = try PredictStore(path: corpus.path, encryptedStore: encryptedStore)
@@ -147,8 +200,11 @@ struct EncryptedPredictStoreTests {
     func unavailableKeyDoesNotReplaceSnapshot() throws {
         let corpus = Corpus()
         let original = CorpusKeys(value: SymmetricKey(size: .bits256))
-        let store = try PredictStore(path: corpus.path, encryptedStore: EncryptedStore(keys: original))
-        let bytes = try Data(contentsOf: URL(filePath: corpus.path))
+        let bytes: Data
+        var store: PredictStore? = try PredictStore(
+            path: corpus.path, encryptedStore: EncryptedStore(keys: original))
+        bytes = try Data(contentsOf: URL(filePath: corpus.path))
+        store = nil
         let unavailable = UnavailableCorpusKeys(status: Int32(errSecInteractionNotAllowed))
 
         do {
@@ -173,6 +229,28 @@ struct RecordingTests {
         let found = try await store.candidates(for: terminal, matching: "git c")
         #expect(found.map(\.text) == ["git commit -m"])
         #expect(found.first?.evidence?.count == 1)
+    }
+
+    @Test(
+        "An application's typed lines come back newest first, across its fields, without our own suggestions."
+    )
+    func recentLinesInApplication() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        let notes = Surface(bundleIdentifier: "com.example.terminal", role: "AXTextField", locator: "notes")
+        try await store.record("older line", in: terminal, at: moment)
+        try await store.record("newer line", in: notes, at: moment.addingTimeInterval(60))
+        try await store.record(
+            "offered line", in: terminal, as: .suggestion, at: moment.addingTimeInterval(120))
+        try await store.record(
+            "elsewhere", in: Surface(bundleIdentifier: "com.example.other", role: "AXTextArea"), at: moment)
+        #expect(
+            try await store.recentLines(inApplication: "com.example.terminal", limit: 5) == [
+                "newer line", "older line",
+            ])
+        #expect(
+            try await store.recentLines(inApplication: "com.example.terminal", limit: 1) == ["newer line"])
+        #expect(try await store.recentLines(inApplication: "com.example.terminal", limit: 0).isEmpty)
     }
 
     @Test("A line whose command substitution cannot be read is marked irreversible.")
@@ -386,7 +464,7 @@ struct RecordingTests {
     func selfSourcedIsMarked() async throws {
         let corpus = Corpus()
         let store = try store(corpus)
-        try await store.record("git status", in: terminal, selfSourced: true, at: moment)
+        try await store.record("git status", in: terminal, as: .suggestion, at: moment)
         let found = try await store.candidates(for: terminal, matching: "git s")
         #expect(found.first?.evidence?.selfSourced == 1)
     }
@@ -1148,7 +1226,7 @@ struct BorrowedFeedbackTests {
         for _ in 0..<3 { try await store.record("git status --short", in: folderOne, at: moment) }
         for _ in 0..<3 { try await store.recordRejected("git status --short", in: folderTwo) }
         #expect(try await store.candidates(for: folderTwo, matching: "git s").first?.evidence?.rejected == 3)
-        try await store.record("git status --short", in: folderOne, selfSourced: true, at: moment)
+        try await store.record("git status --short", in: folderOne, as: .suggestion, at: moment)
         #expect(try await store.candidates(for: folderTwo, matching: "git s").first?.evidence?.rejected == 3)
         try await store.record("git status --short", in: folderTwo, at: moment)
         #expect(try await store.candidates(for: folderTwo, matching: "git s").first?.evidence?.rejected == 0)
@@ -1208,7 +1286,7 @@ struct BorrowedFeedbackTests {
         let store = try store(corpus)
         try await store.record("meeting at 3", in: folderOne, at: moment)
         try await store.supersede("meeting at 3", with: "meeting at 4", in: folderOne)
-        try await store.record("meeting at 3", in: folderOne, selfSourced: true, at: moment)
+        try await store.record("meeting at 3", in: folderOne, as: .suggestion, at: moment)
 
         #expect(try await store.candidates(for: folderOne, matching: "meeting at").isEmpty)
         #expect(try await store.recent(in: folderOne, limit: 5).isEmpty)

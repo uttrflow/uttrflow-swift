@@ -16,6 +16,7 @@ from pathlib import Path
 
 PACKAGE_ROOT = Path(__file__).resolve().parent.parent
 
+# Each file here needs a manifest entry with origin generated and a voice; `make data-manifest` checks it.
 ALLOWED_DIRECTORY = "Tests/Fixtures/SyntheticAudio/"
 
 AUDIO_EXTENSIONS = {".wav", ".wave", ".flac", ".m4a", ".mp3", ".opus", ".ogg", ".caf", ".aif", ".aiff"}

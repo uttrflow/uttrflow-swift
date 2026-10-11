@@ -10,6 +10,18 @@ public enum RemovalGrant: Sendable, Equatable {
     case conversion
 }
 
+/// A property a pass keeps on every draft, which one property suite checks against generated input.
+public enum PassLaw: Sendable, Hashable, CaseIterable {
+    /// Running the pass on its own output changes nothing.
+    case idempotent
+    /// Every word it leaves, ignoring case, was already a word of the draft.
+    case addsNoWords
+    /// The draft's digits come out in the same order, none added and none dropped.
+    case keepsDigits
+    /// A draft with no Devanagari and no control character comes out with none.
+    case latinOnly
+}
+
 /// The scope a piece pass asks about: the words of one piece, never its neighbours or the piece count.
 public enum PieceScope {}
 
@@ -23,6 +35,10 @@ public protocol CleaningPass: Sendable {
     static var id: PassID { get }
     /// What the pass may remove; a pass that does not say only turns words into what it writes.
     static var removes: RemovalGrant { get }
+    /// The laws the pass keeps; every pass states them, an empty set included, so none is left unchecked.
+    static var laws: Set<PassLaw> { get }
+    /// The passes it may run before or after with the same result, which the property suite checks pair by pair.
+    static var orderIndependentWith: Set<PassID> { get }
     func apply(_ draft: Draft) -> Draft
 }
 
@@ -40,6 +56,15 @@ extension CleaningPass {
 
     /// The pass's grant, reachable from a value as well as from the type.
     public var removes: RemovalGrant { Self.removes }
+
+    /// The pass's laws, reachable from a value as well as from the type.
+    public var laws: Set<PassLaw> { Self.laws }
+
+    /// A pass claims no order independence unless it names the passes; the pipeline's order then stands.
+    public static var orderIndependentWith: Set<PassID> { [] }
+
+    /// The passes it commutes with, reachable from a value as well as from the type.
+    public var orderIndependentWith: Set<PassID> { Self.orderIndependentWith }
 }
 
 /// An ordered list of passes, run one after another over the same draft.

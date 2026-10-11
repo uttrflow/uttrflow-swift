@@ -11,15 +11,27 @@ import Testing
 @MainActor
 @Suite("The wide form of the floating button")
 struct DockNoticeTextTests {
-    /// Every first line the wide form can be handed: each failure, the fallback, and the speech model's load.
+    /// Every first line the wide form can be handed: each failure, kept or not, the fallback, and the model's load.
     nonisolated private static var messages: [String] {
         FailureCatalogue.everyFailure.map(\.userMessage)
+            + keptForRetry.map { $0.offering(.retryFromRecording).message }
             + [
                 DictationFailure(CocoaError(.fileNoSuchFile)).message,
                 SpeechModelLoad.refusal,
                 SpeechModelLoad.loading(elapsed: .zero).line,
                 SpeechModelLoad.failed.line,
             ]
+    }
+
+    /// Every failure the pipeline re-offers as a retry of the kept recording, as `DictationPipeline.fail` decides.
+    nonisolated private static var keptForRetry: [DictationFailure] {
+        // The shortcut monitor and the permissions page raise these outside any dictation.
+        let dictationFailures = FailureCatalogue.everyFailure.filter {
+            !($0 is HotkeyError || $0 is PermissionError)
+        }
+        let all =
+            dictationFailures.map { DictationFailure($0) } + [DictationFailure(CocoaError(.fileNoSuchFile))]
+        return all.filter { $0.severity != .informational && ($0.recovery == nil || $0.recovery == .retry) }
     }
 
     /// The second lines the speech model's load puts under its first.
@@ -68,7 +80,7 @@ struct DockNoticeTextTests {
         let line = presentation.primaryLine ?? ""
 
         #expect(
-            DockView.hoverText(for: presentation, primaryLine: line)
+            DockWording.hoverText(for: presentation, primaryLine: line)
                 == "Recording stopped unexpectedly. Try again.\nthe words that were said")
     }
 
@@ -77,7 +89,7 @@ struct DockNoticeTextTests {
         let presentation = DictationPresenter.dock(for: .failed(.stillLoading))
 
         #expect(
-            DockView.hoverText(for: presentation, primaryLine: SpeechModelLoad.refusal)
+            DockWording.hoverText(for: presentation, primaryLine: SpeechModelLoad.refusal)
                 == SpeechModelLoad.refusal)
     }
 
@@ -91,7 +103,7 @@ struct DockNoticeTextTests {
                     message: "Recording stopped unexpectedly. Try again.", recovery: .retry,
                     severity: .recoverable)))
 
-        #expect(DockView.pillLine(for: microphone) == "Microphone is off")
-        #expect(DockView.pillLine(for: retry) == nil)
+        #expect(DockWording.pillLine(for: microphone) == "Microphone is off")
+        #expect(DockWording.pillLine(for: retry) == nil)
     }
 }

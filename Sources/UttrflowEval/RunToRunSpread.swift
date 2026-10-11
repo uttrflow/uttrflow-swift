@@ -56,6 +56,29 @@ public struct RunToRunSpread: Sendable, Equatable {
         return (highest - lowest) * 100
     }
 
+    /// The row `Docs/eval-methodology.md` records, so the table is pasted from a run rather than typed.
+    public func tableRow(on machine: MachineDescription) -> String {
+        let identical = identicalPassageRate.map {
+            "\(passages.count - differing.count) of \(passages.count) (\(Self.percent($0)))"
+        }
+        let spread = overallSpreadPercentagePoints.map { Self.points($0) }
+        let names = differing.isEmpty ? "none" : differing.map(\.id).joined(separator: ", ")
+        let cells = [
+            machine.chip, machine.operatingSystem, "\(overallRates.count)", identical ?? "n/a",
+            spread ?? "n/a",
+            names,
+        ]
+        return "| " + cells.joined(separator: " | ") + " |"
+    }
+
+    private static func percent(_ share: Double) -> String {
+        "\((share * 1000).rounded() / 10)%"
+    }
+
+    private static func points(_ value: Double) -> String {
+        "\((value * 100).rounded() / 100)"
+    }
+
     private static func passage(id: String, scores: [PassageScore]) -> Passage {
         let counts = scores.reduce(into: [String: Int]()) { $0[$1.transcript, default: 0] += 1 }
         let rates = scores.compactMap { $0.wordErrorRate?.rate }

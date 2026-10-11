@@ -51,7 +51,7 @@ struct MenuBarIconTests {
             icons == [
                 .mark, .symbol("mic.fill"), .symbol("sparkles"), .symbol("checkmark"),
                 .symbol("exclamationmark.circle"), .symbol("questionmark.circle"),
-                .symbol("doc.on.clipboard"),
+                .symbol("doc.on.clipboard"), .symbol("trash"), .symbol("checkmark.circle"),
             ])
         #expect(Set(icons).count == DictationActivity.allCases.count)
     }
@@ -181,8 +181,8 @@ struct MenuBarStatusTests {
         }
         #expect(
             lines == [
-                "Ready", "Listening…", "Tidying up…", "Inserted", "Inserted — part not transcribed",
-                "Inserted — not confirmed", "Copied — press ⌘V",
+                "Ready", "Listening…", "Cleaning up…", "Inserted", "Inserted — part not transcribed",
+                "Inserted — not confirmed", "Copied — press ⌘V", "Discarded", "Done",
             ])
         for (activity, line) in [
             (DictationActivity.copied, "Copied — press ⌘V"),
@@ -242,7 +242,7 @@ struct MenuBarStatusTests {
                 == "Uttrflow. Listening.")
         #expect(
             MenuBarPresenter.present(MenuBarState(activity: .working)).accessibilityLabel
-                == "Uttrflow. Tidying up.")
+                == "Uttrflow. Cleaning up.")
         // The failure's sentence ends in a full stop; a second is read out as a second pause.
         #expect(
             MenuBarPresenter.present(MenuBarState(failure: microphoneOff)).accessibilityLabel
@@ -460,7 +460,7 @@ struct MenuBarHeaderTests {
                 == .status(MenuBarStatus(title: "Listening…", emphasis: .live)))
         #expect(
             MenuBarPresenter.present(MenuBarState(activity: .working)).header
-                == .status(MenuBarStatus(title: "Tidying up…")))
+                == .status(MenuBarStatus(title: "Cleaning up…")))
     }
 
     @Test("counts a download with a bar, and slides one while the fraction is unknown")
@@ -782,7 +782,7 @@ struct MenuBarClipListTests {
 
     @Test("masks a secret and gives it no tooltip")
     func secretIsMasked() {
-        let secret = PanelFixture.clip("AKIAIOSFODNN7EXAMPLE", kind: .secret)
+        let secret = PanelFixture.clip("ASIAY34FZKBOKMUTVV7A", kind: .secret)
         let row = MenuBarPresenter.present(MenuBarState(clips: [secret])).clips.first
         #expect(row?.title == PanelPresenter.mask)
         #expect(row?.tooltip == nil)
@@ -884,7 +884,7 @@ struct MenuBarUpdateTests {
         #expect(listening.statusLine == "Listening…")
         #expect(listening.accessibilityLabel == "Uttrflow. Listening.")
         let working = MenuBarState(activity: .working, updateProgress: .downloading(fraction: 0.4))
-        #expect(MenuBarPresenter.present(working).statusLine == "Tidying up…")
+        #expect(MenuBarPresenter.present(working).statusLine == "Cleaning up…")
         let rested = MenuBarState(activity: .inserted, updateProgress: .readyToInstall)
         #expect(MenuBarPresenter.present(rested).statusLine == "Update ready — installing when you pause")
     }
@@ -1040,7 +1040,9 @@ struct MenuBarSuggestionRuntimeTests {
     func unavailableRuntimeStatesReachTheMenuBar() throws {
         let unavailable: [(SuggestionRuntimeStatus, String)] = [
             (.tapResting, "key tap is restarting"),
+            (.restarting, "Suggestions are restarting and will resume automatically."),
             (.secureInputBlocked, "secure input field is active"),
+            (.accessibilityDenied, "Accessibility"),
             (.tapFailed, "monitor input in Privacy & Security"),
             (.corpusFailed, "corpus could not be opened"),
         ]

@@ -11,7 +11,10 @@ public enum Abbreviations {
     /// What kind of abbreviation the word is, case aside, read without its trailing stop; nil when it is not one.
     public static func kind(of word: String) -> Kind? {
         let key = word.lowercased()
-        if let row = rows[key] { return row.kind }
+        if let row = rows[key] {
+            // Lower-case "ms" is the unit; the title is written "Ms".
+            return row.kind == .title && row.symbol == word ? .unit : row.kind
+        }
         if isDottedAcronym(key) { return .acronym }
         if key.count == 1, key.first?.isLetter == true { return .initial }
         return nil
@@ -43,6 +46,8 @@ public enum Abbreviations {
         guard let first = WordShape(next).core.first else { return true }
         // A form that is also a word ("no", "co") is the abbreviation only before a number, as in "No. 5".
         if rows[shape.core.lowercased()]?.alsoAWord == true { return !first.isNumber }
+        // A capital initial before a capitalised word is a name, as in "J. Smith"; only "A" and "I" are also words.
+        if kind == .initial, first.isUppercase { return ["A", "I"].contains(shape.core) }
         return first.isUppercase
     }
 

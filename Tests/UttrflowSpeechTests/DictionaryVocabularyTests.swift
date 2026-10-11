@@ -12,9 +12,14 @@ private struct DictionaryPromptTokenizer: PromptTokenizer {
     func encode(text: String) -> [Int] { text.unicodeScalars.map { Int($0.value) } }
 }
 
+/// A worst-case tokeniser: a long word costs one token per byte, an ordinary word one token.
 private struct BytePromptTokenizer: PromptTokenizer {
     let firstSpecialToken = 50_257
-    func encode(text: String) -> [Int] { text.utf8.map { Int($0) } }
+    func encode(text: String) -> [Int] {
+        text.split(separator: " ").flatMap { word -> [Int] in
+            word.utf8.count > 12 ? word.utf8.map { Int($0) } : [word.utf8.reduce(0) { $0 &+ Int($1) }]
+        }
+    }
 }
 
 private struct WhisperDictionaryPromptTokenizer: PromptTokenizer {
@@ -55,6 +60,13 @@ struct DictionaryVocabularyTests {
         )
     }
 
+    /// The `n`th of a run of invented words that each sound different: a digit has no sound, so "Older1" and "Older2" are one entry.
+    private static func distinct(_ n: Int) -> String {
+        let sounds = Array("pktflmnrs")
+        let first = sounds[n / 81 % 9].uppercased()
+        return "\(first)a\(sounds[n / 9 % 9])e\(sounds[n % 9])o"
+    }
+
     private func source(
         limit: Int = WorkingSet.defaultLimit,
         entries: [DictionaryEntry]
@@ -68,7 +80,8 @@ struct DictionaryVocabularyTests {
             entries: [entry("Seldom", daysOld: 300), entry("Often", timesUsed: 40)]
         ).vocabulary(favouring: .unknown)
 
-        #expect(words == ["Often", "Seldom"])
+        // Seldom is old and never kept, so it is not worth its decoder steps.
+        #expect(words == ["Often"])
     }
 
     @Test("favours what the frontmost app is showing")
@@ -83,7 +96,7 @@ struct DictionaryVocabularyTests {
     @Test("stops at the limit it was given")
     func honoursLimit() async {
         let words = await source(
-            limit: 2, entries: (0..<10).map { entry("word\($0)") }
+            limit: 2, entries: (0..<10).map { entry(Self.distinct($0)) }
         ).vocabulary(favouring: .unknown)
 
         #expect(words.count == 2)
@@ -94,8 +107,8 @@ struct DictionaryVocabularyTests {
         let better = entry("color", timesUsed: 40)
         let duplicate = entry("colour")
         let distinct = entry("invoice", timesUsed: 2)
-        let betterKeys = Set(DoubleMetaphone.code(for: better.soundsLike).keys)
-        let duplicateKeys = Set(DoubleMetaphone.code(for: duplicate.soundsLike).keys)
+        let betterKeys = Set(WordSound(of: better.soundsLike).keys)
+        let duplicateKeys = Set(WordSound(of: duplicate.soundsLike).keys)
         #expect(!betterKeys.isDisjoint(with: duplicateKeys))
 
         let words = await source(limit: 3, entries: [duplicate, distinct, better])
@@ -111,7 +124,7 @@ struct DictionaryVocabularyTests {
 
     @Test("packs a newly added word before 40 older used entries")
     func recentAdditionSurvivesOlderUsage() async {
-        let old = (0..<40).map { entry("Older\($0)", daysOld: 10, timesUsed: 1) }
+        let old = (0..<40).map { entry(Self.distinct($0), daysOld: 10, timesUsed: 1) }
         let newest = entry("Maelis", daysOld: 1)
         let words = await source(entries: old + [newest]).vocabulary(favouring: .unknown)
         let packing = VocabularyPrompt.packing(for: words, using: DictionaryPromptTokenizer())
@@ -131,7 +144,7 @@ struct DictionaryVocabularyTests {
 
     @Test(.enabled(if: Self.hasInstalledTokenizer))
     func recentAdditionSurvivesWithWhisperTokenizer() async throws {
-        let older = (0..<40).map { entry("Fomblenker\($0)", daysOld: 10, timesUsed: 1) }
+        let older = (0..<40).map { entry(Self.distinct($0), daysOld: 10, timesUsed: 1) }
         let newest = entry("Maelis", daysOld: 1)
         let words = await source(limit: 96, entries: older + [newest]).vocabulary(favouring: .unknown)
         let tokenizer = try await ModelUtilities.loadTokenizer(

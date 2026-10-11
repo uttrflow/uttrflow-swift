@@ -1,0 +1,53 @@
+[
+  {
+    "id": "web-mail-compose-2280",
+    "note": "A message dictated into web mail in a browser tab is laid out as the same message in a mail app.",
+    "addedFor": 2280,
+    "spoken": "hi sam thanks for the update i will review the draft tomorrow",
+    "expected": "Hi Sam, thanks for the update. I will review the draft tomorrow.",
+    "mustKeep": ["Sam"],
+    "mustEndWith": "tomorrow.",
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "documentName": "Compose Mail - Webmail",
+      "pageAddress": "https://mail.example.com/compose",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "destination": "email"
+  },
+  {
+    "id": "web-chat-message-2280",
+    "note": "A reply dictated into web chat in a browser tab is a chat message.",
+    "addedFor": 2280,
+    "spoken": "sounds good i will join the call in five minutes",
+    "expected": "Sounds good, I will join the call in 5 minutes",
+    "mustEndWith": "minutes",
+    "context": {
+      "applicationName": "Google Chrome",
+      "bundleIdentifier": "com.google.Chrome",
+      "documentName": "General - Team Chat",
+      "pageAddress": "https://chat.example.com/general",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "destination": "messaging"
+  },
+  {
+    "id": "web-search-field-2280",
+    "note": "A query dictated into a search field on a page keeps the heard case and takes no stop.",
+    "addedFor": 2280,
+    "spoken": "cheap flights to lisbon in may",
+    "expected": "cheap flights to lisbon in may",
+    "expectedExact": "cheap flights to lisbon in may",
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "documentName": "Search - Example",
+      "pageAddress": "https://search.example.com",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    }
+  }
+]

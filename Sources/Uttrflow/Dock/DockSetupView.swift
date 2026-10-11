@@ -84,7 +84,7 @@ struct DockSetupView: View {
         .padding(.vertical, 8)
         .frame(width: width)
         .glass(cornerRadius: DockSetupMetrics.warningRadius)
-        .help(DockView.hoverText(for: presentation, primaryLine: presentation.primaryLine ?? ""))
+        .help(DockWording.hoverText(for: presentation, primaryLine: presentation.primaryLine ?? ""))
     }
 }
 

@@ -30,6 +30,8 @@ public enum RecoveryAction: Sendable, Equatable {
     case copyTranscript
     /// The words were lost but the audio was not: the Dictation page lists it with a Retry.
     case retryFromRecording
+    /// A recording was cancelled but kept for a short window: run it again to get its words back.
+    case restoreRecording
 }
 
 /// How much a failure costs the user, and so how loudly it is said; independent of the recovery offered.
@@ -52,4 +54,11 @@ public protocol UttrflowFailure: Error, Sendable, Equatable {
     var recovery: RecoveryAction? { get }
     /// What this costs the user; no default, so the case nobody thought about cannot inherit a wrong one.
     var severity: FailureSeverity { get }
+    /// What went wrong without the remedy, for a notice whose next step is decided after the error.
+    var cause: String { get }
+}
+
+extension UttrflowFailure {
+    /// The whole message, for a failure whose sentence names no remedy that another recovery could contradict.
+    public var cause: String { userMessage }
 }

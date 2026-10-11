@@ -26,6 +26,9 @@ enum SpokenClips {
 
     static let voices = ["Samantha", "Daniel", "Karen", "Rishi"]
 
+    /// The clip voices and two more accents, the default for probes that read their own phrases.
+    static let accentVoices = voices + ["Moira", "Tessa"]
+
     /// Every voice reading every sentence, written to `path` at `inputRate` and read back as canonical samples.
     static func generate(in path: String, inputRate: Double) throws -> [SpokenClip] {
         let directory = URL(fileURLWithPath: path)

@@ -43,7 +43,7 @@ final class Fixture: NSObject, NSApplicationDelegate, NSTextFieldDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.mainMenu = Self.editMenu()
+        NSApp.mainMenu = editMenu()
         for field in [text, multiline] {
             field.mode = options.mode
             field.onChange = { [weak self] in self?.writeReport() }
@@ -97,10 +97,16 @@ final class Fixture: NSObject, NSApplicationDelegate, NSTextFieldDelegate {
         try? data.write(to: options.report, options: .atomic)
     }
 
+    /// Takes back the newest write whichever window is key, so Accessibility can press Undo while the fixture is behind.
+    @objc func undo(_ sender: Any?) {
+        window.undoManager?.undo()
+    }
+
     /// Paste reaches a text view only as a menu key equivalent, so the fixture carries the standard Edit menu.
-    private static func editMenu() -> NSMenu {
+    private func editMenu() -> NSMenu {
         let main = NSMenu()
         let edit = NSMenu(title: "Edit")
+        edit.addItem(withTitle: "Undo", action: #selector(undo(_:)), keyEquivalent: "z").target = self
         edit.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
         edit.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
         let item = NSMenuItem(title: "Edit", action: nil, keyEquivalent: "")

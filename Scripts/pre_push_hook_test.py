@@ -267,5 +267,93 @@ class HookScansOnlyUnpublishedCommitsTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0, msg=result.stdout + result.stderr)
 
 
+class HookChecksTheDataManifestTests(unittest.TestCase):
+    """A pushed branch that changes a bundled file without its manifest entry is refused."""
+
+    BUNDLED = os.path.join("Sources", "Demo", "Resources", "words.txt")
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp(prefix="uttrflow-hook-manifest-")
+        self.remote = os.path.join(self.root, "remote.git")
+        self.clone = os.path.join(self.root, "clone")
+        hooks = os.path.join(self.root, "hooks")
+        os.makedirs(os.path.join(hooks, ".githooks"))
+        os.makedirs(os.path.join(hooks, "Scripts"))
+        self.hook = os.path.join(hooks, ".githooks", "pre-push")
+        shutil.copy(HOOK, self.hook)
+        _write_executable(os.path.join(hooks, "Scripts", "disclosure_audit.py"),
+                          "#!/usr/bin/env python3\nimport sys\nsys.exit(0)\n")
+        subprocess.run(["git", "init", "--quiet", "--bare", self.remote], check=True)
+        subprocess.run(["git", "clone", "--quiet", self.remote, self.clone], check=True,
+                       capture_output=True)
+        self._git("config", "user.email", "hook-manifest@example.invalid")
+        self._git("config", "user.name", "Hook Manifest Test")
+        self._git("checkout", "--quiet", "-b", "main")
+        os.makedirs(os.path.join(self.clone, "Scripts"))
+        os.makedirs(os.path.join(self.clone, "Resources"))
+        os.makedirs(os.path.join(self.clone, os.path.dirname(self.BUNDLED)))
+        shutil.copy(os.path.join(HERE, "data_manifest.py"),
+                    os.path.join(self.clone, "Scripts", "data_manifest.py"))
+        self._write(self.BUNDLED, "first\n")
+        with open(os.path.join(self.clone, "Resources", "DataManifest.json"), "w") as handle:
+            handle.write('{"assets": [{"path": "%s", "origin": "authored", "licence": "MIT", '
+                         '"redistribution": true, "sha256": "", "bytes": 0}]}\n' % self.BUNDLED)
+        self._manifest_update()
+        self._git("add", "Scripts", "Resources", "Sources")
+        self._git("commit", "--quiet", "-m", "init")
+        self._git("push", "--quiet", "origin", "main")
+        self._git("checkout", "--quiet", "-b", "feature")
+
+    def tearDown(self):
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def _git(self, *args):
+        subprocess.run(["git", *args], cwd=self.clone, check=True, capture_output=True)
+
+    def _write(self, relative, text):
+        with open(os.path.join(self.clone, relative), "w") as handle:
+            handle.write(text)
+
+    def _manifest_update(self):
+        subprocess.run([sys.executable, os.path.join("Scripts", "data_manifest.py"), "--update"],
+                       cwd=self.clone, check=True, capture_output=True)
+
+    def _commit_all(self, message):
+        self._git("add", "Resources", "Sources", "README.md")
+        self._git("commit", "--quiet", "-m", message)
+
+    def _run_hook(self):
+        sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.clone, check=True,
+                             capture_output=True, text=True).stdout.strip()
+        stdin = f"refs/heads/feature {sha} refs/heads/feature {'0' * 40}\n"
+        return subprocess.run([self.hook, "origin"], cwd=self.clone, input=stdin,
+                              capture_output=True, text=True)
+
+    def test_changed_bundled_file_without_its_entry_is_refused(self):
+        self._write("README.md", "notes\n")
+        self._write(self.BUNDLED, "second\n")
+        self._commit_all("change a bundled file only")
+        result = self._run_hook()
+        self.assertNotEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        self.assertIn("size or SHA-256 differs", result.stdout + result.stderr)
+
+    def test_changed_bundled_file_with_its_entry_is_pushed(self):
+        self._write("README.md", "notes\n")
+        self._write(self.BUNDLED, "second\n")
+        self._manifest_update()
+        self._commit_all("change a bundled file and record it")
+        result = self._run_hook()
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+
+    def test_checks_the_pushed_commit_not_the_working_tree(self):
+        self._write("README.md", "notes\n")
+        self._write(self.BUNDLED, "second\n")
+        self._manifest_update()
+        self._commit_all("change a bundled file and record it")
+        self._write(self.BUNDLED, "uncommitted\n")
+        result = self._run_hook()
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

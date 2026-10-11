@@ -18,8 +18,8 @@ public struct OnboardingPage: Sendable, Equatable {
     public let link: OnboardingLink?
     /// The quiet line under the buttons.
     public let hint: String?
-    /// Whether the terms a person agrees to are on the page; only sign-in has them.
-    public let showsTerms: Bool
+    /// The published document the page names; only sign-in has one.
+    public let legal: PublishedLegalLink?
     /// The fuller sentence behind the heading, read by VoiceOver and shown on hover.
     public let explanation: String?
     /// 1-based position in the row of dots.
@@ -288,6 +288,9 @@ public enum OnboardingIntent: Sendable, Equatable {
 
     /// Choose whether usage statistics are shared.
     case setUsageStatistics(Bool)
+
+    /// Choose whether copies are kept, on the clipboard page.
+    case setClipboardEnabled(Bool)
 
     /// Close onboarding. Only ever offered on the last page.
     case finish

@@ -6,6 +6,15 @@ import Testing
 
 @Suite("What a copied thing turns out to be", .bug(id: 4424))
 struct ClipKindDetectorTests {
+    /// The time bound on a two-megabyte run of this prefix is in `make bench`; the answers it must keep are here.
+    @Test("a repeated scheme-less webhook prefix is text, and a real address after it is still a secret")
+    func repeatedSchemeLessWebhookPrefix() {
+        let prefixes = String(repeating: "hooks.slack.com/", count: 500)
+        #expect(ClipKindDetector.kind(of: prefixes) == .text)
+        let webhook = "hooks.slack.com/services/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"
+        #expect(ClipKindDetector.kind(of: prefixes + webhook) == .secret)
+    }
+
     /// Most things are prose, the answer that costs nothing when wrong; each of these is a near-miss.
     @Test(
         "calls ordinary writing text",
@@ -22,7 +31,6 @@ struct ClipKindDetectorTests {
             "To do: fix the bug {soon}",
             "It cost £4.50; I paid cash.",
             "Meet at 4pm, then dinner: Italian.",
-            "ftp://files.example.com/report.pdf",
             "192.168.0.1",
         ])
     func prose(_ text: String) {
@@ -58,6 +66,7 @@ struct ClipKindDetectorTests {
             "https://example.com/search?q=a+b&sort=new#results",
             "http://localhost:3000/admin",
             "https://user@example.com/private",
+            "ftp://files.example.com/report.pdf",
         ])
     func links(_ text: String) {
         #expect(ClipKindDetector.kind(of: text) == .link)
@@ -204,6 +213,48 @@ struct ClipKindDetectorTests {
         #expect(ClipKindDetector.kind(of: text) == .code)
     }
 
+    @Test(
+        "recognises command-only multi-line clips and keeps sentences about commands as text",
+        arguments: [
+            ("cd ~/project\nnpm install\nnpm run build", ClipKind.code),
+            ("git add .\ngit commit -m \"x\"\ngit push", .code),
+            ("brew update\nbrew upgrade", .code),
+            ("for f in *.txt; do\n  echo $f\ndone", .code),
+            ("if [ -f app ]; then\n  echo ready\nfi", .code),
+            (
+                "if [ -f app ]\n  echo ready\nelif [ -f backup ]\nthen\n  echo backup\nelse\n  echo missing\nfi",
+                .code
+            ),
+            ("while [ \"$ready\" = false ]\ndo\n  echo waiting\ndone", .code),
+            ("case \"$mode\" in\n  fast)\n    echo quick\n    ;;\nesac", .code),
+            ("fast)\n  echo quick", .text),
+            ("do\n  echo ready", .text),
+            ("done\n  echo ready", .text),
+            ("then\n  echo ready", .text),
+            ("fi\n  echo ready", .text),
+            ("esac\n  echo ready", .text),
+            ("if you have time\nwe can go", .text),
+            ("echo hello", .code),
+            ("make build", .code),
+            ("export PATH=$HOME/bin:$PATH", .code),
+            ("go run main.go", .code),
+            ("python -m http.server", .code),
+            ("java -jar app.jar", .code),
+            ("which python3", .code),
+            ("grep is my favourite tool", .text),
+            ("cp is short for copy", .text),
+            ("ssh into the box when you can", .text),
+            ("aws is down again", .text),
+            ("make sure you come early", .text),
+            ("go home and rest", .text),
+            ("which one do you want", .text),
+            ("python feels easier than java", .text),
+            ("make sure the build passes\ngo home after", .text),
+        ])
+    func shellCommandsDoNotConfuseProse(_ text: String, expected: ClipKind) {
+        #expect(ClipKindDetector.kind(of: text) == expected)
+    }
+
     /// Configuration and one-line statements give at most one signal, so each is recognised by its own shape.
     @Test(
         "calls configuration and one-line statements code",
@@ -231,7 +282,6 @@ struct ClipKindDetectorTests {
         arguments: [
             "From: Ada Example\nTo: Grace Example\nSubject: Minutes",
             "Name: Ada Example\nDate: 12 March",
-            "name: Ada\ndate: today",
             "Shopping:\n- milk\n- eggs",
             "Select the text from the page.",
             "Select one from each row",
@@ -289,5 +339,32 @@ struct ClipKindDetectorTests {
         let classification = ClipKindDetector.classification(of: text)
         #expect(classification.kind == .code)
         #expect(classification.language == .typescript)
+    }
+}
+
+/// A shell prints its working directory as `pwd: <path>`; a path is not a credential.
+@Suite("A working directory is not a credential", .bug(id: 2051))
+struct WorkingDirectoryIsNotASecretTests {
+    @Test(
+        "keeps a path after pwd as text",
+        arguments: [
+            "pwd: /Users/me/Desktop",
+            "pwd: ~/Projects/uttrflow",
+            "PWD: /srv/app/releases/current",
+        ])
+    func pathAfterPwdIsText(_ text: String) {
+        #expect(ClipKindDetector.kind(of: text) == .text)
+    }
+
+    /// The keyword keeps its meaning when the value is password-shaped, not path-shaped.
+    @Test("still calls a password-shaped value after pwd a secret")
+    func secretAfterPwdStaysSecret() {
+        #expect(ClipKindDetector.kind(of: "pwd: Zx9kLmQ2rT7p") == .secret)
+    }
+
+    /// Other keywords keep today's behaviour: a path after them is still masked.
+    @Test("leaves the other keywords alone")
+    func otherKeywordsUnchanged() {
+        #expect(ClipKindDetector.kind(of: "password: /Users/me/Desktop") == .secret)
     }
 }

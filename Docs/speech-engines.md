@@ -15,7 +15,7 @@ prompt; [`speech-model-install.md`](speech-model-install.md) covers installing t
 |---|---|---|
 | `BackedSpeechEngine.minimumDuration` | 250 ms | shorter audio is refused as too short |
 | `LanguageHeldDecoder.compressionRatioThresholds` | `en`: default, `hi`: 3.0 | one decision per transcribed language; default keeps Whisper's 2.4 |
-| `RecognitionLoop.fastestSpeech` | 4.5 words a second | faster than this, a repeated run is a loop |
+| `RecognitionLoop.fastestSpeech` | 4.8 words a second | faster than this, a repeated run is a loop |
 | `RecognitionLoop.mostCopyDifference` | 0.2 WER | how far copies may differ and still be one loop |
 | `RecognitionLoop.fewestCopyWords` | 3 | the shortest copy that counts |
 | `CappedDecodeRetry.tokenCapThreshold` | 215 tokens | a decode this long ran out of decoder positions |
@@ -103,6 +103,59 @@ What the table supports, and what it does not:
   Hinglish, accents or noise, and the machine was not idle. A change of model or plan needs
   the recorded multilingual corpus behind the regression gate first.
 
+## The text decoder's graph, examined
+
+The shipped `TextDecoder` takes one token per call, the whole encoder output (1,280 by 1,500) as an
+input on every call, the key and value caches in and out, and holds no Core ML state. Its graph
+projects cross-attention keys and values from all 1,500 encoder positions in every layer, on every
+token, although they change only once per window.
+
+`Scripts/decoder_compute_plan.swift` reads the model's Core ML compute plan, marks each operation
+that depends on the encoder output and on no other input, sums their share of the plan's estimated
+cost, and then times single-token steps on zero inputs:
+
+```bash
+swiftc -parse-as-library -O Scripts/decoder_compute_plan.swift -o .build/decoder_compute_plan
+.build/decoder_compute_plan <Models>/openai_whisper-large-v3-v20240930_turbo_632MB/TextDecoder.mlmodelc 100
+```
+
+Apple M5 Pro, 48 GB, one-minute load average 164 to 258 (not idle):
+
+| measure | shipped decoder |
+|---|---|
+| operations depending only on the encoder output | 32 (the key and value projections and the operations on their results, in each of the 4 layers) |
+| their share of estimated cost per step | 0.670 |
+| estimated cost preferred on the Neural Engine / CPU | 0.699 / 0.301 |
+| median ms per step, 100 steps, first run | 12.2 (82 steps/s) |
+
+**What it settles.** Two thirds of every decoder step is work that is the same for every token of
+a window. A decoder that projects the encoder output once per window and keeps the result as state
+removes it, so this is the largest per-token lever the recogniser has; prompt length and timestamp
+count are ranked after it.
+
+**What it does not settle.** The cost share is Core ML's estimate, not a timing, and the timing
+was taken on a loaded Mac, where a second run swung by more than an order of magnitude. Replacing
+the decoder needs a stateful build from a publisher with a stated permissive licence, its
+provenance recorded in `SpeechModel.swift`, and a WER comparison on the recorded corpus with the
+tail wait and memory peak beside it. Until that comparison exists the shipped decoder stays.
+
+**Where a stateful build was looked for.** The publisher the weights come from was searched for a
+text decoder that holds the encoder projections as Core ML state:
+
+| repository | stateful text decoder | licence |
+|---|---|---|
+| `argmaxinc/whisperkit-coreml`, the pinned revision, which is also its head | none: every `TextDecoder` takes the encoder output as an input | MIT |
+| `argmaxinc/whisperkit-coreml_01-30-24` | none | none stated |
+| `argmaxinc/whisperkit-pro` | yes (`stateSchema` in `TextDecoder.mlmodelc/metadata.json`, five `readState` operations) | proprietary, no redistribution |
+
+The one stateful build cannot ship, so nothing was downloaded and there is no comparison to run.
+**Verdict: the shipped decoder stays**, and so does its one decode path. The multi-token entry for
+batched prompt prefill and speculative decoding is decided the same way: the pinned folder already
+carries `TextDecoderContextPrefill.mlmodelc`, and no permissively licensed multi-token decoder
+exists to compare against. Reopened by a stateful decoder published under a permissive licence,
+or by converting OpenAI's MIT weights to one inside this repository's own tooling; either is then
+measured with `Scripts/decoder_compute_plan.swift` and the recorded corpus as above.
+
 ## Keeping WhisperKit off the network
 
 - WhisperKit treats a missing tokenizer as a reason to visit Hugging Face rather than a reason
@@ -143,8 +196,77 @@ What the table supports, and what it does not:
   appends silence to trimmed speech shorter than the backend's floor. The decoder already pads
   every window to 30 seconds with silence, so the appended samples add no signal it did not
   already see; the seek loop runs once over the real speech and stops before the padding.
-- The same padding reaches a short final piece of a long dictation that is decoded alone; its
-  effect on accuracy is not measured against the corpus.
+- The same padding reaches a short final piece of a long dictation that is decoded alone. A final
+  fragment under `SpeechWindowing.minimumSpeech` normally joins the window before it
+  ([`early-transcription.md`](early-transcription.md)); it goes alone, padded, only where the join
+  would pass `maximumLength` or cross a discontinuity.
+
+### Padding, measured
+
+`uttrflow-eval short-clip` decodes the short-utterance class (`ShortUtterances`: 63 replies of one to
+three words, English read by every `--voices` voice and romanised Hindi by `--hindi-voice`, each at
+the two `--rates`) and six long dictations that end in a 1.5 s pause and one of those replies, each
+written by `say` to a file. Arm A scores every padding by clip-length bucket (0.3-0.6 s, 0.6-1.0 s,
+1.0-2.0 s) and by language: exact match after normalisation, a word the speaker did not say, empty
+output, and a wrong script or language; it also counts the clips the engine's 250 ms floor
+refuses. It runs the shipping turbo model with the engine's trim and
+padding in front of it, language held to English and Hindi, and compares every condition paired
+per clip with `PairedBootstrap`. The decision rule was fixed before the run: an alternative
+padding replaces the shipped one only if its WER change has a 97.5% interval entirely below 0, of
+at least 5 points, for no more than 50 ms of decode time; merging stays unless its WER change
+against decoding alone has a 95% interval entirely above 0.
+
+Measured on commit `e6ba90e0c7`, a release build on an Apple M5 Pro under a heavy load from
+other builds, one pass, synthetic voices only (no recorded human speech): 342 clips of the 63
+replies, 54 of them Hindi (`wrong script/lang` is the share of clips with a non-Latin letter or a
+detected language other than the one spoken).
+
+| Padding, by clip length | clips | exact | invented | empty | wrong script/lang |
+|---|---|---|---|---|---|
+| shipped, under 0.3 s | 8 | 38% | 25% | 38% | 0% |
+| shipped, 0.3-0.6 s | 187 | 83% | 17% | 1% | 17% |
+| shipped, 0.6-1.0 s | 135 | 87% | 12% | 0% | 14% |
+| shipped, 1.0-2.0 s | 12 | 75% | 25% | 0% | 25% |
+| shipped, English | 288 | 93% | 6% | 1% | 0% |
+| shipped, Hindi | 54 | 30% | 67% | 4% | 98% |
+
+| Padding, all 342 clips | WER | empty | median decode | WER minus shipped (97.5% interval) |
+|---|---|---|---|---|
+| unpadded | 0.966 | 332 | 1 ms | |
+| silence appended to the floor (shipped) | 0.156 | 3 | 442 ms | |
+| silence appended to 2.0 s | 0.156 | 1 | 446 ms | +0.000 [+0.000, +0.000] |
+| 0.5 s of silence before, appended to the floor | 0.130 | 0 | 454 ms | -0.026 [-0.052, -0.002] |
+
+| Long dictation, short last piece (19 of 24 joined by the windowing) | WER | key-up decode, median |
+|---|---|---|
+| merged into the window before it (shipped) | 0.003 | 1004 ms |
+| decoded alone, padded | 0.005 | 488 ms |
+
+1. **Padding is what makes a short clip decode at all**: 332 of 342 unpadded clips came back
+   empty, and padding to the floor brings that to 3, the clips under the engine's floor.
+2. **The shipped padding length stays.** Padding to 2.0 s changes nothing (+0.000 WER). Leading
+   silence lowers WER by 2.6 points with an interval below 0, but the rule asks for at least 5
+   points, so it does not replace the shipped padding; it is the first candidate to re-test on
+   recorded speech.
+3. **The 250 ms floor stays.** The clips under 0.3 s are the weakest bucket (38% exact, 38%
+   empty), so lowering the floor would admit clips that fail most often.
+4. **The weak spot is Hindi, not length.** English is 93% exact; Hindi is 30% exact, with 67%
+   of clips answering a word the speaker did not say. The length buckets from 0.3 s to 2.0 s are
+   close to flat. A fix belongs in how romanised Hindi is recognised, not in the padding.
+   The 98% "wrong script/lang" flag is two different things, split in the probe's table. Measured
+   again on the same 54 Hindi clips (`--language hi`): **0% of clips are written in a non-Latin
+   script** (the decoder writes Devanagari, as designed, and the script rule romanises it before
+   anything is shown, so the flag on the raw text is not a defect of the product), and **83% are
+   detected as a language other than Hindi** (English, on clips of two words or fewer). That
+   detection error is the real defect, and it is the same one measured under "Short Hindi
+   replies under an English and Hindi profile" below: the English decode of Hindi audio is the
+   source of the invented words. Exact 30%, invented 67% and the 98% flag reproduced unchanged.
+5. **Merging the last fragment is not shown to change accuracy, and costs time at key-up**:
+   merged minus alone is -0.002 [-0.010, +0.005] WER and +617 ms [+520, +759] of key-up
+   decode, 95% intervals. Under the rule the join stays.
+
+**Limits.** Loaded Mac, one pass, four synthetic voices for English and one for Hindi; recorded
+short replies would replace all three tables.
 
 ## Which language the recogniser may answer in
 
@@ -166,6 +288,10 @@ What the table supports, and what it does not:
 - WhisperKit re-runs detection for every fallback temperature and samples it the same way it
   samples text, top-k at that temperature. The allowed sampler ignores the temperature, so one
   window cannot change its language between retries.
+- The same detection step also reads the likeliest of all languages. When the model is at least 95%
+  sure of one the product does not transcribe, other than Urdu, the window's decode is refused
+  with an informational notice instead of being written in English. See `Docs/latin-output.md`,
+  "Speech in a language the product does not transcribe".
 
 ## Short Hindi replies under an English and Hindi profile
 
@@ -218,13 +344,29 @@ Hindi with an English voice, so `theek` heard as `Teak.` is partly the clip.
   catch this.
 - `RecognitionLoop.undone`, run on every piece `BackedSpeechEngine` transcribes, keeps one copy
   of a repeated run when at least three copies of three or more words differ by no more than 20%
-  word error rate and the words come faster than 4.5 a second of speech. A matching trailing
+  word error rate and the words come faster than 4.8 a second of speech. A matching trailing
   partial copy is removed with the run. Exactly two copies are checked the same way. A piece that fails the speech-rate or copy-match check is left as heard. So
   a sentence really said twice at a speaking rate keeps both.
-- 4.5 words a second is set above the corpus recorder's own "this take was cut off" line (a
-  passage read faster than 2.5 / 0.6, about 4.2 words a second) and below the 5.1 of the looped
-  clip. It is not measured against recorded speech; measure it with the eval corpus before
-  lowering it.
+- 4.8 words a second sits in the gap between the fastest recorded speech (4.55) and the looped
+  clip (5.07, 14 words in 2.76 s). Rates are whitespace tokens over the speech-trimmed audio
+  (`AudioSamples.speechOnly`), as `RecognitionLoop` counts them; a short piece keeps 0.2 s of
+  margin either side, so the run and sentence figures add 0.4 s. Measured on 30 recorded takes
+  read by **one speaker**, so a faster speaker can sit above them:
+
+  | Cohort | Takes | Whole take, reference | Whole take, recogniser | Fastest sentence | Fastest 6-word run |
+  |---|---|---|---|---|---|
+  | quiet, normal pace (en, hi, hinglish) | 18 | 1.74 / 2.29 / 3.26 | 1.65 / 2.31 / 3.45 | 3.01 | 3.80 |
+  | quiet, deliberately fast (en) | 6 | 2.73 / 2.86 / 3.15 | 2.47 / 2.90 / 3.22 | 4.30 | 4.55 |
+  | noisy room, normal pace (en) | 6 | 2.42 / 2.74 / 3.01 | 2.65 / 2.79 / 3.01 | 3.67 | 3.85 |
+
+  Whole-take columns are min / median / max words a second. The recogniser ran on the shipping
+  model with the language detected. Two takes whose word timings collapsed to zero length
+  (inserted words, one on the fallback ladder) are left out of the run and sentence columns.
+- A loop of a sentence comes out at twice the rate it was said. The 57 measured sentences ran
+  1.61 to 4.30 a second, median 2.65, so their loops would run 3.2 to 8.6: 38 of 57 lie above
+  4.8, and 39 of 57 above the old 4.5. A loop of a slow sentence still gets through; lowering
+  the limit to catch it would cut a fast speaker's real repeat first.
+
 - Double quotes that open the first word and close the last are taken off when there are no
   other quotes in the piece. The recogniser writes these; the speaker did not say them.
 
@@ -311,8 +453,10 @@ therefore not a word error rate.
 
 - A two-word reply mixed with brown noise at 10 dB SNR (`reply4-daniel-snr10`, "Ship it") was
   inserted as "Shit is." in 16 of 50 runs and refused as "Didn't catch that." in the other 34, on
-  byte-identical audio; a second 50 split 23 to 27. Sampling in the temperature ladder is the only
-  randomness in a decode, so which of the two a run gives is which draw lands.
+  byte-identical audio; a second 50 split 23 to 27. Sampling in the temperature ladder was the only
+  randomness in a decode, so which of the two a run gave was which draw landed. The ladder now
+  draws from a fixed seed ([`decode-session.md`](decode-session.md)), so a window handed the same
+  logits draws the same tokens on every run.
 - **The ladder does not invent the words.** With `firstTokenLogProbThreshold` unset, the greedy
   decode of that clip is the same misreading on every run, at an average log-probability of -0.297
   and a compression ratio of 0.86 — confident against every threshold the options carry, and 0.02
@@ -375,6 +519,25 @@ each, 16 minutes on a loaded machine. Every row is the same:
 |---|---|---|---|---|---|---|---|
 | clean, 10 dB | 5, 0, 1, 2 | -1.0 | 0.0% | 0.000 | 0.00 | 100.0% | 0.0% |
 | clean, 10 dB | 5 | -0.7, -1.3 | 0.0% | 0.000 | 0.00 | 100.0% | 0.0% |
+
+Refitted under the dictionary prompt that closes on lower-case prose (`--vocabulary Kubernetes Grafana
+Postgres Terraform Okta`, the same 8 clips and 3 runs, clean and 10 dB): all 12 rows still show a 0.0%
+fallback rate, 0.000 mean and 0.00 worst extra seconds and 100.0% identical runs, with 0.0% word error
+clean and 1.6% at 10 dB for every count and threshold, so the shipping plan stays.
+
+A second sweep on the same clips, noisier (`--counts 0 1 2 5 --snrs 20 5 0`, 3 runs, release build):
+
+| Audio | Count | Log-prob | Fallback rate | Mean extra s | Worst extra s | Identical | WER |
+|---|---|---|---|---|---|---|---|
+| 20 dB | 0, 1, 2, 5 | -1.0 | 0.0% | 0.000 | 0.00 | 100.0% | 1.6% |
+| 20 dB | 5 | -0.7, -1.3 | 0.0% | 0.000 | 0.00 | 100.0% | 1.6% |
+| 5 dB | 0, 1, 2, 5 | -1.0 | 0.0% | 0.000 | 0.00 | 100.0% | 9.4% |
+| 5 dB | 5 | -0.7, -1.3 | 0.0% | 0.000 | 0.00 | 100.0% | 9.4% |
+| 0 dB | 0, 1, 2, 5 | -1.0 | 0.0% | 0.000 | 0.00 | 100.0% | 17.2% |
+| 0 dB | 5 | -0.7, -1.3 | 0.0% | 0.000 | 0.00 | 100.0% | 17.2% |
+
+Word error rises with noise (1.6%, 9.4%, 17.2%) but the fallback still never fires, even at 0 dB,
+so worst-case added seconds is 0.00 for every count.
 
 On this set the fallback never fires, so no setting changes words, seconds or repeatability, and
 the shipping plan stays. The set cannot decide the question: the recorded and degradation corpora,
@@ -513,7 +676,8 @@ tokens a word, so a long Hindi piece can stop mid-word because the decoder ran o
 than because the speech ended. `CappedDecodeRetry` treats a decode of `tokenCapThreshold` (215)
 tokens or more as capped; a backend that does not report tokens is judged by its last segment
 ending more than `RawTranscript.cappedDecodeGap` (2.5 s) before the audio does. It keeps the
-segments up to the last ordinary word (a final word longer than `fragmentWordDuration`, 900 ms, is
-the recogniser stretching a fragment to fill the audio) and decodes the rest again, up to
-`maxRetries` (10) times. A dictation still capped when the retries run out, or with no point to
-resume from, is marked `DecodeEffort.capUnresolved` rather than returned as if it were complete.
+segments up to the last ordinary word (a final word that lands at the slice end is the recogniser's
+fragment, whether stretched to fill the audio or hallucinated onto a short late stretch) and
+decodes the rest again, up to `maxRetries` (10) times. A dictation still capped when the retries
+run out, or with no point to resume from, is marked `DecodeEffort.capUnresolved` rather than
+returned as if it were complete.

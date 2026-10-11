@@ -1,4 +1,5 @@
 // Tests scoring a transcript against the passage read.
+import Foundation
 import UttrflowCore
 import Testing
 
@@ -129,5 +130,47 @@ struct TranscriptionScorerTests {
         let score = TranscriptionScorer.score("what it actually said", against: english)
         #expect(score.transcript == "what it actually said")
         #expect(score.id == "sample-en")
+    }
+}
+
+@Suite("Transcription scorer output rate")
+struct TranscriptionScorerOutputRateTests {
+    private let hindi = TranscriptionCase(
+        id: "sample-hi-output", language: .hindi, stressor: .everyday,
+        romanised: "Haan thik hai",
+        devanagari: "हाँ ठीक है"
+    )
+
+    @Test("scores the romanised output of a Devanagari answer beside the recogniser rate")
+    func romanisedOutput() {
+        let score = TranscriptionScorer.score("हाँ ठीक है", against: hindi)
+        #expect(score.wordErrorRate?.rate == 0)
+        #expect(score.outputWordErrorRate?.rate == 0)
+    }
+
+    @Test("a romanised spelling the reference does not use raises only the output rate")
+    func spellingMissIsOutputOnly() {
+        let respelt = TranscriptionCase(
+            id: "sample-hi-respelt", language: .hindi, stressor: .everyday,
+            romanised: "Haan theek hai", devanagari: "हाँ ठीक है")
+        let score = TranscriptionScorer.score("हाँ ठीक है", against: respelt)
+        #expect(score.wordErrorRate?.rate == 0)
+        #expect(score.outputWordErrorRate?.substitutions == 1)
+    }
+
+    @Test("a Latin answer has no separate output rate")
+    func latinAnswer() {
+        #expect(TranscriptionScorer.score("Haan thik hai", against: hindi).outputWordErrorRate == nil)
+    }
+
+    @Test("the report combines output rates per language and they survive a round trip")
+    func reportAndRoundTrip() throws {
+        let score = TranscriptionScorer.score("हाँ ठीक है", against: hindi)
+        let report = TranscriptionReport(label: "probe", scores: [score])
+        #expect(report.outputWordErrorRate(in: .hindi)?.rate == 0)
+        #expect(report.outputWordErrorRate(in: .english) == nil)
+        let decoded = try JSONDecoder().decode(
+            PassageScore.self, from: JSONEncoder().encode(score))
+        #expect(decoded.outputWordErrorRate == score.outputWordErrorRate)
     }
 }

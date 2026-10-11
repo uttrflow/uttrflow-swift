@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "family": "code editor: command input",
+  "windowTitle": "main.swift — Sample",
+  "document": null,
+  "focused": {
+    "attributes": {
+      "AXRole": { "kind": "value", "text": "AXTextField" },
+      "AXSubrole": { "kind": "noValue" },
+      "AXIdentifier": { "kind": "unsupported" },
+      "AXTitle": { "kind": "noValue" },
+      "AXPlaceholderValue": { "kind": "value", "text": "Type a command" },
+      "AXDescription": { "kind": "noValue" },
+      "AXNumberOfCharacters": { "kind": "value", "number": 0 },
+      "AXValue": { "kind": "value", "text": "" }
+    },
+    "rangedText": { "kind": "value" },
+    "children": []
+  }
+}

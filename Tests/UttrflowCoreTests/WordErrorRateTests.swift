@@ -156,4 +156,10 @@ struct WordErrorRateTests {
         #expect(first.substitutions == 2)
         #expect(first.rate == 1)
     }
+
+    @Test("names where each reference word landed unchanged, and nothing for one rewritten or dropped")
+    func matchedColumns() {
+        #expect(measure("a b c d", "a x c e d").matchedColumns == [0, nil, 2, 4])
+        #expect(measure("a b", "b").matchedColumns == [nil, 0])
+    }
 }

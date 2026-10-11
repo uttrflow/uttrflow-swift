@@ -2,6 +2,7 @@
 
 import Foundation
 import Testing
+import UttrflowLocalModel
 import UttrflowPredict
 import UttrflowSettings
 
@@ -59,7 +60,8 @@ struct ModelDownloadTests {
         let asks = Asks()
         let sandbox = Sandbox()
         let app = AppDelegate(
-            container: sandbox.root, account: HeldSession(signedIn: true).layer,
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), account: HeldSession(signedIn: true).layer,
             prepareModel: { _ in await asks.asked() })
         app.drawsWindows = false
         app.settingsChanged(to: settings(suggesting: false))
@@ -72,7 +74,8 @@ struct ModelDownloadTests {
         let asks = Asks()
         let sandbox = Sandbox()
         let app = AppDelegate(
-            container: sandbox.root, account: HeldSession(signedIn: true).layer,
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), account: HeldSession(signedIn: true).layer,
             prepareModel: { _ in await asks.asked() })
         app.drawsWindows = false
         app.settingsChanged(to: settings(suggesting: true))
@@ -93,9 +96,11 @@ struct ModelDownloadTests {
         let asks = Asks()
         let sandbox = Sandbox()
         let app = AppDelegate(
-            container: sandbox.root, account: HeldSession(signedIn: true).layer,
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), account: HeldSession(signedIn: true).layer,
             prepareModel: { _ in await asks.asked() },
-            releaseModel: { await asks.released() })
+            releaseModel: SuggestionModelCacheOperations(
+                release: { await asks.released() }, readBytes: { nil }, removeFiles: nil))
         app.drawsWindows = false
         app.settingsChanged(to: settings(suggesting: false))
         await app.modelPreparation?.value
@@ -113,12 +118,14 @@ struct ModelDownloadTests {
         let gate = Gate()
         let sandbox = Sandbox()
         let app = AppDelegate(
-            container: sandbox.root, account: HeldSession(signedIn: true).layer,
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), account: HeldSession(signedIn: true).layer,
             prepareModel: { _ in
                 await gate.pass()
                 await asks.asked()
             },
-            releaseModel: { await asks.released() })
+            releaseModel: SuggestionModelCacheOperations(
+                release: { await asks.released() }, readBytes: { nil }, removeFiles: nil))
         app.drawsWindows = false
         app.settingsChanged(to: settings(suggesting: true))
         app.settingsChanged(to: settings(suggesting: false))
@@ -135,7 +142,8 @@ struct ModelDownloadTests {
         let gate = Gate()
         let sandbox = Sandbox()
         let app = AppDelegate(
-            container: sandbox.root, account: HeldSession(signedIn: true).layer,
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), account: HeldSession(signedIn: true).layer,
             prepareModel: { _ in
                 await gate.pass()
                 throw HubRefused()
@@ -155,7 +163,8 @@ struct ModelDownloadTests {
         let store = UserDefaultsSettingsStore(store: ModelDownloadSettingsStore())
         store.save(settings(suggesting: false))
         let app = AppDelegate(
-            container: sandbox.root, settingsStore: store,
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), settingsStore: store,
             account: HeldSession(signedIn: true).layer,
             prepareModel: { _ in
                 await asks.asked()
@@ -175,6 +184,30 @@ struct ModelDownloadTests {
         #expect(!store.load().suggestions.isEnabled, "Retry writes no setting of its own")
     }
 
+    @Test("A low-space refusal says how much is needed and can be retried after space is freed")
+    func insufficientSpaceCanBeRetried() async {
+        let asks = Asks()
+        let sandbox = Sandbox()
+        let app = AppDelegate(
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), account: HeldSession(signedIn: true).layer,
+            prepareModel: { _ in
+                await asks.asked()
+                if await asks.count == 1 {
+                    throw InsufficientModelSpace(neededBytes: 3_230_000_000)
+                }
+            })
+        app.drawsWindows = false
+        app.settingsChanged(to: settings(suggesting: true))
+        await app.modelPreparation?.value
+        #expect(app.suggestionModel == .insufficientSpace(neededBytes: 3_230_000_000))
+
+        app.carryOut(MainIntent.change(.retrySuggestionModel))
+        await app.modelPreparation?.value
+        #expect(await asks.count == 2)
+        #expect(app.suggestionModel == .ready)
+    }
+
     @Test(
         "Weights found missing by a reload are asked for again in Settings, and switching off and on fetches them."
     )
@@ -182,7 +215,8 @@ struct ModelDownloadTests {
         let asks = Asks()
         let sandbox = Sandbox()
         let app = AppDelegate(
-            container: sandbox.root, account: HeldSession(signedIn: true).layer,
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), account: HeldSession(signedIn: true).layer,
             prepareModel: { _ in await asks.asked() })
         app.drawsWindows = false
         app.suggestionModelWentMissing()
@@ -205,7 +239,8 @@ struct ModelDownloadTests {
     func progressIsReadable() async {
         let sandbox = Sandbox()
         let app = AppDelegate(
-            container: sandbox.root, account: HeldSession(signedIn: true).layer,
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), account: HeldSession(signedIn: true).layer,
             prepareModel: { report in
                 report(0.5)
                 report(1)

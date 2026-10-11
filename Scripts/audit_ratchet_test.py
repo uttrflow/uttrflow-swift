@@ -9,6 +9,9 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
+
+import coverage_report
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -167,10 +170,9 @@ class ExclusionSizeTests(unittest.TestCase):
         """Moves the recorded size of the file by `delta`; -1 leaves the tree one line past it."""
         files = self.recorded()
         if measured:
-            sources = os.path.join(os.path.dirname(HERE), "Sources")
-            for path in files:
-                with open(os.path.join(sources, path), encoding="utf-8") as handle:
-                    files[path] = len(handle.read().splitlines())
+            # Every oversized exclusion in the tree, so one main has not recorded yet reads as no rise.
+            sources = Path(os.path.dirname(HERE)) / "Sources"
+            files = coverage_report.oversized_sizes(coverage_report.line_counts(sources))
         files[self.PATH] += delta
         with open(self.baseline, "w") as handle:
             json.dump({"total": sum(files.values()), "files": files}, handle)

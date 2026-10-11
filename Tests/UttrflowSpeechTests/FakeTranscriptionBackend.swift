@@ -100,3 +100,10 @@ final class UnbiasableBackend: TranscriptionBackend {
 
     var transcriptions: Int { heard.withLock { $0 } }
 }
+
+extension Array where Element == Float {
+    /// Speech-level samples that swing about zero: loudness is measured about a frame's mean, so a constant level is silence.
+    static func voiced(count: Int) -> [Float] {
+        (0..<count).map { $0.isMultiple(of: 2) ? 0.1 : -0.1 }
+    }
+}

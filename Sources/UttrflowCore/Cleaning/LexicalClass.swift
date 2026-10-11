@@ -46,12 +46,21 @@ public enum LexicalClass {
         return named
     }
 
-    /// Whether the English model has a dictionary form for this one word: "inbox" yes, "pgvector" no.
+    /// Whether the English model has a dictionary form for this one word: "inbox" yes, "pgvector" no. Not ordinary; see Docs/ordinary-words.md.
     public static func isKnownEnglishWord(_ word: String) -> Bool {
         let tagger = NLTagger(tagSchemes: [.lemma])
         tagger.string = word
         tagger.setLanguage(.english, range: word.startIndex..<word.endIndex)
         return tagger.tag(at: word.startIndex, unit: .word, scheme: .lemma).0 != nil
+    }
+
+    /// Whether the English model's dictionary form of this one word is capitalised, as "Delhi" for "delhi": a name.
+    public static func isNameInDictionary(_ word: String) -> Bool {
+        let tagger = NLTagger(tagSchemes: [.lemma])
+        tagger.string = word
+        tagger.setLanguage(.english, range: word.startIndex..<word.endIndex)
+        let lemma = tagger.tag(at: word.startIndex, unit: .word, scheme: .lemma).0?.rawValue
+        return lemma?.first?.isUppercase == true
     }
 
     /// The class of every word in `words`, read as one sentence with one tagger.

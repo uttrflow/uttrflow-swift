@@ -12,9 +12,9 @@ struct CodeMixMatrixTests {
         .deletingLastPathComponent().deletingLastPathComponent()
         .appendingPathComponent("Docs/code-mixing-matrix.md")
 
-    @Test("gives every English-frame cell at least the covered floor of cases")
-    func englishFrameIsCovered() {
-        for row in CodeMixMatrix().rows where row.cell.frame == .english {
+    @Test("gives every cell at least the covered floor of cases")
+    func everyCellIsCovered() {
+        for row in CodeMixMatrix().rows {
             #expect(row.isCovered, "\(row.cell) has \(row.caseIDs.count) cases")
         }
     }

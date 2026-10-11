@@ -13,9 +13,9 @@ public enum WaitLine {
         guard waited >= stageAfter else { return nil }
         switch state {
         case .transcribing: return "Transcribing"
-        case .tidying: return "Tidying"
+        case .tidying: return "Cleaning up"
         case .inserting(let app): return "Waiting for \(app ?? "the app")"
-        case .idle, .recording, .inserted, .failed: return nil
+        case .idle, .recording, .inserted, .failed, .executed, .discarded: return nil
         }
     }
 

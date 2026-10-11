@@ -1,6 +1,7 @@
 // Tests that every reset row asks a question exactly when SettingsReset says it must.
 import Testing
 
+import UttrflowCore
 import UttrflowSettings
 @testable import UttrflowUX
 
@@ -29,7 +30,8 @@ struct SettingsConfirmationRuleTests {
 
         // Every case is drawn somewhere, or the check below proves nothing.
         for reset in [
-            SettingsReset.learnedWords, .everything, .suggestions(inApplication: "com.apple.dt.Xcode"),
+            SettingsReset.learnedWords, .everything,
+            .suggestions(inApplication: ApplicationKey.of("com.apple.dt.Xcode")),
         ] {
             #expect(
                 removals.contains { $0.reset == reset },

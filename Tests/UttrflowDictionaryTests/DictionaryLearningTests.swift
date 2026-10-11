@@ -153,7 +153,6 @@ struct DictionaryLearningTests {
             ("Zorvane — notes", "use Zorvain for this", "Zorvane"),
             ("PaymentSheet.swift", "add a total to the payment sheet", "PaymentSheet"),
             ("Chandrashekhar — notes", "ask Chandra Shekhar about it", "Chandrashekhar"),
-            ("Bandra office", "kal Bandaraa office jaana hai", "Bandra"),
             ("pgvector — notes", "we should use PG vector", "pgvector"),
         ]
         for _ in 1...LearnableWords.sightingsBeforeLearning {

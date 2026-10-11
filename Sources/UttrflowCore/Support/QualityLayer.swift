@@ -28,6 +28,19 @@ public enum QualityLayer: String, Sendable, CaseIterable {
         }
     }
 
+    /// The layers whose output this one reads, so switching either off changes what this one is given.
+    public var inputs: [QualityLayer] {
+        switch self {
+        case .personaVocabulary: []
+        case .recogniserBias: [.personaVocabulary]
+        case .evidenceCapture: [.recogniserBias]
+        case .candidateGeneration: [.evidenceCapture]
+        case .scoring: [.evidenceCapture, .candidateGeneration]
+        case .overrideGate: [.candidateGeneration, .scoring]
+        case .formatting: [.recogniserBias, .overrideGate]
+        }
+    }
+
     /// What the layer does, in one line, for Diagnostics and the bake-off header.
     public var summary: String {
         switch self {
@@ -64,6 +77,18 @@ public struct QualityLayers: Sendable, Equatable {
             let removed = without.map(parse) ?? []
         else { return nil }
         return QualityLayers(enabled: kept.subtracting(removed))
+    }
+
+    /// Each default-on layer switched off alone, then with each default-on layer it reads, in declaration order.
+    public static var degradedPaths: [[QualityLayer]] {
+        let defaults = QualityLayer.allCases.filter(\.defaultOn)
+        let alone = defaults.map { [$0] }
+        let pairs = defaults.flatMap { layer in
+            layer.inputs.filter(\.defaultOn).map { input in defaults.filter { $0 == input || $0 == layer } }
+        }
+        return (alone + pairs).reduce(into: []) { paths, path in
+            if !paths.contains(path) { paths.append(path) }
+        }
     }
 
     /// Whether `layer` runs.

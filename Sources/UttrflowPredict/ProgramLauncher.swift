@@ -51,7 +51,8 @@ public struct SpawnedProgramLauncher: ProgramLaunching {
     /// Runs `launch` off the cooperative pool, since waiting on a child is blocking work.
     public func output(of launch: ProgramLaunch) async -> String? {
         await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .utility).async {
+            // A queue of its own gets a thread at once, where a busy shared pool could leave the run unstarted for minutes.
+            DispatchQueue(label: "com.uttrflow.predict.program-launch", qos: .utility).async {
                 continuation.resume(returning: run(launch))
             }
         }

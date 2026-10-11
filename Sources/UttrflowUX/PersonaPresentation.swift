@@ -12,6 +12,10 @@ public enum PersonaFact: Sendable, Hashable {
     case style(Destination)
     /// Words heard but not yet learned, which the ledger keeps without their spelling.
     case noticedWords
+    /// A heard-to-meant pair the correction gate weighs, named by its ledger subject.
+    case pair(String)
+    /// A respelling the user's edits taught between two spellings of one listed word, named by its ledger subject.
+    case spelling(String)
 
     /// The rows removing this fact deletes; one fact never reaches another fact's rows.
     var kinds: Set<EvidenceRow.Kind> {
@@ -19,6 +23,8 @@ public enum PersonaFact: Sendable, Hashable {
         case .word: [.use, .revert, .restore]
         case .style: [.styleMessage, .styleWords, .styleSentences, .styleShortMessage, .styleClosingStop]
         case .noticedWords: [.sighting]
+        case .pair: [.pairConfirmed, .pairVetoed, .pairAllowed, .pairRetried]
+        case .spelling: [.spellingPreference, .spellingPreferenceCleared]
         }
     }
 
@@ -28,6 +34,7 @@ public enum PersonaFact: Sendable, Hashable {
         case .word(let id): id.uuidString
         case .style(let destination): destination.rawValue
         case .noticedWords: nil
+        case .pair(let subject), .spelling(let subject): subject
         }
     }
 }
@@ -44,15 +51,17 @@ public struct PersonaItem: Sendable, Equatable, Identifiable {
         case .word(let id): "word.\(id.uuidString)"
         case .style(let destination): "style.\(destination.rawValue)"
         case .noticedWords: "noticed"
+        case .pair(let subject): "pair.\(subject)"
+        case .spelling(let subject): "spelling.\(subject)"
         }
     }
 }
 
 /// Projects ledger rows into the list; it reports sums of recorded rows and infers nothing further.
 enum PersonaProfile {
-    /// Words first, most used first, then each kind of place, then words still being watched.
+    /// Words first, most used first, then each kind of place, then words still being watched, then pairs and respellings.
     static func items(from rows: [EvidenceRow], entries: [DictionaryEntry]) -> [PersonaItem] {
-        words(rows, entries) + styles(rows) + noticed(rows)
+        words(rows, entries) + styles(rows) + noticed(rows) + pairs(rows) + spellings(rows)
     }
 
     private static func words(_ rows: [EvidenceRow], _ entries: [DictionaryEntry]) -> [PersonaItem] {
@@ -95,7 +104,7 @@ enum PersonaProfile {
             }
             return PersonaItem(
                 fact: .style(destination),
-                title: "Writing in \(lowercasedFirst(SettingsDestinations.title(of: destination)))",
+                title: "Writing in \(SettingsDestinations.phrase(of: destination))",
                 detail: parts.joined(separator: ", "))
         }
     }
@@ -112,14 +121,62 @@ enum PersonaProfile {
         ]
     }
 
+    /// One item per heard-to-meant pair with any row, counting the separate days it was kept and undone.
+    private static func pairs(_ rows: [EvidenceRow]) -> [PersonaItem] {
+        var kept: [String: Set<Int>] = [:]
+        var undone: [String: Set<Int>] = [:]
+        var subjects: Set<String> = []
+        for row in rows {
+            switch row.kind {
+            case .pairConfirmed: kept[row.subject, default: []].insert(row.day)
+            case .pairVetoed: undone[row.subject, default: []].insert(row.day)
+            case .pairAllowed, .pairRetried: break
+            default: continue
+            }
+            subjects.insert(row.subject)
+        }
+        return subjects.sorted().compactMap { subject in
+            guard let sides = sides(of: subject) else { return nil }
+            var parts: [String] = []
+            if let days = kept[subject] { parts.append("kept on \(counted(days.count, "day", "days"))") }
+            if let days = undone[subject] { parts.append("undone on \(counted(days.count, "day", "days"))") }
+            let detail = parts.isEmpty ? "allowed again after being undone" : parts.joined(separator: ", ")
+            return PersonaItem(
+                fact: .pair(subject), title: "Heard \(sides.0), meant \(sides.1)",
+                detail: detail.prefix(1).uppercased() + detail.dropFirst())
+        }
+    }
+
+    /// One item per respelling that edits taught and the user has not deleted, with the days it was seen on.
+    private static func spellings(_ rows: [EvidenceRow]) -> [PersonaItem] {
+        var days: [String: Set<Int>] = [:]
+        var cleared: [String: Int] = [:]
+        for row in rows {
+            switch row.kind {
+            case .spellingPreference where row.weight > 0: days[row.subject, default: []].insert(row.day)
+            case .spellingPreferenceCleared: cleared[row.subject] = max(cleared[row.subject] ?? .min, row.day)
+            default: continue
+            }
+        }
+        return days.keys.sorted().compactMap { subject in
+            let live = (days[subject] ?? []).filter { $0 > (cleared[subject] ?? .min) }
+            guard !live.isEmpty, let sides = sides(of: subject) else { return nil }
+            return PersonaItem(
+                fact: .spelling(subject), title: "Writing \(sides.1) for \(sides.0)",
+                detail: "Seen on \(counted(live.count, "day", "days")) in your edits")
+        }
+    }
+
+    /// The two words a pair subject joins with `>`, or `nil` for a subject of another shape.
+    private static func sides(of subject: String) -> (String, String)? {
+        let parts = subject.split(separator: ">", omittingEmptySubsequences: false)
+        guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty else { return nil }
+        return (String(parts[0]), String(parts[1]))
+    }
+
     private static func times(_ count: Int) -> String { count == 1 ? "once" : "\(count) times" }
 
     private static func counted(_ count: Int, _ singular: String, _ plural: String) -> String {
         "\(count) \(count == 1 ? singular : plural)"
-    }
-
-    private static func lowercasedFirst(_ text: String) -> String {
-        guard let first = text.first else { return text }
-        return first.lowercased() + text.dropFirst()
     }
 }

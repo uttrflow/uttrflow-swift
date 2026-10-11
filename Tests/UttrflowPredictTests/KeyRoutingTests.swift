@@ -1,4 +1,5 @@
 import Testing
+import UttrflowCore
 
 @testable import UttrflowPredict
 
@@ -209,15 +210,16 @@ struct SelectionKeyRoutingTests {
 
 @Suite("The escape ladder")
 struct DismissKeyRoutingTests {
-    @Test("Escape minimises what is on screen.")
-    func escapeMinimises() {
-        #expect(decide(KeyStroke(.escape), showing: one) == .dismiss(.minimise))
-        #expect(decide(KeyStroke(.escape), showing: several) == .dismiss(.minimise))
+    @Test("Escape minimises what is on screen and is still handed to the application.")
+    func escapeMinimisesAndPassesThrough() {
+        #expect(decide(KeyStroke(.escape), showing: one) == .dismissAndPassThrough(.minimise))
+        #expect(decide(KeyStroke(.escape), showing: several) == .dismissAndPassThrough(.minimise))
     }
 
-    @Test("Escape again, with only the dot left, silences the field.")
-    func escapeTwiceSilencesTheField() {
-        #expect(decide(KeyStroke(.escape), showing: .minimised) == .dismiss(.silenceField))
+    @Test("A dot never claims a bare Escape, so a second press is the application's alone.")
+    func theDotNeverClaimsEscape() {
+        #expect(decide(KeyStroke(.escape), showing: .minimised) == .passThrough)
+        #expect(!KeyRouting.arming(showing: .minimised).contains(.escape))
     }
 
     @Test("Option-Escape turns the whole feature off, from either rung.")
@@ -258,7 +260,7 @@ struct DismissKeyRoutingTests {
         #expect(decide(KeyStroke(.tab), showing: .minimised) == .passThrough)
         #expect(decide(KeyStroke(.downArrow, modifiers: .option), showing: .minimised) == .passThrough)
         #expect(decide(KeyStroke(.return), showing: .minimised) == .passThrough)
-        #expect(KeyRouting.arming(showing: .minimised) == [.escape, .optionEscape])
+        #expect(KeyRouting.arming(showing: .minimised) == [.optionEscape])
     }
 }
 

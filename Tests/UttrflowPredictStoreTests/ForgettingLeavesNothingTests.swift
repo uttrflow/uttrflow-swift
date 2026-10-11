@@ -92,7 +92,7 @@ struct ForgettingLeavesNothingTests {
         try await store.record(line, in: Self.surface(), at: Self.moment)
         try await store.forget(line, in: Self.surface())
 
-        try await store.record(line, in: Self.surface(), selfSourced: true, at: Self.moment)
+        try await store.record(line, in: Self.surface(), as: .suggestion, at: Self.moment)
         #expect(try await store.candidates(for: Self.surface(), matching: "git p").isEmpty)
         #expect(!bytesOnDisk(corpus.path).contains(Data(Self.marker.utf8)))
 
@@ -104,12 +104,15 @@ struct ForgettingLeavesNothingTests {
     func forgottenUnderTheSharedKey() async throws {
         let corpus = Corpus()
         let keys = EncryptedStore(keys: FixedKeys(value: SymmetricKey(size: .bits256)))
-        let store = try PredictStore(path: corpus.path, encryptedStore: keys)
         let line = "git push \(Self.marker)"
-        try await store.record(line, in: Self.surface("/one"), at: Self.moment)
-        try await store.record(line, in: Self.surface("/two"), at: Self.moment)
+        // The first store is released before reopening, since an encrypted corpus has one open store.
+        do {
+            let store = try PredictStore(path: corpus.path, encryptedStore: keys)
+            try await store.record(line, in: Self.surface("/one"), at: Self.moment)
+            try await store.record(line, in: Self.surface("/two"), at: Self.moment)
 
-        try await store.forget(line, in: Self.surface("/one"))
+            try await store.forget(line, in: Self.surface("/one"))
+        }
 
         let reopened = try PredictStore(path: corpus.path, encryptedStore: keys)
         #expect(try await reopened.candidates(for: Self.surface("/one"), matching: "git p").isEmpty)

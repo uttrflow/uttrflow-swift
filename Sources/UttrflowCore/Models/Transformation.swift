@@ -61,22 +61,26 @@ public struct TransformationResult: Sendable, Equatable {
     public let cleaning: CleaningRecord?
     /// The dictionary entries whose spelling the model wrote for a doubtful run, counted used like a correction's.
     public let entriesTaken: [UUID]
+    /// Where each pass changed the written words, read from the draft's edit chains; nil where no draft was kept, as on the model path.
+    public let changeLedger: [ChangeLedgerEntry]?
 
     /// A result tagged with its producer and, where one was kept, the record of the steps.
     public init(
         text: String, producedBy: TransformerKind, cleaning: CleaningRecord? = nil,
-        entriesTaken: [UUID] = []
+        entriesTaken: [UUID] = [], changeLedger: [ChangeLedgerEntry]? = nil
     ) {
         self.text = text
         self.producedBy = producedBy
         self.cleaning = cleaning
         self.entriesTaken = entriesTaken
+        self.changeLedger = changeLedger
     }
 
     /// The same result, carrying a record that says what was refused on the way to it.
     public func recording(_ cleaning: CleaningRecord?) -> TransformationResult {
         TransformationResult(
-            text: text, producedBy: producedBy, cleaning: cleaning, entriesTaken: entriesTaken)
+            text: text, producedBy: producedBy, cleaning: cleaning, entriesTaken: entriesTaken,
+            changeLedger: changeLedger)
     }
 }
 

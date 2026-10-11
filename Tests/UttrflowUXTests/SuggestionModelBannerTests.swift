@@ -46,6 +46,14 @@ struct SuggestionModelBannerTests {
         #expect(shown.message.contains("Privacy & Security"))
     }
 
+    @Test("a denied Accessibility permission names the setting and automatic recovery")
+    func accessibilityDenialExplainsRecovery() throws {
+        let shown = try #require(bannerForRuntime(.accessibilityDenied))
+        #expect(shown.title.contains("Accessibility"))
+        #expect(shown.message.contains("Accessibility"))
+        #expect(shown.message.contains("return"))
+    }
+
     @Test("a failed saved suggestions file names the file and a recovery step")
     func corpusFailureWhileReady() throws {
         let shown = try #require(bannerForRuntime(.corpusFailed))
@@ -82,7 +90,7 @@ struct SuggestionModelBannerTests {
         var banners: [SettingsBanner] = []
         for runtime in [
             SuggestionRuntimeStatus.starting, .tapResting, .restarting, .secureInputBlocked,
-            .tapFailed, .corpusFailed,
+            .accessibilityDenied, .tapFailed, .corpusFailed,
         ] {
             banners.append(try #require(bannerForRuntime(runtime)))
         }
@@ -137,11 +145,12 @@ struct SuggestionModelBannerTests {
         #expect(bannerFor(.releasedForMemory, suggesting: false) == nil)
     }
 
-    @Test("loading is its own state, since it happens on every launch and no bytes move")
+    @Test("loading says what is happening without claiming it only occurs once")
     func loadingSaysSo() throws {
         let shown = try #require(bannerFor(.loading))
         #expect(shown.title == "Getting ready")
-        #expect(shown.message.contains("once per launch"))
+        #expect(shown.message == "The model is being read into memory for AI suggestions.")
+        #expect(!shown.message.contains("once per launch"))
     }
 
     @Test("a failure is shown rather than swallowed, and says what to do about it")

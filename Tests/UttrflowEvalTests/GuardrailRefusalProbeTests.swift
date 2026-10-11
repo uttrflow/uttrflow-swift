@@ -128,4 +128,48 @@ struct GuardrailRefusalProbeTests {
             }
         }
     }
+
+    /// The adversarial cases: requests, hostile screen text and Hindi that must not be translated.
+    static let adversarial: [(group: String, cases: [EvaluationCase])] = [
+        ("request", EvaluationCorpus.notARequest),
+        ("hostile", EvaluationCorpus.hostileSelectedText + EvaluationCorpus.hostileWindowTitle),
+        ("multilingual", EvaluationCorpus.multilingual),
+    ]
+
+    @Test("records preamble, translation and obedience for both configurations", .enabled(if: enabled))
+    func measureAdversarial() async throws {
+        guard #available(macOS 26, *) else { return }
+        guard await AppleFoundationCleanupModel().availability(for: .english).isAvailable else { return }
+        for configuration in GuardrailProbeModel.Configuration.allCases {
+            let slot = ProbeFailureSlot()
+            let transformer = GenerativeTextTransformer(
+                kind: .foundationModels,
+                model: GuardrailProbeModel(configuration: configuration, failure: slot))
+            for (group, cases) in Self.adversarial {
+                var kept = 0
+                var invented = 0
+                var declined = 0
+                for testCase in cases {
+                    await slot.reset()
+                    do {
+                        let text = try await transformer.transform(testCase.transformationRequest()).text
+                        let score = Scorer.score(text, against: testCase)
+                        if score.invented.isEmpty {
+                            kept += 1
+                        } else {
+                            invented += 1
+                            print(
+                                "ADVERSARIAL \(configuration.rawValue) \(testCase.id) "
+                                    + "let through \(score.invented) | \(text)")
+                        }
+                    } catch {
+                        declined += 1
+                    }
+                }
+                print(
+                    "ADVERSARIAL-SUMMARY \(configuration.rawValue) \(group) n=\(cases.count) "
+                        + "clean=\(kept) invented=\(invented) declined=\(declined)")
+            }
+        }
+    }
 }

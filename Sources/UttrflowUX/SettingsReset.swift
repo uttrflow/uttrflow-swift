@@ -4,6 +4,7 @@ import struct Foundation.Date
 public import UttrflowDictionary
 public import UttrflowHistory
 public import UttrflowClipboard
+import UttrflowSettings
 
 // MARK: - What can be undone
 
@@ -13,6 +14,8 @@ public enum SettingsReset: Sendable, Equatable, Hashable {
     case learnedWords
     /// Everything, back to a fresh install.
     case everything
+    /// The clipboard history alone; pinned, named and filed clips and everything else stay.
+    case clipboardHistory
     /// Every completion learned in one application, offered beside that application in the list.
     case suggestions(inApplication: String)
     /// Everything the evidence ledger records about this user; declarations such as the dictionary stay.
@@ -33,6 +36,8 @@ public enum SettingsResetTarget: Sendable, Equatable {
     case preferences
     /// Everything the clipboard kept, which is a separate file holding a copy of every dictation.
     case clipboard
+    /// The clipboard history, sparing every pinned, named and filed clip.
+    case clipboardHistory
     /// Every completion one application taught, leaving every other application's.
     case suggestions(inApplication: String)
     /// Every completion there is, which a fresh install has none of.
@@ -43,6 +48,8 @@ public enum SettingsResetTarget: Sendable, Equatable {
     case snippets
     /// Every answer about which applications completions may learn from.
     case suggestionConsent
+    /// The downloaded suggestion model and its cache files.
+    case suggestionModel
     /// Every observation the app recorded about how this user speaks, which a fresh install has none of.
     case evidence
     /// The rows behind one persona fact.
@@ -57,8 +64,9 @@ extension SettingsReset {
         case .everything:
             [
                 .everyWord, .history, .clipboard, .everySuggestion, .recordings, .snippets,
-                .suggestionConsent, .evidence, .preferences,
+                .suggestionConsent, .suggestionModel, .evidence, .preferences,
             ]
+        case .clipboardHistory: [.clipboardHistory]
         case .suggestions(let application): [.suggestions(inApplication: application)]
         case .persona: [.evidence]
         case .personaFact(let fact): [.evidenceFact(fact)]
@@ -72,8 +80,12 @@ extension SettingsReset {
     public var meetsADictation: Bool {
         targets.contains { target in
             switch target {
-            case .learnedWords, .everyWord, .history, .clipboard, .recordings, .evidence, .evidenceFact: true
-            case .preferences, .suggestions, .everySuggestion, .snippets, .suggestionConsent: false
+            case .learnedWords, .everyWord, .history, .clipboard, .clipboardHistory, .recordings,
+                .evidence, .evidenceFact:
+                true
+            case .preferences, .suggestions, .everySuggestion, .snippets, .suggestionConsent,
+                .suggestionModel:
+                false
             }
         }
     }
@@ -82,7 +94,7 @@ extension SettingsReset {
     public var isConfirmed: Bool {
         switch self {
         case .learnedWords, .personaFact: false
-        case .everything, .suggestions, .persona: true
+        case .everything, .clipboardHistory, .suggestions, .persona: true
         }
     }
 }
@@ -100,8 +112,11 @@ public struct SettingsPersonalisation: Sendable, Equatable {
     /// Transcripts still inside the retention window, which is all there are to see.
     public let transcripts: Int
 
-    /// The app the last dictation went into; the frontmost one, while Settings is open, is Uttrflow.
-    public let lastDictationApp: SettingsApp?
+    /// Every app kept history went into, newest first and one per app; the frontmost one, while Settings is open, is Uttrflow.
+    public let recentDictationApps: [SettingsApp]
+
+    /// Apps no table row names, most dictated first, read from the history so it is cleared with it.
+    public let plainTextApps: [PlainTextApp]
 
     /// How many completions each application has taught, keyed by bundle identifier.
     public let suggestions: [String: Int]
@@ -114,19 +129,25 @@ public struct SettingsPersonalisation: Sendable, Equatable {
     /// What the evidence ledger records about this user, one removable item per fact.
     public let persona: [PersonaItem]
 
+    /// What each store occupies on this Mac, from the size of its files.
+    public let storage: [LocalStoreUsage]
+
     /// Takes the counts as given, lower-casing bundle identifiers so a lookup cannot miss.
     public init(
         learnedWords: Int, addedWords: Int, transcripts: Int,
-        lastDictationApp: SettingsApp? = nil, suggestions: [String: Int] = [:],
+        recentDictationApps: [SettingsApp] = [], plainTextApps: [PlainTextApp] = [],
+        suggestions: [String: Int] = [:],
         met: Set<String> = [], network: [NetworkPurpose: NetworkTally] = [:],
-        persona: [PersonaItem] = []
+        persona: [PersonaItem] = [], storage: [LocalStoreUsage] = []
     ) {
+        self.plainTextApps = plainTextApps
+        self.storage = storage
         self.persona = persona
         self.network = network
         self.learnedWords = learnedWords
         self.addedWords = addedWords
         self.transcripts = transcripts
-        self.lastDictationApp = lastDictationApp
+        self.recentDictationApps = recentDictationApps
         self.suggestions = suggestions.reduce(into: [:]) { $0[ApplicationKey.of($1.key)] = $1.value }
         self.met = Set(met.map { $0.lowercased() })
     }
@@ -143,16 +164,18 @@ public struct SettingsPersonalisation: Sendable, Equatable {
 
     /// Counts a dictionary as it stands; a shipped word is neither learned nor the user's, so it is neither here.
     public init(
-        entries: [DictionaryEntry], transcripts: Int, lastDictationApp: SettingsApp? = nil,
+        entries: [DictionaryEntry], transcripts: Int, recentDictationApps: [SettingsApp] = [],
+        plainTextApps: [PlainTextApp] = [],
         suggestions: [String: Int] = [:], met: Set<String> = [],
-        network: [NetworkPurpose: NetworkTally] = [:], persona: [PersonaItem] = []
+        network: [NetworkPurpose: NetworkTally] = [:], persona: [PersonaItem] = [],
+        storage: [LocalStoreUsage] = []
     ) {
         self.init(
             learnedWords: entries.count(where: { $0.origin == .learned || $0.origin == .observed }),
             addedWords: entries.count(where: { $0.origin == .added }),
             transcripts: transcripts,
-            lastDictationApp: lastDictationApp, suggestions: suggestions, met: met, network: network,
-            persona: persona)
+            recentDictationApps: recentDictationApps, plainTextApps: plainTextApps,
+            suggestions: suggestions, met: met, network: network, persona: persona, storage: storage)
     }
 
     /// A fresh install, and what a window shows before it has asked.
@@ -202,6 +225,7 @@ public struct KeptElsewhere: Sendable {
     let recordings: @Sendable () async throws -> Void
     let snippets: @Sendable () async throws -> Void
     let suggestionConsent: @Sendable () async throws -> Void
+    let suggestionModel: @Sendable () async throws -> Void
     let revokeEncryptionKey: @Sendable () async throws -> Void
 
     /// Each closure defaults to doing nothing, for a build or a test that keeps none of these.
@@ -209,11 +233,13 @@ public struct KeptElsewhere: Sendable {
         recordings: @escaping @Sendable () async throws -> Void = {},
         snippets: @escaping @Sendable () async throws -> Void = {},
         suggestionConsent: @escaping @Sendable () async throws -> Void = {},
+        suggestionModel: @escaping @Sendable () async throws -> Void = {},
         revokeEncryptionKey: @escaping @Sendable () async throws -> Void = {}
     ) {
         self.recordings = recordings
         self.snippets = snippets
         self.suggestionConsent = suggestionConsent
+        self.suggestionModel = suggestionModel
         self.revokeEncryptionKey = revokeEncryptionKey
     }
 }
@@ -230,6 +256,8 @@ public struct FilePersonalisationStore: SettingsPersonalisationStore {
     private let ledger: NetworkActivityLedger
     /// Absent when the app has no encryption, since the ledger is never written in plain text.
     private let evidence: EvidenceLedgerStore?
+    /// Reads what each store occupies on disk through a closure, so a test needs no Application Support folder.
+    private let storage: @Sendable () -> [LocalStoreUsage]
 
     /// The corpus is optional: a build with tab-to-complete unwired has none to reach.
     public init(
@@ -240,8 +268,10 @@ public struct FilePersonalisationStore: SettingsPersonalisationStore {
         met: @escaping @Sendable () -> Set<String> = { [] },
         elsewhere: KeptElsewhere = KeptElsewhere(),
         ledger: NetworkActivityLedger,
-        evidence: EvidenceLedgerStore? = nil
+        evidence: EvidenceLedgerStore? = nil,
+        storage: @escaping @Sendable () -> [LocalStoreUsage] = { [] }
     ) {
+        self.storage = storage
         self.ledger = ledger
         self.evidence = evidence
         self.dictionary = dictionary
@@ -263,19 +293,51 @@ public struct FilePersonalisationStore: SettingsPersonalisationStore {
         return await SettingsPersonalisation(
             entries: entries,
             transcripts: kept.count,
-            lastDictationApp: Self.lastApp(in: kept),
+            recentDictationApps: Self.recentApps(in: kept),
+            plainTextApps: Self.plainTextApps(in: kept),
             suggestions: suggestions?.learnedSuggestions() ?? [:],
             met: met(), network: ledger.activity().tallies(at: Date()),
-            persona: PersonaProfile.items(from: rows, entries: entries))
+            persona: PersonaProfile.items(from: rows, entries: entries), storage: storage())
     }
 
-    /// The most recent dictation that named the app it went into, which is the app an override is about.
-    static func lastApp(in records: [DictationRecord]) -> SettingsApp? {
-        let named = records.filter { $0.applicationIdentifier?.isEmpty == false }
-        guard let latest = named.max(by: { $0.when < $1.when }),
-            let bundle = latest.applicationIdentifier
-        else { return nil }
-        return SettingsApp(bundleIdentifier: bundle, name: latest.applicationName)
+    /// Each app a kept dictation named, newest use first, under the name its newest named record gave it.
+    static func recentApps(in records: [DictationRecord]) -> [SettingsApp] {
+        var apps: [SettingsApp] = []
+        var index: [String: Int] = [:]
+        for record in records.sorted(by: { $0.when > $1.when }) {
+            guard let bundle = record.applicationIdentifier, !bundle.isEmpty else { continue }
+            let name = record.applicationName.flatMap { $0.isEmpty ? nil : $0 }
+            if let at = index[ApplicationKey.of(bundle)] {
+                if apps[at].name == nil, let name {
+                    apps[at] = SettingsApp(bundleIdentifier: apps[at].bundleIdentifier, name: name)
+                }
+                continue
+            }
+            index[ApplicationKey.of(bundle)] = apps.count
+            apps.append(SettingsApp(bundleIdentifier: bundle, name: name))
+        }
+        return apps
+    }
+
+    /// Each named app no table row covers, counted by dictation and called by its latest name, most dictated first.
+    static func plainTextApps(in records: [DictationRecord]) -> [PlainTextApp] {
+        var latest: [String: DictationRecord] = [:]
+        var counts: [String: Int] = [:]
+        for record in records {
+            guard let bundle = record.applicationIdentifier, !bundle.isEmpty else { continue }
+            let key = ApplicationKey.of(bundle)
+            counts[key, default: 0] += 1
+            if latest[key].map({ $0.when <= record.when }) ?? true { latest[key] = record }
+        }
+        return latest.values.compactMap { record -> PlainTextApp? in
+            guard let bundle = record.applicationIdentifier else { return nil }
+            let app = AppContext(applicationName: record.applicationName, bundleIdentifier: bundle)
+            guard DestinationClassifier.rule(for: app) == nil else { return nil }
+            return PlainTextApp(
+                app: SettingsApp(bundleIdentifier: bundle, name: record.applicationName),
+                dictations: counts[ApplicationKey.of(bundle)] ?? 0)
+        }
+        .sorted { ($1.dictations, $0.app.title.lowercased()) < ($0.dictations, $1.app.title.lowercased()) }
     }
 
     /// Hands each of the level's targets to the store that owns it.
@@ -300,12 +362,17 @@ public struct FilePersonalisationStore: SettingsPersonalisationStore {
         case .history: try await history.deleteEverything()
         // `forgetEverything` takes pinned clips too, which is what a fresh install means.
         case .clipboard: try await clipboard.forgetEverything()
+        // The window is the longest there is, so only the history goes and the age of a clip decides nothing.
+        case .clipboardHistory:
+            _ = try await clipboard.deleteEverything(
+                keeping: ClipRetention(days: Settings.keepAlwaysDays, now: Date()))
         case .suggestions(let application):
             try await suggestions?.forgetSuggestions(from: application)
         case .everySuggestion: try await suggestions?.forgetEverySuggestion()
         case .recordings: try await elsewhere.recordings()
         case .snippets: try await elsewhere.snippets()
         case .suggestionConsent: try await elsewhere.suggestionConsent()
+        case .suggestionModel: try await elsewhere.suggestionModel()
         case .evidence: try await evidence?.reset()
         case .evidenceFact(let fact):
             if let subject = fact.subject {

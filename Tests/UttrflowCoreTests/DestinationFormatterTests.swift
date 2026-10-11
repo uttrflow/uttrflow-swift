@@ -168,6 +168,42 @@ struct DestinationFormatterTests {
         #expect(DestinationFormatter.standard(for: situation).terminalStop == .never)
     }
 
+    private static func email(label: String?, multiline: Bool?) -> DestinationFormatter {
+        let app = AppContext(accessibilityRole: "AXTextField", isMultiline: multiline, fieldLabel: label)
+        return DestinationFormatter.standard(
+            for: Situation(app: app, insertion: .unknown, destination: .email))
+    }
+
+    @Test("an email recipient field keeps its words as spoken on one line, with no stop")
+    func emailRecipient() {
+        for label in ["To", "Cc", "Bcc", "Recipients"] {
+            let formatter = Self.email(label: label, multiline: false)
+            #expect(formatter.firstWord == .asSpoken, "\(label)")
+            #expect(formatter.terminalStop == .never, "\(label)")
+            #expect(formatter.layout == .singleLine, "\(label)")
+        }
+    }
+
+    @Test("an email subject field is one capitalised line with no stop")
+    func emailSubject() {
+        let formatter = Self.email(label: "Subject", multiline: false)
+        #expect(formatter.firstWord == .fromInsertionPoint)
+        #expect(formatter.terminalStop == .never)
+        #expect(formatter.layout == .singleLine)
+    }
+
+    @Test("an email body keeps the email policy, and an unlabelled one-line field abstains to plain one-line")
+    func emailBodyAndUnlabelled() {
+        let body = DestinationFormatter.standard(
+            for: Situation(
+                app: AppContext(isMultiline: true, fieldLabel: "Message body"), insertion: .unknown,
+                destination: .email))
+        #expect(body == DestinationFormatter.standard(for: .email))
+        let unlabelled = Self.email(label: nil, multiline: false)
+        #expect(unlabelled.terminalStop == .offForShortMessages(sentences: 1))
+        #expect(unlabelled.firstWord == .fromInsertionPoint)
+    }
+
     private static func codeEditor(document: String, before: String) -> DestinationFormatter {
         let app = AppContext(documentName: document)
         let insertion = InsertionPoint(precedingText: before)

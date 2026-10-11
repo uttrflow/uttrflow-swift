@@ -5,6 +5,8 @@ public import UttrflowCore
 public enum OnboardingStep: Sendable, Equatable, CaseIterable {
     /// What Uttrflow is for and who this is, on one page; nothing is offered without it.
     case signIn
+    /// That copies are kept, for how long, and the choice to keep them or not.
+    case clipboard
     /// Microphone access.
     case microphone
     /// Accessibility access.
@@ -18,10 +20,11 @@ public enum OnboardingStep: Sendable, Equatable, CaseIterable {
     public var position: Int {
         switch self {
         case .signIn: 1
-        case .microphone: 2
-        case .accessibility: 3
-        case .setup: 4
-        case .ready: 5
+        case .clipboard: 2
+        case .microphone: 3
+        case .accessibility: 4
+        case .setup: 5
+        case .ready: 6
         }
     }
 
@@ -29,6 +32,7 @@ public enum OnboardingStep: Sendable, Equatable, CaseIterable {
     public var railTitle: String {
         switch self {
         case .signIn: "Sign in"
+        case .clipboard: "Clipboard"
         case .microphone: "Microphone"
         case .accessibility: "Accessibility"
         case .setup: "Speech model"

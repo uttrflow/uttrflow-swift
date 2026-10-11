@@ -26,6 +26,7 @@ public struct HTTPTelemetrySender: TelemetrySending {
         guard let body = report.encodedForIngest() else { throw .refused(status: 400) }
         var headers = ["Content-Type": "application/json"]
         if let token = await bearer() { headers["Authorization"] = "Bearer \(token)" }
+        guard !Task.isCancelled else { throw .unreachable }
         let request = BackendRequest(
             method: .post, url: baseURL.appending(path: "v1/telemetry"), headers: headers, body: body,
             purpose: .usageStatistics)

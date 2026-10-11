@@ -68,6 +68,14 @@ struct SpokenAddressTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    /// A mark said by name after a bare host is the mark, not the noun that makes the host a company's name.
+    @Test("writes a bare host and the mark said after it in one pass")
+    func bareHostBeforeASpokenMark() {
+        let once = cleaned("example dot org comma", by: sut)
+        #expect(once == "example.org,")
+        #expect(cleaned(once, by: sut) == once)
+    }
+
     @Test("leaves a piece ending on www dot alone, with no host after it to read")
     func wwwDotAtTheEnd() {
         #expect(cleaned("the site is www dot", by: sut) == "the site is www dot")
@@ -98,6 +106,11 @@ struct SpokenAddressTests {
             "she is out at the shops",
             "the file is open at line ten",
             "the problem is right at the start",
+            "it is cold at night",
+            "dinner is ready at home",
+            "the office is quiet at lunch",
+            "the email is down at the moment",
+            "my email is sam at the office",
         ]
     )
     func leavesOrdinaryAtAlone(input: String) {
@@ -160,6 +173,7 @@ struct SpokenAddressTests {
             ("my handle is at sam underscore dev", "my handle is @sam_dev"),
             ("my handle is sam at discord", "my handle is sam@discord"),
             ("my handle is sam at example dot com", "my handle is sam@example.com"),
+            ("my email is sam at example dot com", "my email is sam@example.com"),
             ("the variable is user underscore id", "the variable is user_id"),
             ("Visit example dot com slash pricing.", "Visit example.com/pricing."),
             ("The site is example dot org slash docs slash intro.", "The site is example.org/docs/intro."),
@@ -319,6 +333,10 @@ struct SpokenAddressTests {
             ),
             ("open lib slash utils slash date underscore format dot ts", "open lib/utils/date_format.ts"),
             ("open scripts slash build dash app dot sh", "open scripts/build-app.sh"),
+            (
+                "join at meet dot example dot com slash retro dash team dash one two three and bring notes",
+                "join at meet.example.com/retro-team-123 and bring notes"
+            ),
             ("open src slash main dot rs.", "open src/main.rs."),
             (
                 "Open app slash models slash user dot rb, then run it.",
@@ -401,7 +419,7 @@ struct SpokenAddressTests {
     @Test(
         "leaves a colon that is not a reference to the clause rule",
         arguments: [
-            "the ratio is three colon one", "the ratio is two colon one", "localhost is fine",
+            "localhost is fine",
             "main dot py is long", "one dot two", "note colon the build failed", "at five colon thirty",
         ]
     )
@@ -413,11 +431,50 @@ struct SpokenAddressTests {
         "leaves ordinary slashes, dots and colons as words",
         arguments: [
             "and slash or", "he made a slash with his sword", "use a dot here", "the dot com bubble",
-            "localhost is fine", "one dot two", "the ratio is two colon one", "a slash users slash sam",
+            "localhost is fine", "one dot two", "a slash users slash sam",
         ]
     )
     func leavesOrdinaryWords(input: String) {
         #expect(cleaned(input, by: sut) == input)
+    }
+
+    @Test(
+        "writes a ratio said with colon as digits joined by the colon",
+        arguments: [
+            ("the ratio is two colon one", "the ratio is 2:1"),
+            ("the ratio is three colon one", "the ratio is 3:1"),
+            ("the aspect ratio is sixteen colon nine", "the aspect ratio is 16:9"),
+            ("mix it at a ratio of twenty one colon four", "mix it at a ratio of 21:4"),
+            ("the ratio is 3 colon 1", "the ratio is 3:1"),
+            ("ratios of one colon two colon three", "ratios of 1:2:3"),
+            ("a two colon one ratio", "a 2:1 ratio"),
+            ("the ratio is two colon one.", "the ratio is 2:1."),
+        ]
+    )
+    func writesRatios(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "keeps a ratio whole through the shipped pipeline",
+        arguments: [
+            ("the ratio is two colon one", "The ratio is 2:1."),
+            ("we shot it at a sixteen colon nine ratio", "We shot it at a 16:9 ratio."),
+        ]
+    )
+    func keepsRatioThroughPipeline(input: String, expected: String) {
+        #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "writes no ratio where no ratio word stands beside numbers joined by colon",
+        arguments: [
+            "the ratio is fine colon two of them failed", "the score was two colon one",
+            "the ratio held. two colon one", "ratio aside the score was high colon two goals",
+        ]
+    )
+    func leavesNonRatioColons(input: String) {
+        #expect(cleaned(input, by: sut).firstMatch(of: /\d:\d/) == nil)
     }
 
     /// A piece can end anywhere inside an address, so every reader stops at the piece's last word.

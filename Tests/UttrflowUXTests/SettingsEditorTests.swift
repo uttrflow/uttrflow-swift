@@ -71,6 +71,21 @@ struct SettingsShortcutValidationTests {
         }
     }
 
+    @Test("accepts Option with Control or Command plus a letter, which types nothing")
+    func acceptsOptionShortcutsThatTypeNothing() {
+        let bindings = [
+            HotkeyBinding(keyCode: 8, modifiers: [.control, .option]),
+            HotkeyBinding(keyCode: 0, modifiers: [.command, .option]),
+            HotkeyBinding(keyCode: 0, modifiers: [.command, .option, .shift]),
+        ]
+        for binding in bindings {
+            #expect(refusal(.shortcut(.dictate, binding)) == nil, "\(binding)")
+        }
+        #expect(
+            refusal(.shortcut(.dictate, HotkeyBinding(keyCode: 0, modifiers: [.option, .shift])))?
+                .contains("type into the app") == true)
+    }
+
     @Test("refuses macOS shortcuts that open system UI or change the input source")
     func refusesReservedDictateShortcuts() {
         let spotlightReason = refusal(.shortcut(.dictate, HotkeyBinding(keyCode: 49, modifiers: [.command])))
@@ -214,6 +229,17 @@ struct SettingsRetentionTests {
             let restored = try JSONDecoder().decode(Settings.self, from: data)
 
             #expect(restored.transcriptRetentionDays == days, "\(days) was not kept")
+        }
+    }
+
+    @Test("a clipboard period changes the clipboard setting alone and refuses an unoffered one")
+    func clipboardPeriodIsIndependent() throws {
+        let settings = Settings.default
+        let updated = try SettingsEditor.apply(.clipboardRetention(days: 30), to: settings)
+        #expect(updated.clipboardRetentionDays == 30)
+        #expect(updated.transcriptRetentionDays == settings.transcriptRetentionDays)
+        #expect(throws: SettingsRejection.self) {
+            try SettingsEditor.apply(.clipboardRetention(days: 5), to: settings)
         }
     }
 

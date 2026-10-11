@@ -36,6 +36,31 @@ struct CommitDetectorTests {
         #expect(commit == Commit(text: "git status", reason: .returnPressed))
     }
 
+    @Test("a delayed partial echo keeps its typed suffix until the field catches up")
+    func delayedPartialEchoCommitsTheTypedLine() {
+        var detector = CommitDetector()
+        _ = detector.receive(.keystroke("kubectl get po", at: start))
+        _ = detector.receive(.typed("ds", at: start.addingTimeInterval(0.01)))
+        _ = detector.receive(.keystroke("kubectl get po", at: start.addingTimeInterval(0.26)))
+        _ = detector.receive(.keystroke("kubectl get pods", at: start.addingTimeInterval(0.5)))
+
+        #expect(
+            detector.receive(.returnPressed(at: start.addingTimeInterval(1)))
+                == Commit(text: "kubectl get pods", reason: .returnPressed))
+    }
+
+    @Test("a mismatched line exposes only a fixed skip reason")
+    func mismatchHasClosedSkipReason() {
+        var detector = CommitDetector()
+        _ = detector.receive(.keystroke("kubectl get po", at: start))
+        _ = detector.receive(.typed("ds", at: start.addingTimeInterval(0.01)))
+        _ = detector.receive(.keystroke("kubectl get podx", at: start.addingTimeInterval(0.5)))
+
+        #expect(detector.receive(.returnPressed(at: start.addingTimeInterval(1))) == nil)
+        #expect(detector.takeSkippedReason() == .unmatchedKeys)
+        #expect(detector.takeSkippedReason() == nil)
+    }
+
     @Test("Leaving the field commits what it holds, so a value typed and abandoned is not lost.")
     func focusLeavingCommits() {
         var detector = CommitDetector()
@@ -93,6 +118,19 @@ struct CommitDetectorTests {
         _ = typing("git status", into: &detector)
         let commit = detector.receive(.tick(at: start.addingTimeInterval(600)))
         #expect(commit?.text == "git status")
+    }
+
+    @Test("An empty line after an idle commit retires that line.")
+    func emptyLineRetiresIdleCommit() {
+        var detector = CommitDetector()
+        _ = typing("git status", into: &detector)
+        #expect(detector.receive(.tick(at: start.addingTimeInterval(60)))?.text == "git status")
+        _ = detector.receive(.keystroke("", at: start.addingTimeInterval(61)))
+
+        #expect(
+            detector.receive(
+                .tick(at: start.addingTimeInterval(61 + CommitDetector.idleInterval))
+            ) == Commit(text: "", supersedes: "git status", reason: .wentIdle))
     }
 
     @Test("An empty field commits nothing whatever ends it.")

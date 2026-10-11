@@ -185,6 +185,68 @@ struct DictationPipelineStateTests {
         #expect(await metrics.measurements.contains { $0.stage == .capture } == false)
     }
 
+    @Test("describes each finished recording's audio to the metrics, once")
+    func measuresTheRecordingsQuality() async throws {
+        let metrics = RecordingMetricsRecorder()
+        let holes = CaptureGaps(holes: 1, milliseconds: 21, lostBuffers: 1)
+        let silent = AudioSamples.silence(seconds: 1)
+        let recording = AudioSamples.canonical(silent.samples, gaps: holes)
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(recording)),
+            speech: FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: spoken))),
+            cleaner: FakeTranscriptCleaner(answering: tidiedAnswer),
+            context: FakeContextEngine(context: .fixture()),
+            inserter: FakeTextInserter(), metrics: metrics, clock: ManualClock())
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        let expected = try #require(
+            CaptureQuality.measure(samples: recording.samples, sampleRate: recording.sampleRate, gaps: holes))
+        #expect(await metrics.captureQualities == [expected])
+    }
+
+    @Test(
+        "a recording clipped past the measured cliff ends with the too-loud outcome, and a mild one does not")
+    func flagsAnInputThatClippedTooMuch() async {
+        for (level, expected) in [(Float(1), true), (Float(0.5), false)] {
+            let recording = AudioSamples.canonical([Float](repeating: level, count: 16_000))
+            let pipeline = DictationPipeline(
+                capture: FakeAudioCaptureEngine(stopOutcome: .success(recording)),
+                speech: FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: spoken))),
+                cleaner: FakeTranscriptCleaner(answering: tidiedAnswer),
+                context: FakeContextEngine(context: .fixture()),
+                inserter: FakeTextInserter(), metrics: RecordingMetricsRecorder(), clock: ManualClock())
+
+            await pipeline.startRecording()
+            await pipeline.finishRecording()
+
+            guard case .inserted(let outcome) = await pipeline.currentState else {
+                Issue.record("the dictation did not finish inserted")
+                continue
+            }
+            #expect(outcome.inputTooLoud == expected)
+        }
+    }
+
+    @Test("tells the metrics when the chosen input was missing for the recording")
+    func reportsAMissingChosenInput() async {
+        let metrics = RecordingMetricsRecorder()
+        let silent = AudioSamples.silence(seconds: 1)
+        let recording = AudioSamples.canonical(silent.samples, chosenInputMissing: true)
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(recording)),
+            speech: FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: spoken))),
+            cleaner: FakeTranscriptCleaner(answering: tidiedAnswer),
+            context: FakeContextEngine(context: .fixture()),
+            inserter: FakeTextInserter(), metrics: metrics, clock: ManualClock())
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        #expect(await metrics.captureQualities.map(\.chosenInputMissing) == [true])
+    }
+
     @Test("ignores a second start while it is already recording")
     func startWhileRecordingIsIgnored() async {
         let capture = FakeAudioCaptureEngine()
@@ -339,7 +401,7 @@ struct DictationPipelineStateTests {
         let inserted = DictationOutcome(
             text: tidied, method: .accessibility, cleanedBy: .foundationModels,
             insertedInto: "Slack", insertedIntoIdentifier: "com.tinyspeck.slackmacgap",
-            spokenFor: .zero, changes: AppliedChanges(spokenWords: 10))
+            spokenFor: .zero, changes: AppliedChanges(spokenWords: 10, heard: spoken))
         // Inserting is its own state because the application takes its own time to show the words.
         #expect(
             await next(6, from: states) == [

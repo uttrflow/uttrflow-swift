@@ -1,5 +1,3 @@
-public import struct Foundation.Date
-
 /// Where candidates come from, so the engine can be tested without a database.
 public protocol PredictionStore: Sendable {
     /// What the user might be finishing, given what they have typed into this field.
@@ -11,7 +9,7 @@ public enum CandidateSources {
     /// Remembered history wins when it has a completion; otherwise the machine supplies the candidates.
     public static func candidates(
         from store: any PredictionStore, environment: EnvironmentSource,
-        for surface: Surface, matching typed: String, now: Date
+        for surface: Surface, matching typed: String, now: ContinuousClock.Instant
     ) async -> [Candidate] {
         let remembered = (try? await store.candidates(for: surface, matching: typed)) ?? []
         guard remembered.isEmpty else { return remembered }

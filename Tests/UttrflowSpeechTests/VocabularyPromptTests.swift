@@ -6,8 +6,14 @@ import WhisperKit
 @testable import UttrflowCore
 @testable import UttrflowSpeech
 
-/// A tokeniser with one id per character, so a prompt reads back as the sentence it is.
+/// A tokeniser with one id per character, except the closing sentence, which has one id per word.
 private struct SpellingTokenizer: PromptTokenizer {
+    private static let closingBase = 40_000
+    private static let closingPieces: [String] = {
+        let words = VocabularyPrompt.closing.dropFirst(2).dropLast().split(separator: " ")
+        return ["."] + words.map { " " + $0 } + ["."]
+    }()
+
     let firstSpecialToken = 50_257
     /// Text this tokeniser cannot spell at all, standing in for a script a real vocabulary lacks.
     var unencodable: Set<String> = []
@@ -16,11 +22,21 @@ private struct SpellingTokenizer: PromptTokenizer {
 
     func encode(text: String) -> [Int] {
         guard !unencodable.contains(text) else { return [] }
+        if text == VocabularyPrompt.closing {
+            return Self.closingPieces.indices.map { Self.closingBase + $0 } + trailingSpecials
+        }
         return text.unicodeScalars.map { Int($0.value) } + trailingSpecials
     }
 
     func read(_ tokens: [Int]?) -> String {
-        String(String.UnicodeScalarView((tokens ?? []).compactMap(Unicode.Scalar.init)))
+        (tokens ?? []).reduce(into: "") { text, id in
+            let piece = id - Self.closingBase
+            if Self.closingPieces.indices.contains(piece) {
+                text += Self.closingPieces[piece]
+            } else if let scalar = Unicode.Scalar(id) {
+                text.unicodeScalars.append(scalar)
+            }
+        }
     }
 }
 
@@ -104,8 +120,9 @@ struct VocabularyPromptTests {
         let prompt = tokenizer.read(tokens)
 
         // The prompt is read as the transcript before this one, so a mark between two words returns between them. See issue 567.
-        #expect(prompt == " The words used here are Mirvella Ostrander.")
-        #expect(prompt.dropLast().rangeOfCharacter(from: .punctuationCharacters) == nil)
+        #expect(prompt == " The words used here are Mirvella Ostrander" + VocabularyPrompt.closing)
+        let body = prompt.dropFirst(VocabularyPrompt.opening.count).dropLast(VocabularyPrompt.closing.count)
+        #expect(body.rangeOfCharacter(from: .punctuationCharacters) == nil)
     }
 
     @Test("the words are offered as a sentence, not as a list")
@@ -114,7 +131,22 @@ struct VocabularyPromptTests {
             for: ["Uttrflow", "Nikhil", "PaymentSheet"], using: tokenizer)
 
         // Measured, not chosen: as a bare run these words left the recogniser hearing "KidPit".
-        #expect(tokenizer.read(tokens) == " The words used here are Uttrflow Nikhil PaymentSheet.")
+        #expect(
+            tokenizer.read(tokens) == " The words used here are Uttrflow Nikhil PaymentSheet"
+                + VocabularyPrompt.closing)
+    }
+
+    @Test("the prompt ends on lower-case prose, so a listed name's capitals do not spread to the next word")
+    func promptEndsOnOrdinaryCase() throws {
+        let tokens = try #require(
+            VocabularyPrompt.tokens(for: ["KPLR", "Orvanta", "Plankwise"], using: tokenizer))
+        let lastSentence = try #require(tokenizer.read(tokens).split(separator: ".").last)
+        let words = lastSentence.split(separator: " ")
+
+        // A prompt ending on a run of capitals leads the decoder to write "the KPLR Report".
+        #expect(words.count >= 3)
+        #expect(words.dropFirst().allSatisfy { $0.first?.isLowercase == true })
+        #expect(!lastSentence.contains("KPLR"))
     }
 
     @Test("a word dropped for want of room takes its separator with it")
@@ -123,7 +155,8 @@ struct VocabularyPromptTests {
         let tokens = VocabularyPrompt.tokens(for: ["Uttrflow", monster, "Nikhil"], using: tokenizer)
 
         // The space belongs to the word after it, so a gap in the ranking cannot leave two of them.
-        #expect(tokenizer.read(tokens) == " The words used here are Uttrflow Nikhil.")
+        #expect(
+            tokenizer.read(tokens) == " The words used here are Uttrflow Nikhil" + VocabularyPrompt.closing)
     }
 
     // MARK: The budget
@@ -140,9 +173,12 @@ struct VocabularyPromptTests {
         let words = (0..<500).map { "supercalifragilistic\($0)" }
         let tokens = try #require(VocabularyPrompt.tokens(for: words, using: tokenizer))
 
-        #expect(tokens.count <= VocabularyPrompt.maximumTokens)
+        let opening = VocabularyPrompt.ids(of: VocabularyPrompt.opening, using: tokenizer).count
+        let closing = VocabularyPrompt.ids(of: VocabularyPrompt.closing, using: tokenizer).count
+        let listed = tokens.count - opening - closing
+        #expect(listed <= VocabularyPrompt.maximumWordTokens)
         // Full, not merely bounded: a budget that truncated to nothing would also pass the line above.
-        #expect(tokens.count > VocabularyPrompt.maximumTokens - 30)
+        #expect(listed > VocabularyPrompt.maximumWordTokens - 10)
     }
 
     @Test("the words kept are the ones ranked highest")
@@ -169,7 +205,7 @@ struct VocabularyPromptTests {
 
     @Test("skips a word that does not fit and keeps lower-ranked words that fit")
     func overflowSkipsOnlyTheWordThatDoesNotFit() throws {
-        let first = String(repeating: "a", count: 60)
+        let first = String(repeating: "a", count: 30)
         let second = String(repeating: "b", count: 25)
         let third = "cc"
         let fourth = "d"
@@ -188,7 +224,7 @@ struct VocabularyPromptTests {
         let monster = String(repeating: "z", count: 400)
         let tokens = VocabularyPrompt.tokens(for: [monster, "Uttrflow"], using: tokenizer)
 
-        #expect(tokenizer.read(tokens) == " The words used here are Uttrflow.")
+        #expect(tokenizer.read(tokens) == " The words used here are Uttrflow" + VocabularyPrompt.closing)
     }
 
     // MARK: Failing safe
@@ -226,7 +262,7 @@ struct VocabularyPromptTests {
         tokenizer.unencodable = [" \u{1F600}"]
 
         let tokens = VocabularyPrompt.tokens(for: ["\u{1F600}", "Uttrflow"], using: tokenizer)
-        #expect(tokenizer.read(tokens) == " The words used here are Uttrflow.")
+        #expect(tokenizer.read(tokens) == " The words used here are Uttrflow" + VocabularyPrompt.closing)
     }
 
     @Test("special tokens never reach the decoder as vocabulary")
@@ -237,7 +273,7 @@ struct VocabularyPromptTests {
 
         let tokens = try #require(VocabularyPrompt.tokens(for: ["Uttrflow"], using: tokenizer))
         #expect(tokens.allSatisfy { $0 < tokenizer.firstSpecialToken })
-        #expect(tokenizer.read(tokens) == " The words used here are Uttrflow.")
+        #expect(tokenizer.read(tokens) == " The words used here are Uttrflow" + VocabularyPrompt.closing)
     }
 
     // MARK: The end of the clip
@@ -273,7 +309,9 @@ struct VocabularyPromptTests {
         let tokens = VocabularyPrompt.tokens(
             for: ["Uttrflow"], after: "Run the build with", using: tokenizer)
 
-        #expect(tokenizer.read(tokens) == " The words used here are Uttrflow. Run the build with")
+        #expect(
+            tokenizer.read(tokens) == " The words used here are Uttrflow" + VocabularyPrompt.closing
+                + " Run the build with")
     }
 
     @Test("the text before the caret alone is a prompt, with no empty vocabulary sentence")

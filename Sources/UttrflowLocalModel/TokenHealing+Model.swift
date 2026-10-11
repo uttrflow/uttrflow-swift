@@ -8,7 +8,10 @@ extension TokenHealing.Vocabulary {
     static let mostTokens = 1_000_000
 
     /// Reads the whole vocabulary off the tokenizer, stopping at the first id it does not know; the turn ends on the tokenizer's end token, the configuration's, or any piece named as one.
-    init(tokenizer: any MLXLMCommon.Tokenizer, endOfTurn: Set<String>, endingIds: Set<Int>) {
+    init(
+        tokenizer: any MLXLMCommon.Tokenizer, endOfTurn: Set<String>, endingIds: Set<Int>,
+        prefixIndex: PrefixIndex
+    ) {
         var pieces: [String] = []
         var ending = endingIds
         for id in 0..<Self.mostTokens {
@@ -21,7 +24,7 @@ extension TokenHealing.Vocabulary {
         let byteLevelBPE = Self.usesByteLevelBPE(pieces)
         let bytes = pieces.map { Self.bytes(of: $0, byteLevelBPE: byteLevelBPE) }
         for (id, written) in bytes.enumerated() where written.contains(0x0A) { ending.insert(id) }
-        self.init(bytes: bytes, ending: ending)
+        self.init(bytes: bytes, ending: ending, prefixIndex: prefixIndex)
     }
 }
 

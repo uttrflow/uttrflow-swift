@@ -31,6 +31,32 @@ struct NoteChecklistTests {
         #expect(NoteChecklist.items(in: "plain words").isEmpty)
     }
 
+    @Test("an item in a labelled checklist is a box even when it does not mark itself")
+    func bareItemInLabelledChecklist() {
+        let html = "<ul class=\"checklist\"><li class=\"checked\">Milk</li><li>Tea</li></ul>"
+        #expect(NoteChecklist.items(in: html).map(\.isChecked) == [true, false])
+        #expect(NoteChecklist.progress(in: html)?.total == 2)
+    }
+
+    @Test(
+        "counts exactly the boxes the plain form writes",
+        arguments: [
+            github, appleNotes, tiptap,
+            "<ul class=\"checklist\"><li>Pack</li><li class=\"checked\">Print</li></ul>",
+            "<ul><li role=\"checkbox\" aria-checked=\"true\">Filed</li></ul>",
+            "<ul><li class=\"checklist-item\">Pack</li></ul>",
+            "<ul><li class=\"checked\"><input type=\"checkbox\"> Pack</li></ul>",
+            "<p><input type=\"checkbox\" checked> Water</p><div hidden><input type=\"checkbox\"></div>",
+            "<ul class=\"checklist\"><li class=\"checked\">Trip<ul class=\"checklist\"><li>Adapter</li></ul></li></ul>",
+        ])
+    func agreesWithPlainForm(_ html: String) {
+        let written = RichTextPlainForm.plainText(fromHTML: html)
+            .split(separator: "\n")
+            .map { $0.drop(while: \.isWhitespace) }
+            .compactMap { line in line.hasPrefix("[x] ") ? true : line.hasPrefix("[ ] ") ? false : nil }
+        #expect(NoteChecklist.items(in: html).map(\.isChecked) == written)
+    }
+
     @Test("unchecked is not mistaken for checked")
     func uncheckedIsNotChecked() {
         let html = "<ul class=\"checklist\"><li class=\"unchecked\">milk</li></ul>"

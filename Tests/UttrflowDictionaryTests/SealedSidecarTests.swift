@@ -2,6 +2,8 @@
 
 import CryptoKit
 import Foundation
+import Security
+import Synchronization
 import Testing
 import UttrflowCore
 
@@ -14,9 +16,25 @@ struct SealedSidecarTests {
         func key(createIfMissing: Bool) throws -> SymmetricKey { value }
     }
 
+    /// An installation from before encryption: no key until the first seal creates one.
+    private final class FreshKeys: StoreKeyProviding, Sendable {
+        private let stored = Mutex<SymmetricKey?>(nil)
+        func key(createIfMissing: Bool) throws -> SymmetricKey {
+            try stored.withLock { current in
+                if let current { return current }
+                guard createIfMissing else { throw StoreKeyError.unavailable(Int32(errSecItemNotFound)) }
+                let generated = SymmetricKey(size: .bits256)
+                current = generated
+                return generated
+            }
+        }
+    }
+
     private let deletedWord = "Zorblatt"
 
-    private func sealedStore(_ sandbox: borrowing Sandbox, keys: Keys) -> PersonalDictionaryStore {
+    private func sealedStore(
+        _ sandbox: borrowing Sandbox, keys: any StoreKeyProviding
+    ) -> PersonalDictionaryStore {
         PersonalDictionaryStore(file: sandbox.file, encryptedStore: EncryptedStore(keys: keys))
     }
 
@@ -65,7 +83,7 @@ struct SealedSidecarTests {
     @Test("migrates plaintext records from an older build in place without losing a refusal")
     func plaintextRecordsMigrateOnFirstRead() async throws {
         let sandbox = Sandbox()
-        let keys = Keys()
+        let keys = FreshKeys()
         try sandbox.seed([word("Uttrflow", from: .added)])
         let refused = sandbox.folder.appending(path: "dictionary.v1.refused.json")
         let seeded = sandbox.folder.appending(path: "dictionary.v1.seeded.json")

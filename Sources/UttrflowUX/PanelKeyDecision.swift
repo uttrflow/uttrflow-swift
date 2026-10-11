@@ -24,8 +24,15 @@ public enum PanelKeyHandling {
             if isReturn, !commandHeld { return .key(.return) }
             return .ignore
         }
-        if isEscape {
+        if presentation.sheet != nil, isEscape {
             return rowMenuOpen ? .closeMenu : .key(.escape)
+        }
+        if isEscape {
+            if rowMenuOpen { return .closeMenu }
+            return presentation.query.isEmpty ? .key(.escape) : .key(.clearSearch)
+        }
+        if opensGuide(characters, commandHeld, shiftHeld, presentation) {
+            return keyDecision(.showShortcuts, rowMenuOpen: rowMenuOpen)
         }
         if !commandHeld {
             return isReturn ? keyDecision(.return, rowMenuOpen: rowMenuOpen) : .ignore
@@ -43,12 +50,24 @@ public enum PanelKeyHandling {
     }
 
     /// Resolves a key already recognized by a SwiftUI key handler.
-    public static func relayDecision(for key: PanelKey, rowMenuOpen: Bool) -> PanelKeyDecision {
+    public static func relayDecision(
+        for key: PanelKey, rowMenuOpen: Bool, query: String = "", hasSheet: Bool = false
+    ) -> PanelKeyDecision {
         if key == .escape, rowMenuOpen { return .closeMenu }
+        if key == .escape, hasSheet { return .key(.escape) }
+        if key == .escape, !query.isEmpty { return .key(.clearSearch) }
         return keyDecision(key, rowMenuOpen: rowMenuOpen)
     }
 
     private static func keyDecision(_ key: PanelKey, rowMenuOpen: Bool) -> PanelKeyDecision {
         rowMenuOpen ? .keyAfterClosingMenu(key) : .key(key)
+    }
+
+    private static func opensGuide(
+        _ characters: String, _ commandHeld: Bool, _ shiftHeld: Bool, _ presentation: PanelPresentation
+    ) -> Bool {
+        presentation.sheet == nil
+            && (commandHeld && (characters == "/" || characters == "?")
+                || shiftHeld && !commandHeld && characters == "?" && presentation.query.isEmpty)
     }
 }

@@ -119,6 +119,16 @@ struct AccuracyBaselineTests {
         #expect(comparison.overall.after == 0.005)
     }
 
+    /// A scorer outside the package hands over counts, not transcripts, and gets the same verdict.
+    @Test("judges a run already reduced to counts by the same rule")
+    func comparesCounts() {
+        let baseline = AccuracyBaseline.capture(report(samples("a", errors: 2)), at: moment)
+        let worse = AccuracyBaseline.capture(report(samples("a", errors: 20)), at: moment)
+        #expect(baseline.compare(with: worse).verdict == .worsened)
+        let other = AccuracyBaseline.capture(report(samples("a", errors: 2), label: "other"), at: moment)
+        #expect(baseline.compare(with: other).failsGate)
+    }
+
     @Test("notices a regression, and refuses to pass")
     func regression() {
         let baseline = AccuracyBaseline.capture(report(samples("a", errors: 2)), at: moment)

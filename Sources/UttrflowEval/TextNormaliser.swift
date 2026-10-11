@@ -103,7 +103,7 @@ public struct TextNormaliser: Sendable, Equatable {
     /// Splits into words, keeping a full stop or underscore that joins two alphanumerics.
     private func split(_ text: String) -> [String] {
         guard rules.contains(.punctuationAsSeparators) else {
-            return text.split(whereSeparator: \.isWhitespace).map(String.init)
+            return WordTokens.words(text, .display)
         }
 
         let characters = Array(text)

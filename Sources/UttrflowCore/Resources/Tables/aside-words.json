@@ -1,0 +1,12 @@
+{
+    "schema": 1,
+    "rows": [
+        {"id": "actually", "positions": ["opening", "closing"]},
+        {"id": "anyway", "positions": ["opening", "closing"]},
+        {"id": "basically", "positions": ["opening", "closing"]},
+        {"id": "honestly", "positions": ["opening", "closing"]},
+        {"id": "obviously", "positions": ["opening", "closing"]},
+        {"id": "so", "positions": ["opening"]},
+        {"id": "though", "positions": ["closing"]}
+    ]
+}

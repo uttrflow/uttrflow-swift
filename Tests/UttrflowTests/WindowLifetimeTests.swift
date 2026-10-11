@@ -27,6 +27,10 @@ private struct NeverFinished: OnboardingRecordStore {
     var hasFinished: Bool { false }
 
     func recordFinished() {}
+
+    var hasAnsweredClipboard: Bool { false }
+
+    func recordClipboardAnswered() {}
 }
 
 /// A connection that is always up, so nothing starts a path monitor.
@@ -208,7 +212,7 @@ struct WindowLifetimeTests {
     @Test("the main window's controller and model are released after every page is drawn five times")
     func mainWindowReleasesAfterEveryPage() throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         weak var controller: MainWindowController?
         weak var model: MainWindowModel?
         do {

@@ -22,6 +22,8 @@ struct Node: Equatable {
 /// Which attributes a read asked, in order, so a test can count the messages one read sends.
 final class MessageLog {
     var asked: [String] = []
+    /// The recorded time of every answer given, which a replay adds up as simulated time.
+    var milliseconds = 0.0
     /// The range of every ranged read, so a test can bound how much text one read copies.
     var ranges: [NSRange] = []
 }
@@ -87,6 +89,16 @@ struct FakeTree: ElementTree {
             return value as? MarkerSelection
         }
     }
+
+    /// The marker rung's rectangle is what the node holds under `AXBoundsForTextMarkerRange`, logged as one message.
+    func markerBounds(of element: Node) -> CGRect? {
+        messages?.asked.append("AXBoundsForTextMarkerRange")
+        return element.answers["AXBoundsForTextMarkerRange"]?.object as? CGRect
+    }
+
+    /// A title and a document come with the node's shape, as Accessibility batches them, so neither is a message.
+    func title(of element: Node) -> String? { element.answers["AXTitle"]?.string }
+    func document(of element: Node) -> String? { element.answers["AXDocument"]?.string }
 
     /// A ranged read cuts the node's `AXValue` answer, or refuses as the node says for `AXStringForRange`.
     func attribute(_ name: String, of element: Node, range: NSRange) -> FieldAnswer {

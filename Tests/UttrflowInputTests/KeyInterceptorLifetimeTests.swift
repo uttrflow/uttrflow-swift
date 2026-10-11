@@ -1,6 +1,7 @@
 // Tests that a key tap gives back the port and the state it held, however it ends.
 import CoreFoundation
 import Dispatch
+import Synchronization
 import Testing
 
 @testable import UttrflowInput
@@ -87,6 +88,32 @@ struct KeyInterceptorLifetimeTests {
         state.adopt(second)
 
         #expect(CFGetRetainCount(first) == baseline, "retain count \(CFGetRetainCount(first)) vs \(baseline)")
+    }
+
+    @Test("a newly created tap resets the cached listening state")
+    func newTapResetsListeningState() throws {
+        let state = Self.makeState()
+        #expect(state.needsListeningUpdate(false))
+        #expect(!state.needsListeningUpdate(false))
+
+        let tap = try InterceptorTap.create(state: state, makePort: { _ in Self.makePort() })
+
+        #expect(state.needsListeningUpdate(false))
+        tap.stop()
+    }
+
+    @Test("run-loop startup preserves a disarm that happened before the tap thread ran")
+    func startupDoesNotReenableADisarmedTap() throws {
+        let state = Self.makeState()
+        let port = try #require(Self.makePort())
+        let requested = Mutex<[Bool]>([])
+
+        #expect(state.arm(.tab) { listening in requested.withLock { $0.append(listening) } })
+        #expect(!state.arm([]) { listening in requested.withLock { $0.append(listening) } })
+        state.enableForRunLoop(port) { listening in requested.withLock { $0.append(listening) } }
+
+        #expect(requested.withLock { $0 } == [true, false, false])
+        #expect(!state.needsListeningUpdate(false))
     }
 
     @Test("a new tap re-enables on its own first disable, whatever the previous tap's history")

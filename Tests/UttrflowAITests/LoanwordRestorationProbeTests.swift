@@ -122,7 +122,48 @@ struct LoanwordRestorationProbeTests {
         print(
             "PROBE hindi \(Self.hindiWords.count), restored \(wrongful.count): \(wrongful.joined(separator: " "))"
         )
-        #expect(counts.mapValues(\.count) == [.spelt: 9, .restorable: 13, .soundOnly: 63, .unreachable: 15])
-        #expect(wrongful.count == 7)
+
+        #expect(counts.mapValues(\.count) == [.spelt: 9, .restorable: 32, .soundOnly: 23, .unreachable: 36])
+        #expect(wrongful.count == 8)
+
+    }
+}
+
+/// Whether the restoration seam could produce the romaniser table's English entries, so the table could shrink. See `Docs/latin-output.md`.
+@Suite("Loanword table reachability")
+struct LoanwordTableReachabilityTests {
+    /// The table's entries whose value is an English word, with the English spelling.
+    static let entries: [(String, String)] = [
+        ("ऑफिस", "office"), ("मीटिंग", "meeting"), ("रिपोर्ट", "report"), ("ओके", "ok"), ("सॉरी", "sorry"),
+        ("प्लीज़", "please"), ("थैंक्स", "thanks"), ("हेलो", "hello"), ("बाय", "bye"), ("कॉल", "call"),
+        ("मैसेज", "message"), ("ईमेल", "email"), ("फ़ोन", "phone"), ("फ़ाइल", "file"), ("शेयर", "share"),
+        ("कंप्यूटर", "computer"), ("प्रोजेक्ट", "project"), ("डेडलाइन", "deadline"), ("मोबाइल", "mobile"),
+        ("चार्ज", "charge"), ("स्कूल", "school"), ("डॉक्टर", "doctor"), ("बैंक", "bank"), ("कॉलेज", "college"),
+        ("टैक्सी", "taxi"), ("बुक", "book"), ("लैपटॉप", "laptop"), ("इंटरनेट", "internet"),
+        ("पासवर्ड", "password"), ("वीडियो", "video"), ("फ़ोटो", "photo"), ("ऑफ़र", "offer"),
+        ("कॉपी", "copy"), ("कॉन्टैक्ट", "contact"), ("लॉगिन", "login"), ("लॉगआउट", "logout"),
+        ("प्रॉब्लम", "problem"), ("बॉक्स", "box"), ("कॉफ़ी", "coffee"), ("टाइम", "time"), ("मिनट", "minute"),
+    ]
+
+    /// With every table word as a personal word, the seam reaches 24 of 41 from the rules' own spelling and restores none wrongly, so the table cannot shrink to it.
+    @Test func probe() {
+        let restoration = LoanwordRestoration(personal: Self.entries.map(\.1))
+        var reached: [String] = []
+        var missed: [String] = []
+        for (devanagari, english) in Self.entries {
+            let scalars = Romaniser.normalised(Array(devanagari.unicodeScalars))
+            var syllables = Romaniser.parse(scalars)
+            Romaniser.dropSilentVowels(&syllables)
+            let byRules = Romaniser.spell(syllables)
+            if restoration.restored(byRules)?.lowercased() == english {
+                reached.append("\(byRules)->\(english)")
+            } else {
+                missed.append("\(byRules)->\(english)")
+            }
+        }
+        print("TABLE reached \(reached.count): \(reached)")
+        print("TABLE missed \(missed.count): \(missed)")
+        #expect(reached.count == 24)
+        #expect(missed.count == 17)
     }
 }

@@ -27,6 +27,13 @@ public struct DictionaryCandidates: CandidateSource {
             }.map { Reading($0.word, entryID: $0.entry.id) }.prefix(Self.maximumOffered))
     }
 
+    /// Whether an entry is spelt as the word was heard, so a word the user taught is never doubted for its sentence.
+    public func vouches(for heard: String, in situation: Situation) async -> Bool {
+        let spelling = ReadingRestraint.closedUp(heard)
+        return WordCorrectionEngine.spellings(of: heard, in: await index())
+            .contains { ReadingRestraint.closedUp($0.entry.word) == spelling }
+    }
+
     /// Screen text can corroborate an inferred word; the selected correction source is included too.
     private static func visibleWords(in situation: Situation) -> Set<String> {
         [
@@ -34,8 +41,8 @@ public struct DictionaryCandidates: CandidateSource {
             situation.insertion.precedingText, situation.insertion.followingText,
         ]
         .compactMap { $0 }
-        .flatMap { $0.split { !$0.isLetter && !$0.isNumber } }
-        .map { ReadingRestraint.closedUp(String($0)) }
+        .flatMap { WordTokens.words($0, .comparison) }
+        .map { ReadingRestraint.closedUp($0) }
         .filter { !$0.isEmpty }
         .reduce(into: Set<String>()) { $0.insert($1) }
     }

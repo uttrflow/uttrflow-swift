@@ -54,10 +54,9 @@ extension Draft {
         Draft(
             words: text.split(whereSeparator: \.isWhitespace).map {
                 $0.hasPrefix("?")
-                    ? Draft.Word(String($0.dropFirst()), confidence: unsure)
-                    : Draft.Word(String($0), confidence: 0.95)
-            },
-            confidencesAreReal: true)
+                    ? Draft.Word(String($0.dropFirst()), evidence: .score(unsure))
+                    : Draft.Word(String($0), evidence: .score(0.95))
+            })
     }
 }
 

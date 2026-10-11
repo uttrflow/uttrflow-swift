@@ -31,6 +31,11 @@ SIZE_BASELINE = Path(
     os.environ.get("EXCLUSION_BASELINE", str(PACKAGE_ROOT / "Scripts" / "exclusion_baseline.json"))
 )
 
+# The modules a lane's test run measures. `make verify` leaves out the modules whose own tests run
+# in another lane, and that lane measures them alone, so every module's floor is checked once.
+LANE_MODULES = {"eval": {"UttrflowEval"}}
+LANE = os.environ.get("COVERAGE_LANE", "verify")
+
 EXCLUDED_MODULES = {
     "UttrflowTestSupport": "test scaffolding, never shipped",
     "uttrflow-dev": "developer harness; argument wiring and printing only",
@@ -54,12 +59,16 @@ EXCLUDED_FILES = {
     "UttrflowContext/MacContextEngine+System.swift": "reads other apps' windows through Accessibility",
     "UttrflowContext/SurfaceProbe+System.swift": "asks other apps about their focused field",
     "UttrflowContext/FocusedFieldReader+System.swift": (
-        "reads the focused field of another app through Accessibility; everything decided "
-        "from what it reads is FocusedFieldSnapshot, which is tested"
+        "queues, caches and window-server calls around the focused-field read; the read itself "
+        "is FocusedFieldReader+Snapshot, tested over a fake tree in FocusedFieldSnapshotReadTests"
+    ),
+    "UttrflowContext/FocusedFieldReader+AXElementTree.swift": (
+        "the Accessibility messages behind ElementTree; what the reads decide from their answers "
+        "is tested over FakeTree"
     ),
     "UttrflowContext/CompositionProbe+System.swift": (
-        "asks the focused field and the Text Input Sources database about input-method "
-        "composition; the rule it feeds is Composition, which is tested"
+        "asks the Text Input Sources database which input source is selected; the field's marked "
+        "range is FocusedFieldRead.markedText and the rule it feeds is Composition, both tested"
     ),
     "UttrflowInput/SystemInput.swift": "drives the clipboard, the keyboard and other apps' windows",
     "UttrflowAccount/BackendTransport+URLSession.swift": (
@@ -160,6 +169,8 @@ EXCLUDED_FILES = {
     "Uttrflow/Panel/PanelThumbnailSource+System.swift": "decodes a picture off the disk",
     "Uttrflow/Main/OrbitPalette.swift": "colour values; the two decidable parts are tested in OrbitPaletteTests",
     "Uttrflow/Main/DictionaryPageView.swift": "SwiftUI, drawn from a tested presentation",
+    "Uttrflow/Main/DictionaryEditorView.swift": "SwiftUI, drawn from a tested presentation",
+    "Uttrflow/Main/DictionarySelectionBar.swift": "SwiftUI, drawn from a tested presentation",
     "Uttrflow/Main/PageParts.swift": "SwiftUI parts of the redesigned pages, drawn from tested presentations",
     "Uttrflow/Main/PageTable.swift": (
         "SwiftUI layout; the one sum in it, PageColumns.cellWidths, is tested in PageTableTests"
@@ -180,7 +191,8 @@ EXCLUDED_FILES = {
     "Uttrflow/Suggestion/SuggestionCoordinator.swift": (
         "wiring only: an event tap, a global key monitor and another app's focused field, "
         "none of which a headless test has; every rule it sequences is SuggestionSession, "
-        "every field reading it maps goes through SuggestionMoment, and whether the model is asked, "
+        "every field reading it maps goes through SuggestionMoment, what capture is told between reads "
+        "is SuggestionCaptureFeed, how an accepted suggestion is taken is SuggestionTake, and whether the model is asked, "
         "reused, skipped, drawn fresh or asked for alternatives is ModelPass, all of which are tested"
     ),
     "Uttrflow/Suggestion/SuggestionPanelController.swift": (
@@ -197,6 +209,11 @@ EXCLUDED_FILES = {
         "it decides itself, which #630 moves into a pure type in UttrflowUX"
     ),
     "Uttrflow/Dock/DockView.swift": "SwiftUI, drawn from a tested presentation",
+    "Uttrflow/Dock/DockMetrics.swift": "SwiftUI sizes and the canvas drawing of the bars; their rules are tested in DockBarsTests",
+    "Uttrflow/Dock/DockForms.swift": "SwiftUI, drawn from a tested presentation",
+    "Uttrflow/Dock/DockNotices.swift": "SwiftUI, drawn from a tested presentation",
+    "Uttrflow/Dock/DockParts.swift": "SwiftUI shapes and marks",
+    "Uttrflow/Dock/DockStyle.swift": "SwiftUI glass and colours; the tokens it draws are measured in BrandPaletteTests",
     "Uttrflow/Dock/DockSetupView.swift": (
         "SwiftUI, drawn from DockModelSetup, which SpeechModelDockTests covers"
     ),
@@ -236,6 +253,10 @@ REVIEWABLE_LINES = 400
 # limit fails until its decisions are tested or it is added here with a reason, and an entry
 # whose file has come back under the limit fails too, so the list only shrinks.
 OVERSIZED_EXCLUSIONS = {
+    "UttrflowSpeech/WhisperKitBackend.swift": (
+        "a wrapper over WhisperKit that only real model weights can run; the phrase bias it applies "
+        "is PhraseBias, tested in PhraseBiasTests, and the engine contract is held by FakeSpeechEngine"
+    ),
     "Uttrflow/AppDelegate.swift": (
         "nothing covers the assembly beyond the intents in MainIntentWiringTests; #145 holds the "
         "app target's test gap and #661 the split that would let the rest be tested"
@@ -245,18 +266,16 @@ OVERSIZED_EXCLUSIONS = {
     ),
     "Uttrflow/Suggestion/SuggestionCoordinator.swift": (
         "the two rules it keeps are tested in SuggestionReadGateTests and SuggestionDebounceTests, "
-        "and its model-pass decisions in ModelPassTests; still untested is the capture-consent "
-        "and tap-insertion sequencing"
+        "its model-pass decisions in ModelPassTests, and what capture is told between reads is "
+        "SuggestionCaptureFeed, tested in SuggestionCaptureFeedTests; how an accepted suggestion is "
+        "taken into the field is SuggestionTake, tested in SuggestionTakeTests; still untested is the "
+        "tap key routing and tap rest"
     ),
-    "Uttrflow/Dock/DockView.swift": "what DockViewModel decides is tested in DockClockTests and DockBarsTests",
     "Uttrflow/Main/MainPieces.swift": (
         "views, metrics and colour mappings; the one rule among them is RowReveal, tested in RowRevealTests"
     ),
     "UttrflowLocalModel/MLXCandidateScorer.swift": (
         "CompletionText holds the text rules its answers are read through, and is tested without MLX"
-    ),
-    "UttrflowContext/FocusedFieldReader+System.swift": (
-        "FocusedFieldSnapshot holds everything decided from what it reads, and is tested"
     ),
     "Uttrflow/MenuBar/MenuBarController.swift": (
         "its panel's keyboard, Escape and emptying are tested in MenuBarPanelTests and its sign-in "
@@ -286,6 +305,14 @@ OVERSIZED_EXCLUSIONS = {
         "views only; the popover's keyboard, Escape and emptying are tested in MenuBarPanelTests"
     ),
 }
+
+
+def in_lane(module: str, lane: str = "") -> bool:
+    """Whether this lane's run measures the module: its own modules, or in `verify` every module no other lane owns."""
+    lane = lane or LANE
+    if lane in LANE_MODULES:
+        return module in LANE_MODULES[lane]
+    return not any(module in owned for owned in LANE_MODULES.values())
 
 
 def relative(path: str) -> Path | None:
@@ -388,6 +415,13 @@ def self_test() -> int:
         failed += 1
     else:
         print("  ✓ a file inside the limit passes")
+    lanes = (in_lane("UttrflowEval", "verify"), in_lane("UttrflowCore", "verify"), in_lane("UttrflowEval", "eval"),
+             in_lane("UttrflowCore", "eval"))
+    if lanes == (False, True, True, False):
+        print("  ✓ each module's floor is measured in exactly one lane")
+    else:
+        print(f"  ✗ a module is measured in no lane or in two: {lanes}")
+        failed += 1
     return failed
 
 
@@ -449,7 +483,7 @@ def main() -> int:
             if path is None or not path.parts:
                 continue
             module = path.parts[0]
-            if module in EXCLUDED_MODULES:
+            if module in EXCLUDED_MODULES or not in_lane(module):
                 continue
             if path.as_posix() in EXCLUDED_FILES:
                 skipped_files.append(path.as_posix())

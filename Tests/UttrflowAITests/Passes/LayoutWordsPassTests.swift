@@ -15,6 +15,10 @@ struct LayoutWordsPassTests {
             ("thanks blank line the second issue", "thanks\n\nthe second issue"),
             ("we need bullet point milk bullet point eggs", "we need\n- milk\n- eggs"),
             (
+                "bullet point added the sidebar bullet point fixed a crash bullet point removed a flag",
+                "- added the sidebar\n- fixed a crash\n- removed a flag"
+            ),
+            (
                 "what's left to pack bullet point the tent bullet point the stove bullet point the first aid kit",
                 "what's left to pack\n- the tent\n- the stove\n- the first aid kit"
             ),
@@ -136,6 +140,13 @@ struct LayoutWordsPassTests {
     )
     func keepsNumberedItemsAfterLayoutBreaks(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test("lays out a numbered list after a colon, whatever class the word before the colon")
+    func laysOutAListAfterAColon() {
+        #expect(
+            cleaned("before you release: number one run it number two ship it", by: sut)
+                == "before you release:\n1. run it\n2. ship it")
     }
 
     @Test("keeps repeated step labels with numbered items")

@@ -137,6 +137,10 @@ public struct CleaningRecord: Sendable, Equatable {
     public let skippedStages: [SkippedStage]
     /// What the kept model said, word for word, before unwrapping and finishing; one per piece, held only in memory.
     public let modelAnswers: [String]
+    /// The revision of the dictionary every piece was corrected against, so two runs' difference can be explained.
+    public var dictionaryRevision: UInt64?
+    /// Whether the recogniser could condition the decode on the user's words; unavailable is why the dictation shows no persona help.
+    public var conditioning: DecodeConditioning = .available
 
     public init(
         changes: [Change], switchedOff: [PassID] = [], refusals: [Refusal] = [],
@@ -157,12 +161,21 @@ public struct CleaningRecord: Sendable, Equatable {
         CleaningRecord(changes: [], skippedStages: [SkippedStage(stage, reason)])
     }
 
+    /// A record holding only that the decode ran without conditioning, for `conditioning`.
+    public static func decoded(_ conditioning: DecodeConditioning) -> CleaningRecord {
+        var record = CleaningRecord(changes: [])
+        record.conditioning = conditioning
+        return record
+    }
+
     /// The same record, saying which answers were refused before the one it describes.
     public func refused(_ refusals: [Refusal]) -> CleaningRecord {
-        CleaningRecord(
+        var record = CleaningRecord(
             changes: changes, switchedOff: switchedOff, refusals: refusals,
             unavailableEngines: unavailableEngines, engineFailures: engineFailures,
             skippedStages: skippedStages, modelAnswers: modelAnswers)
+        record.conditioning = conditioning
+        return record
     }
 
     /// At most this many words are listed per step; the counts are exact either way.
@@ -179,7 +192,7 @@ public struct CleaningRecord: Sendable, Equatable {
     /// Whether anything at all is worth showing.
     public var isEmpty: Bool {
         changes.isEmpty && switchedOff.isEmpty && refusals.isEmpty && unavailableEngines.isEmpty
-            && engineFailures.isEmpty && skippedStages.isEmpty
+            && engineFailures.isEmpty && skippedStages.isEmpty && conditioning == .available
     }
 
     /// One record for a dictation done in pieces, keeping each step's words in the order they were said.
@@ -219,11 +232,13 @@ public struct CleaningRecord: Sendable, Equatable {
         for skip in records.flatMap(\.skippedStages) where !skippedStages.contains(skip) {
             skippedStages.append(skip)
         }
-        return CleaningRecord(
+        var record = CleaningRecord(
             changes: order.compactMap { merged[$0] },
             switchedOff: CleaningSteps.offered.map(\.id).filter(off.contains),
             refusals: refusals, unavailableEngines: unavailableEngines, engineFailures: engineFailures,
             skippedStages: skippedStages, modelAnswers: records.flatMap(\.modelAnswers))
+        record.conditioning = records.reduce(.available) { $0.adding($1.conditioning) }
+        return record
     }
 
     /// Every word a step touched, grouped by the step and ordered by the first word it reached.

@@ -32,6 +32,9 @@ struct AudioResamplerFidelityTests {
         let worstAlias: Double?
     }
 
+    /// The most output the highest quality keeps back from one second, worst at 8 kHz (0.60%), with headroom.
+    static let lengthCeiling = 0.007
+
     /// The worst alias the converter's highest quality reaches, per input rate, with a few dB of headroom.
     static let aliasCeilings: [Double: Double] = [
         22_050: -100, 44_100: -100, 48_000: -95, 88_200: -25, 96_000: -22, 192_000: -10,
@@ -44,7 +47,9 @@ struct AudioResamplerFidelityTests {
         for layout in Self.layouts {
             let row = try Self.measure(inputRate: inputRate, layout: layout)
             print(Self.line(inputRate: inputRate, layout: layout, row: row))
-            #expect(row.lengthError < 0.005, "\(inputRate) \(layout): length error \(row.lengthError)")
+            #expect(
+                row.lengthError < Self.lengthCeiling,
+                "\(inputRate) \(layout): length error \(row.lengthError)")
             #expect(
                 row.passbandSpread < 6, "\(inputRate) \(layout): passband spread \(row.passbandSpread) dB")
             if let alias = row.worstAlias {

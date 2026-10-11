@@ -13,9 +13,16 @@ import UttrflowUX
 
 /// An app over a held session that draws nothing, so the gate's answer is read rather than seen.
 @MainActor
-private func app(signedIn: Bool, in sandbox: borrowing Sandbox) -> (AppDelegate, HeldSession) {
+private func app(
+    signedIn: Bool, in sandbox: borrowing Sandbox,
+    record: UserDefaultsOnboardingRecordStore = isolatedOnboardingRecord()
+) -> (AppDelegate, HeldSession) {
     let session = HeldSession(signedIn: signedIn)
-    let app = AppDelegate(container: sandbox.root, account: session.layer)
+    let app = AppDelegate(
+        container: sandbox.root,
+        clipboardSource: InMemoryClipboardSource(),
+        onboardingRecordStore: record,
+        account: session.layer)
     app.drawsWindows = false
     return (app, session)
 }
@@ -113,6 +120,7 @@ struct SignedOutGateTests {
         let service = InMemoryAuthenticationService()
         let app = AppDelegate(
             container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
             account: OnboardingAccountLayer(
                 authentication: service,
                 profiles: UserDefaultsProfileCache(storage: storage, verifier: service.verifier)))
@@ -169,10 +177,16 @@ struct SignedInGateTests {
     @Test("dictation, the claimed shortcuts, the clipboard and the floating button follow their switches")
     func surfacesFollowTheSettings() {
         let sandbox = Sandbox()
-        let (app, _) = app(signedIn: true, in: sandbox)
+        let record = isolatedOnboardingRecord()
+        let (app, _) = app(signedIn: true, in: sandbox, record: record)
 
         #expect(app.isSignedIn)
-        #expect(app.surfaces == SessionSurfaces(isSignedIn: true, settings: Settings()))
+        #expect(!app.surfaces.watchesTheClipboard, "a fresh install records nothing before the choice")
+        record.recordClipboardAnswered()
+        #expect(
+            app.surfaces
+                == SessionSurfaces(isSignedIn: true, clipboardChoiceIsMade: true, settings: Settings()))
+        #expect(app.surfaces.watchesTheClipboard)
         #expect(app.surfaces.listensForDictation)
         #expect(app.surfaces.claimedShortcuts.contains(.clipboard))
     }
@@ -205,6 +219,7 @@ struct SessionLossTests {
         let session = HeldSession(signedIn: true)
         let app = AppDelegate(
             container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
             account: OnboardingAccountLayer(authentication: EndedSession(), profiles: session))
         app.drawsWindows = false
         app.mainWindow = app.makeMainWindow()
@@ -223,6 +238,7 @@ struct SessionLossTests {
         let session = HeldSession(signedIn: true)
         let app = AppDelegate(
             container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
             account: OnboardingAccountLayer(authentication: UnreachableServer(), profiles: session))
         app.drawsWindows = false
         let window = app.makeMainWindow()
@@ -279,6 +295,8 @@ private struct EndedSession: AuthenticationService {
     func avatar(at path: String) async -> Data? { nil }
 
     func signOut() async {}
+
+    func deleteAccount() async throws(AccountError) {}
 }
 
 /// A backend that cannot be reached, as on a plane.
@@ -298,4 +316,6 @@ private struct UnreachableServer: AuthenticationService {
     func avatar(at path: String) async -> Data? { nil }
 
     func signOut() async {}
+
+    func deleteAccount() async throws(AccountError) {}
 }

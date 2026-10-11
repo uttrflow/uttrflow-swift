@@ -3,6 +3,8 @@ import UttrflowCore
 /// Writes a comment's opening annotation word the way the lexicon writes it, when a spoken colon follows it.
 struct CommentMarkerPass: WholeTextCleaningPass {
     static let id: PassID = "commentMarker"
+    static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    static let orderIndependentWith: Set<PassID> = [.terminalStop]
 
     /// Whether the caret stands where a comment's first word goes in a code editor.
     let opensComment: Bool

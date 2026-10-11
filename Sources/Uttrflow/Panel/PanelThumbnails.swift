@@ -42,14 +42,20 @@ final class PanelThumbnails {
     @ObservationIgnored private var queueOrder = 0
     @ObservationIgnored private var missedAt: [URL: ContinuousClock.Instant] = [:]
     @ObservationIgnored private let retryAfter: Duration
+    @ObservationIgnored private let retryWait: @MainActor (Duration) async throws -> Void
+    @ObservationIgnored private let now: @MainActor () -> ContinuousClock.Instant
 
     init(
         source: PanelThumbnailSource = .system, budget: Int = PanelThumbnails.defaultBudget,
-        retryAfter: Duration = .seconds(2)
+        retryAfter: Duration = .seconds(2),
+        retryWait: @escaping @MainActor (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
+        now: @escaping @MainActor () -> ContinuousClock.Instant = { .now }
     ) {
         self.source = source
         self.budget = max(budget, 0)
         self.retryAfter = retryAfter
+        self.retryWait = retryWait
+        self.now = now
     }
 
     /// What a decoded thumbnail costs, measured from the bitmap rather than the point size.
@@ -119,10 +125,19 @@ final class PanelThumbnails {
             let source = self.source
             let maxPixel = Self.maxPixel
             let task = Task.detached(priority: .utility) { [weak self] in
-                let image = source.load(next, maxPixel)
-                await self?.record(next, bytes: Loaded(image: image))
+                let loaded = await Self.decoding { Loaded(image: source.load(next, maxPixel)) }
+                await self?.record(next, bytes: loaded)
             }
             inflight[next] = task
+        }
+    }
+
+    /// Runs a decode on a serial queue of its own, which gets a thread on busy cores, never on the cooperative pool it would block.
+    private nonisolated static func decoding(_ decode: @escaping @Sendable () -> Loaded) async -> Loaded {
+        await withCheckedContinuation { continuation in
+            DispatchQueue(label: "com.uttrflow.panel-thumbnail-decode", qos: .utility).async {
+                continuation.resume(returning: decode())
+            }
         }
     }
 
@@ -153,7 +168,7 @@ final class PanelThumbnails {
 
     /// Waits before a visible row asks `prepare(_:)` to retry a remembered miss.
     func waitBeforeRetry() async throws {
-        try await Task.sleep(for: retryAfter)
+        try await retryWait(retryAfter)
     }
 
     /// Stored on `known` once the decode completes, even if the file is gone so the answer can be remembered.
@@ -167,7 +182,7 @@ final class PanelThumbnails {
         let result = bytes.image
         let cost = Self.bytes(of: result)
         known[file] = result
-        missedAt[file] = result == nil ? .now : nil
+        missedAt[file] = result == nil ? now() : nil
         self.cost[file] = cost
         held += cost
         touch(file)
@@ -177,7 +192,7 @@ final class PanelThumbnails {
 
     /// Drops a remembered failure once it is older than `retryAfter`, so the next ask decodes again.
     private func forgetStaleMiss(_ file: URL) {
-        guard let missed = missedAt[file], missed.duration(to: .now) >= retryAfter else { return }
+        guard let missed = missedAt[file], missed.duration(to: now()) >= retryAfter else { return }
         missedAt[file] = nil
         known.removeValue(forKey: file)
         cost.removeValue(forKey: file)

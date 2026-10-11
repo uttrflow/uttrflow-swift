@@ -122,4 +122,65 @@ struct DestinationOverridesTests {
             try JSONDecoder().decode(
                 DestinationOverrides.self, from: Data(#"{"overrides":7}"#.utf8)) == .none)
     }
+
+    @Test("an override stored before modes existed reads back with its destination and mode auto")
+    func migratesReleasedOverrides() throws {
+        let released = Data(
+            """
+            {"overrides":[{"bundleIdentifier":"com.example.notes","applicationName":"Notes",\
+            "destination":"email"}]}
+            """.utf8)
+        let decoded = try JSONDecoder().decode(DestinationOverrides.self, from: released)
+        #expect(
+            decoded.overrides == [
+                DestinationOverride(
+                    bundleIdentifier: "com.example.notes", applicationName: "Notes",
+                    destination: .email, mode: .auto)
+            ])
+        #expect(decoded.mode(forBundleIdentifier: "com.example.notes") == .auto)
+        let rewritten = try JSONSerialization.jsonObject(with: JSONEncoder().encode(decoded))
+        let original = try JSONSerialization.jsonObject(with: released)
+        #expect((rewritten as? NSDictionary) == (original as? NSDictionary))
+    }
+
+    @Test(
+        "each mode survives a round trip",
+        arguments: [AdapterMode.auto, .prose, .forced(AdapterID(rawValue: "sql"))])
+    func modeRoundTrip(mode: AdapterMode) throws {
+        let overrides = DestinationOverrides([
+            DestinationOverride(
+                bundleIdentifier: "com.example.App", applicationName: "App", destination: .codeEditor,
+                mode: mode)
+        ])
+        let decoded = try JSONDecoder().decode(
+            DestinationOverrides.self, from: JSONEncoder().encode(overrides))
+        #expect(decoded == overrides)
+        #expect(decoded.mode(forBundleIdentifier: "com.example.app") == mode)
+    }
+
+    @Test("a mode this build has no word for, or a forced mode with no adapter, reads as auto")
+    func unreadableModeIsAuto() throws {
+        let stored = Data(
+            """
+            {"overrides":[{"bundleIdentifier":"com.example.App","destination":"email","mode":"later"},\
+            {"bundleIdentifier":"com.example.Other","destination":"document","mode":"forced"},\
+            {"bundleIdentifier":"com.example.Third","destination":"plain","mode":7}]}
+            """.utf8)
+        let decoded = try JSONDecoder().decode(DestinationOverrides.self, from: stored)
+        #expect(decoded.overrides.count == 3)
+        #expect(decoded.overrides.allSatisfy { $0.mode == .auto })
+        #expect(decoded.destination(forBundleIdentifier: "com.example.other") == .document)
+    }
+
+    @Test("an app nobody overrode is auto, and choosing a destination again keeps its mode")
+    func settingKeepsTheMode() {
+        let forced = AdapterMode.forced(AdapterID(rawValue: "shell"))
+        let overrides = DestinationOverrides([
+            DestinationOverride(
+                bundleIdentifier: "com.example.App", destination: .terminal, mode: forced)
+        ]).setting(.codeEditor, for: "com.example.app", named: "App")
+        #expect(overrides.mode(forBundleIdentifier: "com.example.App") == forced)
+        #expect(overrides.destination(forBundleIdentifier: "com.example.App") == .codeEditor)
+        #expect(DestinationOverrides.none.mode(forBundleIdentifier: "com.example.App") == .auto)
+    }
 }

@@ -235,6 +235,8 @@ struct OnboardingActionButton: View {
                 Text(caption)
                     .font(.system(size: 11.5, weight: .medium))
                     .foregroundStyle(.white.opacity(0.55))
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }

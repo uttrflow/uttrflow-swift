@@ -16,6 +16,8 @@ struct ShellWordsTests {
         #expect(words(#"cd My\ Folder"#) == [["cd", "My Folder"]])
         #expect(words(#"echo "a \"b\" \$c \\ \d""#) == [["echo", #"a "b" $c \ \d"#]])
         #expect(words("echo 'it''s'") == [["echo", "its"]])
+        #expect(words(#"$"rm" -rf x"#) == [["rm", "-rf", "x"]])
+        #expect(words(#"echo "cost $""#) == [["echo", "cost $"]])
         #expect(words("cat a\\\nb") == [["cat", "ab"]])
         #expect(words("cd x \\\n y") == [["cd", "x", "y"]])
         #expect(words("\\\n echo x") == [["echo", "x"]])

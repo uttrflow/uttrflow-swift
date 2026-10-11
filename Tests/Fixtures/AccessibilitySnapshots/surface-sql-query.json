@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "family": "SQL client: query editor",
+  "windowTitle": "sample_db — Query 1",
+  "document": null,
+  "focused": {
+    "attributes": {
+      "AXRole": { "kind": "value", "text": "AXTextArea" },
+      "AXSubrole": { "kind": "noValue" },
+      "AXIdentifier": { "kind": "unsupported" },
+      "AXTitle": { "kind": "noValue" },
+      "AXPlaceholderValue": { "kind": "noValue" },
+      "AXDescription": { "kind": "value", "text": "query editor" },
+      "AXNumberOfCharacters": { "kind": "value", "number": 21 },
+      "AXValue": { "kind": "value", "text": "select * from orders\n" }
+    },
+    "rangedText": { "kind": "value" },
+    "children": []
+  }
+}

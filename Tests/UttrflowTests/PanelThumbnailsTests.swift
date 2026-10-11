@@ -10,7 +10,7 @@ import UttrflowClipboard
 
 /// Decoding a picture is the expensive thing the panel does; what is worth testing is that it happens once and off the main thread.
 @MainActor
-@Suite("The pictures beside a clip")
+@Suite("The pictures beside a clip", .timeLimit(.minutes(5)))
 struct PanelThumbnailsTests {
     /// The mock source is `@Sendable` so the cache can run it on a detached task; the counter is shared across that boundary.
     private final class Counter: @unchecked Sendable {
@@ -31,6 +31,46 @@ struct PanelThumbnailsTests {
         }
         /// Counts one decode under the lock.
         func count() { lock.withLock { storedCalls += 1 } }
+    }
+
+    private actor EventReader<Element: Sendable> {
+        private var events: [Element] = []
+        private var waiter: (id: UUID, continuation: CheckedContinuation<Element?, Never>)?
+        private var timeoutTask: Task<Void, Never>?
+
+        func send(_ event: Element) {
+            if let waiter {
+                self.waiter = nil
+                timeoutTask?.cancel()
+                timeoutTask = nil
+                waiter.continuation.resume(returning: event)
+            } else {
+                events.append(event)
+            }
+        }
+
+        /// The next event, or nil once `timeout` passes; with no timeout, the suite's time limit ends a wait that never comes.
+        func next(timeout: Duration? = .seconds(45)) async -> Element? {
+            if !events.isEmpty { return events.removeFirst() }
+            guard waiter == nil else { return nil }
+
+            let id = UUID()
+            return await withCheckedContinuation { continuation in
+                waiter = (id, continuation)
+                guard let timeout else { return }
+                timeoutTask = Task {
+                    try? await Task.sleep(for: timeout)
+                    self.expireWaiter(id: id)
+                }
+            }
+        }
+
+        private func expireWaiter(id: UUID) {
+            guard let waiter, waiter.id == id else { return }
+            self.waiter = nil
+            timeoutTask = nil
+            waiter.continuation.resume(returning: nil)
+        }
     }
 
     /// A picture with real pixels behind it; `NSImage(size:)` has no representation and weighs nothing.
@@ -271,8 +311,35 @@ struct PanelThumbnailsTests {
     private final class ConcurrentDecodeCounter: Sendable {
         private let gate = DispatchSemaphore(value: 0)
         private let state = Mutex((started: [URL](), active: 0, maximum: 0))
+        private let startedEvents: EventReader<URL>
+        private let completionEvents: EventReader<Void>
         var started: [URL] { state.withLock { $0.started } }
         var maximum: Int { state.withLock { $0.maximum } }
+
+        init() {
+            startedEvents = EventReader()
+            completionEvents = EventReader()
+        }
+
+        func nextStarted() async -> URL? {
+            await startedEvents.next(timeout: nil)
+        }
+
+        func waitForStarts(_ count: Int) async -> [URL] {
+            var files: [URL] = []
+            for _ in 0..<count {
+                guard let file = await startedEvents.next(timeout: nil) else { break }
+                files.append(file)
+            }
+            return files
+        }
+
+        func waitForCompletions(_ count: Int) async -> Int {
+            var completed = 0
+            while completed < count, await completionEvents.next(timeout: nil) != nil { completed += 1 }
+            return completed
+        }
+
         func release(_ count: Int) {
             for _ in 0..<count { gate.signal() }
         }
@@ -282,8 +349,10 @@ struct PanelThumbnailsTests {
                 $0.active += 1
                 $0.maximum = max($0.maximum, $0.active)
             }
+            Task { await startedEvents.send(file) }
             _ = gate.wait(timeout: .now() + .seconds(60))
             state.withLock { $0.active -= 1 }
+            Task { await completionEvents.send(()) }
         }
     }
 
@@ -300,24 +369,39 @@ struct PanelThumbnailsTests {
         for file in files { thumbnails.prepare(file) }
         thumbnails.cancel(files[7])
         thumbnails.prepare(files[6], selected: true)
+        defer { counter.release(files.count) }
 
-        for _ in 0..<1_000 where counter.started.count < PanelThumbnails.maximumConcurrentDecodes {
-            await Task.yield()
+        let initialStarts = await counter.waitForStarts(PanelThumbnails.maximumConcurrentDecodes)
+        let initialStartedCount = counter.started.count
+        let initialMaximum = counter.maximum
+
+        // Free one slot at a time so the next start tests queue priority, not worker scheduling order.
+        let nextStarted: URL?
+        if initialStarts.count == PanelThumbnails.maximumConcurrentDecodes {
+            counter.release(1)
+            nextStarted = await counter.nextStarted()
+        } else {
+            nextStarted = nil
         }
-        #expect(counter.started.count == PanelThumbnails.maximumConcurrentDecodes)
-        #expect(counter.maximum <= PanelThumbnails.maximumConcurrentDecodes)
 
-        counter.release(PanelThumbnails.maximumConcurrentDecodes)
-        for _ in 0..<1_000 where counter.started.count < PanelThumbnails.maximumConcurrentDecodes + 2 {
-            await Task.yield()
-        }
-        #expect(counter.started[2] == files[6], "the selected row starts before ordinary queued rows")
-
+        // Release every held decode before asserting so a failed priority check cannot strand work.
         counter.release(files.count)
-        for file in files.dropLast() { await thumbnails.waitForIdle(file: file) }
-        await thumbnails.waitForIdle(file: files[7])
+        let completed = await counter.waitForCompletions(files.count - 1)
+        if completed == files.count - 1 {
+            for file in files.dropLast() { await thumbnails.waitForIdle(file: file) }
+            await thumbnails.waitForIdle(file: files[7])
+        }
 
+        #expect(initialStarts.count == PanelThumbnails.maximumConcurrentDecodes)
+        #expect(initialStartedCount == PanelThumbnails.maximumConcurrentDecodes)
+        #expect(initialMaximum <= PanelThumbnails.maximumConcurrentDecodes)
+        #expect(completed == files.count - 1, "every visible queued row eventually finishes")
+        #expect(nextStarted == files[6], "the selected row starts before ordinary queued rows")
         #expect(counter.started.count == files.count - 1, "the queued row that disappeared is never decoded")
+        #expect(
+            Set(counter.started) == Set(files.dropLast()),
+            "every remaining row is decoded exactly once and the canceled row is never decoded"
+        )
         #expect(counter.maximum <= PanelThumbnails.maximumConcurrentDecodes)
     }
 

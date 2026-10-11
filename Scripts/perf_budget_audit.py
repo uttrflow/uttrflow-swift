@@ -35,10 +35,10 @@ WAKEUPS_ALLOWED = {
     ("Sources/Uttrflow/Settings/SettingsPauseCountdown.swift", ".seconds(min(60, remaining) + 0.5)"): (
         "the suggestion pause countdown, at most once a minute and only while a pause runs with Settings open"
     ),
-    ("Sources/UttrflowPipeline/DictationPipeline.swift", "PendingInsertionConfirmation.interval"): (
+    ("Sources/UttrflowPipeline/DictationPipeline+ScreenReads.swift", "PendingInsertionConfirmation.interval"): (
         "watches for a dictated insertion to land, bounded by PendingInsertionConfirmation.budget"
     ),
-    ("Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift", "0.2"): (
+    ("Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift", "SuggestionTicking.activeSelectionInterval"): (
         "checks the caret only while a drawn offer can be accepted, and stops when the offer is withdrawn"
     ),
     ("Sources/UttrflowPipeline/DictationController.swift", "start.advanced(by:elapsed)"): (
@@ -52,6 +52,9 @@ WAKEUPS_ALLOWED = {
     ),
     ("Sources/UttrflowInput/ActivationMonitor.swift", ".milliseconds(Self.reconciliationMilliseconds)"): (
         "the release check, which runs only while the dictation key is held; see Docs/stuck-recording.md"
+    ),
+    ("Sources/UttrflowClipboard/PasteboardWatcher.swift", "burstInterval"): (
+        "polls only in a bounded window after a captured copy, resets on each captured copy, then ends; not an idle cost"
     ),
     ("Sources/UttrflowInput/PasteConfirmation.swift", "interval"): (
         "watches the caret after a paste the user made, bounded by the confirmation budget"
@@ -86,8 +89,9 @@ WAKEUPS_ALLOWED = {
 WAKEUPS_BOUND_BY = {
     ("Sources/UttrflowClipboard/PasteboardWatcher.swift", "interval"): ("PasteboardWatcher.pollInterval",),
     ("Sources/Uttrflow/UsageTelemetry.swift", "interval"): ("UsageTelemetry.flushInterval",),
+    ("Sources/UttrflowPermissions/PermissionWatcher.swift", "self.interval"): ("PermissionWatcher.defaultInterval",),
     ("Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift", "interval"): (
-        "SuggestionTicking.interval", "SuggestionTicking.ghostInterval",
+        "SuggestionTicking.interval", "SuggestionTicking.ghostInterval", "SuggestionTicking.activeSelectionInterval",
     ),
 }
 
@@ -416,6 +420,9 @@ def check_wakeups(tree, findings, report):
                     value = seconds(tree, bound, path)
                     if value is None:
                         findings.fail("wakeups", path, line, f"{kind} bound by {bound}, which no longer resolves")
+                    elif value < WAKEUP_FLOOR and (path, bound) in WAKEUPS_ALLOWED:
+                        seen.add((path, bound))
+                        report.append(f"  ✓ {path}:{line} {kind} every {value:g} s via {bound}, allowed: {WAKEUPS_ALLOWED[(path, bound)]}")
                     elif value < WAKEUP_FLOOR:
                         findings.fail("wakeups", path, line, f"{kind} every {value:g} s via {bound}, under {WAKEUP_FLOOR:g} s", key)
                     else:
@@ -750,15 +757,15 @@ def check_suggestion_path(tree, findings, report):
     panel_path = "Sources/Uttrflow/Suggestion/SuggestionPanelController.swift"
     coordinator = tree.files.get(coordinator_path, "")
     panel = tree.files.get(panel_path, "")
-    turn_match = re.search(r"private func turn\([^)]*\) async\s*\{", coordinator)
+    turn_match = re.search(r"(?:private\s+)?func turn\([^)]*\) async\s*\{", coordinator)
     if turn_match:
         turn_opening = coordinator.find("{", turn_match.start())
         turn_body = coordinator[turn_opening : matching(coordinator, turn_opening) + 1]
     else:
         turn_body = ""
-    primary_read = re.search(r"let read = shouldRead \? await FocusedFieldReader\.read\(\) : nil", turn_body)
+    primary_read = re.search(r"let read = shouldRead \? await focusedFieldReader\(\) : nil", turn_body)
     reader_calls = int(primary_read is not None)
-    key_handler = re.search(r"private func keyPressed\([^)]*\)\s*\{", coordinator)
+    key_handler = re.search(r"func keyPressed\([^)]*\)\s*\{", coordinator)
     if key_handler:
         opening = coordinator.find("{", key_handler.start())
         body = coordinator[opening : matching(coordinator, opening) + 1]
@@ -787,21 +794,21 @@ def check_suggestion_path(tree, findings, report):
         report.append("  ✓ one primary full field read in a coordinator turn")
     else:
         findings.failures.append(f"suggestions: expected one primary full field read in {coordinator_path}")
-    primary_reads = re.findall(r"(?:let read = shouldRead \? await FocusedFieldReader\.read\(\)|let secondPrimaryRead = await FocusedFieldReader\.read\(\))", turn_body)
+    primary_reads = re.findall(r"(?:let read = shouldRead \? await focusedFieldReader\(\)|let secondPrimaryRead = await focusedFieldReader\(\))", turn_body)
     if len(primary_reads) > 1:
         findings.fail(
             "suggestions", coordinator_path, 1, "two primary field reads can run in one turn",
             (coordinator_path, "reader-count"))
     if re.search(
-        r"readStarted = Date\(\).*?FocusedFieldReader\.read\(\).*?readElapsed = Int\(Date\(\)\.timeIntervalSince\(readStarted\)",
+        r"readStarted = Date\(\).*?focusedFieldReader\(\).*?readElapsed = Int\(Date\(\)\.timeIntervalSince\(readStarted\)",
         turn_body, re.S):
         report.append("  ✓ field-read duration starts before the cross-process read")
     else:
         findings.failures.append(f"suggestions: {coordinator_path} does not time the full field read")
-    callback_source = re.sub(r"FocusedFieldReader\.focusMayHaveMoved\(\)", "", monitor_body)
+    callback_source = re.sub(r"FocusedFieldReader\.(?:focusMayHaveMoved|fieldMayHaveChanged)\(\)", "", monitor_body)
     callback_allocations = re.sub(r"\.append\(text\)|\.append\(nil\)", "", callback_source)
     callback_allocations = re.sub(r"\[text\]", "", callback_allocations)
-    if re.search(r"\b(?:FocusedFieldReader|AXUIElementCopy|AXUIElementSet|AXTextMarker)", callback_source + body):
+    if re.search(r"\b(?:FocusedFieldReader|focusedFieldReader|AXUIElementCopy|AXUIElementSet|AXTextMarker)", callback_source + body):
         findings.fail("suggestions", coordinator_path, line_of(coordinator, monitor.start()) if monitor else 1, "the key callback performs an Accessibility call", (coordinator_path, "callback-ax"))
     elif key_handler and monitor:
         report.append("  ✓ key callback contains no Accessibility calls")
@@ -900,8 +907,8 @@ def stage_samples(lines, corpus):
             if step.get("kind") == "asr":
                 for field in LATENCY_ASR_FIELDS:
                     samples.setdefault(f"asr:{field}", []).append(float(step[field]))
-            elif step.get("kind") == "clean":
-                samples.setdefault("clean", []).append(float(step["t1"]) - float(step["t0"]))
+            elif step.get("kind") in ("clean", "correct"):
+                samples.setdefault(step["kind"], []).append(float(step["t1"]) - float(step["t0"]))
     return samples
 
 
@@ -935,9 +942,9 @@ LAYER_STAGES = {
 
 # Layers whose stage has no measured row yet, each with its reason printed on every run; a measured one fails as stale.
 LAYERS_UNMEASURED = {
-    "candidate-generation": "runs in the dictionary's correction, which `uttrflow-dev bench` gives no dictionary to time",
-    "scoring": "runs in the dictionary's correction, which `uttrflow-dev bench` gives no dictionary to time",
-    "override-gate": "runs in the dictionary's correction, which `uttrflow-dev bench` gives no dictionary to time",
+    "candidate-generation": "runs in the dictionary's correction, which `uttrflow-dev bench` times as `correct` but no measured run has a row for yet",
+    "scoring": "runs in the dictionary's correction, which `uttrflow-dev bench` times as `correct` but no measured run has a row for yet",
+    "override-gate": "runs in the dictionary's correction, which `uttrflow-dev bench` times as `correct` but no measured run has a row for yet",
 }
 
 LAYER_CASE = re.compile(r"^\s*case\s+(\w+)(?:\s*=\s*\"([\w-]+)\")?\s*$", re.M)
@@ -980,13 +987,14 @@ STAGE_TIMEOUT_ROWS = {}
 # Limits with no bench row yet, each with its reason printed on every run; one given a row fails as stale.
 STAGE_TIMEOUTS_UNMEASURED = {
     "transcription": "`asr:recognitionSeconds` times one piece, not seconds per second of audio, so no length-scaled limit follows",
+    "transcriptionPerAudioSecond": "25 times the 0.04 processor-seconds per second of audio `uttrflow-bakeoff profile` measured; bench times no per-second rate",
     "transformation": "the backstop around the route; `clean` sizes the route, not this stage",
     "route": "`clean` was measured on a loaded Mac and is to be re-measured on an idle one before a route limit follows it",
     "engine": "`clean` times the whole route, not one engine's turn",
     "rules": "`uttrflow-dev bench` never times the deterministic floor alone",
     "captureStop": "`uttrflow-dev bench` reads audio from a file, so it never stops a capture",
     "screenRead": "`uttrflow-dev bench` has no screen to read",
-    "correction": "`uttrflow-dev bench` gives no dictionary to time",
+    "correction": "`uttrflow-dev bench` times it as `correct`, but no measured run has a row for it yet",
     "expansion": "`uttrflow-dev bench` gives no snippets to time",
     "insertion": "`uttrflow-dev bench` inserts into no app",
     "speechModelLoad": "sized from the cold loads in Docs/startup.md, which bench runs after",
@@ -1059,8 +1067,11 @@ def latency_self_test(root):
                 corpus[clip_id] = {"category": category, "variant": "clean"}
                 wait = targets.get(f"wait:{category}", (0, 0))[1] * scale
                 asr = {f: str(targets.get(f"asr:{f}", (0, 0))[1] * scale) for f in LATENCY_ASR_FIELDS}
-                clean = targets.get("clean", (0, 0))[1] * scale
-                events = [dict(asr, kind="asr"), {"kind": "clean", "t0": "1.0", "t1": str(1.0 + clean)}]
+                timed = [
+                    {"kind": kind, "t0": "1.0", "t1": str(1.0 + targets.get(kind, (0, 0))[1] * scale)}
+                    for kind in ("correct", "clean")
+                ]
+                events = [dict(asr, kind="asr")] + timed
                 lines.append("BENCH " + json.dumps({
                     "event": "result", "id": clip_id, "mode": "rt", "cleaner": "shipping", "wait": wait, "events": events}))
         return stage_samples(lines, corpus)
@@ -1174,7 +1185,7 @@ INJECTIONS = (
         "            guard let vocabulary = self.vocabulary else { return [] }\n", "cache",
     ),
     (
-        "Sources/Uttrflow/Dock/DockView.swift",
+        "Sources/Uttrflow/Dock/DockParts.swift",
         "paused: !motion.workingBarsMove", "paused: false", "motion",
     ),
     (
@@ -1192,8 +1203,8 @@ INJECTIONS = (
         "Sources/UttrflowLocalModel/MLXCandidateScorer.swift",
         "            // Only a call that reaches the model holds the process-wide cache; an unloaded scorer never does.\n"
         "            beginPass()\n            defer { endPass() }\n"
-        "            let result = await container.perform {",
-        "            let result = await container.perform {\n"
+        "            let request = await container.perform {",
+        "            let request = await container.perform {\n"
         "            beginPass()\n            defer { endPass() }\n           ",
         "cache",
     ),
@@ -1202,19 +1213,33 @@ INJECTIONS = (
         "256 * 1_048_576", "1_024 * 1_048_576", "cache",
     ),
     (
+        "Sources/UttrflowLocalModel/MLXCandidateScoringBackend.swift",
+        "        bufferCachePasses.begin()\n        defer { bufferCachePasses.end() }\n"
+        "        return await container.perform { context in",
+        "        return await container.perform { context in",
+        "cache", "tokenise()",
+    ),
+    (
+        "Sources/UttrflowLocalModel/MLXCandidateScoringBackend.swift",
+        "        bufferCachePasses.begin()\n        defer { bufferCachePasses.end() }\n"
+        "        let cache = cache",
+        "        let cache = cache",
+        "cache", "score()",
+    ),
+    (
         "Sources/UttrflowEval/ResourceBudget.swift",
         "case .idleSuggestionsOff: return 300", "case .idleSuggestionsOff: return 900", "counters",
     ),
     (
         "Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift",
-        "let read = shouldRead ? await FocusedFieldReader.read() : nil",
-        "let read = shouldRead ? await FocusedFieldReader.read() : nil\n        let secondPrimaryRead = await FocusedFieldReader.read()",
+        "let read = shouldRead ? await focusedFieldReader() : nil",
+        "let read = shouldRead ? await focusedFieldReader() : nil\n        let secondPrimaryRead = await focusedFieldReader()",
         "suggestions", "two primary field reads",
     ),
     (
         "Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift",
-        "let readStarted = Date()\n        let read = shouldRead ? await FocusedFieldReader.read() : nil",
-        "let read = shouldRead ? await FocusedFieldReader.read() : nil\n        let readStarted = Date()", "suggestions", "does not time the full field read",
+        "let readStarted = Date()\n        let read = shouldRead ? await focusedFieldReader() : nil",
+        "let read = shouldRead ? await focusedFieldReader() : nil\n        let readStarted = Date()", "suggestions", "does not time the full field read",
     ),
     (
         "Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift",

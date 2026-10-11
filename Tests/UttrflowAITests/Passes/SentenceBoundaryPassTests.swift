@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 import UttrflowAI
 import UttrflowCore
@@ -25,9 +26,81 @@ struct SentenceBoundaryPassTests {
         #expect(cleaned(input) == expected)
     }
 
+    @Test(
+        "takes back a comma or stop inside a closed phrase",
+        arguments: [
+            ("We went to the, store", "We went to the store."),
+            ("She put the keys on the, green table", "She put the keys on the green table."),
+            ("A cup of, tea", "A cup of tea."),
+            ("We went to, the store", "We went to the store."),
+            ("I can. Finish it today", "I can finish it today."),
+        ])
+    func repairsClosedPhraseMarks(input: String, expected: String) {
+        #expect(cleaned(input) == expected)
+    }
+
+    @Test(
+        "keeps a comma or stop that closes its phrase",
+        arguments: [
+            ("Hold on, the page is loading", "Hold on, the page is loading."),
+            ("If you want me to, I will", "If you want me to, I will."),
+            ("Yes, I can. Thanks", "Yes, I can. Thanks."),
+        ])
+    func keepsLegalMarks(input: String, expected: String) {
+        #expect(cleaned(input) == expected)
+    }
+
+    @Test(
+        "repairs a stop after a word whose class leads into the next words",
+        arguments: [
+            (
+                "We can ship it without any. Changes to the plan",
+                "We can ship it without any changes to the plan."
+            ),
+            ("We walked through. The old town at night", "We walked through the old town at night."),
+            ("We met during. The lunch break", "We met during the lunch break."),
+        ])
+    func repairsStopAfterLeadingWord(input: String, expected: String) {
+        #expect(cleaned(input) == expected)
+    }
+
+    @Test(
+        "keeps a stop after a word that ends its sentence before a new clause",
+        arguments: [
+            (
+                "A wide path will let a wheelbarrow through. The beds can stay as grass",
+                "A wide path will let a wheelbarrow through. The beds can stay as grass."
+            ),
+            ("I know that. She left early", "I know that. She left early."),
+            ("I want some. The shop is closed", "I want some. The shop is closed."),
+        ])
+    func keepsStopAfterSentenceEnd(input: String, expected: String) {
+        #expect(cleaned(input) == expected)
+    }
+
     @Test("keeps a subject-bearing independent sentence after the stop")
     func keepsIndependentSentence() {
         #expect(cleaned("I left. She arrived") == "I left. She arrived.")
+    }
+
+    @Test(
+        "keeps the recogniser's stop before a subordinate clause that an imperative main clause completes",
+        arguments: [
+            (
+                "Call me when you are outside and I will come down. if nobody answers leave it with the shop",
+                "Call me when you are outside and I will come down. If nobody answers leave it with the shop."
+            ),
+            (
+                "The keys are on the desk. if the door is locked ring the bell",
+                "The keys are on the desk. If the door is locked ring the bell."
+            ),
+            (
+                "QA signed off an hour ago. if the error budget drops overnight roll back with the runbook",
+                "QA signed off an hour ago. If the error budget drops overnight roll back with the runbook."
+            ),
+        ])
+    func keepsStopBeforeConditionalWithImperative(input: String, expected: String) {
+        #expect(cleaned(input) == expected)
     }
 
     @Test(
@@ -49,8 +122,8 @@ struct SentenceBoundaryPassTests {
     @Test(
         "preserves full stops that belong to abbreviations before lowercase words",
         arguments: [
-            ("Meet me at 9 a.m. sharp.", "Meet me at 9 a.m. sharp."),
-            ("Call me at 5 p.m. tomorrow.", "Call me at 5 p.m. tomorrow."),
+            ("Meet me at 9 a.m. sharp.", "Meet me at 9 am sharp."),
+            ("Call me at 5 p.m. tomorrow.", "Call me at 5 pm tomorrow."),
             ("Use tools, e.g. a hammer.", "Use tools, e.g. a hammer."),
             ("That is, i.e. the main one.", "That is, i.e. the main one."),
             ("Apples vs. oranges is a fair fight.", "Apples vs. oranges is a fair fight."),
@@ -69,6 +142,8 @@ struct SentenceBoundaryPassTests {
             ("We gave up. The team left", "We gave up. The team left."),
             ("Come in. The door is open", "Come in. The door is open."),
             ("Log in. The dashboard opens", "Log in. The dashboard opens."),
+            ("Take a look. The report is ready", "Take a look. The report is ready."),
+            ("Have a quick look. The report is ready", "Have a quick look. The report is ready."),
         ])
     func keepsPhrasalVerbStops(input: String, expected: String) {
         #expect(cleaned(input) == expected)
@@ -81,5 +156,20 @@ struct SentenceBoundaryPassTests {
                 == "We finished the report. I sent it to Maria.")
         #expect(cleaned("I sent it to. Paris yesterday") == "I sent it to Paris yesterday.")
         #expect(cleaned("We need the. Monday version") == "We need the Monday version.")
+    }
+
+    @Test("a long dictation of stopped sentences is finished as a message inside the rules budget")
+    func longStoppedDictation() {
+        let text = String(
+            repeating: "my manager. wants the slides by noon. we finished the report and sent it today. ",
+            count: 200)
+        let message = CleaningPipeline.message(for: .standard(for: .document), situation: .unknown)
+        // The work is the CPU time of this thread, which other processes on a loaded machine do not add to.
+        let start = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)
+        let finished = message.run(Draft(text: text)).text
+        let spent = Duration.nanoseconds(Int64(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - start))
+        #expect(spent < StageTimeout.rules)
+        #expect(finished.split(whereSeparator: \.isWhitespace).count == 3_000)
+        #expect(finished.hasPrefix("My manager wants the slides by noon. We finished the report"))
     }
 }

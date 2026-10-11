@@ -1,5 +1,3 @@
-public import struct Foundation.Date
-
 private import Synchronization
 
 /// What a path names on disk, as far as a check that never runs a program can tell.
@@ -79,13 +77,13 @@ public final class CachedFileSystem: FileSystemProbing {
     /// One remembered answer and when it stops being believed.
     private struct Held<Value: Sendable>: Sendable {
         let value: Value
-        let expires: Date
+        let expires: ContinuousClock.Instant
     }
 
     /// The disk behind the cache.
     private let inner: any FileSystemProbing
     /// The clock the lifetime is measured on, injected so a test decides when an answer goes stale.
-    private let now: @Sendable () -> Date
+    private let now: @Sendable () -> ContinuousClock.Instant
     /// What each path last named.
     private let kinds = Mutex<[String: Held<PathKind>]>([:])
     /// What each small file last held.
@@ -94,7 +92,9 @@ public final class CachedFileSystem: FileSystemProbing {
     private let listings = Mutex<[String: Held<[String]?>]>([:])
 
     /// A cache over one filesystem, on the given clock.
-    public init(_ inner: any FileSystemProbing, now: @escaping @Sendable () -> Date = { Date() }) {
+    public init(
+        _ inner: any FileSystemProbing, now: @escaping @Sendable () -> ContinuousClock.Instant = { .now }
+    ) {
         self.inner = inner
         self.now = now
     }
@@ -133,9 +133,11 @@ public final class CachedFileSystem: FileSystemProbing {
 
     /// Holds one answer, emptying the table first when it is full, since a full table is a burst that is over.
     private static func store<Value>(
-        _ value: Value, for key: String, in table: inout [String: Held<Value>], at moment: Date
+        _ value: Value, for key: String, in table: inout [String: Held<Value>],
+        at moment: ContinuousClock.Instant
     ) {
         if table.count >= capacity { table.removeAll(keepingCapacity: true) }
-        table[key] = Held(value: value, expires: moment.addingTimeInterval(lifetimeInSeconds))
+        let lifetime = Duration.seconds(lifetimeInSeconds)
+        table[key] = Held(value: value, expires: moment.advanced(by: lifetime))
     }
 }

@@ -32,6 +32,27 @@ struct PanelPasteReportTests {
         #expect(PanelPasteReport.copied.primaryLine == "Copied — press ⌘V")
     }
 
+    @Test(
+        "an explicit Copy of text or a picture says it was copied",
+        arguments: [
+            PanelCopyContent.text, .picture,
+        ])
+    func explicitCopy(_ content: PanelCopyContent) throws {
+        let report = try #require(PanelPasteReport.after(.copied(content)))
+        #expect(report == PanelPasteReport.copied)
+        #expect(report.primaryLine == "Copied — press ⌘V")
+        #expect(report.spoken == "Copied to the clipboard, not pasted. Press Command V to paste it.")
+    }
+
+    @Test("an explicit Copy of a secret confirms it without exposing its contents")
+    func explicitHiddenCopy() throws {
+        let report = try #require(PanelPasteReport.after(.copied(.hiddenText)))
+        #expect(report.primaryLine == "Copied hidden clip — press ⌘V")
+        #expect(
+            report.spoken == "Copied a hidden clip to the clipboard, not pasted. Press Command V to paste it."
+        )
+    }
+
     @Test("a refused clipboard-free paste does not claim the clip was copied")
     func textCouldNotPaste() throws {
         let report = try #require(PanelPasteReport.after(.textCouldNotPaste))

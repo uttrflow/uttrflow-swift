@@ -46,6 +46,8 @@ private final class ScriptedService: AuthenticationService {
 
     /// Nothing to forget.
     func signOut() async {}
+
+    func deleteAccount() async throws(AccountError) {}
 }
 
 /// Each ``ProfileRefresh`` answer, and every failure, against a cache holding a current profile.

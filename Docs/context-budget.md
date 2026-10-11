@@ -30,11 +30,29 @@ recogniser's vocabulary, and is carried into tidying as `earlyContext` rather th
 100 ms adds to the time between stopping speaking and seeing text only when a dictation is too
 short to cover it.
 
+Beside that reading the early read asks the surroundings walk for names (`ContextEngine.onScreenNames`):
+capitalised words and @mentions from the visible conversation, at most 32, secret-shaped runs
+refused, kept on `AppContext.onScreenNames` and dropped for a secure field. The walk keeps its own
+60 ms deadline and runs only at the nearest-caret context level. The text itself is never passed on:
+names reach only the screen candidates and the recogniser vocabulary ranking, not any model prompt, and
+nothing is logged or stored. A dictation shorter than the walk goes without them.
+
 Every piece is corrected against that same reading. One later read looks at the caret as it is
 then rather than as it was: insertion reads it once more immediately before writing
 (`insertionContextForWrite`), to pad the words against the text beside the caret and decide the
 first word's capital. That last reading is discarded if the application in front is no longer the
 one the dictation was read from.
+
+That later read is skipped when nothing could have moved the caret since the last reading began:
+`ContextEngine.inputsSeen()` counts keys, clicks and application switches, and when the count is
+unchanged, the last reading was complete and no earlier paste may still be landing, that reading
+is written against. `MacContextEngine` counts keys and mouse-button presses with
+`CGEventSource.secondsSinceLastEventType`, which needs no event monitor, and adds every activation
+from its activation feed. An engine that counts nothing returns `nil` and every read is taken.
+`DictationScreenReadBudgetTests` counts the reads at the `ElementTree` seam for a 2 s and a 40 s
+dictation: 1 with no input, 2 after a key or a switch. The read is skipped, not
+narrowed to the caret edges, because the first word's capital comes from the caret's line and the
+words before it, which two units either side of the caret do not hold.
 
 The pipeline reports each dictation's reads, and the milliseconds they took together, as one
 `ScreenReadCost` through `MetricsRecording.recordScreenReads`. It is kept apart from the stage
@@ -95,6 +113,14 @@ how long it keeps a thread, and a serial queue would make every read behind it w
 before starting its own. Concurrent reads share no state, since each targets a different element
 with its own messaging timeout.
 
+An application that keeps running a dictation's read past the budget is not asked again every
+dictation. `MacContextEngine` records each read that runs over in the same `SlowFields` the
+suggestion reads use, keyed on the application as a whole since a stalled read may never reach a
+field. The first overrun is forgiven as a cold start; from the second the application rests, and a
+resting read returns the identity with the reason "timed out" without queueing another abandoned
+read. Switching to the application ends its rest, keeping its length so a further overrun rests it
+for double.
+
 ## What each consumer needs
 
 `ContextNeed` (`Sources/UttrflowContext/ContextNeed.swift`) is the slice one consumer reads: which
@@ -138,3 +164,15 @@ If identity still misses the budget, the engine names the application from the
 `didActivateApplicationNotification` feed it already keeps (the application behind Uttrflow when
 Uttrflow itself activated last) and logs `Context identity timed out; named from the activation
 feed` under the `context` category.
+
+## How far a name vocabulary would need to reach
+
+`InsertionPoint.precedingLimit` (300) and `followingLimit` (100) were sized for sentence state. A
+name vocabulary taken from the text around the caret needs the identifiers a person is about to
+say, and a schema comment, an import block or a signature can sit further back than 300 units.
+`NameReach` (`Sources/UttrflowEval/NameReach.swift`) is the measure: for a set of invented editor
+sessions, each holding the text before the caret and the names dictated next, it reports the share
+whose nearest whole-token occurrence lies wholly inside 300, 1,000 and 4,000 UTF-16 units. A name
+cut by the window's start does not count. The limits stay as they are until that share is
+measured on a recorded sample and the read cost of the larger window is measured in the editors
+the adapters target; the 100 ms budget refuses any larger read that breaks it.

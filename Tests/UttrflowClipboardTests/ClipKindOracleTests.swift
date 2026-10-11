@@ -264,6 +264,8 @@ enum WholeClipDetector {
     }
 
     private static func isCode(_ text: String) -> Bool {
+        // The whole-clip shapes the classifier reads over the full text, never a sample.
+        if let verdict = CodeShapes.wholeClipVerdict(text) { return verdict }
         if text.hasPrefix("#!") { return true }
         if String(text.prefix(while: { !$0.isNewline })).wholeMatch(of: CodeShapes.importHeader) != nil {
             return true
@@ -273,6 +275,7 @@ enum WholeClipDetector {
         }
         if isShellCommand(text) { return true }
         if CodeShapes.isOneLineStatement(text) || CodeShapes.isConfiguration(text) { return true }
+        if CodeShapes.isOneLineInvocation(text) { return true }
         let braces = text.contains("{") && text.contains("}")
         let signals = [
             braces, CodeShapes.hasStatementEnding(text, countingClosingBrace: !braces),

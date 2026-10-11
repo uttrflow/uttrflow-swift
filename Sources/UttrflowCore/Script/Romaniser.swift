@@ -76,23 +76,10 @@ public enum Romaniser {
         return String(String.UnicodeScalarView(scalars))
     }
 
-    /// A romanised word folded so its common spelling variants meet: "theek" and "thik", "woh" and "wo".
+    /// A romanised word's key for "these two spellings are one word": the common spelling of its attested variant set in `RomanisedVariants` ("thik" is "theek", "wo" is "woh"), otherwise the word itself, lowercased, in ASCII letters and digits.
     public static func soundKey(_ word: String) -> String {
-        var folded = word.lowercased().filter { $0.isASCII && ($0.isLetter || $0.isNumber) }
-        for (from, to) in [("ph", "f"), ("w", "v"), ("q", "k"), ("ee", "i"), ("oo", "u"), ("ein", "en")] {
-            folded = folded.replacingOccurrences(of: from, with: to)
-        }
-        var key = ""
-        for character in folded where character != key.last { key.append(character) }
-        // A final "h" after a vowel is not said: "woh" is "wo", "yeh" is "ye".
-        if key.count > 1, key.hasSuffix("h"), let before = key.dropLast().last, "aeiou".contains(before) {
-            key.removeLast()
-        }
-        // A final "ay" after a consonant is typed "ai" as often: "chay" and "chai".
-        if key.count > 2, key.hasSuffix("ay"), let before = key.dropLast(2).last, !"aeiou".contains(before) {
-            key = String(key.dropLast()) + "i"
-        }
-        return key
+        let spelling = word.lowercased().filter { $0.isASCII && ($0.isLetter || $0.isNumber) }
+        return RomanisedVariants.canonical(of: spelling) ?? spelling
     }
 
     // MARK: Words
@@ -224,7 +211,15 @@ public enum Romaniser {
             let next = isLast ? nil : syllables[index + 1]
             let isClosed = next.map { $0.vowel.isEmpty || $0.consonants.count > 1 } ?? false
             var vowel = syllable.vowel
-            let consonants = cluster(syllable.consonants, before: vowel)
+            // A nasal "aa" before a lone "v" is said "aon", and the "v" is that "o": "gaon", "gaonon".
+            if syllable.isNasal, vowel == "aa", next?.consonants == [Consonant(base: va, hasNukta: false)] {
+                written += cluster(syllable.consonants, before: vowel) + "aon"
+                continue
+            }
+            let saidAfterAon =
+                index > 0 && syllables[index - 1].isNasal && syllables[index - 1].vowel == "aa"
+                && syllable.consonants == [Consonant(base: va, hasNukta: false)]
+            let consonants = saidAfterAon ? "" : cluster(syllable.consonants, before: vowel)
             switch vowel {
             case "aa":
                 vowel = longA(syllable, isFirst: isFirst, isLast: isLast, isClosed: isClosed, next: next)
@@ -262,6 +257,8 @@ public enum Romaniser {
         if syllable.isIndependent { return "aa" }
         if syllable.isNasal { return isLast ? "a" : "aa" }
         if isLast || (next.map { $0.consonants.isEmpty } ?? false) { return "a" }
+        // Before a cluster that ends in "y" it is typed single: "karya", "manya".
+        if let last = next?.consonants.last, next?.consonants.count ?? 0 > 1, last.base == ya { return "a" }
         return isFirst || isClosed ? "aa" : "a"
     }
 
@@ -280,16 +277,16 @@ public enum Romaniser {
                     continue
                 }
             }
-            written += sound(of: letter, before: following == nil ? vowel : "")
+            written += sound(of: letter, before: following == nil ? vowel : nil)
             index += 1
         }
         return written
     }
 
-    /// One consonant's sound; "v" is written "w" except before an "i" or an "e", as in "wala" and "vikram".
-    static func sound(of letter: Consonant, before vowel: String) -> String {
+    /// One consonant's sound; "v" is written "w" except before an "i" or an "e" or closing a syllable, as in "wala", "vikram" and "gaav".
+    static func sound(of letter: Consonant, before vowel: String?) -> String {
         if letter.hasNukta, let changed = nuktaSounds[letter.base] { return changed }
-        if letter.base == va { return ["i", "ii", "e"].contains(vowel) ? "v" : "w" }
+        if letter.base == va { return vowel.map { ["i", "ii", "e", ""].contains($0) } == true ? "v" : "w" }
         return consonants[letter.base] ?? ""
     }
 
@@ -325,6 +322,7 @@ public enum Romaniser {
     static let na: Unicode.Scalar = "\u{0928}"
     static let ma: Unicode.Scalar = "\u{092E}"
     static let va: Unicode.Scalar = "\u{0935}"
+    static let ya: Unicode.Scalar = "\u{092F}"
 
     /// The danda, the double danda and the abbreviation sign, each written as a full stop.
     static let stops: Set<Unicode.Scalar> = ["\u{0964}", "\u{0965}", "\u{0970}"]

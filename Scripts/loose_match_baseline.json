@@ -3,8 +3,7 @@
     "Sources/UttrflowAI/Passes/CaretEchoPass.swift": 1,
     "Sources/UttrflowAI/RomanisedWords.swift": 3,
     "Sources/UttrflowAI/WordForms.swift": 1,
-    "Sources/UttrflowCore/Secrets/SecretShapes.swift": 2,
     "Sources/UttrflowDictionary/ReadingRestraint.swift": 1
   },
-  "total": 8
+  "total": 6
 }

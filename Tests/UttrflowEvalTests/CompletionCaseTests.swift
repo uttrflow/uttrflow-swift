@@ -65,17 +65,38 @@ struct CompletionCaseTests {
     }
 
     @Test(
-        "A named hit ends within an acceptable continuation, or any continuation hits when none is named."
+        "The leader contains a whole-word prefix of its named answer, or continues an unnamed expectation.",
+        .bug(id: 5068)
     )
     func hits() {
         let named = CompletionExpectation(acceptable: ["heckout", "ommit"], band: 1...40)
         #expect(named.hits(["git Commit"], typed: "git c"))
         #expect(!named.hits(["git Commit -m"], typed: "git c"))
+        #expect(!named.hits(["git checkout."], typed: "git c"))
+        #expect(!named.hits(["git checkout2"], typed: "git c"))
+        #expect(!named.hits(["git checkout_more"], typed: "git c"))
+        #expect(!named.hits(["git com"], typed: "git c"))
+        #expect(!named.hits(["git co"], typed: "git c"))
+        #expect(!named.hits(["git x", "git commit"], typed: "git c"))
         #expect(!named.hits(["git clone"], typed: "git c"))
         #expect(!named.hits(["git c"], typed: "git c"))
         #expect(!named.hits([""], typed: "git c"))
         #expect(!named.hits(["git"], typed: "git c"))
         #expect(!named.hits(["git x"], typed: "git c"))
+        let longAnswer = CompletionExpectation(acceptable: ["see you tomorrow"], band: 1...40)
+        #expect(longAnswer.hits(["see you tomorrow"], typed: ""))
+        #expect(longAnswer.hits(["see you"], typed: ""))
+        #expect(!longAnswer.hits(["see you tomorrow after work"], typed: ""))
+        #expect(!longAnswer.hits(["see you tomorrows"], typed: ""))
+        #expect(!longAnswer.hits(["s"], typed: ""))
+        #expect(!longAnswer.hits([""], typed: ""))
+        #expect(!longAnswer.hits(["wrong", "see you tomorrow"], typed: ""))
+        let accent = CompletionExpectation(acceptable: ["cafe"], band: 1...40)
+        #expect(!accent.hits(["cafe\u{0301}"], typed: ""))
+        let composed = CompletionExpectation(acceptable: ["café"], band: 1...40)
+        #expect(composed.hits(["cafe\u{0301}"], typed: ""))
+        let typedComposed = CompletionExpectation(acceptable: ["latte"], band: 1...40)
+        #expect(typedComposed.hits(["cafe\u{0301} latte"], typed: "café "))
         let open = CompletionExpectation(band: 1...40)
         #expect(open.hits(["git clone"], typed: "git c"))
         #expect(!open.hits([], typed: "git c"))
@@ -95,6 +116,7 @@ struct CompletionCaseTests {
             band: 1...100)
 
         #expect(expectation.hits(["UPDATE orders SET"], typed: typed))
+        #expect(expectation.hits(["UPDATE orders SET status"], typed: typed))
         #expect(expectation.hits([line], typed: typed))
         #expect(!expectation.hits(["UPDATE orders SET status = 'shipped' WHERE id = 1;"], typed: typed))
     }

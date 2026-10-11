@@ -3,16 +3,21 @@ public import UttrflowCore
 /// Adds or takes back the final full stop the way the formatter's stop policy and layout say.
 public struct TerminalStopPass: WholeTextCleaningPass {
     public static let id: PassID = .terminalStop
+    public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
 
     public let policy: TerminalStopPolicy
     public let layout: LayoutPolicy
     public let insertionPoint: InsertionPoint
     public let destination: Destination?
+    /// What the caret sits in, which with the words decides whether a query editor holds a statement.
+    let region: CaretStructure.Region
 
     public init(
         policy: TerminalStopPolicy = .always, layout: LayoutPolicy = .paragraphs,
-        insertionPoint: InsertionPoint = .unknown, destination: Destination? = nil
+        insertionPoint: InsertionPoint = .unknown, destination: Destination? = nil,
+        region: CaretStructure.Region = .unrecognised
     ) {
+        self.region = region
         self.policy = policy
         self.layout = layout
         self.insertionPoint = insertionPoint
@@ -21,22 +26,34 @@ public struct TerminalStopPass: WholeTextCleaningPass {
 
     public func apply(_ draft: Draft) -> Draft {
         var draft = draft
-        if layout.contains(.singleLine) { LayoutWordsPass.joinOnOneLine(&draft, by: Self.id) }
+        // A shell reads a break as Return, so a terminal's lines join with a space, never a list separator.
+        if layout.contains(.singleLine) {
+            LayoutWordsPass.joinOnOneLine(&draft, by: Self.id, separated: destination != .terminal)
+        }
         if layout.contains(.paragraphs), policy != .never {
-            Self.stopParagraphs(&draft, destination: destination)
+            Self.stopParagraphs(&draft, isLetter: appliesLetterRules(to: draft))
         }
         Self.separateLeadingReviewTag(&draft, layout: layout)
         Self.separateLeadingQuestionOpener(&draft, layout: layout)
         Self.separateTrailingRequest(&draft, layout: layout)
-        Self.separateTrailingRightTag(&draft, layout: layout)
+        Self.separateTrailingTag(&draft, layout: layout)
+        Self.separateHindiAsides(&draft, layout: layout)
         guard let last = draft.presentIndices.last, !draft.words[last].isLayoutMark else { return draft }
         let word = draft.words[last].text
-        if destination == .email, Self.isEmailGreetingOrSignOff(draft) {
+        if appliesLetterRules(to: draft), Self.isEmailGreetingOrSignOff(draft) {
             draft.replace(at: last, with: WordShape.withoutTrailingStop(word), by: Self.id)
             return draft
         }
         let finished: String
-        switch policy {
+        // A statement ends where the speaker said it does: a full stop is prose, and a `;` is only a spoken one.
+        let words = draft.presentIndices.filter { !draft.words[$0].isLayoutMark }.map {
+            CodeEditorCommandsPass.bare(draft.words[$0].text)
+        }
+        let isStatement =
+            destination.map {
+                NotationEvidence.isQueryStatement(words: words, destination: $0, region: region)
+            } ?? false
+        switch isStatement ? TerminalStopPolicy.never : policy {
         case .always:
             finished = finishedLast(word, in: draft)
         case .never:
@@ -93,27 +110,75 @@ public struct TerminalStopPass: WholeTextCleaningPass {
         draft.replace(at: index, with: WordShape.marked(draft.words[index].text, with: ","), by: id)
     }
 
-    /// Separates a closing "right" tag from the clause it asks about.
-    private static func separateTrailingRightTag(_ draft: inout Draft, layout: LayoutPolicy) {
+    /// Separates a closing tag from the clause it asks about.
+    private static func separateTrailingTag(_ draft: inout Draft, layout: LayoutPolicy) {
         guard layout.contains(.paragraphs) else { return }
         let live = draft.presentIndices
         let shapes = live.map { draft.shape(at: $0) }
-        guard let start = QuestionShape.trailingRightTagStart(in: shapes), start > 0,
+        guard let start = QuestionShape.trailingTagStart(in: shapes), start > 0,
             !shapes[start - 1].suffix.contains(",")
         else { return }
         let index = live[start - 1]
         draft.replace(at: index, with: WordShape.marked(draft.words[index].text, with: ","), by: id)
     }
 
-    /// The last word with a stop unless it ends a list item, or the layout keeps newlines and the text holds one.
+    /// Sets off an English aside opening or closing a Hindi sentence, "actually mujhe nahi pata" → "actually, mujhe nahi pata".
+    private static func separateHindiAsides(_ draft: inout Draft, layout: LayoutPolicy) {
+        guard layout.contains(.paragraphs) else { return }
+        for sentence in sentences(in: draft) {
+            let keys = sentence.map { draft.shape(at: $0).key }
+            guard keys.count >= 3 else { continue }
+            if AsideWords.holds(keys[0], at: .opening), AsideWords.areHindiClause(Array(keys.dropFirst())) {
+                setOff(sentence[0], in: &draft)
+            }
+            if AsideWords.holds(keys[keys.count - 1], at: .closing),
+                AsideWords.areHindiClause(Array(keys.dropLast()))
+            {
+                setOff(sentence[sentence.count - 2], in: &draft)
+            }
+        }
+    }
+
+    /// Puts a comma after the word unless it already carries a mark.
+    private static func setOff(_ index: Int, in draft: inout Draft) {
+        guard !draft.shape(at: index).suffix.contains(where: { ".!?;,:".contains($0) }) else { return }
+        draft.replace(at: index, with: WordShape.marked(draft.words[index].text, with: ","), by: id)
+    }
+
+    /// The spoken words of each sentence, split at sentence ends and layout marks.
+    private static func sentences(in draft: Draft) -> [[Int]] {
+        let live = draft.presentIndices
+        var sentences: [[Int]] = [[]]
+        for (position, index) in live.enumerated() {
+            if draft.words[index].isLayoutMark {
+                sentences.append([])
+                continue
+            }
+            if !draft.shape(at: index).key.isEmpty { sentences[sentences.count - 1].append(index) }
+            let next = live.indices.contains(position + 1) ? draft.words[live[position + 1]].text : nil
+            if Abbreviations.endsSentence(draft.words[index].text, followedBy: next) { sentences.append([]) }
+        }
+        return sentences.filter { !$0.isEmpty }
+    }
+
+    /// The last word with a stop unless it ends a list item or a run of unstopped lines, or the layout keeps newlines and the text holds one.
     private func finishedLast(_ word: String, in draft: Draft) -> String {
-        if MarkLegality.verdict(.stop, after: word) == .illegal { return Self.leftOpen(word) }
+        let spokenAsHindi = draft.presentIndices.last.map(draft.isHindi(at:)) ?? false
+        if !spokenAsHindi, MarkLegality.verdict(.stop, after: word) == .illegal { return Self.leftOpen(word) }
         // The text after the caret carries on the sentence, so a stop the recogniser closed it with goes.
-        if followingTextContinuesSentence || insertionPoint.structure?.hasOpenBracketOnCaretLine == true {
+        if followingTextContinuesSentence(after: word)
+            || insertionPoint.structure?.hasOpenDelimiterOnCaretLine == true
+        {
             return Abbreviations.ownsStop(WordShape(word).core) ? word : WordShape.withoutTrailingStop(word)
         }
-        if insertionPoint.isOnListItemLine || draft.endsInListItem { return Self.unstopped(word) }
-        if Self.isLiteral(Self.paragraphWords(in: draft).last ?? [], in: draft) { return word }
+        if insertionPoint.isOnListItemLine || draft.endsInListItem || Self.isUnstoppedLines(draft) {
+            return Self.unstopped(word)
+        }
+        // A literal is not a sentence, so the stop the recogniser closed it with goes too.
+        if Self.isLiteral(Self.paragraphWords(in: draft).last ?? [], in: draft) {
+            return WordShape.withoutTrailingStop(word)
+        }
+        if Self.endsOnHashtags(draft) { return WordShape.withoutTrailingStop(word) }
         if layout.contains(.preserveNewlines), draft.text.contains(where: \.isNewline) { return word }
         // Only prose asks: "where total is greater than 12000" in a SQL editor is a clause, not a question.
         let asks = layout.contains(.paragraphs) && Self.lastSentenceAsks(draft)
@@ -121,6 +186,26 @@ public struct TerminalStopPass: WholeTextCleaningPass {
         return asks
             ? WordShape.finished(WordShape.withoutTrailingStop(word), with: "?", after: preceding)
             : WordShape.finished(word, after: preceding)
+    }
+
+    /// Whether the text is one item or verse line per line, three or more in its last paragraph, none ending a sentence.
+    private static func isUnstoppedLines(_ draft: Draft) -> Bool {
+        var lines: [[Int]] = [[]]
+        var lastParagraphStart = 0
+        for index in draft.presentIndices {
+            let word = draft.words[index]
+            if word.text.hasPrefix("\n") {
+                lines.append([])
+                if word.text.hasPrefix("\n\n") { lastParagraphStart = lines.count - 1 }
+            } else if !word.isLayoutMark {
+                lines[lines.count - 1].append(index)
+            }
+        }
+        let spoken = lines.filter { !$0.isEmpty }
+        return lines[lastParagraphStart...].filter { !$0.isEmpty }.count >= 3
+            && spoken.dropLast().allSatisfy { line in
+                line.last.map { !draft.shape(at: $0).endsSentence } ?? true
+            }
     }
 
     /// A word that leaves its clause open, such as a trailing "and", keeps no stop; an abbreviation keeps its own dot.
@@ -136,8 +221,8 @@ public struct TerminalStopPass: WholeTextCleaningPass {
         }
     }
 
-    /// Whether text after the replacement already ends or continues the sentence.
-    private var followingTextContinuesSentence: Bool {
+    /// Whether text after the replacement already ends or continues the sentence, as an aside opening there does.
+    private func followingTextContinuesSentence(after word: String) -> Bool {
         guard let followingText = insertionPoint.followingText.map(InsertionPoint.visibleText) else {
             return false
         }
@@ -146,10 +231,16 @@ public struct TerminalStopPass: WholeTextCleaningPass {
             let next = followingText.dropFirst(leadingWhitespace.count).first
         else { return false }
         return ".!?…,:;".contains(next) || next.isLowercase
+            || CaretJoin.opensDelimiter(next, after: leadingWhitespace.last ?? word.last)
     }
 
     /// Whether the sentence the draft ends on asks a direct question by its word order.
     static func lastSentenceAsks(_ draft: Draft) -> Bool {
+        QuestionShape.asks(lastSentence(of: draft).map { draft.shape(at: $0) })
+    }
+
+    /// The words of the sentence the draft ends on, after the last sentence end or layout mark.
+    private static func lastSentence(of draft: Draft) -> ArraySlice<Int> {
         let live = draft.presentIndices
         let start = live.indices.dropLast().lastIndex { position in
             let index = live[position]
@@ -158,12 +249,17 @@ public struct TerminalStopPass: WholeTextCleaningPass {
                 draft.words[index].text, followedBy: draft.words[live[position + 1]].text
             )
         }
-        let sentence = live[(start.map { $0 + 1 } ?? 0)...]
-        return QuestionShape.asks(sentence.map { draft.shape(at: $0) })
+        return live[(start.map { $0 + 1 } ?? 0)...]
+    }
+
+    /// Whether the draft ends on a run of hashtags standing as their own sentence, which closes a post without a stop.
+    private static func endsOnHashtags(_ draft: Draft) -> Bool {
+        let sentence = lastSentence(of: draft)
+        return !sentence.isEmpty && sentence.allSatisfy { WordShape(draft.words[$0].text).isHashtag }
     }
 
     /// Ends each paragraph of three or more words before a blank line with a full stop; a list item gets none.
-    private static func stopParagraphs(_ draft: inout Draft, destination: Destination?) {
+    private static func stopParagraphs(_ draft: inout Draft, isLetter: Bool) {
         var opening: Draft.Word?
         var paragraph: [Int] = []
         for index in draft.presentIndices {
@@ -172,10 +268,15 @@ public struct TerminalStopPass: WholeTextCleaningPass {
                 paragraph.append(index)
                 continue
             }
-            if word.text.hasPrefix("\n\n"), let last = paragraph.last, paragraph.count >= 3,
+            let greetsOrSignsOff =
+                isLetter && Self.isEmailGreetingOrSignOff(paragraph, in: draft)
+            if word.text.hasPrefix("\n\n"), let last = paragraph.last, greetsOrSignsOff {
+                // A greeting or a closing takes no stop, a stop the model wrote included.
+                let unstopped = WordShape.withoutTrailingStop(draft.words[last].text)
+                if unstopped != draft.words[last].text { draft.replace(at: last, with: unstopped, by: id) }
+            } else if word.text.hasPrefix("\n\n"), let last = paragraph.last, paragraph.count >= 3,
                 !(opening?.isListMark ?? false), !isLiteral(paragraph, in: draft),
-                MarkLegality.verdict(.stop, after: draft.words[last].text) != .illegal,
-                !(destination == .email && Self.isEmailGreetingOrSignOff(paragraph, in: draft))
+                MarkLegality.verdict(.stop, after: draft.words[last].text) != .illegal
             {
                 let preceding = paragraph.dropLast().map { draft.words[$0].text }.joined(separator: " ")
                 draft.replace(
@@ -190,7 +291,17 @@ public struct TerminalStopPass: WholeTextCleaningPass {
 
     /// Whether every word of a paragraph is a literal, such as an address, a path or digits, which is not a sentence.
     private static func isLiteral(_ paragraph: [Int], in draft: Draft) -> Bool {
-        !paragraph.isEmpty && paragraph.allSatisfy { TechnicalToken.classify(draft.words[$0].text) != nil }
+        !paragraph.isEmpty
+            && paragraph.allSatisfy {
+                let text = draft.words[$0].text
+                return TechnicalToken.classify(text) != nil || isDigits(text)
+            }
+    }
+
+    /// A numeral written in digits only, such as "4096" or the "0100" of a phone number; "4th" and "10%" are words.
+    private static func isDigits(_ text: String) -> Bool {
+        text.first?.isNumber == true && text.last?.isNumber == true
+            && text.allSatisfy { $0.isNumber || $0 == "," }
     }
 
     /// Whether a paragraph is an email opener or a final closing with a name.
@@ -201,7 +312,10 @@ public struct TerminalStopPass: WholeTextCleaningPass {
     }
 
     /// Whether the text ends with a supported email closing and a name.
-    private static func isEmailSignOff(_ draft: Draft) -> Bool {
+    private static func isEmailSignOff(_ draft: Draft) -> Bool { emailSignOffStart(in: draft) != nil }
+
+    /// The draft index of the closing word that opens the text's final sign-off, when it ends with one and a name.
+    static func emailSignOffStart(in draft: Draft) -> Int? {
         let live = draft.presentIndices
         for (position, index) in live.enumerated() where !draft.words[index].isLayoutMark {
             if position > 0 {
@@ -212,22 +326,42 @@ public struct TerminalStopPass: WholeTextCleaningPass {
             }
             let suffix = live[position...].filter { !draft.words[$0].isLayoutMark }
             guard let first = suffix.first else { continue }
-            let opening = firstWord(draft.words[first].text)
-            let closingWords =
-                opening == "best"
-                    && suffix.dropFirst().first.map { firstWord(draft.words[$0].text) == "regards" } == true
-                ? 2
-                : 1
-            guard ["thanks", "regards", "cheers", "best", "sincerely"].contains(opening),
-                suffix.count > closingWords
-            else { continue }
+            let closingWords = closingLength(of: suffix.map { draft.words[$0].text })
+            guard closingWords > 0, suffix.count > closingWords else { continue }
             let nameCount = suffix.count - closingWords
             guard (1...2).contains(nameCount) else { continue }
             let name = suffix.dropFirst(closingWords)
             guard name.dropLast().allSatisfy({ !draft.shape(at: $0).endsSentence }) else { continue }
-            if draft.words[first].text.hasSuffix(",") || closingWords == 2 || nameCount == 1 { return true }
+            if draft.words[first].text.hasSuffix(",") || closingWords == 2 || nameCount == 1 { return first }
         }
-        return false
+        return nil
+    }
+
+    /// The closings a sign-off opens with, longest first; one list for an email and a letter in a document.
+    private static let closings: [[String]] = [
+        ["yours", "sincerely"], ["yours", "faithfully"], ["yours", "truly"], ["best", "regards"],
+        ["kind", "regards"], ["warm", "regards"], ["best", "wishes"],
+        ["thanks"], ["regards"], ["cheers"], ["best"], ["sincerely"],
+    ]
+
+    /// How many words of `words` spell a closing, or 0 when they open with none.
+    private static func closingLength(of words: [String]) -> Int {
+        let heard = words.prefix(2).map(firstWord)
+        return closings.first { heard.starts(with: $0) }?.count ?? 0
+    }
+
+    /// Whether the greeting and sign-off rules apply: always in an email, in a document only for a letter.
+    func appliesLetterRules(to draft: Draft) -> Bool {
+        destination == .email || destination == .document && Self.isLetter(draft)
+    }
+
+    /// Whether the text opens with "dear", "hello" or "hi" and ends with a closing and a name, the evidence a letter is meant.
+    static func isLetter(_ draft: Draft) -> Bool {
+        guard let first = paragraphWords(in: draft).first,
+            greetingOpenerLength(first, in: draft) != nil,
+            ["dear", "hello", "hi"].contains(firstWord(draft.words[first[0]].text))
+        else { return false }
+        return emailSignOffStart(in: draft) != nil
     }
 
     /// The words in a draft split at paragraph marks, ignoring layout marks.
@@ -257,14 +391,16 @@ public struct TerminalStopPass: WholeTextCleaningPass {
                 !draft.shape(at: $0).suffix.contains(where: { ",.;:!?".contains($0) })
             }
         guard indices.count <= 3 || standsAlone else { return false }
+        return greetingOpenerLength(indices, in: draft) != nil
+    }
+
+    /// How many words of `indices` spell a conventional email greeting opener, when they open with one.
+    static func greetingOpenerLength(_ indices: [Int], in draft: Draft) -> Int? {
         let openingWords = ["dear", "hello", "hi", "good morning", "good afternoon", "good evening"]
-        return openingWords.contains { prefix in
-            let words = prefix.split(separator: " ").map(String.init)
-            return indices.count >= words.count
-                && zip(words, indices).allSatisfy { pair in
-                    firstWord(draft.words[pair.1].text) == pair.0
-                }
-        }
+        return openingWords.lazy.map { $0.split(separator: " ").map(String.init) }.first { words in
+            indices.count >= words.count
+                && zip(words, indices).allSatisfy { firstWord(draft.words[$0.1].text) == $0.0 }
+        }?.count
     }
 
     /// Whether this is the email's first greeting paragraph or final closing paragraph.
@@ -274,7 +410,7 @@ public struct TerminalStopPass: WholeTextCleaningPass {
             || paragraphs.first == paragraph && isEmailGreeting(paragraph, in: draft)
     }
 
-    private static func firstWord(_ text: String) -> String {
+    static func firstWord(_ text: String) -> String {
         String(text.lowercased().prefix(while: \.isLetter))
     }
 

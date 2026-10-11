@@ -21,11 +21,26 @@ struct SpacingPassTests {
             ("really ? ? ?", "really?"),
             ("wait ! ! !", "wait!"),
             ("really : :", "really:"),
-            ("wait : .", "wait:."),
+            ("wait : .", "wait."),
+            ("done. .", "done."),
+            ("done .....", "done..."),
+            ("really ? .", "really?"),
         ]
     )
     func spacing(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test("moves each mark the spacing table puts on the word before onto it, and leaves the rest standing")
+    func markSpacingMatrix() {
+        for mark in ",.?!:;…%°)]}" {
+            #expect(MarkSpacing.attachesBefore(mark))
+            #expect(cleaned("word \(mark) next", by: sut) == "word\(mark) next", "\(mark)")
+        }
+        for mark in "([{-—–/&@#" {
+            #expect(!MarkSpacing.attachesBefore(mark))
+            #expect(cleaned("word \(mark) next", by: sut) == "word \(mark) next", "\(mark)")
+        }
     }
 
     @Test(
@@ -39,9 +54,25 @@ struct SpacingPassTests {
             ("milk,,eggs", "milk,,eggs"),
             ("add the.env file to.gitignore", "add the .env file to .gitignore"),
             ("The.env file", "The .env file"),
+            ("source my.zshrc", "source my .zshrc"),
         ]
     )
     func gluedMark(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "spaces every em dash as a spoken one is, however the recogniser wrote it",
+        arguments: [
+            ("we went home\u{2014}it was late", "we went home \u{2014} it was late"),
+            ("we went home\u{2014} it was late", "we went home \u{2014} it was late"),
+            ("we went home \u{2014}it was late", "we went home \u{2014} it was late"),
+            ("a\u{2014}b\u{2014}c", "a \u{2014} b \u{2014} c"),
+            ("\u{2014}it was late", "\u{2014} it was late"),
+            ("we went home \u{2014} it was late", "we went home \u{2014} it was late"),
+        ]
+    )
+    func spacedDash(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
     }
 
@@ -56,6 +87,8 @@ struct SpacingPassTests {
             "api:latest", "note:buy", "first;second", "so…", "Self.id", "draft.words", "com.apple.iCal",
             "net.example.App",
             "agents.md", "home.ssh", "package.json",
+            "out.txt", "in.txt", "up.sh", "about.md", "out.log", "in.sql", "up.cpp", "about.svg", "on.c",
+            "out.h",
             "https://example.com/a", "src/app/main.swift", "user_id", "k8s", "x,y", "a.b", "etc.Next",
         ]
     )

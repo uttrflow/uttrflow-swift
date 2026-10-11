@@ -1,0 +1,1921 @@
+[
+  {
+    "id": "mix-en-noun-start-chai",
+    "spoken": "chai is ready come to the kitchen",
+    "expected": "Chai is ready, come to the kitchen.",
+    "mustKeep": ["Chai", "kitchen"],
+    "mustNotAdd": ["tea"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "noun",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-en-noun-start-khana",
+    "spoken": "khana will be late tonight",
+    "expected": "Khana will be late tonight.",
+    "mustKeep": ["Khana", "late"],
+    "mustNotAdd": ["food"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "noun",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-en-noun-start-dukaan",
+    "spoken": "dukaan closes at nine today",
+    "expected": "Dukaan closes at nine today.",
+    "mustKeep": ["Dukaan", "closes"],
+    "mustNotAdd": ["shop"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "noun",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-en-noun-start-paisa",
+    "spoken": "paisa is not the problem here",
+    "expected": "Paisa is not the problem here.",
+    "mustKeep": ["Paisa", "problem"],
+    "mustNotAdd": ["money"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "noun",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-en-noun-middle-ghar",
+    "spoken": "I will reach ghar by seven",
+    "expected": "I will reach ghar by seven.",
+    "mustKeep": ["ghar", "reach"],
+    "mustNotAdd": ["home"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "noun",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-en-noun-middle-kaam",
+    "spoken": "there is too much kaam this week",
+    "expected": "There is too much kaam this week.",
+    "mustKeep": ["kaam", "week"],
+    "mustNotAdd": ["work"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "noun",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-en-noun-middle-sabzi",
+    "spoken": "please buy some sabzi on the way back",
+    "expected": "Please buy some sabzi on the way back.",
+    "mustKeep": ["sabzi", "way"],
+    "mustNotAdd": ["vegetables"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "noun",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-en-noun-middle-chabi",
+    "spoken": "the chabi is on the table",
+    "expected": "The chabi is on the table.",
+    "mustKeep": ["chabi", "table"],
+    "mustNotAdd": ["key"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "noun",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-en-noun-end-baarish",
+    "spoken": "we cancelled the match because of baarish",
+    "expected": "We cancelled the match because of baarish.",
+    "mustKeep": ["baarish", "cancelled"],
+    "mustNotAdd": ["rain"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "noun",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-en-noun-end-mithai",
+    "spoken": "do not forget to bring the mithai",
+    "expected": "Do not forget to bring the mithai.",
+    "mustKeep": ["mithai", "forget"],
+    "mustNotAdd": ["sweets"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "noun",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-en-noun-end-gaadi",
+    "spoken": "I parked outside in the old gaadi",
+    "expected": "I parked outside in the old gaadi.",
+    "mustKeep": ["gaadi", "parked"],
+    "mustNotAdd": ["car"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "noun",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-en-noun-end-dawai",
+    "spoken": "remind her to take the dawai",
+    "expected": "Remind her to take the dawai.",
+    "mustKeep": ["dawai", "Remind"],
+    "mustNotAdd": ["medicine"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "noun",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-en-verb-start-chalo",
+    "spoken": "chalo let us start the call",
+    "expected": "Chalo, let us start the call.",
+    "mustKeep": ["Chalo", "call"],
+    "mustNotAdd": ["come on"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "verb",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-en-verb-start-ruko",
+    "spoken": "ruko I am still reading it",
+    "expected": "Ruko, I am still reading it.",
+    "mustKeep": ["Ruko", "reading"],
+    "mustNotAdd": ["wait"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "verb",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-en-verb-start-dekho",
+    "spoken": "dekho the numbers do not match",
+    "expected": "Dekho, the numbers do not match.",
+    "mustKeep": ["Dekho", "numbers"],
+    "mustNotAdd": ["look"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "verb",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-en-verb-start-suno",
+    "spoken": "suno the meeting moved to Friday",
+    "expected": "Suno, the meeting moved to Friday.",
+    "mustKeep": ["Suno", "Friday"],
+    "mustNotAdd": ["listen"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "verb",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-en-verb-middle-bhej-do",
+    "spoken": "just bhej do the file when it is ready",
+    "expected": "Just bhej do the file when it is ready.",
+    "mustKeep": ["bhej", "file"],
+    "mustNotAdd": ["send"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "verb",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-en-verb-middle-dekh-lo",
+    "spoken": "can you dekh lo the draft once",
+    "expected": "Can you dekh lo the draft once?",
+    "mustKeep": ["dekh", "draft"],
+    "mustNotAdd": ["check"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "verb",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-en-verb-middle-kar-dena",
+    "spoken": "please kar dena the booking tonight",
+    "expected": "Please kar dena the booking tonight.",
+    "mustKeep": ["kar", "booking"],
+    "mustNotAdd": ["do it"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "verb",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-en-verb-middle-samjha-do",
+    "spoken": "you should samjha do the plan to them",
+    "expected": "You should samjha do the plan to them.",
+    "mustKeep": ["samjha", "plan"],
+    "mustNotAdd": ["explain"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "verb",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-en-verb-end-aa-jao",
+    "spoken": "the food is here so aa jao",
+    "expected": "The food is here, so aa jao.",
+    "mustKeep": ["aa", "jao"],
+    "mustNotAdd": ["come"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "verb",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-en-verb-end-baith-jao",
+    "spoken": "there are free seats so baith jao",
+    "expected": "There are free seats, so baith jao.",
+    "mustKeep": ["baith", "seats"],
+    "mustNotAdd": ["sit"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "verb",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-en-verb-end-so-jao",
+    "spoken": "it is already midnight so so jao",
+    "expected": "It is already midnight, so so jao.",
+    "mustKeep": ["jao", "midnight"],
+    "mustNotAdd": ["sleep"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "verb",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-en-verb-end-nikal-jao",
+    "spoken": "the cab is outside nikal jao",
+    "expected": "The cab is outside, nikal jao.",
+    "mustKeep": ["nikal", "cab"],
+    "mustNotAdd": ["leave"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "verb",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-en-number-start-paanch",
+    "spoken": "paanch people are coming tonight",
+    "expected": "Paanch people are coming tonight.",
+    "mustKeep": ["Paanch", "people"],
+    "mustNotAdd": ["five", "5"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "number",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-en-number-start-das",
+    "spoken": "das minutes and I will be there",
+    "expected": "Das minutes and I will be there.",
+    "mustKeep": ["Das", "minutes"],
+    "mustNotAdd": ["ten", "10"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "number",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-en-number-start-teen",
+    "spoken": "teen copies are enough for the room",
+    "expected": "Teen copies are enough for the room.",
+    "mustKeep": ["Teen", "copies"],
+    "mustNotAdd": ["three", "3"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "number",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-en-number-start-char",
+    "spoken": "char tickets are left for Sunday",
+    "expected": "Char tickets are left for Sunday.",
+    "mustKeep": ["Char", "tickets"],
+    "mustNotAdd": ["four", "4"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "number",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-en-number-middle-do",
+    "spoken": "we need do more chairs in here",
+    "expected": "We need do more chairs in here.",
+    "mustKeep": ["do", "chairs"],
+    "mustNotAdd": ["two", "2"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "number",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-en-number-middle-saat",
+    "spoken": "the shop opens at saat in the morning",
+    "expected": "The shop opens at saat in the morning.",
+    "mustKeep": ["saat", "morning"],
+    "mustNotAdd": ["seven", "7"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "number",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-en-number-middle-aath",
+    "spoken": "book a table for aath people",
+    "expected": "Book a table for aath people.",
+    "mustKeep": ["aath", "table"],
+    "mustNotAdd": ["eight", "8"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "number",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-en-number-middle-sau",
+    "spoken": "it costs about sau rupees each",
+    "expected": "It costs about sau rupees each.",
+    "mustKeep": ["sau", "rupees"],
+    "mustNotAdd": ["hundred", "100"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "number",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-en-number-end-chhe",
+    "spoken": "the train leaves at chhe",
+    "expected": "The train leaves at chhe.",
+    "mustKeep": ["chhe", "train"],
+    "mustNotAdd": ["six", "6"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "number",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-en-number-end-nau",
+    "spoken": "the class starts at nau",
+    "expected": "The class starts at nau.",
+    "mustKeep": ["nau", "class"],
+    "mustNotAdd": ["nine", "9"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "number",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-en-number-end-ek",
+    "spoken": "I only need ek",
+    "expected": "I only need ek.",
+    "mustKeep": ["ek", "need"],
+    "mustNotAdd": ["one", "1"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "number",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-en-number-end-bees",
+    "spoken": "the guest list is at bees",
+    "expected": "The guest list is at bees.",
+    "mustKeep": ["bees", "guest"],
+    "mustNotAdd": ["twenty", "20"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "number",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-en-name-start-didi",
+    "spoken": "didi said the parcel came",
+    "expected": "Didi said the parcel came.",
+    "mustKeep": ["Didi", "parcel"],
+    "mustNotAdd": ["sister"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "name",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-en-name-start-bhaiya",
+    "spoken": "bhaiya will drop us at the station",
+    "expected": "Bhaiya will drop us at the station.",
+    "mustKeep": ["Bhaiya", "station"],
+    "mustNotAdd": ["brother"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "name",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-en-name-start-nani",
+    "spoken": "nani wants to visit on Sunday",
+    "expected": "Nani wants to visit on Sunday.",
+    "mustKeep": ["Nani", "Sunday"],
+    "mustNotAdd": ["grandmother"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "name",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-en-name-start-chacha",
+    "spoken": "chacha fixed the gate already",
+    "expected": "Chacha fixed the gate already.",
+    "mustKeep": ["Chacha", "gate"],
+    "mustNotAdd": ["uncle"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "name",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-en-name-middle-mausi",
+    "spoken": "tell mausi the plan changed",
+    "expected": "Tell Mausi the plan changed.",
+    "mustKeep": ["Mausi", "plan"],
+    "mustNotAdd": ["aunt"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "name",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-en-name-middle-dadi",
+    "spoken": "I called dadi this morning",
+    "expected": "I called Dadi this morning.",
+    "mustKeep": ["Dadi", "morning"],
+    "mustNotAdd": ["grandmother"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "name",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-en-name-middle-bhabhi",
+    "spoken": "ask bhabhi about the guest list",
+    "expected": "Ask Bhabhi about the guest list.",
+    "mustKeep": ["Bhabhi", "guest"],
+    "mustNotAdd": ["sister-in-law"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "name",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-en-name-middle-mama",
+    "spoken": "we are meeting mama at the airport",
+    "expected": "We are meeting Mama at the airport.",
+    "mustKeep": ["Mama", "airport"],
+    "mustNotAdd": ["uncle"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "name",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-en-name-end-didi-end",
+    "spoken": "the cake was made by didi",
+    "expected": "The cake was made by Didi.",
+    "mustKeep": ["Didi", "cake"],
+    "mustNotAdd": ["sister"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "name",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-en-name-end-chachi",
+    "spoken": "the spare keys are with chachi",
+    "expected": "The spare keys are with Chachi.",
+    "mustKeep": ["Chachi", "keys"],
+    "mustNotAdd": ["aunt"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "name",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-en-name-end-nana",
+    "spoken": "save a seat for nana",
+    "expected": "Save a seat for Nana.",
+    "mustKeep": ["Nana", "seat"],
+    "mustNotAdd": ["grandfather"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "name",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-en-name-end-bhaiya-end",
+    "spoken": "the bill was paid by bhaiya",
+    "expected": "The bill was paid by Bhaiya.",
+    "mustKeep": ["Bhaiya", "bill"],
+    "mustNotAdd": ["brother"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "name",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-en-particle-start-arre",
+    "spoken": "arre the bus already left",
+    "expected": "Arre, the bus already left.",
+    "mustKeep": ["Arre", "bus"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "particle",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-en-particle-start-acha",
+    "spoken": "acha so the meeting is at four",
+    "expected": "Acha, so the meeting is at four.",
+    "mustKeep": ["Acha", "meeting"],
+    "mustNotAdd": ["okay"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "particle",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-en-particle-start-haan",
+    "spoken": "haan that works for me",
+    "expected": "Haan, that works for me.",
+    "mustKeep": ["Haan", "works"],
+    "mustNotAdd": ["yes"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "particle",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-en-particle-start-bas",
+    "spoken": "bas that is all for today",
+    "expected": "Bas, that is all for today.",
+    "mustKeep": ["Bas", "today"],
+    "mustNotAdd": ["enough"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "particle",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-en-particle-middle-toh",
+    "spoken": "the shop was shut toh we came back",
+    "expected": "The shop was shut, toh we came back.",
+    "mustKeep": ["toh", "shut"],
+    "mustNotAdd": ["so we"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "particle",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-en-particle-middle-bhi",
+    "spoken": "I bhi want to come along",
+    "expected": "I bhi want to come along.",
+    "mustKeep": ["bhi", "along"],
+    "mustNotAdd": ["also"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "particle",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-en-particle-middle-hi",
+    "spoken": "she hi finished the slides",
+    "expected": "She hi finished the slides.",
+    "mustKeep": ["hi", "slides"],
+    "mustNotAdd": ["only"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "particle",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-en-particle-middle-matlab",
+    "spoken": "the price is matlab a bit high",
+    "expected": "The price is matlab a bit high.",
+    "mustKeep": ["matlab", "price"],
+    "mustNotAdd": ["meaning"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "particle",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-en-particle-end-yaar",
+    "spoken": "this traffic is crazy yaar",
+    "expected": "This traffic is crazy, yaar.",
+    "mustKeep": ["yaar", "traffic"],
+    "mustNotAdd": ["friend"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "particle",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-en-particle-end-bas-end",
+    "spoken": "one more slide and bas",
+    "expected": "One more slide and bas.",
+    "mustKeep": ["bas", "slide"],
+    "mustNotAdd": ["enough"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "particle",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-en-particle-end-re",
+    "spoken": "hurry up re",
+    "expected": "Hurry up re.",
+    "mustKeep": ["re", "Hurry"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "particle",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-en-particle-end-ji",
+    "spoken": "thank you so much ji",
+    "expected": "Thank you so much ji.",
+    "mustKeep": ["ji", "Thank"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "particle",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-en-question-tag-start-theek-hai",
+    "spoken": "theek hai we leave at five",
+    "expected": "Theek hai, we leave at five.",
+    "mustKeep": ["Theek", "leave"],
+    "mustNotAdd": ["okay"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "question-tag",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-en-question-tag-start-hai-na",
+    "spoken": "hai na the store is open late",
+    "expected": "Hai na, the store is open late.",
+    "mustKeep": ["Hai", "store"],
+    "mustNotAdd": ["right"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "question-tag",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-en-question-tag-start-samjhe",
+    "spoken": "samjhe the form goes in by Monday",
+    "expected": "Samjhe, the form goes in by Monday.",
+    "mustKeep": ["Samjhe", "Monday"],
+    "mustNotAdd": ["understood"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "question-tag",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-en-question-tag-start-kya",
+    "spoken": "kya you finished the report",
+    "expected": "Kya you finished the report?",
+    "mustKeep": ["Kya", "report"],
+    "mustNotAdd": ["what"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "question-tag",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-en-question-tag-middle-na-mid",
+    "spoken": "you will come na and bring the charger",
+    "expected": "You will come na and bring the charger.",
+    "mustKeep": ["na", "charger"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "question-tag",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-en-question-tag-middle-hai-na-mid",
+    "spoken": "it is Monday hai na so the office is open",
+    "expected": "It is Monday hai na, so the office is open.",
+    "mustKeep": ["hai", "office"],
+    "mustNotAdd": ["right"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "question-tag",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-en-question-tag-middle-theek-hai-mid",
+    "spoken": "we split the bill theek hai and settle later",
+    "expected": "We split the bill theek hai and settle later.",
+    "mustKeep": ["theek", "settle"],
+    "mustNotAdd": ["okay"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "question-tag",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-en-question-tag-middle-samjhe-mid",
+    "spoken": "the door code changed samjhe so update the note",
+    "expected": "The door code changed samjhe, so update the note.",
+    "mustKeep": ["samjhe", "code"],
+    "mustNotAdd": ["understood"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "question-tag",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-en-question-tag-end-theek-hai-end",
+    "spoken": "send me the report kal tak theek hai",
+    "expected": "Send me the report kal tak, theek hai?",
+    "mustKeep": ["kal", "theek"],
+    "mustNotAdd": ["tomorrow", "okay"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "question-tag",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-en-question-tag-end-hai-na-end",
+    "spoken": "you are coming to the wedding hai na",
+    "expected": "You are coming to the wedding, hai na?",
+    "mustKeep": ["hai", "wedding"],
+    "mustNotAdd": ["right"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "question-tag",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-en-question-tag-end-na-end",
+    "spoken": "you saw my message na",
+    "expected": "You saw my message, na?",
+    "mustKeep": ["na", "message"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "question-tag",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-en-question-tag-end-samjhe-end",
+    "spoken": "the deadline is firm samjhe",
+    "expected": "The deadline is firm, samjhe?",
+    "mustKeep": ["samjhe", "deadline"],
+    "mustNotAdd": ["understood"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "english",
+      "kind": "question-tag",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-hi-noun-start-office",
+    "language": "hi",
+    "spoken": "office aaj jaldi band hoga",
+    "expected": "Office aaj jaldi band hoga.",
+    "mustKeep": ["Office", "jaldi"],
+    "mustNotAdd": ["daftar"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "noun",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-hi-noun-start-meeting",
+    "language": "hi",
+    "spoken": "meeting kal subah hogi",
+    "expected": "Meeting kal subah hogi.",
+    "mustKeep": ["Meeting", "subah"],
+    "mustNotAdd": ["baithak"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "noun",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-hi-noun-start-market",
+    "language": "hi",
+    "spoken": "market abhi khula hai kya",
+    "expected": "Market abhi khula hai kya?",
+    "mustKeep": ["Market", "khula"],
+    "mustNotAdd": ["bazaar"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "noun",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-hi-noun-start-medicine",
+    "language": "hi",
+    "spoken": "medicine khana khane ke baad lena",
+    "expected": "Medicine khana khane ke baad lena.",
+    "mustKeep": ["Medicine", "baad"],
+    "mustNotAdd": ["dawai"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "noun",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-hi-noun-middle-party",
+    "language": "hi",
+    "spoken": "kal ki party mein sab aa rahe hain",
+    "expected": "Kal ki party mein sab aa rahe hain.",
+    "mustKeep": ["party", "sab"],
+    "mustNotAdd": ["daawat"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "noun",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-hi-noun-middle-address",
+    "language": "hi",
+    "spoken": "tumhara address mujhe bhej do",
+    "expected": "Tumhara address mujhe bhej do.",
+    "mustKeep": ["address", "bhej"],
+    "mustNotAdd": ["pata"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "noun",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-hi-noun-middle-room",
+    "language": "hi",
+    "spoken": "mere room ki light kharab hai",
+    "expected": "Mere room ki light kharab hai.",
+    "mustKeep": ["room", "kharab"],
+    "mustNotAdd": ["kamra"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "noun",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-hi-noun-middle-rent",
+    "language": "hi",
+    "spoken": "is mahine ka rent abhi baaki hai",
+    "expected": "Is mahine ka rent abhi baaki hai.",
+    "mustKeep": ["rent", "baaki"],
+    "mustNotAdd": ["kiraya"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "noun",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-hi-noun-end-homework",
+    "language": "hi",
+    "spoken": "pehle khatam karo homework",
+    "expected": "Pehle khatam karo homework.",
+    "mustKeep": ["homework", "khatam"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "noun",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-hi-noun-end-charger",
+    "language": "hi",
+    "spoken": "aate waqt le aana charger",
+    "expected": "Aate waqt le aana charger.",
+    "mustKeep": ["charger", "aana"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "noun",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-hi-noun-end-tickets",
+    "language": "hi",
+    "spoken": "bhool mat jaana tickets",
+    "expected": "Bhool mat jaana tickets.",
+    "mustKeep": ["tickets", "Bhool"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "noun",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-hi-noun-end-deadline",
+    "language": "hi",
+    "spoken": "sabse zaroori cheez hai deadline",
+    "expected": "Sabse zaroori cheez hai deadline.",
+    "mustKeep": ["deadline", "zaroori"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "noun",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-hi-verb-start-check",
+    "language": "hi",
+    "spoken": "check karo ki server chal raha hai",
+    "expected": "Check karo ki server chal raha hai.",
+    "mustKeep": ["Check", "server"],
+    "mustNotAdd": ["jaanch"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "verb",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-hi-verb-start-share",
+    "language": "hi",
+    "spoken": "share karo woh file group mein",
+    "expected": "Share karo woh file group mein.",
+    "mustKeep": ["Share", "group"],
+    "mustNotAdd": ["baanto"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "verb",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-hi-verb-start-wait",
+    "language": "hi",
+    "spoken": "wait karo main bas aa raha hoon",
+    "expected": "Wait karo, main bas aa raha hoon.",
+    "mustKeep": ["Wait", "raha"],
+    "mustNotAdd": ["ruko"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "verb",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-hi-verb-start-call",
+    "language": "hi",
+    "spoken": "call karna mujhe shaam ko",
+    "expected": "Call karna mujhe shaam ko.",
+    "mustKeep": ["Call", "shaam"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "verb",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-hi-verb-middle-upload",
+    "language": "hi",
+    "spoken": "maine file upload kar di hai",
+    "expected": "Maine file upload kar di hai.",
+    "mustKeep": ["upload", "file"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "verb",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-hi-verb-middle-forward",
+    "language": "hi",
+    "spoken": "tum please isko forward kar do",
+    "expected": "Tum please isko forward kar do.",
+    "mustKeep": ["forward", "isko"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "verb",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-hi-verb-middle-cancel",
+    "language": "hi",
+    "spoken": "humne plan cancel kar diya kal raat",
+    "expected": "Humne plan cancel kar diya kal raat.",
+    "mustKeep": ["cancel", "plan"],
+    "mustNotAdd": ["radd"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "verb",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-hi-verb-middle-update",
+    "language": "hi",
+    "spoken": "main slides update kar raha hoon abhi",
+    "expected": "Main slides update kar raha hoon abhi.",
+    "mustKeep": ["update", "slides"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "verb",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-hi-verb-end-relax",
+    "language": "hi",
+    "spoken": "ab bas thoda sa relax karo",
+    "expected": "Ab bas thoda sa relax karo.",
+    "mustKeep": ["relax", "thoda"],
+    "mustNotAdd": ["aaram"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "verb",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-hi-verb-end-submit",
+    "language": "hi",
+    "spoken": "kal tak report submit karna",
+    "expected": "Kal tak report submit karna.",
+    "mustKeep": ["submit", "report"],
+    "mustNotAdd": ["jama"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "verb",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-hi-verb-end-switch-off",
+    "language": "hi",
+    "spoken": "jaane se pehle lights switch off karna",
+    "expected": "Jaane se pehle lights switch off karna.",
+    "mustKeep": ["switch", "lights"],
+    "mustNotAdd": ["band"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "verb",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-hi-verb-end-send",
+    "language": "hi",
+    "spoken": "woh link mujhe phir se send karo",
+    "expected": "Woh link mujhe phir se send karo.",
+    "mustKeep": ["send", "link"],
+    "mustNotAdd": ["bhejo"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "verb",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-hi-number-start-three",
+    "language": "hi",
+    "spoken": "three din se baarish ho rahi hai",
+    "expected": "Three din se baarish ho rahi hai.",
+    "mustKeep": ["Three", "baarish"],
+    "mustNotAdd": ["teen", "3"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "number",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-hi-number-start-five",
+    "language": "hi",
+    "spoken": "five minute mein pahunch raha hoon",
+    "expected": "Five minute mein pahunch raha hoon.",
+    "mustKeep": ["Five", "pahunch"],
+    "mustNotAdd": ["paanch", "5"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "number",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-hi-number-start-seven",
+    "language": "hi",
+    "spoken": "seven log aa rahe hain dinner pe",
+    "expected": "Seven log aa rahe hain dinner pe.",
+    "mustKeep": ["Seven", "dinner"],
+    "mustNotAdd": ["saat", "7"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "number",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-hi-number-start-eight",
+    "language": "hi",
+    "spoken": "eight copies print kar dena",
+    "expected": "Eight copies print kar dena.",
+    "mustKeep": ["Eight", "copies"],
+    "mustNotAdd": ["aath", "8"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "number",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-hi-number-middle-two",
+    "language": "hi",
+    "spoken": "mujhe sirf two minute chahiye",
+    "expected": "Mujhe sirf two minute chahiye.",
+    "mustKeep": ["two", "chahiye"],
+    "mustNotAdd": ["2"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "number",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-hi-number-middle-six",
+    "language": "hi",
+    "spoken": "humare paas six chairs hi hain",
+    "expected": "Humare paas six chairs hi hain.",
+    "mustKeep": ["six", "chairs"],
+    "mustNotAdd": ["chhe", "6"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "number",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-hi-number-middle-nine",
+    "language": "hi",
+    "spoken": "unke ghar mein nine kamre hain",
+    "expected": "Unke ghar mein nine kamre hain.",
+    "mustKeep": ["nine", "kamre"],
+    "mustNotAdd": ["nau", "9"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "number",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-hi-number-middle-four",
+    "language": "hi",
+    "spoken": "is baar four din ki chhutti hai",
+    "expected": "Is baar four din ki chhutti hai.",
+    "mustKeep": ["four", "chhutti"],
+    "mustNotAdd": ["chaar", "4"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "number",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-hi-number-end-five-end",
+    "language": "hi",
+    "spoken": "is team mein log hain sirf five",
+    "expected": "Is team mein log hain sirf five.",
+    "mustKeep": ["five", "team"],
+    "mustNotAdd": ["paanch", "5"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "number",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-hi-number-end-seven-end",
+    "language": "hi",
+    "spoken": "mera lucky number hai seven",
+    "expected": "Mera lucky number hai seven.",
+    "mustKeep": ["seven", "lucky"],
+    "mustNotAdd": ["saat", "7"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "number",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-hi-number-end-eight-end",
+    "language": "hi",
+    "spoken": "aaj ke total orders hain eight",
+    "expected": "Aaj ke total orders hain eight.",
+    "mustKeep": ["eight", "orders"],
+    "mustNotAdd": ["aath", "8"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "number",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-hi-number-end-two-end",
+    "language": "hi",
+    "spoken": "bus mein khaali seats bachi hain sirf two",
+    "expected": "Bus mein khaali seats bachi hain sirf two.",
+    "mustKeep": ["two", "seats"],
+    "mustNotAdd": ["2"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "number",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-hi-name-start-mom",
+    "language": "hi",
+    "spoken": "mom ne kaha khana ready hai",
+    "expected": "Mom ne kaha khana ready hai.",
+    "mustKeep": ["Mom", "khana"],
+    "mustNotAdd": ["maa"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "name",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-hi-name-start-dad",
+    "language": "hi",
+    "spoken": "dad aaj late aayenge",
+    "expected": "Dad aaj late aayenge.",
+    "mustKeep": ["Dad", "aayenge"],
+    "mustNotAdd": ["papa"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "name",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-hi-name-start-sir",
+    "language": "hi",
+    "spoken": "sir ne meeting postpone kar di",
+    "expected": "Sir ne meeting postpone kar di.",
+    "mustKeep": ["Sir", "postpone"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "name",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-hi-name-start-uncle",
+    "language": "hi",
+    "spoken": "uncle kal subah aa rahe hain",
+    "expected": "Uncle kal subah aa rahe hain.",
+    "mustKeep": ["Uncle", "subah"],
+    "mustNotAdd": ["chacha"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "name",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-hi-name-middle-mom-mid",
+    "language": "hi",
+    "spoken": "kal mom ka birthday hai",
+    "expected": "Kal Mom ka birthday hai.",
+    "mustKeep": ["Mom", "birthday"],
+    "mustNotAdd": ["maa"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "name",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-hi-name-middle-dad-mid",
+    "language": "hi",
+    "spoken": "yeh baat dad ko mat batana",
+    "expected": "Yeh baat Dad ko mat batana.",
+    "mustKeep": ["Dad", "batana"],
+    "mustNotAdd": ["papa"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "name",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-hi-name-middle-aunty",
+    "language": "hi",
+    "spoken": "pados wali aunty ne cake bheja",
+    "expected": "Pados wali Aunty ne cake bheja.",
+    "mustKeep": ["Aunty", "cake"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "name",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-hi-name-middle-grandpa",
+    "language": "hi",
+    "spoken": "humein grandpa ke ghar jaana hai",
+    "expected": "Humein Grandpa ke ghar jaana hai.",
+    "mustKeep": ["Grandpa", "ghar"],
+    "mustNotAdd": ["dada"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "name",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-hi-name-end-uncle-end",
+    "language": "hi",
+    "spoken": "yeh gift bheja hai uncle ne",
+    "expected": "Yeh gift bheja hai Uncle ne.",
+    "mustKeep": ["Uncle", "gift"],
+    "mustNotAdd": ["chacha"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "name",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-hi-name-end-dad-end",
+    "language": "hi",
+    "spoken": "dinner ke liye bula rahe hain dad",
+    "expected": "Dinner ke liye bula rahe hain Dad.",
+    "mustKeep": ["Dad", "Dinner"],
+    "mustNotAdd": ["papa"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "name",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-hi-name-end-sir-end",
+    "language": "hi",
+    "spoken": "yeh form sign karwana hai sir se",
+    "expected": "Yeh form sign karwana hai Sir se.",
+    "mustKeep": ["Sir", "form"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "name",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-hi-name-end-grandpa-end",
+    "language": "hi",
+    "spoken": "phone aaya tha grandpa ka",
+    "expected": "Phone aaya tha Grandpa ka.",
+    "mustKeep": ["Grandpa", "Phone"],
+    "mustNotAdd": ["dada"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "name",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-hi-particle-start-so",
+    "language": "hi",
+    "spoken": "so kal ka kya plan hai",
+    "expected": "So, kal ka kya plan hai?",
+    "mustKeep": ["So", "plan"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "particle",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-hi-particle-start-actually",
+    "language": "hi",
+    "spoken": "actually mujhe aaj nahi aana",
+    "expected": "Actually, mujhe aaj nahi aana.",
+    "mustKeep": ["Actually", "nahi"],
+    "mustNotAdd": ["asal mein"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "particle",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-hi-particle-start-anyway",
+    "language": "hi",
+    "spoken": "anyway chhodo woh baat",
+    "expected": "Anyway, chhodo woh baat.",
+    "mustKeep": ["Anyway", "chhodo"],
+    "mustNotAdd": ["khair"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "particle",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-hi-particle-start-basically",
+    "language": "hi",
+    "spoken": "basically humein naya server chahiye",
+    "expected": "Basically, humein naya server chahiye.",
+    "mustKeep": ["Basically", "server"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "particle",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-hi-particle-middle-actually-mid",
+    "language": "hi",
+    "spoken": "main actually kal aa raha hoon",
+    "expected": "Main actually kal aa raha hoon.",
+    "mustKeep": ["actually", "kal"],
+    "mustNotAdd": ["asal mein"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "particle",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-hi-particle-middle-basically-mid",
+    "language": "hi",
+    "spoken": "yeh plan basically fail ho gaya",
+    "expected": "Yeh plan basically fail ho gaya.",
+    "mustKeep": ["basically", "fail"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "particle",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-hi-particle-middle-anyway-mid",
+    "language": "hi",
+    "spoken": "khana thanda ho gaya anyway hum kha lenge",
+    "expected": "Khana thanda ho gaya, anyway hum kha lenge.",
+    "mustKeep": ["anyway", "thanda"],
+    "mustNotAdd": ["khair"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "particle",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-hi-particle-middle-seriously",
+    "language": "hi",
+    "spoken": "mujhe bhi seriously samajh nahi aaya",
+    "expected": "Mujhe bhi seriously samajh nahi aaya.",
+    "mustKeep": ["seriously", "samajh"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "particle",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-hi-particle-end-actually-end",
+    "language": "hi",
+    "spoken": "main nahi aa paunga actually",
+    "expected": "Main nahi aa paunga, actually.",
+    "mustKeep": ["actually", "paunga"],
+    "mustNotAdd": ["asal mein"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "particle",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-hi-particle-end-though",
+    "language": "hi",
+    "spoken": "khana achha tha though",
+    "expected": "Khana achha tha, though.",
+    "mustKeep": ["though", "Khana"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "particle",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-hi-particle-end-obviously",
+    "language": "hi",
+    "spoken": "woh aayega hi nahi obviously",
+    "expected": "Woh aayega hi nahi, obviously.",
+    "mustKeep": ["obviously", "nahi"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "particle",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-hi-particle-end-anyway-end",
+    "language": "hi",
+    "spoken": "phir milte hain anyway",
+    "expected": "Phir milte hain, anyway.",
+    "mustKeep": ["anyway", "milte"],
+    "mustNotAdd": ["khair"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "particle",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-hi-question-tag-start-okay",
+    "language": "hi",
+    "spoken": "okay kal subah milte hain",
+    "expected": "Okay, kal subah milte hain.",
+    "mustKeep": ["Okay", "milte"],
+    "mustNotAdd": ["theek hai"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "question-tag",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-hi-question-tag-start-right",
+    "language": "hi",
+    "spoken": "right toh plan yeh hai",
+    "expected": "Right, toh plan yeh hai.",
+    "mustKeep": ["Right", "plan"],
+    "mustNotAdd": ["sahi"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "question-tag",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-hi-question-tag-start-you-know",
+    "language": "hi",
+    "spoken": "you know mujhe yeh pehle se pata tha",
+    "expected": "You know, mujhe yeh pehle se pata tha.",
+    "mustKeep": ["know", "pata"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "question-tag",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-hi-question-tag-start-correct",
+    "language": "hi",
+    "spoken": "correct wahi file bhejni hai",
+    "expected": "Correct, wahi file bhejni hai.",
+    "mustKeep": ["Correct", "bhejni"],
+    "mustNotAdd": ["sahi"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "question-tag",
+      "position": "start"
+    }
+  },
+  {
+    "id": "mix-hi-question-tag-middle-right-mid",
+    "language": "hi",
+    "spoken": "tum kal aa rahe ho right toh charger bhi le aana",
+    "expected": "Tum kal aa rahe ho right, toh charger bhi le aana.",
+    "mustKeep": ["right", "charger"],
+    "mustNotAdd": ["hai na"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "question-tag",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-hi-question-tag-middle-okay-mid",
+    "language": "hi",
+    "spoken": "meeting shaam ko hai okay toh time pe aana",
+    "expected": "Meeting shaam ko hai okay, toh time pe aana.",
+    "mustKeep": ["okay", "shaam"],
+    "mustNotAdd": ["theek hai"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "question-tag",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-hi-question-tag-middle-no-mid",
+    "language": "hi",
+    "spoken": "yeh tumhara bag hai no toh le jao",
+    "expected": "Yeh tumhara bag hai no, toh le jao.",
+    "mustKeep": ["no", "bag"],
+    "mustNotAdd": ["hai na"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "question-tag",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-hi-question-tag-middle-you-know-mid",
+    "language": "hi",
+    "spoken": "woh bahut busy rehta hai you know isliye late aata hai",
+    "expected": "Woh bahut busy rehta hai you know, isliye late aata hai.",
+    "mustKeep": ["know", "busy"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "question-tag",
+      "position": "middle"
+    }
+  },
+  {
+    "id": "mix-hi-question-tag-end-right-end",
+    "language": "hi",
+    "spoken": "tum kal aa rahe ho right",
+    "expected": "Tum kal aa rahe ho, right?",
+    "mustKeep": ["right", "kal"],
+    "mustNotAdd": ["hai na"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "question-tag",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-hi-question-tag-end-okay-end",
+    "language": "hi",
+    "spoken": "report kal tak bhej doge okay",
+    "expected": "Report kal tak bhej doge, okay?",
+    "mustKeep": ["okay", "bhej"],
+    "mustNotAdd": ["theek hai"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "question-tag",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-hi-question-tag-end-isnt-it",
+    "language": "hi",
+    "spoken": "yeh wahi restaurant hai isn't it",
+    "expected": "Yeh wahi restaurant hai, isn't it?",
+    "mustKeep": ["isn't", "restaurant"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "question-tag",
+      "position": "end"
+    }
+  },
+  {
+    "id": "mix-hi-question-tag-end-no-end",
+    "language": "hi",
+    "spoken": "tumne mera message dekha no",
+    "expected": "Tumne mera message dekha, no?",
+    "mustKeep": ["no", "message"],
+    "mustNotAdd": ["hai na"],
+    "addedFor": 3820,
+    "codeMix": {
+      "frame": "hindi",
+      "kind": "question-tag",
+      "position": "end"
+    }
+  }
+]

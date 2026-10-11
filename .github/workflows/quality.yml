@@ -24,9 +24,10 @@
 name: Quality
 
 on:
-  # Pull requests into `main`, pushes to `main` and the weekly schedule run these checks.
+  # Pull requests into `main`, the merge queue, pushes to `main` and the weekly schedule run these checks.
   pull_request:
     branches: [main]
+  merge_group:
   push:
     branches: [main]
   # The weekly run catches links that rot between changes; pull requests and main pushes
@@ -106,8 +107,8 @@ jobs:
       # and this repository has already published a competitor's name in a commit subject.
       - name: The commits
         env:
-          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
-          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
         run: |
           set -euo pipefail
           if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then

@@ -10,20 +10,14 @@ struct UttrflowBuildIdentityTests {
         return false
     }
 
-    @Test("An app detects another running Uttrflow variant by identifier prefix")
-    func detectsDifferentUttrflowIdentifier() {
-        #expect(
-            UttrflowBuildIdentity.otherRunningIdentifier(
-                current: "com.uttrflow.Uttrflow.dev",
-                running: ["com.apple.finder", "com.uttrflow.Uttrflow"]
-            ) == "com.uttrflow.Uttrflow"
-        )
-        #expect(
-            UttrflowBuildIdentity.otherRunningIdentifier(
-                current: "com.uttrflow.Uttrflow.dev",
-                running: ["com.uttrflow.Uttrflow.dev"]
-            ) == nil
-        )
+    @Test("A build is recognised by identifier prefix, or by executable outside the prefix")
+    func recognisesBuildsByIdentifierOrExecutable() {
+        #expect(UttrflowBuildIdentity.isUttrflow("com.uttrflow.Uttrflow"))
+        #expect(UttrflowBuildIdentity.isUttrflow("com.uttrflow.Uttrflow.dev"))
+        #expect(!UttrflowBuildIdentity.isUttrflow("com.apple.finder"))
+        #expect(UttrflowBuildIdentity.isUttrflow("com.example.fork", executableName: "Uttrflow"))
+        #expect(UttrflowBuildIdentity.isUttrflow(nil, executableName: "Uttrflow"))
+        #expect(!UttrflowBuildIdentity.isUttrflow("com.example.other", executableName: "Other"))
     }
 
     @Test("Only a suffixed Uttrflow identifier identifies an isolated development build")

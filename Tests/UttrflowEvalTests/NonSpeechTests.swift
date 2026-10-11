@@ -92,3 +92,27 @@ struct NonSpeechTests {
         #expect(rates.exceeded(insertionCeiling: 1, loopCeiling: 0, echoCeiling: 0) == ["prompt-echo rate"])
     }
 }
+
+@Suite("Reliability spread")
+struct ReliabilitySpreadTests {
+    private func judged(_ temperature: Double, _ logProbability: Double) -> SegmentReliability {
+        SegmentReliability(
+            temperature: temperature, averageLogProbability: logProbability, noSpeechProbability: 0,
+            compressionRatio: 1)
+    }
+
+    @Test func countsHotDecodesAndReadsTheLowestAndMedian() {
+        let spread = ReliabilitySpread([judged(0, -0.17), judged(1, -0.96), judged(0, -0.93)])
+        #expect(spread.segments == 3)
+        #expect(spread.hotDecodes == 1)
+        #expect(spread.lowestAverageLogProbability == -0.96)
+        #expect(spread.medianAverageLogProbability == -0.93)
+    }
+
+    @Test func noReportedSegmentHasNoLine() {
+        let spread = ReliabilitySpread([])
+        #expect(spread.segments == 0)
+        #expect(spread.lowestAverageLogProbability == nil)
+        #expect(spread.medianAverageLogProbability == nil)
+    }
+}

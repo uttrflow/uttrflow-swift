@@ -254,11 +254,14 @@ struct PageEditorField<Field: View>: View {
                     .font(.system(size: 11))
                     .foregroundStyle(tint)
                     .accessibilityHidden(true)
+                // The field below carries this text as its name, so VoiceOver reads it once.
                 Text(label)
                     .font(.system(size: 12))
                     .foregroundStyle(PagePalette.text.opacity(0.6))
+                    .accessibilityHidden(true)
             }
             field()
+                .accessibilityLabel(label)
                 .font(.system(size: 13.5))
                 .foregroundStyle(PagePalette.text)
                 .padding(.horizontal, 12)

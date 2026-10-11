@@ -148,4 +148,24 @@ struct ValueWindowTests {
         #expect(read.value == nil)
         #expect(wholeReads == 0)
     }
+
+    @Test("Each read names the rung that answered: ranged, whole, or none.")
+    func namesTheRung() {
+        let long = Self.scrollback
+        let caret = NSRange(location: long.length, length: 0)
+        let ranged = ValueWindow.read(
+            count: long.length, selection: caret, whole: { nil }, part: { long.substring(with: $0) })
+        #expect(ranged.rung == .rangedValue)
+        let whole = ValueWindow.read(
+            count: 5, selection: NSRange(location: 5, length: 0), whole: { "hello" }, part: { _ in nil })
+        #expect(whole.rung == .wholeValue)
+        let refusedWhole = ValueWindow.read(
+            count: 5, selection: NSRange(location: 5, length: 0), whole: { nil }, part: { _ in nil })
+        #expect(refusedWhole.rung == .none)
+        let refusedPart = ValueWindow.read(
+            count: long.length, selection: caret, whole: { nil }, part: { _ in nil })
+        #expect(refusedPart.rung == .none)
+        let noCount = ValueWindow.read(count: nil, selection: caret, whole: { "x" }, part: { _ in "x" })
+        #expect(noCount.rung == .none)
+    }
 }

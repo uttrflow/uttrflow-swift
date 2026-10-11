@@ -19,7 +19,7 @@ struct DockQuietOutcomeTests {
     func copiedSaysSo() {
         let dock = DictationPresenter.dock(for: .inserted(Self.copied))
 
-        #expect(DockView.restingWords(for: dock) == "Copied, not typed")
+        #expect(DockWording.restingWords(for: dock) == "Copied, not typed")
     }
 
     @Test("says the words were copied when a kept recording was copied")
@@ -28,7 +28,7 @@ struct DockQuietOutcomeTests {
             text: "see you at noon", method: .clipboard, cleanedBy: .rules, fromRecording: true)
 
         #expect(
-            DockView.restingWords(for: DictationPresenter.dock(for: .inserted(outcome)))
+            DockWording.restingWords(for: DictationPresenter.dock(for: .inserted(outcome)))
                 == "Copied, not typed")
     }
 
@@ -37,7 +37,7 @@ struct DockQuietOutcomeTests {
         let dock = DictationPresenter.dock(
             for: .failed(DictationFailure(SpeechEngineError.nothingHeard)))
 
-        #expect(DockView.restingWords(for: dock) == "Didn't catch that.")
+        #expect(DockWording.restingWords(for: dock) == "Didn't catch that.")
     }
 
     @Test("says a hold was too short and how to fix it")
@@ -45,13 +45,13 @@ struct DockQuietOutcomeTests {
         let dock = DictationPresenter.dock(
             for: .failed(DictationFailure(SpeechEngineError.audioTooShort)))
 
-        #expect(DockView.restingWords(for: dock) == SpeechEngineError.audioTooShort.userMessage)
+        #expect(DockWording.restingWords(for: dock) == SpeechEngineError.audioTooShort.userMessage)
         #expect(dock.action == nil, "a press starts the next dictation rather than retrying a tap")
     }
 
     @Test("draws a plain insertion as the tick alone")
     func insertionHasNoWords() {
-        #expect(DockView.restingWords(for: DictationPresenter.dock(for: .inserted(Self.typed))) == nil)
+        #expect(DockWording.restingWords(for: DictationPresenter.dock(for: .inserted(Self.typed))) == nil)
     }
 
     /// Measured at the view's font and width against one line of the same font, so nothing is drawn.

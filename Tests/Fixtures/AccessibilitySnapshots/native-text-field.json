@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "family": "native single-line text field",
+  "windowTitle": "Field",
+  "document": null,
+  "focused": {
+    "attributes": {
+      "AXRole": { "kind": "value", "text": "AXTextField", "milliseconds": 0.79 },
+      "AXSubrole": { "kind": "unsupported", "milliseconds": 0.00 },
+      "AXIdentifier": { "kind": "noValue", "milliseconds": 0.00 },
+      "AXPlaceholderValue": { "kind": "value", "text": "Subject", "milliseconds": 0.00 },
+      "AXDescription": { "kind": "unsupported", "milliseconds": 0.00 },
+      "AXNumberOfCharacters": { "kind": "value", "number": 17, "milliseconds": 0.03 },
+      "AXSelectedTextRange": { "kind": "value", "text": "{5, 0}", "milliseconds": 0.02 },
+      "AXValue": { "kind": "value", "text": "Lorem ipsum dolor", "milliseconds": 0.01 }
+    },
+    "rangedText": { "kind": "value" },
+    "children": []
+  }
+}

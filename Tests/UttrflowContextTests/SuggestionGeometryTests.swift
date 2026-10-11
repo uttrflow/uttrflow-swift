@@ -320,6 +320,19 @@ struct SuggestionGeometryTests {
         #expect(anchor?.frame.minX == caret.maxX)
     }
 
+    @Test("A list near the bottom keeps the ghost on the caret line and uses only the room below it")
+    func listNearBottomKeepsTheCaretLine() throws {
+        let lowCaret = CGRect(x: 620, y: mainScreen.minY + 6, width: 2, height: 17)
+        let list = CGSize(width: 260, height: 72)
+        let anchor = try #require(
+            SuggestionGeometry.anchor(
+                for: .inlineGhost, caret: lowCaret, window: nil, screen: mainScreen, size: list))
+
+        #expect(anchor.frame.maxY == lowCaret.maxY)
+        #expect(anchor.frame.minY == mainScreen.minY)
+        #expect(anchor.frame.height < list.height)
+    }
+
     @Test("A single candidate hangs from the caret's top the same way a list does")
     func loneGhostStaysInline() {
         let anchor = SuggestionGeometry.anchor(
@@ -396,14 +409,18 @@ struct SuggestionGeometryTests {
         #expect(anchor.map { mainScreen.contains($0.frame) } == true)
     }
 
-    @Test("A surface larger than the screen is cut to it rather than hanging off it")
-    func surfaceLargerThanTheScreen() {
+    @Test("A surface larger than the room below the caret is cut without moving its first line")
+    func surfaceLargerThanRoomBelowTheCaret() {
         let tiny = CGRect(x: 200, y: 100, width: 120, height: 90)
         let huge = CGSize(width: 400, height: 300)
+        let tinyCaret = CGRect(x: 240, y: 140, width: 2, height: 17)
         let anchor = SuggestionGeometry.anchor(
-            for: .inlineGhost, caret: CGRect(x: 240, y: 140, width: 2, height: 17),
-            window: tiny, screen: tiny, size: huge)
-        #expect(anchor?.frame == CGRect(x: 242, y: tiny.minY, width: tiny.maxX - 242, height: tiny.height))
+            for: .inlineGhost, caret: tinyCaret, window: tiny, screen: tiny, size: huge)
+        #expect(
+            anchor?.frame
+                == CGRect(
+                    x: tinyCaret.maxX, y: tiny.minY, width: tiny.maxX - tinyCaret.maxX,
+                    height: tinyCaret.maxY - tiny.minY))
     }
 
     @Test("A taller-than-the-window surface is cut to the window, not the screen")

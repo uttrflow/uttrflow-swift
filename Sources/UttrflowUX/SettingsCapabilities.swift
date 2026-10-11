@@ -1,4 +1,5 @@
 // What this Mac can do, passed in so the settings screens can be tested on a Mac that can.
+import Foundation
 public import UttrflowCore
 public import UttrflowSettings
 
@@ -40,6 +41,39 @@ public enum GlobeKeyAction: Sendable, Equatable {
     }
 }
 
+/// A step's example as the clean-up leaves it with the step off and on.
+public struct CleaningStepSample: Sendable, Equatable {
+    public let without: String
+    public let with: String
+
+    public init(without: String, with: String) {
+        self.without = without
+        self.with = with
+    }
+}
+
+/// Runs a step's example through the real clean-up under the user's choices; the app supplies it, since this module imports no rules.
+public struct CleaningPreviewer: Sendable, Equatable {
+    private let run: (@Sendable (CleaningStep, CleaningSteps) -> CleaningStepSample)?
+
+    public init(_ run: @escaping @Sendable (CleaningStep, CleaningSteps) -> CleaningStepSample) {
+        self.run = run
+    }
+
+    private init() { run = nil }
+
+    /// Draws no example, for a screen with no rules to run.
+    public static let none = CleaningPreviewer()
+
+    /// The example for one step, or nothing when there is no previewer.
+    func sample(of step: CleaningStep, under steps: CleaningSteps) -> CleaningStepSample? {
+        run?(step, steps)
+    }
+
+    /// A function is behaviour rather than state, so two previewers never make two settings states differ.
+    public static func == (lhs: CleaningPreviewer, rhs: CleaningPreviewer) -> Bool { true }
+}
+
 /// What this particular Mac can do, passed in so every refusal is testable on a machine that can.
 public struct SettingsCapabilities: Sendable, Equatable {
     /// What macOS will do with Uttrflow at the next login, including nothing for want of a login item.
@@ -75,8 +109,17 @@ public struct SettingsCapabilities: Sendable, Equatable {
     /// Whether clipboard capture is within its temporary pause window.
     public var clipboardCapturePaused: Bool
 
+    /// Whether a multi-line clip asks before it is pasted into a terminal.
+    public var confirmsMultilinePaste: Bool
+
     /// What macOS does when the Globe or Fn key is pressed by itself.
     public var globeKeyAction: GlobeKeyAction
+
+    /// The input devices present, as UID and name, for the microphone choice.
+    public var microphones: [SettingsMicrophone]
+
+    /// Cleans each clean-up step's example for the settings preview; absent until the app sets it.
+    public var cleaningPreviewer: CleaningPreviewer = .none
 
     /// Builds the answers; updates and the version default to absent.
     public init(
@@ -91,7 +134,9 @@ public struct SettingsCapabilities: Sendable, Equatable {
         suggestionRuntime: SuggestionRuntimeStatus = .idle,
         unarmedShortcuts: [ShortcutAction: HotkeyError] = [:],
         clipboardCapturePaused: Bool = false,
-        globeKeyAction: GlobeKeyAction = .doNothing
+        confirmsMultilinePaste: Bool = true,
+        globeKeyAction: GlobeKeyAction = .doNothing,
+        microphones: [SettingsMicrophone] = []
     ) {
         self.launchAtLogin = launchAtLogin
         self.canPlayRecordingSound = canPlayRecordingSound
@@ -104,7 +149,9 @@ public struct SettingsCapabilities: Sendable, Equatable {
         self.suggestionRuntime = suggestionRuntime
         self.unarmedShortcuts = unarmedShortcuts
         self.clipboardCapturePaused = clipboardCapturePaused
+        self.confirmsMultilinePaste = confirmsMultilinePaste
         self.globeKeyAction = globeKeyAction
+        self.microphones = microphones
     }
 
     /// A Mac that can do everything: the start of a real probe, and a test's default.
@@ -129,6 +176,17 @@ public struct SettingsCapabilities: Sendable, Equatable {
     }
 }
 
+/// An input device as the microphone choice offers it: a stable UID and the name macOS gives it.
+public struct SettingsMicrophone: Sendable, Equatable {
+    public let uid: String
+    public let name: String
+
+    public init(uid: String, name: String) {
+        self.uid = uid
+        self.name = name
+    }
+}
+
 /// Whether suggestions can currently receive keystrokes.
 public enum SuggestionRuntimeStatus: Sendable, Equatable {
     case idle
@@ -137,8 +195,16 @@ public enum SuggestionRuntimeStatus: Sendable, Equatable {
     case restarting
     case running
     case secureInputBlocked
+    case accessibilityDenied
     case tapFailed
     case corpusFailed
+}
+
+extension SuggestionRuntimeStatus {
+    static let accessibilityDeniedMessage =
+        String(
+            localized: "Allow Uttrflow under Accessibility settings; return to resume suggestions.",
+            comment: "Suggestion runtime status when Accessibility permission is denied")
 }
 
 /// How far along the model tab-to-complete needs is, so a switch that is on can say what it is doing.
@@ -157,6 +223,8 @@ public enum SuggestionModelReadiness: Sendable, Equatable {
     case fetchFailed
     /// The weights are on disk, but reading them into memory failed.
     case loadFailed
+    /// The model's pinned download will not fit on its cache volume.
+    case insufficientSpace(neededBytes: Int64)
     /// A failed fetch, for callers that still use the earlier spelling.
     case failed
 
@@ -168,8 +236,15 @@ public enum SuggestionModelReadiness: Sendable, Equatable {
             fraction.map { "Getting ready — \(MenuBarPresenter.percentage(of: $0))%" } ?? "Getting ready"
         case .loading: "Getting ready"
         case .releasedForMemory: "Paused to free memory"
+        case .insufficientSpace: "Not enough disk space"
         case .fetchFailed, .failed: "The model could not be fetched"
         case .loadFailed: "The model could not be loaded"
         }
+    }
+
+    /// The pinned download size in a compact, user-readable form when space is the failure.
+    public var requiredSpaceDescription: String? {
+        guard case .insufficientSpace(let neededBytes) = self else { return nil }
+        return neededBytes.formatted(.byteCount(style: .file))
     }
 }

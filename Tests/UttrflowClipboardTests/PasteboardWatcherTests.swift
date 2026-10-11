@@ -4,11 +4,12 @@ import Foundation
 import Synchronization
 import Testing
 import UttrflowCore
+import UttrflowTestSupport
 
 @testable import UttrflowClipboard
 
 /// A clipboard nobody else can reach, with the change count under the test's control.
-final class FakeClipboard: ClipboardSource, Sendable {
+final class FakeClipboard: ClipboardProvenanceSource, Sendable {
     private struct State {
         var count = 0
         var text: String?
@@ -18,8 +19,11 @@ final class FakeClipboard: ClipboardSource, Sendable {
         var application: String?
         var bundleIdentifier: String?
         var markers: PasteboardMarkers = []
+        var writerBundleIdentifier: String?
+        var isRemote = false
         var landsDuringMarkers: (text: String, markers: PasteboardMarkers)?
         var reads = 0
+        var applicationSamples = 0
         var contentReads = 0
         var htmlReads = 0
     }
@@ -31,7 +35,8 @@ final class FakeClipboard: ClipboardSource, Sendable {
     func write(
         _ text: String?, html: String? = nil, rtf: Data? = nil,
         picture: (data: Data, width: Int, height: Int)? = nil, from application: String? = nil,
-        marked markers: PasteboardMarkers = [], bundleIdentifier: String? = nil
+        marked markers: PasteboardMarkers = [], bundleIdentifier: String? = nil,
+        declaredSource: String? = nil, remote: Bool = false
     ) -> Int {
         state.withLock {
             $0.count += 1
@@ -42,6 +47,8 @@ final class FakeClipboard: ClipboardSource, Sendable {
             $0.application = application
             $0.bundleIdentifier = bundleIdentifier
             $0.markers = markers
+            $0.writerBundleIdentifier = declaredSource
+            $0.isRemote = remote
             return $0.count
         }
     }
@@ -55,6 +62,7 @@ final class FakeClipboard: ClipboardSource, Sendable {
     }
 
     var reads: Int { state.withLock(\.reads) }
+    var applicationSamples: Int { state.withLock(\.applicationSamples) }
     var contentReads: Int { state.withLock(\.contentReads) }
     var htmlReads: Int { state.withLock(\.htmlReads) }
 
@@ -98,6 +106,22 @@ final class FakeClipboard: ClipboardSource, Sendable {
         }
     }
 
+    func clipboardProvenance() -> ClipboardProvenance {
+        state.withLock {
+            if let landing = $0.landsDuringMarkers {
+                $0.landsDuringMarkers = nil
+                $0.count += 1
+                $0.text = landing.text
+                $0.markers = landing.markers
+                $0.writerBundleIdentifier = nil
+                $0.isRemote = false
+            }
+            return ClipboardProvenance(
+                markers: $0.markers, writerBundleIdentifier: $0.writerBundleIdentifier,
+                isRemote: $0.isRemote)
+        }
+    }
+
     /// K4 — a picture the test put on the clipboard.
     func image() -> (data: Data, width: Int, height: Int)? { state.withLock(\.picture) }
     func hasPicture() -> Bool { state.withLock { $0.picture != nil } }
@@ -105,12 +129,26 @@ final class FakeClipboard: ClipboardSource, Sendable {
     func frontmostApplicationName() -> String? { state.withLock(\.application) }
     func frontmostApplicationBundleIdentifier() -> String? { state.withLock(\.bundleIdentifier) }
     func frontmostApplication() -> (name: String?, bundleIdentifier: String?) {
-        state.withLock { ($0.application, $0.bundleIdentifier) }
+        state.withLock {
+            $0.applicationSamples += 1
+            return ($0.application, $0.bundleIdentifier)
+        }
     }
 }
 
 @Suite("Noticing that something was copied")
 struct PasteboardWatcherTests {
+    @Test("ignores a BOM-prefixed write when the pasteboard omits the leading mark")
+    func ignoresPasteboardReadbackWithoutLeadingByteOrderMark() async {
+        let clipboard = FakeClipboard()
+        let watcher = watcher(clipboard)
+        let finishWrite = watcher.ignoreNextWrite(of: "\u{FEFF}hello")
+
+        finishWrite(clipboard.write("hello"))
+
+        #expect(await watcher.newClip(at: noon) == nil)
+    }
+
     private func watcher(_ clipboard: FakeClipboard, now: Date? = nil) -> PasteboardWatcher {
         let instant = now ?? noon
         return PasteboardWatcher(source: clipboard, now: { instant })
@@ -154,6 +192,36 @@ struct PasteboardWatcherTests {
         #expect(await watcher.newClip(at: noon)?.clip.text == "unknown provenance")
     }
 
+    @Test("uses the declared writer for attribution and application exclusions")
+    func declaredWriterPrecedesFrontmostApplication() async throws {
+        let clipboard = FakeClipboard()
+        clipboard.focus(on: "Private App", bundleIdentifier: "com.example.frontmost")
+        let watcher = watcher(clipboard)
+        await watcher.setExcludedApplications(["com.example.frontmost", "com.example.private"])
+
+        clipboard.write("written by another app", declaredSource: "com.example.writer")
+        let clip = try #require(await watcher.newClip(at: noon)?.clip)
+        #expect(clip.source == "com.example.writer")
+
+        let samplesBeforeExcludedWriter = clipboard.applicationSamples
+        clipboard.write("written by an excluded app", declaredSource: "com.example.private")
+        #expect(await watcher.newClip(at: noon) == nil)
+        #expect(clipboard.applicationSamples == samplesBeforeExcludedWriter)
+    }
+
+    @Test("marks a remote clipboard copy as another device instead of the frontmost app")
+    func remoteClipboardIsNotAttributedToFrontmostApplication() async throws {
+        let clipboard = FakeClipboard()
+        clipboard.focus(on: "Private App", bundleIdentifier: "com.example.private")
+        let watcher = watcher(clipboard)
+        await watcher.setExcludedApplications(["com.example.private"])
+
+        clipboard.write("copied from another device", remote: true)
+
+        let clip = try #require(await watcher.newClip(at: noon)?.clip)
+        #expect(clip.source == ClipboardProvenance.remoteSource)
+    }
+
     @Test("drops a copy when the frontmost application changes before polling")
     func excludesCopyWhenFocusChangesBeforePolling() async {
         let clipboard = FakeClipboard()
@@ -178,6 +246,47 @@ struct PasteboardWatcherTests {
 
         let clip = try #require(await watcher.newClip(at: noon)?.clip)
         #expect(clip.source == nil)
+    }
+
+    @Test("keeps a copy whose focus change sampled no excluded application")
+    func keepsCopyWhenNeitherSampleIsExcluded() async throws {
+        let clipboard = FakeClipboard()
+        clipboard.focus(on: "App One", bundleIdentifier: "com.example.one")
+        let watcher = watcher(clipboard)
+        await watcher.setExcludedApplications(["com.example.private"])
+
+        clipboard.write("ordinary copy", from: "App One", bundleIdentifier: "com.example.one")
+        clipboard.focus(on: "App Two", bundleIdentifier: "com.example.two")
+
+        let clip = try #require(await watcher.newClip(at: noon)?.clip)
+        #expect(clip.text == "ordinary copy")
+        #expect(clip.source == nil)
+    }
+
+    @Test("drops a copy whose previous focus is the excluded one")
+    func dropsCopyWhenPreviousSampleIsExcluded() async {
+        let clipboard = FakeClipboard()
+        clipboard.focus(on: "Private App", bundleIdentifier: "com.example.private")
+        let watcher = watcher(clipboard)
+        await watcher.setExcludedApplications(["com.example.private"])
+
+        clipboard.write("private copy", from: "App Two", bundleIdentifier: "com.example.two")
+        clipboard.focus(on: "App Two", bundleIdentifier: "com.example.two")
+
+        #expect(await watcher.newClip(at: noon) == nil)
+    }
+
+    @Test("drops a copy whose current focus is the excluded one")
+    func dropsCopyWhenCurrentSampleIsExcluded() async {
+        let clipboard = FakeClipboard()
+        clipboard.focus(on: "App One", bundleIdentifier: "com.example.one")
+        let watcher = watcher(clipboard)
+        await watcher.setExcludedApplications(["com.example.private"])
+
+        clipboard.write("private copy", from: "App One", bundleIdentifier: "com.example.one")
+        clipboard.focus(on: "Private App", bundleIdentifier: "com.example.private")
+
+        #expect(await watcher.newClip(at: noon) == nil)
     }
 
     @Test("records an escaped-quote named secret as hidden without changing the text")
@@ -346,16 +455,27 @@ struct PasteboardWatcherTests {
         let clipboard = FakeClipboard()
         let watcher = watcher(clipboard)
         clipboard.write(nil, html: String(repeating: "<ul><li>x", count: 200_000))
-        let clock = ContinuousClock()
-        let start = clock.now
 
         let clip = try #require(await watcher.newClip(at: noon)?.clip)
 
-        #expect(start.duration(to: clock.now) < .seconds(5))
         #expect(!clip.text.isEmpty)
         #expect(clip.text.utf8.count <= ClipboardBudget.standard.largestClip)
         #expect(clip.text.hasSuffix("…"))
         #expect(clip.richText == nil)
+    }
+
+    /// The time bound on the same copy runs in `make bench`, since a parallel test run cannot keep a wall-clock limit honest.
+    @Test("a deeply nested HTML copy is read within five seconds")
+    func deeplyNestedHTMLStaysFast() async throws {
+        let clipboard = FakeClipboard()
+        let watcher = watcher(clipboard)
+        clipboard.write(nil, html: String(repeating: "<ul><li>x", count: 200_000))
+        let clock = ContinuousClock()
+        let start = clock.now
+
+        _ = await watcher.newClip(at: noon)
+
+        #expect(start.duration(to: clock.now) < .seconds(5))
     }
 
     @Test("uses the watcher's output limit and keeps the bounded plain form")
@@ -791,6 +911,44 @@ struct PasteboardWatcherTests {
 
         task.cancel()
         await task.value
+    }
+
+    @Test("the run loop polls quickly through a copy burst, then returns to its idle cadence")
+    func burstRunCadence() async throws {
+        let clipboard = FakeClipboard()
+        let clock = ManualClock()
+        let cadence = PasteboardPollingCadence(
+            idleInterval: PasteboardWatcher.pollInterval,
+            burstInterval: PasteboardWatcher.defaultBurstInterval,
+            burstDuration: PasteboardWatcher.defaultBurstDuration)
+        let watcher = PasteboardWatcher(source: clipboard, cadence: cadence, clock: clock)
+        let seen = Mutex<[String]>([])
+        let task = Task {
+            await watcher.run { clip in seen.withLock { $0.append(clip.clip.text) } }
+        }
+        // Each step moves the watcher's clock a tenth of a second once it is asleep, and counts its reads.
+        var readsPerStep: [Int] = []
+        func step() async {
+            await clock.waitUntilSomethingIsWaiting()
+            let before = clipboard.reads
+            await clock.advanceWhenSomethingIsWaiting(by: .milliseconds(100))
+            await clock.waitUntilSomethingIsWaiting()
+            readsPerStep.append(clipboard.reads - before)
+        }
+
+        for index in 1...20 {
+            clipboard.write("burst-\(index)")
+            await step()
+            await step()
+        }
+        for _ in 0..<60 { await step() }
+        task.cancel()
+        await task.value
+
+        #expect(seen.withLock { $0.count } >= 17)
+        #expect(readsPerStep.prefix(40).reduce(0, +) >= 25)
+        // Long after the last copy, one read every half second: four in the last two seconds.
+        #expect(readsPerStep.suffix(20).reduce(0, +) == 4)
     }
 
     /// The panel catches up as it opens, so the poll is set by battery rather than by the gesture. See `Docs/performance-idle.md`.

@@ -52,7 +52,8 @@ public struct SystemCodeFormatter: CodeFormatting {
         timeout: TimeInterval
     ) async -> String? {
         await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
+            // A queue of its own gets a thread at once, where a busy shared pool could start the run past its deadline.
+            DispatchQueue(label: "com.uttrflow.clipboard.formatter-run", qos: .userInitiated).async {
                 continuation.resume(
                     returning: runProcess(
                         tool, arguments: arguments, input: input,
@@ -61,8 +62,8 @@ public struct SystemCodeFormatter: CodeFormatting {
         }
     }
 
-    /// Pumps one subprocess without blocking on a pipe read or write.
-    private static func runProcess(
+    /// Pumps one subprocess without blocking on a pipe read or write; it blocks its caller until the run ends.
+    static func runProcess(
         _ tool: URL, arguments: [String], input: String, environment: [String: String],
         timeout: TimeInterval
     ) -> String? {

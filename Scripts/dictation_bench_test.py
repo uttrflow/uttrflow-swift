@@ -151,6 +151,158 @@ class BenchTests(unittest.TestCase):
         self.assertEqual(out.returncode, 0, out.stderr)
         self.assertIn("| devvocab-commands | 1 | 50.0% | 0.0% | 0/1 | 1/1 |", out.stdout)
 
+    def test_every_clip_tags_only_entities_its_written_text_contains_with_or_without_a_vocabulary(self):
+        made = bench.clips()
+        nouns = {c["id"]: c for c in made if c["category"] in ("nouns", "nouns-vocabulary")}
+        for c in made:
+            for e in c["entities"]:
+                self.assertIn(e, c["written"], c["id"])
+        bare = next(c for c in nouns.values() if not c["vocabulary"])
+        self.assertEqual(bare["entities"], nouns[bare["id"] + "-vocabulary"]["entities"])
+        self.assertTrue(bare["entities"])
+
+    def test_entity_error_counts_a_term_with_any_word_wrong_and_tagged_words_apart_from_the_rest(self):
+        clip = dict(CLIP, written="run git push now", spoken="run git push now", entities=["git push"])
+        counts = bench.entity_counts(clip, "run git push now", "ran get push now")
+        self.assertEqual((counts["entities"], counts["entity_missed"]), (1, 1))
+        self.assertEqual((counts["tagged"], counts["tagged_wrong"]), (2, 1))
+        self.assertEqual((counts["untagged"], counts["untagged_wrong"]), (2, 1))
+
+    def test_a_false_override_is_a_word_the_decoder_had_right_and_the_final_text_does_not(self):
+        clip = dict(CLIP, written="open the json file", spoken="open the json file", entities=["json"])
+        counts = bench.entity_counts(clip, "open the jason file", "open a jason file")
+        self.assertEqual((counts["decoder_right"], counts["overridden"]), (3, 1))
+        self.assertTrue(counts["compared"])
+
+    def test_a_false_override_is_not_counted_where_the_spoken_and_written_forms_differ(self):
+        clip = dict(CLIP, written="--force", spoken="dash dash force", entities=["--force"])
+        counts = bench.entity_counts(clip, "dash dash force", "dash dash force")
+        self.assertFalse(counts["compared"])
+        self.assertEqual(counts["decoder_right"], 0)
+
+    def test_a_score_prints_entity_metrics_sliced_by_category_and_vocabulary(self):
+        clips = [dict(CLIP, id="with", category="nouns-vocabulary", vocabulary=["Pravix"], entities=["Pravix"],
+                      spoken="meet Pravix today", written="meet Pravix today"),
+                 dict(CLIP, id="without", category="nouns", entities=["Pravix"],
+                      spoken="meet Pravix today", written="meet Pravix today")]
+        with open(os.path.join(self.out, "corpus.json"), "w") as handle:
+            json.dump(clips, handle)
+        right = result_event("with", text="meet Pravix today")
+        right["events"][0]["text"] = "meet Pravix today"
+        wrong = result_event("without", text="meet previous today")
+        wrong["events"][0]["text"] = "meet Pravix today"
+        out = self.run_bench("score", self.write_run("BENCH " + json.dumps(right), "BENCH " + json.dumps(wrong)))
+        self.assertEqual(out.returncode, 0, out.stderr)
+        self.assertIn("| nouns, no vocabulary | 1 | 100.0% | 100.0% | 0.0% | 33.3% | 1 |", out.stdout)
+        self.assertIn("| nouns-vocabulary, vocabulary | 1 | 0.0% | 0.0% | 0.0% | 0.0% | 1 |", out.stdout)
+
+    def test_every_domain_sentence_is_read_bare_and_with_its_own_terms_by_every_voice(self):
+        made = [c for c in bench.clips() if c.get("domain")]
+        for domain, rows in bench.DOMAINS.items():
+            mine = [c for c in made if c["category"] == f"domain-{domain}"]
+            terms = {t for c in mine for t in c["entities"]}
+            self.assertGreaterEqual(len(terms), bench.DOMAIN_MIN_TERMS, domain)
+            self.assertGreaterEqual(len(rows), bench.DOMAIN_MIN_SENTENCES, domain)
+            bases = {}
+            for c in mine:
+                bases.setdefault(c["id"].rsplit("-", 1)[0], {})[c["domain_condition"]] = c
+            self.assertEqual(len(bases), len(rows) * len(bench.ENGLISH), domain)
+            for base, conditions in bases.items():
+                self.assertEqual(set(conditions), set(bench.DOMAIN_CONDITIONS), base)
+                bare, supplied = conditions["bare"], conditions["vocabulary"]
+                self.assertEqual(bare["vocabulary"], [], base)
+                self.assertEqual(supplied["vocabulary"], supplied["entities"], base)
+                self.assertEqual(bare["entities"], supplied["entities"], base)
+                self.assertEqual(bare["say"], supplied["say"], base)
+
+    def test_a_domain_sentence_with_a_term_missing_from_its_written_text_fails_loudly(self):
+        rows = [(None, "Start metformin today.", ["metformin", "warfarin"])] * bench.DOMAIN_MIN_SENTENCES
+        original = bench.DOMAINS
+        bench.DOMAINS = {"medical": rows}
+        self.addCleanup(setattr, bench, "DOMAINS", original)
+        with self.assertRaisesRegex(ValueError, "warfarin"):
+            bench.clips()
+
+    def test_a_domain_with_fewer_terms_than_the_minimum_fails_loudly(self):
+        rows = [(None, f"Start drug{i} today.", [f"drug{i}"]) for i in range(bench.DOMAIN_MIN_SENTENCES)]
+        original = bench.DOMAINS
+        bench.DOMAINS = {"medical": rows}
+        self.addCleanup(setattr, bench, "DOMAINS", original)
+        with self.assertRaisesRegex(ValueError, "fewer than"):
+            bench.clips()
+
+    def test_a_domain_score_reports_term_error_without_and_with_the_vocabulary(self):
+        clips = [dict(CLIP, id=f"dm-{condition}", category="domain-medical", vocabulary=vocabulary,
+                      entities=["apixaban"], spoken="continue the apixaban", written="continue the apixaban",
+                      domain="medical", domain_condition=condition)
+                 for condition, vocabulary in (("bare", []), ("vocabulary", ["apixaban"]))]
+        with open(os.path.join(self.out, "corpus.json"), "w") as handle:
+            json.dump(clips, handle)
+        bare = result_event("dm-bare", text="continue the a pixaban")
+        bare["events"][0]["text"] = "continue the a pixaban"
+        supplied = result_event("dm-vocabulary", text="continue the apixaban")
+        supplied["events"][0]["text"] = "continue the apixaban"
+        out = self.run_bench("score", self.write_run("BENCH " + json.dumps(bare), "BENCH " + json.dumps(supplied)))
+        self.assertEqual(out.returncode, 0, out.stderr)
+        self.assertIn("| domain-medical, no vocabulary | 1 | 100.0% |", out.stdout)
+        self.assertIn("| domain-medical, vocabulary | 1 | 0.0% |", out.stdout)
+
+    def test_every_persona_sentence_is_scored_off_on_and_with_another_personas_vocabulary(self):
+        made = [c for c in bench.clips() if c.get("persona")]
+        own = {name: vocabulary for name, _, vocabulary, _ in bench.PERSONAS}
+        bases = {}
+        for c in made:
+            bases.setdefault(c["id"].rsplit("-", 1)[0], {})[c["persona_condition"]] = c
+            self.assertEqual(c["entities"], [e for e in own[c["persona"]] if e in c["written"]], c["id"])
+            self.assertTrue(c["entities"], c["id"])
+        self.assertEqual(len(bases), sum(len(p[3]) for p in bench.PERSONAS) * len(bench.ENGLISH))
+        for base, conditions in bases.items():
+            self.assertEqual(set(conditions), set(bench.PERSONA_CONDITIONS), base)
+            persona = conditions["on"]["persona"]
+            self.assertEqual(conditions["off"]["vocabulary"], [], base)
+            self.assertEqual(conditions["on"]["vocabulary"], own[persona], base)
+            self.assertIn(conditions["wrong"]["vocabulary"], [v for n, v in own.items() if n != persona], base)
+            self.assertFalse(set(conditions["wrong"]["vocabulary"]) & set(own[persona]), base)
+            self.assertEqual(len({c["say"] for c in conditions.values()}), 1, base)
+
+    def test_a_persona_job_names_the_app_it_dictates_into(self):
+        clip = dict(CLIP, id="persona", vocabulary=["Quillmark"], app="com.apple.Terminal")
+        with open(os.path.join(self.out, "corpus.json"), "w") as handle:
+            json.dump([clip], handle)
+        run = self.run_bench("jobs")
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertEqual(run.stdout.rstrip("\n").split("\t")[2:], ["Quillmark", "fast", "shipping", "en",
+                                                                     "com.apple.Terminal"])
+
+    def persona_run(self, wrong_text):
+        said = "ask Quillmark to merge the branch today"
+        clips = [dict(CLIP, id=f"persona-dev0-samantha-{k}", category="persona-dev", persona="dev",
+                      persona_condition=k, app="com.apple.Terminal", entities=["Quillmark"], spoken=said,
+                      written=said, vocabulary=[] if k == "off" else ["Quillmark"])
+                 for k in bench.PERSONA_CONDITIONS]
+        with open(os.path.join(self.out, "corpus.json"), "w") as handle:
+            json.dump(clips, handle)
+        texts = {"off": "ask quill mark to merge the branch today", "on": said, "wrong": wrong_text}
+        events = []
+        for k, text in texts.items():
+            event = result_event(f"persona-dev0-samantha-{k}", text=text)
+            event["events"][0]["text"] = text
+            events.append("BENCH " + json.dumps(event))
+        return self.run_bench("score", self.write_run(*events))
+
+    def test_a_persona_score_reports_gain_with_the_right_vocabulary_and_passes_when_the_wrong_one_costs_nothing(self):
+        out = self.persona_run("ask quill mark to merge the branch today")
+        self.assertEqual(out.returncode, 0, out.stdout + out.stderr)
+        self.assertIn("| dev | com.apple.Terminal | 1 | 28.6% | 0.0% | 28.6% | 100.0% | 0.0% | 100.0% | +28.6 | +0.0 |",
+                      out.stdout)
+        self.assertIn("| persona-dev, persona wrong | 1 | 100.0% |", out.stdout)
+
+    def test_a_persona_score_fails_when_the_wrong_vocabulary_harms_beyond_the_limit(self):
+        out = self.persona_run("ask quill mark to merge the brunch Tuesday")
+        self.assertNotEqual(out.returncode, 0)
+        self.assertIn("| 28.6% | 0.0% | 57.1% | 100.0% | 0.0% | 100.0% | +28.6 | +28.6 |", out.stdout)
+        self.assertIn("persona harm over 2.0 points: dev, cleaner shipping, mode fast", out.stdout)
+
     # jobs
 
     def test_a_matching_category_produces_jobs(self):
@@ -183,6 +335,35 @@ class BenchTests(unittest.TestCase):
         self.assertNotEqual(run.returncode, 0)
         combined = run.stdout + run.stderr
         self.assertIn("unknown-clip", combined)
+
+    # baseline compare
+
+    def judge(self, run, baseline, *flags):
+        return self.run_bench("score", run, "--baseline", baseline, *flags)
+
+    def test_a_saved_baseline_passes_the_same_run_and_fails_a_worse_one(self):
+        # The paired bootstrap rules on a slice only with two utterances or more.
+        with open(os.path.join(self.out, "corpus.json"), "w") as handle:
+            json.dump([CLIP, dict(CLIP, id="second", wav="second.wav")], handle)
+        good = self.write_run(*("BENCH " + json.dumps(result_event(i)) for i in ("known", "second")))
+        baseline = os.path.join(self.out, "baseline.json")
+        saved = self.judge(good, baseline, "--save-baseline")
+        self.assertEqual(saved.returncode, 0, saved.stderr)
+        self.assertEqual(json.load(open(baseline))["entries"][0]["referenceWordCount"], 2)
+        same = self.judge(good, baseline, "--fail-on-regression")
+        self.assertEqual(same.returncode, 0, same.stdout + same.stderr)
+        self.assertIn("verdict: no change detectable", same.stdout)
+        worse = self.write_run(*("BENCH " + json.dumps(result_event(i, text="Hello there.")) for i in ("known", "second")))
+        judged = self.judge(worse, baseline, "--fail-on-regression")
+        self.assertNotEqual(judged.returncode, 0)
+        self.assertIn("verdict: worsened", judged.stdout)
+
+    def test_a_run_mixing_cleaners_is_refused_rather_than_judged_as_one(self):
+        rules = dict(result_event("known"), cleaner="rules")
+        run = self.write_run("BENCH " + json.dumps(result_event("known")), "BENCH " + json.dumps(rules))
+        judged = self.judge(run, os.path.join(self.out, "b.json"), "--save-baseline")
+        self.assertNotEqual(judged.returncode, 0)
+        self.assertIn("one cleaner and mode", judged.stderr)
 
 
 if __name__ == "__main__":

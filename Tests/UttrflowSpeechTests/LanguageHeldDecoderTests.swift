@@ -13,6 +13,7 @@ struct LanguageHeldDecoderTests {
     static let english = 10
     static let hindi = 11
     static let urdu = 12
+    static let french = 13
     static let vocabularySize = 16
 
     /// Half-precision logits after WhisperKit's language filter: every token but a language is minus infinity.
@@ -91,6 +92,129 @@ struct LanguageHeldDecoderTests {
             for: languages, among: [Self.english, Self.hindi, Self.urdu], lookUp: { ids[$0] })
 
         #expect(tokens == [Self.hindi, Self.english])
+    }
+
+    // MARK: What the model would have answered
+
+    @Test("reads the likeliest language of all of them without letting it decide")
+    func readsTheUnrestrictedChoice() async throws {
+        let sampler = AllowedLanguageSampler(
+            allowedTokens: [Self.english, Self.hindi],
+            languageTokens: [Self.english, Self.hindi, Self.urdu, Self.french])
+        let logits = try Self.logits([Self.english: 1, Self.hindi: 0, Self.urdu: 0, Self.french: 9])
+
+        let result = await sampler.update(tokens: [1], logits: logits, logProbs: [0])
+
+        #expect(result.tokens.last == Self.english)
+        #expect(sampler.unrestricted.choice?.token == Self.french)
+        #expect((sampler.unrestricted.choice?.probability ?? 0) > 0.99)
+    }
+
+    @Test("reads nothing when it is told no language tokens")
+    func readsNothingWithoutTokens() async throws {
+        let sampler = AllowedLanguageSampler(allowedTokens: [Self.english, Self.hindi])
+
+        _ = await sampler.update(tokens: [1], logits: try Self.urduFirst(), logProbs: [0])
+
+        #expect(sampler.unrestricted.choice == nil)
+    }
+
+    // MARK: Refusing a language the product does not transcribe
+
+    /// A decoder whose detection hears `scores` and whose decode is scripted, as WhisperKit drives them.
+    static func decoder(hearing scores: [Int: Float]) throws -> LanguageHeldDecoder {
+        let inner = FakeTextDecoder(logits: try logits(scores), tokenizer: FakeLanguageTokenizer())
+        return LanguageHeldDecoder(wrapping: inner, languages: LanguageCode.transcribed)
+    }
+
+    /// What a window's decode throws after `decoder` detected `scores`, or `nil` when it ran.
+    static func decodeAfterDetecting(_ scores: [Int: Float]) async throws -> SpeechEngineError? {
+        let decoder = try decoder(hearing: scores)
+        let options = VocabularyPrompt.decodingOptions(languageHint: nil)
+        _ = try await decoder.detectLanguage(
+            from: try Self.logits(scores), using: FakeDecodingInputs(),
+            sampler: GreedyTokenSampler(temperature: 0, eotToken: 0, decodingOptions: options),
+            options: options, temperature: 0)
+        do {
+            _ = try await decoder.decodeText(
+                from: try Self.logits(scores), using: FakeDecodingInputs(),
+                sampler: GreedyTokenSampler(temperature: 0, eotToken: 0, decodingOptions: options),
+                options: options, callback: nil)
+            return nil
+        } catch let error as SpeechEngineError {
+            return error
+        } catch {
+            return nil
+        }
+    }
+
+    @Test("refuses the decode of speech the model is certain is French")
+    func refusesFrench() async throws {
+        let refused = try await Self.decodeAfterDetecting([Self.french: 20, Self.english: 3, Self.hindi: 1])
+
+        #expect(refused == .unsupportedLanguage(try #require(LanguageCode("fr"))))
+    }
+
+    @Test("lets Hindi through when the model hears Urdu")
+    func keepsHindiHeardAsUrdu() async throws {
+        let refused = try await Self.decodeAfterDetecting([Self.urdu: 20, Self.hindi: 3, Self.english: 1])
+
+        #expect(refused == nil)
+    }
+
+    @Test("lets English and Hindi through")
+    func keepsTranscribedLanguages() async throws {
+        #expect(try await Self.decodeAfterDetecting([Self.english: 20, Self.french: 3]) == nil)
+        #expect(try await Self.decodeAfterDetecting([Self.hindi: 20, Self.french: 3]) == nil)
+    }
+
+    @Test("lets speech through when the model is unsure it is French")
+    func keepsUnsureFrench() async throws {
+        #expect(
+            try await Self.decodeAfterDetecting([Self.french: 3, Self.english: 2.5, Self.hindi: 0]) == nil)
+    }
+
+    @Test("refuses one window only, so the next detection starts clean")
+    func refusalIsTaken() async throws {
+        let scores: [Int: Float] = [Self.french: 20, Self.english: 3]
+        let decoder = try Self.decoder(hearing: scores)
+        let options = VocabularyPrompt.decodingOptions(languageHint: nil)
+        let sampler = GreedyTokenSampler(temperature: 0, eotToken: 0, decodingOptions: options)
+        _ = try await decoder.detectLanguage(
+            from: try Self.logits(scores), using: FakeDecodingInputs(), sampler: sampler, options: options,
+            temperature: 0)
+
+        _ = try? await decoder.decodeText(
+            from: try Self.logits(scores), using: FakeDecodingInputs(), sampler: sampler, options: options,
+            callback: nil)
+
+        // The inner fake cannot decode, so a second decode throws WhisperKit's error, not the refusal.
+        await #expect(throws: WhisperError.self) {
+            try await decoder.decodeText(
+                from: try Self.logits(scores), using: FakeDecodingInputs(), sampler: sampler,
+                options: options,
+                callback: nil)
+        }
+    }
+
+    @Test("forgets an unread refusal when the next piece begins")
+    func drainForgetsTheRefusal() async throws {
+        let scores: [Int: Float] = [Self.french: 20, Self.english: 3]
+        let decoder = try Self.decoder(hearing: scores)
+        let options = VocabularyPrompt.decodingOptions(languageHint: nil)
+        let sampler = GreedyTokenSampler(temperature: 0, eotToken: 0, decodingOptions: options)
+        _ = try await decoder.detectLanguage(
+            from: try Self.logits(scores), using: FakeDecodingInputs(), sampler: sampler, options: options,
+            temperature: 0)
+
+        _ = decoder.drainSplit()
+
+        await #expect(throws: WhisperError.self) {
+            try await decoder.decodeText(
+                from: try Self.logits(scores), using: FakeDecodingInputs(), sampler: sampler,
+                options: options,
+                callback: nil)
+        }
     }
 
     // MARK: The decoder
@@ -217,6 +341,42 @@ struct LanguageHeldDecoderTests {
                 == "compressionRatioThreshold")
     }
 
+    @Test("a silence verdict outranks a first-token rejection and ends the retries")
+    func silenceOutranksFirstToken() {
+        var options = VocabularyPrompt.decodingOptions(languageHint: nil)
+        options.language = "en"
+        var result = FakeTextDecoder.result(
+            language: "en", compressionRatio: 1.0,
+            fallback: DecodingFallback(needsFallback: true, fallbackReason: "firstTokenLogProbThreshold"))
+        result.noSpeechProb = 0.9
+
+        let verdict = LanguageHeldDecoder.judged(result, options: options)
+
+        #expect(verdict?.fallbackReason == "silence")
+        #expect(verdict?.needsFallback == false)
+    }
+
+    @Test("a silence verdict outranks a compression rejection in either language")
+    func silenceOutranksCompression() {
+        for language in ["en", "hi"] {
+            var (result, options) = Self.decoded(language, compressionRatio: 3.9, avgLogProb: -1.6)
+            result.noSpeechProb = 0.9
+            #expect(LanguageHeldDecoder.judged(result, options: options)?.needsFallback == false)
+        }
+    }
+
+    @Test("a window below the no-speech threshold keeps its first-token retry")
+    func speechKeepsItsRetry() {
+        var options = VocabularyPrompt.decodingOptions(languageHint: nil)
+        options.language = "en"
+        var result = FakeTextDecoder.result(
+            language: "en",
+            fallback: DecodingFallback(needsFallback: true, fallbackReason: "firstTokenLogProbThreshold"))
+        result.noSpeechProb = 0.2
+
+        #expect(LanguageHeldDecoder.judged(result, options: options)?.needsFallback == true)
+    }
+
     @Test("leaves any other verdict alone")
     func otherVerdictsAreUnchanged() {
         var options = VocabularyPrompt.decodingOptions(languageHint: .hindi)
@@ -263,6 +423,25 @@ struct LanguageHeldDecoderTests {
             options: options, callback: nil)
 
         #expect(result.temperature == 0.4)
+    }
+
+    @Test("decodes a fallback window the same way every time it is handed the same audio")
+    func fallbackWindowRepeats() async throws {
+        let options = DecodeSessionTests.options { $0.firstTokenLogProbThreshold = nil }
+        var decodes: [[Int]] = []
+        for _ in 0..<2 {
+            let decoder = LanguageHeldDecoder(
+                wrapping: ScriptedDecoder(script: [:], unscripted: nil), languages: LanguageCode.transcribed)
+            let result = try await decoder.decodeText(
+                from: try ScriptedDecoder.array([1, 3, 1, 1]),
+                using: try decoder.prepareDecoderInputs(withPrompt: DecodeSessionTests.opening),
+                sampler: GreedyTokenSampler(temperature: 1, eotToken: 50, decodingOptions: options),
+                options: options, callback: nil)
+            decodes.append(result.tokens)
+        }
+
+        #expect(decodes[0].count > DecodeSessionTests.opening.count + 8)
+        #expect(decodes[0] == decodes[1])
     }
 
     // MARK: What is asked for
@@ -371,13 +550,13 @@ private final class FakeTextDecoder: TextDecoding {
 private struct FakeLanguageTokenizer: WhisperTokenizer {
     private let ids = [
         "<|en|>": LanguageHeldDecoderTests.english, "<|hi|>": LanguageHeldDecoderTests.hindi,
-        "<|ur|>": LanguageHeldDecoderTests.urdu,
+        "<|ur|>": LanguageHeldDecoderTests.urdu, "<|fr|>": LanguageHeldDecoderTests.french,
     ]
 
     func encode(text: String) -> [Int] { [] }
     func decode(tokens: [Int]) -> String { "" }
     func convertTokenToId(_ token: String) -> Int? { ids[token] }
-    func convertIdToToken(_ id: Int) -> String? { nil }
+    func convertIdToToken(_ id: Int) -> String? { ids.first { $0.value == id }?.key }
     var specialTokens: SpecialTokens { DecoderPrefillTests.specialTokens }
     var allLanguageTokens: Set<Int> { Set(ids.values) }
     func splitToWordTokens(tokenIds: [Int]) -> (words: [String], wordTokens: [[Int]]) { ([], []) }

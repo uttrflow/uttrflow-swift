@@ -2,6 +2,7 @@
 
 import Foundation
 import Testing
+import UttrflowCore
 import UttrflowUX
 
 @testable import Uttrflow
@@ -9,10 +10,26 @@ import UttrflowUX
 @Suite("Update activity wiring")
 @MainActor
 struct UpdateActivityWiringTests {
+    @Test("counts failed and successful feeds once per update cycle")
+    func countsFeedRequestsOnce() {
+        let ledger = NetworkActivityLedger(file: nil)
+        let requests = UpdateRequestActivity(ledger: ledger)
+        let now = Date()
+
+        requests.feedFailed()
+        requests.feedFailed()
+        #expect(ledger.activity().tallies(at: now)[.updateCheck]?.count == 1)
+
+        requests.checkDidFinish()
+        requests.feedLoaded()
+        requests.archiveWillDownload()
+        #expect(ledger.activity().tallies(at: now)[.updateCheck]?.count == 3)
+    }
+
     @Test("an update staged mid-dictation installs a minute after the dictation ends")
     func dictationEndingStartsTheQuietClock() {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         var installed = false
         app.render(.recording)
         app.updates.stage({ installed = true })

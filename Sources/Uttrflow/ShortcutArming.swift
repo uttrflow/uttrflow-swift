@@ -17,7 +17,8 @@ final class ShortcutArming {
     private let retryInterval: Duration
     /// Told the first outcome, which is when a launch's shortcut starts being heard or refused.
     private let launch: LaunchMilestone
-    private var retryTask: Task<Void, Never>?
+    /// The loop retrying after Accessibility permission is granted, or `nil` when nothing will retry.
+    private(set) var retryTask: Task<Void, Never>?
 
     init(
         onChange: @escaping @MainActor () -> Void,

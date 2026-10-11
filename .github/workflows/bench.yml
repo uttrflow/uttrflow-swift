@@ -1,0 +1,58 @@
+# The benchmark lane: the energy budget, the scaling suites, the timing benchmarks and the soak and
+# offline self-tests. See `make bench`. Once a night on main and by hand; it never blocks a pull
+# request. A failure opens an issue, or comments on the one already open.
+name: Bench
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: bench
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  bench:
+    name: make bench
+    # The standard hosted runner `ci.yml` uses; the package targets macOS 26 APIs.
+    runs-on: macos-26
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Cache SwiftPM
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: .build
+          key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Bench
+        run: make --keep-going bench
+
+      - name: Report a failure as an issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Nightly bench failed on main"
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number --jq '.[0].number')
+          if [[ -n "$open" ]]; then
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body "Failed again at $(git rev-parse --short HEAD): $RUN"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "\`make bench\` failed at $(git rev-parse --short HEAD): $RUN"
+          fi

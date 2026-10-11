@@ -34,6 +34,15 @@ struct FitTableTests {
         #expect(try FitTable.read(table.encoded()) == table)
     }
 
+    @Test("A table carries how many reader-deviation spans were kept out of its rows")
+    func excludedSpansRecorded() throws {
+        let data = Data(#"{"schemaVersion":1,"featureSpecVersion":1,"rows":[],"excludedSpans":5}"#.utf8)
+        let table = try FitTable.read(data)
+        #expect(table.excludedSpans == 5)
+        #expect(try FitTable.read(table.encoded()) == table)
+        #expect(try FitTable.read(Data(contentsOf: Self.url)).excludedSpans == nil)
+    }
+
     @Test("Held-out rows never reach the fit")
     func heldOutKeptBack() throws {
         let table = try FitTable.read(Data(contentsOf: Self.url))
@@ -111,5 +120,14 @@ struct FitTableTests {
             .ragged(ordinal: 1), .undecodable("a"),
         ]
         #expect(others.allSatisfy { !$0.description.isEmpty })
+    }
+
+    @Test("A table built under another feature spec than the compiled one is refused")
+    func refusesOtherFeatureSpec() throws {
+        let table = try FitTable.read(Data(contentsOf: Self.url))
+        try table.requireFeatureSpec(1)
+        #expect(throws: FitTable.SchemaError.wrongFeatureSpec(table: 1, compiled: 2)) {
+            try table.requireFeatureSpec(2)
+        }
     }
 }

@@ -22,12 +22,47 @@ public struct AppContext: Sendable, Equatable {
     public let isSecure: Bool
     /// The focused field's Accessibility role, when the system reports one.
     public let accessibilityRole: String?
+    /// The focused field's Accessibility subrole, when reported.
+    package let accessibilitySubrole: String?
     /// Whether the focused field can hold multiple lines, when reported by Accessibility.
     public let isMultiline: Bool?
     /// What the focused field calls itself, one line without control characters; never read from a secure field nor kept in history.
     public let fieldLabel: String?
     /// The focused field itself, so a write can refuse a field the user moved away from; `nil` when unreadable.
     public let field: FieldIdentity?
+    /// Which rung of the read ladder gives the caret text, or `nil` when the read does not reach the field.
+    public let readRung: ContextReadRung?
+    /// Why the read ended without the field's text, or `nil` when it reached the text or never asked for it.
+    public let unavailable: ContextUnavailableReason?
+    /// Names read off the visible conversation while recording, at most ``onScreenNameLimit``; never kept past the dictation.
+    public private(set) var onScreenNames: [String] = []
+
+    /// Whether the screen was never read on purpose, as for a retry; set only by ``readingSkipped()``.
+    package private(set) var isReadSkipped = false
+
+    /// Whether the screen was read, skipped by design, refused or hidden, so empty text is never mistaken for a blank screen.
+    package var availability: ContextAvailability {
+        if isSecure || unavailable == .secure { return .secure }
+        if isReadSkipped { return .absentByDesign }
+        return unavailable == nil ? .present : .unreadable
+    }
+
+    /// This context marked as never read on purpose; the retry path uses it for the identity-only context it has.
+    package func readingSkipped() -> AppContext {
+        var copy = self
+        copy.isReadSkipped = true
+        return copy
+    }
+
+    /// The most names one dictation takes from the screen around the field.
+    static let onScreenNameLimit = 32
+
+    /// This context with the names the screen showed around the field, capped; a secure field carries none.
+    public func adding(onScreenNames names: [String]) -> AppContext {
+        var copy = self
+        copy.onScreenNames = isSecure ? [] : Array(names.prefix(Self.onScreenNameLimit))
+        return copy
+    }
 
     /// A context; anything not supplied is unknown.
     public init(
@@ -41,9 +76,12 @@ public struct AppContext: Sendable, Equatable {
         followingText: String? = nil,
         isSecure: Bool = false,
         accessibilityRole: String? = nil,
+        accessibilitySubrole: String? = nil,
         isMultiline: Bool? = nil,
         fieldLabel: String? = nil,
-        field: FieldIdentity? = nil
+        field: FieldIdentity? = nil,
+        readRung: ContextReadRung? = nil,
+        unavailable: ContextUnavailableReason? = nil
     ) {
         self.applicationName = applicationName
         self.bundleIdentifier = bundleIdentifier
@@ -55,9 +93,12 @@ public struct AppContext: Sendable, Equatable {
         self.followingText = followingText
         self.isSecure = isSecure
         self.accessibilityRole = accessibilityRole
+        self.accessibilitySubrole = accessibilitySubrole
         self.isMultiline = isMultiline
         self.fieldLabel = isSecure ? nil : fieldLabel.flatMap(Self.fieldLabel)
         self.field = field
+        self.readRung = readRung
+        self.unavailable = unavailable
     }
 
     /// A web address reduced to its lowercased host, or nil for one without a web host.
@@ -84,7 +125,9 @@ public struct AppContext: Sendable, Equatable {
 
     /// What the focused field is for, from its role, its line count and its label.
     public var fieldRole: FieldRole {
-        FieldRole(accessibilityRole: accessibilityRole, isMultiline: isMultiline, label: fieldLabel)
+        FieldRole(
+            accessibilityRole: accessibilityRole, isMultiline: isMultiline,
+            label: fieldLabel, subrole: accessibilitySubrole)
     }
 
     /// The context available when macOS tells us nothing.

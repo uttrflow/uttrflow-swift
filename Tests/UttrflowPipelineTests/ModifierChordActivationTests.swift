@@ -108,6 +108,7 @@ private final class ChordCue: RecordingCueing {
     func playStart() { starts.withLock { $0 += 1 } }
     func playStop() {}
     func playWarning() {}
+    func playDiscarded() {}
     var startsPlayed: Int { starts.withLock { $0 } }
 }
 
@@ -145,7 +146,14 @@ private final class Rig {
         let cue = ChordCue()
         let clock = ManualClock()
         let controller = DictationController(
-            pipeline: pipeline, monitor: QuietMonitor(), cue: cue, activation: activation, clock: clock)
+            pipeline: pipeline,
+            monitor: QuietMonitor(),
+            cue: cue,
+            clock: clock,
+            options: .init(
+                activation: activation
+            )
+        )
         try await controller.start(binding: binding)
         return Rig(
             controller: controller, pipeline: pipeline, capture: capture, inserter: inserter, cue: cue,

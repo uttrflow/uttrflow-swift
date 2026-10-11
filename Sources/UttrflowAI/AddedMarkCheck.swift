@@ -25,7 +25,10 @@ public enum AddedMarkCheck {
             // At the end of a line nothing runs on, so the opens rows have nothing to hold open.
             guard index + 1 < written.count, token.followedOnSameLine else { continue }
             let state = MarkLegality.state(of: token.bare)
-            guard MarkLegality.verdict(tableMark, after: state) == .illegal else { continue }
+            guard
+                MarkLegality.verdict(tableMark, after: state) == .illegal
+                    || splitsClause(tableMark, in: rewritten, at: index, of: written)
+            else { continue }
             removed.append(Removal(word: token.bare, mark: mark, state: state))
             edits.append((token.markRange, ""))
             if let next = recased(written[index + 1], keptAt: pairs[index + 1].map { kept[$0] }) {
@@ -37,6 +40,15 @@ public enum AddedMarkCheck {
             text.replaceSubrange(edit.range, with: edit.text)
         }
         return (text, removed)
+    }
+
+    /// Whether an added stop cuts off a subordinate clause that has no main clause of its own, as before a lone "if" clause.
+    private static func splitsClause(
+        _ mark: MarkLegality.Mark, in text: String, at index: Int, of written: [Token]
+    ) -> Bool {
+        guard mark == .stop || mark == .exclamation else { return false }
+        return SentenceBoundaryEvidence.opensDependentFragment(
+            String(text[written[index].markRange.upperBound...]))
     }
 
     private static let marks: [Character: MarkLegality.Mark] = [

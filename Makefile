@@ -6,13 +6,16 @@
 export DEVELOPER_DIR ?= /Applications/Xcode.app/Contents/Developer
 
 SWIFT := xcrun swift
+UTTRFLOW_DEV = $(SWIFT) run uttrflow-dev
 SOURCES := Sources Tests UITests
+# `make verify` runs its independent checks side by side; VERIFY_JOBS=1 runs them one at a time.
+VERIFY_JOBS ?= 8
 
 .DEFAULT_GOAL := verify
 
 .PHONY: build
 build: ## Compile every module.
-	$(SWIFT) build
+	$(SWIFT) build $(VERIFY_SWIFT_FLAGS)
 
 .PHONY: test
 test: ## Run the test suite.
@@ -20,7 +23,7 @@ test: ## Run the test suite.
 
 .PHONY: coverage
 coverage: ## Run tests and enforce the per-module coverage floor.
-	./Scripts/coverage.sh
+	./Scripts/coverage.sh $(COVERAGE_ARGS)
 
 .PHONY: format
 format: ## Rewrite sources in canonical style.
@@ -52,7 +55,7 @@ comment-report: ## List the multi-line comments left, worst file first.
 
 .PHONY: seam-audit
 seam-audit: ## Prove no corpus cut gained a difference between cleaning its pieces and cleaning the whole.
-	$(SWIFT) run uttrflow-dev seams --check Scripts/seam_baseline.json
+	$(UTTRFLOW_DEV) seams --check Scripts/seam_baseline.json
 
 .PHONY: corpus-edit-audit
 corpus-edit-audit: ## Refuse a changed or removed evaluation case that Scripts/corpus_edits.txt does not name. Needs no build.
@@ -93,7 +96,7 @@ match-report: ## List the word matches still decided by shape, with the line.
 	@python3 Scripts/loose_match_audit.py --report
 
 .PHONY: accessibility-controls
-accessibility-controls: ## Prove Docs/accessibility-controls.md lists every control in the view code. Needs no build.
+accessibility-controls: ## Prove Docs/accessibility-controls.md lists every control in the view code, each with an accessible name. Needs no build.
 	@python3 Scripts/accessibility_controls.py --check
 	@python3 Scripts/accessibility_controls_test.py
 
@@ -137,8 +140,12 @@ range-test: ## Prove the disclosure audit reads every revision range the pre-pus
 hits-test: ## Prove the disclosure audit counts every same-line match, not just the first per pattern. Needs no build.
 	@python3 Scripts/disclosure_hits_test.py
 
+.PHONY: live-tally-test
+live-tally-test: ## Prove a skipped live-model suite is counted as skipped, not run. Needs no build.
+	@python3 Scripts/live_model_tally_test.py
+
 .PHONY: pre-push-test
-pre-push-test: ## Prove the pre-push hook uses the disclosure audit paired with the hook, not the worktree's copy. Needs no build.
+pre-push-test: ## Prove the pre-push hook uses the disclosure audit paired with the hook, and refuses a bundled file pushed without its manifest entry. Needs no build.
 	@python3 Scripts/pre_push_hook_test.py
 
 .PHONY: pre-push-lock-test
@@ -209,6 +216,25 @@ accuracy-gate: ## Fail when the shipping recogniser got worse on the synthesised
 	./.build/release/uttrflow-eval transcribe --corpus-path $(ACCURACY_CORPUS) \
 		--results-path .build/accuracy-results --baseline $(ACCURACY_BASELINE) --fail-on-regression
 
+.PHONY: seam-score
+seam-score: ## Fail when a long-form clip gained a stray stop, capital, doubled or lost word at a seam. Needs the installed model.
+	$(SWIFT) build -c release --product uttrflow-eval $(SWIFT_BUILD_FLAGS)
+	./.build/release/uttrflow-eval seam-score --baseline Scripts/seam_score_baseline.json --fail-on-regression
+
+.PHONY: accuracy-report
+accuracy-report: ## Write a release's accuracy report from the committed baseline: make accuracy-report VERSION=26.0926.0
+	@test -n "$(VERSION)" || { echo "usage: make accuracy-report VERSION=<release version>" >&2; exit 2; }
+	$(SWIFT) build -c release --product uttrflow-eval $(SWIFT_BUILD_FLAGS)
+	./.build/release/uttrflow-eval accuracy-report --version $(VERSION) --baseline $(ACCURACY_BASELINE)
+
+.PHONY: release-quality
+release-quality: ## Run every release quality gate and write dist/release-quality.md. BAKEOFF_BASELINE=saved bake-off result, RUN=bench run.
+	@python3 Scripts/release_quality.py --bakeoff-baseline "$(BAKEOFF_BASELINE)" --bench-run "$(RUN)"
+
+.PHONY: release-quality-test
+release-quality-test: ## Prove release-quality fails and names each gate that regresses or has no verdict. Needs no build.
+	@python3 Scripts/release_quality_test.py
+
 .PHONY: uitest-result-path
 uitest-result-path: ## Prove a second `make uitest` moves the prior result bundle aside. Needs no screen.
 	@python3 Scripts/uitest_result_path_test.py
@@ -255,13 +281,33 @@ docs-audit: ## Prove the documentation still describes this tree, including that
 .PHONY: data-manifest
 data-manifest: ## Prove every bundled resource file is in Resources/DataManifest.json with its digest. Needs no build.
 	@python3 Scripts/data_manifest_test.py
+	@python3 Scripts/provider_mark_test.py
+	@python3 Scripts/reproduce_assets_test.py
 	@python3 Scripts/data_manifest.py
 	@cd Scripts && python3 ngram_sources_test.py
+	@cd Scripts && python3 derive_lexicon_test.py
 	@python3 Scripts/ngram_sources.py
+
+.PHONY: assets
+assets: ## Rebuild the derived data assets from the pinned sources, then check them against their manifest digest and budget. ASSET_CACHE=folder outside the repository.
+	@test -n "$(ASSET_CACHE)" || { echo "assets: set ASSET_CACHE to a folder outside the repository; see Docs/data-manifest.md" >&2; exit 1; }
+	@python3 Scripts/ngram_sources.py --fetch --cache "$(ASSET_CACHE)"
+	@python3 Scripts/derive_lexicon.py --cache "$(ASSET_CACHE)"
+	@python3 Scripts/data_manifest.py
+
+.PHONY: reproduce-assets
+reproduce-assets: ## Rebuild every fitted asset from the recipe in TAG's manifest and compare digests; never tags. TAG=<tag>, optional ASSET_CACHE=folder.
+	@test -n "$(TAG)" || { echo "reproduce-assets: set TAG=<tag>; see Docs/data-manifest.md" >&2; exit 1; }
+	@python3 Scripts/reproduce_assets.py --tag "$(TAG)" $(if $(ASSET_CACHE),--cache "$(ASSET_CACHE)")
 
 .PHONY: claims-audit
 claims-audit: ## Refuse a privacy, accuracy or speed claim in user-facing text that Docs/claims.json does not back. Needs no build.
 	@python3 Scripts/claims_audit.py --self-test
+
+.PHONY: snapshot-fixture-audit
+snapshot-fixture-audit: ## Prove no Accessibility snapshot fixture holds an email, postal address, long number or real host. Needs no build.
+	@python3 Scripts/snapshot_fixture_audit.py
+	@python3 Scripts/snapshot_fixture_audit_test.py
 
 .PHONY: pii-audit
 pii-audit: ## Prove no personal data is in the tree. Needs no build.
@@ -338,6 +384,11 @@ publish-cleanup-test: ## Prove publish.sh leaves no release-sized temp file behi
 bundle-requirement-test: ## Prove every bundle-signing mode has a designated requirement. Needs no build.
 	./Scripts/bundle.sh --requirement-self-test
 
+.PHONY: dependency-pin-test
+dependency-pin-test: ## Prove selected in-process dependencies match Package.resolved and release flags. Needs no build.
+	python3 Scripts/dependency_pin_audit.py --self-test
+	python3 Scripts/dependency_pin_audit.py
+
 .PHONY: disclosure-audit
 disclosure-audit: ## Prove nothing private to building this reached the tree. No build.
 	@python3 Scripts/disclosure_audit.py
@@ -367,8 +418,70 @@ disclosure-history: ## Scan every commit on every ref. Run before a repo goes pu
 # reads text and nothing else, so it costs two seconds, and it is the other check here
 # whose failure cannot be fixed after the fact. A competitor's name in a commit is
 # published the moment the commit is, and no later edit reaches a clone or a cache.
-.PHONY: verify
-verify: pii-audit data-manifest audio-audit root-audit disclosure-audit issue-template-audit test-name-audit docs-audit design-audit comment-audit corpus-edit-audit match-audit closed-list-audit duplicate-table-audit word-split-audit accessibility-controls layering-audit public-api-audit string-audit type-name-audit python-imports-audit ratchet-test mutation-probe-test range-test hits-test hook-test pre-push-test pre-push-lock-test update-feed-test entitlement-gate-test issue-template-test dependabot-labels-test flake-audit uitest-arguments eval-arguments uitest-result-path developer-dir-test log-audit store-permissions pasteboard-audit context-reach-audit bundle-requirement-test bundle-test release-tag-test release-notes-test provider-mark-test release-order-test notarise-dmg-test soak-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test offline-test exclusion-audit perf-budget size-budget lint build coverage offline-audit ## The whole gate: audits, package and release checks, soak and notarisation checks, lint, build, tests, coverage, and offline audit.
+# Three lanes, each check in exactly one. `verify` is the pull request gate and stays inside a few
+# minutes: audits, lint, one build, and the unit and edge-case tests. `eval` scores the rules over the
+# whole corpus and fails on a regression against the base commit; CI runs it on every pull request,
+# finishing at once when nothing it reads changed. `bench` holds the scale and timing checks; CI runs it
+# nightly and files an issue when it fails.
+.PHONY: verify eval bench
+ifeq ($(VERIFY_INNER),)
+verify: ## The pull request gate: audits, package and release checks, lint, build, unit tests, coverage, and offline audit.
+	@VERIFY_INNER=1 $(MAKE) --no-print-directory -j$(VERIFY_JOBS) verify
+eval: ## Score the rules over the corpus against the base commit, run the corpus suites and the seam baseline.
+	@VERIFY_INNER=1 $(MAKE) --no-print-directory -j$(VERIFY_JOBS) eval
+bench: ## Run the scale and timing checks: the energy budget, the scaling suites and the soak and offline self-tests.
+	@VERIFY_INNER=1 $(MAKE) --no-print-directory -j$(VERIFY_JOBS) bench
+else
+unexport VERIFY_INNER
+verify: predict-scorecard-test pii-audit snapshot-fixture-audit data-manifest audio-audit root-audit disclosure-audit issue-template-audit test-name-audit docs-audit design-audit comment-audit corpus-edit-audit match-audit closed-list-audit duplicate-table-audit word-split-audit accessibility-controls layering-audit public-api-audit string-audit type-name-audit python-imports-audit ratchet-test mutation-probe-test range-test hits-test hook-test pre-push-test pre-push-lock-test update-feed-test entitlement-gate-test issue-template-test dependabot-labels-test dependency-pin-test flake-audit uitest-arguments eval-arguments uitest-result-path developer-dir-test log-audit store-permissions pasteboard-audit context-reach-audit bundle-requirement-test bundle-test release-tag-test release-notes-test release-quality-test provider-mark-test release-order-test notarise-dmg-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test exclusion-audit size-budget lint build coverage offline-audit
+eval: seam-audit eval-tests rules-scorecard
+bench: perf-budget offline-test soak-test bench-tests
+
+# Inside a lane every Swift step shares one coverage-instrumented build: `build` compiles the
+# tests too, the test runs skip building, and the tools run from that build.
+VERIFY_SWIFT_FLAGS := --build-tests --enable-code-coverage
+COVERAGE_ARGS = --skip-build --skip '$(EVAL_SUITES)|$(BENCH_SUITES)'
+UTTRFLOW_DEV = .build/debug/uttrflow-dev
+SHELL := Scripts/verify_shell.sh
+coverage seam-audit offline-audit eval-arguments eval-tests rules-scorecard bench-tests: build
+seam-audit eval-arguments rules-scorecard bench-tests: export LLVM_PROFILE_FILE := $(CURDIR)/.build/verify-profraw/%p.profraw
+endif
+
+# The tests each lane owns, as `swift test` filters; `verify` runs every other test.
+EVAL_SUITES := UttrflowEvalTests|EndToEndWordSurvivalTests/wordsSurviveEveryStage|LoanwordRestorationProbeTests/probeTable|HomophonePolicyProbeTests|LearningDynamicsSimulatorTests|$\
+	LearnedWordQualityReplayScoreTests|BrandRestorationShareTests|CodeShapesLanguageCorpusTests
+BENCH_SUITES := HeavyClipScans|PromptSizeGuaranteeTests|BIP39RecoveryPhraseScalingTests|ClipboardStoreClassifierVersionTests/firstListBenchmark|$\
+	SuggestionStoreStartupTests/largeLegacyCorpusMigratesOffMainThreadWithinBudget|$\
+	DoubtfulWordsLocatingTests/placingStaysCheap|PasteboardWatcherTests/deeplyNestedHTMLStaysFast|$\
+	LaunchBudgetTests|AdapterValidatorTests/checksQuickly|ContextScorerTests/probe|$\
+	SQLNotationTests/latency|FieldLabelKindsTests/aLabelReadStaysWellUnderTwoMilliseconds|$\
+	SelectionWriterTests/acceptedButUnchangedReturnsAtOnce|PanelGroupsCostTests/longRunIsLinear|$\
+	FormatterRunTests/termEscalationStaysBounded|CorrectedWordsTests/hugeRangeStaysFast|$\
+	SeamNotationSweepTests/threeHundredWordsCost
+# The commit `eval` compares with: where this branch left main.
+EVAL_BASE ?= $(shell git merge-base HEAD origin/main 2>/dev/null)
+SCORECARD := .build/rules-scorecard.json
+
+.PHONY: eval-tests
+eval-tests: ## Run the corpus suites and hold the modules they cover to the coverage floor.
+	COVERAGE_LANE=eval ./Scripts/coverage.sh --skip-build --filter '$(EVAL_SUITES)'
+
+.PHONY: bench-tests
+bench-tests: ## Run the scaling suites and the timing benchmarks.
+	$(SWIFT) test --skip-build --filter '$(BENCH_SUITES)'
+
+.PHONY: rules-scorecard
+rules-scorecard: ## Score the rules over the corpus and fail on a regression against EVAL_BASE. Writes .build/rules-scorecard.md.
+	@python3 Scripts/rules_scorecard.py --self-test
+	.build/debug/uttrflow-eval rules-scorecard --output $(SCORECARD)
+	@git show $(EVAL_BASE):Scripts/rules_scorecard.json > .build/rules-scorecard-base.json 2>/dev/null || rm -f .build/rules-scorecard-base.json
+	@git show $(EVAL_BASE):Scripts/scorecard_accepted.txt > .build/scorecard-accepted-base.txt 2>/dev/null || rm -f .build/scorecard-accepted-base.txt
+	python3 Scripts/rules_scorecard.py --measured $(SCORECARD) --base .build/rules-scorecard-base.json \
+		--base-accepted .build/scorecard-accepted-base.txt --markdown .build/rules-scorecard.md
+
+.PHONY: rules-scorecard-update
+rules-scorecard-update: ## Record the rules scorecard as Scripts/rules_scorecard.json, after `make rules-scorecard`.
+	@python3 Scripts/rules_scorecard.py --update --measured $(SCORECARD)
 
 # Hooks are not cloned — .git/hooks is local to a checkout — so this points git at a
 # directory that is. One command per clone, and the gate cannot be forgotten after that.
@@ -476,6 +589,28 @@ bakeoff: ## Score every clean-up engine. Downloads models; needs the Metal toolc
 		-derivedDataPath .build/xcode -skipPackagePluginValidation -skipMacroValidation \
 		-quiet build
 	./.build/xcode/Build/Products/Debug/uttrflow-bakeoff $(ARGS)
+
+PREDICT_FIXTURE_RUN := .build/predict/fixtures.json
+PREDICT_PRECISION_BASELINE := Scripts/predict_precision_baseline.json
+
+.PHONY: predict-scorecard-test
+predict-scorecard-test: ## Prove the AI-suggestion precision ratchet. Needs Python only.
+	@python3 Scripts/predict_scorecard_test.py
+
+.PHONY: predict-scorecard
+predict-scorecard: ## Enforce the measured AI-suggestion precision ratchet on a fixture JSON run.
+	python3 Scripts/predict_scorecard.py $(PREDICT_FIXTURE_RUN) --baseline $(PREDICT_PRECISION_BASELINE)
+
+.PHONY: predict-accuracy
+predict-accuracy: ## Run the full Release AI-suggestion fixture scorecard on this Mac; needs Metal and the local model.
+	@xcrun metal --version >/dev/null 2>&1 || \
+		(echo "Metal toolchain missing. Run: xcodebuild -downloadComponent MetalToolchain" && exit 1)
+	xcodebuild -scheme uttrflow-bakeoff -configuration Release \
+		-destination 'platform=macOS,arch=arm64' -derivedDataPath .build/xcode \
+		-skipPackagePluginValidation -skipMacroValidation -quiet build
+	@mkdir -p .build/predict
+	./.build/xcode/Build/Products/Release/uttrflow-bakeoff complete --fixtures --json $(PREDICT_FIXTURE_RUN)
+	$(MAKE) predict-scorecard
 
 .PHONY: clean
 clean: ## Remove build products.

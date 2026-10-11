@@ -46,7 +46,10 @@ struct SidebarAvatar: View {
                 image = nil
                 return
             }
-            image = await AccountPictures.image(for: picture)
+            image = AccountPictures.cached(for: picture)
+            let decoded = await AccountPictures.image(for: picture)
+            guard !Task.isCancelled else { return }
+            image = decoded ?? image
         }
     }
 }
@@ -71,11 +74,19 @@ enum AccountPictures {
     }
 
     /// The decoded picture for these bytes at `longestSide` pixels, decoding them away from the main thread when they are new.
-    static func image(for data: Data, longestSide: Int = pixels) async -> CGImage? {
+    static func image(
+        for data: Data,
+        longestSide: Int = pixels,
+        decode: @escaping @Sendable (Data, Int) async -> CGImage? = { data, longestSide in
+            await Task.detached(priority: .userInitiated) {
+                PictureDecoder.thumbnail(of: data, longestSide: longestSide)
+            }.value
+        }
+    ) async -> CGImage? {
+        guard !Task.isCancelled else { return nil }
         if let image = cached(for: data, longestSide: longestSide) { return image }
-        let image = await Task.detached(priority: .userInitiated) {
-            PictureDecoder.thumbnail(of: data, longestSide: longestSide)
-        }.value
+        let image = await decode(data, longestSide)
+        guard !Task.isCancelled else { return nil }
         if let image { decoded[longestSide] = (data, image) }
         return image
     }

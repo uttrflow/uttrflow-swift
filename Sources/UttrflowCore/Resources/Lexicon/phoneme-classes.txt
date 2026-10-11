@@ -1,0 +1,12 @@
+# Phonemes on one line are heard for one another at half cost. See Docs/pronunciation-lexicon.md.
+# The vowels.
+AA AE AH AO AW AY EH ER EY IH IY OW OY UH UW
+# Pairs that differ only in voicing.
+P B
+T D
+K G
+F V
+S Z
+TH DH
+SH ZH
+CH JH

@@ -82,9 +82,18 @@ struct LocalStoreInventoryTests {
         let history = LocalStoreEntry.clipboard.location(in: root, for: identifier)
         let images = history.deletingLastPathComponent().appending(path: "Images")
         try write(5, to: images.appending(path: "picture.png"))
+        try write(2, to: history.appendingPathExtension("bak"))
         try write(1, to: LocalStore.file("saved.v1.json", in: root, for: identifier))
+        try write(3, to: LocalStore.file("saved.v1.json.bak", in: root, for: identifier))
         try write(1, to: LocalStore.file("dictionary.v1.seeded.json", in: root, for: identifier))
         try write(1, to: LocalStore.file("dictionary.v1.refused.json", in: root, for: identifier))
+        let migrationMarker = LocalStoreEntry.legacyMigrationMarker.location(in: root, for: identifier)
+        for store in LegacyMigrationStore.allCases {
+            try write(
+                1,
+                to: migrationMarker.deletingLastPathComponent().appending(
+                    path: store.markerName(basedOn: migrationMarker.lastPathComponent)))
+        }
         #expect(LocalStoreInventory.unlisted(in: root, for: identifier).isEmpty)
         let row = LocalStoreInventory.usage(in: root, for: identifier).first { $0.entry == .clipboardImages }
         #expect(row?.bytes == 5)

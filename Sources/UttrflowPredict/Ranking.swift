@@ -8,9 +8,22 @@ struct Ranking: Sendable, Equatable {
     /// Ranks candidates as they stand at one moment.
     init(_ candidates: [Candidate], now: Date) {
         let scored = candidates.map { ($0, Frecency.score($0, now: now)) }.filter { $0.1 > 0 }
-        let total = scored.reduce(0) { $0 + $1.1 }
+        let merged = Dictionary(grouping: scored, by: { $0.0.text.lowercased() }).values.compactMap {
+            variants -> (Candidate, Double)? in
+            guard
+                let representative = variants.sorted(by: {
+                    ($0.1, $1.0.text) > ($1.1, $0.0.text)
+                }).first
+            else { return nil }
+            let candidate = Candidate(
+                text: representative.0.text, source: representative.0.source,
+                evidence: representative.0.evidence, editDistance: representative.0.editDistance,
+                isIrreversible: variants.contains { $0.0.isIrreversible })
+            return (candidate, variants.reduce(0) { $0 + $1.1 })
+        }
+        let total = merged.reduce(0) { $0 + $1.1 }
         self.candidates =
-            scored
+            merged
             .map { ScoredCandidate(candidate: $0.0, score: $0.1, share: total > 0 ? $0.1 / total : 0) }
             .sorted { ($0.score, $1.text) > ($1.score, $0.text) }
     }

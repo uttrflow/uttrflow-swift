@@ -34,6 +34,8 @@ extension PassID {
     public static let codeEditorCommands: PassID = "codeEditorCommands"
     /// "New line", "new paragraph", "bullet point", spoken as instructions.
     public static let layoutWords: PassID = "layoutWords"
+    /// "Next item", "new item" and "new heading", written as the next mark of the Markdown already there.
+    package static let markdownContinuation: PassID = "markdownContinuation"
     /// Spoken numbers written as numerals.
     public static let numberForms: PassID = "numberForms"
     /// The apostrophe a contraction was said without.
@@ -45,6 +47,8 @@ extension PassID {
     public static let spelledInitialism: PassID = "spelledInitialism"
     /// An acronym said as one word, written in its known casing.
     public static let acronymCasing: PassID = "acronymCasing"
+    /// "at Sam" opening a chat message or clause, written as the mention "@Sam".
+    public static let atMention: PassID = "atMention"
     /// The case of the first word, which the formatter decides.
     public static let firstWord: PassID = "firstWord"
     /// The last mark, which the formatter decides.

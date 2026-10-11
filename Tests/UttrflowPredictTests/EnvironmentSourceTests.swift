@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UttrflowCore
 
 @testable import UttrflowPredict
 
@@ -11,13 +12,13 @@ func offered(
     _ answers: [EnvironmentKind: [String]],
     typing typed: String,
     in surface: Surface = realTerminal,
-    at now: Date = moment
+    at now: ContinuousClock.Instant = ContinuousClock.now
 ) async -> [String] {
     let index = EnvironmentIndex(reader: StubEnvironment(answers))
     let source = EnvironmentSource(index: index)
-    _ = await source.candidates(for: surface, matching: typed, now: moment)
+    _ = await source.candidates(for: surface, matching: typed, now: now)
     await index.settle()
-    return await source.candidates(for: surface, matching: typed, now: moment).map(\.text)
+    return await source.candidates(for: surface, matching: typed, now: now).map(\.text)
 }
 
 @Suite("What exists on this machine right now")
@@ -160,11 +161,12 @@ struct EnvironmentSourceTests {
 
     @Test("Every candidate says it came from the environment and brings no corpus evidence.")
     func candidatesAreEnvironmental() async {
-        let index = EnvironmentIndex(reader: StubEnvironment([.branch: ["main"]]))
+        let index = EnvironmentIndex(reader: StubEnvironment([.branch: ["main"]]), seconds: { 0 })
         let source = EnvironmentSource(index: index)
-        _ = await source.candidates(for: realTerminal, matching: "git switch m", now: moment)
+        let now = ContinuousClock.now
+        _ = await source.candidates(for: realTerminal, matching: "git switch m", now: now)
         await index.settle()
-        let candidates = await source.candidates(for: realTerminal, matching: "git switch m", now: moment)
+        let candidates = await source.candidates(for: realTerminal, matching: "git switch m", now: now)
         #expect(candidates.map(\.source) == [.environment])
         #expect(candidates.allSatisfy { $0.evidence == nil && !$0.isIrreversible })
     }
@@ -218,10 +220,11 @@ struct EnvironmentNameMatchTests {
 struct EnvironmentIndexTests {
     @Test("The first keystroke is answered from nothing, since the read has only just started.")
     func firstKeystrokeIsEmpty() async {
-        let index = EnvironmentIndex(reader: StubEnvironment([.branch: ["main"]]))
-        #expect(await index.values(of: .branch, in: "/repo", now: moment) == nil)
+        let index = EnvironmentIndex(reader: StubEnvironment([.branch: ["main"]]), seconds: { 0 })
+        let now = ContinuousClock.now
+        #expect(await index.values(of: .branch, in: "/repo", now: now) == nil)
         await index.settle()
-        #expect(await index.values(of: .branch, in: "/repo", now: moment) == ["main"])
+        #expect(await index.values(of: .branch, in: "/repo", now: now) == ["main"])
     }
 
     /// Waiting for the two-second read would return its answer, so an absent answer is the proof, with no clock.
@@ -229,14 +232,14 @@ struct EnvironmentIndexTests {
     func slowReadsAreAbandoned() async {
         let reader = StubEnvironment([.branch: ["main"]], delay: .seconds(2))
         let index = EnvironmentIndex(reader: reader)
-        #expect(await index.values(of: .branch, in: "/repo", now: moment) == nil)
+        #expect(await index.values(of: .branch, in: "/repo", now: ContinuousClock.now) == nil)
     }
 
     @Test("A burst of keystrokes asks the machine once, not once each.")
     func oneReadPerBurst() async {
         let reader = StubEnvironment([.file: ["notes.md"]], delay: .milliseconds(20))
         let index = EnvironmentIndex(reader: reader)
-        for _ in 0..<5 { _ = await index.values(of: .file, in: "/repo", now: moment) }
+        for _ in 0..<5 { _ = await index.values(of: .file, in: "/repo", now: ContinuousClock.now) }
         await index.settle()
         #expect(await reader.reads == 1)
     }
@@ -245,15 +248,16 @@ struct EnvironmentIndexTests {
     func staleAnswersAreReadAgain() async {
         let reader = StubEnvironment([.file: ["notes.md"]])
         let index = EnvironmentIndex(reader: reader, seconds: { 0 })
-        _ = await index.values(of: .file, in: "/repo", now: moment)
+        let asked = ContinuousClock.now
+        _ = await index.values(of: .file, in: "/repo", now: asked)
         await index.settle()
 
-        let believed = moment.addingTimeInterval(EnvironmentIndex.lifetimeInSeconds - 1)
+        let believed = asked.advanced(by: .seconds(EnvironmentIndex.lifetimeInSeconds - 1))
         #expect(await index.values(of: .file, in: "/repo", now: believed) == ["notes.md"])
         await index.settle()
         #expect(await reader.reads == 1)
 
-        let stale = moment.addingTimeInterval(EnvironmentIndex.lifetimeInSeconds + 1)
+        let stale = asked.advanced(by: .seconds(EnvironmentIndex.lifetimeInSeconds + 1))
         _ = await index.values(of: .file, in: "/repo", now: stale)
         await index.settle()
         #expect(await reader.reads == 2)
@@ -263,8 +267,8 @@ struct EnvironmentIndexTests {
     func directoriesAreSeparate() async {
         let reader = StubEnvironment([.file: ["notes.md"]])
         let index = EnvironmentIndex(reader: reader)
-        _ = await index.values(of: .file, in: "/one", now: moment)
-        _ = await index.values(of: .file, in: "/two", now: moment)
+        _ = await index.values(of: .file, in: "/one", now: ContinuousClock.now)
+        _ = await index.values(of: .file, in: "/two", now: ContinuousClock.now)
         await index.settle()
         #expect(await reader.reads == 2)
     }

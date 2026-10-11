@@ -1,3 +1,5 @@
+public import UttrflowCore
+
 /// Everything about the moment that can silence a suggestion, and nothing about the candidates.
 public struct PredictionContext: Sendable, Equatable {
     /// The line the caret is on, up to the caret, which is what a completion continues.

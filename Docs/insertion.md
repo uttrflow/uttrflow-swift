@@ -21,7 +21,7 @@ its `AX write`, `Paste`, `Confirmed` and `Full route` columns and the secure-fie
 | An accepted suggestion | `TextInsertion.completion()` (`CompletionRoute`) | Accessibility, typed | Never written; see [predict-accept.md](predict-accept.md) |
 | A clip pasted from the clipboard panel | `TextInsertion.coordinator(…, confirmsArrival: false, clipboardFallback: false)` | Accessibility, paste, typed | Written by the paste and left there; arrival is not checked |
 | A clip or recent dictation inserted from the menu bar or main window | `TextInsertion.coordinator(…)` | Accessibility, paste, clipboard | Written by the paste, or by the clipboard floor when everything else refuses; a paste's arrival is checked |
-| The Paste last transcript shortcut | `TextInsertion.dictation()` | Accessibility, typed | Never written; if both strategies refuse, the transcript stays available for explicit Copy |
+| The Paste last dictation shortcut | `TextInsertion.dictation()` | Accessibility, typed | Never written; if both strategies refuse, the transcript stays available for explicit Copy |
 | A secret clip | either clip route over `ConcealingPasteboard` | as above | Every text write carries `org.nspasteboard.ConcealedType` |
 | A picture clip | `PasteboardImageInsertionEngine` | paste | The picture stays on the clipboard, since a paste whose arrival is not confirmed cannot be safely undone |
 | A retry of a kept recording | `ClipboardTextInsertionEngine` alone | clipboard | Written; see [recordings.md](recordings.md) |
@@ -39,8 +39,10 @@ an app with no readable field is refused rather than typed into.
 
 The typed strategy also refuses, with `noFocusedTextField`, when a focused element is published
 and its role is not a text-entry role (`FocusedElementKind.control`): in a page body, a list or a
-file browser, letters are commands. It still types when the application publishes no focused
-element at all (`FocusedElementKind.unpublished`), which is how a bundled-browser composer takes
+file browser, letters are commands. A web area, group or cell counts as text entry while the
+element reports itself editable (`AXEditable`, or a settable `AXValue`). It still types when the
+application publishes no focused element at all or its role cannot be read, such as after an
+Accessibility timeout (`FocusedElementKind.unpublished`), which is how a bundled-browser composer takes
 dictation. The check is made in `canInsert()`, before the first chunk and before every later one.
 
 The typed strategy posts its text `TypedTextInsertionEngine.chunkLength` characters at a time,
@@ -49,7 +51,11 @@ the captured destination or, without one, the application in front at the first 
 or typist failure after the first chunk throws `insertionInterrupted(typed:total:)`, since the
 posted characters cannot be taken back.
 
-A strategy that throws `insertionUnconfirmed`, `insertionTargetChanged`, `insertionInterrupted` or
+Before every write the target check also asks the window server whether the window the field was
+read in still exists; a closed window refuses with `insertionFieldClosed`, which keeps the words in
+History and posts nothing.
+
+A strategy that throws `insertionUnconfirmed`, `insertionTargetChanged`, `insertionFieldClosed`, `insertionInterrupted` or
 `clipboardChanged` stops the route (`TextInsertionError.stopsFallback`): the words may already be in the field, or the
 clipboard now belongs to somebody else, and another strategy could duplicate or overwrite them.
 
@@ -71,26 +77,31 @@ pipeline, before any route writes it, so no destination relies on its own layout
 1. No control character except tab and line feed; any other becomes a space.
 2. No trailing line break, which a shell or chat field would read as Return.
 3. No escape sequence; an ANSI sequence is removed whole.
+4. No line break where Return acts on the text: where the destination's `Consequence` is
+   `sends`, `executes` or `navigates` (`returnActs`), each run of breaks becomes one space,
+   spoken or not, and a snippet's breaks too. The rule keys on the consequence, not on a list of
+   applications, so a new destination that sends or runs its text inherits it.
 
-Whether a line break inside the text may reach a destination whose Return sends or runs it is
-decided per route by the line-break probe, and is not yet part of this check.
+No insertion route is yet shown to deliver a break where Return acts without sending or running
+the text, so rule 4 has no route exception. The line-break probe decides which routes may carry
+a spoken break there; until it does, a chat message and a terminal line arrive on one line.
 
 ## The Accessibility write that changes nothing
 
 Some applications built on a bundled browser engine publish a focused text field, accept a write
 to its selected text, answer `.success`, and change nothing. `SelectionWriter.replaceSelection(with:)`
-therefore reads the selection back after every write and requires it to be a collapsed caret at
-the old start plus the text's UTF-16 length. A selection and text both still as they were
-before the write, read again after `SelectionWriter.settleDelay` (250 ms), throw
-`insertionUnconfirmed`; this stops the route so the typed fallback cannot land the words a second
-time on a field that applies the write a little later than the settle read. A write that lands
-within that delay leaves the selection moved and stays unconfirmed for the same reason.
-Any other missing or different selection throws `insertionUnconfirmed`, which stops the route
-and asks the user to check the field before retrying. A write that moves the caret but leaves
-the surrounding text unchanged throws `insertionRejected` ("the field accepted the text and did
-not change"), and the next strategy runs. A selection that already held the same text is the
+therefore reads the selection back immediately after every write and requires it to be a collapsed
+caret at the old start plus the text's UTF-16 length. Any missing or different selection throws
+`insertionUnconfirmed` immediately. That stops the route so the typed fallback cannot duplicate a
+write that lands later, and asks the user to check the field before retrying. A write that moves
+the caret but leaves the surrounding text unchanged throws `insertionRejected` ("the field
+accepted the text and did not change"), and the next strategy runs. A selection that already held the same text is the
 exception: replacing it changes nothing by definition, so the moved caret alone confirms the
 write and no fallback writes the words again.
+
+The unit test records `ContinuousClock` immediately before `replaceSelection` and after it throws
+`insertionUnconfirmed`; the fake-field call must take less than 200 ms. This measures the writer's
+own delay, not Accessibility latency in a real application.
 
 ## A web field's own state
 
@@ -212,6 +223,13 @@ arrival notice. If the insertion stage itself times out (`StageTimeout.insertion
 is `insertionTimedOut` and points to the transcript in History, never to a manual paste that
 could insert an older clipboard item.
 
+## A copied secret leaves the clipboard
+
+The concealed marker only asks cooperating clipboard managers to look away. `ConcealedClipboardClear` therefore
+clears the clipboard `Settings.secretClipboardClearSeconds` after a concealed copy from the app (60 by default, 0 is
+off), through `discardContents(ifUnchangedSince:)`, so a later copy by the person is never cleared. The "Copied"
+notice in the main window names the delay.
+
 ## Every clipboard write stays on this Mac
 
 The default pasteboard offers everything written to it to every Apple device signed into the same
@@ -226,6 +244,7 @@ Each write also carries the marker a clipboard history needs to treat it properl
 | The clipboard floor (`writeAutoGeneratedText`) | `org.nspasteboard.AutoGeneratedType` |
 | The clipboard floor for a transcript the clipboard panel's secret classifier recognises | `org.nspasteboard.ConcealedType` |
 | Anything into a secure field, or a secret clip (`writeConcealedText`) | `org.nspasteboard.ConcealedType` |
+| Copy last dictation (`writeConcealedText` for a secret, `writeTransientText` otherwise) | `org.nspasteboard.ConcealedType` or `org.nspasteboard.TransientType` |
 | An explicit Copy (`writeText`) | none: it is an ordinary user copy |
 
 The text and HTML flavours stay on the same item; only the marker type is added.
@@ -323,9 +342,12 @@ reports the exact resulting change count from `writeText` or `setImage`.
 
 The watcher matches the announced contents at that exact generation. A newer observed generation
 retires an older announcement, so a same-text copy made by the user remains visible and a delayed
-poll cannot turn Uttrflow's own write into a history row. If a write is refused or its text cannot
-be read back, its reservation is withdrawn. If the watcher gives up on a bounded clipboard read,
-it withdraws announcements that could have named that unread change.
+poll cannot turn Uttrflow's own write into a history row. The watcher and both text insertion routes
+compare against the pasteboard's readback, allowing it to omit a leading byte-order mark while still
+requiring every other character to match. Paste confirmation also uses the text the pasteboard
+exposes. If AppKit refuses the write or the text cannot be read back, its reservation is withdrawn.
+If the watcher gives up on a bounded clipboard read, it withdraws announcements that could have
+named that unread change.
 
 ## Dictating into a field that hides what is typed
 
@@ -368,6 +390,9 @@ failure, a secure field or a field that cannot be placed empties the ledger inst
 must never act on a span nobody saw arrive. A field is identified by its process, its window and
 the element itself, so asking from any other field empties it as well. It keeps
 `InsertionLedger.capacity` entries and refuses one longer than `InsertionLedger.textLimit`.
+Each entry also keeps the moment its write was confirmed, so `recentRecords` returns only the
+insertions within `InsertionLedger.respeakWindow`: the span a re-dictation over just-written
+words is read against.
 
 Offsets go stale the moment the user types, so a record is never trusted on its own:
 `InsertionRecord.stillThere` reads the field now and answers whether exactly those words still
@@ -395,6 +420,11 @@ secure field, each of which takes its edits through one fault mode named on its 
 field, and asserts the exit status, the line `insert` prints and what the field holds after. It
 waits until nobody has touched the Mac for 30 s, and needs Accessibility granted to the shell.
 `Scripts/bundle.sh` fails a bundle that contains any of it.
+
+Every write to the text field or the multi-line view is one undo group, and the Edit menu's Undo
+takes the newest back whichever window is key, so Accessibility can press it while the fixture is
+behind another app. `RepairRouteTimingProbeTests` drives it that way, through the fixture's own
+elements only, and posts no key ([repair-cost.md](repair-cost.md#machine-waits)).
 
 | Mode | Field, route | What the field does | Expected |
 |---|---|---|---|

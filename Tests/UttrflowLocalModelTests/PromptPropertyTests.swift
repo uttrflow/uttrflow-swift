@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UttrflowAI
 import UttrflowPredict
 
 @testable import UttrflowLocalModel
@@ -68,11 +69,19 @@ struct PromptCase: Sendable, CustomTestStringConvertible {
 
 private let moments = (0..<300).map(PromptCase.init)
 
-/// The section under a heading, up to the blank line that ends it, or nothing when the heading is absent.
+/// The value in a dynamically sized fence under a heading, or nothing when the heading is absent.
 private func section(_ heading: String, in prompt: String) -> String? {
     guard let start = prompt.range(of: heading)?.upperBound else { return nil }
     let rest = prompt[start...]
-    return String(rest[..<(rest.range(of: "\n\n")?.lowerBound ?? rest.endIndex)])
+    guard let openingEnd = rest.firstIndex(of: "\n") else { return nil }
+    let fence = String(rest[..<openingEnd])
+    guard fence.count >= 3, fence.allSatisfy({ $0 == "`" }) else {
+        return String(rest[..<(rest.range(of: "\n\n")?.lowerBound ?? rest.endIndex)])
+    }
+    let payloadStart = rest.index(after: openingEnd)
+    let closing = "\n\(fence)"
+    guard let closingRange = rest[payloadStart...].range(of: closing) else { return nil }
+    return String(rest[payloadStart..<closingRange.lowerBound])
 }
 
 @Suite("The generation prompt, over random moments")
@@ -118,8 +127,8 @@ struct PromptPropertyTests {
         let preceding = moment.situation.preceding ?? ""
         if !preceding.isEmpty {
             let kept = section(textBefore, in: prompt) ?? ""
-            #expect(!kept.isEmpty && preceding.hasSuffix(kept))
-            #expect(kept.last == preceding.last)
+            #expect(!kept.isEmpty && PromptText.blockValue(preceding).hasSuffix(kept))
+            #expect(kept.last == PromptText.blockValue(preceding).last)
         }
         let nearest = moment.situation.surroundings?.split(whereSeparator: \.isNewline)
             .map { $0.trimmingCharacters(in: .whitespaces) }.last { !$0.isEmpty }
@@ -142,10 +151,15 @@ struct PromptPropertyTests {
         case .one:
             #expect(
                 prompt.hasSuffix(
-                    CompletionPromptBuilder.instruction(for: moment.register) + ":\n" + moment.typed))
+                    CompletionPromptBuilder.instruction(for: moment.register) + ":\n"
+                        + CompletionPromptBuilder.delimited(moment.typed)))
         case .others(let leader):
-            #expect(prompt.contains("each different from \"\(leader)\", one per line:\n" + moment.typed))
-            #expect(prompt.hasSuffix("one per line:\n" + moment.typed))
+            let safeLeader = PromptText.promptValue(leader, replaceQuotes: true)
+            let typedBlock = CompletionPromptBuilder.delimited(moment.typed)
+            let ask = "each different from \"\(safeLeader)\", one per line:\n" + typedBlock
+            #expect(
+                prompt.contains(ask))
+            #expect(prompt.hasSuffix(typedBlock))
         }
         #expect(prompt.hasPrefix("In application \(moment.situation.application)"))
         #expect(prompt.contains("\nHints: " + moment.register.hints.joined(separator: "; ") + "."))
@@ -174,9 +188,11 @@ struct PromptPropertyTests {
         if let kept = section(onScreen, in: prompt), let screen = moment.situation.surroundings {
             // Every line shown is a line of the screen, said once, in the screen's own order.
             let lines = screen.split(whereSeparator: \.isNewline).map {
-                $0.trimmingCharacters(in: .whitespaces)
+                String($0).trimmingCharacters(in: .whitespaces)
             }
-            let shown = kept.split(separator: "\n").map(String.init)
+            let shown = kept.split(separator: "\n").map {
+                String($0).trimmingCharacters(in: .whitespaces)
+            }
             #expect(Set(shown).count == shown.count)
             var from = lines.startIndex
             for line in shown.dropFirst() {
@@ -188,11 +204,11 @@ struct PromptPropertyTests {
             }
         }
         if let kept = section(textBefore, in: prompt), let preceding = moment.situation.preceding {
-            #expect(preceding.hasSuffix(kept))
+            #expect(PromptText.blockValue(preceding).hasSuffix(kept))
         }
         if let kept = section(wroteHere, in: prompt) {
             let lines = kept.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-            let recent = moment.situation.recentLines
+            let recent = moment.situation.recentLines.map(PromptText.blockValue)
             // The newest line alone may be cut down when even it does not fit; every other kept line is whole.
             if lines.count == 1, lines[0] != recent.first {
                 #expect(recent.first?.hasPrefix(lines[0]) == true)
@@ -246,7 +262,8 @@ struct PromptPropertyTests {
                     || text[start].isWhitespace)
             if let previousWord = text[..<start].split(whereSeparator: \.isWhitespace).last {
                 #expect(
-                    CompletionPromptBuilder.estimatedTokens(String(previousWord) + " " + tail) > allowance)
+                    CompletionPromptBuilder.estimatedTokens(String(previousWord) + " " + tail)
+                        > CompletionPromptBuilder.estimatedTokens(tail))
             }
         }
         let lines = (0..<Int.random(in: 0...10, using: &random)).map { _ in

@@ -1,4 +1,5 @@
 public import CoreGraphics
+public import UttrflowCore
 public import UttrflowPredict
 
 public enum SuggestionWritingDirection: Sendable, Equatable {
@@ -75,6 +76,9 @@ public struct SuggestionPresentation: Sendable, Equatable {
     /// The backing behind a ghost whose field would not say its text colour is drawn at this share of the window colour.
     public static let backingOpacity = 0.9
 
+    /// The backing is solid when the system asks to reduce transparency.
+    public static let opaqueBackingOpacity = 1.0
+
     /// Unselected rows and the footer must remain readable against the field in the default appearance.
     public static let standardListOpacity = 0.72
 
@@ -124,6 +128,8 @@ public struct SuggestionPresentation: Sendable, Equatable {
     public let isItalic: Bool
     /// The colour the ghost is drawn in, and whether it needs a backing to be read at all.
     public let ink: Ink
+    /// The backing opacity used when the field does not report its text colour.
+    public let backingOpacity: Double
     /// A system-condition message exposed to VoiceOver when suggestions are temporarily gated.
     public let statusMessage: String?
 
@@ -151,6 +157,7 @@ public struct SuggestionPresentation: Sendable, Equatable {
         self.isBold = isBold
         self.isItalic = isItalic
         ink = fieldTextColor.map(Ink.field) ?? .backed
+        backingOpacity = appearance.reducesTransparency ? Self.opaqueBackingOpacity : Self.backingOpacity
         self.statusMessage = statusMessage
         let offered = Self.rows(of: suggestion, after: typed, selected: selection.index)
         style =
@@ -195,7 +202,7 @@ public struct SuggestionPresentation: Sendable, Equatable {
     /// What VoiceOver hears automatically when the offer changes, without exposing unselected candidates.
     var announcementLabel: String {
         guard let leader = inline else {
-            return style == .dot ? (escapeIsRouted ? Self.dotLabel : "AI suggestion hidden.") : ""
+            return style == .dot ? Self.dotLabel : ""
         }
         let take = "\(acceptKey.spokenName) to accept\(Self.cost(of: leader))."
         return "AI suggestion: \(leader.candidate). \(take)"
@@ -216,8 +223,8 @@ public struct SuggestionPresentation: Sendable, Equatable {
         return accessibilityLabel
     }
 
-    /// What VoiceOver is told the dot left by Escape is, and what a second Escape does.
-    public static let dotLabel = "AI suggestion hidden. Escape again to turn suggestions off in this field."
+    /// What VoiceOver is told the dot that Escape leaves is.
+    public static let dotLabel = "AI suggestion hidden."
 
     /// Says how much of the user's own typing a row takes back, and nothing when it only adds.
     private static func cost(of row: Row) -> String {

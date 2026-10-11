@@ -3,12 +3,22 @@
 The floating button is the small panel at the edge of the screen that starts a dictation, shows
 it listening and working, and reports how it ended; it is the recorder itself, changing into its
 listening form while a dictation runs, so one thing moves on screen rather than two. It is drawn
-by `Sources/Uttrflow/Dock/DockView.swift` (sizes in `DockMetrics`), its speech-model setup forms
+by `Sources/Uttrflow/Dock/DockView.swift` (the view model and the form choice), `DockForms.swift`,
+`DockNotices.swift` and `DockParts.swift` (the forms and their marks), `DockMetrics.swift` (sizes),
+`DockStyle.swift` (glass and colours) and `DockWording.swift` (every word it says or speaks, tested),
+its speech-model setup forms
 by `DockSetupView.swift` (`DockSetupMetrics`), its window by `DockPanelController.swift`, and what
 it says is decided by `DictationPresenter` in `Sources/UttrflowPipeline/`. Related:
 [`startup.md`](startup.md) for the speech-model forms' words,
 [`app-quick-panel.md`](app-quick-panel.md#after-the-panel-has-closed) for what it reports after a
 clipboard paste.
+
+## Which display
+
+`DockPlacement.screen` picks the display: the one the panel is already on while it is attached, then
+the main display, then any remaining one. The panel is placed again on every
+`didChangeScreenParametersNotification`, so a Dock, resolution or display change puts it back at its
+anchor on a display that exists.
 
 ## Forms and sizes
 
@@ -78,9 +88,9 @@ for the application to take the words: transcribing, tidying and inserting are o
 person waiting, so they are one animation. Under Reduce Motion the bars hold still at full
 height, per `MotionBudget`.
 
-The line is "Tidying up…" for every stage until the wait passes `WaitLine.stageAfter` (10 s, the
+The line is "Cleaning up…" for every stage until the wait passes `WaitLine.stageAfter` (10 s, the
 current p95 wait for a dictation of about 10 s in [performance.md](performance.md#latency-budget-per-stage)).
-It then names the true stage, "Transcribing…", "Tidying…" or "Waiting for <app>…" with the app the
+It then names the true stage, "Transcribing…", "Cleaning up…" or "Waiting for <app>…" with the app the
 words are going to, and past `WaitLine.secondsAfter` (20 s) adds the seconds waited beneath it.
 VoiceOver hears the stage once, at the first change. `WaitLineTests` holds these.
 
@@ -132,9 +142,9 @@ shows the resting icon or status line.
 | --- | --- | --- | --- |
 | `idle` | the mark | the mark | Ready |
 | `recording` | `mic.fill` | `mic.fill` | Listening… |
-| `transcribing` | `sparkles` | `sparkles` | Tidying up… |
-| `tidying` | `sparkles` | `sparkles` | Tidying up… |
-| `inserting` | `sparkles` | `sparkles` | Tidying up… |
+| `transcribing` | `sparkles` | `sparkles` | Cleaning up… |
+| `tidying` | `sparkles` | `sparkles` | Cleaning up… |
+| `inserting` | `sparkles` | `sparkles` | Cleaning up… |
 | `inserted`, confirmed | `checkmark` | `checkmark` | Inserted |
 | `inserted`, unconfirmed | `questionmark.circle` | `questionmark.circle` | Inserted — not confirmed |
 | `inserted`, partial | `exclamationmark.circle` | `exclamationmark.circle` | the missed-speech line |
@@ -142,3 +152,5 @@ shows the resting icon or status line.
 | `failed`, informational | `info.circle` | `exclamationmark.triangle.fill`, tinted | the notice's headline |
 | `failed`, recoverable or degraded | `xmark.circle` | `exclamationmark.triangle.fill`, tinted | the notice's headline |
 | `failed`, blocking | `exclamationmark.triangle.fill`, tinted | `exclamationmark.triangle.fill`, tinted | the notice's headline |
+| `discarded` | `trash` | `trash` | Discarded |
+| `executed` | `checkmark.circle` | `checkmark.circle` | Done |

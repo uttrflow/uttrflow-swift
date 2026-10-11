@@ -147,4 +147,75 @@ struct GuardNumberWordsTests {
         let verdict = MeaningPreservationGuard().verdict(original: original, rewritten: rewritten)
         #expect((verdict == .accepted) == accepted)
     }
+
+    /// An amount is compared by value, unit and ordinal, so a currency or percent said as a word and a spoken ordinal pass as their written forms, and a changed one does not.
+    @Test(
+        "the guard compares amounts by value across currency, percent and ordinal spellings",
+        arguments: [
+            ("it costs 5 dollars", "It costs $5.", true),
+            ("it costs $5", "It costs 5 dollars.", true),
+            ("it costs five dollars", "It costs $5.", true),
+            ("it costs 12 euros", "It costs \u{20AC}12.", true),
+            ("we paid 300 rupees", "We paid \u{20B9}300.", true),
+            ("the ticket was 10 pounds", "The ticket was \u{00A3}10.", true),
+            ("it was 100 yen", "It was \u{00A5}100.", true),
+            ("it costs 1 euro", "It costs \u{20AC}1.", true),
+            ("we sold 5 million units", "We sold 5,000,000 units.", true),
+            ("the budget is 12,000", "The budget is 12K.", true),
+            ("we raised 2.5 million dollars", "We raised $2.5M.", true),
+            ("we raised $2.5 million", "We raised 2.5 million dollars.", true),
+            ("she came 1st", "She came first.", true),
+            ("she came first", "She came 1st.", true),
+            ("the 2nd floor", "The second floor.", true),
+            ("the electrician comes on the twelfth", "The electrician comes on the 12th.", true),
+            ("on the twenty first", "On the 21st.", true),
+            ("on the twenty-first", "On the 21st.", true),
+            ("the thirty third visitor", "The 33rd visitor.", true),
+            ("the fifty first visitor", "The 51st visitor.", true),
+            ("the one hundred first visitor", "The 101st visitor.", true),
+            ("twenty one people came first", "21 people came 1st.", true),
+            ("it is 50 percent", "It is 50%.", true),
+            ("it is 50%", "It is 50 percent.", true),
+            ("it is 50 per cent", "It is 50%.", true),
+            ("it is twelve percent", "It is 12%.", true),
+            ("it rose 50 percent to 5 dollars", "It rose 50% to $5.", true),
+            ("we paid five hundred rupees", "We paid \u{20B9}500.", true),
+            ("it costs 2 euros", "It costs \u{20AC}2.", true),
+            ("the forty second floor", "The 42nd floor.", true),
+            ("it costs 5 dollars", "It costs $6.", false),
+            ("it costs 5 dollars", "It costs \u{00A3}5.", false),
+            ("it costs $5", "It costs 5 euros.", false),
+            ("it costs 5 pounds", "It costs $5.", false),
+            ("it costs 12 euros", "It costs $12.", false),
+            ("we paid 300 rupees", "We paid \u{20B9}3,000.", false),
+            ("it costs 1 euro", "It costs \u{20AC}2.", false),
+            ("it costs $5", "It costs 5.", false),
+            ("it costs $5", "It costs 5%.", false),
+            ("the balance is 5 dollars", "The balance is -$5.", false),
+            ("the budget is 12,000", "The budget is 1,200.", false),
+            ("we sold 5 million units", "We sold 5 thousand units.", false),
+            ("we raised $2.5M", "We raised $250,000.", false),
+            ("she came 1st", "She came second.", false),
+            ("she came first", "She came 2nd.", false),
+            ("the 2nd floor", "The 3rd floor.", false),
+            ("the electrician comes on the twelfth", "The electrician comes on the 13th.", false),
+            ("on the twenty first", "On the 22nd.", false),
+            ("the thirty third visitor", "The 34th visitor.", false),
+            ("the fifty first visitor", "The 52nd visitor.", false),
+            ("the one hundred first visitor", "The 102nd visitor.", false),
+            ("twenty one people came", "22 people came.", false),
+            ("it is 50 percent", "It is 5%.", false),
+            ("it is 50 per cent", "It is 60%.", false),
+            ("it is 50%", "It is 50.", false),
+            ("it is 50 percent", "It is 50.", false),
+            ("it is 50 percent", "It is 50 dollars.", false),
+            ("it is twelve percent", "It is 21%.", false),
+            ("the forty second floor", "The 43rd floor.", false),
+            ("we paid five hundred rupees", "We paid \u{20B9}5,000.", false),
+        ]
+    )
+    func valueAcrossUnitAndOrdinalSpellings(original: String, rewritten: String, accepted: Bool) {
+        let verdict = MeaningPreservationGuard().verdict(original: original, rewritten: rewritten)
+        #expect((verdict == .accepted) == accepted)
+    }
 }

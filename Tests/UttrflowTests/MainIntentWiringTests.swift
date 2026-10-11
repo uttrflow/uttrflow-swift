@@ -10,6 +10,7 @@ import UttrflowCore
 import UttrflowDictionary
 import UttrflowHistory
 import UttrflowInput
+import UttrflowPredict
 import UttrflowUX
 import Testing
 
@@ -55,7 +56,7 @@ struct MainIntentWiringTests {
             word: devanagari, origin: .added, firstSeen: Date(timeIntervalSince1970: 0))
         try PrivateFile.write(
             JSONEncoder().encode([held]), to: PersonalDictionaryStore.defaultFile(in: sandbox.root))
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
 
         app.applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
         await app.dictionaryMigrationWork?.value
@@ -69,14 +70,25 @@ struct MainIntentWiringTests {
         #expect(app.actionNotice?.message.contains(Romaniser.romanised(devanagari)) == true)
     }
 
+    @Test("launch leaves the process-wide application names alone, so no other test reaches LaunchServices")
+    func launchLeavesApplicationNamesAlone() {
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
+
+        app.applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
+
+        // Installed, the lookup would answer the bundle's own name, "Activity Monitor".
+        #expect(SuggestionApplications.name(of: "com.apple.ActivityMonitor") == "ActivityMonitor")
+    }
+
     @Test("saving a word puts it in the dictionary")
     func savesAWord() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let store = PersonalDictionaryStore(
             file: PersonalDictionaryStore.defaultFile(in: sandbox.root))
 
-        app.carryOut(.saveWord(word: "Uttrflow", pronunciation: "utter-flow"))
+        app.carryOut(.saveWord(word: "Uttrflow", pronunciation: "utter-flow", applications: []))
 
         await app.intentWork?.value
         #expect(await store.allEntries().count == 1)
@@ -89,13 +101,13 @@ struct MainIntentWiringTests {
     @Test("deleting a word removes it")
     func forgetsAWord() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let store = PersonalDictionaryStore(
             file: PersonalDictionaryStore.defaultFile(in: sandbox.root))
         let entry = DictionaryEntry(word: "Uttrflow", origin: .added, firstSeen: .now)
         try await store.add(entry)
 
-        app.carryOut(.forgetWord(entry.id))
+        app.carryOut(.forgetWords([entry.id]))
 
         await app.intentWork?.value
         #expect(await store.allEntries().isEmpty)
@@ -104,7 +116,7 @@ struct MainIntentWiringTests {
     @Test("restoring a retired word lets it be applied again")
     func restoresAWord() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let store = PersonalDictionaryStore(
             file: PersonalDictionaryStore.defaultFile(in: sandbox.root))
         let entry = DictionaryEntry(
@@ -112,7 +124,7 @@ struct MainIntentWiringTests {
         try await store.add(entry)
         #expect(await store.allEntries().first?.isTrustworthy == false)
 
-        app.carryOut(.restoreWord(entry.id))
+        app.carryOut(.restoreWords([entry.id]))
 
         await app.intentWork?.value
         #expect(await store.allEntries().first?.isTrustworthy == true)
@@ -122,11 +134,11 @@ struct MainIntentWiringTests {
     @Test("a blank word writes nothing at all")
     func refusesABlankWord() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let store = PersonalDictionaryStore(
             file: PersonalDictionaryStore.defaultFile(in: sandbox.root))
 
-        app.carryOut(.saveWord(word: "   ", pronunciation: "utter-flow"))
+        app.carryOut(.saveWord(word: "   ", pronunciation: "utter-flow", applications: []))
 
         // The save has run to its end, so an empty store is a refusal rather than a write still on its way.
         await app.intentWork?.value
@@ -138,10 +150,10 @@ struct MainIntentWiringTests {
     @Test("saving a snippet keeps it")
     func savesASnippet() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let store = SnippetStore(file: SnippetStore.defaultFile(in: sandbox.root))
 
-        app.carryOut(.saveSnippet(trigger: "my address", text: "Flat 402", replacing: nil))
+        app.carryOut(.saveSnippet(trigger: "my address", text: "Flat 402", applications: [], replacing: nil))
 
         await app.intentWork?.value
         #expect(await store.snippets().count == 1)
@@ -152,14 +164,14 @@ struct MainIntentWiringTests {
     @Test("editing a snippet keeps what the user did not type")
     func editsASnippet() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let store = SnippetStore(file: SnippetStore.defaultFile(in: sandbox.root))
         let original = Snippet(
             trigger: "my adress", expansion: "Flat 402", created: .distantPast, timesUsed: 7)
         try await store.save(original)
 
         app.carryOut(
-            .saveSnippet(trigger: "my address", text: "Flat 402", replacing: original.id))
+            .saveSnippet(trigger: "my address", text: "Flat 402", applications: [], replacing: original.id))
 
         await app.intentWork?.value
         let edited = await store.snippets().first?.trigger == "my address"
@@ -174,7 +186,7 @@ struct MainIntentWiringTests {
     @Test("editing a snippet added since the last redraw opens the editor on that row")
     func editsASnippetTheWindowHasNotSeen() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         app.mainWindow = app.makeMainWindow()
         let store = SnippetStore(file: SnippetStore.defaultFile(in: sandbox.root))
         let snippet = Snippet(trigger: "my address", expansion: "Flat 402", created: .now)
@@ -195,7 +207,7 @@ struct MainIntentWiringTests {
     @Test("a word learnt while the editor was open is not saved over")
     func doesNotOverwriteAWordLearntSinceTheEditorOpened() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         app.mainWindow = app.makeMainWindow()
         let store = PersonalDictionaryStore(
             file: PersonalDictionaryStore.defaultFile(in: sandbox.root))
@@ -205,7 +217,7 @@ struct MainIntentWiringTests {
         try await store.add(
             DictionaryEntry(word: "pgvector", origin: .observed, firstSeen: .now, timesUsed: 6))
 
-        app.carryOut(.saveWord(word: "pgvector", pronunciation: ""))
+        app.carryOut(.saveWord(word: "pgvector", pronunciation: "", applications: []))
 
         // Still the learnt entry once the save has finished; replacing would reset the origin and count.
         await app.intentWork?.value
@@ -218,7 +230,7 @@ struct MainIntentWiringTests {
     @Test("clicking New after Edit gives a new snippet, not the one being edited")
     func newSnippetWinsOverAnEditStillReadingTheDisk() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         app.mainWindow = app.makeMainWindow()
         let store = SnippetStore(file: SnippetStore.defaultFile(in: sandbox.root))
         let snippet = Snippet(trigger: "my address", expansion: "Flat 402", created: .now)
@@ -237,7 +249,7 @@ struct MainIntentWiringTests {
     @Test("a saved word closes the editor, and a refused one leaves it open")
     func closesTheEditorOnlyOnSuccess() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         app.mainWindow = app.makeMainWindow()
 
         app.carryOut(.addWord)
@@ -245,7 +257,7 @@ struct MainIntentWiringTests {
         app.mainWindow?.editWord(DictionaryDraft(word: "Uttrflow", pronunciation: "utter-flow"))
         #expect(app.mainWindow?.wordDraft.word == "Uttrflow")
 
-        app.carryOut(.saveWord(word: "Uttrflow", pronunciation: "utter-flow"))
+        app.carryOut(.saveWord(word: "Uttrflow", pronunciation: "utter-flow", applications: []))
         let store = PersonalDictionaryStore(
             file: PersonalDictionaryStore.defaultFile(in: sandbox.root))
         await app.intentWork?.value
@@ -257,14 +269,14 @@ struct MainIntentWiringTests {
     @Test("a refused word leaves the editor open with the text still in it")
     func keepsTheEditorOpenOnRefusal() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         app.mainWindow = app.makeMainWindow()
         let store = PersonalDictionaryStore(
             file: PersonalDictionaryStore.defaultFile(in: sandbox.root))
 
         app.carryOut(.addWord)
         app.mainWindow?.editWord(DictionaryDraft(word: "   "))
-        app.carryOut(.saveWord(word: "   ", pronunciation: ""))
+        app.carryOut(.saveWord(word: "   ", pronunciation: "", applications: []))
 
         await app.intentWork?.value
         #expect(await store.allEntries().isEmpty)
@@ -274,7 +286,7 @@ struct MainIntentWiringTests {
     @Test("deleting a snippet removes it")
     func forgetsASnippet() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let store = SnippetStore(file: SnippetStore.defaultFile(in: sandbox.root))
         let snippet = Snippet(trigger: "my address", expansion: "Flat 402", created: .now)
         try await store.save(snippet)
@@ -290,7 +302,7 @@ struct MainIntentWiringTests {
     @Test("deleting a dictation removes it")
     func forgetsADictation() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let store = DictationHistoryStore(
             file: DictationHistoryStore.defaultFile(in: sandbox.root))
         let retention = Retention(days: 30, now: .now)
@@ -307,7 +319,7 @@ struct MainIntentWiringTests {
     @Test("deleting a dictation deletes its clipboard copy after an undo and after a panel edit")
     func forgetsTheDictationsClip() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let history = DictationHistoryStore(
             file: DictationHistoryStore.defaultFile(in: sandbox.root))
         let clipboard = ClipboardStore(file: ClipboardStore.defaultFile(in: sandbox.root))
@@ -349,10 +361,33 @@ struct MainIntentWiringTests {
         #expect(await reread.clips(keeping: window).isEmpty)
     }
 
+    @Test("flagging a dictation with a reason keeps the reason, and unflagging clears it")
+    func flagsADictationWithAReason() async throws {
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
+        let store = DictationHistoryStore(
+            file: DictationHistoryStore.defaultFile(in: sandbox.root))
+        let retention = Retention(days: 30, now: .now)
+        let record = DictationRecord(text: "Right, the drafting is done.", when: .now)
+        try await store.append(record, keeping: retention)
+
+        app.carryOut(.flagDictationAs(record.id, .formatting))
+        await app.intentWork?.value
+        let flagged = await store.records(keeping: retention).first
+        #expect(flagged?.isFlagged == true)
+        #expect(flagged?.flagReason == .formatting)
+
+        app.carryOut(.flagDictation(record.id))
+        await app.intentWork?.value
+        let unflagged = await store.records(keeping: retention).first
+        #expect(unflagged?.isFlagged == false)
+        #expect(unflagged?.flagReason == nil)
+    }
+
     @Test("flagging a dictation is kept, and flagging it again puts it back")
     func flagsADictation() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let store = DictationHistoryStore(
             file: DictationHistoryStore.defaultFile(in: sandbox.root))
         let retention = Retention(days: 30, now: .now)
@@ -372,7 +407,7 @@ struct MainIntentWiringTests {
     @Test("undoing a correction puts the words back and blames the entry that caused it")
     func undoesACorrection() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let history = DictationHistoryStore(
             file: DictationHistoryStore.defaultFile(in: sandbox.root))
         let dictionary = PersonalDictionaryStore(
@@ -410,7 +445,7 @@ struct MainIntentWiringTests {
     @Test("a dictation the store refuses to delete is said, not swallowed")
     func saysARefusedDictationDelete() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let store = DictationHistoryStore(
             file: DictationHistoryStore.defaultFile(in: sandbox.root))
         let retention = Retention(days: 30, now: .now)
@@ -430,14 +465,14 @@ struct MainIntentWiringTests {
     @Test("a word the store refuses to delete is said in the dictionary's own words")
     func saysARefusedWordDelete() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let store = PersonalDictionaryStore(
             file: PersonalDictionaryStore.defaultFile(in: sandbox.root))
         let entry = DictionaryEntry(word: "Uttrflow", origin: .added, firstSeen: .now)
         try await store.add(entry)
 
         try await refusingWrites(under: sandbox.root) {
-            app.carryOut(.forgetWord(entry.id))
+            app.carryOut(.forgetWords([entry.id]))
             await app.intentWork?.value
         }
 
@@ -448,7 +483,7 @@ struct MainIntentWiringTests {
     @Test("a retired word the store refuses to restore is said")
     func saysARefusedWordRestore() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let store = PersonalDictionaryStore(
             file: PersonalDictionaryStore.defaultFile(in: sandbox.root))
         let entry = DictionaryEntry(
@@ -456,7 +491,7 @@ struct MainIntentWiringTests {
         try await store.add(entry)
 
         try await refusingWrites(under: sandbox.root) {
-            app.carryOut(.restoreWord(entry.id))
+            app.carryOut(.restoreWords([entry.id]))
             await app.intentWork?.value
         }
 
@@ -467,7 +502,7 @@ struct MainIntentWiringTests {
     @Test("a snippet the store refuses to delete is said in the snippets' own words")
     func saysARefusedSnippetDelete() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let store = SnippetStore(file: SnippetStore.defaultFile(in: sandbox.root))
         let snippet = Snippet(trigger: "my address", expansion: "Flat 402", created: .now)
         try await store.save(snippet)
@@ -484,7 +519,7 @@ struct MainIntentWiringTests {
     @Test("a deleted snippet can be restored with its original identity and usage")
     func restoresADeletedSnippet() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let store = SnippetStore(file: SnippetStore.defaultFile(in: sandbox.root))
         let snippet = Snippet(
             id: UUID(), trigger: "my address", expansion: "Flat 402", created: .now,
@@ -505,7 +540,7 @@ struct MainIntentWiringTests {
     @Test("a flag the store refuses to keep is said")
     func saysARefusedFlag() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let store = DictationHistoryStore(
             file: DictationHistoryStore.defaultFile(in: sandbox.root))
         let retention = Retention(days: 30, now: .now)
@@ -525,7 +560,7 @@ struct MainIntentWiringTests {
     @Test("an undo the store refuses is said")
     func saysARefusedUndo() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let history = DictationHistoryStore(
             file: DictationHistoryStore.defaultFile(in: sandbox.root))
         let retention = Retention(days: 30, now: .now)
@@ -551,19 +586,19 @@ struct MainIntentWiringTests {
     @Test("a change that works clears the refusal the last one left")
     func clearsTheNoticeOnceSomethingWorks() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let store = PersonalDictionaryStore(
             file: PersonalDictionaryStore.defaultFile(in: sandbox.root))
         let entry = DictionaryEntry(word: "Uttrflow", origin: .added, firstSeen: .now)
         try await store.add(entry)
 
         try await refusingWrites(under: sandbox.root) {
-            app.carryOut(.forgetWord(entry.id))
+            app.carryOut(.forgetWords([entry.id]))
             await app.intentWork?.value
         }
         #expect(app.actionNotice != nil)
 
-        app.carryOut(.forgetWord(entry.id))
+        app.carryOut(.forgetWords([entry.id]))
         await app.intentWork?.value
 
         #expect(app.actionNotice == nil)
@@ -574,14 +609,14 @@ struct MainIntentWiringTests {
     @Test("moving to another page leaves the refusal behind")
     func dropsTheNoticeOnChangingPage() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let store = PersonalDictionaryStore(
             file: PersonalDictionaryStore.defaultFile(in: sandbox.root))
         let entry = DictionaryEntry(word: "Uttrflow", origin: .added, firstSeen: .now)
         try await store.add(entry)
 
         try await refusingWrites(under: sandbox.root) {
-            app.carryOut(.forgetWord(entry.id))
+            app.carryOut(.forgetWords([entry.id]))
             await app.intentWork?.value
         }
         #expect(app.actionNotice != nil)
@@ -597,7 +632,10 @@ struct MainIntentWiringTests {
     func signOutClearsFirst() async throws {
         let signedIn = try await SignedInAccount()
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root, account: signedIn.layer)
+        let app = AppDelegate(
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
+            account: signedIn.layer)
         app.drawsWindows = false
 
         app.carryOut(.signOut)
@@ -611,7 +649,10 @@ struct MainIntentWiringTests {
     func accountPageAfterSignOut() async throws {
         let signedIn = try await SignedInAccount()
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root, account: signedIn.layer)
+        let app = AppDelegate(
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
+            account: signedIn.layer)
         app.drawsWindows = false
         app.readAccount()
         #expect(app.accountPage(at: .now).identity?.name == "Development User")
@@ -623,12 +664,50 @@ struct MainIntentWiringTests {
         #expect(page.emptyState?.action?.intent == .signIn)
     }
 
+    @Test("deleting the account signs this Mac out once the server agreed")
+    func deletingTheAccount() async throws {
+        let signedIn = try await SignedInAccount()
+        let sandbox = Sandbox()
+        let app = AppDelegate(
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
+            account: signedIn.layer)
+        app.drawsWindows = false
+        app.readAccount()
+
+        app.carryOut(.deleteAccount)
+        await app.intentWork?.value
+
+        #expect(signedIn.profiles.load() == nil)
+        #expect(app.accountPage(at: .now).identity == nil)
+    }
+
+    @Test("a refused deletion keeps the account and says so")
+    func refusedDeletion() async throws {
+        let signedIn = try await SignedInAccount()
+        signedIn.authentication.refusesDeletion.withLock { $0 = true }
+        let sandbox = Sandbox()
+        let app = AppDelegate(
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
+            account: signedIn.layer)
+        app.drawsWindows = false
+        app.readAccount()
+
+        app.carryOut(.deleteAccount)
+        await app.intentWork?.value
+
+        #expect(signedIn.profiles.load() != nil)
+        #expect(app.actionNotice != nil)
+        #expect(app.accountPage(at: .now).identity?.name == "Development User")
+    }
+
     // MARK: Copy and clipboard-only outcomes
 
     @Test("a retry refused while dictation is busy explains how to continue")
     func refusedRetryExplainsBusyDictation() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         app.drawsWindows = false
         app.render(.recording)
 
@@ -662,7 +741,7 @@ struct MainIntentWiringTests {
     @Test("a copy from the row says where the words went")
     func copyShowsANotice() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
 
         app.carryOut(.copy("Copy this back to me"))
 
@@ -675,7 +754,7 @@ struct MainIntentWiringTests {
     @Test("moving to another page drops the copy notice")
     func copyNoticeDropsOnPageChange() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
 
         app.carryOut(.copy("Copy me"))
         #expect(app.actionNotice != nil)
@@ -689,14 +768,56 @@ struct MainIntentWiringTests {
     func refusedCopyShowsFailure() async throws {
         let sandbox = Sandbox()
         let pasteboard = RefusingPasteboard()
-        let app = AppDelegate(container: sandbox.root, pasteboard: pasteboard)
+        let app = AppDelegate(
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
+            pasteboard: pasteboard)
 
         app.carryOut(.copy("Copy this back to me"))
 
         let notice = try #require(app.actionNotice)
         #expect(notice.message == MainNotice.clipboardCopyFailed.message)
         #expect(notice.message != "Copied — click where you want it, then press ⌘V")
-        #expect(pasteboard.writeCount == 0)
+        #expect(pasteboard.writeCount == 1)
+    }
+
+    @Test("an automatic clipboard write failure stays visible until a later write succeeds")
+    func automaticClipboardWriteFailureClearsOnSuccess() async throws {
+        let sandbox = Sandbox()
+        let signedIn = try await SignedInAccount()
+        let announcements = Mutex<[String]>([])
+        let app = AppDelegate(
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(), account: signedIn.layer,
+            clipboardFailureAnnouncer: { message in
+                announcements.withLock { $0.append(message) }
+            })
+        func noticed(_ text: String) -> NoticedClip {
+            NoticedClip(clip: Clip(text: text, kind: .text, copiedAt: Date()))
+        }
+
+        await app.clipArrived(noticed("baseline copy"))
+        let index = ClipboardStore.defaultFile(in: sandbox.root)
+        try FileManager.default.removeItem(at: index)
+        try FileManager.default.createDirectory(at: index, withIntermediateDirectories: true)
+
+        await app.clipArrived(noticed("first automatic copy"))
+
+        #expect(app.clipboardWriteFailure == .couldNotWrite)
+        #expect(app.menuBarPresentation.statusLine == ClipboardStoreError.couldNotWrite.userMessage)
+        #expect(app.pendingClipboardPanelNotice?.message == ClipboardStoreError.couldNotWrite.userMessage)
+
+        await app.clipArrived(noticed("second automatic copy"))
+
+        #expect(announcements.withLock { $0 } == [ClipboardStoreError.couldNotWrite.userMessage])
+        #expect(app.pendingClipboardPanelNotice?.message == ClipboardStoreError.couldNotWrite.userMessage)
+
+        try FileManager.default.removeItem(at: index)
+        await app.clipArrived(noticed("next automatic copy"))
+
+        #expect(app.clipboardWriteFailure == nil)
+        #expect(app.menuBarPresentation.statusLine != ClipboardStoreError.couldNotWrite.userMessage)
+        #expect(app.pendingClipboardPanelNotice == nil)
     }
 }
 
@@ -773,6 +894,14 @@ private final class RecordingAuthentication: AuthenticationService {
         recorded.withLock { $0.append(cleared ? .profileAlreadyCleared : .profileStillThere) }
         await backend.signOut()
     }
+
+    /// Whether the server refuses a deletion, set by a test before it asks.
+    let refusesDeletion = Mutex(false)
+
+    func deleteAccount() async throws(AccountError) {
+        if refusesDeletion.withLock({ $0 }) { throw .serverUnreachable }
+        try await backend.deleteAccount()
+    }
 }
 
 /// A development account layer, signed in, with nothing on disk and nothing on the network.
@@ -845,6 +974,32 @@ struct LearnedVocabularyTests {
             seeing: AppContext(applicationName: "Notes", selectedText: "utter flow"))
 
         #expect(await store.allEntries().map(\.word) == ["Uttrflow"])
+    }
+
+    /// The app's typed lines reach the store for sightings.
+    @Test("lines typed in the app teach a name said on three days")
+    func learnsFromTypedLines() async throws {
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(
+            file: PersonalDictionaryStore.defaultFile(in: sandbox.root))
+        actor Asked {
+            private(set) var bundles: [String?] = []
+            func note(_ bundle: String?) { bundles.append(bundle) }
+        }
+        let asked = Asked()
+        let vocabulary = LearnedVocabulary(
+            dictionary: store,
+            typedLines: { context in
+                await asked.note(context.bundleIdentifier)
+                return ["ping Tamsyn about the rollout"]
+            })
+        let context = AppContext(applicationName: "Notes", bundleIdentifier: "com.example.notes")
+
+        try await vocabulary.learn(heard: "ask tamsin", wrote: "ask tamsin", seeing: context)
+
+        #expect(await asked.bundles == ["com.example.notes"])
+        // One sighting today is not yet enough to learn the name.
+        #expect(await store.allEntries().isEmpty)
     }
 
     /// Nothing on screen, nothing to learn from, and no write either.

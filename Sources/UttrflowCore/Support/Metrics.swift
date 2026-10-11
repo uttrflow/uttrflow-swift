@@ -30,12 +30,15 @@ public struct StageMeasurement: Sendable, Equatable {
     public let duration: Duration
     /// Whether it returned rather than threw.
     public let succeeded: Bool
+    /// The dictation that produced it, when recorded by a pipeline.
+    public let generation: Int?
 
     /// A measurement of `stage`.
-    public init(stage: PipelineStage, duration: Duration, succeeded: Bool) {
+    public init(stage: PipelineStage, duration: Duration, succeeded: Bool, generation: Int? = nil) {
         self.stage = stage
         self.duration = duration
         self.succeeded = succeeded
+        self.generation = generation
     }
 }
 
@@ -47,12 +50,30 @@ public protocol MetricsRecording: Sendable {
     /// Keeps what one piece cost the recogniser beyond a single decode.
     func recordDecoding(_ effort: DecodeEffort) async
 
+    /// Keeps the decoder's own judgement of each segment of one piece, as numbers only.
+    func recordReliability(_ segments: [SegmentReliability]) async
+
     /// Keeps the exact personal dictionary spellings in the last recogniser prompt, in memory only.
     func recordVocabularyPrompt(_ words: [String]) async
+
+    /// Keeps what one recording sounded like, as aggregates only.
+    func recordCaptureQuality(_ quality: CaptureQuality) async
     /// Records whether a piece's decode could be conditioned on the user's words.
     func recordConditioning(_ conditioning: DecodeConditioning) async
     /// Keeps what reading the screen cost one dictation, apart from the stages since reads overlap them.
     func recordScreenReads(_ reads: ScreenReadCost) async
+    /// Keeps why the dictation's last screen read carried no field text, or `nil` when it did.
+    func recordScreenText(_ unavailable: ContextUnavailableReason?) async
+    /// Keeps which rung of the read ladder answered one screen read in `bundleIdentifier`, with no field text.
+    func recordContextRead(_ rung: ContextReadRung, in bundleIdentifier: String) async
+    /// Keeps one dictation's wait after key-up and the cause named for it.
+    func recordWait(_ wait: TimedWait) async
+
+    /// Keeps the time the tidier spent on a request that found no warm session.
+    func recordTidyColdStart(_ duration: Duration) async
+
+    /// Keeps how much audio working ahead has not decoded at key-up.
+    func recordBacklog(_ backlog: WorkAheadBacklog) async
 }
 
 /// How many times one dictation read the screen, and how long those reads took together.
@@ -78,14 +99,35 @@ extension MetricsRecording {
     /// Most recorders care only about timings, so reporting decode effort is optional.
     public func recordDecoding(_ effort: DecodeEffort) async {}
 
+    /// Most recorders do not judge the recogniser's segments.
+    public func recordReliability(_ segments: [SegmentReliability]) async {}
+
     /// Most recorders do not expose personal prompt contents.
     public func recordVocabularyPrompt(_ words: [String]) async {}
+
+    /// Most recorders do not describe the audio.
+    public func recordCaptureQuality(_ quality: CaptureQuality) async {}
 
     /// Most recorders do not track recogniser health.
     public func recordConditioning(_ conditioning: DecodeConditioning) async {}
 
     /// Most recorders do not track screen reads.
     public func recordScreenReads(_ reads: ScreenReadCost) async {}
+
+    /// Most recorders do not track why the screen carried no text.
+    public func recordScreenText(_ unavailable: ContextUnavailableReason?) async {}
+
+    /// Most recorders do not track which rung answered a read.
+    public func recordContextRead(_ rung: ContextReadRung, in bundleIdentifier: String) async {}
+
+    /// Most recorders do not track the wait after key-up.
+    public func recordWait(_ wait: TimedWait) async {}
+
+    /// Most recorders do not track a cold tidier session.
+    public func recordTidyColdStart(_ duration: Duration) async {}
+
+    /// Most recorders do not track the work-ahead backlog.
+    public func recordBacklog(_ backlog: WorkAheadBacklog) async {}
 }
 
 /// A recorder that discards everything, for callers that do not care about timings.
@@ -116,9 +158,19 @@ public struct MetricsFanOut: MetricsRecording {
         for recorder in recorders { await recorder.recordDecoding(effort) }
     }
 
+    /// Passes the segments' reliability to every recorder.
+    public func recordReliability(_ segments: [SegmentReliability]) async {
+        for recorder in recorders { await recorder.recordReliability(segments) }
+    }
+
     /// Passes the in-memory prompt words to the recorders that expose local diagnostics.
     public func recordVocabularyPrompt(_ words: [String]) async {
         for recorder in recorders { await recorder.recordVocabularyPrompt(words) }
+    }
+
+    /// Passes the recording's quality to every recorder.
+    public func recordCaptureQuality(_ quality: CaptureQuality) async {
+        for recorder in recorders { await recorder.recordCaptureQuality(quality) }
     }
 
     public func recordConditioning(_ conditioning: DecodeConditioning) async {
@@ -128,6 +180,26 @@ public struct MetricsFanOut: MetricsRecording {
     public func recordScreenReads(_ reads: ScreenReadCost) async {
         for recorder in recorders { await recorder.recordScreenReads(reads) }
     }
+
+    public func recordScreenText(_ unavailable: ContextUnavailableReason?) async {
+        for recorder in recorders { await recorder.recordScreenText(unavailable) }
+    }
+
+    public func recordContextRead(_ rung: ContextReadRung, in bundleIdentifier: String) async {
+        for recorder in recorders { await recorder.recordContextRead(rung, in: bundleIdentifier) }
+    }
+
+    public func recordWait(_ wait: TimedWait) async {
+        for recorder in recorders { await recorder.recordWait(wait) }
+    }
+
+    public func recordTidyColdStart(_ duration: Duration) async {
+        for recorder in recorders { await recorder.recordTidyColdStart(duration) }
+    }
+
+    public func recordBacklog(_ backlog: WorkAheadBacklog) async {
+        for recorder in recorders { await recorder.recordBacklog(backlog) }
+    }
 }
 
 /// The one way every stage is timed, so none is left out of the numbers.
@@ -136,16 +208,23 @@ extension MetricsRecording {
     public func measuring<Success, Failure: Error>(
         _ stage: PipelineStage,
         clock: some Clock<Duration>,
+        generation: Int? = nil,
         isolation: isolated (any Actor)? = #isolation,
         operation: () async throws(Failure) -> Success
     ) async throws(Failure) -> Success {
         let start = clock.now
         do {
             let value = try await operation()
-            await record(.init(stage: stage, duration: start.duration(to: clock.now), succeeded: true))
+            await record(
+                .init(
+                    stage: stage, duration: start.duration(to: clock.now), succeeded: true,
+                    generation: generation))
             return value
         } catch {
-            await record(.init(stage: stage, duration: start.duration(to: clock.now), succeeded: false))
+            await record(
+                .init(
+                    stage: stage, duration: start.duration(to: clock.now), succeeded: false,
+                    generation: generation))
             throw error
         }
     }
@@ -154,6 +233,7 @@ extension MetricsRecording {
     public func measuringInTime<Success, Failure: Error>(
         _ stage: PipelineStage,
         clock: some Clock<Duration>,
+        generation: Int? = nil,
         isolation: isolated (any Actor)? = #isolation,
         operation: () async throws(Failure) -> Success?
     ) async throws(Failure) -> Success? {
@@ -161,10 +241,15 @@ extension MetricsRecording {
         do {
             let value = try await operation()
             await record(
-                .init(stage: stage, duration: start.duration(to: clock.now), succeeded: value != nil))
+                .init(
+                    stage: stage, duration: start.duration(to: clock.now), succeeded: value != nil,
+                    generation: generation))
             return value
         } catch {
-            await record(.init(stage: stage, duration: start.duration(to: clock.now), succeeded: false))
+            await record(
+                .init(
+                    stage: stage, duration: start.duration(to: clock.now), succeeded: false,
+                    generation: generation))
             throw error
         }
     }
@@ -185,7 +270,11 @@ public actor StageTally: MetricsRecording {
         totals[stage] = StageMeasurement(
             stage: stage,
             duration: (previous?.duration ?? .zero) + measurement.duration,
-            succeeded: (previous?.succeeded ?? true) && measurement.succeeded)
+            succeeded: (previous?.succeeded ?? true) && measurement.succeeded,
+            generation: previous.map {
+                $0.generation == measurement.generation ? measurement.generation : nil
+            }
+                ?? measurement.generation)
     }
 
     /// What each piece cost the recogniser beyond one decode, kept per piece rather than added up.
@@ -193,6 +282,24 @@ public actor StageTally: MetricsRecording {
 
     public func recordDecoding(_ effort: DecodeEffort) {
         decoding.append(effort)
+    }
+
+    /// What each piece cost the recogniser, in the order recognised.
+    public var efforts: [DecodeEffort] { decoding }
+
+    /// The time the tidier spent starting sessions nothing had warmed, added up over the dictation's pieces.
+    public private(set) var tidyColdStart: Duration = .zero
+
+    public func recordTidyColdStart(_ duration: Duration) {
+        tidyColdStart += duration
+    }
+
+    /// The decoder's judgement of each segment, kept per piece so the report keeps the pieces apart.
+    private var reliability: [[SegmentReliability]] = []
+
+    // Async like the requirement, so a direct call cannot pick the protocol's no-op default instead.
+    public func recordReliability(_ segments: [SegmentReliability]) async {
+        reliability.append(segments)
     }
 
     /// One total per stage that was measured, in the order the journey runs.
@@ -204,6 +311,8 @@ public actor StageTally: MetricsRecording {
     public func report(to recorder: any MetricsRecording) async {
         for measurement in measurements { await recorder.record(measurement) }
         for effort in decoding { await recorder.recordDecoding(effort) }
+        if tidyColdStart > .zero { await recorder.recordTidyColdStart(tidyColdStart) }
+        for segments in reliability { await recorder.recordReliability(segments) }
     }
 }
 

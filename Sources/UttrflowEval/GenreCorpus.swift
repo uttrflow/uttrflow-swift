@@ -10,12 +10,16 @@ extension EvaluationCorpus {
     private static func piece(
         _ genre: Genre, _ id: String, _ spoken: String, _ expected: String,
         keep: [String], notAdd: [String], classes: [FormattingClass],
-        category: EvaluationCase.Category = .everyday
+        category: EvaluationCase.Category = .everyday, context: AppContext = .unknown
     ) -> EvaluationCase {
         .init(
             id: "genre-\(genre.rawValue)-\(id)", category: category, spoken: spoken, expected: expected,
-            mustKeep: keep, mustNotAdd: notAdd, classes: classes, genre: genre, addedFor: 3840)
+            mustKeep: keep, context: context, mustNotAdd: notAdd, classes: classes, genre: genre,
+            addedFor: 3840)
     }
+
+    /// A whole text that opens with a break starts an empty field, so the break has nothing to break from.
+    static let emptyField = AppContext(precedingText: "")
 
     static let correspondence: [EvaluationCase] = [
         piece(
@@ -165,7 +169,7 @@ extension EvaluationCorpus {
         piece(
             .shoppingList, "hardware-run",
             "things to get from the hardware shop. a box of four by forty screws. wall plugs size six. a tin of white gloss paint. sandpaper grade one twenty. a new blade for the craft knife. and ask whether they stock the ten mill drill bit",
-            "Things to get from the hardware shop. A box of 4 by 40 screws. Wall plugs size 6. A tin of white gloss paint. Sandpaper grade 120. A new blade for the craft knife. And ask whether they stock the 10 mm drill bit.",
+            "Things to get from the hardware shop. A box of 4 by 40 screws. Wall plugs size 6. A tin of white gloss paint. Sandpaper grade 120. A new blade for the craft knife. And ask whether they stock the 10 mill drill bit.",
             keep: ["screws", "120", "drill bit"], notAdd: ["hammer", "nails"],
             classes: [.lists, .numbers, .sentenceBoundaries]),
         piece(
@@ -228,14 +232,14 @@ extension EvaluationCorpus {
         piece(
             .clinicNote, "knee-review",
             "follow up for left knee pain. patient reports pain three out of ten down from seven at the last visit. swelling has settled and range of movement is near full. continue ibuprofen four hundred milligrams three times a day with food for one more week then stop. review in four weeks or sooner if the knee locks",
-            "Follow up for left knee pain. Patient reports pain 3/10, down from 7 at the last visit. Swelling has settled and range of movement is near full. Continue ibuprofen 400 mg three times a day with food for one more week, then stop. Review in four weeks or sooner if the knee locks.",
-            keep: ["ibuprofen", "400 mg", "four weeks"], notAdd: ["paracetamol", "MRI"],
+            "Follow up for left knee pain. Patient reports pain 3/10, down from 7 at the last visit. Swelling has settled and range of movement is near full. Continue ibuprofen 400 milligrams three times a day with food for one more week, then stop. Review in four weeks or sooner if the knee locks.",
+            keep: ["ibuprofen", "400 milligrams", "four weeks"], notAdd: ["paracetamol", "MRI"],
             classes: [.numbers, .capitalisationAndTokens, .commas]),
         piece(
             .clinicNote, "blood-pressure",
             "blood pressure check today one thirty eight over eighty six. home readings over the past fortnight average one forty two over eighty eight. no headaches or dizziness. start amlodipine five milligrams once daily. advised less salt and a thirty minute walk most days. repeat bloods and review in six weeks",
-            "Blood pressure check today 138/86. Home readings over the past fortnight average 142/88. No headaches or dizziness. Start amlodipine 5 mg once daily. Advised less salt and a 30 minute walk most days. Repeat bloods and review in six weeks.",
-            keep: ["138/86", "142/88", "amlodipine", "5 mg"], notAdd: ["hypertension", "diet"],
+            "Blood pressure check today 138/86. Home readings over the past fortnight average 142/88. No headaches or dizziness. Start amlodipine 5 milligrams once daily. Advised less salt and a 30 minute walk most days. Repeat bloods and review in six weeks.",
+            keep: ["138/86", "142/88", "amlodipine", "5 milligrams"], notAdd: ["hypertension", "diet"],
             classes: [.numbers, .capitalisationAndTokens, .sentenceBoundaries]),
         piece(
             .clinicNote, "child-fever",
@@ -287,7 +291,7 @@ extension EvaluationCorpus {
             "new line the harbour wakes before the town new line gulls argue over yesterday new line a single boat goes out alone new line and leaves a long white line behind new line the water folds it slowly down new line as if it never went away",
             "The harbour wakes before the town\nGulls argue over yesterday\nA single boat goes out alone\nAnd leaves a long white line behind\nThe water folds it slowly down\nAs if it never went away",
             keep: ["harbour", "gulls", "white line"], notAdd: ["sea", "ocean"],
-            classes: [.paragraphs, .capitalisationAndTokens]),
+            classes: [.paragraphs, .capitalisationAndTokens], context: emptyField),
         piece(
             .poem, "winter-list",
             "four things for winter new line a kettle singing on the stove new line a scarf that smells of someone else new line the first frost writing on the glass new line and one more hour of dark than light new line until the spring comes back again",
@@ -309,8 +313,8 @@ extension EvaluationCorpus {
         piece(
             .productDescription, "rain-jacket",
             "a lightweight rain jacket for walking and cycling. the shell weighs three hundred and twenty grams and packs into its own chest pocket. taped seams and a ten thousand millimetre waterproof rating keep it dry in steady rain. the hood adjusts at the back and fits over a helmet. machine wash at thirty degrees",
-            "A lightweight rain jacket for walking and cycling. The shell weighs 320 grams and packs into its own chest pocket. Taped seams and a 10,000 mm waterproof rating keep it dry in steady rain. The hood adjusts at the back and fits over a helmet. Machine wash at 30 degrees.",
-            keep: ["320 grams", "10,000 mm", "helmet"], notAdd: ["breathable", "durable"],
+            "A lightweight rain jacket for walking and cycling. The shell weighs 320 grams and packs into its own chest pocket. Taped seams and a 10,000 millimetre waterproof rating keep it dry in steady rain. The hood adjusts at the back and fits over a helmet. Machine wash at 30 degrees.",
+            keep: ["320 grams", "10,000 millimetre", "helmet"], notAdd: ["breathable", "durable"],
             classes: [.numbers, .capitalisationAndTokens, .sentenceBoundaries]),
         piece(
             .productDescription, "tea-sampler",

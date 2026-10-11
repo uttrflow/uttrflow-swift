@@ -1,0 +1,62 @@
+[
+  {
+    "id": "hinglish-reply-haan-2371",
+    "note": "A one-word Hindi reply stays the reply, never an English word that sounds like it.",
+    "language": "hi",
+    "spoken": "haan",
+    "expected": "Haan.",
+    "mustKeep": ["haan"],
+    "mustNotAdd": ["huh"],
+    "addedFor": 2371
+  },
+  {
+    "id": "hinglish-reply-theek-hai-2371",
+    "note": "A two-word Hindi reply stays the reply, never an English word that sounds like it.",
+    "language": "hi",
+    "spoken": "theek hai",
+    "expected": "Theek hai.",
+    "mustKeep": ["theek", "hai"],
+    "mustNotAdd": ["tick"],
+    "addedFor": 2371
+  },
+  {
+    "id": "hinglish-reply-devanagari-2371",
+    "note": "A short reply the recogniser wrote in Devanagari is romanised, never translated.",
+    "language": "hi",
+    "spoken": "ठीक है",
+    "expected": "Theek hai.",
+    "mustKeep": ["hai"],
+    "mustNotAdd": ["okay"],
+    "addedFor": 2371
+  },
+  {
+    "id": "hinglish-loanword-cancel-2376",
+    "note": "An English loanword in Hindi keeps its English spelling, never a romanisation of its sound.",
+    "language": "hi",
+    "spoken": "कल की meeting cancel हो गई है",
+    "expected": "Kal ki meeting cancel ho gayi hai.",
+    "mustKeep": ["meeting", "cancel"],
+    "mustNotAdd": ["kainsal"],
+    "addedFor": 2376
+  },
+  {
+    "id": "hinglish-loanword-office-2376",
+    "note": "An English loanword in Hindi keeps its English spelling, never a romanisation of its sound.",
+    "language": "hi",
+    "spoken": "आज मैं office देर से पहुँचूँगा",
+    "expected": "Aaj main office der se pahunchunga.",
+    "mustKeep": ["office"],
+    "mustNotAdd": ["ophis"],
+    "addedFor": 2376
+  },
+  {
+    "id": "hinglish-romanised-respelling-2377",
+    "note": "A romanised Hindi dictation keeps its words, the negation that carries its meaning first.",
+    "language": "hi",
+    "spoken": "kal ki meeting nahi hai main ghar se kaam karunga",
+    "expected": "Kal ki meeting nahi hai, main ghar se kaam karunga.",
+    "mustKeep": ["nahi", "meeting"],
+    "mustNotAdd": ["office"],
+    "addedFor": 2377
+  }
+]

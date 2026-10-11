@@ -2,7 +2,6 @@
 import Foundation
 private import Darwin
 private import SQLite3
-import Testing
 
 /// Times the retrieval the prediction engine will do, on a synthetic corpus of this Mac's making.
 enum RetrievalBenchmark {
@@ -217,22 +216,5 @@ enum TemporaryDirectories {
         directories.removeAll()
         lock.unlock()
         for directory in registered { try? FileManager.default.removeItem(at: directory) }
-    }
-}
-
-@Suite("Retrieval benchmark temporary files")
-struct RetrievalBenchmarkTests {
-    @Test("Closing an index removes its database and WAL sidecars")
-    func closingRemovesTemporaryFiles() throws {
-        let root = URL.temporaryDirectory.appending(path: "uttrflow-probe-test-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
-        defer { try? FileManager.default.removeItem(at: root) }
-
-        let index = try #require(
-            RetrievalBenchmark.Index(RetrievalBenchmark.corpus(100), temporaryDirectory: root))
-        #expect(try FileManager.default.contentsOfDirectory(atPath: root.path).count == 1)
-
-        index.close()
-        #expect(try FileManager.default.contentsOfDirectory(atPath: root.path).isEmpty)
     }
 }

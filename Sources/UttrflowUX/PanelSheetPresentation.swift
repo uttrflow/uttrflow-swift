@@ -1,6 +1,7 @@
 // The sheet over the panel's list, ready to draw, and the presenter that words each kind.
 import Foundation
 public import UttrflowClipboard
+import UttrflowCore
 
 /// One collection offered in the move popover, with its count so two similar names can be told apart.
 public struct PanelCollectionOption: Sendable, Equatable, Identifiable {
@@ -29,10 +30,13 @@ public struct PanelSheetPresentation: Sendable, Equatable {
         case aliasing
         case moving
         case confirmingDelete
+        case confirmingMakeNote
         case renamingCategory
         case deletingCategory
         case formatting
         case reindenting
+        case editing
+        case confirmingPaste
     }
 
     /// Which sheet this is.
@@ -43,8 +47,10 @@ public struct PanelSheetPresentation: Sendable, Equatable {
     /// Whether this sheet has anything to type into, asked of the kind rather than a list of exceptions.
     public var takesTyping: Bool {
         switch kind {
-        case .aliasing, .moving, .renamingCategory: true
-        case .confirmingDelete, .deletingCategory, .formatting, .reindenting: false
+        case .aliasing, .moving, .renamingCategory, .editing: true
+        case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting,
+            .confirmingPaste:
+            false
         }
     }
     /// What the field holds, exactly as typed, never the corrected form.
@@ -65,6 +71,8 @@ public struct PanelSheetPresentation: Sendable, Equatable {
     public let diff: [TextDiff.Line]
     /// Whether Return would do anything; the reason it would not is in ``note`` or ``conflict``.
     public let isConfirmEnabled: Bool
+    /// Whether the change cannot be compared here, so keeping it takes a second, explicit confirmation.
+    let isUnreviewable: Bool
 
     /// Builds the sheet; the diff is empty unless given.
     public init(
@@ -78,7 +86,8 @@ public struct PanelSheetPresentation: Sendable, Equatable {
         confirmTitle: String,
         isConfirmDestructive: Bool = false,
         isConfirmEnabled: Bool,
-        diff: [TextDiff.Line] = []
+        diff: [TextDiff.Line] = [],
+        isUnreviewable: Bool = false
     ) {
         self.kind = kind
         self.title = title
@@ -91,6 +100,7 @@ public struct PanelSheetPresentation: Sendable, Equatable {
         self.isConfirmDestructive = isConfirmDestructive
         self.isConfirmEnabled = isConfirmEnabled
         self.diff = diff
+        self.isUnreviewable = isUnreviewable
     }
 }
 
@@ -126,6 +136,9 @@ extension PanelPresenter {
 
         case .moving(let id, let draft):
             let named = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+            let refusal = named.isEmpty ? nil : snapshot.collectionRefusal(named)
+            // A taken name is not refused here: the clip is filed into the collection that has it.
+            let filesIntoExisting = if case .taken = refusal { true } else { false }
             return PanelSheetPresentation(
                 kind: .moving,
                 title: "Move to a collection",
@@ -134,54 +147,108 @@ extension PanelPresenter {
                 note: existing(named, in: snapshot).map {
                     "Files it into “\($0)”, which already exists"
                 },
-                conflict: nil,
+                conflict: filesIntoExisting ? nil : refusal.map(reason),
                 collections: collections(of: snapshot, for: id),
                 confirmTitle: "Move",
-                isConfirmEnabled: !named.isEmpty)
+                isConfirmEnabled: !named.isEmpty && (refusal == nil || filesIntoExisting))
 
         case .renamingCategory(let name, let draft):
             let renamed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-            let taken = snapshot.existingCategory(named: renamed, besides: name) != nil
+            let refusal = snapshot.collectionRefusal(renamed, replacing: name)
             return PanelSheetPresentation(
                 kind: .renamingCategory,
                 title: "Rename “\(name)”",
                 draft: draft,
                 placeholder: name,
                 // The reassurance, since renaming a collection looks like it might rename the clips inside.
-                note: taken ? nil : "The clips keep their own names",
-                conflict: taken ? "“\(renamed)” is already a collection" : nil,
+                note: refusal == nil ? "The clips keep their own names" : nil,
+                conflict: refusal.map(reason),
                 collections: [],
                 confirmTitle: "Rename",
-                isConfirmEnabled: !renamed.isEmpty && renamed != name && !taken)
+                isConfirmEnabled: !renamed.isEmpty && renamed != name && refusal == nil)
 
         case .deletingCategory(let name, let keepingClips):
-            let held = snapshot.clips.count { $0.category == name }
+            let clips = snapshot.clips.filter { $0.category == name }
+            let held = clips.count
+            let pinned = clips.count(where: \.isPinned)
+            let named = clips.count { $0.alias != nil }
+            let protectsClips = pinned > 0 || named > 0
+            let isReviewingProtectedDeletion =
+                !keepingClips && snapshot.hasReviewedProtectedCategoryDeletion
             return PanelSheetPresentation(
                 kind: .deletingCategory,
-                title: "Delete “\(name)”?",
+                title: isReviewingProtectedDeletion
+                    ? "Delete kept clips from “\(name)”?" : "Delete “\(name)”?",
                 draft: "",
                 placeholder: "",
                 // Never silently orphaned: the count is the whole question.
                 note: held == 0
                     ? "It holds nothing."
-                    : (keepingClips
-                        ? "Its \(held) clip\(held == 1 ? "" : "s") move to Recent. Nothing is lost."
-                        : "Its \(held) clip\(held == 1 ? "" : "s") are deleted with it."),
-                conflict: keepingClips ? nil : "This cannot be undone",
+                    : (isReviewingProtectedDeletion
+                        ? "This removes \(pinned) pinned and \(named) named clips. Undo is available for 8 seconds."
+                        : (keepingClips
+                            ? "Its \(held) clip\(held == 1 ? "" : "s") move to Recent. Nothing is lost."
+                            : (protectsClips
+                                ? "Its \(held) clips include \(pinned) pinned and \(named) named."
+                                : "Its \(held) clip\(held == 1 ? "" : "s") are deleted with it."))),
+                conflict: keepingClips || isReviewingProtectedDeletion
+                    ? nil : "Undo is available for 8 seconds.",
                 collections: [],
-                confirmTitle: keepingClips ? "Delete collection" : "Delete both",
+                confirmTitle: keepingClips
+                    ? "Delete collection"
+                    : (isReviewingProtectedDeletion
+                        ? "Delete both" : (protectsClips ? "Review deletion" : "Delete both")),
                 isConfirmDestructive: !keepingClips,
                 isConfirmEnabled: true)
 
         case .formatting(let id, let formatted):
             let original = snapshot.clip(id)?.text ?? ""
-            return snapshot.formattingSheets.sheet(from: original, to: formatted)
+            return warningOfUnsavedSecret(
+                PanelCache.current.formattingSheets.sheet(from: original, to: formatted), in: snapshot)
 
         case .reindenting(let id, let formatted):
             let original = snapshot.clip(id)?.text ?? ""
-            return snapshot.formattingSheets.sheet(
-                from: original, to: formatted, title: "Re-indent this code?",
-                confirmTitle: "Apply re-indent", kind: .reindenting)
+            return warningOfUnsavedSecret(
+                PanelCache.current.formattingSheets.sheet(
+                    from: original, to: formatted, title: "Re-indent this code?",
+                    confirmTitle: "Apply re-indent", kind: .reindenting),
+                in: snapshot)
+
+        case .editing(_, let draft):
+            return PanelSheetPresentation(
+                kind: .editing,
+                title: "Edit",
+                draft: draft,
+                placeholder: "",
+                note: nil,
+                conflict: snapshot.hasWarnedOfUnsavedSecret ? PanelSnapshot.unsavedSecretWarning : nil,
+                collections: [],
+                confirmTitle: "Save",
+                isConfirmEnabled: clip.map { snapshot.canSave(draft, over: $0) } ?? false)
+
+        case .confirmingMakeNote:
+            return PanelSheetPresentation(
+                kind: .confirmingMakeNote,
+                title: "Make this clip a note?",
+                draft: "",
+                placeholder: "",
+                note: "The original text stays unchanged. This note formatting cannot be undone.",
+                conflict: nil,
+                collections: [],
+                confirmTitle: "Make note",
+                isConfirmEnabled: true)
+
+        case .confirmingPaste(_, _, let reason):
+            return PanelSheetPresentation(
+                kind: .confirmingPaste,
+                title: reason.title,
+                draft: "",
+                placeholder: "",
+                note: reason.note,
+                conflict: nil,
+                collections: [],
+                confirmTitle: "Paste",
+                isConfirmEnabled: true)
 
         case .confirmingDelete:
             return PanelSheetPresentation(
@@ -206,6 +273,7 @@ extension PanelPresenter {
         let note: String
         let diff: [TextDiff.Line]
         let isConfirmEnabled: Bool
+        var isUnreviewable = false
         switch comparison {
         case .lines(let all):
             let changed = TextDiff.changedLines(in: all)
@@ -218,6 +286,7 @@ extension PanelPresenter {
                 "Too large to compare line by line: \(before) line\(before == 1 ? "" : "s") before, \(after) after"
             diff = []
             isConfirmEnabled = changes
+            isUnreviewable = changes
         }
         return PanelSheetPresentation(
             kind: kind,
@@ -229,7 +298,32 @@ extension PanelPresenter {
             collections: [],
             confirmTitle: confirmTitle,
             isConfirmEnabled: isConfirmEnabled,
-            diff: diff)
+            diff: diff,
+            isUnreviewable: isUnreviewable)
+    }
+
+    /// A rewrite sheet worded for its step: the unsaved-secret warning, or the two presses to keep a change with no diff.
+    private static func warningOfUnsavedSecret(
+        _ sheet: PanelSheetPresentation, in snapshot: PanelSnapshot
+    ) -> PanelSheetPresentation {
+        let acknowledged = snapshot.hasAcknowledgedUnreviewableRewrite
+        let words = sheet.isUnreviewable
+        guard snapshot.hasWarnedOfUnsavedSecret || words else { return sheet }
+        let conflict: String? =
+            snapshot.hasWarnedOfUnsavedSecret
+            ? PanelSnapshot.unsavedSecretWarning
+            : (words && acknowledged
+                ? "Nothing here could be compared. Keeping it replaces the original and cannot be undone."
+                : sheet.conflict)
+        return PanelSheetPresentation(
+            kind: sheet.kind, title: sheet.title, draft: sheet.draft, placeholder: sheet.placeholder,
+            note: sheet.note, conflict: conflict,
+            collections: sheet.collections,
+            confirmTitle: words
+                ? (acknowledged ? "Keep it anyway" : "Keep without a diff") : sheet.confirmTitle,
+            isConfirmDestructive: sheet.isConfirmDestructive,
+            isConfirmEnabled: sheet.isConfirmEnabled, diff: sheet.diff,
+            isUnreviewable: sheet.isUnreviewable)
     }
 
     /// What the conflict line calls the clip holding an alias, which says nothing of a masked secret's text.
@@ -241,6 +335,16 @@ extension PanelPresenter {
     static func note(for proposal: AliasProposal) -> String? {
         guard proposal.wasCorrected else { return nil }
         return "Saved as “\(proposal.corrected)”, so it matches however you type it"
+    }
+
+    /// Why a typed collection name cannot be saved, worded for the line under the field.
+    static func reason(_ refusal: PanelCollectionRefusal) -> String {
+        switch refusal {
+        case .taken(let name): "“\(name)” is already a collection"
+        case .filterName(let filter): "“\(filter)” is already a filter"
+        case .invisibleCharacters: "Use only visible characters, on one line"
+        case .tooLong: "Use at most \(PanelCollectionName.maximumLength) characters"
+        }
     }
 
     /// Warns before a second collection is made under an existing name; silent when the spelling matches.

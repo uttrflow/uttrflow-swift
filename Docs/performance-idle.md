@@ -157,16 +157,28 @@ wakeups read with `proc_pid_rusage` over 30 s:
 | 500 ms, 100 ms tolerance (shipped) | 1.7 | ≈ 0.02% |
 | 1 s, 200 ms tolerance | 1.0 | ≈ 0.01% |
 
-⌘C followed by the panel shortcut is one hand movement, so `toggleQuickPanel` calls
-`PasteboardWatcher.catchUp` before it reads the clips, and a copy made a moment before is in the
-panel whatever the cadence. What 500 ms gives up: the clipboard holds only its latest contents, so
-two copies inside one interval keep only the second.
+⌘C followed by the panel shortcut is one hand movement, so `toggleQuickPanel` starts
+`PasteboardWatcher.catchUp` on every open, without waiting for it, and a copy made since the last
+poll reaches the open panel through the refresh that lists it
+([`app-quick-panel.md`](app-quick-panel.md)) whatever the cadence. What 500 ms gives up: the clipboard holds only its latest contents, so
+two copies inside one interval keep only the second. The measured 1.7 wakeups a second is the
+steady idle cost; it remains the cadence while no recent user copy is being recorded.
+
+After the watcher records a user copy, it polls at 100 ms with a 20 ms tolerance. Each newly
+recorded copy restarts a four-second quiet window; when that window expires, the watcher returns to
+the 500 ms idle cadence. This window spans the measured four-second sequence of 20 copies at
+200 ms intervals without raising the steady idle wakeup rate. In the fake-source run-loop test, the
+original 500 ms-only cadence recorded 9 of 20 copies; the adaptive cadence must record at least 17.
+That test also checks for the faster polling gaps during the burst and a return to a 500 ms-scale
+gap after the quiet window. It measures the watcher schedule and captured copies, not whole-process
+wakeups on a Mac; the 1.7 wakeups-per-second figure above remains the separate process measurement.
 
 ## Classifying a copy
 
 Every text copy up to the 2 MB clip bound goes through `ClipKindDetector.kind(of:)`. The watcher
 calls it on its own actor, inside the utility-priority task `AppDelegate` starts, never on the main
-thread; opening the panel awaits `catchUp`, which classifies a pending copy while the panel waits.
+thread. The catch-up an open starts classifies a pending copy in its own task while the panel
+opens, so no classification holds the panel shut.
 A clip typed into the panel or kept from a dictation goes through `ClipKindDetector.classify(_:)`,
 a detached utility task awaited through a continuation so the wait does not raise its priority.
 
@@ -177,7 +189,8 @@ a detached utility task awaited through a continuation so the wait does not rais
   Up to `budget` (64,000 bytes) a clip is read whole. Above it, the first and last `edge` (16,000
   bytes) and `windows` (16) windows of `window` (2,000 bytes) spread evenly between, each trimmed
   to whole lines where it holds a line break. The whole-clip checks that cost nothing — a shebang,
-  an import on the first line, a one-line shell command — still see the whole clip.
+  an import on the first line, shell commands, read line by line until the first line that is not
+  one — still see the whole clip.
 - **Two signals end the count**, cheapest first, and a pattern is skipped when the bytes lack a
   literal it cannot match without.
 

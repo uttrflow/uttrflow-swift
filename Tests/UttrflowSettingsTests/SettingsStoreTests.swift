@@ -155,6 +155,30 @@ struct SettingsTests {
         #expect(!restored.handsFreeEnabled)
     }
 
+    /// A file written before the choices keeps every dictation; saved choices read back as saved.
+    @Test func historyKeepingChoicesDefaultToKeepingAndSurviveASave() throws {
+        #expect(!Settings.default.keepsNoTranscripts)
+        #expect(Settings.default.historyExcludedApplications.isEmpty)
+        let empty = try JSONDecoder().decode(Settings.self, from: Data("{}".utf8))
+        #expect(!empty.keepsNoTranscripts)
+        #expect(empty.historyExcludedApplications.isEmpty)
+        let saved = Settings(
+            keepsNoTranscripts: true, historyExcludedApplications: ["com.example.records"])
+        let restored = try JSONDecoder().decode(Settings.self, from: JSONEncoder().encode(saved))
+        #expect(restored.keepsNoTranscripts)
+        #expect(restored.historyExcludedApplications == ["com.example.records"])
+    }
+
+    /// Learning stays on for a file written before the switch, and off once somebody turns it off.
+    @Test("learning from dictation is on by default and keeps the user's choice")
+    func learningDefaultsOnAndSticks() throws {
+        #expect(Settings.default.learnsFromDictation)
+        #expect(try JSONDecoder().decode(Settings.self, from: Data("{}".utf8)).learnsFromDictation)
+        let restored = try JSONDecoder().decode(
+            Settings.self, from: JSONEncoder().encode(Settings(learnsFromDictation: false)))
+        #expect(!restored.learnsFromDictation)
+    }
+
     /// Crash reports stay off for anyone who never chose, and on for anyone who did.
     @Test("crash reports are off by default and keep the user's choice")
     func crashReportsAreOptIn() throws {
@@ -291,6 +315,14 @@ struct SettingsTests {
         #expect(unknown.handsFreeDoubleTapMilliseconds == 450)
     }
 
+    @Test("ending on silence is off by default, keeps a listed wait, and turns an unlisted one off")
+    func endOnSilenceSetting() throws {
+        #expect(try decode("{} ").endOnSilenceSeconds == 0)
+        #expect(try decode(#"{"endOnSilenceSeconds": 4}"#).endOnSilenceSeconds == 4)
+        #expect(try decode(#"{"endOnSilenceSeconds": 3}"#).endOnSilenceSeconds == 0)
+        #expect(Settings(endOnSilenceSeconds: 8).endOnSilenceSeconds == 8)
+    }
+
     @Test("the hold length defaults to 200 ms and ignores an unlisted value")
     func handsFreeHoldSetting() throws {
         #expect(try decode("{} ").handsFreeHoldMilliseconds == 200)
@@ -310,6 +342,16 @@ struct SettingsTests {
 
         #expect(settings.transcriptRetentionDays == Settings.maximumFiniteRetentionDays)
         #expect(settings.clipboardRetentionDays == Settings.maximumFiniteRetentionDays)
+    }
+
+    @Test("a copied secret clears after a minute unless the file says otherwise")
+    func secretClearDelay() throws {
+        #expect(Settings().secretClipboardClearSeconds == 60)
+        func decoded(_ json: String) throws -> Settings { try decode(json) }
+        #expect(try decoded("{}").secretClipboardClearSeconds == 60)
+        #expect(try decoded(#"{"secretClipboardClearSeconds": 0}"#).secretClipboardClearSeconds == 0)
+        #expect(try decoded(#"{"secretClipboardClearSeconds": 15}"#).secretClipboardClearSeconds == 15)
+        #expect(try decoded(#"{"secretClipboardClearSeconds": -5}"#).secretClipboardClearSeconds == 60)
     }
 
     @Test("keeps transcript Always distinct while capping clipboard retention")
@@ -806,5 +848,84 @@ struct SettingsSuggestionsTests {
         let settings = try decode(#"{"opensAtLogin": false, "suggestions": "on"}"#)
         #expect(settings.suggestions == .default)
         #expect(!settings.opensAtLogin)
+    }
+
+    @Test("a blob without a microphone follows the system default")
+    func noMicrophoneIsTheDefault() throws {
+        #expect(try decode(#"{"opensAtLogin": false}"#).microphoneUID == nil)
+    }
+
+    @Test("a chosen microphone survives a save and a load")
+    func chosenMicrophoneRoundTrips() throws {
+        var settings = Settings.default
+        settings.microphoneUID = "fixture-input-uid"
+        let data = try JSONEncoder().encode(settings)
+        #expect(try JSONDecoder().decode(Settings.self, from: data).microphoneUID == "fixture-input-uid")
+    }
+
+    @Test("a chosen context level survives a save and a load")
+    func contextLevelRoundTrips() {
+        var settings = Settings.default
+        settings.contextLevel = .identity
+        let store = UserDefaultsSettingsStore(store: InMemoryKeyValueStore())
+        store.save(settings)
+        #expect(store.load().contextLevel == .identity)
+    }
+
+    @Test("a missing or unreadable context level reads the text near the caret, and costs nothing else")
+    func contextLevelDefaultsAlone() throws {
+        #expect(Settings.default.contextLevel == .nearCaret)
+        #expect(try decode(#"{"opensAtLogin": false}"#).contextLevel == .nearCaret)
+        let unreadable = try decode(#"{"opensAtLogin": false, "contextLevel": "everything"}"#)
+        #expect(unreadable.contextLevel == .nearCaret)
+        #expect(!unreadable.opensAtLogin)
+    }
+
+    @Test("an application's own context level survives a save and a load")
+    func contextLevelOverridesRoundTrip() {
+        var settings = Settings.default
+        settings.contextLevelOverrides = ContextLevelOverrides.none
+            .setting(.identity, for: "com.example.vault", named: "Vault")
+        let store = UserDefaultsSettingsStore(store: InMemoryKeyValueStore())
+        store.save(settings)
+        let loaded = store.load()
+        #expect(loaded.contextLevelOverrides == settings.contextLevelOverrides)
+        #expect(
+            loaded.contextLevelOverrides.level(forBundleIdentifier: "com.example.vault", default: .nearCaret)
+                == .identity)
+    }
+
+    @Test("an unreadable context level entry costs only that entry")
+    func unreadableContextLevelOverrideCostsItself() throws {
+        let settings = try decode(
+            #"{"opensAtLogin": false, "contextLevelOverrides": {"overrides": ["#
+                + #"{"bundleIdentifier": "com.example.vault", "level": "identity"},"#
+                + #"{"bundleIdentifier": "com.example.notes", "level": "everything"},"#
+                + #"{"level": "identity"}]}}"#)
+        #expect(settings.contextLevelOverrides.overrides.map(\.bundleIdentifier) == ["com.example.vault"])
+        #expect(!settings.opensAtLogin)
+        #expect(try decode(#"{"contextLevelOverrides": 3}"#).contextLevelOverrides == .none)
+    }
+}
+
+/// Whether a hidden clip's paste asks first is on until the user turns it off.
+@Suite("Confirming hidden clip pastes")
+struct HiddenClipConfirmationSettingTests {
+    @Test("it is on by default and when an older file lacks it")
+    func defaultsOn() throws {
+        #expect(Settings.default.confirmsHiddenClipPaste)
+        let older = try JSONDecoder().decode(Settings.self, from: Data("{}".utf8))
+        #expect(older.confirmsHiddenClipPaste)
+    }
+
+    @Test("turning it off survives a round trip")
+    func roundTrips() throws {
+        var settings = Settings.default
+        settings.confirmsHiddenClipPaste = false
+
+        let data = try JSONEncoder().encode(settings)
+        let decoded = try JSONDecoder().decode(Settings.self, from: data)
+
+        #expect(!decoded.confirmsHiddenClipPaste)
     }
 }

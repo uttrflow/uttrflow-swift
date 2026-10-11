@@ -3,9 +3,9 @@
 import Darwin
 import Foundation
 import Testing
-import UttrflowCore
 
 @testable import UttrflowAI
+@testable import UttrflowCore
 
 @Suite("The context scorer prefers a candidate only when the surrounding words separate it clearly")
 struct ContextScorerTests {
@@ -60,13 +60,52 @@ struct ContextScorerTests {
         #expect(abs(mixed.log10Probability(of: "cash", after: ["the"]) - expected) < 1e-5)
     }
 
+    @Test("Behind the span seam, the reading the neighbours prefer is offered first")
+    func spanScorerLiftsFittingReading() async throws {
+        let source = ScriptedCandidates(["cashe": ["Cash", "cache"]])
+        let doubtful = DoubtfulWords(sources: [source], scorer: ContextSpanScorer(context: try scorer()))
+        let spans = await doubtful.spans(in: .heard("the ?cashe hit"), for: .unknown)
+        #expect(spans.first?.candidates.map(\.spelling) == ["cache", "Cash"])
+    }
+
+    @Test("Behind the span seam, an undecided context keeps the sources' order")
+    func spanScorerUndecidedKeepsOrder() async throws {
+        let source = ScriptedCandidates(["cashe": ["Cash", "cache"]])
+        let undecided = DoubtfulWords(
+            sources: [source], scorer: ContextSpanScorer(context: try scorer(margin: 10)))
+        let spans = await undecided.spans(in: .heard("the ?cashe hit"), for: .unknown)
+        #expect(spans.first?.candidates.map(\.spelling) == ["Cash", "cache"])
+        let set = HypothesisSet(heard: "cashe", confidence: 0.2, answers: [["Cash", "cache"]])
+        #expect(ContextSpanScorer(context: try scorer()).cost == .lookup)
+        #expect(ContextSpanScorer(context: try scorer()).scores(for: set) == [0, -1])
+    }
+
+    @Test("Probe: a counted user model scores ten candidates of a span in under 1 ms")
+    func probeCountedModel() throws {
+        var generator = SyntheticARPA.Generator(state: 0x2545_F491_4F6C_DD1D)
+        let sentences = (0..<20_000).map { _ in (0..<12).map { _ in "w\(generator.word(below: 5_000))" } }
+        var model: NGramModel?
+        let build = measureThreadCPU { model = NGramModel.counted(sentences) }
+        let built = try #require(model)
+        let scorer = ContextScorer(model: InterpolatedLanguageModel([.init(model: built, weight: 1)]))
+        let candidates = (0..<10).map { ["w\($0 * 7)", "w\($0 * 13)"] }
+        let rounds = 1_000
+        let elapsed = measureThreadCPU {
+            for round in 0..<rounds {
+                _ = scorer.verdict(
+                    on: candidates, between: ["w\(round % 500)", "w\(round % 300)"], and: ["w1", "w2"])
+            }
+        }
+        print("ngram-probe counted nGrams=\(built.nGramCount) build=\(build) perSpan=\(elapsed / rounds)")
+        #expect(elapsed / rounds < .milliseconds(1))
+    }
+
     @Test("Probe: a pruned 3-gram of 400,000 n-grams scores ten candidates of a span in under 1 ms")
     func probeSpeedAndMemory() throws {
         let text = SyntheticARPA.text(vocabulary: 20_000, bigrams: 200_000, trigrams: 200_000)
         let before = SyntheticARPA.footprintBytes()
-        let clock = ContinuousClock()
         var model: NGramModel?
-        let load = clock.measure { model = try? ARPAReader.model(from: text) }
+        let load = measureThreadCPU { model = try? ARPAReader.model(from: text) }
         let loaded = try #require(model)
         let resident = SyntheticARPA.footprintBytes() - before
         let scorer = ContextScorer(
@@ -75,7 +114,7 @@ struct ContextScorerTests {
             ]))
         let candidates = (0..<10).map { ["w\($0 * 7)", "w\($0 * 13)"] }
         let rounds = 1_000
-        let elapsed = clock.measure {
+        let elapsed = measureThreadCPU {
             for round in 0..<rounds {
                 _ = scorer.verdict(
                     on: candidates, between: ["w\(round % 500)", "w\(round % 300)"], and: ["w1", "w2"])
@@ -87,6 +126,13 @@ struct ContextScorerTests {
         )
         #expect(perSpan < .milliseconds(1))
     }
+}
+
+/// The CPU time this thread spends in `work`, which other work on a loaded machine does not add to.
+private func measureThreadCPU(_ work: () -> Void) -> Duration {
+    let start = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)
+    work()
+    return .nanoseconds(Int64(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - start))
 }
 
 /// A deterministic random ARPA file of a given size, for measuring the reader and scorer without a real corpus.
@@ -130,7 +176,7 @@ enum SyntheticARPA {
         return status == KERN_SUCCESS ? Int(info.phys_footprint) : 0
     }
 
-    private struct Generator {
+    struct Generator {
         var state: UInt64
 
         mutating func next() -> UInt64 {

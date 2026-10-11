@@ -3,6 +3,7 @@
 import CoreAudio
 import Foundation
 import UttrflowAI
+import UttrflowAudio
 import UttrflowCore
 import UttrflowSettings
 import UttrflowSpeech
@@ -12,13 +13,21 @@ import UttrflowUX
 extension SettingsCapabilities {
     /// What is knowable without waiting; optimistic about the model until `refreshed()` corrects it.
     static func thisMac() -> SettingsCapabilities {
-        SettingsCapabilities(
+        var capabilities = SettingsCapabilities(
             launchAtLogin: LaunchAtLogin().status,
             canPlayRecordingSound: hasAudioOutput,
             canCheckForUpdates: UpdateController.isConfigured,
             versionDescription: versionDescription,
             readyTransformers: Set(TransformerKind.selectable),
-            globeKeyAction: GlobeKeySettings.action)
+            globeKeyAction: GlobeKeySettings.action,
+            microphones: SystemInputDeviceCatalog().inputDevices().map {
+                SettingsMicrophone(uid: $0.uid, name: $0.name)
+            })
+        capabilities.cleaningPreviewer = CleaningPreviewer { step, steps in
+            let preview = CleaningStepPreview.of(step, steps: steps)
+            return CleaningStepSample(without: preview.without, with: preview.with)
+        }
+        return capabilities
     }
 
     /// The same answers with the clean-up engines that answered they could run for `profile`'s language.

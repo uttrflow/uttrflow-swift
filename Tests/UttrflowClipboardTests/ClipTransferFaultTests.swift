@@ -75,7 +75,9 @@ struct ClipTransferFaultTests {
         #expect(await reopened.clips(keeping: week()).filter { $0.id == subject.id }.count == 1)
         try await reopened.record(clip("a new copy", at: 180), keeping: week())
 
-        let history = try JSONDecoder().decode([Clip].self, from: try Data(contentsOf: file.url))
+        let history = try JSONDecoder().decode(
+            ClipboardIndex.self, from: try Data(contentsOf: file.url)
+        ).clips
         #expect(!history.contains { $0.id == subject.id })
     }
 }

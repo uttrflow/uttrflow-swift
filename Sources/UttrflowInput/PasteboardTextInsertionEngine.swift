@@ -128,7 +128,8 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
         {
             throw .clipboardChanged
         }
-        guard readback == text else { throw .clipboardUnavailable }
+        guard InsertionPasteboardReadback.matches(readback, for: text) else { throw .clipboardUnavailable }
+        let pastedText = readback ?? text
         let verifiedChangeCount = writeChangeCount
         // Read before the paste is posted, so an unchanged caret cannot be read back as a fresh landing.
         let before: FieldTail =
@@ -152,7 +153,7 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
         // Posting a paste proves nothing, so this waits for the words the way the write above is read back.
         let outcome =
             confirmsArrival
-            ? await confirmation.waitFor(text, before: before)
+            ? await confirmation.waitFor(pastedText, before: before)
             : PasteConfirmation.Outcome.notReported
         // Panel insertion has no arrival notice, so it does not need to report confirmation either.
         if confirmsArrival { report?(outcome) }

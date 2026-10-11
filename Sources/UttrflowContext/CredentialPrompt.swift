@@ -7,7 +7,7 @@ enum CredentialPrompt {
         "passcode", "code", "otp", "token", "पासवर्ड", "पासफ़्रेज़", "पिन", "कोड", "टोकन",
     ]
 
-    private static let ambiguousBareTerms: Set<String> = ["code", "token"]
+    private static let ambiguousBareTerms: Set<String> = ["code"]
 
     private static let introducers: Set<String> = [
         "a", "again", "authentication", "confirm", "current", "de", "empty", "enter", "factor",
@@ -16,17 +16,26 @@ enum CredentialPrompt {
         "verification", "your",
     ]
 
+    private static let tokenIntroducers: Set<String> = ["access", "api", "personal"]
+
     private static let colons: Set<Character> = [":", "：", "﹕", "︓"]
 
     static func matches(_ line: String) -> Bool {
         let prefix = line.prefix(ShellPrompt.searchLimit)
-        guard let colon = prefix.firstIndex(where: colons.contains) else {
+        let colonIndices = prefix.indices.filter { colons.contains(prefix[$0]) }
+        guard !colonIndices.isEmpty else {
             guard prefix.endIndex == line.endIndex else { return false }
             let label = String(prefix).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             return terms.contains(label) && !ambiguousBareTerms.contains(label)
         }
-        let label = String(prefix[..<colon]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        return introducesCredential(label)
+        // A colon inside a quoted or URL-shaped owner is not the end of the label, so each colon is tried.
+        return colonIndices.contains { colon in
+            let label = String(prefix[..<colon]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if label == "token" {
+                return prefix[prefix.index(after: colon)...].allSatisfy(\.isWhitespace)
+            }
+            return introducesCredential(label)
+        }
     }
 
     private static func introducesCredential(_ label: String) -> Bool {
@@ -37,7 +46,12 @@ enum CredentialPrompt {
         }
 
         let introduction = words[..<credentialIndex]
-        if introduction.allSatisfy(introducers.contains) { return true }
+        if introduction.allSatisfy({
+            introducers.contains($0)
+                || (words[credentialIndex] == "token" && tokenIntroducers.contains($0))
+        }) {
+            return true
+        }
         if introduction.elementsEqual(["sudo"]), label.hasPrefix("[sudo]") { return true }
         guard let range = label.range(of: words[credentialIndex]) else { return false }
         let prefix = label[..<range.lowerBound].trimmingCharacters(in: .whitespacesAndNewlines)
@@ -45,24 +59,45 @@ enum CredentialPrompt {
         return isPossessiveCredentialPrompt(prefix)
     }
 
-    /// A leading term is a prompt only as a complete label or before a simple `for` subject.
+    /// A leading term takes one introduced qualifier or one simple `for` subject.
     private static func startsCredentialPrompt(_ label: String, term: String) -> Bool {
         guard let range = label.range(of: term) else { return false }
         let suffix = label[range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
         guard !suffix.isEmpty else { return !ambiguousBareTerms.contains(term) }
+        if suffix.first == "(", suffix.last == ")" {
+            let qualifier = suffix.dropFirst().dropLast().trimmingCharacters(in: .whitespacesAndNewlines)
+            return introducers.contains(qualifier)
+        }
         let words = suffix.split(whereSeparator: \.isWhitespace)
         guard words.count == 2, words.first == "for" else { return false }
         return isCredentialOwner(String(words[1]))
     }
 
-    /// An owner is one name or email address, never a command argument or path.
-    private static func isCredentialOwner(_ owner: String) -> Bool {
+    /// An owner is one name, `user@host` or URL, optionally quoted, never a command argument or path.
+    private static func isCredentialOwner(_ quotedOwner: String) -> Bool {
+        let owner = addressPart(of: unquoted(quotedOwner))
         let parts = owner.split(separator: "@", omittingEmptySubsequences: false)
         guard parts.count <= 2, parts.allSatisfy({ !$0.isEmpty }) else { return false }
-        if parts.count == 2, !parts[1].contains(".") { return false }
         return owner.allSatisfy { character in
             character.isLetter || character.isNumber || "@._-".contains(character)
         } && !owner.hasPrefix(".") && !owner.hasSuffix(".")
+    }
+
+    private static func unquoted(_ owner: String) -> String {
+        let pairs: [(Character, Character)] = [("'", "'"), ("\"", "\""), ("‘", "’"), ("“", "”")]
+        guard owner.count >= 2, let first = owner.first, let last = owner.last,
+            pairs.contains(where: { $0.0 == first && $0.1 == last })
+        else { return owner }
+        return String(owner.dropFirst().dropLast())
+    }
+
+    /// A URL owner is judged by its `user@host` part; the scheme is letters and the path is at most `/`.
+    private static func addressPart(of owner: String) -> String {
+        guard let separator = owner.range(of: "://") else { return owner }
+        let scheme = owner[..<separator.lowerBound]
+        guard !scheme.isEmpty, scheme.allSatisfy(\.isLetter) else { return owner }
+        let rest = owner[separator.upperBound...]
+        return String(rest.hasSuffix("/") ? rest.dropLast() : rest)
     }
 
     /// A possessive owner stands alone, or follows only words that introduce a prompt.

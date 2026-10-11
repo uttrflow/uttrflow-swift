@@ -45,9 +45,9 @@ public struct ErrorClassifier: Sendable {
         }
     }
 
-    /// Counts per class over many alignments; a class nobody hit is absent.
-    public func counts(_ alignments: [[WordErrorRate.Operation]]) -> [ErrorClass: Int] {
-        alignments.flatMap(classify).reduce(into: [:]) { $0[$1, default: 0] += 1 }
+    /// This classifier, also treating `names` as proper nouns.
+    func adding(properNouns names: [String]) -> Self {
+        names.isEmpty ? self : Self(sameSound: sameSound, properNouns: properNouns.union(names))
     }
 
     private func classify(_ operation: WordErrorRate.Operation) -> ErrorClass {
@@ -94,15 +94,10 @@ public struct ErrorClassifier: Sendable {
     }
 
     static func isNumeral(_ word: String) -> Bool {
-        word.contains(where: \.isNumber) || numberWords.contains(word.lowercased())
+        let lowered = word.lowercased()
+        return word.contains(where: \.isNumber) || NumberWords.value(of: lowered) != nil
+            || QuantityWords.numerals.contains(lowered)
     }
-
-    static let numberWords: Set<String> = [
-        "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven",
-        "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen",
-        "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety", "hundred",
-        "thousand", "million", "billion", "first", "second", "third", "half", "percent",
-    ]
 
     /// Whether two different words reduce to one stem under the suffix table below.
     static func shareStem(_ word: String, _ other: String) -> Bool {
@@ -138,7 +133,12 @@ extension TranscriptionReport {
     public func errorClasses(
         by classifier: ErrorClassifier
     ) -> [(errorClass: ErrorClass, count: Int, share: Double)] {
-        let counts = classifier.counts(scored.compactMap { $0.wordErrorRate?.alignment })
+        let counts = scored.reduce(into: [ErrorClass: Int]()) { counts, score in
+            guard let alignment = score.wordErrorRate?.alignment else { return }
+            for errorClass in classifier.adding(properNouns: score.properNouns).classify(alignment) {
+                counts[errorClass, default: 0] += 1
+            }
+        }
         let total = counts.values.reduce(0, +)
         guard total > 0 else { return [] }
         return ErrorClass.allCases.compactMap { errorClass in

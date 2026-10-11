@@ -100,7 +100,7 @@ struct RegisterPropertyTests {
         // A typical line sets the budget in a reply too, so a terse person is not given a paragraph's room.
         if let typical = register.typicalLength {
             #expect(register.maxTokens == min(max(typical / 2, 24), 96))
-        } else if register.symbolShare > Register.symbolicShare {
+        } else if !register.isConversational && register.symbolShare > Register.symbolicShare {
             #expect(register.maxTokens == 32)
         } else {
             #expect(register.maxTokens == (register.isConversational ? 48 : 64))
@@ -148,16 +148,28 @@ struct RegisterPropertyTests {
     func symbolShareIsAShare(sample: RegisterCase) {
         let register = Register.infer(from: sample.situation, typed: sample.typed)
         #expect((0.0...1.0).contains(register.symbolShare))
-        let visible = ([sample.situation.preceding ?? "", sample.typed] + sample.situation.recentLines)
-            .joined()
-            .filter { !$0.isWhitespace && !Register.isPictograph($0) }
-        let symbols = visible.filter {
-            !$0.isLetter && !$0.isNumber && !".!?,'\"‘’“”".contains($0)
-        }.count
+        let lines = ([sample.situation.preceding ?? "", sample.typed] + sample.situation.recentLines)
+            .flatMap { $0.split(whereSeparator: \.isNewline) }
+        // A line with a flag or a path separator is a command, and its dots and quotes are shell syntax, not prose.
+        let commands = lines.map { line in
+            line.contains { "/\\|$`=<>;".contains($0) }
+                || line.split(whereSeparator: \.isWhitespace).contains {
+                    $0.first == "-" && $0.drop { $0 == "-" }.first?.isLetter == true
+                }
+        }
+        var visible = 0
+        var symbols = 0
+        for (line, isCommand) in zip(lines, commands) {
+            for character in line where !character.isWhitespace && !Register.isPictograph(character) {
+                visible += 1
+                let prose = ",!?".contains(character) || (!isCommand && ".'\"‘’“”".contains(character))
+                if !character.isLetter, !character.isNumber, !prose { symbols += 1 }
+            }
+        }
         let expected =
-            visible.count < Register.minimumSymbolSampleCharacters
+            visible < Register.minimumSymbolSampleCharacters && !commands.contains(true)
             ? 0
-            : Double(symbols) / Double(visible.count)
+            : Double(symbols) / Double(visible)
         #expect(register.symbolShare == expected)
     }
 
@@ -190,7 +202,7 @@ struct RegisterPropertyTests {
         let symbolic = hints.contains("the text here is commands, code or queries rather than prose")
         #expect(!(formal && casual))
         #expect(!(symbolic && (formal || casual)))
-        #expect(symbolic == (register.symbolShare > Register.symbolicShare))
+        #expect(symbolic == (!register.isConversational && register.symbolShare > Register.symbolicShare))
         #expect(hints.first == (register.isMultiline ? "a multi-line field" : "a single-line field"))
         // A terse person's length is quoted everywhere but in a reply, where it would ask for a word.
         let quoted =

@@ -1,3 +1,5 @@
+import UttrflowCore
+
 /// The rules that draw nothing whatever the candidates say, so the feature is quiet by default.
 public enum Quieting {
     /// How long a prose writer must pause before a suggestion is worth their attention.
@@ -34,7 +36,7 @@ public enum Quieting {
 
     /// Why nothing is on offer, from the moment's own rules or from the turn that followed them.
     public enum Reason: String, Sendable, Equatable, CaseIterable {
-        /// Suggestions are off in this field, by ⎋⎋, by ⌥⎋ or by the preferences.
+        /// Suggestions are off in this field, by ⌥⎋ or by the preferences.
         case turnedOffHere
         /// The field hides what is typed into it.
         case secureField
@@ -60,7 +62,7 @@ public enum Quieting {
         case emptyLine
         /// A list line holding only its marker, so nothing of the item has been typed yet.
         case listMarkerOnly
-        /// A line past `SuggestionSession.maximumTypedLength` is a document, not a prefix.
+        /// A line past `TypedLine.maximumLength` is a document, not a prefix.
         case lineTooLong
         /// The line holds another script, where nothing Uttrflow may write belongs. See `Docs/predict.md`.
         case nonLatinLine

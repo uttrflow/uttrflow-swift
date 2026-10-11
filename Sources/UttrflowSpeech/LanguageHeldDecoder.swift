@@ -1,5 +1,7 @@
 // Language detection held to the languages the product transcribes, and a decode judged by its language.
 import CoreML
+import Foundation
+import Synchronization
 import UttrflowCore
 import WhisperKit
 
@@ -7,9 +9,15 @@ import WhisperKit
 struct AllowedLanguageSampler: TokenSampling {
     /// The language tokens detection may answer with, in the order a tie is broken.
     let allowedTokens: [Int]
+    /// Every language token the model has, whose likeliest the sampler reads without letting it decide.
+    var languageTokens: [Int] = []
+    /// What the model answers when detection is not held.
+    let unrestricted = UnrestrictedLanguage()
 
     /// The allowed language token with the highest logit, appended with its probability among the allowed ones.
     func update(tokens: [Int], logits: MLMultiArray, logProbs: [Float]) async -> SamplingResult {
+        unrestricted.observe(
+            languageTokens, scores: languageTokens.map { logits[[0, 0, $0] as [NSNumber]].floatValue })
         let scores = allowedTokens.map { logits[[0, 0, $0] as [NSNumber]].floatValue }
         guard let best = scores.indices.max(by: { scores[$0] < scores[$1] }) else {
             return SamplingResult(tokens: tokens, logProbs: logProbs, completed: true)
@@ -39,6 +47,29 @@ struct AllowedLanguageSampler: TokenSampling {
     }
 }
 
+/// The likeliest language token among all of them, and its probability among all of them.
+final class UnrestrictedLanguage: Sendable {
+    /// The likeliest token and its probability.
+    struct Choice: Equatable {
+        let token: Int
+        let probability: Double
+    }
+
+    private let observed = Mutex<Choice?>(nil)
+
+    /// The last observation, or `nil` when there is none.
+    var choice: Choice? { observed.withLock { $0 } }
+
+    /// Records the likeliest of `tokens` given their `scores`, or forgets the last when there are none.
+    func observe(_ tokens: [Int], scores: [Float]) {
+        let best = scores.indices.max { scores[$0] < scores[$1] }
+        let probabilities = AllowedLanguageSampler.logSoftmax(scores)
+        observed.withLock {
+            $0 = best.map { Choice(token: tokens[$0], probability: Double(exp(probabilities[$0]))) }
+        }
+    }
+}
+
 /// A text decoder whose detection is held to `languages` and whose window decode is a `DecodeSession`.
 final class LanguageHeldDecoder: TextDecoding {
     /// Each transcribed language's compression-ratio decision; `nil` keeps Whisper's 2.4. See `Docs/speech-engines.md`.
@@ -47,8 +78,15 @@ final class LanguageHeldDecoder: TextDecoding {
     /// The reason WhisperKit names a compression fallback by, a raw string that `WhisperKitContractTests` pins.
     static let compressionFallbackReason = "compressionRatioThreshold"
 
-    /// The fallback WhisperKit decided on, re-judged with the language's own compression-ratio threshold.
+    /// The reason WhisperKit names a silence verdict by; a silent window is final and is never retried warmer.
+    static let silenceFallbackReason = "silence"
+
+    /// The fallback WhisperKit decided on, silence first, a compression verdict re-judged per language.
     static func judged(_ result: DecodingResult, options: DecodingOptions) -> DecodingFallback? {
+        // Whisper puts silence first; WhisperKit checks the first token before it, and the warm retry invents text.
+        if let threshold = options.noSpeechThreshold, result.noSpeechProb > threshold {
+            return DecodingFallback(needsFallback: false, fallbackReason: silenceFallbackReason)
+        }
         guard let fallback = result.fallback, fallback.fallbackReason == compressionFallbackReason,
             let language = options.language, let threshold = compressionRatioThresholds[language] ?? nil
         else { return result.fallback }
@@ -64,6 +102,10 @@ final class LanguageHeldDecoder: TextDecoding {
     private let languages: [LanguageCode]
     /// Every decode window's per-step entropy, one record per `decodeText` call, fallback retries included.
     let windows: DecodeWindowLog
+    /// Prefill time, prompt steps and timestamp steps since the last `drainSplit`, which WhisperKit's timings omit.
+    private let split = Mutex(RecognitionTimings.zero)
+    /// The untranscribed language the last detection is certain of, which the next decode refuses.
+    private let refusal = Mutex<LanguageCode?>(nil)
 
     init(
         wrapping inner: any TextDecoding, languages: [LanguageCode],
@@ -72,6 +114,15 @@ final class LanguageHeldDecoder: TextDecoding {
         self.inner = inner
         self.languages = languages
         self.windows = windows
+    }
+
+    /// The split recorded since the last drain, leaving it and any unread refusal empty for the next piece.
+    func drainSplit() -> RecognitionTimings {
+        refusal.withLock { $0 = nil }
+        return split.withLock { recorded in
+            defer { recorded = .zero }
+            return recorded
+        }
     }
 
     /// Detects among the allowed languages greedily, ignoring the fallback temperature it is handed.
@@ -87,16 +138,28 @@ final class LanguageHeldDecoder: TextDecoding {
                 for: languages, among: tokenizer.allLanguageTokens,
                 lookUp: tokenizer.convertTokenToId)
         }
+        refusal.withLock { $0 = nil }
         // A tokenizer that knows none of them detects as WhisperKit would, rather than not at all.
         guard let allowed, !allowed.isEmpty else {
             return try await inner.detectLanguage(
                 from: encoderOutput, using: decoderInputs, sampler: tokenSampler,
                 options: options, temperature: temperature)
         }
-        return try await inner.detectLanguage(
-            from: encoderOutput, using: decoderInputs,
-            sampler: AllowedLanguageSampler(allowedTokens: allowed), options: options,
-            temperature: 0)
+        let sampler = AllowedLanguageSampler(
+            allowedTokens: allowed, languageTokens: tokenizer?.allLanguageTokens.sorted() ?? [])
+        let detected = try await inner.detectLanguage(
+            from: encoderOutput, using: decoderInputs, sampler: sampler, options: options, temperature: 0)
+        refusal.withLock { $0 = refused(sampler.unrestricted.choice) }
+        return detected
+    }
+
+    /// The untranscribed language the model is certain of, if any.
+    private func refused(_ choice: UnrestrictedLanguage.Choice?) -> LanguageCode? {
+        guard let choice, let token = tokenizer?.convertIdToToken(choice.token),
+            let heard = UnsupportedLanguageRefusal.language(ofToken: token)
+        else { return nil }
+        return UnsupportedLanguageRefusal.language(
+            heard: heard, probability: choice.probability, transcribed: languages)
     }
 
     var tokenizer: (any WhisperTokenizer)? {
@@ -132,7 +195,12 @@ final class LanguageHeldDecoder: TextDecoding {
     func prefillDecoderInputs(
         _ decoderInputs: any DecodingInputsType, withOptions options: DecodingOptions?
     ) async throws -> any DecodingInputsType {
-        try await inner.prefillDecoderInputs(decoderInputs, withOptions: options)
+        let start = Date()
+        defer {
+            let seconds = Date().timeIntervalSince(start)
+            split.withLock { $0 = $0.adding(RecognitionTimings(prefillSeconds: seconds)) }
+        }
+        return try await inner.prefillDecoderInputs(decoderInputs, withOptions: options)
     }
 
     func decodeText(
@@ -142,14 +210,25 @@ final class LanguageHeldDecoder: TextDecoding {
         options decoderOptions: DecodingOptions,
         callback: TranscriptionCallback?
     ) async throws -> DecodingResult {
-        let evidence = EvidenceSampler(wrapping: tokenSampler)
+        // Taken, so the refusal ends this window's decode and is never read again.
+        if let language = refusal.withLock({ $0.take() }) {
+            throw SpeechEngineError.unsupportedLanguage(language)
+        }
+        // The same filter list WhisperKit reads for this decode, so the record undoes exactly the bias applied.
+        let bias = inner.logitsFilters?.lazy.compactMap { $0 as? PhraseBiasFilter }.first
         let session = try DecodeSession(
             decoder: inner,
             window: .init(encoderOutput: encoderOutput, inputs: decoderInputs, options: decoderOptions))
-        var result = try await session.decode(sampler: evidence, callback: callback)
+        // The wrappers hide a greedy sampler's temperature, so it is read off the sampler handed in.
+        let temperature = DecodeSession.temperature(of: tokenSampler, options: decoderOptions)
+        let sampler = SeededFallbackSampler.replacing(
+            tokenSampler, temperature: temperature, options: decoderOptions,
+            endToken: session.tokenizer.specialTokens.endToken)
+        let evidence = EvidenceSampler(wrapping: sampler, bias: bias)
+        var (result, stepSplit) = try await session.decodeSplit(sampler: evidence, callback: callback)
+        split.withLock { $0 = $0.adding(stepSplit) }
         result.tokenLogProbs = evidence.tokenLogProbs(of: result)
-        // The evidence wrapper hides a greedy sampler's temperature, so it is read off the sampler handed in.
-        result.temperature = DecodeSession.temperature(of: tokenSampler, options: decoderOptions)
+        result.temperature = temperature
         result.fallback = Self.judged(result, options: decoderOptions)
         windows.append(evidence.window(of: result))
         return result

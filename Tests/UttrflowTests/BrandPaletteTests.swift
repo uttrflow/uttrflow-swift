@@ -115,6 +115,15 @@ struct SemanticInkContrastTests {
         #expect(contrastRatio(BrandPalette.Semantic.recording, card) < 4.5)
     }
 
+    @Test("the page header's kicker ink clears 4.5:1 on the redesigned window, where the fixed teal does not")
+    func kickerClearsAAOnWindow() {
+        let window = BrandPalette.Redesign.windowGround
+        let ink = BrandPalette.Teal.ink
+        #expect(contrastRatio(ink.light, window.light) >= 4.5)
+        #expect(contrastRatio(ink.dark, window.dark) >= 4.5)
+        #expect(contrastRatio(BrandPalette.Teal.primary, window.light) < 4.5)
+    }
+
     @Test("the contrast arithmetic agrees with the known extremes")
     func arithmetic() {
         #expect(abs(contrastRatio(0x00_0000, 0xFF_FFFF) - 21) < 0.001)

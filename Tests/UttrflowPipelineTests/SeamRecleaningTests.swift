@@ -22,7 +22,7 @@ struct SeamRecleaningTests {
         return DictationPipeline(
             capture: FakeAudioCaptureEngine(), speech: FakeSpeechEngine(), cleaner: router,
             context: FakeContextEngine(), inserter: FakeTextInserter(),
-            corrector: DictionaryCorrections { PhoneticIndex(entries: []) })
+            corrector: DictionaryCorrections { _ in PhoneticIndex(entries: []) })
     }()
 
     static let markCuts: [SeamCut] = [
@@ -62,6 +62,8 @@ struct SeamRecleaningTests {
             whole: "we have one hundred twenty people coming"),
         SeamCut(pieces: ["the flight is at six", "forty five"], whole: "the flight is at six forty five"),
         SeamCut(
+            pieces: ["we met at nine", "a m and left at five"], whole: "we met at nine a m and left at five"),
+        SeamCut(
             pieces: ["the plan costs nine", "ninety nine a month"],
             whole: "the plan costs nine ninety nine a month"),
         SeamCut(
@@ -70,29 +72,25 @@ struct SeamRecleaningTests {
         SeamCut(
             pieces: ["the site is example dot com", "slash pricing"],
             whole: "the site is example dot com slash pricing"),
-    ]
-
-    /// Units no pass reads as one even in a single piece, so the seam's stop is judged without them.
-    static let unreadUnitCuts: [SeamCut] = [
         SeamCut(
-            pieces: ["we met at nine", "a m and left at five"], whole: "we met at nine a m and left at five"),
-        SeamCut(
-            pieces: ["the meeting is on march", "third at ten"], whole: "the meeting is on march third at ten"
-        ),
+            pieces: ["the meeting is on march", "third at ten"],
+            whole: "the meeting is on march third at ten"),
     ]
-
-    @Test(
-        "a meridiem or date no pass reads as one unit still differs across a pause", arguments: unreadUnitCuts
-    )
-    func unreadUnitAcrossSeam(_ cut: SeamCut) async {
-        let pieces = await written(cut.pieces)
-        let whole = await written([cut.whole])
-        withKnownIssue { #expect(pieces == whole) }
-    }
 
     @Test("a number, time or address said across a pause writes what one piece does", arguments: unitCuts)
     func unitAcrossSeam(_ cut: SeamCut) async {
         #expect(await written(cut.pieces) == written([cut.whole]))
+    }
+
+    static let boundaryCuts: [SeamCut] = [
+        SeamCut(pieces: ["it costs twenty", "thirty people came"], whole: "It costs 20 30 people came."),
+        SeamCut(pieces: ["it costs twenty.", "thirty people came."], whole: "It costs 20. 30 people came."),
+    ]
+
+    @Test("two two-digit numbers across a cut are not fused into a year", arguments: boundaryCuts)
+    func sentenceStopBetweenNumbers(_ cut: SeamCut) async {
+        let text = await written(cut.pieces)
+        #expect(text == cut.whole, "got \(text ?? "nil")")
     }
 
     @Test("a number, time or address is read whole at every cut inside it")
@@ -100,6 +98,8 @@ struct SeamRecleaningTests {
         for (sentence, unit) in [
             ("the meeting is at three thirty tomorrow", "3:30"),
             ("send it to sam at example dot com", "sam@example.com"),
+            ("we met at nine a m and left at five", "9 am"),
+            ("the meeting is on march third at ten", "March third"),
         ] {
             let words = sentence.split(separator: " ").map(String.init)
             for cut in 1..<words.count {
@@ -121,13 +121,64 @@ struct SeamRecleaningTests {
         }
     }
 
+    @Test("a notation command in code is read whole at every cut inside it")
+    func everyNotationCut() async {
+        let code = AppContext(
+            applicationName: "Xcode", bundleIdentifier: "com.apple.dt.Xcode", documentName: "Example.swift",
+            precedingText: "let x = ")
+        for (sentence, written) in [
+            ("camel case user id", "userId"), ("snake case max retries", "max_retries"),
+        ] {
+            let words = sentence.split(separator: " ").map(String.init)
+            let whole = await self.written([sentence], seeing: code)
+            #expect(whole == written)
+            for cut in 1..<words.count {
+                let pieces = [words[..<cut].joined(separator: " "), words[cut...].joined(separator: " ")]
+                let text = await self.written(pieces, seeing: code)
+                #expect(text == written, "cut at \(cut) of \(sentence)")
+            }
+        }
+    }
+
+    @Test("a symbol pair or a number in code is read whole at every cut inside it")
+    func everyCodeSymbolCut() async {
+        let code = AppContext(
+            applicationName: "Xcode", bundleIdentifier: "com.apple.dt.Xcode", documentName: "Example.swift",
+            precedingText: "let x = ")
+        for sentence in [
+            "fetch user open paren close paren", "items open bracket index close bracket",
+            "let count equals forty two",
+        ] {
+            let words = sentence.split(separator: " ").map(String.init)
+            let whole = await self.written([sentence], seeing: code)
+            for cut in 1..<words.count {
+                let pieces = [words[..<cut].joined(separator: " "), words[cut...].joined(separator: " ")]
+                let text = await self.written(pieces, seeing: code)
+                #expect(text == whole, "cut at \(cut) of \(sentence)")
+            }
+        }
+    }
+
+    @Test("a quotation is read whole at every cut inside it")
+    func everyQuotationCut() async {
+        let sentence = "the brief says open quote ship on friday close quote"
+        let words = sentence.split(separator: " ").map(String.init)
+        let whole = await written([sentence])
+        // From "open | quote" to "friday | close quote": every cut that leaves the quotation open.
+        for cut in 4..<words.count {
+            let pieces = [words[..<cut].joined(separator: " "), words[cut...].joined(separator: " ")]
+            let text = await written(pieces)
+            #expect(text == whole, "cut at \(cut): \(text ?? "")")
+        }
+    }
+
     @Test("a named mark kept as a word stays a word across the cut")
     func mentionedMarkStays() async {
         let text = await written(["it lasted a long", "period of time"]) ?? ""
         #expect(text.lowercased().contains("period of time"))
     }
 
-    private func written(_ pieces: [String]) async -> String? {
-        await pipeline.clean(pieces.map { Transcription(text: $0) }, seeing: AppContext()).text
+    private func written(_ pieces: [String], seeing context: AppContext = AppContext()) async -> String? {
+        await pipeline.clean(pieces.map { Transcription(text: $0) }, seeing: context).text
     }
 }

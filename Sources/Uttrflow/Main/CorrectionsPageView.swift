@@ -36,6 +36,26 @@ struct CorrectionRowView: View {
     var onIntent: (MainIntent) -> Void
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            line
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(accessibilityLabel)
+            if let veto = row.veto {
+                HStack(spacing: 8) {
+                    Text(veto.note)
+                        .foregroundStyle(.secondary)
+                    MainActionButton(action: veto.allow, onIntent: onIntent)
+                    Spacer(minLength: 0)
+                }
+            }
+        }
+        .font(.system(size: MainMetrics.calloutSize))
+        .padding(.horizontal, MainMetrics.rowPadding)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var line: some View {
         HStack(spacing: 10) {
             change
             MainPillView(pill: row.reason)
@@ -51,12 +71,6 @@ struct CorrectionRowView: View {
             }
             .frame(width: 82)
         }
-        .font(.system(size: MainMetrics.calloutSize))
-        .padding(.horizontal, MainMetrics.rowPadding)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityLabel)
     }
 
     private var change: some View {

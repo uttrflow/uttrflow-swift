@@ -131,4 +131,69 @@ struct InsertionLedgerTests {
         #expect(!record.stillThere(in: "Hi, helXlo there"))
         #expect(!record.stillThere(in: "Hi, hell"))
     }
+
+    /// Focus over one fake field, so a caret move can be watched.
+    private struct WritableFocus: AccessibilityFocus {
+        let place: FieldPlace?
+        let field: FakeSelectionField
+        func focusedTextField() -> (any FocusedTextField)? { SelectionWriter(field: field) }
+        func hasFocusedElement() -> Bool { true }
+        func isSelfFrontmost() -> Bool { false }
+        func focusedFieldPlace() -> FieldPlace? { place }
+    }
+
+    private func placing(
+        in field: FakeSelectionField, writtenAt place: FieldPlace, focusedAt now: FieldPlace?
+    ) async throws -> (TextInsertionCoordinator, InsertionLedger) {
+        let ledger = InsertionLedger()
+        let engine = StubInsertionEngine(method: .accessibility, error: nil, arrival: .confirmed)
+        try await TextInsertionCoordinator(
+            strategies: [engine], focus: WritableFocus(place: place, field: field), ledger: ledger
+        ).insert("Regards, team")
+        return (
+            TextInsertionCoordinator(
+                strategies: [engine], focus: WritableFocus(place: now, field: field), ledger: ledger),
+            ledger
+        )
+    }
+
+    @Test("the caret moves back into the newest confirmed write")
+    func placesCaretInTheWrite() async throws {
+        let field = FakeSelectionField("Hi, Regards, team")
+        let place = FieldPlace(field: Self.field, caret: 17)
+        let (coordinator, _) = try await placing(in: field, writtenAt: place, focusedAt: place)
+
+        #expect(await coordinator.placeCaret(back: 5))
+        #expect(field.selection == 12..<12)
+    }
+
+    @Test("the caret stays put when another field is in front or nothing was recorded")
+    func refusesWithoutTheWrite() async throws {
+        let field = FakeSelectionField("Hi, Regards, team")
+        let place = FieldPlace(field: Self.field, caret: 17)
+        let (elsewhere, _) = try await placing(
+            in: field, writtenAt: place, focusedAt: FieldPlace(field: Self.other, caret: 17))
+        #expect(await elsewhere.placeCaret(back: 5) == false)
+        #expect(field.selection == 17..<17)
+
+        let unrecorded = TextInsertionCoordinator(
+            strategies: [], focus: WritableFocus(place: place, field: field))
+        #expect(await unrecorded.placeCaret(back: 5) == false)
+        #expect(await unrecorded.placeCaret(back: 0))
+    }
+
+    @Test("only insertions confirmed within the respeak window count as recent")
+    func recentRecordsHonourWindow() {
+        let ledger = InsertionLedger()
+        let start = ContinuousClock.now
+        let attempt = InsertionAttempt(.accessibility, arrival: .confirmed)
+        ledger.note(attempt, text: "old", endingAt: FieldPlace(field: Self.field, caret: 3), at: start)
+        ledger.note(
+            attempt, text: "new", endingAt: FieldPlace(field: Self.field, caret: 6), at: start + .seconds(20))
+
+        let now = start + InsertionLedger.respeakWindow + .seconds(1)
+        #expect(ledger.recentRecords(in: Self.field, now: now).map(\.text) == ["new"])
+        #expect(ledger.records(in: Self.field).map(\.text) == ["old", "new"])
+        #expect(ledger.recentRecords(in: Self.other, now: now).isEmpty)
+    }
 }

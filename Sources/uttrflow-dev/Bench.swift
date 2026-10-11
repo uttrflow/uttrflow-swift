@@ -5,6 +5,7 @@ import Synchronization
 import UttrflowAI
 import UttrflowAudio
 import UttrflowCore
+import UttrflowDictionary
 import UttrflowEval
 import UttrflowPipeline
 import UttrflowSpeech
@@ -14,8 +15,9 @@ struct Bench: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "Dictate a list of clips through the whole pipeline, loading the recogniser once.",
         discussion: """
-            Each line of JOBS is tab-separated: id, WAV path, vocabulary (comma-separated, may be empty), \
-            mode (rt plays in real time, fast hands the file over at once), cleaner (shipping or rules), and \
+            Each line of JOBS is tab-separated: id, WAV path, vocabulary (comma-separated, may be empty; \
+            the recogniser and the dictionary both get it), mode (rt plays in real time, fast hands the file \
+            over at once), cleaner (shipping or rules), and \
             the languages the speaker speaks (comma-separated codes, default en), then optionally the frontmost \
             app's bundle identifier, its window title and the text before the caret, which decide the destination. \
             Output is one line per event on standard output, prefixed BENCH and holding JSON.
@@ -93,9 +95,11 @@ struct Bench: AsyncParsableCommand {
         let audio = try AudioFileReader.read(contentsOf: URL(fileURLWithPath: job.wav))
         let playback = PlaybackCaptureEngine(audio: audio, sharesEarly: true, realTime: job.realTime)
         let vocabulary = job.vocabulary
+        let backlog = BacklogRecorder()
         let pipeline = DictationPipeline(
             capture: playback, speech: speech, cleaner: cleaner, context: FixedScreen(context: job.context),
             inserter: PrintingInserter(), speechWords: { _ in vocabulary },
+            corrector: TimedCorrector(inner: job.dictionary, log: log), metrics: backlog,
             profile: UserProfile(preferredLanguages: job.languages),
             earlyPoll: .milliseconds(Int(earlyPoll * 1000)))
         let states = await pipeline.states()
@@ -133,6 +137,11 @@ struct Bench: AsyncParsableCommand {
             "wait": keyUp.duration(to: at).inSeconds, "cpu": cost?.cpuSeconds ?? -1,
             "peakMB": megabytes(peak.bytes), "events": log.events(),
         ]
+        // Audio the early loop has not decoded at key-up; the tail grows with it once a piece takes longer to process than to say.
+        if let left = backlog.last {
+            result["backlogSeconds"] = left.seconds
+            result["backlogPieces"] = left.pieces
+        }
         switch ended {
         case .inserted(let outcome):
             result["text"] = outcome.text
@@ -183,6 +192,15 @@ struct BenchJob {
         let screen = (6..<9).map { fields.count > $0 && !fields[$0].isEmpty ? fields[$0] : nil }
         context = AppContext(bundleIdentifier: screen[0], documentName: screen[1], precedingText: screen[2])
     }
+
+    /// The vocabulary as the user's dictionary, as the app hands the same words to the recogniser and the corrector.
+    var dictionary: DictionaryCorrections {
+        let entries = vocabulary.filter { PhoneticIndex.supports(word: $0, pronunciation: nil) }.map {
+            DictionaryEntry(word: $0, pronunciation: nil, origin: .added, firstSeen: Date())
+        }
+        let index = PhoneticIndex(entries: entries)
+        return DictionaryCorrections { _ in index }
+    }
 }
 
 /// Prints one event as a line of JSON behind a fixed prefix, so a reader can skip everything else.
@@ -197,6 +215,19 @@ private func emit(_ event: [String: Any]) {
 /// Bytes as megabytes, or -1 when the reading failed.
 private func megabytes(_ bytes: Int64?) -> Double {
     bytes.map { Double($0) / 1_048_576 } ?? -1
+}
+
+/// Keeps the backlog the pipeline reports at key-up, which `bench` prints with the wait.
+private final class BacklogRecorder: MetricsRecording {
+    private let latest = Mutex<WorkAheadBacklog?>(nil)
+
+    var last: WorkAheadBacklog? { latest.withLock { $0 } }
+
+    func record(_ measurement: StageMeasurement) async {}
+
+    func recordBacklog(_ backlog: WorkAheadBacklog) async {
+        latest.withLock { $0 = backlog }
+    }
 }
 
 /// The highest footprint seen across the samples of one dictation.
@@ -276,17 +307,74 @@ private func timingFields(_ timings: RecognitionTimings) -> [String: String] {
         "melSeconds": timings.melSeconds, "encodeSeconds": timings.encodeSeconds,
         "decoderSetupSeconds": timings.decoderSetupSeconds, "decodeSeconds": timings.decodeSeconds,
         "wordTimingSeconds": timings.wordTimingSeconds, "unattributedSeconds": timings.unattributedSeconds,
-        "recognitionSeconds": timings.recognitionSeconds,
+        "recognitionSeconds": timings.recognitionSeconds, "prefillSeconds": timings.prefillSeconds,
+        "promptStepSeconds": timings.promptStepSeconds,
+        "decodeOverheadSeconds": timings.decodeOverheadSeconds,
     ]
     return seconds.mapValues { String(format: "%.4f", $0) }.merging([
         "decodeSteps": String(timings.decodeSteps), "wordTimingRuns": String(timings.wordTimingRuns),
+        "promptSteps": String(timings.promptSteps), "timestampSteps": String(timings.timestampSteps),
     ]) { kept, _ in kept }
+}
+
+/// The dictionary's correction, with each pass's span and changes written to the log.
+private struct TimedCorrector: WordCorrecting {
+    let inner: any WordCorrecting
+    let log: BenchLog
+
+    var revision: UInt64? { inner.revision }
+
+    func corrections(
+        for transcription: Transcription, seeing context: AppContext
+    ) async throws(DictationChangeError) -> [DictationCorrection] {
+        try await weigh(transcription, seeing: context).corrections
+    }
+
+    func weigh(
+        _ transcription: Transcription, seeing context: AppContext
+    ) async throws(DictationChangeError) -> WeighedCorrections {
+        try await timed(transcription) { () async throws(DictationChangeError) in
+            try await inner.weigh(transcription, seeing: context)
+        }
+    }
+
+    func weighAcrossSeams(
+        _ joined: Transcription, at seams: PieceSeams, seeing context: AppContext
+    ) async throws(DictationChangeError) -> WeighedCorrections {
+        try await timed(joined) { () async throws(DictationChangeError) in
+            try await inner.weighAcrossSeams(joined, at: seams, seeing: context)
+        }
+    }
+
+    func fixed(for context: AppContext) async -> any WordCorrecting {
+        TimedCorrector(inner: await inner.fixed(for: context), log: log)
+    }
+
+    private func timed(
+        _ heard: Transcription, _ pass: () async throws(DictationChangeError) -> WeighedCorrections
+    ) async throws(DictationChangeError) -> WeighedCorrections {
+        let start = log.now()
+        let words = heard.text.split(whereSeparator: \.isWhitespace).count
+        do {
+            let weighed = try await pass()
+            log.add([
+                "kind": "correct", "t0": start, "t1": log.now(), "words": String(words),
+                "changes": String(weighed.corrections.count), "held": String(weighed.held.count),
+            ])
+            return weighed
+        } catch {
+            log.add(["kind": "correct-error", "t0": start, "t1": log.now()])
+            throw error
+        }
+    }
 }
 
 /// A cleaner, with each tidy's span, words in and out, and engine written to the log.
 private struct TimedCleaner: TranscriptCleaning {
     let inner: TransformerRouter
     let log: BenchLog
+
+    var cleaningSteps: CleaningSteps { inner.cleaningSteps }
 
     func clean(_ request: TransformationRequest) async throws(TransformationError) -> TransformationResult {
         let start = log.now()
@@ -314,5 +402,9 @@ private struct TimedCleaner: TranscriptCleaning {
 
     func finishMessage(_ text: String, for request: TransformationRequest) async -> String {
         await inner.finishMessage(text, for: request)
+    }
+
+    func reserveFinalPiece(_ situation: Situation?) async {
+        await inner.reserveFinalPiece(situation)
     }
 }

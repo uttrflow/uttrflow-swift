@@ -63,7 +63,8 @@ struct ARPAReaderTests {
     @Test("A word outside the vocabulary scores as <unk>, or the floor when the file has none")
     func unknownWord() throws {
         let model = try ARPAReader.model(from: Self.sample)
-        #expect(model.log10Probability(of: "zebra", after: ["the"]) == -1.0)
+        #expect(model.log10Probability(of: "zebra", after: []) == -1.0)
+        #expect(abs(model.log10Probability(of: "zebra", after: ["the"]) - (-0.3 + -1.0)) < 1e-6)
         let bare = try ARPAReader.model(from: "\\data\\\nngram 1=1\n\\1-grams:\n-0.1 a\n\\end\\\n")
         #expect(bare.log10Probability(of: "zebra", after: []) == NGramModel.unseenLog10Probability)
     }

@@ -18,7 +18,8 @@ struct FormattingOwnershipTests {
         let code = CleaningPipeline.piece(
             numbers: DestinationFormatter.standard(for: .codeEditor).numbers,
             digits: DestinationFormatter.standard(for: .codeEditor).digits,
-            destination: .codeEditor, documentName: "main.swift")
+            destination: .codeEditor,
+            intent: WritingIntent(app: AppContext(documentName: "main.swift"), insertion: .unknown))
         ids.formUnion(code.ids)
         return ids
     }()

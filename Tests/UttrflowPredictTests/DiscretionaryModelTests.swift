@@ -41,6 +41,8 @@ private final class RecordingModel: ReleasableModel, Sendable {
     func reload() async throws { note("reload") }
 
     func release() async { note("release") }
+
+    func forgetPrefixIndex() {}
 }
 
 @Suite("The suggestion model's scores, loads and releases as discretionary work")

@@ -1,5 +1,6 @@
 // The single home for whether two spellings are one word: respellings, verb forms, inflections and spelled-in identifiers.
 import UttrflowCore
+private import Synchronization
 
 /// Whether two spellings are one word, shared by the guard, the passes and the correction engine.
 public enum WordForms {
@@ -15,7 +16,33 @@ public enum WordForms {
             return true
         }
         guard allowingRegularInflections else { return false }
-        return inflections(of: word).contains(other) || inflections(of: other).contains(word)
+        return !lemmas(of: word).isDisjoint(with: lemmas(of: other))
+    }
+
+    /// The words `word` is a form of, itself included, each listed irregular form named by its paradigm: "crashes" is "crash", "sends" is "send".
+    private static func lemmas(of word: String) -> Set<String> {
+        // The guard compares every said word with every written one, so each word's forms are worked out once.
+        if let known = lemmaMemo.withLock({ $0[word] }) { return known }
+        let found = workedOutLemmas(of: word)
+        lemmaMemo.withLock { memo in
+            if memo.count >= lemmaMemoLimit { memo.removeAll(keepingCapacity: true) }
+            memo[word] = found
+        }
+        return found
+    }
+
+    /// The lemmas already worked out, by word, emptied when full so a long session keeps it small.
+    private static let lemmaMemo = Mutex<[String: Set<String>]>([:])
+    private static let lemmaMemoLimit = 4096
+
+    /// `lemmas(of:)` without the memo.
+    private static func workedOutLemmas(of word: String) -> Set<String> {
+        // Every regular ending is at most four letters, a doubled consonant and "ing"; a stem may have lost an "e" or a "y" to it.
+        let stems = (1...4).filter { word.count - $0 >= 2 }.flatMap { length -> [String] in
+            let trunk = String(word.dropLast(length))
+            return [trunk, trunk + "e", trunk + "y"]
+        }.filter { inflections(of: $0).contains(word) }
+        return Set(([word] + stems).map { irregularVerbFormGroups[$0] ?? $0 })
     }
 
     /// Whether two spellings are a measured spelling variant of one romanised Hindi word.
@@ -49,6 +76,7 @@ public enum WordForms {
             ("eat", ["ate", "eaten"]),
             ("go", ["went", "gone"]),
             ("see", ["saw", "seen"]),
+            ("send", ["sent"]),
             ("speak", ["spoke", "spoken"]),
             ("take", ["took", "taken"]),
             ("write", ["wrote", "written"]),
@@ -63,8 +91,8 @@ public enum WordForms {
         if hindiIrregularVerbForms[first] == second || hindiIrregularVerbForms[second] == first {
             return true
         }
-        if hindiVerbStems.contains(first), hindiForms(of: first).contains(second) { return true }
-        if hindiVerbStems.contains(second), hindiForms(of: second).contains(first) { return true }
+        if hindiFormsByStem[first]?.contains(second) == true { return true }
+        if hindiFormsByStem[second]?.contains(first) == true { return true }
         guard let pronoun = hindiPronouns[first] else { return false }
         return hindiPronouns[second] == pronoun
     }
@@ -75,8 +103,15 @@ public enum WordForms {
     /// Common verb forms that do not follow the regular stem endings.
     static let hindiIrregularVerbForms: [String: String] = ["kha": "khila"]
 
+    /// Each verb stem's inflected forms, built once since a sound key per ending is costly to repeat for every word.
+    static let hindiFormsByStem: [String: Set<String>] = Dictionary(
+        uniqueKeysWithValues: hindiVerbStems.map { ($0, hindiForms(of: $0)) })
+
+    /// Every inflected form of every verb stem, as sound keys.
+    static let hindiVerbForms: Set<String> = hindiFormsByStem.values.reduce(into: []) { $0.formUnion($1) }
+
     /// The forms Hindi inflects a known verb stem into, as sound keys.
-    static func hindiForms(of stem: String) -> Set<String> {
+    private static func hindiForms(of stem: String) -> Set<String> {
         guard !stem.isEmpty else { return [] }
         let endings = [
             "ta", "ti", "te", "na", "ne", "ni", "ya", "yi", "ye", "a", "i", "e", "o", "on", "kar",

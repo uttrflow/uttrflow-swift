@@ -11,6 +11,10 @@ Each released version is a git tag and a build at
 
 ## [Unreleased]
 
+### Changed
+- **AI suggestions start switched off in editors with their own inline completions**, so their
+  completion and Uttrflow do not compete for the accept key.
+
 ## [26.0926.0] — 2026-09-27
 
 The first release numbered `YY.MMDD.REVISION`. Nothing about updating changes: an installed

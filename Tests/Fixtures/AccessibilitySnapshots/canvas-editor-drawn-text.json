@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "family": "canvas editor: a document suite drawing its own text with no text element at the caret",
+  "windowTitle": "Quarterly plan",
+  "document": null,
+  "focused": {
+    "attributes": {
+      "AXRole": {
+        "kind": "value",
+        "text": "AXLayoutArea"
+      },
+      "AXSubrole": {
+        "kind": "noValue"
+      },
+      "AXIdentifier": {
+        "kind": "unsupported"
+      },
+      "AXPlaceholderValue": {
+        "kind": "unsupported"
+      },
+      "AXDescription": {
+        "kind": "value",
+        "text": "Document canvas"
+      },
+      "AXTitle": {
+        "kind": "noValue"
+      },
+      "AXSelectedTextRange": {
+        "kind": "noValue"
+      }
+    },
+    "children": []
+  }
+}

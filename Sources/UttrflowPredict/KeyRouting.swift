@@ -1,9 +1,9 @@
+public import UttrflowCore
+
 /// How far a dismissal goes, which is one rung of the escape ladder.
 public enum Dismissal: Sendable, Equatable, CaseIterable {
     /// ⎋ — the suggestion goes and the dot stays.
     case minimise
-    /// ⎋⎋ — this field offers nothing more until the user leaves it.
-    case silenceField
     /// ⌥⎋ — suggestions stop everywhere until they are turned back on.
     case turnOff
 }
@@ -33,6 +33,8 @@ public enum KeyDecision: Sendable, Equatable {
     case moveSelection(SuggestionSelection)
     /// Swallow it and go this far quiet.
     case dismiss(Dismissal)
+    /// Go this far quiet, then hand the same keystroke to the application.
+    case dismissAndPassThrough(Dismissal)
     /// Never ours, so the application gets it untouched.
     case passThrough
 }
@@ -51,9 +53,8 @@ public enum KeyRouting {
             // Nothing is drawn, so nothing is ours — including ⎋, which closes dialogs.
             return .passThrough
         case .minimised:
-            if stroke == Self.turnOffStroke { return .dismiss(.turnOff) }
-            guard stroke == KeyStroke(.escape), claimsEscape(acceptKey) else { return .passThrough }
-            return .dismiss(.silenceField)
+            // A dot never claims a bare ⎋, so the application's own cancel is not delayed by it.
+            return stroke == Self.turnOffStroke ? .dismiss(.turnOff) : .passThrough
         case .certain(let text):
             return decision(for: stroke, over: [text], selection: selection, acceptKey: acceptKey)
         case .choice(let leader, let others):
@@ -111,7 +112,7 @@ public enum KeyRouting {
         guard stroke.modifiers.isEmpty else { return .passThrough }
         switch stroke.key {
         case .escape where claimsEscape(acceptKey):
-            return .dismiss(.minimise)
+            return .dismissAndPassThrough(.minimise)
         // ⏎ runs the command and sends the message, so it is ours only while a list is being walked.
         case .return where navigable && selection.hasMoved:
             return .accept(offered[index])

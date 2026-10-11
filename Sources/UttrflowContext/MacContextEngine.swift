@@ -34,6 +34,8 @@ public struct FocusedWindow: Sendable, Equatable {
     public let isSecure: Bool
     /// The focused field's Accessibility role, when reported.
     public let accessibilityRole: String?
+    /// The focused field's Accessibility subrole, when reported.
+    let accessibilitySubrole: String?
     /// Whether Accessibility says the field accepts multiple lines.
     public let isMultiline: Bool?
     /// What the focused field calls itself, never read from a secure field.
@@ -42,13 +44,20 @@ public struct FocusedWindow: Sendable, Equatable {
     public let isComposing: Bool
     /// The focused field itself, read even when it is secure since it carries no text.
     public let field: FieldIdentity?
+    /// Which rung of the read ladder gives the caret text, or `nil` while the read has not reached it.
+    public let readRung: ContextReadRung?
+    /// Why the read ended without the caret text, or `nil` while it has not ended or when it reached the text.
+    let unavailable: ContextUnavailableReason?
 
     public init(
         title: String? = nil, selectedText: String? = nil, precedingText: String? = nil,
         followingText: String? = nil, isSecure: Bool = false,
-        accessibilityRole: String? = nil, isMultiline: Bool? = nil, fieldLabel: String? = nil,
-        isComposing: Bool = false, field: FieldIdentity? = nil
+        accessibilityRole: String? = nil, accessibilitySubrole: String? = nil,
+        isMultiline: Bool? = nil, fieldLabel: String? = nil,
+        isComposing: Bool = false, field: FieldIdentity? = nil, readRung: ContextReadRung? = nil,
+        unavailable: ContextUnavailableReason? = nil
     ) {
+        self.unavailable = unavailable
         self.isComposing = isComposing
         self.title = title
         self.selectedText = selectedText
@@ -56,9 +65,11 @@ public struct FocusedWindow: Sendable, Equatable {
         self.followingText = followingText
         self.isSecure = isSecure
         self.accessibilityRole = accessibilityRole
+        self.accessibilitySubrole = accessibilitySubrole
         self.isMultiline = isMultiline
         self.fieldLabel = fieldLabel
         self.field = field
+        self.readRung = readRung
     }
 }
 
@@ -88,9 +99,14 @@ public final class MacContextEngine: ContextEngine, Sendable {
     private let readFrontmostApplication: @Sendable () async -> FrontmostApplication?
     private let readFocusOwner: @Sendable (FrontmostApplication) async -> FrontmostApplication?
     private let readFocusedWindow: @Sendable (FrontmostApplication, FocusedWindowSink) async -> Void
+    private let readNames: @Sendable () async -> [String]
     private let ownBundleIdentifier: String?
     private let ownProcessIdentifier: Int32
     private let clock: any Clock<Duration>
+    /// The keys and clicks seen so far, or `nil` when this engine does not watch them.
+    private let countInputs: (@Sendable () -> Int)?
+    /// The applications whose last read ran past the budget, shared with the suggestion reads. See `Docs/context-budget.md`.
+    private let slowFields: SlowFields
 
     /// The latest read and the last other application, changed under one lock so old reads cannot replace it.
     private struct AppMemory {
@@ -98,9 +114,14 @@ public final class MacContextEngine: ContextEngine, Sendable {
         var appBehind: FrontmostApplication?
         /// The last application macOS reported activating, Uttrflow included.
         var lastActivated: FrontmostApplication?
+        /// Every activation macOS has reported, Uttrflow's own included.
+        var activations = 0
     }
 
     private let memory = Mutex(AppMemory())
+
+    /// How much of each application the user lets a dictation read; the field is never asked below ``ContextLevel/nearCaret``.
+    private let levels = Mutex((every: ContextLevel.nearCaret, overrides: ContextLevelOverrides.none))
 
     /// What keeps the activation subscription open; boxed so it can be filled once `self` is fully built.
     private let activationToken = Mutex<(any Sendable)?>(nil)
@@ -111,23 +132,32 @@ public final class MacContextEngine: ContextEngine, Sendable {
         readFocusOwner: @escaping @Sendable (FrontmostApplication) async -> FrontmostApplication? = { _ in nil
         },
         readFocusedWindow: @escaping @Sendable (FrontmostApplication, FocusedWindowSink) async -> Void,
+        readNames: @escaping @Sendable () async -> [String] = { [] },
         ownBundleIdentifier: String?,
         ownProcessIdentifier: Int32,
         clock: any Clock<Duration> = ContinuousClock(),
+        countInputs: (@Sendable () -> Int)? = nil,
+        slowFields: SlowFields = SlowFields(),
         observeActivations: (@escaping @Sendable (FrontmostApplication) -> Void) -> any Sendable = { _ in () }
     ) {
         self.readFrontmostApplication = readFrontmostApplication
         self.readFocusOwner = readFocusOwner
         self.readFocusedWindow = readFocusedWindow
+        self.readNames = readNames
         self.ownBundleIdentifier = ownBundleIdentifier
         self.ownProcessIdentifier = ownProcessIdentifier
         self.clock = clock
+        self.countInputs = countInputs
+        self.slowFields = slowFields
         // Every stored property now has a value, so `self` is safe to capture from here on.
         let token = observeActivations { [weak self] application in
             guard let self else { return }
             let isOurselves = self.isOurselves(application)
+            // Switching to an application is the user asking it again, so its rest ends.
+            if !isOurselves { self.slowFields.endRest(.application(application.processIdentifier)) }
             self.memory.withLock { memory in
                 memory.lastActivated = application
+                memory.activations += 1
                 if !isOurselves {
                     // Supersedes any read still in flight, so its older answer is not kept.
                     memory.requestNumber &+= 1
@@ -138,19 +168,57 @@ public final class MacContextEngine: ContextEngine, Sendable {
         activationToken.withLock { $0 = token }
     }
 
+    /// Keys, clicks and activations together, so a reading taken before any of them is known to be outdated.
+    public func inputsSeen() async -> Int? {
+        guard let countInputs else { return nil }
+        return countInputs() + memory.withLock { $0.activations }
+    }
+
+    /// Follows the user's context level, and each application's own, from the next read on.
+    public func restrict(to level: ContextLevel, except overrides: ContextLevelOverrides = .none) {
+        levels.withLock { $0 = (level, overrides) }
+    }
+
+    /// The names around the field when the application in front is read at the nearest-caret level; none otherwise.
+    public func onScreenNames() async -> [String] {
+        let levels = self.levels.withLock { $0 }
+        guard let frontmost = await readFrontmostApplication(), !isOurselves(frontmost),
+            levels.overrides.level(forBundleIdentifier: frontmost.bundleIdentifier, default: levels.every)
+                == .nearCaret,
+            !slowFields.isResting(.application(frontmost.processIdentifier))
+        else { return [] }
+        return await readNames()
+    }
+
     public func currentContext() async -> AppContext {
         let reading = Reading()
+        let levels = self.levels.withLock { $0 }
+        let readsNearCaret: @Sendable (FrontmostApplication) -> Bool = { application in
+            levels.overrides.level(forBundleIdentifier: application.bundleIdentifier, default: levels.every)
+                == .nearCaret
+        }
         let requestNumber = memory.withLock { memory in
             memory.requestNumber &+= 1
             return memory.requestNumber
         }
 
-        await withinBudget { [self] in
+        let finished = await withinBudget { [self] in
             // Identity first and banked the moment it arrives, since everything after it can hang.
             let frontmost = await readFrontmostApplication()
             guard let early = subject(inFrontOf: frontmost, for: requestNumber) else { return }
             reading.record(application: early)
             guard let frontmost, early == frontmost else { return }
+
+            // Identity only: the application is named and nothing of its windows or fields is asked.
+            guard readsNearCaret(frontmost) else {
+                return reading.window.bank(FocusedWindow(unavailable: .restricted))
+            }
+
+            // An application resting after a read that ran over is not asked again, so no thread is abandoned in it.
+            guard !slowFields.isResting(.application(frontmost.processIdentifier)) else {
+                return reading.window.bank(FocusedWindow(unavailable: .timedOut))
+            }
+            reading.asked(frontmost.processIdentifier)
 
             // A panel that never activates holds focus over the frontmost application, so its owner is the destination.
             let destination = FocusedElementPreference.destination(
@@ -161,15 +229,29 @@ public final class MacContextEngine: ContextEngine, Sendable {
 
             // Uttrflow's own window in front means the focused window is Uttrflow's, and belongs to nobody else.
             guard subject == destination else { return }
+            // A panel's owner may have a level of its own, so it is asked again before its window is read.
+            guard readsNearCaret(subject) else {
+                return reading.window.bank(FocusedWindow(unavailable: .restricted))
+            }
             await readFocusedWindow(subject, reading.window)
         }
 
         var gathered = reading.value
+        if let asked = gathered.asked {
+            // A dictation can afford one miss, so the application rests from its second read that runs over.
+            if finished {
+                slowFields.answered(.application(asked))
+            } else {
+                slowFields.ranOver(.application(asked))
+            }
+        }
         // Identity missed the budget, so it comes from the activation feed instead.
         if gathered.application == nil, let fallback = activationFallback() {
             Self.log.notice("Context identity timed out; named from the activation feed")
             gathered.application = fallback
         }
+        // A read the budget cut short says so, unless it had already banked why it stopped.
+        let unavailable = gathered.window?.unavailable ?? (finished ? nil : .timedOut)
         // A secure field's text is dropped here too, so no reader can carry it into a prompt.
         if gathered.window?.isSecure == true {
             return AppContext(
@@ -177,7 +259,7 @@ public final class MacContextEngine: ContextEngine, Sendable {
                 bundleIdentifier: Self.meaningful(gathered.application?.bundleIdentifier),
                 processIdentifier: gathered.application?.processIdentifier,
                 documentName: Self.meaningful(gathered.window?.title), isSecure: true,
-                field: gathered.window?.field)
+                field: gathered.window?.field, readRung: gathered.window?.readRung, unavailable: unavailable)
         }
         return AppContext(
             applicationName: Self.meaningful(gathered.application?.name),
@@ -189,9 +271,12 @@ public final class MacContextEngine: ContextEngine, Sendable {
             precedingText: gathered.window?.precedingText,
             followingText: gathered.window?.followingText,
             accessibilityRole: gathered.window?.accessibilityRole,
+            accessibilitySubrole: gathered.window?.accessibilitySubrole,
             isMultiline: gathered.window?.isMultiline,
             fieldLabel: gathered.window?.fieldLabel,
-            field: gathered.window?.field
+            field: gathered.window?.field,
+            readRung: gathered.window?.readRung,
+            unavailable: unavailable
         )
     }
 
@@ -238,12 +323,12 @@ public final class MacContextEngine: ContextEngine, Sendable {
         return application.bundleIdentifier == ownBundleIdentifier
     }
 
-    /// Runs `work`, waits no longer than ``budget`` for it, and abandons what is left. See `Docs/context-budget.md`.
-    private func withinBudget(_ work: @escaping @Sendable () async -> Void) async {
-        _ = await withDeadline(Self.budget, clock: clock) {
+    /// Runs `work`, waits no longer than ``budget`` for it, and says whether it finished. See `Docs/context-budget.md`.
+    private func withinBudget(_ work: @escaping @Sendable () async -> Void) async -> Bool {
+        await withDeadline(Self.budget, clock: clock) {
             await work()
             return true
-        }
+        } ?? false
     }
 
     /// Drops text that is blank or only whitespace, so ``AppContext/isEmpty`` means what it says.
@@ -267,6 +352,8 @@ private final class Reading: Sendable {
     struct Value: Sendable {
         var application: FrontmostApplication?
         var window: FocusedWindow?
+        /// The application whose focus and window this read asked for, which a read that runs over rests.
+        var asked: Int32?
     }
 
     /// The gathered value under a lock, in a class since a bare `Mutex` cannot be captured by a task.
@@ -283,6 +370,10 @@ private final class Reading: Sendable {
 
     func record(application: FrontmostApplication) {
         state.withLock { $0.application = application }
+    }
+
+    func asked(_ process: Int32) {
+        state.withLock { $0.asked = process }
     }
 }
 

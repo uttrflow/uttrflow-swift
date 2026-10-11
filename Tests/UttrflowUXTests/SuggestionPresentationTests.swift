@@ -2,6 +2,7 @@ import CoreGraphics
 import CoreText
 import Foundation
 import Testing
+import UttrflowCore
 import UttrflowPredict
 
 @testable import UttrflowContext
@@ -582,6 +583,12 @@ struct SuggestionPresentationTests {
         #expect(SuggestionPresentation(.certain("Sydney")).ink == .backed)
         #expect(SuggestionPresentation(.minimised).ink == .backed)
         #expect(SuggestionPresentation.backingOpacity >= 0.9)
+    }
+
+    @Test("Reduce Transparency makes the backed ghost fully opaque")
+    func reduceTransparencyMakesBackingOpaque() {
+        let presentation = SuggestionPresentation(.certain("Sydney"), appearance: opaque)
+        #expect(presentation.backingOpacity == SuggestionPresentation.opaqueBackingOpacity)
     }
 
     // MARK: - Equality

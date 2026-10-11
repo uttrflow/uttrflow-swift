@@ -8,13 +8,15 @@ import Testing
 /// Recording the same thing twice, checked against what a real screenshot copy left on disk.
 @Suite("Copying something twice")
 struct ClipboardDedupeTests {
-    /// The same words twice are one clip, moved to the top, keeping the name the user gave it.
+    /// The same words twice are one clip, moved to the top, keeping what the user chose about it.
     @Test("the same text twice is one clip, and keeps what the user chose")
     func textStillMerges() async throws {
         let folder = try TemporaryFolder()
         let first = Clip(text: "hello", kind: .text, copiedAt: Date())
         _ = try await folder.store.record(first, keeping: folder.retention)
         _ = try await folder.store.setAlias("greeting", of: first.id, keeping: folder.retention)
+        _ = try await folder.store.setPinned(true, of: first.id, keeping: folder.retention)
+        _ = try await folder.store.setCategory("Work", of: first.id, keeping: folder.retention)
 
         _ = try await folder.store.record(
             Clip(text: "hello", kind: .text, copiedAt: Date()), keeping: folder.retention)
@@ -23,6 +25,8 @@ struct ClipboardDedupeTests {
         #expect(clips.count == 1)
         #expect(clips.first?.alias == "greeting")
         #expect(clips.first?.id == first.id, "the same clip, not a replacement")
+        #expect(clips.first?.isPinned == true, "the pin survived the second copy")
+        #expect(clips.first?.category == "Work", "and so did the collection")
     }
 
     /// A clip copied twice must keep its language chip and its formatting.

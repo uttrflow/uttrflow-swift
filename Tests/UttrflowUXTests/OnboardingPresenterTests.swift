@@ -23,6 +23,7 @@ private let everyState: [OnboardingState] = [
     OnboardingState(step: .signIn, detail: .signIn(.refused("Nobody answered."))),
     OnboardingState(step: .signIn, detail: .signIn(.welcomed(welcome))),
     OnboardingState(step: .signIn, detail: .reading),
+    OnboardingState(step: .clipboard, detail: .reading),
     OnboardingState(step: .microphone, detail: .permission(.notDetermined)),
     OnboardingState(step: .microphone, detail: .permission(.denied)),
     OnboardingState(step: .microphone, detail: .permission(.restricted)),
@@ -84,6 +85,9 @@ struct OnboardingPresenterTests {
             page.hint
                 == "Open the Clipboard panel with \(SettingsShortcut.compact(binding)) to browse and paste recent copies."
         )
+        #expect(
+            page.action?.caption?.contains(
+                "AI suggestions finish your line as you type in another app") == true)
         #expect(page.explanation?.contains(SettingsShortcut.compact(binding)) == true)
         #expect(
             MenuBarPresenter.present(menuState).command(.openClipboard)?.shortcut
@@ -139,12 +143,17 @@ struct OnboardingPresenterTests {
         }
     }
 
-    @Test("only the page a person is agreeing on carries the terms")
-    func onlySignInCarriesTheTerms() {
+    @Test("only the sign-in page links the published Privacy page, and no page names Terms")
+    func onlySignInLinksPrivacy() {
         let agreeing = page(OnboardingState(step: .signIn, detail: .signIn(.offering)))
-        #expect(agreeing.showsTerms)
+        #expect(agreeing.legal == PublishedLegalLink.privacy)
+        #expect(agreeing.legal?.destination.absoluteString == "https://uttrflow.com/privacy")
         for state in everyState where state.step != .signIn {
-            #expect(!page(state).showsTerms, "\(state)")
+            #expect(page(state).legal == nil, "\(state)")
+        }
+        for state in everyState {
+            let words = [page(state).legal?.title, page(state).accessibilityLabel].compactMap(\.self)
+            #expect(!words.contains { $0.localizedCaseInsensitiveContains("terms") }, "\(state)")
         }
     }
 
@@ -408,6 +417,12 @@ struct OnboardingPresenterTests {
                 identifier: "user-3", displayName: nil, emailAddress: "sam@example.com", provider: .apple),
             next: .setup)
         #expect(byAddress.initials == "S" && byAddress.firstName == nil)
+
+        let lowerCase = OnboardingWelcome(
+            account: Account(
+                identifier: "user-4", displayName: "sam rivers", emailAddress: nil, provider: .apple),
+            next: .setup)
+        #expect(lowerCase.firstName == "Sam")
     }
 
     @Test("names every page the welcome can lead to")
@@ -423,6 +438,8 @@ struct OnboardingPresenterTests {
 
     @Test("asks a new install for a first try with ⌃⌥ lit on the keyboard, and a way straight to the app")
     func theFirstTry() {
+        let caption =
+            "AI suggestions finish your line as you type in another app. Off by default; turn on in Settings › AI suggestions."
         let trying = page(OnboardingState(step: .ready, detail: .finishing(.ready)))
         #expect(trying.title == "Try it now.")
         #expect(
@@ -431,6 +448,7 @@ struct OnboardingPresenterTests {
         )
         #expect(trying.hint == "Open the Clipboard panel with ⇧⌘V to browse and paste recent copies.")
         #expect(trying.accessibilityLabel.contains("Open the Clipboard panel with ⇧⌘V"))
+        #expect(trying.action?.caption == caption)
         #expect(
             trying.picture
                 == .keyboard(
@@ -442,7 +460,7 @@ struct OnboardingPresenterTests {
             trying.action
                 == OnboardingAction(
                     title: "Skip to dashboard", intent: .finish, isProminent: false, countdown: nil,
-                    caption: nil))
+                    caption: caption))
         #expect(trying.link == nil)
         #expect(trying.hint == "Open the Clipboard panel with ⇧⌘V to browse and paste recent copies.")
 
@@ -605,10 +623,55 @@ struct OnboardingPresenterTests {
 
     // MARK: The dots
 
-    @Test("numbers the dots once each, from one to five")
+    @Test("numbers the dots once each, from one to six")
     func theDotsAreNumberedOnce() {
         let positions = OnboardingStep.allCases.map(\.position)
         #expect(positions == Array(1...OnboardingStep.count))
-        #expect(OnboardingStep.count == 5)
+        #expect(OnboardingStep.count == 6)
+    }
+
+    // MARK: The clipboard
+
+    @Test("says copies are kept, for how long and where, with Keep chosen and Turn off beside it")
+    func clipboardPageWhileOn() {
+        let state = OnboardingState(step: .clipboard, detail: .reading)
+        let page = OnboardingPresenter.page(for: state, hotkey: Settings.default.hotkey)
+
+        #expect(page.title == "Keep what you copy?")
+        #expect(page.position == 2)
+        #expect(page.buttons.map(\.title) == ["Keep", "Turn off", "Continue"])
+        #expect(
+            page.buttons.map(\.intent)
+                == [.setClipboardEnabled(true), .setClipboardEnabled(false), .advance])
+        #expect(page.buttons.map(\.isSelected) == [true, false, false])
+        #expect(
+            page.hint
+                == "Uttrflow keeps what you copy for up to 7 days. It stays on this Mac. Change it in Settings › Privacy."
+        )
+        let pinned = "Clips you pin, name or put in a collection have no time limit."
+        #expect(page.explanation?.contains(pinned) == true)
+        #expect(page.explanation?.contains("exclude apps, in Settings › Privacy.") == true)
+    }
+
+    @Test("says the stored period, not the default one")
+    func clipboardPageNamesTheStoredPeriod() {
+        let state = OnboardingState(step: .clipboard, detail: .reading)
+        let hotkey = Settings.default.hotkey
+        let three = OnboardingPresenter.page(for: state, hotkey: hotkey, clipboardRetentionDays: 3)
+        let one = OnboardingPresenter.page(for: state, hotkey: hotkey, clipboardRetentionDays: 1)
+
+        #expect(three.hint?.hasPrefix("Uttrflow keeps what you copy for up to 3 days.") == true)
+        #expect(one.hint?.hasPrefix("Uttrflow keeps what you copy for up to 1 day.") == true)
+    }
+
+    @Test("turned off, says nothing is kept and where to turn it back on")
+    func clipboardPageWhileOff() {
+        let state = OnboardingState(step: .clipboard, detail: .reading)
+        let page = OnboardingPresenter.page(
+            for: state, hotkey: Settings.default.hotkey, clipboardEnabled: false)
+
+        #expect(page.buttons.map(\.isSelected) == [false, true, false])
+        #expect(page.hint == "Copies are not kept while this is off. Turn it on in Settings › Privacy.")
+        #expect(page.explanation == page.hint)
     }
 }

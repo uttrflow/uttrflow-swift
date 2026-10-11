@@ -112,6 +112,64 @@ struct RetryBudgetTests {
         #expect(!raw.effort.retriedWithoutPrompt)
     }
 
+    @Test("every decode after the first is timed as a retry, less the fallback seconds it reports")
+    func retriesAreTimed() async throws {
+        let backend = TimedBackend(decodeSeconds: [2, 1.5, 1]) { call, samples in
+            switch call {
+            case 1:
+                return cappedResult(call, samples)
+            case 2:
+                let capped = cappedResult(call, samples)
+                return RawTranscript(
+                    text: capped.text, segments: capped.segments,
+                    effort: DecodeEffort(fallbacks: 1, fallbackSeconds: 0.5), tokensUsed: capped.tokensUsed)
+            default:
+                return RawTranscript(
+                    text: "rest", segments: [RawSegment(text: "rest", start: 0, end: 0.5)], tokensUsed: 10)
+            }
+        }
+        let samples = Array(repeating: Float(0.1), count: 4 * 16_000)
+
+        let raw = try await CappedDecodeRetry.transcribe(
+            samples: samples, languageHint: .hindi, vocabulary: [], using: backend, now: backend.now)
+
+        #expect(backend.calls == 3)
+        #expect(raw.effort.retrySeconds == 2)
+        #expect(raw.effort.fallbackSeconds == 0.5)
+    }
+
+    @Test("a single decode that is not capped spends nothing on retries")
+    func plainDecodeHasNoRetryTime() async throws {
+        let backend = TimedBackend(decodeSeconds: [3]) { _, _ in
+            RawTranscript(
+                text: "done", segments: [RawSegment(text: "done", start: 0, end: 1)], tokensUsed: 10)
+        }
+
+        let raw = try await CappedDecodeRetry.transcribe(
+            samples: Array(repeating: Float(0.1), count: 16_000), languageHint: .english, vocabulary: [],
+            using: backend, now: backend.now)
+
+        #expect(raw.effort.retrySeconds == 0)
+        #expect(raw.effort.isPlain)
+    }
+
+    @Test("the unprompted retry of an empty result is timed as a retry")
+    func emptyPromptRetryIsTimed() async throws {
+        let backend = TimedBackend(decodeSeconds: [1, 2]) { call, _ in
+            call == 1
+                ? RawTranscript(text: "", tokensUsed: 5)
+                : RawTranscript(
+                    text: "heard", segments: [RawSegment(text: "heard", start: 0, end: 1)], tokensUsed: 5)
+        }
+
+        let raw = try await CappedDecodeRetry.transcribeRecoveringEmptyPrompt(
+            samples: Array(repeating: Float(0.1), count: 16_000), languageHint: .english,
+            vocabulary: ["Uttrflow"], using: backend, now: backend.now)
+
+        #expect(raw.text == "heard")
+        #expect(raw.effort.retrySeconds == 2)
+    }
+
     @Test("the worst-case chain is bounded by the budget multiple, not the retry count")
     func worstCaseIsBounded() {
         #expect(RetryBudget.firstDecodeMultiple == 2)

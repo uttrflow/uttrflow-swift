@@ -29,7 +29,7 @@ capture → transcribe → correct → tidy → join → expand → insert → c
 | Stage | What runs | Measured as (`PipelineStage`) | Time limit (`StageTimeout`) |
 |---|---|---|---|
 | capture | drain and convert the microphone buffer | `.capture` | `quick`, 15 s |
-| transcribe | the recogniser, per piece | `.transcription` | `transcription`, 120 s |
+| transcribe | the recogniser, per piece | `.transcription` | `transcription(of:)`, 120 s plus 1 s per second of the piece |
 | correct | the personal dictionary, per piece | `.correction` | `quick`, 15 s |
 | tidy | the clean-up engines, per piece | `.transformation` | `transformation`, 30 s |
 | expand | snippets, over the joined text | `.expansion` | `quick`, 15 s |

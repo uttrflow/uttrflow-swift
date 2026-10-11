@@ -52,6 +52,15 @@ struct AccountErrorTests {
         #expect(message.lowercased().contains("first time"))
     }
 
+    /// The failing step is the sign-in check, so the message names it and the next step, not billing.
+    @Test("says an unverifiable sign-in is a sign-in problem, and to sign in again")
+    func unverifiableSignInNamesTheSignIn() {
+        let message = AccountError.sessionMalformed.userMessage.lowercased()
+        #expect(!message.contains("subscription"))
+        #expect(message.contains("sign-in"))
+        #expect(message.contains("sign in again"))
+    }
+
     @Test("offers a recovery wherever one could actually help")
     func recoveryActions() {
         // A connection may well have appeared since.

@@ -16,6 +16,7 @@ final class FakeDisk: FileSystemProbing {
     private let kinds: [String: PathKind]
     private let texts: [String: String]
     private let cancelAfterVisitedNames: Int?
+    private let listsInReverse: Bool
     private let asked = Mutex<[Operation]>([])
     private let visitedNames = Mutex<[String: Int]>([:])
 
@@ -23,7 +24,7 @@ final class FakeDisk: FileSystemProbing {
     init(
         home: String = "/Users/someone", searchPaths: [String] = ["/usr/bin"], directories: [String] = [],
         files: [String] = [], executables: [String] = [], texts: [String: String] = [:],
-        unknown: [String] = [], cancelAfterVisitedNames: Int? = nil
+        unknown: [String] = [], cancelAfterVisitedNames: Int? = nil, listsInReverse: Bool = false
     ) {
         environment = FileSystemEnvironment(homeDirectory: home, searchPaths: searchPaths)
         var kinds: [String: PathKind] = [:]
@@ -51,6 +52,7 @@ final class FakeDisk: FileSystemProbing {
         self.kinds = kinds
         self.texts = texts
         self.cancelAfterVisitedNames = cancelAfterVisitedNames
+        self.listsInReverse = listsInReverse
     }
 
     /// Every question asked so far, in order.
@@ -79,7 +81,7 @@ final class FakeDisk: FileSystemProbing {
             kinds.keys.filter { $0.hasPrefix(prefix) && $0.count > prefix.count }
                 .map { String($0.dropFirst(prefix.count).prefix { $0 != "/" }) }
         ).sorted()
-        for name in names {
+        for name in listsInReverse ? names.reversed() : names {
             guard !Task.isCancelled else { return nil }
             let count = visitedNames.withLock { count -> Int in
                 count[here, default: 0] += 1

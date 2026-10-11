@@ -7,7 +7,7 @@ import UttrflowUX
 struct SnippetEditorKeyboardTests {
     @Test("Return saves only a valid draft")
     func returnHonorsValidation() {
-        let save = MainIntent.saveSnippet(trigger: "hello", text: "world", replacing: nil)
+        let save = MainIntent.saveSnippet(trigger: "hello", text: "world", applications: [], replacing: nil)
 
         #expect(SnippetEditorKeyboard.saveIntent(canSave: true, save: save) == save)
         #expect(SnippetEditorKeyboard.saveIntent(canSave: false, save: save) == nil)

@@ -1,20 +1,5 @@
 import Foundation
 
-/// A seeded generator, so every run of the round trip sees the same cases.
-struct SeededRandom: RandomNumberGenerator {
-    private var state: UInt64
-
-    init(seed: UInt64) { state = seed }
-
-    mutating func next() -> UInt64 {
-        state &+= 0x9E37_79B9_7F4A_7C15
-        var mixed = state
-        mixed = (mixed ^ (mixed >> 30)) &* 0xBF58_476D_1CE4_E5B9
-        mixed = (mixed ^ (mixed >> 27)) &* 0x94D0_49BB_1331_11EB
-        return mixed ^ (mixed >> 31)
-    }
-}
-
 /// How a value is said aloud: the spoken variants a speaker may choose between.
 struct SpokenStyle: Hashable {
     /// "one hundred and five" rather than "one hundred five".
@@ -116,8 +101,8 @@ enum NumberVerbaliser {
     }
 
     /// The numeral the pass writes for a cardinal in prose: a comma every three digits from ten thousand.
-    static func numeral(_ value: Int) -> String {
-        guard value >= 10_000 else { return String(value) }
+    static func numeral(_ value: Int, isAmount: Bool = false) -> String {
+        guard value >= (isAmount ? 1_000 : 10_000) else { return String(value) }
         var digits = Array(String(value))
         var index = digits.count - 3
         while index > 0 {

@@ -5,9 +5,15 @@ import UttrflowUX
 
 @MainActor
 enum SettingsPauseCountdown {
-    /// Returns a deadline only while the unfiltered Suggestions pane is visible.
+    /// Returns a deadline only while the pause row is visible in the selected pane or search results.
     static func deadline(in session: SettingsSession) -> Date? {
-        guard session.tab == .suggestions, session.query.isEmpty else { return nil }
+        let pauseRowIsVisible = session.presentation.pane.groups
+            .flatMap(\.rows).contains { row in
+                guard case .action(_, let change) = row.control else { return false }
+                if case .pauseSuggestions = change { return true }
+                return false
+            }
+        guard pauseRowIsVisible else { return nil }
         return session.settings.suggestions.pausedUntil
     }
 

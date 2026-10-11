@@ -146,7 +146,7 @@ struct InFlightModelLoadTests {
         let progress = ProgressRecorder()
         let missing = WeightsNotOnDisk(identifier: "example/model")
         let reload = Task {
-            try await load.run(downloads: false, shouldRetry: { _ in true }) {
+            try await load.run(downloads: false, shouldRetry: { _ in true }) { _ in
                 signalStarted.yield()
                 for await _ in gate { break }
                 throw missing
@@ -154,7 +154,7 @@ struct InFlightModelLoadTests {
         }
         try await arrival(of: started)
         let prepare = Task {
-            try await load.run(downloads: true, shouldRetry: { $0 is WeightsNotOnDisk }) {
+            try await load.run(downloads: true, shouldRetry: { $0 is WeightsNotOnDisk }) { _ in
                 await progress.report(0.5)
             }
         }
@@ -164,6 +164,80 @@ struct InFlightModelLoadTests {
         await #expect(throws: WeightsNotOnDisk.self) { try await reload.value }
         try await prepare.value
         #expect(await progress.values == [0.5])
+    }
+
+    /// A load that reports `0.25` and then waits for the gate, alongside one joiner holding its own progress.
+    private static func sharedLoad(
+        _ load: InFlightModelLoad, starterProgress: ProgressRecorder, joinerProgress: ProgressRecorder
+    ) async throws -> (starter: Task<Void, any Error>, joiner: Task<Void, any Error>, open: () -> Void) {
+        let (started, signalStarted) = AsyncStream.makeStream(of: Void.self)
+        let (gate, openGate) = AsyncStream.makeStream(of: Void.self)
+        let starter = Task {
+            try await load.run(
+                downloads: true, onProgress: { value in Task { await starterProgress.report(value) } },
+                shouldRetry: { _ in false }
+            ) { report in
+                signalStarted.yield()
+                for await _ in gate { break }
+                report(0.25)
+            }
+        }
+        try await arrival(of: started)
+        let joiner = Task {
+            try await load.run(
+                downloads: true, onProgress: { value in Task { await joinerProgress.report(value) } },
+                shouldRetry: { _ in false }
+            ) { _ in Issue.record("a joiner never runs its own operation") }
+        }
+        try await eventually { await load.joinerCount == 1 }
+        return (starter, joiner, { openGate.yield() })
+    }
+
+    @Test(
+        "Cancelling the first caller leaves the load running for a joiner, which also receives its progress"
+    )
+    func cancellingFirstCallerKeepsJoiner() async throws {
+        let load = InFlightModelLoad()
+        let starterProgress = ProgressRecorder()
+        let joinerProgress = ProgressRecorder()
+        let shared = try await Self.sharedLoad(
+            load, starterProgress: starterProgress, joinerProgress: joinerProgress)
+        shared.starter.cancel()
+        shared.open()
+
+        try await shared.joiner.value
+        await #expect(throws: CancellationError.self) { try await shared.starter.value }
+        try await eventually { await joinerProgress.values == [0.25] }
+    }
+
+    @Test("Cancelling a joiner leaves the first caller's load running")
+    func cancellingJoinerKeepsFirstCaller() async throws {
+        let load = InFlightModelLoad()
+        let starterProgress = ProgressRecorder()
+        let joinerProgress = ProgressRecorder()
+        let shared = try await Self.sharedLoad(
+            load, starterProgress: starterProgress, joinerProgress: joinerProgress)
+        shared.joiner.cancel()
+        shared.open()
+
+        try await shared.starter.value
+        await #expect(throws: CancellationError.self) { try await shared.joiner.value }
+        try await eventually { await starterProgress.values == [0.25] }
+    }
+
+    @Test("Cancelling every caller stops the shared load")
+    func cancellingEveryCallerStopsLoad() async throws {
+        let load = InFlightModelLoad()
+        let (started, signalStarted) = AsyncStream.makeStream(of: Void.self)
+        let only = Task {
+            try await load.run(downloads: true, shouldRetry: { _ in false }) { _ in
+                signalStarted.yield()
+                try await Task.sleep(for: .seconds(60))
+            }
+        }
+        try await arrival(of: started)
+        only.cancel()
+        await #expect(throws: CancellationError.self) { try await only.value }
     }
 }
 

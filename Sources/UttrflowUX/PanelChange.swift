@@ -1,5 +1,6 @@
 // What a panel keystroke asks the store to do, and the sheets that ask the user first.
 public import UttrflowClipboard
+public import UttrflowCore
 
 /// Something only the store can carry out, named as a value so the decision is testable without the actor.
 public enum PanelChange: Sendable, Equatable {
@@ -13,8 +14,12 @@ public enum PanelChange: Sendable, Equatable {
     case create(String)
     /// The clip with its text replaced by something the user agreed to, from a re-indenter or formatter.
     case rewriteText(Clip.ID, String)
+    /// The clip's text as the user typed it in Edit, which is also a use and moves the clip to the top.
+    case editText(Clip.ID, String)
     /// Pinning prevents retention from removing the clip; unpinning puts it back under normal retention.
     case setPinned(Clip.ID, Bool)
+    /// The user's answer to whether a clip is a secret, which the store keeps for its text.
+    case setSecret(Clip.ID, Bool)
     /// The note form of a clip, replaced; ``Clip/text`` is left alone, which keeps the original recoverable.
     case setRichText(Clip.ID, String)
     /// A collection renamed; every clip in it moves with the name and no alias is touched.
@@ -23,8 +28,6 @@ public enum PanelChange: Sendable, Equatable {
     case deleteCategory(String, movingClipsTo: String?)
     /// G6 — the other answer: the clips go with it.
     case deleteCategoryAndClips(String)
-    /// Puts back a deleted clip with its alias and category; the whole clip, since its identity is gone.
-    case restore(Clip)
 }
 
 /// What the panel has put on top of the list, one at a time so `esc` always has one meaning.
@@ -35,6 +38,8 @@ public enum PanelSheet: Sendable, Equatable {
     case moving(Clip.ID, draft: String)
     /// F8 — asked only for a clip whose loss is not cheap.
     case confirmingDelete(Clip.ID)
+    /// E6 — asks before adding a rich note to a plain clip.
+    case confirmingMakeNote(Clip.ID)
     /// G5 — renaming a collection. `draft` is the new name as typed.
     case renamingCategory(String, draft: String)
     /// G6 — deleting a collection that holds clips, and choosing what happens to them.
@@ -43,20 +48,34 @@ public enum PanelSheet: Sendable, Equatable {
     case formatting(Clip.ID, formatted: String)
     /// A re-indenter's result awaiting agreement before the original clip text is replaced.
     case reindenting(Clip.ID, formatted: String)
+    /// Editing a clip's text; `draft` is the whole text as it now stands in the field.
+    case editing(Clip.ID, draft: String)
+    /// Asks before a paste the shared decision holds back; `cleaned` keeps the chosen form.
+    case confirmingPaste(Clip.ID, cleaned: Bool, reason: PasteQuestion.Reason)
 
     /// Whether this sheet has a field to type into; one that has none keeps the list behind it still (#946).
     public var takesTyping: Bool {
         switch self {
-        case .aliasing, .moving, .renamingCategory: true
-        case .confirmingDelete, .deletingCategory, .formatting, .reindenting: false
+        case .aliasing, .moving, .renamingCategory, .editing: true
+        case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting,
+            .confirmingPaste:
+            false
         }
+    }
+
+    /// Whether this is a paste question, which only means something at once.
+    public var isPasteQuestion: Bool {
+        if case .confirmingPaste = self { return true }
+        return false
     }
 
     /// The clip this sheet is about; `nil` for the two sheets that are about a collection.
     public var clip: Clip.ID? {
         switch self {
         case .aliasing(let id, _), .moving(let id, _), .confirmingDelete(let id),
-            .formatting(let id, _), .reindenting(let id, _):
+            .confirmingMakeNote(let id),
+            .formatting(let id, _), .reindenting(let id, _), .editing(let id, _),
+            .confirmingPaste(let id, _, _):
             id
         case .renamingCategory, .deletingCategory: nil
         }
@@ -65,17 +84,22 @@ public enum PanelSheet: Sendable, Equatable {
     /// The collection this sheet is about, where it is about one.
     public var category: String? {
         switch self {
-        case .renamingCategory(let name, _), .deletingCategory(let name, _): name
-        case .aliasing, .moving, .confirmingDelete, .formatting, .reindenting: nil
+        case .renamingCategory(let name, _), .deletingCategory(let name, _):
+            name
+        case .aliasing, .moving, .confirmingDelete, .formatting, .reindenting, .editing: nil
+        case .confirmingMakeNote, .confirmingPaste: nil
         }
     }
 
     /// What has been typed into the sheet, where the sheet takes typing at all.
     public var draft: String {
         switch self {
-        case .aliasing(_, let draft), .moving(_, let draft), .renamingCategory(_, let draft):
+        case .aliasing(_, let draft), .moving(_, let draft), .renamingCategory(_, let draft),
+            .editing(_, let draft):
             draft
-        case .confirmingDelete, .deletingCategory, .formatting, .reindenting: ""
+        case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting,
+            .confirmingPaste:
+            ""
         }
     }
 }
@@ -85,6 +109,9 @@ extension PanelSnapshot {
     func opening(_ sheet: PanelSheet) -> PanelResponse {
         var next = self
         next.sheet = sheet
+        next.hasReviewedProtectedCategoryDeletion = false
+        next.hasWarnedOfUnsavedSecret = false
+        next.hasAcknowledgedUnreviewableRewrite = false
         return PanelResponse(state: next, outcome: .open)
     }
 
@@ -114,27 +141,50 @@ extension PanelSnapshot {
         case .moving(let id, let draft):
             let named = draft.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !named.isEmpty else { return stayingOpen }
+            let filed: String
+            switch collectionRefusal(named) {
+            case nil: filed = named
             // A name that already exists files the clip there rather than making a twin collection.
-            let existing = existingCategory(named: named)
+            case .taken(let existing): filed = existing
+            case .filterName, .invisibleCharacters, .tooLong: return stayingOpen
+            }
             return PanelResponse(
-                state: closingSheet(), outcome: .change(.setCategory(id, existing ?? named)))
+                state: closingSheet(), outcome: .change(.setCategory(id, filed)))
 
         case .confirmingDelete(let id):
             return PanelResponse(state: closingSheet(), outcome: .change(.delete(id)))
 
-        case .formatting(let id, let formatted):
+        case .confirmingMakeNote(let id):
+            guard let clip = clip(id), clip.richText == nil, clip.image == nil else {
+                return PanelResponse(state: closingSheet(), outcome: .open)
+            }
             return PanelResponse(
-                state: closingSheet(), outcome: .change(.rewriteText(id, formatted)))
+                state: closingSheet(),
+                outcome: .change(.setRichText(id, NotePromotion.note(from: clip.text))))
 
-        case .reindenting(let id, let formatted):
+        case .confirmingPaste(let id, let cleaned, let reason):
+            guard let clip = clip(id), clip.kind == .secret || !reason.isAboutHiddenClip else {
+                return PanelResponse(state: closingSheet(), outcome: .open)
+            }
             return PanelResponse(
-                state: closingSheet(), outcome: .change(.rewriteText(id, formatted)))
+                state: closingSheet(), outcome: .insertConfirmed(clip, cleaned: cleaned))
+
+        case .formatting(let id, let formatted), .reindenting(let id, let formatted):
+            if !hasAcknowledgedUnreviewableRewrite, PanelPresenter.sheet(for: self)?.isUnreviewable == true {
+                var next = self
+                next.hasAcknowledgedUnreviewableRewrite = true
+                return PanelResponse(state: next, outcome: .open)
+            }
+            return committingRewrite(id, to: formatted)
+
+        case .editing(let id, let draft):
+            return committingEdit(id, draft: draft)
 
         case .renamingCategory(let name, let draft):
             let renamed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !renamed.isEmpty, renamed != name else { return stayingOpen }
             // Renaming onto an existing name would be a merge, which nobody asked for; nothing happens.
-            guard existingCategory(named: renamed, besides: name) == nil else { return stayingOpen }
+            guard collectionRefusal(renamed, replacing: name) == nil else { return stayingOpen }
             var next = closingSheet()
             // Followed here as well as in the store, so the chips do not flicker through the old name.
             if next.category == name { next.category = renamed }
@@ -142,16 +192,29 @@ extension PanelSnapshot {
                 state: next, outcome: .change(.renameCategory(from: name, to: renamed)))
 
         case .deletingCategory(let name, let keepingClips):
-            var next = closingSheet()
-            // The tab being deleted cannot stay open over a collection that is gone.
-            if next.category == name { next.category = nil }
-            return PanelResponse(
-                state: next,
-                outcome: .change(
-                    keepingClips
-                        ? .deleteCategory(name, movingClipsTo: nil)
-                        : .deleteCategoryAndClips(name)))
+            if !keepingClips, !hasReviewedProtectedCategoryDeletion,
+                clips.contains(where: {
+                    $0.category == name && ($0.isPinned || $0.alias != nil)
+                })
+            {
+                var next = self
+                next.hasReviewedProtectedCategoryDeletion = true
+                return PanelResponse(state: next, outcome: .open)
+            }
+            return deletingCategory(name, keepingClips: keepingClips)
         }
+    }
+
+    private func deletingCategory(_ name: String, keepingClips: Bool) -> PanelResponse {
+        var next = closingSheet()
+        // The tab being deleted cannot stay open over a collection that is gone.
+        if next.category == name { next.category = nil }
+        return PanelResponse(
+            state: next,
+            outcome: .change(
+                keepingClips
+                    ? .deleteCategory(name, movingClipsTo: nil)
+                    : .deleteCategoryAndClips(name)))
     }
 
     /// Types into the open sheet; ignored when there is none, so a stray keystroke cannot resurrect it.
@@ -161,9 +224,22 @@ extension PanelSnapshot {
         case .aliasing(let id, _): next.sheet = .aliasing(id, draft: text)
         case .moving(let id, _): next.sheet = .moving(id, draft: text)
         case .renamingCategory(let name, _): next.sheet = .renamingCategory(name, draft: text)
-        case .confirmingDelete, .deletingCategory, .formatting, .reindenting, .none: return self
+        case .editing(let id, _):
+            next.sheet = .editing(id, draft: text)
+            // A warning holds only for the text it is shown for, so new text is judged again.
+            next.hasWarnedOfUnsavedSecret = false
+        case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting,
+            .confirmingPaste, .none:
+            return self
         }
         return next
+    }
+
+    /// Opens the one question every confirm-before-paste asks, worded by its reason.
+    public func askingBeforePaste(
+        of id: Clip.ID, cleaned: Bool, reason: PasteQuestion.Reason
+    ) -> PanelSnapshot {
+        opening(.confirmingPaste(id, cleaned: cleaned, reason: reason)).state
     }
 
     /// Tidies a code clip, checking again at the moment it acts because the clip may have changed.
@@ -174,11 +250,10 @@ extension PanelSnapshot {
         return opening(.reindenting(id, formatted: tidied))
     }
 
-    /// Gives a plain clip a rich form; refuses one that has it, so a written note is never overwritten.
+    /// Asks before adding a rich form to plain text; refuses rich or image clips.
     func promoting(_ id: Clip.ID) -> PanelResponse {
         guard let clip = clip(id), clip.richText == nil, clip.image == nil else { return stayingOpen }
-        return PanelResponse(
-            state: self, outcome: .change(.setRichText(id, NotePromotion.note(from: clip.text))))
+        return opening(.confirmingMakeNote(id))
     }
 
     /// What the alias field opens showing: the clip's current alias, so renaming is the same gesture.
@@ -190,6 +265,9 @@ extension PanelSnapshot {
     func closingSheet() -> PanelSnapshot {
         var next = self
         next.sheet = nil
+        next.hasReviewedProtectedCategoryDeletion = false
+        next.hasWarnedOfUnsavedSecret = false
+        next.hasAcknowledgedUnreviewableRewrite = false
         return next
     }
 }

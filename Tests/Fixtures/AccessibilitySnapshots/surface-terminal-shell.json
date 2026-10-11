@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "family": "terminal: shell",
+  "windowTitle": "demo — -zsh — 80×24",
+  "document": null,
+  "focused": {
+    "attributes": {
+      "AXRole": { "kind": "value", "text": "AXTextArea" },
+      "AXSubrole": { "kind": "noValue" },
+      "AXIdentifier": { "kind": "unsupported" },
+      "AXTitle": { "kind": "noValue" },
+      "AXPlaceholderValue": { "kind": "noValue" },
+      "AXDescription": { "kind": "value", "text": "shell" },
+      "AXNumberOfCharacters": { "kind": "value", "number": 10 },
+      "AXValue": { "kind": "value", "text": "demo % ls\n" }
+    },
+    "rangedText": { "kind": "value" },
+    "children": []
+  }
+}

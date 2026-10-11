@@ -18,6 +18,8 @@ public struct RecordedCorrection: Sendable, Equatable, Identifiable, Codable {
     public let reason: CorrectionReason
     /// What the recogniser scored the words being replaced; shows that the engine only moves on a guess.
     public let heardConfidence: Double
+    /// How strongly the gate chose the replacement; `nil` for the user's own spelling or a file that predates it.
+    public let evidence: OverrideEvidence?
     /// Whether the user has put it back; a flag, not a deletion, so the page can show it and count it.
     public var isUndone: Bool
     /// Where the written words begin among the stored text's words, or `nil` when that was not known.
@@ -26,8 +28,8 @@ public struct RecordedCorrection: Sendable, Equatable, Identifiable, Codable {
     /// Builds a change whose reason is already named.
     public init(
         id: UUID = UUID(), heard: String, wrote: String, wordRange: Range<Int>, entryID: UUID,
-        reason: CorrectionReason, heardConfidence: Double, isUndone: Bool = false,
-        writtenWordIndex: Int? = nil
+        reason: CorrectionReason, heardConfidence: Double, evidence: OverrideEvidence? = nil,
+        isUndone: Bool = false, writtenWordIndex: Int? = nil
     ) {
         self.id = id
         self.heard = heard
@@ -36,11 +38,12 @@ public struct RecordedCorrection: Sendable, Equatable, Identifiable, Codable {
         self.entryID = entryID
         self.reason = reason
         self.heardConfidence = heardConfidence
+        self.evidence = evidence
         self.isUndone = isUndone
         self.writtenWordIndex = writtenWordIndex
     }
 
-    /// Reads `isUndone` as `false` and `writtenWordIndex` as unknown when absent; the rest is required. See Docs/core-history-decoding.md.
+    /// Reads `isUndone` as `false`, `evidence` and `writtenWordIndex` as unknown when absent; the rest is required. See Docs/core-history-decoding.md.
     public init(from decoder: any Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         id = try values.decode(UUID.self, forKey: .id)
@@ -50,6 +53,7 @@ public struct RecordedCorrection: Sendable, Equatable, Identifiable, Codable {
         entryID = try values.decode(UUID.self, forKey: .entryID)
         reason = try values.decode(CorrectionReason.self, forKey: .reason)
         heardConfidence = try values.decode(Double.self, forKey: .heardConfidence)
+        evidence = try values.decodeIfPresent(OverrideEvidence.self, forKey: .evidence)
         // A file without the flag and a change nobody undid are the same fact.
         isUndone = try values.decodeIfPresent(Bool.self, forKey: .isUndone) ?? false
         writtenWordIndex = try values.decodeIfPresent(Int.self, forKey: .writtenWordIndex)

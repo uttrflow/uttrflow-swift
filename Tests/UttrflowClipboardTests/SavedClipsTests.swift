@@ -31,7 +31,8 @@ struct SavedClipsTests {
 
         let saved = await store.savedFile
         let onDisk = try JSONDecoder().decode(
-            [Clip].self, from: try Data(contentsOf: saved))
+            ClipboardIndex.self, from: try Data(contentsOf: saved)
+        ).clips
         #expect(onDisk.map(\.id) == [subject.id])
         // And out of the disposable one, or it would still share its fate.
         #expect(
@@ -57,6 +58,26 @@ struct SavedClipsTests {
             await ClipboardStore(file: file.url).clips(keeping: week()).map(\.text) == [
                 "first", "second",
             ])
+    }
+
+    @Test("merges saved and history pools by sequence after a clock rollback", .bug(id: 2587))
+    func interleavingUsesStoredOrderAcrossClockRollback() async throws {
+        let folder = try TemporaryFolder()
+        let historyFile = folder.url.appending(path: "clipboard.json", directoryHint: .notDirectory)
+        let store = ClipboardStore(file: historyFile)
+        let savedFile = await store.savedFile
+        let history = Clip(
+            text: "history before rollback", kind: .text, copiedAt: noon.addingTimeInterval(60),
+            lastUsedOrder: 1)
+        let saved = Clip(
+            text: "saved after rollback", kind: .text, copiedAt: noon.addingTimeInterval(-60),
+            lastUsedOrder: 2, isPinned: true)
+        try JSONEncoder().encode([history]).write(to: historyFile)
+        try JSONEncoder().encode([saved]).write(to: savedFile)
+
+        let clips = await ClipboardStore(file: historyFile).clips(keeping: week())
+
+        #expect(clips.map(\.text) == ["saved after rollback", "history before rollback"])
     }
 
     /// The measured failure, now a test.
@@ -131,7 +152,9 @@ struct SavedClipsTests {
         try await store.setPinned(false, of: subject.id, keeping: week())
 
         let saved = await store.savedFile
-        let onDisk = try JSONDecoder().decode([Clip].self, from: try Data(contentsOf: saved))
+        let onDisk = try JSONDecoder().decode(
+            ClipboardIndex.self, from: try Data(contentsOf: saved)
+        ).clips
         #expect(onDisk.map(\.category) == ["Work"])
     }
 
@@ -249,6 +272,49 @@ struct SavedClipsTests {
         #expect(
             reopened.first?.isKept == false,
             "the clip is no longer kept, so the next prune can age it out")
+    }
+
+    /// Several pinned and several history clips, pasted from and reopened: each pool keeps its own order.
+    @Test("pinned and history clips keep their order within each pool across a reopen", .bug(id: 3668))
+    func poolOrderSurvivesAReopen() async throws {
+        let file = TemporaryFile()
+        let store = ClipboardStore(file: file.url, useFlushDelay: .seconds(3_600))
+        let historyOlder = clip("history older", at: -300)
+        let historyNewer = clip("history newer", at: -240)
+        let historyNewest = clip("history newest", at: -180)
+        let pinnedOlder = clip("pinned older", at: -120)
+        let pinnedMiddle = clip("pinned middle", at: -60)
+        let pinnedNewest = clip("pinned newest")
+        for subject in [
+            historyOlder, historyNewer, historyNewest, pinnedOlder, pinnedMiddle, pinnedNewest,
+        ] {
+            try await store.record(subject, keeping: week())
+        }
+        for pinned in [pinnedOlder, pinnedMiddle, pinnedNewest] {
+            try await store.setPinned(true, of: pinned.id, keeping: week())
+        }
+
+        // Two pastes, one in each pool, the pinned one last, both before the reopen.
+        _ = await store.markUsed(historyNewer.id, at: noon.addingTimeInterval(600), keeping: week())
+        _ = await store.markUsed(pinnedOlder.id, at: noon.addingTimeInterval(660), keeping: week())
+        await store.flushUse()
+
+        let reopened = ClipboardStore(file: file.url)
+        let clips = await reopened.clips(keeping: week())
+
+        #expect(clips.count == 6)
+        // Every pinned clip stayed pinned, and stayed in the saved pool on disk.
+        #expect(clips.filter(\.isPinned).map(\.text) == ["pinned older", "pinned newest", "pinned middle"])
+        let savedOnDisk = try JSONDecoder().decode(
+            [Clip].self, from: try Data(contentsOf: await reopened.savedFile))
+        #expect(Set(savedOnDisk.map(\.text)) == ["pinned older", "pinned middle", "pinned newest"])
+        // Each pool kept its own order: the pasted clip first, then arrival order.
+        #expect(
+            clips.filter { !$0.isPinned }.map(\.text) == [
+                "history newer", "history newest", "history older",
+            ])
+        // And the last paste moved its clip to the top of the merged list.
+        #expect(clips.first?.text == "pinned older")
     }
 }
 

@@ -1,13 +1,14 @@
 // Tests for the hold that keeps keys back while a taken keystroke is carried out.
 import CoreGraphics
 import Dispatch
+import Foundation
 import Synchronization
 import Testing
 import UttrflowTestSupport
 
 @testable import UttrflowInput
 
-@Suite("The key hold")
+@Suite("The key hold", .timeLimit(.minutes(2)))
 struct KeyHoldTests {
     /// A key-down for a virtual key code.
     private static func key(_ code: CGKeyCode) -> CGEvent? {
@@ -17,6 +18,31 @@ struct KeyHoldTests {
     /// The key codes of events, in order.
     private static func codes(_ events: [CGEvent]) -> [Int64] {
         events.map { $0.getIntegerValueField(.keyboardEventKeycode) }
+    }
+
+    @Test("a concurrent release cannot remove the suppression from a new live hold")
+    func suppressionSurvivesConcurrentRelease() {
+        let clock = PausingClock(pauseOnRead: 3)
+        let hold = KeyHold(clock: clock)
+        hold.begin()
+        let beginFinished = DispatchSemaphore(value: 0)
+        // Its own thread, not a global queue worker, so a busy test run cannot delay the rearm past the timeouts.
+        Thread {
+            hold.begin(suppressingUnarmedTab: true)
+            beginFinished.signal()
+        }.start()
+
+        let reachedPause = clock.paused.wait(timeout: .distantFuture) == .success
+        #expect(reachedPause)
+        hold.release()
+        clock.resume.signal()
+        #expect(beginFinished.wait(timeout: .distantFuture) == .success)
+
+        #expect(hold.isHolding)
+        #expect(hold.isHoldingBareTabAccept)
+        hold.release()
+        #expect(!hold.isHolding)
+        #expect(!hold.isHoldingBareTabAccept)
     }
 
     @Test("nothing is held back until a keystroke is taken")
@@ -54,20 +80,29 @@ struct KeyHoldTests {
         #expect(!hold.keep(try #require(Self.key(36))))
     }
 
-    @Test("expiry discards earlier held keys before later keys pass through")
-    func expiryDiscardsHeldKeys() throws {
+    @Test("a key arriving after expiry replays earlier held keys before passing through")
+    func expiryReplaysHeldKeys() throws {
         let clock = ManualClock()
         let hold = KeyHold(clock: clock)
         hold.begin()
         #expect(hold.keep(try #require(Self.key(0))))
         #expect(hold.keep(try #require(Self.key(1))))
         clock.advance(by: .nanoseconds(Int64(KeyHold.limitNanoseconds)))
-        #expect(!hold.keep(try #require(Self.key(36))))
 
         var posted: [Int64] = []
+        #expect(
+            !hold.keep(
+                try #require(Self.key(36)),
+                postExpired: {
+                    posted.append($0.getIntegerValueField(.keyboardEventKeycode))
+                }))
+        #expect(posted == [0, 1])
+
+        posted = []
         hold.release { posted.append($0.getIntegerValueField(.keyboardEventKeycode)) }
         #expect(posted.isEmpty)
         #expect(!hold.keep(try #require(Self.key(49))))
+        #expect(!hold.isHoldingBareTabAccept)
     }
 
     @Test("a normal hold replays keys in arrival order")
@@ -140,5 +175,36 @@ struct KeyHoldTests {
         var replayedAgain: [Int64] = []
         hold.release { replayedAgain.append($0.getIntegerValueField(.keyboardEventKeycode)) }
         #expect(replayedAgain.isEmpty)
+    }
+}
+
+/// Pauses the rearm's clock read so a concurrent release can finish before it publishes a new hold.
+private final class PausingClock: Clock, Sendable {
+    typealias Instant = ManualClock.Instant
+
+    private let reads = Mutex(0)
+    private let clock = ManualClock()
+    private let pauseOnRead: Int
+    let paused = DispatchSemaphore(value: 0)
+    let resume = DispatchSemaphore(value: 0)
+
+    init(pauseOnRead: Int) { self.pauseOnRead = pauseOnRead }
+
+    var now: Instant {
+        let read = reads.withLock { reads -> Int in
+            reads += 1
+            return reads
+        }
+        if read == pauseOnRead {
+            paused.signal()
+            resume.wait()
+        }
+        return clock.now
+    }
+
+    var minimumResolution: Duration { clock.minimumResolution }
+
+    func sleep(until deadline: Instant, tolerance: Duration?) async throws {
+        try await clock.sleep(until: deadline, tolerance: tolerance)
     }
 }

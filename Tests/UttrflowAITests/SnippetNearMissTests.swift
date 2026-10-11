@@ -55,7 +55,7 @@ struct SnippetNearMissTests {
 
     @Test("expands nothing it should not", arguments: nearMisses)
     func nothingExpands(transcript: String) {
-        let result = SnippetExpander(snippets: Self.snippets).expand(transcript)
+        let result = SnippetExpander(snippets: Self.snippets, in: nil).expand(transcript)
         #expect(!result.didExpand, "expanded: \(result.applied.map(\.matched))")
         #expect(result.text == transcript)
     }
@@ -73,7 +73,7 @@ struct SnippetNearMissTests {
         ]
     )
     func theRealThingStillWorks(transcript: String) {
-        #expect(SnippetExpander(snippets: Self.snippets).expand(transcript).didExpand)
+        #expect(SnippetExpander(snippets: Self.snippets, in: nil).expand(transcript).didExpand)
     }
 
     @Test("at least ten ways of being nearly right are checked")

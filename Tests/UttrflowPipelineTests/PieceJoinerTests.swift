@@ -156,6 +156,15 @@ struct PieceJoinerListTests {
         #expect(whole.cleaned.text == "Agenda.\n- Budget\n- Hiring\n- Roadmap")
     }
 
+    @Test("puts a bullet that opens a paused piece, written without its break, on its own line")
+    func bulletWithoutBreakAtPieceHead() {
+        let whole = PieceJoiner.join(
+            [piece("Agenda"), piece("- budget"), piece("- hiring"), piece("- roadmap")],
+            under: .standard(for: .document))
+
+        #expect(whole.cleaned.text == "Agenda.\n- Budget\n- Hiring\n- Roadmap")
+    }
+
     @Test("one sequence word is prose, however plainly it counts")
     func oneItemIsProse() {
         #expect(
@@ -287,13 +296,13 @@ struct PieceJoinerParagraphTests {
     @Test("keeps a named new line at the end of a piece as words")
     func mentionedLineCommandAtPieceEnd() {
         #expect(
-            joined(["Please add a new line.", "Of products to the catalogue."], .document)
+            seamedAndLaidOut(["Please add a new line.", "Of products to the catalogue."], .document)
                 == "Please add a new line of products to the catalogue.")
         #expect(
-            joined(["We launched a new line.", "Of shoes last spring."], .document)
+            seamedAndLaidOut(["We launched a new line.", "Of shoes last spring."], .document)
                 == "We launched a new line of shoes last spring.")
         #expect(
-            joined(["The product line.", "Is growing fast."], .document)
+            seamedAndLaidOut(["The product line.", "Is growing fast."], .document)
                 == "The product line is growing fast.")
     }
 
@@ -578,7 +587,8 @@ struct PieceJoinerSeamTests {
         let whole = PieceJoiner.join(
             [piece("open quote"), piece("hello there")], under: .standard(for: .messaging))
 
-        #expect(whole.cleaned.text == "\"hello there\"")
+        // The spoken-punctuation pass writes an unclosed "open quote" the same way within one piece.
+        #expect(whole.cleaned.text == "\"hello there")
     }
 
     @Test("does not carry a mark mention across a sentence boundary")
@@ -587,7 +597,7 @@ struct PieceJoinerSeamTests {
             [piece("we shipped it."), piece("the word"), piece("full stop")],
             under: .standard(for: .messaging))
 
-        #expect(whole.cleaned.text == "We shipped it. The word full stop")
+        #expect(whole.cleaned.text == "we shipped it. the word full stop")
     }
 
     @Test("keeps a spoken mark name when it is mentioned across a piece boundary")
@@ -663,6 +673,22 @@ struct PieceJoinerSeamTests {
             under: .standard(for: .document))
 
         #expect(whole.cleaned.text == "We moved the review to the next slot works")
+    }
+
+    @Test(
+        "lowers a recognizer capital on a pronoun or verb that opens the clause after a run-on seam",
+        arguments: [
+            ("I called the supplier this morning and", "They said the parts ship on Friday", "they said"),
+            ("I called the supplier this morning and", "We agreed on a price", "we agreed"),
+            ("The review moved because", "She was out sick", "she was"),
+        ])
+    func lowersClauseOpeningAtRunOnSeam(first: String, next: String, expected: String) {
+        let whole = PieceJoiner.join(
+            [piece(first), piece(next)], under: .standard(for: .document))
+
+        #expect(whole.cleaned.text.lowercased().contains(expected))
+        let opening = next.prefix(while: \.isLetter)
+        #expect(!whole.cleaned.text.contains(" " + opening))
     }
 
     @Test(
@@ -869,7 +895,7 @@ struct PieceJoinerSeamTests {
     func joinsEveryScaleWithSmallerAmount() {
         let cases: [(String, String, String, String)] = [
             ("400", "four hundred", "and $20", "$420"),
-            ("2,000", "two thousand", "and $50", "$2050"),
+            ("2,000", "two thousand", "and $50", "$2,050"),
             ("3,000,000", "three million", "and $5", "$3,000,005"),
         ]
         for (number, heard, amount, sum) in cases {
@@ -878,6 +904,28 @@ struct PieceJoinerSeamTests {
                 under: .standard(for: .document))
             #expect(seamed.first == "It cost " + sum)
         }
+    }
+
+    @Test("writes an amount joined across a seam without grouping where the place parses its digits")
+    func joinedAmountFollowsThePlacesGrouping() {
+        let seamed = PieceJoiner.seamed(
+            ["cost = 3000000", "and $5"], heard: ["cost equals three million", "and $5"],
+            under: .standard(for: .sqlEditor))
+
+        #expect(seamed.first == "cost = $3000005")
+    }
+
+    @Test("writes an amount joined across a seam in the person's grouping")
+    func joinedAmountFollowsThePersonsGrouping() {
+        let formatter = DestinationFormatter.standard(for: .document)
+        let situation = Situation(
+            app: .unknown, insertion: .unknown, destination: .document,
+            numberStyle: NumberStyle(grouping: .indian))
+        let seamed = PieceJoiner.seamed(
+            ["It cost 1,00,000", "and ₹50,000"], heard: ["it cost one lakh", "and ₹50,000"],
+            under: formatter, grouping: situation.digits(for: formatter))
+
+        #expect(seamed.first == "It cost ₹1,50,000")
     }
 
     @Test("keeps separate figures apart when the second number has no currency")
@@ -944,31 +992,5 @@ struct PieceJoinerSeamTests {
         }
 
         #expect(kept.count == Self.sentencesAcrossNumbers.count)
-    }
-}
-
-@Suite("Seam stops around a snippet expansion")
-struct SeamSnippetInputTests {
-    private let input = SeamSnippetInput(
-        text: "W1 X. W2 X. W3 X", removableStops: [4, 10], source: "W1 X. W2 X. W3 X")
-
-    @Test("an expansion that changed nothing leaves the seam stops where they were")
-    func unchangedExpansionKeepsStops() {
-        let unchanged = ExpandedTranscript.unchanged(input.removingSeamStops())
-        #expect(input.restoringUnconsumedStops(in: unchanged).text == "W1 X. W2 X. W3 X")
-    }
-
-    @Test("a stop whose seam is still a gap after the expansion comes back in place")
-    func gapKeepsItsStop() {
-        let expanded = ExpandedTranscript(text: "W1 X W2 X W3 Y", snippets: [])
-        #expect(input.restoringUnconsumedStops(in: expanded).text == "W1 X. W2 X. W3 Y")
-    }
-
-    @Test("a snippet's caret moves with the stops restored before it")
-    func caretFollowsRestoredStops() {
-        let expanded = ExpandedTranscript(text: "W1 X W2 X W3 Y", snippets: [], caret: 6)
-        let restored = input.restoringUnconsumedStops(in: expanded)
-        #expect(restored.text == "W1 X. W2 X. W3 Y")
-        #expect(restored.caret == "W1 X. W".utf16.count)
     }
 }

@@ -9,6 +9,8 @@ public struct Correction: Sendable, Equatable, Identifiable {
     public let id: UUID
     /// The dictation this happened in, so the row can say where and the badge can lead back here.
     public let dictation: UUID
+    /// The dictionary entry the change was made for, so a retired word can list the undos that retired it.
+    public let entryID: UUID
     /// What the recogniser produced.
     public let heard: String
     /// What was written in its place.
@@ -26,6 +28,7 @@ public struct Correction: Sendable, Equatable, Identifiable {
     public init(
         id: UUID = UUID(),
         dictation: UUID,
+        entryID: UUID = UUID(),
         heard: String,
         wrote: String,
         reason: CorrectionReason,
@@ -35,6 +38,7 @@ public struct Correction: Sendable, Equatable, Identifiable {
     ) {
         self.id = id
         self.dictation = dictation
+        self.entryID = entryID
         self.heard = heard
         self.wrote = wrote
         self.reason = reason
@@ -46,7 +50,7 @@ public struct Correction: Sendable, Equatable, Identifiable {
     /// One stored change, read out of the record that holds it.
     public init(_ made: RecordedCorrection, in record: DictationRecord) {
         self.init(
-            id: made.id, dictation: record.id, heard: made.heard, wrote: made.wrote,
+            id: made.id, dictation: record.id, entryID: made.entryID, heard: made.heard, wrote: made.wrote,
             reason: made.reason, when: record.when, applicationName: record.applicationName,
             isUndone: made.isUndone)
     }

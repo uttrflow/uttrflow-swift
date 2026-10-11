@@ -21,8 +21,18 @@ suspension rather than a blocked main thread.
 
 The decoded list is held by `CachedStoredList`, which reads the file again only when its stamp
 — inode, size and modification time — differs from the one it was read at, so the file stays
-the only truth without being decoded on every read. `expander()` builds the matcher from that
+the only truth without being decoded on every read. `expander(in:)` builds the matcher from that
 list at the moment it is asked, never from a list fetched earlier.
+
+## Only in chosen applications
+
+A snippet may list the applications it fires in (`Snippet.applications`, bundle identifiers the
+person picks in the editor); an empty list, and every file written before the list existed, fires
+everywhere. The person chooses this; nothing infers it. `SnippetExpander(snippets:in:)` keeps only
+the snippets that `ApplicationScope.admits` for the application the dictation read, matched by
+`ApplicationKey`, and a dictation whose application is unknown fires only unconfined snippets. The
+store keeps one list and writes the key only when the list is not empty, so an unconfined record is
+byte for byte what it was. Triggers stay unique across the whole list, confined or not.
 
 ## Creation order, always
 
@@ -37,7 +47,14 @@ Two snippets answering to one trigger is a question with no right answer, and th
 to discover it is halfway through a dictation: the matcher would pick one and be consistent
 about it, and the user would have no idea which. `save(_:)` refuses with
 `SnippetStoreError.triggerAlreadyUsed`. It also refuses a trigger with no words
-(`triggerHasNoWords`) and an expansion that is only whitespace (`expansionIsEmpty`).
+(`triggerHasNoWords`) and an expansion that is only whitespace (`expansionIsEmpty`). The editor
+also refuses a trigger whose words contain a phrase from `spoken-commands.json` that is heard in
+ordinary dictation (`triggerIsSpokenCommand`), since the command and the snippet would otherwise be
+settled by pass order; rows said only under the editing key do not count. A snippet that collides anyway,
+imported or saved before the command row existed, is skipped by `SnippetExpander`
+(`Snippet.collidingCommand`), so the command always wins. An import keeps such a snippet and
+counts it in `PersonalDataImportReport.snippetsSayingCommands`, and the import notice says so.
+The Snippets list shows such a snippet with a warning naming the command (`SnippetRow.warning`).
 
 ## Why there is a second `save`
 
@@ -71,6 +88,12 @@ The caret is moved by `SelectionWriter.placeCaret(in:back:)`, which verifies the
 span exactly as an edit of it does (`Sources/UttrflowInput/EditTarget.swift`) and refuses a
 field that will not report ranges, so the caret stays at the end of the expansion there. A
 body that is only a marker is empty and is refused like one.
+
+After a dictation is written, the pipeline asks `ExpandedTranscript.caretBack(inWritten:)` how far
+back the caret goes in the text as written, matching the words after the marker through padding
+and first-word casing, and passes that to `TextInserting.placeCaret(back:)`. The dictation
+inserter keeps an `InsertionLedger`, so only a confirmed Accessibility write into the field still
+in front can have its caret moved; every other route leaves the caret at the end.
 
 ## When a snippet does not fire
 

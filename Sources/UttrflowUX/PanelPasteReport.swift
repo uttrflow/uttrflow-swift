@@ -1,7 +1,7 @@
-// What the user is told after the panel has closed and a chosen clip did not visibly arrive.
+// What the user is told after the panel has closed: a clip that did not visibly arrive, or a deliberate Copy.
 public import UttrflowCore
 
-/// How a paste from the panel ended, as the app saw it after the panel had gone.
+/// How a clipboard action from the panel ended, as the app saw it after the panel had gone.
 public enum PanelPasteResult: Sendable, Equatable {
     /// The text path answered, with how the words were sent and whether they were seen to arrive.
     case text(InsertionAttempt)
@@ -13,6 +13,18 @@ public enum PanelPasteResult: Sendable, Equatable {
     case pictureRefused
     /// The picture's file went between drawing the panel and pressing Return.
     case pictureMissing
+    /// An explicit Copy placed this kind of content on the clipboard.
+    case copied(PanelCopyContent)
+}
+
+/// What a deliberate Copy placed on the clipboard.
+public enum PanelCopyContent: Sendable, Equatable {
+    /// Visible text.
+    case text
+    /// A secret, written concealed so clipboard managers skip it.
+    case hiddenText
+    /// A picture.
+    case picture
 }
 
 /// What the floating button says about a panel paste; one decision for text and pictures. See `Docs/app-quick-panel.md`.
@@ -29,6 +41,8 @@ public struct PanelPasteReport: Sendable, Equatable {
     /// Silent after a text insertion, except when the words are left on the clipboard.
     public static func after(_ result: PanelPasteResult) -> PanelPasteReport? {
         switch result {
+        case .copied(.text), .copied(.picture): copied
+        case .copied(.hiddenText): copiedHidden
         case .text(let attempt) where attempt.method == .clipboard:
             copied
         case .text:
@@ -52,4 +66,9 @@ public struct PanelPasteReport: Sendable, Equatable {
     static let copied = PanelPasteReport(
         symbolName: "doc.on.clipboard", primaryLine: "Copied — press ⌘V", secondaryLine: nil,
         spoken: "Copied to the clipboard, not pasted. Press Command V to paste it.")
+
+    /// A secret on the clipboard, confirmed without showing any of it.
+    private static let copiedHidden = PanelPasteReport(
+        symbolName: "doc.on.clipboard", primaryLine: "Copied hidden clip — press ⌘V", secondaryLine: nil,
+        spoken: "Copied a hidden clip to the clipboard, not pasted. Press Command V to paste it.")
 }

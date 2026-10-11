@@ -18,6 +18,8 @@ public enum TextInsertionError: UttrflowFailure {
     case insertionUnconfirmed
     /// The application in front changed after the destination was captured.
     case insertionTargetChanged
+    /// The window holding the field the context was read from closed before the write.
+    case insertionFieldClosed
     /// Clipboard-free insertion refused, so the user may copy the retained transcript explicitly.
     case insertionNeedsCopy(description: String)
     /// Typing stopped partway, so only the first `typed` of `total` characters reached the field.
@@ -44,6 +46,8 @@ public enum TextInsertionError: UttrflowFailure {
             "The app hasn't confirmed whether the text was inserted. Check the field before trying again."
         case .insertionTargetChanged:
             "The app in front changed. Focus the intended field and try again."
+        case .insertionFieldClosed:
+            "The field you dictated into closed. Your dictation is saved in History."
         case .insertionNeedsCopy:
             "The text couldn't be inserted. Your clipboard is unchanged."
         case .insertionInterrupted(let typed, let total):
@@ -61,6 +65,7 @@ public enum TextInsertionError: UttrflowFailure {
         case .clipboardChanged: .showHistory
         case .insertionTimedOut: .showHistory
         case .insertionTargetChanged: .showHistory
+        case .insertionFieldClosed: .showHistory
         case .insertionRejected: .pasteManually
         case .insertionCancelled: nil
         case .insertionUnconfirmed: .showHistory
@@ -77,7 +82,7 @@ public enum TextInsertionError: UttrflowFailure {
         // The words exist and the user can reach them; they only missed where they were aimed.
         case .accessibilityDenied, .clipboardUnavailable, .clipboardChanged, .insertionTimedOut,
             .insertionRejected,
-            .insertionUnconfirmed, .insertionTargetChanged, .insertionNeedsCopy,
+            .insertionUnconfirmed, .insertionTargetChanged, .insertionFieldClosed, .insertionNeedsCopy,
             .insertionInterrupted:
             .degraded
         case .insertionCancelled: .informational
@@ -88,8 +93,8 @@ public enum TextInsertionError: UttrflowFailure {
     public var stopsFallback: Bool {
         switch self {
         // Part of the text is already in the field, so another route would type it twice.
-        case .insertionUnconfirmed, .insertionTargetChanged, .clipboardChanged, .insertionInterrupted,
-            .insertionCancelled:
+        case .insertionUnconfirmed, .insertionTargetChanged, .insertionFieldClosed, .clipboardChanged,
+            .insertionInterrupted, .insertionCancelled:
             true
         default: false
         }

@@ -177,6 +177,7 @@ destination — so `apply` sees only the draft. The passes, in the order they ru
 | `SpokenPunctuationPass` | "comma", "full stop", "question mark", "open quote…close quote", a spoken email address → marks | the word stands at a seam, not "put a comma there" | piece |
 | `SpokenCasingPass` | casing rows of `spoken-commands.json`: an identifier style in code; "all caps" (next word) and "all caps on … all caps off" (span) in prose | the row's destinations; in prose, not after a determiner, a preposition or a naming verb, nor before a form of "be" | piece |
 | `CodeEditorCommandsPass` | spoken symbol commands | a code editor, outside a comment | piece |
+| `MarkdownContinuationPass` | "next item", "new item", "new heading" → the next list mark or heading mark of the Markdown already before the caret | a Markdown document, `MarkdownPosition`; the phrase opens a sentence, outside a fence | piece |
 | `LayoutWordsPass` | "new line", "new paragraph", "bullet point", "number one" → layout | same | piece |
 | `NumberFormsPass` | fifteen → 15, sixteen point two → 16.2, two thirty pm → 2:30 pm | number-word grammar, `NumberPolicy`, `DigitGrouping` | piece |
 | `ContractionsPass` | dont → don't | word list | piece |
@@ -241,8 +242,8 @@ separate, testable piece of data:
    into:" line, "Text before the caret: …" when the caret is mid-sentence, the
    doubtful-words line from §5, and the clean-up steps the user switched off.
 
-`PromptBuilderTests.instructionBudget` holds every destination's instructions within a fifth
-over the 2,889-character single prompt the layers replaced, because the bake-off shows
+`PromptBuilderTests.instructionBudget` holds every destination's instructions within two
+thirds over the 2,889-character single prompt the layers replaced, because the bake-off shows
 examples matter and size costs tenths of a second.
 
 **What the model is for, exactly.** It does the cleanings that need judgement — sentence
@@ -267,7 +268,7 @@ whether the repair helped or overreached.
 ## 5. Doubtful words — the "Apple or apples" problem
 
 The recogniser reports a probability for every word (`wordTimestamps: true`), and the
-correction engine acts only on words under `WordCorrectionEngine.certaintyThreshold` (0.5).
+correction engine acts only on words under `DoubtPolicy.certaintyThreshold` (0.5).
 The doubtful-word design generalises that into candidates and a chooser:
 
 ```swift
@@ -283,8 +284,26 @@ offer a spelling keeping it: the **personal dictionary** (`DictionaryCandidates`
 correction engine's own lookup, carrying the entry on the `Reading` so a reading the model
 takes is counted as a use), **screen vocabulary** (`ScreenCandidates`: words in the window
 title, the selection and the text around the caret), **ordinary words** (`PhoneticCandidates`,
-the Double Metaphone neighbours in `GeneralVocabulary`), and **homophones**
-(`HomophoneCandidates`, a word's partner in the hand-kept `Homophones` table).
+
+the phoneme-distance neighbours in `GeneralVocabulary`), and **homophones**
+(`HomophoneCandidates`, a word's ordinary partner the pronunciation lexicon lists as said alike).
+
+
+The sources are feature producers, not choosers. Their answers for one span become a
+`HypothesisSet`: each reading once, with the first source that offered it and how many sources
+agreed. One `SpanScorer`, held by `DoubtfulWords`, ranks the set before the span's limit of
+readings is applied; the default `SourceOrderScorer` keeps the order above. A new signal is a
+feature or a scorer behind this seam, never a second path to a reading.
+
+The set also carries the two said words on each side of the span. `ContextSpanScorer` reads them
+through `ContextScorer`: it keeps the sources' order and lifts first only the reading an n-gram
+model prefers over every other by the margin, so context is a tie-breaker, never the sole judge.
+Its model is an `InterpolatedLanguageModel` of an ARPA table (`ARPAReader`) and a user model
+counted on the device (`NGramModel.counted`, absolute discounting with back-off). Nothing selects
+it yet: it waits for the shipped technical table and a `make bakeoff` gain. Debug-build probe
+(`ContextScorerTests`): a synthetic 420,000 n-gram 3-gram loads in about 2 s into about 32 MB and
+scores ten two-word readings in 0.4 ms per span; a user model counted from 20,000 twelve-word
+sentences (416,000 n-grams) builds in about 3 s and scores in 0.35 ms per span.
 
 The **chooser is the same model call**: the situation block lists each doubtful word
 with its candidates —
@@ -384,7 +403,7 @@ still called once per piece; the message stage is deterministic and calls nothin
 A source is asked for a whole piece's runs at once, not run by run, which keeps its cost a
 per-piece cost rather than a per-run one. `ScreenCandidates` is why that matters: everything
 it derives — the join of title, selection and caret text, the split, the 512-word cut
-(`maximumWordsOnScreen`), the dedupe, and a Double Metaphone code for every word that
+(`maximumWordsOnScreen`), the dedupe, and a sound key for every word that
 survives — depends on the screen and not on the run being asked about, so asking run by run
 would redo it for every run, and a noisy recognition with many doubted runs would cost the
 most. The default implementation asks one run at a time, which is right for a source whose

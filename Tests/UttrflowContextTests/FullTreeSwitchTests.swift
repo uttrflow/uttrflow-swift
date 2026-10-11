@@ -1,3 +1,4 @@
+import Foundation
 import CoreGraphics
 import Testing
 
@@ -25,11 +26,12 @@ private final class FakeApplication {
                 guard self.supported.contains(attribute) else { return false }
                 self.values[attribute] = isOn
                 return !self.reportsFailure
-            })
+            },
+            refuses: { !self.supported.contains($0) })
     }
 }
 
-@Suite("Turning a browser engine's full Accessibility tree on and off")
+@Suite("Turning a browser engine's full Accessibility tree on and off", .timeLimit(.minutes(2)))
 struct FullTreeSwitchTests {
     @Test("An application on a bundled browser engine takes the manual switch.")
     func bundledEngineTakesTheManualSwitch() {
@@ -89,6 +91,18 @@ struct FullTreeSwitchTests {
         #expect(chrome.writes.count == 2)
     }
 
+    @Test("A native application that has no such attribute is asked once, not again after the wait.")
+    func aNativeRefusalIsAskedOnce() {
+        let tree = FullTreeSwitch()
+        let native = FakeApplication(supported: [])
+        tree.switchOn(processIdentifier: 5, bundleIdentifier: "com.example.native", host: native.host, at: 0)
+        tree.switchOn(
+            processIdentifier: 5, bundleIdentifier: "com.example.native", host: native.host,
+            at: 2 * FullTreeSwitch.retryInNanoseconds)
+        #expect(native.writes.count == 1)
+        #expect(tree.switchedOn.isEmpty)
+    }
+
     @Test("A tree something else turned on is left on when the loop stops.")
     func aTreeAlreadyOnIsNeverTurnedOff() {
         let tree = FullTreeSwitch()
@@ -120,6 +134,50 @@ struct FullTreeSwitchTests {
         #expect(previous.values[FullTreeSwitch.enhancedAttribute] == false)
     }
 
+    @Test("An older queued app cleanup cannot turn off a newer active tree")
+    func staleQueuedAppCleanupIsSkipped() {
+        let tree = FullTreeSwitch()
+        let previous = FakeApplication(supported: [FullTreeSwitch.enhancedAttribute])
+        let active = FakeApplication(supported: [FullTreeSwitch.enhancedAttribute])
+        tree.switchOn(processIdentifier: 9, bundleIdentifier: "com.google.Chrome", host: previous.host)
+        let firstActivation = tree.invalidatePendingReads()
+        let secondActivation = tree.invalidatePendingReads()
+        tree.switchOn(
+            processIdentifier: 11, bundleIdentifier: "com.google.Chrome", host: active.host,
+            generation: secondActivation)
+
+        tree.switchOffEverything(except: 10, generation: firstActivation) { _ in previous.host }
+        #expect(previous.values[FullTreeSwitch.enhancedAttribute] == true)
+        #expect(active.values[FullTreeSwitch.enhancedAttribute] == true)
+
+        tree.switchOffEverything(except: 11, generation: secondActivation) { _ in
+            previous.host
+        }
+        #expect(previous.values[FullTreeSwitch.enhancedAttribute] == false)
+        #expect(active.values[FullTreeSwitch.enhancedAttribute] == true)
+        #expect(tree.switchedOn == [11: FullTreeSwitch.enhancedAttribute])
+    }
+
+    @Test("A stop cleanup queued before restart cannot turn off the restarted tree")
+    func restartInvalidatesQueuedStopCleanup() {
+        let tree = FullTreeSwitch()
+        let chrome = FakeApplication(supported: [FullTreeSwitch.enhancedAttribute])
+        tree.switchOn(processIdentifier: 9, bundleIdentifier: "com.google.Chrome", host: chrome.host)
+        let stopGeneration = tree.invalidatePendingReads()
+
+        let restartGeneration = tree.beginSession()
+        tree.switchOn(
+            processIdentifier: 9, bundleIdentifier: "com.google.Chrome", host: chrome.host,
+            generation: restartGeneration)
+        let writesAfterRestart = chrome.writes.count
+
+        tree.switchOffEverything(generation: stopGeneration) { _ in chrome.host }
+
+        #expect(chrome.values[FullTreeSwitch.enhancedAttribute] == true)
+        #expect(chrome.writes.count == writesAfterRestart)
+        #expect(tree.switchedOn == [9: FullTreeSwitch.enhancedAttribute])
+    }
+
     @Test("Stopping turns off what was turned on, and the next start asks again.")
     func stoppingTurnsItOffAndForgets() {
         let tree = FullTreeSwitch()
@@ -149,6 +207,86 @@ struct FullTreeSwitchTests {
         #expect(chrome.values[FullTreeSwitch.enhancedAttribute] == false)
         #expect(chrome.writes.count == writesAfterStop)
         #expect(tree.switchedOn.isEmpty)
+    }
+
+    @Test("Invalidating a full-tree read does not wait for its blocked Accessibility call")
+    func invalidationDoesNotWaitForAccessibility() {
+        let tree = FullTreeSwitch()
+        let app = BlockingFullTreeApplication()
+        let generation = tree.generation
+        let readFinished = DispatchSemaphore(value: 0)
+        onItsOwnThread {
+            tree.switchOn(
+                processIdentifier: 7, bundleIdentifier: "com.example.chat", host: app.host,
+                generation: generation)
+            readFinished.signal()
+        }
+        #expect(app.readStarted.wait(timeout: .distantFuture) == .success)
+
+        let invalidationFinished = DispatchSemaphore(value: 0)
+        onItsOwnThread {
+            tree.invalidatePendingReads()
+            invalidationFinished.signal()
+        }
+        #expect(invalidationFinished.wait(timeout: .distantFuture) == .success)
+        #expect(tree.generation == generation + 1)
+
+        app.resumeRead.signal()
+        #expect(readFinished.wait(timeout: .distantFuture) == .success)
+        #expect(!app.isOn)
+    }
+
+    @Test("A blocked read from an old session cannot settle the new session")
+    func staleReadCannotSettleNewSession() {
+        let tree = FullTreeSwitch()
+        let app = BlockingFullTreeReadApplication()
+        let oldGeneration = tree.generation
+        let readFinished = DispatchSemaphore(value: 0)
+        onItsOwnThread {
+            tree.switchOn(
+                processIdentifier: 7, bundleIdentifier: "com.example.chat", host: app.host,
+                generation: oldGeneration)
+            readFinished.signal()
+        }
+        #expect(app.readStarted.wait(timeout: .distantFuture) == .success)
+
+        let newGeneration = tree.beginSession()
+        app.resumeRead.signal()
+        #expect(readFinished.wait(timeout: .distantFuture) == .success)
+        #expect(tree.switchedOn.isEmpty)
+
+        tree.switchOn(
+            processIdentifier: 7, bundleIdentifier: "com.example.chat", host: app.host,
+            generation: newGeneration)
+
+        #expect(app.isOn)
+        #expect(tree.switchedOn == [7: FullTreeSwitch.manualAttribute])
+    }
+
+    @Test("A blocked old-session write remains owned for stop cleanup")
+    func staleWriteRemainsOwnedForCleanup() {
+        let tree = FullTreeSwitch()
+        let app = BlockingFullTreeWriteApplication()
+        let oldGeneration = tree.generation
+        let writeFinished = DispatchSemaphore(value: 0)
+        onItsOwnThread {
+            tree.switchOn(
+                processIdentifier: 7, bundleIdentifier: "com.example.chat", host: app.host,
+                generation: oldGeneration)
+            writeFinished.signal()
+        }
+        #expect(app.writeStarted.wait(timeout: .distantFuture) == .success)
+
+        tree.beginSession()
+        app.resumeWrite.signal()
+        #expect(writeFinished.wait(timeout: .distantFuture) == .success)
+        #expect(tree.switchedOn.isEmpty)
+        #expect(app.isOn)
+
+        tree.switchOffEverything { _ in app.host }
+
+        #expect(!app.isOn)
+        #expect(app.writes.contains { $0.0 == FullTreeSwitch.manualAttribute && !$0.1 })
     }
 
     @Test(
@@ -218,6 +356,104 @@ struct FullTreeSwitchTests {
             processIdentifier: 9, bundleIdentifier: "com.google.Chrome", host: chrome.host,
             at: 10 * FullTreeSwitch.retryInNanoseconds)
         #expect(chrome.writes.count == before + 1)
+    }
+}
+
+/// Runs `work` on a thread of its own, so a blocked fake never waits for a free thread in a shared pool.
+private func onItsOwnThread(_ work: @escaping @Sendable () -> Void) {
+    Thread { work() }.start()
+}
+
+/// NSLock protects the fake switch state; semaphores coordinate its blocked read.
+private final class BlockingFullTreeApplication: @unchecked Sendable {
+    let readStarted = DispatchSemaphore(value: 0)
+    let resumeRead = DispatchSemaphore(value: 0)
+    private let lock = NSLock()
+    private var blocksFirstRead = true
+    private var value = false
+
+    var isOn: Bool { lock.withLock { value } }
+
+    var host: FullTreeSwitch.Host {
+        FullTreeSwitch.Host(
+            read: { _ in
+                let shouldBlock = self.lock.withLock {
+                    defer { self.blocksFirstRead = false }
+                    return self.blocksFirstRead
+                }
+                if shouldBlock {
+                    self.readStarted.signal()
+                    self.resumeRead.wait()
+                }
+                return self.lock.withLock { self.value }
+            },
+            write: { _, isOn in
+                self.lock.withLock { self.value = isOn }
+                return true
+            })
+    }
+}
+
+/// The first read blocks and then reports on; later reads expose the stored value.
+private final class BlockingFullTreeReadApplication: @unchecked Sendable {
+    let readStarted = DispatchSemaphore(value: 0)
+    let resumeRead = DispatchSemaphore(value: 0)
+    private let lock = NSLock()
+    private var readCount = 0
+    private var value = false
+
+    var isOn: Bool { lock.withLock { value } }
+
+    var host: FullTreeSwitch.Host {
+        FullTreeSwitch.Host(
+            read: { _ in
+                let readNumber = self.lock.withLock {
+                    self.readCount += 1
+                    return self.readCount
+                }
+                if readNumber == 1 {
+                    self.readStarted.signal()
+                    self.resumeRead.wait()
+                    return true
+                }
+                return self.lock.withLock { self.value }
+            },
+            write: { _, isOn in
+                self.lock.withLock { self.value = isOn }
+                return true
+            })
+    }
+}
+
+/// The first write takes effect before blocking, so invalidation must retain its cleanup ownership.
+private final class BlockingFullTreeWriteApplication: @unchecked Sendable {
+    let writeStarted = DispatchSemaphore(value: 0)
+    let resumeWrite = DispatchSemaphore(value: 0)
+    private let lock = NSLock()
+    private var blocksFirstOnWrite = true
+    private var value = false
+    private var recordedWrites: [(String, Bool)] = []
+
+    var isOn: Bool { lock.withLock { value } }
+    var writes: [(String, Bool)] { lock.withLock { recordedWrites } }
+
+    var host: FullTreeSwitch.Host {
+        FullTreeSwitch.Host(
+            read: { _ in self.lock.withLock { self.value } },
+            write: { attribute, isOn in
+                let shouldBlock = self.lock.withLock {
+                    self.recordedWrites.append((attribute, isOn))
+                    self.value = isOn
+                    guard isOn, self.blocksFirstOnWrite else { return false }
+                    self.blocksFirstOnWrite = false
+                    return true
+                }
+                if shouldBlock {
+                    self.writeStarted.signal()
+                    self.resumeWrite.wait()
+                }
+                return true
+            })
     }
 }
 

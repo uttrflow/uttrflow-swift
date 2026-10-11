@@ -1,0 +1,262 @@
+[
+  {
+    "id": "code-token-caret-a4",
+    "spoken": "A4 paper please",
+    "expected": "A4 paper please.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Planning",
+      "precedingText": "Print the handout on "
+    },
+    "destination": "document",
+    "mustBeginWith": "A4 paper"
+  },
+  {
+    "id": "code-token-caret-q3",
+    "spoken": "Q3 by a small margin",
+    "expected": "Q3 by a small margin.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Planning",
+      "precedingText": "We missed the targets for "
+    },
+    "destination": "document",
+    "mustBeginWith": "Q3 by"
+  },
+  {
+    "id": "code-token-caret-m2",
+    "spoken": "M2 machine in the lab",
+    "expected": "M2 machine in the lab.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Planning",
+      "precedingText": "The build runs fastest on the "
+    },
+    "destination": "document",
+    "mustBeginWith": "M2 machine"
+  },
+  {
+    "id": "code-token-caret-s3",
+    "spoken": "S3 before the end of the day",
+    "expected": "S3 before the end of the day.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Planning",
+      "precedingText": "Upload the archive to "
+    },
+    "destination": "document",
+    "mustBeginWith": "S3 before"
+  },
+  {
+    "id": "code-token-caret-b12",
+    "spoken": "B12 in the morning",
+    "expected": "B12 in the morning.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Planning",
+      "precedingText": "The doctor suggested more "
+    },
+    "destination": "document",
+    "mustBeginWith": "B12 in"
+  },
+  {
+    "id": "code-token-caret-i-95",
+    "spoken": "I-95 all afternoon",
+    "expected": "I-95 all afternoon.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Planning",
+      "precedingText": "Traffic was heavy on "
+    },
+    "destination": "document",
+    "mustBeginWith": "I-95 all"
+  },
+  {
+    "id": "code-token-caret-h2",
+    "spoken": "H2 in the outline",
+    "expected": "H2 in the outline.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Planning",
+      "precedingText": "Move that heading to an "
+    },
+    "destination": "document",
+    "mustBeginWith": "H2 in"
+  },
+  {
+    "id": "code-token-seam-a4",
+    "spoken": "Print the handout on. A4 paper please",
+    "expected": "Print the handout on A4 paper please.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Planning",
+      "precedingText": ""
+    },
+    "destination": "document",
+    "mustBeginWith": "Print the handout on A4"
+  },
+  {
+    "id": "code-token-seam-q3",
+    "spoken": "We missed the targets for. Q3 by a small margin",
+    "expected": "We missed the targets for Q3 by a small margin.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Planning",
+      "precedingText": ""
+    },
+    "destination": "document",
+    "mustBeginWith": "We missed the targets for Q3"
+  },
+  {
+    "id": "code-token-seam-m2",
+    "spoken": "The build runs fastest on the. M2 machine",
+    "expected": "The build runs fastest on the M2 machine.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Planning",
+      "precedingText": ""
+    },
+    "destination": "document",
+    "mustBeginWith": "The build runs fastest on the M2"
+  },
+  {
+    "id": "code-token-filler-s3",
+    "spoken": "Upload the archive to um. S3 before lunch",
+    "expected": "Upload the archive to S3 before lunch.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Planning",
+      "precedingText": ""
+    },
+    "destination": "document",
+    "mustBeginWith": "Upload the archive to S3"
+  },
+  {
+    "id": "code-token-filler-i-95",
+    "spoken": "Traffic was heavy on uh. I-95 all afternoon",
+    "expected": "Traffic was heavy on I-95 all afternoon.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Planning",
+      "precedingText": ""
+    },
+    "destination": "document",
+    "mustBeginWith": "Traffic was heavy on I-95"
+  },
+  {
+    "id": "code-token-word-caret-be",
+    "spoken": "Be careful with the stairs",
+    "expected": "be careful with the stairs.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Planning",
+      "precedingText": "Tell them to "
+    },
+    "destination": "document",
+    "mustBeginWith": "be careful"
+  },
+  {
+    "id": "code-token-word-caret-after",
+    "spoken": "After that we can leave",
+    "expected": "after that we can leave.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Planning",
+      "precedingText": "We finish the review and "
+    },
+    "destination": "document",
+    "mustBeginWith": "after that"
+  },
+  {
+    "id": "code-token-word-caret-again",
+    "spoken": "Again this morning",
+    "expected": "again this morning.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Planning",
+      "precedingText": "The tests failed "
+    },
+    "destination": "document",
+    "mustBeginWith": "again this"
+  },
+  {
+    "id": "code-token-word-caret-quarter",
+    "spoken": "Quarter by a little",
+    "expected": "quarter by a little.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Planning",
+      "precedingText": "Revenue fell last "
+    },
+    "destination": "document",
+    "mustBeginWith": "quarter by"
+  },
+  {
+    "id": "code-token-word-caret-model",
+    "spoken": "Model in the lab",
+    "expected": "model in the lab.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Planning",
+      "precedingText": "The build runs fastest on the new "
+    },
+    "destination": "document",
+    "mustBeginWith": "model in"
+  },
+  {
+    "id": "code-token-word-seam-after",
+    "spoken": "We finish the review and. After that we can leave",
+    "expected": "We finish the review and after that we can leave.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Planning",
+      "precedingText": ""
+    },
+    "destination": "document",
+    "mustBeginWith": "We finish the review and after"
+  },
+  {
+    "id": "code-token-word-seam-again",
+    "spoken": "The tests failed on. Again this morning",
+    "expected": "The tests failed on again this morning.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Planning",
+      "precedingText": ""
+    },
+    "destination": "document",
+    "mustBeginWith": "The tests failed on again"
+  },
+  {
+    "id": "code-token-word-filler-the",
+    "spoken": "Upload the archive to um. The shared drive",
+    "expected": "Upload the archive to the shared drive.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Planning",
+      "precedingText": ""
+    },
+    "destination": "document",
+    "mustBeginWith": "Upload the archive to the"
+  }
+]

@@ -45,8 +45,28 @@ public enum TranscriptionScorer {
             stresses: passage.stresses,
             cohortID: cohortID,
             recordingIdentity: recordingIdentity,
-            recordID: recordID
+            recordID: recordID,
+            outputWordErrorRate: outputRate(
+                transcript, answeredIn: answeredIn, against: passage, normaliser: normaliser),
+            properNouns: properNouns(of: passage, normaliser: normaliser)
         )
+    }
+
+    /// The passage's mid-sentence capitalised words, normalised as the alignment's words are.
+    private static func properNouns(of passage: TranscriptionCase, normaliser: TextNormaliser) -> [String] {
+        let names = ClassifiedWord.words(of: passage.romanised).filter { $0.wordClass == .capitalised }
+        return Array(Set(names.flatMap { normaliser.words($0.word) })).sorted()
+    }
+
+    /// Scores the romanised text the user receives against the Latin reference, by exact spelling.
+    private static func outputRate(
+        _ transcript: String, answeredIn: Script, against passage: TranscriptionCase,
+        normaliser: TextNormaliser
+    ) -> WordErrorRate? {
+        guard answeredIn == .devanagari, let latin = passage.reference(in: .latin) else { return nil }
+        return .measure(
+            reference: normaliser.words(latin),
+            hypothesis: normaliser.words(LatinScript.enforced(transcript)))
     }
 
     /// Picks the reference form matching the transcript's script, transliterating only as a last resort.

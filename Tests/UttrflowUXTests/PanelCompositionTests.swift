@@ -48,6 +48,10 @@ struct PanelCompositionTests {
     func committedTextStillReachesThePanel() {
         #expect(PanelComposition.panelMayTake(.search("日本"), whileComposing: true))
         #expect(PanelComposition.panelMayTake(.draft("नमस्ते"), whileComposing: true))
+        #expect(!PanelComposition.panelMayTake(.key(.clearSearch), whileComposing: true))
+        #expect(PanelComposition.panelMayTake(.key(.clearSearch), whileComposing: false))
+        #expect(!PanelComposition.panelMayTake(.key(.showShortcuts), whileComposing: true))
+        #expect(PanelFixture.panel([], query: "needle").applying(.clearSearch).state.query.isEmpty)
     }
 
     /// A chip is not a key any input method is waiting for; collection numbers are command chords.

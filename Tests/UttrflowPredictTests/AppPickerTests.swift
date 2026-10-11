@@ -1,6 +1,7 @@
 // Tests that a word opening a chat app's own mention, emoji or command picker draws nothing and claims no key.
 
 import Testing
+import UttrflowCore
 
 @testable import UttrflowPredict
 

@@ -56,13 +56,26 @@ struct RepeatedPhrasePassTests {
         "keeps deliberate intensifier and continuation chains",
         arguments: [
             "it went on and on and on",
+            "it went on and on and on and on and on",
             "again and again and again",
+            "again and again and again and again and again",
             "more and more and more",
+            "more and more and more and more and more",
             "blah blah blah and so on and so on",
+            "and so on and so on and so on and so on",
         ]
     )
     func keepsDeliberateChains(input: String) {
         #expect(cleaned(input, by: sut) == input)
+    }
+
+    @Test("the standard pipeline keeps every word in a deliberate continuation")
+    func standardPipelineKeepsChain() async throws {
+        let request = TransformationRequest(
+            transcription: Transcription(text: "it went on and on and on and on and on"),
+            context: .unknown)
+        let result = try await RuleBasedTransformer().transform(request)
+        #expect(result.text == "It went on and on and on and on and on.")
     }
 
     @Test("drops the first copy and keeps the second")

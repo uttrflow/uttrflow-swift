@@ -123,9 +123,17 @@ true.
 | Messages | chat composer | | | | | | | | no | | | A single-line `NSTextField` does not publish the marked range ([predict-ime.md](predict-ime.md)). The person's own recent lines from this conversation are offered before lines from other conversations ([predict-reliability.md](predict-reliability.md)) |
 | Finder | search field | yes | | | | once | right | | no | correct | | `Published` and `Caret` as for TextEdit. The second live-harness surface ([predict-reliability.md](predict-reliability.md)) |
 | System Settings | search field | | | | | | | | no | | | ([predict-ime.md](predict-ime.md)) |
+| AppKit test window, macOS 26.5.1 | multi-line `NSTextView`, plain | yes | | | | | right | yes | | | Fixture `native-plain-text-view.json`. Whole `AXValue`, 4 messages (the five names batched in one, then count, selection, value), about 0.5 ms |
+| AppKit test window, macOS 26.5.1 | rich `NSTextView` with a list, a link and an image | yes | | | | | right | yes | | | Fixture `native-rich-text-view.json`. The list markers are in the value as `\t•\t`, the link is its text only with no target, the image is U+FFFC. Whole `AXValue`, 4 messages, about 0.3 ms |
+| AppKit test window, macOS 26.5.1 | single-line `NSTextField` | yes | | | | | right | yes | | | Fixture `native-text-field.json`. Placeholder answered, subrole unsupported. Whole `AXValue`, 4 messages, about 0.9 ms |
+| AppKit test window, macOS 26.5.1 | `NSSearchField` | yes | | | | | right | yes | | | Fixture `native-search-field.json`. Role `AXTextField`, subrole `AXSearchField`. Whole `AXValue`, 4 messages, about 0.8 ms |
+| AppKit test window, macOS 26.5.1 | multi-line `NSTextView`, 5 MB, caret mid-document | yes | | | | | right | yes | | | Fixture `native-long-document.json`. `AXStringForRange` around the caret, 4 messages, about 7.5 ms; a whole `AXValue` read of the same view took 6.8 ms and is never sent |
 | MacVim | editor buffer | | | | | | | | | | | Not yet measured in normal or insert mode. In normal mode every typed letter is a command, so its `DestinationRules` row sets `keysMayBeCommands`: the typed route refuses before posting a key, and a dictation keeps its words for an explicit copy with the usual notice. A modal editor running inside a terminal is read as the terminal, so this flag does not reach it |
 | — | any single-line `NSTextField` | | | | | | | | no | | | The marked range reaches AppKit multi-line text views and nothing else, so it misses single-line fields, where a completion is worth most ([predict-ime.md](predict-ime.md)) |
 | — | any secure field | | | | | | | no | | A password or PIN field takes the words like any other field and nothing else does: the outcome is marked `intoSecureField` and the words reach no store — no history row, not even a length, no clip, no dictionary lesson — and the floating button neither draws nor reads them. A clipboard write carries `org.nspasteboard.ConcealedType` ([insertion.md](insertion.md)) | |
+
+The AppKit test window rows were read through Accessibility from an in-process window built for
+the recording, with invented text; the fixtures replay in `SnapshotReplayTests`.
 
 ## Terminals
 
@@ -139,12 +147,15 @@ An address bar, the fourth live-harness surface, is measured under Browsers.
 
 | App | Field | Published | AX write | Paste | Confirmed | Full route | Caret | Value | Marked text | Completion | Undo | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| DBeaver (Java/SWT) | rich editor | no | | | | | none | no | | nothing | | The focused element is an `SWTComposite` or an outline and most reads fail outright; from the background the application reports no focused element at all, so nothing on the reading side can recover the line ([predict-reliability.md](predict-reliability.md)) |
+| DBeaver (Java/SWT) | SQL script editor (26.1) | yes | | | | | right | yes | | | | A live probe reads the script editor fully — an `AXTextArea` answering `value=32 chars` with the caret at the end — and it qualifies for an inline ghost. Suggestions there are rare for the register and prose reasons tracked in [predict-reliability.md](predict-reliability.md) |
 
 ## Office, spreadsheets, remote desktops and VMs, games
 
 Nothing measured. No page in this repository records a reading from a spreadsheet cell, a remote
-desktop, a VM window or a game, so there are no rows.
+desktop, a VM window or a game, so there are no rows. The remote-screen and canvas fixtures in
+`Tests/Fixtures/AccessibilitySnapshots` are hand-built from an assumed shape, not recorded, so they
+carry no application version and are not rows; the same holds for the IDE-editor and secure-field
+fixtures there, which replay the read rules but name no application.
 
 ## Panels that take focus without activating
 

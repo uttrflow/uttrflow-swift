@@ -1,6 +1,7 @@
 // Tests that the paste and copy shortcuts lose the last dictation once it is reset or deleted.
 
 import Foundation
+import Synchronization
 import UttrflowCore
 import UttrflowClipboard
 import UttrflowHistory
@@ -25,7 +26,10 @@ struct LastTranscriptForgetTests {
     }
 
     private func dictated(_ text: String, in sandbox: borrowing Sandbox) -> AppDelegate {
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
+            account: HeldSession(signedIn: true).layer)
         app.render(.inserted(DictationOutcome(text: text, method: .accessibility, cleanedBy: .rules)))
         return app
     }
@@ -57,9 +61,9 @@ struct LastTranscriptForgetTests {
     @Test("a reset that clears the clipboard withdraws its panel undo offer")
     func resetWithdrawsPanelUndo() {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let clip = Clip(text: "Private words", kind: .text, copiedAt: .now, source: nil)
-        _ = app.undoOffer.offer(clip)
+        _ = app.undoOffer.offer([clip])
         let timer = Task { _ = try? await Task.sleep(for: .seconds(30)) }
         app.undoTask = timer
 
@@ -102,7 +106,11 @@ struct LastTranscriptForgetTests {
         let newest = DictationRecord(text: "Newest words", when: .now)
         try await history.append(newest, keeping: Retention(days: 7, now: .now))
 
-        let app = AppDelegate(container: sandbox.root)
+        let session = HeldSession(signedIn: true)
+        let app = AppDelegate(
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
+            account: session.layer)
         let insertion = InsertionRecorder()
         let clipboardRoute = InsertionRecorder()
         app.lastTranscriptInserter = insertion
@@ -125,7 +133,10 @@ struct LastTranscriptForgetTests {
         let aged = DictationRecord(text: "Aged words", when: .now.addingTimeInterval(-3 * 86_400))
         try await history.append(aged, keeping: Retention(days: 30, now: .now))
         let session = HeldSession(signedIn: true)
-        let app = AppDelegate(container: sandbox.root, account: session.layer)
+        let app = AppDelegate(
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
+            account: session.layer)
         app.settingsChanged(to: Settings(transcriptRetentionDays: 30))
         let insertion = InsertionRecorder()
         app.clipInserter = insertion
@@ -137,22 +148,62 @@ struct LastTranscriptForgetTests {
 
         #expect(await insertion.inserted.isEmpty)
         #expect(app.lastTranscript == nil)
-        #expect(app.actionNotice?.message.hasPrefix("There is no transcript to") == true)
+        #expect(app.actionNotice?.message.hasPrefix("There is no dictation to") == true)
     }
 
     @Test(
         "both shortcuts say so when there is nothing to put back",
         arguments: [
-            (ShortcutAction.pasteLastTranscript, "There is no transcript to paste yet."),
-            (ShortcutAction.copyLastTranscript, "There is no transcript to copy yet."),
+            (ShortcutAction.pasteLastTranscript, "There is no dictation to paste yet."),
+            (ShortcutAction.copyLastTranscript, "There is no dictation to copy yet."),
         ])
     func nothingToPutBackIsSaid(action: ShortcutAction, message: String) async {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let session = HeldSession(signedIn: true)
+        let app = AppDelegate(
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
+            account: session.layer)
 
         await app.perform(action)
 
         #expect(app.actionNotice?.message == message)
+    }
+
+    @Test("copy-last conceals a secret transcript")
+    func copyLastTranscriptConcealsSecrets() async throws {
+        let sandbox = Sandbox()
+        let secret = "password=demo1"
+        let history = DictationHistoryStore(
+            file: DictationHistoryStore.defaultFile(in: sandbox.root))
+        try await history.append(
+            DictationRecord(text: secret, when: .now), keeping: Retention(days: 30, now: .now))
+        let pasteboard = MarkerRecordingPasteboard()
+        let app = AppDelegate(
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
+            account: HeldSession(signedIn: true).layer, pasteboard: pasteboard)
+        await app.restoreLastTranscript()
+
+        await app.perform(.copyLastTranscript)
+
+        #expect(pasteboard.markers[secret] == .concealed)
+    }
+
+    @Test("copy-last marks an ordinary transcript transient")
+    func copyLastTranscriptMarksOrdinaryTextTransient() async {
+        let sandbox = Sandbox()
+        let transcript = "Dictated words"
+        let pasteboard = MarkerRecordingPasteboard()
+        let app = AppDelegate(
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
+            account: HeldSession(signedIn: true).layer, pasteboard: pasteboard)
+        app.render(inserted(transcript))
+
+        await app.perform(.copyLastTranscript)
+
+        #expect(pasteboard.markers[transcript] == .transient)
     }
 
     private func failed(_ text: String, secure: Bool = false) -> DictationState {
@@ -174,7 +225,7 @@ struct LastTranscriptForgetTests {
         let app = dictated("Older words", in: sandbox)
         let olderID = try #require(app.lastTranscriptID)
         let insertion = InsertionRecorder()
-        app.clipInserter = insertion
+        app.lastTranscriptInserter = insertion
 
         app.render(failed("Newer words"))
         await app.perform(.pasteLastTranscript)
@@ -187,7 +238,7 @@ struct LastTranscriptForgetTests {
     @Test("an inserted dictation after a failed one replaces it")
     func failedThenInserted() {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
 
         app.render(failed("Salvaged words"))
         app.render(inserted("Inserted words"))
@@ -208,4 +259,42 @@ struct LastTranscriptForgetTests {
 
         #expect(app.lastTranscript == "Newer words")
     }
+}
+
+private final class MarkerRecordingState: Sendable {
+    private struct Value: Sendable {
+        var text: String?
+        var markers: [String: PasteboardMarkers] = [:]
+    }
+
+    private let value = Mutex(Value())
+
+    var text: String? { value.withLock { $0.text } }
+    var markers: [String: PasteboardMarkers] { value.withLock { $0.markers } }
+
+    func write(_ text: String, marker: PasteboardMarkers) -> PasteboardWriteResult {
+        value.withLock {
+            $0.text = text
+            $0.markers[text] = marker
+        }
+        return .written(changeCount: nil)
+    }
+}
+
+private struct MarkerRecordingPasteboard: Pasteboard {
+    private let state = MarkerRecordingState()
+    var markers: [String: PasteboardMarkers] { state.markers }
+
+    func text() -> String? { state.text }
+    func setText(_ text: String) -> PasteboardWriteResult { state.write(text, marker: []) }
+    func setConcealedText(_ text: String) -> PasteboardWriteResult {
+        state.write(text, marker: .concealed)
+    }
+    func writeTransientText(_ text: String, richText: String?) -> PasteboardWriteResult {
+        state.write(text, marker: .transient)
+    }
+    func writeConcealedText(_ text: String) -> PasteboardWriteResult {
+        state.write(text, marker: .concealed)
+    }
+    func setImage(_ data: Data) -> PasteboardWriteResult { .refused }
 }

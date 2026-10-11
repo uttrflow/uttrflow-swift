@@ -40,6 +40,26 @@ struct PanelKeyDecisionTests {
     @Test("Escape reaches the panel when no menu is open")
     func escapeWithoutMenu() {
         #expect(decision("", isEscape: true) == .key(.escape))
+        #expect(
+            PanelKeyHandling.relayDecision(for: .escape, rowMenuOpen: false, query: "needle")
+                == .key(.clearSearch))
+        #expect(
+            PanelKeyHandling.relayDecision(
+                for: .escape, rowMenuOpen: false, query: "needle", hasSheet: true)
+                == .key(.escape))
+        #expect(PanelKeyHandling.relayDecision(for: .escape, rowMenuOpen: false) == .key(.escape))
+    }
+
+    @Test("command-slash opens the shortcut guide")
+    func shortcutGuideChord() {
+        #expect(decision("/", command: true) == .key(.showShortcuts))
+        #expect(decision("?", shift: true) == .key(.showShortcuts))
+        let searching = PanelPresenter.present(PanelFixture.panel([], query: "needle"))
+        #expect(
+            PanelKeyHandling.decision(
+                characters: "?", commandHeld: false, shiftHeld: true,
+                isReturn: false, isEscape: false, rowMenuOpen: false, presentation: searching)
+                == .ignore)
     }
 
     @Test("a non-command character stays with the search field")

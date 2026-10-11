@@ -90,6 +90,10 @@ struct ScoredSpan: Equatable {
     /// The judged log-probabilities, the first read as P(token | typed remainder) by subtracting the log mass of every token that continues it.
     static func conditioned(_ taken: [Float], onMass mass: Float?) -> [Double] {
         guard let first = taken.first, let mass else { return taken.map(Double.init) }
+        if mass == -.infinity { return taken.map(Double.init) }
+        if mass.isNaN || mass == .infinity {
+            return [-Double.infinity] + taken.dropFirst().map(Double.init)
+        }
         return [Double(min(first - mass, 0))] + taken.dropFirst().map(Double.init)
     }
 

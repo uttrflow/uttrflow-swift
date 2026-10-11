@@ -115,6 +115,42 @@ struct FocusedFieldReadTests {
         #expect(names.isDeclaredSecure)
     }
 
+    @Test(arguments: [FieldAnswer.cannotComplete, .timedOut])
+    func refusedNameReadStopsBeforeFieldValue(refusal: FieldAnswer) {
+        let log = MessageLog()
+        let node = Self.field([
+            "AXRole": .value("AXTextField"), "AXSubrole": refusal,
+            "AXNumberOfCharacters": .value(5), "AXValue": .value("hello"),
+        ])
+        let tree = FakeTree(root: node, messages: log)
+        let names = FocusedFieldRead.names(of: node, in: tree)
+        var valueWasProbed = false
+        let isSecure = names.isSecure(value: {
+            valueWasProbed = true
+            return "hello"
+        })
+        let text = FocusedFieldRead.text(
+            of: node, in: tree, names: names, at: NSRange(location: 2, length: 0))
+
+        #expect(isSecure)
+        #expect(names.isSecureOrUnknown)
+        #expect(!valueWasProbed)
+        #expect(text.isSecure)
+        #expect(text.value == nil)
+        #expect(log.asked == [FocusedFieldRead.nameAttributes.joined(separator: "+")])
+    }
+
+    @Test(arguments: [FieldAnswer.noValue, .unsupported])
+    func absentOptionalNameDoesNotCountAsARefusedRead(answer: FieldAnswer) {
+        let node = Self.field([
+            "AXRole": .value("AXTextField"), "AXSubrole": answer,
+        ])
+        let names = FocusedFieldRead.names(of: node, in: FakeTree(root: node))
+
+        #expect(!names.isSecureOrUnknown)
+        #expect(!names.isSecure(value: { "hello" }))
+    }
+
     @Test func classifyKeepsEveryRefusalApart() {
         func classify(_ code: Int32, _ value: Any? = nil, elapsed: Double = 0) -> FieldAnswer {
             FieldAnswer.classify(code: code, value: value, elapsedSeconds: elapsed, timeoutSeconds: 1)

@@ -33,7 +33,7 @@ struct PauseLengthTests {
 
     @Test(
         "cuts pieces at mid-sentence pauses only for usual pauses",
-        arguments: [(1.1, 4, 1), (1.5, 4, 1), (2.5, 4, 3)])
+        arguments: [(1.1, 4, 1), (1.5, 4, 1), (2.5, 4, 2)])
     func countsCuts(pause: Double, usual: Int, long: Int) {
         let audio = pausing(pause, count: 4)
         let cuts = { (pauses: PauseLength) in

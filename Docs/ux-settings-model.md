@@ -19,10 +19,10 @@ always runs. Offering an "off" would promise a state the pipeline has no way to 
 
 ## One copy for the tidying row
 
-`SettingsTidyingLevel.rowLabel` ("How much Uttrflow tidies") and `.rowExplanation` are held on the
+`SettingsTidyingLevel.rowLabel` ("How much clean-up") and `.rowExplanation` are held on the
 type, and `SettingsPresenter.tidyingRow` is the one row every screen draws, so the level has one
 wording everywhere; two wordings of one setting read as two settings. The row is on the Languages
-tab, in the "Tidying up" group, above the example that shows the level in force.
+tab, in the "Clean-up" group, above the example that shows the level in force.
 
 ## The preference order is normalised, not trusted
 
@@ -87,8 +87,8 @@ The levels are `SettingsReset`: `.learnedWords`, `.suggestions(inApplication:)` 
 
 - `forgetLearnedRow` names both halves of the trade, because the reason that level exists is that
   hand-added words survive it.
-- `resetSentence` is built only from the parts that exist. With nothing saved, a reset really is
-  only the preferences, and offering to remove "0 transcripts" both reads badly and misstates it.
+- `resetSentence` counts only the parts that exist, since offering to remove "0 transcripts"
+  reads badly. The clipboard, pinned clips included, is always named, uncounted.
 - `counted(_:_:_:)` is the one place a number meets its noun, so "1 words" cannot appear.
 - `.everything` is never greyed out: preferences are always there to put back, and a greyed reset
   strands the user who came here precisely to start again.
@@ -105,3 +105,17 @@ The dictation tab warns only when Fn is the shortcut, because it is the only key
 plans for. Uttrflow watches Fn rather than registering it (nothing can register a modifier), and
 watching cannot stop the emoji picker or Apple's own dictation opening on the same press. The
 warning tells the user to set System Settings → Keyboard → "Press 🌐 key to" to Do Nothing.
+
+## Glossary for strings people read
+
+Product names come from the Names table in `Docs/agents/product.md`; internal type and module names
+keep their own spelling.
+
+| Say | Not | Where |
+|---|---|---|
+| dictation, for a saved set of words | transcript | shortcut labels, retention row, storage list, reset counts |
+| clean-up, for the processing step | tidying, tidying up, the tidier | group and row titles, diagnostics stages, notices, errors |
+| cleaning up, for the working status | tidying up | menu bar, floating button, wait line |
+
+The clean-up level is edited in one place, Languages. The Dictation tab lists the clean-up steps
+and the level's explanation points to them, so no preference has two editable copies.

@@ -4,6 +4,7 @@ import Foundation
 import Synchronization
 import Testing
 import UttrflowCore
+import UttrflowTestSupport
 
 @testable import UttrflowAccount
 
@@ -649,21 +650,84 @@ struct HTTPAuthenticationServiceTests {
         await service(transport: transport).signOut()
         #expect(transport.requests.isEmpty)
     }
+
+    // MARK: Deleting the account
+
+    @Test("deletes the account with the access token, then forgets the session")
+    func deletingTheAccount() async throws {
+        let tokens = InMemoryTokenStore(refreshToken: "r")
+        let transport = StubTransport { request, _ in
+            request.method == .delete ? BackendResponse(status: 204) : Stub.json(Stub.IssuedSession())
+        }
+
+        try await service(transport: transport, tokens: tokens).deleteAccount()
+
+        let deletion = try #require(transport.requests(to: "/me").first)
+        #expect(deletion.method == .delete)
+        #expect(deletion.headers["Authorization"] == "Bearer access.token.one")
+        #expect(tokens.refreshToken() == nil)
+    }
+
+    @Test("keeps the session when the server refuses the deletion")
+    func refusedDeletionKeepsTheSession() async throws {
+        let tokens = InMemoryTokenStore(refreshToken: "r")
+        let transport = StubTransport { request, _ in
+            request.method == .delete
+                ? Stub.problem(500, message: "unavailable") : Stub.json(Stub.IssuedSession())
+        }
+
+        await #expect(throws: AccountError.self) {
+            try await service(transport: transport, tokens: tokens).deleteAccount()
+        }
+        #expect(tokens.refreshToken() != nil)
+    }
+
+    @Test("renews a rejected token once before deleting")
+    func deletionRetriesOnce() async throws {
+        let rejections = Mutex(0)
+        let transport = StubTransport { request, _ in
+            guard request.method == .delete else { return Stub.json(Stub.IssuedSession()) }
+            let seen = rejections.withLock { count -> Int in
+                count += 1
+                return count
+            }
+            return BackendResponse(status: seen == 1 ? 401 : 204)
+        }
+        let tokens = InMemoryTokenStore(refreshToken: "r")
+
+        try await service(transport: transport, tokens: tokens).deleteAccount()
+
+        #expect(transport.requests(to: "/me").count == 2)
+        #expect(tokens.refreshToken() == nil)
+    }
+
+    @Test("asks nothing of the server when nobody is signed in")
+    func deletionWithNoSession() async throws {
+        let transport = StubTransport { _, _ in BackendResponse(status: 204) }
+        await #expect(throws: AccountError.self) {
+            try await service(transport: transport).deleteAccount()
+        }
+        #expect(transport.requests.isEmpty)
+    }
 }
 
 // MARK: - The device grant, for a Mac with nowhere to be redirected to
 
-/// Records how long the client waits between polls; shared by reference with the sleep closure.
+/// Records how long the client waited before each poll, read off the clock it sleeps on.
 private final class Waits: Sendable {
-    /// Every wait, in order.
-    private let durations = Mutex<[Duration]>([])
+    /// When each poll arrived, in order.
+    private let polls = Mutex<[ManualClock.Instant]>([])
 
-    /// Appends one wait.
-    func record(_ duration: Duration) {
-        durations.withLock { $0.append(duration) }
+    /// Notes one poll at the clock's current time.
+    func record(_ instant: ManualClock.Instant) {
+        polls.withLock { $0.append(instant) }
     }
 
-    var all: [Duration] { durations.withLock { $0 } }
+    /// Every wait, in order: the first from the start, each later one from the poll before it.
+    var all: [Duration] {
+        let instants = polls.withLock { $0 }
+        return zip([ManualClock.Instant(offset: .zero)] + instants, instants).map { $0.duration(to: $1) }
+    }
 }
 
 /// Drives the RFC 8628 device flow with a listener that cannot bind.
@@ -676,7 +740,9 @@ struct DeviceGrantTests {
     /// Every response the device grant needs; the poll answers `pending` for `pendingPolls` calls.
     private func backend(
         pendingPolls: Int = 0,
-        slowDownFirst: Bool = false
+        slowDownFirst: Bool = false,
+        polledOn clock: ManualClock? = nil,
+        waited: Waits? = nil
     ) -> StubTransport {
         let polls = Mutex(0)
         return StubTransport { [signedIn] request, _ in
@@ -684,6 +750,7 @@ struct DeviceGrantTests {
             case let path where path.hasSuffix("/device/code"):
                 return Stub.json(Stub.StartedDevice())
             case let path where path.hasSuffix("/device/token"):
+                if let clock { waited?.record(clock.now) }
                 let seen = polls.withLock { count -> Int in
                     count += 1
                     return count
@@ -703,11 +770,11 @@ struct DeviceGrantTests {
         }
     }
 
-    /// The service under test, whose listener never binds and whose sleeps are recorded, not waited.
+    /// The service under test, whose listener never binds and whose sleeps move a manual clock, not the wall.
     private func service(
         transport: StubTransport,
         tokens: any TokenStore = InMemoryTokenStore(),
-        waited: Waits? = nil,
+        clock: ManualClock = ManualClock(advancesWhenSlept: true),
         now: @escaping @Sendable () -> Date = { Fixture.noon }
     ) -> HTTPAuthenticationService {
         HTTPAuthenticationService(
@@ -717,7 +784,7 @@ struct DeviceGrantTests {
             makeListener: { StubLoopbackListener(returning: nil, failingToBind: .serverUnreachable) },
             randomBytes: { count in Data(repeating: 7, count: count) },
             now: now,
-            sleep: { duration in waited?.record(duration) })
+            clock: clock)
     }
 
     /// The fallback is automatic: nobody chooses it, the machine does.
@@ -770,8 +837,10 @@ struct DeviceGrantTests {
     /// RFC 8628 §3.5: a client that obeys `slow_down` is one a server need not defend itself from.
     @Test("waits longer when told to slow down")
     func obeysSlowDown() async throws {
+        let clock = ManualClock(advancesWhenSlept: true)
         let waited = Waits()
-        let service = service(transport: backend(slowDownFirst: true), waited: waited)
+        let service = service(
+            transport: backend(slowDownFirst: true, polledOn: clock, waited: waited), clock: clock)
 
         _ = try await service.completeSignIn(try await service.beginSignIn(with: .google))
 
