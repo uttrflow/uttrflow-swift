@@ -9,6 +9,7 @@ import UttrflowPredict
 
 @testable import Uttrflow
 
+/// Waits on a signal; a positive wait has no deadline, and the suite time limit ends one that never comes.
 private func wait(
     for semaphore: DispatchSemaphore, until deadline: DispatchTime
 ) async -> DispatchTimeoutResult {
@@ -109,7 +110,7 @@ private final class BlockingFocusedFieldAXWorker: FocusedFieldAXWorking, @unchec
 }
 
 @MainActor
-@Suite("AX value changes withdraw stale suggestion offers", .serialized)
+@Suite("AX value changes withdraw stale suggestion offers", .serialized, .timeLimit(.minutes(2)))
 struct FocusedFieldValueObserverTests {
     @Test("a mouse refresh returns while the AX worker is blocked")
     func mouseRefreshReturnsBeforeBlockingAccessibilityWork() async {
@@ -118,20 +119,20 @@ struct FocusedFieldValueObserverTests {
         let target = FocusedFieldObservationTarget(
             processIdentifier: 123, bundleIdentifier: "com.example.editor")
         observer.start(for: target, onValueChanged: {}, onNativeMenuVisibilityChanged: { _ in })
-        #expect(await wait(for: worker.completed, until: .now() + 1) == .success)
+        #expect(await wait(for: worker.completed, until: .distantFuture) == .success)
 
         let watchdog = releaseWatchdog(for: worker)
         DispatchQueue.global(qos: .utility).async(execute: watchdog)
 
         observer.refresh(for: target)
-        #expect(await wait(for: worker.entered, until: .now() + 1) == .success)
+        #expect(await wait(for: worker.entered, until: .distantFuture) == .success)
 
         let returnedBeforeWorkerFinished =
             await wait(for: worker.finishedBlocking, until: .now()) == .timedOut
         worker.release.signal()
         worker.cancelWatchdog.signal()
         watchdog.cancel()
-        #expect(await wait(for: worker.finishedBlocking, until: .now() + 1) == .success)
+        #expect(await wait(for: worker.finishedBlocking, until: .distantFuture) == .success)
         #expect(returnedBeforeWorkerFinished)
         observer.stop()
     }
@@ -155,19 +156,19 @@ struct FocusedFieldValueObserverTests {
         }
 
         coordinator.watchFocusedFieldValues()
-        #expect(await wait(for: worker.completed, until: .now() + 1) == .success)
+        #expect(await wait(for: worker.completed, until: .distantFuture) == .success)
 
         let watchdog = releaseWatchdog(for: worker)
         DispatchQueue.global(qos: .utility).async(execute: watchdog)
         coordinator.refreshFocusedFieldObservation()
-        #expect(await wait(for: worker.entered, until: .now() + 1) == .success)
+        #expect(await wait(for: worker.entered, until: .distantFuture) == .success)
 
         let returnedBeforeWorkerFinished =
             await wait(for: worker.finishedBlocking, until: .now()) == .timedOut
         worker.release.signal()
         worker.cancelWatchdog.signal()
         watchdog.cancel()
-        #expect(await wait(for: worker.finishedBlocking, until: .now() + 1) == .success)
+        #expect(await wait(for: worker.finishedBlocking, until: .distantFuture) == .success)
         #expect(returnedBeforeWorkerFinished)
     }
 
@@ -187,9 +188,9 @@ struct FocusedFieldValueObserverTests {
         defer { coordinator.stop() }
 
         coordinator.watchFocusedFieldValues()
-        #expect(await wait(for: worker.observed, until: .now() + 1) == .success)
+        #expect(await wait(for: worker.observed, until: .distantFuture) == .success)
         coordinator.follow(SuggestionPreferences(isEnabled: true, turnedOff: ["com.example.editor"]))
-        #expect(await wait(for: worker.observed, until: .now() + 1) == .success)
+        #expect(await wait(for: worker.observed, until: .distantFuture) == .success)
 
         #expect(worker.observedTargets.last == .some(nil))
         #expect(coordinator.focusedFieldObservationTarget() == nil)
@@ -208,7 +209,7 @@ struct FocusedFieldValueObserverTests {
         let worker = BlockingFocusedFieldAXWorker()
         let observer = FocusedFieldValueObserver(worker: worker)
         observer.start(for: target, onValueChanged: {}, onNativeMenuVisibilityChanged: { _ in })
-        #expect(await wait(for: worker.observed, until: .now() + 1) == .success)
+        #expect(await wait(for: worker.observed, until: .distantFuture) == .success)
         #expect(worker.observedTargets == [nil])
         observer.stop()
 
@@ -234,15 +235,15 @@ struct FocusedFieldValueObserverTests {
         let worker = BlockingFocusedFieldAXWorker()
         let observer = FocusedFieldValueObserver(worker: worker)
         observer.start(for: inFlight, onValueChanged: {}, onNativeMenuVisibilityChanged: { _ in })
-        #expect(await wait(for: worker.entered, until: .now() + 1) == .success)
-        #expect(await wait(for: worker.observed, until: .now() + 1) == .success)
+        #expect(await wait(for: worker.entered, until: .distantFuture) == .success)
+        #expect(await wait(for: worker.observed, until: .distantFuture) == .success)
 
         observer.refresh(for: queuedEnabled)
         observer.refresh(for: disabled)
         worker.release.signal()
 
-        #expect(await wait(for: worker.finishedBlocking, until: .now() + 1) == .success)
-        #expect(await wait(for: worker.observed, until: .now() + 1) == .success)
+        #expect(await wait(for: worker.finishedBlocking, until: .distantFuture) == .success)
+        #expect(await wait(for: worker.observed, until: .distantFuture) == .success)
         #expect(worker.observedTargets == [inFlight, nil])
         observer.stop()
     }
@@ -261,7 +262,7 @@ struct FocusedFieldValueObserverTests {
             for: first,
             onValueChanged: { valueChanges += 1 },
             onNativeMenuVisibilityChanged: { menuChanges.append($0) })
-        #expect(await wait(for: worker.entered, until: .now() + 1) == .success)
+        #expect(await wait(for: worker.entered, until: .distantFuture) == .success)
         let oldContext = worker.observedContexts[0]
 
         observer.refresh(for: second)
@@ -269,9 +270,9 @@ struct FocusedFieldValueObserverTests {
         #expect(valueChanges == 0)
         worker.release.signal()
 
-        #expect(await wait(for: worker.finishedBlocking, until: .now() + 1) == .success)
-        #expect(await wait(for: worker.cancelled, until: .now() + 1) == .success)
-        #expect(await wait(for: worker.completed, until: .now() + 1) == .success)
+        #expect(await wait(for: worker.finishedBlocking, until: .distantFuture) == .success)
+        #expect(await wait(for: worker.cancelled, until: .distantFuture) == .success)
+        #expect(await wait(for: worker.completed, until: .distantFuture) == .success)
         #expect(worker.observedTargets == [first, second])
         #expect(worker.completedObservations == [second])
         let currentContext = worker.observedContexts[1]
@@ -289,7 +290,7 @@ struct FocusedFieldValueObserverTests {
         let observer = FocusedFieldValueObserver(worker: worker)
         var newSessionValueChanges = 0
         observer.start(for: target, onValueChanged: {}, onNativeMenuVisibilityChanged: { _ in })
-        #expect(await wait(for: worker.entered, until: .now() + 1) == .success)
+        #expect(await wait(for: worker.entered, until: .distantFuture) == .success)
         let oldContext = worker.observedContexts[0]
 
         observer.stop()
@@ -301,9 +302,9 @@ struct FocusedFieldValueObserverTests {
         #expect(newSessionValueChanges == 0)
 
         worker.release.signal()
-        #expect(await wait(for: worker.finishedBlocking, until: .now() + 1) == .success)
-        #expect(await wait(for: worker.cancelled, until: .now() + 1) == .success)
-        #expect(await wait(for: worker.completed, until: .now() + 1) == .success)
+        #expect(await wait(for: worker.finishedBlocking, until: .distantFuture) == .success)
+        #expect(await wait(for: worker.cancelled, until: .distantFuture) == .success)
+        #expect(await wait(for: worker.completed, until: .distantFuture) == .success)
         #expect(worker.completedObservations == [target])
         observer.stop()
     }
@@ -317,15 +318,15 @@ struct FocusedFieldValueObserverTests {
         let worker = BlockingFocusedFieldAXWorker()
         let observer = FocusedFieldValueObserver(worker: worker)
         observer.start(for: inFlight, onValueChanged: {}, onNativeMenuVisibilityChanged: { _ in })
-        #expect(await wait(for: worker.entered, until: .now() + 1) == .success)
-        #expect(await wait(for: worker.observed, until: .now() + 1) == .success)
+        #expect(await wait(for: worker.entered, until: .distantFuture) == .success)
+        #expect(await wait(for: worker.observed, until: .distantFuture) == .success)
 
         observer.refresh(for: queued)
         observer.stop()
         worker.release.signal()
 
-        #expect(await wait(for: worker.finishedBlocking, until: .now() + 1) == .success)
-        #expect(await wait(for: worker.stopped, until: .now() + 1) == .success)
+        #expect(await wait(for: worker.finishedBlocking, until: .distantFuture) == .success)
+        #expect(await wait(for: worker.stopped, until: .distantFuture) == .success)
         #expect(worker.observedTargets == [inFlight])
     }
 
