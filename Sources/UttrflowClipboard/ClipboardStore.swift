@@ -703,25 +703,9 @@ public actor ClipboardStore {
             && !LocalStore.hasSetAside(file) && !LocalStore.hasSetAside(savedFile)
     }
 
-    /// Rechecks both indexes before a cached store can write over a newer format from another process.
+    /// Rechecks local index bytes through the reader before a cached write.
     private func validateCurrentIndexFormatsBeforeWrite() throws(ClipboardStoreError) {
-        for url in [file, savedFile] where !indexReader.unreplaceable.contains(url) {
-            let data: Data
-            do {
-                data = try Data(contentsOf: url)
-            } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
-                continue
-            } catch {
-                // A cached snapshot cannot safely replace a file it could not inspect now.
-                throw .couldNotWrite
-            }
-            if let version = try ClipIndexValidation.inspect(
-                data, fileName: url.lastPathComponent, using: encryptedStore)
-            {
-                indexReader.unsupportedFormatVersions[url] = version
-                throw .unsupportedFormat
-            }
-        }
+        try indexReader.validateCurrentFormats(in: [file, savedFile]) { try Data(contentsOf: $0) }
     }
 
     /// Upgrades a released bare array only after both indexes proved writable by this schema.

@@ -30,8 +30,9 @@ payload with an unrecognised JSON key is also refused for writing, so a newer fi
 when this build rewrites an index.
 
 `ClipIndexValidation` validates each replaceable index's encoded envelope and payload before a
-cached write. `ClipboardStore` retains the local file read, unreadable-file refusal and
-unsupported-version bookkeeping, and decides which indexes can be replaced.
+cached write. `ClipboardIndexReader` owns the read sequence, unreadable-file refusals and
+unsupported-version bookkeeping, excluding indexes already marked unreplaceable. `ClipboardStore`
+asks the reader to inspect both indexes before each write through its local-file read adapter.
 
 A clip's `tags` field is written only when the clip has a tag. An untagged clip's record is the
 same as before the field existed, so a build from before tags can still rewrite an index nobody
