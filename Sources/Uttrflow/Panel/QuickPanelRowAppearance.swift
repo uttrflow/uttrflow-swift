@@ -60,7 +60,10 @@ enum QuickPanelSpeech {
                 row.category.map { "Collection \($0)" },
             ]
         return
-            ([noun(for: row.kind), row.isPinned ? "Pinned" : nil, row.alias, body]
+            ([
+                noun(for: row.kind), row.isPinned ? "Pinned" : nil, row.alias,
+                row.tags.isEmpty ? nil : "Tags " + row.tags.joined(separator: ", "), body,
+            ]
             + details
             + [row.containsDisplayHazards ? "contains invisible or control characters" : nil, row.when])
             .compactMap { $0 }
