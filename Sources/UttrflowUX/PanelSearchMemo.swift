@@ -12,7 +12,7 @@ struct PanelMatch: Sendable, Equatable {
 /// Remembers the recent lists drawn, so a query searched earlier in this open is not searched again and one that grew is searched in what a shorter one found.
 final class PanelSearchMemo: Sendable {
     /// Everything that decides which rows are listed; a change to anything else, the selection above all, reuses them.
-    struct View: Sendable, Equatable {
+    struct View: Sendable, Hashable {
         let clips: [Clip]
         let clipsRevision: UUID
         let needle: String
@@ -24,7 +24,7 @@ final class PanelSearchMemo: Sendable {
     }
 
     /// What one view found, and the rows it was ranked and capped into.
-    private struct Listed {
+    private struct Listed: Sendable {
         let view: View
         let id: UUID
         let matches: [PanelMatch]
@@ -42,7 +42,12 @@ final class PanelSearchMemo: Sendable {
     /// How many recent lists are kept, most recent last; enough to walk back a long word one Backspace at a time.
     static let depth = 32
 
-    private let listed = Mutex<[Listed]>([])
+    private struct History {
+        var keys: [View] = []
+        let answers = Memo<View, View, Listed>()
+    }
+
+    private let listed = Mutex(History())
     /// Length-changing folds can make a longer query match text that the shorter query did not.
     private let foldingProfile = Mutex<(UUID, Locale, Bool)?>(nil)
     private let searches = Mutex(0)
@@ -57,8 +62,8 @@ final class PanelSearchMemo: Sendable {
         scanning scan: (Set<Clip.ID>?) -> [PanelMatch],
         ranking rank: ([PanelMatch]) -> ([PanelResult], [PanelMatchField: Int])
     ) -> ([PanelResult], [PanelMatchField: Int], UUID, Int?) {
-        let recent = listed.withLock { $0 }
-        if let hit = recent.last(where: { $0.view == view }) {
+        let (hit, recent) = cached(for: view)
+        if let hit {
             remember(hit)
             return (hit.rows, hit.omitted, hit.id, hit.selectedIndex(of: selection))
         }
@@ -84,6 +89,15 @@ final class PanelSearchMemo: Sendable {
         return (rows, omitted, id, entry.selectedIndex(of: selection))
     }
 
+    private func cached(for view: View) -> (Listed?, [Listed]) {
+        listed.withLock { history in
+            (
+                history.answers.cachedValue(for: view, source: view),
+                history.keys.compactMap { history.answers.cachedValue(for: $0, source: $0) }
+            )
+        }
+    }
+
     /// Whether any clip's searchable text has a fold that changes scalar count, cached for this clip list and locale.
     private func hasLengthChangingFold(
         in clips: [Clip], revision: UUID, locale: Locale
@@ -100,18 +114,27 @@ final class PanelSearchMemo: Sendable {
 
     /// Keeps `entry` as the most recent list, dropping lists of another clip list, which can never be reused.
     private func remember(_ entry: Listed) {
-        listed.withLock { recent in
-            recent.removeAll {
-                $0.view == entry.view || $0.view.clipsRevision != entry.view.clipsRevision
+        listed.withLock { history in
+            history.keys.removeAll {
+                $0 == entry.view || $0.clipsRevision != entry.view.clipsRevision
             }
-            recent.append(entry)
-            if recent.count > Self.depth { recent.removeFirst(recent.count - Self.depth) }
+            history.keys.append(entry.view)
+            if history.keys.count > Self.depth {
+                history.keys.removeFirst(history.keys.count - Self.depth)
+            }
+            history.answers.store(entry, for: entry.view, source: entry.view)
+            history.answers.prune(to: Set(history.keys))
         }
     }
 
 }
 
 extension PanelSearchMemo.View {
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(clipsRevision)
+        hasher.combine(needle)
+    }
+
     static func == (lhs: Self, rhs: Self) -> Bool {
         guard lhs.clipsRevision == rhs.clipsRevision, lhs.needle == rhs.needle, lhs.filter == rhs.filter,
             lhs.locale == rhs.locale, lhs.revealed == rhs.revealed
