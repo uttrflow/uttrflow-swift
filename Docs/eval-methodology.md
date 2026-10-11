@@ -241,8 +241,16 @@ What is deliberately not done matters as much as what is:
 - **Fillers stay.** The corpus has passages written with false starts, read as written.
   Stripping "um" would hide the failure those passages exist to measure; clean-up removes them
   and is measured separately.
-- **Spelling variants stay.** "Colour" and "color" count as a substitution. Folding them needs a
-  dictionary that grows into an accuracy fudge factor.
+- **Recogniser spelling variants stay.** "Colour" and "color" count as a substitution. The
+  separate Latin output rate uses the fixed `romanised-variants.json` table through
+  `Romaniser.soundKey`, for plain ASCII letter tokens only. Unlisted words, identifiers,
+  numbers and accented spellings remain exact. Both rates are reported for Devanagari answers.
+- Output scores and baseline entries record `romanised-variants-v1:<digest>` as `outputNormalisation`,
+  alongside the existing normalisation rule list. Legacy exact-spelling results decode with
+  no output instrument. The gate refuses to compare those counts with variant-scored counts;
+  remeasure the baseline before comparing output rates. The digest is SHA-256 of the
+  sorted spelling-to-canonical-word mappings, so changes to those mappings automatically
+  change the instrument. Its algorithm version must change if scoring semantics change.
 - **Hindi number words stay words.** Only the Devanagari spellings map to digits, because "do"
   and "teen" are also English words. "एक" and "दो" are left out even so: one is the everyday word
   for "a", the other for "give". Nothing above ninety-nine is mapped; the corpus keeps large
