@@ -342,6 +342,15 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "ad99ca019ba9beda4e718769596e4c5b22956c1425cdad138e157f9a387b6d5e",
+      "path": "Sources/UttrflowCore/Resources/Tables/sql-words.json",
+      "origin": "authored",
+      "bytes": 2295
+    },
+    {
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
       "sha256": "4006e673f68ad76337f9f8f7a62db0cd758be8b819e7dabb07248f9ef9cd0cbd",
       "path": "Sources/UttrflowCore/Resources/Tables/spoken-commands.json",
       "origin": "authored",

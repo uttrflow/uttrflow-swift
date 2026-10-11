@@ -203,6 +203,26 @@ Before committing a table, the reviewer checks:
 3. Ordinals were salted at reduction time and map to no recording or passage identifier.
 4. `make pii-audit` and `make disclosure-audit` pass with the table staged.
 
+## Span features
+
+A fit and the app weigh the same numbers because one function makes them:
+`SpanFeatures.vector(of:in:evidence:)` (`Sources/UttrflowAI/Candidates/SpanFeatures.swift`) turns a
+`HypothesisSet`, one of its hypotheses, the decoder's token evidence, an optional language model and an
+optional persona snapshot into a vector as long as `SpanFeatures.features`. Each feature declares the
+value it takes when its evidence is missing; no caller fills a gap itself. The fit tool has no
+extractor of its own.
+
+`SpanFeatures.specVersion` moves with the feature list and every rule in it. The golden file
+`Tests/UttrflowEvalTests/Golden/span-features.json` holds 50 invented spans and their expected vectors in
+stored form (12 significant digits); `SpanFeaturesTests` fails when any feature function, the list or
+the version changes without the file. `uttrflow-eval fit` re-checks the golden file first and refuses a
+table whose `featureSpecVersion` differs from the compiled one.
+
+Changing a feature:
+
+1. Edit the function, raise `specVersion`, and regenerate the `expected` vectors in the golden file from the new code.
+2. Refit every table: a table under the old version is refused until it is rebuilt.
+
 ## How much data a fit needs
 
 A fit below its data floor still prints numbers that look like results, so every fitted layer

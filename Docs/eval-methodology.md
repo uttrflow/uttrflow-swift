@@ -502,9 +502,79 @@ sides are normalised (`TextNormaliser.standard`, so "fifteen" and "15" are one w
 reading than from the spoken one, and otherwise an **other error**. `--compute gpu` keeps the
 Neural Engine free when another process holds its compiler.
 
-**Not yet measured.** The per-pair flip and error table, and the table by cost class, rate and
-noise, are recorded here from a full run (1,080 decodes). Until they are, every pair keeps the
-class `ConfusionCost` gives it, and the steps in `DoubtPolicy` stay provisional.
+Measured on an Apple M5 Pro with 48 GB, `--compute gpu`, 1,080 decodes (36 per pair).
+
+| Group | Pair | Cost class | Decodes | Flip rate | Error rate | Most written when wrong |
+|---|---|---|---|---|---|---|
+| negation | can / can't | meaningFlip | 36 | 0.0% | 0.0% |  |
+| negation | will / won't | meaningFlip | 36 | 0.0% | 47.2% | "the build will pass on the old lappa top" ×3 |
+| negation | did / didn't | meaningFlip | 36 | 0.0% | 5.6% | "she didnt reply to the invites" ×2 |
+| negation | was / wasn't | meaningFlip | 36 | 0.0% | 0.0% |  |
+| negation | could / couldn't | meaningFlip | 36 | 0.0% | 8.3% | "we could find a spare key" ×2 |
+| negation | do / don't | meaningFlip | 36 | 0.0% | 25.0% | "please do send the draft yes" ×4 |
+| negation | now / not | meaningFlip | 36 | 0.0% | 0.0% |  |
+| negation | not / (dropped) | meaningFlip | 36 | 0.0% | 5.6% | "tests are not passing on the branch" ×1 |
+| hindiNegation | nahi / (dropped) | meaningFlip | 36 | 5.6% | 100.0% | "main call office nahin a anger" ×6 |
+| hindiNegation | mat / (dropped) | meaningFlip | 36 | 0.0% | 100.0% | "ava file video" ×5 |
+| hindiNegation | na / (dropped) | meaningFlip | 36 | 5.6% | 100.0% | written in Devanagari ×9 |
+| hindiNegation | nahi / (dropped) | meaningFlip | 36 | 27.8% | 100.0% | "the bildabi chalraha" ×4 |
+| teenTen | thirteen / thirty | numberFlip | 36 | 0.0% | 52.8% | "we need 30 cheyaras for the haul" ×6 |
+| teenTen | fourteen / forty | numberFlip | 36 | 0.0% | 0.0% |  |
+| teenTen | fifteen / fifty | numberFlip | 36 | 0.0% | 11.1% | "or the 15 boxes of paper" ×2 |
+| teenTen | sixteen / sixty | numberFlip | 36 | 0.0% | 0.0% |  |
+| teenTen | seventeen / seventy | numberFlip | 36 | 0.0% | 0.0% |  |
+| teenTen | eighteen / eighty | numberFlip | 36 | 0.0% | 0.0% |  |
+| teenTen | nineteen / ninety | numberFlip | 36 | 0.0% | 0.0% |  |
+| nearQuantity | hundred / thousand | numberFlip | 36 | 0.0% | 2.8% | "the hall seats 100 guests" ×1 |
+| nearQuantity | million / billion | numberFlip | 36 | 0.0% | 11.1% | "to fundraise a million dollars" ×2 |
+| nearQuantity | a / one | cosmetic | 36 | 0.0% | 33.3% | "i ordered a coffee for the days" ×6 |
+| nearQuantity | an / a | cosmetic | 36 | 22.2% | 22.2% | "it was an honest mistake" ×8 |
+| nearQuantity | on / one | cosmetic | 36 | 0.0% | 58.3% | "the potlite stayed 1 all night" ×6 |
+| nearQuantity | two / to | numberFlip | 36 | 50.0% | 52.8% | "add 2 eggs to the bowl" ×18 |
+| nearQuantity | four / for | numberFlip | 36 | 27.8% | 50.0% | "we need 4 more chayaras" ×11 |
+| nearQuantity | ate / eight | numberFlip | 36 | 50.0% | 50.0% | "we ate at the hotel" ×18 |
+| meaningSwap | accept / except | cosmetic | 36 | 50.0% | 50.0% | "we accept all the changes" ×18 |
+| meaningSwap | affect / effect | cosmetic | 36 | 50.0% | 55.6% | "the new cache will affect the speed" ×15 |
+| meaningSwap | lose / loose | cosmetic | 36 | 50.0% | 52.8% | "do not lose the receipt" ×18 |
+
+| Cost class | Rate | Noise | Decodes | Flip rate | Error rate |
+|---|---|---|---|---|---|
+| cosmetic | all | all | 216 | 28.7% | 45.4% |
+| cosmetic | 150 | all | 72 | 29.2% | 45.8% |
+| cosmetic | 190 | all | 72 | 27.8% | 44.4% |
+| cosmetic | 240 | all | 72 | 29.2% | 45.8% |
+| cosmetic | all | clean | 72 | 29.2% | 37.5% |
+| cosmetic | all | 20 dB | 72 | 27.8% | 44.4% |
+| cosmetic | all | 10 dB | 72 | 29.2% | 54.2% |
+| numberFlip | all | all | 432 | 10.6% | 19.2% |
+| numberFlip | 150 | all | 144 | 10.4% | 18.8% |
+| numberFlip | 190 | all | 144 | 10.4% | 18.1% |
+| numberFlip | 240 | all | 144 | 11.1% | 20.8% |
+| numberFlip | all | clean | 144 | 10.4% | 18.1% |
+| numberFlip | all | 20 dB | 144 | 10.4% | 17.4% |
+| numberFlip | all | 10 dB | 144 | 11.1% | 22.2% |
+| meaningFlip | all | all | 432 | 3.2% | 41.0% |
+| meaningFlip | 150 | all | 144 | 2.8% | 42.4% |
+| meaningFlip | 190 | all | 144 | 2.8% | 39.6% |
+| meaningFlip | 240 | all | 144 | 4.2% | 41.0% |
+| meaningFlip | all | clean | 144 | 4.2% | 38.9% |
+| meaningFlip | all | 20 dB | 144 | 2.1% | 39.6% |
+| meaningFlip | all | 10 dB | 144 | 3.5% | 44.4% |
+
+What the run says:
+
+- Negation rarely flips to the opposite reading (3.2% of 432 decodes) but is often wrong in another
+  way (41.0%). Nearly all of the errors come from `will / won't`, `do / don't` and the Hindi
+  carriers, where the negator is dropped or, for Hindi, the line is written in Devanagari.
+- Number flips sit at 10.6%, almost all in `two / to`, `four / for` and `ate / eight`, which sound
+  alike; the teen/ty pairs flip 0.0% and err 0.0% to 52.8% (`thirteen / thirty` is written as 30).
+- The `cosmetic` meaning swaps (`accept / except`, `affect / effect`, `lose / loose`) flip 50.0%
+  with no change across rate or noise.
+  Noise raises the error rate in every class and leaves the flip rate near its clean value.
+
+Every pair keeps the class `ConfusionCost` gives it; this run changes none. Moving the meaning
+swaps up a class is a separate decision, because it would make the override harder for every
+accept/except in running text.
 
 ## Accent classes and the correction gates (`accent`)
 
@@ -994,3 +1064,66 @@ speaker raising their voice, sits between the synthetic 20 and 10 dB steps and c
 measurable; it is not evidence for the 5 and 0 dB steps. One speaker, one microphone, one room,
 and the noisy takes were a second reading of passages already read once, so no row here is a
 population claim.
+
+## Accuracy and piece cuts by speaking rate and pitch (`pace`)
+
+Every corpus passage is read at one pace by one voice, yet the repeated-sentence check
+(`RecognitionLoop.fastestSpeech`) and the piece cut (`SpeechWindowing`) are set in seconds and words
+a second. `uttrflow-eval pace` replays each recording at stepped speaking rates and pitches and
+reports what depends on pace.
+
+```bash
+uttrflow-eval pace
+uttrflow-eval pace --structure-only    # cuts and the loop check only; loads no model
+```
+
+- Variants are generated, never recorded or committed (`Sources/UttrflowEval/SpeechVariant.swift`).
+  Speaking rate uses waveform-similarity overlap-add, which keeps pitch, at 0.7, 0.85, 1.3, 1.6 and
+  1.9 times; pitch moves by -4, -2, +2, +4 and +6 semitones by stretching and resampling, which
+  keeps tempo. 1.0x is the reference. The same audio always gives the same variant.
+- Word error rate and insertions are pooled per language and condition with the paired 95%
+  interval on the change from 1.0x, as `noise` does (`ConditionTable`).
+- Per condition, pooled over every recording (`PaceStructure`, no recogniser involved):
+  - pieces: how many pieces `SpeechWindowing.windows` cuts the clip into;
+  - early: cuts that end a piece sooner than `SpeechWindowing.minimumLength` after it began;
+  - mid-word (with a recogniser only): cuts that fall strictly inside a word the recogniser
+    timed, over all cuts of recordings with timed words;
+  - said-twice cut: of the recordings with at least `RecognitionLoop.fewestCopyWords` words, how
+    many have their reference text said twice, at that pace, cut to one copy by
+    `RecognitionLoop.undone`. A sentence really said twice should keep both copies, so each is
+    a false positive;
+  - over 4.8 w/s: reference words over speech seconds above `RecognitionLoop.fastestSpeech`.
+
+### Measured on one speaker's recordings, cuts and loop check only
+
+One speaker, `reader-1`, built-in microphone, no recogniser: the structure half of the sweep on
+18 quiet passages, 6 deliberately fast English passages and 6 English passages read in a noisy
+room. The audio stays on the recording Mac. Pieces and early cuts are for the 18 quiet passages;
+the loop check is counted per recording.
+
+| condition | pieces | early | said-twice cut (quiet / fast / noisy) |
+|---|---|---|---|
+| 1.0x | 32 | 1 | 0/18 / 0/6 / 0/6 |
+| 0.7x | 53 | 0 | 0/18 / 0/6 / 0/6 |
+| 0.85x | 43 | 0 | 0/18 / 0/6 / 0/6 |
+| 1.3x | 25 | 1 | 0/18 / 0/6 / 0/6 |
+| 1.6x | 21 | 1 | 2/18 / 1/6 / 1/6 |
+| 1.9x | 19 | 1 | 6/18 / 6/6 / 5/6 |
+| -4 / -2 / +2 / +4 / +6 st | 32 / 33 / 32 / 37 / 37 | 2 / 1 / 1 / 2 / 2 | 0 in every session |
+
+- Slower speech is cut into more pieces (53 against 32 at 0.7x, 43 at 0.85x), and faster speech
+  into fewer (21 at 1.6x), because the pause lengths in `SpeechWindowing` are in seconds.
+- The repeated-sentence check cuts a sentence really said twice at 1.6x in 4 of 30 recordings and
+  at 1.9x in 17 of 30. Each is a false positive, and 1.6x is inside the 0.85x to 1.6x range, so
+  the limit needs a follow-up that changes it with before and after. The count is the count
+  of recordings whose words a second pass 4.8, so the speech rate alone decides it.
+- Pitch shifts move the piece count by at most 5 of 32 (+4 and +6 semitones), and no loop-check
+  hit.
+
+Not yet measured: word error rate per factor and pitch, cuts inside a word, and the word error
+rate floor at 1.3x and 1.6x for fast speakers. That run needs the shipping model on an otherwise
+idle machine:
+
+```bash
+uttrflow-eval pace --corpus-path <reader-1-quiet>
+```

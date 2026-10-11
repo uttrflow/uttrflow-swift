@@ -134,7 +134,7 @@ public actor EvidenceLedgerStore {
     }
 
     /// Swaps every row of the given kinds for `newRows` in one write, so a failed write leaves the old rows whole.
-    public func replace(
+    func replace(
         kinds: Set<EvidenceRow.Kind>, with newRows: [EvidenceRow], keeping window: RetentionWindow
     ) throws {
         let stored = try load()

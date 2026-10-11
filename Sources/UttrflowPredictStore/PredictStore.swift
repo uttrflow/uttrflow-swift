@@ -15,7 +15,7 @@ public actor PredictStore: PredictionStore {
     public static let entriesPerSurface = 2_000
 
     /// How many entries the whole corpus may hold, which bounds its memory and the image every write re-seals.
-    public static let entriesPerStore = 20_000
+    static let entriesPerStore = 20_000
 
     /// How many documents one field may retain before its least recently used scope is removed.
     public static let surfacesPerField = 64

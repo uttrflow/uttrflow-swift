@@ -188,6 +188,13 @@ when exactly one candidate qualifies. It never translates and never drops a word
 | lexicon plus the 32 restorable words as personal words | 32 of 32 | 1 of 122: baal bill |
 
 
+Whether the seam could replace the table's own English entries was measured by romanising
+those 41 words by the syllable rules alone and giving the seam their English spellings as the
+person's words (`LoanwordTableReachabilityTests`): 24 are reached (ophis office, miting meeting,
+skool school) and 17 are not (kol call, fon phone, fail file, foto photo, baink bank). Every
+other path that romanises, such as `LatinScript.enforced` and the script guard, runs without the
+seam, so the table stays until the seam's sound match reaches all 41.
+
 ### Brand and app names
 
 The rules engine runs `LoanwordRestoration` over the romanised draft, with the person's dictionary
