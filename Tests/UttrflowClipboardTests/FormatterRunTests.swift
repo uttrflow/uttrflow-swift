@@ -29,14 +29,15 @@ struct FormatterRunTests {
         #expect(await Self.run(slow, "let x = 1", timeout: 0.2) == nil)
     }
 
-    @Test("a formatter that ignores TERM is killed and its bounded pipe pump returns")
-    func termIgnoringToolIsKilled() async throws {
+    /// Runs a tool that ignores TERM, timed on the run's own thread so the time covers the escalation and not how soon the caller is resumed.
+    private static func runTermIgnoringTool() async throws
+        -> (output: String?, elapsed: UInt64, pidFile: URL)
+    {
         let pidFile = FileManager.default.temporaryDirectory.appending(path: "formatter-pid-\(UUID())")
         // The pid is written only once TERM is ignored, so a file names a tool that really ignores it.
         let tool = try Self.tool("trap '' TERM\necho $$ > '\(pidFile.path)'\nwhile :; do :; done")
         defer { try? FileManager.default.removeItem(at: tool.deletingLastPathComponent()) }
 
-        // Timed on the run's own thread, so the bound covers the escalation and not how soon this test is resumed.
         let (output, elapsed) = await withCheckedContinuation { finished in
             DispatchQueue(label: "formatter-run-tests.term").async {
                 let startedAt = DispatchTime.now().uptimeNanoseconds
@@ -46,9 +47,14 @@ struct FormatterRunTests {
                 finished.resume(returning: (output, DispatchTime.now().uptimeNanoseconds - startedAt))
             }
         }
+        return (output, elapsed, pidFile)
+    }
+
+    @Test("a formatter that ignores TERM is killed and its bounded pipe pump returns")
+    func termIgnoringToolIsKilled() async throws {
+        let (output, _, pidFile) = try await Self.runTermIgnoringTool()
 
         #expect(output == nil)
-        #expect(elapsed < 4_000_000_000, "termination escalation must remain bounded")
         // A tool the deadline reached before its trap ran died of TERM itself and wrote no pid.
         if let written = try? String(contentsOf: pidFile, encoding: .utf8),
             let processID = Int(written.trimmingCharacters(in: .whitespacesAndNewlines))
@@ -57,6 +63,15 @@ struct FormatterRunTests {
                 kill(pid_t(processID), 0) == -1 && errno == ESRCH, "the ignored-TERM process must be gone")
         }
         try? FileManager.default.removeItem(at: pidFile)
+    }
+
+    /// The time bound on the same run is in `make bench`, since a parallel test run cannot keep a wall-clock limit honest.
+    @Test("a formatter that ignores TERM is given up on within four seconds")
+    func termEscalationStaysBounded() async throws {
+        let (_, elapsed, pidFile) = try await Self.runTermIgnoringTool()
+        try? FileManager.default.removeItem(at: pidFile)
+
+        #expect(elapsed < 4_000_000_000, "termination escalation must remain bounded")
     }
 
     @Test("stdout beyond the fixed output cap is refused")
