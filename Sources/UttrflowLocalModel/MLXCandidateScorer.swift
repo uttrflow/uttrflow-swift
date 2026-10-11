@@ -1,9 +1,9 @@
-public import UttrflowAI
+import UttrflowAI
 public import UttrflowPredict
 
 // The MLX macros expand to code naming these types, so the imports cannot be private.
 public import Foundation
-public import UttrflowCore
+import UttrflowCore
 import HuggingFace
 import MLX
 import MLXHuggingFace
@@ -26,11 +26,11 @@ public struct JudgedToken: Sendable, Equatable {
 
 /// Judges and invents suggestions with one loaded model: scores a candidate, or generates one from nothing.
 public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassShowing, ReleasableModel {
-    private let model: LocalModel
+    let model: LocalModel
     private let maximumTokens: Int
     private let capacityForDownload: (@Sendable (URL) -> Int64?)?
     private let downloadHeadroomBytes: Int64
-    private var container: ModelContainer?
+    private(set) var container: ModelContainer?
     private let bufferCachePasses: BufferCachePasses
 
     /// Where a pass reports its timing and its failures: numbers and error text only, never the prompt.
@@ -711,31 +711,9 @@ extension WeightLoading<ModelContainer> {
         })
 }
 
-/// The same loaded weights tidy dictation, so the app holds one copy of the model for suggestions and clean-up.
-extension MLXCandidateScorer: CleanupModel {
-    /// Available only while the weights are loaded; a dictation never waits on a load.
-    public func availability(for language: LanguageCode?) async -> TransformerAvailability {
-        guard container != nil else { return .unavailable(reason: .other("the local model is not loaded")) }
-        guard let language else { return .available }
-        return model.supports(language) ? .available : .unsupportedLanguage(language)
-    }
-
-    /// One block of instructions, with no examples apart from it.
-    public func rewrite(
-        _ text: String, instructions: String, kind: TransformerKind
-    ) async throws(TransformationError) -> String {
-        try await tidy(text, system: instructions, examples: [], kind: kind)
-    }
-
-    /// The rules as the system turn and each worked example as an earlier exchange, so the model answers rather than reads on.
-    public func rewrite(
-        _ text: String, prompt: ModelPrompt, kind: TransformerKind
-    ) async throws(TransformationError) -> String {
-        try await tidy(text, system: prompt.rules, examples: prompt.examples, kind: kind)
-    }
-
+extension MLXCandidateScorer {
     /// Answers `text` after the system turn and the examples in a fresh session, so one utterance cannot bleed into the next.
-    private func tidy(
+    func tidy(
         _ text: String, system: String, examples: [WorkedExample], kind: TransformerKind
     ) async throws(TransformationError) -> String {
         guard let container else { throw .transformFailed(kind: kind, failure: .notReady) }

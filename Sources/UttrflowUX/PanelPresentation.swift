@@ -148,6 +148,8 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
     public let detail: String
     /// The handle the user gave it, shown as they typed it.
     public let alias: String?
+    /// The tags the user gave it, shown as chips after the name.
+    public let tags: [String]
     public let category: String?
     public let isPinned: Bool
     /// Whether bullets are drawn rather than the clip, so nothing mistakes one for the other.
@@ -169,6 +171,8 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
     public let isMonospaced: Bool
     /// Whether the clip contains invisible or control characters.
     public let containsDisplayHazards: Bool
+    /// The real host of a link row, or `nil` for any other row.
+    public let linkHost: LinkHostDisplay?
     public let actions: [PanelAction]
 
     /// The bounded full-text preview, never on a masked row. See `Docs/panel.md`.
@@ -189,6 +193,7 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
         when: String,
         detail: String = "",
         alias: String?,
+        tags: [String] = [],
         category: String?,
         isPinned: Bool,
         isMasked: Bool,
@@ -201,6 +206,7 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
         language: String? = nil,
         isMonospaced: Bool,
         containsDisplayHazards: Bool = false,
+        linkHost: LinkHostDisplay? = nil,
         actions: [PanelAction]
     ) {
         self.id = id
@@ -213,6 +219,7 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
         self.when = when
         self.detail = detail
         self.alias = alias
+        self.tags = tags
         self.category = category
         self.isPinned = isPinned
         self.isMasked = isMasked
@@ -225,6 +232,7 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
         self.language = language
         self.isMonospaced = isMonospaced
         self.containsDisplayHazards = containsDisplayHazards
+        self.linkHost = linkHost
         self.actions = actions
     }
 }
@@ -554,6 +562,7 @@ public enum PanelPresenter {
             when: when,
             detail: detail(of: clip, when: when),
             alias: clip.alias,
+            tags: clip.tags,
             category: PanelSnapshot.name(clip.category),
             isPinned: clip.isPinned,
             isMasked: isMasked,
@@ -571,6 +580,7 @@ public enum PanelPresenter {
             language: isMasked ? nil : clip.language?.chip,
             isMonospaced: isMonospaced(clip.kind),
             containsDisplayHazards: ClipTextSafety.containsDisplayHazards(clip.text),
+            linkHost: isMasked || clip.kind != .link ? nil : LinkHostDisplay.parse(clip.text),
             actions: actions(for: clip, isMasked: isMasked, in: snapshot)
         )
     }

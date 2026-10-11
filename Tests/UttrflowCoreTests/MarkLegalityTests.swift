@@ -5,7 +5,10 @@ import UttrflowCore
 struct MarkLegalityTests {
     @Test(
         "a word that leaves its clause open takes no stop, question or colon",
-        arguments: ["the", "and", "of", "my", "because", "Dr.", "e.g."])
+        arguments: [
+            "the", "and", "of", "my", "because", "Dr.", "e.g.", "at", "by", "upon", "between", "during",
+            "against", "within", "without", "among", "while", "very",
+        ])
     func open(token: String) {
         for mark in [MarkLegality.Mark.stop, .question, .exclamation, .colon] {
             #expect(MarkLegality.verdict(mark, after: token) == .illegal)
