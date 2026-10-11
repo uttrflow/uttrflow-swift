@@ -7,7 +7,7 @@ public import UttrflowSettings
 public enum OnboardingPresenter {
     /// The page for a state, with the shortcut and how it is pressed drawn on the last one.
     public static func page(
-        for state: OnboardingState, hotkey: HotkeyBinding, activation: HotkeyActivation = .holdToTalk,
+        for state: OnboardingState, hotkey: HotkeyBinding?, activation: HotkeyActivation = .holdToTalk,
         shortcuts: ShortcutSet = .default,
         signsInAsStandIn: Bool = false, sharesUsageStatistics: Bool = false,
         clipboardEnabled: Bool = true,
@@ -228,7 +228,7 @@ public enum OnboardingPresenter {
 
     /// The last page: a first try when dictation can work, else what still stands in the way.
     private static func ready(
-        _ state: OnboardingState, hotkey: HotkeyBinding, activation: HotkeyActivation,
+        _ state: OnboardingState, hotkey: HotkeyBinding?, activation: HotkeyActivation,
         shortcuts: ShortcutSet
     ) -> OnboardingPage {
         switch state.detail.readiness ?? .ready {
@@ -262,11 +262,11 @@ public enum OnboardingPresenter {
 
     /// The first try: the keyboard's corner with the shortcut lit, the field the words land in, and Skip.
     private static func trying(
-        _ state: OnboardingState, hotkey: HotkeyBinding, activation: HotkeyActivation,
+        _ state: OnboardingState, hotkey: HotkeyBinding?, activation: HotkeyActivation,
         shortcuts: ShortcutSet
     ) -> OnboardingPage {
-        let keys = OnboardingKeys.of(hotkey)
-        let lit = OnboardingKeys.corner(of: hotkey)
+        let keys = hotkey.map { OnboardingKeys.of($0) } ?? []
+        let lit = hotkey.flatMap { OnboardingKeys.corner(of: $0) }
         let holds = activation == .holdToTalk
         let named = OnboardingKeys.spoken(keys)
         let suggestionsCaption =
@@ -279,7 +279,10 @@ public enum OnboardingPresenter {
             shortcuts.first(for: .clipboard).map {
                 "Open the Clipboard panel with \(SettingsShortcut.compact($0)) to browse and paste recent copies."
             } ?? "Open the Clipboard panel from the menu bar to browse and paste recent copies."
-        let bracket = keys.count > 1 ? (holds ? "HOLD BOTH" : "PRESS BOTH") : (holds ? "HOLD" : "PRESS")
+        let bracket: String? =
+            hotkey == nil
+            ? nil
+            : keys.count > 1 ? (holds ? "HOLD BOTH" : "PRESS BOTH") : (holds ? "HOLD" : "PRESS")
         var page: OnboardingPage
         switch state.detail.trial {
         case .waiting:
@@ -287,7 +290,7 @@ public enum OnboardingPresenter {
                 state, mood: .brand,
                 picture: .keyboard(
                     OnboardingKeyboard(
-                        lit: lit, keys: keys, bracket: bracket, isHeld: false, demonstrates: true,
+                        lit: lit, keys: keys, bracket: bracket, isHeld: false, demonstrates: hotkey != nil,
                         field: .placeholder("Your words appear here"), isListening: false, celebrates: false)),
                 title: "Try it now.",
                 hint: copies
@@ -296,36 +299,44 @@ public enum OnboardingPresenter {
                 explanation:
                     "Try it now. Uttrflow lives in your menu bar whenever you need it. \(clipboardHint)")
             page.subtitle =
-                holds
-                ? "Click a text field in another app, then hold \(named), say anything, then let go."
-                : "Click a text field in another app, then press \(named), say anything, then press again."
+                hotkey == nil
+                ? nil
+                : holds
+                    ? "Click a text field in another app, then hold \(named), say anything, then let go."
+                    : "Click a text field in another app, then press \(named), say anything, then press again."
             page.action = skip
         case .listening:
             page = self.page(
                 state, mood: .live,
                 picture: .keyboard(
                     OnboardingKeyboard(
-                        lit: lit, keys: keys, bracket: holds ? "HOLDING" : "LISTENING", isHeld: holds,
+                        lit: lit, keys: keys, bracket: hotkey == nil ? nil : holds ? "HOLDING" : "LISTENING",
+                        isHeld: hotkey != nil && holds,
                         demonstrates: false, field: .placeholder("Say anything…"), isListening: true,
                         celebrates: false)),
                 title: "Listening…")
             page.subtitle =
-                holds
-                ? "Keep holding while you talk. Let go when you’re done." : "Press again when you’re done."
+                hotkey == nil
+                ? nil
+                : holds
+                    ? "Keep holding while you talk. Let go when you’re done."
+                    : "Press again when you’re done."
             page.action = skip
         case .stillLoading:
             page = self.page(
                 state, mood: .brand,
                 picture: .keyboard(
                     OnboardingKeyboard(
-                        lit: lit, keys: keys, bracket: bracket, isHeld: false, demonstrates: true,
+                        lit: lit, keys: keys, bracket: bracket, isHeld: false, demonstrates: hotkey != nil,
                         field: .placeholder("Your words appear here"), isListening: false, celebrates: false)),
                 title: "Try it now.", hint: SpeechModelLoad.loading(elapsed: .zero).detail,
                 explanation: "Try it now. Uttrflow lives in your menu bar whenever you need it.")
             page.subtitle =
-                holds
-                ? "Hold \(named), say anything, then let go."
-                : "Press \(named), say anything, then press again."
+                hotkey == nil
+                ? nil
+                : holds
+                    ? "Hold \(named), say anything, then let go."
+                    : "Press \(named), say anything, then press again."
             page.action = skip
         case .heard(let words):
             page = self.page(

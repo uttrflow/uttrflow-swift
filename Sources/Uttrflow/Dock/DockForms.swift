@@ -44,7 +44,7 @@ extension DockView {
                             comment: "Dock hint beside the shortcut when the pointer is over the button")
                     )
                     .font(.system(size: DockMetrics.bodySize))
-                    keycap(model.shortcut)
+                    if !model.shortcut.isEmpty { keycap(model.shortcut) }
                 }
                 .fixedSize()
                 .padding(.horizontal, 15)

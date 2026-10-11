@@ -1643,7 +1643,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             self?.dockAttentionChanged(to: isAttended)
         }
 
-        dock.setShortcut(SettingsShortcut.compact(settings.hotkey))
+        dock.setShortcut(SettingsShortcut.compact(settings.shortcuts.first(for: .dictate)))
         dock.setShrinksToGrip(settings.shrinksToGripWhenIdle)
         checkSecureInput()
         showTheFloatingButtonIfWanted()
@@ -3470,7 +3470,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         homeClock.drew(at: now)
         // Handed over whole: `HistoryEntry` is `DictationRecord`, so nothing is rebuilt.
         let entries = kept
-        let shortcut = SettingsShortcut.compact(settings.hotkey)
+        let shortcut = SettingsShortcut.compact(settings.shortcuts.first(for: .dictate))
         let changed = CorrectionHistory(of: entries)
         let corrections = changed.corrections
 
@@ -3496,8 +3496,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                         Calendar.autoupdatingCurrent.isDate($0.when, inSameDayAs: now)
                             && !$0.isUndone
                     }.count,
-                    shortcutKeys: SettingsShortcut.keycaps(for: settings.hotkey), settings: settings,
-                    version: .ofThisBuild,
+                    shortcutKeys: SettingsShortcut.keycaps(for: settings.shortcuts.first(for: .dictate)),
+                    settings: settings, version: .ofThisBuild,
                     now: now)),
             history: HistoryPresenter.page(
                 for: HistorySnapshot(
@@ -3545,7 +3545,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     qualityLayers: qualityLayers, learnedState: ledgerRefusal),
                 suggestionModelBytesOnDisk: releaseModel.cachedBytesOnDisk),
             account: accountPage(at: now),
-            shortcutKeycaps: SettingsShortcut.keycaps(for: settings.hotkey))
+            shortcutKeycaps: SettingsShortcut.keycaps(for: settings.shortcuts.first(for: .dictate)))
     }
 
     /// The Dictionary page as the last reading of the words draws it.
@@ -4492,7 +4492,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             suggestionsChanged()
         }
 
-        dock.setShortcut(SettingsShortcut.compact(settings.hotkey))
+        dock.setShortcut(SettingsShortcut.compact(settings.shortcuts.first(for: .dictate)))
         dock.setShrinksToGrip(settings.shrinksToGripWhenIdle)
         showTheFloatingButtonIfWanted()
         refreshMainWindow()

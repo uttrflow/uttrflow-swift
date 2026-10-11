@@ -217,11 +217,14 @@ public enum HomeDashboard {
         title: "Search your words…", symbolName: "magnifyingglass", intent: .search)
 
     /// Home before the first dictation: the shortcut, how to use it, and a dictation to start now.
-    static func emptyState(activation: HotkeyActivation) -> MainEmptyState {
+    static func emptyState(activation: HotkeyActivation, shortcuts: ShortcutSet = .default) -> MainEmptyState
+    {
         MainEmptyState(
             symbolName: "mic", title: "Nothing dictated yet",
-            message: activation == .holdToTalk
-                ? "Hold the shortcut anywhere and talk." : "Press the shortcut anywhere and talk.",
+            message: !shortcuts.isBound(.dictate)
+                ? ""
+                : activation == .holdToTalk
+                    ? "Hold the shortcut anywhere and talk." : "Press the shortcut anywhere and talk.",
             action: .tryIt)
     }
 

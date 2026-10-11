@@ -57,6 +57,20 @@ struct SettingsRequestWiringTests {
             onChange: onChange, onRequest: onRequest, onShortcutRecording: onShortcutRecording)
     }
 
+    @Test("An unbound Dictate action has no Globe-key warning", arguments: [1, 2, 3])
+    func unboundShortcutHasNoGlobeKeyWarning(rawValue: Int) {
+        let model = model(RecordingStore())
+        model.session.capabilities.globeKeyAction = GlobeKeyAction(rawValue: rawValue)
+        #expect(model.globeKeyWarning == nil)
+        var settings = Settings.default
+        settings.hotkey = .functionHold
+        model.synchronize(settings: settings)
+        #expect(model.globeKeyWarning == model.session.capabilities.globeKeyWarning(for: .functionHold))
+        settings.shortcuts.removeAll(from: .dictate)
+        model.synchronize(settings: settings)
+        #expect(model.globeKeyWarning == nil)
+    }
+
     @Test("Check Now reaches the app, which is the only thing that can ask the feed")
     func checkNowIsHandedOn() {
         var asked: [SettingsChange] = []
