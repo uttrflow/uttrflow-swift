@@ -69,6 +69,11 @@ struct AdapterReport: Sendable, Equatable, Codable {
         guard label == baseline.label else {
             return .failure(Incomparable(reason: "measured \"\(label)\", baseline \"\(baseline.label)\""))
         }
+        guard Set(rows.map(\.adapter)).count == rows.count,
+            Set(baseline.rows.map(\.adapter)).count == baseline.rows.count
+        else {
+            return .failure(Incomparable(reason: "adapter rows must have unique names in each report"))
+        }
         let before = Dictionary(uniqueKeysWithValues: baseline.rows.map { ($0.adapter, $0) })
         guard rows.map(\.adapter) == baseline.rows.map(\.adapter),
             rows.allSatisfy({
