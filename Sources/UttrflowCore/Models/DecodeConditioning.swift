@@ -13,6 +13,9 @@ public enum DecodeConditioning: Sendable, Equatable {
         case tokenizerUnavailable
     }
 
+    /// How many pieces in a row may run unconditioned before the speech model is offered a repair.
+    public static let repairThreshold = 3
+
     /// Unavailable wins, so one degraded window marks the whole piece.
     public func adding(_ other: DecodeConditioning) -> DecodeConditioning {
         if case .unavailable = self { return self }

@@ -13,6 +13,10 @@ public enum PanelEffect: Sendable, Equatable {
     case closeAndInsert(String, used: Clip.ID)
     /// The same for a secret, whose words may only reach the clipboard marked concealed.
     case closeAndInsertConcealed(String, used: Clip.ID)
+    /// The same after the user agreed in the panel, so the app pastes without asking again.
+    case closeAndInsertConfirmed(String, used: Clip.ID)
+    /// The same for a secret agreed to in the panel.
+    case closeAndInsertConfirmedConcealed(String, used: Clip.ID)
     /// The same with the formatted form, so the receiving application takes whichever it understands.
     case closeAndInsertFormatted(String, richText: String, used: Clip.ID)
     /// Put it on the clipboard, say why on the panel, and close a moment later; never called an insertion.
@@ -86,6 +90,14 @@ extension PanelOutcome {
         case .copy(let clip):
             clip.image == nil
                 ? .closeAndCopy(clip.text, richText: clip.richText, used: clip.id) : .closeAndCopyImage(clip)
+        case .insertConfirmed(let clip, let cleaned):
+            clip.kind == .secret
+                ? .closeAndInsertConfirmedConcealed(
+                    cleaned ? ClipTextSafety.removingDisplayHazards(from: clip.text) : clip.text,
+                    used: clip.id)
+                : .closeAndInsertConfirmed(
+                    cleaned ? ClipTextSafety.removingDisplayHazards(from: clip.text) : clip.text,
+                    used: clip.id)
         case .insertImage(let clip): .closeAndInsertImage(clip)
         case .insertFiles(let clip): .placeFiles(clip, .paste)
         case .filesMissing(let names): .say(.filesMissing(names))

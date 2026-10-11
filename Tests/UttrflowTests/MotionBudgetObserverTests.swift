@@ -73,6 +73,27 @@ struct MotionBudgetObserverTests {
         #expect(!MotionBudget.current(in: FakeWorkspace(reducesMotion: false)).reducesMotion)
     }
 
+    @Test("a private workspace notice refreshes only its own observer")
+    func privateWorkspaceNoticesStayIndependent() {
+        let firstSource = Source()
+        let secondSource = Source()
+        let firstWorkspace = FakeWorkspace()
+        let secondWorkspace = FakeWorkspace()
+        let first = MotionBudgetObserver(read: { firstSource.budget }, workspace: firstWorkspace)
+        let second = MotionBudgetObserver(read: { secondSource.budget }, workspace: secondWorkspace)
+        firstSource.budget = MotionBudget(reducesMotion: true)
+        secondSource.budget = MotionBudget(reducesMotion: true)
+
+        firstWorkspace.notificationCenter.post(
+            name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil)
+
+        #expect(first.budget == firstSource.budget)
+        #expect(second.budget == MotionBudget())
+        secondWorkspace.notificationCenter.post(
+            name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil)
+        #expect(second.budget == secondSource.budget)
+    }
+
     @Test("the system workspace is the shared one")
     func theSystemWorkspace() {
         let system = SystemWorkspace()

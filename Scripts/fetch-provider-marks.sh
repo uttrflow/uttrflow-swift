@@ -32,7 +32,8 @@ note() { printf '  %s\n' "$*"; }
 rm -f "$STALE_MARK"
 
 if [[ -f "$GOOGLE_MARK" ]]; then
-    note "GoogleG.png is already here; nothing to fetch."
+    python3 "$ROOT/Scripts/provider_mark.py" verify-mark
+    note "GoogleG.png matches its registered digest; nothing to fetch."
     exit 0
 fi
 
@@ -49,6 +50,7 @@ if ! curl --fail --location --silent --show-error "$GOOGLE_ASSETS" --output "$TM
     exit 1
 fi
 
+python3 "$ROOT/Scripts/provider_mark.py" verify-archive --archive "$TMP/google.zip"
 unzip -q -o "$TMP/google.zip" -d "$TMP/google"
 
 MARK="$("$ROOT/Scripts/select-google-mark.sh" "$TMP/google")"
@@ -71,6 +73,7 @@ if [[ "$MARK" == *"Theme=Light"* && "$DARK" == *"Theme=Dark"* ]]; then
 else
     cp "$MARK" "$GOOGLE_MARK"
 fi
+python3 "$ROOT/Scripts/provider_mark.py" verify-mark
 note "saved $(basename "$MARK") -> Sources/Uttrflow/Resources/GoogleG.png"
 
 printf '\nGitHub'"'"'s Invertocat is not fetched automatically.\n'

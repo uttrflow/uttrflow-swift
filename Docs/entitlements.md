@@ -48,7 +48,7 @@ move.
 `Ed25519EntitlementVerifier.releasePublicKeyBytes` decodes `releasePublicKeyBase64`, and is
 empty, **not 32 zero bytes**, when that is not a key. The all-zero Ed25519 public key decodes to
 a point of order four and CryptoKit verifies without the cofactor, so an all-zero *signature*
-satisfies the equation against it for roughly one message in four: a subscription for anybody
+satisfies the equation against it for roughly one message in four: an account for anybody
 willing to try their account identifier a few times.
 
 Bytes that are not a key verify nothing, which is the only safe thing for a placeholder to be.
@@ -94,3 +94,15 @@ against that key rather than an assumed one.
 
 Related: [account-session.md](account-session.md), [account-keychain.md](account-keychain.md),
 [logging.md](logging.md).
+
+## Legacy plan and subscription fields
+
+Uttrflow is free and open source: signing in is required, and there are no subscriptions, paid
+plans, paid feature tiers or billing. `Plan`, `Profile.Subscription`, `Profile.Limits`,
+`effectivePlan` and the signed `plan` in `Entitlement` are legacy compatibility data from the
+backend. They are not a statement of product policy, and no control for checkout, upgrade or a
+paid tier belongs in the app.
+
+They stay as they are for now: the signed payload and the stored profile are contracts with the
+backend, so renaming a wire key or dropping the fields is a coordinated migration across backend
+and client, never a wording change. Account messages do not mention them.

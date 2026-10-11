@@ -38,10 +38,12 @@ extension QuickPanelView {
 
                 HStack(spacing: 8) {
                     Spacer()
-                    Button("Cancel") { relayKey(.escape) }
-                        .buttonStyle(.plain)
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color.panelLabelSoft)
+                    Button(String(localized: "Cancel", comment: "Quick panel sheet, dismiss action")) {
+                        relayKey(.escape)
+                    }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.panelLabelSoft)
                     Button(sheet.confirmTitle) { relayKey(.return) }
                         .buttonStyle(.plain)
                         .font(.system(size: 12, weight: .semibold))
@@ -164,7 +166,7 @@ extension QuickPanelView {
                             .font(.system(size: 12))
                             .foregroundStyle(Color.panelLabel)
                         Spacer()
-                        Text("\(option.count)")
+                        Text(verbatim: "\(option.count)")
                             .font(.system(size: 11))
                             .foregroundStyle(Color.panelLabelDim)
                             .monospacedDigit()

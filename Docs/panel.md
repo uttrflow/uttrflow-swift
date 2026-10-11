@@ -34,6 +34,13 @@ clip's text is still searched as before, so a word that only appears in the midd
 finds the clip by its text or not at all. Tag matches are listed after the names you gave and
 before collections and contents; a whole tag leads a tag the query only begins.
 
+Tags are edited in the same sheet as the name: words that start with `#` are tags, split at spaces or
+commas, and the rest is the name, so `pgprod #db #prod` names the clip and tags it. A tag is reduced
+like an alias, repeats are dropped, a clip takes at most 8 tags of at most 24 characters, and a field
+beyond that stays open with the reason. The sheet opens showing the name and its `#` tags, a name
+whose tags are unchanged saves as a plain rename, and an empty field removes the name and the tags.
+Tags are drawn as chips after the name chip.
+
 Content search bounds a clip containing a grapheme longer than 32 Unicode scalars to its first
 1,000 Unicode scalars. This keeps a single combining-mark cluster from making each keystroke
 work over an unbounded grapheme.

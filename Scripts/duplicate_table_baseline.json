@@ -5,22 +5,21 @@
     "Sources/UttrflowAI/Passes/FillersPass.swift": 3,
     "Sources/UttrflowAI/Passes/FirstWordPass.swift": 1,
     "Sources/UttrflowAI/Passes/LetterRun.swift": 9,
-    "Sources/UttrflowAI/Passes/MentionGuard.swift": 8,
+    "Sources/UttrflowAI/Passes/MentionGuard.swift": 5,
     "Sources/UttrflowAI/Passes/NumberFormsPass.swift": 1,
-    "Sources/UttrflowAI/Passes/RepeatedPhrasePass.swift": 9,
+    "Sources/UttrflowAI/Passes/RepeatedPhrasePass.swift": 8,
     "Sources/UttrflowAI/Passes/SelfCorrectionPass.swift": 1,
     "Sources/UttrflowAI/SnippetExpander.swift": 1,
-    "Sources/UttrflowClipboard/CodeShapes.swift": 25,
-    "Sources/UttrflowCore/Cleaning/QuestionShape.swift": 18,
-    "Sources/UttrflowCore/Cleaning/Restatement.swift": 10,
+    "Sources/UttrflowClipboard/CodeShapes.swift": 24,
+    "Sources/UttrflowCore/Cleaning/QuestionShape.swift": 15,
+    "Sources/UttrflowCore/Cleaning/Restatement.swift": 7,
     "Sources/UttrflowCore/Cleaning/ReviewTag.swift": 3,
-    "Sources/UttrflowCore/Cleaning/SentenceBoundaryEvidence.swift": 7,
     "Sources/UttrflowCore/Cleaning/WordShape.swift": 1,
     "Sources/UttrflowCore/Models/CodeLanguage.swift": 2,
     "Sources/UttrflowCore/Models/FullScreenProgram.swift": 2,
     "Sources/UttrflowEval/ModelErrors.swift": 2,
     "Sources/UttrflowPipeline/DoubtfulWordsLocating.swift": 1,
-    "Sources/UttrflowPipeline/PieceJoiner.swift": 10,
+    "Sources/UttrflowPipeline/PieceJoiner.swift": 9,
     "Sources/UttrflowPredict/DestructiveCommand.swift": 3,
     "Sources/UttrflowPredict/LineShape.swift": 11,
     "Sources/UttrflowPredict/TerminalLineCheck.swift": 6,
@@ -32,7 +31,7 @@
     "Sources/uttrflow-bakeoff/FixtureCatalogue.swift": 1,
     "Sources/uttrflow-dev/Machine.swift": 4,
     "Sources/uttrflow-dev/RetrievalBenchmark.swift": 8,
-    "Sources/uttrflow-eval/ClosedPhraseMarksProbe.swift": 13
+    "Sources/uttrflow-eval/ClosedPhraseMarksProbe.swift": 10
   },
-  "total": 214
+  "total": 192
 }

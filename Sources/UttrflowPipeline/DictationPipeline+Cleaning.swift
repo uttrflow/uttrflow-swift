@@ -140,6 +140,10 @@ extension DictationPipeline {
         recording metrics: any MetricsRecording, for mine: Int?
     ) async -> TransformationResult {
         let text = corrected.text
+        // Kept before the tidy can return early, so the account says the decode had no persona help.
+        if transcription.conditioning != .available, let mine {
+            keep(.decoded(transcription.conditioning), for: mine)
+        }
         // Every piece of a dictation is tidied against the one screen read, so all see one situation.
         let (situation, profile) = tidyingFrame(seeing: appContext)
         let request = TransformationRequest(

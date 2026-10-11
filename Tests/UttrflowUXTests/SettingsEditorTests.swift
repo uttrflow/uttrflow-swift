@@ -232,6 +232,17 @@ struct SettingsRetentionTests {
         }
     }
 
+    @Test("a clipboard period changes the clipboard setting alone and refuses an unoffered one")
+    func clipboardPeriodIsIndependent() throws {
+        let settings = Settings.default
+        let updated = try SettingsEditor.apply(.clipboardRetention(days: 30), to: settings)
+        #expect(updated.clipboardRetentionDays == 30)
+        #expect(updated.transcriptRetentionDays == settings.transcriptRetentionDays)
+        #expect(throws: SettingsRejection.self) {
+            try SettingsEditor.apply(.clipboardRetention(days: 5), to: settings)
+        }
+    }
+
     @Test("every finite period offered fits within the stored retention ceiling")
     func offeredDaysFitWithinTheCeiling() {
         #expect(SettingsRetention.finiteOfferedDays.allSatisfy { $0 <= Settings.maximumFiniteRetentionDays })

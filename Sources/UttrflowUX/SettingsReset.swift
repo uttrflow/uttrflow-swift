@@ -4,6 +4,7 @@ import struct Foundation.Date
 public import UttrflowDictionary
 public import UttrflowHistory
 public import UttrflowClipboard
+import UttrflowSettings
 
 // MARK: - What can be undone
 
@@ -13,6 +14,8 @@ public enum SettingsReset: Sendable, Equatable, Hashable {
     case learnedWords
     /// Everything, back to a fresh install.
     case everything
+    /// The clipboard history alone; pinned, named and filed clips and everything else stay.
+    case clipboardHistory
     /// Every completion learned in one application, offered beside that application in the list.
     case suggestions(inApplication: String)
     /// Everything the evidence ledger records about this user; declarations such as the dictionary stay.
@@ -33,6 +36,8 @@ public enum SettingsResetTarget: Sendable, Equatable {
     case preferences
     /// Everything the clipboard kept, which is a separate file holding a copy of every dictation.
     case clipboard
+    /// The clipboard history, sparing every pinned, named and filed clip.
+    case clipboardHistory
     /// Every completion one application taught, leaving every other application's.
     case suggestions(inApplication: String)
     /// Every completion there is, which a fresh install has none of.
@@ -61,6 +66,7 @@ extension SettingsReset {
                 .everyWord, .history, .clipboard, .everySuggestion, .recordings, .snippets,
                 .suggestionConsent, .suggestionModel, .evidence, .preferences,
             ]
+        case .clipboardHistory: [.clipboardHistory]
         case .suggestions(let application): [.suggestions(inApplication: application)]
         case .persona: [.evidence]
         case .personaFact(let fact): [.evidenceFact(fact)]
@@ -74,7 +80,9 @@ extension SettingsReset {
     public var meetsADictation: Bool {
         targets.contains { target in
             switch target {
-            case .learnedWords, .everyWord, .history, .clipboard, .recordings, .evidence, .evidenceFact: true
+            case .learnedWords, .everyWord, .history, .clipboard, .clipboardHistory, .recordings,
+                .evidence, .evidenceFact:
+                true
             case .preferences, .suggestions, .everySuggestion, .snippets, .suggestionConsent,
                 .suggestionModel:
                 false
@@ -86,7 +94,7 @@ extension SettingsReset {
     public var isConfirmed: Bool {
         switch self {
         case .learnedWords, .personaFact: false
-        case .everything, .suggestions, .persona: true
+        case .everything, .clipboardHistory, .suggestions, .persona: true
         }
     }
 }
@@ -354,6 +362,10 @@ public struct FilePersonalisationStore: SettingsPersonalisationStore {
         case .history: try await history.deleteEverything()
         // `forgetEverything` takes pinned clips too, which is what a fresh install means.
         case .clipboard: try await clipboard.forgetEverything()
+        // The window is the longest there is, so only the history goes and the age of a clip decides nothing.
+        case .clipboardHistory:
+            _ = try await clipboard.deleteEverything(
+                keeping: ClipRetention(days: Settings.keepAlwaysDays, now: Date()))
         case .suggestions(let application):
             try await suggestions?.forgetSuggestions(from: application)
         case .everySuggestion: try await suggestions?.forgetEverySuggestion()

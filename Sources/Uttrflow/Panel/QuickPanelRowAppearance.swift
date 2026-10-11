@@ -53,11 +53,18 @@ enum QuickPanelSpeech {
             : [
                 row.measurements,
                 row.checklist,
+                row.linkHost.map { "host \($0.host)" },
+                row.linkHost.flatMap {
+                    $0.warnings.isEmpty ? nil : "warning, " + $0.warnings.joined(separator: ", ")
+                },
                 row.language.map { "\($0) code" },
                 row.category.map { "Collection \($0)" },
             ]
         return
-            ([noun(for: row.kind), row.isPinned ? "Pinned" : nil, row.alias, body]
+            ([
+                noun(for: row.kind), row.isPinned ? "Pinned" : nil, row.alias,
+                row.tags.isEmpty ? nil : "Tags " + row.tags.joined(separator: ", "), body,
+            ]
             + details
             + [row.containsDisplayHazards ? "contains invisible or control characters" : nil, row.when])
             .compactMap { $0 }
