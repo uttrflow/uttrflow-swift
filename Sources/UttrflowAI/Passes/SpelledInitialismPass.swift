@@ -163,12 +163,22 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
             }
             var pieces: [CodePiece] = []
             var end = position
+            var tail: String?
             while end < live.count, !draft.words[live[end]].isLayoutMark,
                 end == position
                     || touches(live[end - 1], live[end], in: draft)
                         && !draft.shape(at: live[end - 1]).endsClause,
                 let piece = codePiece(at: live[end], in: draft, initialisms: initialisms)
             {
+                // A letter run takes one spoken digit; the number said after it stays its own token.
+                if case .digits = piece, end > position,
+                    let split = spokenDigitSplit(at: live[end], in: draft)
+                {
+                    pieces.append(.digits(split.head))
+                    tail = split.tail
+                    end += 1
+                    break
+                }
                 pieces.append(piece)
                 end += 1
             }
@@ -184,12 +194,33 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
                 case .word(let word): digit(named: word) ?? word
                 }
             }
-            write(
-                LetterRun.written(readings, as: .code, first: opening), over: live[position..<end], in: &draft
-            )
+            let known = tail != nil && LetterRun.knownCodes[readings.joined().lowercased()] != nil
+            var written = LetterRun.written(readings, as: known ? .knownCode : .code, first: opening)
+            if let tail {
+                let percent = end < live.count && draft.shape(at: live[end]).key == "percent"
+                written += " " + tail + (percent ? "%" : "")
+                end += percent ? 1 : 0
+            }
+            write(written, over: live[position..<end], in: &draft)
             position = end
         }
         return draft
+    }
+
+    /// A number word the number pass wrote from a spoken digit and a tens or teens word, as the head digit and the rest.
+    private static func spokenDigitSplit(at index: Int, in draft: Draft) -> (head: String, tail: String)? {
+        guard case .replaced(by: NumberFormsPass.id, _) = draft.words[index].state else { return nil }
+        var keys = [WordShape(draft.words[index].heard).key]
+        var next = index + 1
+        while next < draft.words.count, draft.words[next].state == .removed(by: NumberFormsPass.id) {
+            keys.append(WordShape(draft.words[next].heard).key)
+            next += 1
+        }
+        guard keys.count > 1, let digit = NumberWords.units[keys[0]],
+            NumberWords.tens[keys[1]] != nil || NumberWords.teens[keys[1]] != nil,
+            let rest = NumberWords.cardinal(keys.dropFirst()), rest.count == keys.count - 1
+        else { return nil }
+        return (String(digit), String(rest.value))
     }
 
     /// The lexicon's acronyms, lower-cased, which confirm a run of letters an article opens.
