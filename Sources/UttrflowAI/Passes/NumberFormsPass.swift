@@ -402,13 +402,15 @@ public struct NumberFormsPass: PieceCleaningPass {
             let minor = hundredth(at: currency + 1, keys: keys, shapes: shapes)
         else { return nil }
         let end = currency + 1 + minor.count
-        if joined(end, shapes), Quantities.isMinorUnit(keys[end])
-            || LexicalClass.tag(ofWordAt: end, in: keys) == .noun
+        if joined(end, shapes),
+            Quantities.isMinorUnit(keys[end])
+                || LexicalClass.tag(ofWordAt: end, in: keys) == .noun
         {
             return nil
         }
         let whole = major.spoken ? NumberWords.render(value, grouping: digits, isAmount: true) : major.text
-        return Phrase(text: "\(whole).\(twoDigits(minor.value)) \(shapes[currency].core)", count: end - position)
+        return Phrase(
+            text: "\(whole).\(twoDigits(minor.value)) \(shapes[currency].core)", count: end - position)
     }
 
     /// Words before a price said as two numbers, "two ninety nine", that mark it as money and not a time.
@@ -429,8 +431,9 @@ public struct NumberFormsPass: PieceCleaningPass {
             part.value >= 10, keys[cue] != "for" || part.value > 59
         else { return nil }
         let end = position + 1 + part.count
-        if joined(end, shapes), isMeridiem(at: end, keys: keys, shapes: shapes)
-            || LexicalClass.tag(ofWordAt: end, in: keys) == .noun
+        if joined(end, shapes),
+            isMeridiem(at: end, keys: keys, shapes: shapes)
+                || LexicalClass.tag(ofWordAt: end, in: keys) == .noun
         {
             return nil
         }
