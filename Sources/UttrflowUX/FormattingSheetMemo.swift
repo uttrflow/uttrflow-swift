@@ -1,19 +1,19 @@
 // Draws the formatting sheet once per pair of texts for as long as the panel is open.
-private import Synchronization
 import UttrflowClipboard
 
 /// Remembers the last formatting sheet drawn, so a panel update does not compare the texts again.
 final class FormattingSheetMemo: Sendable {
-    /// Holds the two texts compared and the sheet drawn from them.
-    private struct Drawn {
+    /// Identifies the inputs for a formatting sheet.
+    private struct Source: Equatable, Sendable {
         let original: String
         let formatted: String
         let title: String
         let confirmTitle: String
-        let sheet: PanelSheetPresentation
     }
 
-    private let drawn = Mutex<Drawn?>(nil)
+    private enum Slot: Hashable, Sendable { case sheet }
+
+    private let drawn = Memo<Slot, Source, PanelSheetPresentation>(limit: 1)
 
     init() {}
 
@@ -23,29 +23,23 @@ final class FormattingSheetMemo: Sendable {
         title: String = "Format this code?", confirmTitle: String = "Keep it",
         kind: PanelSheetPresentation.Kind = .formatting
     ) -> PanelSheetPresentation {
-        if let last = drawn.withLock({ $0 }), last.original == original, last.formatted == formatted,
-            last.title == title, last.confirmTitle == confirmTitle
-        {
-            return last.sheet
+        drawn.value(
+            for: .sheet,
+            source: Source(original: original, formatted: formatted, title: title, confirmTitle: confirmTitle)
+        ) {
+            PanelPresenter.formattingSheet(
+                TextDiff.compare(from: original, to: formatted), changes: original != formatted,
+                title: title, confirmTitle: confirmTitle, kind: kind)
         }
-        let sheet = PanelPresenter.formattingSheet(
-            TextDiff.compare(from: original, to: formatted), changes: original != formatted,
-            title: title, confirmTitle: confirmTitle, kind: kind)
-        drawn.withLock {
-            $0 = Drawn(
-                original: original, formatted: formatted, title: title, confirmTitle: confirmTitle,
-                sheet: sheet)
-        }
-        return sheet
     }
 
     /// Keeps a sheet drawn elsewhere, so presenting its pair does no comparison.
     func remember(_ prepared: PreparedFormattingSheet) {
-        drawn.withLock {
-            $0 = Drawn(
+        drawn.store(
+            prepared.sheet, for: .sheet,
+            source: Source(
                 original: prepared.original, formatted: prepared.formatted,
-                title: "Format this code?", confirmTitle: "Keep it", sheet: prepared.sheet)
-        }
+                title: "Format this code?", confirmTitle: "Keep it"))
     }
 
 }

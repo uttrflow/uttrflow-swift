@@ -3,7 +3,6 @@
 public import UttrflowCore
 public import Foundation
 import CryptoKit
-import Security
 private import Synchronization
 
 /// The settled clipboard after undo and whether the restored alias conflicts.
@@ -89,6 +88,8 @@ public actor ClipboardStore {
     private let useFlushDelay: Duration
     /// The shared file envelope used by the app; nil only for stores created without encryption in tests/tools.
     private let encryptedStore: EncryptedStore?
+    /// Accesses picture files synchronously within this actor.
+    private let pictureVault: PictureVault
 
     /// The user's answers about whether a text is a secret, which outrank the detector.
     private var secrecy: ClipSecrecyOverrides
@@ -113,6 +114,10 @@ public actor ClipboardStore {
         policy = RetentionPolicy(budget: budget)
         self.useFlushDelay = useFlushDelay
         self.encryptedStore = encryptedStore
+        pictureVault = PictureVault(
+            imagesFolder: file.deletingLastPathComponent().appending(
+                path: LocalStoreEntry.clipboardImages.name, directoryHint: .isDirectory),
+            encryptedStore: encryptedStore)
         indexReader = ClipboardIndexReader(encryptedStore: encryptedStore)
         secrecy = ClipSecrecyOverrides(
             file: file.deletingLastPathComponent()
@@ -403,8 +408,7 @@ public actor ClipboardStore {
 
     /// Where the pictures live: a folder beside the clipboard file, never inside that whole-file rewrite.
     public var imagesFolder: URL {
-        file.deletingLastPathComponent().appending(
-            path: LocalStoreEntry.clipboardImages.name, directoryHint: .isDirectory)
+        pictureVault.imagesFolder
     }
 
     /// Records a noticed copy, writing its picture first so a clip never points at a file that is missing.
@@ -422,7 +426,7 @@ public actor ClipboardStore {
         let sha = ClipboardStore.digest(of: picture.data)
         var image = alreadyKept(sha, in: noticed.clip.origin)
         // A repeat whose file has gone brings the bytes back, under the name the kept clip already points at.
-        if let kept = image, !isOnDisk(kept) {
+        if let kept = image, !pictureVault.isOnDisk(kept) {
             try restore(picture.data, as: kept.file)
         }
         if image == nil {
@@ -442,16 +446,10 @@ public actor ClipboardStore {
         loaded().first { $0.origin == origin && $0.image?.sha == sha }?.image
     }
 
-    /// Whether a picture's file is still a file where the clip expects it.
-    private func isOnDisk(_ image: ClipImage) -> Bool {
-        guard let url = pictureURL(image.file) else { return false }
-        return (try? url.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true
-    }
-
     /// Writes a picture's bytes back under the file name its clip already records.
     private func restore(_ data: Data, as name: String) throws(ClipboardStoreError) {
         do {
-            try writeImage(data, named: name)
+            try pictureVault.writeImage(data, named: name)
         } catch {
             throw Self.writeFailure(error)
         }
@@ -463,7 +461,7 @@ public actor ClipboardStore {
     ) throws(ClipboardStoreError) -> ClipImage {
         let name = "\(id.uuidString).png"
         do {
-            try writeImage(data, named: name)
+            try pictureVault.writeImage(data, named: name)
         } catch {
             throw Self.writeFailure(error)
         }
@@ -480,50 +478,23 @@ public actor ClipboardStore {
 
     /// Whether a clip's picture file is still present without opening the file.
     public func hasImage(for image: ClipImage) -> Bool {
-        guard let url = pictureURL(image.file) else { return false }
-        return FileManager.default.fileExists(atPath: url.path(percentEncoded: false))
+        pictureVault.hasImage(for: image)
     }
 
     /// The bytes of a clip's picture, or `nil` when the file has gone from under the app.
     public func imageData(for image: ClipImage) -> Data? {
-        guard let url = pictureURL(image.file), let data = try? Data(contentsOf: url) else { return nil }
-        guard let encryptedStore else { return data }
-        if EncryptedStore.isSealed(data) {
-            do { return try encryptedStore.open(data, for: image.file) } catch {
-                if case StoreKeyError.unavailable(let status) = error,
-                    status != Int32(errSecItemNotFound)
-                {
-                    return nil
-                }
-                let setAside = LocalStore.setAside(url, now: Date())
-                if setAside == nil { indexReader.unreplaceable.insert(url) }
-                return nil
-            }
-        }
-        switch encryptedStore.acceptsLegacyPlaintext() {
-        case .open: break
-        case .closed:
-            if LocalStore.setAside(url, now: Date()) == nil { indexReader.unreplaceable.insert(url) }
+        guard let url = pictureVault.pictureURL(image.file), let data = try? Data(contentsOf: url) else {
             return nil
-        case .unknown: return nil
         }
-        // A plaintext legacy image remains usable if its one-time sealing write is temporarily unavailable.
-        do { try writeImage(data, named: image.file) } catch { return data }
-        return data
-    }
-
-    /// Writes PNG bytes sealed with the shared key and the image filename as authenticated data.
-    private func writeImage(_ data: Data, named name: String) throws {
-        guard let url = pictureURL(name) else { throw CocoaError(.fileWriteInvalidFileName) }
-        guard let encryptedStore else { return try PrivateFile.write(data, to: url) }
-        try PrivateFile.write(try encryptedStore.seal(data, for: name), to: url)
+        return pictureVault.imageData(
+            data, from: url, for: image, unreplaceable: &indexReader.unreplaceable)
     }
 
     /// Releases the pictures held for an undo, deleting each one no clip has taken back.
     public func forgetHeldPictures() {
         let released = heldPictures.subtracting(loaded().compactMap(\.image?.file))
         heldPictures = []
-        removePictures(released)
+        pictureVault.removePictures(released)
     }
 
     /// Deletes pictures no clip refers to any more; best-effort, so a stuck file cannot cost a write.
@@ -534,23 +505,9 @@ public actor ClipboardStore {
             (try? FileManager.default.contentsOfDirectory(
                 at: imagesFolder, includingPropertiesForKeys: nil)) ?? []
         // A picture waiting for the write that will name it is not an orphan yet.
-        removePictures(
+        pictureVault.removePictures(
             Set(onDisk.map(\.lastPathComponent)).subtracting(wanted)
                 .subtracting(heldPictures).subtracting(unnamedPictures))
-    }
-
-    /// Deletes pictures by name; best-effort, so a stuck file cannot cost the write that asked.
-    private func removePictures(_ names: Set<String>) {
-        for name in names {
-            guard let url = pictureURL(name) else { continue }
-            try? FileManager.default.removeItem(at: url)
-        }
-    }
-
-    /// Where a picture named by the index lives, or nil when the name is not one file inside the Images folder.
-    private func pictureURL(_ name: String) -> URL? {
-        guard ClipImage.isConfinedFileName(name) else { return nil }
-        return imagesFolder.appending(path: name, directoryHint: .notDirectory)
     }
 
     /// Replaces a clip's formatted note, leaving its plain form recoverable.
@@ -729,22 +686,7 @@ public actor ClipboardStore {
 
     /// Seals a plaintext image after confirming the migration has not raced with another store write.
     private func sealLegacyPicture(_ data: Data, named name: String) {
-        guard let url = pictureURL(name),
-            FileManager.default.fileExists(atPath: url.path(percentEncoded: false)),
-            let header = try? FileHandle(forReadingFrom: url),
-            let prefix = try? header.read(upToCount: EncryptedStore.sealedHeaderLength)
-        else { return }
-        try? header.close()
-        guard !EncryptedStore.isSealed(prefix) else { return }
-        switch encryptedStore?.acceptsLegacyPlaintext() {
-        case .open?: break
-        case .closed?:
-            if LocalStore.setAside(url, now: Date()) == nil { indexReader.unreplaceable.insert(url) }
-            return
-        case .unknown?, nil: return
-        }
-        // The atomic replacement leaves the plaintext source in place when sealing or writing fails.
-        try? writeImage(data, named: name)
+        pictureVault.sealLegacyPicture(data, named: name, unreplaceable: &indexReader.unreplaceable)
     }
 
     /// Schedules stale detector work after the current list returns.
@@ -925,7 +867,7 @@ public actor ClipboardStore {
         // A picture written for a clip this list drops is ours to remove, whether the writes below land or not.
         let unnamed = unnamedPictures.subtracting(named).subtracting(heldPictures)
         unnamedPictures = []
-        defer { removePictures(unnamed) }
+        defer { pictureVault.removePictures(unnamed) }
         let wasSaved = savedOnDisk ?? []
         let persistable = clips.filter(Self.isPersistable)
         let nowSaved = persistable.filter(\.isKept)
@@ -965,7 +907,7 @@ public actor ClipboardStore {
         picturesAwaitingWrite = []
 
         // Only the files that stopped being referenced, so a picture no read could vouch for is never touched.
-        removePictures(dropped.subtracting(heldPictures))
+        pictureVault.removePictures(dropped.subtracting(heldPictures))
     }
 
     /// Writes a whole list atomically, or removes its file when nothing is left to keep.

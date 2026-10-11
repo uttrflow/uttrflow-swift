@@ -25,14 +25,19 @@ final class PanelRowMemo: Sendable {
         let isGone: Bool
     }
 
+    private struct PresentationKey: Equatable {
+        let listID: UUID
+        let context: Context
+    }
+
     private struct Built {
         var context: Context?
         var rows: [Clip.ID: (key: Key, row: PanelRow)] = [:]
         var builds = 0
-        var listID: UUID?
+        var presentationKey: PresentationKey?
         var presentationID = UUID()
         var presentedRows: [PanelRow]?
-        var groupedListID: UUID?
+        var groupedKey: PresentationKey?
         var groupedRows: [PanelResultGroup]?
         var rowVisits = 0
         var groupBuilds = 0
@@ -52,8 +57,9 @@ final class PanelRowMemo: Sendable {
         listID: UUID, results: [PanelResult], context: Context,
         building build: (PanelResult) -> PanelRow
     ) -> [PanelRow] {
+        let key = PresentationKey(listID: listID, context: context)
         if let cached = built.withLock({ memo -> [PanelRow]? in
-            guard memo.listID == listID, memo.context == context else { return nil }
+            guard memo.presentationKey == key else { return nil }
             return memo.presentedRows
         }) {
             return cached
@@ -63,40 +69,45 @@ final class PanelRowMemo: Sendable {
         var rows: [PanelRow] = []
         rows.reserveCapacity(results.count)
         for result in results {
-            let key = Key(
-                result: result,
-                isMasked: result.clip.kind == .secret && !context.revealed.contains(result.id),
-                isGone: result.clip.image != nil && context.missingImages.contains(result.id))
-            let row = self.row(for: key, in: context) { build(result) }
+            let row = self.row(for: result, in: context) { build(result) }
             rows.append(row)
         }
         built.withLock { memo in
-            memo.listID = listID
-            memo.context = context
+            memo.presentationKey = key
             memo.presentedRows = rows
             memo.presentationID = UUID()
-            memo.groupedListID = nil
+            memo.groupedKey = nil
             memo.groupedRows = nil
         }
         return rows
     }
 
     func groups(
-        for listID: UUID, building build: () -> [PanelResultGroup]
+        for listID: UUID, in context: Context, building build: () -> [PanelResultGroup]
     ) -> [PanelResultGroup] {
+        let key = PresentationKey(listID: listID, context: context)
         if let cached = built.withLock({ memo -> [PanelResultGroup]? in
-            guard memo.groupedListID == listID else { return nil }
+            guard memo.groupedKey == key else { return nil }
             return memo.groupedRows
         }) {
             return cached
         }
         let rows = build()
         built.withLock { memo in
-            memo.groupedListID = listID
+            memo.groupedKey = key
             memo.groupedRows = rows
             memo.groupBuilds += 1
         }
         return rows
+    }
+
+    private func row(for result: PanelResult, in context: Context, building build: () -> PanelRow) -> PanelRow
+    {
+        let key = Key(
+            result: result,
+            isMasked: result.clip.kind == .secret && !context.revealed.contains(result.id),
+            isGone: result.clip.image != nil && context.missingImages.contains(result.id))
+        return row(for: key, in: context, building: build)
     }
 
     func row(for key: Key, in context: Context, building build: () -> PanelRow) -> PanelRow {
@@ -113,9 +124,9 @@ final class PanelRowMemo: Sendable {
             row = known
         } else {
             row = build()
-            built.withLock {
-                $0.rows[key.result.id] = (key, row)
-                $0.builds += 1
+            built.withLock { memo in
+                if memo.context == context { memo.rows[key.result.id] = (key, row) }
+                memo.builds += 1
             }
         }
         return row

@@ -528,7 +528,7 @@ public enum PanelPresenter {
             // A sheet has its own keys, so the list's line would be teaching the wrong ones.
             hint: hint(for: snapshot, isEmpty: rows.isEmpty),
             sheet: sheet(for: snapshot),
-            groups: PanelCache.current.rowMemo.groups(for: results.listID) {
+            groups: PanelCache.current.rowMemo.groups(for: results.listID, in: context) {
                 groups(for: rows, omitted: results.omitted, isSearching: snapshot.isSearching)
             },
             emptyAction: saysNothing ? emptyAction(for: snapshot) : nil,

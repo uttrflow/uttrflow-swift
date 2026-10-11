@@ -476,6 +476,39 @@ struct ClipboardEncryptionTests {
         return try crypto.open(sealed, for: name)
     }
 
+    @Test("a picture that cannot be quarantined blocks forgetting without partial erasure")
+    func failedPictureQuarantineBlocksForgetting() async throws {
+        let folder = try TemporaryFolder()
+        let file = folder.url.appending(path: "clipboard.json")
+        let crypto = encryptedStore()
+        let writer = ClipboardStore(file: file, encryptedStore: crypto)
+        let clip = Clip(text: "", kind: .image, copiedAt: Date())
+        let clips = try await writer.record(
+            NoticedClip(clip: clip, picture: (ClipImageTests.bytes, 1, 1)), keeping: folder.retention)
+        let image = try #require(clips.first?.image)
+        let images = await writer.imagesFolder
+        let url = images.appending(path: image.file)
+        var damaged = try Data(contentsOf: url)
+        damaged[damaged.index(before: damaged.endIndex)] ^= 0xff
+        try damaged.write(to: url)
+        let originalIndex = try Data(contentsOf: file)
+
+        let reader = ClipboardStore(file: file, encryptedStore: crypto)
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: images.path)
+        }
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: images.path)
+        #expect(await reader.imageData(for: image) == nil)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: images.path) == [image.file])
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: images.path)
+
+        await #expect(throws: ClipboardStoreError.couldNotWrite) {
+            try await reader.forgetEverything()
+        }
+        #expect(try Data(contentsOf: file) == originalIndex)
+        #expect(try Data(contentsOf: url) == damaged)
+    }
+
     @Test("a damaged encrypted picture is preserved in the unreadable set-aside")
     func damagedPictureIsSetAside() async throws {
         let folder = try TemporaryFolder()
