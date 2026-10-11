@@ -119,7 +119,7 @@ public struct SuggestionPresentation: Sendable, Equatable {
     /// The key that takes the suggestion in this field, which the hint after the ghost must name truthfully.
     public let acceptKey: AcceptKey
     /// The key that takes the next word in this field, or nil when the user chose none.
-    public let wordAcceptKey: WordAcceptKey?
+    let wordAcceptKey: WordAcceptKey?
     /// Whether Escape has a decision for this offer and accept key.
     private let escapeIsRouted: Bool
     /// The field's own font family, so the ghost is set in the face the line is, or nothing when it will not say.
@@ -271,7 +271,7 @@ public struct SuggestionPresentation: Sendable, Equatable {
 
 extension WordAcceptKey {
     /// The key as the keyboard prints it, which is what names it in the footer.
-    public var glyph: String {
+    var glyph: String {
         switch self {
         case .optionRightArrow: "⌥→"
         case .commandRightArrow: "⌘→"

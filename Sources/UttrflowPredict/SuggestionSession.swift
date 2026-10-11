@@ -102,6 +102,18 @@ public enum SuggestionAction: Sendable, Equatable {
     case giveBack(KeyStroke)
 }
 
+extension SuggestionAction {
+    /// The one word the log carries for a routed keystroke.
+    public var logName: String {
+        switch self {
+        case .accept: "accept"
+        case .acceptWord: "acceptWord"
+        case .redraw: "redraw"
+        case .giveBack: "giveBack"
+        }
+    }
+}
+
 /// Sequences the whole tab-to-complete loop without touching a store, a clock or a screen.
 public struct SuggestionSession: Sendable, Equatable {
     /// How long a turn may take, wide enough now to let the model answer; a superseded turn is dropped by its generation.
@@ -249,7 +261,9 @@ public struct SuggestionSession: Sendable, Equatable {
             return settled(because: .nonLatinLine, rejected: rejected)
         }
 
-        if let retained, TextMatching.caseFoldedKey(context.typed) == TextMatching.caseFoldedKey(retained.expected) {
+        if let retained,
+            TextMatching.caseFoldedKey(context.typed) == TextMatching.caseFoldedKey(retained.expected)
+        {
             let update = settle(.certain(retained.line), silence: nil)
             shownIsGenerated = retained.isGenerated
             return SuggestionTurn(step: .settled(update), rejected: rejected)

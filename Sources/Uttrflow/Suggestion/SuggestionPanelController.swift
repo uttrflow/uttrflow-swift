@@ -27,7 +27,6 @@ private struct SuggestionRequest: Equatable {
     var selection: SuggestionSelection = .untouched
     /// The key that accepts in this field, so the hint drawn after the ghost is the key that works.
     var acceptKey: AcceptKey = .tab
-    /// The key the user chose to take the next word in this field, shown in the list footer.
     var wordAcceptKey: WordAcceptKey?
     /// The field's own font family, so the ghost is set in the face the line is.
     var fontFamily: String?
@@ -173,8 +172,7 @@ final class SuggestionPanelController {
         let after = SuggestionPresentation(
             suggestion, typed: typed, selection: next.selection, fieldPointSize: next.fieldPointSize,
             appearance: Self.appearance(), acceptKey: next.acceptKey, wordAcceptKey: next.wordAcceptKey,
-            fontFamily: next.fontFamily,
-            isBold: next.isBold, isItalic: next.isItalic,
+            fontFamily: next.fontFamily, isBold: next.isBold, isItalic: next.isItalic,
             fieldTextColor: next.textColor,
             direction: next.direction == .rightToLeft ? .rightToLeft : .leftToRight)
         guard let remaining = after.inline else { return false }
@@ -270,8 +268,7 @@ final class SuggestionPanelController {
             request.suggestion, typed: request.typed, selection: request.selection,
             fieldPointSize: request.fieldPointSize, appearance: Self.appearance(),
             acceptKey: request.acceptKey, wordAcceptKey: request.wordAcceptKey,
-            fontFamily: request.fontFamily,
-            isBold: request.isBold, isItalic: request.isItalic,
+            fontFamily: request.fontFamily, isBold: request.isBold, isItalic: request.isItalic,
             fieldTextColor: request.textColor, statusMessage: statusMessage,
             maximumWidth: room,
             direction: request.direction == .rightToLeft ? .rightToLeft : .leftToRight)
