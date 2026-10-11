@@ -208,6 +208,24 @@ struct DictationAnnouncementTests {
         }
     }
 
+    @Test("the silence countdown plays the warning cue and speaks only when the cue is not heard")
+    func silenceCountdownUsesTheWarningPath() {
+        for audible in [true, false] {
+            let cue = AudibilityCue(isAudible: audible)
+            let said = Mutex<[DictationAnnouncement]>([])
+            let reporter = DictationWarningReporter(cue: cue) { line in said.withLock { $0.append(line) } }
+
+            reporter.reportSilence(secondsLeft: 4)
+
+            #expect(cue.warnings.withLock { $0 } == 1)
+            #expect(
+                said.withLock { $0 }
+                    == (audible
+                        ? [] : [DictationAnnouncement(text: "Dictation ends in 4 seconds.", isUrgent: false)])
+            )
+        }
+    }
+
     @Test("a line raised while the microphone is open waits, and closing it speaks every held line in order")
     func holdsLinesWhileTheMicrophoneIsOpen() {
         let first = DictationAnnouncement(text: "first", isUrgent: false)

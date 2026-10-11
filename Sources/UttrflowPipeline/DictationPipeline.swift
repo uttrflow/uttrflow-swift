@@ -105,6 +105,8 @@ public actor DictationPipeline {
     var dictationWords: [String]?
     /// Pieces of this dictation that held speech and decoded to no words twice, left out of what is inserted.
     var missedPieces = 0
+    /// Whether the recording clipped past the point where accuracy falls.
+    var inputTooLoud = false
 
     /// The settings and screen resolved at the start of a dictation and shared by every piece.
     struct DictationContext: Sendable {
@@ -518,6 +520,7 @@ public actor DictationPipeline {
         dictationWords = nil
         dictationContext = nil
         missedPieces = 0
+        inputTooLoud = false
         screenReads = DictationScreenReads()
         sinceRelease = nil
     }
@@ -762,6 +765,7 @@ public actor DictationPipeline {
             samples: audio.samples, sampleRate: audio.sampleRate, gaps: audio.gaps,
             chosenInputMissing: audio.chosenInputMissing)
         {
+            inputTooLoud = InputTooLoud.isTooLoud(clippedFraction: quality.clippedFraction)
             await metrics.recordCaptureQuality(quality)
         }
         show(heard: nil)

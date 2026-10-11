@@ -25,6 +25,10 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
     var onClose: (() -> Void)?
     /// Called as soon as a sign-in's profile is kept, before the setup pages after it.
     var onSignIn: (() -> Void)?
+    /// Called when the clipboard page is left, so recording can start for a Keep.
+    var onClipboardAnswered: (() -> Void)? {
+        didSet { flow.onClipboardAnswered = onClipboardAnswered }
+    }
     /// Applies onboarding choices to the running app.
     var onSettingsChange: ((UttrflowSettings.Settings) -> Void)? {
         didSet { flow.onSettingsChange = onSettingsChange }

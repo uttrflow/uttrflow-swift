@@ -12,7 +12,7 @@ struct SettingsShortcutDrawingTests {
         #expect(
             SettingsShortcut.accessibilityLabel(
                 for: .pasteLastTranscript, keys: keys, isRecording: false)
-                == "Paste last transcript shortcut, Control Command V")
+                == "Paste last dictation shortcut, Control Command V")
     }
 
     @Test("says none when a shortcut has no keys")
@@ -20,7 +20,7 @@ struct SettingsShortcutDrawingTests {
         #expect(
             SettingsShortcut.accessibilityLabel(
                 for: .copyLastTranscript, keys: [], isRecording: false)
-                == "Copy last transcript shortcut, none")
+                == "Copy last dictation shortcut, none")
     }
 
     @Test("explains that recording is listening and Escape cancels")

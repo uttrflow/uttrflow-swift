@@ -719,8 +719,8 @@ public enum DiagnosticsPresenter {
         case .modelLoad: "Loading the speech model"
         case .fallbackDecode: "Decoding again at a higher temperature"
         case .cappedDecodeRetry: "Decoding a piece again after a cut-off"
-        case .tidyTimeout: "Tidying ran out of time"
-        case .tidyColdSession: "Starting the tidier"
+        case .tidyTimeout: "Clean-up ran out of time"
+        case .tidyColdSession: "Starting clean-up"
         case .contextRead: "Reading the field"
         case .insertionConfirmation: "Placing the words"
         case .other: "Nothing named"
@@ -831,7 +831,7 @@ public enum DiagnosticsPresenter {
         case .drain: "Finishing the piece already under way"
         case .transcription: "Transcribing"
         case .correction: "Checking the dictionary"
-        case .transformation: "Tidying up"
+        case .transformation: "Clean-up"
         case .expansion: "Expanding snippets"
         case .insertion: "Inserting"
         }
@@ -1020,7 +1020,8 @@ public enum DiagnosticsPresenter {
         let pieces = tally.outcomes.count
         return tally.entries.map {
             DiagnosticsRow(
-                title: "Tidy outcomes, \($0.name), last \(pieces) pieces", detail: $0.counts, state: .unknown)
+                title: "Clean-up outcomes, \($0.name), last \(pieces) pieces",
+                detail: $0.counts, state: .unknown)
         }
     }
 
@@ -1245,7 +1246,7 @@ public enum DiagnosticsPresenter {
             lines += ["", "Screen reads by rung, all apps: \(snapshot.readRungs.allApplications)"]
         }
         if !snapshot.tidyTally.outcomes.isEmpty {
-            lines += ["", "Tidy outcomes, last \(snapshot.tidyTally.outcomes.count) pieces"]
+            lines += ["", "Clean-up outcomes, last \(snapshot.tidyTally.outcomes.count) pieces"]
             lines += snapshot.tidyTally.lines.map { "  \($0)" }
         }
 

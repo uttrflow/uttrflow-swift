@@ -18,6 +18,11 @@ public protocol OnboardingRecordStore: Sendable {
     func recordClipboardAnswered()
 }
 
+extension OnboardingRecordStore {
+    /// Whether copies may be recorded: the clipboard page was answered, or onboarding finished before it asked.
+    public var hasChosenClipboard: Bool { hasAnsweredClipboard || hasFinished }
+}
+
 /// The record in `UserDefaults`; the key's presence is the fact, so there is no value to misread.
 public struct UserDefaultsOnboardingRecordStore: OnboardingRecordStore {
     /// Versioned, so a later build can walk everybody through a new step by asking a new question.

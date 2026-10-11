@@ -18,7 +18,8 @@ struct TelemetryPrivacyTests {
                     languages: [.english: 9, .hindi: 3],
                     stages: [
                         .init(stage: .transcription, failureCount: 1, latencyP50Ms: 300, latencyP90Ms: 640)
-                    ]))
+                    ],
+                    fallbackRungs: [.model: 8, .rules: 3, .raw: 1]))
         }
     }
 
@@ -41,6 +42,18 @@ struct TelemetryPrivacyTests {
             TelemetryReport gained a text-shaped field: \(offenders).
             Uttrflow does not send anybody's words. Send a count instead.
             """)
+    }
+
+    /// A quality counter is a count keyed by a closed name, so it can say how often and never what.
+    @Test("every fallback rung field is an integer or a closed enumeration")
+    func fallbackRungsAreNumbersAndClosedNames() throws {
+        let fields = storedTypes(of: try fullyPopulated).filter { $0.path.hasPrefix(".fallbackRungs.[].") }
+        #expect(!fields.isEmpty)
+        for field in fields {
+            #expect(
+                ["Int", "TelemetryFallbackRung"].contains(field.type),
+                "\(field.path) is a \(field.type); a quality counter is an Int keyed by a closed enum")
+        }
     }
 
     /// ``TelemetryCollector`` has no method that takes text, so the compiler enforces the intake half.
@@ -75,6 +88,7 @@ struct TelemetryPrivacyTests {
             let isTimestamp = string.hasSuffix("Z") && string.count == 20
             let isTag =
                 TelemetryLanguage(rawValue: string) != nil || TelemetryStage(rawValue: string) != nil
+                || TelemetryFallbackRung(rawValue: string) != nil
             #expect(isTimestamp || isTag, "'\(string)' is neither a timestamp nor a known tag")
             // The server caps a `language_tag` at twelve characters, leaving no room for a sentence.
             #expect(string.count <= 20)
