@@ -4,6 +4,7 @@ import CryptoKit
 import Foundation
 import CryptoKit
 import Testing
+import UttrflowTestSupport
 import UttrflowCore
 import UttrflowClipboard
 import UttrflowDictionary
@@ -196,7 +197,7 @@ struct SuggestionForgettingTests {
         _ = try await coordinator.capture.handle(.returnPressed(at: moment), in: reading)
 
         let store = try PredictStore(path: container.corpusPath)
-        #expect(try await store.successors(for: surface, after: "forgotten line").isEmpty)
+        #expect(try await store.legacySuccessors(for: surface, after: "forgotten line").isEmpty)
         try await corpus.forgetEverySuggestion()
         #expect(await coordinator.capture.decisions() == CapturePreferences())
     }

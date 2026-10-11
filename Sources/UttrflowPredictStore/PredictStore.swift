@@ -293,33 +293,6 @@ public actor PredictStore: PredictionStore {
             isIrreversible: first.isIrreversible)
     }
 
-    /// What usually follows what was last entered here, for a field nothing has been typed into.
-    public func successors(
-        for surface: Surface, after previous: String
-    ) throws(PredictStoreError) -> [Candidate] {
-        guard let id = try identifier(of: surface, creating: false) else { return [] }
-        let previous = Spelling.canonical(previous)
-        let texts = try database.rows(
-            """
-            SELECT next FROM succession WHERE surface_id = ? AND previous = ?
-            ORDER BY count DESC LIMIT ?
-            """,
-            {
-                $0.bind(1, id)
-                $0.bind(2, previous)
-                $0.bind(3, Int64(Self.candidateLimit))
-            }, { $0.text(0) })
-        var candidates: [Candidate] = []
-        for text in texts {
-            guard let evidence = try entry(surfaceIdentifier: id, text: text) else { continue }
-            candidates.append(
-                Candidate(
-                    text: text, source: .succession, evidence: evidence,
-                    isIrreversible: DestructiveCommand.matches(text, failClosedOnUnresolved: true)))
-        }
-        return candidates
-    }
-
     /// The range scan the design rests on, over the lowercased text so case is ignored and the index kept.
     static let prefixQuery = """
         SELECT \(entryColumns) FROM entry

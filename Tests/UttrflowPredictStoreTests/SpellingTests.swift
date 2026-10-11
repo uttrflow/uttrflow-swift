@@ -1,6 +1,7 @@
 // Tests that one accented line is one entry however its accent was encoded.
 import Foundation
 import Testing
+import UttrflowTestSupport
 import UttrflowPredict
 
 @testable import UttrflowPredictStore
@@ -65,7 +66,7 @@ struct SpellingTests {
         let store = try store(corpus)
         try await store.record(precomposed, in: field, at: when)
         try await store.record("see you there", in: field, after: decomposed, at: when)
-        let next = try await store.successors(for: field, after: precomposed)
+        let next = try await store.legacySuccessors(for: field, after: precomposed)
         #expect(next.map(\.text) == ["see you there"])
     }
 

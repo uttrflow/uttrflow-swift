@@ -101,7 +101,8 @@ remembered candidates and answers with one `Suggestion` — `.silent`, `.certain
 handed text, not a decision. Accepting tells the store, which counts the use at a discount.
 
 `PredictionStore` is a protocol in the pure module, so the engine is tested against candidates in
-an array rather than a database.
+an array rather than a database. Retrieval uses prefix and recent-line queries; succession rows
+are legacy storage, inspected only by storage and privacy tests.
 
 ## The unit of a completion is the line
 
@@ -219,9 +220,6 @@ default is `ConsentState.dictationMayLearn` and lives nowhere else. **Learn from
 turned off on the Dictation tab of Settings, declines every application before dictation learns
 anything (`SwitchedLearningConsent`); it leaves typing capture to its own switch. A secure field
 teaches nothing whatever the answer. One reset removes the file, so it forgets the answers for both features.
-
-The importer reads history from the end in 64 KiB chunks, keeps the newest 5,000 distinct
-commands in chronological order, and skips Bash's epoch timestamp lines.
 
 Typing capture also refuses two cases the application's answer cannot see. A window whose title
 carries `(Incognito)`, `InPrivate` or `Private Browsing` (`FieldReading.isInPrivateWindow`) teaches
