@@ -87,7 +87,7 @@ struct SeamRecleaningTests {
         SeamCut(pieces: ["it costs twenty.", "thirty people came."], whole: "It costs 20. 30 people came."),
     ]
 
-    @Test("two two-digit numbers across a cut are not fused into one year-like number", arguments: boundaryCuts)
+    @Test("two two-digit numbers across a cut are not fused into a year", arguments: boundaryCuts)
     func sentenceStopBetweenNumbers(_ cut: SeamCut) async {
         let text = await written(cut.pieces)
         #expect(text == cut.whole, "got \(text ?? "nil")")
