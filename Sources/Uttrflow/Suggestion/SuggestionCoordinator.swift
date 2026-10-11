@@ -8,18 +8,6 @@ import UttrflowPredict
 import UttrflowPredictCapture
 import UttrflowPredictStore
 
-private struct SuggestionSessionEndObservers {
-    let workspaceCenter: NotificationCenter
-    let workspaceObservers: [any NSObjectProtocol]
-    let screenLockCenter: NotificationCenter
-    let screenLockObserver: any NSObjectProtocol
-
-    func remove() {
-        for observer in workspaceObservers { workspaceCenter.removeObserver(observer) }
-        screenLockCenter.removeObserver(screenLockObserver)
-    }
-}
-
 @MainActor
 protocol SuggestionProcessActivityManaging {
     func begin()
@@ -121,14 +109,9 @@ final class SuggestionCoordinator {
     /// Starts the repeating selection check and returns what stops it, so a test decides when each check runs.
     private let scheduleSelectionChecks: SelectionCheckScheduling
     private let selectionPolling = SuggestionSelectionPolling()
-    private var activations: (any NSObjectProtocol)?
+    private let notifications = SuggestionNotificationObservations()
     /// Posts application and Space changes; a test gives it a centre of its own.
     private let workspaceCenter: NotificationCenter
-    private var sessionEndObservers: SuggestionSessionEndObservers?
-    /// The Space and sleep observers, each of which leaves a ghost with no field under it.
-    private var spaceObservers: [any NSObjectProtocol] = []
-    /// Withdraws the ghost when a display is unplugged or rearranged while the Mac stays awake.
-    private var screenChangeObserver: (center: NotificationCenter, token: any NSObjectProtocol)?
     /// Whether a held mouse button can still move the focused window under a ghost.
     private var isPointerGestureActive = false
     /// Polls secure keyboard entry while it pauses suggestions, since no key or field event arrives to end the pause.
@@ -377,17 +360,10 @@ final class SuggestionCoordinator {
                 self.stopWatchingSelection()
                 self.focusedFieldValueObserver.stop()
                 self.interceptor.stop()
-                if let activations = self.activations {
-                    workspaceCenter.removeObserver(activations)
-                    self.activations = nil
-                }
-                for observer in self.spaceObservers {
-                    workspaceCenter.removeObserver(observer)
-                }
-                self.spaceObservers = []
+                self.notifications.removeActivations(from: workspaceCenter)
+                self.notifications.removeSpaces(from: workspaceCenter)
                 self.removeScreenChangeObserver()
-                self.sessionEndObservers?.remove()
-                self.sessionEndObservers = nil
+                self.notifications.removeSessionEnd()
                 self.onTapRestChanged?(.failure(KeyInterceptorFailure.accessibilityDenied))
                 return
             }
@@ -508,12 +484,9 @@ final class SuggestionCoordinator {
         activationMonitor = nil
         activityIsWatched = false
         stopWatchingSelection()
-        if let activations { workspaceCenter.removeObserver(activations) }
-        activations = nil
-        sessionEndObservers?.remove()
-        sessionEndObservers = nil
-        for observer in spaceObservers { workspaceCenter.removeObserver(observer) }
-        spaceObservers = []
+        notifications.removeActivations(from: workspaceCenter)
+        notifications.removeSessionEnd()
+        notifications.removeSpaces(from: workspaceCenter)
         removeScreenChangeObserver()
         focusedFieldValueObserver.stop()
         // A browser's full Accessibility tree stays on only while suggestions do.
@@ -597,51 +570,49 @@ final class SuggestionCoordinator {
             }
         }
         if let clicks { monitors.append(clicks) }
-        activations = workspaceCenter.addObserver(
-            forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated {
-                let activeProcessIdentifier = NSWorkspace.shared.frontmostApplication?.processIdentifier
-                FocusedFieldReader.releaseFullTrees(except: activeProcessIdentifier)
-                self?.refreshFocusedFieldObservation()
-                self?.applicationChanged(front: self?.frontmostBundleIdentifier())
+        notifications.observeActivations {
+            workspaceCenter.addObserver(
+                forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    let activeProcessIdentifier = NSWorkspace.shared.frontmostApplication?.processIdentifier
+                    FocusedFieldReader.releaseFullTrees(except: activeProcessIdentifier)
+                    self?.refreshFocusedFieldObservation()
+                    self?.applicationChanged(front: self?.frontmostBundleIdentifier())
+                }
             }
         }
         for name in [NSWorkspace.activeSpaceDidChangeNotification] {
-            spaceObservers.append(
+            notifications.observeSpace {
                 workspaceCenter.addObserver(forName: name, object: nil, queue: .main) {
                     [weak self] _ in MainActor.assumeIsolated { self?.withdraw() }
-                })
+                }
+            }
         }
     }
 
     /// Withdraws the ghost when the screen layout changes, since its frame may sit on a display that is gone.
     func observeScreenChanges(in center: NotificationCenter = .default) {
-        guard screenChangeObserver == nil else { return }
-        let token = center.addObserver(
-            forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.withdraw() }
+        notifications.observeScreen(in: center) {
+            center.addObserver(
+                forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.withdraw() }
+            }
         }
-        screenChangeObserver = (center, token)
     }
 
     private func removeScreenChangeObserver() {
-        if let screenChangeObserver { screenChangeObserver.center.removeObserver(screenChangeObserver.token) }
-        screenChangeObserver = nil
+        notifications.removeScreen()
     }
 
     func observeSessionEnd(in workspaceCenter: NotificationCenter, screenLockCenter: NotificationCenter) {
-        guard sessionEndObservers == nil else { return }
-        let onEnd: @Sendable () -> Void = { [weak self] in
-            Task { @MainActor in self?.endSessionObservation() }
+        notifications.observeSessionEnd(in: workspaceCenter, screenLockCenter: screenLockCenter) {
+            let onEnd: @Sendable () -> Void = { [weak self] in
+                Task { @MainActor in self?.endSessionObservation() }
+            }
+            return onEnd
         }
-        sessionEndObservers = SuggestionSessionEndObservers(
-            workspaceCenter: workspaceCenter,
-            workspaceObservers: DictationSessionEndObserver.observe(in: workspaceCenter, onEnd: onEnd),
-            screenLockCenter: screenLockCenter,
-            screenLockObserver: DictationSessionEndObserver.observeScreenLock(
-                in: screenLockCenter, onEnd: onEnd))
     }
 
     private func endSessionObservation() {
