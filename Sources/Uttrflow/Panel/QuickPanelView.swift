@@ -14,9 +14,7 @@ struct QuickPanelView: View {
     var onIntent: (PanelIntent) -> Void = { _ in }
     /// Bumped by the controller on every open, so the caret returns to the search field.
     var openCount: Int = 0
-    /// Tests supply composition without consulting an application window.
     var compositionStatus: (() -> Bool)?
-
     @State var query: String = ""
     /// True while `query` is being set from `presentation.query` rather than typed, so that set is never relayed as a search.
     @State var isSyncingQuery = false
