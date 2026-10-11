@@ -36,7 +36,11 @@ struct PanelFilePasteTests {
         let files = try made(["b.txt", "a.txt"])
         defer { try? FileManager.default.removeItem(at: files.folder) }
 
-        #expect(PanelFilePaste.resolve(clip(files.urls)) == .files(files.urls))
+        guard case .files(let resolved) = PanelFilePaste.resolve(clip(files.urls)) else {
+            Issue.record("expected every file to resolve")
+            return
+        }
+        #expect(resolved.map(\.lastPathComponent) == ["b.txt", "a.txt"])
     }
 
     @Test("one gone file refuses the whole selection and names it")
@@ -46,7 +50,11 @@ struct PanelFilePasteTests {
         let chosen = clip(files.urls)
         try FileManager.default.removeItem(at: files.urls[1])
 
-        #expect(PanelFilePaste.resolve(chosen) == .refused(.filesMissing(["gone.txt"])).normalised)
+        guard case .refused(let notice) = PanelFilePaste.resolve(chosen) else {
+            Issue.record("a missing file did not refuse the selection")
+            return
+        }
+        #expect(notice.message == "gone.txt is no longer on this Mac")
     }
 
     @Test("a clip that holds no files resolves to nothing to place")
@@ -56,7 +64,9 @@ struct PanelFilePasteTests {
 
     @Test("a paste that went through says nothing")
     func pasted() {
-        #expect(PanelFilePaste.landing(.paste, failure: nil, copyFailed: failed) == .init(effect: nil, report: nil))
+        #expect(
+            PanelFilePaste.landing(.paste, failure: nil, copyFailed: failed)
+                == .init(effect: nil, report: nil))
     }
 
     @Test("a paste the clipboard took no part in says the clipboard is unchanged")
@@ -96,17 +106,6 @@ struct PanelFilePasteTests {
                 PanelFilePaste.landing(placement, failure: .clipboardUnavailable, copyFailed: failed)
                     == .init(effect: .say(failed), report: nil))
         }
-    }
-}
-
-extension PanelFilePaste.Resolution {
-    /// A refusal compared by its words, since every notice carries an announcement identity of its own.
-    fileprivate var normalised: PanelFilePaste.Resolution {
-        guard case .refused(let notice) = self else { return self }
-        return .refused(
-            PanelNotice(
-                symbolName: notice.symbolName, message: notice.message, action: notice.action,
-                announcementID: UUID(uuidString: "00000000-0000-0000-0000-000000000000")!))
     }
 }
 

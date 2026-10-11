@@ -254,7 +254,8 @@ extension PanelSnapshot {
         switch insertion {
         case .atCaret:
             let outcome: PanelOutcome =
-                clip.files != nil ? .insertFiles(clip) : clip.image != nil ? .insertImage(clip) : .insert(clip)
+                clip.files != nil
+                ? .insertFiles(clip) : clip.image != nil ? .insertImage(clip) : .insert(clip)
             return PanelResponse(state: self, outcome: outcome)
         case .clipboardOnly(let obstacle):
             return PanelResponse(state: self, outcome: .copyOnly(clip, obstacle))

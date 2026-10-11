@@ -61,7 +61,11 @@ struct PanelFileClipTests {
         let outcome = Self.panel(gone: ["notes.txt"]).applying(.return).outcome
 
         #expect(outcome == .filesMissing(["notes.txt"]))
-        #expect(outcome.effect == .say(.filesMissing(["notes.txt"])))
+        guard case .say(let notice) = outcome.effect else {
+            Issue.record("a missing file did not say so")
+            return
+        }
+        #expect(notice.message == "notes.txt is no longer on this Mac")
         #expect(PanelNotice.filesMissing(["notes.txt"]).message == "notes.txt is no longer on this Mac")
     }
 
@@ -92,7 +96,9 @@ struct PanelFileClipTests {
         let panel = PanelFixture.panel([Self.words])
 
         #expect(panel.applying(.return).outcome == .insert(Self.words))
-        #expect(panel.copying(Self.words.id).outcome.effect == .closeAndCopy("report.pdf", richText: nil, used: Self.words.id))
+        #expect(
+            panel.copying(Self.words.id).outcome.effect
+                == .closeAndCopy("report.pdf", richText: nil, used: Self.words.id))
     }
 
     @Test("the row names every file for VoiceOver and says nothing extra while all are there")

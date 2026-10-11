@@ -690,7 +690,9 @@ public enum PanelPresenter {
 
     /// What a picture or formatted-text row says, or why a picture cannot. See `Docs/panel.md`.
     static func measurements(of clip: Clip, in snapshot: PanelSnapshot) -> String? {
-        if clip.files != nil { return snapshot.missingFiles[clip.id].map { PanelNotice.filesMissing($0).message } }
+        if clip.files != nil {
+            return snapshot.missingFiles[clip.id].map { PanelNotice.filesMissing($0).message }
+        }
         guard let image = clip.image else {
             guard clip.richText != nil else { return nil }
             return "\(clip.text.count) characters"

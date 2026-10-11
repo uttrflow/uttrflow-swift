@@ -151,8 +151,9 @@ struct SystemPasteboardFilesTests {
         let result = SystemPasteboard.writeFiles(made.urls, to: pasteboard)
 
         #expect(result.didWrite)
-        let back = pasteboard.readObjects(
-            forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]
+        let back =
+            pasteboard.readObjects(
+                forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]
         #expect(back?.map(\.lastPathComponent) == ["b.txt", "a.txt"])
     }
 

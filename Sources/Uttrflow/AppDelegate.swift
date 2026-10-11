@@ -2306,9 +2306,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             focus: focus, pasteboard: announcingPasteboard, keystrokes: CGEventKeystrokeSender())
         var failure: TextInsertionError?
         do {
-            if case .paste = placement { try engine.insert(urls, targeting: destination) } else { try engine.copy(urls) }
+            if case .paste = placement {
+                try engine.insert(urls, targeting: destination)
+            } else {
+                try engine.copy(urls)
+            }
         } catch { failure = error }
-        let landing = PanelFilePaste.landing(placement, failure: failure, copyFailed: Self.clipboardCopyFailedNotice)
+        let landing = PanelFilePaste.landing(
+            placement, failure: failure, copyFailed: Self.clipboardCopyFailedNotice)
         if let effect = landing.effect { perform(effect) }
         if let report = landing.report { reportPanelPaste(report) }
     }

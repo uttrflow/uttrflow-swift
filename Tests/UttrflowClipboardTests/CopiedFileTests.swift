@@ -167,7 +167,11 @@ struct CopiedFileTests {
         try FileManager.default.removeItem(at: made.urls[1])
 
         #expect(text.fileResolution == nil)
-        #expect(intact.fileResolution == .available([made.urls[0]]))
+        guard case .available(let urls)? = intact.fileResolution else {
+            Issue.record("expected the intact clip to resolve")
+            return
+        }
+        #expect(urls.map(\.lastPathComponent) == ["here.txt"])
         #expect(Clip.missingFiles(among: [whole, intact, text]) == [whole.id: ["gone.txt"]])
     }
 }

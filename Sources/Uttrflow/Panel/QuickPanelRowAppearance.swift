@@ -45,7 +45,8 @@ struct QuickPanelSection: Identifiable {
 /// What VoiceOver reads for a row; a masked row reads as hidden and its text is never in the string.
 enum QuickPanelSpeech {
     static func label(for row: PanelRow) -> String {
-        let body = row.isMasked ? "hidden" : row.fileNames.count > 1 ? filesSpoken(row.fileNames) : row.summary
+        let body =
+            row.isMasked ? "hidden" : row.fileNames.count > 1 ? filesSpoken(row.fileNames) : row.summary
         let details: [String?] =
             row.isMasked
             ? []

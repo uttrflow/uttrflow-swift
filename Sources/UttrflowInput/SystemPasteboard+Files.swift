@@ -14,8 +14,9 @@ extension SystemPasteboard {
         guard !urls.isEmpty else { return .refused }
         pasteboard.prepareForNewContents(with: .currentHostOnly)
         guard pasteboard.writeObjects(urls.map { $0 as NSURL }) else { return .refused }
-        let back = pasteboard.readObjects(
-            forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]
+        let back =
+            pasteboard.readObjects(
+                forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]
         guard back?.map(\.standardizedFileURL) == urls.map(\.standardizedFileURL) else { return .refused }
         return .written(changeCount: pasteboard.changeCount)
     }
