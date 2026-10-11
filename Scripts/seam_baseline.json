@@ -62,8 +62,6 @@
     "and1@6",
     "answer-no-before-a-restated-phrase@1",
     "answer-no-before-a-restated-phrase@3",
-    "answer-no-before-a-restated-phrase@4",
-    "answer-no-before-a-restated-phrase@5",
     "answer-no-before-a-restated-phrase@6",
     "answer-no-before-a-restated-phrase@7",
     "article-a-apple@1",
@@ -5615,5 +5613,5 @@
     "zone-standard-time-limit-kept-4031@6",
     "zone-utc-offset-half-hour-4031@2"
   ],
-  "total" : 5614
+  "total" : 5612
 }
