@@ -5,12 +5,32 @@ import Foundation
 import Synchronization
 import Testing
 import UttrflowPredict
+import UttrflowTestSupport
 
 @testable import Uttrflow
 
 @MainActor
-@Suite("Selection checks slow down once a drawn ghost is idle")
+@Suite("Selection checks slow down once a drawn ghost is idle", .timeLimit(.minutes(1)))
 struct SuggestionSelectionCadenceTests {
+    @Test("the fixture clock waits for a counted read to finish before advancing")
+    func clockWaitsForReadCompletion() async throws {
+        let clock = ManualSelectionClock()
+        let reads = SelectionReadCount()
+        var inFlight = false
+        let stop = clock.schedule(every: 1) {
+            Task { @MainActor in
+                inFlight = true
+                reads.add()
+                try? await Task.sleep(for: .milliseconds(100))
+                inFlight = false
+            }
+        }
+        defer { stop() }
+        try await clock.advance(by: 1, reads: reads, readIsInFlight: { inFlight })
+        #expect(reads.value == 1)
+        #expect(!inFlight)
+    }
+
     @Test("an idle ghost drops focused-selection reads from 300 to 12 a minute")
     func idleGhostSlowsSelectionReads() async throws {
         let screen = try #require(NSScreen.screens.first).visibleFrame
@@ -41,7 +61,7 @@ struct SuggestionSelectionCadenceTests {
         coordinator.noteActivity()
         coordinator.armSelectionMonitor(for: .certain("completion"), at: NSRange(location: 12, length: 0))
 
-        await clock.advance(by: 60, reads: reads)
+        try await clock.advance(by: 60, reads: reads) { coordinator.isSelectionReadInFlight }
         #expect(reads.value == 300)
 
         // Dating the last activity past the window lets the next tick find the ghost idle without waiting for it.
@@ -58,7 +78,7 @@ struct SuggestionSelectionCadenceTests {
             clock.intervals == [SuggestionTicking.activeSelectionInterval, SuggestionTicking.ghostInterval])
         reads.reset()
 
-        await clock.advance(by: 60, reads: reads)
+        try await clock.advance(by: 60, reads: reads) { coordinator.isSelectionReadInFlight }
         #expect(reads.value == 12)
         #expect(coordinator.armedOffer == "completion")
     }
@@ -97,7 +117,10 @@ private final class ManualSelectionClock {
         return { [weak self] in self?.scheduled[index].isActive = false }
     }
 
-    func advance(by duration: TimeInterval, reads: SelectionReadCount) async {
+    func advance(
+        by duration: TimeInterval, reads: SelectionReadCount,
+        readIsInFlight: () -> Bool = { false }
+    ) async throws {
         let deadline = elapsed + duration + 1e-9
         while let index = scheduled.indices
             .filter({ scheduled[$0].isActive && scheduled[$0].nextFire <= deadline })
@@ -107,7 +130,7 @@ private final class ManualSelectionClock {
             scheduled[index].nextFire += scheduled[index].interval
             let expected = reads.value + 1
             scheduled[index].check()
-            for _ in 0..<1_000 where reads.value < expected { await Task.yield() }
+            try await eventually { reads.value >= expected && !readIsInFlight() }
         }
         elapsed = deadline
     }
