@@ -9,6 +9,17 @@ the highlight, the mask over a secret and the words under the list cannot tell t
 stories about the same moment. Window, focus and AppKit traps are in
 [`app-quick-panel.md`](app-quick-panel.md).
 
+## Row cache contexts
+
+`PanelRowMemo` keys whole lists and grouped rows by list identity and the complete row context.
+Per-clip rows use a separate context: a list finishing cannot relabel rows from another build,
+and a row finishing after its context changes is returned to its caller without entering that
+context's cache. Builders run outside the mutex. `PanelRowContextTests` exercises nested row,
+list and group builds with complete expected rows; `PanelRowMemoTests` holds serial cache hits
+and arrow-key visit counts constant. App presentation calls run on the main actor; these tests
+prove the nonisolated memo's interleaving contract rather than a concurrent application failure.
+
+
 ## What a clip is
 
 A clip has one of seven kinds, detected rather than declared: text, link, code, secret, colour,
