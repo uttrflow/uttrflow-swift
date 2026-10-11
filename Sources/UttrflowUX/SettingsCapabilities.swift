@@ -41,6 +41,39 @@ public enum GlobeKeyAction: Sendable, Equatable {
     }
 }
 
+/// A step's example as the clean-up leaves it with the step off and on.
+public struct CleaningStepSample: Sendable, Equatable {
+    public let without: String
+    public let with: String
+
+    public init(without: String, with: String) {
+        self.without = without
+        self.with = with
+    }
+}
+
+/// Runs a step's example through the real clean-up under the user's choices; the app supplies it, since this module imports no rules.
+public struct CleaningPreviewer: Sendable, Equatable {
+    private let run: (@Sendable (CleaningStep, CleaningSteps) -> CleaningStepSample)?
+
+    public init(_ run: @escaping @Sendable (CleaningStep, CleaningSteps) -> CleaningStepSample) {
+        self.run = run
+    }
+
+    private init() { run = nil }
+
+    /// Draws no example, for a screen with no rules to run.
+    public static let none = CleaningPreviewer()
+
+    /// The example for one step, or nothing when there is no previewer.
+    func sample(of step: CleaningStep, under steps: CleaningSteps) -> CleaningStepSample? {
+        run?(step, steps)
+    }
+
+    /// A function is behaviour rather than state, so two previewers never make two settings states differ.
+    public static func == (lhs: CleaningPreviewer, rhs: CleaningPreviewer) -> Bool { true }
+}
+
 /// What this particular Mac can do, passed in so every refusal is testable on a machine that can.
 public struct SettingsCapabilities: Sendable, Equatable {
     /// What macOS will do with Uttrflow at the next login, including nothing for want of a login item.
@@ -76,11 +109,17 @@ public struct SettingsCapabilities: Sendable, Equatable {
     /// Whether clipboard capture is within its temporary pause window.
     public var clipboardCapturePaused: Bool
 
+    /// Whether a multi-line clip asks before it is pasted into a terminal.
+    public var confirmsMultilinePaste: Bool
+
     /// What macOS does when the Globe or Fn key is pressed by itself.
     public var globeKeyAction: GlobeKeyAction
 
     /// The input devices present, as UID and name, for the microphone choice.
     public var microphones: [SettingsMicrophone]
+
+    /// Cleans each clean-up step's example for the settings preview; absent until the app sets it.
+    public var cleaningPreviewer: CleaningPreviewer = .none
 
     /// Builds the answers; updates and the version default to absent.
     public init(
@@ -95,6 +134,7 @@ public struct SettingsCapabilities: Sendable, Equatable {
         suggestionRuntime: SuggestionRuntimeStatus = .idle,
         unarmedShortcuts: [ShortcutAction: HotkeyError] = [:],
         clipboardCapturePaused: Bool = false,
+        confirmsMultilinePaste: Bool = true,
         globeKeyAction: GlobeKeyAction = .doNothing,
         microphones: [SettingsMicrophone] = []
     ) {
@@ -109,6 +149,7 @@ public struct SettingsCapabilities: Sendable, Equatable {
         self.suggestionRuntime = suggestionRuntime
         self.unarmedShortcuts = unarmedShortcuts
         self.clipboardCapturePaused = clipboardCapturePaused
+        self.confirmsMultilinePaste = confirmsMultilinePaste
         self.globeKeyAction = globeKeyAction
         self.microphones = microphones
     }

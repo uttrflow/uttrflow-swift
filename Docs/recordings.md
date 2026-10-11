@@ -92,7 +92,7 @@ the recording for a retry, so a cancel never loses speech; a secure field's reco
 discarded. `retry(_:)` reads the audio through
 `RecordingStore.audio(of:)`, so the samples arrive in the shape the microphone delivers, and runs
 the same stages with two differences: no screen context is read (Uttrflow's own window is in
-front), and the words go to the clipboard rather than being typed, because the field they were
+front; the context says so through `AppContext.availability == .absentByDesign`, never as a blank screen), and the words go to the clipboard rather than being typed, because the field they were
 meant for is gone. The sidecar supplies the original application's name, bundle identifier and
 field kind, so the retry is formatted for that destination even if the frontmost application or
 the destination overrides have changed since; an older sidecar holding only the application

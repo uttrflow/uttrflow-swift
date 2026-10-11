@@ -27,6 +27,30 @@ struct SentenceBoundaryPassTests {
     }
 
     @Test(
+        "takes back a comma or stop inside a closed phrase",
+        arguments: [
+            ("We went to the, store", "We went to the store."),
+            ("She put the keys on the, green table", "She put the keys on the green table."),
+            ("A cup of, tea", "A cup of tea."),
+            ("We went to, the store", "We went to the store."),
+            ("I can. Finish it today", "I can finish it today."),
+        ])
+    func repairsClosedPhraseMarks(input: String, expected: String) {
+        #expect(cleaned(input) == expected)
+    }
+
+    @Test(
+        "keeps a comma or stop that closes its phrase",
+        arguments: [
+            ("Hold on, the page is loading", "Hold on, the page is loading."),
+            ("If you want me to, I will", "If you want me to, I will."),
+            ("Yes, I can. Thanks", "Yes, I can. Thanks."),
+        ])
+    func keepsLegalMarks(input: String, expected: String) {
+        #expect(cleaned(input) == expected)
+    }
+
+    @Test(
         "repairs a stop after a word whose class leads into the next words",
         arguments: [
             (
@@ -69,6 +93,10 @@ struct SentenceBoundaryPassTests {
             (
                 "The keys are on the desk. if the door is locked ring the bell",
                 "The keys are on the desk. If the door is locked ring the bell."
+            ),
+            (
+                "QA signed off an hour ago. if the error budget drops overnight roll back with the runbook",
+                "QA signed off an hour ago. If the error budget drops overnight roll back with the runbook."
             ),
         ])
     func keepsStopBeforeConditionalWithImperative(input: String, expected: String) {
@@ -114,6 +142,8 @@ struct SentenceBoundaryPassTests {
             ("We gave up. The team left", "We gave up. The team left."),
             ("Come in. The door is open", "Come in. The door is open."),
             ("Log in. The dashboard opens", "Log in. The dashboard opens."),
+            ("Take a look. The report is ready", "Take a look. The report is ready."),
+            ("Have a quick look. The report is ready", "Have a quick look. The report is ready."),
         ])
     func keepsPhrasalVerbStops(input: String, expected: String) {
         #expect(cleaned(input) == expected)

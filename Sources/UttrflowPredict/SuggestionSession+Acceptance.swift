@@ -56,6 +56,8 @@ extension SuggestionSession {
             return .redraw(armed(showing: suggestion, silence: nil))
         case .dismiss(let dismissal):
             return .redraw(dismiss(dismissal))
+        case .dismissAndPassThrough(let dismissal):
+            return .giveBack(stroke, after: dismiss(dismissal))
         case .passThrough:
             return .giveBack(stroke)
         }

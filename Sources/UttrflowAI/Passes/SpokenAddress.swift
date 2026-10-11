@@ -162,6 +162,10 @@ struct SpokenAddress: Equatable {
             text += query.text
             end += query.length
         }
+        if let fragment = readFragment(at: end, within: run, in: live, of: draft) {
+            text += fragment.text
+            end += fragment.length
+        }
         let first = draft.shape(at: live[position])
         let last = draft.shape(at: live[end - 1])
         return SpokenAddress(length: end - position, text: first.prefix + text + last.suffix)
@@ -219,6 +223,19 @@ struct SpokenAddress: Equatable {
         }
         guard !pairs.isEmpty else { return nil }
         return SpokenAddress(length: place - position, text: "?" + pairs.joined(separator: "&"))
+    }
+
+    /// Reads a fragment said as "hash" and one label directly after an address, written "#label".
+    private static func readFragment(
+        at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft
+    ) -> SpokenAddress? {
+        guard position > 0, position + 1 < run.upperBound, draft.shape(at: live[position - 1]).suffix.isEmpty,
+            draft.shape(at: live[position]).key == "hash", draft.shape(at: live[position]).prefix.isEmpty,
+            draft.shape(at: live[position]).suffix.isEmpty
+        else { return nil }
+        let name = draft.shape(at: live[position + 1]).core
+        guard isLabel(name) else { return nil }
+        return SpokenAddress(length: 2, text: "#" + name)
     }
 
     /// A spoken or written whole number at `place` and how many words it used.

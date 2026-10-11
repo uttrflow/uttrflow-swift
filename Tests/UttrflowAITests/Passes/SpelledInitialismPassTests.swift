@@ -280,6 +280,43 @@ struct SpelledInitialismShippedTests {
     }
 
     @Test(
+        "writes a spelled unit or multiplier after a number in its exact case",
+        arguments: [
+            ("latency is two hundred m s", "Latency is 200 ms."),
+            ("the budget is two hundred m s", "The budget is 200 ms."),
+            ("wait fifty m s then retry", "Wait 50 ms then retry."),
+            ("takes five n s", "Takes 5 ns."),
+            ("clock at three g h z", "Clock at 3 GHz."),
+            ("clock at 2.4 g h z", "Clock at 2.4 GHz."),
+            ("tune to ninety eight m h z", "Tune to 98 MHz."),
+            ("a twelve k b file", "A 12 KB file."),
+            ("a ten m b file", "A 10 MB file."),
+            ("download two t b", "Download 2 TB."),
+            ("the margin is sixteen p x", "The margin is 16 px."),
+            ("width twenty four p x", "Width 24 px."),
+            ("set it to two r e m", "Set it to 2 rem."),
+            ("sixty d b of noise", "60 dB of noise."),
+            ("fifty m b p s", "50 Mbps."),
+            ("one g b p s link", "1 Gbps link."),
+            ("two hundred k b p s", "200 kbps."),
+            ("ten x faster", "10x faster."),
+            ("it is ten x", "It is 10x."),
+            ("it runs thirty x slower than before", "It runs 30x slower than before."),
+            ("two point five x faster", "2.5x faster."),
+            ("expect fifty x more traffic", "Expect 50x more traffic."),
+            ("it is two hundred x as fast", "It is 200x as fast."),
+            ("ten x, then stop", "10x, then stop."),
+            ("vitamin d two", "Vitamin d two."),
+            ("a b c", "ABC."),
+            ("plan b", "Plan b."),
+            ("x marks the spot", "X marks the spot."),
+            ("five x ray plates", "Five x ray plates."),
+        ])
+    func numberSuffixes(input: String, expected: String) {
+        #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
         "writes a lexicon initialism with a spoken plural s as the initialism and a lower-case s",
         arguments: [
             ("track the k p i s", "Track the KPIs."),
@@ -397,7 +434,7 @@ struct SpelledCodeShippedTests {
             ("the 16 g b model", "The 16 GB model."),
             ("ten x y z", "10 XYZ."),
             ("the file is q five report", "The file is q five report."),
-            ("build it for x eighty six", "Build it for x 86."),
+            ("build it for x eighty six", "Build it for x86."),
             ("the u s two days later", "The US two days later."),
             ("take vitamin d three times", "Take vitamin d three times."),
             ("i lived in the u k for 2 years", "I lived in the UK for 2 years."),

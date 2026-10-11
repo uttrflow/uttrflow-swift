@@ -1,0 +1,230 @@
+{
+  "canvas-editor-drawn-text.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "chat-native-composer.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "chat-web-engine-composer.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "ide-editor-caret-text.json": {
+    "messages": 8,
+    "milliseconds": 0.0
+  },
+  "mail-native-body-quoted.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "mail-web-body-quoted.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "native-long-document.json": {
+    "messages": 8,
+    "milliseconds": 0.5
+  },
+  "native-plain-text-view.json": {
+    "messages": 8,
+    "milliseconds": 0.3
+  },
+  "native-rich-text-view.json": {
+    "messages": 8,
+    "milliseconds": 0.2
+  },
+  "native-search-field.json": {
+    "messages": 8,
+    "milliseconds": 0.7
+  },
+  "native-text-area.json": {
+    "messages": 6,
+    "milliseconds": 0.2
+  },
+  "native-text-field.json": {
+    "messages": 8,
+    "milliseconds": 0.8
+  },
+  "remote-screen-window.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "secure-password-field.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "surface-chat-channel-topic.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "surface-chat-composer.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "surface-chat-search.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "surface-chat-thread-title.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "surface-editor-command.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "surface-editor-find-text-area.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "surface-editor-find.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "surface-editor-rename.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "surface-editor-text.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "surface-mail-body.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "surface-mail-recipient.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "surface-mail-search.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "surface-mail-subject.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "surface-sql-connection-host.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "surface-sql-filter.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "surface-sql-grid-cell.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "surface-sql-query.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "surface-terminal-find.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "surface-terminal-settings-search.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "surface-terminal-shell.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "surface-terminal-tab-title.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "terminal-full-screen-editor.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "terminal-here-document.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "terminal-local-default-prompt.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "terminal-multiplexer-pane.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "terminal-remote-shell.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "terminal-two-line-right-prompt.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "web-address-bar-chromium-tree-off.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "web-address-bar-chromium-tree-on.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "web-address-bar-webkit-tree-off.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "web-address-bar-webkit-tree-on.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "web-contenteditable-chromium-tree-off.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "web-contenteditable-chromium-tree-on.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "web-contenteditable-webkit-tree-off.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "web-contenteditable-webkit-tree-on.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "web-rich-editor-chromium-tree-off.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "web-rich-editor-chromium-tree-on.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "web-rich-editor-webkit-tree-off.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "web-rich-editor-webkit-tree-on.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "web-textarea-chromium-tree-off.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "web-textarea-chromium-tree-on.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "web-textarea-webkit-tree-off.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  },
+  "web-textarea-webkit-tree-on.json": {
+    "messages": 6,
+    "milliseconds": 0.0
+  }
+}

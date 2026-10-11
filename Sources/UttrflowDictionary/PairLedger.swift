@@ -1,9 +1,9 @@
 // What a heard-to-written pair must show before it becomes a dictionary entry. See Docs/app-dictionary.md.
 
-import UttrflowCore
+package import UttrflowCore
 
 /// Counts each edited pair by keyed hash and releases it only on enough sightings across separate days.
-struct PairLedger: Sendable {
+package struct PairLedger: Sendable {
     /// Sightings a pair needs in total before it becomes an entry.
     static let sightingsBeforeLearning = 3
     /// Separate days those sightings must fall on.
@@ -25,7 +25,7 @@ struct PairLedger: Sendable {
     private let digest: @Sendable (String) -> String?
 
     /// Starts from earlier refusals, oldest first, and earlier `pairSighting` and `pairLearnt` rows.
-    init(
+    package init(
         refusing earlier: [String] = [], remembering rows: [EvidenceRow] = [],
         digest: @escaping @Sendable (String) -> String? = { $0 }
     ) {
@@ -74,7 +74,7 @@ struct PairLedger: Sendable {
     }
 
     /// Counts one edit on `day`, answering the pair when it now meets the rule and the rows to append.
-    mutating func record(
+    package mutating func record(
         heard: String, meant: String, on day: Int
     ) -> (learnt: ConfusionPairs.Pair?, rows: [EvidenceRow]) {
         let key = Self.refusalKey(heard: heard, meant: meant)

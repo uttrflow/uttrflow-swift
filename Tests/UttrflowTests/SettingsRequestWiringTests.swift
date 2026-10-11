@@ -243,6 +243,7 @@ private func name(of change: SettingsChange) -> String {
     case .spokenLanguage: "spokenLanguage"
     case .pauses: "pauses"
     case .retention: "retention"
+    case .clipboardRetention: "clipboardRetention"
     case .appearance: "appearance"
     case .contextLevel: "contextLevel"
     case .appContextLevel: "appContextLevel"
@@ -260,6 +261,7 @@ private func name(of change: SettingsChange) -> String {
     case .pauseSuggestions: "pauseSuggestions"
     case .manageClipboardExclusions: "manageClipboardExclusions"
     case .pauseClipboardCapture: "pauseClipboardCapture"
+    case .confirmMultilinePaste: "confirmMultilinePaste"
     case .checkForUpdatesNow: "checkForUpdatesNow"
     case .chooseApplicationToTurnOffSuggestions: "chooseApplicationToTurnOffSuggestions"
     case .chooseApplicationForDestination: "chooseApplicationForDestination"
@@ -273,7 +275,7 @@ private func name(of change: SettingsChange) -> String {
 }
 
 /// How many cases ``SettingsChange`` has, bumped deliberately when one is added.
-private let settingsChangeCaseCount = 29
+private let settingsChangeCaseCount = 30
 
 /// Applies a change, or answers the settings unchanged when the editor refused it.
 private func applying(_ change: SettingsChange, to settings: Settings) -> Settings {
@@ -329,6 +331,7 @@ private let samples: [Sample] = [
     Sample(.spokenLanguage(.hindi, isSpoken: true)),
     Sample(.pauses(.long)),
     Sample(.retention(days: 3)),
+    Sample(.clipboardRetention(days: 3)),
     Sample(.appearance(.light)),
     Sample(.contextLevel(.identity)),
     Sample(.appContextLevel(bundleIdentifier: knownApp, name: "Thing", level: .identity)),

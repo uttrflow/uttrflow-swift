@@ -533,7 +533,7 @@ public enum MenuBarPresenter {
             return switch state.activity {
             case .idle: "Ready"
             case .listening: listeningLine(for: state.recordingAdvice, stopGesture: state.stopGesture)
-            case .working: "Tidying up…"
+            case .working: "Cleaning up…"
             case .inserted: "Inserted"
             case .partial: MissedSpeech.line
             case .unconfirmed: "Inserted — not confirmed"

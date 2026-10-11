@@ -49,6 +49,11 @@ struct Bakeoff: AsyncParsableCommand {
         return EvaluationCorpus.all.filter { $0.id == caseID }
     }
 
+    @Option(
+        name: .customLong("repeat"),
+        help: "Run each model-backed case this many times and report which cases changed their answer.")
+    var repeatCount = 1
+
     @Option(name: .long, help: "Where results are kept between runs; comparisons use a -compared sibling.")
     var resultsPath = ".bakeoff"
 
@@ -82,6 +87,7 @@ struct Bakeoff: AsyncParsableCommand {
             let valid = QualityLayer.allCases.map(\.rawValue).joined(separator: ", ")
             throw ValidationError("Unknown quality layer in --layers or --without. Choose from \(valid).")
         }
+        guard repeatCount >= 1 else { throw ValidationError("--repeat must be one or greater.") }
         guard let caseID else { return }
         guard !scored.isEmpty else { throw ValidationError("No case '\(caseID)' in the scored corpus.") }
         guard against == nil, ledger == nil, !summarise, !sample else {
@@ -319,7 +325,7 @@ struct Bakeoff: AsyncParsableCommand {
 
         print("· \(description.name)")
         let refusals = RefusalTally()
-        let report = await EvaluationRunner(cases: scored).run(label: description.name) { testCase in
+        let report = await runRepeated(label: description.name) { testCase in
             let request = request(for: testCase)
             // An engine that declines a language has behaved well, not answered wrongly.
             if let engine, await engine.availability(for: request).isAvailable == false {
@@ -389,7 +395,7 @@ struct Bakeoff: AsyncParsableCommand {
         print("  ready in \(seconds(loadStart.duration(to: clock.now)))s")
 
         let transformer = TextTransformers.local(cleanup)
-        let report = await EvaluationRunner(cases: scored).run(
+        let report = await runRepeated(
             label: description.name,
             onCase: { _ in FileHandle.standardError.write(Data(".".utf8)) }
         ) { testCase in
@@ -408,6 +414,26 @@ struct Bakeoff: AsyncParsableCommand {
         }
         FileHandle.standardError.write(Data("\r\u{1B}[2K".utf8))
         return Measurement(description: description, report: report)
+    }
+
+    /// Scores the cases `--repeat` times, keeps the first run's report and prints the run-to-run spread when repeated.
+    private func runRepeated(
+        label: String,
+        onCase: (@Sendable (EvaluationCase) -> Void)? = nil,
+        transform: (EvaluationCase) async throws -> EvaluationOutcome
+    ) async -> EvaluationReport {
+        let spread = OutputSpread()
+        var first: EvaluationReport?
+        for _ in 0..<repeatCount {
+            let report = await EvaluationRunner(cases: scored).run(label: label, onCase: onCase) { testCase in
+                let outcome = try await transform(testCase)
+                if case .produced(let text) = outcome { spread.record(text, forCase: testCase.id) }
+                return outcome
+            }
+            first = first ?? report
+        }
+        if repeatCount > 1 { for line in spread.lines { print(line) } }
+        return first ?? EvaluationReport(label: label, scores: [], durations: [])
     }
 
     /// What a candidate writes, or the words as heard when the formatting layer is off, as the pipeline leaves them.

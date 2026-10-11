@@ -67,6 +67,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [lexical-class.md](lexical-class.md) | Reading a word's class, and how far the tagger holds on bare recogniser text |
 | [cleanup-design.md](cleanup-design.md) | Clean-up: the low-level design |
 | [dictation-trace.md](dictation-trace.md) | Explaining one dictation, stage by stage |
+| [golden-scenarios.md](golden-scenarios.md) | The owner's requirements as end-to-end scenarios, one test per row |
 | [piece-seams.md](piece-seams.md) | Cleaning pieces then joining them, measured against cleaning the whole |
 | [tail-commit.md](tail-commit.md) | Committing the open tail while the key is held: the pause rule against agreement commit |
 | [adapters.md](adapters.md) | Format adapters: one registry that grows out of the destination formatter |
@@ -76,6 +77,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [adding-a-destination.md](adding-a-destination.md) | Adding a destination, step by step |
 | [adding-a-corpus-case.md](adding-a-corpus-case.md) | Adding a clean-up corpus case: the schema, the checks, and scoring it alone |
 | [data-tables.md](data-tables.md) | Word tables as data: the one loader, its checks and its fallback |
+| [learned-parameters.md](learned-parameters.md) | Fitted-parameter files: the one reader and writer, and the refusals that keep a layer dark |
 | [lexicon.md](lexicon.md) | Adding a technical term: the entry, what is rejected, the check |
 | [data-manifest.md](data-manifest.md) | Origin, licence and digest of every bundled resource file, and the check |
 | [ngram-sources.md](ngram-sources.md) | Pinned sources for the shipped n-gram table and pronunciation lexicon, the licence allowlist, and the check |
