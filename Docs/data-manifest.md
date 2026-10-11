@@ -12,7 +12,7 @@ speech weights are pinned separately in [speech-model-install.md](speech-model-i
 | `path` | the file, from the repository root |
 | `origin` | `authored`, `generated`, `third-party`, or `unrecorded` |
 | `source`, `revision` | where a `third-party` file came from and which release; required for that origin |
-| `licence` | an SPDX identifier, or `LicenseRef-Uttrflow-Marks` for the marks `TRADEMARK.md` covers |
+| `licence` | an SPDX identifier, or the documented mark-use reference for a registered trademark |
 | `redistribution` | whether the licence allows shipping the file in the app |
 | `producedBy` | the tool or script that made the file, where one did |
 | `voice` | the synthesiser voice that spoke a take; required, with origin `generated`, under `Tests/Fixtures/SyntheticAudio/` |
@@ -90,7 +90,8 @@ network when the cache is warm. It only builds and compares; it never tags.
 
 ## Optional Google Sign-In artwork
 
-Only `Sources/Uttrflow/Resources/GoogleG.png` can be registered as optional. Its absence is
+Only the Google G (`GoogleG.png`) in the app resource directory can be registered as optional;
+its full path is recorded in `Resources/DataManifest.json`. Its absence is
 supported by the existing onboarding fallback. When present, its bytes and SHA-256 must match
 its entry; other unlisted resources, changed resources and missing required resources still fail.
 `LicenseRef-GoogleSignInBranding` records Google's conditional use of its Sign-In artwork under
