@@ -75,6 +75,13 @@ extension CleaningPipeline {
                     CodeEditorCommandsPass(
                         destination: destination, language: intent.language, evidence: notation),
                     at: layoutPosition)
+                // After the spoken layout words, so a spoken "new line" is a break by then.
+                if destination == .sqlEditor,
+                    let spoken = cleanings.firstIndex(where: { $0.id == .layoutWords })
+                {
+                    cleanings.insert(
+                        SQLLayoutPass(layout: SQLLayout.at(insertionPoint.precedingText)), at: spoken + 1)
+                }
             }
             // A code editor's comments and a code editor set to plain prose take no casing: its rows are identifiers.
             if (destination != .codeEditor || inCode) && !(mode == .prose && destination == .codeEditor) {

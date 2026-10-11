@@ -93,7 +93,8 @@ public actor SnippetStore {
     /// Writes what the editor holds, carrying over identity, date and counts. See `Docs/ai-snippet-store.md`.
     @discardableResult
     public func save(
-        trigger: String, expansion: String, replacing: UUID?, created: Date, applications: [String]
+        trigger: String, expansion: String, replacing: UUID?, created: Date, applications: [String],
+        isSecret: Bool = false
     ) throws(SnippetStoreError) -> [Snippet] {
         let existing = replacing.flatMap { id in load().first { $0.id == id } }
         return try save(
@@ -103,7 +104,7 @@ public actor SnippetStore {
                 expansion: expansion,
                 created: existing?.created ?? created,
                 timesUsed: existing?.timesUsed ?? 0,
-                lastUsed: existing?.lastUsed, applications: applications))
+                lastUsed: existing?.lastUsed, applications: applications, isSecret: isSecret))
     }
 
     /// Forgets one snippet, and answers with what is left; an absent identifier is not an error.

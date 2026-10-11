@@ -134,7 +134,7 @@ public struct DictationOutcome: Sendable, Equatable {
     /// Pieces of speech that decoded to no words twice and are missing from the text; zero when nothing is.
     public let missedPieces: Int
     /// Whether the input clipped past the point where accuracy falls, so the person is told to lower the volume.
-    public let inputTooLoud: Bool
+    let inputTooLoud: Bool
     /// Availability causes that made this successful dictation use a lower-priority engine.
     public let unavailableEngines: [CleaningRecord.UnavailableEngine]
     /// Which written words the recogniser doubted, as positions only; memory only, never persisted.
@@ -143,6 +143,8 @@ public struct DictationOutcome: Sendable, Equatable {
     public let slowCause: SlowDictationCause?
     /// What the meaning guard refused in the model answers dropped before the kept one, as kinds that name no word.
     public let guardRefusals: [RefusalKind]
+    /// How complete the result is; every surface reads this one value, never the engine behind it.
+    public let quality: OutcomeQuality
 
     public init(
         text: String, method: TextInsertionMethod, cleanedBy: TransformerKind,
@@ -151,7 +153,7 @@ public struct DictationOutcome: Sendable, Equatable {
         arrival: InsertionArrival = .notReported, intoSecureField: Bool = false, missedPieces: Int = 0,
         inputTooLoud: Bool = false, unavailableEngines: [CleaningRecord.UnavailableEngine] = [],
         doubtful: DoubtfulWordsOutcome = .notAvailable, slowCause: SlowDictationCause? = nil,
-        guardRefusals: [RefusalKind] = []
+        guardRefusals: [RefusalKind] = [], quality: OutcomeQuality? = nil
     ) {
         self.text = text
         self.method = method
@@ -169,6 +171,7 @@ public struct DictationOutcome: Sendable, Equatable {
         self.doubtful = doubtful
         self.slowCause = slowCause
         self.guardRefusals = guardRefusals
+        self.quality = quality ?? (MissedSpeech.isMissing(missedPieces) ? .partial : .complete)
     }
 
     /// The words Uttrflow may keep or show, which is none for a secure field or a credential.

@@ -109,7 +109,10 @@ extension DictationPipeline {
             // Kept beside the timing, since a re-decode is most of what a long transcription time is.
             await metrics.recordDecoding(transcription.effort)
             await metrics.recordReliability(transcription.segments.compactMap(\.reliability))
-            return transcription
+            // The quiet either side of the words is what a seam's pause is made of.
+            guard let edges = VoiceActivity.edgeSilence(in: slice.samples, sampleRate: slice.sampleRate)
+            else { return transcription }
+            return transcription.surrounded(by: edges.leading, and: edges.trailing)
         case .nothing:
             return nil
         case .missed:

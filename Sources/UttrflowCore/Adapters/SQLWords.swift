@@ -6,6 +6,8 @@ enum SQLWords {
         case aliasStopper
         /// A keyword that has a cased spelling and counts toward the statement's keyword case.
         case keyword
+        /// A word that may stand before `join` as part of a join's name, as in "left outer join".
+        case joinModifier
     }
 
     /// Words that end an alias slot.
@@ -13,6 +15,9 @@ enum SQLWords {
 
     /// Keywords that count toward the statement's keyword case.
     static let keywords = words(in: .keyword)
+
+    /// Words that may stand before `join` as part of a join's name.
+    static let joinModifiers = words(in: .joinModifier)
 
     /// The bundled table; see `Docs/data-tables.md`.
     static let table = DataTable<Row>.load("sql-words", schema: 1, from: .module, fallback: [])

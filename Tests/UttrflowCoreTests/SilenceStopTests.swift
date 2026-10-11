@@ -29,6 +29,15 @@ private enum Spoken {
 
 @Suite("Silence stop")
 struct SilenceStopTests {
+    @Test("measures the quiet before the first phrase and after the last, to within a frame")
+    func measuresEdgeQuiet() throws {
+        let samples = Spoken.room(0.8) + Spoken.phrase(2) + Spoken.room(1.4)
+        let edges = try #require(VoiceActivity.edgeSilence(in: samples, sampleRate: Spoken.rate))
+        #expect(abs(edges.leading.inSeconds - 0.8) < 0.15)
+        #expect(abs(edges.trailing.inSeconds - 1.4) < 0.15)
+        #expect(VoiceActivity.edgeSilence(in: Spoken.room(2), sampleRate: Spoken.rate) == nil)
+    }
+
     @Test("measures the quiet after the last phrase, to within a frame")
     func measuresTrailingQuiet() throws {
         let samples = Spoken.phrase(2) + Spoken.room(0.6) + Spoken.phrase(1) + Spoken.room(3)

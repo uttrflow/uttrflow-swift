@@ -58,7 +58,7 @@ let package = Package(
         // dictation, and there is no accuracy baseline to answer whether a bump made the
         // words better or worse — see Docs/measuring-accuracy.md. Until there is one, the
         // version moves when somebody decides to move it.
-        .package(url: "https://github.com/argmaxinc/WhisperKit.git", exact: "1.1.0"),
+        .package(url: "https://github.com/argmaxinc/argmax-oss-swift.git", exact: "1.1.0"),
         .package(url: "https://github.com/ml-explore/mlx-swift-lm", exact: "3.31.4"),
         .package(url: "https://github.com/huggingface/swift-transformers", exact: "1.3.4"),
         .package(url: "https://github.com/huggingface/swift-huggingface", exact: "0.13.0"),
@@ -92,7 +92,7 @@ let package = Package(
         .target(
             name: "UttrflowSpeech",
             dependencies: [
-                "UttrflowDictionary", "UttrflowCore", .product(name: "WhisperKit", package: "WhisperKit"),
+                "UttrflowDictionary", "UttrflowCore", .product(name: "WhisperKit", package: "argmax-oss-swift"),
             ],
             swiftSettings: sharedSwiftSettings
         ),
@@ -291,7 +291,7 @@ let package = Package(
                 "UttrflowDictionary", "UttrflowEval", "UttrflowSpeech",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 // The relisten probe reads the decoder's per-step logits, which only WhisperKit's types expose.
-                .product(name: "WhisperKit", package: "WhisperKit"),
+                .product(name: "WhisperKit", package: "argmax-oss-swift"),
             ],
             swiftSettings: sharedSwiftSettings
         ),
@@ -361,7 +361,7 @@ let package = Package(
                 "UttrflowEval",
                 "UttrflowSpeech",
                 "UttrflowTestSupport",
-                .product(name: "WhisperKit", package: "whisperkit"),
+                .product(name: "WhisperKit", package: "argmax-oss-swift"),
             ],
             swiftSettings: sharedSwiftSettings
         ),
@@ -512,7 +512,7 @@ let package = Package(
                 "UttrflowPipeline",
                 "UttrflowTestSupport",
             ],
-            exclude: ["Golden"],
+            exclude: ["FitTables", "Golden"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(

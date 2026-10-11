@@ -141,6 +141,7 @@ struct DictationPipelineRecoveryTests {
         let outcome = try #require(state.insertedOutcome)
         #expect(outcome.cleanedBy == .untidied)
         #expect(outcome.cleanedBy != .foundationModels, "the engine that threw is not credited")
+        #expect(outcome.quality == .untidied(.failed), "the person is told no clean-up ran")
     }
 
     /// At insertion the words exist nowhere else, so the failure carries them out.
@@ -169,6 +170,7 @@ struct DictationPipelineRecoveryTests {
         let outcome = try #require(state.insertedOutcome)
         #expect(outcome.text == tidiedWords)
         #expect(outcome.cleanedBy == .foundationModels)
+        #expect(outcome.quality == .complete, "a full-path dictation shows nothing extra")
         #expect(inserter.received == [tidiedWords])
     }
 
