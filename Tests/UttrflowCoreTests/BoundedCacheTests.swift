@@ -120,7 +120,7 @@ struct BoundedCacheTests {
     private static func scorerReset(_ call: String) -> [Step] {
         [
             Step(
-                file: "UttrflowLocalModel/MLXCandidateScorer.swift", function: "forgetEverything()",
+                file: "UttrflowLocalModel/MLXCandidateScorer+Lifecycle.swift", function: "forgetEverything()",
                 call: call),
             Step(
                 file: "UttrflowPredict/Verifier.swift", function: "forgetEverything(then",
@@ -135,8 +135,11 @@ struct BoundedCacheTests {
                 file: "UttrflowPredict/VerdictCache.swift", function: "forgetEverything()",
                 call: "held.forgetEverything()"),
             Step(
-                file: "UttrflowPredict/Verifier.swift", function: "forgetEverything(then",
+                file: "UttrflowPredict/VerificationSession.swift", function: "forgetEverything()",
                 call: "cache.forgetEverything()"),
+            Step(
+                file: "UttrflowPredict/Verifier.swift", function: "forgetEverything(then",
+                call: "session.forgetEverything()"),
         ] + loopReset,
         "UttrflowLocalModel/JudgementCache.swift": [
             Step(
