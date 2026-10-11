@@ -252,7 +252,7 @@ struct SuggestionSurfaceTests {
     func aSuggestionIsAnnouncedOnce() async throws {
         let screen = try #require(NSScreen.screens.first).visibleFrame
         let caret = CGRect(x: screen.minX + 200, y: screen.midY, width: 0, height: 17)
-        let panel = SuggestionPanelController.shared
+        let panel = SuggestionPanelController()
         let original = panel.announce
         let originalSleep = panel.announcementSleep
         var heard: [String] = []
