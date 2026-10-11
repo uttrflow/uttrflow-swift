@@ -148,6 +148,28 @@ struct QuickPanelRenderedActionTests {
         try await check(host)
     }
 
+    @Test("a row without named actions still exposes its default selection action")
+    func rowDefaultActionWithoutMenu() async throws {
+        let id = UUID()
+        let row = PanelRow(
+            id: id, summary: "Default activation fixture", kind: .text, symbolName: "doc",
+            when: "now", alias: nil, category: nil, isPinned: false, isMasked: false,
+            isSelected: false, matched: nil, isMonospaced: false, actions: [])
+        var keys: [PanelKey] = []
+        let view = QuickPanelRow(
+            row: row, isSelected: false, hasSelection: false, isMenuOpen: false,
+            hint: "Select this clip", openCount: 1,
+            onKey: { keys.append($0) }, onAction: { _ in }, onMenu: { _ in })
+        try await withHost(view) { host in
+            let button = try #require(elements(under: host).first {
+                ($0.accessibilityLabel?() ?? nil) == "Text, Default activation fixture, now"
+            })
+            #expect(button.accessibilityRole?() == .button)
+            #expect(button.accessibilityPerformPress?() == true)
+            #expect(keys == [.choose(id)])
+        }
+    }
+
     @Test("pressing the row sends its own clip key and each custom action sends its intent")
     func rowActionsReachCallbacks() async throws {
         let id = UUID()

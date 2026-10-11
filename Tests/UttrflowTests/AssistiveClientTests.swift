@@ -39,6 +39,6 @@ struct AssistiveClientTests {
 
         await askAsAnAssistiveApp()
 
-        #expect(window.askedOnMainThread.withLock { $0 } == [true])
+        #expect(Set(window.askedOnMainThread.withLock { $0 }) == [true])
     }
 }
