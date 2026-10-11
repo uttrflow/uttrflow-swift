@@ -241,16 +241,10 @@ package struct SQLPosition: Sendable, Equatable {
             }
         }
 
-        private static let aliasStoppers: Set<String> = [
-            "where", "on", "join", "inner", "left", "right", "full", "outer", "cross", "natural", "group",
-            "order", "having", "limit", "union", "set", "using", "values", "select", "from", "as", "and",
-            "or", "not", "into", "offset", "returning", "intersect", "except", "lateral",
-        ]
-
         private mutating func word(_ text: String) {
             let key = text.lowercased()
             // A keyword counts toward the statement's case when it has a cased spelling at all.
-            if Self.keywords.contains(key), text.count > 1 {
+            if SQLWords.keywords.contains(key), text.count > 1 {
                 if text == text.uppercased() { upper += 1 } else if text == key { lower += 1 }
             }
             if let clause = clause(for: key) {
@@ -267,7 +261,7 @@ package struct SQLPosition: Sendable, Equatable {
                 levels[depth].expectsAlias = false
                 return
             }
-            if Self.aliasStoppers.contains(key) {
+            if SQLWords.aliasStoppers.contains(key) {
                 other()
                 return
             }
@@ -317,11 +311,5 @@ package struct SQLPosition: Sendable, Equatable {
                 openClause: sawStatementStart ? levels[depth].clause : nil, keywordCase: keywordCase,
                 tables: tables, aliases: aliases, inString: inString, inComment: inComment)
         }
-
-        private static let keywords: Set<String> = [
-            "select", "from", "where", "join", "inner", "left", "right", "outer", "on", "group", "by",
-            "order", "having", "limit", "insert", "into", "values", "update", "set", "delete", "and",
-            "or", "not", "as", "union", "distinct", "in", "like", "between", "is", "null",
-        ]
     }
 }
