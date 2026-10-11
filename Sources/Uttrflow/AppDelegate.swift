@@ -274,7 +274,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Builds the app around one folder, which a test points at a temporary one.
     init(
-        container: URL = .applicationSupportDirectory, loginItem: LaunchAtLogin = LaunchAtLogin(),
+        container: URL = .applicationSupportDirectory,
+        clipboardSource: any ClipboardSource = SystemClipboardSource(),
+        loginItem: LaunchAtLogin = LaunchAtLogin(),
         settingsStore: UserDefaultsSettingsStore = UserDefaultsSettingsStore(),
         onboardingRecordStore: any OnboardingRecordStore = UserDefaultsOnboardingRecordStore(),
         account: OnboardingAccountLayer = .forThisBuild(),
@@ -292,6 +294,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         clipboardFailureAnnouncer: ((String) -> Void)? = nil
     ) {
         self.container = container
+        clipboardWatcher = PasteboardWatcher(source: clipboardSource)
         self.secureInput = secureInput
         self.onboardingRecordStore = onboardingRecordStore
         self.encryptedStore = encryptedStore
@@ -359,7 +362,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 canRestore: clipboardPreferencesSetAside != nil)
         }
     }
-    private let clipboardWatcher = PasteboardWatcher(source: SystemClipboardSource())
+    private let clipboardWatcher: PasteboardWatcher
     private let quickPanel = QuickPanelController()
 
     /// Keeping the app up to date, asking this delegate what it is doing rather than being told.
@@ -432,7 +435,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var formatterRuns = 0
     /// Counts the store reads the panel has asked for, so an older list never replaces a newer one.
     private var panelReads = 0
-    private var clipboardArrivals = 0
+    private(set) var clipboardArrivals = 0
     private var clipboardWatchTask: Task<Void, Never>?
 
     /// F7, F9 — the clip a delete removed, held by the app because the undo outlives the panel.

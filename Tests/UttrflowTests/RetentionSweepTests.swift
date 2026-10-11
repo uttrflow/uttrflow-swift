@@ -31,7 +31,7 @@ struct RetentionSweepTests {
     @Test("a dictation ending deletes a recording older than a day")
     func dictationEndingSweepsRecordings() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let stale = try recording(in: sandbox.root, began: Date().addingTimeInterval(-2 * 86_400))
         let fresh = try recording(in: sandbox.root, began: Date())
 
@@ -46,7 +46,7 @@ struct RetentionSweepTests {
     @Test("a finished dictation sweeps too")
     func insertedSweepsRecordings() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let stale = try recording(in: sandbox.root, began: Date().addingTimeInterval(-2 * 86_400))
 
         let outcome = DictationOutcome(text: "Sample words", method: .accessibility, cleanedBy: .rules)
@@ -59,7 +59,7 @@ struct RetentionSweepTests {
     @Test("a sweep deletes transcripts past the retention setting")
     func sweepDropsExpiredTranscripts() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         app.settingsChanged(to: Settings(transcriptRetentionDays: 30))
         let file = DictationHistoryStore.defaultFile(in: sandbox.root)
         let writer = DictationHistoryStore(file: file)
@@ -78,7 +78,7 @@ struct RetentionSweepTests {
     @Test("a sweep under the default keeps every transcript")
     func defaultKeepsTranscripts() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let file = DictationHistoryStore.defaultFile(in: sandbox.root)
         let writer = DictationHistoryStore(file: file)
         let old = DictationRecord(text: "Sample words", when: Date().addingTimeInterval(-60 * 86_400))
@@ -94,7 +94,7 @@ struct RetentionSweepTests {
     @Test("a retention sweep deletes expired clipboard clips and their picture files")
     func sweepDropsExpiredClipboardClips() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
         let now = Date()
 
         let file = ClipboardStore.defaultFile(in: sandbox.root)
