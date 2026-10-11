@@ -43,7 +43,7 @@ struct OnboardingRecordTests {
         #expect(defaults.keys == [UserDefaultsOnboardingRecordStore.clipboardKey])
     }
 
-    @Test("the clipboard choice is made by answering the page, or by having finished onboarding before it asked")
+    @Test("the clipboard choice is made by answering the page, or by finishing onboarding before it asked")
     func clipboardChoiceIsMade() {
         let fresh = UserDefaultsOnboardingRecordStore(store: InMemoryKeyValueStore())
         #expect(!fresh.hasChosenClipboard)

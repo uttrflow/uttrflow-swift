@@ -862,9 +862,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// What runs in the background now, decided from the session and the settings together.
-    var surfaces: SessionSurfaces { SessionSurfaces(
+    var surfaces: SessionSurfaces {
+        SessionSurfaces(
             isSignedIn: isSignedIn, clipboardChoiceIsMade: onboardingRecordStore.hasChosenClipboard,
-            settings: settings) }
+            settings: settings)
+    }
 
     /// The session the surfaces were last opened or closed for, so a repeat changes nothing.
     private var appliedSession: Bool?
