@@ -170,6 +170,10 @@ those copies on a clip with every field set and fails if its fixture misses a pe
 
 ## Undoing a delete
 
+Arrival and undo reconciliation share `ClipboardStore+RecordTransforms.swift`. Arrival ordering
+calls the actor's counter synchronously at the same point between inheritance and insertion;
+the actor retains secrecy checks, the existing-identity fast path and settling each result.
+
 `ClipEdits` shares single-clip and collection edits. Removing the final keeping marker refreshes
 the clip's age and monotonic eviction order; removing one of several markers leaves both intact.
 `ClipboardStore` retains loading, secrecy state, the order counter and settling each edited list.
