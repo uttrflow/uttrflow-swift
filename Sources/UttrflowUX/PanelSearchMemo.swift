@@ -10,7 +10,7 @@ struct PanelMatch: Sendable, Equatable {
 }
 
 /// Remembers the recent lists drawn, so a query searched earlier in this open is not searched again and one that grew is searched in what a shorter one found.
-final class PanelSearchMemo: Sendable, Equatable {
+final class PanelSearchMemo: Sendable {
     /// Everything that decides which rows are listed; a change to anything else, the selection above all, reuses them.
     struct View: Sendable, Equatable {
         let clips: [Clip]
@@ -31,6 +31,12 @@ final class PanelSearchMemo: Sendable, Equatable {
         let rows: [PanelResult]
         let indexByID: [Clip.ID: Int]
         let omitted: [PanelMatchField: Int]
+
+        /// The row `selection` stands on, the top row when it is not listed, and `nil` for an empty list.
+        func selectedIndex(of selection: Clip.ID?) -> Int? {
+            guard !rows.isEmpty else { return nil }
+            return selection.flatMap { indexByID[$0] } ?? 0
+        }
     }
 
     /// How many recent lists are kept, most recent last; enough to walk back a long word one Backspace at a time.
@@ -45,16 +51,16 @@ final class PanelSearchMemo: Sendable, Equatable {
 
     init() {}
 
-    /// The rows for this view: a recent list when one had the same view, and otherwise a scan told which clips a shorter query has already ruled out.
+    /// The rows for this view and the row `selection` stands on, read in one step; a recent list for the same view, otherwise a scan told which clips a shorter query ruled out.
     func rows(
-        for view: View,
+        for view: View, selecting selection: Clip.ID? = nil,
         scanning scan: (Set<Clip.ID>?) -> [PanelMatch],
         ranking rank: ([PanelMatch]) -> ([PanelResult], [PanelMatchField: Int])
-    ) -> ([PanelResult], [PanelMatchField: Int], UUID) {
+    ) -> ([PanelResult], [PanelMatchField: Int], UUID, Int?) {
         let recent = listed.withLock { $0 }
         if let hit = recent.last(where: { $0.view == view }) {
             remember(hit)
-            return (hit.rows, hit.omitted, hit.id)
+            return (hit.rows, hit.omitted, hit.id, hit.selectedIndex(of: selection))
         }
         // The narrowest earlier list that still bounds this query rules in the fewest clips.
         let candidates = recent.filter { $0.view.narrows(to: view) }
@@ -71,20 +77,11 @@ final class PanelSearchMemo: Sendable, Equatable {
         // The store does not drop a repeated id from an index file, so a clip listed twice selects its first row.
         let indexByID = Dictionary(rows.enumerated().map { ($1.id, $0) }) { first, _ in first }
         let id = UUID()
-        remember(
-            Listed(
-                view: view, id: id, matches: matches, rows: rows, indexByID: indexByID,
-                omitted: omitted))
-        return (rows, omitted, id)
-    }
-
-    func index(of selection: Clip.ID?, for view: View) -> Int? {
-        listed.withLock { recent -> Int? in
-            guard let entry = recent.last(where: { $0.view == view }), !entry.rows.isEmpty else {
-                return nil
-            }
-            return selection.flatMap { entry.indexByID[$0] } ?? 0
-        }
+        let entry = Listed(
+            view: view, id: id, matches: matches, rows: rows, indexByID: indexByID,
+            omitted: omitted)
+        remember(entry)
+        return (rows, omitted, id, entry.selectedIndex(of: selection))
     }
 
     /// Whether any clip's searchable text has a fold that changes scalar count, cached for this clip list and locale.
@@ -112,8 +109,6 @@ final class PanelSearchMemo: Sendable, Equatable {
         }
     }
 
-    /// Compares equal to any other memo, because a cache is not part of what the panel shows.
-    static func == (lhs: PanelSearchMemo, rhs: PanelSearchMemo) -> Bool { true }
 }
 
 extension PanelSearchMemo.View {

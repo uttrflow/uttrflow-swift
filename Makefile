@@ -441,10 +441,11 @@ seam-audit eval-arguments rules-scorecard bench-tests: export LLVM_PROFILE_FILE 
 endif
 
 # The tests each lane owns, as `swift test` filters; `verify` runs every other test.
-EVAL_SUITES := UttrflowEvalTests|EndToEndWordSurvivalTests/wordsSurviveEveryStage|LoanwordRestorationProbeTests/probeTable|HomophonePolicyProbeTests|LearningDynamicsSimulatorTests
+EVAL_SUITES := UttrflowEvalTests|EndToEndWordSurvivalTests/wordsSurviveEveryStage|LoanwordRestorationProbeTests/probeTable|HomophonePolicyProbeTests|LearningDynamicsSimulatorTests|$\
+	LearnedWordQualityReplayScoreTests|BrandRestorationShareTests|CodeShapesLanguageCorpusTests
 BENCH_SUITES := HeavyClipScans|PromptSizeGuaranteeTests|BIP39RecoveryPhraseScalingTests|ClipboardStoreClassifierVersionTests/firstListBenchmark|$\
 	SuggestionStoreStartupTests/largeLegacyCorpusMigratesOffMainThreadWithinBudget|$\
-	DoubtfulWordsLocatingTests/placingStaysCheap|PasteboardWatcherTests/deeplyNestedHTMLKeepsItsBoundedPlainForm|$\
+	DoubtfulWordsLocatingTests/placingStaysCheap|PasteboardWatcherTests/deeplyNestedHTMLStaysFast|$\
 	LaunchBudgetTests|AdapterValidatorTests/checksQuickly|ContextScorerTests/probe|$\
 	SQLNotationTests/latency|FieldLabelKindsTests/aLabelReadStaysWellUnderTwoMilliseconds|$\
 	SelectionWriterTests/acceptedButUnchangedReturnsAtOnce|PanelGroupsCostTests/longRunIsLinear|$\

@@ -12,7 +12,10 @@ import Testing
 @Suite("Dictations and the Clipboard switch", .serialized)
 struct DictationClipSwitchTests {
     private func app(clipboardOn: Bool, in sandbox: borrowing Sandbox) -> AppDelegate {
-        let app = AppDelegate(container: sandbox.root, account: HeldSession(signedIn: true).layer)
+        let app = AppDelegate(
+            container: sandbox.root,
+            clipboardSource: InMemoryClipboardSource(),
+            account: HeldSession(signedIn: true).layer)
         app.drawsWindows = false
         app.settingsChanged(to: Settings(clipboardEnabled: clipboardOn))
         return app
