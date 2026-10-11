@@ -30,7 +30,9 @@ struct FormatterRunTests {
     }
 
     /// Runs a tool that ignores TERM, timed on the run's own thread so the time covers the escalation and not how soon the caller is resumed.
-    private static func runTermIgnoringTool() async throws -> (output: String?, elapsed: UInt64, pidFile: URL) {
+    private static func runTermIgnoringTool() async throws
+        -> (output: String?, elapsed: UInt64, pidFile: URL)
+    {
         let pidFile = FileManager.default.temporaryDirectory.appending(path: "formatter-pid-\(UUID())")
         // The pid is written only once TERM is ignored, so a file names a tool that really ignores it.
         let tool = try Self.tool("trap '' TERM\necho $$ > '\(pidFile.path)'\nwhile :; do :; done")
