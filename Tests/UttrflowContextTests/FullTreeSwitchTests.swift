@@ -26,7 +26,8 @@ private final class FakeApplication {
                 guard self.supported.contains(attribute) else { return false }
                 self.values[attribute] = isOn
                 return !self.reportsFailure
-            })
+            },
+            refuses: { !self.supported.contains($0) })
     }
 }
 
@@ -88,6 +89,18 @@ struct FullTreeSwitchTests {
             tree.switchOn(processIdentifier: 9, bundleIdentifier: "com.google.Chrome", host: chrome.host)
         }
         #expect(chrome.writes.count == 2)
+    }
+
+    @Test("A native application that has no such attribute is asked once, not again after the wait.")
+    func aNativeRefusalIsAskedOnce() {
+        let tree = FullTreeSwitch()
+        let native = FakeApplication(supported: [])
+        tree.switchOn(processIdentifier: 5, bundleIdentifier: "com.example.native", host: native.host, at: 0)
+        tree.switchOn(
+            processIdentifier: 5, bundleIdentifier: "com.example.native", host: native.host,
+            at: 2 * FullTreeSwitch.retryInNanoseconds)
+        #expect(native.writes.count == 1)
+        #expect(tree.switchedOn.isEmpty)
     }
 
     @Test("A tree something else turned on is left on when the loop stops.")

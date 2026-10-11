@@ -43,6 +43,20 @@ struct SnippetExpanderTests {
     }
 
     @Test(
+        "each reported trigger is reserved by one spoken command, and no snippet is applied",
+        arguments: [
+            ("new line thanks", "new line"), ("send a comma", "comma"),
+            ("question mark reply", "question mark"),
+        ])
+    func reportedTriggerIsReserved(trigger: String, command: String) {
+        let snippet = makeSnippet(trigger: trigger, expansion: "EXPANDED")
+        #expect(snippet.collidingCommand?.words.joined(separator: " ") == command)
+        let result = SnippetExpander(snippets: [snippet], in: nil).expand(trigger)
+        #expect(!result.didExpand)
+        #expect(result.text == trigger)
+    }
+
+    @Test(
         "finds the trigger through whatever the tidier did to it",
         arguments: [
             ("my address", address),

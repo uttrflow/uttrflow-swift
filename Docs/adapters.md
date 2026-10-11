@@ -164,8 +164,8 @@ into SQL. Each layer reads:
 
 `AdapterChoiceInputsTests` holds it: one utterance at one caret under an empty, a SQL-heavy
 and a prose-only persona, each with fifty dictations of ledger, gets the same formatter,
-output and prompt; `Situation` carries no field beyond what the screen said and the number
-style; and no file that chooses names a learned type. `UttrflowCore`, where the choice lives,
+output and prompt; `Situation` carries no field beyond what the screen said, the number
+style and the person's own per-app formatting mode (a setting they chose, never learned); and no file that chooses names a learned type. `UttrflowCore`, where the choice lives,
 may import no other module (`make layering-audit`). The registry, which will sit in
 `UttrflowAI` beside `UttrflowDictionary`, keeps the same inputs: `applies(to:)` takes the
 situation, and the utterance where it needs one, and nothing else.
