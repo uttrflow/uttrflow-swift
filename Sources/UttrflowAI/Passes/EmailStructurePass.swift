@@ -14,8 +14,12 @@ struct EmailStructurePass: WholeTextCleaningPass {
     /// The most words a greeting's name takes: "Hi Sam", "Dear Dr Jones", "Hello Mary Ann Smith".
     private static let longestName = 3
 
+    /// Whether the pass first needs the text itself to be a letter, as it does outside an email.
+    var requiresLetter = false
+
     func apply(_ draft: Draft) -> Draft {
         var draft = draft
+        if requiresLetter, !TerminalStopPass.isLetter(draft) { return draft }
         // The sign-off first, so the greeting's insertion does not move the index it was found at.
         separateSignOff(in: &draft)
         separateGreeting(in: &draft)
