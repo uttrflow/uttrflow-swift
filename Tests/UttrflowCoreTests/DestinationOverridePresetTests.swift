@@ -14,7 +14,7 @@ struct DestinationOverridePresetTests {
         #expect(DestinationOverrides.none.preset(forBundleIdentifier: bundle) == nil)
     }
 
-    @Test("a preset is kept when the app's kind or mode changes, and the kind is kept when the preset changes")
+    @Test("a preset outlives a change of kind or mode, and the kind outlives a change of preset")
     func presetSurvivesOtherEdits() {
         let set = DestinationOverrides.none.setting(
             preset: .verbatim, for: bundle, named: "Editor", fallback: .document)
@@ -40,7 +40,7 @@ struct DestinationOverridePresetTests {
         #expect(!text.contains("preset"))
     }
 
-    @Test("a preset this build does not know and an unreadable one read as standard without costing the entry")
+    @Test("an unknown or unreadable preset reads as standard and keeps the entry")
     func unknownAndUnreadable() throws {
         let unknown = Data(
             #"{"overrides":[{"bundleIdentifier":"com.example.editor","destination":"document","preset":"turbo"}]}"#
