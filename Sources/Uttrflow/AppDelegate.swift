@@ -222,8 +222,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private let pressureSource = MemoryPressureSource()
     /// Which clean-up engines answered that they could run; internal so a test can read it back.
     private(set) var transformerAvailability: [TransformerKind: Bool] = [:]
-    /// Whether the first rules-only fallback due to Apple Intelligence has already been explained.
-    private var appleIntelligenceFallbackNoticeShown = false
     /// Prevents a slower earlier probe from replacing a newer reading.
     private var transformerProbeGeneration = 0
     /// The clean-up engine that produced the last inserted dictation.
@@ -2916,24 +2914,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         relay(state)
     }
 
-    /// Says when clean-up fell back, and probes the engines when the preferred one did not run.
+    /// Probes the engines when the preferred one did not run.
     private func noteCleanUp(_ outcome: UttrflowPipeline.DictationOutcome) {
         lastCleanedBy = outcome.cleanedBy
-        if let notice = MainNotice.cleanUpSkipped(by: outcome.cleanedBy) {
-            actionNotice = notice
-            announce(notice.message, urgently: false)
-        }
-        if !appleIntelligenceFallbackNoticeShown,
-            outcome.cleanedBy == .rules,
-            let unavailable = outcome.unavailableEngines.first(where: {
-                $0.engine == TransformerKind.foundationModels.rawValue
-            })
-        {
-            appleIntelligenceFallbackNoticeShown = true
-            let notice = MainNotice.appleIntelligenceUnavailable(unavailable.reason)
-            actionNotice = notice
-            announce(notice.message, urgently: false)
-        }
         if settings.engines.resolvedTransformerPreference.first != outcome.cleanedBy {
             probeTransformers()
         }
@@ -3125,6 +3108,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let menu = Self.menuBarDictation(for: state, floatingButtonShown: showsTheFloatingButton)
         return MenuBarState(
             activity: menu.activity,
+            outcomeQuality: menu.outcomeQuality,
             failure: clipboardWriteFailure.map {
                 FailurePresenter.present($0, floatingButtonShown: false)
             } ?? menu.failure,
@@ -4540,7 +4524,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             case .transcribing, .tidying, .inserting: .working
             case .inserted(let outcome):
                 DictationActivity.completion(
-                    method: outcome.method, arrival: outcome.arrival, missedPieces: outcome.missedPieces)
+                    method: outcome.method, arrival: outcome.arrival, quality: outcome.quality)
             }
         var failure: FailurePresentation?
         if case .failed(let notice) = state {
@@ -4548,7 +4532,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 message: notice.message, recovery: notice.recovery, severity: notice.severity,
                 floatingButtonShown: floatingButtonShown)
         }
-        return MenuBarState(activity: activity, failure: failure)
+        var quality = OutcomeQuality.complete
+        if case .inserted(let outcome) = state { quality = outcome.quality }
+        return MenuBarState(activity: activity, outcomeQuality: quality, failure: failure)
     }
 
     /// Whether the floating button collapses to a grip when idle, as the running button has it now.

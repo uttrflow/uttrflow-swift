@@ -710,6 +710,11 @@ public actor DictationPipeline {
         )
     }
 
+    /// Everything the pieces and the whole message account for so far, whether or not a page is told.
+    func cleaningAccount(including whole: CleaningRecord?) -> CleaningRecord {
+        CleaningRecord.merging(cleaningRecords.map(\.record) + [whole].compactMap(\.self))
+    }
+
     /// Hands the dictation's account to its page when anything was tidied or skipped; never a secure field.
     func reportCleaning(for delivery: Delivery) async {
         if !cleaningRecords.isEmpty, !destinationIsSecure, delivery != .command {
