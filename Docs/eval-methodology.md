@@ -825,6 +825,10 @@ interval collapses. Until the full run on public accented read speech is recorde
 work may assume that per-speaker learning helps, at any k.
 ## Real-speaker accent slices: what a group row may claim
 
+`accent-groups` rejects non-finite or non-positive `--decision-bound` values and rounded decision
+requirements outside the integer range before reading rows or decoding a manifest. Representable
+positive bounds retain the existing rounded 3/n requirement, including bounds above one.
+
 The synthetic table above decides which classes are worth recording real speakers for; a
 real-speaker slice decides whether a group is served worse. This is the specification any
 per-group report (word error rate, false override or seam rate by speaker group) follows.
