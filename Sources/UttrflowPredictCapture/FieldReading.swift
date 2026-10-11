@@ -63,6 +63,15 @@ extension FieldReading {
                 description: accessibilityDescription, title: title)
     }
 
+    /// Whether the window names itself as a private one, which is the only sign a browser publishes and not every browser publishes it.
+    public var isInPrivateWindow: Bool {
+        guard let windowTitle else { return false }
+        return Self.privateWindowMarkers.contains { windowTitle.localizedCaseInsensitiveContains($0) }
+    }
+
+    /// The words browsers put in the title of a private window.
+    static let privateWindowMarkers = ["(Incognito)", "InPrivate", "Private Browsing"]
+
     /// The field as the corpus knows it, or nothing when it does not say enough to be told apart.
     public var surface: Surface? {
         guard !isSecure else { return nil }
