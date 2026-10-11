@@ -340,7 +340,9 @@ struct Bakeoff: AsyncParsableCommand {
         let rules = RuleBasedTransformer()
         var reports: [InputShape: EvaluationReport] = [:]
         for shape in InputShape.allCases {
-            reports[shape] = await EvaluationRunner(cases: scored, shape: shape).run(label: shape.rawValue) {
+            reports[shape] = await EvaluationRunner(cases: scored, shape: shape).run(
+                label: shape.rawValue, onFailure: EvaluationFailureDiagnostic.write
+            ) {
                 testCase in
                 .produced(try await formatted(request(for: testCase)) { try await rules.transform($0).text })
             }
@@ -358,7 +360,9 @@ struct Bakeoff: AsyncParsableCommand {
         let router = TextTransformers.router(configuration: .default)
         print("· \(CandidateDescription.shipping.name)")
         // No availability pre-check: a router that produces nothing is a real failure.
-        let report = await EvaluationRunner(cases: scored).run(label: CandidateDescription.shipping.name) {
+        let report = await EvaluationRunner(cases: scored).run(
+            label: CandidateDescription.shipping.name, onFailure: EvaluationFailureDiagnostic.write
+        ) {
             testCase in
             .produced(try await formatted(request(for: testCase)) { try await router.transform($0).text })
         }
@@ -418,7 +422,9 @@ struct Bakeoff: AsyncParsableCommand {
         let spread = OutputSpread()
         var first: EvaluationReport?
         for _ in 0..<repeatCount {
-            let report = await EvaluationRunner(cases: scored).run(label: label, onCase: onCase) { testCase in
+            let report = await EvaluationRunner(cases: scored).run(
+                label: label, onCase: onCase, onFailure: EvaluationFailureDiagnostic.write
+            ) { testCase in
                 let outcome = try await transform(testCase)
                 if case .produced(let text) = outcome { spread.record(text, forCase: testCase.id) }
                 return outcome
