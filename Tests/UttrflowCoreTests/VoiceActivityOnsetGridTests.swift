@@ -93,3 +93,19 @@ struct VoiceActivityOnsetGridTests {
         #expect(clipped.isEmpty, "\(clipped)")
     }
 }
+
+@Suite("Named speech onset boundaries")
+struct VoiceActivityOnsetEdgeTests {
+    @Test(
+        "keeps both boundaries for a vowel, fricative, plosive and nasal onset",
+        arguments: [
+            ("vowel", -35.0, -60.0), ("fricative", -45.0, -60.0),
+            ("plosive", -25.0, -35.0), ("nasal", -45.0, -55.0),
+        ])
+    func keepsSpeechBoundaries(kind: String, level: Double, floor: Double) throws {
+        let clip = OnsetGrid.clip(onset: kind, level: level, floor: floor)
+        let found = try #require(VoiceActivity.speechRange(in: clip.audio, sampleRate: OnsetGrid.rate))
+        #expect(found.lowerBound <= clip.speech.lowerBound)
+        #expect(found.upperBound >= clip.speech.upperBound)
+    }
+}
