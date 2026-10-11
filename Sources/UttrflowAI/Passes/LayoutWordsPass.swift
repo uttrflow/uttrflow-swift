@@ -5,7 +5,7 @@ public import UttrflowCore
 public struct LayoutWordsPass: PieceCleaningPass {
     public static let id: PassID = .layoutWords
     public static let laws: Set<PassLaw> = [.idempotent, .addsNoWords, .latinOnly]
-    public static let orderIndependentWith: Set<PassID> = [.numberForms]
+    public static let orderIndependentWith: Set<PassID> = []
 
     let layout: LayoutPolicy
     private let insertionState: InsertionPoint.SentenceState

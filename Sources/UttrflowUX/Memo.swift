@@ -19,11 +19,15 @@ final class Memo<Key: Hashable & Sendable, Source: Equatable & Sendable, Value: 
 
     func remembers(_ key: Key) -> Bool { entries.withLock { $0[key] != nil } }
 
+    /// Reads a remembered answer only when its source still matches, without building or replacing it.
+    func cachedValue(for key: Key, source: Source) -> Value? {
+        guard let known = entries.withLock({ $0[key] }), known.source == source else { return nil }
+        return known.value
+    }
+
     /// Builds a miss outside the lock; concurrent misses keep their own result and the last store wins.
     func value(for key: Key, source: Source, building build: () -> Value) -> Value {
-        if let known = entries.withLock({ $0[key] }), known.source == source {
-            return known.value
-        }
+        if let known = cachedValue(for: key, source: source) { return known }
         let value = build()
         store(value, for: key, source: source)
         return value
