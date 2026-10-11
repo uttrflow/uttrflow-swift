@@ -193,7 +193,7 @@ public actor ClipboardStore {
         _ clip: Clip, keeping retention: ClipRetention
     ) throws(ClipboardStoreError) -> [Clip] {
         // A picture has no text and is still worth keeping — the emptiness is the point.
-        guard clip.image != nil || ClipContent.isWorthKeeping(clip.text) else {
+        guard clip.image != nil || clip.files != nil || ClipContent.isWorthKeeping(clip.text) else {
             return policy.retained(loaded(), keeping: retention)
         }
         // Refused rather than truncated: one copied log file would be rewritten on every later ⌘C.
@@ -400,6 +400,7 @@ public actor ClipboardStore {
     ) throws(ClipboardStoreError) -> [Clip] {
         var clips = loaded()
         guard let index = clips.firstIndex(where: { $0.id == id }), clips[index].image == nil,
+            clips[index].files == nil,
             (clips[index].kind == .secret) != isSecret
         else { return policy.retained(clips, keeping: retention) }
         let clip = clips[index]
@@ -421,6 +422,8 @@ public actor ClipboardStore {
         _ text: String, of id: UUID, keeping retention: ClipRetention
     ) throws(ClipboardStoreError) -> [Clip] {
         try change(id, keeping: retention) { clip in
+            // A file clip's words are its files' names, which an edit would only contradict.
+            guard clip.files == nil else { return }
             clip = Self.rebuilding(clip, text: text, richText: nil, image: clip.image)
         }
     }
@@ -585,6 +588,7 @@ public actor ClipboardStore {
         _ richText: String?, of id: UUID, keeping retention: ClipRetention
     ) throws(ClipboardStoreError) -> [Clip] {
         try change(id, keeping: retention) { clip in
+            guard clip.files == nil else { return }
             clip = Self.rebuilding(clip, text: clip.text, richText: richText, image: clip.image)
         }
     }
@@ -653,8 +657,11 @@ public actor ClipboardStore {
         if let sha = clip.image?.sha {
             return sameList.first { $0.image?.sha == sha }
         }
+        if let files = clip.files {
+            return sameList.first { $0.files?.map(\.path) == files.map(\.path) }
+        }
         guard clip.image == nil else { return nil }
-        return sameList.first { $0.text == clip.text && $0.image == nil }
+        return sameList.first { $0.text == clip.text && $0.image == nil && $0.files == nil }
     }
 
     /// A copy of a clip keeping its identity and every field the user chose, differing only where named.
@@ -702,6 +709,8 @@ public actor ClipboardStore {
             $0.richText = arrival.richText ?? previous.richText
             // The file already on disk, not the one just written; the arrival's would strand it.
             $0.image = previous.image ?? arrival.image
+            // The newest bookmarks, since they follow the files that moved.
+            $0.files = arrival.files ?? previous.files
             // One more time, not a new clip; saturates at Int.max instead of trapping.
             $0.timesCopied = previous.timesCopied == .max ? .max : previous.timesCopied + 1
         }
@@ -851,7 +860,7 @@ public actor ClipboardStore {
         guard classifierVersions[url, default: 0] < ClipboardIndex.currentClassifierVersion,
             classifierMigrations[url] == nil, canReclassify(url)
         else { return }
-        let candidates = clips.filter { $0.image == nil }
+        let candidates = clips.filter { $0.image == nil && $0.files == nil }
         let task = Task { [weak self] in
             let updated = await Task.detached(priority: .utility) {
                 var result: [Clip] = []
@@ -895,7 +904,7 @@ public actor ClipboardStore {
             uniquingKeysWith: { first, _ in first })
         let merged = merge.clips.map { clip in
             let ordered = orders[clip.id].map(clip.orderedForEviction) ?? clip
-            return ordered.image == nil ? secrecy.applied(to: ordered) : ordered
+            return ordered.image == nil && ordered.files == nil ? secrecy.applied(to: ordered) : ordered
         }
         let persistable = merged.filter(Self.isPersistable)
         do {
@@ -916,7 +925,7 @@ public actor ClipboardStore {
         var coversCurrentText = true
         let clips = current.map { clip -> Clip in
             // Pictures are classified from their bytes at arrival and never enter text detection.
-            guard clip.image == nil else { return clip }
+            guard clip.image == nil, clip.files == nil else { return clip }
             guard let old = snapshotByID[clip.id], old.text == clip.text,
                 let replacement = replacements[clip.id]
             else {

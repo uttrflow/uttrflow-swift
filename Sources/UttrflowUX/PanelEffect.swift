@@ -35,6 +35,18 @@ public enum PanelEffect: Sendable, Equatable {
     case closeAndCopyImage(Clip)
     /// B8 — say the picture has gone, and leave the panel up so the row can be seen.
     case say(PanelNotice)
+    /// Put the files themselves on the clipboard, carried as the clip because the app resolves their bookmarks.
+    case placeFiles(Clip, PanelFilePlacement)
+}
+
+/// What becomes of a file clip's files once they are resolved.
+public enum PanelFilePlacement: Sendable, Equatable {
+    /// Close the panel and paste them at the caret.
+    case paste
+    /// Put them on the clipboard and say why they could not be pasted.
+    case copyAndSay(PanelNotice)
+    /// Put them on the clipboard and close, for the row's Copy.
+    case copy
 }
 
 extension PanelOutcome {
@@ -58,6 +70,8 @@ extension PanelOutcome {
             .closeAndInsert(
                 ClipTextSafety.removingDisplayHazards(from: clip.text), used: clip.id)
         case .change(let change): .applyAndRedraw(change)
+        case .copyOnly(let clip, let why) where clip.files != nil:
+            .placeFiles(clip, .copyAndSay(why.copiedNotice))
         case .copyOnly(let clip, let why) where clip.kind == .secret && clip.image == nil:
             .copyConcealedAndSay(clip.text, why.copiedNotice, used: clip.id)
         case .copyOnly(let clip, let why):
@@ -70,6 +84,7 @@ extension PanelOutcome {
         case .copyOnlyCleaned(let clip, let why):
             .copyAndSay(
                 ClipTextSafety.removingDisplayHazards(from: clip.text), why.copiedNotice, used: clip.id)
+        case .copy(let clip) where clip.files != nil: .placeFiles(clip, .copy)
         case .copy(let clip) where clip.kind == .secret && clip.image == nil:
             .closeAndCopyConcealed(clip.text, used: clip.id)
         case .copy(let clip):
@@ -84,6 +99,8 @@ extension PanelOutcome {
                     cleaned ? ClipTextSafety.removingDisplayHazards(from: clip.text) : clip.text,
                     used: clip.id)
         case .insertImage(let clip): .closeAndInsertImage(clip)
+        case .insertFiles(let clip): .placeFiles(clip, .paste)
+        case .filesMissing(let names): .say(.filesMissing(names))
         case .pictureMissing:
             .say(
                 PanelNotice(

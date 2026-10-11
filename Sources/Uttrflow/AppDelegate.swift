@@ -2165,32 +2165,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             isSelfFrontmost: focus.isSelfFrontmost())
     }
 
-    /// B8, D5 — what only the machine knows about a list, asked on opening and on every refresh alike.
-    private func facts(
-        about clips: [Clip]
-    ) async -> (missing: Set<Clip.ID>, formattable: Set<CodeLanguage>) {
-        (await missingPictures(among: clips), await formattable(among: clips))
-    }
-
-    /// D5 — which languages present in the list have a formatter, asked per language and not per clip.
-    private func formattable(among clips: [Clip]) async -> Set<CodeLanguage> {
-        var answered: Set<CodeLanguage> = []
-        for language in Set(clips.compactMap(\.language)) {
-            if await formatter.isAvailable(for: language) { answered.insert(language) }
-        }
-        return answered
-    }
-
-    /// B8 — the picture clips whose files are gone, at one `stat` each and none for text.
-    private func missingPictures(among clips: [Clip]) async -> Set<Clip.ID> {
-        var missing: Set<Clip.ID> = []
-        for clip in clips {
-            guard let image = clip.image else { continue }
-            if !(await clipboard.hasImage(for: image)) { missing.insert(clip.id) }
-        }
-        return missing
-    }
-
     /// I6, I7 — whether dictation can start and why not, so a dimmed button carries its reason.
     private func voice() async -> PanelDictation {
         guard await microphone.status() == .granted else {
@@ -2309,7 +2283,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .applyAndRedraw(let change):
             if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
             apply(change)
+        case .placeFiles(let clip, let placement):
+            placeFiles(clip, placement)
         }
+    }
+
+    /// Resolved before the panel closes, so a missing file is said where the user is looking.
+    private func placeFiles(_ clip: Clip, _ placement: PanelFilePlacement) {
+        let resolution = PanelFilePaste.resolve(clip)
+        if case .refused(let notice) = resolution { return perform(.say(notice)) }
+        guard case .files(let urls) = resolution else { return }
+        let destination = panelTarget ?? InsertionDestination(applicationName: nil, bundleIdentifier: nil)
+        if case .paste = placement { closeQuickPanel() }
+        markUsed(clip.id)
+        let engine = PasteboardFileInsertionEngine(
+            focus: focus, pasteboard: announcingPasteboard, keystrokes: CGEventKeystrokeSender())
+        var failure: TextInsertionError?
+        do {
+            if case .paste = placement {
+                try engine.insert(urls, targeting: destination)
+            } else {
+                try engine.copy(urls)
+            }
+        } catch { failure = error }
+        let landing = PanelFilePaste.landing(
+            placement, failure: failure, copyFailed: Self.clipboardCopyFailedNotice)
+        if let effect = landing.effect { perform(effect) }
+        if let report = landing.report { reportPanelPaste(report) }
     }
 
     /// The notice for a picture whose file has gone, worded as Return words it.
@@ -2767,12 +2767,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             clips = await clipboard.clips(keeping: retention)
             await reportUnreadableClipboardIndexes()
         }
-        let facts = await facts(about: clips)
+        let facts = await PanelListFacts.about(clips, clipboard: clipboard, formatter: formatter)
         // A read that started earlier never replaces a newer list, or a copy shown while opening would go.
         guard read == panelReads else { return }
         panel?.install(
-            clips, missingImages: facts.missing, formattableLanguages: facts.formattable,
-            now: Date())
+            clips, missingImages: facts.missingPictures, missingFiles: facts.missingFiles,
+            formattableLanguages: facts.formattable, now: Date())
         guard let snapshot = panel else { return }
         quickPanel.update(PanelPresenter.present(snapshot))
     }
