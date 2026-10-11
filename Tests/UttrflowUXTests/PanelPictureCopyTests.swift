@@ -112,7 +112,7 @@ struct PanelPictureCopyTests {
     private static func carriesText(_ effect: PanelEffect) -> Bool {
         switch effect {
         case .closeAndInsert, .closeAndInsertFormatted, .copyAndSay, .closeAndCopy, .closeAndInsertConcealed,
-            .copyConcealedAndSay, .closeAndCopyConcealed:
+            .closeAndInsertConfirmedConcealed, .copyConcealedAndSay, .closeAndCopyConcealed:
             true
         case .redraw, .close, .applyAndRedraw, .closeAndInsertImage, .say, .copyImageAndSay,
             .closeAndCopyImage:

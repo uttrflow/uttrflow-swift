@@ -35,6 +35,7 @@ public struct PanelSheetPresentation: Sendable, Equatable {
         case formatting
         case reindenting
         case editing
+        case confirmingHiddenPaste
     }
 
     /// Which sheet this is.
@@ -46,7 +47,9 @@ public struct PanelSheetPresentation: Sendable, Equatable {
     public var takesTyping: Bool {
         switch kind {
         case .aliasing, .moving, .renamingCategory, .editing: true
-        case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting: false
+        case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting,
+            .confirmingHiddenPaste:
+            false
         }
     }
     /// What the field holds, exactly as typed, never the corrected form.
@@ -228,6 +231,20 @@ extension PanelPresenter {
                 conflict: nil,
                 collections: [],
                 confirmTitle: "Make note",
+                isConfirmEnabled: true)
+
+        case .confirmingHiddenPaste(_, _, let unclassified):
+            return PanelSheetPresentation(
+                kind: .confirmingHiddenPaste,
+                title: unclassified ? "Paste a hidden clip here?" : "Paste a hidden clip into a text field?",
+                draft: "",
+                placeholder: "",
+                note: unclassified
+                    ? "This field cannot be checked, so it may show what is pasted. Return pastes, Esc cancels."
+                    : "This field shows what is pasted. Return pastes, Esc cancels.",
+                conflict: nil,
+                collections: [],
+                confirmTitle: "Paste",
                 isConfirmEnabled: true)
 
         case .confirmingDelete:

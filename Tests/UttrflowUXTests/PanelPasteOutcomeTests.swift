@@ -106,7 +106,8 @@ struct PanelPasteOutcomeTests {
             #expect(clip.image != nil)
         case .closeAndCopy(let text, _, _):
             #expect(!text.isEmpty)
-        case .closeAndInsertConcealed(let text, _), .closeAndCopyConcealed(let text, _):
+        case .closeAndInsertConcealed(let text, _), .closeAndInsertConfirmedConcealed(let text, _),
+            .closeAndCopyConcealed(let text, _):
             #expect(!text.isEmpty)
         case .copyConcealedAndSay(let text, let notice, _):
             #expect(!text.isEmpty)
