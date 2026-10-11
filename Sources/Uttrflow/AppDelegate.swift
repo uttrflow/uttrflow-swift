@@ -3992,7 +3992,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 guard let record = await history.records(keeping: retention).first(where: { $0.id == id })
                 else { return }
                 let names = await dictionary.allEntries().map(\.word)
-                DictationReportSheet.present(DictationReport(record: record, names: names)) { text in
+                let info = Bundle.main
+                let version = info.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+                DictationReportSheet.present(
+                    DictationReport(record: record, names: names, appVersion: version)
+                ) { text in
                     // A concealed copy keeps a report holding a transcript out of clipboard history.
                     self?.putOnClipboard(text, concealed: true, used: nil) ?? false
                 }
