@@ -68,16 +68,18 @@ def shrink_rules(source, removed):
     return updated
 
 
+def golden_entries(text):
+    rows = [line.split("\t", 1) for line in text.splitlines()]
+    if any(len(row) != 2 for row in rows):
+        raise ValueError("generated golden has malformed rows")
+    result = dict(rows)
+    if len(result) != len(rows):
+        raise ValueError("generated golden has duplicate IDs")
+    return result
+
+
 def validate_outputs(old_golden, golden, old_page, page, removed):
-    def entries(text):
-        rows = [line.split("\t", 1) for line in text.splitlines()]
-        if any(len(row) != 2 for row in rows):
-            raise ValueError("generated golden has malformed rows")
-        result = dict(rows)
-        if len(result) != len(rows):
-            raise ValueError("generated golden has duplicate IDs")
-        return result
-    before, after = entries(old_golden), entries(golden)
+    before, after = golden_entries(old_golden), golden_entries(golden)
     if before.keys() != after.keys():
         raise ValueError("generation changes the corpus ID set")
     moved = {key for key in before if before[key] != after[key]}
@@ -181,11 +183,62 @@ def run(root, absorb):
     return 0
 
 
+def validate_terminal_stops(original, generated, cases):
+    before, after = golden_entries(original), golden_entries(generated)
+    if before.keys() != after.keys():
+        raise ValueError("generation changes the corpus ID set")
+    if len(cases) != len(set(cases)) or not cases or not set(cases) <= before.keys():
+        raise ValueError("terminal-stop cases must name distinct existing IDs")
+    moved = sorted(key for key in before if before[key] != after[key])
+    if not set(moved) <= set(cases):
+        raise ValueError("generation changes an unnamed terminal-stop case")
+    for key in moved:
+        if not before[key].endswith(".") or before[key][:-1] != after[key]:
+            raise ValueError("generation changes more than one final stop")
+    return moved
+
+
+def generated_terminal_stops(root, folder):
+    golden = Path(folder) / "rules.golden"
+    environment = dict(os.environ, UTTRFLOW_UPDATE_GOLDEN="1",
+                       UTTRFLOW_RULES_GOLDEN_OUTPUT=str(golden))
+    subprocess.run(["swift", "test", "--enable-code-coverage", "-j", "4", "--filter",
+                    "RulesCorpusTests/matchesGolden"],
+                   cwd=root, env=environment, check=True)
+    return golden.read_text()
+
+
+def run_terminal_stops(root, absorb, cases):
+    if os.environ.get("CI") is not None:
+        raise ValueError("terminal-stop generation is local only")
+    originals = {path: (root / path).read_text() for path in (REGISTRY, RULES, GOLDEN, PAGE)}
+    original = originals[GOLDEN]
+    validate_terminal_stops(original, original, cases)
+    with tempfile.TemporaryDirectory(prefix="uttrflow-stops-") as folder:
+        generated = generated_terminal_stops(root, folder)
+    if any((root / path).read_text() != text for path, text in originals.items()):
+        raise ValueError("recorded artifacts changed during terminal-stop generation")
+    moved = validate_terminal_stops(original, generated, cases)
+    for key in moved:
+        print(f"generated final-stop removal: {key}")
+    if absorb:
+        replace_outputs(root, originals, {GOLDEN: generated})
+        print(f"Absorbed {len(moved)} final stops; gap registries unchanged.")
+    else:
+        print(f"{len(moved)} final stops can be removed with --absorb; golden unchanged.")
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--absorb", action="store_true", help="remove freshly measured passing gaps")
+    parser.add_argument("--terminal-stop-case", action="append",
+                        help="record only a generated final-stop removal for this existing case ID")
     args = parser.parse_args()
     try:
+        if args.terminal_stop_case:
+            return run_terminal_stops(Path(__file__).resolve().parent.parent,
+                                      args.absorb, args.terminal_stop_case)
         return run(Path(__file__).resolve().parent.parent, args.absorb)
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"formatting gap ratchet: {error}\n")
