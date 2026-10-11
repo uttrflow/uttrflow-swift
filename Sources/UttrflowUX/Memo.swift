@@ -25,11 +25,16 @@ final class Memo<Key: Hashable & Sendable, Source: Equatable & Sendable, Value: 
             return known.value
         }
         let value = build()
+        store(value, for: key, source: source)
+        return value
+    }
+
+    /// Stores a prepared value using the same replacement policy as a built value.
+    func store(_ value: Value, for key: Key, source: Source) {
         entries.withLock { entries in
             if entries[key] == nil, let limit, entries.count >= limit { entries.removeAll() }
             entries[key] = Entry(source: source, value: value)
         }
-        return value
     }
 
     /// Drops values for keys absent from the live set.
