@@ -139,6 +139,7 @@ failure's surface from its severity and from whether the button is shown: a bloc
 or any failure while the button is not shown, takes the menu bar's attention form for the same
 `DockLingerPolicy` interval the button would have used, then clears with the state. The VoiceOver
 label is `MenuBarPresenter.spokenForm` of the status line, so it follows that column.
+`MenuBarDictationMapping` projects activity, outcome quality and failure without app coordination.
 `MenuBarSurfaceTableTests` fails when a `DictationState` has no row here or when a row's state
 shows the resting icon or status line.
 
