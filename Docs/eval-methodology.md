@@ -51,6 +51,8 @@ baseline lookup; label mismatch retains precedence.
   was prepared to defend tells a fix from a trade.
 - The baseline is written only with `--save-baseline`. Writing it at the end of every run would
   make the gate compare a change with itself, so it could never fail.
+- A missing accuracy baseline exits nonzero when `--fail-on-regression` requires a verdict.
+  Exploratory comparisons retain their diagnostic; `--save-baseline` still writes before judging.
 - The samples that moved are printed capped, as evidence for the verdict, not as the verdict.
   At a thousand samples dozens move every run.
 - The normalisation rules are printed before the numbers, every time. The same transcripts

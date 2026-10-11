@@ -175,5 +175,70 @@ class AccentGroupBoundArgumentTests(unittest.TestCase):
                     self.assertEqual(finished.stderr, "")
 
 
+class MissingBaselineGateTests(unittest.TestCase):
+    """Drives saved-run comparison without model setup."""
+
+    def write_run(self, folder):
+        measured = os.path.join(folder, "measured.json")
+        baseline = os.path.join(folder, "baseline.json")
+        entries = [
+            {"caseID": f"case-{index:02}", "language": "english", "stresses": [],
+             "errors": 0, "referenceWordCount": 10, "isUnscorable": False, "scoresOutput": False,
+             "recordingIdentity": f"synthetic-{index:02}"} for index in range(24)
+        ]
+        report = {"label": "synthetic", "recordedAt": "2026-01-01T00:00:00Z",
+                  "normalisation": [], "entries": entries}
+        with open(measured, "w", encoding="utf-8") as stream:
+            json.dump(report, stream)
+        return measured, baseline, report
+
+    def compare(self, measured, baseline, *flags):
+        return subprocess.run(
+            [BINARY, "compare", "--measured", measured, "--baseline", baseline, *flags],
+            capture_output=True, text=True, timeout=30,
+        )
+
+    def diagnostic(self, baseline):
+        return (f"No baseline at {baseline}. Write one with --save-baseline once you are happy "
+                "with these numbers.\n")
+
+    def test_missing_baseline_fails_when_a_verdict_is_required(self):
+        with tempfile.TemporaryDirectory(prefix="baseline-gate-") as folder:
+            measured, baseline, _ = self.write_run(folder)
+            finished = self.compare(measured, baseline, "--fail-on-regression")
+            self.assertEqual(finished.returncode, 1, finished.stderr)
+            self.assertEqual(finished.stdout, self.diagnostic(baseline))
+            self.assertEqual(finished.stderr, "")
+            self.assertFalse(os.path.exists(baseline))
+
+    def test_missing_baseline_exploration_keeps_its_exact_diagnostic(self):
+        with tempfile.TemporaryDirectory(prefix="baseline-gate-") as folder:
+            measured, baseline, _ = self.write_run(folder)
+            finished = self.compare(measured, baseline)
+            self.assertEqual(finished.returncode, 0, finished.stderr)
+            self.assertEqual(finished.stdout, self.diagnostic(baseline))
+            self.assertEqual(finished.stderr, "")
+            self.assertFalse(os.path.exists(baseline))
+
+    def test_save_precedence_and_present_comparison_keep_their_reports(self):
+        with tempfile.TemporaryDirectory(prefix="baseline-gate-") as folder:
+            measured, baseline, report = self.write_run(folder)
+            saved = self.compare(measured, baseline, "--save-baseline", "--fail-on-regression")
+            self.assertEqual(saved.returncode, 0, saved.stderr)
+            self.assertEqual(saved.stdout, f"\nBaseline written to {baseline}. Later runs are measured against it.\n")
+            self.assertEqual(saved.stderr, "")
+            with open(baseline, encoding="utf-8") as stream:
+                self.assertEqual(json.load(stream), report)
+            exploratory = self.compare(measured, baseline)
+            gated = self.compare(measured, baseline, "--fail-on-regression")
+            for finished in [exploratory, gated]:
+                self.assertEqual(finished.returncode, 0, finished.stderr)
+                self.assertEqual(finished.stderr, "")
+                self.assertIn("verdict: no change detectable", finished.stdout)
+                self.assertNotIn("too few utterances to judge", finished.stdout)
+            self.assertEqual(gated.stdout, exploratory.stdout)
+            self.assertEqual(self.compare(measured, baseline, "--fail-on-regression").stdout, gated.stdout)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
