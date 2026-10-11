@@ -177,6 +177,38 @@ public enum SentenceBoundaryEvidence {
         return tags[previous.count - 2] == .noun
     }
 
+    /// "i can. finish it today": a modal straight after its pronoun subject leaves its verb to the next words.
+    public static func modalAwaitsVerb(_ text: String, into next: String) -> Bool {
+        awaitsVerb(
+            WordTokens.words(text, .display).map(WordShape.init),
+            WordTokens.words(next, .display).map(WordShape.init))
+    }
+
+    private static func awaitsVerb(_ previous: [WordShape], _ following: [WordShape]) -> Bool {
+        guard previous.count > 1, let last = previous.last, modals.contains(last.key), !following.isEmpty
+        else {
+            return false
+        }
+        let tags = LexicalClass.tags(ofWords: (previous.map(\.core) + following.prefix(2).map(\.key)))
+        return tags[previous.count] == .verb
+            && (tags[previous.count - 2] == .pronoun
+                || QuestionShape.subjects.contains(previous[previous.count - 2].key))
+    }
+
+    /// "went to the, store": a comma after a word that cannot end a phrase splits it, and the model places the comma it owns.
+    public static func commaSplitsClosedPhrase(_ word: String, into next: String) -> Bool {
+        let shape = WordShape(word)
+        guard shape.suffix == ",", shape.prefix.isEmpty else { return false }
+        let key = shape.key
+        let upcoming = WordTokens.words(next, .display).prefix(1).map { $0.lowercased() }
+        if let word = upcoming.first, QuestionShape.subjects.contains(word) { return false }
+        if determiners.contains(key) || key == "of" || key == "and" { return true }
+        guard commaPrepositions.contains(key) else { return false }
+        let tags = LexicalClass.tags(ofWords: [shape.core] + WordTokens.words(next, .display).prefix(1))
+        guard tags.count > 1, let opening = tags[1] else { return false }
+        return [.determiner, .noun, .adjective, .number].contains(opening)
+    }
+
     /// "please review. the notes for the release": a verbless phrase opening on a determiner is the object of the verb before the seam.
     private static func takesObject(_ previous: [WordShape], _ following: [WordShape]) -> Bool {
         guard following.count > 1, determiners.contains(following[0].key) else { return false }
@@ -216,6 +248,13 @@ public enum SentenceBoundaryEvidence {
     private static let bareVerbLeaders = QuestionShape.verbsBeforeSubject.union([
         "do", "don't", "must", "to", "let", "make", "help", "please", "not",
     ])
+    private static let modals: Set<String> = [
+        "will", "can", "would", "should", "could", "must", "might", "shall",
+    ]
+    /// Prepositions that take an object after a comma; "on", "in" and "up" close a phrasal verb ("hold on, wait").
+    private static let commaPrepositions: Set<String> = [
+        "to", "for", "with", "from", "into", "by", "about", "at",
+    ]
     private static let seamPrepositions: Set<String> = ["on", "in", "up", "around"]
     private static let seamObjectEndings: [[String]] = [
         ["could", "finish"], ["pick", "up"], ["look"], ["covers"],

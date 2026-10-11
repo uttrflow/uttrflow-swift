@@ -127,6 +127,8 @@ final class SuggestionCoordinator {
     private var selectionPollInFlight = false
     private var selectionPollGeneration = 0
     private var activations: (any NSObjectProtocol)?
+    /// Posts application and Space changes; a test gives it a centre of its own.
+    private let workspaceCenter: NotificationCenter
     private var sessionEndObservers: SuggestionSessionEndObservers?
     /// The Space and sleep observers, each of which leaves a ghost with no field under it.
     private var spaceObservers: [any NSObjectProtocol] = []
@@ -214,6 +216,7 @@ final class SuggestionCoordinator {
         frontmostBundleIdentifier: @escaping @MainActor () -> String? = {
             NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         },
+        workspaceCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
         scheduleSelectionChecks: @escaping SelectionCheckScheduling = SuggestionCoordinator.selectionTimer,
         panel: SuggestionPanelController = .shared,
         editHeard: @escaping @Sendable (EditedSpan) async -> Void = { _ in }
@@ -225,6 +228,7 @@ final class SuggestionCoordinator {
         self.focusedSelectionReader = focusedSelectionReader
         self.focusedFieldReader = focusedFieldReader
         self.frontmostBundleIdentifier = frontmostBundleIdentifier
+        self.workspaceCenter = workspaceCenter
         self.scheduleSelectionChecks = scheduleSelectionChecks
         self.panel = panel
         self.focusedFieldValueObserver = focusedFieldValueObserver ?? FocusedFieldValueObserver()
@@ -352,7 +356,8 @@ final class SuggestionCoordinator {
         processActivity.begin()
         wakeState.start()
         tapRest.cancel()
-        activationMonitor = SuggestionActivationMonitor { [weak self] trust in
+        activationMonitor = SuggestionActivationMonitor(notificationCenter: workspaceCenter) {
+            [weak self] trust in
             guard let self else { return }
             let wasSecureInputBlocking = self.secureInput.isBlocking
             self.checkSecureInput()
@@ -368,11 +373,11 @@ final class SuggestionCoordinator {
                 self.focusedFieldValueObserver.stop()
                 self.interceptor.stop()
                 if let activations = self.activations {
-                    NSWorkspace.shared.notificationCenter.removeObserver(activations)
+                    workspaceCenter.removeObserver(activations)
                     self.activations = nil
                 }
                 for observer in self.spaceObservers {
-                    NSWorkspace.shared.notificationCenter.removeObserver(observer)
+                    workspaceCenter.removeObserver(observer)
                 }
                 self.spaceObservers = []
                 self.sessionEndObservers?.remove()
@@ -499,11 +504,11 @@ final class SuggestionCoordinator {
         activationMonitor = nil
         activityIsWatched = false
         stopWatchingSelection()
-        if let activations { NSWorkspace.shared.notificationCenter.removeObserver(activations) }
+        if let activations { workspaceCenter.removeObserver(activations) }
         activations = nil
         sessionEndObservers?.remove()
         sessionEndObservers = nil
-        for observer in spaceObservers { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
+        for observer in spaceObservers { workspaceCenter.removeObserver(observer) }
         spaceObservers = []
         focusedFieldValueObserver.stop()
         // A browser's full Accessibility tree stays on only while suggestions do.
@@ -522,7 +527,7 @@ final class SuggestionCoordinator {
     private func watchForActivity() {
         watchFocusedFieldValues()
         observeSessionEnd(
-            in: NSWorkspace.shared.notificationCenter,
+            in: workspaceCenter,
             screenLockCenter: DistributedNotificationCenter.default())
         let keys = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
             let pastes = Self.isPaste(event)
@@ -586,7 +591,7 @@ final class SuggestionCoordinator {
             }
         }
         if let clicks { monitors.append(clicks) }
-        activations = NSWorkspace.shared.notificationCenter.addObserver(
+        activations = workspaceCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated {
@@ -598,7 +603,7 @@ final class SuggestionCoordinator {
         }
         for name in [NSWorkspace.activeSpaceDidChangeNotification] {
             spaceObservers.append(
-                NSWorkspace.shared.notificationCenter.addObserver(forName: name, object: nil, queue: .main) {
+                workspaceCenter.addObserver(forName: name, object: nil, queue: .main) {
                     [weak self] _ in MainActor.assumeIsolated { self?.withdraw() }
                 })
         }
