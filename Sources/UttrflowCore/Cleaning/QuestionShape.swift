@@ -516,27 +516,17 @@ public enum QuestionShape {
     /// Romanised Hindi subject pronouns that anchor subject-first "kya" questions, from `hindi-words.json`.
     static let hindiSubjects: Set<String> = HindiWords.subjects
 
-    /// Romanised Hindi verb endings a closing "kya" turns into a question: "aa rahe ho kya".
-    static let hindiVerbs: Set<String> = [
-        "hai", "hain", "ho", "hoon", "tha", "thi", "the", "hoga", "hogi", "honge",
-    ]
+    /// Romanised Hindi verb endings a closing "kya" turns into a question: "aa rahe ho kya", from `hindi-words.json`.
+    static let hindiVerbs: Set<String> = HindiWords.spellings(of: .closingVerb)
 
-    /// Hindi copulas and common finite verb forms used before question tags.
-    private static let hindiFiniteVerbs: Set<String> = hindiVerbs.union([
-        "hu", "h", "hua", "hui", "hue", "gaya", "gayi", "gaye", "di", "dia", "diya", "kiye", "kiya",
-        "ki", "li", "lia", "liya", "kar", "karta", "karte", "karti", "karoge", "karogi", "karega",
-        "karegi", "karunga", "karungi", "karna", "chahiye", "sakte", "sakti", "sakta",
-    ])
+    /// Hindi copulas and common finite verb forms used before question tags, from `hindi-words.json`.
+    private static let hindiFiniteVerbs: Set<String> = HindiWords.spellings(of: .finiteVerb)
 
-    /// Romanised Hindi words that introduce embedded question content.
-    private static let hindiEmbeddingWords: Set<String> = [
-        "ki", "pata", "kaha", "bola", "pucha", "poocha", "bataya", "batayi", "bataye", "batao", "yaad",
-        "dekh",
-        "dekha", "dekho", "maloom", "malum", "samajh", "samjha", "samjho", "suna", "socha",
-    ]
+    /// Romanised Hindi words that introduce embedded question content, from `hindi-words.json`.
+    private static let hindiEmbeddingWords: Set<String> = HindiWords.spellings(of: .embeddingWord)
 
-    /// Copulas that can follow a subject or noun before an interrogative "kya".
-    private static let hindiCopulas: Set<String> = ["hai", "hain", "ho", "hoga"]
+    /// Copulas that can follow a subject or noun before an interrogative "kya", from `hindi-words.json`.
+    private static let hindiCopulas: Set<String> = HindiWords.spellings(of: .questionCopula)
 
     /// Romanised Hindi possessives and postpositions, from `hindi-words.json`; a "kya" after one is an argument, not a particle.
     private static let hindiArgumentMarkers: Set<String> = Set(
