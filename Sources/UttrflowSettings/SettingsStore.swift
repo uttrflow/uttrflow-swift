@@ -434,11 +434,19 @@ extension Settings {
             .map(\.1))
     }
 
+    /// Whether the file says outright that dictation has no shortcut, as opposed to saying nothing about it.
+    static func dictationSwitchedOff(in decoder: any Decoder) -> Bool {
+        guard let container = try? decoder.container(keyedBy: CodingKeys.self),
+            let stored = try? container.decodeIfPresent([String: [HotkeyBinding]].self, forKey: .shortcuts)
+        else { return false }
+        return stored[ShortcutAction.dictate.rawValue]?.isEmpty == true
+    }
+
     /// The shortcuts on disk, reading the two fields that came before them when they are all there is.
     static func shortcuts(from decoder: any Decoder, default fallback: ShortcutSet) -> ShortcutSet {
         if let container = try? decoder.container(keyedBy: CodingKeys.self),
             let stored = try? container.decodeIfPresent(ShortcutSet.self, forKey: .shortcuts),
-            stored.isBound(.dictate)
+            stored.isBound(.dictate) || Settings.dictationSwitchedOff(in: decoder)
         {
             return stored
         }
