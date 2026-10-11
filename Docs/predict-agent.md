@@ -67,6 +67,19 @@ both, so a missing directory denies every name and a program that would not list
 none. `EnvironmentIndex` believes a directory's answer for `lifetimeInSeconds` (5 s) and a program's
 verbs for `programLifetimeInSeconds` (60 s).
 
+Internal alias snapshots derive expansions and uncertainty from one read of the existing shell
+configuration files. Expansion names and bodies retain at most 200 entries and 64 KiB of UTF-8
+content; finite integer flags mark shaped-command shadows and uncertain chains by retained-map
+position. These flags have at most one position per grammar member and per retained alias; their
+fixed integer overhead is separate from the UTF-8 content budget. Unsupported or omitted bodies
+cannot certify a command grammar, while an unrelated
+unsupported alias leaves an unshadowed command certain. Text and flags share refresh, revision,
+expiry and forgetting. The metadata overload of `LineShape.of` distinguishes uncertainty from a
+known free slot, records whether an alias supplies the grammar, and resolves supported aliases
+before wrappers; the dictionary overload keeps
+its existing contract. `EnvironmentIndex` owns an injected metadata provider and settles and
+forgets that provider; its default owner does not opt into configuration reads.
+
 `uttrflow-dev machine --directory <dir> --under <path>` prints everything the index lists there.
 
 ## Choosing among the machine's values

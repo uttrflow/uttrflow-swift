@@ -95,6 +95,7 @@ public actor EnvironmentIndex {
 
     /// The half that actually asks the machine.
     private let reader: any EnvironmentReading
+    private let aliases: any AliasSnapshotProviding
     /// What each key last answered, until it stops being believed.
     private var cached: [Key: Cached] = [:]
     /// The reads in flight, one per key, so a burst cannot start a burst of them.
@@ -108,8 +109,14 @@ public actor EnvironmentIndex {
     }
 
     /// An index whose sense of how long a read took is given, which only a test has a reason to do.
-    init(reader: any EnvironmentReading, seconds: @escaping @Sendable () -> Double) {
+    init(
+        reader: any EnvironmentReading, seconds: @escaping @Sendable () -> Double,
+        aliases: (any AliasSnapshotProviding)? = nil
+    ) {
         self.reader = reader
+        self.aliases =
+            aliases
+            ?? AliasExpansionCache<ContinuousClock>(reader: nil, clock: ContinuousClock())
         self.seconds = seconds
     }
 
@@ -139,8 +146,13 @@ public actor EnvironmentIndex {
         return entry.values
     }
 
+    func aliasSnapshot() async -> AliasExpansionSnapshot { await aliases.snapshot() }
+
+    func forgetAliases() async { await aliases.forgetEverything() }
+
     /// Waits for the reads in flight, which only a test has a reason to do.
     public func settle() async {
+        await aliases.settle()
         while let task = refreshing.values.first {
             await task.value
         }
