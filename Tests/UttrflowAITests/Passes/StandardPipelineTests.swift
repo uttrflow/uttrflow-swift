@@ -11,8 +11,8 @@ struct StandardPipelineTests {
             CleaningPipeline.standard.ids == [
                 "fillers", "repeatedPhrase", "stammers", "selfCorrection", "spokenPunctuation",
                 "spokenCasing",
-                "layoutWords", "numberForms", "contractions", "spacing", "pauseStop", "spelledInitialism",
-                "acronymCasing", "sentenceBoundary", "firstWord", "commentMarker", "terminalStop",
+                "layoutWords", "spelledName", "numberForms", "contractions", "spacing", "pauseStop",
+                "spelledInitialism", "acronymCasing", "sentenceBoundary", "firstWord", "commentMarker", "terminalStop",
             ])
     }
 
