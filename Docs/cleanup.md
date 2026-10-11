@@ -467,6 +467,14 @@ the bundle identifier costs no permission at all.
   hands the dictation to the rules, which lose the same word, so what it buys is a named
   refusal in Diagnostics instead of a silent loss. `RemovalGrantCorpusTests` lists every
   corpus case whose passes overreach.
+- **No pass alters or drops a number, the word said after it, or a negator.** `IntegrityAudit`
+  reads each heard numeral, negator and word of two letters or more after a number against its
+  draft's record and names the pass that removed it beyond its grant, or swapped it for a
+  different numeral, word or non-negator. A command that writes the word into a flag or symbol
+  ("dash dash no dash cache") is its spelling and passes; a single letter after a number is
+  left to `spelledInitialism`. `IntegrityCorpusTests` runs it over the evaluation corpus, the
+  transcription passages and 2,000 generated sentences, on the passes handed to a model and on
+  the whole rules path.
 - `WordCorrectionEngine` and the dictionary handle spellings before the tidier sees the text.
 - The pieces cut while recording (`Docs/early-transcription.md`) are each tidied alone,
   which is why paragraph breaks and list layout are decided when the pieces are joined.

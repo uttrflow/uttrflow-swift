@@ -94,15 +94,10 @@ public struct ErrorClassifier: Sendable {
     }
 
     static func isNumeral(_ word: String) -> Bool {
-        word.contains(where: \.isNumber) || numberWords.contains(word.lowercased())
+        let lowered = word.lowercased()
+        return word.contains(where: \.isNumber) || NumberWords.value(of: lowered) != nil
+            || QuantityWords.numerals.contains(lowered)
     }
-
-    static let numberWords: Set<String> = [
-        "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven",
-        "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen",
-        "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety", "hundred",
-        "thousand", "million", "billion", "first", "second", "third", "half", "percent",
-    ]
 
     /// Whether two different words reduce to one stem under the suffix table below.
     static func shareStem(_ word: String, _ other: String) -> Bool {
