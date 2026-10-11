@@ -1128,11 +1128,11 @@ public actor ClipboardStore {
         useFlush = nil
 
         // Every clip reaches its new file before leaving its old one, so a refusing disk never loses one.
-        let bridge = Self.bridging(persistable, from: wasSaved, into: nowHistory)
+        let bridge = ClipPersistencePlan.bridging(persistable, from: wasSaved, into: nowHistory)
         // The bridge only has to hold every clip somewhere; the same clips in another order are already on disk.
         let dropped = before.union(picturesAwaitingWrite).subtracting(named)
         do throws(ClipboardStoreError) {
-            if !Self.holdsTheSameClips(bridge, as: wasSaved) {
+            if !ClipPersistencePlan.holdsTheSameClips(bridge, as: wasSaved) {
                 try persist(bridge, to: savedFile)
                 savedOnDisk = bridge
             }
@@ -1155,23 +1155,6 @@ public actor ClipboardStore {
 
         // Only the files that stopped being referenced, so a picture no read could vouch for is never touched.
         removePictures(dropped.subtracting(heldPictures))
-    }
-
-    /// What the saved file holds while clips move: the new saved list, plus the old copy of any leaving it.
-    private static func bridging(
-        _ clips: [Clip], from wasSaved: [Clip], into nowHistory: [Clip]
-    ) -> [Clip] {
-        let leaving = Set(nowHistory.map(\.id)).intersection(wasSaved.map(\.id))
-        guard !leaving.isEmpty else { return clips.filter(\.isKept) }
-        let old = Dictionary(wasSaved.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        return clips.compactMap { $0.isKept ? $0 : leaving.contains($0.id) ? old[$0.id] : nil }
-    }
-
-    /// Whether two lists hold exactly the same clips, whatever their order.
-    private static func holdsTheSameClips(_ one: [Clip], as other: [Clip]) -> Bool {
-        guard one.count == other.count else { return false }
-        let byID = Dictionary(other.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        return byID.count == other.count && one.allSatisfy { byID[$0.id] == $0 }
     }
 
     /// Writes a whole list atomically, or removes its file when nothing is left to keep.

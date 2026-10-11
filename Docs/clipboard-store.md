@@ -106,6 +106,10 @@ it back. Each move writes the clip's destination before the file it is leaving, 
 refuses either write leaves at least one durable copy. Unpinning therefore writes the history
 first, while the saved file still holds the old copy, and only then rewrites the saved file.
 
+`ClipPersistencePlan` computes the intermediate saved list and compares its complete records
+independent of order. `ClipboardStore` retains the destination-before-source write sequence and
+the record of which clips each file holds.
+
 A move refused between its two writes leaves the clip in both files. Reading keeps the saved
 file's copy and drops the history's, so reopening finds exactly one clip, and the next write that
 succeeds removes the stale copy from the history.
