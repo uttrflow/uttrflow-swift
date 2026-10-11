@@ -1,5 +1,6 @@
 // Tests that reading a clip for a credential costs characters in proportion to its length.
 
+import Darwin
 import Testing
 
 @testable import UttrflowClipboard
@@ -92,11 +93,11 @@ extension HeavyClipScans {
         @Test("A two-megabyte repeated scheme-less webhook prefix is classified within five seconds")
         func repeatedSchemeLessWebhookPrefix() async {
             let text = String(repeating: "hooks.slack.com/", count: 131_000)
+            // CPU time of the thread that ran it, which other work on a loaded machine does not add to.
             let elapsed = await offTheTestPool {
-                let clock = ContinuousClock()
-                let start = clock.now
+                let start = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)
                 _ = ClipKindDetector.kind(of: text)
-                return start.duration(to: clock.now)
+                return Duration.nanoseconds(Int64(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - start))
             }
             #expect(elapsed < .seconds(5))
         }
