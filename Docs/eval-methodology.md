@@ -829,6 +829,8 @@ work may assume that per-speaker learning helps, at any k.
 `accent-groups` rejects non-finite or non-positive `--decision-bound` values and rounded decision
 requirements outside the integer range before reading rows or decoding a manifest. Representable
 positive bounds retain the existing rounded 3/n requirement, including bounds above one.
+The saved rows parser rejects negative error, reference-word, decision and false-override counts
+before aggregation. Zero counts and insertion errors above reference-word counts keep their handling.
 
 The synthetic table above decides which classes are worth recording real speakers for; a
 real-speaker slice decides whether a group is served worse. This is the specification any
