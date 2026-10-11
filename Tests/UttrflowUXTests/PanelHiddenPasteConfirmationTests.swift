@@ -12,7 +12,8 @@ struct PanelHiddenPasteConfirmationTests {
 
     private static func asking(unclassified: Bool = false, cleaned: Bool = false) -> PanelSnapshot {
         PanelFixture.panel([secret]).askingBeforePaste(
-            of: secret.id, cleaned: cleaned, reason: unclassified ? .hiddenIntoUnreadableField : .hiddenIntoVisibleField)
+            of: secret.id, cleaned: cleaned,
+            reason: unclassified ? .hiddenIntoUnreadableField : .hiddenIntoVisibleField)
     }
 
     @Test("choosing a hidden clip asks the app to classify the field before anything is pasted")

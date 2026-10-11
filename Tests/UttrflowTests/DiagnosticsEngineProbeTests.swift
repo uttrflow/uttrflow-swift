@@ -121,7 +121,6 @@ struct DiagnosticsEngineProbeTests {
         #expect(app.transformerAvailability[.foundationModels] == false)
     }
 
-
     /// #1668: the speech model row was never given an answer, so it read Not checked yet forever.
     @Test("the speech model is looked for on disk too")
     func speechModelIsLookedFor() async {
