@@ -143,12 +143,17 @@ struct OnboardingPresenterTests {
         }
     }
 
-    @Test("only the page a person is agreeing on carries the terms")
-    func onlySignInCarriesTheTerms() {
+    @Test("only the sign-in page links the published Privacy page, and no page names Terms")
+    func onlySignInLinksPrivacy() {
         let agreeing = page(OnboardingState(step: .signIn, detail: .signIn(.offering)))
-        #expect(agreeing.showsTerms)
+        #expect(agreeing.legal == PublishedLegalLink.privacy)
+        #expect(agreeing.legal?.destination.absoluteString == "https://uttrflow.com/privacy")
         for state in everyState where state.step != .signIn {
-            #expect(!page(state).showsTerms, "\(state)")
+            #expect(page(state).legal == nil, "\(state)")
+        }
+        for state in everyState {
+            let words = [page(state).legal?.title, page(state).accessibilityLabel].compactMap(\.self)
+            #expect(!words.contains { $0.localizedCaseInsensitiveContains("terms") }, "\(state)")
         }
     }
 

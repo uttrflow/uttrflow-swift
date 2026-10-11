@@ -60,12 +60,12 @@ public enum OnboardingPresenter {
                         "Share", "chart.bar", .setUsageStatistics(true),
                         isSelected: sharesUsageStatistics),
                 ],
-                hint: standIn ? standInHint : nil, showsTerms: true,
+                hint: standIn ? standInHint : nil, legal: .privacy,
                 explanation: pitch + " Usage statistics are off unless you choose to share them.")
         case .refused(let message):
             return page(
                 state, mood: .failure, picture: .waveform(.still, badge: .symbol("xmark", .failure)),
-                title: "That didn’t work.", providers: providers, hint: message, showsTerms: true,
+                title: "That didn’t work.", providers: providers, hint: message, legal: .privacy,
                 explanation: message)
         case .unreachable:
             return page(
@@ -355,7 +355,7 @@ public enum OnboardingPresenter {
         buttons: [OnboardingButton] = [],
         link: OnboardingLink? = nil,
         hint: String? = nil,
-        showsTerms: Bool = false,
+        legal: PublishedLegalLink? = nil,
         explanation: String? = nil
     ) -> OnboardingPage {
         OnboardingPage(
@@ -366,7 +366,7 @@ public enum OnboardingPresenter {
             buttons: buttons,
             link: link,
             hint: hint,
-            showsTerms: showsTerms,
+            legal: legal,
             explanation: explanation,
             position: state.step.position,
             stepCount: OnboardingStep.count,

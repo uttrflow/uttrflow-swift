@@ -109,6 +109,8 @@ public struct AccountPagePresentation: Sendable, Equatable {
     public let callout: MainCallout
     /// The invitation to sign in, when nobody has.
     public let emptyState: MainEmptyState?
+    /// The published Privacy page, reachable whether or not anyone is signed in.
+    public let privacy = PublishedLegalLink.privacy
 
     /// Builds the page from its parts.
     public init(
