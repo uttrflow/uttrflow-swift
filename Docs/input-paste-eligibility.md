@@ -13,7 +13,7 @@ page feeds.
 ## It does not ask Accessibility first
 
 "Can the Accessibility API see a focused element" is the wrong precondition twice over.
-Editors built on a bundled browser engine can expose no focused element at all and still accept a
+Editors built on a bundled browser engine can expose no focused element at all (their tree is off until something asks, see [context-accessibility.md](context-accessibility.md)) and still accept a
 ⌘V, so the check would refuse exactly the applications the paste strategy serves. The same shape
 appears in web views and anything that draws its own text: a focused element that will not report
 its selection, which the Accessibility strategy cannot write into either.

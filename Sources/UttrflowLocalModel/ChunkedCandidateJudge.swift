@@ -1,7 +1,4 @@
 import Foundation
-import MLX
-import MLXLMCommon
-import MLXNN
 import UttrflowCore
 
 struct ChunkedCandidateJudgement: Sendable {
@@ -13,41 +10,54 @@ struct ChunkedCandidateJudgement: Sendable {
     }
 }
 
-private struct CandidateScoringInput: Sendable {
+/// A line and its typed opening as token ids, with the text each token of the line decodes to.
+struct CandidateTokens: Sendable, Equatable {
+    let whole: [Int]
+    let typed: [Int]
+    let texts: [String]
+}
+
+/// A candidate as the model reads it: its tokens, the typed opening's tokens, each token's text and where the cut falls.
+struct CandidateScoringInput: Sendable, Equatable {
     let tokens: [Int]
     let typedTokens: [Int]
     let texts: [String]
     let prefixStart: Int?
 }
 
-private struct CandidateScoringChunk: Sendable {
+/// What one forward pass over a run of tokens gives back.
+struct CandidateScoringChunk: Sendable, Equatable {
     let tokenScores: [Float]
-    let prefixMasses: [Float?]
+    let prefixMass: Float?
+}
+
+/// The two model calls judging needs, so the logic around them runs without a model.
+protocol CandidateScoringBackend: Sendable {
+    /// Tokenises the whole line and its typed opening, and decodes each token of the line.
+    func tokenise(whole: String, typed: String) async -> CandidateTokens
+
+    /// Scores `values` as the next run of the line, continuing every earlier run; reads the log mass of `massTokens` at `massOffset` when asked.
+    func score(
+        _ values: [Int], massOffset: Int?, massTokens: [Int]
+    ) async throws -> CandidateScoringChunk
 }
 
 enum ChunkedCandidateJudge {
     static func judge(
         _ candidate: String, following context: String,
-        vocabulary: TokenHealing.Vocabulary, in container: ModelContainer,
+        vocabulary: TokenHealing.Vocabulary, using backend: some CandidateScoringBackend,
         holding bufferCachePasses: BufferCachePasses
     ) async throws -> ChunkedCandidateJudgement {
         // Taken here as well as by the caller, so the cap is held wherever the passes below run.
         bufferCachePasses.begin()
         defer { bufferCachePasses.end() }
-        let input = await container.perform { modelContext in
-            let tokens = MLXCandidateScorer.leadIn + candidate
-            let whole = modelContext.tokenizer.encode(text: tokens)
-            let typed = modelContext.tokenizer.encode(
-                text: MLXCandidateScorer.leadIn
-                    + CompletionText.typedPart(of: candidate, following: context))
-            return CandidateScoringInput(
-                tokens: whole,
-                typedTokens: typed,
-                texts: whole.map { modelContext.tokenizer.decode(tokenIds: [$0]) },
-                prefixStart: MLXCandidateScorer.requestedStart(
-                    whole, candidate: candidate, context: context,
-                    vocabulary: vocabulary, tokenizer: modelContext.tokenizer))
-        }
+        let leadIn = MLXCandidateScorer.leadIn
+        let read = await backend.tokenise(
+            whole: leadIn + candidate,
+            typed: leadIn + CompletionText.typedPart(of: candidate, following: context))
+        let input = CandidateScoringInput(
+            tokens: read.whole, typedTokens: read.typed, texts: read.texts,
+            prefixStart: ScoredSpan(whole: read.whole, typed: read.typed, bytes: vocabulary.bytes)?.start)
         guard !input.tokens.isEmpty else {
             return ChunkedCandidateJudgement(
                 line: JudgedLine(
@@ -55,57 +65,32 @@ enum ChunkedCandidateJudge {
                 typedTokens: input.typedTokens)
         }
 
-        let cache = ModelCacheTransfer()
-        let starts = stride(
-            from: 0, to: input.tokens.count, by: CancellableModelChunks.tokenLimit
-        ).map { $0 }
+        let starts = Array(stride(from: 0, to: input.tokens.count, by: CancellableModelChunks.tokenLimit))
         let chunks = try await CancellableModelChunks.run(starts, chunkSize: 1) { unit in
             let start = unit.first ?? 0
             let end = min(start + CancellableModelChunks.tokenLimit, input.tokens.count)
             let values = Array(input.tokens[start..<end])
-            return try await container.perform { modelContext in
-                try Task.checkCancellation()
-                let layers = cache.layers ?? modelContext.model.newCache(parameters: nil)
-                let tokens = MLXArray(values.map(Int32.init)).expandedDimensions(axis: 0)
-                let output = withPreparedCache(layers, lengths: [values.count]) {
-                    modelContext.model(LMInput.Text(tokens: tokens), cache: layers, state: nil)
-                }
-                let probabilities = logSoftmax(output.logits.asType(.float32), axis: -1)[0]
-                var scores: [MLXArray] = []
-                var masses = [MLXArray?](repeating: nil, count: values.count)
-                scores.reserveCapacity(values.count)
-                for offset in values.indices {
-                    let row = probabilities[offset]
-                    let token = values[offset]
-                    scores.append(row[token])
-                    let position = start + offset
-                    guard position == input.prefixStart else { continue }
-                    let bytes = ScoredSpan.written(by: token, in: vocabulary.bytes)
-                    let continuing = ScoredSpan.continuing(bytes, in: vocabulary).filter { $0 != token }
-                    masses[offset] = Self.logMass(of: continuing, in: row)
-                }
-                let readback = JudgementReadback.read(
-                    tokenScores: scores, prefixMasses: masses
-                ) { scalars in
-                    concatenated(scalars.map { $0.expandedDimensions(axis: 0) }).asArray(Float.self)
-                }
-                eval(layers)
-                cache.layers = layers
-                return CandidateScoringChunk(
-                    tokenScores: readback.tokenScores, prefixMasses: readback.prefixMasses)
+            var massOffset: Int?
+            var massTokens: [Int] = []
+            if let cut = input.prefixStart, (start..<end).contains(cut) {
+                let token = input.tokens[cut]
+                let bytes = ScoredSpan.written(by: token, in: vocabulary.bytes)
+                massTokens = ScoredSpan.continuing(bytes, in: vocabulary).filter { $0 != token }
+                massOffset = massTokens.isEmpty ? nil : cut - start
             }
+            return try await backend.score(values, massOffset: massOffset, massTokens: massTokens)
+        }
+        var masses = [Float?](repeating: nil, count: input.tokens.count)
+        for (chunk, start) in zip(chunks, starts) {
+            guard let mass = chunk.prefixMass, let cut = input.prefixStart, cut >= start else { continue }
+            masses[cut] = mass
         }
         let line = JudgedLine(
             tokens: input.tokens,
             tokenLogProbabilities: chunks.flatMap(\.tokenScores),
-            prefixLogMasses: chunks.flatMap(\.prefixMasses),
+            prefixLogMasses: masses,
             prefixMassIndex: input.prefixStart,
             texts: input.texts)
         return ChunkedCandidateJudgement(line: line, typedTokens: input.typedTokens)
-    }
-
-    private static func logMass(of tokens: [Int], in row: MLXArray) -> MLXArray? {
-        guard !tokens.isEmpty else { return nil }
-        return row[MLXArray(tokens.map(Int32.init))].logSumExp()
     }
 }

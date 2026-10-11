@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "family": "IDE editor: source text with a caret in the middle of a line",
+  "windowTitle": "notes.swift — Sample",
+  "document": null,
+  "focused": {
+    "attributes": {
+      "AXRole": { "kind": "value", "text": "AXTextArea" },
+      "AXSubrole": { "kind": "noValue" },
+      "AXIdentifier": { "kind": "unsupported" },
+      "AXPlaceholderValue": { "kind": "noValue" },
+      "AXDescription": { "kind": "value", "text": "source editor" },
+      "AXNumberOfCharacters": { "kind": "value", "number": 23 },
+      "AXSelectedTextRange": { "kind": "value", "text": "{13, 0}" },
+      "AXValue": { "kind": "value", "text": "// total\nlet total = 0\n" }
+    },
+    "rangedText": { "kind": "value" },
+    "children": []
+  }
+}
