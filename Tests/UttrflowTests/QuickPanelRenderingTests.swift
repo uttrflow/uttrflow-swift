@@ -161,9 +161,10 @@ struct QuickPanelRenderedActionTests {
             hint: "Select this clip", openCount: 1,
             onKey: { keys.append($0) }, onAction: { _ in }, onMenu: { _ in })
         try await withHost(view) { host in
-            let button = try #require(elements(under: host).first {
-                ($0.accessibilityLabel?() ?? nil) == "Text, Default activation fixture, now"
-            })
+            let button = try #require(
+                elements(under: host).first {
+                    ($0.accessibilityLabel?() ?? nil) == "Text, Default activation fixture, now"
+                })
             #expect(button.accessibilityRole?() == .button)
             #expect(button.accessibilityPerformPress?() == true)
             #expect(keys == [.choose(id)])
