@@ -21,6 +21,13 @@ key from the `SENTRY_DSN` environment variable, which `release.yml` fills from t
 Actions secret of the same name. A development build never gets one, and a build with an
 empty or missing key never starts the reporter, whatever the switch says.
 
+Distribution packaging requires a nonblank `SENTRY_DSN` before certificate checks or builds.
+Publication checks `SentryDSN` in the mounted image before changing a release; missing, empty
+and whitespace-only values are refused. Local and rehearsal packaging keep the DSN optional.
+`Scripts/crash_reporting_gate.py` owns this check and prints no configuration value. The
+bundle self-test and publication resume fixtures exercise the blank forms and a synthetic
+nonblank control without sending a report.
+
 ## What is collected
 
 Crashes (the crash handler) and app hangs, nothing else. The options are fixed in

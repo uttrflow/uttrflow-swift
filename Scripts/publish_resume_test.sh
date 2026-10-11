@@ -18,6 +18,7 @@ mkdir -p "$pkg/Scripts" "$pkg/.build/artifacts/sparkle/Sparkle/bin"
 cp "$repo_root/Scripts/publish.sh" "$pkg/Scripts/publish.sh"
 cp "$repo_root/Scripts/appcast.py" "$pkg/Scripts/appcast.py"
 cp "$repo_root/Scripts/update_feed_gate.py" "$pkg/Scripts/update_feed_gate.py"
+cp "$repo_root/Scripts/crash_reporting_gate.py" "$pkg/Scripts/crash_reporting_gate.py"
 chmod +x "$pkg/Scripts/publish.sh"
 
 cat > "$pkg/.build/artifacts/sparkle/Sparkle/bin/sign_update" <<'EOF'
@@ -118,6 +119,8 @@ set -euo pipefail
 state="$gh_state"
 downloads="$downloads_bare"
 
+[[ "\$1" != "release" ]] || printf '%s\n' "\$2" >> "\$state/release-calls"
+
 case "\$1 \$2" in
     "auth status")
         exit 0
@@ -184,6 +187,36 @@ chmod +x "$fake_bin/gh"
 
 export PATH="$fake_bin:$PATH"
 export UTTRFLOW_DOWNLOADS_REPO="test/releases"
+export SENTRY_DSN="synthetic-environment-dsn"
+
+for dsn in absent empty space tab newline mixed; do
+    python3 - "$app_src/Info.plist" "$dsn" <<'PY'
+import plistlib
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+with path.open("rb") as source:
+    values = plistlib.load(source)
+values.pop("SentryDSN", None)
+blank = {"empty": "", "space": " ", "tab": "\t", "newline": "\n", "mixed": " \t\n "}
+if sys.argv[2] in blank:
+    values["SentryDSN"] = blank[sys.argv[2]]
+with path.open("wb") as destination:
+    plistlib.dump(values, destination)
+PY
+    dsn_log="$test_root/dsn-$dsn.log"
+    if "$pkg/Scripts/publish.sh" "$image" > "$dsn_log" 2>&1; then
+        echo "error: publication accepted a $dsn DSN" >&2
+        exit 1
+    fi
+    grep -Fq 'the image needs a nonblank SentryDSN' "$dsn_log" \
+        || { echo "error: $dsn DSN did not stop publication at its artifact gate" >&2; exit 1; }
+    [[ ! -f "$gh_state/release-calls" ]] \
+        || { echo "error: a rejected DSN mutated the release" >&2; exit 1; }
+done
+/usr/libexec/PlistBuddy -c 'Set :SentryDSN synthetic-dsn-marker' "$app_src/Info.plist"
+printf 'publication rejects six blank artifact DSN forms before release creation\n'
 
 run_log_1="$test_root/run1.log"
 run_log_2="$test_root/run2.log"
@@ -276,3 +309,7 @@ if ! grep -Fq "$published_signature" "$verify_clone/appcast.xml"; then
 fi
 
 printf 'publish resume test passed\n'
+if grep -Fq 'synthetic-dsn-marker' "$run_log_1" "$run_log_2"; then
+    echo "error: publication disclosed the DSN" >&2
+    exit 1
+fi

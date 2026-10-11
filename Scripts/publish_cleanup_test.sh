@@ -42,6 +42,7 @@ mkdir -p "$sandbox/Scripts" "$sandbox/.build/artifacts/sparkle/Sparkle/bin" "$sa
 cp "$repo_root/Scripts/publish.sh" "$sandbox/Scripts/publish.sh"
 cp "$repo_root/Scripts/appcast.py" "$sandbox/Scripts/appcast.py"
 cp "$repo_root/Scripts/update_feed_gate.py" "$sandbox/Scripts/update_feed_gate.py"
+cp "$repo_root/Scripts/crash_reporting_gate.py" "$sandbox/Scripts/crash_reporting_gate.py"
 chmod +x "$sandbox/Scripts/publish.sh"
 
 cat > "$sandbox/.build/artifacts/sparkle/Sparkle/bin/sign_update" <<'EOF'
@@ -70,6 +71,8 @@ cat > "$app/Contents/Info.plist" <<'EOF'
     <string>1</string>
     <key>UttrflowBuildCommit</key>
     <string>abc123</string>
+    <key>SentryDSN</key>
+    <string>synthetic-dsn-marker</string>
 </dict>
 </plist>
 EOF

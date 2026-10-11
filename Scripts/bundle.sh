@@ -230,6 +230,8 @@ case "$MODE" in
        exit 1 ;;
 esac
 
+python3 "$(dirname "${BASH_SOURCE[0]}")/crash_reporting_gate.py" environment "$MODE" || exit 1
+
 HARDENED=no
 REAL_CERTIFICATE=no
 [[ "$MODE" == "rehearsal" ]] && HARDENED=yes
@@ -350,6 +352,17 @@ unapproved_text_resources() {
         \( -iname '*.jsonl' -o -iname '*.json' -o -iname '*.txt' -o -iname '*.csv' \) -print0)
 }
 
+write_crash_reporting_configuration() {
+    local mode="$1" plist="$2"
+    if [[ "$mode" != "development" && -n "${SENTRY_DSN:-}" ]]; then
+        /usr/libexec/PlistBuddy -c "Add :SentryDSN string $SENTRY_DSN" "$plist" >/dev/null \
+            || fail "could not write SentryDSN into Info.plist"
+        echo "Crash reporting: DSN written into Info.plist (reports still wait for the user's opt-in)."
+    else
+        echo "Crash reporting: no DSN, so this build never starts the crash reporter."
+    fi
+}
+
 # Proves check 4 still bites, without a build: `strings -a` reads any file, so the
 # fixture is simply the lines a binary carries — the two accessor names this app really
 # links, the SQL that was once mistaken for a third, and a path that names a bundle it
@@ -427,10 +440,32 @@ run_core_resource_self_test() {
         || fail "the Core runtime resources are absent from the packaging inventory: $unapproved"
 }
 
+run_crash_configuration_self_test() {
+    local root mode value plist found
+    root="$(mktemp -d -t uttrflow-crash-configuration-self-test)"
+    trap 'rm -rf "$root"' RETURN
+    plist="$root/Info.plist"
+    for mode in development local rehearsal; do
+        for value in '' 'synthetic-dsn-marker'; do
+            printf '<?xml version="1.0"?><plist version="1.0"><dict/></plist>\n' > "$plist"
+            SENTRY_DSN="$value" write_crash_reporting_configuration "$mode" "$plist" >/dev/null
+            found="$(plutil -extract SentryDSN raw -o - "$plist" 2>/dev/null || true)"
+            if [[ "$mode" == development || -z "$value" ]]; then
+                [[ -z "$found" ]] || fail "the optional DSN policy wrote a key it must omit"
+            else
+                [[ "$found" == "$value" ]] || fail "the optional DSN policy changed its configured value"
+            fi
+        done
+    done
+    printf 'bundle.sh: development omits the DSN; local and rehearsal keep it optional.\n'
+}
+
 if [[ "$SELF_TEST" == "yes" ]]; then
+    python3 "$SCRIPT_DIR/bundle_dsn_test.py" || fail "distribution DSN self-test failed"
     python3 "$SCRIPT_DIR/bundle_products_test.py" || fail "resource product selection self-test failed"
     run_self_test
     run_core_resource_self_test
+    run_crash_configuration_self_test
     exit 0
 fi
 
@@ -558,13 +593,7 @@ strip -S -x "$APP/Contents/MacOS/$EXECUTABLE" \
     || fail "could not strip debug symbols from the shipped binary"
 
 # The crash reporter's DSN, only from the environment and never in a development build; see Docs/crash-reporting.md.
-if [[ "$MODE" != "development" && -n "${SENTRY_DSN:-}" ]]; then
-    /usr/libexec/PlistBuddy -c "Add :SentryDSN string $SENTRY_DSN" "$APP/Contents/Info.plist" >/dev/null \
-        || fail "could not write SentryDSN into Info.plist"
-    echo "Crash reporting: DSN written into Info.plist (reports still wait for the user's opt-in)."
-else
-    echo "Crash reporting: no DSN, so this build never starts the crash reporter."
-fi
+write_crash_reporting_configuration "$MODE" "$APP/Contents/Info.plist"
 
 # The commit this bundle was built from, stamped into the bundle itself.
 #

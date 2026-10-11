@@ -114,6 +114,8 @@ APP="$(find "$MOUNTED" -maxdepth 1 -name '*.app' | head -1)"
 FEED_CHECK="$(python3 "$SCRIPT_DIR/update_feed_gate.py" check-plist "$APP/Contents/Info.plist" --forbid-local 2>&1)" \
     || fail "$FEED_CHECK"
 
+python3 "$SCRIPT_DIR/crash_reporting_gate.py" plist "$APP/Contents/Info.plist" || exit 1
+
 VERSION="$(plutil -extract CFBundleShortVersionString raw -o - "$APP/Contents/Info.plist")"
 # Sparkle compares CFBundleVersion and displays the short string. An appcast with
 # only one of the two either cannot decide what is newer or cannot say what it is.
