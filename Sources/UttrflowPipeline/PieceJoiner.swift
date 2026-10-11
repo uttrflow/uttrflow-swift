@@ -288,6 +288,8 @@ enum PieceJoiner {
         "which", "while", "who", "with",
         // A form of "be" or "have" after a run-on seam is the verb of the clause the seam split.
         "is", "are", "was", "were", "has", "have", "had",
+        // A pronoun or possessive opens the clause the seam split and is never a name.
+        "he", "she", "it", "we", "they", "you", "there", "his", "her", "its", "our", "their", "my", "your",
     ]
 
     private static let determiners: Set<String> = [
@@ -418,7 +420,9 @@ enum PieceJoiner {
         for text in pieces {
             var piece = Draft(keepingLineBreaks: text)
             guard !piece.words.isEmpty else { continue }
-            let leadingBreaks = String(text.prefix(while: \.isNewline))
+            var leadingBreaks = String(text.prefix(while: \.isNewline))
+            // A later piece's bullet is written without a break, as the head of its own text; the joined text needs one.
+            if leadingBreaks.isEmpty, !draft.words.isEmpty, piece.words[0].isListMark { leadingBreaks = "\n" }
             if !leadingBreaks.isEmpty {
                 if piece.words[0].isListMark {
                     piece.words[0].text = leadingBreaks + piece.words[0].text

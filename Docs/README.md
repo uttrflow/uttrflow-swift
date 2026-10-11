@@ -67,6 +67,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [lexical-class.md](lexical-class.md) | Reading a word's class, and how far the tagger holds on bare recogniser text |
 | [cleanup-design.md](cleanup-design.md) | Clean-up: the low-level design |
 | [dictation-trace.md](dictation-trace.md) | Explaining one dictation, stage by stage |
+| [golden-scenarios.md](golden-scenarios.md) | The owner's requirements as end-to-end scenarios, one test per row |
 | [piece-seams.md](piece-seams.md) | Cleaning pieces then joining them, measured against cleaning the whole |
 | [tail-commit.md](tail-commit.md) | Committing the open tail while the key is held: the pause rule against agreement commit |
 | [adapters.md](adapters.md) | Format adapters: one registry that grows out of the destination formatter |
