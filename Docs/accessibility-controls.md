@@ -114,16 +114,16 @@ leave a stale pass behind.
 | Panel | `Sources/Uttrflow/Panel/PanelEmptyStateView.swift#Button#1` | Button | accessibilityLabel | unchecked |
 | Panel | `Sources/Uttrflow/Panel/PanelEmptyStateView.swift#Button#2` | Button | expression | unchecked |
 | Panel | `Sources/Uttrflow/Panel/PanelShortcutHelpWindow.swift#Button#1` | Button | expression | unchecked |
-| Panel | `Sources/Uttrflow/Panel/QuickPanelChipRow.swift#Button#1` | Button | text "Rename…" | unchecked |
-| Panel | `Sources/Uttrflow/Panel/QuickPanelChipRow.swift#Button#2` | Button | text "Delete…" | unchecked |
+| Panel | `Sources/Uttrflow/Panel/QuickPanelChipRow.swift#Button#1` | Button | expression | unchecked |
+| Panel | `Sources/Uttrflow/Panel/QuickPanelChipRow.swift#Button#2` | Button | expression | unchecked |
 | Panel | `Sources/Uttrflow/Panel/QuickPanelChipRow.swift#Button#3` | Button | accessibilityLabel | unchecked |
-| Panel | `Sources/Uttrflow/Panel/QuickPanelChipRow.swift#Button#4` | Button | text "Rename collection" | unchecked |
-| Panel | `Sources/Uttrflow/Panel/QuickPanelChipRow.swift#Button#5` | Button | text "Delete collection" | unchecked |
+| Panel | `Sources/Uttrflow/Panel/QuickPanelChipRow.swift#Button#4` | Button | expression | unchecked |
+| Panel | `Sources/Uttrflow/Panel/QuickPanelChipRow.swift#Button#5` | Button | expression | unchecked |
 | Panel | `Sources/Uttrflow/Panel/QuickPanelGlass.swift#Button#1` | Button | accessibilityLabel | unchecked |
 | Panel | `Sources/Uttrflow/Panel/QuickPanelRow.swift#Button#1` | Button | accessibilityLabel | unchecked |
 | Panel | `Sources/Uttrflow/Panel/QuickPanelRow.swift#Button#2` | Button | expression | unchecked |
 | Panel | `Sources/Uttrflow/Panel/QuickPanelRow.swift#Button#3` | Button | hidden from accessibility | unchecked |
-| Panel | `Sources/Uttrflow/Panel/QuickPanelSheetView.swift#Button#1` | Button | text "Cancel" | unchecked |
+| Panel | `Sources/Uttrflow/Panel/QuickPanelSheetView.swift#Button#1` | Button | expression | unchecked |
 | Panel | `Sources/Uttrflow/Panel/QuickPanelSheetView.swift#Button#2` | Button | expression | unchecked |
 | Panel | `Sources/Uttrflow/Panel/QuickPanelSheetView.swift#TextField#1` | TextField | expression | unchecked |
 | Panel | `Sources/Uttrflow/Panel/QuickPanelSheetView.swift#Button#3` | Button | label view | unchecked |
