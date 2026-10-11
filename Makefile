@@ -467,7 +467,7 @@ SCORECARD := .build/rules-scorecard.json
 
 .PHONY: eval-tests
 eval-tests: ## Run the corpus suites and hold the modules they cover to the coverage floor.
-	COVERAGE_LANE=eval ./Scripts/coverage.sh --skip-build --filter '$(EVAL_SUITES)'
+	UTTRFLOW_QUALITY_REPORT=1 COVERAGE_LANE=eval ./Scripts/coverage.sh --skip-build --filter '$(EVAL_SUITES)'
 
 .PHONY: bench-tests
 bench-tests: ## Run the scaling suites and the timing benchmarks.
@@ -485,8 +485,8 @@ rules-scorecard: ## Score the rules over the corpus and fail on a regression aga
 QUALITY_GRID_LOG := .build/quality-grid.log
 
 .PHONY: quality-grid-scorecard
-quality-grid-scorecard: ## Compare all six quality grids with the recorded outcomes at EVAL_BASE.
-	UTTRFLOW_QUALITY_REPORT=1 $(SWIFT) test --skip-build --filter '$(QUALITY_GRID_SUITES)' > $(QUALITY_GRID_LOG) 2>&1 || { cat $(QUALITY_GRID_LOG); exit 1; }
+quality-grid-scorecard: eval-tests ## Compare all six quality grids with the recorded outcomes at EVAL_BASE.
+	cp .build/swift-test-output.log $(QUALITY_GRID_LOG)
 	@git show $(EVAL_BASE):Scripts/quality_grid_baseline.json > .build/quality-grid-base.json 2>/dev/null || rm -f .build/quality-grid-base.json
 	python3 Scripts/quality_grid_scorecard.py --base .build/quality-grid-base.json --measured $(QUALITY_GRID_LOG)
 
