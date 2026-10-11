@@ -2531,7 +2531,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
-    /// D5–D7 — runs the formatter and guards its output before anybody is offered a diff.
+    /// D5–D7 — runs the formatter through the panel's guarded formatting owner.
     private func runFormatter(on id: Clip.ID) {
         guard let clip = panel?.clips.first(where: { $0.id == id }), let language = clip.language
         else { return }
@@ -2539,46 +2539,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let request = PanelFormatRequest(
             owner: PanelLateRequest(opens: quickPanel.opens, sheet: panel?.sheet),
             clip: id, text: clip.text, run: formatterRuns)
-
         Task { [formatter] in
-            guard let produced = await formatter.format(clip.text, as: language) else {
-                Self.log.info("formatter produced nothing for \(language.rawValue, privacy: .public)")
-                endFormatting(request, with: .unreadable)
-                return
-            }
-            let original = clip.text
-            // Guarded and compared off the main actor, because both walk the whole clip.
-            let prepared = await Task.detached(priority: .utility) { () -> PreparedFormattingSheet?? in
-                guard FormatterGuard.isFaithful(produced, to: original) else { return .none }
-                guard produced != original else { return .some(nil) }
-                return .some(PreparedFormattingSheet(from: original, to: produced))
-            }.value
-            guard let prepared else {
-                // Logged loudly: a formatter changing what code means, caught by the guard.
-                Self.log.error(
-                    "formatter output discarded: not faithful (\(language.rawValue, privacy: .public))"
-                )
-                endFormatting(request, with: .unfaithful)
-                return
-            }
-            guard let prepared else {
-                endFormatting(request, with: .alreadyFormatted)
-                return
-            }
-            // A panel closed, reopened, re-sheeted, edited or formatted again since is left alone.
-            guard request.accepts(into: panel, opens: quickPanel.opens, latestRun: formatterRuns)
-            else { return }
-            panel?.remember(prepared)
-            panel?.sheet = .formatting(id, formatted: produced)
-            if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
+            await PanelFormattingCoordinator(formatter: formatter, log: Self.log).run(
+                text: clip.text, language: language,
+                actions: .init(
+                    isCurrent: { [self] in
+                        request.accepts(into: panel, opens: quickPanel.opens, latestRun: formatterRuns)
+                    },
+                    finish: { [self] ending in
+                        panel?.notice = ending.notice
+                        if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
+                    },
+                    present: { [self] prepared, produced in
+                        panel?.remember(prepared)
+                        panel?.sheet = .formatting(id, formatted: produced)
+                        if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
+                    }))
         }
-    }
-
-    /// Says how a Format run ended without a sheet, unless the panel has moved on since the question.
-    private func endFormatting(_ request: PanelFormatRequest, with ending: PanelFormatEnding) {
-        guard request.accepts(into: panel, opens: quickPanel.opens, latestRun: formatterRuns) else { return }
-        panel?.notice = ending.notice
-        if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
     }
 
     /// Pastes a panel clip, or asks first in the panel when the shared decision holds it back.
