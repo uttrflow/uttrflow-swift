@@ -90,7 +90,7 @@ public struct DestinationOverrides: Sendable, Equatable, Codable {
     /// One entry per app, in the order they read on screen.
     public private(set) var overrides: [DestinationOverride]
     /// A mode for one dictation that wins over every app's stored mode; never stored.
-    public private(set) var oneShotMode: AdapterMode?
+    private(set) var oneShotMode: AdapterMode?
 
     private enum CodingKeys: String, CodingKey { case overrides }
 
@@ -123,7 +123,7 @@ public struct DestinationOverrides: Sendable, Equatable, Codable {
     }
 
     /// How this app's words are to be formatted: the one-shot choice if there is one, else the app's own.
-    public func mode(for app: AppContext) -> AdapterMode {
+    func mode(for app: AppContext) -> AdapterMode {
         if let oneShotMode { return oneShotMode }
         return app.bundleIdentifier.map(mode(forBundleIdentifier:)) ?? .auto
     }
