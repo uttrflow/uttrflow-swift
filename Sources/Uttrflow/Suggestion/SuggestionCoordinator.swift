@@ -1684,7 +1684,6 @@ final class SuggestionCoordinator {
         }
     }
 
-
     // MARK: Consent
 
     /// What the field publishes about itself, in the shape the corpus keys entries by.

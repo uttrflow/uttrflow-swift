@@ -123,7 +123,7 @@ struct SettingsControlView: View {
                             Button(option.title) { model.apply(option.change) }
                         }
                     } label: {
-                        Label("Add", systemImage: "plus")
+                        Label(String(localized: "Add", comment: "Language menu"), systemImage: "plus")
                             .labelStyle(SettingsLeadingIconLabelStyle())
                             .font(.system(size: 12.5))
                             .foregroundStyle(PagePalette.text)
@@ -136,7 +136,8 @@ struct SettingsControlView: View {
                     .buttonStyle(.plain)
                     .menuIndicator(.hidden)
                     .fixedSize()
-                    .accessibilityLabel("Add a language")
+                    .accessibilityLabel(
+                        String(localized: "Add a language", comment: "Language menu accessibility label"))
                 }
             }
         }
@@ -172,6 +173,17 @@ struct SettingsShortcutField: View {
     @State private var monitor: Any?
 
     var body: some View {
+        contents
+            .onChange(of: isRecording, initial: true) { _, recording in
+                recording ? startListening() : stopListening()
+            }
+            .onDisappear(perform: stopListening)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(
+                SettingsShortcut.accessibilityLabel(for: action, keys: keys, isRecording: isRecording))
+    }
+
+    var contents: some View {
         HStack(spacing: 8) {
             if isRecording {
                 // Listening: the old keys dimmed inside a lit box, and a ghost key for the next one.
@@ -189,39 +201,41 @@ struct SettingsShortcutField: View {
                         .strokeBorder(PagePalette.dictation, lineWidth: 1.5)
                 )
                 .shadow(color: PagePalette.dictation.opacity(0.5), radius: 9)
-                Button("Cancel") { model.cancelRecordingShortcut() }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 12.5, weight: .medium))
-                    .foregroundStyle(SettingsPalette.ink(0.6))
+                Button(String(localized: "Cancel", comment: "Cancel shortcut recording")) {
+                    model.cancelRecordingShortcut()
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 12.5, weight: .medium))
+                .foregroundStyle(SettingsPalette.ink(0.6))
             } else {
                 if keys.isEmpty {
-                    Text("None")
+                    Text(String(localized: "None", comment: "No shortcut assigned"))
                         .font(.system(size: 12.5))
                         .foregroundStyle(PagePalette.faint)
                 } else {
                     SettingsKeys(keys: keys)
                 }
                 if !keys.isEmpty {
-                    Button("Remove") { model.apply(.clearShortcut(action)) }
-                        .buttonStyle(SettingsButtonStyle())
-                        .accessibilityLabel("Remove the \(ShortcutRegistry.label(for: action)) shortcut")
+                    Button(String(localized: "Remove", comment: "Clear assigned shortcut")) {
+                        model.apply(.clearShortcut(action))
+                    }
+                    .buttonStyle(SettingsButtonStyle())
+                    .accessibilityLabel(
+                        String(
+                            localized: "Remove the \(ShortcutRegistry.label(for: action)) shortcut",
+                            comment: "Shortcut removal accessibility label; names the action"))
                 }
                 Button {
                     model.beginRecordingShortcut(action)
                 } label: {
-                    Label("Edit", systemImage: "pencil")
-                        .labelStyle(SettingsLeadingIconLabelStyle())
+                    Label(
+                        String(localized: "Edit", comment: "Start shortcut recording"), systemImage: "pencil"
+                    )
+                    .labelStyle(SettingsLeadingIconLabelStyle())
                 }
                 .buttonStyle(SettingsButtonStyle())
             }
         }
-        .onChange(of: isRecording, initial: true) { _, recording in
-            recording ? startListening() : stopListening()
-        }
-        .onDisappear(perform: stopListening)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(
-            SettingsShortcut.accessibilityLabel(for: action, keys: keys, isRecording: isRecording))
     }
 
     private func startListening() {
