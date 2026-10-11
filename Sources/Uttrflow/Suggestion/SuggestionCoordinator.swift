@@ -120,13 +120,7 @@ final class SuggestionCoordinator {
     private var activityIsWatched = false
     /// Starts the repeating selection check and returns what stops it, so a test decides when each check runs.
     private let scheduleSelectionChecks: SelectionCheckScheduling
-    /// Stops the selection check, present only while a ghost can still be accepted.
-    private var stopSelectionChecks: (@MainActor () -> Void)?
-    /// The cadence the running selection check was scheduled at.
-    private var selectionCheckInterval: TimeInterval?
-    private var selectionGuard: ArmedSelectionGuard?
-    private var selectionPollInFlight = false
-    private var selectionPollGeneration = 0
+    private let selectionPolling = SuggestionSelectionPolling()
     private var activations: (any NSObjectProtocol)?
     /// Posts application and Space changes; a test gives it a centre of its own.
     private let workspaceCenter: NotificationCenter
@@ -147,7 +141,7 @@ final class SuggestionCoordinator {
     private var closingPunctuationAfterCaret = ""
     /// The line the accept key takes as last armed by a draw, so a later answer never inherits that claim.
     private(set) var armedOffer: String?
-    var isSelectionPolling: Bool { stopSelectionChecks != nil }
+    var isSelectionPolling: Bool { selectionPolling.isScheduled }
     var isTickerScheduled: Bool { ticker != nil }
     var isSecureInputRecheckScheduled: Bool { secureInputRecheck != nil }
     private var lastKeystroke = Date.distantPast
@@ -784,25 +778,22 @@ final class SuggestionCoordinator {
         armedOffer = suggestion.accepting
         guard armedOffer != nil else { return stopWatchingSelection() }
         stopWatchingSelection()
-        selectionGuard = ArmedSelectionGuard(expectedRange: range, identity: identity)
+        selectionPolling.guardrail = ArmedSelectionGuard(expectedRange: range, identity: identity)
         startSelectionChecks(every: ticking.selectionInterval)
     }
 
     /// Schedules the current selection check at `interval`, replacing any running one.
     private func startSelectionChecks(every interval: TimeInterval) {
-        stopSelectionChecks?()
-        let generation = selectionPollGeneration
-        selectionCheckInterval = interval
-        stopSelectionChecks = scheduleSelectionChecks(interval) { [weak self] in
+        selectionPolling.start(every: interval, schedule: scheduleSelectionChecks) { [weak self] generation in
             self?.pollSelection(generation: generation)
         }
     }
 
     /// Moves a running selection check to the clock's cadence, so an idle ghost is not read 300 times a minute.
     private func followSelectionCadence() {
-        let interval = ticking.selectionInterval
-        guard stopSelectionChecks != nil, selectionCheckInterval != interval else { return }
-        startSelectionChecks(every: interval)
+        selectionPolling.follow(every: ticking.selectionInterval, schedule: scheduleSelectionChecks) {
+            [weak self] generation in self?.pollSelection(generation: generation)
+        }
     }
 
     /// Runs `check` every `interval` on the main run loop and returns what stops it.
@@ -818,22 +809,22 @@ final class SuggestionCoordinator {
 
     /// Withdraws the offer when Accessibility reports a different selection or focused element.
     private func pollSelection(generation: Int) {
-        guard generation == selectionPollGeneration else { return }
+        guard generation == selectionPolling.generation else { return }
         guard activityIsAllowed() else { return withdraw() }
         Task { [weak self] in await self?.pollFocusedSelection(generation: generation) }
     }
 
     /// Reads the focused selection and withdraws an armed offer when it no longer matches.
     func pollFocusedSelection(generation: Int? = nil) async {
-        let generation = generation ?? selectionPollGeneration
-        guard generation == selectionPollGeneration, !selectionPollInFlight,
-            armedOffer != nil, selectionGuard != nil, !isInserting
+        let generation = generation ?? selectionPolling.generation
+        guard generation == selectionPolling.generation, !selectionPolling.isReadInFlight,
+            armedOffer != nil, selectionPolling.guardrail != nil, !isInserting
         else { return }
         guard activityIsAllowed() else { return withdraw() }
-        selectionPollInFlight = true
+        selectionPolling.isReadInFlight = true
         let read = await focusedSelectionReader()
-        guard generation == selectionPollGeneration else { return }
-        selectionPollInFlight = false
+        guard generation == selectionPolling.generation else { return }
+        selectionPolling.isReadInFlight = false
         let selection: FocusedFieldSelection
         switch read {
         case .timedOut:
@@ -843,20 +834,14 @@ final class SuggestionCoordinator {
         case .selection(let value):
             selection = value
         }
-        guard var selectionGuard else { return }
+        guard var selectionGuard = selectionPolling.guardrail else { return }
         guard !selectionGuard.observe(selection) else { return withdraw() }
-        self.selectionGuard = selectionGuard
+        self.selectionPolling.guardrail = selectionGuard
     }
 
     /// Stops the selection poll and invalidates any result still waiting on Accessibility.
     private func stopWatchingSelection() {
-        selectionPollGeneration += 1
-        stopSelectionChecks?()
-        stopSelectionChecks = nil
-        selectionCheckInterval = nil
-        selectionGuard = nil
-        selectionPollInFlight = false
-        FocusedFieldReader.cancelFocusedSelectionRead()
+        selectionPolling.stop { FocusedFieldReader.cancelFocusedSelectionRead() }
     }
 
     /// Withdraws a ghost the scroll has left behind, once, and lets the clock redraw it where the caret now is.
@@ -949,7 +934,7 @@ final class SuggestionCoordinator {
         interceptor.arm(update.armed)
         armedOffer = update.suggestion.accepting
         guard panel.advance(to: session.typed, showing: update.suggestion) else { return false }
-        selectionGuard?.typedThrough(text)
+        selectionPolling.guardrail?.typedThrough(text)
         wake(.keystroke)
         return true
     }
