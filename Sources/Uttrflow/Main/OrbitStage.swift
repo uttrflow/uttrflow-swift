@@ -93,8 +93,9 @@ struct OrbitStage: View {
                 .font(.system(size: MainMetrics.bodySize))
                 .foregroundStyle(Color.stageText.opacity(0.78))
                 .multilineTextAlignment(.center)
-            hint
-                .padding(.top, 2)
+            if !presentation.hint.keys.isEmpty {
+                hint.padding(.top, 2)
+            }
         }
         .fixedSize(horizontal: false, vertical: true)
         .accessibilityElement(children: .ignore)

@@ -27,6 +27,14 @@ public enum SettingsShortcut {
         keycaps(for: binding).joined()
     }
 
+    package static func keycaps(for binding: HotkeyBinding?) -> [String] {
+        binding.map { keycaps(for: $0) } ?? []
+    }
+
+    package static func compact(_ binding: HotkeyBinding?) -> String {
+        binding.map { compact($0) } ?? ""
+    }
+
     /// What VoiceOver hears for a shortcut row, including its current listening state.
     public static func accessibilityLabel(
         for action: ShortcutAction, keys: [String], isRecording: Bool

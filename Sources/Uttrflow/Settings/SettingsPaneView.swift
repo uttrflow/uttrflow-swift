@@ -14,7 +14,7 @@ struct SettingsPaneView: View {
             if let banner = pane.banner {
                 SettingsBannerView(banner: banner)
             }
-            if let warning = model.session.capabilities.globeKeyWarning(for: model.session.settings.hotkey) {
+            if let warning = model.globeKeyWarning {
                 GlobeKeyWarningView(message: warning)
             }
             // The refusal sits above the cards, one place to look whichever control earned it.

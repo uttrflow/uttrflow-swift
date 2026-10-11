@@ -116,7 +116,8 @@ public struct HomeHint: Sendable, Equatable {
 
     /// The whole line as one sentence, for a screen reader and the menu bar.
     public var sentence: String {
-        "\(lead) \(keys.joined()) \(trail)"
+        if lead.isEmpty && keys.isEmpty && trail.isEmpty { return "" }
+        return "\(lead) \(keys.joined()) \(trail)"
     }
 }
 
@@ -331,7 +332,7 @@ public enum HomePresenter {
             // A model that is not ready blocks dictation as surely as a permission, so neither invites talking.
             subtitle: subtitle(
                 today: today, kept: kept, blocked: blocked != nil || modelStatus != nil,
-                locale: locale),
+                locale: locale, shortcuts: snapshot.settings.shortcuts),
             // No figures while a permission is missing; numbers above "cannot listen" argue with themselves.
             figures: blocked == nil
                 ? DictationPresenter.figures(
@@ -373,7 +374,9 @@ public enum HomePresenter {
             canSearch: !kept.isEmpty,
             // Not before the first reading, or a returning user sees the first-run page flash past.
             emptyState: snapshot.hasReadHistory && kept.isEmpty && blocked == nil && modelStatus == nil
-                ? HomeDashboard.emptyState(activation: snapshot.settings.hotkeyActivation) : nil,
+                ? HomeDashboard.emptyState(
+                    activation: snapshot.settings.hotkeyActivation,
+                    shortcuts: snapshot.settings.shortcuts) : nil,
             isReading: !snapshot.hasReadHistory)
     }
 
@@ -421,7 +424,10 @@ public enum HomePresenter {
 
     /// "Say it once — hold ⌃ ⌥ anywhere on your Mac."; the verb follows how the shortcut is set up.
     static func hint(shortcut: String, settings: Settings) -> HomeHint {
-        HomeHint(
+        guard settings.shortcuts.first(for: .dictate) != nil else {
+            return HomeHint(lead: "", keys: [], trail: "")
+        }
+        return HomeHint(
             lead: settings.hotkeyActivation == .holdToTalk
                 ? "Say it once — hold" : "Say it once — press",
             keys: caps(in: shortcut),
@@ -502,10 +508,14 @@ public enum HomePresenter {
 
     /// One sentence saying where things stand today.
     static func subtitle(
-        today: [HistoryEntry], kept: [HistoryEntry], blocked: Bool, locale: Locale
+        today: [HistoryEntry], kept: [HistoryEntry], blocked: Bool, locale: Locale,
+        shortcuts: ShortcutSet = .default
     ) -> String {
         if blocked { return "Uttrflow cannot listen yet." }
-        if kept.isEmpty { return "Nothing dictated yet. Hold the shortcut anywhere and talk." }
+        if kept.isEmpty {
+            return shortcuts.isBound(.dictate)
+                ? "Nothing dictated yet. Hold the shortcut anywhere and talk." : "Nothing dictated yet"
+        }
         guard !today.isEmpty else {
             return "Nothing yet today. Your words from earlier are still here."
         }

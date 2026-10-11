@@ -152,6 +152,9 @@ extension MenuBarPresenter {
                     title: "Shortcut can’t be heard", detail: state.shortcutUnheard,
                     emphasis: .attention))
         }
+        guard state.shortcuts.first(for: .dictate) != nil else {
+            return .status(MenuBarStatus(title: statusLine))
+        }
         return .hint(hint(for: state))
     }
 
@@ -237,7 +240,7 @@ extension MenuBarPresenter {
 
     /// The talk hint with the shortcut the user actually bound.
     static func hint(for state: MenuBarState) -> MenuBarHint {
-        let binding = state.shortcuts.first(for: .dictate) ?? .functionHold
+        let binding = state.shortcuts.first(for: .dictate)
         return MenuBarHint(
             verb: state.activation == .holdToTalk ? "hold" : "press",
             keys: SettingsShortcut.compact(binding))

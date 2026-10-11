@@ -14,6 +14,12 @@ import struct Foundation.Date
 final class SettingsViewModel {
     var session: SettingsSession
 
+    /// The warning for the dictation shortcut shown by the Settings pane.
+    var globeKeyWarning: String? {
+        guard let binding = session.settings.shortcuts.first(for: .dictate) else { return nil }
+        return session.capabilities.globeKeyWarning(for: binding)
+    }
+
     private let store: any SettingsStore
     private let personalisation: any SettingsPersonalisationStore
     private let onChange: (UttrflowSettings.Settings) -> Void
