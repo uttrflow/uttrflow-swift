@@ -236,6 +236,12 @@ no build, no model and no window, and reads the source for the ways a budget can
 | suggestions | the key-path limits above differ from what `SuggestionCoordinator` and `SuggestionPanelController` do |
 | latency | the table under "Latency budget per stage" has no rows, or a row whose budget is not its p95 plus 20% |
 
+The cache check also follows same-module extensions of types declared in an MLX-importing
+file, so moving release or model-pass methods into an extension does not remove their guard
+checks. `Scripts/test_perf_budget_audit.py` covers guarded and unguarded extensions and the
+module boundary. Interval defaults also follow their declaring type into same-module extensions;
+unknown owners and ambiguous defaults stay unresolved.
+
 `--self-test` injects one violation per check into the tree as read and fails unless the audit
 catches it, so a rule that has stopped matching the code is found rather than trusted. A known
 breach is listed with the reason, and fails as stale once it is gone.

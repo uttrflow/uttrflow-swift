@@ -8,6 +8,7 @@ public actor Verifier {
     private static let supersessionLimit = 32
     /// What this machine says it has, which is the gate nothing below may overrule.
     private let index: EnvironmentIndex
+    private let environment: EnvironmentVerification
     /// The model that judges a candidate's likelihood, absent where there is none.
     private let scoring: (any CandidateScoring)?
     /// The store told when a candidate is wrong for good, absent where nothing is listening.
@@ -41,6 +42,7 @@ public actor Verifier {
     ) {
         self.lines = TerminalLineCheck(files: files)
         self.index = index
+        self.environment = EnvironmentVerification(index: index, metadata: .disabled)
         self.scoring = scoring
         self.supersession = supersession
         self.budgetInMilliseconds = budgetInMilliseconds
@@ -55,13 +57,15 @@ public actor Verifier {
         await retryPendingSupersessions()
         guard generation == session.generation else { return [] }
         let deadline = deadline()
+        let operation = await operation(in: surface)
+        guard session.isCurrent(operation), generation == session.generation else { return [] }
         var kept: [Candidate] = []
         for candidate in candidates {
             // A keystroke that cancelled this turn's task makes every candidate after this one moot.
             guard !Task.isCancelled else { break }
             guard !refusedThisSession.contains(RefusedCandidate(text: candidate.text, surface: surface))
             else { continue }
-            let allowed = await allowed(candidate, in: surface, typed: typed, now: now, before: deadline)
+            let allowed = await allowed(candidate, in: operation, typed: typed, now: now, before: deadline)
             guard generation == session.generation else { return [] }
             guard let allowed else { continue }
             let key = TextMatching.caseFoldedKey(allowed.text)
@@ -71,7 +75,7 @@ public actor Verifier {
                 kept.append(allowed)
             }
         }
-        return kept
+        return await held(kept, in: operation) ?? kept
     }
 
     /// A converged text sums its evidence, keeps the nearest source and the machine's confirmation, and is spelled as the machine spells it.
@@ -99,38 +103,40 @@ public actor Verifier {
     public func verdict(
         for candidate: Candidate, in surface: Surface, typed: String, now: ContinuousClock.Instant
     ) async -> Verdict {
-        await verdict(for: candidate, in: surface, typed: typed, now: now, before: deadline())
+        let deadline = deadline()
+        let operation = await operation(in: surface)
+        return await verdict(for: candidate, in: operation, typed: typed, now: now, before: deadline)
     }
 
     /// The same verdict, against a budget one keystroke's whole set of candidates has to share.
     private func verdict(
-        for candidate: Candidate, in surface: Surface, typed: String, now: ContinuousClock.Instant,
+        for candidate: Candidate, in operation: VerificationOperation, typed: String,
+        now: ContinuousClock.Instant,
         before deadline: Deadline
     ) async -> Verdict {
-        let operation = session.begin(
-            in: surface, aliases: AliasExpansionSnapshot(words: [:], revision: 0),
-            generation: session.generation)
+        let surface = operation.surface
         let key = operation.key(for: candidate.text, typed: typed)
-        if let remembered = session.verdict(for: key) { return remembered }
+        if let remembered = session.verdict(for: key) {
+            return await published(remembered, for: nil, in: operation) ?? .rejected
+        }
         guard let token = CompletionToken(candidate.text) else { return .plausible }
 
         // Each lookup asks about its own word among its own kinds, so a path's name is not sought among whole paths.
         var judged: (word: String, prefix: String, known: Set<String>, caseSensitive: Bool)?
-        var complete = true
-        for lookup in Verification.attestation(for: token)?.lookups ?? [] {
+        var complete = environment.isComplete(operation)
+        for lookup in environment.attestation(for: token)?.lookups ?? [] {
             guard
-                let (known, lookupComplete) = await knownAndComplete(
+                let (known, lookupComplete) = await environment.knownAndComplete(
                     of: lookup.kinds, in: surface, now: now)
             else {
                 complete = false
                 continue
             }
             complete = complete && lookupComplete
-            let caseSensitive = lookup.kinds.contains(where: Self.requiresCaseSensitiveMatch)
+            let caseSensitive = lookup.kinds.contains(where: environment.requiresCaseSensitiveMatch)
             // Each kind attests under its own case rule, so a branch lookup cannot make a file name case-sensitive.
-            guard !(await attests(lookup, in: surface, now: now)) else {
-                if session.isCurrent(operation) { session.remember(.attested, for: key) }
-                return .attested
+            guard !(await environment.attests(lookup, in: surface, now: now)) else {
+                return await published(.attested, for: key, in: operation) ?? .attested
             }
             if judged == nil { judged = (lookup.word, lookup.prefix, known, caseSensitive) }
         }
@@ -147,9 +153,8 @@ public actor Verifier {
                 caseSensitive: judged?.caseSensitive ?? false),
             on: candidate.text, leading: token.leading + (judged?.prefix ?? ""), in: operation,
             // A listing still unanswered may yet hold the word, so the verdict stands this time only and is not cached.
-            forGood: complete && judged != nil && Verification.isClosedVocabulary(for: token))
-        if complete, session.isCurrent(operation) { session.remember(verdict, for: key) }
-        return verdict
+            forGood: complete && judged != nil && environment.mayPersist(token))
+        return await published(verdict, for: complete ? key : nil, in: operation) ?? verdict
     }
 
     /// The verdict in the whole line's terms, told to the store whenever it condemns the candidate for good.
@@ -171,7 +176,7 @@ public actor Verifier {
         guard let supersession else { return }
         await beginSupersessionOperation()
         defer { endSupersessionOperation() }
-        guard session.isCurrent(operation) else { return }
+        guard await held((), in: operation) != nil else { return }
         let surface = operation.surface
         do {
             try await apply(write, using: supersession, in: surface)
@@ -282,6 +287,7 @@ public actor Verifier {
         session.forgetEverything()
         pendingSupersessions = []
         refusedThisSession = []
+        await environment.forgetAliases()
         await scoring?.forgetEverything()
         try await clearCorpus()
     }
@@ -296,14 +302,15 @@ public actor Verifier {
 
     /// One candidate as the gates leave it, absent when they refuse it.
     private func allowed(
-        _ candidate: Candidate, in surface: Surface, typed: String, now: ContinuousClock.Instant,
+        _ candidate: Candidate, in operation: VerificationOperation, typed: String,
+        now: ContinuousClock.Instant,
         before deadline: Deadline
     ) async -> Candidate? {
-        guard !candidate.isIrreversible, await admits(candidate.text, in: surface, now: now) else {
+        guard !candidate.isIrreversible, await admits(candidate.text, in: operation.surface, now: now) else {
             return nil
         }
         switch await verdict(
-            for: candidate, in: surface, typed: typed, now: now, before: deadline)
+            for: candidate, in: operation, typed: typed, now: now, before: deadline)
         {
         case .attested, .plausible:
             return candidate
@@ -320,25 +327,26 @@ public actor Verifier {
     public func options(
         for typed: String, in surface: Surface, now: ContinuousClock.Instant
     ) async -> ArgumentOptions {
-        guard EnvironmentSource.workingDirectory(of: surface) != nil else { return .open }
-        let token = CompletionToken(typed) ?? CompletionToken(leading: typed, token: "")
-        guard let choices = Verification.choices(for: token) else { return .open }
+        let operation = await operation(in: surface)
+        guard let choices = environment.choices(for: typed, in: operation) else { return .open }
         var offered: [String] = []
         var answered = false
         var everyLookupComplete = true
         for lookup in choices.lookups {
-            guard let (known, complete) = await knownAndComplete(of: lookup.kinds, in: surface, now: now)
+            guard
+                let (known, complete) = await environment.knownAndComplete(
+                    of: lookup.kinds, in: surface, now: now)
             else { continue }
             answered = true
             if !complete { everyLookupComplete = false }
             // A word already whole and known may be continued freely; the model is held only while the word is open.
-            if await attests(lookup, in: surface, now: now) { return .open }
+            if await environment.attests(lookup, in: surface, now: now) { return .open }
             var values = known.filter { Self.begins($0, as: lookup.word) }.map { lookup.prefix + $0 }
             // A runner's `run` takes a script, so where the scripts are listed each `run script` is offered whole and bare `run` is not.
             if case .subcommand(let program)? = lookup.kinds.first,
                 CommandGrammar.scriptRunners.contains(program),
                 values.contains("run"),
-                let scripts = await self.known(
+                let scripts = await environment.known(
                     of: [.subcommand(of: "\(program) run")], in: surface, now: now),
                 !scripts.isEmpty
             {
@@ -352,7 +360,9 @@ public actor Verifier {
         let distinct = offered.filter { seen.insert($0).inserted }.sorted { ($0.count, $0) < ($1.count, $1) }
         // Nothing offered while a relevant kind is still unanswered is not proof there is nothing: stay open rather than say none.
         guard !distinct.isEmpty || everyLookupComplete else { return .open }
-        return distinct.isEmpty ? .none : .among(Array(distinct.prefix(Verification.mostChoices)))
+        let result: ArgumentOptions =
+            distinct.isEmpty ? .none : .among(Array(distinct.prefix(Verification.mostChoices)))
+        return await held(result, in: operation) ?? result
     }
 
     /// Whether a value continues the word: it begins as the word does, and a word not yet begun is not offered the hidden names.
@@ -364,11 +374,12 @@ public actor Verifier {
     public func standing(
         _ completions: [String], after typed: String, in surface: Surface, now: ContinuousClock.Instant
     ) async -> [String] {
+        let operation = await operation(in: surface)
         var standing: [String] = []
         for completion in completions {
-            if await stands(completion, after: typed, in: surface, now: now) { standing.append(completion) }
+            if await stands(completion, after: typed, in: operation, now: now) { standing.append(completion) }
         }
-        return standing
+        return await held(standing, in: operation) ?? standing
     }
 
     /// Each generated line's mean log-probability per token from the pass that wrote it, absent where no pass measured it or no model is loaded.
@@ -385,17 +396,19 @@ public actor Verifier {
 
     /// Whether every word the model added is one the machine names, or one no listing could deny; a listing not yet answered vouches for nothing.
     private func stands(
-        _ completion: String, after typed: String, in surface: Surface, now: ContinuousClock.Instant
+        _ completion: String, after typed: String, in operation: VerificationOperation,
+        now: ContinuousClock.Instant
     ) async -> Bool {
+        let surface = operation.surface
         guard await admits(completion, in: surface, now: now) else { return false }
         // A field that is not a directory has no listings, so nothing it holds is looked up.
         guard EnvironmentSource.workingDirectory(of: surface) != nil else { return true }
         for token in Verification.words(of: completion, addedAfter: typed) {
-            guard let attestation = Verification.attestation(for: token) else { continue }
+            guard let attestation = environment.attestation(for: token) else { continue }
             var vouched = false
             for lookup in attestation.lookups where !vouched {
-                let answer = await knownAndComplete(of: lookup.kinds, in: surface, now: now)
-                if await attests(lookup, in: surface, now: now) {
+                let answer = await environment.knownAndComplete(of: lookup.kinds, in: surface, now: now)
+                if await environment.attests(lookup, in: surface, now: now) {
                     vouched = true
                 } else if answer?.complete != true {
                     // A listing still out is no proof either way, so only the disk itself may vouch meanwhile.
@@ -420,52 +433,22 @@ public actor Verifier {
         return lines.allows(line, in: surface.scope, aliases: Set(aliases))
     }
 
-    /// Everything the machine vouches for among these kinds here, absent when none has answered yet or the field is not a directory.
-    private func known(
-        of kinds: [EnvironmentKind], in surface: Surface, now: ContinuousClock.Instant
-    ) async -> Set<String>? {
-        await knownAndComplete(of: kinds, in: surface, now: now)?.known
+    private func operation(in surface: Surface) async -> VerificationOperation {
+        let generation = session.generation
+        let aliases = await environment.aliases(in: surface)
+        return session.begin(in: surface, aliases: aliases, generation: generation)
     }
 
-    /// Git names are case-sensitive even on a case-insensitive filesystem.
-    private func attests(
-        _ lookup: Verification.Lookup, in surface: Surface, now: ContinuousClock.Instant
-    ) async -> Bool {
-        for kind in lookup.kinds {
-            guard let known = await known(of: [kind], in: surface, now: now) else { continue }
-            if Verification.attests(
-                lookup.word, known, caseSensitive: Self.requiresCaseSensitiveMatch(kind))
-            {
-                return true
-            }
-        }
-        return false
+    private func published(
+        _ verdict: Verdict, for key: VerdictCache.Key?, in operation: VerificationOperation
+    ) async -> Verdict? {
+        let revision = await environment.currentRevision(for: operation)
+        return session.publish(verdict, for: key, in: operation, revision: revision)
     }
 
-    private static func requiresCaseSensitiveMatch(_ kind: EnvironmentKind) -> Bool {
-        switch kind {
-        case .branch, .gitAlias: true
-        case .subcommand(of: "git"): true
-        case .entries, .directories, .executable, .alias, .subcommand: false
-        }
-    }
-
-    /// The same union, plus whether every kind asked has actually answered, so a still-refreshing kind is never read as a "no".
-    private func knownAndComplete(
-        of kinds: [EnvironmentKind], in surface: Surface, now: ContinuousClock.Instant
-    ) async -> (known: Set<String>, complete: Bool)? {
-        guard let directory = EnvironmentSource.workingDirectory(of: surface) else { return nil }
-        var known: Set<String>?
-        var complete = true
-        for kind in kinds {
-            guard let values = await index.values(of: kind, in: directory, now: now) else {
-                complete = false
-                continue
-            }
-            known = (known ?? []).union(values)
-        }
-        guard let known else { return nil }
-        return (known, complete)
+    private func held<Value: Sendable>(_ value: Value, in operation: VerificationOperation) async -> Value? {
+        let revision = await environment.currentRevision(for: operation)
+        return session.held(value, in: operation, revision: revision)
     }
 
     /// What the model says, silent when it is not up and over budget when it did not answer in time.
