@@ -51,6 +51,13 @@ runs every night on `main`. It always starts, because a required check that neve
 the merge, and succeeds in seconds when the change touches nothing under the sources, tests and
 scripts it reads.
 
+`quality-grid-scorecard` compares the onset, signal-condition, number round-trip, inflection,
+lexicon and clipboard-prefilter reports with `Scripts/quality_grid_baseline.json` at the base
+commit. Missing families or cases, failed boolean gates, increased failure counts or allowances,
+and changed gate kinds fail comparison. Diagnostic measurements remain diagnostic. Named onset,
+number and keyword-recall examples run in `verify`; the complete grids run in `eval`. Record
+accepted outcomes only through `Scripts/quality_grid_scorecard.py --absorb`.
+
 **`make bench`, nightly (`bench.yml`).** `perf-budget`, `offline-test`, `soak-test`, the scaling
 suites (`HeavyClipScans`, `PromptSizeGuaranteeTests`, `BIP39RecoveryPhraseScalingTests`) and the
 tests that hold a wall-clock budget (`BENCH_SUITES` in the `Makefile`): the clipboard store's first-list
