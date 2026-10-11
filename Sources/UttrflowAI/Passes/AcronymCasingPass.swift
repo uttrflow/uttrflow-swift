@@ -94,6 +94,7 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
             }
             draft.replace(at: index, with: shape.replacingCore(with: form), by: Self.id)
         }
+        HTTPSlots.apply(to: &draft)
         return draft
     }
 
