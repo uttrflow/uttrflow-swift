@@ -37,6 +37,11 @@ and the class that moved, never alone.
 
 ## The baseline gate
 
+Saved adapter comparisons require unique adapter names in both reports. Duplicate rows return an
+incomparable result before constructing the baseline lookup; label mismatch retains precedence.
+Saved digit-string comparisons require unique shape names in each report before constructing their
+baseline lookup; label mismatch retains precedence.
+
 - A run is compared against a stored baseline, and the gate says *better* or *worse*. "The
   numbers looked fine" is not evidence: a change to the model, the prompt, the normalisation or
   the dictionary moves some samples up and some down, and only a diff against a point somebody
