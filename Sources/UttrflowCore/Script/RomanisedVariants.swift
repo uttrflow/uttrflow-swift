@@ -1,6 +1,17 @@
 // Attested romanised spellings of one Hindi word, held once as data so every judge of "one word" reads the same sets.
+private import CryptoKit
+private import Foundation
+
 /// The spelling sets read from `romanised-variants.json`; a variant is added by adding it to its word's row.
 public enum RomanisedVariants {
+    /// The comparison algorithm and digest of every attested spelling-to-word mapping.
+    package static let scoringIdentity: String = {
+        let mapping = canonicalBySpelling.sorted { $0.key < $1.key }
+            .map { "\($0.key)=\($0.value)" }.joined(separator: "\n")
+        let digest = SHA256.hash(data: Data(mapping.utf8)).map { String(format: "%02x", $0) }.joined()
+        return "romanised-variants-v1:" + digest
+    }()
+
     /// The word's most common spelling when the word is listed, otherwise nil; `spelling` is matched lowercased.
     static func canonical(of spelling: String) -> String? {
         canonicalBySpelling[spelling.lowercased()]
