@@ -1676,8 +1676,7 @@ final class SuggestionCoordinator {
                 if let returnedKey { KeyStrokeReturn.post(returnedKey) }
                 noteActivity()
             // The field-value observer wakes after the destination exposes its insertion; the activity ticker is the fallback.
-            case .redraw(let update):
-                redraw(update)
+            case .redraw(let update): redraw(update)
             case .giveBack(let refused, let drawn):
                 drawn.map(redraw)
                 KeyStrokeReturn.post(refused)
