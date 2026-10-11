@@ -272,6 +272,10 @@ accounts for it: kept when the list names it, deleted when the list does not, wh
 index write itself lands. One rule covers every path that can drop a clip, because the difference
 and the file just written are reconciled in the same place.
 
+The actor-held `PictureReferences` ledger tracks undo-held pictures, unnamed arrivals and
+references awaiting a successful retry. `ClipboardStore` keeps the write and cleanup ordering;
+`PictureVault` owns the byte operations.
+
 A refused index write is the one case where the file stays: the clip is in memory whatever the
 disk said, the panel can still draw its row, and a picture deleted under a visible row is the
 broken row this whole ordering exists to prevent. Nothing on disk names it, so the next launch
