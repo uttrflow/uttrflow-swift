@@ -124,7 +124,7 @@ struct AdapterChoiceInputsTests {
     @Test("The situation carries only what the screen said and how the person writes numbers")
     func situationHoldsNoLearnedState() {
         let fields = Mirror(reflecting: Situation.unknown).children.compactMap(\.label)
-        #expect(fields == ["app", "insertion", "destination", "intent", "numberStyle"])
+        #expect(fields == ["app", "insertion", "destination", "intent", "numberStyle", "adapterMode"])
     }
 
     /// The files that turn a situation into a formatter, which must not name a learned or stored type.
