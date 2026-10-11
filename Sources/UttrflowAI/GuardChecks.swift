@@ -115,6 +115,9 @@ extension MeaningPreservationGuard {
             GuardCheck("spokenPunctuation") {
                 spokenPunctuationVerdict(draft: $0.draft, rewritten: $0.rewritten)
             },
+            GuardCheck("scriptWordCount") {
+                scriptWordCountVerdict(original: $0.original, rewritten: $0.rewritten)
+            },
             GuardCheck("removal") {
                 removalVerdict($0.restored, kept: $0.original, rewritten: $0.rewritten, echoed: $0.echoed)
             },

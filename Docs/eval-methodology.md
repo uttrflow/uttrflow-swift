@@ -991,6 +991,14 @@ uttrflow-eval noise
   A mix that would leave full scale is scaled down whole, so the ratio holds and nothing clips.
 - The run is reproducible byte for byte: each recording's noise comes from the run's `--seed`
   and the recording's identifier alone, through FNV-1a rather than Swift's salted hashing.
+- After the noises the same run replays three room and channel conditions
+  (`Sources/UttrflowEval/ChannelEffects.swift`), each its own row with WER and insertions per
+  language, never pooled and with no breakpoint, since they have no level to step through:
+  reverberation from a synthetic exponentially decaying impulse response of 0.3, 0.6 and 1.0 s
+  (60 dB decay, a direct path then seeded noise, level matched to the dry clip); band-limiting
+  to 8 kHz and 4 kHz by a windowed-sinc low-pass; and G.711 mu-law telephone coding (3.4 kHz band,
+  8 kHz sampling, 8-bit companding). A clip sampled at 16 kHz is already limited to 8 kHz, so
+  its `band 8 kHz` row is the clean read.
 - Each condition is its own row beside clean, never pooled with it, with the paired 95% interval
   on the change in word error rate (`ConditionTable`, the pooling `input-level` uses too).
 - Per language and noise, the report names the first step, mildest first, where word error rate

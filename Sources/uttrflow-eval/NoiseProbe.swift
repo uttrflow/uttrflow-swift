@@ -77,7 +77,7 @@ struct NoiseProbe: AsyncParsableCommand {
             let audio = try AudioFileReader.read(contentsOf: corpus.audioURL(for: recording.id))
             let recordingSeed = Degradation.seed(for: recording.id, run: seed)
             var outcomes: [ConditionTable<Degradation>.Outcome] = []
-            for condition in Degradation.noiseSweep {
+            for condition in Degradation.noiseSweep + Degradation.channelSweep {
                 let samples = condition.applied(
                     to: audio.samples, sampleRate: audio.sampleRate, seed: recordingSeed)
                 guard let replay = AudioSamples(samples: samples, sampleRate: audio.sampleRate) else {
