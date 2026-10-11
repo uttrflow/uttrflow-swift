@@ -13,6 +13,7 @@ public enum WordSlot {
                 ofWordAt: lead.count, in: lead + [replaced] + following.dropFirst()),
             let candidate = LexicalClass.tag(ofWordAt: lead.count, in: lead + following)
         else { return false }
-        return original == candidate
+        // A word the tagger has no class for, as most romanised Hindi, gives no evidence against the swap.
+        return original == candidate || original == .otherWord
     }
 }

@@ -142,6 +142,8 @@ struct SentenceBoundaryPassTests {
             ("We gave up. The team left", "We gave up. The team left."),
             ("Come in. The door is open", "Come in. The door is open."),
             ("Log in. The dashboard opens", "Log in. The dashboard opens."),
+            ("Take a look. The report is ready", "Take a look. The report is ready."),
+            ("Have a quick look. The report is ready", "Have a quick look. The report is ready."),
         ])
     func keepsPhrasalVerbStops(input: String, expected: String) {
         #expect(cleaned(input) == expected)

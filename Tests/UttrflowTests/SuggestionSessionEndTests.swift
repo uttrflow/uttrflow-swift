@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Synchronization
 import Testing
@@ -113,5 +114,29 @@ struct SuggestionSessionEndTests {
         #expect(coordinator.armedOffer == nil)
         #expect(!coordinator.isSelectionPolling)
         #expect(!coordinator.isTickerScheduled)
+    }
+
+    @Test("a display change withdraws the ghost without waiting for a keystroke", .bug(id: 2631))
+    func screenParametersChangeWithdrawsGhost() async throws {
+        let container = FileManager.default.temporaryDirectory
+            .appending(path: "suggestion-screen-change-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: container) }
+
+        let screenCenter = NotificationCenter()
+        let coordinator = try await SuggestionCoordinator(
+            container: container, preferences: SuggestionPreferences(isEnabled: true),
+            focusedFieldReader: { nil },
+            frontmostBundleIdentifier: { "com.example.editor" },
+            scheduleSelectionChecks: { _, _ in {} })
+        defer { coordinator.stop() }
+        coordinator.observeScreenChanges(in: screenCenter)
+
+        coordinator.armSelectionMonitor(for: .certain("completion"), at: NSRange(location: 12, length: 0))
+        #expect(coordinator.isSelectionPolling)
+        screenCenter.post(name: NSApplication.didChangeScreenParametersNotification, object: nil)
+
+        #expect(coordinator.armedOffer == nil)
+        #expect(!coordinator.isSelectionPolling)
     }
 }
