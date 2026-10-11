@@ -29,7 +29,7 @@ extension Situation {
     ]
 
     /// Operators that mark a line as code wherever they sit.
-    private static let codeOperators = ["::", "->", "=>", "&&", "||", "==", "!="]
+    package static let codeOperators = ["::", "->", "=>", "&&", "||", "==", "!="]
 
     /// Shell prompts that open a line.
     private static let promptPrefixes = ["$ ", "% ", "\u{276F}", "\u{279C}", "\u{00BB} "]

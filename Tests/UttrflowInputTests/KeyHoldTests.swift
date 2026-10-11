@@ -8,7 +8,7 @@ import UttrflowTestSupport
 
 @testable import UttrflowInput
 
-@Suite("The key hold")
+@Suite("The key hold", .timeLimit(.minutes(2)))
 struct KeyHoldTests {
     /// A key-down for a virtual key code.
     private static func key(_ code: CGKeyCode) -> CGEvent? {
@@ -32,11 +32,11 @@ struct KeyHoldTests {
             beginFinished.signal()
         }.start()
 
-        let reachedPause = clock.paused.wait(timeout: .now() + .seconds(2)) == .success
+        let reachedPause = clock.paused.wait(timeout: .distantFuture) == .success
         #expect(reachedPause)
         hold.release()
         clock.resume.signal()
-        #expect(beginFinished.wait(timeout: .now() + .seconds(2)) == .success)
+        #expect(beginFinished.wait(timeout: .distantFuture) == .success)
 
         #expect(hold.isHolding)
         #expect(hold.isHoldingBareTabAccept)

@@ -80,7 +80,7 @@ enum UnsupportedLanguageClips {
             && FileManager.default.fileExists(atPath: ProbeInputs.modelFolder.path),
         "set UTTRFLOW_PROBE_UNSUPPORTED and install the shipping model"))
 struct UnsupportedLanguageProbe {
-    @Test("prints, per clip, the language chosen, its margin among the allowed and among all, and the text")
+    @Test("refuses every French, German and Japanese clip and prints, per clip, what became of it")
     func probe() async throws {
         let kit = try await WhisperKit(
             WhisperKitConfig(
@@ -93,6 +93,8 @@ struct UnsupportedLanguageProbe {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: folder) }
         var index = 0
+        var inserted: [String: Int] = [:]
+        var refused: [String: Int] = [:]
         for set in UnsupportedLanguageClips.sets {
             for sentence in set.sentences {
                 index += 1
@@ -101,14 +103,28 @@ struct UnsupportedLanguageProbe {
                 kit.textDecoder = plain
                 let free = try await kit.detectLanguage(audioPath: path)
                 kit.textDecoder = held
-                let results = try await kit.transcribe(
-                    audioArray: samples, decodeOptions: VocabularyPrompt.decodingOptions(languageHint: nil))
-                let text = results.map(\.text).joined().trimmingCharacters(in: .whitespacesAndNewlines)
-                let chosen = results.first?.language ?? "-"
                 let ranked = free.langProbs.sorted { $0.value > $1.value }
                 let top = ranked.first.map { "\($0.key) \(String(format: "%.2f", $0.value))" } ?? "-"
-                print("PROBE \(set.language) #\(index) held=\(chosen) free=\(top) text=\(text)")
+                do {
+                    let results = try await kit.transcribe(
+                        audioArray: samples,
+                        decodeOptions: VocabularyPrompt.decodingOptions(languageHint: nil))
+                    let text = results.map(\.text).joined().trimmingCharacters(in: .whitespacesAndNewlines)
+                    inserted[set.language, default: 0] += 1
+                    print(
+                        "PROBE \(set.language) #\(index) free=\(top) INSERTED held=\(results.first?.language ?? "-") text=\(text)"
+                    )
+                } catch SpeechEngineError.unsupportedLanguage(let language) {
+                    refused[set.language, default: 0] += 1
+                    print("PROBE \(set.language) #\(index) free=\(top) REFUSED \(language.value)")
+                }
             }
+        }
+        print("PROBE SUMMARY refused=\(refused) inserted=\(inserted)")
+        // Spanish is heard as English by the unrestricted detector, so detection cannot reach it.
+        for language in ["French", "German", "Japanese"] {
+            #expect(refused[language] == 10, "every \(language) clip is refused")
+            #expect(inserted[language] == nil, "no \(language) clip is inserted")
         }
     }
 
@@ -128,5 +144,101 @@ struct UnsupportedLanguageProbe {
         try process.run()
         process.waitUntilExit()
         #expect(process.terminationStatus == 0)
+    }
+}
+
+/// Speech in the languages the product does write, which the refusal must never touch.
+@Suite(
+    "Probing that English and Hindi speech is never refused",
+    .enabled(
+        if: ProcessInfo.processInfo.environment["UTTRFLOW_PROBE_UNSUPPORTED"] != nil
+            && FileManager.default.fileExists(atPath: ProbeInputs.modelFolder.path),
+        "set UTTRFLOW_PROBE_UNSUPPORTED and install the shipping model"))
+struct TranscribedLanguageGate {
+    /// Invented sentences, each set read by the system voice named with it.
+    static let sets: [(voice: String, sentences: [String])] = [
+        (
+            "Daniel",
+            [
+                "Tomorrow afternoon we are visiting my grandmother in the village.",
+                "I need to buy bread, milk and a few apples before six.",
+                "The train to the coast is running late because of the rain.",
+                "Could you send me the report before the end of the week.",
+                "The team meeting has moved to Thursday morning.",
+            ]
+        ),
+        (
+            "Rishi",
+            [
+                "Please book a table for four people tonight.",
+                "My sister works in a library near the river.",
+                "It is very hot today and nobody wants to leave the house.",
+                "I learned to cook a new recipe from an old book.",
+                "The teacher explained the lesson with patience and humour.",
+            ]
+        ),
+        (
+            "Samantha",
+            [
+                "I left my umbrella in the taxi last night.",
+                "Let us review the schedule for the next three weeks.",
+                "The new design looks cleaner than the last one.",
+                "Remind me to call the dentist on Monday.",
+                "Add two bottles of water to the shopping list.",
+            ]
+        ),
+        (
+            "Lekha",
+            [
+                "कल दोपहर हम गाँव में दादी से मिलने जाएँगे।",
+                "मुझे छह बजे से पहले रोटी, दूध और कुछ सेब खरीदने हैं।",
+                "बारिश की वजह से तट की ओर जाने वाली गाड़ी देर से चल रही है।",
+                "कृपया हफ़्ते के अंत से पहले मुझे रिपोर्ट भेज दीजिए।",
+                "आज बहुत गर्मी है और कोई घर से बाहर नहीं निकलना चाहता।",
+                "मेरी बहन नदी के पास एक पुस्तकालय में काम करती है।",
+                "टीम की बैठक गुरुवार सुबह के लिए बदल दी गई है।",
+                "शिक्षक ने धैर्य और हँसी के साथ पाठ समझाया।",
+            ]
+        ),
+    ]
+
+    @Test("refuses none of the system-voice clips, nor any real recording named in UTTRFLOW_PROBE_RECORDINGS")
+    func gate() async throws {
+        let kit = try await WhisperKit(
+            WhisperKitConfig(
+                modelFolder: ProbeInputs.modelFolder.path, tokenizerFolder: ProbeInputs.modelFolder,
+                verbose: false, logLevel: .error, prewarm: true, load: true, download: false))
+        kit.textDecoder = LanguageHeldDecoder(wrapping: kit.textDecoder, languages: LanguageCode.transcribed)
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "transcribed-language-gate-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        var paths: [String] = []
+        for set in Self.sets {
+            for sentence in set.sentences {
+                paths.append(
+                    try UnsupportedLanguageProbe.speak(
+                        sentence, voice: set.voice, into: folder, name: "gate\(paths.count)"))
+            }
+        }
+        let recordings = (ProcessInfo.processInfo.environment["UTTRFLOW_PROBE_RECORDINGS"] ?? "")
+            .split(separator: ",").map(String.init)
+        for session in recordings {
+            let names = (try? FileManager.default.contentsOfDirectory(atPath: session)) ?? []
+            paths += names.filter { $0.hasSuffix(".wav") }.sorted().map { "\(session)/\($0)" }
+        }
+        var refused = 0
+        for path in paths {
+            let samples = try AudioProcessor.loadAudioAsFloatArray(fromPath: path)
+            do {
+                _ = try await kit.transcribe(
+                    audioArray: samples, decodeOptions: VocabularyPrompt.decodingOptions(languageHint: nil))
+            } catch SpeechEngineError.unsupportedLanguage(let language) {
+                refused += 1
+                print("GATE REFUSED \(URL(fileURLWithPath: path).lastPathComponent) as \(language.value)")
+            }
+        }
+        print("GATE SUMMARY clips=\(paths.count) refused=\(refused)")
+        #expect(refused == 0)
     }
 }

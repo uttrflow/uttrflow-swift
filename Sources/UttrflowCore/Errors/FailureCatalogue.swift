@@ -55,7 +55,8 @@ extension SpeechEngineError: CataloguedFailure {
         case .noSignal: .speechWithoutWords
         case .speechWithoutWords: .recogniserTimedOut
         case .recogniserTimedOut: .transcriptionFailed(description: "")
-        case .transcriptionFailed: nil
+        case .transcriptionFailed: .unsupportedLanguage(.english)
+        case .unsupportedLanguage: nil
         }
     }
 }

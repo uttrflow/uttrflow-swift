@@ -107,7 +107,7 @@ enum CodeShapes {
         .anchorsMatchLineEndings()
 
     /// The words an import header opens with, checked before its first line is copied out.
-    private static let importKeywords = [
+    static let importKeywords = [
         "import", "from", "package", "using", "require", "#include", "#import",
     ]
 
