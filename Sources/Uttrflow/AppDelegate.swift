@@ -3792,8 +3792,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
         case .keepDictationAsClip(let id):
             guard surfaces.watchesTheClipboard else { return }
-            Task { [weak self] in
+            intentWork = Task { [weak self] in
                 guard let self else { return }
+                await self.historyWrite?.value
                 let retention = Retention(days: self.settings.transcriptRetentionDays, now: Date())
                 guard
                     let entry = await self.history.records(keeping: retention).first(where: { $0.id == id }),
@@ -3801,7 +3802,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 else { return }
                 await write.value
             }
-
         case .sort(let order):
             guard let page = mainWindow?.page else { return }
             sorts[page] = order

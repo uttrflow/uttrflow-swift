@@ -252,7 +252,8 @@ struct SuggestionSurfaceTests {
     func aSuggestionIsAnnouncedOnce() async throws {
         let screen = try #require(NSScreen.screens.first).visibleFrame
         let caret = CGRect(x: screen.minX + 200, y: screen.midY, width: 0, height: 17)
-        let panel = SuggestionPanelController.shared
+        let panel = SuggestionPanelController()
+        panel.systemHidesPanel = { false }
         let original = panel.announce
         let originalSleep = panel.announcementSleep
         var heard: [String] = []
@@ -269,13 +270,16 @@ struct SuggestionSurfaceTests {
         }
         panel.show(.certain("meeting"), placement: .inlineGhost, caret: caret)
         panel.show(.certain("meeting"), typed: "mee", placement: .inlineGhost, caret: caret)
+        panel.window.orderOut(nil)
         try await eventually { !heard.isEmpty }
         #expect(heard == ["AI suggestion: meeting. Tab to accept."])
         panel.show(.certain("meeting"), placement: .inlineGhost)
         panel.show(.certain("meeting"), placement: .inlineGhost, caret: caret)
+        panel.window.orderOut(nil)
         try await eventually { heard.count == 2 }
         panel.hide()
         panel.show(.certain("meeting"), placement: .inlineGhost, caret: caret, acceptKey: .rightArrow)
+        panel.window.orderOut(nil)
         try await eventually { heard.count == 3 }
         #expect(heard.last == "AI suggestion: meeting. Right Arrow to accept.")
     }

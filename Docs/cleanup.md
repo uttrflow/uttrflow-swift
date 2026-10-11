@@ -689,11 +689,21 @@ corpus (comma F1 against the rules, paired, 95% bootstrap):
 
 - **Commas belong to the tidier.** The rules place none: they keep the commas the recogniser wrote
   (precision 1.00, recall 0.25) and move a removed word's comma as the mark table above says.
-  Commas placed from clause starts did not beat that, so the rules gain no comma placement.
+  Commas placed from clause starts did not beat that; clause-start words alone do not justify
+  adding a comma.
 - **Stops and question marks stay with the rules.** Every candidate scores within 0.01 on stops, so
   `PauseStopPass`, `SentenceBoundaryPass` and `TerminalStopPass` remain the single place a stop is
   decided, and they run after the model too. They are also the floor whenever the model declines
   or is not installed.
+
+**The rule-placement policy requires a pause.** A rule may add an internal comma or full stop
+only where the recogniser's word timings establish a pause and the boundary evidence permits
+that mark. A time adverb, new subject or clause head such as "sorry", "thanks" or "done" alone
+does not license one. `PauseStopPass` already applies that boundary to sentence pauses; the
+formatter's terminal stop and explicitly spoken punctuation keep their own rules.
+The pause-backed comma work is tracked in [#2475](https://github.com/uttrflow/uttrflow-swift/issues/2475).
+The table above measures the existing paths, not a pause-backed comma candidate; a candidate
+needs timed positive and negative corpus cases and a before/after bake-off before it ships.
 
 ## A spoken hashtag
 
