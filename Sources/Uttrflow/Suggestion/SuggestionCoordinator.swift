@@ -723,11 +723,6 @@ final class SuggestionCoordinator {
         return elapsedMilliseconds(since: lastKeyDown, at: moment) >= accessibilityKeyWindowInMilliseconds
     }
 
-    /// Elapsed key time never goes below zero when the system wall clock moves backwards.
-    nonisolated static func elapsedMilliseconds(since earlier: Date, at later: Date) -> Int {
-        max(0, Int(later.timeIntervalSince(earlier) * 1000))
-    }
-
     /// Whether a key-down is ⌘V under the selected layout, matched by the key its ⌘ table puts V on.
     nonisolated static func isPaste(_ event: NSEvent) -> Bool {
         isPaste(
@@ -1432,25 +1427,6 @@ final class SuggestionCoordinator {
         return standing
     }
 
-    /// Milliseconds until the prose pause after the latest keystroke is long enough, counted from now rather than from the turn's start.
-    nonisolated static func hesitationWake(sinceKeystroke keystroke: Date, now: Date) -> Int {
-        let passed = max(0, Int(now.timeIntervalSince(keystroke) * 1000))
-        return max(0, Quieting.proseHesitationInMilliseconds - passed) + 20
-    }
-
-    /// What is left of the debounce for a key pressed at `keystroke`, which is nothing once the pause is long enough.
-    nonisolated static func remainingDebounce(sinceKeystroke keystroke: Date, now: Date) -> Duration {
-        let passed = max(0, now.timeIntervalSince(keystroke) * 1000)
-        return .milliseconds(max(0, Double(Self.generationDebounceInMilliseconds) - passed))
-    }
-
-    /// Milliseconds left before typing has paused long enough to read the field.
-    nonisolated static func remainingFieldReadDebounce(sinceKeystroke keystroke: Date, now: Date) -> Int {
-        let passed = max(0, now.timeIntervalSince(keystroke) * 1000)
-        let remaining = Double(Self.fieldReadDebounceInMilliseconds) - passed
-        return remaining <= 0.001 ? 0 : Int(ceil(remaining - 0.001))
-    }
-
     /// Whether the window around this field is walked, which a terminal's is not since its value already holds the scrollback.
     nonisolated static func walksSurroundings(of snapshot: FocusedFieldSnapshot) -> Bool {
         !TerminalApplications.contains(snapshot.bundleIdentifier)
@@ -1500,15 +1476,6 @@ final class SuggestionCoordinator {
         )
         // The gates answer within a moment, so the field read at the turn's start still stands for whatever is drawn.
         return session.resolve(allowed, for: request, now: Date(), elapsedMilliseconds: since(started))
-    }
-
-    /// How long this turn has taken, which is what decides whether its answer is still worth drawing.
-    nonisolated static func elapsedMilliseconds(
-        since started: ContinuousClock.Instant, now: ContinuousClock.Instant
-    ) -> Int {
-        let elapsed = started.duration(to: now).components
-        let milliseconds = elapsed.seconds * 1_000 + elapsed.attoseconds / 1_000_000_000_000_000
-        return Int(max(0, milliseconds))
     }
 
     private func since(_ started: ContinuousClock.Instant) -> Int {

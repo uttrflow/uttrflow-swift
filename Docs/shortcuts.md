@@ -22,6 +22,18 @@ The defaults are `ShortcutSet.default`. An **observed** shortcut is watched thro
 tap, which sees Fn and leaves the key doing what it did. A **claimed** shortcut is registered as a
 hot key, which swallows the combination so nothing else acts on it too (`ShortcutDelivery`).
 
+## Switching a shortcut off and restoring the defaults
+
+Every action may have no binding, Dictate included. Remove on a row clears that action
+(`SettingsChange.clearShortcut`); a cleared claimed shortcut is unregistered, so its keys reach
+other apps again, and a cleared Dictate stops the controller, which first finishes any dictation
+under way and also leaves the Edit command unwatched until Dictate is bound again. A set with Dictate unbound is saved as an explicit empty `dictate` list, which is how a
+file that chose none differs from one that predates the shortcut. Restore Defaults
+(`SettingsChange.restoreDefaultShortcuts`) writes `ShortcutSet.default` and clears
+`shortcutsReturnedToDefault`, and changes nothing else. Uttrflow reports a refused registration
+on the row, but it cannot know which keys other applications use, so it never claims a
+combination is free.
+
 ## `NSEvent` cannot see Fn
 
 `NSEvent.addGlobalMonitorForEvents(.flagsChanged)` is the obvious way to watch a held modifier,

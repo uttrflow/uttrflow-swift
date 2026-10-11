@@ -239,6 +239,8 @@ private func name(of change: SettingsChange) -> String {
     case .activation: "activation"
     case .anchor: "anchor"
     case .shortcut: "shortcut"
+    case .clearShortcut: "clearShortcut"
+    case .restoreDefaultShortcuts: "restoreDefaultShortcuts"
     case .tidying: "tidying"
     case .spokenLanguage: "spokenLanguage"
     case .pauses: "pauses"

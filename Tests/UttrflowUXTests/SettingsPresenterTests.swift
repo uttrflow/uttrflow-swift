@@ -1191,6 +1191,46 @@ struct UnarmedShortcutTests {
     }
 }
 
+@Suite("Switching shortcuts off and restoring them")
+struct ShortcutRemovalPresentationTests {
+    private func row(_ id: String, in settings: Settings) -> SettingsRow? {
+        SettingsPresenter.pane(for: .general, settings: settings, capabilities: .everything)
+            .groups.flatMap(\.rows).first { $0.id == id }
+    }
+
+    @Test("a claimed shortcut says it takes its keys from other apps, and an observed one does not")
+    func claimedRowsSayTheyTakeTheKeys() throws {
+        let claimed = try #require(row("shortcut.pasteLastTranscript", in: .default))
+        let observed = try #require(row("shortcut.dictate", in: .default))
+
+        #expect(claimed.explanation?.hasSuffix(SettingsPresenter.claimsTheKeys) == true)
+        #expect(observed.explanation?.contains(SettingsPresenter.claimsTheKeys) == false)
+    }
+
+    @Test("a claimed shortcut with no keys draws None and no longer says it takes any")
+    func clearedRowDrawsNone() throws {
+        var settings = Settings.default
+        settings.shortcuts.removeAll(from: .pasteLastTranscript)
+
+        let shown = try #require(row("shortcut.pasteLastTranscript", in: settings))
+
+        #expect(shown.control == .shortcut(action: .pasteLastTranscript, keys: []))
+        #expect(shown.explanation?.contains(SettingsPresenter.claimsTheKeys) == false)
+    }
+
+    @Test("Restore Defaults is offered once a shortcut differs, and asks for the restore change")
+    func restoreIsOfferedWhenChanged() throws {
+        #expect(try #require(row("restoreDefaultShortcuts", in: .default)).isEnabled == false)
+
+        var settings = Settings.default
+        settings.shortcuts.removeAll(from: .clipboard)
+        let shown = try #require(row("restoreDefaultShortcuts", in: settings))
+
+        #expect(shown.isEnabled)
+        #expect(shown.control == .action(title: "Restore Defaults", change: .restoreDefaultShortcuts))
+    }
+}
+
 @Suite("A shortcut returned to its default")
 struct ReturnedShortcutTests {
     private func row(_ id: String, in settings: Settings) -> SettingsRow? {
