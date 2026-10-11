@@ -3,6 +3,7 @@ import Foundation
 import Security
 import Synchronization
 import Testing
+import UttrflowTestSupport
 import UttrflowCore
 import UttrflowPredict
 
@@ -399,7 +400,7 @@ struct RecordingTests {
         let store = try store(corpus)
         let elsewhere = Surface(bundleIdentifier: "com.example.other", role: "AXTextField")
         #expect(try await store.candidates(for: elsewhere, matching: "git").isEmpty)
-        #expect(try await store.successors(for: elsewhere, after: "x").isEmpty)
+        #expect(try await store.legacySuccessors(for: elsewhere, after: "x").isEmpty)
     }
 
     @Test("Two fields in one application keep their own memories.")
@@ -499,7 +500,7 @@ struct SuccessionTests {
         let store = try store(corpus)
         try await store.record("git add .", in: terminal, at: moment)
         try await store.record("git commit -m", in: terminal, after: "git add .", at: moment)
-        let next = try await store.successors(for: terminal, after: "git add .")
+        let next = try await store.legacySuccessors(for: terminal, after: "git add .")
         #expect(next.map(\.text) == ["git commit -m"])
         #expect(next.first?.source == .succession)
     }
@@ -512,7 +513,7 @@ struct SuccessionTests {
         for _ in 0..<4 {
             try await store.record("make verify", in: terminal, after: "git commit -m", at: moment)
         }
-        let next = try await store.successors(for: terminal, after: "git commit -m")
+        let next = try await store.legacySuccessors(for: terminal, after: "git commit -m")
         #expect(next.first?.text == "make verify")
     }
 
@@ -521,7 +522,7 @@ struct SuccessionTests {
         let corpus = Corpus()
         let store = try store(corpus)
         try await store.record("git status", in: terminal, after: "", at: moment)
-        #expect(try await store.successors(for: terminal, after: "").isEmpty)
+        #expect(try await store.legacySuccessors(for: terminal, after: "").isEmpty)
     }
 
     @Test("A successor that has since been forgotten is not offered.")
@@ -531,7 +532,7 @@ struct SuccessionTests {
         try await store.record("git add .", in: terminal, at: moment)
         try await store.record("git commit -m", in: terminal, after: "git add .", at: moment)
         try await store.forget("git commit -m", in: terminal)
-        #expect(try await store.successors(for: terminal, after: "git add .").isEmpty)
+        #expect(try await store.legacySuccessors(for: terminal, after: "git add .").isEmpty)
     }
 }
 
@@ -878,7 +879,8 @@ struct RetentionTests {
             "SELECT (SELECT COUNT(*) FROM entry), (SELECT COUNT(*) FROM succession)", { _ in }
         ) { [$0.integer(0), $0.integer(1)] }
         #expect(counts == [[PredictStore.entriesPerSurface, PredictStore.entriesPerSurface]])
-        #expect(try await store.successors(for: terminal, after: "git commit").map(\.text) == ["git push"])
+        #expect(
+            try await store.legacySuccessors(for: terminal, after: "git commit").map(\.text) == ["git push"])
     }
 }
 
@@ -1042,7 +1044,8 @@ struct RecoveryTests {
         #expect(push?.accepted == 1)
         #expect(push?.rejected == 1)
         #expect(try await store.entryCount() == 2)
-        #expect(try await store.successors(for: terminal, after: "git commit").map(\.text) == ["git push"])
+        #expect(
+            try await store.legacySuccessors(for: terminal, after: "git commit").map(\.text) == ["git push"])
         let rows = try Database(path: corpus.path).rows(
             "SELECT bundle_id, COUNT(*) FROM surface GROUP BY bundle_id", { _ in }
         ) { [$0.text(0), String($0.integer(1))] }

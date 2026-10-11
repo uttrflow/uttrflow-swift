@@ -77,7 +77,8 @@
       "UttrflowCore"
     ],
     "UttrflowTestSupport": [
-      "UttrflowCore"
+      "UttrflowCore",
+      "UttrflowPredict"
     ],
     "uttrflow-dev": [
       "UttrflowAI",
@@ -137,6 +138,7 @@
     "uttrflow-insertion-fixture": []
   },
   "reasons": {
+    "UttrflowTestSupport -> UttrflowPredict": "legacy storage test observations construct prediction evidence; this module is never linked into the app",
     "UttrflowPipeline -> UttrflowDictionary": "imported but not declared; it arrives through UttrflowAI",
     "uttrflow-bakeoff -> UttrflowDictionary": "imported but not declared; it arrives through UttrflowAI and UttrflowSpeech",
     "uttrflow-dev -> UttrflowDictionary": "imported but not declared; it arrives through UttrflowAI and UttrflowSpeech",
