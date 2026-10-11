@@ -14,6 +14,10 @@ The whole-line path check that runs before this is [predict-terminal-paths.md](p
 how the machine's programs are run safely is [command-lookups.md](command-lookups.md); the loop and
 the gates are in [predict.md](predict.md).
 
+The verifier's remembered decisions live in `VerificationSession`, whose generation invalidates
+captured `VerificationOperation` values when it forgets. An operation holds its field and exact
+whole-line refusal identity; the actor retains deadlines, corpus-write draining and retries.
+
 ## The shape: classify → tools → one constrained pass → verify
 
 | Stage | Budget | What it does |
