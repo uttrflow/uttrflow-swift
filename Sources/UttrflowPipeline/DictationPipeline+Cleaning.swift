@@ -150,13 +150,17 @@ extension DictationPipeline {
         let untidied = TransformationResult(text: text, producedBy: .untidied)
         guard layers.isOn(.formatting) else { return untidied }
 
+        let coldStart = ColdStartMeter()
         do {
             let tidied = try await metrics.measuringInTime(.transformation, clock: clock, generation: mine) {
-                try await withStageTimeout(StageTimeout.transformation, clock: clock) {
-                    [cleaner = runningCleaner] in
-                    try await cleaner.clean(request)
+                try await ColdStartMeter.$current.withValue(coldStart) {
+                    try await withStageTimeout(StageTimeout.transformation, clock: clock) {
+                        [cleaner = runningCleaner] in
+                        try await cleaner.clean(request)
+                    }
                 }
             }
+            if coldStart.total > .zero { await metrics.recordTidyColdStart(coldStart.total) }
             // A language model that never answers costs the tidying, never the words.
             guard let tidied else {
                 skipped(.tidy, .timeout, for: mine)

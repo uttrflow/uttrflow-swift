@@ -373,10 +373,17 @@ struct CorrectedWordsTests {
     func hugeRangeStaysBounded() {
         let changes = RecordedChanges(
             corrections: [made(range: 0..<5_000_000)], spokenWords: 2)
+        #expect(changes.correctedWords == 2, "the two in-range positions are still counted")
+    }
+
+    /// The time bound on the same range runs in `make bench`, since a parallel test run cannot keep a wall-clock limit honest.
+    @Test("a huge decoded range is counted in under a tenth of a second")
+    func hugeRangeStaysFast() {
+        let changes = RecordedChanges(
+            corrections: [made(range: 0..<5_000_000)], spokenWords: 2)
         let started = Date()
-        let count = changes.correctedWords
+        _ = changes.correctedWords
         let elapsed = Date().timeIntervalSince(started)
-        #expect(count == 2, "the two in-range positions are still counted")
         #expect(elapsed < 0.1, "a five-million-element range must not slow the count")
     }
 
