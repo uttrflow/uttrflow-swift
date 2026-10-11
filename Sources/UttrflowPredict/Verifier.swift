@@ -20,6 +20,7 @@ public actor Verifier {
     private var cache = VerdictCache()
     /// Invalidates verdicts still being computed when a forget action arrives.
     private var forgetGeneration: UInt64 = 0
+    private var aliasRevision: UInt64?
     /// Candidate lines whose durable refusal has not yet landed.
     private var pendingSupersessions: [PendingSupersession] = []
     private var nextSupersessionID: UInt64 = 0
@@ -110,15 +111,18 @@ public actor Verifier {
         before deadline: Deadline
     ) async -> Verdict {
         let generation = forgetGeneration
+        let aliases = await aliasSnapshot(in: surface)
         let key = VerdictCache.Key(
             candidate: candidate.text, context: Self.context(of: surface, typed: typed))
-        if let remembered = cache.verdict(for: key) { return remembered }
+        if let remembered = cache.verdict(for: key) {
+            return await isCurrent(aliases, generation: generation, in: surface) ? remembered : .rejected
+        }
         guard let token = CompletionToken(candidate.text) else { return .plausible }
 
         // Each lookup asks about its own word among its own kinds, so a path's name is not sought among whole paths.
         var judged: (word: String, prefix: String, known: Set<String>, caseSensitive: Bool)?
-        var complete = true
-        for lookup in Verification.attestation(for: token)?.lookups ?? [] {
+        var complete = aliases.words != nil
+        for lookup in Verification.attestation(for: token, aliases: aliases)?.lookups ?? [] {
             guard
                 let (known, lookupComplete) = await knownAndComplete(
                     of: lookup.kinds, in: surface, now: now)
@@ -130,7 +134,8 @@ public actor Verifier {
             let caseSensitive = lookup.kinds.contains(where: Self.requiresCaseSensitiveMatch)
             // Each kind attests under its own case rule, so a branch lookup cannot make a file name case-sensitive.
             guard !(await attests(lookup, in: surface, now: now)) else {
-                if generation == forgetGeneration { cache.remember(.attested, for: key) }
+                guard await isCurrent(aliases, generation: generation, in: surface) else { return .rejected }
+                if complete { cache.remember(.attested, for: key) }
                 return .attested
             }
             if judged == nil { judged = (lookup.word, lookup.prefix, known, caseSensitive) }
@@ -140,6 +145,9 @@ public actor Verifier {
             of: candidate.text, following: typed, before: deadline)
         guard plausibility != .overBudget else { return .rejected }
 
+        guard await isCurrent(aliases, generation: generation, in: surface) else { return .rejected }
+
+        let usesAlias = LineShape.of(token, metadata: aliases).isAliasDependent
         // Only a machine that answered can condemn a line for good; the model alone refuses it this time only.
         let verdict = await reported(
             Verification.verdict(
@@ -148,16 +156,19 @@ public actor Verifier {
                 caseSensitive: judged?.caseSensitive ?? false),
             on: candidate.text, leading: token.leading + (judged?.prefix ?? ""), in: surface,
             // A listing still unanswered may yet hold the word, so the verdict stands this time only and is not cached.
-            forGood: complete && judged != nil && Verification.isClosedVocabulary(for: token),
-            generation: generation)
-        if complete, generation == forgetGeneration { cache.remember(verdict, for: key) }
+            forGood: complete && judged != nil
+                && !usesAlias
+                && Verification.isClosedVocabulary(for: token, aliases: aliases),
+            generation: generation, aliases: aliases)
+        guard await isCurrent(aliases, generation: generation, in: surface) else { return .rejected }
+        if complete { cache.remember(verdict, for: key) }
         return verdict
     }
 
     /// The verdict in the whole line's terms, told to the store whenever it condemns the candidate for good.
     private func reported(
         _ verdict: Verdict, on text: String, leading: String, in surface: Surface, forGood: Bool,
-        generation: UInt64
+        generation: UInt64, aliases: AliasExpansionSnapshot
     ) async -> Verdict {
         switch verdict {
         case .corrected(let word):
@@ -165,12 +176,14 @@ public actor Verifier {
             // A file or branch the machine does not know today may exist tomorrow, so only a closed vocabulary supersedes.
             if forGood, generation == forgetGeneration {
                 await record(
-                    .supersede(text, corrected), candidate: text, in: surface, generation: generation)
+                    .supersede(text, corrected), candidate: text, in: surface, generation: generation,
+                    aliases: aliases)
             }
             return .corrected(corrected)
         case .rejected:
             if forGood, generation == forgetGeneration {
-                await record(.reject(text), candidate: text, in: surface, generation: generation)
+                await record(
+                    .reject(text), candidate: text, in: surface, generation: generation, aliases: aliases)
             }
             return .rejected
         case .attested, .plausible:
@@ -180,12 +193,13 @@ public actor Verifier {
 
     /// Writes a final refusal and holds it for retry when the store fails.
     private func record(
-        _ write: SupersessionWrite, candidate: String, in surface: Surface, generation: UInt64
+        _ write: SupersessionWrite, candidate: String, in surface: Surface, generation: UInt64,
+        aliases: AliasExpansionSnapshot
     ) async {
         guard let supersession else { return }
         await beginSupersessionOperation()
         defer { endSupersessionOperation() }
-        guard generation == forgetGeneration else { return }
+        guard await isCurrent(aliases, generation: generation, in: surface) else { return }
         do {
             try await apply(write, using: supersession, in: surface)
         } catch {
@@ -301,6 +315,7 @@ public actor Verifier {
         }
         forgetGeneration &+= 1
         cache.forgetEverything()
+        await index.forgetAliases()
         pendingSupersessions = []
         refusedThisSession = []
         await scoring?.forgetEverything()
@@ -342,8 +357,10 @@ public actor Verifier {
         for typed: String, in surface: Surface, now: ContinuousClock.Instant
     ) async -> ArgumentOptions {
         guard EnvironmentSource.workingDirectory(of: surface) != nil else { return .open }
+        let generation = forgetGeneration
         let token = CompletionToken(typed) ?? CompletionToken(leading: typed, token: "")
-        guard let choices = Verification.choices(for: token) else { return .open }
+        let aliases = await aliasSnapshot(in: surface)
+        guard let choices = Verification.choices(for: token, aliases: aliases) else { return .open }
         var offered: [String] = []
         var answered = false
         var everyLookupComplete = true
@@ -373,6 +390,7 @@ public actor Verifier {
         let distinct = offered.filter { seen.insert($0).inserted }.sorted { ($0.count, $0) < ($1.count, $1) }
         // Nothing offered while a relevant kind is still unanswered is not proof there is nothing: stay open rather than say none.
         guard !distinct.isEmpty || everyLookupComplete else { return .open }
+        guard await isCurrent(aliases, generation: generation, in: surface) else { return .open }
         return distinct.isEmpty ? .none : .among(Array(distinct.prefix(Verification.mostChoices)))
     }
 
@@ -385,11 +403,15 @@ public actor Verifier {
     public func standing(
         _ completions: [String], after typed: String, in surface: Surface, now: ContinuousClock.Instant
     ) async -> [String] {
+        let generation = forgetGeneration
+        let aliases = await aliasSnapshot(in: surface)
         var standing: [String] = []
         for completion in completions {
-            if await stands(completion, after: typed, in: surface, now: now) { standing.append(completion) }
+            if await stands(completion, after: typed, in: surface, now: now, aliases: aliases) {
+                standing.append(completion)
+            }
         }
-        return standing
+        return await isCurrent(aliases, generation: generation, in: surface) ? standing : []
     }
 
     /// Each generated line's mean log-probability per token from the pass that wrote it, absent where no pass measured it or no model is loaded.
@@ -406,13 +428,14 @@ public actor Verifier {
 
     /// Whether every word the model added is one the machine names, or one no listing could deny; a listing not yet answered vouches for nothing.
     private func stands(
-        _ completion: String, after typed: String, in surface: Surface, now: ContinuousClock.Instant
+        _ completion: String, after typed: String, in surface: Surface, now: ContinuousClock.Instant,
+        aliases: AliasExpansionSnapshot
     ) async -> Bool {
         guard await admits(completion, in: surface, now: now) else { return false }
         // A field that is not a directory has no listings, so nothing it holds is looked up.
         guard EnvironmentSource.workingDirectory(of: surface) != nil else { return true }
         for token in Verification.words(of: completion, addedAfter: typed) {
-            guard let attestation = Verification.attestation(for: token) else { continue }
+            guard let attestation = Verification.attestation(for: token, aliases: aliases) else { continue }
             var vouched = false
             for lookup in attestation.lookups where !vouched {
                 let answer = await knownAndComplete(of: lookup.kinds, in: surface, now: now)
@@ -487,6 +510,28 @@ public actor Verifier {
         }
         guard let known else { return nil }
         return (known, complete)
+    }
+
+    private func aliasSnapshot(in surface: Surface) async -> AliasExpansionSnapshot {
+        guard EnvironmentSource.workingDirectory(of: surface) != nil else {
+            return AliasExpansionSnapshot(words: [:], revision: 0)
+        }
+        let aliases = await index.aliasSnapshot()
+        if aliasRevision != aliases.revision {
+            cache.forgetEverything()
+            aliasRevision = aliases.revision
+        }
+        return aliases
+    }
+
+    private func isCurrent(
+        _ aliases: AliasExpansionSnapshot, generation: UInt64, in surface: Surface
+    ) async -> Bool {
+        guard EnvironmentSource.workingDirectory(of: surface) != nil else {
+            return generation == forgetGeneration
+        }
+        let current = await index.aliasSnapshot()
+        return generation == forgetGeneration && current.revision == aliases.revision
     }
 
     /// What the model says, silent when it is not up and over budget when it did not answer in time.
