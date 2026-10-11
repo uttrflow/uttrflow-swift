@@ -286,9 +286,10 @@ enum ShellAliases {
     static func expansions(in configuration: String) -> [String: [String]] {
         var expansions: [String: [String]] = [:]
         for line in configuration.split(separator: "\n") {
+            guard let (name, body) = binding(in: line) else { continue }
+            expansions[name] = nil
             // The body is one word, whose unquoted text is the command line the alias stands for.
-            guard let (name, body) = binding(in: line),
-                let quoted = ShellWords.commands(in: String(body), home: ""),
+            guard let quoted = ShellWords.commands(in: String(body), home: ""),
                 quoted.count == 1, let word = quoted.first?.words.first, quoted.first?.words.count == 1,
                 !word.isUnresolved,
                 let commands = ShellWords.commands(in: word.text, home: ""),
