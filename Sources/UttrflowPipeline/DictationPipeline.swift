@@ -54,11 +54,11 @@ public actor DictationPipeline {
     private let heardObservers = StateObservers<String?>()
 
     /// Counts dictations, so a cancel can name the one it abandoned.
-    private(set) var generation = 0
+    var generation = 0
     private var cancelledGeneration: Int?
 
     /// Held across every await before the state shows a dictation's next step, so no second entry slips in.
-    private var hasTurn = false
+    var hasTurn = false
 
     /// How long `prepare()` waits for the speech model before calling the load failed.
     private let speechLoadLimit: Duration
@@ -66,7 +66,7 @@ public actor DictationPipeline {
     private var loadsUnderWay = 0
 
     /// Reads how long the microphone has been open, closing over the injected clock.
-    private var stopwatch: (() -> Duration)?
+    var stopwatch: (() -> Duration)?
     var spokenFor: Duration?
     /// Reads how long ago the key came up, so the wait it costs the user is timed; `nil` for a retry.
     var sinceRelease: (() -> Duration)?
@@ -119,23 +119,23 @@ public actor DictationPipeline {
     }
 
     /// What the clean-up steps did to each piece of the dictation under way, reported as one when it ends.
-    private var cleaningRecords: [KeptRecord] = []
+    var cleaningRecords: [KeptRecord] = []
     /// Early spans the release join dropped, whose records are not part of the dictation's account.
-    private var droppedSpans: Set<UUID> = []
+    var droppedSpans: Set<UUID> = []
     /// The early span the running task tidies, so its record can be withdrawn if the span is dropped.
     @TaskLocal static var tidiedSpan: UUID?
 
     /// One piece's cleaning record and the early span it came from, if any.
-    private struct KeptRecord {
+    struct KeptRecord {
         let span: UUID?
         let record: CleaningRecord
     }
     /// Runs what is said while the command key is held, in place of inserting it.
     let commands: EditCommandRegistry
     /// Where the next recording goes, set by the key that opens it and spent when it opens.
-    private var nextRoute: UtteranceRoute = .dictation
+    var nextRoute: UtteranceRoute = .dictation
     /// Where the recording under way goes.
-    private var recordingRoute: UtteranceRoute = .dictation
+    var recordingRoute: UtteranceRoute = .dictation
 
     public init(
         capture: any AudioCaptureEngine,
@@ -239,7 +239,7 @@ public actor DictationPipeline {
     public var speechKind: SpeechEngineKind { speech.kind }
 
     /// Fixes all three for the dictation about to begin, spending the one-shot format choice when it is a new recording.
-    private func takeSettings(spendingFormat: Bool = true) {
+    func takeSettings(spendingFormat: Bool = true) {
         let held = spendingFormat ? nextFormat : nil
         if spendingFormat { nextFormat = nil }
         inUse = (cleaner, destinationOverrides.holding(oneShot: held), profile)
@@ -309,106 +309,7 @@ public actor DictationPipeline {
     // MARK: The sequence
 
     /// Whether a new dictation can begin, counting one that holds the turn before its state has moved.
-    private var isBusy: Bool { hasTurn || state.isBusy || early.decodesInFlight > 0 }
-
-    /// Begins listening. Does nothing if a dictation is already under way.
-    public func startRecording() async {
-        guard !isBusy, early.pendingCaptureElapsed == nil else { return }
-        // Said rather than recorded: the words would wait behind the load, under a button saying nothing.
-        guard !isLoading else { return transition(to: .failed(.stillLoading)) }
-        hasTurn = true
-        generation += 1
-        let mine = generation
-        observers.updateGeneration(mine)
-        defer { hasTurn = false }
-        await speech.warm()
-        await startRecordingUsingOpenCapture(for: mine)
-    }
-
-    /// Opens the microphone before a modifier shortcut settles, keeping speech from key-down onward.
-    public func beginModifierPress(measuring elapsed: @escaping @Sendable () -> Duration) async {
-        guard early.pendingCapture == nil, !isBusy, !isLoading else { return }
-        generation += 1
-        let mine = generation
-        observers.updateGeneration(mine)
-        early.pendingCaptureElapsed = elapsed
-        do {
-            try await metrics.measuring(.microphoneOpen, clock: clock, generation: mine) { [capture] in
-                try await capture.start()
-            }
-        } catch {
-            early.pendingCaptureElapsed = nil
-            transition(to: .failed(DictationFailure(error)))
-            return
-        }
-        early.pendingCapture = Task {}
-    }
-
-    /// Makes a modifier press's already-open microphone the recording under way.
-    @discardableResult
-    public func adoptModifierPress() async -> Bool {
-        guard !isBusy, !isLoading else {
-            await cancelModifierPress()
-            // Told as a shortcut press is told, so the press is not met with silence.
-            if !isBusy { transition(to: .failed(.stillLoading)) }
-            return false
-        }
-        hasTurn = true
-        let mine = generation
-        defer { hasTurn = false }
-        await speech.warm()
-        await startRecordingUsingOpenCapture(for: mine)
-        return state.isListening
-    }
-
-    /// Cancels a modifier press that became another shortcut before it settled.
-    public func cancelModifierPress() async {
-        guard early.pendingCapture != nil else { return }
-        early.pendingCapture = nil
-        early.pendingCaptureElapsed = nil
-        await capture.cancel()
-    }
-
-    /// Adopts audio already arriving as a dictation after the modifier press settles.
-    private func startRecordingUsingOpenCapture(for mine: Int) async {
-        screenReads = DictationScreenReads()
-        if let pendingCapture = early.pendingCapture {
-            await pendingCapture.value
-            early.pendingCapture = nil
-            let elapsed = early.pendingCaptureElapsed
-            early.pendingCaptureElapsed = nil
-            if let elapsed {
-                await metrics.record(
-                    .init(stage: .keyDownToAudio, duration: elapsed(), succeeded: true, generation: mine))
-            }
-        } else {
-            do {
-                try await metrics.measuring(.microphoneOpen, clock: clock, generation: mine) { [capture] in
-                    try await capture.start()
-                }
-            } catch {
-                guard !wasCancelled(mine) else { return }
-                transition(to: .failed(DictationFailure(error)))
-                return
-            }
-        }
-        guard !wasCancelled(mine) else {
-            await capture.cancel()
-            return
-        }
-        recordingRoute = nextRoute
-        nextRoute = .dictation
-        stopwatch = UttrflowCore.stopwatch(from: clock)
-        takeSettings()
-        spokenFor = nil
-        insertedInto = nil
-        insertedIntoIdentifier = nil
-        destinationIsSecure = false
-        cleaningRecords = []
-        droppedSpans = []
-        transition(to: .recording)
-        beginWorkingAhead(mine)
-    }
+    var isBusy: Bool { hasTurn || state.isBusy || early.decodesInFlight > 0 }
 
     /// Stops listening and runs the rest: transcribe, tidy, insert.
     public func finishRecording() async {
@@ -613,7 +514,7 @@ public actor DictationPipeline {
     }
 
     /// Stops a span the release join re-decodes, and takes its record out of the dictation's account.
-    private func withdraw(_ span: Span) async {
+    func withdraw(_ span: Span) async {
         let id: UUID?
         switch span {
         case .done(_, let span): id = span
@@ -648,122 +549,6 @@ public actor DictationPipeline {
         case copy
         /// Run by the edit commands against the selection; never inserted.
         case command
-    }
-
-    private func process(_ audio: AudioSamples, _ mine: Int, delivery: Delivery) async {
-        // Checked before the state moves, so an abandoned run never overwrites the rest a cancel sets.
-        guard !wasCancelled(mine) else { return }
-        if state != .transcribing { transition(to: .transcribing) }
-        if let quality = CaptureQuality.measure(
-            samples: audio.samples, sampleRate: audio.sampleRate, gaps: audio.gaps,
-            chosenInputMissing: audio.chosenInputMissing)
-        {
-            inputTooLoud = InputTooLoud.isTooLoud(clippedFraction: quality.clippedFraction)
-            await metrics.recordCaptureQuality(quality)
-        }
-        show(heard: nil)
-
-        let handed = await takeOver(for: audio, delivery: delivery, generation: mine)
-        let tally = StageTally()
-        var appContext = handed.context
-        if let backlog = handed.backlog { await metrics.recordBacklog(backlog) }
-
-        if dictationContext == nil {
-            let seeing: AppContext
-            if let appContext {
-                seeing = appContext
-            } else {
-                seeing = await contextFor(delivery)
-            }
-            appContext = seeing
-            await resolveDictationContext(
-                seeing, cleaner: runningCleaner, overrides: runningOverrides)
-        }
-        let message: RunningMessage
-        switch await recognise(
-            audio, handed.spans + handed.remainder.map(Span.pending), early: handed.context,
-            seeing: appContext, delivery: delivery, recording: tally, for: mine)
-        {
-        case .failed(let failure):
-            await tally.report(to: metrics)
-            guard !wasCancelled(mine) else { return }
-            await fail(failure)
-            return
-        case .abandoned:
-            return
-        case .heard(let heard, let seen):
-            appContext = seen
-            var running = handed.running
-            let situation =
-                dictationContext?.situation
-                ?? SituationResolver.resolve(from: seen ?? AppContext(), overrides: runningOverrides)
-            for piece in heard.dropFirst(running.pieces.count) {
-                running.fold(piece, going: situation)
-            }
-            message = RunningMessage(heard, keeping: running)
-        }
-        guard !wasCancelled(mine) else { return }
-        await tally.report(to: metrics)
-        await deliver(message, from: audio, read: appContext, recording: tally, delivery: delivery, for: mine)
-    }
-
-    /// How recognising the rest of a dictation ended; an exit that is not one of these does not compile.
-    enum Recognition {
-        case heard([Piece], seeing: AppContext?)
-        case failed(DictationFailure)
-        case abandoned
-    }
-
-    /// Finishes the early loop's work and takes it over, dropping pieces cut from other audio than this.
-    private func takeOver(
-        for audio: AudioSamples, delivery: Delivery, generation mine: Int
-    ) async -> Takeover {
-        // Read before the drain: a piece under way has not moved the cut yet and is part of the backlog.
-        let cutAtKeyUp = early.cut
-        // A piece under way is finished, not thrown away; the loop then ends itself, as the state has left `.recording`.
-        if !early.recognising { early.task?.cancel() }
-        if let earlyWork = early.task {
-            // Measured only where a piece really is in flight, so working ahead of nothing gains no row.
-            if early.pieceInFlight {
-                await metrics.measuring(.drain, clock: clock, generation: mine) { await earlyWork.value }
-            } else {
-                await earlyWork.value
-            }
-        }
-        let handed = early.handOff()
-        var spans = handed.spans
-        var cut = handed.cut
-        let previousWindowStart = handed.lastWindowStart
-        // Pieces cut from other audio than this cannot be joined to it.
-        let otherAudio = delivery == .copy || cut > audio.samples.count
-        if otherAudio {
-            for span in spans { await withdraw(span) }
-            spans = []
-            cut = 0
-            cleaningRecords = []
-        }
-
-        let backlog =
-            otherAudio
-            ? nil
-            : WorkAheadBacklog(
-                seconds: Double(max(0, audio.samples.count - cutAtKeyUp)) / Double(audio.sampleRate),
-                pieces: runningWindowing.windows(
-                    in: audio.samples, sampleRate: audio.sampleRate, from: cutAtKeyUp,
-                    joiningPreviousWindowFrom: nil, boundaries: audio.discontinuities
-                ).count)
-        var remainder = runningWindowing.windows(
-            in: audio.samples, sampleRate: audio.sampleRate, from: cut,
-            joiningPreviousWindowFrom: delivery != .copy ? previousWindowStart : nil,
-            boundaries: audio.discontinuities)
-        if let first = remainder.first, first.lowerBound < cut, let dropped = spans.popLast() {
-            await withdraw(dropped)
-        }
-        // Nothing at all still goes to the recogniser, whose refusal names the reason.
-        if spans.isEmpty, remainder.isEmpty { remainder = [cut..<audio.samples.count] }
-        return Takeover(
-            spans: spans, running: handed.running, remainder: remainder, context: handed.context,
-            backlog: backlog)
     }
 
     /// What the recogniser made of one window.

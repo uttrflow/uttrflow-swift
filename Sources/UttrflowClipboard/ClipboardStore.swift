@@ -170,18 +170,7 @@ public actor ClipboardStore {
 
         let existing = loaded()
         let clip = secrecy.applied(to: clip)
-        let previous = Self.previous(for: clip, in: existing)
-        var arrival = previous.map { Self.inheriting($0, from: clip) } ?? clip
-        if let alias = arrival.alias,
-            existing.contains(where: { $0.id != arrival.id && $0.alias == alias })
-        {
-            arrival.alias = nil
-        }
-        arrival = arrival.orderedForEviction(nextUseOrder())
-
-        // Prepended, not sorted in: a machine whose clock moved must not shuffle what the user sees.
-        let displaced = previous.map { [$0.id] } ?? []
-        let updated = [arrival] + existing.filter { !displaced.contains($0.id) }
+        let updated = Self.recording(clip, in: existing, nextUseOrder: nextUseOrder)
         return try settled(updated, keeping: retention)
     }
 
@@ -202,22 +191,9 @@ public actor ClipboardStore {
             return ClipboardRestoreResult(
                 clips: policy.retained(existing, keeping: retention), aliasWasAlreadyInUse: false)
         }
-        let matching = Self.previous(for: clip, in: existing)
-        let aliasConflict =
-            clip.alias.map { alias in
-                existing.contains { $0.id != matching?.id && $0.alias == alias }
-            } ?? false
-        var deleted = clip
-        if aliasConflict { deleted.alias = nil }
-
-        guard let matching else {
-            let clips = try settled([deleted] + existing, keeping: retention)
-            return ClipboardRestoreResult(clips: clips, aliasWasAlreadyInUse: aliasConflict)
-        }
-        let restored = Self.restoring(deleted, over: matching)
-        let updated = existing.map { $0.id == matching.id ? restored : $0 }
-        let clips = try settled(updated, keeping: retention)
-        return ClipboardRestoreResult(clips: clips, aliasWasAlreadyInUse: aliasConflict)
+        let reconciled = Self.restoring(clip, in: existing)
+        let clips = try settled(reconciled.clips, keeping: retention)
+        return ClipboardRestoreResult(clips: clips, aliasWasAlreadyInUse: reconciled.aliasWasAlreadyInUse)
     }
 
     /// Moves a used clip to the top of its history or saved pool; the disk hears of it with the next write.

@@ -80,4 +80,41 @@ extension ClipboardStore {
             $0.timesCopied = newer.timesCopied == .max ? .max : newer.timesCopied + 1
         }
     }
+
+    /// Reconciles an arrival before advancing its order once and placing it first.
+    static func recording(
+        _ clip: Clip, in existing: [Clip], nextUseOrder: () -> UInt64
+    ) -> [Clip] {
+        let previous = Self.previous(for: clip, in: existing)
+        var arrival = previous.map { Self.inheriting($0, from: clip) } ?? clip
+        if let alias = arrival.alias,
+            existing.contains(where: { $0.id != arrival.id && $0.alias == alias })
+        {
+            arrival.alias = nil
+        }
+        arrival = arrival.orderedForEviction(nextUseOrder())
+
+        // Prepended, not sorted in: a machine whose clock moved must not shuffle what the user sees.
+        let displaced = previous.map { [$0.id] } ?? []
+        let updated = [arrival] + existing.filter { !displaced.contains($0.id) }
+        return updated
+    }
+
+    /// Reconciles an undo with newer duplicates and occupied aliases before the actor settles it.
+    static func restoring(_ clip: Clip, in existing: [Clip]) -> ClipboardRestoreResult {
+        let matching = Self.previous(for: clip, in: existing)
+        let aliasConflict =
+            clip.alias.map { alias in
+                existing.contains { $0.id != matching?.id && $0.alias == alias }
+            } ?? false
+        var deleted = clip
+        if aliasConflict { deleted.alias = nil }
+
+        guard let matching else {
+            return ClipboardRestoreResult(clips: [deleted] + existing, aliasWasAlreadyInUse: aliasConflict)
+        }
+        let restored = Self.restoring(deleted, over: matching)
+        let updated = existing.map { $0.id == matching.id ? restored : $0 }
+        return ClipboardRestoreResult(clips: updated, aliasWasAlreadyInUse: aliasConflict)
+    }
 }
