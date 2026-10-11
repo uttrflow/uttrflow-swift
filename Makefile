@@ -281,6 +281,7 @@ docs-audit: ## Prove the documentation still describes this tree, including that
 .PHONY: data-manifest
 data-manifest: ## Prove every bundled resource file is in Resources/DataManifest.json with its digest. Needs no build.
 	@python3 Scripts/data_manifest_test.py
+	@python3 Scripts/provider_mark_test.py
 	@python3 Scripts/reproduce_assets_test.py
 	@python3 Scripts/data_manifest.py
 	@cd Scripts && python3 ngram_sources_test.py
