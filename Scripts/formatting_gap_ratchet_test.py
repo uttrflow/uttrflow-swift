@@ -1,12 +1,13 @@
 """The formatting gap updater only removes fully measured passing case IDs."""
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
 
-from formatting_gap_ratchet import REGISTRY, RULES, GOLDEN, PAGE, run, shrink, shrink_rules, validate_outputs, replace_outputs
+from formatting_gap_ratchet import REGISTRY, RULES, GOLDEN, PAGE, run, shrink, shrink_rules, validate_outputs, replace_outputs, validate_terminal_stops, run_terminal_stops
 
 SOURCE = '''before
     static let knownGaps: Set<String> = [
@@ -163,6 +164,72 @@ class FormattingGapRatchetTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             shrink(SOURCE.replace("case-second", "case-first"), [])
 
+
+
+class TerminalStopAbsorptionTests(unittest.TestCase):
+    original = "letter\tHello\\nRegards, Mira.\nother\tKeep this.\n"
+    generated = "letter\tHello\\nRegards, Mira\nother\tKeep this.\n"
+
+    def test_accepts_only_the_named_final_stop(self):
+        self.assertEqual(validate_terminal_stops(self.original, self.generated, ["letter"]), ["letter"])
+
+    def test_rejects_words_case_and_other_punctuation(self):
+        for text in ["Hello\\nRegards, Mina", "Hello\\nRegards, mira", "Hello\\nRegards Mira", "Hello\\nRegards, Mira!"]:
+            with self.subTest(text=text), self.assertRaises(ValueError):
+                validate_terminal_stops(self.original, f"letter\t{text}\nother\tKeep this.\n", ["letter"])
+
+    def test_rejects_an_unnamed_change(self):
+        with self.assertRaises(ValueError):
+            validate_terminal_stops(self.original, self.generated.replace("Keep this.", "Keep this"), ["letter"])
+
+    def test_rejects_missing_duplicate_or_empty_requests(self):
+        for cases in [["absent"], ["letter", "letter"], []]:
+            with self.subTest(cases=cases), self.assertRaises(ValueError):
+                validate_terminal_stops(self.original, self.generated, cases)
+
+    def test_rejects_changed_or_malformed_case_sets(self):
+        for text in [self.generated + "extra\tText\n", "letter\tText\n", "malformed\n", self.generated + "letter\tDuplicate\n"]:
+            with self.subTest(text=text), self.assertRaises(ValueError):
+                validate_terminal_stops(self.original, text, ["letter"])
+
+    def test_already_recorded_output_is_idempotent(self):
+        self.assertEqual(validate_terminal_stops(self.generated, self.generated, ["letter"]), [])
+
+    def test_absorption_preserves_all_gap_artifacts(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            originals = {REGISTRY: SOURCE, RULES: RULES_SOURCE, GOLDEN: self.original, PAGE: "page"}
+            for path, text in originals.items():
+                (root / path).parent.mkdir(parents=True, exist_ok=True)
+                (root / path).write_text(text)
+            with patch.dict(os.environ, {}, clear=True), patch("formatting_gap_ratchet.generated_terminal_stops", return_value=self.generated):
+                self.assertEqual(run_terminal_stops(root, True, ["letter"]), 0)
+            for path, text in originals.items():
+                self.assertEqual((root / path).read_text(), self.generated if path == GOLDEN else text)
+
+    def test_refuses_an_artifact_changed_during_generation(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            originals = {REGISTRY: SOURCE, RULES: RULES_SOURCE, GOLDEN: self.original, PAGE: "page"}
+            for path, text in originals.items():
+                (root / path).parent.mkdir(parents=True, exist_ok=True)
+                (root / path).write_text(text)
+
+            def concurrent_change(*_):
+                (root / REGISTRY).write_text("changed")
+                return self.generated
+
+            with patch.dict(os.environ, {}, clear=True), patch("formatting_gap_ratchet.generated_terminal_stops", side_effect=concurrent_change):
+                with self.assertRaisesRegex(ValueError, "artifacts changed"):
+                    run_terminal_stops(root, True, ["letter"])
+            self.assertEqual((root / GOLDEN).read_text(), self.original)
+            self.assertEqual((root / REGISTRY).read_text(), "changed")
+
+    def test_refuses_generation_under_ci(self):
+        with patch.dict(os.environ, {"CI": "1"}), patch("formatting_gap_ratchet.generated_terminal_stops") as generate:
+            with self.assertRaises(ValueError):
+                run_terminal_stops(Path("absent"), True, ["letter"])
+            generate.assert_not_called()
 
 if __name__ == "__main__":
     unittest.main()

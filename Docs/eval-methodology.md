@@ -39,6 +39,11 @@ and the class that moved, never alone.
 
 Saved adapter comparisons require unique adapter names in both reports. Duplicate rows return an
 incomparable result before constructing the baseline lookup; label mismatch retains precedence.
+After label, row identity and denominator checks, both reports must have nonnegative raw counts
+with `exactHits <= exactCases <= cases`; impossible saved counts return typed `Incomparable`
+rather than a clean verdict. Added-token and shape-violation sums may exceed the case count.
+Saved digit-string comparisons require unique shape names in each report before constructing their
+baseline lookup; label mismatch retains precedence.
 
 - A run is compared against a stored baseline, and the gate says *better* or *worse*. "The
   numbers looked fine" is not evidence: a change to the model, the prompt, the normalisation or
@@ -819,6 +824,10 @@ speaker, the substitutions are few, and from k=10 only one or two voices are lef
 interval collapses. Until the full run on public accented read speech is recorded here, no channel
 work may assume that per-speaker learning helps, at any k.
 ## Real-speaker accent slices: what a group row may claim
+
+`accent-groups` rejects non-finite or non-positive `--decision-bound` values and rounded decision
+requirements outside the integer range before reading rows or decoding a manifest. Representable
+positive bounds retain the existing rounded 3/n requirement, including bounds above one.
 
 The synthetic table above decides which classes are worth recording real speakers for; a
 real-speaker slice decides whether a group is served worse. This is the specification any

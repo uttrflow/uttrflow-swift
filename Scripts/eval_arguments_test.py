@@ -89,5 +89,43 @@ class SweepGridArgumentTests(unittest.TestCase):
             self.assertEqual([trial["value"] for trial in saved["trials"]], [0.2, 0.3])
 
 
+class AccentGroupBoundArgumentTests(unittest.TestCase):
+    """Drives the saved-count CLI without loading a model."""
+
+    def run_with(self, rows, *arguments):
+        return subprocess.run(
+            [BINARY, "accent-groups", "--rows", rows, *arguments],
+            capture_output=True, text=True, timeout=30,
+        )
+
+    def test_invalid_bounds_are_refused_before_reading_rows(self):
+        with tempfile.TemporaryDirectory(prefix="accent-bound-") as folder:
+            missing = os.path.join(folder, "missing.tsv")
+            for bound in ["0", "-0.001", "nan", "inf", "-inf", "1e-320", "1e-19"]:
+                with self.subTest(bound=bound):
+                    finished = self.run_with(missing, f"--decision-bound={bound}")
+                    self.assertEqual(finished.returncode, 64, finished.stderr)
+                    self.assertIn("--decision-bound must be finite and positive", finished.stderr)
+                    self.assertIn("usage:", finished.stderr.lower())
+                    self.assertNotIn("cannot read the counts table", finished.stderr)
+
+    def test_default_and_representable_positive_bounds_keep_their_report(self):
+        with tempfile.TemporaryDirectory(prefix="accent-bound-") as folder:
+            rows = os.path.join(folder, "counts.tsv")
+            with open(rows, "w", encoding="utf-8") as output:
+                output.write("speaker-a\tgroup-a\tverified\t0\t10\t0\t0\n")
+            default = self.run_with(rows)
+            self.assertEqual(default.returncode, 0, default.stderr)
+            self.assertIn("insufficient evidence (needs 3000 decisions)", default.stdout)
+            controls = [("0.001", 3000), ("0.1", 30), ("2", 2), ("1e-18", 3 * 10**18)]
+            for bound, needed in controls:
+                with self.subTest(bound=bound):
+                    finished = self.run_with(rows, f"--decision-bound={bound}")
+                    self.assertEqual(finished.returncode, 0, finished.stderr)
+                    expected = default.stdout.replace("needs 3000 decisions", f"needs {needed} decisions")
+                    self.assertEqual(finished.stdout, expected)
+                    self.assertNotIn("usage:", finished.stderr.lower())
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

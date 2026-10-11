@@ -52,6 +52,13 @@ struct AccentGroupReport: AsyncParsableCommand {
         guard (rows == nil) != (manifest == nil) else {
             throw ValidationError("give exactly one of --rows or --manifest")
         }
+        guard decisionBound.isFinite, decisionBound > 0,
+            Int(exactly: SpeakerGroupReport.roundedDecisionRequirement(for: decisionBound)) != nil
+        else {
+            throw ValidationError(
+                "--decision-bound must be finite and positive with an integer-representable requirement"
+            )
+        }
         guard manifest != nil else { return }
         guard label.flatMap(AccentLabelKind.init(rawValue:)) != nil else {
             throw ValidationError("--manifest needs --label verified or --label self-described")
