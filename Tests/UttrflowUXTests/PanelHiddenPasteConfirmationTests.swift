@@ -55,7 +55,7 @@ struct PanelHiddenPasteConfirmationTests {
     @Test("the question never carries the clip's words")
     func questionHidesTheClip() throws {
         for unclassified in [false, true] {
-            let sheet = try #require(PanelPresenter.present(Self.asking(reason: unclassified ? .hiddenIntoUnreadableField : .hiddenIntoVisibleField)).sheet)
+            let sheet = try #require(PanelPresenter.present(Self.asking(unclassified: unclassified)).sheet)
             let drawn = [
                 sheet.title, sheet.note ?? "", sheet.confirmTitle, sheet.draft, sheet.conflict ?? "",
             ]
