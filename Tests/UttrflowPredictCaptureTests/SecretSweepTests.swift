@@ -2,6 +2,7 @@
 
 import Foundation
 import Testing
+import UttrflowTestSupport
 import UttrflowPredict
 import UttrflowPredictStore
 
@@ -49,8 +50,8 @@ struct SecretSweepTests {
             Set(try await store.candidates(for: Self.shell, matching: "git").map(\.text)) == [
                 "git status", "git log",
             ])
-        #expect(try await store.successors(for: Self.shell, after: "git status").isEmpty)
-        #expect(try await store.successors(for: Self.shell, after: "ls -la").map(\.text) == ["git log"])
+        #expect(try await store.legacySuccessors(for: Self.shell, after: "git status").isEmpty)
+        #expect(try await store.legacySuccessors(for: Self.shell, after: "ls -la").map(\.text) == ["git log"])
     }
 
     @Test("The sweep runs once per version of the rules, and again when the rules widen")
@@ -95,7 +96,7 @@ struct SecretSweepTests {
         #expect(try await CaptureGate.sweepSecrets(from: store) == 1)
         #expect(try await store.entryCount() == 2)
         #expect(try await store.candidates(for: Self.browser, matching: "123").isEmpty)
-        #expect(try await store.successors(for: Self.browser, after: "hello").isEmpty)
+        #expect(try await store.legacySuccessors(for: Self.browser, after: "hello").isEmpty)
         #expect(try await store.candidates(for: Self.terminal, matching: "123").map(\.text) == ["123456"])
         #expect(try await CaptureGate.sweepSecrets(from: store) == 0)
     }

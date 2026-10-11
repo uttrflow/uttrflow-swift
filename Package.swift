@@ -258,7 +258,7 @@ let package = Package(
         // Fakes and builders shared by every test target. Never linked into the shipping app.
         .target(
             name: "UttrflowTestSupport",
-            dependencies: ["UttrflowCore"],
+            dependencies: ["UttrflowCore", "UttrflowPredict"],
             swiftSettings: sharedSwiftSettings
         ),
 
@@ -497,7 +497,7 @@ let package = Package(
             name: "UttrflowPredictCaptureTests",
             dependencies: [
                 "UttrflowContext", "UttrflowCore", "UttrflowPredict",
-                "UttrflowPredictCapture", "UttrflowPredictStore",
+                "UttrflowPredictCapture", "UttrflowPredictStore", "UttrflowTestSupport",
             ],
             swiftSettings: sharedSwiftSettings
         ),

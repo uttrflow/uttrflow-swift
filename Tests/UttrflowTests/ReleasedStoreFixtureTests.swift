@@ -10,6 +10,7 @@ import UttrflowPredictCapture
 import UttrflowPredictStore
 import UttrflowSettings
 import Testing
+import UttrflowTestSupport
 
 /// Opens every store file kept from a released build with this build's code. See `Tests/Fixtures/stores/README.md`.
 @Suite("Released store fixtures")
@@ -184,7 +185,7 @@ struct ReleasedStoreFixtureTests {
             let corpus = try PredictStore(path: file.path(percentEncoded: false), encryptedStore: store)
             let field = Surface(bundleIdentifier: "com.example.terminal", role: "AXTextArea")
             let first = try #require(try await corpus.candidates(for: field, matching: "git").first)
-            let next = try await corpus.successors(for: field, after: first.text).first?.text ?? ""
+            let next = try await corpus.legacySuccessors(for: field, after: first.text).first?.text ?? ""
             return Opened(
                 count: try await corpus.entryCount(),
                 sample: "\(first.text) \(first.evidence?.count ?? 0) \(first.evidence?.accepted ?? 0) \(next)"

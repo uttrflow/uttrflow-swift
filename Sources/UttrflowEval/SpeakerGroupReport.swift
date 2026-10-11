@@ -78,6 +78,11 @@ public struct SpeakerGroupReport: Sendable, Equatable {
     public let rows: [Row]
     public let differences: [Difference]
 
+    /// Rounds the decision requirement for a report bound using the 3/n rule.
+    package static func roundedDecisionRequirement(for bound: Double) -> Double {
+        (3 / bound).rounded(.up)
+    }
+
     /// Builds the report; `decisionBound` is the false-override rate a row must be able to bound, by the 3/n rule.
     public init(clips: [SpeakerClip], decisionBound: Double = 0.001) {
         self.init(clips: clips, decisionBound: decisionBound, bootstrap: .standard)
@@ -87,7 +92,7 @@ public struct SpeakerGroupReport: Sendable, Equatable {
         let grouped = Dictionary(grouping: clips) { GroupKey(group: $0.group, label: $0.label) }
         let keys = grouped.keys.sorted()
         let speakersByKey = keys.map { key in Self.speakers(grouped[key] ?? []) }
-        let needed = Int((3 / decisionBound).rounded(.up))
+        let needed = Int(Self.roundedDecisionRequirement(for: decisionBound))
         var generator = SplitMix(state: bootstrap.seed)
         var rows: [Row] = []
         for (key, speakers) in zip(keys, speakersByKey) {
