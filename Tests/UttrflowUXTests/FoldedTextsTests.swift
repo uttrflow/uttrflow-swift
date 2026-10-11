@@ -41,6 +41,24 @@ struct FoldedTextsTests {
         #expect(memo.text(of: edited) == "three-four")
     }
 
+    @Test("pruning to the live clip list refolds only a clip that was dropped")
+    func pruneForgetsDeletedClips() {
+        let kept = PanelFixture.clip("kept text")
+        let deleted = PanelFixture.clip("deleted text")
+        let folds = Atomic<Int>(0)
+        let memo = FoldedTexts { text in
+            folds.add(1, ordering: .relaxed)
+            return text
+        }
+        _ = memo.text(of: kept)
+        _ = memo.text(of: deleted)
+        memo.prune(to: [kept.id])
+        _ = memo.text(of: kept)
+        #expect(folds.load(ordering: .relaxed) == 2)
+        _ = memo.text(of: deleted)
+        #expect(folds.load(ordering: .relaxed) == 3)
+    }
+
     @Test("an overlong grapheme keeps only the bounded prefix searchable")
     func boundsOverlongGrapheme() {
         let text = "a" + String(repeating: "\u{0301}", count: 100_000) + "x"

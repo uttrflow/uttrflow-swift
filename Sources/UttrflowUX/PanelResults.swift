@@ -80,11 +80,10 @@ extension PanelSnapshot {
     /// What the panel is showing right now, found once for each list of clips, query and tab, so Return and an arrow key share the search.
     public var results: PanelResults {
         let view = PanelSearchMemo.View(self)
-        let (rows, omitted, listID) = searchMemo.rows(
-            for: view, scanning: matches(ruledIn:), ranking: ranked)
+        let (rows, omitted, listID, selectedIndex) = PanelCache.current.searchMemo.rows(
+            for: view, selecting: selection, scanning: matches(ruledIn:), ranking: ranked)
         return PanelResults(
-            rows: rows, selectedIndex: searchMemo.index(of: selection, for: view),
-            omitted: omitted, listID: listID)
+            rows: rows, selectedIndex: selectedIndex, omitted: omitted, listID: listID)
     }
 
     /// Every clip this view admits, and why it is here; `ruledIn` names the clips a shorter query found, whose text alone still has to be searched, and `nil` searches every clip's.
@@ -215,7 +214,7 @@ extension PanelSnapshot {
             (.alias, clip.alias.map { SearchFolding.folded($0) ?? $0 }),
             (.tag, nil),
             (.category, clip.category.map { SearchFolding.folded($0) ?? $0 }),
-            (.content, searchingText ? foldedTexts.text(of: clip) : nil),
+            (.content, searchingText ? PanelCache.current.foldedTexts.text(of: clip) : nil),
         ]
         // An alias is matched by its handle, so "/pg" and "pg pr" find "pgprod" while it is typed.
         let aliasNeedle = PanelAlias.handle(needle, locale: locale)

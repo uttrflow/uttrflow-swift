@@ -21,7 +21,7 @@ struct ClipboardPreferencesRecoveryTests {
             at: preferencesURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Data("{".utf8).write(to: preferencesURL)
 
-        let app = AppDelegate(container: root)
+        let app = AppDelegate(container: root, clipboardSource: InMemoryClipboardSource())
         #expect(app.isClipboardPaused)
         #expect(app.actionNotice?.message.contains("Your exclusion list could not be read") == true)
         #expect(app.actionNotice?.action?.intent == .restoreClipboardPreferences)
