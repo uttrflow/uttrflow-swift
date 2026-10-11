@@ -25,20 +25,20 @@ final class PanelRowMemo: Sendable {
         let isGone: Bool
     }
 
-    private struct PresentationKey: Equatable {
+    private struct PresentationKey: Equatable, Sendable {
         let listID: UUID
         let context: Context
     }
+
+    private enum Slot: Hashable, Sendable { case current }
 
     private struct Built {
         var context: Context?
         var rows = Memo<Clip.ID, Key, PanelRow>()
         var builds = 0
-        var presentationKey: PresentationKey?
         var presentationID = UUID()
-        var presentedRows: [PanelRow]?
-        var groupedKey: PresentationKey?
-        var groupedRows: [PanelResultGroup]?
+        var presentedRows = Memo<Slot, PresentationKey, [PanelRow]>(limit: 1)
+        var groupedRows = Memo<Slot, PresentationKey, [PanelResultGroup]>(limit: 1)
         var rowVisits = 0
         var groupBuilds = 0
     }
@@ -58,10 +58,7 @@ final class PanelRowMemo: Sendable {
         building build: (PanelResult) -> PanelRow
     ) -> [PanelRow] {
         let key = PresentationKey(listID: listID, context: context)
-        if let cached = built.withLock({ memo -> [PanelRow]? in
-            guard memo.presentationKey == key else { return nil }
-            return memo.presentedRows
-        }) {
+        if let cached = built.withLock({ $0.presentedRows.cachedValue(for: .current, source: key) }) {
             return cached
         }
 
@@ -73,11 +70,9 @@ final class PanelRowMemo: Sendable {
             rows.append(row)
         }
         built.withLock { memo in
-            memo.presentationKey = key
-            memo.presentedRows = rows
+            memo.presentedRows.store(rows, for: .current, source: key)
             memo.presentationID = UUID()
-            memo.groupedKey = nil
-            memo.groupedRows = nil
+            memo.groupedRows = Memo(limit: 1)
         }
         return rows
     }
@@ -86,16 +81,12 @@ final class PanelRowMemo: Sendable {
         for listID: UUID, in context: Context, building build: () -> [PanelResultGroup]
     ) -> [PanelResultGroup] {
         let key = PresentationKey(listID: listID, context: context)
-        if let cached = built.withLock({ memo -> [PanelResultGroup]? in
-            guard memo.groupedKey == key else { return nil }
-            return memo.groupedRows
-        }) {
+        if let cached = built.withLock({ $0.groupedRows.cachedValue(for: .current, source: key) }) {
             return cached
         }
         let rows = build()
         built.withLock { memo in
-            memo.groupedKey = key
-            memo.groupedRows = rows
+            memo.groupedRows.store(rows, for: .current, source: key)
             memo.groupBuilds += 1
         }
         return rows

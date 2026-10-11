@@ -60,6 +60,8 @@ already in memory. Each sealed index carries the version of the clip detector th
 increment that version when detector changes alter stored classifications. When a stored version
 is older, the first list is returned before the store classifies clips in
 utility-priority batches; a completed pass writes the new classifications and version together.
+`ClipReclassification` owns the batch transform, snapshot reconciliation and eviction-order/secrecy
+projection. The store owns the tasks, write refusals, version promotion and committed cache updates.
 `clips(keeping:)`, the read ⇧⌘V waits on, does no I/O after that first load except the
 best-effort rewrite when the retention window has dropped clips; it never scans the picture
 folder or reads a picture whole, and the first load schedules the bounded-header migration
