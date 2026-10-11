@@ -56,8 +56,11 @@ make release-quality BAKEOFF_BASELINE=<saved bake-off result> RUN=<uttrflow-dev 
 ```
 
 It exits non-zero when any gate fails or has no verdict, and `dist/release-quality.md` names
-which ([`Docs/releasing.md`](Docs/releasing.md#the-gate-before-a-release)). Then tag a candidate
-and let it soak:
+which ([`Docs/releasing.md`](Docs/releasing.md#the-gate-before-a-release)). Then run
+`make reproduce-assets TAG=<tag> ASSET_CACHE=<folder>` on the tag you are about to cut and attach its
+output to the candidate's release notes
+([`Docs/data-manifest.md`](Docs/data-manifest.md#reproducing-a-fitted-asset-from-its-tag)).
+Then tag a candidate and let it soak:
 
 ```bash
 git checkout main && git pull
