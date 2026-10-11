@@ -25,9 +25,10 @@ struct PictureVault {
         return FileManager.default.fileExists(atPath: url.path(percentEncoded: false))
     }
 
-    /// The bytes of a clip's picture, or `nil` when the file has gone from under the app.
-    func imageData(for image: ClipImage, unreplaceable: inout Set<URL>) -> Data? {
-        guard let url = pictureURL(image.file), let data = try? Data(contentsOf: url) else { return nil }
+    /// Opens picture bytes or preserves their unreadable file.
+    func imageData(
+        _ data: Data, from url: URL, for image: ClipImage, unreplaceable: inout Set<URL>
+    ) -> Data? {
         guard let encryptedStore else { return data }
         if EncryptedStore.isSealed(data) {
             do { return try encryptedStore.open(data, for: image.file) } catch {

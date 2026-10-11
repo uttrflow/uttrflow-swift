@@ -483,7 +483,11 @@ public actor ClipboardStore {
 
     /// The bytes of a clip's picture, or `nil` when the file has gone from under the app.
     public func imageData(for image: ClipImage) -> Data? {
-        pictureVault.imageData(for: image, unreplaceable: &indexReader.unreplaceable)
+        guard let url = pictureVault.pictureURL(image.file), let data = try? Data(contentsOf: url) else {
+            return nil
+        }
+        return pictureVault.imageData(
+            data, from: url, for: image, unreplaceable: &indexReader.unreplaceable)
     }
 
     /// Releases the pictures held for an undo, deleting each one no clip has taken back.
