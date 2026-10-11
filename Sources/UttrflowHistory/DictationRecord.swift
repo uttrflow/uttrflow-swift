@@ -93,7 +93,6 @@ public struct DictationRecord: Sendable, Equatable, Identifiable, Codable {
             .compactMap(RefusalKind.init(rawValue:))
         // A destination a newer build adds, or a count that is not positive, reads as no notation, never a discarded file.
         notation = try? values.decodeIfPresent(NotationUse.self, forKey: .notation)
-            .flatMap { NotationUse(storing: $0.destination, conversions: $0.conversions) }
     }
 
     /// Whether this is still within `days` of `now`; the one place "deleted after N days" is decided.

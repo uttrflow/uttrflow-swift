@@ -16,9 +16,17 @@ public struct NotationUse: Sendable, Equatable, Codable {
         return made > 0 ? NotationUse(destination: destination, conversions: made) : nil
     }
 
-    /// Builds a stored value; `nil` for a count that is not above zero, so a damaged file claims nothing.
-    public init?(storing destination: Destination, conversions: Int) {
-        guard conversions > 0 else { return nil }
-        self.init(destination: destination, conversions: conversions)
+    /// Reads a stored value, refusing a count not above zero so a damaged file claims nothing.
+    public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        let conversions = try values.decode(Int.self, forKey: .conversions)
+        guard conversions > 0 else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .conversions, in: values, debugDescription: "A notation holds at least one conversion.")
+        }
+        destination = try values.decode(Destination.self, forKey: .destination)
+        self.conversions = conversions
     }
+
+    private enum CodingKeys: String, CodingKey { case destination, conversions }
 }

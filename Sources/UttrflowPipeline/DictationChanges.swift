@@ -283,7 +283,7 @@ public struct AppliedChanges: Sendable, Equatable {
     public let scriptConversions: ScriptConversions
     /// The recogniser's words before any correction or tidying; nil when not carried.
     public let heard: String?
-    /// That spoken notation ran, as a count with the kind of place it was written for; nil when none ran.
+    /// That spoken notation ran, as a count with the kind of place it writes for; nil when none ran.
     public let notation: NotationUse?
 
     public init(
