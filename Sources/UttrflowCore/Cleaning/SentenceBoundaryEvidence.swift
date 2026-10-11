@@ -32,7 +32,7 @@ public enum SentenceBoundaryEvidence {
     /// "without any. changes", "walked through. the old town": the last word's class, read with the next words, leads on into them.
     private static func leadsIntoNext(_ previous: [WordShape], _ following: [WordShape]) -> Bool {
         guard let last = previous.last, let first = following.first else { return false }
-        if neverLast.contains(last.key) { return true }
+        if MarkLegality.verdict(.stop, after: last.core) == .illegal { return true }
         let clauseEnd = following.firstIndex(where: \.endsSentence).map { $0 + 1 } ?? following.count
         let fragment = following.prefix(clauseEnd)
         let tags = LexicalClass.tags(
@@ -234,11 +234,6 @@ public enum SentenceBoundaryEvidence {
         "these", "those", "some", "any",
     ]
     /// Words the tagger reads as a preposition, subordinator or adverb either way, which cannot close a sentence as a particle can ("move on", "let it through").
-    private static let neverLast: Set<String> = [
-        "of", "to", "at", "for", "with", "from", "by", "into", "onto", "upon", "between",
-        "during", "against", "within", "without", "among", "than",
-        "because", "although", "while", "if", "whether", "very",
-    ]
     private static let neverFronted: Set<String> = [
         "to", "of", "at", "with", "from", "by", "into", "onto", "upon", "between", "among",
         "toward", "towards", "against", "without", "within", "beside", "behind", "beyond", "near", "past",
