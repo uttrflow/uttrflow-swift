@@ -1,7 +1,7 @@
 import Foundation
 
 /// Reads what actually exists on this Mac, which is the one thing a language model cannot know.
-public struct SystemEnvironmentReader: EnvironmentReading {
+public struct SystemEnvironmentReader: EnvironmentReading, AliasExpansionReading {
     /// How long a read may take before its answer is thrown away, since a keystroke is waiting.
     static let timeoutInSeconds = 0.5
 
@@ -50,22 +50,37 @@ public struct SystemEnvironmentReader: EnvironmentReading {
 
     /// The same disk behind a short-lived cache, so a branch refresh does not walk the refs tree afresh.
     private let refFiles: CachedFileSystem
+    private let isFixture: Bool
 
     /// A reader over this Mac, which needs nothing to be told.
-    public init() {
+    public init() { self.init(environment: ProcessInfo.processInfo.environment) }
+
+    /// A fixture home is explicit; an invalid one never falls back to the person's shell files.
+    init(environment: [String: String]) {
         self.init(
             launcher: SpawnedProgramLauncher(), programDirectories: CommandLookup.programDirectories,
-            files: SystemFileSystem())
+            files: SystemFileSystem(homeDirectory: Self.home(in: environment)),
+            isFixture: environment["UTTRFLOW_TEST_CONTAINER"] != nil)
+    }
+
+    static func home(in environment: [String: String]) -> String {
+        guard let fixture = environment["UTTRFLOW_TEST_CONTAINER"] else { return NSHomeDirectory() }
+        guard fixture.hasPrefix("/"), !fixture.contains("\0") else {
+            return "/dev/null/uttrflow-invalid-home"
+        }
+        let home = URL(fileURLWithPath: fixture).standardizedFileURL.path
+        return home == "/" ? "/dev/null/uttrflow-invalid-home" : home
     }
 
     /// A reader that launches through `launcher`, finds programs only in `programDirectories`, and lists and stats through `files`.
     init(
         launcher: any ProgramLaunching, programDirectories: [String],
-        files: any FileSystemProbing = SystemFileSystem()
+        files: any FileSystemProbing = SystemFileSystem(), isFixture: Bool = false
     ) {
         self.launcher = launcher
         self.programDirectories = programDirectories
         self.files = files
+        self.isFixture = isFixture
         self.refFiles = CachedFileSystem(files)
     }
 
@@ -235,11 +250,25 @@ public struct SystemEnvironmentReader: EnvironmentReading {
 
     /// Every alias the user's shell configuration declares, read as text rather than by running it.
     private func aliases() -> [String] {
-        let home = files.homeDirectory
-        let text = Self.aliasFiles
-            .compactMap { files.contents(ofFile: "\(home)/\($0)", limit: Self.fileLimit) }
-            .joined(separator: "\n")
-        return Array(ShellAliases.names(in: text).prefix(Self.valueLimit))
+        Array(ShellAliases.names(in: aliasConfiguration() ?? "").prefix(Self.valueLimit))
+    }
+
+    func aliasExpansions() async -> [String: [String]]? {
+        guard let configuration = aliasConfiguration(requireComplete: true) else { return nil }
+        return AliasExpansionCache<ContinuousClock>.bounded(ShellAliases.expansions(in: configuration))
+    }
+
+    private func aliasConfiguration(requireComplete: Bool = false) -> String? {
+        var configurations: [String] = []
+        for file in Self.aliasFiles {
+            let path = "\(files.homeDirectory)/\(file)"
+            if let text = files.contents(ofFile: path, limit: Self.fileLimit) {
+                configurations.append(text)
+            } else if requireComplete, files.kind(atPath: path) != .missing {
+                return nil
+            }
+        }
+        return configurations.joined(separator: "\n")
     }
 
     /// One bounded run of a program in an empty directory, absent for a failure, a timeout or unreadable output; both streams are read, since help goes to either.
@@ -248,8 +277,9 @@ public struct SystemEnvironmentReader: EnvironmentReading {
         within timeout: Double = SystemEnvironmentReader.timeoutInSeconds,
         searchPath: [String] = CommandLookup.programDirectories
     ) async -> String? {
-        let environment = CommandLookup.environment(
-            searchPath: searchPath, home: FileManager.default.homeDirectoryForCurrentUser.path)
+        var environment = CommandLookup.environment(
+            searchPath: searchPath, home: files.homeDirectory)
+        if isFixture { environment["GIT_CONFIG_NOSYSTEM"] = "1" }
         return await launcher.output(
             of: ProgramLaunch(
                 executable: tool, arguments: arguments, environment: environment, timeout: timeout))
