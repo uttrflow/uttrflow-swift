@@ -124,6 +124,8 @@ final class SuggestionCoordinator {
     /// The line the accept key takes as last armed by a draw, so a later answer never inherits that claim.
     private(set) var armedOffer: String?
     var isSelectionPolling: Bool { selectionPolling.isScheduled }
+    /// Whether the current focused-selection poll is still awaiting its reader.
+    var isSelectionReadInFlight: Bool { selectionPolling.isReadInFlight }
     var isTickerScheduled: Bool { ticking.isScheduled }
     var isSecureInputRecheckScheduled: Bool { secureInputRecheck != nil }
     private var lastKeystroke = Date.distantPast
@@ -969,14 +971,6 @@ final class SuggestionCoordinator {
         front: String, own: String?, preferences: SuggestionPreferences, at moment: Date
     ) -> Bool {
         front != own && !front.hasPrefix(uttrflowBundlePrefix) && preferences.isEnabled(in: front, at: moment)
-    }
-
-    /// Disabled applications do not start the suggestion loop from their keystrokes or activation.
-    nonisolated static func shouldProcessActivityEvent(
-        front: String?, own: String?, preferences: SuggestionPreferences, at moment: Date
-    ) -> Bool {
-        guard let front else { return false }
-        return shouldRead(front: front, own: own, preferences: preferences, at: moment)
     }
 
     func queueCaptureTyping(_ key: String?, from front: String?, at moment: Date) {
