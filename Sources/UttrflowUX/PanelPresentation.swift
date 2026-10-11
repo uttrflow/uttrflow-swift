@@ -585,6 +585,7 @@ public enum PanelPresenter {
         case .colour: "paintpalette"
         case .filePath: "folder"
         case .image: "photo"
+        case .file: "doc.on.doc"
         }
     }
 
@@ -717,6 +718,7 @@ public enum PanelPresenter {
         case .colour: "colour"
         case .image: "image"
         case .filePath: "file path"
+        case .file: "file"
         }
     }
 

@@ -74,6 +74,7 @@ enum QuickPanelSpeech {
         case .colour: "Colour"
         case .filePath: "File path"
         case .image: "Image"
+        case .file: "File"
         }
     }
 
