@@ -362,6 +362,11 @@ public struct NumberFormsPass: PieceCleaningPass {
         at position: Int, keys: [String], shapes: [WordShape], policy: NumberPolicy = .fromTen,
         digits: DigitGrouping = .thousands
     ) -> Phrase? {
+        if let price = minorAmount(at: position, keys: keys, shapes: shapes, digits: digits)
+            ?? priceShorthand(at: position, keys: keys, shapes: shapes)
+        {
+            return price
+        }
         let fixedShapes: [(Int, [String], [WordShape]) -> Phrase?] = [
             score, readingOver, zoneOffset, signedDigitRun, numericDate, cuedYear, cuedClock,
             twentyFourHourClock, dottedNumber, spokenDigitRun, leadingDecimal, decade,
@@ -384,6 +389,69 @@ public struct NumberFormsPass: PieceCleaningPass {
         }
         return cardinal(at: position, keys: keys, shapes: shapes, policy: policy, digits: digits)
     }
+
+    /// A major amount, its currency word and a smaller number, "two dollars fifty", written "2.50 dollars".
+    private static func minorAmount(
+        at position: Int, keys: [String], shapes: [WordShape], digits: DigitGrouping
+    ) -> Phrase? {
+        guard let major = item(at: position, keys: keys, shapes: shapes), let value = major.value else {
+            return nil
+        }
+        let currency = position + major.count
+        guard joined(currency, shapes), Quantities.hasMinorUnit(keys[currency]), joined(currency + 1, shapes),
+            let minor = hundredth(at: currency + 1, keys: keys, shapes: shapes)
+        else { return nil }
+        let end = currency + 1 + minor.count
+        if joined(end, shapes), Quantities.isMinorUnit(keys[end])
+            || LexicalClass.tag(ofWordAt: end, in: keys) == .noun
+        {
+            return nil
+        }
+        let whole = major.spoken ? NumberWords.render(value, grouping: digits, isAmount: true) : major.text
+        return Phrase(text: "\(whole).\(twoDigits(minor.value)) \(shapes[currency].core)", count: end - position)
+    }
+
+    /// Words before a price said as two numbers, "two ninety nine", that mark it as money and not a time.
+    static let priceCues: Set<String> = ["cost", "costs", "price", "priced", "for"]
+
+    /// Words that may stand between a price cue and the price, "the price is two ninety nine".
+    static let priceLinks: Set<String> = ["is", "was", "of", "only", "just"]
+
+    /// A one-digit amount and a two-digit part after a price cue, "costs two ninety nine", written "2.99".
+    private static func priceShorthand(at position: Int, keys: [String], shapes: [WordShape]) -> Phrase? {
+        guard position > 0, joined(position, shapes), !startsASentence(position, shapes) else { return nil }
+        var cue = position - 1
+        if priceLinks.contains(keys[cue]), cue > 0, joined(cue, shapes) { cue -= 1 }
+        guard priceCues.contains(keys[cue]), !hasTimeCue(before: position, keys: keys, shapes: shapes),
+            let whole = NumberWords.cardinal(unbroken(from: position, keys: keys, shapes: shapes)),
+            whole.count == 1, (1...9).contains(whole.value),
+            joined(position + 1, shapes), let part = hundredth(at: position + 1, keys: keys, shapes: shapes),
+            part.value >= 10, keys[cue] != "for" || part.value > 59
+        else { return nil }
+        let end = position + 1 + part.count
+        if joined(end, shapes), isMeridiem(at: end, keys: keys, shapes: shapes)
+            || LexicalClass.tag(ofWordAt: end, in: keys) == .noun
+        {
+            return nil
+        }
+        return Phrase(text: "\(whole.value).\(twoDigits(part.value))", count: end - position)
+    }
+
+    /// The number from one to ninety-nine at `start`, spoken or in digits, that is the hundredth part of an amount.
+    private static func hundredth(
+        at start: Int, keys: [String], shapes: [WordShape]
+    ) -> (value: Int, count: Int)? {
+        let read: (value: Int, count: Int)?
+        if let written = NumberWords.digits(keys[start]) {
+            read = Int(written).map { ($0, 1) }
+        } else {
+            read = NumberWords.cardinal(unbroken(from: start, keys: keys, shapes: shapes))
+        }
+        guard let read, (1...99).contains(read.value) else { return nil }
+        return read
+    }
+
+    private static func twoDigits(_ value: Int) -> String { value < 10 ? "0\(value)" : String(value) }
 
     /// "plus" followed by spoken digits, as a dialling prefix.
     private static func signedDigitRun(at position: Int, keys: [String], shapes: [WordShape]) -> Phrase? {
