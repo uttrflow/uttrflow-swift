@@ -70,6 +70,8 @@ public struct PassageScore: Sendable, Equatable, Codable, Identifiable {
     public let wordErrorRate: WordErrorRate?
     /// The rate on the romanised text the user receives, for a transcript answered in Devanagari; `nil` otherwise.
     package let outputWordErrorRate: WordErrorRate?
+    /// The output-scoring instrument; nil identifies legacy exact spelling.
+    package let outputNormalisation: String?
     /// The script the engine answered in; `.devanagari` means clean-up also has to transliterate.
     public let answeredIn: Script
     /// The written form the transcript is compared with, normally the one matching ``answeredIn``.
@@ -102,11 +104,13 @@ public struct PassageScore: Sendable, Equatable, Codable, Identifiable {
         recordingIdentity: String? = nil,
         recordID: String? = nil,
         outputWordErrorRate: WordErrorRate? = nil,
-        properNouns: [String] = []
+        properNouns: [String] = [],
+        outputNormalisation: String? = nil
     ) {
         self.caseID = caseID
         self.properNouns = properNouns
         self.outputWordErrorRate = outputWordErrorRate
+        self.outputNormalisation = outputNormalisation
         self.recordID = recordID
         self.language = language
         self.stressor = stressor
@@ -136,6 +140,7 @@ public struct PassageScore: Sendable, Equatable, Codable, Identifiable {
         wordErrorRate = try container.decodeIfPresent(WordErrorRate.self, forKey: .wordErrorRate)
         outputWordErrorRate = try container.decodeIfPresent(
             WordErrorRate.self, forKey: .outputWordErrorRate)
+        outputNormalisation = try container.decodeIfPresent(String.self, forKey: .outputNormalisation)
         answeredIn = try container.decode(Script.self, forKey: .answeredIn)
         scoredAgainst = try container.decode(Script.self, forKey: .scoredAgainst)
         lost = try container.decodeIfPresent([String].self, forKey: .lost) ?? []
