@@ -3,7 +3,7 @@ private import Synchronization
 import UttrflowClipboard
 
 /// Remembers the checklist count for each clip, so a panel keystroke does not parse its HTML again.
-final class ChecklistProgresses: Sendable, Equatable {
+final class ChecklistProgresses: Sendable {
     /// The formatted content and its count; a changed note replaces this entry.
     private struct Entry {
         let html: String
@@ -39,6 +39,4 @@ final class ChecklistProgresses: Sendable, Equatable {
         }
     }
 
-    /// Compares equal to any other memo, because a cache is not part of what the panel shows.
-    static func == (lhs: ChecklistProgresses, rhs: ChecklistProgresses) -> Bool { true }
 }

@@ -42,7 +42,7 @@ public enum SituationResolver {
         var situation = Situation(
             app: app, insertion: insertion,
             destination: fixed ?? DestinationClassifier.classify(app, rules: rules, overrides: overrides),
-            adapterMode: app.bundleIdentifier.map(overrides.mode(forBundleIdentifier:)) ?? .auto)
+            adapterMode: overrides.mode(for: app))
         situation.punctuation =
             app.bundleIdentifier.map(overrides.punctuation(forBundleIdentifier:)) ?? .automatic
         return situation

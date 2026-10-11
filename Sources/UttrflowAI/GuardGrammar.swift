@@ -45,7 +45,8 @@ extension MeaningPreservationGuard {
             let token = keptTokens[index]
             return token.isPlain
                 && (isContent(token) || FunctionWords.isMeaningBearing(token.lookup)
-                    || isAcronymLetter(at: index, in: keptTokens))
+                    || isAcronymLetter(at: index, in: keptTokens)
+                    || isMeaningCarried(at: index, in: keptTokens))
                 && !composed.contains(index) && !excused.contains(index) && !removable.contains(index)
                 && !marked.contains(index)
         }
