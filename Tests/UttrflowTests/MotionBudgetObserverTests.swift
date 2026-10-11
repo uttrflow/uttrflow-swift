@@ -132,6 +132,25 @@ struct MotionBudgetObserverTests {
         #expect(received.withLock { $0 } == 1)
     }
 
+    @Test("returned session-end tokens stop every callback when removed")
+    func removingSessionEndTokensStopsCallbacks() {
+        let center = NotificationCenter()
+        let received = Mutex(0)
+        let callback: @Sendable () -> Void = { received.withLock { $0 += 1 } }
+        let observers =
+            DictationSessionEndObserver.observe(in: center, onEnd: callback)
+            + [DictationSessionEndObserver.observeScreenLock(in: center, onEnd: callback)]
+        defer { observers.forEach(center.removeObserver) }
+
+        let notices = DictationSessionEndObserver.notices + [DictationSessionEndObserver.screenIsLocked]
+        for notice in notices { center.post(name: notice, object: nil) }
+        #expect(received.withLock { $0 } == 4)
+
+        observers.forEach(center.removeObserver)
+        for notice in notices { center.post(name: notice, object: nil) }
+        #expect(received.withLock { $0 } == 4)
+    }
+
     @Test("shares one observer that starts from the system's reading")
     func sharedReadsTheSystem() {
         #expect(MotionBudgetObserver.shared.budget == MotionBudget.current())
