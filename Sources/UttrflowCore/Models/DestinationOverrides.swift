@@ -73,6 +73,10 @@ public struct DestinationOverride: Sendable, Equatable, Codable, Identifiable {
 public struct DestinationOverrides: Sendable, Equatable, Codable {
     /// One entry per app, in the order they read on screen.
     public private(set) var overrides: [DestinationOverride]
+    /// A mode for one dictation that wins over every app's stored mode; never stored.
+    public private(set) var oneShotMode: AdapterMode?
+
+    private enum CodingKeys: String, CodingKey { case overrides }
 
     public init(_ overrides: [DestinationOverride] = []) {
         self.overrides = Self.ordered(Self.deduplicated(overrides))
@@ -93,6 +97,19 @@ public struct DestinationOverrides: Sendable, Equatable, Codable {
     public func destination(forBundleIdentifier bundle: String) -> Destination? {
         let wanted = bundle.lowercased()
         return overrides.first { $0.id == wanted }?.destination
+    }
+
+    /// The same overrides with `mode` standing for every app until they are replaced; nil ends it.
+    public func holding(oneShot mode: AdapterMode?) -> DestinationOverrides {
+        var copy = self
+        copy.oneShotMode = mode
+        return copy
+    }
+
+    /// How this app's words are to be formatted: the one-shot choice if there is one, else the app's own.
+    public func mode(for app: AppContext) -> AdapterMode {
+        if let oneShotMode { return oneShotMode }
+        return app.bundleIdentifier.map(mode(forBundleIdentifier:)) ?? .auto
     }
 
     /// How this app's words are to be formatted; `auto` when no override names the app.
