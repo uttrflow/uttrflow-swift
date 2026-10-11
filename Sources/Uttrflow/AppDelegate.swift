@@ -408,7 +408,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Counts Format presses, so only the latest run's result may open its sheet.
     private var formatterRuns = 0
     /// Counts the store reads the panel has asked for, so an older list never replaces a newer one.
-    private var panelReads = 0
+    private let panelRefresh = PanelListRefreshCoordinator()
     private(set) var clipboardArrivals = 0
     private var clipboardWatchTask: Task<Void, Never>?
 
@@ -2739,23 +2739,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Adds a copy made while the panel is open, without moving a selection held by identity.
     private func refreshPanelIfOpen(using recordedClips: [Clip]? = nil) async {
         guard panel != nil, quickPanel.isVisible else { return }
-        panelReads += 1
-        let read = panelReads
-        let clips: [Clip]
-        if let recordedClips {
-            clips = recordedClips
-        } else {
-            clips = await clipboard.clips(keeping: retention)
-            await reportUnreadableClipboardIndexes()
-        }
-        let facts = await PanelListFacts.about(clips, clipboard: clipboard, formatter: formatter)
-        // A read that started earlier never replaces a newer list, or a copy shown while opening would go.
-        guard read == panelReads else { return }
-        panel?.install(
-            clips, missingImages: facts.missingPictures, missingFiles: facts.missingFiles,
-            formattableLanguages: facts.formattable, now: Date())
-        guard let snapshot = panel else { return }
-        quickPanel.update(PanelPresenter.present(snapshot))
+        await panelRefresh.refresh(
+            using: recordedClips,
+            readers: .init(
+                clips: { [self] in await clipboard.clips(keeping: retention) },
+                reportUnreadable: { [self] in await reportUnreadableClipboardIndexes() },
+                facts: { [self] clips in
+                    await PanelListFacts.about(clips, clipboard: clipboard, formatter: formatter)
+                }),
+            publish: { [self] clips, facts in
+                panel?.install(
+                    clips, missingImages: facts.missingPictures, missingFiles: facts.missingFiles,
+                    formattableLanguages: facts.formattable, now: Date())
+                guard let snapshot = panel else { return }
+                quickPanel.update(PanelPresenter.present(snapshot))
+            })
     }
 
     /// Through the one pasteboard, so the write is announced and stays on this Mac. See `Docs/insertion.md`.

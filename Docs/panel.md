@@ -350,3 +350,7 @@ The panel identifies default-ignorable, format and control scalars in a clip, ex
 - [`ux-panel-insertion.md`](ux-panel-insertion.md): what Return does.
 - [`clipboard-budget.md`](clipboard-budget.md) and [`clipboard-store.md`](clipboard-store.md):
   what is kept and where.
+
+The internal `PanelListRefreshCoordinator` owns the list read and availability-facts sequence.
+Recorded lists bypass the store read and unreadable-index report; store reads report before facts
+are collected. Only the latest refresh publishes its list and facts into the current panel snapshot.
