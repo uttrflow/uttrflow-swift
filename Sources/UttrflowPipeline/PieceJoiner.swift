@@ -418,7 +418,9 @@ enum PieceJoiner {
         for text in pieces {
             var piece = Draft(keepingLineBreaks: text)
             guard !piece.words.isEmpty else { continue }
-            let leadingBreaks = String(text.prefix(while: \.isNewline))
+            var leadingBreaks = String(text.prefix(while: \.isNewline))
+            // A later piece's bullet is written without a break, as the head of its own text; the joined text needs one.
+            if leadingBreaks.isEmpty, !draft.words.isEmpty, piece.words[0].isListMark { leadingBreaks = "\n" }
             if !leadingBreaks.isEmpty {
                 if piece.words[0].isListMark {
                     piece.words[0].text = leadingBreaks + piece.words[0].text
