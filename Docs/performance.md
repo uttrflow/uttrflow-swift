@@ -513,6 +513,8 @@ limits are in `Scripts/size_budget.json`; `Scripts/size_budget.py` checks them, 
 runs it on every bundle it builds (so `make app` and `make app-preflight` fail over budget), and
 `make size-budget` checks the resolved package count in `make verify`. Raising a limit is a
 reviewed change to the JSON file whose pull request says what grew and why.
+The package count requires a readable JSON object with a pins list; missing or non-list evidence
+fails before a count is reported.
 
 | Measure | Measured | Limit | How it was measured |
 |---|---|---|---|
