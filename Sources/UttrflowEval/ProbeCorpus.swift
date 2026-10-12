@@ -183,7 +183,7 @@ extension EvaluationCorpus {
             spoken:
                 "we should keep the public api as rest with json but use g r p c between internal services o auth two for the browser and a service account for c i c d jobs the k eight s cluster stays in one region",
             expected:
-                "We should keep the public API as REST with JSON, but use gRPC between internal services, OAuth 2 for the browser, and a service account for CI/CD jobs. The k8s cluster stays in one region.",
+                "We should keep the public API as REST with JSON, but use gRPC between internal services, OAuth2 for the browser, and a service account for CI/CD jobs. The k8s cluster stays in one region.",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
             destination: .document, mustBeginWith: "We", mustEndWith: "region.",
             classes: [.numbers, .perDestination],
