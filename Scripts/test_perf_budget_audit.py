@@ -230,5 +230,8 @@ class LatencySampleValidationTests(unittest.TestCase):
         self.assertEqual(len(report), len(targets))
 
 
+from perf_nested_comments_test import NestedPerfCommentTests
+
+
 if __name__ == "__main__":
     unittest.main()

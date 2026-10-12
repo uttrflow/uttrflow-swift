@@ -11,6 +11,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import dictation_bench as bench  # noqa: E402
+from corpus_edit_audit import block_comment_end  # noqa: E402
 
 # Developer tools and measurement harnesses, which never run inside the shipped app.
 NOT_PRODUCT = ("uttrflow-dev", "uttrflow-bakeoff", "uttrflow-eval", "UttrflowEval", "UttrflowTestSupport")
@@ -127,8 +128,7 @@ def blanked(text):
             blank(index, end)
             index = end
         elif text.startswith("/*", index):
-            end = text.find("*/", index + 2)
-            end = length if end < 0 else end + 2
+            end = block_comment_end(text, index)
             blank(index, end)
             index = end
         elif text.startswith('"""', index) or text[index] == '"':
