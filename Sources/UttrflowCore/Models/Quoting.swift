@@ -67,6 +67,48 @@ public struct QuoteStyle: Sendable, Equatable {
 
 /// The one home for writing a value quoted and for finding quoted regions in text.
 public enum Quoting {
+    /// Word positions touched by a source string, including an unclosed or escaped quotation.
+    package static func heldWords(_ words: [String]) -> Set<Int> {
+        let text = words.joined(separator: " ")
+        var regions = sourceRegions(in: text).makeIterator()
+        var current = regions.next()
+        var held = Set<Int>()
+        for (position, span) in wordRanges(words, in: text).enumerated() {
+            while let region = current, region.upperBound <= span.lowerBound { current = regions.next() }
+            if let region = current, region.overlaps(span) { held.insert(position) }
+        }
+        return held
+    }
+
+    private static func sourceRegions(in text: String) -> [Range<String.Index>] {
+        var regions: [Range<String.Index>] = []
+        var index = text.startIndex
+        while index < text.endIndex {
+            switch opening(in: text, at: index, styles: QuoteStyle.sourceStrings) {
+            case .closed(let end):
+                regions.append(index..<end)
+                index = end
+            case .unclosed:
+                regions.append(index..<text.endIndex)
+                return regions
+            case .none: index = text.index(after: index)
+            }
+        }
+        return regions
+    }
+
+    /// Ranges of already-tokenised words; layout marks may contain their own whitespace.
+    private static func wordRanges(_ words: [String], in text: String) -> [Range<String.Index>] {
+        var ranges: [Range<String.Index>] = []
+        var start = text.startIndex
+        for (position, word) in words.enumerated() {
+            let end = text.index(start, offsetBy: word.count)
+            ranges.append(start..<end)
+            start = position + 1 < words.count ? text.index(after: end) : end
+        }
+        return ranges
+    }
+
     /// What opens at an index: no quote, a quote closed at `end`, or a quote left open to the end of the text.
     public enum Opening: Equatable {
         case none
