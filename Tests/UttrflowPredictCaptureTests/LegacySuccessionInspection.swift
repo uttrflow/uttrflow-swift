@@ -7,7 +7,7 @@ extension PredictStore {
     /// Reads legacy rows through the actor-owned connection, including encrypted fixtures.
     func legacySuccessors(
         for surface: Surface, after previous: String
-    ) throws(PredictStoreError) -> [Candidate] {
+    ) throws(PredictStoreError) -> [LegacySuccessions.Row] {
         try database.rows(
             LegacySuccessions.query,
             { LegacySuccessions.bind($0, surface: surface, previous: Spelling.canonical(previous)) },

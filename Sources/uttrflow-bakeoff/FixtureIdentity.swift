@@ -62,7 +62,6 @@ extension Fixture {
         switch source {
         case .personal: "personal"
         case .environment: "environment"
-        case .succession: "succession"
         }
     }
 

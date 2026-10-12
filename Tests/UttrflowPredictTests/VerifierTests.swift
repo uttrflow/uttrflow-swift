@@ -527,7 +527,7 @@ struct VerifiedCandidateTests {
                 Candidate(
                     text: "git commit", source: .environment, editDistance: 0),
                 Candidate(
-                    text: "git commit", source: .succession,
+                    text: "git commit", source: .personal,
                     evidence: Entry(
                         text: "git commit", count: 9, accepted: 7, rejected: 1,
                         selfSourced: 2, lastUsed: moment),
