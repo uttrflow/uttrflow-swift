@@ -153,11 +153,11 @@ enum SourceFixtures {
                     evidence: Entry(text: "send the invoice", count: 10, lastUsed: Date()))
             ]),
         Fixture(
-            "source/succession", GenerationSituation(application: "TextEdit"), typed: "git ",
+            "source/learned-command", GenerationSituation(application: "TextEdit"), typed: "git ",
             expectation: CompletionExpectation(acceptable: ["commit"], band: 1...40),
             seededCandidates: [
                 Candidate(
-                    text: "git commit", source: .succession,
+                    text: "git commit", source: .personal,
                     evidence: Entry(text: "git commit", count: 10, lastUsed: Date()))
             ]),
         Fixture(

@@ -4,8 +4,6 @@ public enum CandidateSource: Sendable, Equatable, CaseIterable {
     case personal
     /// Something that exists on this machine right now, such as a branch or a filename.
     case environment
-    /// What usually follows what the user last entered here.
-    case succession
 }
 
 /// One thing the user might be about to type, before it has been ranked.
