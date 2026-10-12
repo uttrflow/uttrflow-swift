@@ -54,7 +54,7 @@ def literal_entries(text, start):
     while index < len(text):
         skipped = skip_string_or_comment(text, index)
         if skipped != index:
-            pending = pending or depth > 0
+            pending = pending or (depth > 0 and text[index] == '"')
             index = skipped
             continue
         character = text[index]
@@ -175,10 +175,47 @@ def self_test():
     return True
 
 
+def collection_marker_problem(root, literal, count, stated):
+    """Checks one private collection marker against its literal entry count."""
+    source = os.path.join(root, "Sources", "Fixture", "Table.swift")
+    kind = "[[Int]]" if literal.startswith("[[") else "[String]"
+    with open(source, "w") as handle:
+        handle.write("enum Table { static let rows: " + kind + " = " + literal + " }\n")
+    with open(os.path.join(root, "Docs", "count.md"), "w") as handle:
+        handle.write(f"Count <!-- count:Table.rows -->{stated}.\n")
+    problems, checked = findings(root)
+    expected = [] if stated == count else [f"Docs/count.md:1: says {stated}, but Table.rows is {count}"]
+    if checked != 1 or problems != expected:
+        return f"{literal!r}, marker {stated}: {problems!r}"
+    return None
+
+
+def collection_comment_self_test():
+    """Checks skipped comments cannot satisfy a collection-count marker."""
+    samples = [('["one", // explanation\n]', 1), ('["one", /* explanation */]', 1),
+               ('[/* explanation */]', 0), ('[// explanation\n]', 0),
+               ('["/* literal */", "// literal", "comma, inside"]', 3),
+               ('[[1, 2], [3]]', 2), ('[[1, 2], [3], /* explanation */]', 2)]
+    failures = []
+    with tempfile.TemporaryDirectory() as root:
+        os.makedirs(os.path.join(root, "Sources", "Fixture"))
+        os.makedirs(os.path.join(root, "Docs"))
+        for literal, count in samples:
+            for stated in (count, count + 1):
+                problem = collection_marker_problem(root, literal, count, stated)
+                failures.extend([problem] if problem is not None else [])
+    for failure in failures:
+        print(f"collection-comment self-test: {failure}", file=sys.stderr)
+    if failures:
+        return False
+    print("  ✓ collection-comment self-test: seven right/wrong marker pairs pass")
+    return True
+
+
 def main(arguments):
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if arguments == ["--self-test"]:
-        return 0 if self_test() else 1
+        return 0 if self_test() and collection_comment_self_test() else 1
     if arguments:
         print("usage: docs_values_audit.py [--self-test]", file=sys.stderr)
         return 2
