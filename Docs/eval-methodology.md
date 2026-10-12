@@ -1207,6 +1207,8 @@ uttrflow-eval pace --corpus-path <reader-1-quiet>
 chooses a threshold on a fit table feature and keeps what it tried, so a constant is never justified
 by prose alone.
 
+Direct sweep requests reject negative feature indices with the existing column error; an empty grid is refused first.
+
 - The grid is scored on the development rows (fit side) and on half of the held-out rows (calibration
   side); the seed splits the held-out rows, so the same seed always gives the same halves.
 - The choice is the value with the fewest wrong rows left unflagged on calibration, among values
