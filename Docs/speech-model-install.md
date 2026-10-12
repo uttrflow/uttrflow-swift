@@ -10,6 +10,9 @@ cleaning up a failed install) is testable against a temporary directory with no 
 [`offline.md`](offline.md) states what may touch the network;
 [`speech-engines.md`](speech-engines.md) covers why the tokenizer is fetched here.
 
+The developer install command exits with failure when it cannot create `--models-dir`, before
+starting a download. Its diagnostic retains the underlying filesystem error.
+
 | Value | Where | What it is |
 |---|---|---|
 | 645,668,913 bytes | `SpeechModel.largeV3Turbo.downloadBytes` | the default model's weights download |

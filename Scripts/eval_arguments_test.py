@@ -3,12 +3,14 @@
 
 import json
 import os
+import re
 import subprocess
 import tempfile
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BINARY = os.path.join(ROOT, ".build", "debug", "uttrflow-eval")
+DEV_BINARY = os.path.join(ROOT, ".build", "debug", "uttrflow-dev")
 
 
 class TranscribeLimitArgumentTests(unittest.TestCase):
@@ -173,6 +175,72 @@ class AccentGroupBoundArgumentTests(unittest.TestCase):
                     self.assertEqual(finished.returncode, 0, finished.stderr)
                     self.assertEqual(finished.stdout, header + expected)
                     self.assertEqual(finished.stderr, "")
+
+
+class ModelDirectoryFailureTests(unittest.TestCase):
+    """Drives developer directory handling before any model download."""
+
+    def run_dev(self, *arguments):
+        return subprocess.run([DEV_BINARY, "models", *arguments],
+                              capture_output=True, text=True, timeout=30)
+
+    def normalized_error(self, text):
+        return re.sub(r"\bNSUnderlyingError=0x[0-9A-Fa-f]+\b", "NSUnderlyingError=<object>", text)
+
+    def test_failed_directory_creation_refuses_installation(self):
+        with tempfile.TemporaryDirectory(prefix="model-directory-") as folder:
+            parent = os.path.join(folder, "parent-file")
+            child = os.path.join(parent, "models")
+            with open(parent, "w", encoding="utf-8") as stream:
+                stream.write("synthetic directory blocker")
+            finished = self.run_dev("install", "--models-dir", child)
+            self.assertEqual(finished.returncode, 1, finished.stderr)
+            self.assertEqual(finished.stdout.split(": Error Domain=", 1)[0],
+                             f"Could not create models directory at {child}")
+            self.assertIn("Error Domain=NSCocoaErrorDomain Code=512", finished.stdout)
+            self.assertIn("Error Domain=NSPOSIXErrorDomain Code=20", finished.stdout)
+            repeated = self.run_dev("install", "--models-dir", child)
+            self.assertEqual(repeated.returncode, 1, repeated.stderr)
+            self.assertEqual(repeated.stderr, "")
+            self.assertEqual(self.normalized_error(repeated.stdout), self.normalized_error(finished.stdout))
+            self.assertEqual(finished.stderr, "")
+            self.assertNotIn("Installing ", finished.stdout)
+            self.assertFalse(os.path.exists(child))
+            with open(parent, encoding="utf-8") as stream:
+                self.assertEqual(stream.read(), "synthetic directory blocker")
+
+    def test_directory_and_model_validation_keep_their_existing_refusals(self):
+        with tempfile.TemporaryDirectory(prefix="model-directory-") as folder:
+            parent = os.path.join(folder, "parent-file")
+            with open(parent, "w", encoding="utf-8") as stream:
+                stream.write("synthetic directory blocker")
+            controls = [(["list", "--models-dir="], "Missing value for '--models-dir"),
+                        (["list", "--models-dir", ""], "--models-dir must not be empty"),
+                        (["list", "--models-dir", parent],
+                         "--models-dir must point to a directory"),
+                        (["list", "--models-dir", os.path.join(folder, "absent")],
+                         "Models directory does not exist"),
+                        (["install", "--model", "synthetic-unknown", "--models-dir", parent],
+                         "Unknown model 'synthetic-unknown'")]
+            for arguments, message in controls:
+                with self.subTest(arguments=arguments):
+                    finished = self.run_dev(*arguments)
+                    self.assertEqual(finished.returncode, 64, finished.stderr)
+                    self.assertIn(message, finished.stderr)
+                    self.assertIn("usage:", finished.stderr.lower())
+                    self.assertNotIn("Installing ", finished.stdout)
+
+    def test_existing_empty_directory_lists_without_changing_it(self):
+        with tempfile.TemporaryDirectory(prefix="model-directory-") as folder:
+            explicit = self.run_dev("list", "--models-dir", folder)
+            implicit = self.run_dev("--models-dir", folder)
+            for finished in [explicit, implicit]:
+                self.assertEqual(finished.returncode, 0, finished.stderr)
+                self.assertEqual(finished.stderr, "")
+                self.assertTrue(finished.stdout.startswith(f"Models in {folder}\n\n"))
+                self.assertNotIn("Installing ", finished.stdout)
+            self.assertEqual(implicit.stdout, explicit.stdout)
+            self.assertEqual(os.listdir(folder), [])
 
 
 class MissingBaselineGateTests(unittest.TestCase):
