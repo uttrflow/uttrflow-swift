@@ -4,6 +4,8 @@ Which command answers the question your change raises, how long it takes, and wh
 before it can run. The pages linked in each row say how the tool decides; this page says when
 to reach for it. Every command named here is checked against the `Makefile`, `Scripts/` and the
 tool sources by `Scripts/measure_commands_audit.py`, which runs in `make docs-audit`.
+Root command names come from each tool’s registered Swift subcommands; nested declarations and
+commented examples do not create root commands.
 
 ## Which command for which change
 
