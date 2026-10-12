@@ -225,5 +225,60 @@ class PrecisionRatchetTests(unittest.TestCase):
         self.assertIn("wrong shown rose", completed.stdout)
 
 
+class HitAdmissionTests(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.root = self.directory.name
+        self.valid = result("fixture/right", "fixture", True)
+        self.baseline = os.path.join(self.root, "baseline.json")
+        SCORECARD.write_baseline(self.baseline, [self.valid], 0.99, full_fixture_report([self.valid]))
+        with open(self.baseline, "rb") as handle:
+            self.original_baseline = handle.read()
+
+    def report(self, name, hit):
+        path = os.path.join(self.root, name + ".json")
+        with open(path, "w") as handle:
+            json.dump(full_fixture_report([{**self.valid, "hit": hit}]), handle)
+        return path
+
+    def cli(self, path, *arguments):
+        return subprocess.run(
+            [sys.executable, os.path.join(HERE, "predict_scorecard.py"), path, *arguments],
+            capture_output=True, text=True, check=False)
+
+    def assert_refused(self, completed):
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("hit must be Boolean", completed.stderr)
+
+    def test_non_boolean_measured_hits_cannot_pass_the_ratchet(self):
+        for hit in ("false", 1):
+            with self.subTest(hit=hit):
+                completed = self.cli(self.report("invalid", hit), "--baseline", self.baseline)
+                self.assert_refused(completed)
+                self.assertEqual(completed.stdout, "")
+
+    def test_non_boolean_hits_cannot_replace_a_recorded_baseline(self):
+        for hit in ("false", 1):
+            with self.subTest(hit=hit):
+                self.assert_refused(self.cli(self.report("invalid", hit), "--record-baseline", self.baseline))
+                with open(self.baseline, "rb") as handle:
+                    self.assertEqual(handle.read(), self.original_baseline)
+
+    def test_comparison_report_hits_have_the_same_admission_rule(self):
+        valid = self.report("valid", True)
+        for hit in ("false", 1):
+            with self.subTest(hit=hit):
+                self.assert_refused(self.cli(valid, "--compare-run", self.report("old", hit)))
+
+    def test_boolean_hits_preserve_existing_ratchet_verdicts(self):
+        for hit, status, verdict in ((True, 0, "  PASS"), (False, 1, "  FAIL")):
+            with self.subTest(hit=hit):
+                completed = self.cli(self.report("valid", hit), "--baseline", self.baseline)
+                self.assertEqual(completed.returncode, status)
+                self.assertIn(verdict, completed.stdout)
+                self.assertEqual(completed.stderr, "")
+
+
 if __name__ == "__main__":
     unittest.main()

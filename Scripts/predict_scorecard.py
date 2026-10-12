@@ -11,12 +11,26 @@ comparison. See Docs/predict-precision.md.
 """
 import argparse
 import json
+import sys
 from collections import Counter, defaultdict
+
+
+class HitVerdictError(ValueError):
+    """A saved fixture hit is not the Boolean emitted by its producer."""
+
+
+def results_from_report(report):
+    """Admits the producer's Boolean hit verdicts from either saved report layout."""
+    results = report["results"] if isinstance(report, dict) and "results" in report else report
+    for row in results:
+        if type(row["hit"]) is not bool:
+            raise HitVerdictError("saved report hit must be Boolean")
+    return results
 
 
 def rows(path):
     data = json.load(open(path))
-    return data["results"] if isinstance(data, dict) and "results" in data else data
+    return results_from_report(data)
 
 
 def pct(n, d):
@@ -181,7 +195,7 @@ def main():
     args = parser.parse_args()
     with open(args.run) as handle:
         run_report = json.load(handle)
-    new = run_report["results"] if isinstance(run_report, dict) and "results" in run_report else run_report
+    new = results_from_report(run_report)
     s = summarise(new)
     print(f"cases {s['total']}  hit {s['hit']} ({pct(s['hit'], s['total'])})  in register {s['conforms']} "
           f"({pct(s['conforms'], s['total'])})  p50 {s['p50']} ms  p95 {s['p95']} ms")
@@ -260,4 +274,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except HitVerdictError as error:
+        print(f"predict scorecard: {error}", file=sys.stderr)
+        raise SystemExit(1)
