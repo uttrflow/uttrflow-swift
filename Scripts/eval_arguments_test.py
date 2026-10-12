@@ -14,6 +14,67 @@ BINARY = os.path.join(ROOT, ".build", "debug", "uttrflow-eval")
 DEV_BINARY = os.path.join(ROOT, ".build", "debug", "uttrflow-dev")
 
 
+class AblationRefusalTests(unittest.TestCase):
+    """Drives stored-input refusals before any subject is measured."""
+
+    empty_message = "No English test-side recording has a kept decode here. Run: uttrflow-eval transcribe\n"
+
+    def run_with(self, corpus, *arguments):
+        return subprocess.run(
+            [BINARY, "transcribe", "--ablate", "--corpus-path", corpus, *arguments],
+            capture_output=True, text=True, timeout=30)
+
+    def assert_refusal(self, corpus, expected):
+        first = self.run_with(corpus)
+        self.assertEqual(first.returncode, 1, first.stdout + first.stderr)
+        self.assertEqual(first.stderr, "")
+        self.assertTrue(first.stdout.startswith(expected), first.stdout)
+        self.assertNotIn("Per-layer ablation on", first.stdout)
+        repeated = self.run_with(corpus)
+        self.assertEqual((repeated.returncode, repeated.stdout, repeated.stderr),
+                         (1, first.stdout, ""))
+
+    def test_empty_and_absent_corpora_report_failure(self):
+        with tempfile.TemporaryDirectory(prefix="ablation-empty-") as root:
+            empty = os.path.join(root, "empty")
+            absent = os.path.join(root, "absent")
+            os.mkdir(empty)
+            for corpus in [empty, absent]:
+                with self.subTest(corpus=corpus):
+                    self.assert_refusal(corpus, self.empty_message)
+            self.assertEqual(os.listdir(empty), [])
+            self.assertFalse(os.path.exists(absent))
+
+    def test_unreadable_recording_and_decode_metadata_report_failure(self):
+        with tempfile.TemporaryDirectory(prefix="ablation-unreadable-") as root:
+            for name, nested in [("recording", False), ("decode", True)]:
+                with self.subTest(input=name):
+                    corpus = os.path.join(root, name)
+                    records = os.path.join(corpus, "decode-dumps") if nested else corpus
+                    os.makedirs(records)
+                    broken = os.path.join(records, "broken.json")
+                    with open(broken, "w", encoding="utf-8") as stream:
+                        stream.write("{}")
+                    self.assert_refusal(corpus, "could not read broken.json: ")
+                    with open(broken, encoding="utf-8") as stream:
+                        self.assertEqual(stream.read(), "{}")
+                    self.assertEqual(os.listdir(records), ["broken.json"])
+
+    def test_argument_validation_still_precedes_ablation_input_reads(self):
+        controls = [("--findings=-1", "--findings must be zero or greater"),
+                    ("--passage-limit=-1", "--passage-limit must be zero or greater"),
+                    ("--repeat=0", "--repeat must be one or greater")]
+        with tempfile.TemporaryDirectory(prefix="ablation-validation-") as root:
+            absent = os.path.join(root, "absent")
+            for argument, message in controls:
+                with self.subTest(argument=argument):
+                    finished = self.run_with(absent, argument)
+                    self.assertEqual(finished.returncode, 64, finished.stderr)
+                    self.assertEqual(finished.stdout, "")
+                    self.assertIn(message, finished.stderr)
+                    self.assertFalse(os.path.exists(absent))
+
+
 class TranscribeLimitArgumentTests(unittest.TestCase):
     """Drives the built executable and checks validation before corpus setup."""
 

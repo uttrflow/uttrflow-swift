@@ -134,16 +134,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
 
     func run() async throws {
         if ablate {
-            let rules = TransformerRouter(
-                engines: [RuleBasedTransformer()], preference: [.rules], rulesAlone: .shortReplies)
-            do {
-                print(
-                    try await LayerAblation.report(
-                        corpus: URL(fileURLWithPath: corpusPath), engineVersion: engineVersion, cleaner: rules
-                    ))
-            } catch {
-                throw CleanExit.message("\(error)")
-            }
+            try await reportAblation()
             return
         }
         let model = try resolveModel()
