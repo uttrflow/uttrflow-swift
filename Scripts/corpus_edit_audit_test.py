@@ -125,5 +125,8 @@ class CorpusEditAuditTests(unittest.TestCase):
         self.assertIsNone(corpus_edit_audit.fetched_first_parent(run))
 
 
+from corpus_nested_comments_test import NestedCorpusCommentTests
+
+
 if __name__ == "__main__":
     unittest.main()

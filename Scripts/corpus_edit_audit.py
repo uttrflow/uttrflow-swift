@@ -29,6 +29,24 @@ def git(*args, check=True):
     return result
 
 
+def block_comment_end(source, start):
+    """Skips a Swift block comment through its matching outer delimiter."""
+    depth = 1
+    cursor = start + 2
+    while cursor < len(source):
+        if source.startswith("/*", cursor):
+            depth += 1
+            cursor += 2
+        elif source.startswith("*/", cursor):
+            depth -= 1
+            cursor += 2
+            if depth == 0:
+                return cursor
+        else:
+            cursor += 1
+    return len(source)
+
+
 def strip_comments(source):
     """Blanks comments, keeping string literals intact."""
     out = []
@@ -50,8 +68,7 @@ def strip_comments(source):
             end = source.find("\n", i)
             i = length if end < 0 else end
         elif source.startswith("/*", i):
-            end = source.find("*/", i + 2)
-            i = length if end < 0 else end + 2
+            i = block_comment_end(source, i)
         else:
             out.append(source[i])
             i += 1

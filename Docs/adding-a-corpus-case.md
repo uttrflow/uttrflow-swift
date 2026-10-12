@@ -106,6 +106,7 @@ after tagging, regenerate that page with
    [bakeoff.md](bakeoff.md#the-corpus) is raised by one, with the total.
 4. Adding a case passes `make corpus-edit-audit`. Changing or removing an existing one fails it
    unless the branch adds a line `<case id> <reason>` to `Scripts/corpus_edits.txt`.
+   The Swift reader skips complete nested block comments, so commented initializers cannot stand in for real cases.
 5. `make verify` runs all of these. `make eval` runs the suites that hold the corpus to its rules: transcript
    references, the held-out split, no overlap with the prompt, and the evidence suites in
    [bakeoff-method.md](bakeoff-method.md#evidence-the-corpus-must-hold).
