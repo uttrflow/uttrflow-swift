@@ -6,7 +6,21 @@ public struct SpacingPass: PieceCleaningPass {
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
     public static let orderIndependentWith: Set<PassID> = [.pauseStop]
 
-    public init() {}
+    private let destination: Destination
+    private let region: CaretStructure.Region
+    private let markup: MarkupPosition?
+
+    public init() {
+        self.destination = .plain
+        self.region = .unrecognised
+        self.markup = nil
+    }
+
+    init(destination: Destination, region: CaretStructure.Region, markup: MarkupPosition?) {
+        self.destination = destination
+        self.region = region
+        self.markup = markup
+    }
 
     public func apply(_ draft: Draft) -> Draft {
         var draft = draft
@@ -20,9 +34,15 @@ public struct SpacingPass: PieceCleaningPass {
                 draft.insert(word, at: index + 1 + offset, by: Self.id)
             }
         }
+        let held = readsCode ? Self.heldWords(in: draft) : []
         var previous: Int?
         for index in draft.presentIndices {
             let text = draft.words[index].text
+            if let previous, joinsRegistryVersion(previous, with: index, in: draft, held: held) {
+                draft.replace(at: previous, with: draft.words[previous].text + text, by: Self.id)
+                draft.remove(at: index, by: Self.id)
+                continue
+            }
             if let previous, text.allSatisfy(MarkSpacing.attachesBefore) {
                 let merged = WordShape.settlingMarks(draft.words[previous].text + text)
                 draft.replace(at: previous, with: merged, by: Self.id)
@@ -33,6 +53,40 @@ public struct SpacingPass: PieceCleaningPass {
             previous = index
         }
         return draft
+    }
+
+    /// A registry tag is a mapping value, never the key before its colon or a quoted literal.
+    private func joinsRegistryVersion(_ left: Int, with right: Int, in draft: Draft, held: Set<Int>) -> Bool {
+        let path = draft.words[left].text
+        guard readsCode,
+            !held.contains(left), !held.contains(right),
+            let key = draft.words[..<left].last(where: \.isPresent),
+            !key.isLayoutMark, key.text.hasSuffix(":"),
+            path.hasSuffix(":"), let slash = path.firstIndex(of: "/"),
+            TechnicalToken.classify(String(path[..<slash])) == .hostname,
+            TechnicalToken.classify(String(path.dropLast())) == .path,
+            TechnicalToken.classify(draft.words[right].text) == .version
+        else { return false }
+        return true
+    }
+
+    private var readsCode: Bool {
+        destination == .codeEditor
+            && (region == .code || region == .unrecognised)
+            && markup != .slot(.text) && markup != .quoted
+    }
+
+    /// Existing delimiter and source-string readers protect literal spans without changing their words.
+    private static func heldWords(in draft: Draft) -> Set<Int> {
+        let live = draft.presentIndices
+        let shapes = live.map { draft.shape(at: $0) }
+        var held = ClauseSegmenter.heldByDelimiters(in: shapes)
+        held.formUnion(Quoting.heldWords(live.map { draft.words[$0].text }))
+        for (position, shape) in shapes.enumerated()
+        where shape.prefix.contains(where: WordShape.bracketOpeners.values.contains) {
+            held.insert(position)
+        }
+        return Set(held.map { live[$0] })
     }
 
     /// "home—the" as "home —" and "the": every mark `MarkSpacing` spaces on both sides written as `WordShape.marked` writes a spoken one, or nil when it already is.

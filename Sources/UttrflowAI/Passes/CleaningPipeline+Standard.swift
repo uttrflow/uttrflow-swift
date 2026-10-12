@@ -41,6 +41,9 @@ extension CleaningPipeline {
         screen: Situation = .unknown, mode: AdapterMode = .auto
     ) -> CleaningPipeline {
         let identifiers = ScreenVocabulary(screen)
+        let markup =
+            destination == .codeEditor
+            ? MarkupPosition.at(insertionPoint.precedingText, language: intent.language) : nil
         var cleanings: [any PieceCleaningPass] = [
             FillersPass(), RepeatedPhrasePass(), StammersPass(), SelfCorrectionPass(),
             // Spoken punctuation must mark a stop before LayoutWordsPass checks for a break after it.
@@ -50,7 +53,7 @@ extension CleaningPipeline {
             SpokenEmojiPass(destination: destination),
             LayoutWordsPass(layout: layout, insertionPoint: insertionPoint),
             SpelledNamePass(destination: destination), NumberFormsPass(policy: numbers, digits: digits),
-            ContractionsPass(), SpacingPass(),
+            ContractionsPass(), SpacingPass(destination: destination, region: intent.region, markup: markup),
             // Last, so a pause inside a number or a removed filler is read on the words left standing.
             PauseStopPass(destination: destination, pauses: pauses),
         ]
@@ -60,9 +63,6 @@ extension CleaningPipeline {
         {
             cleanings.insert(ScreenIdentifierPass(vocabulary: identifiers), at: afterCorrection + 1)
         }
-        let markup =
-            destination == .codeEditor
-            ? MarkupPosition.at(insertionPoint.precedingText, language: intent.language) : nil
         // Text between tags and a comment or quoted value are prose to the casing commands, whatever the region says.
         let inCode =
             destination == .codeEditor && intent.region.isCode && markup != .slot(.text) && markup != .quoted

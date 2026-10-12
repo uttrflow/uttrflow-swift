@@ -47,17 +47,23 @@ public enum ClauseSegmenter {
 
     /// Words a clause may not start at: inside a quote or bracket, or a number or the word joining two numbers.
     private static func heldWhole(_ shapes: [WordShape]) -> Set<Int> {
+        var held = heldByDelimiters(in: shapes)
+        let numbers = shapes.map { isNumber($0.core) }
+        for index in shapes.indices where numbers[index] {
+            held.insert(index)
+            if index >= 2, numbers[index - 2] { held.insert(index - 1) }
+        }
+        return held
+    }
+
+    /// Word positions inside a quotation or bracket, read from the same marks clause segmentation holds whole.
+    package static func heldByDelimiters(in shapes: [WordShape]) -> Set<Int> {
         var held = Set<Int>()
         var open: [Character] = []
         for (index, shape) in shapes.enumerated() {
             if !open.isEmpty { held.insert(index) }
             for mark in shape.prefix where isOpener(mark) { open.append(mark) }
             for mark in shape.suffix where isCloser(mark) && !open.isEmpty { open.removeLast() }
-        }
-        let numbers = shapes.map { isNumber($0.core) }
-        for index in shapes.indices where numbers[index] {
-            held.insert(index)
-            if index >= 2, numbers[index - 2] { held.insert(index - 1) }
         }
         return held
     }

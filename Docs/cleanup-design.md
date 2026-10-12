@@ -182,7 +182,7 @@ destination — so `apply` sees only the draft. The passes, in the order they ru
 | `NumberFormsPass` | fifteen → 15, sixteen point two → 16.2, two thirty pm → 2:30 pm | number-word grammar, `NumberPolicy`, `DigitGrouping` | piece |
 | `ContractionsPass` | dont → don't | word list | piece |
 | `SpelledInitialismPass` | a p i → API | adjacent letter names | piece, and again after the model |
-| `SpacingPass` | no space before `, . ? ! : ;`, one after; collapse runs | none | piece |
+| `SpacingPass` | no space before `, . ? ! : ;`, one after; collapse runs; join a host-qualified registry path and numeric version in code editors | destination | piece |
 | `PauseStopPass` | a full stop where the speaker paused a piece boundary's length inside one piece | recogniser word timing, then `SentenceBoundaryEvidence`; prose destinations only | piece |
 | `SentenceBoundaryPass` | takes back a stop where the sentence runs on | `SentenceBoundaryEvidence` | message |
 | `FirstWordPass` | capitalise, or lower-case after a mid-sentence caret | `sentenceState` + `FirstWordPolicy` | message |
