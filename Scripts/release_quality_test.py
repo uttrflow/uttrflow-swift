@@ -39,6 +39,30 @@ def passing(gate):
                                 empty_marker=gate.empty_marker)
 
 
+def appendix_evidence_self_test() -> int:
+    """Checks blank evidence and producer-failure precedence without running real gates."""
+    problems = []
+    with tempfile.TemporaryDirectory() as scratch, contextlib.redirect_stdout(io.StringIO()):
+        root = Path(scratch)
+        output = root / "report.md"
+        cases = [("", 0, 1, "no verdict"), ("\n \t", 0, 1, "no verdict"),
+                 ("", 2, 1, "fail"), ("| formatting | keep |", 0, 0, "pass")]
+        for content, producer_exit, expected_exit, verdict in cases:
+            writes = ("from pathlib import Path; Path('dist').mkdir(exist_ok=True); "
+                      f"Path('dist/layer.md').write_text({content!r}); raise SystemExit({producer_exit})")
+            gate = release_quality.Gate("layer contribution", "each layer verdict is listed",
+                                        script(writes), appendix="dist/layer.md")
+            status = release_quality.release_quality([gate], output, root)
+            written = output.read_text()
+            if status != expected_exit or f"| layer contribution | {verdict} |" not in written:
+                problems.append(f"content {content!r}, producer {producer_exit}: wrong gate verdict/status")
+            if verdict == "pass" and content not in written:
+                problems.append("the nonempty contribution evidence disappeared")
+    check(not problems, "\n".join(problems))
+    print("release_quality: two blank appendices refused; failure precedence and nonempty evidence preserved")
+    return 0
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()):
         root = Path(tmp)
@@ -98,4 +122,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    status = main()
+    raise SystemExit(appendix_evidence_self_test() if status == 0 else status)

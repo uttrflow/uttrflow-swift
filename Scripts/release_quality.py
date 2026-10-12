@@ -106,11 +106,13 @@ def run(gate: Gate, cwd: Path) -> Result:
         return Result(gate, NO_VERDICT, "the filter matched no tests")
     if appendix and completed.returncode == 0 and not appendix.is_file():
         return Result(gate, NO_VERDICT, f"passed without writing {gate.appendix}")
+    text = appendix.read_text(encoding="utf-8") if appendix and appendix.is_file() else ""
+    if appendix and completed.returncode == 0 and not text.strip():
+        return Result(gate, NO_VERDICT, f"passed with empty {gate.appendix}")
     verdict = PASS if completed.returncode == 0 else FAIL
     evidence = summary_line(completed.stdout, verdict == FAIL)
     if verdict == FAIL:
         evidence = f"exit {completed.returncode}: {evidence}"
-    text = appendix.read_text(encoding="utf-8") if appendix and appendix.is_file() else ""
     return Result(gate, verdict, evidence, text)
 
 
