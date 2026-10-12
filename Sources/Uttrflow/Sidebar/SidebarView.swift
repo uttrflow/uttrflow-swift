@@ -377,7 +377,7 @@ struct SidebarAccountCard: View {
             case .signedIn(_, let name, let open): "\(open.title), \(name)"
             case .signedOut(let open): open.title
             }
-        return version.isKnown ? "\(who). Version \(version.full)" : who
+        return version.isKnown ? "\(who). Version v\(version.full)" : who
     }
 }
 

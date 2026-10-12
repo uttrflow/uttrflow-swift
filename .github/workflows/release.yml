@@ -130,7 +130,7 @@ jobs:
           # uttrflow/releases, and a second copy of either is a second answer to which
           # build a version is.
           ./Scripts/release_notes.sh "$VERSION" > notes.md
-          args=(--repo "$GITHUB_REPOSITORY" --title "Uttrflow $VERSION" --notes-file notes.md)
+          args=(--repo "$GITHUB_REPOSITORY" --title "Uttrflow v$VERSION" --notes-file notes.md)
           if [ "$PRERELEASE" = "true" ]; then
             args+=(--prerelease)
           fi

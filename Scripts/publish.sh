@@ -340,7 +340,7 @@ else
 
     gh release create "$TAG" "$STAGE/$ASSET" "$STAGE/$ARCHIVE" \
         --repo "$DOWNLOADS_REPO" \
-        --title "Uttrflow $VERSION" \
+        --title "Uttrflow v$VERSION" \
         --notes "$NOTES" \
         ${PRERELEASE[@]+"${PRERELEASE[@]}"} \
         || fail "could not create the release"
@@ -418,7 +418,7 @@ git -C "$CLONE" add latest.json appcast.xml
 if git -C "$CLONE" diff --cached --quiet; then
     echo "  already current"
 else
-    git -C "$CLONE" commit -q -m "Uttrflow $VERSION"
+    git -C "$CLONE" commit -q -m "Uttrflow v$VERSION"
     git -C "$CLONE" push -q || fail "could not push latest.json"
     echo "  updated"
 fi
@@ -427,7 +427,7 @@ fi
 
 cat <<EOF
 
-Published Uttrflow $VERSION.
+Published Uttrflow v$VERSION.
 
   release   https://github.com/$DOWNLOADS_REPO/releases/tag/$TAG
 EOF

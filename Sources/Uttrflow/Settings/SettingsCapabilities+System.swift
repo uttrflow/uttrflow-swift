@@ -55,11 +55,11 @@ extension SettingsCapabilities {
         return availability
     }
 
-    /// What this build calls itself, as "short (build)", since two builds of one release differ.
+    /// What this build calls itself, as "vshort (build)", since two builds of one release differ.
     private static var versionDescription: String? {
         let version = AppVersion.ofThisBuild
         guard version.isKnown else { return nil }
-        return version.build == version.short ? version.short : version.full
+        return "v" + (version.build == version.short ? version.short : version.full)
     }
 
     /// Whether macOS has an output device; `NSSound.play()` on none returns false without saying why.
