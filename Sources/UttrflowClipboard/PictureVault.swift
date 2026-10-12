@@ -1,4 +1,5 @@
 // Accesses clipboard pictures inside their confined folder.
+import CryptoKit
 import Foundation
 import Security
 import UttrflowCore
@@ -23,6 +24,52 @@ struct PictureVault {
     func hasImage(for image: ClipImage) -> Bool {
         guard let url = pictureURL(image.file) else { return false }
         return FileManager.default.fileExists(atPath: url.path(percentEncoded: false))
+    }
+
+    /// Reads a confined picture file before opening or preserving its bytes.
+    func imageData(for image: ClipImage, unreplaceable: inout Set<URL>) -> Data? {
+        guard let url = pictureURL(image.file),
+            let data = FileManager.default.contents(atPath: url.path(percentEncoded: false))
+        else {
+            return nil
+        }
+        return imageData(data, from: url, for: image, unreplaceable: &unreplaceable)
+    }
+
+    /// Keeps picture bytes before recording their ownership and returning row metadata.
+    func keep(
+        _ data: Data, forClip id: UUID, dimensions: (width: Int, height: Int), sha: String?,
+        didWrite: (String) -> Void
+    ) throws(ClipboardStoreError) -> ClipImage {
+        let name = "\(id.uuidString).png"
+        try storeImage(data, named: name)
+        didWrite(name)
+        return ClipImage(
+            file: name, width: dimensions.width, height: dimensions.height, bytes: data.count,
+            sha: sha ?? Self.digest(of: data))
+    }
+
+    /// Maps a picture write failure into the clipboard store's existing typed error.
+    func storeImage(_ data: Data, named name: String) throws(ClipboardStoreError) {
+        do {
+            try writeImage(data, named: name)
+        } catch {
+            throw ClipboardStore.writeFailure(error)
+        }
+    }
+
+    /// A picture's bytes as a short hexadecimal cache key, not a signature.
+    static func digest(of data: Data) -> String {
+        SHA256.hash(data: data).prefix(16).map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// Removes disk pictures only after their index, undo and pending-write references are accounted for.
+    func forgetOrphanedImages(wanted: Set<String>, references: PictureReferences) {
+        let onDisk =
+            (try? FileManager.default.contentsOfDirectory(
+                at: imagesFolder, includingPropertiesForKeys: nil)) ?? []
+        // A picture waiting for the write that will name it is not an orphan yet.
+        removePictures(references.orphaned(onDisk: Set(onDisk.map(\.lastPathComponent)), wanted: wanted))
     }
 
     /// Opens picture bytes or preserves their unreadable file.

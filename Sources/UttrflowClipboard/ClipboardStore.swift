@@ -2,7 +2,6 @@
 
 public import UttrflowCore
 public import Foundation
-import CryptoKit
 private import Synchronization
 
 /// The settled clipboard after undo and whether the restored alias conflicts.
@@ -414,32 +413,21 @@ public actor ClipboardStore {
 
     /// Writes a picture's bytes back under the file name its clip already records.
     private func restore(_ data: Data, as name: String) throws(ClipboardStoreError) {
-        do {
-            try pictureVault.writeImage(data, named: name)
-        } catch {
-            throw Self.writeFailure(error)
-        }
+        try pictureVault.storeImage(data, named: name)
     }
 
     /// Keeps a picture on disk and answers with what a row needs; throws, since a missing file is forever.
     public func keep(
         _ data: Data, forClip id: UUID, width: Int, height: Int, sha: String? = nil
     ) throws(ClipboardStoreError) -> ClipImage {
-        let name = "\(id.uuidString).png"
-        do {
-            try pictureVault.writeImage(data, named: name)
-        } catch {
-            throw Self.writeFailure(error)
+        try pictureVault.keep(data, forClip: id, dimensions: (width, height), sha: sha) { name in
+            pictureReferences.unnamedPictures.insert(name)
         }
-        pictureReferences.unnamedPictures.insert(name)
-        return ClipImage(
-            file: name, width: width, height: height, bytes: data.count,
-            sha: sha ?? ClipboardStore.digest(of: data))
     }
 
     /// A picture's bytes as a short hexadecimal digest; truncated because this is a cache key, not a signature.
     public static func digest(of data: Data) -> String {
-        SHA256.hash(data: data).prefix(16).map { String(format: "%02x", $0) }.joined()
+        PictureVault.digest(of: data)
     }
 
     /// Whether a clip's picture file is still present without opening the file.
@@ -449,11 +437,7 @@ public actor ClipboardStore {
 
     /// The bytes of a clip's picture, or `nil` when the file has gone from under the app.
     public func imageData(for image: ClipImage) -> Data? {
-        guard let url = pictureVault.pictureURL(image.file), let data = try? Data(contentsOf: url) else {
-            return nil
-        }
-        return pictureVault.imageData(
-            data, from: url, for: image, unreplaceable: &indexReader.unreplaceable)
+        pictureVault.imageData(for: image, unreplaceable: &indexReader.unreplaceable)
     }
 
     /// Releases the pictures held for an undo, deleting each one no clip has taken back.
@@ -467,12 +451,7 @@ public actor ClipboardStore {
     public func forgetOrphanedImages() {
         guard indexesAreTrustworthy else { return }
         let wanted = Set(loaded().compactMap(\.image?.file))
-        let onDisk =
-            (try? FileManager.default.contentsOfDirectory(
-                at: imagesFolder, includingPropertiesForKeys: nil)) ?? []
-        // A picture waiting for the write that will name it is not an orphan yet.
-        pictureVault.removePictures(
-            pictureReferences.orphaned(onDisk: Set(onDisk.map(\.lastPathComponent)), wanted: wanted))
+        pictureVault.forgetOrphanedImages(wanted: wanted, references: pictureReferences)
     }
 
     /// Replaces a clip's formatted note, leaving its plain form recoverable.

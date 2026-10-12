@@ -12,6 +12,8 @@ for rebuilding, relinking, arrival inheritance and undo restoration. `ClipboardS
 coordination and file I/O; both use the same `isPersistable` predicate for memory-only secrets.
 `ClipMigration` owns synchronous index migration eligibility and legacy upgrades; the store
 keeps background scheduling, persistence validation and successful legacy-marker updates.
+`PictureVault` owns confined picture byte reads and writes, metadata creation and orphan-folder
+enumeration; the actor keeps index-trust checks and reference bookkeeping.
 
 | File | Holds |
 | --- | --- |
