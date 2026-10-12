@@ -44,7 +44,7 @@ struct CacheResetRegistryTests {
     private static let resetEntryPoints = [
         (file: "Uttrflow/Suggestion/PredictCorpus.swift", call: "FocusedFieldReader.forgetSlowFields()"),
         (
-            file: "Uttrflow/Suggestion/SuggestionCoordinator.swift",
+            file: "Uttrflow/Suggestion/SuggestionForgetting.swift",
             call: "verifier.forgetEverything(then: clearingCorpus)"
         ),
         (file: "UttrflowPredict/Verifier.swift", call: "scoring?.forgetEverything()"),
