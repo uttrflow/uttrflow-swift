@@ -4,6 +4,7 @@
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -87,6 +88,72 @@ class SweepGridArgumentTests(unittest.TestCase):
                 saved = json.load(stream)
             self.assertEqual(saved["grid"], [0.2, 0.3])
             self.assertEqual([trial["value"] for trial in saved["trials"]], [0.2, 0.3])
+
+
+class SweepCliffToleranceArgumentTests(unittest.TestCase):
+    """Drives finite-tolerance validation with the committed synthetic fit table."""
+
+    table = os.path.join(ROOT, "Tests", "UttrflowEvalTests", "FitTables", "invented-linear.json")
+    nonfinite = ["inf", "+inf", "infinity", "1e309", "nan"]
+
+    def run_with(self, table, record, tolerance=None, seed=None):
+        arguments = [BINARY, "sweep", "--from-table", table, "--parameter", "synthetic-cliff",
+                     "--grid=-2,-1", "--record", record]
+        if tolerance is not None:
+            arguments.append(f"--cliff-tolerance={tolerance}")
+        if seed is not None:
+            arguments.extend(["--seed", seed])
+        return subprocess.run(arguments, capture_output=True, text=True, timeout=30)
+
+    def assert_refused(self, table, record, tolerance):
+        finished = self.run_with(table, record, tolerance)
+        self.assertEqual(finished.returncode, 64, finished.stderr)
+        self.assertEqual(finished.stdout, "")
+        self.assertIn("--cliff-tolerance", finished.stderr)
+        self.assertNotIn("cannot read the fit table", finished.stderr)
+        self.assertFalse(os.path.exists(record))
+
+    def test_nonfinite_tolerances_are_refused_with_a_valid_table(self):
+        with tempfile.TemporaryDirectory(prefix="cliff-valid-") as folder:
+            record = os.path.join(folder, "record.json")
+            for tolerance in self.nonfinite:
+                with self.subTest(tolerance=tolerance):
+                    self.assert_refused(self.table, record, tolerance)
+
+    def test_nonfinite_tolerances_are_refused_before_table_io(self):
+        with tempfile.TemporaryDirectory(prefix="cliff-absent-") as folder:
+            record = os.path.join(folder, "record.json")
+            for tolerance in self.nonfinite:
+                with self.subTest(tolerance=tolerance):
+                    self.assert_refused(os.path.join(folder, "absent.json"), record, tolerance)
+
+    def assert_finite(self, folder, tolerance, expected, seed):
+        record = os.path.join(folder, "record.json")
+        first = self.run_with(self.table, record, tolerance, seed)
+        self.assertEqual(first.returncode, 0, first.stderr)
+        self.assertEqual(first.stderr, "")
+        with open(record, "rb") as stream:
+            original = stream.read()
+        saved = json.loads(original)
+        self.assertEqual(saved["cliffTolerance"], expected)
+        self.assertEqual(saved["seed"], seed if seed is not None else "0")
+        self.assertEqual(saved["grid"], [-2, -1])
+        self.assertEqual(saved["chosen"], -2)
+        self.assertEqual(saved["verdict"], "chosen")
+        second = self.run_with(self.table, record, tolerance, seed)
+        self.assertEqual((second.returncode, second.stdout, second.stderr), (0, first.stdout, ""))
+        with open(record, "rb") as stream:
+            self.assertEqual(stream.read(), original)
+
+    def test_finite_tolerances_keep_seeded_reports_and_records(self):
+        cases = [(tolerance, expected, seed)
+                 for tolerance, expected in [
+                     (None, 0.05), ("0", 0), (repr(sys.float_info.max), sys.float_info.max)]
+                 for seed in [None, "alternate"]]
+        with tempfile.TemporaryDirectory(prefix="cliff-finite-") as folder:
+            for tolerance, expected, seed in cases:
+                with self.subTest(tolerance=tolerance, seed=seed):
+                    self.assert_finite(folder, tolerance, expected, seed)
 
 
 class AccentGroupBoundArgumentTests(unittest.TestCase):
