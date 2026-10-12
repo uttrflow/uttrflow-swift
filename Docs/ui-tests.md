@@ -34,7 +34,8 @@ A missing bundle fails with "Run `make app` first" rather than a timeout.
 
 `make uitest` writes its result bundle to `dist/uitest.xcresult`. `xcodebuild` refuses to write
 into one that exists, so `Scripts/uitest_result_path.sh` first moves a previous bundle aside
-under a timestamped name, keeping it for debugging. `make uitest-result-path`, part of
+under a timestamped name, keeping it for debugging. Dangling destination and archive symlinks
+also occupy their names: the helper preserves the links and advances archive suffixes. `make uitest-result-path`, part of
 `make verify`, proves a second run does not fail.
 
 ## Why it is not in `make verify`

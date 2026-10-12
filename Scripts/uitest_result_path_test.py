@@ -70,6 +70,67 @@ class ResultBundlePathTests(unittest.TestCase):
         archived = [name for name in os.listdir(self.tmp.name) if name != "uitest.xcresult"]
         self.assertEqual(len(archived), 2, archived)
 
+    def test_a_dangling_result_link_is_preserved_and_the_destination_can_be_created(self):
+        target = os.path.join(self.tmp.name, "missing-result")
+        os.symlink(target, self.path)
+        finished = self.run_script()
+        self.assertEqual(finished.returncode, 0, finished.stderr)
+        self.assertEqual(finished.stdout, self.path + "\n")
+        self.assertFalse(os.path.lexists(self.path))
+        archived = os.listdir(self.tmp.name)
+        self.assertEqual(len(archived), 1)
+        saved = os.path.join(self.tmp.name, archived[0])
+        self.assertTrue(os.path.islink(saved))
+        self.assertEqual(os.readlink(saved), target)
+        self.assertFalse(os.path.exists(target))
+        os.mkdir(self.path)
+        self.assertTrue(os.path.isdir(self.path))
+
+    def test_dangling_archive_entries_are_preserved_and_the_suffix_advances(self):
+        stamp = "20260101T000000"
+        clock = os.path.join(self.tmp.name, "clock")
+        os.mkdir(clock)
+        date = os.path.join(clock, "date")
+        with open(date, "w") as handle:
+            handle.write(f"#!/bin/sh\nprintf '%s\\n' '{stamp}'\n")
+        os.chmod(date, 0o700)
+        base = self.path.removesuffix(".xcresult")
+        prior = [f"{base}-{stamp}.xcresult", f"{base}-{stamp}-1.xcresult"]
+        targets = [os.path.join(self.tmp.name, f"missing-{index}") for index in range(2)]
+        for path, target in zip(prior, targets):
+            os.symlink(target, path)
+        os.mkdir(self.path)
+        with open(os.path.join(self.path, "marker"), "w") as handle:
+            handle.write("current synthetic result")
+        finished = subprocess.run([SCRIPT, self.path], capture_output=True, text=True, timeout=30,
+                                  env=dict(os.environ, PATH=clock + os.pathsep + os.environ["PATH"]))
+        expected = f"{base}-{stamp}-2.xcresult"
+        self.assertEqual(finished.returncode, 0, finished.stderr)
+        self.assertEqual(finished.stdout, self.path + "\n")
+        self.assertEqual(finished.stderr, f"Previous UI test result kept at {expected}\n")
+        for path, target in zip(prior, targets):
+            self.assertTrue(os.path.islink(path))
+            self.assertEqual(os.readlink(path), target)
+        with open(os.path.join(expected, "marker")) as handle:
+            self.assertEqual(handle.read(), "current synthetic result")
+        self.assertFalse(os.path.lexists(self.path))
+        os.mkdir(self.path)
+        self.assertTrue(os.path.isdir(self.path))
+
+    def test_a_regular_result_file_is_preserved_before_the_destination_is_created(self):
+        with open(self.path, "w") as handle:
+            handle.write("previous synthetic result")
+        finished = self.run_script()
+        self.assertEqual(finished.returncode, 0, finished.stderr)
+        self.assertEqual(finished.stdout, self.path + "\n")
+        self.assertFalse(os.path.lexists(self.path))
+        archived = os.listdir(self.tmp.name)
+        self.assertEqual(len(archived), 1)
+        with open(os.path.join(self.tmp.name, archived[0])) as handle:
+            self.assertEqual(handle.read(), "previous synthetic result")
+        os.mkdir(self.path)
+        self.assertTrue(os.path.isdir(self.path))
+
     def test_missing_argument_is_refused(self):
         finished = subprocess.run([SCRIPT], capture_output=True, text=True, timeout=30)
         self.assertNotEqual(finished.returncode, 0)
