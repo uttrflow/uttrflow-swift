@@ -138,7 +138,7 @@ struct Bakeoff: AsyncParsableCommand {
         let outputStore = ResultStore(
             directory: URL(fileURLWithPath: against == nil ? storeDirectory : storeDirectory + "-compared"))
         guard against == nil || (!summarise && !sample) else {
-            throw CleanExit.message("--against applies to a new bake-off run, not --summarise or --sample.")
+            throw ValidationError("--against applies to a new bake-off run, not --summarise or --sample.")
         }
 
         let baselineURL = against.map { URL(fileURLWithPath: $0).standardizedFileURL }

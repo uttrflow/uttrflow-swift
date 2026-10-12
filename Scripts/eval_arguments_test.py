@@ -438,5 +438,8 @@ class MissingBaselineGateTests(unittest.TestCase):
             self.assertEqual(self.compare(measured, baseline, "--fail-on-regression").stdout, gated.stdout)
 
 
+from bakeoff_arguments_test import BakeoffDisplayArgumentTests
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
