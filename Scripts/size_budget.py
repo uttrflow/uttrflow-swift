@@ -103,6 +103,46 @@ def resolved_evidence_self_test():
     print("size budget self-test: 8 invalid inputs refused; empty/current/exact/over boundaries preserved")
 
 
+def app_input_self_test():
+    """Checks app directory input and size boundaries through the actual CLI."""
+    with tempfile.TemporaryDirectory() as scratch:
+        root = Path(scratch)
+        scripts = root / "Scripts"
+        scripts.mkdir()
+        script = scripts / "size_budget.py"
+        script.write_bytes(Path(__file__).read_bytes())
+        (scripts / "size_budget.json").write_text(json.dumps({
+            "app_bytes": 24, "app_zip_bytes": 1000000, "resolved_packages": 0}))
+        (root / "Package.resolved").write_text('{"pins": []}')
+        selected = root / "Synthetic.app"
+        selected.write_bytes(b"synthetic bundle fixture")
+        for path in (selected, root / "missing.app", ""):
+            result = subprocess.run([sys.executable, str(script), "--app", str(path)],
+                                    capture_output=True, text=True)
+            assert result.returncode == 1 and not result.stdout, result
+            assert result.stderr == f"error: app size input is not a directory: {path}\n", result
+        omitted = subprocess.run([sys.executable, str(script)], capture_output=True, text=True)
+        assert omitted.returncode == 0 and not omitted.stderr, omitted
+        assert omitted.stdout == f"  {'resolved_packages':<18} {0:>13,}  budget {0:>13,}\n", omitted
+        selected.unlink()
+        selected.mkdir()
+        blob = selected / "blob"
+        linked = root / "Linked.app"
+        linked.symlink_to(selected, target_is_directory=True)
+        for size, path in ((24, selected), (24, linked), (25, selected)):
+            blob.write_bytes(b"x" * size)
+            result = subprocess.run([sys.executable, str(script), "--app", str(path)],
+                                    capture_output=True, text=True)
+            assert result.returncode == int(size > 24), result
+            expected = f"  {'app_bytes':<18} {size:>13,}  budget {24:>13,}"
+            assert result.stdout.splitlines()[1] == expected, result
+            if size == 24:
+                assert not result.stderr, result
+            else:
+                assert "error: app_bytes is 25, over its budget of 24." in result.stderr, result
+    print("size budget self-test: non-directory app inputs refused; exact/over directory sizes preserved")
+
+
 def self_test():
     budget = {"app_bytes": 100, "resolved_packages": 2}
     assert over_budget({"app_bytes": 100, "resolved_packages": 2}, budget) == []
@@ -122,6 +162,7 @@ def self_test():
         assert resolved_packages(resolved) == 3
     assert set(load_budget()) == {"app_bytes", "app_zip_bytes", "resolved_packages"}
     resolved_evidence_self_test()
+    app_input_self_test()
     print("size budget self-test passed")
 
 
@@ -132,6 +173,9 @@ def main():
     args = parser.parse_args()
     if args.self_test:
         self_test()
+    if args.app is not None and not os.path.isdir(args.app):
+        print(f"error: app size input is not a directory: {args.app}", file=sys.stderr)
+        return 1
     budget = load_budget()
     try:
         measured = {"resolved_packages": resolved_packages()}

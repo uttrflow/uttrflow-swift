@@ -513,7 +513,9 @@ history 0.1 MB, recordings 0 MB, diagnostics 0 MB.
 What it costs to build, check and download Uttrflow, as opposed to what it costs to run. The
 limits are in `Scripts/size_budget.json`; `Scripts/size_budget.py` checks them, `Scripts/bundle.sh`
 runs it on every bundle it builds (so `make app` and `make app-preflight` fail over budget), and
-`make size-budget` checks the resolved package count in `make verify`. Raising a limit is a
+`make size-budget` checks the resolved package count in `make verify`.
+`--app` must name a directory; a regular file or missing path fails before size measurement.
+This input check does not validate signing or the bundle structure. Raising a limit is a
 reviewed change to the JSON file whose pull request says what grew and why.
 The package count requires a readable JSON object with a pins list; missing or non-list evidence
 fails before a count is reported.
