@@ -1216,6 +1216,8 @@ by prose alone.
 - A chosen value whose neighbour scores more than `--cliff-tolerance` worse is a cliff and is refused
   with exit 1; `--margin-steps N` moves the choice N grid steps toward the flatter, feasible
   neighbour instead.
+- The CLI refuses a nonfinite cliff tolerance before reading the table or writing a record;
+  finite values, including zero, retain the same sweep behavior.
 - Margin steps are capped at the grid endpoint before index arithmetic, so even the largest integer
   margin remains bounded. The record retains the requested step count.
 - `--record` writes one JSON file: the grid, objective, seed, table digest, feature spec version,
