@@ -3,12 +3,76 @@
 
 import json
 import os
+import re
 import subprocess
+import sys
 import tempfile
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BINARY = os.path.join(ROOT, ".build", "debug", "uttrflow-eval")
+DEV_BINARY = os.path.join(ROOT, ".build", "debug", "uttrflow-dev")
+
+
+class AblationRefusalTests(unittest.TestCase):
+    """Drives stored-input refusals before any subject is measured."""
+
+    empty_message = "No English test-side recording has a kept decode here. Run: uttrflow-eval transcribe\n"
+
+    def run_with(self, corpus, *arguments):
+        return subprocess.run(
+            [BINARY, "transcribe", "--ablate", "--corpus-path", corpus, *arguments],
+            capture_output=True, text=True, timeout=30)
+
+    def assert_refusal(self, corpus, expected):
+        first = self.run_with(corpus)
+        self.assertEqual(first.returncode, 1, first.stdout + first.stderr)
+        self.assertEqual(first.stderr, "")
+        self.assertTrue(first.stdout.startswith(expected), first.stdout)
+        self.assertNotIn("Per-layer ablation on", first.stdout)
+        repeated = self.run_with(corpus)
+        self.assertEqual((repeated.returncode, repeated.stdout, repeated.stderr),
+                         (1, first.stdout, ""))
+
+    def test_empty_and_absent_corpora_report_failure(self):
+        with tempfile.TemporaryDirectory(prefix="ablation-empty-") as root:
+            empty = os.path.join(root, "empty")
+            absent = os.path.join(root, "absent")
+            os.mkdir(empty)
+            for corpus in [empty, absent]:
+                with self.subTest(corpus=corpus):
+                    self.assert_refusal(corpus, self.empty_message)
+            self.assertEqual(os.listdir(empty), [])
+            self.assertFalse(os.path.exists(absent))
+
+    def test_unreadable_recording_and_decode_metadata_report_failure(self):
+        with tempfile.TemporaryDirectory(prefix="ablation-unreadable-") as root:
+            for name, nested in [("recording", False), ("decode", True)]:
+                with self.subTest(input=name):
+                    corpus = os.path.join(root, name)
+                    records = os.path.join(corpus, "decode-dumps") if nested else corpus
+                    os.makedirs(records)
+                    broken = os.path.join(records, "broken.json")
+                    with open(broken, "w", encoding="utf-8") as stream:
+                        stream.write("{}")
+                    self.assert_refusal(corpus, "could not read broken.json: ")
+                    with open(broken, encoding="utf-8") as stream:
+                        self.assertEqual(stream.read(), "{}")
+                    self.assertEqual(os.listdir(records), ["broken.json"])
+
+    def test_argument_validation_still_precedes_ablation_input_reads(self):
+        controls = [("--findings=-1", "--findings must be zero or greater"),
+                    ("--passage-limit=-1", "--passage-limit must be zero or greater"),
+                    ("--repeat=0", "--repeat must be one or greater")]
+        with tempfile.TemporaryDirectory(prefix="ablation-validation-") as root:
+            absent = os.path.join(root, "absent")
+            for argument, message in controls:
+                with self.subTest(argument=argument):
+                    finished = self.run_with(absent, argument)
+                    self.assertEqual(finished.returncode, 64, finished.stderr)
+                    self.assertEqual(finished.stdout, "")
+                    self.assertIn(message, finished.stderr)
+                    self.assertFalse(os.path.exists(absent))
 
 
 class TranscribeLimitArgumentTests(unittest.TestCase):
@@ -87,6 +151,72 @@ class SweepGridArgumentTests(unittest.TestCase):
                 saved = json.load(stream)
             self.assertEqual(saved["grid"], [0.2, 0.3])
             self.assertEqual([trial["value"] for trial in saved["trials"]], [0.2, 0.3])
+
+
+class SweepCliffToleranceArgumentTests(unittest.TestCase):
+    """Drives finite-tolerance validation with the committed synthetic fit table."""
+
+    table = os.path.join(ROOT, "Tests", "UttrflowEvalTests", "FitTables", "invented-linear.json")
+    nonfinite = ["inf", "+inf", "infinity", "1e309", "nan"]
+
+    def run_with(self, table, record, tolerance=None, seed=None):
+        arguments = [BINARY, "sweep", "--from-table", table, "--parameter", "synthetic-cliff",
+                     "--grid=-2,-1", "--record", record]
+        if tolerance is not None:
+            arguments.append(f"--cliff-tolerance={tolerance}")
+        if seed is not None:
+            arguments.extend(["--seed", seed])
+        return subprocess.run(arguments, capture_output=True, text=True, timeout=30)
+
+    def assert_refused(self, table, record, tolerance):
+        finished = self.run_with(table, record, tolerance)
+        self.assertEqual(finished.returncode, 64, finished.stderr)
+        self.assertEqual(finished.stdout, "")
+        self.assertIn("--cliff-tolerance", finished.stderr)
+        self.assertNotIn("cannot read the fit table", finished.stderr)
+        self.assertFalse(os.path.exists(record))
+
+    def test_nonfinite_tolerances_are_refused_with_a_valid_table(self):
+        with tempfile.TemporaryDirectory(prefix="cliff-valid-") as folder:
+            record = os.path.join(folder, "record.json")
+            for tolerance in self.nonfinite:
+                with self.subTest(tolerance=tolerance):
+                    self.assert_refused(self.table, record, tolerance)
+
+    def test_nonfinite_tolerances_are_refused_before_table_io(self):
+        with tempfile.TemporaryDirectory(prefix="cliff-absent-") as folder:
+            record = os.path.join(folder, "record.json")
+            for tolerance in self.nonfinite:
+                with self.subTest(tolerance=tolerance):
+                    self.assert_refused(os.path.join(folder, "absent.json"), record, tolerance)
+
+    def assert_finite(self, folder, tolerance, expected, seed):
+        record = os.path.join(folder, "record.json")
+        first = self.run_with(self.table, record, tolerance, seed)
+        self.assertEqual(first.returncode, 0, first.stderr)
+        self.assertEqual(first.stderr, "")
+        with open(record, "rb") as stream:
+            original = stream.read()
+        saved = json.loads(original)
+        self.assertEqual(saved["cliffTolerance"], expected)
+        self.assertEqual(saved["seed"], seed if seed is not None else "0")
+        self.assertEqual(saved["grid"], [-2, -1])
+        self.assertEqual(saved["chosen"], -2)
+        self.assertEqual(saved["verdict"], "chosen")
+        second = self.run_with(self.table, record, tolerance, seed)
+        self.assertEqual((second.returncode, second.stdout, second.stderr), (0, first.stdout, ""))
+        with open(record, "rb") as stream:
+            self.assertEqual(stream.read(), original)
+
+    def test_finite_tolerances_keep_seeded_reports_and_records(self):
+        cases = [(tolerance, expected, seed)
+                 for tolerance, expected in [
+                     (None, 0.05), ("0", 0), (repr(sys.float_info.max), sys.float_info.max)]
+                 for seed in [None, "alternate"]]
+        with tempfile.TemporaryDirectory(prefix="cliff-finite-") as folder:
+            for tolerance, expected, seed in cases:
+                with self.subTest(tolerance=tolerance, seed=seed):
+                    self.assert_finite(folder, tolerance, expected, seed)
 
 
 class AccentGroupBoundArgumentTests(unittest.TestCase):
@@ -173,6 +303,72 @@ class AccentGroupBoundArgumentTests(unittest.TestCase):
                     self.assertEqual(finished.returncode, 0, finished.stderr)
                     self.assertEqual(finished.stdout, header + expected)
                     self.assertEqual(finished.stderr, "")
+
+
+class ModelDirectoryFailureTests(unittest.TestCase):
+    """Drives developer directory handling before any model download."""
+
+    def run_dev(self, *arguments):
+        return subprocess.run([DEV_BINARY, "models", *arguments],
+                              capture_output=True, text=True, timeout=30)
+
+    def normalized_error(self, text):
+        return re.sub(r"\bNSUnderlyingError=0x[0-9A-Fa-f]+\b", "NSUnderlyingError=<object>", text)
+
+    def test_failed_directory_creation_refuses_installation(self):
+        with tempfile.TemporaryDirectory(prefix="model-directory-") as folder:
+            parent = os.path.join(folder, "parent-file")
+            child = os.path.join(parent, "models")
+            with open(parent, "w", encoding="utf-8") as stream:
+                stream.write("synthetic directory blocker")
+            finished = self.run_dev("install", "--models-dir", child)
+            self.assertEqual(finished.returncode, 1, finished.stderr)
+            self.assertEqual(finished.stdout.split(": Error Domain=", 1)[0],
+                             f"Could not create models directory at {child}")
+            self.assertIn("Error Domain=NSCocoaErrorDomain Code=512", finished.stdout)
+            self.assertIn("Error Domain=NSPOSIXErrorDomain Code=20", finished.stdout)
+            repeated = self.run_dev("install", "--models-dir", child)
+            self.assertEqual(repeated.returncode, 1, repeated.stderr)
+            self.assertEqual(repeated.stderr, "")
+            self.assertEqual(self.normalized_error(repeated.stdout), self.normalized_error(finished.stdout))
+            self.assertEqual(finished.stderr, "")
+            self.assertNotIn("Installing ", finished.stdout)
+            self.assertFalse(os.path.exists(child))
+            with open(parent, encoding="utf-8") as stream:
+                self.assertEqual(stream.read(), "synthetic directory blocker")
+
+    def test_directory_and_model_validation_keep_their_existing_refusals(self):
+        with tempfile.TemporaryDirectory(prefix="model-directory-") as folder:
+            parent = os.path.join(folder, "parent-file")
+            with open(parent, "w", encoding="utf-8") as stream:
+                stream.write("synthetic directory blocker")
+            controls = [(["list", "--models-dir="], "Missing value for '--models-dir"),
+                        (["list", "--models-dir", ""], "--models-dir must not be empty"),
+                        (["list", "--models-dir", parent],
+                         "--models-dir must point to a directory"),
+                        (["list", "--models-dir", os.path.join(folder, "absent")],
+                         "Models directory does not exist"),
+                        (["install", "--model", "synthetic-unknown", "--models-dir", parent],
+                         "Unknown model 'synthetic-unknown'")]
+            for arguments, message in controls:
+                with self.subTest(arguments=arguments):
+                    finished = self.run_dev(*arguments)
+                    self.assertEqual(finished.returncode, 64, finished.stderr)
+                    self.assertIn(message, finished.stderr)
+                    self.assertIn("usage:", finished.stderr.lower())
+                    self.assertNotIn("Installing ", finished.stdout)
+
+    def test_existing_empty_directory_lists_without_changing_it(self):
+        with tempfile.TemporaryDirectory(prefix="model-directory-") as folder:
+            explicit = self.run_dev("list", "--models-dir", folder)
+            implicit = self.run_dev("--models-dir", folder)
+            for finished in [explicit, implicit]:
+                self.assertEqual(finished.returncode, 0, finished.stderr)
+                self.assertEqual(finished.stderr, "")
+                self.assertTrue(finished.stdout.startswith(f"Models in {folder}\n\n"))
+                self.assertNotIn("Installing ", finished.stdout)
+            self.assertEqual(implicit.stdout, explicit.stdout)
+            self.assertEqual(os.listdir(folder), [])
 
 
 class MissingBaselineGateTests(unittest.TestCase):

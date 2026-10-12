@@ -1207,6 +1207,8 @@ uttrflow-eval pace --corpus-path <reader-1-quiet>
 chooses a threshold on a fit table feature and keeps what it tried, so a constant is never justified
 by prose alone.
 
+Direct sweep requests reject negative feature indices with the existing column error; an empty grid is refused first.
+
 - The grid is scored on the development rows (fit side) and on half of the held-out rows (calibration
   side); the seed splits the held-out rows, so the same seed always gives the same halves.
 - The choice is the value with the fewest wrong rows left unflagged on calibration, among values
@@ -1216,6 +1218,8 @@ by prose alone.
 - A chosen value whose neighbour scores more than `--cliff-tolerance` worse is a cliff and is refused
   with exit 1; `--margin-steps N` moves the choice N grid steps toward the flatter, feasible
   neighbour instead.
+- The CLI refuses a nonfinite cliff tolerance before reading the table or writing a record;
+  finite values, including zero, retain the same sweep behavior.
 - Margin steps are capped at the grid endpoint before index arithmetic, so even the largest integer
   margin remains bounded. The record retains the requested step count.
 - `--record` writes one JSON file: the grid, objective, seed, table digest, feature spec version,

@@ -105,15 +105,18 @@ struct BoundedCacheTests {
             call: "suggestions?.forgetEverySuggestion()"),
     ]
 
-    /// The running loop's forget, down through the verifier.
+    /// The path from the verifier back through the running loop and Settings.
     private static let loopReset =
         [
             Step(
-                file: "Uttrflow/Suggestion/SuggestionCoordinator.swift",
+                file: "Uttrflow/Suggestion/SuggestionForgetting.swift",
                 function: "forgetWhatThisLoopRemembers(", call: "verifier.forgetEverything(then:"),
             Step(
+                file: "Uttrflow/Suggestion/SuggestionForgetting.swift",
+                function: "forgetEverySuggestion(", call: "forgetWhatThisLoopRemembers("),
+            Step(
                 file: "Uttrflow/Suggestion/SuggestionCoordinator.swift", function: "forgetEverySuggestion()",
-                call: "forgetWhatThisLoopRemembers("),
+                call: "forgetting.forgetEverySuggestion {"),
         ] + settingsReset
 
     /// The local model's forget, reached through the verifier's scorer.

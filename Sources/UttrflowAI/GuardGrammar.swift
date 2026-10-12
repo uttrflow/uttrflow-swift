@@ -73,7 +73,7 @@ extension MeaningPreservationGuard {
             return .rejected(reason: "the rewrite dropped a negation", kind: .negationDropped)
         }
         if case .rejected(let reason, let kind) = negationPlacementVerdict(
-            alignment, echo: echoTokens, removable: removable, allowingFormRepairs: repairs)
+            alignment, echo: echoTokens, removable: removable.union(marked), allowingFormRepairs: repairs)
         {
             return .rejected(reason: reason, kind: kind)
         }

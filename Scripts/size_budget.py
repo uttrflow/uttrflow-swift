@@ -5,6 +5,7 @@ import argparse
 import json
 import os
 import subprocess
+from pathlib import Path
 import sys
 import tempfile
 
@@ -38,7 +39,10 @@ def zip_bytes(app):
 
 def resolved_packages(path=RESOLVED):
     with open(path, encoding="utf-8") as handle:
-        return len(json.load(handle).get("pins", []))
+        resolved = json.load(handle)
+    if not isinstance(resolved, dict) or not isinstance(resolved.get("pins"), list):
+        raise ValueError("resolved package count requires a pins list")
+    return len(resolved["pins"])
 
 
 def over_budget(measured, budget):
@@ -56,6 +60,47 @@ def report(measured, budget):
         print(f"error: {name} is {value:,}, over its budget of {limit}. Shrink it, or raise "
               f"Scripts/size_budget.json in a reviewed change that says why.", file=sys.stderr)
     return 1 if failures else 0
+
+
+def resolved_probe(script, content):
+    """Runs the size gate against a private fixture manifest."""
+    manifest = script.parent.parent / "Package.resolved"
+    if content is None:
+        manifest.unlink(missing_ok=True)
+    else:
+        manifest.write_text(content)
+    return subprocess.run([sys.executable, str(script)], capture_output=True, text=True)
+
+
+def resolved_evidence_self_test():
+    """Checks missing evidence and real dependency-count boundaries through the CLI."""
+    failures = []
+    with tempfile.TemporaryDirectory() as scratch:
+        root = Path(scratch)
+        scripts = root / "Scripts"
+        scripts.mkdir()
+        script = scripts / "size_budget.py"
+        script.write_bytes(Path(__file__).read_bytes())
+        (scripts / "size_budget.json").write_bytes(Path(BUDGET).read_bytes())
+        invalid = [None, "not json", "[]", '"text"', "{}", '{"pins":"x"}',
+                   '{"pins":{}}', '{"pins":null}']
+        for content in invalid:
+            result = resolved_probe(script, content)
+            if result.returncode != 1 or result.stdout or "could not measure resolved" not in result.stderr:
+                failures.append(f"invalid manifest {content!r} did not fail before reporting")
+        limit = load_budget()["resolved_packages"]
+        for count in (0, limit, limit + 1):
+            result = resolved_probe(script, json.dumps({"pins": [{}] * count}))
+            expected = f"  {'resolved_packages':<18} {count:>13,}  budget {limit:>13,}\n"
+            if result.returncode != int(count > limit) or result.stdout != expected:
+                failures.append(f"valid package count {count} changed its status or report")
+        current = resolved_probe(script, Path(RESOLVED).read_text())
+        if current.returncode != 0 or current.stderr:
+            failures.append("current resolved manifest was refused")
+    for failure in failures:
+        print(f"size budget self-test: {failure}", file=sys.stderr)
+    assert not failures, "resolved-package evidence controls failed"
+    print("size budget self-test: 8 invalid inputs refused; empty/current/exact/over boundaries preserved")
 
 
 def self_test():
@@ -76,6 +121,7 @@ def self_test():
             json.dump({"pins": [{"identity": "a"}, {"identity": "b"}, {"identity": "c"}]}, handle)
         assert resolved_packages(resolved) == 3
     assert set(load_budget()) == {"app_bytes", "app_zip_bytes", "resolved_packages"}
+    resolved_evidence_self_test()
     print("size budget self-test passed")
 
 
@@ -87,7 +133,11 @@ def main():
     if args.self_test:
         self_test()
     budget = load_budget()
-    measured = {"resolved_packages": resolved_packages()}
+    try:
+        measured = {"resolved_packages": resolved_packages()}
+    except (OSError, ValueError) as error:
+        print(f"error: could not measure resolved Swift packages: {error}", file=sys.stderr)
+        return 1
     if args.app:
         measured["app_bytes"] = tree_bytes(args.app)
         measured["app_zip_bytes"] = zip_bytes(args.app)

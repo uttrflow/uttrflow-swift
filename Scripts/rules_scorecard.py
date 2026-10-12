@@ -12,7 +12,9 @@ comparison.
 import argparse
 import json
 import shutil
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -22,9 +24,17 @@ ACCEPTED = ROOT / "Scripts" / "scorecard_accepted.txt"
 THRESHOLD = 1.0
 
 
+class VerdictError(ValueError):
+    """A scorecard contains a verdict the producer does not emit."""
+
+
 def read_cases(path):
     with open(path) as handle:
-        return json.load(handle)["cases"]
+        cases = json.load(handle)["cases"]
+    for case, entry in cases.items():
+        if entry["verdict"] not in ("pass", "fail"):
+            raise VerdictError(f"{case}: verdict must be pass or fail")
+    return cases
 
 
 def read_accepted(path):
@@ -90,6 +100,54 @@ def markdown(base, measured, problems, accepted):
     return "\n".join(lines) + "\n"
 
 
+def verdict_controls(script, root):
+    """Checks comparison and recording admission through the actual CLI."""
+    base = {str(index): {"category": "fixture", "verdict": "pass"} for index in range(1000)}
+    baseline, measured = root / "base.json", root / "measured.json"
+    recorded = script.parent / "rules_scorecard.json"
+    failures = []
+    for name, verdict in [("unknown", "unknown"), ("null", None), ("boolean", True)]:
+        invalid = {**base, "0": {"category": "fixture", "verdict": verdict}}
+        for side in ("base", "measured", "update"):
+            baseline.write_text(json.dumps({"cases": invalid if side == "base" else base}))
+            measured.write_text(json.dumps({"cases": base if side == "base" else invalid}))
+            recorded.write_bytes(b"unchanged recorded bytes")
+            arguments = ["--update"] if side == "update" else ["--base", str(baseline)]
+            result = subprocess.run(
+                [sys.executable, str(script), *arguments, "--measured", str(measured)],
+                capture_output=True, text=True)
+            refused = result.returncode == 1 and "verdict must be pass or fail" in result.stderr
+            retained = side != "update" or recorded.read_bytes() == b"unchanged recorded bytes"
+            if not refused or not retained:
+                failures.append(f"{name}/{side}: malformed verdict admitted or recorded bytes changed")
+    measured.write_text(json.dumps({"cases": base}, indent=2) + "\n")
+    result = subprocess.run(
+        [sys.executable, str(script), "--update", "--measured", str(measured)],
+        capture_output=True, text=True)
+    expected = f"rules scorecard: recorded {measured} as Scripts/rules_scorecard.json\n"
+    if (result.returncode, result.stdout, result.stderr) != (0, expected, ""):
+        failures.append("valid/update: existing successful recording output changed")
+    if recorded.read_bytes() != measured.read_bytes():
+        failures.append("valid/update: recording did not retain exact source bytes")
+    return failures
+
+
+def verdict_self_test():
+    """Uses a private copied script so recording controls never write the baseline."""
+    with tempfile.TemporaryDirectory() as scratch:
+        root = Path(scratch)
+        scripts = root / "Scripts"
+        scripts.mkdir()
+        script = scripts / "rules_scorecard.py"
+        script.write_bytes(Path(__file__).read_bytes())
+        failures = verdict_controls(script, root)
+    for failure in failures:
+        print(f"rules scorecard self-test: FAILED: {failure}", file=sys.stderr)
+    if not failures:
+        print("rules scorecard self-test: 9 malformed admissions refused; valid recording bytes preserved")
+    return bool(failures)
+
+
 def self_test():
     """Proves the comparison fails on what it must and passes on what it must not fail."""
     base = {
@@ -124,6 +182,8 @@ def self_test():
     failed = [name for name, held in checks if not held]
     for name in failed:
         print(f"rules scorecard self-test: FAILED: {name}", file=sys.stderr)
+    if verdict_self_test():
+        failed.append("malformed verdict admission")
     return 1 if failed else 0
 
 
@@ -138,15 +198,19 @@ def main():
     arguments = parser.parse_args()
     if arguments.self_test:
         return self_test()
-    if arguments.update:
-        shutil.copyfile(arguments.measured, RECORDED)
-        print(f"rules scorecard: recorded {arguments.measured} as {RECORDED.relative_to(ROOT)}")
-        return 0
-    measured = read_cases(arguments.measured)
+    try:
+        measured = read_cases(arguments.measured)
+        if arguments.update:
+            shutil.copyfile(arguments.measured, RECORDED)
+            print(f"rules scorecard: recorded {arguments.measured} as {RECORDED.relative_to(ROOT)}")
+            return 0
+        base = read_cases(arguments.base) if arguments.base and Path(arguments.base).exists() else None
+    except VerdictError as error:
+        print(f"rules scorecard: {error}", file=sys.stderr)
+        return 1
     if not arguments.base or not Path(arguments.base).exists():
         print("rules scorecard: the base records no scorecard, so there is nothing to compare with")
         return 0
-    base = read_cases(arguments.base)
     accepted = read_accepted(ACCEPTED) - read_accepted(arguments.base_accepted)
     problems, accepted_regressions = compare(base, measured, accepted)
     report = markdown(base, measured, problems, accepted_regressions)

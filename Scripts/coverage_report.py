@@ -440,40 +440,21 @@ def report_exclusions(counts: dict[str, int | None], problems: list[str]) -> Non
         print(f"error: {problem}", file=sys.stderr)
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--check-exclusions", action="store_true", help="check the exclusion list only")
-    parser.add_argument("--self-test", action="store_true", help="with --check-exclusions, prove each check fails")
-    ratchet.add_arguments(parser)
-    arguments = parser.parse_args()
-    counts = line_counts(SOURCES_ROOT)
-    sizes = oversized_sizes(counts)
-    if arguments.update:
-        return ratchet.update(
-            str(SIZE_BASELINE), sizes, "lines in oversized exclusions",
-            "an excluded file whose new logic belongs in a covered module", arguments.after_merge,
-        )
-    baseline = ratchet.load(str(SIZE_BASELINE))
-    if not baseline:
-        return ratchet.missing(str(SIZE_BASELINE), sys.argv[0])
-    problems = exclusion_problems(counts) + growth_problems(sizes, baseline.get("files", {}))
-    # Reads no coverage report, so it runs ahead of the build rather than after the tests.
-    if arguments.check_exclusions:
-        report_exclusions(counts, problems)
-        if problems:
-            return 1
-        oversized = sum(1 for path in counts if path in OVERSIZED_EXCLUSIONS)
-        print(
-            f"\ncoverage exclusions: {len(counts)} files, all present, "
-            f"{oversized} over the limit, each saying what reviews it instead and none past its recorded size."
-        )
-        if arguments.self_test and self_test():
-            print("\n  ✗ a check no longer fails on the state it polices\n", file=sys.stderr)
-            return 1
-        print()
-        return 0
+def expected_modules() -> set[str]:
+    """Finds this lane's modules with source files outside the reviewed exclusions."""
+    modules = set()
+    for source in SOURCES_ROOT.rglob("*.swift"):
+        path = relative(str(source))
+        if not source.is_file() or path is None or len(path.parts) < 2:
+            continue
+        module = path.parts[0]
+        if module not in EXCLUDED_MODULES and in_lane(module) and path.as_posix() not in EXCLUDED_FILES:
+            modules.add(module)
+    return modules
 
-    report = json.load(sys.stdin)
+
+def coverage_totals(report) -> tuple[dict[str, list[int]], list[str]]:
+    """Attributes report counts to this lane's source-owned modules."""
     totals: dict[str, list[int]] = {}
     skipped_files: list[str] = []
 
@@ -492,6 +473,11 @@ def main() -> int:
             covered, count = totals.setdefault(module, [0, 0])
             totals[module] = [covered + lines.get("covered", 0), count + lines.get("count", 0)]
 
+    return totals, skipped_files
+
+
+def coverage_result(totals, skipped_files, counts, problems) -> int:
+    """Prints the existing measured and unmeasured coverage verdict."""
     if not totals:
         print("error: no product modules found in the coverage report", file=sys.stderr)
         return 1
@@ -529,6 +515,47 @@ def main() -> int:
         print(f"error: {problem}", file=sys.stderr)
     return 1 if failures or problems else 0
 
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--check-exclusions", action="store_true", help="check the exclusion list only")
+    parser.add_argument("--self-test", action="store_true", help="with --check-exclusions, prove each check fails")
+    ratchet.add_arguments(parser)
+    arguments = parser.parse_args()
+    counts = line_counts(SOURCES_ROOT)
+    sizes = oversized_sizes(counts)
+    if arguments.update:
+        return ratchet.update(
+            str(SIZE_BASELINE), sizes, "lines in oversized exclusions",
+            "an excluded file whose new logic belongs in a covered module", arguments.after_merge,
+        )
+    baseline = ratchet.load(str(SIZE_BASELINE))
+    if not baseline:
+        return ratchet.missing(str(SIZE_BASELINE), sys.argv[0])
+    problems = exclusion_problems(counts) + growth_problems(sizes, baseline.get("files", {}))
+    # Reads no coverage report, so it runs ahead of the build rather than after the tests.
+    if arguments.check_exclusions:
+        report_exclusions(counts, problems)
+        if problems:
+            return 1
+        oversized = sum(1 for path in counts if path in OVERSIZED_EXCLUSIONS)
+        print(
+            f"\ncoverage exclusions: {len(counts)} files, all present, "
+            f"{oversized} over the limit, each saying what reviews it instead and none past its recorded size."
+        )
+        if arguments.self_test and self_test():
+            print("\n  ✗ a check no longer fails on the state it polices\n", file=sys.stderr)
+            return 1
+        print()
+        return 0
+
+    report = json.load(sys.stdin)
+    totals, skipped_files = coverage_totals(report)
+
+    problems.extend(
+        f"{module} has no line coverage in the report"
+        for module in sorted(expected_modules() - totals.keys()))
+    return coverage_result(totals, skipped_files, counts, problems)
 
 if __name__ == "__main__":
     sys.exit(main())

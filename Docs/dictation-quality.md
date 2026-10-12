@@ -64,6 +64,7 @@ several are kept), switch each default-on layer off alone, and print the table a
 failed-case and meaning-error intervals, minimum detectable change and false overrides, naming every
 default-on layer. They decode nothing and load no model, and read the test side only, so run them
 to judge a release, never to tune one.
+The eval command exits with failure when those inputs cannot be read or contain no eligible kept decodes.
 
 ## Rules that hold across every layer
 

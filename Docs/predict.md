@@ -102,7 +102,11 @@ handed text, not a decision. Accepting tells the store, which counts the use at 
 
 `PredictionStore` is a protocol in the pure module, so the engine is tested against candidates in
 an array rather than a database. Retrieval uses prefix and recent-line queries; succession rows
-are legacy storage, inspected only by storage and privacy tests.
+are legacy storage, inspected only by storage and privacy tests through a test-support row type.
+The production candidate source records personal history or confirmed environment facts. The
+three source-arbitration fixtures keep both learned lines and the environment case; the learned
+command has a new name and fingerprint, so saved reports from the retired source cannot be
+compared with it.
 
 ## The unit of a completion is the line
 

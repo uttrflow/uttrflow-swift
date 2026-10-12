@@ -39,6 +39,8 @@ model and no clock: the audits (`pii-audit`, `root-audit`, `disclosure-audit`, `
 `word-split-audit`, `layering-audit`, `public-api-audit` and every other prerequisite of `verify`),
 `lint`, one coverage-instrumented `build`, the unit and edge-case tests with the per-module
 `coverage` floor, and `offline-audit`. It runs its checks side by side.
+The coverage reporter refuses missing evidence for an in-lane product module with nonexcluded
+source-owned Swift files. It uses the existing source ownership, lane and review exclusions.
 
 **`make eval`, every pull request (`eval.yml`, required).** `uttrflow-eval rules-scorecard` scores
 the rules alone over the whole corpus and `Scripts/rules_scorecard.py` compares the result with

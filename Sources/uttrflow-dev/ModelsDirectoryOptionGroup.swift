@@ -21,7 +21,8 @@ struct ModelsDirectoryOptionGroup: ParsableArguments {
             do {
                 try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
             } catch {
-                throw CleanExit.message("Could not create models directory at \(root.path): \(error)")
+                print("Could not create models directory at \(root.path): \(error)")
+                throw ExitCode.failure
             }
         } else {
             throw ValidationError("Models directory does not exist: \(root.path)")

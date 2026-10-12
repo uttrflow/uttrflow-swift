@@ -4,6 +4,15 @@ package import UttrflowPredict
 
 /// Shared legacy storage observations, never linked into the shipping app.
 package enum LegacySuccessions {
+    /// One legacy database observation, separate from production ranking candidates.
+    package struct Row {
+        package enum Source { case succession }
+        package let text: String
+        package let source: Source
+        package let evidence: Entry?
+        package let isIrreversible: Bool
+    }
+
     package static let query = """
         SELECT entry.text, entry.count, entry.accepted, entry.rejected, entry.self_sourced, entry.last_used
         FROM succession JOIN surface ON surface.id = succession.surface_id
@@ -25,9 +34,9 @@ package enum LegacySuccessions {
         }
     }
 
-    package static func read(_ statement: OpaquePointer) -> Candidate {
+    package static func read(_ statement: OpaquePointer) -> Row {
         let text = sqlite3_column_text(statement, 0).map { String(cString: $0) } ?? ""
-        return Candidate(
+        return Row(
             text: text, source: .succession,
             evidence: Entry(
                 text: text, count: Int(sqlite3_column_int64(statement, 1)),

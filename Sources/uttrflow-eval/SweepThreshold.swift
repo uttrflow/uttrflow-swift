@@ -54,6 +54,9 @@ struct SweepThreshold: ParsableCommand {
         guard feature >= 0, marginSteps >= 0, cliffTolerance >= 0 else {
             throw ValidationError("--feature, --margin-steps and --cliff-tolerance must not be negative")
         }
+        guard cliffTolerance.isFinite else {
+            throw ValidationError("--cliff-tolerance must be finite")
+        }
         guard values.count >= 2, values.allSatisfy(\.isFinite) else {
             throw ValidationError("--grid needs at least two numbers")
         }
