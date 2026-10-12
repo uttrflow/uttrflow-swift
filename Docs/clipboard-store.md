@@ -10,6 +10,8 @@ in [`clipboard-budget.md`](clipboard-budget.md); when a clip ages out is in
 `ClipboardStore+RecordTransforms.swift` owns clip identity matching and immutable record copies
 for rebuilding, relinking, arrival inheritance and undo restoration. `ClipboardStore` keeps actor
 coordination and file I/O; both use the same `isPersistable` predicate for memory-only secrets.
+`ClipMigration` owns synchronous index migration eligibility and legacy upgrades; the store
+keeps background scheduling, persistence validation and successful legacy-marker updates.
 
 | File | Holds |
 | --- | --- |

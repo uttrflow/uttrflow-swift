@@ -570,9 +570,7 @@ public actor ClipboardStore {
         // A move interrupted between the two writes leaves a clip in both files, and the saved copy wins.
         let rawHistory = indexReader.read(file).filter(Self.isPersistable)
         // Inspect both indexes before migration, since a save can rewrite both files.
-        let canRewriteIndexes =
-            indexReader.unsupportedFormatVersions.isEmpty && indexReader.unknownFieldIndexes.isEmpty
-            && !indexReader.hasUnreadableIndex
+        let canRewriteIndexes = ClipMigration.canRewriteIndexes(indexReader)
         let fromSavedFile = rawSaved
         let fromHistoryFile = rawHistory
         if canRewriteIndexes {
@@ -634,13 +632,7 @@ public actor ClipboardStore {
 
     /// Whether an index may be rewritten with fresh detector results.
     private func canReclassify(_ url: URL) -> Bool {
-        // A set-aside copy is left for the user to recover; it never makes this file unwritable.
-        guard !indexReader.hasUnreadableIndex, !indexReader.unreplaceable.contains(url),
-            !LocalStore.hasSetAside(url),
-            indexReader.unsupportedFormatVersions.isEmpty, indexReader.unknownFieldIndexes.isEmpty
-        else { return false }
-        // Without the user's answers a clip they unmasked would be masked again and leave the disk.
-        return secrecy.areKnown()
+        ClipMigration.canReclassify(url, reader: indexReader, secrecy: &secrecy)
     }
 
     /// Persists a completed background pass only when the source clips still match the loaded snapshot.
@@ -698,9 +690,7 @@ public actor ClipboardStore {
 
     /// Whether every file that can name a picture was read, so a file named by neither is an orphan.
     private var indexesAreTrustworthy: Bool {
-        indexReader.unsupportedFormatVersions.isEmpty && indexReader.unknownFieldIndexes.isEmpty
-            && !indexReader.hasUnreadableIndex
-            && !LocalStore.hasSetAside(file) && !LocalStore.hasSetAside(savedFile)
+        ClipMigration.indexesAreTrustworthy(indexReader, history: file, saved: savedFile)
     }
 
     /// Rechecks local index bytes through the reader before a cached write.
@@ -710,16 +700,11 @@ public actor ClipboardStore {
 
     /// Upgrades a released bare array only after both indexes proved writable by this schema.
     private func migrateLegacyIndex(_ url: URL, clips: [Clip]) {
-        guard indexReader.legacyIndexes.contains(url), !indexReader.unreplaceable.contains(url),
-            !LocalStore.hasSetAside(url)
-        else {
-            return
-        }
-        do {
-            try persist(clips.filter(Self.isPersistable), to: url)
+        if ClipMigration.migrateLegacy(
+            url, clips: clips, reader: indexReader,
+            persist: { clips, url throws(ClipboardStoreError) in try persist(clips, to: url) }
+        ) {
             indexReader.legacyIndexes.remove(url)
-        } catch {
-            // The legacy format remains readable and a later user write can retry the migration.
         }
     }
 
