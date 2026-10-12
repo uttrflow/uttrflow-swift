@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from corpus_edit_audit import strip_comments
+
 ROOT = Path(__file__).resolve().parent.parent
 PINS = {
     "swift-argument-parser": "1.8.2",
@@ -25,7 +27,7 @@ def inspect(root: Path) -> list[str]:
     lock = json.loads((root / "Package.resolved").read_text())
     script = (root / "Scripts/bundle.sh").read_text()
     declared = {}
-    for url, version in PACKAGE.findall(manifest):
+    for url, version in PACKAGE.findall(strip_comments(manifest)):
         declared[url.rstrip("/").rsplit("/", 1)[-1].removesuffix(".git")] = version
     locked = {pin["identity"]: pin["state"].get("version") for pin in lock["pins"]}
     errors = []
@@ -74,9 +76,39 @@ def self_test() -> int:
     return 0
 
 
+def comment_self_test() -> int:
+    manifest = (ROOT / "Package.swift").read_text()
+    declaration = next(match.group(0) for match in PACKAGE.finditer(manifest)
+                       if "swift-argument-parser" in match.group(1))
+    ranged = manifest.replace(declaration, declaration.replace('exact: "1.8.2"', 'from: "1.8.0"'), 1)
+    stale = declaration.replace('exact: "1.8.2"', 'exact: "0.0.1"')
+    comments = ("// {}\n", "/* {} */", "/* outer /* nested */ {} */")
+    failures = 0
+    with TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        (root / "Scripts").mkdir()
+        copies = {"Package.resolved": ROOT / "Package.resolved",
+                  "Scripts/bundle.sh": ROOT / "Scripts/bundle.sh"}
+        for destination, source in copies.items():
+            (root / destination).write_bytes(source.read_bytes())
+        for comment in comments:
+            (root / "Package.swift").write_text(ranged + "\n" + comment.format(declaration))
+            if not any("swift-argument-parser" in error for error in inspect(root)):
+                failures += 1
+            (root / "Package.swift").write_text(manifest + "\n" + comment.format(stale))
+            if inspect(root):
+                failures += 1
+        (root / "Package.swift").write_text(manifest)
+        if inspect(root):
+            failures += 1
+    if failures:
+        print(f"dependency pin comment self-test: {failures} failed controls", file=sys.stderr)
+    return int(failures > 0)
+
+
 def main() -> int:
     if sys.argv[1:] == ["--self-test"]:
-        return self_test()
+        return self_test() or comment_self_test()
     errors = inspect(ROOT)
     if errors:
         print("\n".join(f"dependency pin audit: {error}" for error in errors), file=sys.stderr)
