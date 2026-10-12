@@ -275,6 +275,8 @@ Each stage's budget is its measured p95 plus 20%: `LATENCY_HEADROOM` in
 whose budget is not its p95 times it. A run comes from `uttrflow-dev bench` with the shipping tidier,
 clean audio, played at speaking pace (`rt`), and is judged by the same `percentile` that
 `Scripts/dictation_bench.py score` prints.
+`score --fail-on-regression` requires `--baseline`; requesting a verdict without a comparison
+path fails before scoring. Exploratory scoring omits both options.
 
 | stage | what it times |
 |---|---|

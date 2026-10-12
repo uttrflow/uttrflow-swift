@@ -965,6 +965,8 @@ def main():
     s.add_argument("--save-baseline", action="store_true", help="write this run to --baseline instead")
     s.add_argument("--fail-on-regression", action="store_true", help="exit non-zero when any slice got worse")
     args = parser.parse_args()
+    if args.command == "score" and args.fail_on_regression and not args.baseline:
+        parser.error("--fail-on-regression requires --baseline")
     {"corpus": corpus, "jobs": jobs, "score": score}[args.command](args)
 
 
