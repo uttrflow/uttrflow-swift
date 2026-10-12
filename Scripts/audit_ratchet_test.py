@@ -285,5 +285,89 @@ class DisclosureRangeTests(unittest.TestCase):
         self.assertEqual(self.audit("--range", f"{head} --not --remotes=origin").returncode, 1)
 
 
+class CoverageModuleEvidenceTests(unittest.TestCase):
+    products = ("UttrflowCore", "UttrflowDictionary", "UttrflowEval")
+
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp(prefix="uttrflow-coverage-evidence-"))
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+        self.sources = self.root / "Sources"
+        self.baseline = self.root / "exclusion_baseline.json"
+        shutil.copy(Path(HERE) / "exclusion_baseline.json", self.baseline)
+        recorded = json.loads(self.baseline.read_text())["files"]
+        for path in coverage_report.EXCLUDED_FILES:
+            file = self.sources / path
+            file.parent.mkdir(parents=True, exist_ok=True)
+            file.write_text("\n" * recorded.get(path, 1))
+        for module in (*self.products, "uttrflow-dev"):
+            file = self.sources / module / "Fixture.swift"
+            file.parent.mkdir(parents=True, exist_ok=True)
+            file.write_text("let fixture = 0\n")
+
+    def report(self, paths, lane="verify"):
+        files = [{"filename": str(self.sources / path), "summary": {"lines": {"count": 1, "covered": 1}}}
+                 for path in paths]
+        return subprocess.run(
+            [sys.executable, str(Path(HERE) / "coverage_report.py")],
+            input=json.dumps({"data": [{"files": files}]}), capture_output=True, text=True,
+            env={**os.environ, "PACKAGE_ROOT": str(self.root), "EXCLUSION_BASELINE": str(self.baseline),
+                 "COVERAGE_LANE": lane})
+
+    def test_a_missing_verify_module_cannot_hide_behind_one_passing_module(self):
+        result = self.report(["UttrflowCore/Fixture.swift"])
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertEqual(result.stderr, "error: UttrflowDictionary has no line coverage in the report\n")
+
+    def test_complete_verify_evidence_preserves_its_measured_rows(self):
+        result = self.report(["UttrflowCore/Fixture.swift", "UttrflowDictionary/Fixture.swift"])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr, "")
+        self.assertIn("  PASS  UttrflowCore                 100.00%  (1/1)\n", result.stdout)
+        self.assertIn("  PASS  UttrflowDictionary           100.00%  (1/1)\n", result.stdout)
+        self.assertIn("        TOTAL                        100.00%  (2/2)\n", result.stdout)
+
+    def test_the_eval_lane_needs_only_its_owned_module(self):
+        result = self.report(["UttrflowEval/Fixture.swift"], lane="eval")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr, "")
+        self.assertIn("  PASS  UttrflowEval                 100.00%  (1/1)\n", result.stdout)
+        self.assertNotIn("  PASS  UttrflowCore", result.stdout)
+
+    def test_other_lane_and_excluded_modules_leave_complete_output_unchanged(self):
+        paths = ["UttrflowCore/Fixture.swift", "UttrflowDictionary/Fixture.swift",
+                 next(iter(coverage_report.EXCLUDED_FILES))]
+        original = self.report(paths)
+        extended = self.report(paths + ["UttrflowEval/Fixture.swift", "uttrflow-dev/Fixture.swift"])
+        self.assertEqual((extended.returncode, extended.stdout, extended.stderr),
+                         (original.returncode, original.stdout, original.stderr))
+        self.assertEqual(original.returncode, 0, original.stderr)
+
+    def test_fully_excluded_source_modules_require_no_additional_measurement(self):
+        self.assertTrue((self.sources / "UttrflowAudio").is_dir())
+        result = self.report(["UttrflowCore/Fixture.swift", "UttrflowDictionary/Fixture.swift"])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr, "")
+
+    def test_empty_totals_keep_the_existing_error_without_missing_module_messages(self):
+        result = self.report([])
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, "")
+        self.assertEqual(result.stderr, "error: no product modules found in the coverage report\n")
+
+    def test_an_empty_expected_inventory_keeps_the_existing_no_totals_result(self):
+        for module in self.products:
+            (self.sources / module / "Fixture.swift").unlink()
+        result = self.report([])
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, "")
+        self.assertEqual(result.stderr, "error: no product modules found in the coverage report\n")
+
+    def test_foreign_package_paths_do_not_supply_owned_module_evidence(self):
+        foreign = self.root / "foreign/Sources/UttrflowDictionary/Fixture.swift"
+        result = self.report(["UttrflowCore/Fixture.swift", foreign])
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertEqual(result.stderr, "error: UttrflowDictionary has no line coverage in the report\n")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

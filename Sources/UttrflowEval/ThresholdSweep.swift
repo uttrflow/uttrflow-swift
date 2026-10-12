@@ -156,7 +156,9 @@ public struct ThresholdSweep: Sendable, Equatable {
     /// Runs the sweep; development rows are the fit side and held-out rows split by `seed` into calibration and test.
     public init(table: FitTable, tableData: Data, request: Request) throws {
         guard !request.grid.isEmpty else { throw Failure.emptyGrid }
-        guard !table.rows.isEmpty, table.rows.allSatisfy({ request.feature < $0.features.count }) else {
+        guard request.feature >= 0, !table.rows.isEmpty,
+            table.rows.allSatisfy({ request.feature < $0.features.count })
+        else {
             throw Failure.noFeature(request.feature)
         }
         let fit = table.rows.filter { $0.split == .development }
