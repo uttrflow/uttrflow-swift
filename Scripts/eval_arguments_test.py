@@ -9,6 +9,8 @@ import sys
 import tempfile
 import unittest
 
+from bench_gate_arguments_test import BenchGateArgumentTests
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BINARY = os.path.join(ROOT, ".build", "debug", "uttrflow-eval")
 DEV_BINARY = os.path.join(ROOT, ".build", "debug", "uttrflow-dev")

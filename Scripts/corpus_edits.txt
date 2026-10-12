@@ -793,3 +793,4 @@ sql-statement-between-ratings expected statement laid out on clause lines when i
 sql-statement-null-and expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
 probe-sql-join expected statement laid out on clause lines with the joins indented, per the owner requirement of #4212
 sql-terminated-semicolon-said expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
+probe-protocol-names uses the lexicon spelling OAuth2 required by the registered-name decision (#4074), correcting the reference only (#7722)
