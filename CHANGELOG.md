@@ -732,8 +732,8 @@ where its code became readable.
 - One retention window now governs both copies of a transcript, rather than two that could
   disagree.
 
-[Unreleased]: https://github.com/uttrflow/uttrflow-swift/compare/v26.1013.0...main
-[26.1013.0]: https://github.com/uttrflow/uttrflow-swift/releases/tag/v26.1013.0
+[Unreleased]: https://github.com/uttrflow/uttrflow-swift/commits/main
+[26.1013.0]: https://github.com/uttrflow/releases/releases
 [26.0926.0]: https://github.com/uttrflow/uttrflow-swift/releases/tag/v26.0926.0
 [2026.9.14]: https://github.com/uttrflow/uttrflow-swift/releases/tag/v2026.9.14
 [0.5.0]: https://github.com/uttrflow/releases/releases/tag/v0.5.0
