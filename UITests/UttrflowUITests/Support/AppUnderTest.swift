@@ -54,7 +54,8 @@ enum AppUnderTest {
         let plist = URL(fileURLWithPath: String(cString: home), isDirectory: true)
             .appending(path: "Library/Preferences/\(defaultsSuite(for: container)).plist")
         guard let data = try? Data(contentsOf: plist),
-            let values = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
+            let list = try? PropertyListSerialization.propertyList(from: data, format: nil),
+            let values = list as? [String: Any]
         else { return nil }
         return values[key] as? Data
     }
