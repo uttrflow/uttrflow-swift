@@ -15,15 +15,13 @@ name: CI
 
 on:
   # Pull requests, the merge queue and pushes to `main` run the static checks on Linux. The full
-  # gate, which needs a macOS runner, runs every night and on demand, and the release workflow runs it
+  # gate, which needs a macOS runner, runs on demand before a release, and the release workflow runs it
   # again on the tag.
   pull_request:
     branches: [main]
   merge_group:
   push:
     branches: [main]
-  schedule:
-    - cron: "30 1 * * *"
   workflow_dispatch:
 
 concurrency:
@@ -52,14 +50,14 @@ jobs:
 
   verify:
     name: make verify (full)
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     # Uttrflow targets macOS 26 APIs (Foundation Models, SpeechAnalyzer), so the runner
     # image must be at least as new as the deployment target. This is also why the project
     # cannot use Linux runners, which is why CI was once switched off entirely: macOS
     # minutes bill at ten times the Linux rate and a private repository pays for them.
     # A public repository does not, which is what made this file possible again.
     runs-on: macos-26
-    timeout-minutes: 45
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1

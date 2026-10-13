@@ -40,8 +40,8 @@ issue closes, the page changes in the same pull request.
 4. When `main` is red, the next merge is the repair. `gh run list --branch main --workflow ci.yml
    --status completed -L 1` shows `success` before any other pull request merges; while it shows
    `failure`, the only pull request that merges is one whose body names the failing step and
-   whose own `make verify` passes on the current tip. The full `make verify` runs nightly, so a
-   release waits for the latest scheduled run on `main` to be green.
+   whose own `make verify` passes on the current tip. The full `make verify` runs on dispatch, so a
+   release waits for a dispatched run on its commit to be green.
 
 ## Evidence each change type needs
 
