@@ -27,8 +27,10 @@ final class LaunchSmokeTests: XCTestCase {
         let settings = app.windows["Uttrflow"]
         XCTAssertTrue(settings.waitForExistence(timeout: 10), "Settings never opened")
 
+        // A beta tab is read out with its status, as `BetaFeature.accessibilityName` words it.
+        let labels = ["AI suggestions": "AI suggestions, beta"]
         for pane in ["General", "Languages", "Dictation", "AI suggestions", "Privacy", "Diagnostics"] {
-            let tab = settings.buttons[pane]
+            let tab = settings.buttons[labels[pane] ?? pane]
             XCTAssertTrue(tab.waitForExistence(timeout: 5), "there is no \(pane) tab")
             tab.click()
             XCTAssertTrue(tab.isSelected, "\(pane) did not open")
