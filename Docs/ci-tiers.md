@@ -33,7 +33,7 @@ still runs for documentation changes. `make verify` is not split into steps, so 
 Each check runs in exactly one lane. The lanes are `Makefile` targets, so a run on a Mac and a run
 in CI are the same command.
 
-**`make verify`, every pull request (`ci.yml`, required).** Everything that needs no corpus, no
+**`make verify`, nightly and before a release (`ci.yml`, `release.yml`); pull requests run its static subset, `make verify-static`.** Everything that needs no corpus, no
 model and no clock: the audits (`pii-audit`, `root-audit`, `disclosure-audit`, `docs-audit`,
 `design-audit`, `comment-audit`, `match-audit`, `closed-list-audit`, `duplicate-table-audit`,
 `word-split-audit`, `layering-audit`, `public-api-audit` and every other prerequisite of `verify`),
@@ -85,16 +85,18 @@ The checked-in workflows declare these schedules in UTC:
 
 | Workflow | Command or suite | Nightly schedule | Pull requests |
 |---|---|---|---|
-| `ci.yml` | `make verify`, then `make app-preflight` | none; runs on pushes to `main` | every change, including documentation |
+| `ci.yml` | `make verify-static` on every change; `make verify`, then `make app-preflight`, on the schedule | 01:30 | `make verify-static` only, every change, including documentation |
 | `eval.yml` | `make eval` | 03:30 | every change; the scope check skips Swift work when no lane input changed |
 | `bench.yml` | `make bench` | 02:00 | none |
 | `oracle-sweep.yml` | the full clipboard oracle seed sweep | 04:00 | its declared reader, oracle-test and workflow paths |
 
-`ci.yml` has no manual dispatch; its pull request, merge queue and main-push events run the
-same gate. Every job uses the standard hosted `macos-26` runner. The evaluation, benchmark and
-oracle workflows supply the manual dispatches; the weekly and release checks above are manual
-commands. This tier catalogue follows the existing workflows and does not introduce Linux
-jobs, a documentation-only runner bypass or a change to required checks.
+`ci.yml`'s pull request, merge queue and main-push events run `make verify-static`, the checks of
+`verify` that need no Swift build, on a hosted Linux runner under the required name `make verify`.
+Its schedule and manual dispatch run the whole of `make verify` and `make app-preflight` on the
+standard hosted `macos-26` runner, and the release workflow runs `make verify` again on the tag. A
+release is cut only from a `main` whose latest full run is green. The evaluation, benchmark and
+oracle workflows supply their own manual dispatches; the weekly and release checks above are manual
+commands.
 
 ## Structured quality grid reports
 

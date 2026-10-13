@@ -81,7 +81,7 @@ tag the release:
 | Soak time since the candidate's tag | at least 3 days | `git log -1 --format=%ci v26.0926.0-rc.1` |
 | Open `P0` issues reported against the candidate | 0 | `gh issue list --label P0 --state open` |
 | Crash-free sessions in the opt-in report | at or above the previous release | the release-health view described in [`Docs/crash-reporting.md`](Docs/crash-reporting.md) |
-| `make verify` on the tagged commit | exit 0 | the release workflow's verify step for the `-rc` tag |
+| `make verify` on the tagged commit | exit 0 | the release workflow's verify step for the `-rc` tag, and the latest scheduled `ci.yml` run on `main` |
 | Transcription accuracy against `Scripts/accuracy_baseline.json` | no slice worse | `make accuracy-gate` on the tagged commit, with the shipping model installed |
 | Live-model suites (`*LiveModelTests`) on a Mac with Apple Intelligence | 0 skipped, 0 failed | `make verify` prints `live-model tests: N run, 0 skipped` |
 | The candidate's bundle launches, draws every settings pane and quits cleanly | exit 0 | `make uitest` against the candidate's `Uttrflow.app` ([`Docs/ui-tests.md`](Docs/ui-tests.md)) |
