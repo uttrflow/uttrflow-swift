@@ -337,6 +337,13 @@ public struct TerminalStopPass: WholeTextCleaningPass {
         return nil
     }
 
+    /// The draft indices of the name that ends the text's final sign-off, empty when it has none.
+    static func emailSignOffName(in draft: Draft) -> [Int] {
+        guard let start = emailSignOffStart(in: draft) else { return [] }
+        let suffix = draft.presentIndices.drop { $0 != start }.filter { !draft.words[$0].isLayoutMark }
+        return Array(suffix.dropFirst(closingLength(of: suffix.map { draft.words[$0].text })))
+    }
+
     /// The closings a sign-off opens with, longest first; one list for an email and a letter in a document.
     private static let closings: [[String]] = [
         ["yours", "sincerely"], ["yours", "faithfully"], ["yours", "truly"], ["best", "regards"],

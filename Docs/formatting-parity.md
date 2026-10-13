@@ -14,11 +14,11 @@ A refused answer falls back to the rules' text, as the router does.
 | quotes-and-brackets | rules | 13 | 8 | 1: `probe-regex-pattern` | 0 | 0 |
 | ellipses | rules | 5 | 4 | 0 | 0 | 0 |
 | capitalisation-and-tokens | both | 97 | 81 | 7: `probe-docker-run-flags`, `probe-sql-join`, `probe-regex-pattern`, `probe-yaml-keys`, `probe-todo-comment`, `probe-dockerfile-from`, `probe-apology-message` | 0 | 2 |
-| numbers | rules | 43 | 25 | 8: `fmt-list-count-not-list`, `fmt-hinglish-number`, `probe-docker-run-flags`, `probe-sql-join`, `probe-yaml-keys`, `probe-dockerfile-from`, `probe-apology-message`, `probe-cover-letter` | 0 | 1 |
+| numbers | rules | 43 | 26 | 7: `fmt-list-count-not-list`, `fmt-hinglish-number`, `probe-docker-run-flags`, `probe-sql-join`, `probe-yaml-keys`, `probe-dockerfile-from`, `probe-apology-message` | 0 | 1 |
 | lists | both | 14 | 10 | 2: `fmt-list-count-not-list`, `probe-yaml-keys` | 0 | 0 |
-| paragraphs | rules | 13 | 9 | 1: `probe-cover-letter` | 0 | 0 |
+| paragraphs | rules | 13 | 10 | 0 | 0 | 0 |
 | corrections | rules | 7 | 6 | 0 | 0 | 1 |
-| per-destination | both | 72 | 48 | 9: `probe-docker-run-flags`, `probe-sql-join`, `probe-regex-pattern`, `probe-yaml-keys`, `probe-todo-comment`, `probe-dockerfile-from`, `probe-apology-message`, `probe-cover-letter`, `probe-hinglish-status` | 0 | 2 |
+| per-destination | both | 72 | 49 | 8: `probe-docker-run-flags`, `probe-sql-join`, `probe-regex-pattern`, `probe-yaml-keys`, `probe-todo-comment`, `probe-dockerfile-from`, `probe-apology-message`, `probe-hinglish-status` | 0 | 2 |
 | code-and-markdown | both | 17 | 7 | 6: `probe-docker-run-flags`, `probe-sql-join`, `probe-regex-pattern`, `probe-yaml-keys`, `probe-todo-comment`, `probe-dockerfile-from` | 0 | 1 |
 | hinglish | model | 6 | 4 | 2: `fmt-hinglish-number`, `probe-hinglish-status` | 0 | 0 |
 | text-after-caret | rules | 30 | 30 | 0 | 0 | 0 |
