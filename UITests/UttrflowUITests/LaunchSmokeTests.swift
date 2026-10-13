@@ -52,9 +52,8 @@ final class LaunchSmokeTests: XCTestCase {
             FileManager.default.fileExists(
                 atPath: container!.appending(path: "Uttrflow/instance.lock").path(percentEncoded: false)),
             "the app did not place its instance lock in the disposable container")
-        let suiteName = AppUnderTest.defaultsSuite(for: container!)
         XCTAssertNotNil(
-            UserDefaults(suiteName: suiteName)?.data(forKey: "com.uttrflow.settings.v1"),
+            AppUnderTest.savedValue(forKey: "com.uttrflow.settings.v1", container: container!),
             "the app did not pin settings in its disposable defaults suite")
         AppUnderTest.terminate(app)
         XCTAssertFalse(

@@ -48,6 +48,17 @@ enum AppUnderTest {
         "com.uttrflow.UITests.\(container.lastPathComponent)"
     }
 
+    /// What the app saved under `key` in its suite, read from the file because the sandboxed runner's `UserDefaults` cannot see it.
+    static func savedValue(forKey key: String, container: URL) -> Data? {
+        guard let entry = getpwuid(getuid()), let home = entry.pointee.pw_dir else { return nil }
+        let plist = URL(fileURLWithPath: String(cString: home), isDirectory: true)
+            .appending(path: "Library/Preferences/\(defaultsSuite(for: container)).plist")
+        guard let data = try? Data(contentsOf: plist),
+            let values = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
+        else { return nil }
+        return values[key] as? Data
+    }
+
     /// Stops the app before removing the stores it used during this test.
     @MainActor
     static func terminate(_ app: XCUIApplication) {
