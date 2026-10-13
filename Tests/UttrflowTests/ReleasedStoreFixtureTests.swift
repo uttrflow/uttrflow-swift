@@ -33,7 +33,7 @@ struct ReleasedStoreFixtureTests {
         let sample: String
     }
 
-    private static let releases = ["v26.0926.0"]
+    private static let releases = ["v26.0926.0", "v26.1013.0"]
 
     /// Entries with no fixture yet; a new entry fails `everyEntryIsCoveredOrListed` until it is placed.
     private static let uncovered: Set<LocalStoreEntry> = [

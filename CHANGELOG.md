@@ -11,9 +11,95 @@ Each released version is a git tag and a build at
 
 ## [Unreleased]
 
+## [26.1013.0] — 2026-10-13
+
+### Added
+- **Spoken HTML and CSS are written by the slot the caret is in.** A tag, attribute, selector or
+  declaration comes out as markup, not prose (#7281).
+- **Spoken SQL is laid out as a statement.** Keywords, operators, star and parentheses are written
+  as notation, a multi-clause statement goes on clause lines that follow the layout already in the
+  field, and a SQL statement in a query editor is continued from its grammar position without an
+  added full stop (#6953, #7313, #7171, #7167).
+- **A Markdown list, numbering or heading you already wrote is continued** when you say the next
+  item word, and Markdown structure commands work over the selection from the command key
+  (#7355, #6375).
+- **Choose how each app's words are formatted in Settings**, and set the quality preset for all
+  apps or per app. A per-app override can fix the final full stop and first letter (#7162,
+  #7237, #7310).
+- **Choose the dictation microphone in Settings.** Recording tells you when the microphone is
+  sending nothing, and Diagnostics tells a muted or dead input from a quiet room (#5953, #5465,
+  #5175).
+- **Any shortcut can be switched off, and the default shortcuts can be restored** (#7280).
+- **One switch in Settings stops dictation learning everywhere**, and learning skips private
+  windows and password managers until you allow it (#7010, #7177).
+- **Each clean-up step shows an example in Settings**, cleaned on and off (#7350).
+- **Snippets can be marked secret**, so their text is masked and copied concealed, limited to
+  chosen applications, and given a caret marker for where the cursor lands after they are written.
+  Settings warns when a trigger is a single everyday word or says a spoken command (#7215, #6939,
+  #5310, #5941, #6805).
+- **A dictionary word can hold several pronunciations**, be edited in place, be ticked in groups to
+  delete or restore, and be tried with a Try it button. It shows when it last appeared, and words
+  unused for 90 days are listed (#6295, #5951, #6816, #6346, #7243).
+- **Corrections shows refused dictionary pairings and lets you allow one again** (#6345, #5314).
+- **History shows the words as heard and what the clean-up changed on each row**, names the signal
+  behind each dictionary change, shows which kind of notation formatted a dictation, and lets you
+  fix a word or flag a dictation from the row (#6707, #6576, #6714, #7241, #5316, #5916).
+- **Report This Dictation** from a History row, with preview, edit, copy and save (#6386).
+- **Insights charts from your first retained dictation** and says what is kept, and it shows
+  suggestion counts (#7282, #4872).
+- **Diagnostics explains more**: why the speech model failed to load, the last ten loads, which
+  quality layers run, why the last dictation read no screen text, the decoder's reliability beside
+  decode effort, and a local tally of tidy outcomes per engine (#5942, #5174, #5562, #6676, #6694,
+  #6342).
+- **Settings > Privacy has clipboard retention and a clear-history button**, and shows what leaves
+  this Mac by purpose (#7263, #5198).
+- **A copied secret is cleared from the clipboard after a delay** (#7183).
+- **Uttrflow says to lower the microphone volume** when the input clipped (#7219).
+- **Dictation is recognised while the previous piece is still being tidied**, so long dictations
+  finish sooner (#6779).
+
 ### Changed
 - **AI suggestions start switched off in editors with their own inline completions**, so their
   completion and Uttrflow do not compete for the accept key.
+- **A person who pauses a lot can say so**, so a long pause no longer cuts a piece or ends a
+  sentence (#5403).
+- **Clean speech is accepted at lower input levels** (#4562).
+- **Fresh installs hold clipboard capture until you acknowledge the clipboard choice.** Onboarding
+  says copies are kept and offers to turn that off, and introduces AI suggestions on the first-try
+  page (#7322, #6504, #6741).
+- **The speech recogniser is fetched from its published source** instead of a redirect (#7154).
+- **Dictation into a terminal stays on one line**, and fields where Return sends or runs the text
+  keep line breaks out (#5557, #6935).
+- **Email bodies set their greeting and sign-off on their own paragraphs**, and recipient and
+  subject fields are formatted by what they are (#7157, #6004).
+- **Dictating over a selection replaces it** on every route (#5282).
+- **Romanised Hindi** is capitalised for names and weekdays, reads number words before units in
+  English sentences, and keeps one spelling for each listed word (#7239, #6811, #6396).
+- **Numbers**: a recogniser's numerals use your place's digit grouping, "twenty oh five" after a
+  cue is the year 2005, and "double" or "triple" before a digit word repeats the digit (#7368,
+  #5415, #5408).
+
+### Fixed
+- **Secrets are recognised in more places**: storage, subscription, auth and recovery fields,
+  short codes in field names, and netrc passwords. No History row or lesson is kept for a
+  credential-shaped dictation (#6009, #6008, #5977, #5985, #5229).
+- **Destructive commands are caught in more forms**: SQL UPDATE without WHERE, SQL carried through
+  pipes, and git worktree remove, git rm and forced submodule deinit (#6194, #6240, #5347).
+- **A kept clip stays on disk when a detector update calls it a secret**, and you can unmask a clip
+  wrongly taken for one (#6789, #6455).
+- **Clipboard history survives more faults**: an undecodable clip no longer hides the rest, a
+  refused write is retried, files survive upgrades, and order stays stable (#6199, #6011, #6410,
+  #4826).
+- **VoiceOver no longer speaks into an open microphone**, and collection actions work from the
+  keyboard and VoiceOver (#6459, #4875).
+- **A dictation that left out a piece of speech keeps its recording**, and a recording the
+  microphone left and came back to is cut at the hole (#5189, #5254).
+- **Suggestions are withdrawn when the session ends or the app is disabled**, and return when
+  Accessibility access changes (#4679, #6197, #6279).
+- **Spoken file references, long options and paths are written correctly**, such as main.py:42:7
+  and a negated long option (#5444, #6850).
+- **A spoken colon before a numbered list, or an initialism plural like KPIs**, is written as
+  meant (#6582, #6394).
 
 ## [26.0926.0] — 2026-09-27
 
@@ -646,7 +732,8 @@ where its code became readable.
 - One retention window now governs both copies of a transcript, rather than two that could
   disagree.
 
-[Unreleased]: https://github.com/uttrflow/uttrflow-swift/commits/main
+[Unreleased]: https://github.com/uttrflow/uttrflow-swift/compare/v26.1013.0...main
+[26.1013.0]: https://github.com/uttrflow/uttrflow-swift/releases/tag/v26.1013.0
 [26.0926.0]: https://github.com/uttrflow/uttrflow-swift/releases/tag/v26.0926.0
 [2026.9.14]: https://github.com/uttrflow/uttrflow-swift/releases/tag/v2026.9.14
 [0.5.0]: https://github.com/uttrflow/releases/releases/tag/v0.5.0
