@@ -44,7 +44,7 @@ struct SettingsVersionAccessibilityTests {
 
         let model = SettingsViewModel(
             store: Store(), personalisation: Personalisation(), capabilities: .everything)
-        let version = "26.0930.0 (42)"
+        let version = "v26.0930.0"
         let row = SettingsRow(id: "version", label: "Version", control: .text(version))
         let host = NSHostingView(rootView: SettingsRowView(row: row, model: model, paneUnavailability: nil))
         window.contentView = host

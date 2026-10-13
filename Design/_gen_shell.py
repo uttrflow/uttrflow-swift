@@ -10,7 +10,7 @@ from pathlib import Path
 import plistlib
 
 _INFO = plistlib.loads((Path(__file__).resolve().parent.parent / "Resources" / "Uttrflow-Info.plist").read_bytes())
-VERSION = f"{_INFO['CFBundleShortVersionString']} ({_INFO['CFBundleVersion']})"
+VERSION = f"v{_INFO['CFBundleShortVersionString']}"
 
 W, H = 900, 620
 STAGE_W, STAGE_H = 980, 700
