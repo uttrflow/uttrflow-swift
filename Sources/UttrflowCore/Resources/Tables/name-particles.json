@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "rows": [
+        {"id": "van"},
+        {"id": "von"},
+        {"id": "der"},
+        {"id": "den"},
+        {"id": "de"},
+        {"id": "del"},
+        {"id": "della"},
+        {"id": "di"},
+        {"id": "da"},
+        {"id": "dos"},
+        {"id": "du"},
+        {"id": "la"},
+        {"id": "le"},
+        {"id": "bin"},
+        {"id": "ibn"},
+        {"id": "al"},
+        {"id": "el"},
+        {"id": "ter"},
+        {"id": "ten"}
+    ]
+}

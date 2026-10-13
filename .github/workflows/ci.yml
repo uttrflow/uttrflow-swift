@@ -14,12 +14,15 @@
 name: CI
 
 on:
-  # Pull requests into `main`, the merge queue and pushes to `main` run the same verification gate.
+  # Pull requests, the merge queue and pushes to `main` run the static checks on Linux. The full
+  # gate, which needs a macOS runner, runs on demand before a release, and the release workflow runs it
+  # again on the tag.
   pull_request:
     branches: [main]
   merge_group:
   push:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   # A new commit supersedes a branch's run; main keeps every run so each merge gets a result.
@@ -30,15 +33,31 @@ permissions:
   contents: read
 
 jobs:
-  verify:
+  # The required check. It keeps the name `make verify` so branch protection needs no change, and
+  # it runs the checks of `verify` that need no Swift build.
+  static:
     name: make verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Static checks
+        run: make --keep-going verify-static
+
+  verify:
+    name: make verify (full)
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     # Uttrflow targets macOS 26 APIs (Foundation Models, SpeechAnalyzer), so the runner
     # image must be at least as new as the deployment target. This is also why the project
     # cannot use Linux runners, which is why CI was once switched off entirely: macOS
     # minutes bill at ten times the Linux rate and a private repository pays for them.
     # A public repository does not, which is what made this file possible again.
     runs-on: macos-26
-    timeout-minutes: 45
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1

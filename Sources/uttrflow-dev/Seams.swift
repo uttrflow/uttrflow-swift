@@ -77,7 +77,10 @@ struct Seams: AsyncParsableCommand {
         if attribute { await attribute(differing, under: steps) }
         let keys = differing.map(\.key).sorted()
         if let update { try record(keys, to: URL(fileURLWithPath: update)) }
-        if let check { try compare(keys, with: URL(fileURLWithPath: check), among: Set(cases.map(\.id))) }
+        if let check {
+            try compare(
+                differing, with: URL(fileURLWithPath: check), among: Set(cases.map(\.id)))
+        }
     }
 
     /// Every cut of one case, and those whose joined pieces differ from the whole.
@@ -227,20 +230,24 @@ struct Seams: AsyncParsableCommand {
         try SeamBaseline(cuts: keys).write(to: url)
     }
 
-    private func compare(_ keys: [String], with url: URL, among ids: Set<String>) throws {
+    private func compare(_ differing: [SeamDifference], with url: URL, among ids: Set<String>) throws {
+        let keys = differing.map(\.key)
         // A cut's key is its case id, "@", then its boundaries; a sampled run checks only its own cases.
         let recorded = Set(
             try SeamBaseline.read(from: url).cuts.filter { key in
                 key.lastIndex(of: "@").map { ids.contains(String(key[..<$0])) } ?? false
             })
-        let risen = keys.filter { !recorded.contains($0) }
+        let risen = differing.filter { !recorded.contains($0.key) }
         let fallen = recorded.subtracting(keys).count
         if fallen > 0 {
             print("  \(fallen) recorded cuts now match; rerun with --update to lower the baseline")
         }
         guard risen.isEmpty else {
-            throw ValidationError(
-                "\(risen.count) cuts now differ that did not:\n" + risen.joined(separator: "\n"))
+            // The text of each new cut and the system that cut it, so a cut only one machine makes can be read.
+            let system = ProcessInfo.processInfo.operatingSystemVersionString
+            let detail = risen.map { "\($0.key)\n  whole:  \($0.whole)\n  joined: \($0.joined)" }
+            let heading = "\(risen.count) cuts now differ that did not, on \(system):\n"
+            throw ValidationError(heading + detail.joined(separator: "\n"))
         }
     }
 }

@@ -23,7 +23,7 @@ struct EmailStructureTests {
             ),
             (
                 "dear dr jones, please send the deck. best regards ana",
-                "Dear dr jones,\n\nPlease send the deck.\n\nBest regards ana"
+                "Dear Dr Jones,\n\nPlease send the deck.\n\nBest regards ana"
             ),
         ])
     func laysOut(spoken: String, expected: String) {

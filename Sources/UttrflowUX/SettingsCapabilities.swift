@@ -159,7 +159,7 @@ public struct SettingsCapabilities: Sendable, Equatable {
         launchAtLogin: .enabled,
         canPlayRecordingSound: true,
         canCheckForUpdates: true,
-        versionDescription: "1.0.0 (1)",
+        versionDescription: "v1.0.0",
         readyTransformers: Set(TransformerKind.selectable),
         suggestionModel: .ready
     )

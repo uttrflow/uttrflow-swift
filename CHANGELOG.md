@@ -14,6 +14,7 @@ Each released version is a git tag and a build at
 ## [26.1013.0] — 2026-10-13
 
 ### Added
+- **A letter's greeting and signature names are capitalised** ("Dear Ms Alvarez", "Asha Verma"), without a list of names (#7717).
 - **Spoken HTML and CSS are written by the slot the caret is in.** A tag, attribute, selector or
   declaration comes out as markup, not prose (#7281).
 - **Spoken SQL is laid out as a statement.** Keywords, operators, star and parentheses are written

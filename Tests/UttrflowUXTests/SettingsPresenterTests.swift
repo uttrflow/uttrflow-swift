@@ -1022,7 +1022,7 @@ struct SettingsUpdatesTests {
             ])
 
         let version = try #require(group.rows.first { $0.id == "version" })
-        #expect(version.control == .text("1.0.0 (1)"))
+        #expect(version.control == .text("v1.0.0"))
         #expect(version.unavailability == nil)
     }
 

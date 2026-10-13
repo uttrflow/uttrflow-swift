@@ -4754,7 +4754,6 @@
     "UttrflowPredictStore func removeFiles": 1,
     "UttrflowPredictStore func removeSetAsideCopies": 1,
     "UttrflowPredictStore func retractAcceptance": 1,
-    "UttrflowPredictStore func successors": 1,
     "UttrflowPredictStore func supersede": 1,
     "UttrflowPredictStore func sweep": 2,
     "UttrflowPredictStore init init": 2,
@@ -6159,7 +6158,6 @@
     "UttrflowUX var forgetsTheLastDictation": 1,
     "UttrflowUX var formattableLanguages": 1,
     "UttrflowUX var foundationModelAvailability": 1,
-    "UttrflowUX var full": 1,
     "UttrflowUX var ghost": 1,
     "UttrflowUX var globeKeyAction": 1,
     "UttrflowUX var glyph": 2,
@@ -6304,5 +6302,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 8954
+  "total": 8952
 }

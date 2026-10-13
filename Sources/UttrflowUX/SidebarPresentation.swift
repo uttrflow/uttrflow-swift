@@ -1,4 +1,4 @@
-// The sidebar: where each row leads, what it shows, and the build number at its foot.
+// The sidebar: where each row leads, what it shows, and the version at its foot.
 public import Foundation
 public import UttrflowHistory
 public import UttrflowSettings
@@ -121,12 +121,6 @@ public struct AppVersion: Sendable, Equatable {
     /// "v26.0926.0", the version as a release tag names it, or nothing where there is no version.
     public var tag: String {
         isKnown ? "v\(short)" : ""
-    }
-
-    /// "0.2.0 (3)", or nothing at all where there is no version to show.
-    public var full: String {
-        guard isKnown else { return "" }
-        return build.isEmpty ? short : "\(short) (\(build))"
     }
 }
 

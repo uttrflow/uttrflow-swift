@@ -424,6 +424,13 @@ disclosure-history: ## Scan every commit on every ref. Run before a repo goes pu
 # whole corpus and fails on a regression against the base commit; CI runs it on every pull request,
 # finishing at once when nothing it reads changed. `bench` holds the scale and timing checks; CI runs it
 # nightly and files an issue when it fails.
+# The checks of `verify` that need no Swift build, so they run on a Linux runner. Pull requests run
+# only these; the whole of `verify` runs nightly, on manual dispatch and on the release tag.
+VERIFY_STATIC := accessibility-controls audio-audit closed-list-audit comment-audit context-reach-audit corpus-edit-audit data-manifest dependency-pin-test design-audit disclosure-audit docs-audit duplicate-table-audit e2e-predict-cleanup-test exclusion-audit flake-audit formatting-gap-ratchet-test hits-test hook-test issue-template-audit issue-template-test layering-audit log-audit match-audit mutation-probe-test pasteboard-audit pii-audit pre-push-lock-test provider-mark-test public-api-audit python-imports-audit range-test ratchet-test release-notes-test release-quality-test release-tag-test root-audit snapshot-fixture-audit store-permissions string-audit test-name-audit type-name-audit uitest-result-path word-split-audit eval-scope-test predict-scorecard-test quality-grid-scorecard-test dependabot-labels-test entitlement-gate-test update-feed-test
+.PHONY: verify-static
+verify-static: ## The checks of verify that need no Swift build: what a pull request runs. Needs Python only.
+	@VERIFY_INNER=1 $(MAKE) --no-print-directory -j$(VERIFY_JOBS) $(VERIFY_STATIC)
+
 .PHONY: verify eval bench
 ifeq ($(VERIFY_INNER),)
 verify: ## The pull request gate: audits, package and release checks, lint, build, unit tests, coverage, and offline audit.
@@ -460,7 +467,7 @@ BENCH_SUITES := HeavyClipScans|PromptSizeGuaranteeTests|BIP39RecoveryPhraseScali
 	SQLNotationTests/latency|FieldLabelKindsTests/aLabelReadStaysWellUnderTwoMilliseconds|$\
 	SelectionWriterTests/acceptedButUnchangedReturnsAtOnce|PanelGroupsCostTests/longRunIsLinear|$\
 	FormatterRunTests/termEscalationStaysBounded|CorrectedWordsTests/hugeRangeStaysFast|$\
-	SeamNotationSweepTests/threeHundredWordsCost
+	SeamNotationSweepTests/threeHundredWordsCost|SpokenPunctuationPassTests/longUnpunctuatedTranscript
 # The commit `eval` compares with: where this branch left main.
 EVAL_BASE ?= $(shell git merge-base HEAD origin/main 2>/dev/null)
 SCORECARD := .build/rules-scorecard.json

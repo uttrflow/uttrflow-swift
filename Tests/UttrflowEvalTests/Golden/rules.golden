@@ -882,7 +882,7 @@ probe-chained-corrections	Can we meet at five actually make it half past six on 
 probe-changelog-bullets	- Added dark mode support for the sidebar\n- Fixed a crash when the cache is empty\n- Removed the --legacy-sync flag
 probe-clinical-note	Patient is a 52 year old with chest tightness for two days blood pressure 140/90 heart rate 72 bpm temperature 98.6 SpO2 98% on room air start aspirin 81 mg by mouth once daily and recheck in two weeks.
 probe-contract-clauses	Clause 9.1 the supplier shall item a deliver within 30 days of the order item b replace any damaged goods at its own cost and item c keep records for six years.
-probe-cover-letter	Dear ms alvarez,\n\nI am writing to apply for the senior analyst position advertised on your careers page.\n\nIn my current role I lead a team of six analysts and reduced reporting time by 30%.\n\nI would welcome the chance to discuss my application,\nYours sincerely,\nAsha verma
+probe-cover-letter	Dear Ms Alvarez,\n\nI am writing to apply for the senior analyst position advertised on your careers page.\n\nIn my current role I lead a team of six analysts and reduced reporting time by 30%.\n\nI would welcome the chance to discuss my application,\nYours sincerely,\nAsha Verma
 probe-decision-record	We decided to store sessions in redis rather than postgres because the read volume is high and the data is disposable the trade off is that a restart logs everyone out so we will enable append only persistence.
 probe-docker-build-no-cache	docker build --no-cache dot
 probe-docker-run-flags	docker run --rm -p 8000: 8000 -v ~/projects/app: /app node: 20 alpine
@@ -914,7 +914,7 @@ probe-short-verse	Roses are red\nViolets are blue\nSugar is sweet\nAnd so are yo
 probe-spoken-correction	No wait Thursday works better for the board.
 probe-sql-join	SELECT o.id, c.name, p.title\nFROM orders o\n  JOIN customers c ON c.id = o.customer id\n  JOIN products p ON p.id = o.product id\nWHERE o.created at IS after 2026 -10 -oh 1
 probe-stack-frame	At main dot run (main dot go colon 42).
-probe-support-email	Hi priya, thanks for getting in touch about the delayed order.\n\nI have checked with our warehouse and your parcel left the depot this morning it should reach you by Thursday the ninth of October.\n\nIf it has not arrived by Friday please reply to this email and I will send a replacement at no cost.\n\nThanks again for your patience,\nDana.
+probe-support-email	Hi Priya, thanks for getting in touch about the delayed order.\n\nI have checked with our warehouse and your parcel left the depot this morning it should reach you by Thursday the ninth of October.\n\nIf it has not arrived by Friday please reply to this email and I will send a replacement at no cost.\n\nThanks again for your patience,\nDana.
 probe-ticket-and-units	Yesterday I finished proj dash 1423 and opened APR. the p95 latency dropped to 200 ms which is about three x better and I am blocked on review from priya
 probe-todo-comment	Todo: at sam replace this polling loop with a webhook once the vendor ships it
 probe-topic-shifts	So about the offsite I think we should book the venue by the end of the month the budget is still open though and finance needs a number by Friday anyway on a different note the onboarding doc is out of date so I will rewrite the first three sections this week and then ask rohit to review it oh and one more thing the printer on the second floor is jammed again.

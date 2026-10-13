@@ -148,6 +148,14 @@ extension CleaningPipeline {
             letterDestination && situation.intent.fieldRole == .message
                 && formatter.layout.contains(.paragraphs)
             ? [EmailStructurePass(requiresLetter: formatter.destination == .document)] : []
+        // The name slots need no field role: a body whose role is unreported still holds a letter, and a one-line field has no paragraphs.
+        let letterNames: [any WholeTextCleaningPass] =
+            letterDestination && formatter.layout.contains(.paragraphs)
+            ? [
+                LetterNamesPass(
+                    requiresLetter: formatter.destination == .document, vocabulary: vocabulary, casing: casing
+                )
+            ] : []
         return CleaningPipeline(
             wholeText: initialisms(steps: steps) + [casing] + mentions + structure + [
                 SentenceBoundaryPass(),
@@ -157,6 +165,7 @@ extension CleaningPipeline {
                     capitaliseCalendarWords: formatter.firstWord == .fromInsertionPoint
                         && formatter.destination != .codeEditor,
                     vocabulary: vocabulary, casing: casing, keepsCommandCase: formatter.keepsCommandCase),
+            ] + letterNames + [
                 CommentMarkerPass(
                     opensComment: formatter.destination == .codeEditor
                         && CaretStructure.opensComment(
