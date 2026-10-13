@@ -30,7 +30,8 @@ struct LetterNamesPassTests {
 
     @Test("a name particle keeps the case it was said in")
     func particleKept() {
-        #expect(Self.cleaned("dear pieter van berg, thanks. best regards ana").hasPrefix("Dear Pieter van Berg,"))
+        #expect(
+            Self.cleaned("dear pieter van berg, thanks. best regards ana").hasPrefix("Dear Pieter van Berg,"))
     }
 
     @Test("an everyday word in the name slot is not capitalised")
@@ -53,7 +54,8 @@ struct LetterNamesPassTests {
     @Test("a document is read only when it is a letter, and a chat never")
     func scope() {
         #expect(Self.cleaned("hi priya, the deck is ready", destination: .document).hasPrefix("Hi priya,"))
-        #expect(Self.cleaned("hi priya, can you send the deck", destination: .messaging).hasPrefix("Hi priya,"))
+        #expect(
+            Self.cleaned("hi priya, can you send the deck", destination: .messaging).hasPrefix("Hi priya,"))
     }
 
     @Test("it adds no word and is idempotent")
@@ -61,6 +63,8 @@ struct LetterNamesPassTests {
         let pass = LetterNamesPass()
         let once = pass.apply(Draft(text: "Dear ms alvarez, thanks.\n\nYours sincerely,\nasha verma"))
         #expect(pass.apply(once).text == once.text)
-        #expect(once.words.count == Draft(text: "Dear ms alvarez, thanks.\n\nYours sincerely,\nasha verma").words.count)
+        #expect(
+            once.words.count
+                == Draft(text: "Dear ms alvarez, thanks.\n\nYours sincerely,\nasha verma").words.count)
     }
 }

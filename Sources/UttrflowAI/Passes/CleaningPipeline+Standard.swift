@@ -153,7 +153,8 @@ extension CleaningPipeline {
             letterDestination && formatter.layout.contains(.paragraphs)
             ? [
                 LetterNamesPass(
-                    requiresLetter: formatter.destination == .document, vocabulary: vocabulary, casing: casing)
+                    requiresLetter: formatter.destination == .document, vocabulary: vocabulary, casing: casing
+                )
             ] : []
         return CleaningPipeline(
             wholeText: initialisms(steps: steps) + [casing] + mentions + structure + [

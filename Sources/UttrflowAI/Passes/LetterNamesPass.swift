@@ -55,17 +55,13 @@ struct LetterNamesPass: WholeTextCleaningPass {
         let core = shape.core
         let key = core.lowercased()
         guard core.count >= 2, core.allSatisfy(\.isLetter), core.allSatisfy(\.isLowercase),
-            !ownSpellings.contains(key), !Self.particles.contains(key), !FunctionWords.holds(key),
+            !ownSpellings.contains(key), !NameParticles.holds(key), !FunctionWords.holds(key),
             !KinshipWords.hindiNameTails.contains(key)
         else { return nil }
         let written = WordShape.capitalised(core)
-        guard Abbreviations.kind(of: written) == .title || !GeneralVocabulary.isOrdinary(key) else { return nil }
+        guard Abbreviations.kind(of: written) == .title || !GeneralVocabulary.isOrdinary(key) else {
+            return nil
+        }
         return written
     }
-
-    /// The particles that join a surname to what comes before it; they keep the case they were said in.
-    private static let particles: Set<String> = [
-        "van", "von", "der", "den", "de", "del", "della", "di", "da", "dos", "du", "la", "le", "bin", "ibn",
-        "al", "el", "ter", "ten",
-    ]
 }

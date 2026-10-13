@@ -303,6 +303,15 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "4c691ce7ac2123458412082ee7ef5d75489436150c349fa3dcae34ac1a4cba14",
+      "path": "Sources/UttrflowCore/Resources/Tables/name-particles.json",
+      "origin": "authored",
+      "bytes": 471
+    },
+    {
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
       "sha256": "112437c376bd27168dd3797404f5a15af5b60676f7654b476ac3c069e49e978a",
       "path": "Sources/UttrflowCore/Resources/Tables/number-cues.json",
       "origin": "authored",
