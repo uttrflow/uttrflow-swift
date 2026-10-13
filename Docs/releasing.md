@@ -15,7 +15,7 @@ Calendar versioning, in `Resources/Uttrflow-Info.plist`, edited by hand:
 
 | Key | Example | What it is |
 | --- | --- | --- |
-| `CFBundleShortVersionString` | `26.0926.0` | The version people see: `YY.MMDD.REVISION`, two-digit year, month and day, then the release number that day from 0. |
+| `CFBundleShortVersionString` | `26.1013.0` | The version people see: `YY.MMDD.REVISION`, two-digit year, month and day, then the release number that day from 0. |
 | `CFBundleVersion` | `10` | The build counter. Goes up by one every release; the updater compares this, not the date. |
 
 Bump both in the commit that cuts the release. The tag is `v` and the version, `v26.0926.0`;

@@ -624,6 +624,14 @@ else
                 esac
                 case "$module" in
                 Uttrflow | Uttrflow?* | uttrflow-*)
+                    # SwiftPM never deletes the object of a source that was removed, so a
+                    # restored build cache keeps it. An object with no source behind it is
+                    # not in the link, and it is not this tree's code to judge. A module
+                    # directory that is missing stays an offender: default-deny.
+                    if [[ -d "Sources/$module" && -z "$(find "Sources/$module" -name "${object%.o}" -print -quit)" ]]; then
+                        note "ignoring $module/${object%.o}: no such source, so a stale object"
+                        continue
+                    fi
                     case " $allowed_objects " in
                     *" $module/$object "*) ;;
                     *) own_offenders+="$module/${object%.o} " ;;

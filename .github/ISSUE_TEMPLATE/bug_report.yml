@@ -35,7 +35,7 @@ body:
     attributes:
       label: Uttrflow version
       description: The foot of the sidebar, or Uttrflow → About.
-      placeholder: "26.0926.0"
+      placeholder: "26.1013.0"
     validations:
       required: true
 
