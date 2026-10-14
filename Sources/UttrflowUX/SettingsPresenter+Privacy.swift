@@ -36,6 +36,12 @@ extension SettingsPresenter {
                                 explanation: SettingsPresenter.crashReportsExplanation,
                                 settings, .everything
                             ).with(icon: .symbol("exclamationmark.bubble", .neutral)),
+                            toggleRow(
+                                .hidesWindowsFromCapture,
+                                label: "Hide Uttrflow windows from screenshots and screen sharing",
+                                explanation: SettingsPresenter.windowCaptureExplanation,
+                                settings, .everything
+                            ).with(icon: .symbol("eye.slash", .neutral)),
                         ]),
                 SettingsGroup(id: "context", title: "Context", rows: contextRows(settings)),
                 SettingsGroup(
@@ -86,6 +92,11 @@ extension SettingsPresenter {
     static let crashReportsExplanation =
         "When Uttrflow crashes or freezes, sends where in its code it happened, the app and macOS "
         + "versions, and nothing you dictated, copied or opened. Off until you turn it on."
+
+    /// What the capture switch trades off, in the words the row shows. See `Docs/clipboard-secrets.md`.
+    static let windowCaptureExplanation =
+        "On, screenshots, recordings and screen sharing leave out Uttrflow's windows, which show "
+        + "your dictations and clipboard. Off, they can be captured, for example to report a bug."
 
     /// Says that signing out is not a reset. See `Docs/ux-settings-model.md`.
     static let signingOutKeepsEverything =

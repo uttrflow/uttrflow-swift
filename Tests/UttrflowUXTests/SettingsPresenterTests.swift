@@ -817,6 +817,20 @@ struct SettingsPrivacyPaneTests {
         #expect(!off.sendsCrashReports)
     }
 
+    @Test("offers hiding windows from capture, on by default, and writes the choice through")
+    func windowCaptureSwitch() throws {
+        #expect(
+            privacy().row("hidesWindowsFromCapture")?.control
+                == .toggle(field: .hidesWindowsFromCapture, isOn: true))
+        let off = try SettingsEditor.apply(.toggle(.hidesWindowsFromCapture, isOn: false), to: .default)
+        #expect(!off.hidesWindowsFromCapture)
+        #expect(
+            privacy(off).row("hidesWindowsFromCapture")?.control
+                == .toggle(field: .hidesWindowsFromCapture, isOn: false))
+        let on = try SettingsEditor.apply(.toggle(.hidesWindowsFromCapture, isOn: true), to: off)
+        #expect(on.hidesWindowsFromCapture)
+    }
+
     @Test("offers what dictation reads, text near the cursor by default, and writes a choice through")
     func offersTheContextLevel() throws {
         let row = try #require(privacy().row("contextLevel"))

@@ -254,6 +254,7 @@ public enum SettingsPresenter {
         case .installsUpdatesAutomatically: settings.installsUpdatesAutomatically
         case .sharesUsageStatistics: settings.sharesUsageStatistics
         case .sendsCrashReports: settings.sendsCrashReports
+        case .hidesWindowsFromCapture: settings.hidesWindowsFromCapture
         case .suggestionsEnabled: settings.suggestions.isEnabled
         case .quietSuggestions: settings.suggestions.isQuiet
         case .learnsFromDictation: settings.learnsFromDictation

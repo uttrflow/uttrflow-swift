@@ -101,6 +101,14 @@ final class MainWindowController {
     /// The observer for the window losing the keyboard, which ends a recording on the Settings page.
     private var resignKeyObserver: (any NSObjectProtocol)?
 
+    /// Whether the window is kept out of capture, which the Privacy switch turns off.
+    var hidesFromCapture = true {
+        didSet {
+            guard let window else { return }
+            PrivateWindowSharing.apply(to: window, hidden: hidesFromCapture)
+        }
+    }
+
     private let model: MainWindowModel
     private var window: NSWindow?
     private let defaults: UserDefaults
@@ -221,7 +229,7 @@ final class MainWindowController {
         window.contentMinSize = MainMetrics.minimumWindowSize
         // Kept rather than released, so reopening returns the user to the page they left.
         window.isReleasedWhenClosed = false
-        PrivateWindowSharing.apply(to: window)
+        PrivateWindowSharing.apply(to: window, hidden: hidesFromCapture)
         let hosting = NSHostingView(
             rootView: MainWindowView(
                 model: model,

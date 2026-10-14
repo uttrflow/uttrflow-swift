@@ -69,8 +69,10 @@ is felt, which is the cost of testing what the user sees rather than what the co
 ## Screen-capture privacy
 
 The quick panel, the main window and the suggestion overlay set `NSWindow.sharingType` to
-`.none` through `PrivateWindowSharing` (`Sources/Uttrflow/Privacy/PrivateWindowSharing.swift`);
-`WindowSharingTests` covers that configuration. Not every capture path honours the setting on
+`.none` through `PrivateWindowSharing` (`Sources/Uttrflow/Privacy/PrivateWindowSharing.swift`)
+unless Settings > Privacy > "Hide Uttrflow windows from screenshots and screen sharing" is off, which
+sets `.readOnly`; `WindowSharingTests` covers both configurations. With the switch off, a screenshot
+of the main window shows its content. Not every capture path honours the setting on
 every macOS release, so before a release on a new macOS version check it by hand: open the quick
 panel on copied text and on a copied picture, open the History page with a recent dictation
 visible, and show an inline suggestion in another app, then take a screenshot, a screen

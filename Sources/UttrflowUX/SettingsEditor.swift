@@ -142,6 +142,7 @@ public enum SettingsEditor {
         case .installsUpdatesAutomatically: settings.installsUpdatesAutomatically = isOn
         case .sharesUsageStatistics: settings.sharesUsageStatistics = isOn
         case .sendsCrashReports: settings.sendsCrashReports = isOn
+        case .hidesWindowsFromCapture: settings.hidesWindowsFromCapture = isOn
         case .suggestionsEnabled: settings.suggestions.isEnabled = isOn
         case .quietSuggestions: settings.suggestions.isQuiet = isOn
         case .learnsFromDictation: settings.learnsFromDictation = isOn
@@ -185,7 +186,8 @@ public enum SettingsEditor {
             capabilities.canCheckForUpdates
                 ? nil
                 : "This build has no update feed, so there is nothing to check."
-        case .suggestionsEnabled, .sendsCrashReports, .learnsFromDictation, .confirmsHiddenClipPaste:
+        case .suggestionsEnabled, .sendsCrashReports, .hidesWindowsFromCapture, .learnsFromDictation,
+            .confirmsHiddenClipPaste:
             nil
         case .quietSuggestions:
             settings.suggestions.isEnabled ? nil : suggestionsAreOff

@@ -124,11 +124,15 @@ concealed marker and secret detection; they do not replace either one.
 ## Windows that are not shared
 
 The clipboard panel, the main window and the suggestion overlay set `NSWindow.sharingType` to
-`.none` (`PrivateWindowSharing`), so a capture client that honours AppKit window sharing does not
-receive windows that draw clipboard contents, transcripts or learned suggestions. This is partial
-protection, because system screenshots, ScreenCaptureKit clients and video-call apps do not all
-honour AppKit's sharing policy on every macOS release; the manual checks in
-[`ui-tests.md`](ui-tests.md) record what each release hides.
+`.none` (`PrivateWindowSharing`) while Settings > Privacy > "Hide Uttrflow windows from screenshots
+and screen sharing" is on, which it is by default (`Settings.hidesWindowsFromCapture`). A capture
+client that honours AppKit window sharing then does not receive windows that draw clipboard
+contents, transcripts or learned suggestions. Turning the switch off sets `.readOnly`, so a person
+can capture the app to report a bug; it reaches windows that are already open, and a stored blob
+without the field reads as on. A development build started with `--uttrflow-allow-window-capture`
+stays capturable while the switch is on. This is partial protection, because system screenshots,
+ScreenCaptureKit clients and video-call apps do not all honour AppKit's sharing policy on every
+macOS release; the manual checks in [`ui-tests.md`](ui-tests.md) record what each release hides.
 
 ## Shapes, in the order they are asked
 

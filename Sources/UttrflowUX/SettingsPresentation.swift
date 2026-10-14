@@ -355,6 +355,7 @@ public enum SettingsToggleField: String, Sendable, Equatable, CaseIterable {
     case installsUpdatesAutomatically
     case sharesUsageStatistics
     case sendsCrashReports
+    case hidesWindowsFromCapture
     case suggestionsEnabled
     case quietSuggestions
     case learnsFromDictation

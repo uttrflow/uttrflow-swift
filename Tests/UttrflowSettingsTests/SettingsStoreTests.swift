@@ -950,3 +950,34 @@ struct HiddenClipConfirmationSettingTests {
         #expect(!decoded.confirmsHiddenClipPaste)
     }
 }
+
+/// Whether Uttrflow's windows are hidden from capture is on until the user turns it off.
+@Suite("Hiding windows from capture")
+struct WindowCaptureSettingTests {
+    @Test("it is on by default and when an older file lacks it")
+    func defaultsOn() throws {
+        #expect(Settings.default.hidesWindowsFromCapture)
+        let older = try JSONDecoder().decode(
+            Settings.self, from: Data(#"{"confirmsHiddenClipPaste": false}"#.utf8))
+        #expect(older.hidesWindowsFromCapture)
+        #expect(!older.confirmsHiddenClipPaste)
+    }
+
+    @Test("an unreadable value falls back to on")
+    func unreadableFallsBackOn() throws {
+        let decoded = try JSONDecoder().decode(
+            Settings.self, from: Data(#"{"hidesWindowsFromCapture": "no"}"#.utf8))
+        #expect(decoded.hidesWindowsFromCapture)
+    }
+
+    @Test("turning it off survives a round trip")
+    func roundTrips() throws {
+        var settings = Settings.default
+        settings.hidesWindowsFromCapture = false
+
+        let data = try JSONEncoder().encode(settings)
+        let decoded = try JSONDecoder().decode(Settings.self, from: data)
+
+        #expect(!decoded.hidesWindowsFromCapture)
+    }
+}

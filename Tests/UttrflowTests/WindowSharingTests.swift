@@ -71,4 +71,48 @@ struct WindowSharingTests {
 
         #expect(window.sharingType == .readOnly)
     }
+
+    @Test("a window is shared again when the switch is off")
+    func switchOffSharesWindow() {
+        let window = NSWindow()
+        PrivateWindowSharing.apply(to: window, hidden: false)
+
+        #expect(window.sharingType == .readOnly)
+    }
+
+    @Test("turning the switch back on hides the window again")
+    func switchBackOnHidesWindow() {
+        let window = NSWindow()
+        PrivateWindowSharing.apply(to: window, hidden: false)
+        PrivateWindowSharing.apply(to: window, hidden: true)
+
+        #expect(window.sharingType == .none)
+    }
+
+    @Test("the open clipboard panel, main window and overlay follow the switch")
+    func openWindowsFollowSwitch() throws {
+        let controller = QuickPanelController()
+        let panel = try #require(stored("panel", of: controller, as: NSWindow.self))
+        controller.setHiddenFromCapture(false)
+        #expect(panel.sharingType == .readOnly)
+        controller.setHiddenFromCapture(true)
+        #expect(panel.sharingType == .none)
+
+        let overlay = SuggestionPanelController.shared
+        overlay.setHiddenFromCapture(false)
+        #expect(overlay.window.sharingType == .readOnly)
+        overlay.setHiddenFromCapture(true)
+        #expect(overlay.window.sharingType == .none)
+
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
+        let main = app.makeMainWindow()
+        main.show(.home)
+        defer { main.close() }
+        let window = try #require(stored("window", of: main, as: NSWindow.self))
+        main.hidesFromCapture = false
+        #expect(window.sharingType == .readOnly)
+        main.hidesFromCapture = true
+        #expect(window.sharingType == .none)
+    }
 }

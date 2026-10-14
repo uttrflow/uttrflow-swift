@@ -169,7 +169,7 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
         AccessibilityNotification.Announcement(spoken).post()
     }
 
-    private let panel: QuickPanel
+    let panel: QuickPanel
     private let hostingView: QuickPanelHostingView<QuickPanelView>
     private var presentation: PanelPresentation
     private var openCount = 0

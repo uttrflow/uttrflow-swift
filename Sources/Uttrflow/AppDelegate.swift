@@ -452,6 +452,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         applyLaunchAtLogin()
         startTelemetry()
         crashReports.follow(isEnabled: settings.sendsCrashReports)
+        applyWindowSharing()
         buildPipeline()
         Task { await restoreLastTranscript() }
         wireInterface()
@@ -3215,6 +3216,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     func makeMainWindow() -> MainWindowController {
         let window = MainWindowController(content: mainContent(measurements: []))
+        window.hidesFromCapture = settings.hidesWindowsFromCapture
         window.onIntent = { [weak self] intent in self?.carryOut(intent) }
         window.onSearch = { [weak self] query in
             guard let self, let page = mainWindow?.page else { return }
@@ -4346,6 +4348,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
+    /// Gives every window already built the Privacy switch's choice; windows built later read it as they open.
+    func applyWindowSharing() {
+        let hidden = settings.hidesWindowsFromCapture
+        quickPanel.setHiddenFromCapture(hidden)
+        SuggestionPanelController.shared.setHiddenFromCapture(hidden)
+        mainWindow?.hidesFromCapture = hidden
+    }
+
     /// Follows a setting the user changed, and is the one place that acts on one.
     func settingsChanged(to updated: Settings) {
         let previous = settings
@@ -4415,6 +4425,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
         if updated.sendsCrashReports != previous.sendsCrashReports {
             crashReports.follow(isEnabled: updated.sendsCrashReports)
+        }
+        if updated.hidesWindowsFromCapture != previous.hidesWindowsFromCapture {
+            applyWindowSharing()
         }
         // A freshly built cleaner, so the next dictation runs the choices just made.
         if updated.cleaning != previous.cleaning || updated.destinations != previous.destinations

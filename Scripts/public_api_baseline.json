@@ -4809,6 +4809,7 @@
     "UttrflowSettings var handsFreeDoubleTapMilliseconds": 1,
     "UttrflowSettings var handsFreeEnabled": 1,
     "UttrflowSettings var handsFreeHoldMilliseconds": 1,
+    "UttrflowSettings var hidesWindowsFromCapture": 1,
     "UttrflowSettings var historyExcludedApplications": 1,
     "UttrflowSettings var hotkey": 1,
     "UttrflowSettings var hotkeyActivation": 1,
@@ -6302,5 +6303,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 8952
+  "total": 8953
 }

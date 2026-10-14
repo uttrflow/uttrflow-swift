@@ -108,6 +108,9 @@ public struct Settings: Sendable, Equatable, Codable {
     /// How many days an unkept clip survives; a clip with an alias, category or pin has no clock.
     public var clipboardRetentionDays: Int
 
+    /// Whether Uttrflow's windows are kept out of screenshots, recordings and screen sharing. See `Docs/clipboard-secrets.md`.
+    public var hidesWindowsFromCapture: Bool
+
     /// Whether pasting a hidden clip into a field not known to hide what is typed asks first.
     public var confirmsHiddenClipPaste: Bool
 
@@ -164,6 +167,7 @@ public struct Settings: Sendable, Equatable, Codable {
         keepsNoTranscripts: Bool = false,
         historyExcludedApplications: [String] = [],
         clipboardRetentionDays: Int = Settings.defaultRetentionDays,
+        hidesWindowsFromCapture: Bool = true,
         confirmsHiddenClipPaste: Bool = true,
         secretClipboardClearSeconds: Int = Settings.defaultSecretClipboardClearSeconds,
         suggestions: SuggestionPreferences = .default,
@@ -202,6 +206,7 @@ public struct Settings: Sendable, Equatable, Codable {
         self.keepsNoTranscripts = keepsNoTranscripts
         self.historyExcludedApplications = historyExcludedApplications
         self.clipboardRetentionDays = clipboardRetentionDays
+        self.hidesWindowsFromCapture = hidesWindowsFromCapture
         self.confirmsHiddenClipPaste = confirmsHiddenClipPaste
         self.secretClipboardClearSeconds = secretClipboardClearSeconds
         self.suggestions = suggestions
@@ -293,6 +298,7 @@ extension Settings {
         case keepsNoTranscripts
         case historyExcludedApplications
         case clipboardRetentionDays
+        case hidesWindowsFromCapture
         case confirmsHiddenClipPaste
         case secretClipboardClearSeconds
         case suggestions
@@ -384,6 +390,8 @@ extension Settings {
                 ),
                 default: fallback.clipboardRetentionDays
             ),
+            hidesWindowsFromCapture: container.value(
+                forKey: .hidesWindowsFromCapture, default: fallback.hidesWindowsFromCapture),
             confirmsHiddenClipPaste: container.value(
                 forKey: .confirmsHiddenClipPaste, default: fallback.confirmsHiddenClipPaste),
             secretClipboardClearSeconds: Settings.secretClear(
