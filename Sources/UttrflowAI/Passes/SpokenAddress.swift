@@ -18,6 +18,7 @@ struct SpokenAddress: Equatable {
         "email", "emails", "emailed", "mail", "mails", "mailed", "address", "addresses", "handle",
         "send", "sends", "sent", "sending", "forward", "forwards", "forwarded",
         "copy", "copies", "copied", "cc", "write", "writes", "wrote", "contact", "reach", "invite",
+        "ssh", "scp", "sftp", "rsync", "mosh", "telnet",
     ]
 
     /// How many content words back an announcing word may stand from a local part spelled as a plain word.
