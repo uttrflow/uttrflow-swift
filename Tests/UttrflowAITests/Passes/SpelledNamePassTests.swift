@@ -52,4 +52,11 @@ struct SpelledNamePassTests {
         let cleaned = try await clean("e c then two")
         #expect(!cleaned.contains("EC2"), "\(cleaned)")
     }
+
+    @Test("does not state keepsDigits, because a number word becomes a digit")
+    func writesADigitSoDoesNotKeepDigits() {
+        let written = SpelledNamePass().apply(Draft(text: "s three")).text
+        #expect(written == "S3")
+        #expect(!SpelledNamePass.laws.contains(.keepsDigits))
+    }
 }

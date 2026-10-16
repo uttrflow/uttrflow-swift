@@ -3,7 +3,8 @@ import UttrflowCore
 /// Writes a listed name said as letters and number words as the lexicon writes it, "e c two" as "EC2", before the number and initialism passes split it.
 struct SpelledNamePass: PieceCleaningPass {
     static let id: PassID = .spelledName
-    static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    /// Not `keepsDigits`: "s three" is written "S3", so the pass makes the digit the law counts.
+    static let laws: Set<PassLaw> = Set(PassLaw.allCases).subtracting([.keepsDigits])
 
     private let destination: Destination
 

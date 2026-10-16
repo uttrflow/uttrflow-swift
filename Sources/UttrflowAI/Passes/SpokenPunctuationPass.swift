@@ -219,6 +219,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             if dashes.count == 2, dashes[1] - dashes[0] > 1 {
                 let fits = dashes.allSatisfy {
                     !isVerb(row.words, at: $0, in: live, of: draft)
+                        && !Self.sitsBetweenNumbers(at: $0, in: live, of: draft)
                         && isPlaced(row.text, before: $0 + 1, spanning: 1, in: live, of: draft)
                 }
                 let used = dashes.contains { isUsed(row, at: $0, in: live, of: draft, repeated: repeated) }
@@ -227,6 +228,16 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             start = max(end, start + 1)
         }
         return decided
+    }
+
+    /// Whether the word at `position` has a number on both sides, which makes it a range, a date or a code, never an aside.
+    private static func sitsBetweenNumbers(at position: Int, in live: [Int], of draft: Draft) -> Bool {
+        guard position > 0, position + 1 < live.count else { return false }
+        let isNumber = { (key: String) in
+            NumberWords.isNumber(key) || key.first?.isNumber == true
+        }
+        return isNumber(draft.shape(at: live[position - 1]).key)
+            && isNumber(draft.shape(at: live[position + 1]).key)
     }
 
     /// A spoken bracket, or a partnered name, is a mark only as half of a pair around words: an opening needs its closing later in the sentence, a bracket closing needs its opening.

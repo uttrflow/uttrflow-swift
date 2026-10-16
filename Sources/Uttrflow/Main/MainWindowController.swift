@@ -29,6 +29,8 @@ final class MainWindowModel {
     var content: MainContent
     /// What the user has typed into the current page's search field; filtering is the presenters' decision.
     var searchQuery = ""
+    /// What History was last searched for, kept while another page owns ``searchQuery`` so the field and the list agree on return.
+    private var historyQuery = ""
     /// Which of a page's scopes is selected, as a raw identifier the app maps back to the page's own type.
     var scope = ""
     /// What is being typed into the snippet editor, held here so a refresh never takes the draft away.
@@ -48,6 +50,12 @@ final class MainWindowModel {
         self.page = page
         self.content = content
         self.isSidebarExpanded = isSidebarExpanded
+    }
+
+    /// Puts the shared search field in step with the page now showing, after the page left was `old`.
+    func pageDidChange(from old: MainTab) {
+        if old == .history { historyQuery = searchQuery }
+        searchQuery = page == .history ? historyQuery : (chrome.search?.query ?? "")
     }
 
     /// The chrome of whichever page is showing; a `switch`, so a tenth page fails to compile until handled.
