@@ -42,6 +42,25 @@ struct TerminalStopPassTests {
     }
 
     @Test(
+        "writes the full stop the speaker said by name after a word that otherwise leaves the clause open",
+        arguments: [
+            ("yes it is period", "Yes it is."),
+            ("I know what it is period", "I know what it is."),
+            ("that is what it was full stop", "That is what it was."),
+            ("is it ready question mark yes it is period", "Is it ready? Yes it is."),
+        ])
+    func keepsASpokenStop(input: String, expected: String) {
+        #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "still takes back a stop the recogniser put after a word that leaves the clause open",
+        arguments: [("i went to the bank and.", "i went to the bank and")])
+    func stillTakesBackARecogniserStop(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
         "ends no dictation with a stop after a word that leaves the clause open",
         arguments: [
             ("i went to the bank and", "i went to the bank and"),
