@@ -117,6 +117,13 @@ misheard strings "sanvi", "saabhan", "grafna" and "readees", each is respelt as 
 "aluwaseun" and "thruv" do not open like their entries, so condition two still holds them, and
 "trov" is ordinary.
 
+## A run of function words
+
+The words a recogniser hears best are its function words, so a run made only of them ("is a",
+"it to", "as a", "I'd") is never a half-heard rare word, and `WordCorrectionEngine` keeps it as
+spoken whatever it sounds like and whatever is on screen. Replacing it deletes what was said. A run
+of single letters ("a i") is not such a run, so spelled-out letters are still read as an entry.
+
 ## `maximumChangedInEvery = 5`, with a floor of one
 
 An engine that wants to change a third of an utterance has misread it, so the whole
