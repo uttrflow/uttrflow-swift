@@ -68,6 +68,7 @@ copy, the launch budget, the n-gram scorer's per-span probes, the SQL notation, 
 adapter validator and panel grouping speed checks, the settle-delay bound on an unconfirmed write,
 the formatter's TERM escalation and the huge-range correction count. Each one that has a logic
 twin keeps the twin in `make verify`. A test with a wall-clock limit belongs here, since a parallel test run cannot keep one honest.
+The lane runs its tests one at a time (`--no-parallel`), so no budget measures its neighbours.
 It never blocks a pull request; a failure opens an issue titled "Nightly bench failed on main", or
 comments on the open one.
 

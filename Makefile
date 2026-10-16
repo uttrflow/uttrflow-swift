@@ -477,8 +477,8 @@ eval-tests: ## Run the corpus suites and hold the modules they cover to the cove
 	UTTRFLOW_QUALITY_REPORT=1 COVERAGE_LANE=eval ./Scripts/coverage.sh --skip-build --filter '$(EVAL_SUITES)'
 
 .PHONY: bench-tests
-bench-tests: ## Run the scaling suites and the timing benchmarks.
-	$(SWIFT) test --skip-build --filter '$(BENCH_SUITES)'
+bench-tests: ## Run the scaling suites and the timing benchmarks, one test at a time so no budget measures a neighbour.
+	$(SWIFT) test --skip-build --no-parallel --filter '$(BENCH_SUITES)'
 
 .PHONY: rules-scorecard
 rules-scorecard: ## Score the rules over the corpus and fail on a regression against EVAL_BASE. Writes .build/rules-scorecard.md.
