@@ -23,8 +23,13 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
     let ownKeys: Set<String>
     /// The screen's words, checked for that neighbour.
     let screen: ScreenWords
+    /// What the screen says for a command line; a line it holds as one keeps its spoken case.
+    let commandLine: Applicability
 
     public init(destination: Destination = .plain, vocabulary: [String] = [], onScreen: [String] = []) {
+        self.commandLine =
+            destination == .terminal
+            ? NotationEvidence.applicability(destination: destination, region: .unrecognised) : .noEvidence
         let terms = TechnicalLexicon.terms
             .filter { Self.namedCategories.contains($0.category) && $0.applies(in: destination) }
             .filter { !$0.isEveryday }
@@ -79,6 +84,7 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
     }
 
     public func apply(_ draft: Draft) -> Draft {
+        guard !holdsCommandLine(draft) else { return draft }
         var draft = draft
         for index in draft.presentIndices where !draft.words[index].isLayoutMark {
             let shape = draft.shape(at: index)
@@ -96,6 +102,16 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
         }
         HTTPSlots.apply(to: &draft)
         return draft
+    }
+
+    /// Whether the words are a command line, where case is part of the command: a program and its arguments, no prose word, on a screen that says so.
+    func holdsCommandLine(_ draft: Draft) -> Bool {
+        let words = draft.presentIndices.filter { !draft.words[$0].isLayoutMark }.map {
+            CodeEditorCommandsPass.bare(draft.words[$0].text)
+        }
+        return TechnicalLexicon.opensCommandLine(words, in: .terminal)
+            && NotationEvidence.applicability(of: words, given: commandLine)
+                .activates(at: NotationEvidence.activationThreshold)
     }
 
     /// The written form of a word in lower case or as said at a sentence start, plural "apis" included; none for an entry.

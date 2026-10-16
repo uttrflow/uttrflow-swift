@@ -229,4 +229,21 @@ struct AcronymCasingPassTests {
     func dotProseKept(input: String) {
         #expect(CleaningPipeline.standard.run(Draft(text: input)).text.lowercased() == input + ".")
     }
+
+    private let terminal = CleaningPipeline.message(for: .standard(for: .terminal), situation: .unknown)
+
+    @Test(
+        "keeps the case a command line was said in",
+        arguments: [
+            "cd ios", "npm run ios", "npm install typescript", "aws s3 ls", "echo json",
+            "python -m http.server 8000",
+        ])
+    func commandLineKeepsCase(command: String) {
+        #expect(terminal.run(Draft(text: command)).text == command)
+    }
+
+    @Test("still writes a known name in its casing where a terminal line reads as a sentence")
+    func terminalSentenceCased() {
+        #expect(terminal.run(Draft(text: "check the api in the sdk")).text == "check the API in the SDK")
+    }
 }
