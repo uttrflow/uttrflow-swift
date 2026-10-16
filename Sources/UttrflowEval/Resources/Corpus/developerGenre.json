@@ -263,5 +263,25 @@
     "mustKeep": ["5%", "25%", "Monday"],
     "expectedExact": "The new checkout flag is on for 5% of users in the EU region. Set the rollout to 25% on Monday if the error rate stays flat and leave the US at zero until legal signs off.",
     "addedFor": 3841
+  },
+  {
+    "id": "dev-terminal-branch-my-feature",
+    "note": "a branch named with a possessive placeholder",
+    "spoken": "git checkout dash b my dash feature",
+    "expected": "git checkout -b my-feature",
+    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
+    "destination": "terminal",
+    "expectedExact": "git checkout -b my-feature",
+    "addedFor": 7942
+  },
+  {
+    "id": "dev-terminal-container-my-name",
+    "note": "a container named with a possessive placeholder after a long option",
+    "spoken": "docker run dash dash name my dash container nginx",
+    "expected": "docker run --name my-container nginx",
+    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
+    "destination": "terminal",
+    "expectedExact": "docker run --name my-container nginx",
+    "addedFor": 7942
   }
 ]

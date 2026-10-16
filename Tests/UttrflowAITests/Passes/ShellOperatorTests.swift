@@ -19,6 +19,20 @@ struct ShellOperatorTests {
         #expect(run("echo done double greater than log.txt", in: .terminal) == "echo done >> log.txt")
     }
 
+    @Test("joins a possessive to the name after it in a command, and keeps a dash of salt as words")
+    func possessedNames() {
+        #expect(
+            run("git checkout dash b my dash feature", in: .terminal) == "git checkout -b my-feature")
+        #expect(
+            run("docker run dash dash name my dash container nginx", in: .terminal)
+                == "docker run --name my-container nginx")
+        #expect(run("mkdir our dash reports", in: .terminal) == "mkdir our-reports")
+        #expect(run("echo add a dash of salt", in: .terminal) == "echo add a dash of salt")
+        #expect(
+            run("add a dash of salt to the soup", in: .terminal) == "add a dash of salt to the soup")
+        #expect(run("echo my dash of salt", in: .terminal) == "echo my dash of salt")
+    }
+
     @Test("keeps the words in prose and leaves terminal brackets to the marks")
     func proseUnchanged() {
         let prose = "the pipe is greater than the hose"

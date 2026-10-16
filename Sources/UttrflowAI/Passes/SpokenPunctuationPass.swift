@@ -116,7 +116,8 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 case let paired = found.words == ["dash"] ? pairs[live[position]] : nil,
                 paired ?? true,
                 paired != nil
-                    || isUsed(found, at: position, in: live, of: draft, repeated: repeated),
+                    || isUsed(found, at: position, in: live, of: draft, repeated: repeated)
+                    || joinsPossessedName(found, at: position, literal: literalHyphens, in: live, of: draft),
                 isPaired(
                     found, at: position, in: live, of: draft, open: openBrackets,
                     quoting: !openQuotes.isEmpty, sentenceEnd: sentenceEnd ?? live.count,
@@ -202,6 +203,20 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             reach: MentionGuard.phraseReach, kind: found.placement)
             && !isVerb(found.words, at: position, in: live, of: draft)
             && isEvidenced(found.words, at: position, in: live, of: draft, repeated: repeated)
+    }
+
+    /// Possessives that open a name typed in a command: "my dash app" is `my-app`.
+    private static let possessives: Set<String> = ["my", "your", "our", "their"]
+
+    /// Whether a literal dash joins a possessive to the name after it in a line that opens on a program, as `git checkout -b my-feature`; "a dash of" stays prose.
+    private func joinsPossessedName(
+        _ found: SpokenCommand, at position: Int, literal: Bool, in live: [Int], of draft: Draft
+    ) -> Bool {
+        guard literal, found.words == ["dash"], position > 0, position + 1 < live.count,
+            Self.possessives.contains(draft.shape(at: live[position - 1]).key),
+            draft.shape(at: live[position + 1]).key != "of"
+        else { return false }
+        return TechnicalLexicon.isProgram(draft.shape(at: live[0]).key, in: destination)
     }
 
     /// Decides a sentence's two prose dashes around words as one, by word index: marks when either is used and both may stand there.
