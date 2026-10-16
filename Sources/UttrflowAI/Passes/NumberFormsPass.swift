@@ -48,6 +48,9 @@ public struct NumberFormsPass: PieceCleaningPass {
         "ghante", "ghanta", "baje", "din", "saal", "mahine", "hafte", "tareekh", "tarikh",
     ]
 
+    /// Romanised Hindi time-of-day words, which take a digit like "o'clock" does: "five baje" is "5 baje".
+    static let hindiClockWords: Set<String> = ["baje"]
+
     /// Unit words English spells the same, after which a Hindi number is written in digits unless the sentence is English.
     static let sharedMeasures: Set<String> = ["rupee", "rupees", "kilo", "gram", "litre", "minute"]
 
@@ -649,7 +652,9 @@ public struct NumberFormsPass: PieceCleaningPass {
         guard item.spoken, let value = item.value else { return nil }
         let end = position + item.count
         let beforeWord =
-            joined(end, shapes) && (currencies.contains(keys[end]) || measures.contains(keys[end]))
+            joined(end, shapes)
+            && (currencies.contains(keys[end]) || measures.contains(keys[end])
+                || hindiClockWords.contains(keys[end]))
         let beforeAmount =
             beforeWord || joined(end, shapes) && namesAUnit(at: end, keys: keys, shapes: shapes)
             || completesAmount(at: position, keys: keys, shapes: shapes)

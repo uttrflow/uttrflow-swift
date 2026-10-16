@@ -195,7 +195,7 @@ struct DataTableTests {
         #expect(NumberWords.table.source == .bundled)
         #expect(NumberCues.table.source == .bundled)
         #expect(NumberCues.words(for: .dotted).count == 6)
-        #expect(NumberCues.words(for: .digitRun).count == 12)
+        #expect(NumberCues.words(for: .digitRun).count == 14)
         #expect(NumberCues.words(for: .coordinator).count == 7)
         #expect(NumberCues.words(for: .measureLead).count == 8)
         #expect(NumberCues.words(for: .measureTail).count == 8)

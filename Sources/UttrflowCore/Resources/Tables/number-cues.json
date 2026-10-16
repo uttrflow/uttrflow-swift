@@ -19,6 +19,8 @@
         { "id": "on", "cues": ["digitRun"] },
         { "id": "at", "cues": ["digitRun"] },
         { "id": "was", "cues": ["digitRun"] },
+        { "id": "hai", "cues": ["digitRun"] },
+        { "id": "tha", "cues": ["digitRun"] },
         { "id": "and", "cues": ["coordinator"] },
         { "id": "by", "cues": ["coordinator"] },
         { "id": "or", "cues": ["coordinator"] },
