@@ -83,8 +83,7 @@ public struct FirstWordPass: WholeTextCleaningPass {
             // A Markdown line mark that opens the text leaves the first-word slot to the word after it.
             if isFirst, Self.lineMarks.contains(word.text) { continue }
             if WordShape(word.text).isOption {
-                // An option's letters are what the shell reads, so no casing rule touches them; a stop after
-                // it still ends the sentence, as after the negative number "-12.".
+                // An option's letters are what the shell reads, so no casing rule touches them, but its stop ends the sentence.
                 let suffix = WordShape(word.text).suffix
                 startOfSentence = WordShape(word.text).endsSentence && !WordShape.trailsOff(suffix)
                 afterPause = WordShape.trailsOff(suffix)
