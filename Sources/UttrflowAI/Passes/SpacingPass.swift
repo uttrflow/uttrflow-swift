@@ -23,7 +23,9 @@ public struct SpacingPass: PieceCleaningPass {
         var previous: Int?
         for index in draft.presentIndices {
             let text = draft.words[index].text
-            if let previous, text.allSatisfy(MarkSpacing.attachesBefore) {
+            if let previous, text.allSatisfy(MarkSpacing.attachesBefore),
+                !Self.isWrittenSymbol(draft.words[index])
+            {
                 let merged = WordShape.settlingMarks(draft.words[previous].text + text)
                 draft.replace(at: previous, with: merged, by: Self.id)
                 draft.remove(at: index, by: Self.id)
@@ -33,6 +35,11 @@ public struct SpacingPass: PieceCleaningPass {
             previous = index
         }
         return draft
+    }
+
+    /// Whether a spoken name was written as a word of its own, as "dot" is "." in "git add dot", which stays apart from the word before it.
+    private static func isWrittenSymbol(_ word: Draft.Word) -> Bool {
+        word.edits.contains { $0.by == SpokenPunctuationPass.id && $0.kind == .replaced }
     }
 
     /// "home—the" as "home —" and "the": every mark `MarkSpacing` spaces on both sides written as `WordShape.marked` writes a spoken one, or nil when it already is.

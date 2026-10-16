@@ -109,6 +109,14 @@ struct SpokenAddress: Equatable {
         if let tagged = readTagged(at: position, within: run, in: live, of: draft, expecting: expecting) {
             return tagged
         }
+        if let name = readDottedName(at: position, within: run, in: live, of: draft, expecting: expecting) {
+            return name
+        }
+        if let current = readDirectoryArgument(
+            at: position, within: run, in: live, of: draft, expecting: expecting)
+        {
+            return current
+        }
         guard let local = part(from: position, within: run, in: live, of: draft, side: .local),
             local.hasLetter, FunctionWords.isContent(local.spelled)
         else { return nil }
