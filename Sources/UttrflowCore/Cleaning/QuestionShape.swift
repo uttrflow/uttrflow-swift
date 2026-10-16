@@ -45,6 +45,22 @@ public enum QuestionShape {
     /// Verbs that, following a relative pronoun after a comma, head a predicate rather than an inversion.
     private static let relativeClauseVerbs: Set<String> = verbsBeforeSubject.union(lexicalQuestionVerbs)
 
+    /// Whether a sentence ends on the copula of its own question-word clause.
+    package static func endsOnEmbeddedQuestionCopula(_ sentence: [WordShape]) -> Bool {
+        let words = sentence.map { $0.key.replacingOccurrences(of: "\u{2019}", with: "'") }.filter {
+            !$0.isEmpty
+        }
+        guard let last = words.last, copulaVerbs.contains(last), words.count >= 3 else { return false }
+        // Its own subject stands between the question word and the copula: a pronoun, or a determiner and a noun.
+        let pronoun =
+            words.count >= 3 && questionWords.contains(words[words.count - 3])
+            && (subjects.contains(words[words.count - 2]) || words[words.count - 2] == "that")
+        let nounPhrase =
+            words.count >= 4 && questionWords.contains(words[words.count - 4])
+            && determiners.contains(words[words.count - 3])
+        return pronoun || nounPhrase
+    }
+
     /// The word that closes a leading address or question lead-in before an inverted clause.
     public static func leadingQuestionOpenerIndex(in shapes: [WordShape]) -> Int? {
         let spoken = shapes.indices.filter { !shapes[$0].key.isEmpty }
