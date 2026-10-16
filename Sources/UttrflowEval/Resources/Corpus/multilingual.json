@@ -175,6 +175,24 @@
     "mustKeep": ["galat", "bola"]
   },
   {
+    "id": "hinglish-the-closes-sentence",
+    "note": "\"the\" is the Hindi \u0925\u0947 here, so the stop the recogniser wrote after it stays.",
+    "language": "hi",
+    "addedFor": 7940,
+    "spoken": "usne 15 agast ko 100 rupaye diye the.",
+    "expected": "Usne 15 agast ko 100 rupaye diye the.",
+    "mustKeep": ["diye", "the"]
+  },
+  {
+    "id": "hinglish-the-stop-mid-text-kept",
+    "note": "A stop after the Hindi \"the\" in the middle of a dictation still ends the sentence, and the next one is capitalised.",
+    "language": "hi",
+    "addedFor": 7940,
+    "spoken": "ve kal dilli gaye the. ve kal dilli gaye the",
+    "expected": "Ve kal dilli gaye the. Ve kal dilli gaye the.",
+    "mustKeep": ["dilli", "gaye"]
+  },
+  {
     "id": "hinglish-devanagari-loanwords-cancel-budget-update",
     "note": "English words the recogniser writes in Devanagari come out in English spelling, not by sound.",
     "language": "hi",

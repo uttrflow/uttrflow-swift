@@ -22,6 +22,22 @@ struct TerminalStopPassTests {
     }
 
     @Test(
+        "finishes a sentence that ends on the copula of its own question-word clause, and leaves a cut-off one open",
+        arguments: [
+            ("i know what it is", "i know what it is."),
+            ("show me where we are", "show me where we are."),
+            ("tell me where he is", "tell me where he is."),
+            ("that is just what it is", "that is just what it is."),
+            ("ask him what the problem was", "ask him what the problem was."),
+            ("the problem is", "the problem is"),
+            ("what time is", "what time is"),
+            ("this is", "this is"),
+        ])
+    func finishesAnEmbeddedQuestionCopula(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
         "adds no stop to a dictation made only of digits",
         arguments: [
             ("42", "42"), ("415 555 0100", "415 555 0100"), ("4,096", "4,096"),
