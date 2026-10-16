@@ -1541,5 +1541,21 @@
     "expected": "Meet at 10:30.",
     "mustKeep": ["10:30"],
     "addedFor": 7925
+  },
+  {
+    "id": "one-word-quotation-ends-its-sentence",
+    "note": "A sentence that ends on a one-word quotation takes its stop inside the quote after a verb of saying.",
+    "spoken": "he said \"hello\"",
+    "expected": "He said \"hello.\"",
+    "mustKeep": ["hello"],
+    "addedFor": 7952
+  },
+  {
+    "id": "one-word-quoted-term-ends-its-sentence",
+    "note": "A sentence that ends on a quoted term takes its stop after the closing quote.",
+    "spoken": "she called it \"unbelievable\"",
+    "expected": "She called it \"unbelievable\".",
+    "mustKeep": ["unbelievable"],
+    "addedFor": 7952
   }
 ]
