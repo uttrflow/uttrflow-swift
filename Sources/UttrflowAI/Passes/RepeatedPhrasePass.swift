@@ -67,7 +67,14 @@ public struct RepeatedPhrasePass: PieceCleaningPass {
     /// Whether the run is said twice on purpose: one word, a name, a spelled code, or a familiar chain.
     private static func isDeliberate(_ keys: [String]) -> Bool {
         Set(keys).count == 1 || keys.allSatisfy(FunctionWords.isContent) || keys.allSatisfy(isCodeSymbol)
-            || deliberateChains.contains { repeatsCycle(of: $0, keys) }
+            || deliberateChains.contains { repeatsCycle(of: $0, keys) } || isRepeatedCoordination(keys)
+    }
+
+    /// Whether the run is a word and "and", at either alignment: a word coordinated with itself, "harris and harris and lee".
+    private static func isRepeatedCoordination(_ keys: [String]) -> Bool {
+        guard keys.count == 2, let word = keys.first(where: { $0 != "and" }), keys.contains("and")
+        else { return false }
+        return FunctionWords.isContent(word) || word == "no"
     }
 
     /// Whether `keys` is whole turns of `chain` starting from any of its words: "and more and more" turns "more and".

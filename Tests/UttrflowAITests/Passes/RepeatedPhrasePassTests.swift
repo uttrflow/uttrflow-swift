@@ -69,6 +69,24 @@ struct RepeatedPhrasePassTests {
         #expect(cleaned(input, by: sut) == input)
     }
 
+    @Test(
+        "keeps a word said twice with and between when a further and follows",
+        arguments: [
+            "ask harris and harris and lee",
+            "the firm of smith and smith and jones won",
+            "i said no and no and no",
+        ]
+    )
+    func keepsWordCoordinatedWithItself(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    @Test("still drops a restarted phrase that is not a word coordinated with itself")
+    func stillDropsRestartedCoordination() {
+        let input = "we like salt and pepper salt and pepper chips"
+        #expect(cleaned(input, by: sut) == "we like salt and pepper chips")
+    }
+
     @Test("the standard pipeline keeps every word in a deliberate continuation")
     func standardPipelineKeepsChain() async throws {
         let request = TransformationRequest(
