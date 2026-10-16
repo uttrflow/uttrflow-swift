@@ -70,7 +70,7 @@ struct GuardDestinationShapeTests {
         let situation = Situation(app: app, insertion: app.insertionPoint, destination: .terminal)
         let draft = CleaningPipeline.beforeModel(for: .standard(for: situation), situation: situation)
             .run(Draft(text: "docker build dash dash no dash cache dot"))
-        #expect(draft.text == "docker build --no-cache dot")
+        #expect(draft.text == "docker build --no-cache .")
         let verdict = { (rewritten: String) in
             MeaningPreservationGuard().verdict(draft: draft, rewritten: rewritten)
         }

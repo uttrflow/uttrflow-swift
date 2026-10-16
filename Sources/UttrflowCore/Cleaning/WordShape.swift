@@ -253,7 +253,8 @@ public struct WordShape: Equatable, Sendable {
     public static func withoutTrailingStop(_ text: String) -> String {
         let quoted = trailingQuotes(of: text)
         let body = String(text.dropLast(quoted.count))
-        guard body.hasSuffix("."), !body.hasSuffix("..") else { return text }
+        // A word that is only a dot is the current directory, never a stop.
+        guard body != ".", body.hasSuffix("."), !body.hasSuffix("..") else { return text }
         return String(body.dropLast()) + quoted
     }
 
