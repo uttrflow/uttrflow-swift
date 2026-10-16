@@ -875,6 +875,11 @@ public struct NumberFormsPass: PieceCleaningPass {
         let hasBeforeCue =
             position > 0 && !startsASentence(position, shapes) && timeCues.contains(keys[position - 1])
         guard hasBeforeCue, keys[minuteStart] != "hundred" else { return nil }
+        // Only "at" says a clock: after any other cue "twenty twenty four" is the year, said in two halves.
+        let readsAsYear =
+            hour.value == 20 && keys[position - 1] != "at"
+            && year(after: 20, at: minuteStart, keys: keys, shapes: shapes) != nil
+        guard !readsAsYear else { return nil }
         return Phrase(text: "\(hourText):\(minutes.text)", count: end - position)
     }
 

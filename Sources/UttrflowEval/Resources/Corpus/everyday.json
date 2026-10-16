@@ -608,6 +608,13 @@
     "mustKeep": ["no make that", "moment"]
   },
   {
+    "id": "year-after-by-not-a-clock-time",
+    "spoken": "we had fifty customers and by twenty twenty four we had five thousand",
+    "expected": "We had 50 customers and by 2024 we had 5000.",
+    "mustKeep": ["2024", "5000"],
+    "mustNotAdd": ["20:24"]
+  },
+  {
     "id": "trigger-as-its-own-sentence",
     "note": "The recogniser writes a paused trigger as its own sentence, which is a pause rather than a sentence end.",
     "spoken": "Meet me at four. Scratch that. At five.",
