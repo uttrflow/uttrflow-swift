@@ -1646,5 +1646,14 @@
     "expected": "From 200 and 300 people came.",
     "mustKeep": ["200", "300"],
     "addedFor": 7937
+  },
+  {
+    "id": "stop-kept-before-long-if-clause-7956",
+    "note": "The recogniser's stop before a long if clause stays, and the clause keeps its capital.",
+    "spoken": "the patch is out. if the error budget drops below ninety percent overnight roll back with the runbook in the wiki",
+    "expected": "The patch is out. If the error budget drops below 90% overnight roll back with the runbook in the wiki.",
+    "expectedExact": "The patch is out. If the error budget drops below 90% overnight roll back with the runbook in the wiki.",
+    "mustKeep": ["90%"],
+    "addedFor": 7956
   }
 ]

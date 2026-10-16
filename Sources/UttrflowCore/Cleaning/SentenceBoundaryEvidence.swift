@@ -79,6 +79,7 @@ public enum SentenceBoundaryEvidence {
         guard following.count > 1, subordinators.contains(following[0].key) else { return false }
         let clauseEnd = following.firstIndex(where: \.endsSentence).map { $0 + 1 } ?? following.count
         let fragment = following.prefix(clauseEnd)
+        if fragment.count > longestFragmentWords { return false }
         if fragment.last?.suffix.contains("?") == true { return false }
         if fragment.dropLast().contains(where: \.endsClause) { return false }
         if endsOnImperative(Array(fragment)) { return false }
@@ -242,7 +243,7 @@ public enum SentenceBoundaryEvidence {
     private static let neverFronted = FunctionWords.neverFronted
     private static let clauseSubjects = QuestionShape.subjects.union(["nobody", "nothing"])
     private static let imperativeObjects = FunctionWords.imperativeObjects
-    private static let imperativeParticles: Set<String> = ["back", "out", "off"]
+    private static let imperativeParticles: Set<String> = ["back", "out", "off", "to"]
     /// Words a bare verb follows inside one clause: "if you can leave it", "if you want to leave it".
     private static let bareVerbLeaders = QuestionShape.verbsBeforeSubject.union(FunctionWords.bareVerbLeaders)
     private static let modals = FunctionWords.modals
@@ -253,4 +254,6 @@ public enum SentenceBoundaryEvidence {
         ["could", "finish"], ["pick", "up"], ["look"], ["covers"],
     ]
     private static let subordinators = FunctionWords.subordinators
+    /// The most words a lone subordinate fragment holds, its opener included; a longer clause has a main clause the tags missed.
+    private static let longestFragmentWords = 9
 }
