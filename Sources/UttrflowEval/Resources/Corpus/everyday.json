@@ -1646,5 +1646,26 @@
     "expected": "From 200 and 300 people came.",
     "mustKeep": ["200", "300"],
     "addedFor": 7937
+  },
+  {
+    "id": "trigger-phrase-heads-clauses-i-mean-to",
+    "spoken": "I mean to finish the report and I mean to send the invoice",
+    "expected": "I mean to finish the report and I mean to send the invoice.",
+    "mustKeep": ["finish the report", "send the invoice"],
+    "addedFor": 7987
+  },
+  {
+    "id": "trigger-phrase-heads-clauses-scratch-that-itch",
+    "spoken": "scratch that itch on your arm and scratch that itch on your leg",
+    "expected": "Scratch that itch on your arm and scratch that itch on your leg.",
+    "mustKeep": ["arm", "leg"],
+    "addedFor": 7987
+  },
+  {
+    "id": "trigger-phrase-heads-clauses-never-mind",
+    "spoken": "she said never mind the delay and he said never mind the cost",
+    "expected": "She said never mind the delay and he said never mind the cost.",
+    "mustKeep": ["delay", "cost"],
+    "addedFor": 7987
   }
 ]
