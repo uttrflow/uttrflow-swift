@@ -1,11 +1,7 @@
 // The recorded differing cuts of the seam audit, and which of them may rise or fall.
 package import Foundation
 
-/// The cuts recorded as differing, which may fall and never rise.
-///
-/// `osDependent` holds cuts that differ on one macOS release and match on another because the
-/// system's language model tags words differently. They are tolerated whether or not they differ,
-/// `recording` never drops them, and a cut outside both lists still fails the audit.
+/// The cuts recorded as differing, which may fall and never rise, and those that depend on the macOS release.
 package struct SeamBaseline: Codable, Equatable, Sendable {
     /// Cuts that only some macOS releases make differ, read on the named system.
     package struct OSDependent: Codable, Equatable, Sendable {
