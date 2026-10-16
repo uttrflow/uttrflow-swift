@@ -176,9 +176,15 @@ struct SpokenAddress: Equatable {
         at place: Int, within run: Range<Int>, in live: [Int], of draft: Draft
     ) -> (value: Int, used: Int)? {
         guard place > 0, place + 1 < run.upperBound, draft.shape(at: live[place - 1]).suffix.isEmpty,
-            draft.shape(at: live[place]).key == "colon",
-            let (value, used) = number(at: place + 1, within: run, in: live, of: draft)
+            draft.shape(at: live[place]).key == "colon"
         else { return nil }
+        // Digits said one by one are a port or a code, never a cardinal: "eight zero eight zero" is 8080.
+        if let digits = spokenDigits(from: place + 1, within: run, in: live, of: draft), digits.used >= 2,
+            digits.text.first != "0", let value = Int(digits.text)
+        {
+            return (value, 1 + digits.used)
+        }
+        guard let (value, used) = number(at: place + 1, within: run, in: live, of: draft) else { return nil }
         return (value, 1 + used)
     }
 
