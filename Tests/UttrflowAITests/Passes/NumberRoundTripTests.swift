@@ -115,10 +115,9 @@ enum RoundTripCorpus {
 struct NumberRoundTripTests {
     /// Buckets that fail today and the most cases each may fail; a count may fall and never rise.
     static let knownFailures: [String: (count: Int, issue: Int)] = [
-        "cardinal/a": (5, 4033), "cardinal/hyphen": (121, 4085),
-        "ordinal/a": (88, 3628), "ordinal/and": (32, 4452), "ordinal/hyphen": (93, 4085),
-        "ordinal/plain": (30, 3628),
-        "year/and": (8, 4058), "year/oh": (5, 4058), "year/zero": (6, 4058),
+        "cardinal/a": (2, 4033),
+        "ordinal/a": (88, 3628), "ordinal/and": (9, 4452), "ordinal/hyphen": (6, 4085),
+        "ordinal/plain": (10, 3628),
     ]
 
     @Test(
