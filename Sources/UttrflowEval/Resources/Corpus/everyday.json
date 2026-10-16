@@ -1514,5 +1514,21 @@
     "destination": "document",
     "expectedExact": "Go to the start of the chapter and read it again.",
     "addedFor": 7032
+  },
+  {
+    "id": "ends-on-copula-of-embedded-question",
+    "note": "A sentence that ends on the copula of its own question-word clause is complete and takes its stop.",
+    "spoken": "i know what it is",
+    "expected": "I know what it is.",
+    "mustKeep": ["what it is"],
+    "addedFor": 7951
+  },
+  {
+    "id": "ends-on-copula-of-embedded-question-where",
+    "note": "The same, with a subject pronoun between the question word and the copula.",
+    "spoken": "show me where we are",
+    "expected": "Show me where we are.",
+    "mustKeep": ["where we are"],
+    "addedFor": 7951
   }
 ]

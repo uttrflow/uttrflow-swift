@@ -165,7 +165,7 @@ public struct TerminalStopPass: WholeTextCleaningPass {
     private func finishedLast(_ word: String, in draft: Draft) -> String {
         let spokenAsHindi = draft.presentIndices.last.map(draft.isHindi(at:)) ?? false
         if !spokenAsHindi, MarkLegality.verdict(.stop, after: word) == .illegal,
-            !Self.endsOnSpokenStop(draft)
+            !Self.endsOnSpokenStop(draft), !Self.endsOnEmbeddedQuestionCopula(draft)
         {
             return Self.leftOpen(word)
         }
@@ -251,6 +251,11 @@ public struct TerminalStopPass: WholeTextCleaningPass {
     /// Whether the sentence the draft ends on asks a direct question by its word order.
     static func lastSentenceAsks(_ draft: Draft) -> Bool {
         QuestionShape.asks(lastSentence(of: draft).map { draft.shape(at: $0) })
+    }
+
+    /// Whether the sentence the draft ends on closes on the copula of its own question-word clause: "show me where we are".
+    private static func endsOnEmbeddedQuestionCopula(_ draft: Draft) -> Bool {
+        QuestionShape.endsOnEmbeddedQuestionCopula(lastSentence(of: draft).map { draft.shape(at: $0) })
     }
 
     /// The words of the sentence the draft ends on, after the last sentence end or layout mark.
