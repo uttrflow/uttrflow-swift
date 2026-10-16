@@ -137,10 +137,7 @@ public struct Draft: Sendable, Equatable {
         case devanagari
     }
 
-    /// Whether the word at `index` was spoken as Hindi, so a list keyed on English spelling does not apply to it.
-    ///
-    /// A word the recogniser wrote in Devanagari is Hindi. A word already in Latin letters, because the text came from a model
-    /// or a romanised answer, is Hindi when it is an English homograph in a sentence that holds another listed Hindi word.
+    /// Whether the word at `index` was spoken as Hindi: written in Devanagari, or an English homograph beside a Hindi word.
     public func isHindi(at index: Int) -> Bool {
         if words[index].origin == .devanagari { return true }
         // The sentence is read only for the few spellings that are both English and Hindi, so a pass asking of every word stays linear.
