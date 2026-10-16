@@ -934,7 +934,7 @@ public struct NumberFormsPass: PieceCleaningPass {
             && !opensItsOwnHundred(at: position, keys: keys)
     }
 
-    /// Whether the number here is followed by "hundred" after a hundred and an "and": "five hundred and six hundred".
+    /// Whether the number here is followed by "hundred" after a hundred and an "and", which are two numbers.
     private static func opensItsOwnHundred(at position: Int, keys: [String]) -> Bool {
         keys[position - 2] == "hundred" && position + 1 < keys.count && keys[position + 1] == "hundred"
     }
