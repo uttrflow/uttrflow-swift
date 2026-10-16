@@ -795,6 +795,8 @@ no-after-bullet-point-kept	Release notes:\n- The old API is gone\n- No old clien
 no-after-new-line-kept	We ship a new build\nNo new dependencies.
 no-after-new-paragraph-kept	The file is over 50 MB.\n\nNo schema changes and no new dependencies.
 no-make-it-as-making-kept	There was no make it or break it moment for us.
+no-make-that-as-making-kept	There was no make that cake moment for us.
+no-make-that-between-amounts	I need five loaves.
 no-ordinary-determiner-reason	She gave no reason.
 no-ordinary-determiner-thanks	He said no thanks to the offer.
 no-punctuation	The build passed everything looks good ship it.
