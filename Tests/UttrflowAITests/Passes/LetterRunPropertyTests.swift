@@ -321,7 +321,7 @@ struct LetterRunPropertyTests {
         ("5 c g", "5 CG"),
         ("i i k see seven", "IIK see seven"),
         ("i you oh g k the", "i you oh GK the"),
-        ("oh e s e i a and", "oh ESEI a and"),
+        ("oh e s e i a and", "oh ESEIA and"),
         ("oh ex see b oh e b 5", "oh ex see BOEB5"),
         ("seven k a", "seven KA"),
         ("oh b c i", "oh BCI"),

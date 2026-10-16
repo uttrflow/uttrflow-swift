@@ -339,7 +339,8 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         from start: Int, through end: Int, in live: [Int], draft: Draft
     ) -> Bool {
         let value = live[start...end].compactMap { letterName(draft.shape(at: $0)) }.joined().lowercased()
-        return knownAcronyms.contains(value)
+        // Three or more letters said one by one end in "a" as a letter wherever no noun follows to need the article.
+        return (knownAcronyms.contains(value) || end - start >= 2)
             && !closingArticleOpensNoun(["a"], end: end + 1, in: live, draft: draft)
     }
 
