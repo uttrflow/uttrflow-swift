@@ -1,5 +1,4 @@
 // The recorded differing cuts of the seam audit, and which of them may rise or fall.
-package import Foundation
 
 /// The cuts recorded as differing, which may fall and never rise, and those that depend on the macOS release.
 package struct SeamBaseline: Codable, Equatable, Sendable {
@@ -49,15 +48,5 @@ package struct SeamBaseline: Codable, Equatable, Sendable {
     package func recording(_ keys: [String]) -> SeamBaseline {
         let dependent = Set(osDependent?.cuts ?? [])
         return SeamBaseline(cuts: keys.filter { !dependent.contains($0) }, osDependent: osDependent)
-    }
-
-    package static func read(from url: URL) throws -> SeamBaseline {
-        try JSONDecoder().decode(SeamBaseline.self, from: Data(contentsOf: url))
-    }
-
-    package func write(to url: URL) throws {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try (encoder.encode(self) + Data("\n".utf8)).write(to: url)
     }
 }

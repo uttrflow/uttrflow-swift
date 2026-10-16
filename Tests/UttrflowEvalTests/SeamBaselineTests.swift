@@ -34,10 +34,8 @@ struct SeamBaselineTests {
 
     @Test("a baseline written and read back keeps the system and the OS-dependent cuts")
     func roundTrips() throws {
-        let url = FileManager.default.temporaryDirectory.appending(path: "seam-baseline-\(UUID()).json")
-        defer { try? FileManager.default.removeItem(at: url) }
-        try Self.baseline.write(to: url)
-        #expect(try SeamBaseline.read(from: url) == Self.baseline)
+        let written = try JSONEncoder().encode(Self.baseline)
+        #expect(try JSONDecoder().decode(SeamBaseline.self, from: written) == Self.baseline)
     }
 
     @Test("a baseline written before the section existed still reads")
@@ -47,9 +45,10 @@ struct SeamBaselineTests {
         #expect(baseline == SeamBaseline(cuts: ["alpha@1"]))
     }
 
-    @Test("the committed baseline names the system its OS-dependent cuts were read on, and lists no cut twice")
+    @Test("the committed baseline names the system of its OS-dependent cuts and lists no cut twice")
     func committedBaselineIsWellFormed() throws {
-        let baseline = try SeamBaseline.read(from: Self.root.appending(path: "Scripts/seam_baseline.json"))
+        let committed = try Data(contentsOf: Self.root.appending(path: "Scripts/seam_baseline.json"))
+        let baseline = try JSONDecoder().decode(SeamBaseline.self, from: committed)
         let dependent = try #require(baseline.osDependent)
         #expect(!dependent.system.isEmpty)
         #expect(!dependent.cuts.isEmpty)

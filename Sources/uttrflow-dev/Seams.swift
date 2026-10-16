@@ -275,6 +275,18 @@ struct SeamDifference: Sendable {
     }
 }
 
+extension SeamBaseline {
+    static func read(from url: URL) throws -> SeamBaseline {
+        try JSONDecoder().decode(SeamBaseline.self, from: Data(contentsOf: url))
+    }
+
+    func write(to url: URL) throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try (encoder.encode(self) + Data("\n".utf8)).write(to: url)
+    }
+}
+
 /// A clock whose deadlines never pass, so a busy machine cannot time a stage out and change what a cut writes.
 struct UnboundedClock: Clock {
     var now: ContinuousClock.Instant { ContinuousClock.now }
