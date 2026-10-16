@@ -93,6 +93,9 @@ struct SpokenAddress: Equatable {
         if let url = readExplicitURL(at: position, within: run, in: live, of: draft) { return url }
         if let host = readNumericHost(at: position, within: run, in: live, of: draft) { return host }
         if let address = readWebAddress(at: position, within: run, in: live, of: draft) { return address }
+        if let entry = readStackEntry(at: position, within: run, in: live, of: draft, expecting: expecting) {
+            return entry
+        }
         if let path = readAbsolutePath(at: position, within: run, in: live, of: draft, expecting: expecting) {
             return path
         }
