@@ -78,6 +78,8 @@ useDefault = true
   regexes = [
     '''^sk-live-abcdef123456$''',
     '''^apWgly8fYgdo1U2MUj56SuqUqZ4QHv5GRZIbuLT0PGE=$''',
+    '''^GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ$''',
+    '''^Zx81kLm2QpRt7$''',
     '''^Curve25519\.Signing\.PrivateKey$''',
     '''^abc123def456$''',
     # openai/whisper-large-v3, and tokenizer.json and tokenizer_config.json at that commit.
