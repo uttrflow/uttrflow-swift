@@ -28,6 +28,7 @@ struct SpokenDotArgumentTests {
             ("python3 dash m http dot server", "python3 -m http.server"),
             ("git add dot", "git add ."),
             ("cd dot dot", "cd .."),
+            ("Docker build dash dash no dash cache dot.", "docker build --no-cache ."),
         ]
     )
     func writesReportedDictations(spoken: String, expected: String) {
@@ -42,6 +43,7 @@ struct SpokenDotArgumentTests {
         "leaves a dot in prose and beside a number or a determiner as a word",
         arguments: [
             "echo the dot product", "python three dot twelve", "add a dot", "put the dot", "echo dot product",
+            "she tapped dot dash dot on the wall",
         ]
     )
     func leavesProse(input: String) {

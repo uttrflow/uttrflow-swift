@@ -18,10 +18,11 @@ extension SpokenAddress {
         return SpokenAddress(length: span.count, text: first.prefix + name.spelled + last.suffix)
     }
 
-    /// Whether a label is a word of a name: it holds a letter, it is no number, and it is not the spoken dot of an ellipsis.
+    /// Whether a label is a word of a name: it holds a letter, it carries meaning, and it is no number, no spoken symbol and not the spoken dot of an ellipsis, so "dot dash dot on" is not a name.
     private static func isNameLabel(_ label: String) -> Bool {
         let key = label.lowercased()
         return label.contains(where: \.isLetter) && !NumberWords.isNumber(key) && key != "dot"
+            && FunctionWords.isContent(key) && joiners[key] == nil
     }
 
     /// Reads one or two spoken dots that end a command line, the current or the parent directory: "git add dot" is "git add .".
@@ -39,8 +40,9 @@ extension SpokenAddress {
         let span = position..<run.upperBound
         guard span.allSatisfy({ draft.shape(at: live[$0]).prefix.isEmpty }),
             span.dropLast().allSatisfy({ draft.shape(at: live[$0]).suffix.isEmpty }),
-            draft.shape(at: live[span.upperBound - 1]).suffix.isEmpty
+            ["", "."].contains(draft.shape(at: live[span.upperBound - 1]).suffix)
         else { return nil }
+        // A full stop the recogniser put after the last dot closed the sentence, so the directory takes its place.
         return SpokenAddress(length: span.count, text: String(repeating: ".", count: dots.count))
     }
 }
