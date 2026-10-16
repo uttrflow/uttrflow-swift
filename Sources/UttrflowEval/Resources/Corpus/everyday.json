@@ -1653,5 +1653,13 @@
     "expected": "From 200 and 300 people came.",
     "mustKeep": ["200", "300"],
     "addedFor": 7937
+  },
+  {
+    "id": "quote-pair-after-say-stays-whole",
+    "note": "A quote pair said after a verb of naming is kept as words whole, never half-written.",
+    "spoken": "type open quote yes close quote",
+    "expected": "Type open quote yes close quote.",
+    "mustKeep": ["open quote", "close quote"],
+    "addedFor": 7967
   }
 ]
