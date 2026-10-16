@@ -420,6 +420,12 @@ alone. Some cleanings only make sense over the whole:
   on a number before one that opens on a number ("It costs 12." | "13 people came."), which it
   joins; the measurement is in `PieceJoinerTests`.
 
+- **Years and units across a seam.** A century half said before a second half that is no round
+  ten ("nineteen" | "ninety nine", "twenty" | "twenty six") is one year, so the seam re-cleans the
+  joined words; a round ten ("twenty" | "thirty") stays two numbers. A numeral that ends a piece
+  before a currency or unit word that opens the next ("ten" | "dollars", `NumberFormsPass.seamUnits`)
+  is one quantity, so the seam takes no stop and the word stays lower case.
+
 Some passes are only correct over the whole message, and their scope is in the type.
 `CleaningPipeline.piece(numbers:digits:…)` is what a piece gets — it takes no
 `FirstWordPolicy` and no `TerminalStopPolicy`, so it cannot decide the first word or the

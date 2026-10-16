@@ -152,12 +152,13 @@ enum PieceJoiner {
         return cued || !gluesDigitGroups(together, from: apart, at: headRead.count)
     }
 
-    /// Whether reading across the cut only fused two two-digit numbers at the cut into one year-like number, as "20" and "30" into "2030".
+    /// Whether reading across the cut only fused two two-digit numbers into a year-like number ("20" "30"), not a century half and a second half that is no round ten.
     private static func gluesDigitGroups(_ together: [String], from apart: [String], at cut: Int) -> Bool {
         guard cut > 0, cut < apart.count, together.count == apart.count - 1 else { return false }
         let (before, after) = (apart[cut - 1], apart[cut])
         guard before.count == 2, after.count == 2, (before + after).allSatisfy({ $0.isASCII && $0.isNumber })
         else { return false }
+        if let century = Int(before), (10...21).contains(century), after.last != "0" { return false }
         return together == Array(apart[..<(cut - 1)]) + [before + after] + Array(apart[(cut + 1)...])
     }
 
@@ -384,9 +385,18 @@ enum PieceJoiner {
             let first = WordTokens.words(next, .display).first.map(WordShape.init)
         else { return false }
         let noSentenceStop = last.suffix.isEmpty
+        if numberTakesUnit(last, first) { return true }
         return (noSentenceStop || (last.suffix == "." && previousWasHeardEndingOnScale))
             && first.prefix.isEmpty && isSpokenGroup(last.core)
             && isSpokenGroup(first.core)
+    }
+
+    /// Whether a numeral ends a piece and a currency or unit word opens the next, as "10" | "dollars": the quantity is one phrase.
+    private static func numberTakesUnit(_ last: WordShape, _ first: WordShape) -> Bool {
+        guard first.prefix.isEmpty, last.suffix.isEmpty || last.suffix == ".",
+            integer(last.core) != nil, NumberFormsPass.seamUnits.contains(first.key)
+        else { return false }
+        return true
     }
 
     /// Whether the recognizer heard the preceding piece end on a number scale word.
