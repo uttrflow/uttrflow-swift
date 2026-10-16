@@ -934,7 +934,7 @@ public struct NumberFormsPass: PieceCleaningPass {
             && !opensItsOwnHundred(at: position, keys: keys)
     }
 
-    /// Whether the number here is followed by "hundred" after a hundred and an "and": "five hundred and six hundred".
+    /// Whether the number here is followed by "hundred" after a hundred and an "and", which opens a second number.
     private static func opensItsOwnHundred(at position: Int, keys: [String]) -> Bool {
         keys[position - 2] == "hundred" && position + 1 < keys.count && keys[position + 1] == "hundred"
     }
@@ -1251,7 +1251,7 @@ public struct NumberFormsPass: PieceCleaningPass {
     /// Words before a digit run that say it is a code or a number to dial, not a count.
     static let digitCues = contextWords.union(NumberCues.words(for: .digitRun))
 
-    /// Verbs of having, which end a label cue: "the table has two million rows" counts rows, it does not label table two.
+    /// Verbs of having, which end a label cue, so a count after the verb counts what follows it and labels nothing before it.
     private static let labelBreakers: Set<String> = ["has", "have", "had"]
 
     /// Whether a label word cues the number, across a sign and English function words such as "to"; a Hindi word or a lone letter ends it.

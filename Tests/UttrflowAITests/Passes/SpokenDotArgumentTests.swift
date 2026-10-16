@@ -16,6 +16,7 @@ struct SpokenDotArgumentTests {
             ("git add dot", "git add ."),
             ("cd dot dot", "cd .."),
             ("ls dash la dot", "ls -la ."),
+            ("docker build dash dash no dash cache dot.", "docker build --no-cache ."),
         ]
     )
     func writesDots(input: String, expected: String) {

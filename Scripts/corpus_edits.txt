@@ -794,3 +794,10 @@ sql-statement-null-and expected statement laid out on clause lines when it names
 probe-sql-join expected statement laid out on clause lines with the joins indented, per the owner requirement of #4212
 sql-terminated-semicolon-said expected statement laid out on clause lines when it names two or more clauses, per the owner requirement of #4212
 probe-protocol-names uses the lexicon spelling OAuth2 required by the registered-name decision (#4074), correcting the reference only (#7722)
+if-it-is-right-is-no-tag-question spoken now carries the apostrophe a recogniser writes, so the negator integrity audit finds nothing to flag (#7992)
+keeps-heard-capital-on-name-that-is-also-a-word pinned to its exact written form, since the reference is the transcript itself (#7992)
+keeps-heard-capital-on-company-name pinned to its exact written form, since the reference is the transcript itself (#7992)
+keeps-heard-capitals-in-a-quoted-label pinned to its exact written form, since the reference is the transcript itself (#7992)
+dev-terminal-and-chain moved unchanged to Sources/UttrflowEval/Resources/Corpus/technical.json, since it is a short command and not a whole developer dictation (#7992)
+dev-terminal-and-chain-said-double moved unchanged to Sources/UttrflowEval/Resources/Corpus/technical.json, since it is a short command and not a whole developer dictation (#7992)
+dev-terminal-or-chain moved unchanged to Sources/UttrflowEval/Resources/Corpus/technical.json, since it is a short command and not a whole developer dictation (#7992)

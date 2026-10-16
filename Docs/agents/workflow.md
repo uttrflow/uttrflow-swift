@@ -42,6 +42,9 @@ issue closes, the page changes in the same pull request.
    `failure`, the only pull request that merges is one whose body names the failing step and
    whose own `make verify` passes on the current tip. The full `make verify` runs on dispatch, so a
    release waits for a dispatched run on its commit to be green.
+5. A change that touches the corpus, the rules or a generated page merges only after its `Eval` job
+   has passed: `gh pr checks <n>` lists `make eval` as `pass`, and a `pending` or missing line
+   means the merge waits. The `make verify` job passing alone does not allow it.
 
 ## Evidence each change type needs
 

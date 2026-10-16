@@ -64,7 +64,7 @@ public enum NumberWords {
                 next < keys.endIndex,
                 units[keys[next]] != nil || teens[keys[next]] != nil
                     || tens[keys[next]] != nil,
-                // "five hundred and six hundred" is two numbers: a hundred after the pair ends the first.
+                // Two hundreds joined by "and" are two numbers: a hundred after the pair ends the first.
                 !(hasHundred && opensItsOwnHundred(after: next, in: keys))
             {
                 index = next

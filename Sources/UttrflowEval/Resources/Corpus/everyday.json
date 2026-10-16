@@ -1554,6 +1554,7 @@
     "spoken": "Open Slack and message Grace.",
     "expected": "Open Slack and message Grace.",
     "mustKeep": ["Slack", "Grace"],
+    "expectedExact": "Open Slack and message Grace.",
     "addedFor": 7953
   },
   {
@@ -1562,6 +1563,7 @@
     "spoken": "Visit Apple today.",
     "expected": "Visit Apple today.",
     "mustKeep": ["Apple"],
+    "expectedExact": "Visit Apple today.",
     "addedFor": 7953
   },
   {
@@ -1570,6 +1572,7 @@
     "spoken": "Use the \"Save As\" option.",
     "expected": "Use the \"Save As\" option.",
     "mustKeep": ["Save As"],
+    "expectedExact": "Use the \"Save As\" option.",
     "addedFor": 7953
   },
   {
@@ -1632,7 +1635,7 @@
   {
     "id": "if-it-is-right-is-no-tag-question",
     "note": "A final right that completes an if clause is its predicate, not a closing tag question.",
-    "spoken": "i dont know if it is right",
+    "spoken": "i don't know if it is right",
     "expected": "I don't know if it is right.",
     "mustKeep": ["if it is right"],
     "mustEndWith": ".",

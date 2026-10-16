@@ -115,7 +115,7 @@ public enum QuestionShape {
 
     /// Whether a clause-starting subject has a predicate and a plausible complement before "right".
     private static func hasClauseBeforeRight(_ words: [String]) -> Bool {
-        // A copula right before "right" makes it that clause's predicate: "I don't know if it is right".
+        // A copula right before "right" makes it the predicate of an embedded clause, not a closing tag.
         guard !copulaVerbs.contains(words.last ?? "") else { return false }
         let clause = Array(words.drop(while: openers.contains))
         guard let predicateIndex = tagClausePredicateIndex(in: clause) else { return false }

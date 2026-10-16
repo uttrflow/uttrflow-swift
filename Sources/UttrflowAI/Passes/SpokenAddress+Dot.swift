@@ -40,8 +40,9 @@ extension SpokenAddress {
         let span = position..<run.upperBound
         guard span.allSatisfy({ draft.shape(at: live[$0]).prefix.isEmpty }),
             span.dropLast().allSatisfy({ draft.shape(at: live[$0]).suffix.isEmpty }),
-            draft.shape(at: live[span.upperBound - 1]).suffix.isEmpty
+            ["", "."].contains(draft.shape(at: live[span.upperBound - 1]).suffix)
         else { return nil }
+        // A stop a recogniser wrote after the last dot ends no sentence at a command line, so it is dropped.
         return SpokenAddress(length: span.count, text: String(repeating: ".", count: dots.count))
     }
 }
