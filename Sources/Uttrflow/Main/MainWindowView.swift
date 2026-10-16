@@ -110,9 +110,7 @@ struct MainWindowView: View {
         }
         .environment(\.dictationKeycaps, model.content.shortcutKeycaps)
         // The field holds what is being typed, so it is only put back in step when the page changes.
-        .onChange(of: model.page) { _, _ in
-            model.searchQuery = model.chrome.search?.query ?? ""
-        }
+        .onChange(of: model.page) { old, _ in model.pageDidChange(from: old) }
     }
 
     /// Whether the page draws its own title, and so its own margins.

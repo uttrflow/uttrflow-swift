@@ -247,10 +247,13 @@ struct NamedSecretScan {
                     Self.opensName(after: previous, at: current)
                         || breaks.isBoundary(position.index, from: position.index)
                 {
+                    // A prefix belongs to the name, so `db_pwd` is a password's name and only a bare `pwd` prints a directory.
+                    let named = Self.opensName(after: previous, at: current)
+                    let nameStart = named ? text.index(before: position.index) : position.index
                     for end in ends where breaks.isBoundary(end.index, from: position.index) {
                         guard
                             let assignment = assignment(
-                                after: end, keyword: text[position.index..<end.index]
+                                after: end, keyword: text[nameStart..<end.index]
                             )
                         else { continue }
                         if assignment.accepted { return true }

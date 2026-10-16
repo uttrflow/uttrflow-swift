@@ -362,9 +362,29 @@ struct WorkingDirectoryIsNotASecretTests {
         #expect(ClipKindDetector.kind(of: "pwd: Zx9kLmQ2rT7p") == .secret)
     }
 
+    /// Only a bare `pwd` prints a directory; a name that ends in it is a password's name.
+    @Test(
+        "still calls a path after a name that ends in pwd a secret",
+        arguments: ["db_pwd: /srv/app3", "dbPwd: /srv/app3", "_pwd:/3"])
+    func prefixedPwdStaysSecret(_ text: String) {
+        #expect(ClipKindDetector.kind(of: text) == .secret)
+    }
+
     /// Other keywords keep today's behaviour: a path after them is still masked.
     @Test("leaves the other keywords alone")
     func otherKeywordsUnchanged() {
         #expect(ClipKindDetector.kind(of: "password: /Users/me/Desktop") == .secret)
+    }
+}
+
+/// A line of only spaces is a blank line to a shell clip, however the clip is read.
+@Suite("A blank line does not stop a shell clip being a command")
+struct BlankLineShellClipTests {
+    @Test(
+        "reads the same by byte and by character",
+        arguments: ["$ ls -la\n\t", "$ |\n\t", "git status\u{0B} ", "./run.sh\r\n "])
+    func blankLineIsSkipped(_ text: String) {
+        #expect(CodeShapes.isShellCommand(text))
+        #expect(CodeShapes.isShellCommandByCharacter(text))
     }
 }

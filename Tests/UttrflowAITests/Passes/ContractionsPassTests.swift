@@ -147,4 +147,10 @@ struct ContractionsPassTests {
         #expect(draft.words[0].state == .replaced(by: ContractionsPass.id, from: "dont"))
         #expect(draft.words[1].state == .kept)
     }
+
+    @Test("does not state addsNoWords, because the apostrophe cuts a contraction into new letter words")
+    func apostropheAddsLetterWords() {
+        #expect(ContractionsPass().apply(Draft(text: "its a")).text == "it's a")
+        #expect(!ContractionsPass.laws.contains(.addsNoWords))
+    }
 }

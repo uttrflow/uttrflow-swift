@@ -3,7 +3,8 @@ public import UttrflowCore
 /// Puts the apostrophe back into a contraction speech left without one: "dont" → "don't". See `Docs/cleanup.md`.
 public struct ContractionsPass: PieceCleaningPass {
     public static let id: PassID = .contractions
-    public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    /// The apostrophe cuts "it's" into "it" and "s", a letter word the draft did not hold, so `addsNoWords` is not kept.
+    public static let laws: Set<PassLaw> = Set(PassLaw.allCases).subtracting([.addsNoWords])
     public static let orderIndependentWith: Set<PassID> = [.spacing]
 
     /// Whole words that are a contraction and nothing else, so no sentence can want them as they stand.

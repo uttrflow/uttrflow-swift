@@ -54,6 +54,9 @@ struct StammersPassTests {
             ("a a lot", "a lot"),
             ("it was a a thing", "it was a thing"),
             ("I I was there", "I was there"),
+            ("I I I think so", "I think so"),
+            ("and I I I know", "and I know"),
+            ("I I I I", "I"),
         ]
     )
     func removesProseDouble(input: String, expected: String) {
@@ -216,5 +219,12 @@ struct StammersPassTests {
     func keepsDevanagariDoubles(spoken: String, romanised: String) {
         let draft = sut.apply(Draft(romanising: Transcription(text: spoken)))
         #expect(draft.text == romanised)
+    }
+
+    /// A second run must not find a doubled number the first run exposed by removing the doubled word beside it.
+    @Test("is idempotent when a doubled word removed beside a doubled number exposes it")
+    func idempotentBesideDoubledNumber() {
+        let once = sut.apply(Draft(text: "bring 10000 10000 a a slash"))
+        #expect(sut.apply(once).text == once.text)
     }
 }

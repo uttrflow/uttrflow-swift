@@ -164,7 +164,11 @@ public struct TerminalStopPass: WholeTextCleaningPass {
     /// The last word with a stop unless it ends a list item or a run of unstopped lines, or the layout keeps newlines and the text holds one.
     private func finishedLast(_ word: String, in draft: Draft) -> String {
         let spokenAsHindi = draft.presentIndices.last.map(draft.isHindi(at:)) ?? false
-        if !spokenAsHindi, MarkLegality.verdict(.stop, after: word) == .illegal { return Self.leftOpen(word) }
+        if !spokenAsHindi, MarkLegality.verdict(.stop, after: word) == .illegal,
+            !Self.endsOnSpokenStop(draft)
+        {
+            return Self.leftOpen(word)
+        }
         // The text after the caret carries on the sentence, so a stop the recogniser closed it with goes.
         if followingTextContinuesSentence(after: word)
             || insertionPoint.structure?.hasOpenDelimiterOnCaretLine == true
@@ -206,6 +210,14 @@ public struct TerminalStopPass: WholeTextCleaningPass {
             && spoken.dropLast().allSatisfy { line in
                 line.last.map { !draft.shape(at: $0).endsSentence } ?? true
             }
+    }
+
+    /// Whether the speaker closed the last word with a stop said by name, which says the sentence ended there.
+    private static func endsOnSpokenStop(_ draft: Draft) -> Bool {
+        guard let last = draft.presentIndices.last else { return false }
+        return draft.words[last].edits.contains {
+            $0.by == SpokenPunctuationPass.id && $0.kind == .replaced && $0.to.hasSuffix(".")
+        }
     }
 
     /// A word that leaves its clause open, such as a trailing "and", keeps no stop; an abbreviation keeps its own dot.

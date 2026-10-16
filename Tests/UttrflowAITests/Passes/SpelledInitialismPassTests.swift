@@ -412,11 +412,22 @@ struct SpelledCodeShippedTests {
     }
 
     @Test(
+        "writes a final a as a letter when a word that cannot follow the article comes next",
+        arguments: [
+            ("the u s a is big", "The USA is big."),
+            ("he moved to the u s a and then left", "He moved to the USA and then left."),
+            ("the c i a and the f b i", "The CIA and the FBI."),
+        ])
+    func finalLetterBeforeAWordThatCannotFollowTheArticle(input: String, expected: String) {
+        #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
         "leaves a final a that opens a noun phrase, and letters the lexicon does not hold, as before",
         arguments: [
             ("press q a few times", "Press q a few times."),
             ("call i b m today", "Call IBM today."),
-            ("the u s a team", "The US a team."),
+            ("the u s a team", "The USA team."),
             ("plan a or plan b", "Plan a or plan b."),
         ])
     func lexiconCasingKeeps(input: String, expected: String) {

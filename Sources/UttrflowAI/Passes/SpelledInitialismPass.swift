@@ -339,7 +339,8 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         from start: Int, through end: Int, in live: [Int], draft: Draft
     ) -> Bool {
         let value = live[start...end].compactMap { letterName(draft.shape(at: $0)) }.joined().lowercased()
-        return knownAcronyms.contains(value)
+        // Three or more letters said one by one end in "a" as a letter wherever no noun follows to need the article.
+        return (knownAcronyms.contains(value) || end - start >= 2)
             && !closingArticleOpensNoun(["a"], end: end + 1, in: live, draft: draft)
     }
 
@@ -380,7 +381,9 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         while start > 0, joins(start), isLetter(start - 1) { start -= 1 }
         var end = position + 1
         while end < live.count, joins(end), isLetter(end) { end += 1 }
-        if end - start >= 3 { return true }
+        // The pronoun said again and again is a stammer, however many times.
+        let onlyThePronoun = (start..<end).allSatisfy { draft.shape(at: live[$0]).key == "i" }
+        if end - start >= 3 { return !onlyThePronoun }
         guard end - start == 2 else { return false }
         let numberBefore =
             start > 0 && joins(start) && NumberWords.isNumber(draft.shape(at: live[start - 1]).key)
