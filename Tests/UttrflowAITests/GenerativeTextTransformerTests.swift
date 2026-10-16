@@ -187,7 +187,7 @@ struct GenerativeTextTransformerTests {
             ("hi john comma how are you question mark", "Hi john, how are you?"),
             ("here is the list colon apples and pears", "Here is the list: apples and pears."),
             ("note colon bring snacks", "Note: bring snacks."),
-            ("meet at five colon thirty", "Meet at five: 30."),
+            ("meet at five colon thirty", "Meet at 5:30."),
             ("the build passed period the tests passed period", "The build passed. The tests passed."),
             ("i finished the draft period", "I finished the draft."),
             ("that was amazing exclamation point", "That was amazing!"),
