@@ -138,7 +138,7 @@ extension SettingsPresenter {
             id: "clipboardRetention",
             label: "Keep clipboard history for",
             explanation:
-                "Dictation clips follow Keep transcripts for. Pinned, named and filed clips have no time limit.",
+                "Dictation clips follow Keep dictations for. Pinned, named and filed clips have no time limit.",
             control: .menu(
                 options: SettingsRetention.offeredDays.map { offered in
                     SettingsOption(
