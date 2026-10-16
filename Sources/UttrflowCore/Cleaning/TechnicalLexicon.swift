@@ -112,7 +112,7 @@ public enum TechnicalLexicon {
     }
 
     /// Whether `word`, lower-cased as written, is a program typed at a prompt in `destination`.
-    public static func isProgram(_ word: String, in destination: Destination = .codeEditor) -> Bool {
+    package static func isProgram(_ word: String, in destination: Destination = .codeEditor) -> Bool {
         (destination == .terminal ? terminalCommands : codeEditorCommands).contains(word)
     }
 
