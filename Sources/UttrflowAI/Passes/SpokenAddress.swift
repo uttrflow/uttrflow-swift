@@ -318,6 +318,12 @@ struct SpokenAddress: Equatable {
         return address
     }
 
+    /// Whether `stem` can open a file name: any word but a determiner, and a small word only before an ending that follows a name ("out dot txt", not "to dot env").
+    private static func canOpenFileName(_ stem: String, ending: String) -> Bool {
+        FunctionWords.isContent(stem)
+            || !FunctionWords.determiners.contains(stem) && !TechnicalToken.dotFileNames.contains(ending)
+    }
+
     /// Reads a file name: an ending no one says as a word is enough, an everyday-word ending needs a cue.
     private static func readFileName(
         at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft
@@ -325,8 +331,8 @@ struct SpokenAddress: Equatable {
         if let hidden = readHiddenFile(at: position, within: run, in: live, of: draft) { return hidden }
         // A spoken "dot" carries a part on, so the name and its ending arrive as one part's labels.
         guard let name = part(from: position, within: run, in: live, of: draft), name.labels.count > 1,
-            name.hasLetter, FunctionWords.isContent(name.labels[0]),
-            let ending = name.labels.last?.lowercased(),
+            name.hasLetter, let ending = name.labels.last?.lowercased(),
+            canOpenFileName(name.labels[0].lowercased(), ending: ending),
             fileExtensions.contains(ending),
             !TechnicalToken.wordLikeFileExtensions.contains(ending)
                 || isFileCued(before: position, in: live, of: draft)
