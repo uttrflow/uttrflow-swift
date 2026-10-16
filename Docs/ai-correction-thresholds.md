@@ -102,6 +102,7 @@ correct word failed the test before it:
 | in a sentence holding listed romanised Hindi that is not English | Hindi has content words no list holds | "nikaal", "kitaab" |
 | written with capitals past its first letter | a form written on purpose | "YOYO" |
 | one of two added entries sounding like it | nothing chooses between them | |
+| capitalised inside a sentence and scored as heard surely | the recogniser committed to it as a name | "Meera" with `Mira` |
 
 An entry the dictionary learned or observed is not enough, since the user never wrote it.
 

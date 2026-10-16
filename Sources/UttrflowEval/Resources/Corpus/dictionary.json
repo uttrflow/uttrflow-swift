@@ -130,5 +130,14 @@
     "dictionary": ["nginx"],
     "destination": "codeEditor",
     "context": {"applicationName": "Xcode", "bundleIdentifier": "com.apple.dt.Xcode", "documentName": "Deploy.swift", "precedingText": "// "}
+  },
+  {
+    "id": "dictionary-surely-heard-name-7982",
+    "note": "A correctly spelled name in mid-sentence is kept, not respelt as a dictionary entry that sounds like it.",
+    "addedFor": 7982,
+    "spoken": "please ask Meera about the report today",
+    "expected": "Please ask Meera about the report today.",
+    "expectedExact": "Please ask Meera about the report today.",
+    "dictionary": ["Mira", "Zoe"]
   }
 ]
