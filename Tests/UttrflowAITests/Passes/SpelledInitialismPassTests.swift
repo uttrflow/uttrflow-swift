@@ -425,6 +425,20 @@ struct SpelledCodeShippedTests {
     }
 
     @Test(
+        "keeps the article apart from a spelled acronym it opens",
+        arguments: [
+            ("she is a c e o", "She is a CEO."),
+            ("a c e o said", "A CEO said."),
+            ("he earned a p h d", "He earned a PhD."),
+            ("i am a c p a", "I am a CPA."),
+            ("she works as a c f o", "She works as a CFO."),
+            ("i got my p h d", "I got my PhD."),
+        ])
+    func articleBeforeSpelledAcronym(input: String, expected: String) {
+        #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
         "writes a final a as a letter when a word that cannot follow the article comes next",
         arguments: [
             ("the u s a is big", "The USA is big."),
