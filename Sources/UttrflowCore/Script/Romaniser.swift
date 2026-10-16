@@ -457,10 +457,10 @@ public enum Romaniser {
         ("रहे", "rahe"), ("था", "tha"), ("थी", "thi"), ("थे", "the"), ("अभी", "abhi"), ("कभी", "kabhi"),
         ("सभी", "sabhi"), ("कोई", "koi"), ("बात", "baat"), ("आज", "aaj"), ("कल", "kal"),
         ("चाय", "chai"), ("जनवरी", "janvari"), ("फ़रवरी", "farvari"), ("फरवरी", "farvari"),
-         ("ताइम", "time"), ("ओफिस", "office"), ("आफिस", "office"), ("ऑफीस", "office"),
-         ("ट्राफिक", "traffic"), ("मैच", "match"), ("एरर", "error"), ("प्रोसेस", "process"),
-         ("अप्रूव", "approve"), ("फ्लाइट", "flight"), ("प्रपोजल", "proposal"), ("पास्वर्ड", "password"),
-         ("इमेल", "email"), ("सोरी", "sorry"), ("बॉस", "boss"), ("ड्राफ्ट", "draft"), ("डेमो", "demo"),
-         ("सबमिट", "submit"), ("सब्मिट", "submit"), ("रूपए", "rupaye"), ("रूपये", "rupaye"),
+        ("ताइम", "time"), ("ओफिस", "office"), ("आफिस", "office"), ("ऑफीस", "office"),
+        ("ट्राफिक", "traffic"), ("मैच", "match"), ("एरर", "error"), ("प्रोसेस", "process"),
+        ("अप्रूव", "approve"), ("फ्लाइट", "flight"), ("प्रपोजल", "proposal"), ("पास्वर्ड", "password"),
+        ("इमेल", "email"), ("सोरी", "sorry"), ("बॉस", "boss"), ("ड्राफ्ट", "draft"), ("डेमो", "demo"),
+        ("सबमिट", "submit"), ("सब्मिट", "submit"), ("रूपए", "rupaye"), ("रूपये", "rupaye"),
     ]
 }
