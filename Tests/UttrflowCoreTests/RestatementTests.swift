@@ -36,6 +36,8 @@ struct RestatementTests {
             ("tea or rather coffee", 1, 3, 0),
             ("ten k actually make it twelve k", 2, 5, 0),
             ("please order twenty no make it thirty boxes", 3, 6, 2),
+            ("need four loaves no make that five loaves", 3, 6, 1),
+            ("meet at four no make that five", 3, 6, 2),
             ("book the blue room actually make that the green room", 4, 7, 1),
         ]
     )
@@ -52,6 +54,7 @@ struct RestatementTests {
             ("would you like to stay or rather not", 5, 7),
             ("i did not actually make that cake", 3, 6),
             ("we said no make it yourself", 2, 5),
+            ("we said no make that yourself", 2, 5),
         ]
     )
     func ordinaryUsesStay(text: String, trigger: Int, restart: Int) {
