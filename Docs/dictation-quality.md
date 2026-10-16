@@ -267,13 +267,13 @@ below the span-reranker floor in Docs/dictation-quality.md; not fitted:
 language, with the 95% interval from resampling whole passages. A word error is the most a
 passage can yield: a labelled wrong span may cover several errors, and a reranker row also needs
 the right word among the candidates. From the committed baseline (`Scripts/accuracy_baseline.json`,
-synthesised English, 6 passages):
+synthesised English, 6 passages, and synthesised code-mixed Hinglish, 12 passages):
 
 | Language | Errors | Words | Per 1,000 words | 95% interval |
 |---|---|---|---|---|
 | English | 11 | 305 | 36.1 | 6.9 to 71.2 |
 | Hindi | not measured: no committed baseline | | | |
-| Hinglish | not measured: no committed baseline | | | |
+| Hinglish | 71 | 319 | 222.6 | 119.3 to 336.5 |
 
 At 120 words a minute (`LabelYield.wordsPerMinute`, the rate `TranscriptionCorpus` costs reading
 at), the minutes of English reading or synthesised audio each floor's wrong spans cost, over both

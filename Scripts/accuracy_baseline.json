@@ -8,6 +8,7 @@
       "language" : "english",
       "recordingIdentity" : "sha256:9fb8221381b0f6b62f5063da2b20b81a82ee49ac53f64d6927036b909b075617",
       "referenceWordCount" : 57,
+      "scoresOutput" : false,
       "stresses" : [
         "everyday"
       ]
@@ -20,6 +21,7 @@
       "language" : "english",
       "recordingIdentity" : "sha256:1e71a35c1b749b3a7376007855a01d80a0b72400418b84f25207815b610c0ee3",
       "referenceWordCount" : 51,
+      "scoresOutput" : false,
       "stresses" : [
         "properNouns"
       ]
@@ -32,6 +34,7 @@
       "language" : "english",
       "recordingIdentity" : "sha256:eb8334e5f0cf3b4668552f05b00ef88549c6c55d7b0d86c8bf9f530eba9cda7d",
       "referenceWordCount" : 46,
+      "scoresOutput" : false,
       "stresses" : [
         "falseStarts"
       ]
@@ -44,6 +47,7 @@
       "language" : "english",
       "recordingIdentity" : "sha256:b1fe9d9a4cc62ad61f0480fc36ef9716e4f50d7ee5eef0d79d5361ddf51cb482",
       "referenceWordCount" : 48,
+      "scoresOutput" : false,
       "stresses" : [
         "everyday"
       ]
@@ -56,6 +60,7 @@
       "language" : "english",
       "recordingIdentity" : "sha256:354f82f6270f142dc86f08e344aa61c2ac1da5c17651135e51922b303ee8a353",
       "referenceWordCount" : 53,
+      "scoresOutput" : false,
       "stresses" : [
         "technical"
       ]
@@ -68,8 +73,219 @@
       "language" : "english",
       "recordingIdentity" : "sha256:f04d1b62daf3c147638ff45854cd2a8cac848249d25265e772b811879d1d24f8",
       "referenceWordCount" : 50,
+      "scoresOutput" : false,
       "stresses" : [
         "digits"
+      ]
+    },
+    {
+      "caseID" : "mix-english-name-start",
+      "cohortID" : "synthesised-rishi",
+      "errors" : 0,
+      "isUnscorable" : false,
+      "language" : "hinglish",
+      "recordingIdentity" : "sha256:2c68c41cae1c031331a951d15e78cbc4d9c6dd87c82d98135037ace8a92c97f1",
+      "referenceWordCount" : 26,
+      "scoresOutput" : false,
+      "stresses" : [
+        "properNouns",
+        "code-switching",
+        "frame-english",
+        "insert-name",
+        "switch-start"
+      ]
+    },
+    {
+      "caseID" : "mix-english-noun-start",
+      "cohortID" : "synthesised-rishi",
+      "errors" : 0,
+      "isUnscorable" : false,
+      "language" : "hinglish",
+      "recordingIdentity" : "sha256:21d2087aa42a530212d4f0c19a8b9ec62ccec439865d77a33613455f76a92f5a",
+      "referenceWordCount" : 29,
+      "scoresOutput" : false,
+      "stresses" : [
+        "everyday",
+        "code-switching",
+        "frame-english",
+        "insert-noun",
+        "switch-start"
+      ]
+    },
+    {
+      "caseID" : "mix-english-number-end",
+      "cohortID" : "synthesised-rishi",
+      "errors" : 4,
+      "isUnscorable" : false,
+      "language" : "hinglish",
+      "recordingIdentity" : "sha256:4e26c281bd2c9a6b1b8c301ddceaee2481bbd2b421fbcbf1d6fb783cea4c692b",
+      "referenceWordCount" : 29,
+      "scoresOutput" : false,
+      "stresses" : [
+        "digits",
+        "code-switching",
+        "frame-english",
+        "insert-number",
+        "switch-end"
+      ]
+    },
+    {
+      "caseID" : "mix-english-particle-middle",
+      "cohortID" : "synthesised-rishi",
+      "errors" : 1,
+      "isUnscorable" : false,
+      "language" : "hinglish",
+      "recordingIdentity" : "sha256:5302f0ce69738dd83379cde299550841afa1bead038c1527529ef4e570381aa6",
+      "referenceWordCount" : 26,
+      "scoresOutput" : false,
+      "stresses" : [
+        "everyday",
+        "code-switching",
+        "frame-english",
+        "insert-particle",
+        "switch-middle"
+      ]
+    },
+    {
+      "caseID" : "mix-english-tag-end",
+      "cohortID" : "synthesised-rishi",
+      "errors" : 2,
+      "isUnscorable" : false,
+      "language" : "hinglish",
+      "recordingIdentity" : "sha256:2ee4c94ad03579bf82014278ea03b2d3b538106f4842f11610e8bf99ab89591b",
+      "referenceWordCount" : 27,
+      "scoresOutput" : false,
+      "stresses" : [
+        "everyday",
+        "code-switching",
+        "frame-english",
+        "insert-tag",
+        "switch-end"
+      ]
+    },
+    {
+      "caseID" : "mix-english-verb-middle",
+      "cohortID" : "synthesised-rishi",
+      "errors" : 1,
+      "isUnscorable" : false,
+      "language" : "hinglish",
+      "recordingIdentity" : "sha256:8f734eb2df8b4500ac3046cb229165c0da57e0332f3c78ad489966eda826d46a",
+      "referenceWordCount" : 27,
+      "scoresOutput" : false,
+      "stresses" : [
+        "everyday",
+        "code-switching",
+        "frame-english",
+        "insert-verb",
+        "switch-middle"
+      ]
+    },
+    {
+      "caseID" : "mix-hindi-name-end",
+      "cohortID" : "synthesised-rishi",
+      "errors" : 10,
+      "isUnscorable" : false,
+      "language" : "hinglish",
+      "outputNormalisation" : "romanised-variants-v1:b98db26b1dbae9788f6b50a6645216002e9071339ecbf29c6fbdbf785b68606f",
+      "recordingIdentity" : "sha256:21684bcfc6e233304c61754a3ab6d2d3849932819e311b56c42ba5cd7a633999",
+      "referenceWordCount" : 27,
+      "scoresOutput" : true,
+      "stresses" : [
+        "properNouns",
+        "code-switching",
+        "frame-hindi",
+        "insert-name",
+        "switch-end"
+      ]
+    },
+    {
+      "caseID" : "mix-hindi-noun-end",
+      "cohortID" : "synthesised-rishi",
+      "errors" : 9,
+      "isUnscorable" : false,
+      "language" : "hinglish",
+      "outputNormalisation" : "romanised-variants-v1:b98db26b1dbae9788f6b50a6645216002e9071339ecbf29c6fbdbf785b68606f",
+      "recordingIdentity" : "sha256:c1af92808dc409d355ed348c11dd536c471239a9f9af5e79dfac9ac33c131fe9",
+      "referenceWordCount" : 25,
+      "scoresOutput" : true,
+      "stresses" : [
+        "everyday",
+        "code-switching",
+        "frame-hindi",
+        "insert-noun",
+        "switch-end"
+      ]
+    },
+    {
+      "caseID" : "mix-hindi-number-middle",
+      "cohortID" : "synthesised-rishi",
+      "errors" : 9,
+      "isUnscorable" : false,
+      "language" : "hinglish",
+      "outputNormalisation" : "romanised-variants-v1:b98db26b1dbae9788f6b50a6645216002e9071339ecbf29c6fbdbf785b68606f",
+      "recordingIdentity" : "sha256:5bf3d022e504c426ddcc242854a4e087a34d8b14ce7ab6e837607609ffc6fd4f",
+      "referenceWordCount" : 26,
+      "scoresOutput" : true,
+      "stresses" : [
+        "digits",
+        "code-switching",
+        "frame-hindi",
+        "insert-number",
+        "switch-middle"
+      ]
+    },
+    {
+      "caseID" : "mix-hindi-particle-start",
+      "cohortID" : "synthesised-rishi",
+      "errors" : 14,
+      "isUnscorable" : false,
+      "language" : "hinglish",
+      "outputNormalisation" : "romanised-variants-v1:b98db26b1dbae9788f6b50a6645216002e9071339ecbf29c6fbdbf785b68606f",
+      "recordingIdentity" : "sha256:4df8f1026a6cbf3187d02dcd23734cbce7d3d1c0dd8bfbf04f59565bd24942e0",
+      "referenceWordCount" : 25,
+      "scoresOutput" : true,
+      "stresses" : [
+        "everyday",
+        "code-switching",
+        "frame-hindi",
+        "insert-particle",
+        "switch-start"
+      ]
+    },
+    {
+      "caseID" : "mix-hindi-tag-middle",
+      "cohortID" : "synthesised-rishi",
+      "errors" : 7,
+      "isUnscorable" : false,
+      "language" : "hinglish",
+      "outputNormalisation" : "romanised-variants-v1:b98db26b1dbae9788f6b50a6645216002e9071339ecbf29c6fbdbf785b68606f",
+      "recordingIdentity" : "sha256:d2376594d2255601101a0d8952208143b79a5dffd0ee55fb9e5f6f18de4686cd",
+      "referenceWordCount" : 27,
+      "scoresOutput" : true,
+      "stresses" : [
+        "everyday",
+        "code-switching",
+        "frame-hindi",
+        "insert-tag",
+        "switch-middle"
+      ]
+    },
+    {
+      "caseID" : "mix-hindi-verb-start",
+      "cohortID" : "synthesised-rishi",
+      "errors" : 14,
+      "isUnscorable" : false,
+      "language" : "hinglish",
+      "outputNormalisation" : "romanised-variants-v1:b98db26b1dbae9788f6b50a6645216002e9071339ecbf29c6fbdbf785b68606f",
+      "recordingIdentity" : "sha256:62a21029481955755a2947aceb76875e66772d502cd8925ec1a0d3eb48e0f36b",
+      "referenceWordCount" : 25,
+      "scoresOutput" : true,
+      "stresses" : [
+        "everyday",
+        "code-switching",
+        "frame-hindi",
+        "insert-verb",
+        "switch-start"
       ]
     }
   ],
@@ -82,5 +298,6 @@
     "numberWords",
     "spokenDecimalPoint"
   ],
-  "recordedAt" : "2026-10-04T11:19:15Z"
+  "recogniser" : "openai_whisper-large-v3-v20240930_turbo_632MB weights 0f63a7800b00dd0226abd051b906c246e1907482 tokenizer 06f233fe06e710322aca913c1bc4249a0d71fce1",
+  "recordedAt" : "2026-10-16T08:00:15Z"
 }

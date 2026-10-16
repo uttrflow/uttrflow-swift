@@ -96,7 +96,7 @@ struct FitFloorTests {
         let baseline = try AccuracyBaseline.read(
             from: Self.root.appending(path: "Scripts/accuracy_baseline.json"))
         let yields = LabelYield.measure(baseline)
-        #expect(yields.map(\.language) == [.english])
+        #expect(yields.map(\.language) == [.english, .hinglish])
         let english = try #require(yields.first)
         #expect(english.errors == 11)
         #expect(english.words == 305)
