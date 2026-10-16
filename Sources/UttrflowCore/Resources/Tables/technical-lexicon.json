@@ -140,6 +140,8 @@
         {"id": "gcloud", "category": "command", "spoken": ["g cloud"], "destinations": ["terminal"]},
         {"id": "terraform", "category": "command", "spoken": ["terraform"], "destinations": ["terminal"]},
         {"id": "python", "category": "command", "spoken": ["python"], "destinations": ["terminal"]},
+        {"id": "python3", "category": "command", "spoken": ["python3"], "destinations": ["terminal"]},
+        {"id": "pip3", "category": "command", "spoken": ["pip3"], "destinations": ["terminal"]},
         {"id": "node", "category": "command", "spoken": ["node"], "destinations": ["terminal"]},
         {"id": "echo", "category": "command", "spoken": ["echo"], "destinations": ["terminal"]},
         {"id": "cat", "category": "command", "spoken": ["cat"], "destinations": ["terminal"]},

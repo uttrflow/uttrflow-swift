@@ -369,19 +369,19 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "abd63daa5d0b3130b56b5f06711819c648c359998db7f4d38bc4eb3fbecd8e10",
+      "sha256": "0049e7a3eec347c86801835c7f210870f3a83ac5954c12d205dbbbda7a4dbfab",
       "path": "Sources/UttrflowCore/Resources/Tables/spoken-commands.json",
       "origin": "authored",
-      "bytes": 24832
+      "bytes": 25421
     },
     {
       "licence": "MIT",
       "redistribution": true,
       "note": "written for this repository, copied from no list; read through DataTable; see Docs/data-tables.md",
-      "sha256": "1fcc6298f6f20e1990654c96347cb2617ed826b94235bb2996767906a23429e5",
+      "sha256": "ca8b3bca3e7a23ecc3688efbf73ade0547919af51038d5905d1039c5c50f2bb4",
       "path": "Sources/UttrflowCore/Resources/Tables/technical-lexicon.json",
       "origin": "authored",
-      "bytes": 35920
+      "bytes": 36120
     },
     {
       "licence": "MIT",
@@ -432,11 +432,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "0afab185f1fa54a7cb34fe3471a4eefd3f9bce15a55cf33e0deebe6f67e0685c",
+      "sha256": "ffc7081d8a26a9ed01bb0e1417defff83484b1db0efef697bdf6f84d65739290",
       "path": "Sources/UttrflowEval/Resources/Corpus/developerGenre.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 24594,
+      "bytes": 25794,
       "licence": "MIT"
     },
     {
@@ -450,11 +450,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "fd8fa29edcf3dfc9f8483f6a7502ac75a764fa3f090684bc97eae3c05918634f",
+      "sha256": "20a1816b4a841e233f7b30e834c286687f501e53410222931a875633439ac2ee",
       "path": "Sources/UttrflowEval/Resources/Corpus/everyday.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 57011,
+      "bytes": 58489,
       "licence": "MIT"
     },
     {
@@ -594,11 +594,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "8d09ba30aef3ecd361dc539e80054ab089c88b331c887d48665132e86182c145",
+      "sha256": "c96e1dfd2a726d423ceb0731fa79cce8e5fcef6aa31d3c62c2ed6327c8d7b464",
       "path": "Sources/UttrflowEval/Resources/Corpus/technical.abstention.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 206569,
+      "bytes": 210264,
       "licence": "MIT"
     },
     {
