@@ -378,10 +378,10 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "written for this repository, copied from no list; read through DataTable; see Docs/data-tables.md",
-      "sha256": "87d203800362fa471bf7ccdde0c0ee8c7c89b6338aa462b514cc69187a30c9b8",
+      "sha256": "44dca2fa64524356b3546c06d9204006a745ff72928697abc6b05b939ba1e59f",
       "path": "Sources/UttrflowCore/Resources/Tables/technical-lexicon.json",
       "origin": "authored",
-      "bytes": 32139
+      "bytes": 32474
     },
     {
       "licence": "MIT",

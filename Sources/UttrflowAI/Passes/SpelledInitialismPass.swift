@@ -283,6 +283,8 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
             let candidateEnd = candidateRunEnd(from: position, in: live, draft: draft)
             let value = live[position..<candidateEnd].compactMap { Self.letterName(draft.shape(at: $0)) }
                 .joined().lowercased()
+            // Letters that spell a lexicon acronym of three or more after the "a" make it the article: "she is a c e o".
+            if value.count > 3, Self.knownAcronyms.contains(String(value.dropFirst())) { return nil }
             let previous = position > 0 ? draft.shape(at: live[position - 1]) : nil
             let afterFunctionWord =
                 previous.map { !$0.endsClause && !FunctionWords.isContent($0.key) } ?? false
@@ -300,7 +302,7 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         {
             let candidateEnd = candidateRunEnd(from: position, in: live, draft: draft)
             let letters = live[position..<candidateEnd].map { draft.shape(at: $0).key }
-            if letters.contains("a") { return nil }
+            if letters.contains("a"), !Self.knownAcronyms.contains(letters.joined()) { return nil }
         }
         let initialismStart = position
         // An ambiguous letter name never starts a run; the run begins on the next single letter.
