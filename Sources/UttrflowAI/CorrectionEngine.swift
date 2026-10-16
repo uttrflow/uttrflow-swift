@@ -187,6 +187,8 @@ public struct WordCorrectionEngine: Sendable {
         let candidates = Self.spellings(of: span.text, in: dictionary)
             .filter { Self.spells($0.entry, asHeard: $0.heard) }
         guard !candidates.isEmpty else { return .nothingToWeigh }
+        // The words a recogniser hears best are not its half-heard rare word, so a run of them is kept as spoken.
+        guard !Self.isOnlyFunctionWords(span.text) else { return .keep }
 
         // Candidates arrive in the index's usefulness order, so the first that earns its place is offered.
         for candidate in Self.ordered(candidates, heard: span.text, by: pairs) {
@@ -223,6 +225,8 @@ public struct WordCorrectionEngine: Sendable {
         guard !Self.isCommittedName(heard, at: range, heardAt: confidence, in: utterance) else {
             return .keep
         }
+        // A word the user's own dictionary writes inside a longer entry is a word they write, not letters nobody writes.
+        guard dictionary.entries(containingWord: letters).isEmpty else { return .keep }
         // Romanised Hindi has content words no list holds, so in a Hindi sentence a non-word is likelier Hindi than a misspelling.
         guard !Self.speaksHindi(utterance) else { return .keep }
         // Two entries sounding alike leave nothing to choose between, so neither is taken.
@@ -289,6 +293,12 @@ public struct WordCorrectionEngine: Sendable {
         case change(WordCorrection)
         case keep
         case nothingToWeigh
+    }
+
+    /// Whether every word of the run is a function word and one of them is more than a letter, so "is a" is and the letters "a i" are not.
+    static func isOnlyFunctionWords(_ run: String) -> Bool {
+        let words = WordTokens.words(run, .display).map { String(WordShape($0).core) }
+        return !words.isEmpty && words.allSatisfy(FunctionWords.holds) && words.contains { $0.count > 1 }
     }
 
     /// Whether an entry writes out or reads as a multi-word run, or a one-word reading sounds within one phoneme.

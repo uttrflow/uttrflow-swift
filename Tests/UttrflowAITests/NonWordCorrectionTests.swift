@@ -136,4 +136,23 @@ struct NonWordCorrectionTests {
         let proposals = engine.proposals(for: utterance, against: Self.index(["Mira"]))
         #expect(try #require(proposals.first).replacement == "Mira")
     }
+
+    /// "Rao" is no English word, but the dictionary writes it inside `Deepak Rao`, so the user writes it.
+    @Test(
+        "leaves a word the dictionary writes inside a longer entry",
+        arguments: [0.2, 0.95])
+    func leavesAWordOfALongerEntry(confidence: Double) {
+        let utterance = CorrectionFixtures.spoken(
+            "Deepak and Rao went to the market", sure: confidence)
+        #expect(
+            engine.proposals(for: utterance, against: Self.index(["Deepak Rao", "Ray"])).isEmpty)
+    }
+
+    @Test("still respells a non-word that no longer entry writes")
+    func respellsWhenNoLongerEntryWritesIt() throws {
+        let utterance = CorrectionFixtures.spoken("we cache every session in readees for an hour")
+        let proposals = engine.proposals(
+            for: utterance, against: Self.index(["Redis", "Deepak Rao"]))
+        #expect(try #require(proposals.first).replacement == "Redis")
+    }
 }

@@ -22,6 +22,15 @@ struct PhoneticIndexTests {
         #expect(PhoneticIndex(entries: []).revision != same)
     }
 
+    @Test("finds the multi-word entries that write a word, case folded, and only whole words of them")
+    func findsEntriesWritingAWord() {
+        let index = PhoneticIndex(entries: [word("Deepak Rao", from: .added), word("Rao", from: .added)])
+        #expect(index.entries(containingWord: "rao").map(\.word) == ["Deepak Rao"])
+        #expect(index.entries(containingWord: "Deepak").map(\.word) == ["Deepak Rao"])
+        #expect(index.entries(containingWord: "Rav").isEmpty)
+        #expect(index.entries(containingWord: "Deepak Rao").isEmpty)
+    }
+
     @Test("finds an entry from the word a recogniser heard instead")
     func findsByMishearing() {
         let index = PhoneticIndex(entries: [word("Claude", from: .added)])
