@@ -171,6 +171,24 @@ final class UpdateController: NSObject {
         }
     }
 
+    /// A newer release exists; the check is over, and a download starts only once someone accepts it.
+    func updateWasFound() {
+        if progress == .checking { progress = .idle }
+    }
+
+    /// The archive is coming down.
+    func downloadStarted() {
+        progress = .downloading(fraction: nil)
+    }
+
+    /// Sparkle is done with this cycle; a check or download that ended without an update staged is over.
+    func cycleFinished() {
+        switch progress {
+        case .checking, .downloading: progress = .idle
+        case .idle, .readyToInstall, .installing: break
+        }
+    }
+
     /// Settings' "Check Now"; bypasses the startup grace period and puts a window in front.
     func checkForUpdates() {
         guard Self.isConfigured else { return }
@@ -212,9 +230,9 @@ extension UpdateController: SPUUpdaterDelegate {
         requestActivity.feedLoaded()
     }
 
-    /// The feed answered and there is something to fetch.
+    /// The feed answered and there is something to fetch; nothing downloads until the user accepts or Sparkle starts.
     nonisolated func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
-        MainActor.assumeIsolated { progress = .downloading(fraction: nil) }
+        MainActor.assumeIsolated { updateWasFound() }
     }
 
     /// The feed answered and there is nothing to fetch; back to idle, since Sparkle already says so.
@@ -233,6 +251,7 @@ extension UpdateController: SPUUpdaterDelegate {
         _ updater: SPUUpdater, willDownloadUpdate item: SUAppcastItem, with request: NSMutableURLRequest
     ) {
         requestActivity.archiveWillDownload()
+        MainActor.assumeIsolated { downloadStarted() }
     }
 
     /// Clears the feed marker so the next automatic or manual update check is counted independently.
@@ -242,6 +261,7 @@ extension UpdateController: SPUUpdaterDelegate {
         error: (any Error)?
     ) {
         requestActivity.checkDidFinish()
+        MainActor.assumeIsolated { cycleFinished() }
     }
 
     /// Downloaded and verified; the wait for a quiet minute starts here.
