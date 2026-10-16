@@ -602,17 +602,23 @@
     "mustNotAdd": ["four", "make that"]
   },
   {
+    "id": "year-after-by-not-a-clock-time",
+    "spoken": "we had fifty customers and by twenty twenty four we had five thousand",
+    "expected": "We had 50 customers and by 2024 we had 5000.",
+    "mustKeep": ["2024", "5000"],
+    "mustNotAdd": ["20:24"]
+  },
+  {
     "id": "no-make-that-as-making-kept",
     "spoken": "there was no make that cake moment for us",
     "expected": "There was no make that cake moment for us.",
     "mustKeep": ["no make that", "moment"]
   },
   {
-    "id": "year-after-by-not-a-clock-time",
-    "spoken": "we had fifty customers and by twenty twenty four we had five thousand",
-    "expected": "We had 50 customers and by 2024 we had 5000.",
-    "mustKeep": ["2024", "5000"],
-    "mustNotAdd": ["20:24"]
+    "id": "quantity-after-has-beside-a-label-word",
+    "spoken": "the model has seventy billion parameters and the table has two million rows",
+    "expected": "The model has 70,000,000,000 parameters and the table has 2,000,000 rows.",
+    "mustKeep": ["70,000,000,000", "2,000,000"]
   },
   {
     "id": "trigger-as-its-own-sentence",

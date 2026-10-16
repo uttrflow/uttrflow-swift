@@ -1250,6 +1250,9 @@ public struct NumberFormsPass: PieceCleaningPass {
     /// Words before a digit run that say it is a code or a number to dial, not a count.
     static let digitCues = contextWords.union(NumberCues.words(for: .digitRun))
 
+    /// Verbs of having, which end a label cue: "the table has two million rows" counts rows, it does not label table two.
+    private static let labelBreakers: Set<String> = ["has", "have", "had"]
+
     /// Whether a label word cues the number, across a sign and English function words such as "to"; a Hindi word or a lone letter ends it.
     package static func hasLabelCue(at position: Int, keys: [String], shapes: [WordShape]) -> Bool {
         guard position > 0, !startsASentence(position, shapes) else { return false }
@@ -1260,7 +1263,7 @@ public struct NumberFormsPass: PieceCleaningPass {
             if shapes[cuePosition].endsSentence { return false }
             let word = keys[cuePosition]
             if contextWords.contains(word) { return true }
-            if FunctionWords.isContent(word) { return false }
+            if labelBreakers.contains(word) || FunctionWords.isContent(word) { return false }
             if HindiWords.functionWords.contains(word), !FunctionWords.english.contains(word) { return false }
             cuePosition -= 1
         }

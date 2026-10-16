@@ -360,6 +360,19 @@ struct NumberFormsPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test(
+        "a verb of having ends the label cue, so the quantity after it is grouped",
+        arguments: [
+            ("the table has two million rows", "the table has 2,000,000 rows"),
+            ("the model has seventy billion parameters", "the model has 70,000,000,000 parameters"),
+            ("the page had four hundred thousand views", "the page had 400,000 views"),
+            ("the file has seventy million rows", "the file has 70,000,000 rows"),
+        ]
+    )
+    func havingEndsALabelCue(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test("ordinary cardinal conversion stays intact beside protected expressions")
     func ordinaryNumbersRemainUnchanged() {
         #expect(cleaned("twenty four people and fifty users", by: sut) == "24 people and 50 users")
