@@ -380,7 +380,9 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         while start > 0, joins(start), isLetter(start - 1) { start -= 1 }
         var end = position + 1
         while end < live.count, joins(end), isLetter(end) { end += 1 }
-        if end - start >= 3 { return true }
+        // The pronoun said again and again is a stammer, however many times.
+        let onlyThePronoun = (start..<end).allSatisfy { draft.shape(at: live[$0]).key == "i" }
+        if end - start >= 3 { return !onlyThePronoun }
         guard end - start == 2 else { return false }
         let numberBefore =
             start > 0 && joins(start) && NumberWords.isNumber(draft.shape(at: live[start - 1]).key)

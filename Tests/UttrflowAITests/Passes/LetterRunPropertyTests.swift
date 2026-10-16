@@ -62,7 +62,7 @@ struct LetterRunPropertyTests {
         ("a the", "a the"),
         ("i m c a", "IMCA"),
         ("a ex g see 5", "AXG see 5"),
-        ("i i i you see need", "III you see need"),
+        ("i i i you see need", "i i i you see need"),
         ("i a dee i c see and", "IADIC see and"),
         ("i g m see dee dee a i", "IGM see DDAI"),
         ("i b and", "IB and"),

@@ -54,6 +54,9 @@ struct StammersPassTests {
             ("a a lot", "a lot"),
             ("it was a a thing", "it was a thing"),
             ("I I was there", "I was there"),
+            ("I I I think so", "I think so"),
+            ("and I I I know", "and I know"),
+            ("I I I I", "I"),
         ]
     )
     func removesProseDouble(input: String, expected: String) {
