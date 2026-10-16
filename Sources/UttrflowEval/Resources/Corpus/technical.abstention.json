@@ -5515,5 +5515,101 @@
     "classes": ["abstention"],
     "origin": "synthetic",
     "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-pipe-pipe-cleaner-code",
+    "spoken": "they sell a pipe pipe cleaner at the corner shop",
+    "expected": "They sell a pipe pipe cleaner at the corner shop.",
+    "mustKeep": ["sell", "pipe", "cleaner", "corner", "shop"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "&&"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 7941
+  },
+  {
+    "id": "abstain-shell-double-pipe-fitting-code",
+    "spoken": "the plumber installed a double pipe under the sink",
+    "expected": "The plumber installed a double pipe under the sink.",
+    "mustKeep": ["plumber", "installed", "double", "pipe", "sink"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "&&"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 7941
+  },
+  {
+    "id": "abstain-shell-pipe-pipe-cleaner-comment",
+    "spoken": "they sell a pipe pipe cleaner at the corner shop",
+    "expected": "They sell a pipe pipe cleaner at the corner shop.",
+    "mustKeep": ["sell", "pipe", "cleaner", "corner", "shop"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "&&"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ make build # "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 7941
+  },
+  {
+    "id": "abstain-shell-pipe-pipe-cleaner-string",
+    "spoken": "they sell a pipe pipe cleaner at the corner shop",
+    "expected": "They sell a pipe pipe cleaner at the corner shop.",
+    "mustKeep": ["sell", "pipe", "cleaner", "corner", "shop"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "&&"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ echo \""
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 7941
+  },
+  {
+    "id": "abstain-shell-double-pipe-fitting-comment",
+    "spoken": "the plumber installed a double pipe under the sink",
+    "expected": "The plumber installed a double pipe under the sink.",
+    "mustKeep": ["plumber", "installed", "double", "pipe", "sink"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "&&"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ make build # "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 7941
+  },
+  {
+    "id": "abstain-shell-double-pipe-fitting-string",
+    "spoken": "the plumber installed a double pipe under the sink",
+    "expected": "The plumber installed a double pipe under the sink.",
+    "mustKeep": ["plumber", "installed", "double", "pipe", "sink"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "&&"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ echo \""
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 7941
   }
 ]
