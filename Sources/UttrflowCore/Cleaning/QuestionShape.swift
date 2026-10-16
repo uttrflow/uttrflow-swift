@@ -244,7 +244,7 @@ public enum QuestionShape {
                     return false
                 }
                 if verbsBeforeSubject.contains(word) || pronounVerbs.contains(word) {
-                    return true
+                    return !continuesWithRelativeWhich(clause)
                 }
                 let verbIndex = offset + 1
                 let following = clause.dropFirst(verbIndex + 1).first
@@ -270,6 +270,14 @@ public enum QuestionShape {
             return subjects.contains(second) || determiners.contains(second)
         }
         return hindiQuestionWords.contains(first) || (first == "kya" && hindiSubjects.contains(second))
+    }
+
+    /// Whether a clause opens "which", a copula and a word that makes it a relative clause rather than a question.
+    private static func continuesWithRelativeWhich(_ clause: [String]) -> Bool {
+        guard clause.first == "which", clause.count >= 3, copulaVerbs.contains(clause[1]) else {
+            return false
+        }
+        return FunctionWords.relativeWhichTails.contains(clause[2])
     }
 
     /// Whether "what a" or "how" with a modifier heads an exclamation, which keeps its subject before its verb: "how nice it is".
