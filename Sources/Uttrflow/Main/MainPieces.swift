@@ -95,6 +95,9 @@ struct BetaBadge: View {
     var body: some View {
         Text(BetaFeature.label)
             .font(.system(size: 9, weight: .semibold))
+            .lineLimit(1)
+            // Never squeezed by a crowded row: the word stays whole on one line.
+            .fixedSize()
             .foregroundStyle(PagePalette.suggestion)
             .padding(.horizontal, 5)
             .padding(.vertical, 2)
