@@ -608,6 +608,12 @@
     "mustKeep": ["no make that", "moment"]
   },
   {
+    "id": "capital-after-a-stop-following-a-negative-number",
+    "spoken": "it dropped to minus twelve. overnight it snowed heavily",
+    "expected": "It dropped to -12. Overnight it snowed heavily.",
+    "mustKeep": ["-12", "Overnight"]
+  },
+  {
     "id": "trigger-as-its-own-sentence",
     "note": "The recogniser writes a paused trigger as its own sentence, which is a pause rather than a sentence end.",
     "spoken": "Meet me at four. Scratch that. At five.",
