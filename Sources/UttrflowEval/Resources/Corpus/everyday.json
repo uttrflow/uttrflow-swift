@@ -595,6 +595,19 @@
     "mustKeep": ["no make it", "moment"]
   },
   {
+    "id": "no-make-that-between-amounts",
+    "spoken": "i need four loaves no make that five loaves",
+    "expected": "I need five loaves.",
+    "mustKeep": ["five loaves"],
+    "mustNotAdd": ["four", "make that"]
+  },
+  {
+    "id": "no-make-that-as-making-kept",
+    "spoken": "there was no make that cake moment for us",
+    "expected": "There was no make that cake moment for us.",
+    "mustKeep": ["no make that", "moment"]
+  },
+  {
     "id": "trigger-as-its-own-sentence",
     "note": "The recogniser writes a paused trigger as its own sentence, which is a pause rather than a sentence end.",
     "spoken": "Meet me at four. Scratch that. At five.",
@@ -1535,5 +1548,13 @@
     "expected": "The driver never fixed the leak in the drawer although our manager actually fixed the answer.",
     "mustKeep": ["leak", "manager"],
     "addedFor": 7958
+  },
+  {
+    "id": "clock-time-said-with-colon",
+    "note": "An hour, the spoken colon and its minutes are one clock time, not a colon and a spaced number.",
+    "spoken": "meet at ten colon thirty",
+    "expected": "Meet at 10:30.",
+    "mustKeep": ["10:30"],
+    "addedFor": 7925
   }
 ]
