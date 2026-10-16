@@ -70,6 +70,18 @@ struct TerminalStopPassTests {
     }
 
     @Test(
+        "ends a message on a stop where the recogniser left its pause comma, and keeps a comma said by name",
+        arguments: [
+            ("chalo thik hai, phir milte hain,", "Chalo thik hai, phir milte hain."),
+            ("i will see you tomorrow,", "I will see you tomorrow."),
+            ("is it ready,", "Is it ready?"),
+            ("call me tomorrow comma", "Call me tomorrow,"),
+        ])
+    func endsOnAStopNotAPauseComma(input: String, expected: String) {
+        #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
         "still takes back a stop the recogniser put after a word that leaves the clause open",
         arguments: [("i went to the bank and.", "i went to the bank and")])
     func stillTakesBackARecogniserStop(input: String, expected: String) {

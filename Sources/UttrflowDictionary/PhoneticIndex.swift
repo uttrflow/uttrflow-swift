@@ -53,6 +53,9 @@ public struct PhoneticIndex: Sendable, Equatable {
     /// Every trustworthy entry under its spelling with case folded, so a case-only difference is one probe.
     private let byFoldedSpelling: [String: [DictionaryEntry]]
 
+    /// Every trustworthy multi-word entry under each of its words with case folded, so a word it writes can be told from a mishearing.
+    private let byWordOfLongerEntry: [String: [DictionaryEntry]]
+
     /// Entries no coder could address, which nothing can ever look up; empty unless a spelling is all punctuation.
     public let unaddressable: [DictionaryEntry]
 
@@ -67,9 +70,14 @@ public struct PhoneticIndex: Sendable, Equatable {
         var buckets: [String: [DictionaryEntry]] = [:]
         var unfiled: [DictionaryEntry] = []
         var spelt: [String: [DictionaryEntry]] = [:]
+        var ofLonger: [String: [DictionaryEntry]] = [:]
         var codes: [String: WordSound] = [:]
         for entry in entries where entry.isTrustworthy {
             spelt[entry.word.lowercased(), default: []].append(entry)
+            let parts = WordShape.words(entry.word)
+            if parts.count > 1 {
+                for part in Set(parts) { ofLonger[part, default: []].append(entry) }
+            }
             var keys: Set<String> = []
             for reading in entry.readings {
                 let code = codes[reading] ?? WordSound(of: reading)
@@ -87,6 +95,7 @@ public struct PhoneticIndex: Sendable, Equatable {
         self.unaddressable = unfiled
         self.revision = Self.digest(of: entries.filter(\.isTrustworthy))
         self.byFoldedSpelling = spelt.mapValues { $0.sorted(by: PhoneticIndex.isMoreUseful) }
+        self.byWordOfLongerEntry = ofLonger
         self.codes = codes
         self.buckets = Buckets(
             buckets.mapValues {
@@ -131,6 +140,11 @@ public struct PhoneticIndex: Sendable, Equatable {
     /// The entries spelt with exactly these letters once case is folded, most useful first; never a near spelling.
     public func entries(speltAs text: String) -> [DictionaryEntry] {
         byFoldedSpelling[text.lowercased()] ?? []
+    }
+
+    /// The multi-word entries that write this word as one of their words, case folded: "Rao" for `Deepak Rao`.
+    package func entries(containingWord word: String) -> [DictionaryEntry] {
+        WordShape.words(word).count == 1 ? byWordOfLongerEntry[word.lowercased()] ?? [] : []
     }
 
     /// The guarantee: the candidates for one utterance, a function of the utterance and the limit alone.
