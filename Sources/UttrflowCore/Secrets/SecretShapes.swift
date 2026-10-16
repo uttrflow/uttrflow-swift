@@ -24,6 +24,7 @@ public enum SecretShapes {
         if literals.pem, text.contains(pemHeader) { return true }
         if literals.jwt, hasJSONWebToken(text) { return true }
         if literals.dockerAuth, DockerAuthShape.matches(text) { return true }
+        if literals.url, AuthenticatorSeedShape.matches(text) { return true }
         if literals.url, hasCredentialledURL(text) || hasBearerURL(text) || hasTokenUserinfoURL(text) {
             return true
         }

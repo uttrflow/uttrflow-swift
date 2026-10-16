@@ -932,3 +932,29 @@ struct SecretDetectionTests {
         #expect(ClipKindDetector.kind(of: "export API_KEY=9f2b7c4e1a8d3f6b") == .secret)
     }
 }
+
+@Suite("Authenticator seeds")
+struct AuthenticatorSeedTests {
+    @Test(
+        "masks an otpauth address that carries a seed",
+        arguments: [
+            "otpauth://totp/Example:me@example.com?secret=JBSWY3DPEHPK3PXP&issuer=Example",
+            "otpauth://hotp/Svc:bob?counter=1&secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+            "OTPAUTH://totp/x?SECRET=JBSWY3DPEHPK3PXP",
+            "otpauth-migration://offline?data=CjEKCkhlbGxvId6tvu8SGEV4YW1wbGU6YWxpY2VAZ29vZ2xlLmNvbRoHRXhhbXBsZSABKAEwAhABGAEgACjIuoP4Cg",
+        ])
+    func masksSeeds(_ text: String) {
+        #expect(ClipKindDetector.kind(of: text) == .secret)
+    }
+
+    @Test(
+        "leaves an otpauth address without a seed alone",
+        arguments: [
+            "otpauth://totp/Example:me@example.com?issuer=Example",
+            "otpauth://totp/x?secret=YOUR_SECRET_HERE",
+            "the otpauth scheme is documented at example.com",
+        ])
+    func leavesOthers(_ text: String) {
+        #expect(ClipKindDetector.kind(of: text) != .secret)
+    }
+}

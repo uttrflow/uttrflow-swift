@@ -18,6 +18,8 @@ dictation exactly as it withholds a secure field's: the words are still inserted
 harmless: the row shows dots, Return still pastes it, one keystroke reveals it. A false negative
 leaves a production password legible on a panel opened in meetings and on recorded calls.
 
+An `otpauth://` or `otpauth-migration://` address with a `secret` or `data` value is an authenticator seed and is masked (`AuthenticatorSeedShape.swift`).
+
 Visible placeholders and published example keys are not credentials. Named-secret values such as
 `API_KEY=your-key-here`, variable references, repeated-character runs, and connection strings whose
 password is `password`, `pass` or `secret` remain searchable and are not masked; generated values
