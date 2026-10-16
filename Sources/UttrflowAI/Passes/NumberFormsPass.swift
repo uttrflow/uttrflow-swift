@@ -1038,21 +1038,44 @@ public struct NumberFormsPass: PieceCleaningPass {
     private static func hindiAmount(
         at position: Int, keys: [String], shapes: [WordShape], digits: DigitGrouping
     ) -> Phrase? {
-        var end = position
-        while end < keys.count, end == position || joined(end, shapes), NumberWords.hindi[keys[end]] != nil {
+        let fraction = NumberWords.hindiFractions[keys[position]]
+        let start = fraction == nil ? position : position + 1
+        guard fraction == nil || joined(start, shapes) else { return nil }
+        var end = start
+        while end < keys.count, end == start || joined(end, shapes), NumberWords.hindi[keys[end]] != nil {
             end += 1
             if !shapes[end - 1].suffix.isEmpty { break }
         }
-        guard let read = NumberWords.hindiCardinal(keys[position..<end]) else { return nil }
-        let unit = position + read.count
+        guard let read = NumberWords.hindiCardinal(keys[start..<end]) else { return nil }
+        let unit = start + read.count
         guard joined(unit, shapes) else { return nil }
         let shared = sharedMeasures.contains(keys[unit])
         guard
             hindiMeasures.contains(keys[unit])
                 || shared && !isEnglishSentence(around: position, keys: keys, shapes: shapes)
         else { return nil }
-        return Phrase(
-            text: NumberWords.render(read.value, grouping: digits, isAmount: true), count: read.count)
+        var value = read.value
+        if let fraction {
+            guard let scaled = scaled(read, by: fraction, keys: keys[start...]) else { return nil }
+            value = scaled
+        }
+        let text = NumberWords.render(value, grouping: digits, isAmount: true)
+        return Phrase(text: text, count: read.count + start - position)
+    }
+
+    /// "dedh sau" is 150, "saade teen sau" 350: a fraction scales the number's one magnitude, or nil if not whole.
+    private static func scaled(
+        _ read: (value: Int, count: Int), by fraction: (value: Double, isOffset: Bool),
+        keys: ArraySlice<String>
+    ) -> Int? {
+        let words = keys.prefix(read.count).compactMap { NumberWords.hindi[$0] }
+        guard let magnitude = words.last, magnitude >= 100, words.filter({ $0 >= 100 }).count == 1,
+            read.value % magnitude == 0
+        else { return nil }
+        let count = Double(read.value / magnitude)
+        let total = (fraction.isOffset ? count + fraction.value : fraction.value) * Double(magnitude)
+        guard fraction.isOffset || read.value == magnitude, total == total.rounded() else { return nil }
+        return Int(total)
     }
 
     /// Whether the sentence holding `position` has an English small word and no Hindi one, so a Hindi number in it is a borrowed word.
