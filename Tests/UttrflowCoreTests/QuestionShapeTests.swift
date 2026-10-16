@@ -31,6 +31,29 @@ struct QuestionShapeTests {
     }
 
     @Test(
+        "reads a sentence that opens on a relative which as a statement, and a which question as a question",
+        arguments: [
+            ("which is why i left early", false), ("which is how it works", false),
+            ("which is where i parked", false), ("which was why we stopped", false),
+            ("which is better", true), ("which is the right one", true),
+            ("which was the first release", true), ("which branch is it", true),
+        ])
+    func readsARelativeWhich(text: String, asks: Bool) {
+        #expect(QuestionShape.asks(shapes(text)) == asks)
+    }
+
+    @Test(
+        "reads a final right after the copula of an embedded clause as its complement, not a tag",
+        arguments: [
+            ("i dont know if it is right", false), ("i am not sure whether this is right", false),
+            ("he asked if that was right", false), ("the meeting is at three right", true),
+            ("he called the office right", true), ("you sent the invoice right", true),
+        ])
+    func readsRightAfterACopula(text: String, asks: Bool) {
+        #expect(QuestionShape.asks(shapes(text)) == asks)
+    }
+
+    @Test(
         "reads a direct question from its word order",
         arguments: [
             "where did you put the keys", "which branch should I merge into",

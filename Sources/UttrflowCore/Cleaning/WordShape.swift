@@ -157,9 +157,10 @@ public struct WordShape: Equatable, Sendable {
             text.reversed().prefix { closingQuotes.contains($0) || bracketOpeners[$0] != nil }.reversed())
         let body = String(text.dropLast(closers.count))
         guard let bracket = closers.lastIndex(where: { bracketOpeners[$0] != nil }) else {
-            // A quotation opening and closing on one word is a quoted term rather than a sentence, so it takes none.
-            guard closers.isEmpty || !shape.prefix.contains(where: openingQuotes.contains) else {
-                return text
+            if !closers.isEmpty, shape.prefix.contains(where: openingQuotes.contains) {
+                // A quotation that is the whole sentence is a quoted term, so it takes none; after other words it ends them.
+                guard !startsSentence(preceding) else { return text }
+                return endsOnVerbOfSaying(preceding) ? body + mark + closers : text + mark
             }
             return quotationIsSpeech(preceding) ? body + mark + closers : text + mark
         }
@@ -175,6 +176,19 @@ public struct WordShape: Equatable, Sendable {
         "say", "says", "said", "reply", "replies", "replied", "ask", "asks", "asked", "answer", "answers",
         "answered", "tell", "tells", "told", "write", "writes", "wrote", "shout", "shouts", "shouted",
     ]
+
+    /// Whether nothing of the sentence stands before the caret: the text is empty or the line ends on a sentence mark.
+    private static func startsSentence(_ preceding: String) -> Bool {
+        let line = CaretStructure.caretLine(of: preceding).trimmingCharacters(in: .whitespaces)
+        return line.last.map { SentenceMarks.ends.contains($0) } ?? true
+    }
+
+    /// Whether the last word before a one-word quotation is a verb of saying, which makes the quotation speech.
+    private static func endsOnVerbOfSaying(_ preceding: String) -> Bool {
+        WordTokens.words(CaretStructure.caretLine(of: preceding), .display).last.map {
+            speechVerbs.contains(WordShape($0).key)
+        } ?? false
+    }
 
     /// Whether the quotation the last word closes is speech: it opens its sentence, follows a verb of saying, or opens on a subject.
     private static func quotationIsSpeech(_ preceding: String) -> Bool {
