@@ -227,7 +227,7 @@
     "language": "hi",
     "addedFor": 7997,
     "spoken": "कल का मैच देखा क्या, ताइम पे ओफिस आ जाना, एरर आया तो मुझे बताना",
-    "expected": "Kal ka match dekha kya, time pe office aa jana, error aaya to mujhe batana.",
+    "expected": "Kal ka match dekha kya, time pe office aa jaana, error aaya to mujhe batana.",
     "mustKeep": ["match", "time", "office", "error"],
     "mustNotAdd": ["maich", "taim", "ophis", "erar"]
   }
