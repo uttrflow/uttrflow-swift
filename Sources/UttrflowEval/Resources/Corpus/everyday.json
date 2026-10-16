@@ -564,6 +564,20 @@
     "mustNotAdd": ["tea", "rather"]
   },
   {
+    "id": "which-after-a-stop-continues-the-sentence",
+    "spoken": "the total is ten. which brings it to twelve. which is why we left early",
+    "expected": "The total is 10. Which brings it to 12. Which is why we left early.",
+    "mustKeep": ["Which brings it to 12.", "Which is why we left early."],
+    "mustNotAdd": ["?"]
+  },
+  {
+    "id": "year-after-by-not-a-clock-time",
+    "spoken": "we had fifty customers and by twenty twenty four we had five thousand",
+    "expected": "We had 50 customers and by 2024 we had 5000.",
+    "mustKeep": ["2024", "5000"],
+    "mustNotAdd": ["20:24"]
+  },
+  {
     "id": "or-rather-before-a-negation-kept",
     "spoken": "would you like to stay or rather not",
     "expected": "Would you like to stay or rather not?",

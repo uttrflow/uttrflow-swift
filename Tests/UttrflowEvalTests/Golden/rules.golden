@@ -220,6 +220,7 @@ dictation-keeps-markdown-words-italic	The title goes in italic in the reference 
 dictation-keeps-markdown-words-italics	Put the book names in italics please.
 dictionary-entry-case-2302	eBay listings were up again YoY and the Docker image is smaller.
 dictionary-four-word-entry-2342	The quarterly report goes to Harbour Street Credit Union on Friday.
+dictionary-function-words-kept-7963	I said I'd go and it is a good idea.
 dictionary-lower-case-after-line-document-4290	The service restarted\nnginx serves the page again.
 dictionary-lower-case-after-stop-code-4290	The cache is warm. jq filters the output.
 dictionary-lower-case-after-stop-document-4290	The build passed. pnpm install is next.
@@ -230,7 +231,9 @@ dictionary-lower-case-start-code-4290	kubectl rollout restarts the pods.
 dictionary-lower-case-start-document-4290	kubectl apply reads the new config.
 dictionary-lower-case-start-messaging-4290	ffmpeg cut the clip in two seconds
 dictionary-lower-case-zsh-code-4290	zsh loads the profile on start.
+dictionary-surely-heard-name-7982	Please ask Meera about the report today.
 dictionary-symbol-only-entry-2343	The loop adds one to the counter each time it runs.
+dictionary-word-of-longer-entry-7959	Deepak and Rao went to the market.
 document-at-name-stays	At Sam, can you take a look?
 document-bullet-caret-capitalises	The migration finished overnight
 document-list-only-when-spoken	What's left to pack\n- The tent\n- The stove\n- The first aid kit
@@ -441,6 +444,8 @@ hinglish-apology-kept	Main late hoon sorry main abhi aata hoon.
 hinglish-correction-nahi-nahi	Meeting 5 baje hai.
 hinglish-correction-paused-nahi	4 baje milte hain.
 hinglish-correction-replaced-head	Parso ki meeting cancel hai.
+hinglish-devanagari-loanwords-cancel-budget-update	Kal ki meeting cancel ho gayi aur budget bhi update karna hai.
+hinglish-devanagari-loanwords-right-payment-confirm	Tum kal aa rahe ho, right, payment confirm kar dena.
 hinglish-false-start	Yaar wo wo bug bahut weird hai mujhe samajh nahi aa raha.
 hinglish-galat-bola-kept	Usne mujhe galat bola.
 hinglish-galat-bola-restatement-kept	Tumne pehle galat bola aur ab sahi bol rahe ho.
@@ -455,6 +460,7 @@ hinglish-mera-matlab-kept	Aap samjhe mera matlab.
 hinglish-na-question-tag	Tum kal aa rahe ho na?
 hinglish-nahi-nahi-answer-kept	Kya aap thak gaye ho nahi nahi main bilkul theek hoon?
 hinglish-negation-kept	Mujhe yeh build thik nahi lag raha.
+hinglish-pause-comma-at-end	Chalo thik hai, phir milte hain.
 hinglish-paused-nahi-kept	Do log nahi, sab log aayenge.
 hinglish-question	Kya tum aaj ka PR review kar sakte ho?
 hinglish-question-after-verb	Report bhej di kya?
@@ -1426,7 +1432,9 @@ web-chat-message-2280	Sounds good I will join the call in 5 minutes
 web-mail-compose-2280	Hi sam thanks for the update I will review the draft tomorrow.
 web-search-field-2280	cheap flights to lisbon in may
 weekday-and-month-casing	Can we push the demo to Thursday instead of Wednesday in August?
+which-after-a-stop-continues-the-sentence	The total is 10. Which brings it to 12. Which is why we left early.
 which-is-why-stays-a-statement	Which is why I left early.
+year-after-by-not-a-clock-time	We had 50 customers and by 2024 we had 5000.
 zone-central-european-4031	The webinar is at four Central European Time.
 zone-central-time-slot-kept-4031	The central time slot works for me.
 zone-coordinated-universal-4031	Log every event in Coordinated Universal Time.
