@@ -130,5 +130,14 @@
     "dictionary": ["nginx"],
     "destination": "codeEditor",
     "context": {"applicationName": "Xcode", "bundleIdentifier": "com.apple.dt.Xcode", "documentName": "Deploy.swift", "precedingText": "// "}
+  },
+  {
+    "id": "dictionary-function-words-kept-7963",
+    "note": "Small words the recogniser doubted are never replaced by a dictionary entry they merely sound like.",
+    "addedFor": 7963,
+    "spoken": "I said I'd go and it is a good idea",
+    "expected": "I said I'd go and it is a good idea.",
+    "expectedExact": "I said I'd go and it is a good idea.",
+    "dictionary": ["Ada", "iOS"]
   }
 ]
