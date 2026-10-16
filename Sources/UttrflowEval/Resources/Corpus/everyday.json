@@ -1514,5 +1514,20 @@
     "destination": "document",
     "expectedExact": "Go to the start of the chapter and read it again.",
     "addedFor": 7032
+  },
+  {
+    "id": "range-of-two-hundreds-between",
+    "note": "The and between two hundreds joins two numbers, so neither is read as 506.",
+    "spoken": "the fee is between five hundred and six hundred dollars",
+    "expected": "The fee is between 500 and 600 dollars.",
+    "mustKeep": ["500", "600"],
+    "addedFor": 7937
+  },
+  {
+    "id": "range-of-two-hundreds-from",
+    "spoken": "from two hundred and three hundred people came",
+    "expected": "From 200 and 300 people came.",
+    "mustKeep": ["200", "300"],
+    "addedFor": 7937
   }
 ]
