@@ -90,7 +90,9 @@ struct SpokenAddress: Equatable {
         guard startsPath || !MentionGuard.phraseOpeners.contains(draft.shape(at: live[position]).key) else {
             return nil
         }
-        if let url = readExplicitURL(at: position, within: run, in: live, of: draft) { return url }
+        if let url = readExplicitURL(at: position, within: run, in: live, of: draft, expecting: expecting) {
+            return url
+        }
         if let host = readNumericHost(at: position, within: run, in: live, of: draft) { return host }
         if let address = readWebAddress(at: position, within: run, in: live, of: draft) { return address }
         if let entry = readStackEntry(at: position, within: run, in: live, of: draft, expecting: expecting) {
@@ -268,11 +270,15 @@ struct SpokenAddress: Equatable {
 
     /// Reads an explicitly spoken web scheme and its host.
     private static func readExplicitURL(
-        at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft
+        at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft, expecting: Expectation
     ) -> SpokenAddress? {
         let (scheme, used) = label(at: position, within: run, in: live, of: draft)
         let separator = position + used
-        guard schemes.contains(scheme.lowercased()), separator + 3 < run.upperBound,
+        // A command line names any scheme, "s3 colon slash slash bucket"; elsewhere only a web scheme is sure.
+        let named =
+            schemes.contains(scheme.lowercased())
+            || expecting.contains(.paths) && isScheme(scheme)
+        guard named, separator + 3 < run.upperBound,
             draft.shape(at: live[separator]).key == "colon",
             draft.shape(at: live[separator + 1]).key == "slash",
             draft.shape(at: live[separator + 2]).key == "slash"
@@ -281,6 +287,8 @@ struct SpokenAddress: Equatable {
             let host = readWebAddress(at: separator + 3, within: run, in: live, of: draft)
                 ?? readNumericHost(at: separator + 3, within: run, in: live, of: draft)
                 ?? readLocalhost(at: separator + 3, within: run, in: live, of: draft)
+                ?? (expecting.contains(.paths)
+                    ? readBareHost(at: separator + 3, within: run, in: live, of: draft) : nil)
         else {
             return nil
         }
@@ -288,6 +296,23 @@ struct SpokenAddress: Equatable {
         let first = draft.shape(at: live[position])
         return SpokenAddress(
             length: end - position, text: first.prefix + scheme.lowercased() + "://" + host.text)
+    }
+
+    /// Whether a word can name a URL scheme: a letter, then letters, digits, plus, dot or hyphen, and no function word.
+    private static func isScheme(_ word: String) -> Bool {
+        guard let first = word.first, first.isLetter, isLabel(word) else { return false }
+        return FunctionWords.isContent(word.lowercased()) && !NumberWords.isNumber(word.lowercased())
+    }
+
+    /// Reads a host with no known ending that a spoken scheme has already shown to be one: "bucket", "my dash bucket".
+    private static func readBareHost(
+        at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft
+    ) -> SpokenAddress? {
+        guard let host = part(from: position, within: run, in: live, of: draft), host.hasLetter else {
+            return nil
+        }
+        return finishHost(
+            host.spelled, from: position, hostEnd: position + host.length, within: run, in: live, of: draft)
     }
 
     /// Reads a bare "localhost" that a spoken scheme has already shown to be a host.
