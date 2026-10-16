@@ -414,8 +414,7 @@ public struct FirstWordPass: WholeTextCleaningPass {
         .verb, .adverb, .preposition, .conjunction, .determiner, .pronoun, .particle, .interjection,
     ]
 
-    /// Whether a capital on an ordinary word is the recogniser's stray: the word cannot be a name, it stands in a title-cased run, or the text also writes it in lower case.
-    /// A capital that opens or sits inside a quotation is the quoted words' own, and any other noun keeps the case it was heard in.
+    /// Whether a capital on an ordinary word is stray: the word cannot be a name, it sits in a title-cased run, or the text also writes it in lower case.
     static func isEvidentlyStray(_ core: String, in text: String) -> Bool {
         let words = WordTokens.words(text, .display)
         let cores = words.map { WordShape($0).core }
