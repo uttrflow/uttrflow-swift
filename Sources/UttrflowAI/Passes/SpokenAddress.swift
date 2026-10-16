@@ -10,8 +10,11 @@ struct SpokenAddress: Equatable {
     /// The endings that make a spoken domain a domain; an unknown one is left as words rather than guessed at.
     static let topLevels = TechnicalToken.topLevels
 
-    /// The web schemes a spoken "colon slash slash" may follow.
-    static let schemes: Set<String> = ["http", "https"]
+    /// The schemes a spoken "colon slash slash" may follow in any app: web, file transfer, socket and database ones.
+    static let schemes: Set<String> = [
+        "http", "https", "ftp", "sftp", "ws", "wss", "redis", "rediss", "postgres", "postgresql", "mysql",
+        "mongodb", "amqp", "amqps", "kafka", "smtp", "imap", "ldap", "ldaps", "nats", "mqtt",
+    ]
 
     /// The words that announce an address or a handle, after which a local part spelled as a plain word is a mailbox.
     static let introducers: Set<String> = [
@@ -303,19 +306,35 @@ struct SpokenAddress: Equatable {
             draft.shape(at: live[separator + 1]).key == "slash",
             draft.shape(at: live[separator + 2]).key == "slash"
         else { return nil }
+        // A database or broker address may name its user before "at": "app at db dot example dot com".
+        let account = readAccount(at: separator + 3, within: run, in: live, of: draft)
+        let hostStart = separator + 3 + (account?.used ?? 0)
         guard
-            let host = readWebAddress(at: separator + 3, within: run, in: live, of: draft)
-                ?? readNumericHost(at: separator + 3, within: run, in: live, of: draft)
-                ?? readLocalhost(at: separator + 3, within: run, in: live, of: draft)
+            let host = readWebAddress(at: hostStart, within: run, in: live, of: draft)
+                ?? readNumericHost(at: hostStart, within: run, in: live, of: draft)
+                ?? readLocalhost(at: hostStart, within: run, in: live, of: draft)
                 ?? (expecting.contains(.paths)
-                    ? readBareHost(at: separator + 3, within: run, in: live, of: draft) : nil)
+                    ? readBareHost(at: hostStart, within: run, in: live, of: draft) : nil)
         else {
             return nil
         }
-        let end = separator + 3 + host.length
+        let end = hostStart + host.length
         let first = draft.shape(at: live[position])
         return SpokenAddress(
-            length: end - position, text: first.prefix + scheme.lowercased() + "://" + host.text)
+            length: end - position,
+            text: first.prefix + scheme.lowercased() + "://" + (account?.text ?? "") + host.text)
+    }
+
+    /// The user a database or broker address names before its host, "app at", written "app@", and how many words it used.
+    private static func readAccount(
+        at place: Int, within run: Range<Int>, in live: [Int], of draft: Draft
+    ) -> (text: String, used: Int)? {
+        guard place + 2 < run.upperBound, draft.shape(at: live[place]).suffix.isEmpty,
+            draft.shape(at: live[place + 1]).key == "at", draft.shape(at: live[place + 1]).suffix.isEmpty
+        else { return nil }
+        let (user, used) = label(at: place, within: run, in: live, of: draft)
+        guard used == 1, isLabel(user), user.contains(where: \.isLetter) else { return nil }
+        return (user + "@", 2)
     }
 
     /// Whether a word can name a URL scheme: a letter, then letters, digits, plus, dot or hyphen, and no function word.
