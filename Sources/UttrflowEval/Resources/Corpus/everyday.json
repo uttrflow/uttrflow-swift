@@ -595,6 +595,25 @@
     "mustKeep": ["no make it", "moment"]
   },
   {
+    "id": "no-make-that-between-amounts",
+    "spoken": "i need four loaves no make that five loaves",
+    "expected": "I need five loaves.",
+    "mustKeep": ["five loaves"],
+    "mustNotAdd": ["four", "make that"]
+  },
+  {
+    "id": "no-make-that-as-making-kept",
+    "spoken": "there was no make that cake moment for us",
+    "expected": "There was no make that cake moment for us.",
+    "mustKeep": ["no make that", "moment"]
+  },
+  {
+    "id": "quantity-after-has-beside-a-label-word",
+    "spoken": "the model has seventy billion parameters and the table has two million rows",
+    "expected": "The model has 70,000,000,000 parameters and the table has 2,000,000 rows.",
+    "mustKeep": ["70,000,000,000", "2,000,000"]
+  },
+  {
     "id": "trigger-as-its-own-sentence",
     "note": "The recogniser writes a paused trigger as its own sentence, which is a pause rather than a sentence end.",
     "spoken": "Meet me at four. Scratch that. At five.",
