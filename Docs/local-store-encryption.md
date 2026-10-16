@@ -106,6 +106,10 @@ completion: the personal dictionary refusal records and clipboard pictures. Thei
 separate files under the Application Support folder. Completing one migration cannot make the
 other store's unvisited plaintext look like data planted after encryption began.
 
+Which store looks up the key first in a launch does not matter: a key found on disk keeps plaintext
+readable until both markers exist, so an installation whose key was made by an earlier build still
+migrates the files a released build left in plaintext.
+
 When an existing clipboard index cannot be opened but its `.bak` authenticates and decodes, the
 current file is preserved as unreadable, the previous sealed generation is restored durably, and
 the app tells the user once. A missing primary is an honest empty store; its orphan `.bak` is

@@ -444,6 +444,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Before the first read, so an install onboarded under ⌥Space keeps it. See `Docs/shortcuts.md`.
         settingsStore.pinDefaults(onboarded: onboardingRecordStore.hasFinished)
+        // A write killed between creating and renaming its temporary file leaves that file behind.
+        PrivateFile.removeAbandonedTemporaries(
+            in: LocalStoreEntry.legacyMigrationMarker.location(in: container).deletingLastPathComponent())
         settings = settingsStore.load()
         context.restrict(to: settings.contextLevel, except: settings.contextLevelOverrides)
         // Reconciled at launch too: the login item can be removed without telling the app.

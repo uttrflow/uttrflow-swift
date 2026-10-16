@@ -95,6 +95,26 @@ struct ReleasedStoreFixtureTests {
         )
     }
 
+    @Test(
+        "this build migrates each released plaintext file when the installation key already exists",
+        arguments: Self.releases, LocalStoreEntry.allCases.filter { Self.sealed.contains($0) })
+    func migratesReleasedPlaintextOverExistingKey(release: String, entry: LocalStoreEntry) async throws {
+        let payload = try Data(contentsOf: Self.fixtures.appending(path: "\(release)/\(entry.name)"))
+        let sandbox = Sandbox()
+        let store = EncryptedStore(
+            keys: Keys(), markerURL: sandbox.root.appending(path: "legacy-migration.marker"))
+        _ = try store.seal(Data(), for: "another-store.v1.json")
+        let file = sandbox.root.appending(path: entry.name)
+        try payload.write(to: file)
+
+        let opened = try await Self.open(entry, file: file, store: store)
+
+        #expect(opened == Self.covered[entry])
+        let siblings = try FileManager.default.contentsOfDirectory(
+            atPath: sandbox.root.path(percentEncoded: false))
+        #expect(!siblings.contains { $0.contains(".unreadable-") }, "no released file is set aside")
+    }
+
     /// The choices `settings.v1.json` holds, each off its default; the release's `appleSpeech` reads as Whisper.
     private static let releasedSettings = Settings(
         engines: EngineConfiguration(speech: .whisperKit, transformerPreference: [.rules]),

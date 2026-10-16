@@ -169,4 +169,29 @@ struct PrivateFileTests {
             try PrivateFile.tighten(at: sandbox.root.appending(path: "absent.json"))
         }
     }
+
+    @Test("removes the temporary files an interrupted write left, and only those")
+    func removesAbandonedTemporaries() throws {
+        let sandbox = Sandbox()
+        try PrivateFile.makeDirectory(at: sandbox.root)
+        let now = Date()
+        let old = now.addingTimeInterval(-PrivateFile.abandonedTemporaryAge - 60)
+        func make(_ name: String, modified: Date) throws {
+            let url = sandbox.root.appending(path: name, directoryHint: .notDirectory)
+            try Data().write(to: url)
+            try FileManager.default.setAttributes([.modificationDate: modified], ofItemAtPath: url.path)
+        }
+        let abandoned = ".marker.v1-pictures.\(UUID().uuidString).tmp"
+        let writing = ".marker.v1-pictures.\(UUID().uuidString).tmp"
+        try make(abandoned, modified: old)
+        try make(writing, modified: now)
+        try make("history.v1.json", modified: old)
+        try make(".notes.tmp", modified: old)
+        try make(".history.v1.json.unreadable-1", modified: old)
+
+        #expect(PrivateFile.removeAbandonedTemporaries(in: sandbox.root, now: now) == 1)
+
+        let left = Set(try FileManager.default.contentsOfDirectory(atPath: sandbox.root.path))
+        #expect(left == [writing, "history.v1.json", ".notes.tmp", ".history.v1.json.unreadable-1"])
+    }
 }

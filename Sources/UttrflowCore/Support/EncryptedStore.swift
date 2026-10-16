@@ -391,16 +391,15 @@ final class StoreKeyCache: Sendable {
         self.markerURL = markerURL
     }
 
-    /// Decided by this process's first lookup; stays `.open` until each lazy plaintext store finishes migration.
+    /// Decided by this process's first key lookup, whichever store made it; a key found there keeps plaintext readable until every migration marker is in place.
     func legacyWindow() -> LegacyWindow {
-        if let decided = window.withLock({ $0 }) { return decided }
-        do { _ = try key(createIfMissing: false) } catch {
-            guard (error as? StoreKeyError)?.isMissing == true else { return .unknown }
+        if window.withLock({ $0 }) == nil {
+            do { _ = try key(createIfMissing: false) } catch {
+                guard (error as? StoreKeyError)?.isMissing == true else { return .unknown }
+            }
         }
-        if window.withLock({ $0 }) == .closed, !migrationMarkerPresent() {
-            window.withLock { $0 = .open }
-        }
-        return window.withLock { $0 } ?? .unknown
+        guard let decided = window.withLock({ $0 }) else { return .unknown }
+        return decided == .closed && !migrationMarkerPresent() ? .open : decided
     }
 
     /// Writes a store-specific marker once per process; failed writes can be retried.

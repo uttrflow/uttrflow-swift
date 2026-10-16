@@ -6,6 +6,9 @@ public import struct Foundation.URL
 public import struct Foundation.URLResourceValues
 public import struct Foundation.UUID
 public import class Foundation.FileManager
+public import struct Foundation.Date
+public import struct Foundation.FileAttributeType
+public import typealias Foundation.TimeInterval
 
 /// Writes what a local store keeps so only its owner can read it. See `Docs/local-store-permissions.md`.
 public enum PrivateFile {
@@ -34,6 +37,37 @@ public enum PrivateFile {
         try makeDirectory(at: url.deletingLastPathComponent())
         let kept = (try? mode(at: url)).map { $0 & 0o700 } ?? fileMode
         try writeAtomically(data, to: url, mode: kept)
+    }
+
+    /// How long a write's temporary file may sit before it is taken for one a killed process left behind.
+    package static let abandonedTemporaryAge: TimeInterval = 600
+
+    /// Removes temporary files an interrupted write left in `directory`, which no live write is still filling.
+    @discardableResult
+    package static func removeAbandonedTemporaries(in directory: URL, now: Date = Date()) -> Int {
+        let manager = FileManager.default
+        guard
+            let names = try? manager.contentsOfDirectory(atPath: directory.path(percentEncoded: false))
+        else { return 0 }
+        var removed = 0
+        for name in names where isTemporaryName(name) {
+            let url = directory.appending(path: name, directoryHint: .notDirectory)
+            guard let attributes = try? manager.attributesOfItem(atPath: url.path(percentEncoded: false)),
+                attributes[.type] as? FileAttributeType == .typeRegular,
+                let modified = attributes[.modificationDate] as? Date,
+                now.timeIntervalSince(modified) > abandonedTemporaryAge
+            else { continue }
+            if (try? manager.removeItem(at: url)) != nil { removed += 1 }
+        }
+        return removed
+    }
+
+    /// Whether `name` has the shape `writeAtomically` gives a temporary file: `.<file>.<UUID>.tmp`.
+    private static func isTemporaryName(_ name: String) -> Bool {
+        guard name.hasPrefix("."), name.hasSuffix(".tmp") else { return false }
+        let stem = name.dropLast(4)
+        guard let dot = stem.lastIndex(of: "."), dot > stem.startIndex else { return false }
+        return UUID(uuidString: String(stem[stem.index(after: dot)...])) != nil
     }
 
     /// The sealed previous generation, stored beside the live file and bound to the live name.

@@ -341,6 +341,38 @@ struct EncryptedStoreTests {
         #expect(!FileManager.default.fileExists(atPath: file.path))
     }
 
+    @Test("keeps plaintext readable when another store used the existing key first")
+    func plaintextStaysLegacyAfterTheKeyWasUsedFirst() throws {
+        let directory = try folder()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appending(path: "history.v1.json")
+        let marker = directory.appending(path: "marker.v1")
+        try Data("[\"released\"]".utf8).write(to: file)
+        let store = EncryptedStore(keys: Keys(value: SymmetricKey(size: .bits256)), markerURL: marker)
+
+        _ = try store.seal(Data(), for: "clipboard.v1.json")
+        let stored = store.read([String].self, from: file)
+
+        #expect(stored.value == ["released"])
+        #expect(!LocalStore.hasSetAside(file))
+        #expect(EncryptedStore.isSealed(try Data(contentsOf: file)))
+    }
+
+    @Test("refuses plaintext once every migration is marked, even when the key was used first")
+    func plaintextAfterEveryMarkerIsRefusedAfterTheKeyWasUsedFirst() throws {
+        let directory = try folder()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appending(path: "history.v1.json")
+        let marker = directory.appending(path: "marker.v1")
+        let store = EncryptedStore(keys: Keys(value: SymmetricKey(size: .bits256)), markerURL: marker)
+        try store.markLegacyMigrationComplete()
+        try Data("[\"planted\"]".utf8).write(to: file)
+
+        _ = try store.seal(Data(), for: "clipboard.v1.json")
+
+        #expect(store.read([String].self, from: file).isUnreadable)
+    }
+
     @Test("refuses and sets aside leftover plaintext once the previous launch's migration marker is in place")
     func plaintextAfterMarkerIsRefused() throws {
         let directory = try folder()

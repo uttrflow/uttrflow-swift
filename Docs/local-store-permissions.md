@@ -16,6 +16,10 @@ nothing in `Sources/` goes around it.
 | `PrivateFile.directoryMode` | `0700` | Every folder `PrivateFile.makeDirectory(at:)` creates |
 | `PrivateFile.fileMode` | `0600` | Every file `PrivateFile.write(_:to:)` creates |
 
+A write that is killed between creating its temporary file and renaming it leaves `.<file>.<UUID>.tmp`
+behind. At launch `PrivateFile.removeAbandonedTemporaries(in:)` removes those in the store folder once
+they are older than `PrivateFile.abandonedTemporaryAge`.
+
 ## Why a helper rather than a convention
 
 Foundation writes under the process umask. On a Mac that is `022`, so `data.write(to:)` lands
