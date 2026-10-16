@@ -622,6 +622,24 @@ struct NumberFormsPassTests {
     }
 
     @Test(
+        "joins an hour and its minutes said around a colon, only where a time is cued",
+        arguments: [
+            ("meet at ten: thirty", "meet at 10:30"),
+            ("the call is at three: fifteen pm", "the call is at 3:15 pm"),
+            ("it starts at nine: zero zero", "it starts at 9:00"),
+            ("it starts at nine: oh five", "it starts at 9:05"),
+            ("the flight leaves at fourteen: forty five", "the flight leaves at 14:45"),
+            ("we close at twenty three: fifty nine", "we close at 23:59"),
+            ("chapter three: thirty ways to cook", "chapter 3: 30 ways to cook"),
+            ("agenda: one budget", "agenda: one budget"),
+            ("the hours are twenty four: thirty", "the hours are 24: 30"),
+        ]
+    )
+    func colonClockTimes(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
         "writes compound ordinals outside dates",
         arguments: [
             ("it is the forty second floor", "it is the 42nd floor"),
