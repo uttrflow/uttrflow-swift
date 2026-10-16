@@ -1,4 +1,5 @@
 import Foundation
+import NaturalLanguage
 public import UttrflowCore
 import UttrflowDictionary
 
@@ -402,9 +403,55 @@ public struct FirstWordPass: WholeTextCleaningPass {
             !ownWords.contains(core.lowercased()),
             namedForms[core.lowercased()] == nil, !LexicalClass.isNamed(core, in: text),
             !Self.isCalendarWord(word), !Self.isProperName(word, in: text),
-            !Self.looksLikeName(word, in: onScreen), !Self.isListedBesideName(core, in: text)
+            !Self.looksLikeName(word, in: onScreen), !Self.isListedBesideName(core, in: text),
+            Self.isHinglishWord(core, in: text) || Self.isEvidentlyStray(core, in: text)
         else { return word }
         return WordShape.lowercased(word)
+    }
+
+    /// Word classes a name is never: a capital on one of these mid-sentence is the recogniser's, not the speaker's.
+    private static let neverNameClasses: Set<NLTag> = [
+        .verb, .adverb, .preposition, .conjunction, .determiner, .pronoun, .particle, .interjection,
+    ]
+
+    /// Whether a capital on an ordinary word is stray: the word cannot be a name, it sits in a title-cased run, or the text also writes it in lower case.
+    static func isEvidentlyStray(_ core: String, in text: String) -> Bool {
+        let words = WordTokens.words(text, .display)
+        let cores = words.map { WordShape($0).core }
+        if cores.contains(core.lowercased()) { return true }
+        let tags = LexicalClass.tags(ofWords: words)
+        let capitalised = { (index: Int) in
+            cores.indices.contains(index) && cores[index].first?.isUppercase == true
+                && !startsASentence(index, in: words)
+                && (LexicalClass.isKnownEnglishWord(cores[index].lowercased())
+                    || isHinglishWord(cores[index], in: text))
+                && !LexicalClass.isNameInDictionary(cores[index].lowercased())
+        }
+        let strayCount = cores.indices.filter(capitalised).count
+        return cores.indices.filter { cores[$0] == core }.contains { index in
+            guard !isInsideQuotation(index, in: words) else { return false }
+            if let tag = tags.indices.contains(index) ? tags[index] : nil, neverNameClasses.contains(tag) {
+                return true
+            }
+            return strayCount >= 3 || capitalised(index - 1) || capitalised(index + 1)
+        }
+    }
+
+    /// Whether the word at `index` starts a sentence, or the text.
+    private static func startsASentence(_ index: Int, in words: [String]) -> Bool {
+        index == 0 || WordShape(words[index - 1]).endsSentence
+    }
+
+    /// Whether the word at `index` opens a quotation or sits inside one that has not closed.
+    private static func isInsideQuotation(_ index: Int, in words: [String]) -> Bool {
+        var place = index
+        while place >= 0 {
+            let shape = WordShape(words[place])
+            if shape.prefix.contains(where: WordShape.openingQuotes.contains) { return true }
+            if place < index, shape.suffix.contains(where: { "\"\u{201D}".contains($0) }) { return false }
+            place -= 1
+        }
+        return false
     }
 
     /// Whether a capital stands in a list beside a name, "Slack and Zoom": joined by a comma or a word the tagger reads as a conjunction.
