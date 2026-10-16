@@ -5531,6 +5531,10 @@
     "cuts" : [
       "fmt-code-version@3",
       "hindi-worked-example-refused@8",
+      "hinglish-pause-comma-at-end@4",
+      "hinglish-the-closes-sentence@7",
+      "hinglish-the-stop-mid-text-kept@1",
+      "hinglish-the-stop-mid-text-kept@6",
       "indian-grouping-lakh-transfer@3",
       "mix-hi-name-end-dad-end@4",
       "mix-hi-verb-middle-upload@3",
