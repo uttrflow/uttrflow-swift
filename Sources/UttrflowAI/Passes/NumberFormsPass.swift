@@ -1014,13 +1014,19 @@ public struct NumberFormsPass: PieceCleaningPass {
         }
     }
 
-    /// "march fifth": an ordinal day that fits the month straight after it, unless a pronoun subject makes the word a verb.
+    /// "march fifth", "may 2027": an ordinal day that fits the month, or a year, straight after it, unless a pronoun subject makes the word a verb.
     private static func dayFollows(_ index: Int, keys: [String], shapes: [WordShape]) -> Bool {
-        guard joined(index + 1, shapes), let limit = monthDays[keys[index]],
-            let ordinal = parseOrdinal(at: index + 1, keys: keys, shapes: shapes), ordinal.value <= limit
-        else { return false }
+        guard joined(index + 1, shapes), let limit = monthDays[keys[index]] else { return false }
+        let ordinal = parseOrdinal(at: index + 1, keys: keys, shapes: shapes)
+        guard ordinal.map({ $0.value <= limit }) == true || isYear(keys[index + 1]) else { return false }
         guard index > 0, !startsASentence(index, shapes) else { return true }
         return LexicalClass.tag(ofWordAt: index - 1, in: keys) != .pronoun
+    }
+
+    /// Whether a word is a four-digit calendar year.
+    private static func isYear(_ key: String) -> Bool {
+        key.count == 4 && key.allSatisfy { $0.isASCII && $0.isNumber }
+            && (1900...2099).contains(Int(key) ?? 0)
     }
 
     /// A romanised Hindi number before an amount, unit or time word, as "paanch sau rupaye" for "500 rupaye".

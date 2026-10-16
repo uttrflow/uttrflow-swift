@@ -134,7 +134,10 @@ public struct FirstWordPass: WholeTextCleaningPass {
                 let framedName = casing.framedForm(cased, at: index, in: draft) != nil
                 // Devanagari has no case, so a capital on a word heard in it comes from loanword restoration, never from the recogniser.
                 let restored = word.origin == .devanagari
-                let keepsCase = afterPause || framedName || restored || reasonWords[index] != nil
+                // A date the number pass wrote, as "March fifth", owes its capital to that pass, never to the recogniser.
+                let keepsCase =
+                    afterPause || framedName || restored || reasonWords[index] != nil
+                    || Self.isWritten(by: NumberFormsPass.id, word)
                 let unstrayed = keepsCase ? cased : strayCapitalLowered(cased, in: text)
                 cased = Self.properNameCapitalised(
                     Self.titleCapitalised(Self.calendarWordCapitalised(unstrayed)), in: text)
@@ -253,6 +256,12 @@ public struct FirstWordPass: WholeTextCleaningPass {
             WordShape(word).core == contraction
         else { return word }
         return WordShape(word).replacingCore(with: heardShape.core)
+    }
+
+    /// Whether the pass wrote the word's text in place of what was heard.
+    private static func isWritten(by pass: PassID, _ word: Draft.Word) -> Bool {
+        guard case .replaced(let writer, _) = word.state else { return false }
+        return writer == pass
     }
 
     /// "i" and "i'll" become "I" and "I'll"; nothing else changes.
