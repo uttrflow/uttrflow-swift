@@ -608,10 +608,17 @@
     "mustKeep": ["no make that", "moment"]
   },
   {
+<<<<<<< HEAD
     "id": "capital-after-a-stop-following-a-negative-number",
     "spoken": "it dropped to minus twelve. overnight it snowed heavily",
     "expected": "It dropped to -12. Overnight it snowed heavily.",
     "mustKeep": ["-12", "Overnight"]
+=======
+    "id": "quantity-after-has-beside-a-label-word",
+    "spoken": "the model has seventy billion parameters and the table has two million rows",
+    "expected": "The model has 70,000,000,000 parameters and the table has 2,000,000 rows.",
+    "mustKeep": ["70,000,000,000", "2,000,000"]
+>>>>>>> origin/main
   },
   {
     "id": "trigger-as-its-own-sentence",
