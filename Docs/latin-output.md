@@ -162,11 +162,11 @@ on 100 invented loanwords and 122 ordinary Hindi words, on an Apple M5 Pro:
 
 | Loanwords | Count | Examples |
 |---|---|---|
-| already spelt in English | 9 | report, link, student |
+| already spelt in English | 53 | report, link, student, cancel, budget |
 
-| restorable by the match | 32 | mainejar manager, tikat ticket, histri history |
-| same sound, but not in the vocabulary | 23 | draapht draft, foldar folder, kainsal cancel |
-| sounds differ by the guard's test | 36 | kanpani company, nanbar number, sarwar server |
+| restorable by the match | 18 | mainejar manager, histri history |
+| same sound, but not in the vocabulary | 9 | draapht draft, foldar folder |
+| sounds differ by the guard's test | 20 | kanpani company |
 
 | Hindi words | Count | Wrongly restored |
 |---|---|---|
@@ -189,7 +189,7 @@ when exactly one candidate qualifies. It never translates and never drops a word
 |---|---|---|
 | technical lexicon alone | 0 | 0 of 122 |
 
-| lexicon plus the 32 restorable words as personal words | 32 of 32 | 1 of 122: baal bill |
+| lexicon plus the 18 restorable words as personal words | 18 of 18 | 1 of 122: baal bill |
 
 
 Whether the seam could replace the table's own English entries was measured by romanising
