@@ -312,10 +312,10 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "e087a732e597ee6d3d3a2ac3642d0013ba67736b49040dfaba136d8e46b1bb37",
+      "sha256": "0794c4bbb9046797d4a3b73c8146c51b39f4805ba1ee6e21c5c358b99cf9627c",
       "path": "Sources/UttrflowCore/Resources/Tables/number-cues.json",
       "origin": "authored",
-      "bytes": 3772
+      "bytes": 4630
     },
     {
       "licence": "MIT",

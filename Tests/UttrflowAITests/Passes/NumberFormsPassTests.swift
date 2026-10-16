@@ -1166,6 +1166,21 @@ struct NumberWordsTests {
     }
 
     @Test(
+        "writes an hour and minute before a timetable noun as a time of day",
+        arguments: [
+            ("the nine thirty train to delhi", "the 9:30 train to delhi"),
+            ("i caught the six fifteen bus", "i caught the 6:15 bus"),
+            ("the eight forty five flight", "the 8:45 flight"),
+            ("book the nine thirty show", "book the 9:30 show"),
+            ("five thirty dollar bills", "five 30 dollar bills"),
+            ("two twenty minute calls", "two 20 minute calls"),
+        ]
+    )
+    func timeBeforeAScheduledNoun(input: String, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass()) == expected)
+    }
+
+    @Test(
         "writes a romanised Hindi number in digits only before an amount, unit or time word",
         arguments: [
             ("paanch sau rupaye de do", "500 rupaye de do"),

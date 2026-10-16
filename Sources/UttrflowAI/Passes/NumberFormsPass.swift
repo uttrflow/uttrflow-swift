@@ -848,6 +848,9 @@ public struct NumberFormsPass: PieceCleaningPass {
         "reminder", "reminders", "reservation",
     ]
 
+    /// Singular nouns for something that runs to a timetable, after which an hour and minute is a time of day: "the nine thirty train".
+    static let scheduledNouns = NumberCues.words(for: .scheduled)
+
     /// Whether the word before `position` cues a time of day within the same sentence.
     private static func hasTimeCue(before position: Int, keys: [String], shapes: [WordShape]) -> Bool {
         guard position > 0, !startsASentence(position, shapes) else { return false }
@@ -878,7 +881,9 @@ public struct NumberFormsPass: PieceCleaningPass {
         let hasAfterCue =
             minuteEnd < shapes.count && joined(minuteEnd, shapes)
             && (isMeridiem(at: minuteEnd, keys: keys, shapes: shapes) || keys[minuteEnd] == "o'clock")
-        return hasBeforeCue || hasAfterCue || endsTheSentence
+        let hasNounAfter =
+            minuteEnd < shapes.count && joined(minuteEnd, shapes) && scheduledNouns.contains(keys[minuteEnd])
+        return hasBeforeCue || hasAfterCue || hasNounAfter || endsTheSentence
     }
 
     /// Whether the words here finish a scale the parser could not read whole, as in "a hundred and fifty".

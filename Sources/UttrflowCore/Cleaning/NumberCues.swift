@@ -18,6 +18,8 @@ public enum NumberCues {
         case `operator`
         /// A word after which a lone digit is a numeral, digit groups run together, and no separator is used.
         case designator
+        /// A singular noun for something on a timetable, after which an hour and minute is a time of day.
+        case scheduled
     }
 
     /// The cue words that say `cue`.
