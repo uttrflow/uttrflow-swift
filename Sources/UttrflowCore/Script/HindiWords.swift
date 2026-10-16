@@ -42,6 +42,20 @@ public enum HindiWords {
     public static let negations: Set<String> = Set(
         table.rows.filter { $0.classes.contains(.negation) }.map(\.id))
 
+    /// Whether `word`, spelled like an English word, is the Hindi word beside a Hindi word no English small word shares.
+    ///
+    /// "the" is थे in "usne paise diye the" and the article in "we talked about the".
+    public static func readsAsHindi(_ word: String, inSentence sentence: [String]) -> Bool {
+        let key = word.lowercased()
+        guard rowsBySpelling[key]?.english == true else { return false }
+        return sentence.contains { other in
+            let otherKey = other.lowercased()
+            guard otherKey != key, let row = rowsBySpelling[otherKey] else { return false }
+            // A Hindi spelling that is also an English small word ("to", "so", "in") says nothing about the sentence's language.
+            return !row.english && !FunctionWords.english.contains(otherKey)
+        }
+    }
+
     /// The word a spelling is a variant of ("nahin" is "nahi"), or nil when the spelling is not listed.
     public static func spellingKey(of word: String) -> String? {
         rowsBySpelling[word].flatMap { $0.grammarClasses.isEmpty ? nil : $0.word ?? $0.id }

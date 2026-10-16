@@ -138,7 +138,28 @@ public struct Draft: Sendable, Equatable {
     }
 
     /// Whether the word at `index` was spoken as Hindi, so a list keyed on English spelling does not apply to it.
-    public func isHindi(at index: Int) -> Bool { words[index].origin == .devanagari }
+    ///
+    /// A word the recogniser wrote in Devanagari is Hindi. A word already in Latin letters, because the text came from a model
+    /// or a romanised answer, is Hindi when it is an English homograph in a sentence that holds another listed Hindi word.
+    public func isHindi(at index: Int) -> Bool {
+        if words[index].origin == .devanagari { return true }
+        return HindiWords.readsAsHindi(shape(at: index).core, inSentence: sentenceCores(around: index))
+    }
+
+    /// The words of the sentence that holds the word at `index`, between the stops on either side.
+    private func sentenceCores(around index: Int) -> [String] {
+        let live = presentIndices
+        guard let position = live.firstIndex(of: index) else { return [] }
+        var start = position
+        while start > 0, !shape(at: live[start - 1]).endsSentence, !words[live[start - 1]].isLayoutMark {
+            start -= 1
+        }
+        var end = position
+        while end + 1 < live.count, !shape(at: live[end]).endsSentence, !words[live[end + 1]].isLayoutMark {
+            end += 1
+        }
+        return live[start...end].map { shape(at: $0).core }
+    }
 
     /// Whether the words after the last paragraph or list mark are a list item, which takes no full stop.
     public var endsInListItem: Bool {
