@@ -219,8 +219,10 @@ public struct WordCorrectionEngine: Sendable {
         let added = Self.spellings(of: letters, in: dictionary)
             .filter { $0.entry.origin == .added && Self.spells($0.entry, asHeard: $0.heard) }
         guard !added.isEmpty, Self.spellsNoWord(letters) else { return .nothingToWeigh }
-        // A name the recogniser capitalised mid-sentence and scored surely is a spelling it committed to, not letters nobody writes.
-        guard !Self.isCommittedName(heard, at: range, heardAt: confidence, in: utterance) else { return .keep }
+        // A name the recogniser capitalised mid-sentence and scored surely is a spelling it chose, not stray letters.
+        guard !Self.isCommittedName(heard, at: range, heardAt: confidence, in: utterance) else {
+            return .keep
+        }
         // Romanised Hindi has content words no list holds, so in a Hindi sentence a non-word is likelier Hindi than a misspelling.
         guard !Self.speaksHindi(utterance) else { return .keep }
         // Two entries sounding alike leave nothing to choose between, so neither is taken.
