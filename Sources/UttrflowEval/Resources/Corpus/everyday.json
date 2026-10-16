@@ -595,6 +595,19 @@
     "mustKeep": ["no make it", "moment"]
   },
   {
+    "id": "no-make-that-between-amounts",
+    "spoken": "i need four loaves no make that five loaves",
+    "expected": "I need five loaves.",
+    "mustKeep": ["five loaves"],
+    "mustNotAdd": ["four", "make that"]
+  },
+  {
+    "id": "no-make-that-as-making-kept",
+    "spoken": "there was no make that cake moment for us",
+    "expected": "There was no make that cake moment for us.",
+    "mustKeep": ["no make that", "moment"]
+  },
+  {
     "id": "trigger-as-its-own-sentence",
     "note": "The recogniser writes a paused trigger as its own sentence, which is a pause rather than a sentence end.",
     "spoken": "Meet me at four. Scratch that. At five.",
