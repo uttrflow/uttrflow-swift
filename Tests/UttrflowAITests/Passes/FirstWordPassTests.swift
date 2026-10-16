@@ -31,6 +31,20 @@ struct FirstWordPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    /// A negative number or an option is not cased, but the stop after it still ends the sentence.
+    @Test(
+        "capitalises the word after a stop that follows a negative number or an option",
+        arguments: [
+            ("it dropped to -12. overnight it snowed", "It dropped to -12. Overnight it snowed"),
+            ("run ls -l. then wait", "Run ls -l. Then wait"),
+            ("run ls -l then wait", "Run ls -l then wait"),
+            ("it fell to -5... overnight it froze", "It fell to -5... overnight it froze"),
+        ]
+    )
+    func stopAfterAnOptionEndsTheSentence(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     /// A sampled fallback decode can hear a whole sentence in capitals; it reaches the field in sentence case.
     @Test(
         "sets a transcript heard wholly in capitals in sentence case",
