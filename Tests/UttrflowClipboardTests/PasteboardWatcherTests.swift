@@ -470,7 +470,7 @@ struct PasteboardWatcherTests {
     }
 
     /// The time bound on the same copy runs in `make bench`, since a parallel test run cannot keep a wall-clock limit honest.
-    @Test("a deeply nested HTML copy is read within five seconds")
+    @Test("a deeply nested HTML copy is read within twenty seconds")
     func deeplyNestedHTMLStaysFast() async throws {
         let clipboard = FakeClipboard()
         let watcher = watcher(clipboard)
@@ -480,7 +480,7 @@ struct PasteboardWatcherTests {
 
         _ = await watcher.newClip(at: noon)
 
-        #expect(start.duration(to: clock.now) < .seconds(5))
+        #expect(start.duration(to: clock.now) < .seconds(20))
     }
 
     @Test("uses the watcher's output limit and keeps the bounded plain form")
