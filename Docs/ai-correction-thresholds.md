@@ -102,6 +102,7 @@ correct word failed the test before it:
 | in a sentence holding listed romanised Hindi that is not English | Hindi has content words no list holds | "nikaal", "kitaab" |
 | written with capitals past its first letter | a form written on purpose | "YOYO" |
 | one of two added entries sounding like it | nothing chooses between them | |
+| a word of a longer entry in the dictionary | the user writes it | "Rao" with `Deepak Rao` |
 
 An entry the dictionary learned or observed is not enough, since the user never wrote it.
 
@@ -115,6 +116,13 @@ the 30 romanised Hindi, Hinglish and code-mixed passages (1,005 words) heard sur
 misheard strings "sanvi", "saabhan", "grafna" and "readees", each is respelt as its entry;
 "aluwaseun" and "thruv" do not open like their entries, so condition two still holds them, and
 "trov" is ordinary.
+
+## A run of function words
+
+The words a recogniser hears best are its function words, so a run made only of them ("is a",
+"it to", "as a", "I'd") is never a half-heard rare word, and `WordCorrectionEngine` keeps it as
+spoken whatever it sounds like and whatever is on screen. Replacing it deletes what was said. A run
+of single letters ("a i") is not such a run, so spelled-out letters are still read as an entry.
 
 ## `maximumChangedInEvery = 5`, with a floor of one
 
