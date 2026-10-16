@@ -360,6 +360,19 @@ struct NumberFormsPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test(
+        "a verb of having ends the label cue, so the quantity after it is grouped",
+        arguments: [
+            ("the table has two million rows", "the table has 2,000,000 rows"),
+            ("the model has seventy billion parameters", "the model has 70,000,000,000 parameters"),
+            ("the page had four hundred thousand views", "the page had 400,000 views"),
+            ("the file has seventy million rows", "the file has 70,000,000 rows"),
+        ]
+    )
+    func havingEndsALabelCue(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test("ordinary cardinal conversion stays intact beside protected expressions")
     func ordinaryNumbersRemainUnchanged() {
         #expect(cleaned("twenty four people and fifty users", by: sut) == "24 people and 50 users")
@@ -633,6 +646,24 @@ struct NumberFormsPassTests {
         ]
     )
     func twentyFourHourTimes(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "joins an hour and its minutes said around a colon, only where a time is cued",
+        arguments: [
+            ("meet at ten: thirty", "meet at 10:30"),
+            ("the call is at three: fifteen pm", "the call is at 3:15 pm"),
+            ("it starts at nine: zero zero", "it starts at 9:00"),
+            ("it starts at nine: oh five", "it starts at 9:05"),
+            ("the flight leaves at fourteen: forty five", "the flight leaves at 14:45"),
+            ("we close at twenty three: fifty nine", "we close at 23:59"),
+            ("chapter three: thirty ways to cook", "chapter 3: 30 ways to cook"),
+            ("agenda: one budget", "agenda: one budget"),
+            ("the hours are twenty four: thirty", "the hours are 24: 30"),
+        ]
+    )
+    func colonClockTimes(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
     }
 
