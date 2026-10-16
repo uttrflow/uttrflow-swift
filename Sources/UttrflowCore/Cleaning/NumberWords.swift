@@ -63,7 +63,9 @@ public enum NumberWords {
             if key == "and", consumed > 0, group == 0 || (hasHundred && !hasTens && !hasUnits),
                 next < keys.endIndex,
                 units[keys[next]] != nil || teens[keys[next]] != nil
-                    || tens[keys[next]] != nil
+                    || tens[keys[next]] != nil,
+                // "five hundred and six hundred" is two numbers: a hundred after the pair ends the first.
+                !(hasHundred && opensItsOwnHundred(after: next, in: keys))
             {
                 index = next
                 continue
@@ -104,6 +106,12 @@ public enum NumberWords {
         }
         guard consumed > 0 else { return nil }
         return (total + group, consumed)
+    }
+
+    /// Whether the number word at `index` is followed by "hundred", so an "and" before it joins two numbers.
+    private static func opensItsOwnHundred(after index: Int, in keys: ArraySlice<String>) -> Bool {
+        let following = keys.index(after: index)
+        return following < keys.endIndex && keys[following] == "hundred"
     }
 
     /// A hundreds digit said before a number from ten to ninety-nine, as in "one twenty seven" for 127.

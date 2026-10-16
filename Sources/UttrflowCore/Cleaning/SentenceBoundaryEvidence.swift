@@ -7,6 +7,10 @@ public enum SentenceBoundaryEvidence {
         let previous = WordTokens.words(text, .display).map(WordShape.init)
         let following = WordTokens.words(next, .display).map(WordShape.init)
         guard !previous.isEmpty, let first = following.first else { return false }
+        // "the" closing "usne paise diye the" is the Hindi word थे: it ends its clause, so nothing here reads it as an article.
+        if let last = previous.last, HindiWords.readsAsHindi(last.core, inSentence: previous.map(\.core)) {
+            return false
+        }
         let previousKeys = previous.map(\.key)
         if endsInNounLook(WordTokens.words(leading, .display).map { WordShape($0).key } + previousKeys) {
             return false

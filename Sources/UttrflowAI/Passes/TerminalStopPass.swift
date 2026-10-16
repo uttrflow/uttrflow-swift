@@ -165,7 +165,7 @@ public struct TerminalStopPass: WholeTextCleaningPass {
     private func finishedLast(_ word: String, in draft: Draft) -> String {
         let spokenAsHindi = draft.presentIndices.last.map(draft.isHindi(at:)) ?? false
         if !spokenAsHindi, MarkLegality.verdict(.stop, after: word) == .illegal,
-            !Self.endsOnSpokenStop(draft)
+            !Self.endsOnSpokenStop(draft), !Self.endsOnEmbeddedQuestionCopula(draft)
         {
             return Self.leftOpen(word)
         }
@@ -187,9 +187,27 @@ public struct TerminalStopPass: WholeTextCleaningPass {
         // Only prose asks: "where total is greater than 12000" in a SQL editor is a clause, not a question.
         let asks = layout.contains(.paragraphs) && Self.lastSentenceAsks(draft)
         let preceding = String(draft.text.dropLast(word.count))
+        let closed = Self.endsOnPauseComma(word, in: draft) ? String(word.dropLast()) : word
         return asks
-            ? WordShape.finished(WordShape.withoutTrailingStop(word), with: "?", after: preceding)
-            : WordShape.finished(word, after: preceding)
+            ? WordShape.finished(WordShape.withoutTrailingStop(closed), with: "?", after: preceding)
+            : WordShape.finished(closed, after: preceding)
+    }
+
+    /// Whether the last word holds a pause comma the recogniser wrote; a greeting, closing or spoken comma keeps it.
+    private static func endsOnPauseComma(_ word: String, in draft: Draft) -> Bool {
+        guard word.hasSuffix(","), let last = draft.presentIndices.last else { return false }
+        let saidByName = draft.words[last].edits.contains {
+            $0.by == SpokenPunctuationPass.id && $0.to.hasSuffix(",")
+        }
+        if saidByName { return false }
+        var clause = [last]
+        for index in draft.presentIndices.reversed().dropFirst() {
+            if draft.words[index].isLayoutMark || draft.shape(at: index).endsSentence { break }
+            clause.insert(index, at: 0)
+        }
+        let heard = clause.map { draft.words[$0].text }
+        return clause.count >= 3 && greetingOpenerLength(clause, in: draft) == nil
+            && closingLength(of: heard) == 0
     }
 
     /// Whether the text is one item or verse line per line, three or more in its last paragraph, none ending a sentence.
@@ -251,6 +269,11 @@ public struct TerminalStopPass: WholeTextCleaningPass {
     /// Whether the sentence the draft ends on asks a direct question by its word order.
     static func lastSentenceAsks(_ draft: Draft) -> Bool {
         QuestionShape.asks(lastSentence(of: draft).map { draft.shape(at: $0) })
+    }
+
+    /// Whether the sentence the draft ends on closes on the copula of its own question-word clause.
+    private static func endsOnEmbeddedQuestionCopula(_ draft: Draft) -> Bool {
+        QuestionShape.endsOnEmbeddedQuestionCopula(lastSentence(of: draft).map { draft.shape(at: $0) })
     }
 
     /// The words of the sentence the draft ends on, after the last sentence end or layout mark.

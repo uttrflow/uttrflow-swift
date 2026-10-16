@@ -23,6 +23,8 @@ struct SentenceBoundaryPass: WholeTextCleaningPass {
             }
             guard shape.suffix == ".", !draft.words[nextIndex].isLayoutMark else { continue }
             guard !Abbreviations.ownsStop(shape.core) else { continue }
+            // "the" closing a Hindi clause is थे, which ends a sentence; the evidence reads only the English word.
+            guard !draft.isHindi(at: index) else { continue }
             let following = Self.sentenceAfter(position, in: live, of: draft)
             guard
                 SentenceBoundaryEvidence.sentenceRunsOn(
