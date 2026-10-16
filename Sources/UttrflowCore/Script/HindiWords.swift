@@ -42,12 +42,17 @@ public enum HindiWords {
     public static let negations: Set<String> = Set(
         table.rows.filter { $0.classes.contains(.negation) }.map(\.id))
 
+    /// Whether the spelling is listed as Hindi and is also an English word: "the" for थे, "main" for मैं.
+    public static func isEnglishHomograph(_ word: String) -> Bool {
+        rowsBySpelling[word.lowercased()]?.english == true
+    }
+
     /// Whether `word`, spelled like an English word, is the Hindi word beside a Hindi word no English small word shares.
     ///
     /// "the" is थे in "usne paise diye the" and the article in "we talked about the".
     public static func readsAsHindi(_ word: String, inSentence sentence: [String]) -> Bool {
         let key = word.lowercased()
-        guard rowsBySpelling[key]?.english == true else { return false }
+        guard isEnglishHomograph(key) else { return false }
         return sentence.contains { other in
             let otherKey = other.lowercased()
             guard otherKey != key, let row = rowsBySpelling[otherKey] else { return false }

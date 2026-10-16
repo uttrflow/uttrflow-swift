@@ -143,22 +143,33 @@ public struct Draft: Sendable, Equatable {
     /// or a romanised answer, is Hindi when it is an English homograph in a sentence that holds another listed Hindi word.
     public func isHindi(at index: Int) -> Bool {
         if words[index].origin == .devanagari { return true }
-        return HindiWords.readsAsHindi(shape(at: index).core, inSentence: sentenceCores(around: index))
+        // The sentence is read only for the few spellings that are both English and Hindi, so a pass asking of every word stays linear.
+        let core = shape(at: index).core
+        return HindiWords.isEnglishHomograph(core)
+            && HindiWords.readsAsHindi(core, inSentence: sentenceCores(around: index))
     }
 
-    /// The words of the sentence that holds the word at `index`, between the stops on either side.
+    /// The words of the sentence that holds the word at `index`, between the stops on either side, read outward from it.
     private func sentenceCores(around index: Int) -> [String] {
-        let live = presentIndices
-        guard let position = live.firstIndex(of: index) else { return [] }
-        var start = position
-        while start > 0, !shape(at: live[start - 1]).endsSentence, !words[live[start - 1]].isLayoutMark {
-            start -= 1
+        var cores = [shape(at: index).core]
+        var before = index - 1
+        while before >= 0, !words[before].isLayoutMark {
+            if words[before].isPresent {
+                if shape(at: before).endsSentence { break }
+                cores.append(shape(at: before).core)
+            }
+            before -= 1
         }
-        var end = position
-        while end + 1 < live.count, !shape(at: live[end]).endsSentence, !words[live[end + 1]].isLayoutMark {
-            end += 1
+        guard !shape(at: index).endsSentence else { return cores }
+        var after = index + 1
+        while after < words.count, !words[after].isLayoutMark {
+            if words[after].isPresent {
+                cores.append(shape(at: after).core)
+                if shape(at: after).endsSentence { break }
+            }
+            after += 1
         }
-        return live[start...end].map { shape(at: $0).core }
+        return cores
     }
 
     /// Whether the words after the last paragraph or list mark are a list item, which takes no full stop.
