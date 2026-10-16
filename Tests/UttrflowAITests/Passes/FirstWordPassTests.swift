@@ -538,23 +538,34 @@ struct FirstWordPassTests {
     }
 
     @Test(
-        "lowers a capital the recogniser put on an ordinary word mid-sentence",
+        "lowers a capital the recogniser put on an ordinary word where it cannot be a name",
         arguments: [
-            ("The train leaves at 7.15 from Platform 4.", "The train leaves at 7.15 from platform 4."),
-            (
-                "Tamsin will present the Zephyrix Roadmap on Monday.",
-                "Tamsin will present the Zephyrix roadmap on Monday."
-            ),
             (
                 "Please Rebase your branch on Main and Push again.",
                 "Please rebase your branch on main and push again."
             ),
             ("The Database Index reduced the query time.", "The database index reduced the query time."),
             ("I said API and Q4 to London.", "I said API and Q4 to London."),
+            ("I bought an apple and an Apple today.", "I bought an apple and an apple today."),
         ]
     )
     func lowersAStrayCapital(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
+    }
+
+    /// The recogniser capitalises a name that is also an ordinary word, and that capital is the only evidence of it.
+    @Test(
+        "keeps the capital the recogniser wrote on a noun that may be a name, a label or a quotation",
+        arguments: [
+            "Visit Apple today.", "Open Slack and message Grace.", "Ship it via Amazon tomorrow.",
+            "The CEO of Acme Inc. resigned.", "Ask Will about it.", "Send it to Hope on Friday.",
+            "The train leaves at 7.15 from Platform 4.",
+            "Tamsin will present the Zephyrix Roadmap on Monday.", "Use the \"Save As\" option.",
+            "Press \"Enter\" to continue.", "She said, \"Hello there.\"",
+        ]
+    )
+    func keepsAHeardNameCapital(input: String) {
+        #expect(cleaned(input, by: sut) == input)
     }
 
     /// A sampled fallback can set a Hinglish sentence in Title Case; a romanised Hindi word has no capital of its own.
@@ -583,22 +594,19 @@ struct FirstWordPassTests {
         #expect(cleaned("## Release notes", by: sut) == "## Release notes")
     }
 
-    @Test("keeps a capital listed beside a name, and lowers one listed beside ordinary words")
+    @Test("keeps a capital listed beside a name")
     func keepsACapitalListedBesideAName() {
         let listed = "we use Slack and Zoom and Figma daily"
         #expect(cleaned(listed, by: sut) == "We use Slack and Zoom and Figma daily")
         #expect(cleaned("we use Figma, Zoom daily", by: sut) == "We use Figma, Zoom daily")
-        #expect(cleaned("we use Report and Zoom daily", by: sut) == "We use report and zoom daily")
     }
 
     @Test("keeps a mid-sentence capital the dictionary or the screen holds")
     func keepsAStrayCapitalWithEvidence() {
-        let text = "I bought an Apple and a Bill."
-        #expect(
-            cleaned(text, by: FirstWordPass(vocabulary: ["Apple Music"])) == "I bought an Apple and a bill.")
-        #expect(
-            cleaned(text, by: FirstWordPass(onScreen: ["ask Bill about it"]))
-                == "I bought an apple and a Bill.")
+        let text = "Please Push again."
+        #expect(cleaned(text, by: sut) == "Please push again.")
+        #expect(cleaned(text, by: FirstWordPass(vocabulary: ["Push"])) == text)
+        #expect(cleaned(text, by: FirstWordPass(onScreen: ["hit Push to send"])) == text)
     }
 
     @Test("leaves mid-sentence capitals alone where the policy copies the heard case")
