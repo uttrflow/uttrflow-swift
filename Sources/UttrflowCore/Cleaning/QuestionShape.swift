@@ -226,7 +226,7 @@ public enum QuestionShape {
                     return false
                 }
                 if verbsBeforeSubject.contains(word) || pronounVerbs.contains(word) {
-                    return true
+                    return !continuesWithRelativeWhich(clause)
                 }
                 let verbIndex = offset + 1
                 let following = clause.dropFirst(verbIndex + 1).first
@@ -252,6 +252,17 @@ public enum QuestionShape {
             return subjects.contains(second) || determiners.contains(second)
         }
         return hindiQuestionWords.contains(first) || (first == "kya" && hindiSubjects.contains(second))
+    }
+
+    /// Words that follow "which is" when the clause carries on the speaker's thought: "which is why I left", "which is how it works".
+    private static let relativeWhichTails: Set<String> = ["why", "how", "where", "when", "because", "what"]
+
+    /// Whether a clause opens "which", a copula and a word that makes it a relative clause rather than a question.
+    private static func continuesWithRelativeWhich(_ clause: [String]) -> Bool {
+        guard clause.first == "which", clause.count >= 3, copulaVerbs.contains(clause[1]) else {
+            return false
+        }
+        return relativeWhichTails.contains(clause[2])
     }
 
     /// Whether "what a" or "how" with a modifier heads an exclamation, which keeps its subject before its verb: "how nice it is".
