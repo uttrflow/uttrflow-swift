@@ -67,19 +67,19 @@ public struct CleaningSteps: Sendable, Equatable, Codable {
             example: "I I think it works"),
         CleaningStep(
             id: .selfCorrection, name: "Self-corrections",
-            detail: "Takes out the half you took back before \"no, sorry\" or \"I mean\".",
+            detail: "Takes out the half you took back before “no, sorry” or “I mean”.",
             example: "send it on monday no sorry tuesday"),
         CleaningStep(
             id: .spokenPunctuation, name: "Spoken punctuation",
-            detail: "Turns \"comma\" and \"full stop\" into the marks themselves.",
+            detail: "Turns “comma” and “full stop” into the marks themselves.",
             example: "yes comma that works full stop"),
         CleaningStep(
             id: .spokenEmoji, name: "Emoji by name",
-            detail: "Turns \"thumbs up emoji\" into the emoji, except in code and terminals.",
+            detail: "Turns “thumbs up emoji” into the emoji, except in code and terminals.",
             example: "great work thumbs up emoji", isOnByDefault: false),
         CleaningStep(
             id: .layoutWords, name: "Layout words",
-            detail: "Turns \"new line\" and \"bullet point\" into layout.",
+            detail: "Turns “new line” and “bullet point” into layout.",
             example: "buy milk new line buy bread"),
         CleaningStep(
             id: .numberForms, name: "Numbers",

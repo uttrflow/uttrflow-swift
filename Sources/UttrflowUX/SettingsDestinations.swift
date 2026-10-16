@@ -83,7 +83,14 @@ public enum SettingsDestinations {
     ) -> String {
         guard let sample = previewer.sample(of: step, under: steps) else { return step.detail }
         return step.detail + " Say \u{201C}\(step.example)\u{201D}."
-            + " Off: \u{201C}\(sample.without)\u{201D}. On: \u{201C}\(sample.with)\u{201D}."
+            + " Off: \(quoted(sample.without)) On: \(quoted(sample.with))"
+    }
+
+    /// A sample in curly quotes, ended by the full stop it already carries or one added outside the quotes.
+    private static func quoted(_ sample: String) -> String {
+        let quote = "\u{201C}\(sample)\u{201D}"
+        guard let last = sample.last else { return quote + "." }
+        return ".!?\u{2026}".contains(last) ? quote : quote + "."
     }
 
     /// The override rows: apps in kept history newest first, then other overrides, then a way to add an app.

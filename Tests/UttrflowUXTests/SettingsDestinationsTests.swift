@@ -395,4 +395,28 @@ struct SettingsCleaningExampleTests {
         #expect(text.contains("\u{201C}off \(step.id.rawValue)\u{201D}"))
         #expect(text.contains("\u{201C}on-run\u{201D}"))
     }
+
+    @Test("a sample that ends in its own full stop is not given a second one")
+    func oneFullStopPerSample() throws {
+        let sampled = CleaningPreviewer { _, _ in
+            CleaningStepSample(without: "Um we ship on Friday.", with: "We ship on Friday.")
+        }
+        let text = try #require(
+            SettingsDestinations.steps(.default, previewer: sampled).rows.first?.explanation)
+        #expect(text.hasSuffix("On: \u{201C}We ship on Friday.\u{201D}"))
+        #expect(text.contains("Off: \u{201C}Um we ship on Friday.\u{201D} On:"))
+        #expect(!text.contains(".\u{201D}."))
+    }
+
+    @Test("a sample with no end mark is closed outside its quotes")
+    func closesAnOpenSample() throws {
+        let text = try #require(
+            SettingsDestinations.steps(.default, previewer: previewer).rows.first?.explanation)
+        #expect(text.hasSuffix("On: \u{201C}on-run\u{201D}."))
+    }
+
+    @Test("a step's description quotes its spoken phrases in curly quotes only")
+    func detailsUseCurlyQuotes() {
+        #expect(CleaningSteps.offered.allSatisfy { !$0.detail.contains("\"") })
+    }
 }
