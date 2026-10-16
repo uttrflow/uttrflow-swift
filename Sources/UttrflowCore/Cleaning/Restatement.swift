@@ -127,6 +127,10 @@ public enum Restatement {
         let unanchored =
             replacedHeadStart(before: trigger, after: restart, evidence: evidence, in: live, of: draft)
             ?? (replacesOneWord ? trigger - 1 : nil)
+        // An everyday word that is also a trigger takes back a phrase only after a pause, or when the restart says the phrase over.
+        let unpausedEveryday =
+            evidence == .alignedHalvesPausedSingleWord
+            && !draft.shape(at: live[trigger - 1]).suffix.contains(",")
         for candidate in stride(from: trigger - 1, through: earliestPhraseAnchor, by: -1) {
             // A spoken line or paragraph break closes what came before it, so nothing behind it is taken back.
             guard !endsSpokenLayout(candidate, in: live, of: draft, asksForLayout: asksForLayout) else {
@@ -143,6 +147,8 @@ public enum Restatement {
                     || repeatsPhrase(from: candidate, before: trigger, after: restart, in: live, of: draft)
             {
                 let spanStart = doubledStart(of: anchor, after: restart, in: live, of: draft)
+                guard !unpausedEveryday || restartSaysSpanOver(spanStart..<trigger, at: restart, in: live, of: draft)
+                else { return unanchored }
                 guard holdsContent(spanStart..<trigger, in: live, of: draft),
                     !coordinates(spanStart, before: trigger, in: live, of: draft)
                 else { return nil }
@@ -294,6 +300,16 @@ public enum Restatement {
             start -= 1
         }
         return start
+    }
+
+    /// Whether the restart says the words of the span over, all but at most one of them, as a correction does and a coincidental repeat does not.
+    private static func restartSaysSpanOver(
+        _ span: Range<Int>, at restart: Int, in live: [Int], of draft: Draft
+    ) -> Bool {
+        let said = span.map { draft.shape(at: live[$0]).key }
+        let again = live[restart...].prefix(said.count).map { draft.shape(at: $0).key }
+        let shared = zip(said, again).prefix { $0 == $1 }.count
+        return shared >= said.count - 1
     }
 
     /// Whether the word after an anchor matches the word after the restart, so the restart repeats a phrase rather than one word.
