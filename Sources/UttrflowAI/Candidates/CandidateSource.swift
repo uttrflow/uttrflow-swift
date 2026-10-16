@@ -143,7 +143,7 @@ public struct DoubtfulWords: Sendable {
         var found: [DoubtfulSpan] = []
         var taken: [Range<Int>] = []
         for (run, set) in zip(runs, offered)
-        where !taken.contains(where: { $0.overlaps(run.range) }) && !Self.coordinators.contains(run.text.lowercased()) {
+        where !taken.contains(where: { $0.overlaps(run.range) }) && !FunctionWords.isCoordinator(run.text) {
             let readings = set.ranked(by: scorer).filter { Self.guardAccepts($0, for: run, in: draft) }
             guard !readings.isEmpty else { continue }
             taken.append(run.range)
@@ -157,9 +157,6 @@ public struct DoubtfulWords: Sendable {
         }
         return found
     }
-
-    /// The words that join two alternatives or additions, so a sound-alike in their place ("or" for "are") changes what is offered.
-    static let coordinators: Set<String> = ["and", "or", "but", "nor"]
 
     /// The said words context doubts, less any the user's dictionary, the screen or the shipped terms hold as heard.
     private func apartFromContext(in draft: Draft, for situation: Situation) async -> Set<Int> {

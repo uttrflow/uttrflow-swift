@@ -5,6 +5,11 @@ public enum FunctionWords {
         all.contains(word.lowercased().replacingOccurrences(of: "\u{2019}", with: "'"))
     }
 
+    /// Whether the word joins two alternatives or additions ("and", "or", "but", "nor"), so a sound-alike in its place changes what was said.
+    package static func isCoordinator(_ word: String) -> Bool {
+        coordinators.contains(word.lowercased())
+    }
+
     /// Whether the word carries meaning, so a restatement may be anchored on it or replace it.
     public static func isContent(_ word: String) -> Bool { !word.isEmpty && !holds(word) }
 
@@ -66,6 +71,9 @@ public enum FunctionWords {
     /// The English small words alone.
     package static let english = words(in: .function)
 
+    /// The words that join two alternatives or additions.
+    static let coordinators = words(in: .coordinator)
+
     /// Determiners a sentence-boundary check reads as opening a noun phrase.
     static let boundaryDeterminers = words(in: .boundaryDeterminer)
 
@@ -108,7 +116,7 @@ public enum FunctionWords {
         case function, leadsOn, meaningBearing, caseSensitive, determiner, prose, subordinator, closingTag,
             auxiliary, boundaryDeterminer, neverLast, neverFronted, imperativeObject, bareVerbLeader, modal,
             commaPreposition, seamPreposition, httpMethod, multiplierComparison, closesWhenStopped,
-            relativeWhichTail
+            relativeWhichTail, coordinator
     }
 
     /// One small word and the lists it belongs to.
