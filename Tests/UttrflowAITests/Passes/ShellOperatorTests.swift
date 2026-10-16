@@ -19,6 +19,20 @@ struct ShellOperatorTests {
         #expect(run("echo done double greater than log.txt", in: .terminal) == "echo done >> log.txt")
     }
 
+    @Test("writes a doubled operator as one mark, however it is said")
+    func doubledOperators() {
+        #expect(run("make build ampersand ampersand make test", in: .terminal) == "make build && make test")
+        #expect(run("make build double ampersand make test", in: .terminal) == "make build && make test")
+        #expect(run("false pipe pipe true", in: .terminal) == "false || true")
+        #expect(run("false double pipe true", in: .terminal) == "false || true")
+    }
+
+    @Test("keeps a doubled ampersand as words outside a terminal")
+    func doubledAmpersandProse() {
+        let prose = "salt ampersand ampersand pepper"
+        #expect(!run(prose, in: .document).contains("&&"))
+    }
+
     @Test("joins a possessive to the name after it in a command, and keeps a dash of salt as words")
     func possessedNames() {
         #expect(

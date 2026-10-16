@@ -108,7 +108,9 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                     endsSentence: false)
                 continue
             }
-            let said = SpokenCommands.marks.first { draft.spells($0.words, at: position, in: live) }
+            let said = SpokenCommands.marks.first {
+                $0.isEnabled(in: destination) && draft.spells($0.words, at: position, in: live)
+            }
             guard
                 let said,
                 case let closesOwn = closesOwnQuotation(said, opened: openQuotes.last?.name),
