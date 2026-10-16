@@ -263,5 +263,35 @@
     "mustKeep": ["5%", "25%", "Monday"],
     "expectedExact": "The new checkout flag is on for 5% of users in the EU region. Set the rollout to 25% on Monday if the error rate stays flat and leave the US at zero until legal signs off.",
     "addedFor": 3841
+  },
+  {
+    "id": "dev-terminal-and-chain",
+    "note": "two commands chained so the second runs only if the first succeeds",
+    "spoken": "make build ampersand ampersand make test",
+    "expected": "make build && make test",
+    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
+    "destination": "terminal",
+    "expectedExact": "make build && make test",
+    "addedFor": 7941
+  },
+  {
+    "id": "dev-terminal-and-chain-said-double",
+    "note": "the same chain said as a double ampersand",
+    "spoken": "cd slash tmp double ampersand ls dash la",
+    "expected": "cd /tmp && ls -la",
+    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
+    "destination": "terminal",
+    "expectedExact": "cd /tmp && ls -la",
+    "addedFor": 7941
+  },
+  {
+    "id": "dev-terminal-or-chain",
+    "note": "a fallback run only when the first command fails",
+    "spoken": "npm test pipe pipe echo failed",
+    "expected": "npm test || echo failed",
+    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
+    "destination": "terminal",
+    "expectedExact": "npm test || echo failed",
+    "addedFor": 7941
   }
 ]
