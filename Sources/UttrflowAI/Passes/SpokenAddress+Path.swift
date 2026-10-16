@@ -29,6 +29,24 @@ extension SpokenAddress {
         return SpokenAddress(length: length, text: first.prefix + root.text + path.text + last.suffix)
     }
 
+    /// Reads the home mark and the number said right after it at a command line, a directory-stack entry: "tilde one" is "~1".
+    static func readStackEntry(
+        at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft, expecting: Expectation
+    ) -> SpokenAddress? {
+        guard expecting.contains(.paths), let home, draft.spells(home.words, at: position, in: live) else {
+            return nil
+        }
+        let place = position + home.words.count
+        guard let (value, used) = number(at: place, within: run, in: live, of: draft),
+            draft.shape(at: live[place - 1]).suffix.isEmpty, draft.shape(at: live[place]).prefix.isEmpty
+        else { return nil }
+        let span = position..<(place + used)
+        guard onlyEndsAreMarked(span, in: live, of: draft) else { return nil }
+        let first = draft.shape(at: live[position])
+        let last = draft.shape(at: live[span.upperBound - 1])
+        return SpokenAddress(length: span.count, text: first.prefix + home.text + String(value) + last.suffix)
+    }
+
     /// The root said before a path's first "slash", the home mark or one or two dots, and how many words it used.
     private static func root(
         at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft
