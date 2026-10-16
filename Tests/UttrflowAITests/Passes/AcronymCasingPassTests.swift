@@ -77,7 +77,10 @@ struct AcronymCasingPassTests {
         "writes a datastore and runtime name in its known case in prose",
         arguments: [
             ("we keep sessions in redis and postgres", "We keep sessions in Redis and Postgres."),
-            ("point it at your local postgres on port five four three two", "Point it at your local Postgres on port 5432."),
+            (
+                "point it at your local postgres on port five four three two",
+                "Point it at your local Postgres on port 5432."
+            ),
             ("the build needs node twenty or later", "The build needs Node 20 or later."),
         ])
     func datastoreNames(input: String, expected: String) {
@@ -88,7 +91,8 @@ struct AcronymCasingPassTests {
     @Test("leaves the ordinary word node lower case where nothing frames it as the runtime")
     func nodeAsOrdinaryWord() {
         let standard = CleaningPipeline.standard(for: .standard(for: .plain), situation: .unknown)
-        #expect(standard.run(Draft(text: "click the next node in the tree")).text == "Click the next node in the tree.")
+        let text = standard.run(Draft(text: "click the next node in the tree")).text
+        #expect(text == "Click the next node in the tree.")
     }
 
     @Test("writes a language name without screen context when a version frame disambiguates it")
