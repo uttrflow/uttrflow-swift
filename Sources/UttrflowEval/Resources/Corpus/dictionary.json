@@ -132,6 +132,15 @@
     "context": {"applicationName": "Xcode", "bundleIdentifier": "com.apple.dt.Xcode", "documentName": "Deploy.swift", "precedingText": "// "}
   },
   {
+    "id": "dictionary-word-of-longer-entry-7959",
+    "note": "A surname the dictionary writes inside a longer entry is kept, not respelt as another entry that sounds like it.",
+    "addedFor": 7959,
+    "spoken": "Deepak and Rao went to the market",
+    "expected": "Deepak and Rao went to the market.",
+    "expectedExact": "Deepak and Rao went to the market.",
+    "dictionary": ["Deepak Rao", "Ray"]
+  },
+  {
     "id": "dictionary-function-words-kept-7963",
     "note": "Small words the recogniser doubted are never replaced by a dictionary entry they merely sound like.",
     "addedFor": 7963,

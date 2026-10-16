@@ -137,8 +137,37 @@ public struct Draft: Sendable, Equatable {
         case devanagari
     }
 
-    /// Whether the word at `index` was spoken as Hindi, so a list keyed on English spelling does not apply to it.
-    public func isHindi(at index: Int) -> Bool { words[index].origin == .devanagari }
+    /// Whether the word at `index` was spoken as Hindi: written in Devanagari, or an English homograph beside a Hindi word.
+    public func isHindi(at index: Int) -> Bool {
+        if words[index].origin == .devanagari { return true }
+        // The sentence is read only for the few spellings that are both English and Hindi, so a pass asking of every word stays linear.
+        let core = shape(at: index).core
+        return HindiWords.isEnglishHomograph(core)
+            && HindiWords.readsAsHindi(core, inSentence: sentenceCores(around: index))
+    }
+
+    /// The words of the sentence that holds the word at `index`, between the stops on either side, read outward from it.
+    private func sentenceCores(around index: Int) -> [String] {
+        var cores = [shape(at: index).core]
+        var before = index - 1
+        while before >= 0, !words[before].isLayoutMark {
+            if words[before].isPresent {
+                if shape(at: before).endsSentence { break }
+                cores.append(shape(at: before).core)
+            }
+            before -= 1
+        }
+        guard !shape(at: index).endsSentence else { return cores }
+        var after = index + 1
+        while after < words.count, !words[after].isLayoutMark {
+            if words[after].isPresent {
+                cores.append(shape(at: after).core)
+                if shape(at: after).endsSentence { break }
+            }
+            after += 1
+        }
+        return cores
+    }
 
     /// Whether the words after the last paragraph or list mark are a list item, which takes no full stop.
     public var endsInListItem: Bool {
