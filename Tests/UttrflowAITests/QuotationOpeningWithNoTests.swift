@@ -4,7 +4,7 @@ import Testing
 @testable import UttrflowCore
 @testable import UttrflowTestSupport
 
-/// A spoken quotation keeps its words whatever its first word is.
+/// A spoken quotation keeps its words whatever its first word is; one closing a sentence takes the stop inside the quote.
 @Suite("QuotationOpeningWithNo")
 struct QuotationOpeningWithNoTests {
     private func request(_ text: String) -> TransformationRequest {
@@ -21,9 +21,9 @@ struct QuotationOpeningWithNoTests {
             ),
             ("the sign says open quote no parking close quote", "The sign says \"no parking.\""),
             ("he replied open quote no close quote and left", "He replied \"no\" and left."),
-            ("she said open quote no close quote", "She said \"no\""),
+            ("she said open quote no close quote", "She said \"no.\""),
             ("she said open quote the end close quote", "She said \"the end.\""),
-            ("she said open quote yes close quote", "She said \"yes\""),
+            ("she said open quote yes close quote", "She said \"yes.\""),
         ])
     func wrapsTheQuotation(spoken: String, expected: String) async throws {
         let text = try await RuleBasedTransformer().transform(request(spoken)).text
