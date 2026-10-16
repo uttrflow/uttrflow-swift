@@ -14,6 +14,11 @@ public enum FunctionWords {
         return leadingOn.contains(key) || Restatement.contractedSubjects.contains(key)
     }
 
+    /// Whether a full stop the recogniser wrote after the word stands: "is", "are", "was" and "were" end "Yes, it is." and "Here they are."
+    package static func closesWhenStopped(_ word: String) -> Bool {
+        closing.contains(word.lowercased())
+    }
+
     /// Whether the small word carries meaning the rewrite must keep: who acts, whether it is possible or required, or where it goes.
     public static func isMeaningBearing(_ word: String) -> Bool {
         let key = word.lowercased().replacingOccurrences(of: "\u{2019}", with: "'")
@@ -39,6 +44,9 @@ public enum FunctionWords {
 
     /// Articles, possessives, conjunctions, prepositions that take an object, and the copula.
     static let leadingOn = words(in: .leadsOn)
+
+    /// The copulas a written stop after them is kept, since they end an elliptical answer or a relative clause.
+    static let closing = words(in: .closesWhenStopped)
 
     /// Auxiliaries and modals, which a following "not" negates ("is not", "can not").
     package static let auxiliaries = words(in: .auxiliary)
@@ -96,7 +104,7 @@ public enum FunctionWords {
     enum Role: String, Decodable, Sendable {
         case function, leadsOn, meaningBearing, caseSensitive, determiner, prose, subordinator, closingTag,
             auxiliary, boundaryDeterminer, neverLast, neverFronted, imperativeObject, bareVerbLeader, modal,
-            commaPreposition, seamPreposition, httpMethod, multiplierComparison
+            commaPreposition, seamPreposition, httpMethod, multiplierComparison, closesWhenStopped
     }
 
     /// One small word and the lists it belongs to.

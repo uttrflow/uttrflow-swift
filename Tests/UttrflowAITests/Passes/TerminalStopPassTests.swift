@@ -61,6 +61,19 @@ struct TerminalStopPassTests {
     }
 
     @Test(
+        "keeps the stop the recogniser wrote after is, are, was or were, and adds none where it wrote none",
+        .bug(id: 7845),
+        arguments: [
+            ("Yes, it is.", "Yes, it is."), ("I know what it is.", "I know what it is."),
+            ("That's what it was.", "That's what it was."), ("Here they are.", "Here they are."),
+            ("They were.", "They were."), ("the answer is", "the answer is"),
+        ])
+    func keepsARecogniserStopAfterACopula(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+        #expect(CleaningPipeline.standard.run(Draft(text: input)).text.hasSuffix(expected.suffix(3)))
+    }
+
+    @Test(
         "ends no dictation with a stop after a word that leaves the clause open",
         arguments: [
             ("i went to the bank and", "i went to the bank and"),
