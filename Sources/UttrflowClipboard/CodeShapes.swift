@@ -220,6 +220,7 @@ enum CodeShapes {
     /// `isShellCommand` read character by character, which any clip can be.
     static func isShellCommandByCharacter(_ text: String) -> Bool {
         let lines = text.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
         guard !lines.isEmpty else { return false }
         var foundCommand = false
         var context = ShellControlContext()

@@ -368,3 +368,15 @@ struct WorkingDirectoryIsNotASecretTests {
         #expect(ClipKindDetector.kind(of: "password: /Users/me/Desktop") == .secret)
     }
 }
+
+/// A line of only spaces is a blank line to a shell clip, however the clip is read.
+@Suite("A blank line does not stop a shell clip being a command")
+struct BlankLineShellClipTests {
+    @Test(
+        "reads the same by byte and by character",
+        arguments: ["$ ls -la\n\t", "$ |\n\t", "git status\u{0B} ", "./run.sh\r\n "])
+    func blankLineIsSkipped(_ text: String) {
+        #expect(CodeShapes.isShellCommand(text))
+        #expect(CodeShapes.isShellCommandByCharacter(text))
+    }
+}
