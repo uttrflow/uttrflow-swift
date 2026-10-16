@@ -265,6 +265,26 @@ struct SpokenPunctuationPassTests {
         #expect(cleaned("we went home dash it was late", by: sut) == "we went home \u{2014} it was late")
     }
 
+    /// A pair of dashes is an aside only around words; between numbers it is a date, a range or a code.
+    @Test(
+        "leaves two dashes between numbers as words instead of writing an aside",
+        arguments: [
+            "the date is 2026 dash 10 dash 16 for sure",
+            "the date is 2026 dash 10 dash 16",
+            "call 555 dash 0100 dash 22 now",
+        ]
+    )
+    func leavesDashesBetweenNumbers(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    @Test("still writes an aside between two dashes")
+    func stillWritesAnAside() {
+        #expect(
+            cleaned("we went home dash it was 5 dash and left", by: sut)
+                == "we went home \u{2014} it was 5 \u{2014} and left")
+    }
+
     /// "Dash" and "hyphen" are verbs too, and the particle after them is what says which was meant.
     @Test(
         "leaves dash and hyphen as words when a particle follows them",
