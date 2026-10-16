@@ -253,7 +253,7 @@ public struct TerminalStopPass: WholeTextCleaningPass {
         QuestionShape.asks(lastSentence(of: draft).map { draft.shape(at: $0) })
     }
 
-    /// Whether the sentence the draft ends on closes on the copula of its own question-word clause: "show me where we are".
+    /// Whether the sentence the draft ends on closes on the copula of its own question-word clause.
     private static func endsOnEmbeddedQuestionCopula(_ draft: Draft) -> Bool {
         QuestionShape.endsOnEmbeddedQuestionCopula(lastSentence(of: draft).map { draft.shape(at: $0) })
     }

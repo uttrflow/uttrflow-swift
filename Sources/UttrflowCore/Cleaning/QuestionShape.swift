@@ -45,7 +45,7 @@ public enum QuestionShape {
     /// Verbs that, following a relative pronoun after a comma, head a predicate rather than an inversion.
     private static let relativeClauseVerbs: Set<String> = verbsBeforeSubject.union(lexicalQuestionVerbs)
 
-    /// Whether a sentence ends on the copula of its own question-word clause, as "show me where we are" and "I know what it is" do.
+    /// Whether a sentence ends on the copula of its own question-word clause.
     package static func endsOnEmbeddedQuestionCopula(_ sentence: [WordShape]) -> Bool {
         let words = sentence.map { $0.key.replacingOccurrences(of: "\u{2019}", with: "'") }.filter {
             !$0.isEmpty
