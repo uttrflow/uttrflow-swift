@@ -30,10 +30,12 @@ extension SettingsCapabilities {
         return capabilities
     }
 
-    /// The same answers with the clean-up engines that answered they could run for `profile`'s language.
-    static func refreshed(for profile: UserProfile) async -> SettingsCapabilities {
+    /// The same answers with the clean-up engines that answered they could run for `profile`'s language; `localModel` is the app's loaded model, which is never asked without it.
+    static func refreshed(
+        for profile: UserProfile, localModel: (any CleanupModel)?
+    ) async -> SettingsCapabilities {
         var capabilities = thisMac()
-        let availability = await transformerAvailability(for: profile)
+        let availability = await transformerAvailability(for: profile, localModel: localModel)
         capabilities.transformerAvailability = availability
         capabilities.readyTransformers = Set(
             availability.compactMap { kind, value in
@@ -44,12 +46,26 @@ extension SettingsCapabilities {
         return capabilities
     }
 
+    /// The page's probe over the app's own loaded model, the one that tidies dictation, so every answer agrees.
+    static func probe(
+        localModel: (any CleanupModel)?
+    ) -> @Sendable (UserProfile) async -> SettingsCapabilities {
+        { await refreshed(for: $0, localModel: localModel) }
+    }
+
+    /// The engines that could run, from the same probe the Settings page asks.
+    static func readiness(
+        localModel: (any CleanupModel)?
+    ) -> @Sendable (UserProfile) async -> Set<TransformerKind> {
+        { await refreshed(for: $0, localModel: localModel).readyTransformers }
+    }
+
     private static func transformerAvailability(
-        for profile: UserProfile
+        for profile: UserProfile, localModel: (any CleanupModel)?
     ) async -> [TransformerKind: TransformerAvailability] {
         let probe = TransformationRequest(transcription: Transcription(text: ""), profile: profile)
         var availability: [TransformerKind: TransformerAvailability] = [:]
-        for engine in TextTransformers.all() {
+        for engine in TextTransformers.all(localModel: localModel) {
             availability[engine.kind] = await engine.availability(for: probe)
         }
         return availability

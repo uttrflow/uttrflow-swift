@@ -234,9 +234,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         encryptedStore: EncryptedStore? = nil,
         localTidier: (any CleanupModel)? = nil,
         waitForCalm: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
-        transformerReadiness: @escaping @Sendable (UserProfile) async -> Set<TransformerKind> = {
-            profile in await SettingsCapabilities.refreshed(for: profile).readyTransformers
-        }, pasteboard: (any UttrflowInput.Pasteboard)? = nil,
+        transformerReadiness: (@Sendable (UserProfile) async -> Set<TransformerKind>)? = nil,
+        pasteboard: (any UttrflowInput.Pasteboard)? = nil,
         secureInput: SecureInputWatch = SecureInputWatch(),
         clipboardFailureAnnouncer: ((String) -> Void)? = nil
     ) {
@@ -277,7 +276,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 release: nil, readBytes: { nil }, removeFiles: nil)
         self.allowModelReload = allowModelReload
         self.waitForCalm = waitForCalm
-        self.transformerReadiness = transformerReadiness
+        self.transformerReadiness =
+            transformerReadiness ?? SettingsCapabilities.readiness(localModel: localTidier)
         self.clipboardFailureAnnouncer = clipboardFailureAnnouncer
         pasteboardOverride = pasteboard
         history = DictationHistoryStore(
@@ -420,7 +420,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         onReset: { [weak self] reset in self?.forget(after: reset) },
         onShortcutRecording: { [weak self] isRecording in
             self?.shortcutRecordingChanged(to: isRecording)
-        })
+        }, probe: SettingsCapabilities.probe(localModel: localTidier))
     private var onboarding: OnboardingWindowController?
     /// The speech model's one download, which every onboarding window joins and closing one does not stop.
     private lazy var speechInstall: SharedModelInstall = {

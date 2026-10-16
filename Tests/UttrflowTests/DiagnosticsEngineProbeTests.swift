@@ -2,6 +2,7 @@
 
 import Foundation
 import Testing
+import UttrflowAI
 import UttrflowCore
 import UttrflowPipeline
 
@@ -19,6 +20,15 @@ private actor MutableTransformerReadiness {
     func set(_ ready: Set<TransformerKind>) {
         self.ready = ready
     }
+}
+
+/// A downloaded model whose weights are in memory, the state the AI suggestions card calls Loaded.
+private struct LoadedLocalModel: CleanupModel {
+    func availability(for language: LanguageCode?) async -> TransformerAvailability { .available }
+
+    func rewrite(
+        _ text: String, instructions: String, kind: TransformerKind
+    ) async throws(TransformationError) -> String { text }
 }
 
 @MainActor
@@ -130,5 +140,26 @@ struct DiagnosticsEngineProbeTests {
 
         await app.probeSpeechModel().value
         #expect(app.speechModelPresence != nil, "the page would still say Not checked yet")
+    }
+
+    /// The probe never asked the loaded model, so Diagnostics warned "Not available" beside a Loaded card.
+    @Test("the downloaded model is available when its weights are loaded")
+    func loadedLocalModelIsAvailable() async {
+        let sandbox = Sandbox()
+        let app = AppDelegate(
+            container: sandbox.root, clipboardSource: InMemoryClipboardSource(),
+            localTidier: LoadedLocalModel())
+
+        let answered = await probed(app)
+
+        #expect(answered[.localModel] == true, "the loaded model was reported as not available")
+    }
+
+    @Test("the downloaded model is not available when none is loaded")
+    func absentLocalModelIsNotAvailable() async {
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
+
+        #expect(await probed(app)[.localModel] == false)
     }
 }

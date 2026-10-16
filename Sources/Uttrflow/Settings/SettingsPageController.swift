@@ -34,7 +34,7 @@ final class SettingsPageController {
         readGlobeKeyAction: @escaping () -> GlobeKeyAction = { GlobeKeySettings.action },
         readIsDictating: @escaping () -> Bool = { DictationInProgress.shared.isDictating },
         probe: @escaping @Sendable (UserProfile) async -> SettingsCapabilities = {
-            await SettingsCapabilities.refreshed(for: $0)
+            await SettingsCapabilities.refreshed(for: $0, localModel: nil)
         }
     ) {
         self.probe = probe
