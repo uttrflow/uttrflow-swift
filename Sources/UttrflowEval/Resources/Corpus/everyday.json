@@ -1581,5 +1581,21 @@
     "expected": "Show me where we are.",
     "mustKeep": ["where we are"],
     "addedFor": 7951
+  },
+  {
+    "id": "question-with-embedded-question-know-what-mean",
+    "note": "A yes/no question that holds an embedded question is still a question.",
+    "spoken": "do you know what i mean",
+    "expected": "Do you know what I mean?",
+    "mustKeep": ["what I mean"],
+    "addedFor": 7926
+  },
+  {
+    "id": "question-with-embedded-question-see-what-did",
+    "note": "The subject after the embedded question word belongs to the embedded clause.",
+    "spoken": "did you see what he did",
+    "expected": "Did you see what he did?",
+    "mustKeep": ["what he did"],
+    "addedFor": 7926
   }
 ]

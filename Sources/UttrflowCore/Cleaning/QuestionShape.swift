@@ -342,7 +342,18 @@ public enum QuestionShape {
     private static func isDependentOrReportedSubject(at index: Int, in clause: [String]) -> Bool {
         if index > 0, subordinateWords.contains(clause[index - 1]) { return true }
         if index > 0, reportedVerbs.contains(clause[index - 1]) { return true }
+        if opensEmbeddedQuestion(before: index, in: clause) { return true }
         return index > 1 && ["tell", "tells", "told"].contains(clause[index - 2]) && clause[index - 1] == "me"
+    }
+
+    /// Whether a question word within three words before the subject makes it the subject of an embedded question.
+    private static func opensEmbeddedQuestion(before index: Int, in clause: [String]) -> Bool {
+        for place in stride(from: index - 1, through: max(1, index - 3), by: -1) {
+            if questionWords.contains(clause[place]) { return true }
+            let word = clause[place]
+            if newSubjects.contains(word) || verbsBeforeSubject.contains(word) { return false }
+        }
+        return false
     }
 
     /// Whether a later clause also opens an inverted question.
