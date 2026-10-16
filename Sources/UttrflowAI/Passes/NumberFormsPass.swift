@@ -377,6 +377,9 @@ public struct NumberFormsPass: PieceCleaningPass {
         {
             return price
         }
+        if let range = sharedScaleRange(at: position, keys: keys, shapes: shapes, digits: digits) {
+            return range
+        }
         let fixedShapes: [(Int, [String], [WordShape]) -> Phrase?] = [
             score, readingOver, zoneOffset, signedDigitRun, numericDate, cuedYear, cuedClock,
             colonClock, twentyFourHourClock, dottedNumber, spokenDigitRun, leadingDecimal, decade,
@@ -398,6 +401,41 @@ public struct NumberFormsPass: PieceCleaningPass {
             return ordinalReading(ordinal, at: position, keys: keys, shapes: shapes, policy: policy)
         }
         return cardinal(at: position, keys: keys, shapes: shapes, policy: policy, digits: digits)
+    }
+
+    /// The scales a range can share, with the value each multiplies by.
+    private static let sharedScales: [String: Int] = [
+        "hundred": 100, "thousand": 1_000, "million": 1_000_000, "billion": 1_000_000_000,
+    ]
+
+    /// "two to three thousand", "five or six hundred": the one scale said after a range belongs to both ends.
+    private static func sharedScaleRange(
+        at position: Int, keys: [String], shapes: [WordShape], digits: DigitGrouping
+    ) -> Phrase? {
+        guard let low = NumberWords.cardinal(unbroken(from: position, keys: keys, shapes: shapes)),
+            (1...99).contains(low.value)
+        else { return nil }
+        let connective = position + low.count
+        let tailStart = connective + 1
+        guard tailStart < keys.count, joined(connective, shapes), joined(tailStart, shapes),
+            ["to", "or"].contains(keys[connective])
+                || (keys[connective] == "and" && position > 0 && keys[position - 1] == "between"),
+            let high = NumberWords.cardinal(unbroken(from: tailStart, keys: keys, shapes: shapes)),
+            high.count >= 2, let scale = sharedScales[keys[connective + high.count]],
+            high.value % scale == 0
+        else { return nil }
+        let mantissa = high.value / scale
+        // The number before the scale word must be a plain number of its own, bigger than the first end.
+        guard (2...99).contains(mantissa), low.value < mantissa,
+            NumberWords.cardinal(keys[tailStart..<(connective + high.count)])?.value == mantissa
+        else { return nil }
+        let end = connective + high.count + 1
+        let quantity = joined(end, shapes) && (currencies.contains(keys[end]) || measures.contains(keys[end]))
+        let (first, second) = (low.value * scale, high.value)
+        let text =
+            NumberWords.render(first, grouping: digits, isAmount: quantity) + " " + keys[connective] + " "
+            + NumberWords.render(second, grouping: digits, isAmount: quantity)
+        return Phrase(text: text, count: end - position)
     }
 
     /// A major amount, its currency word and a smaller number, "two dollars fifty", written "2.50 dollars".

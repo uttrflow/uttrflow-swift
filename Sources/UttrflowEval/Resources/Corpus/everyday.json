@@ -1660,5 +1660,27 @@
     "expected": "Type open quote yes close quote.",
     "mustKeep": ["open quote", "close quote"],
     "addedFor": 7967
+  },
+  {
+    "id": "range-shares-hundred",
+    "note": "The scale said once after a range belongs to both ends.",
+    "spoken": "we sold five or six hundred copies",
+    "expected": "We sold 500 or 600 copies.",
+    "mustKeep": ["500", "600"],
+    "addedFor": 7936
+  },
+  {
+    "id": "range-shares-thousand",
+    "spoken": "the crowd was two to three thousand people",
+    "expected": "The crowd was 2000 to 3000 people.",
+    "mustKeep": ["2000", "3000"],
+    "addedFor": 7936
+  },
+  {
+    "id": "range-shares-thousand-of-money",
+    "spoken": "it costs four or five thousand dollars",
+    "expected": "It costs 4,000 or 5,000 dollars.",
+    "mustKeep": ["4,000", "5,000"],
+    "addedFor": 7936
   }
 ]
