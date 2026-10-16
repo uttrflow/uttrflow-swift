@@ -78,6 +78,7 @@ caret-replace-whole-sentence	The van is booked.
 chat-function-stays-prose	We need something that takes a batch of orders and hands back the ones that failed.
 chat-identifier-casing	The crash only happens in payment sheet after the card scanner closes.
 chat-totals	Add up the invoices grouped by currency and sort by the total.
+clock-time-said-with-colon	Meet at 10:30.
 code-comment-keeps-spoken-commands	Camel case user id open paren close paren.
 code-editor-code-keeps-no-stop	this invalidates the cache after every write
 code-editor-command-keeps-case-docker	docker compose up
@@ -310,6 +311,8 @@ email-subject-travel	Updated travel plans
 email-subject-welcome	Welcome to the team
 email-two-paragraphs	Thanks for your note.\n\nI've attached the revised quote for the second floor.
 emphatic-double-kept	The plan is very very late and much much worse than last week.
+ends-on-copula-of-embedded-question	I know what it is.
+ends-on-copula-of-embedded-question-where	Show me where we are.
 extension-is-digits-kept	My extension is 445.
 extension-is-spoken-digit-run	My extension is 445.
 extension-repeated-digits	You can reach me on extension 442442.
@@ -409,7 +412,7 @@ fmt-paragraph-two-breaks	First point\n\nSecond point\n\nLast point.
 fmt-paren-aside	The report (draft two) is attached.
 fmt-question-after-statement	The room is booked, do you need a projector?
 fmt-question-can-you	Can you send me the file?
-fmt-question-indirect-is-statement	I wonder where the keys are
+fmt-question-indirect-is-statement	I wonder where the keys are.
 fmt-question-tag	The meeting is at three isn't it?
 fmt-question-what-time	What time does the shop open?
 fmt-quote-nested	She said "he wrote 'done' on the board" and left.
@@ -517,6 +520,9 @@ joined-q-and-a-few-kept	Invite q and a few others.
 joined-r-and-d	R&D owns the roadmap.
 joined-slash-and-burn-kept	They farm by slash and burn.
 joined-slash-key-kept	Press the slash key twice.
+keeps-heard-capital-on-company-name	Visit Apple today.
+keeps-heard-capital-on-name-that-is-also-a-word	Open Slack and message Grace.
+keeps-heard-capitals-in-a-quoted-label	Use the "Save As" option.
 key-go-to-the-end-in-a-sentence-stays-words	Go to the end of the page and sign it.
 key-go-to-the-start-in-a-sentence-stays-words	Go to the start of the chapter and read it again.
 key-press-enter-in-a-sentence-stays-words	Press enter to submit the form.
@@ -886,8 +892,8 @@ probe-clinical-note	Patient is a 52 year old with chest tightness for two days b
 probe-contract-clauses	Clause 9.1 the supplier shall item a deliver within 30 days of the order item b replace any damaged goods at its own cost and item c keep records for six years.
 probe-cover-letter	Dear Ms Alvarez,\n\nI am writing to apply for the senior analyst position advertised on your careers page.\n\nIn my current role I lead a team of six analysts and reduced reporting time by 30%.\n\nI would welcome the chance to discuss my application,\nYours sincerely,\nAsha Verma
 probe-decision-record	We decided to store sessions in redis rather than postgres because the read volume is high and the data is disposable the trade off is that a restart logs everyone out so we will enable append only persistence.
-probe-docker-build-no-cache	docker build --no-cache dot
-probe-docker-run-flags	docker run --rm -p 8000: 8000 -v ~/projects/app: /app node: 20 alpine
+probe-docker-build-no-cache	docker build --no-cache .
+probe-docker-run-flags	docker run --rm -p 8000:8000 -v ~/projects/app: /app node:20 alpine
 probe-dockerfile-from	From node: 20 dash alpine as build
 probe-file-name-opening	config.yaml is missing the timeout key so the client falls back to 30 seconds.
 probe-flight-details	We fly on flight UA 472 from JFK to heathrow on Friday the third of October departing at 6:45 am from gate B12 and landing at 6:10 pm local time at terminal five.
@@ -910,7 +916,7 @@ probe-regex-pattern	The pattern is caret [a dash z] plus at [a dash z] plus doll
 probe-repro-steps	Steps to reproduce: one open the app two press command comma three switch to the privacy tab\nExpected: the tab opens\nActual: the app quits on mac OS 14
 probe-retry-bullets	This change moves retry handling into the HTTP client:\n- Adds a max retries option\n- Respects the retry after header\n- Removes the old backoff helper\n\nTested locally with the unit suite.
 probe-revenue-figures	Q3 revenue was 1.2 million dollars up 8% on the previous quarter and churn fell from 4.1% to 3.6% we closed 42 new accounts against a target of 50 and support tickets dropped by 30%.
-probe-shell-pipeline	cat access dot log | grep -v health | sort | uniq -c | sort -rn | head -20
+probe-shell-pipeline	cat access.log | grep -v health | sort | uniq -c | sort -rn | head -20
 probe-short-hash	revert A3F9C2 because it broke the nightly build
 probe-short-verse	Roses are red\nViolets are blue\nSugar is sweet\nAnd so are you.\n\nThe moon is bright\nThe stars are near\nI wish that you were here.
 probe-spoken-correction	No wait Thursday works better for the board.
@@ -1252,7 +1258,7 @@ spoken-at-sign-before-a-handle	Ping me @sam on the thread.
 spoken-code-digit-run	The code is 1234.
 spoken-colon-at-the-end	The steps are as follows:
 spoken-colon-before-a-clause	The reason is simple: we ran out of time.
-spoken-colon-before-an-item	One more thing colon the demo moves to Friday.
+spoken-colon-before-an-item	One more thing: the demo moves to Friday.
 spoken-comma	We still need milk, eggs, and bread from the shop.
 spoken-comma-after-a-greeting	Hi team, I wanted to check on the invoice.
 spoken-comma-after-an-opener	However, the second build passed.
