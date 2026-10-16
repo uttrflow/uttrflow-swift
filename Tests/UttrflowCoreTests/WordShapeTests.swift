@@ -105,7 +105,12 @@ struct WordShapeTests {
             ("it\"", "he replied \"ship", "it.\""),
             ("it\"", "I named the branch \"ship", "it\"."),
             ("now\"", "Fine. \"call me", "now.\""),
-            ("\"queue\"", "we call it", "\"queue\""),
+            ("\"queue\"", "", "\"queue\""),
+            ("\"queue\"", "Fine.", "\"queue\""),
+            ("\"queue\"", "we call it", "\"queue\"."),
+            ("\"hello\"", "he said", "\"hello.\""),
+            ("\"unbelievable\"", "she called it", "\"unbelievable\"."),
+            ("\"ok\"", "then he wrote", "\"ok.\""),
             ("queue\u{201D}", "we call it \u{201C}dead letter", "queue\u{201D}."),
         ]
     )

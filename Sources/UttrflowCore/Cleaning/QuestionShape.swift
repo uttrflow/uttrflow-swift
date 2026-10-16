@@ -115,6 +115,8 @@ public enum QuestionShape {
 
     /// Whether a clause-starting subject has a predicate and a plausible complement before "right".
     private static func hasClauseBeforeRight(_ words: [String]) -> Bool {
+        // A copula right before "right" makes it that clause's predicate: "I don't know if it is right".
+        guard !copulaVerbs.contains(words.last ?? "") else { return false }
         let clause = Array(words.drop(while: openers.contains))
         guard let predicateIndex = tagClausePredicateIndex(in: clause) else { return false }
         let predicate = clause[predicateIndex]
@@ -242,7 +244,7 @@ public enum QuestionShape {
                     return false
                 }
                 if verbsBeforeSubject.contains(word) || pronounVerbs.contains(word) {
-                    return true
+                    return !continuesWithRelativeWhich(clause)
                 }
                 let verbIndex = offset + 1
                 let following = clause.dropFirst(verbIndex + 1).first
@@ -268,6 +270,14 @@ public enum QuestionShape {
             return subjects.contains(second) || determiners.contains(second)
         }
         return hindiQuestionWords.contains(first) || (first == "kya" && hindiSubjects.contains(second))
+    }
+
+    /// Whether a clause opens "which", a copula and a word that makes it a relative clause rather than a question.
+    private static func continuesWithRelativeWhich(_ clause: [String]) -> Bool {
+        guard clause.first == "which", clause.count >= 3, copulaVerbs.contains(clause[1]) else {
+            return false
+        }
+        return FunctionWords.relativeWhichTails.contains(clause[2])
     }
 
     /// Whether "what a" or "how" with a modifier heads an exclamation, which keeps its subject before its verb: "how nice it is".
@@ -342,7 +352,18 @@ public enum QuestionShape {
     private static func isDependentOrReportedSubject(at index: Int, in clause: [String]) -> Bool {
         if index > 0, subordinateWords.contains(clause[index - 1]) { return true }
         if index > 0, reportedVerbs.contains(clause[index - 1]) { return true }
+        if opensEmbeddedQuestion(before: index, in: clause) { return true }
         return index > 1 && ["tell", "tells", "told"].contains(clause[index - 2]) && clause[index - 1] == "me"
+    }
+
+    /// Whether a question word within three words before the subject makes it the subject of an embedded question.
+    private static func opensEmbeddedQuestion(before index: Int, in clause: [String]) -> Bool {
+        for place in stride(from: index - 1, through: max(1, index - 3), by: -1) {
+            if questionWords.contains(clause[place]) { return true }
+            let word = clause[place]
+            if newSubjects.contains(word) || verbsBeforeSubject.contains(word) { return false }
+        }
+        return false
     }
 
     /// Whether a later clause also opens an inverted question.

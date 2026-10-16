@@ -281,7 +281,7 @@ public struct WordCorrectionEngine: Sendable {
 
     /// Whether every word of the run is a function word and one of them is more than a letter, so "is a" is and the letters "a i" are not.
     static func isOnlyFunctionWords(_ run: String) -> Bool {
-        let words = run.split(whereSeparator: \.isWhitespace).map { String(WordShape(String($0)).core) }
+        let words = WordTokens.words(run, .display).map { String(WordShape($0).core) }
         return !words.isEmpty && words.allSatisfy(FunctionWords.holds) && words.contains { $0.count > 1 }
     }
 

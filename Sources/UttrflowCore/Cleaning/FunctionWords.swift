@@ -48,6 +48,9 @@ public enum FunctionWords {
     /// The copulas a written stop after them is kept, since they end an elliptical answer or a relative clause.
     static let closing = words(in: .closesWhenStopped)
 
+    /// The words after "which is" that make the clause carry on the speaker's thought.
+    static let relativeWhichTails = words(in: .relativeWhichTail)
+
     /// Auxiliaries and modals, which a following "not" negates ("is not", "can not").
     package static let auxiliaries = words(in: .auxiliary)
 
@@ -104,7 +107,8 @@ public enum FunctionWords {
     enum Role: String, Decodable, Sendable {
         case function, leadsOn, meaningBearing, caseSensitive, determiner, prose, subordinator, closingTag,
             auxiliary, boundaryDeterminer, neverLast, neverFronted, imperativeObject, bareVerbLeader, modal,
-            commaPreposition, seamPreposition, httpMethod, multiplierComparison, closesWhenStopped
+            commaPreposition, seamPreposition, httpMethod, multiplierComparison, closesWhenStopped,
+            relativeWhichTail
     }
 
     /// One small word and the lists it belongs to.

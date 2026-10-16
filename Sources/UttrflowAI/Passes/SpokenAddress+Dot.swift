@@ -5,8 +5,9 @@ extension SpokenAddress {
     static func readDottedName(
         at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft, expecting: Expectation
     ) -> SpokenAddress? {
-        // A command line's first word is its command, so only a later word opens a name.
+        // A command line's first word is its command, so only a later word opens a name, and a sentence that opens on any other word is prose.
         guard expecting.contains(.paths), position > 0,
+            TechnicalLexicon.isProgram(draft.shape(at: live[0]).key, in: .terminal),
             let name = part(from: position, within: run, in: live, of: draft), name.labels.count > 1,
             name.labels.allSatisfy({ isNameLabel($0) }),
             FunctionWords.isContent(name.labels[0].lowercased())
