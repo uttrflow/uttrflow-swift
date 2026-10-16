@@ -602,6 +602,12 @@
     "mustNotAdd": ["four", "make that"]
   },
   {
+    "id": "capital-after-a-stop-following-a-negative-number",
+    "spoken": "it dropped to minus twelve. overnight it snowed heavily",
+    "expected": "It dropped to -12. Overnight it snowed heavily.",
+    "mustKeep": ["-12", "Overnight"]
+  },
+  {
     "id": "no-make-that-as-making-kept",
     "spoken": "there was no make that cake moment for us",
     "expected": "There was no make that cake moment for us.",
@@ -1646,5 +1652,13 @@
     "expected": "From 200 and 300 people came.",
     "mustKeep": ["200", "300"],
     "addedFor": 7937
+  },
+  {
+    "id": "quote-pair-after-say-stays-whole",
+    "note": "A quote pair said after a verb of naming is kept as words whole, never half-written.",
+    "spoken": "type open quote yes close quote",
+    "expected": "Type open quote yes close quote.",
+    "mustKeep": ["open quote", "close quote"],
+    "addedFor": 7967
   }
 ]

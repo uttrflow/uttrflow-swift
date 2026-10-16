@@ -185,6 +185,23 @@ struct SpokenPunctuationPassTests {
         #expect(sut.apply(draft).text == "ship it.\nnext")
     }
 
+    @Test(
+        "keeps a closing quote name as words when its opening name was kept as words",
+        arguments: [
+            (
+                "say open quote hello close quote to the guard",
+                "say open quote hello close quote to the guard"
+            ),
+            ("type open quote yes close quote", "type open quote yes close quote"),
+            ("write open quote hi close quote", "write open quote hi close quote"),
+            ("he said open quote hello close quote", "he said \"hello\""),
+            ("say hello. then open quote bye close quote", "say hello. then \"bye\""),
+        ]
+    )
+    func keepsAClosingQuoteWithItsKeptOpening(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test("wraps the words between open quote and close quote")
     func quotes() {
         #expect(cleaned("he said open quote hello there close quote", by: sut) == "he said \"hello there\"")
