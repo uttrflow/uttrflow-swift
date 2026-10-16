@@ -101,7 +101,11 @@ extension SpokenAddress {
         var pieces: [String] = []
         var place = position
         while place < run.upperBound {
-            if let (value, used) = number(at: place, within: run, in: live, of: draft) {
+            // Digits said one by one are one number, as in a meeting id: "one two three four five" is 12345.
+            if let digits = spokenDigits(from: place, within: run, in: live, of: draft), digits.used >= 2 {
+                pieces.append(digits.text)
+                place += digits.used
+            } else if let (value, used) = number(at: place, within: run, in: live, of: draft) {
                 pieces.append(String(value))
                 place += used
             } else {

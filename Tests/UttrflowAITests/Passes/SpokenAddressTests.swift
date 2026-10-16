@@ -311,6 +311,8 @@ struct SpokenAddressTests {
                 "open example.com/search?q=cats&page=two"
             ),
             ("http colon slash slash ten dot zero dot zero dot one slash docs", "http://10.0.0.1/docs"),
+            ("join zoom dot us slash j slash one two three four five", "join zoom.us/j/12345"),
+            ("open example dot com slash orders slash zero zero seven", "open example.com/orders/007"),
         ]
     )
     func writesHostsAndPaths(input: String, expected: String) {

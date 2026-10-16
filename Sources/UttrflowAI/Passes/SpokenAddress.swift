@@ -467,7 +467,7 @@ struct SpokenAddress: Equatable {
     }
 
     /// The digits a run of spoken digit words from `place` reads as, with how many words it used.
-    private static func spokenDigits(
+    static func spokenDigits(
         from place: Int, within run: Range<Int>, in live: [Int], of draft: Draft
     ) -> (text: String, used: Int)? {
         var text = ""
