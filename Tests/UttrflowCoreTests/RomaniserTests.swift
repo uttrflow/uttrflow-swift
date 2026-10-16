@@ -20,6 +20,8 @@ struct RomaniserTests {
             ("ऑफ़र", "offer"), ("ऑफर", "offer"), ("कॉपी", "copy"), ("कॉन्टैक्ट", "contact"),
             ("लॉगिन", "login"), ("लॉगआउट", "logout"), ("प्रॉब्लम", "problem"), ("बॉक्स", "box"),
             ("कॉफ़ी", "coffee"), ("कॉफी", "coffee"),
+            ("कैंसल", "cancel"), ("बजट", "budget"), ("राइट", "right"), ("मैनेजर", "manager"),
+            ("पेमेंट", "payment"), ("अपडेट", "update"), ("डाउनलोड", "download"), ("रेस्टोरेंट", "restaurant"),
         ])
     func commonSpellings(devanagari: String, typed: String) {
         #expect(Romaniser.romanised(devanagari) == typed)

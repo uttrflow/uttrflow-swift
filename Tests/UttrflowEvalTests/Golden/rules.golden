@@ -44,6 +44,7 @@ bare-www-host	www.example.com
 bec1	I stayed home because it was raining.
 but1	I wanted to come, but my train was cancelled.
 calendar-title-keeps-question-mark	Should we move the dentist appointment to 11:30?
+capital-after-a-stop-following-a-negative-number	It dropped to -12. Overnight it snowed heavily.
 card-group-repeated-digits	The test card number starts 42424242.
 caret-before-bracket-note	We leave at dawn
 caret-before-comma	After the rain stopped
@@ -1405,6 +1406,7 @@ web-chat-message-2280	Sounds good I will join the call in 5 minutes
 web-mail-compose-2280	Hi sam thanks for the update I will review the draft tomorrow.
 web-search-field-2280	cheap flights to lisbon in may
 weekday-and-month-casing	Can we push the demo to Thursday instead of Wednesday in August?
+which-after-a-stop-continues-the-sentence	The total is 10. Which brings it to 12. Which is why we left early.
 year-after-by-not-a-clock-time	We had 50 customers and by 2024 we had 5000.
 zone-central-european-4031	The webinar is at four Central European Time.
 zone-central-time-slot-kept-4031	The central time slot works for me.

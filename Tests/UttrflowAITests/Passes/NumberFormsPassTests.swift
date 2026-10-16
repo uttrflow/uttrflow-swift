@@ -496,6 +496,21 @@ struct NumberFormsPassTests {
         #expect(!cleaned("it was one one one hundred", by: sut).contains("111 hundred"))
     }
 
+    @Test(
+        "reads the and between two hundreds as the join of two numbers, not of one",
+        arguments: [
+            ("between five hundred and six hundred", "between 500 and 600"),
+            ("between one hundred and two hundred dollars", "between 100 and 200 dollars"),
+            ("from two hundred and three hundred people", "from 200 and 300 people"),
+            ("five hundred and six thousand", "506,000"),
+            ("five hundred and six", "506"),
+            ("two thousand and six hundred", "2600"),
+        ]
+    )
+    func keepsTwoHundredsApart(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test("keeps a digit string after an intervening is")
     func keepsExtensionDigitsAfterIs() {
         #expect(cleaned("my extension is 445", by: sut) == "my extension is 445")
