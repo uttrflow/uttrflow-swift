@@ -33,7 +33,8 @@ struct SpokenTagTests {
 
     @Test("keeps a colon before a word as a mark, and a colon outside a command line")
     func leavesOtherColons() {
-        #expect(cleaned("git commit dash m fix colon add tests", by: terminal) == "git commit -m fix colon add tests")
+        let commit = "git commit dash m fix colon add tests"
+        #expect(cleaned(commit, by: terminal) == "git commit -m fix colon add tests")
         #expect(cleaned("postgres colon sixteen", by: prose) == "postgres: sixteen")
     }
 }

@@ -189,7 +189,9 @@ struct SpokenAddress: Equatable {
         guard place > 0, place + 1 < run.upperBound, draft.shape(at: live[place - 1]).suffix.isEmpty,
             draft.shape(at: live[place]).key == "colon"
         else { return nil }
-        guard let (value, used) = portNumber(at: place + 1, within: run, in: live, of: draft) else { return nil }
+        guard let (value, used) = portNumber(at: place + 1, within: run, in: live, of: draft) else {
+            return nil
+        }
         return (value, 1 + used)
     }
 

@@ -459,7 +459,7 @@ public struct FirstWordPass: WholeTextCleaningPass {
     static func matchingHeardCase(_ word: String, heard: [String]) -> String {
         let core = WordShape(word).core
         let letters = core.filter(\.isLetter).lowercased()
-        // A word that gained characters since it was heard, as "postgres:16" from "postgres", keeps them.
+        // A word that holds more than the heard letters, as "postgres:16" does, keeps them.
         guard !letters.isEmpty,
             let spoken = heard.first(where: {
                 $0.filter(\.isLetter).lowercased() == letters && WordShape($0).core.count == core.count
