@@ -101,11 +101,15 @@ public enum TechnicalLexicon {
     }
 
     private static let codeEditorCommands = commands(in: .codeEditor)
+    private static let terminalCommands = commands(in: .terminal)
 
     /// Whether heard words, as spoken, open with a program typed at a prompt followed by an argument: "npm run build".
-    public static func opensCommandLine(_ heard: [String]) -> Bool {
+    public static func opensCommandLine(
+        _ heard: [String], in destination: Destination = .codeEditor
+    ) -> Bool {
         guard heard.count >= 2, let first = heard.first else { return false }
-        return codeEditorCommands.contains(first)
+        let programs = destination == .terminal ? terminalCommands : codeEditorCommands
+        return programs.contains(first)
     }
 
     /// The entries that cannot ship; `isOrdinary` is the ordinary-word test the dictionary owns.

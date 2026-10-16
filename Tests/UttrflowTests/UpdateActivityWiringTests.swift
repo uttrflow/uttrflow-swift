@@ -59,6 +59,23 @@ struct UpdateActivityWiringTests {
         controller.refresh(at: start.addingTimeInterval(1 + UpdateGate.settleSeconds))
         #expect(installed)
     }
+
+    @Test("an update cycle that ends without a staged update leaves no download in the menu bar")
+    func endedCycleClearsDownloadProgress() {
+        let controller = UpdateController { UpdateActivity() }
+        controller.downloadStarted()
+        #expect(controller.progress == .downloading(fraction: nil))
+        controller.updater(controller.updater, didFinishUpdateCycleFor: .updates, error: nil)
+        #expect(controller.progress == .idle)
+    }
+
+    @Test("an update cycle that ends after the download keeps the update waiting to install")
+    func endedCycleKeepsStagedUpdate() {
+        let controller = UpdateController { UpdateActivity(isDictating: true) }
+        controller.stage({})
+        controller.updater(controller.updater, didFinishUpdateCycleFor: .updates, error: nil)
+        #expect(controller.progress == .readyToInstall)
+    }
 }
 
 /// What the app is doing, changeable after the controller has captured it.

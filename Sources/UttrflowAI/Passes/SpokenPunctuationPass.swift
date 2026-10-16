@@ -470,6 +470,9 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     /// Option name segments that negate the option named after them, so they never end a name.
     static let negations: Set<String> = ["no"]
 
+    /// The spoken words that join the parts of a path or a name.
+    private static let pathJoiners: Set<String> = ["slash", "dot", "underscore"]
+
     /// The most letters one spoken short-option cluster joins: `tar -xzvf` and a little more.
     static let clusterLimit = 6
 
@@ -507,6 +510,13 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             guard shape.prefix.isEmpty, (1...limit).contains(shape.core.utf8.count),
                 Self.isLatinLetters(shape.core)
             else { break }
+            // A letter that a slash, a dot or an underscore carries on starts a path or a name, not another option.
+            let carried = next + (capital ? 2 : 1)
+            if !letters.isEmpty, shape.suffix.isEmpty, carried < live.count,
+                Self.pathJoiners.contains(draft.shape(at: live[carried]).key)
+            {
+                break
+            }
             let letter = capital ? shape.core.uppercased() : shape.core
             // A letter said again at once is a stammer, so joining it would write a word never said.
             if letters.hasSuffix(letter) { break }
