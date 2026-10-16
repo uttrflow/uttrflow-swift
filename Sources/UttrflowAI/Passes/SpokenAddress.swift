@@ -83,8 +83,13 @@ struct SpokenAddress: Equatable {
         // A ratio is read first, because its first number may be "one", which also opens a noun phrase.
         let run = position..<sentenceEnd
         if let ratio = readRatio(at: position, within: run, in: live, of: draft) { return ratio }
-        // A determiner opens a noun phrase, so the symbol name after it is a word: "the dot com bubble".
-        guard !MentionGuard.phraseOpeners.contains(draft.shape(at: live[position]).key) else { return nil }
+        // A determiner opens a noun phrase, so the symbol name after it is a word, but at a prompt "a slash b" is a path.
+        let startsPath =
+            expecting.contains(.paths) && position + 1 < sentenceEnd
+            && draft.shape(at: live[position + 1]).key == "slash"
+        guard startsPath || !MentionGuard.phraseOpeners.contains(draft.shape(at: live[position]).key) else {
+            return nil
+        }
         if let url = readExplicitURL(at: position, within: run, in: live, of: draft) { return url }
         if let host = readNumericHost(at: position, within: run, in: live, of: draft) { return host }
         if let address = readWebAddress(at: position, within: run, in: live, of: draft) { return address }

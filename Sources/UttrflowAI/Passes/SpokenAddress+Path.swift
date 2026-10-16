@@ -88,7 +88,15 @@ extension SpokenAddress {
             && !["dot", "slash"].contains(draft.shape(at: live[position + 1]).key)
         let start = position + (hidden ? 1 : 0)
         guard let name = segmentName(at: start, within: run, in: live, of: draft) else { return nil }
-        guard FunctionWords.isContent(name.text), !markNames.contains(name.text.lowercased()) else {
+        // A single letter between slashes is a directory called "a", though "a" is a function word.
+        let after = start + name.length
+        let joined =
+            (after < run.upperBound && draft.shape(at: live[after]).key == "slash")
+            || (start > run.lowerBound && draft.shape(at: live[start - 1]).key == "slash")
+        let isLetter = name.text.count == 1 && name.text.first?.isLetter == true
+        guard FunctionWords.isContent(name.text) || (isLetter && joined),
+            !markNames.contains(name.text.lowercased())
+        else {
             return nil
         }
         return SpokenAddress(length: start - position + name.length, text: (hidden ? "." : "") + name.text)

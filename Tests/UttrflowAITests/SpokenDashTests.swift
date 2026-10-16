@@ -257,6 +257,17 @@ struct ShortOptionClusterTests {
         }
     }
 
+    @Test(
+        "ends the cluster before a letter that a slash carries on, which starts a path",
+        arguments: [
+            ("mkdir dash p a slash b slash c", "mkdir -p a/b/c"),
+            ("ls dash l a slash b", "ls -l a/b"),
+            ("tar dash x z v f a slash b dot tar", "tar -xzvf a/b.tar"),
+        ])
+    func endsClusterBeforePath(spoken: String, expected: String) {
+        #expect(SpokenPunctuationPass(destination: .terminal).apply(Draft(text: spoken)).text == expected)
+    }
+
     @Test("joins them in plain text after a program the lexicon knows")
     func joinsClustersAfterACommandInProse() {
         for (spoken, expected) in [
