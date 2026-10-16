@@ -221,6 +221,10 @@ public struct WordCorrectionEngine: Sendable {
         let added = Self.spellings(of: letters, in: dictionary)
             .filter { $0.entry.origin == .added && Self.spells($0.entry, asHeard: $0.heard) }
         guard !added.isEmpty, Self.spellsNoWord(letters) else { return .nothingToWeigh }
+        // A name the recogniser capitalised mid-sentence and scored surely is a spelling it chose, not stray letters.
+        guard !Self.isCommittedName(heard, at: range, heardAt: confidence, in: utterance) else {
+            return .keep
+        }
         // A word the user's own dictionary writes inside a longer entry is a word they write, not letters nobody writes.
         guard dictionary.entries(containingWord: letters).isEmpty else { return .keep }
         // Romanised Hindi has content words no list holds, so in a Hindi sentence a non-word is likelier Hindi than a misspelling.
@@ -236,6 +240,16 @@ public struct WordCorrectionEngine: Sendable {
             WordCorrection(
                 heard: heard, replacement: candidate.word, wordRange: range, entryID: candidate.entry.id,
                 reason: .heardAsNonWord, heardConfidence: confidence, evidence: decided))
+    }
+
+    /// Whether the word is capitalised, does not open a sentence, and was scored as heard surely.
+    private static func isCommittedName(
+        _ heard: String, at range: Range<Int>, heardAt confidence: Double, in utterance: Utterance
+    ) -> Bool {
+        guard DoubtPolicy.isHeardSurely(confidence), WordShape(heard).core.first?.isUppercase == true,
+            range.lowerBound > 0
+        else { return false }
+        return !WordShape(utterance.words[range.lowerBound - 1].text).endsClause
     }
 
     /// The cheap half of the non-word test, asked of every word heard: letters cased as a word, and not one the recogniser spells.
