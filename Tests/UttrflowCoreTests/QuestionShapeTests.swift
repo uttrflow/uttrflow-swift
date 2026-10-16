@@ -23,7 +23,7 @@ struct QuestionShapeTests {
         "reads a final right after the copula of an embedded clause as its complement, not a tag",
         arguments: [
             ("i dont know if it is right", false), ("i am not sure whether this is right", false),
-            ("he asked if that was right", false), ("the build is green right", true),
+            ("he asked if that was right", false), ("the meeting is at three right", true),
             ("he called the office right", true), ("you sent the invoice right", true),
         ])
     func readsRightAfterACopula(text: String, asks: Bool) {
