@@ -1629,7 +1629,7 @@
   {
     "id": "if-it-is-right-is-no-tag-question",
     "note": "A final right that completes an if clause is its predicate, not a closing tag question.",
-    "spoken": "i dont know if it is right",
+    "spoken": "i don't know if it is right",
     "expected": "I don't know if it is right.",
     "mustKeep": ["if it is right"],
     "mustEndWith": ".",

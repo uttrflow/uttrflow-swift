@@ -198,6 +198,7 @@ dev-standup-update	Yesterday I merged the retry fix for the sync worker and pair
 dev-terminal-and-chain	make build && make test
 dev-terminal-and-chain-said-double	cd /tmp && ls -la
 dev-terminal-or-chain	npm test || echo failed
+dev-terminal-or-chain-said-double-pipe	npm test || echo failed
 dev-test-failure-report	The leap year test in the date parser fails on the arm runner only. It expects 29 days in February and gets 28. The x86 runner passes so I think it is the time zone data on the image.
 dev-version-bump	Heads up I bumped the SDK from 2.3.1 to 3.0.0. It drops support for node 16 so the build image needs node 20 or later. The changelog lists two breaking changes and both are in the auth module.
 dialect-aint	That ain't going to work for the client.

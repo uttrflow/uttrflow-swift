@@ -797,3 +797,7 @@ probe-protocol-names uses the lexicon spelling OAuth2 required by the registered
 keeps-heard-capital-on-name-that-is-also-a-word the case pins its exact text, since an unchanged reference pins nothing
 keeps-heard-capital-on-company-name the case pins its exact text, since an unchanged reference pins nothing
 keeps-heard-capitals-in-a-quoted-label the case pins its exact text, since an unchanged reference pins nothing
+dev-terminal-and-chain moved unchanged to Sources/UttrflowEval/Resources/Corpus/technical.json, since the developer genre holds whole dictations of 20 or more words
+dev-terminal-and-chain-said-double moved unchanged to Sources/UttrflowEval/Resources/Corpus/technical.json, since the developer genre holds whole dictations of 20 or more words
+dev-terminal-or-chain moved unchanged to Sources/UttrflowEval/Resources/Corpus/technical.json, since the developer genre holds whole dictations of 20 or more words
+if-it-is-right-is-no-tag-question the spoken text carries its apostrophe, as a transcript does
