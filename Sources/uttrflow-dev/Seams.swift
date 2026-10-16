@@ -217,9 +217,9 @@ struct Seams: AsyncParsableCommand {
     /// Writes the differing cuts as the baseline, refusing one it does not list unless main moved underneath.
     private func record(_ keys: [String], to url: URL) throws {
         let exists = FileManager.default.fileExists(atPath: url.path)
-        let recorded: Set<String> = exists ? Set(try SeamBaseline.read(from: url).cuts) : []
-        let risen = keys.filter { !recorded.contains($0) }
-        if !risen.isEmpty, !recorded.isEmpty {
+        let baseline = exists ? try SeamBaseline.read(from: url) : SeamBaseline(cuts: [])
+        let risen = baseline.risen(among: keys)
+        if !risen.isEmpty, !baseline.cuts.isEmpty {
             guard afterMerge else {
                 throw ValidationError(
                     "Refusing to record \(risen.count) cuts the baseline does not list; it only goes down. "
@@ -227,17 +227,19 @@ struct Seams: AsyncParsableCommand {
             }
             print("  absorbing \(risen.count) cuts that came to differ with main")
         }
-        try SeamBaseline(cuts: keys).write(to: url)
+        try baseline.recording(keys).write(to: url)
     }
 
     private func compare(_ differing: [SeamDifference], with url: URL, among ids: Set<String>) throws {
         let keys = differing.map(\.key)
+        let baseline = try SeamBaseline.read(from: url)
         // A cut's key is its case id, "@", then its boundaries; a sampled run checks only its own cases.
         let recorded = Set(
-            try SeamBaseline.read(from: url).cuts.filter { key in
+            baseline.cuts.filter { key in
                 key.lastIndex(of: "@").map { ids.contains(String(key[..<$0])) } ?? false
             })
-        let risen = differing.filter { !recorded.contains($0.key) }
+        let unlisted = Set(baseline.risen(among: keys))
+        let risen = differing.filter { unlisted.contains($0.key) }
         let fallen = recorded.subtracting(keys).count
         if fallen > 0 {
             print("  \(fallen) recorded cuts now match; rerun with --update to lower the baseline")
@@ -270,36 +272,6 @@ struct SeamDifference: Sendable {
         let bare = { (text: String) in text.filter { $0.isLetter || $0.isNumber || $0.isWhitespace } }
         guard bare(whole).lowercased() == bare(joined).lowercased() else { return .words }
         return whole.lowercased() == joined.lowercased() ? .letterCase : .punctuation
-    }
-}
-
-/// The cuts recorded as differing, which may fall and never rise.
-struct SeamBaseline: Codable {
-    let cuts: [String]
-    var total: Int { cuts.count }
-
-    enum CodingKeys: String, CodingKey { case cuts, total }
-
-    init(cuts: [String]) { self.cuts = cuts }
-
-    init(from decoder: any Decoder) throws {
-        cuts = try decoder.container(keyedBy: CodingKeys.self).decode([String].self, forKey: .cuts)
-    }
-
-    func encode(to encoder: any Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(total, forKey: .total)
-        try container.encode(cuts, forKey: .cuts)
-    }
-
-    static func read(from url: URL) throws -> SeamBaseline {
-        try JSONDecoder().decode(SeamBaseline.self, from: Data(contentsOf: url))
-    }
-
-    func write(to url: URL) throws {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try (encoder.encode(self) + Data("\n".utf8)).write(to: url)
     }
 }
 
