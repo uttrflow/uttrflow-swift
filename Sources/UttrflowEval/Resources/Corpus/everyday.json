@@ -1541,5 +1541,14 @@
     "expected": "Meet at 10:30.",
     "mustKeep": ["10:30"],
     "addedFor": 7925
+  },
+  {
+    "id": "if-it-is-right-is-no-tag-question",
+    "note": "A final right that completes an if clause is its predicate, not a closing tag question.",
+    "spoken": "i dont know if it is right",
+    "expected": "I don't know if it is right.",
+    "mustKeep": ["if it is right"],
+    "mustEndWith": ".",
+    "addedFor": 7928
   }
 ]
