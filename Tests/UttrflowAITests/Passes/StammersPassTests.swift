@@ -217,4 +217,11 @@ struct StammersPassTests {
         let draft = sut.apply(Draft(romanising: Transcription(text: spoken)))
         #expect(draft.text == romanised)
     }
+
+    /// A second run must not find a doubled number the first run exposed by removing the doubled word beside it.
+    @Test("is idempotent when a doubled word removed beside a doubled number exposes it")
+    func idempotentBesideDoubledNumber() {
+        let once = sut.apply(Draft(text: "bring 10000 10000 a a slash"))
+        #expect(sut.apply(once).text == once.text)
+    }
 }

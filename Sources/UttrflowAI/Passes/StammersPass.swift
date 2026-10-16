@@ -14,14 +14,18 @@ public struct StammersPass: PieceCleaningPass {
 
     public func apply(_ draft: Draft) -> Draft {
         var draft = draft
-        let live = draft.presentIndices
-        let shapes = live.map { draft.shape(at: $0) }
-        let keys = shapes.map(\.key)
+        // The three arrays shrink together with each removal, so every test reads the words a second run would read.
+        var live = draft.presentIndices
+        var shapes = live.map { draft.shape(at: $0) }
+        var keys = shapes.map(\.key)
         var previous: String?
-        for (i, index) in live.enumerated() {
+        var i = 0
+        while i < live.count {
+            let index = live[i]
             let word = draft.words[index].text.lowercased()
             if word == previous, Self.preservesHindiDistributiveDo(at: i, in: live, draft: draft) {
                 previous = word
+                i += 1
                 continue
             }
             if word == previous, !draft.isHindi(at: index),
@@ -34,6 +38,9 @@ public struct StammersPass: PieceCleaningPass {
             {
                 // A doubled function word is a stammer.
                 draft.remove(at: index, by: Self.id, carryingMarks: true)
+                live.remove(at: i)
+                shapes.remove(at: i)
+                keys.remove(at: i)
                 continue
             }
             // A doubled number is data beside another number or a nearby digit cue.
@@ -43,9 +50,13 @@ public struct StammersPass: PieceCleaningPass {
                 !NumberFormsPass.hasLabelCue(at: i - 1, keys: keys, shapes: shapes)
             {
                 draft.remove(at: index, by: Self.id, carryingMarks: true)
+                live.remove(at: i)
+                shapes.remove(at: i)
+                keys.remove(at: i)
                 continue
             }
             previous = word
+            i += 1
         }
         return draft
     }
