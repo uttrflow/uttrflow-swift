@@ -602,6 +602,12 @@
     "mustNotAdd": ["four", "make that"]
   },
   {
+    "id": "capital-after-a-stop-following-a-negative-number",
+    "spoken": "it dropped to minus twelve. overnight it snowed heavily",
+    "expected": "It dropped to -12. Overnight it snowed heavily.",
+    "mustKeep": ["-12", "Overnight"]
+  },
+  {
     "id": "no-make-that-as-making-kept",
     "spoken": "there was no make that cake moment for us",
     "expected": "There was no make that cake moment for us.",
