@@ -21,7 +21,8 @@ struct CommittedAccuracyBaselineTests {
 
     @Test("holds every passage the gate synthesises, so no slice is measured against nothing")
     func coversEverySynthesisedPassage() throws {
-        let synthesised = TranscriptionCorpus.all.filter { $0.language == .english } + TranscriptionCorpus.codeMixing
+        let english = TranscriptionCorpus.all.filter { $0.language == .english }
+        let synthesised = english + TranscriptionCorpus.codeMixing
         let recorded = Set(try Self.baseline().entries.map(\.caseID))
         #expect(recorded == Set(synthesised.map(\.id)))
     }
