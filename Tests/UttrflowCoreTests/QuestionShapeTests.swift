@@ -20,6 +20,17 @@ struct QuestionShapeTests {
     }
 
     @Test(
+        "reads a yes/no question that holds an embedded question as a question",
+        arguments: [
+            "do you know what i mean", "did you see what he did", "do you remember what she said",
+            "can you tell me where it went", "do you know what time it is",
+            "do you know where i put the keys",
+        ])
+    func asksWithAnEmbeddedQuestion(text: String) {
+        #expect(QuestionShape.asks(shapes(text)))
+    }
+
+    @Test(
         "reads a direct question from its word order",
         arguments: [
             "where did you put the keys", "which branch should I merge into",
