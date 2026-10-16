@@ -270,15 +270,12 @@ public enum QuestionShape {
         return hindiQuestionWords.contains(first) || (first == "kya" && hindiSubjects.contains(second))
     }
 
-    /// Words that follow "which is" when the clause carries on the speaker's thought.
-    private static let relativeWhichTails: Set<String> = ["why", "how", "where", "when", "because", "what"]
-
     /// Whether a clause opens "which", a copula and a word that makes it a relative clause rather than a question.
     private static func continuesWithRelativeWhich(_ clause: [String]) -> Bool {
         guard clause.first == "which", clause.count >= 3, copulaVerbs.contains(clause[1]) else {
             return false
         }
-        return relativeWhichTails.contains(clause[2])
+        return FunctionWords.relativeWhichTails.contains(clause[2])
     }
 
     /// Whether "what a" or "how" with a modifier heads an exclamation, which keeps its subject before its verb: "how nice it is".
