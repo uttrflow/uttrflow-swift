@@ -43,7 +43,7 @@ struct SpokenDotArgumentTests {
         "leaves a dot in prose and beside a number or a determiner as a word",
         arguments: [
             "echo the dot product", "python three dot twelve", "add a dot", "put the dot", "echo dot product",
-            "she tapped dot dash dot on the wall",
+            "she tapped dot dash dot on the wall to send the signal", "the old man dot hat is gone",
         ]
     )
     func leavesProse(input: String) {

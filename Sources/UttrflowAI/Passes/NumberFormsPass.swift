@@ -931,6 +931,12 @@ public struct NumberFormsPass: PieceCleaningPass {
     private static func finishesAScale(at position: Int, keys: [String], shapes: [WordShape]) -> Bool {
         position >= 2 && !startsASentence(position, shapes) && !startsASentence(position - 1, shapes)
             && keys[position - 1] == "and" && NumberWords.scales[keys[position - 2]] != nil
+            && !opensItsOwnHundred(at: position, keys: keys)
+    }
+
+    /// Whether the number here is followed by "hundred" after a hundred and an "and": "five hundred and six hundred".
+    private static func opensItsOwnHundred(at position: Int, keys: [String]) -> Bool {
+        keys[position - 2] == "hundred" && position + 1 < keys.count && keys[position + 1] == "hundred"
     }
 
     /// Whether a "minus" here follows a number, so it subtracts rather than signs the number after it.
@@ -1245,7 +1251,7 @@ public struct NumberFormsPass: PieceCleaningPass {
     /// Words before a digit run that say it is a code or a number to dial, not a count.
     static let digitCues = contextWords.union(NumberCues.words(for: .digitRun))
 
-    /// Verbs of having, which end a label cue: "the table has two million rows" counts rows, it does not label table two.
+    /// Verbs of having, which end a label cue: a count after "has" counts the things after it and does not take the noun before it as a label.
     private static let labelBreakers: Set<String> = ["has", "have", "had"]
 
     /// Whether a label word cues the number, across a sign and English function words such as "to"; a Hindi word or a lone letter ends it.

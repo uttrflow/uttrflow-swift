@@ -1547,6 +1547,7 @@
     "note": "A capital the recogniser wrote on a noun that is also an ordinary word is the only evidence of a name and stays.",
     "spoken": "Open Slack and message Grace.",
     "expected": "Open Slack and message Grace.",
+    "expectedExact": "Open Slack and message Grace.",
     "mustKeep": ["Slack", "Grace"],
     "addedFor": 7953
   },
@@ -1555,6 +1556,7 @@
     "note": "A company name that is also a word keeps its heard capital mid-sentence.",
     "spoken": "Visit Apple today.",
     "expected": "Visit Apple today.",
+    "expectedExact": "Visit Apple today.",
     "mustKeep": ["Apple"],
     "addedFor": 7953
   },
@@ -1563,6 +1565,7 @@
     "note": "The words of a quoted interface label keep the capitals the recogniser wrote.",
     "spoken": "Use the \"Save As\" option.",
     "expected": "Use the \"Save As\" option.",
+    "expectedExact": "Use the \"Save As\" option.",
     "mustKeep": ["Save As"],
     "addedFor": 7953
   },
@@ -1581,5 +1584,78 @@
     "expected": "Show me where we are.",
     "mustKeep": ["where we are"],
     "addedFor": 7951
+  },
+  {
+    "id": "question-with-embedded-question-know-what-mean",
+    "note": "A yes/no question that holds an embedded question is still a question.",
+    "spoken": "do you know what i mean",
+    "expected": "Do you know what I mean?",
+    "mustKeep": ["what I mean"],
+    "addedFor": 7926
+  },
+  {
+    "id": "question-with-embedded-question-see-what-did",
+    "note": "The subject after the embedded question word belongs to the embedded clause.",
+    "spoken": "did you see what he did",
+    "expected": "Did you see what he did?",
+    "mustKeep": ["what he did"],
+    "addedFor": 7926
+  },
+  {
+    "id": "which-is-why-stays-a-statement",
+    "note": "A sentence that opens on a relative which carries on the speaker's thought; it is not a question.",
+    "spoken": "which is why i left early",
+    "expected": "Which is why I left early.",
+    "mustKeep": ["which is why"],
+    "mustEndWith": ".",
+    "addedFor": 7927
+  },
+  {
+    "id": "one-word-quotation-ends-its-sentence",
+    "note": "A sentence that ends on a one-word quotation takes its stop inside the quote after a verb of saying.",
+    "spoken": "he said \"hello\"",
+    "expected": "He said \"hello.\"",
+    "mustKeep": ["hello"],
+    "addedFor": 7952
+  },
+  {
+    "id": "one-word-quoted-term-ends-its-sentence",
+    "note": "A sentence that ends on a quoted term takes its stop after the closing quote.",
+    "spoken": "she called it \"unbelievable\"",
+    "expected": "She called it \"unbelievable\".",
+    "mustKeep": ["unbelievable"],
+    "addedFor": 7952
+  },
+  {
+    "id": "if-it-is-right-is-no-tag-question",
+    "note": "A final right that completes an if clause is its predicate, not a closing tag question.",
+    "spoken": "i dont know if it is right",
+    "expected": "I don't know if it is right.",
+    "mustKeep": ["if it is right"],
+    "mustEndWith": ".",
+    "addedFor": 7928
+  },
+  {
+    "id": "range-of-two-hundreds-between",
+    "note": "The and between two hundreds joins two numbers, so neither is read as 506.",
+    "spoken": "the fee is between five hundred and six hundred dollars",
+    "expected": "The fee is between 500 and 600 dollars.",
+    "mustKeep": ["500", "600"],
+    "addedFor": 7937
+  },
+  {
+    "id": "range-of-two-hundreds-from",
+    "spoken": "from two hundred and three hundred people came",
+    "expected": "From 200 and 300 people came.",
+    "mustKeep": ["200", "300"],
+    "addedFor": 7937
+  },
+  {
+    "id": "quote-pair-after-say-stays-whole",
+    "note": "A quote pair said after a verb of naming is kept as words whole, never half-written.",
+    "spoken": "type open quote yes close quote",
+    "expected": "Type open quote yes close quote.",
+    "mustKeep": ["open quote", "close quote"],
+    "addedFor": 7967
   }
 ]

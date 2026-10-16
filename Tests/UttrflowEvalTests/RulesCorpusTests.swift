@@ -30,7 +30,7 @@ struct RulesCorpusTests {
         "probe-sql-join", "probe-regex-pattern", "probe-yaml-keys", "probe-todo-comment", "probe-log-call",
         "probe-version-bump", "probe-dockerfile-from", "probe-git-commands", "probe-stack-frame",
         "probe-protocol-names", "probe-bug-title",
-        "probe-docker-build-no-cache", "probe-support-email", "probe-laugh-then-question",
+        "probe-support-email", "probe-laugh-then-question",
         "probe-apology-message", "probe-meeting-time-zones",
         "probe-flight-details", "probe-phone-and-address",
         "probe-hinglish-status",

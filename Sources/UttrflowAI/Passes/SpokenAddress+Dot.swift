@@ -5,8 +5,9 @@ extension SpokenAddress {
     static func readDottedName(
         at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft, expecting: Expectation
     ) -> SpokenAddress? {
-        // A command line's first word is its command, so only a later word opens a name.
+        // A command line's first word is its command, so only a later word opens a name, and a sentence that opens on any other word is prose.
         guard expecting.contains(.paths), position > 0,
+            TechnicalLexicon.isProgram(draft.shape(at: live[0]).key, in: .terminal),
             let name = part(from: position, within: run, in: live, of: draft), name.labels.count > 1,
             name.labels.allSatisfy({ isNameLabel($0) }),
             FunctionWords.isContent(name.labels[0].lowercased())
@@ -18,11 +19,10 @@ extension SpokenAddress {
         return SpokenAddress(length: span.count, text: first.prefix + name.spelled + last.suffix)
     }
 
-    /// Whether a label is a word of a name: it holds a letter, it carries meaning, and it is no number, no spoken symbol and not the spoken dot of an ellipsis, so "dot dash dot on" is not a name.
+    /// Whether a label is a word of a name: it holds a letter, it is no number, and it is not the spoken dot of an ellipsis.
     private static func isNameLabel(_ label: String) -> Bool {
         let key = label.lowercased()
         return label.contains(where: \.isLetter) && !NumberWords.isNumber(key) && key != "dot"
-            && FunctionWords.isContent(key) && joiners[key] == nil
     }
 
     /// Reads one or two spoken dots that end a command line, the current or the parent directory: "git add dot" is "git add .".

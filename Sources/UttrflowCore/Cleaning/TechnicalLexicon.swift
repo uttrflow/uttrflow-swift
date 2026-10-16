@@ -108,8 +108,12 @@ public enum TechnicalLexicon {
         _ heard: [String], in destination: Destination = .codeEditor
     ) -> Bool {
         guard heard.count >= 2, let first = heard.first else { return false }
-        let programs = destination == .terminal ? terminalCommands : codeEditorCommands
-        return programs.contains(first)
+        return isProgram(first, in: destination)
+    }
+
+    /// Whether `word`, lower-cased as written, is a program typed at a prompt in `destination`.
+    package static func isProgram(_ word: String, in destination: Destination = .codeEditor) -> Bool {
+        (destination == .terminal ? terminalCommands : codeEditorCommands).contains(word)
     }
 
     /// The entries that cannot ship; `isOrdinary` is the ordinary-word test the dictionary owns.

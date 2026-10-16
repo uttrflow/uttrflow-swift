@@ -10,7 +10,7 @@ A refused answer falls back to the rules' text, as the router does.
 |---|---|---|---|---|---|---|
 | sentence-boundaries | both | 27 | 25 | 1: `probe-hinglish-status` | 0 | 0 |
 | commas | both | 10 | 7 | 1: `probe-hinglish-status` | 0 | 0 |
-| questions | both | 9 | 7 | 1: `probe-hinglish-status` | 0 | 1 |
+| questions | both | 9 | 6 | 2: `fmt-question-indirect-is-statement`, `probe-hinglish-status` | 0 | 1 |
 | quotes-and-brackets | rules | 13 | 8 | 1: `probe-regex-pattern` | 0 | 0 |
 | ellipses | rules | 5 | 4 | 0 | 0 | 0 |
 | capitalisation-and-tokens | both | 97 | 82 | 7: `probe-docker-run-flags`, `probe-sql-join`, `probe-regex-pattern`, `probe-yaml-keys`, `probe-todo-comment`, `probe-dockerfile-from`, `probe-apology-message` | 0 | 1 |
@@ -22,7 +22,7 @@ A refused answer falls back to the rules' text, as the router does.
 | code-and-markdown | both | 17 | 8 | 6: `probe-docker-run-flags`, `probe-sql-join`, `probe-regex-pattern`, `probe-yaml-keys`, `probe-todo-comment`, `probe-dockerfile-from` | 0 | 0 |
 | hinglish | model | 6 | 4 | 2: `fmt-hinglish-number`, `probe-hinglish-status` | 0 | 0 |
 | text-after-caret | rules | 30 | 30 | 0 | 0 | 0 |
-| abstention | model | 351 | 351 | 0 | 0 | 0 |
+| abstention | model | 353 | 350 | 0 | 0 | 0 |
 
 ## Model-only classes
 
