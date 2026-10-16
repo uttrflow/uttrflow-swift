@@ -116,6 +116,14 @@ misheard strings "sanvi", "saabhan", "grafna" and "readees", each is respelt as 
 "aluwaseun" and "thruv" do not open like their entries, so condition two still holds them, and
 "trov" is ordinary.
 
+## A name said with a possessive
+
+A possessive is a spoken ending the written name keeps. A heard word that ends in an apostrophe and
+"s" is looked up without the ending, and the ending is put back on the entry's spelling
+("kubernetes's" is not respelt "Kubernetes"). Where the whole word and the word without its ending
+both find the entry, the ending reading is the one offered. A bare "s" is not unmistakable
+("Redis" ends in one), so it keeps the whole-word reading first.
+
 ## `maximumChangedInEvery = 5`, with a floor of one
 
 An engine that wants to change a third of an utterance has misread it, so the whole
