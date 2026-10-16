@@ -362,6 +362,14 @@ struct WorkingDirectoryIsNotASecretTests {
         #expect(ClipKindDetector.kind(of: "pwd: Zx9kLmQ2rT7p") == .secret)
     }
 
+    /// Only a bare `pwd` prints a directory; a name that ends in it is a password's name.
+    @Test(
+        "still calls a path after a name that ends in pwd a secret",
+        arguments: ["db_pwd: /srv/app3", "dbPwd: /srv/app3", "_pwd:/3"])
+    func prefixedPwdStaysSecret(_ text: String) {
+        #expect(ClipKindDetector.kind(of: text) == .secret)
+    }
+
     /// Other keywords keep today's behaviour: a path after them is still masked.
     @Test("leaves the other keywords alone")
     func otherKeywordsUnchanged() {
