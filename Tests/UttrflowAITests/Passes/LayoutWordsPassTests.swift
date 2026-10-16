@@ -476,4 +476,23 @@ struct LayoutWordsPassTests {
     func listsAfterHeadingThroughPipeline(input: String, expected: String) {
         #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
     }
+
+    @Test(
+        "breaks after a noun that ends in ing",
+        arguments: [
+            ("please check the meeting new paragraph thanks", "please check the meeting\n\nthanks"),
+            ("please check the morning new paragraph thanks", "please check the morning\n\nthanks"),
+            ("please check the building new paragraph thanks", "please check the building\n\nthanks"),
+            ("i enjoyed the training new line next topic", "i enjoyed the training\nnext topic"),
+        ]
+    )
+    func breaksAfterAnIngNoun(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test("keeps a break phrase named by a determiner as words")
+    func keepsANamedBreak() {
+        let input = "the new paragraph button is broken"
+        #expect(cleaned(input, by: sut) == input)
+    }
 }

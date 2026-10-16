@@ -502,4 +502,33 @@ struct SpokenPunctuationPassTests {
             #expect(!SpokenPunctuationPass.isRomanisedHindiEvidence(word), "\(word)")
         }
     }
+
+    @Test(
+        "keeps a mark name as a word after a naming noun or a labelling participle",
+        arguments: [
+            "i typed the word comma in the box",
+            "the word comma is a mark",
+            "say the word comma twice",
+            "the word question mark twice",
+            "the key labelled comma",
+            "the key called colon",
+            "type the word colon there",
+        ]
+    )
+    func keepsAMarkNamedByAWord(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    @Test(
+        "takes a spoken comma that closes a greeting whatever the name",
+        arguments: [
+            ("hi priya comma thanks for the update", "hi priya, thanks for the update"),
+            ("hi sarah comma thanks for the update", "hi sarah, thanks for the update"),
+            ("dear jane comma thanks", "dear jane, thanks"),
+            ("hello dr mehta comma please find it", "hello dr mehta, please find it"),
+        ]
+    )
+    func closesAGreetingWithAComma(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
 }

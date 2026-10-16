@@ -561,6 +561,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         let next = position + words.count
         if closes(at: next, in: live, of: draft) || repeated.contains(live[position]) { return true }
         if position > 0 && draft.shape(at: live[position - 1]).endsClause { return true }
+        if words == ["comma"], closesSalutation(at: position, in: live, of: draft) { return true }
         return next == live.count
             || next < live.count
                 && (isFunctionWordEvidence(draft.shape(at: live[next]).key)

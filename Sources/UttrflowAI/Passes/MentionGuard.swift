@@ -49,6 +49,7 @@ public enum MentionGuard {
     /// Verbs and naming nouns that name the mark or layout phrase which follows them.
     private static let mentionVerbs: Set<String> = [
         "type", "say", "make", "write", "use", "press", "phrase", "term", "symbol",
+        "labelled", "labeled", "called", "named",
     ]
 
     /// Reporting verbs that name a closing or joining mark after them but introduce an opening quote.
@@ -94,7 +95,8 @@ public enum MentionGuard {
             ending: position, reaching: reach, in: live, of: draft, bridgedBy: bridging,
             finalMark: kind == .trailing && next == live.count, opening: kind.attachesAfter,
             corroboratedByLayout: corroboratedByLayout,
-            clauseFollows: opensClause(at: next, in: live, of: draft)
+            clauseFollows: opensClause(at: next, in: live, of: draft),
+            predicateFollows: opensPredicate(at: next, in: live, of: draft)
         ) {
             return true
         }
@@ -139,6 +141,20 @@ public enum MentionGuard {
         return tags[(next - start)...].prefix(2).contains(.pronoun)
     }
 
+    /// The words read before the mark to tell a verb after it, so the cost stays constant per mark.
+    private static let predicateContext = 4
+
+    /// Whether a verb stands right after the mark, so the words before it are the subject of that verb.
+    private static func opensPredicate(at next: Int, in live: [Int], of draft: Draft) -> Bool {
+        guard next < live.count else { return false }
+        var start = next
+        while start > 0, next - start < predicateContext, !draft.shape(at: live[start - 1]).endsSentence {
+            start -= 1
+        }
+        let words = live[start...next].map { draft.shape(at: $0).key }
+        return LexicalClass.tags(ofWords: words)[next - start] == .verb
+    }
+
     /// Whether a dash written earlier in this sentence is still open, so the mark here closes the pair.
     private static func closesDashPair(at position: Int, in live: [Int], of draft: Draft) -> Bool {
         var open = false
@@ -166,7 +182,7 @@ public enum MentionGuard {
     private static func opensThePhrase(
         ending position: Int, reaching reach: Int, in live: [Int], of draft: Draft,
         bridgedBy bridging: Set<String>?, finalMark: Bool, opening: Bool, corroboratedByLayout: Bool,
-        clauseFollows: Bool
+        clauseFollows: Bool, predicateFollows: Bool
     ) -> Bool {
         // A hyphen joins the two words around it, so it heads no phrase and only the word before it speaks.
         let far = draft.shape(at: live[position]).key == "hyphen" ? 1 : reach
@@ -177,6 +193,7 @@ public enum MentionGuard {
             if back == 1, mentionVerbs.contains(shape.key) || !opening && reportingVerbs.contains(shape.key) {
                 return true
             }
+            if back == 1, !opening, namesByNoun(at: position - back, in: live, of: draft) { return true }
             if !corroboratedByLayout,
                 back == 1 ? determiners.contains(shape.key) : phraseOpeners.contains(shape.key)
             {
@@ -186,7 +203,7 @@ public enum MentionGuard {
                 if !bridging.contains(shape.key) || markNames.contains(shape.key) { return false }
             } else if !isModifier(
                 shape.key, before: draft.shape(at: live[position]).key, finalMark: finalMark,
-                clauseFollows: clauseFollows,
+                clauseFollows: clauseFollows, predicateFollows: predicateFollows,
                 after: back < position ? draft.shape(at: live[position - back - 1]).key : nil
             ) {
                 return false
@@ -199,9 +216,16 @@ public enum MentionGuard {
         return false
     }
 
+    /// Whether the word at `position` is a naming noun a determiner introduces, so the mark name after it is the thing named: "the word comma".
+    private static func namesByNoun(at position: Int, in live: [Int], of draft: Draft) -> Bool {
+        guard position > 0, namingWords.contains(draft.shape(at: live[position]).key) else { return false }
+        return determiners.contains(draft.shape(at: live[position - 1]).key)
+    }
+
     /// Recognizes local modifiers, ordinal numbers and cardinals before a period or dash.
     private static func isModifier(
-        _ word: String, before head: String, finalMark: Bool, clauseFollows: Bool, after preceding: String?
+        _ word: String, before head: String, finalMark: Bool, clauseFollows: Bool,
+        predicateFollows: Bool, after preceding: String?
     ) -> Bool {
         if NumberFormsPass.ordinalUnits[word] != nil
             || (nounHeads.contains(head) && NumberWords.isNumber(word))
@@ -229,7 +253,9 @@ public enum MentionGuard {
             return true
         }
 
-        return lexicalClass == .noun && word.hasSuffix("ing")
+        // An -ing noun modifies a layout phrase only as a subject: "the opening new line got applause".
+        let subject = nounHeads.contains(head) || predicateFollows
+        return lexicalClass == .noun && word.hasSuffix("ing") && subject
     }
 
     /// Whether a word is a cardinal number, spelled or in digits.
