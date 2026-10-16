@@ -42,6 +42,10 @@ public struct NumberFormsPass: PieceCleaningPass {
         "minutes", "hours",
     ]
 
+    /// The currency and unit words a numeral at the end of a piece takes from the next piece across a seam.
+    package static let seamUnits: Set<String> = leadingDecimalUnits.union(hindiMeasures)
+        .union(sharedMeasures).union(["percent"]).subtracting(["second"])
+
     /// Romanised Hindi amount, unit and time words after which a Hindi number is written in digits.
     static let hindiMeasures: Set<String> = [
         "rupaye", "rupaiye", "rupay", "rupye", "paise", "minat",

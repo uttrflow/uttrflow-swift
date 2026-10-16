@@ -75,6 +75,11 @@ struct SeamRecleaningTests {
         SeamCut(
             pieces: ["the meeting is on march", "third at ten"],
             whole: "the meeting is on march third at ten"),
+        SeamCut(pieces: ["the year was twenty", "twenty six"], whole: "the year was twenty twenty six"),
+        SeamCut(pieces: ["in nineteen", "ninety nine"], whole: "in nineteen ninety nine"),
+        SeamCut(pieces: ["it cost ten", "dollars today"], whole: "it cost ten dollars today"),
+        SeamCut(pieces: ["we paid twenty five", "euros"], whole: "we paid twenty five euros"),
+        SeamCut(pieces: ["it is ten", "kilometres away"], whole: "it is ten kilometres away"),
     ]
 
     @Test("a number, time or address said across a pause writes what one piece does", arguments: unitCuts)
@@ -84,6 +89,7 @@ struct SeamRecleaningTests {
 
     static let boundaryCuts: [SeamCut] = [
         SeamCut(pieces: ["it costs twenty", "thirty people came"], whole: "It costs 20 30 people came."),
+        SeamCut(pieces: ["in twenty", "thirty"], whole: "In 20 30."),
         SeamCut(pieces: ["it costs twenty.", "thirty people came."], whole: "It costs 20. 30 people came."),
     ]
 
