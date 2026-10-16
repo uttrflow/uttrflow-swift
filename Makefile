@@ -448,13 +448,11 @@ bench: perf-budget offline-test soak-test bench-tests
 # Inside a lane every Swift step shares one coverage-instrumented build: `build` compiles the
 # tests too, the test runs skip building, and the tools run from that build.
 VERIFY_SWIFT_FLAGS := --build-tests --enable-code-coverage
-# `bench` holds wall-clock budgets, which the coverage counters inflate, so its build omits them.
-bench: VERIFY_SWIFT_FLAGS := --build-tests
 COVERAGE_ARGS = --skip-build --skip '$(EVAL_SUITES)|$(BENCH_SUITES)'
 UTTRFLOW_DEV = .build/debug/uttrflow-dev
 SHELL := Scripts/verify_shell.sh
 coverage seam-audit offline-audit eval-arguments eval-tests rules-scorecard quality-grid-scorecard bench-tests: build
-seam-audit eval-arguments rules-scorecard: export LLVM_PROFILE_FILE := $(CURDIR)/.build/verify-profraw/%p.profraw
+seam-audit eval-arguments rules-scorecard bench-tests: export LLVM_PROFILE_FILE := $(CURDIR)/.build/verify-profraw/%p.profraw
 endif
 
 # The tests each lane owns, as `swift test` filters; `verify` runs every other test.
