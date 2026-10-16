@@ -236,7 +236,8 @@ struct AcronymCasingPassTests {
         "keeps the case a command line was said in",
         arguments: [
             "cd ios", "npm run ios", "npm install typescript", "aws s3 ls", "echo json",
-            "python -m http.server 8000",
+            "python -m http.server 8000", "man ssh", "history | grep ssh", "ps aux | grep json",
+            "psql -h localhost -d sql", "systemctl status api", "dig +short example.com",
         ])
     func commandLineKeepsCase(command: String) {
         #expect(terminal.run(Draft(text: command)).text == command)
