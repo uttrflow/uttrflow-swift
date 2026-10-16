@@ -1543,6 +1543,62 @@
     "addedFor": 7925
   },
   {
+    "id": "keeps-heard-capital-on-name-that-is-also-a-word",
+    "note": "A capital the recogniser wrote on a noun that is also an ordinary word is the only evidence of a name and stays.",
+    "spoken": "Open Slack and message Grace.",
+    "expected": "Open Slack and message Grace.",
+    "mustKeep": ["Slack", "Grace"],
+    "addedFor": 7953
+  },
+  {
+    "id": "keeps-heard-capital-on-company-name",
+    "note": "A company name that is also a word keeps its heard capital mid-sentence.",
+    "spoken": "Visit Apple today.",
+    "expected": "Visit Apple today.",
+    "mustKeep": ["Apple"],
+    "addedFor": 7953
+  },
+  {
+    "id": "keeps-heard-capitals-in-a-quoted-label",
+    "note": "The words of a quoted interface label keep the capitals the recogniser wrote.",
+    "spoken": "Use the \"Save As\" option.",
+    "expected": "Use the \"Save As\" option.",
+    "mustKeep": ["Save As"],
+    "addedFor": 7953
+  },
+  {
+    "id": "ends-on-copula-of-embedded-question",
+    "note": "A sentence that ends on the copula of its own question-word clause is complete and takes its stop.",
+    "spoken": "i know what it is",
+    "expected": "I know what it is.",
+    "mustKeep": ["what it is"],
+    "addedFor": 7951
+  },
+  {
+    "id": "ends-on-copula-of-embedded-question-where",
+    "note": "The same, with a subject pronoun between the question word and the copula.",
+    "spoken": "show me where we are",
+    "expected": "Show me where we are.",
+    "mustKeep": ["where we are"],
+    "addedFor": 7951
+  },
+  {
+    "id": "question-with-embedded-question-know-what-mean",
+    "note": "A yes/no question that holds an embedded question is still a question.",
+    "spoken": "do you know what i mean",
+    "expected": "Do you know what I mean?",
+    "mustKeep": ["what I mean"],
+    "addedFor": 7926
+  },
+  {
+    "id": "question-with-embedded-question-see-what-did",
+    "note": "The subject after the embedded question word belongs to the embedded clause.",
+    "spoken": "did you see what he did",
+    "expected": "Did you see what he did?",
+    "mustKeep": ["what he did"],
+    "addedFor": 7926
+  },
+  {
     "id": "one-word-quotation-ends-its-sentence",
     "note": "A sentence that ends on a one-word quotation takes its stop inside the quote after a verb of saying.",
     "spoken": "he said \"hello\"",
