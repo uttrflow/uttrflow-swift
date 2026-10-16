@@ -1599,6 +1599,15 @@
     "addedFor": 7926
   },
   {
+    "id": "which-is-why-stays-a-statement",
+    "note": "A sentence that opens on a relative which carries on the speaker's thought; it is not a question.",
+    "spoken": "which is why i left early",
+    "expected": "Which is why I left early.",
+    "mustKeep": ["which is why"],
+    "mustEndWith": ".",
+    "addedFor": 7927
+  },
+  {
     "id": "one-word-quotation-ends-its-sentence",
     "note": "A sentence that ends on a one-word quotation takes its stop inside the quote after a verb of saying.",
     "spoken": "he said \"hello\"",

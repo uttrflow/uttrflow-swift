@@ -31,6 +31,18 @@ struct QuestionShapeTests {
     }
 
     @Test(
+        "reads a sentence that opens on a relative which as a statement, and a which question as a question",
+        arguments: [
+            ("which is why i left early", false), ("which is how it works", false),
+            ("which is where i parked", false), ("which was why we stopped", false),
+            ("which is better", true), ("which is the right one", true),
+            ("which was the first release", true), ("which branch is it", true),
+        ])
+    func readsARelativeWhich(text: String, asks: Bool) {
+        #expect(QuestionShape.asks(shapes(text)) == asks)
+    }
+
+    @Test(
         "reads a direct question from its word order",
         arguments: [
             "where did you put the keys", "which branch should I merge into",
