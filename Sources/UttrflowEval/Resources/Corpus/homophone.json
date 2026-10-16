@@ -61,5 +61,15 @@
     "mustKeep": ["no milk"],
     "mustNotAdd": ["know"],
     "addedFor": 2326
+  },
+  {
+    "id": "homophone-or-are-coordinator",
+    "note": "A coordinator scored low is kept: no sound-alike is offered in the place of or.",
+    "spoken": "you can pay every month or you can pay once a year",
+    "expected": "You can pay every month or you can pay once a year.",
+    "mustKeep": ["or"],
+    "mustNotAdd": ["are"],
+    "doubtful": ["or"],
+    "addedFor": 7994
   }
 ]
