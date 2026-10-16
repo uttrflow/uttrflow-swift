@@ -191,5 +191,14 @@
     "spoken": "ve kal dilli gaye the. ve kal dilli gaye the",
     "expected": "Ve kal dilli gaye the. Ve kal dilli gaye the.",
     "mustKeep": ["dilli", "gaye"]
+  },
+  {
+    "id": "hinglish-pause-comma-at-end",
+    "note": "The comma the recogniser leaves at a pause at the very end ends the message as a sentence.",
+    "language": "hi",
+    "addedFor": 7965,
+    "spoken": "chalo thik hai, phir milte hain,",
+    "expected": "Chalo thik hai, phir milte hain.",
+    "mustKeep": ["thik", "milte"]
   }
 ]
