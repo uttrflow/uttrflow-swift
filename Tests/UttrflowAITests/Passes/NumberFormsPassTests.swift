@@ -1194,6 +1194,11 @@ struct NumberWordsTests {
             ("paanch sau log aaye", "paanch sau log aaye"),
             ("ek baar aur", "ek baar aur"),
             ("ek, rupaye", "ek, rupaye"),
+            ("paanch sau rupye chahiye", "500 rupye chahiye"),
+            ("do haphte pehle", "2 haphte pehle"),
+            ("pacchees taareekh ko", "25 taareekh ko"),
+            ("teen leetar doodh", "3 leetar doodh"),
+            ("paanch graam", "5 graam"),
         ]
     )
     func hindiAmounts(input: String, expected: String) {

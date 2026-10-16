@@ -44,15 +44,18 @@ public struct NumberFormsPass: PieceCleaningPass {
 
     /// Romanised Hindi amount, unit and time words after which a Hindi number is written in digits.
     static let hindiMeasures: Set<String> = [
-        "rupaye", "rupaiye", "rupay", "paise", "minat",
-        "ghante", "ghanta", "baje", "din", "saal", "mahine", "hafte", "tareekh", "tarikh",
+        "rupaye", "rupaiye", "rupay", "rupye", "paise", "minat",
+        "ghante", "ghanta", "baje", "din", "saal", "mahine", "hafte", "haphte", "tareekh", "tarikh",
+        "taareekh",
     ]
 
     /// Romanised Hindi time-of-day words, which take a digit like "o'clock" does: "five baje" is "5 baje".
     static let hindiClockWords: Set<String> = ["baje"]
 
     /// Unit words English spells the same, after which a Hindi number is written in digits unless the sentence is English.
-    static let sharedMeasures: Set<String> = ["rupee", "rupees", "kilo", "gram", "litre", "minute"]
+    static let sharedMeasures: Set<String> = [
+        "rupee", "rupees", "kilo", "gram", "graam", "litre", "leetar", "minute",
+    ]
 
     /// The separator words of a spoken numeric date and the mark each is written as.
     static let dateSeparators: [String: String] = ["slash": "/", "stroke": "/", "dash": "-"]
