@@ -5414,5 +5414,20 @@
     "zone-standard-time-limit-kept-4031@6",
     "zone-utc-offset-half-hour-4031@2"
   ],
+  "osDependent" : {
+    "cuts" : [
+      "fmt-code-version@3",
+      "hindi-worked-example-refused@8",
+      "indian-grouping-lakh-transfer@3",
+      "mix-hi-name-end-dad-end@4",
+      "mix-hi-verb-middle-upload@3",
+      "mix-hi-verb-start-check@3",
+      "port-number@4",
+      "port-number@9",
+      "probe-sql-join@12",
+      "request-hindi-translate-devanagari@4"
+    ],
+    "system" : "Version 26.6.2 (Build 25G83)"
+  },
   "total" : 5413
 }

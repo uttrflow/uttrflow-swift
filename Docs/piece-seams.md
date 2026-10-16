@@ -73,6 +73,18 @@ runs it after `build`. It fails when a cut differs that the baseline does not li
 lowers the baseline; it refuses a cut the baseline does not list unless `--after-merge` says the
 cut came to differ with `main`. The baseline covers two-piece cuts only.
 
+### Cuts that depend on the macOS release
+
+The stop that `SentenceBoundaryEvidence.sentenceRunsOn` writes at a seam reads the word classes
+of the system's language model, and a macOS release can tag a word differently. A cut that
+differs on one release and matches on another is listed under `osDependent` in the baseline,
+with the system it was read on. The check tolerates a cut in that list whether or not it differs.
+`--update` rewrites `cuts` and leaves `osDependent` as it was, so a development Mac on another
+release never drops the list. A cut in neither list still fails the audit, and the failure
+prints the whole and joined text of each such cut with the system version. A cut is added to
+`osDependent` only from a CI run of `make eval` that names it, never from a guess: the
+list is the cuts that run reported on its runner that a development Mac does not.
+
 ## Measured
 
 Rules engine, Apple M5 Pro. The cases run side by side, one pipeline each; the count is the same
