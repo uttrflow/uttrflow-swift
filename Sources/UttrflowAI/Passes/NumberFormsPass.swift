@@ -718,6 +718,13 @@ public struct NumberFormsPass: PieceCleaningPass {
     private static func undecidedHundred(at position: Int, keys: [String], shapes: [WordShape]) -> Int? {
         let words = unbroken(from: position, keys: keys, shapes: shapes)
         guard let hundred = NumberWords.colloquialHundred(words) else { return nil }
+        // "one twenty twenty six" is a digit, then the year: the tail that starts a year is not part of a hundred.
+        let tail = position + 1
+        if let century = NumberWords.teens[keys[tail]] ?? NumberWords.tens[keys[tail]],
+            year(after: century, at: tail + 1, keys: keys, shapes: shapes) != nil
+        {
+            return nil
+        }
         // "two twenty dollar bills" is a count of what the tail modifies, so its tail is written on its own.
         let after = position + hundred.count
         let countsANoun = joined(after, shapes) && LexicalClass.tag(ofWordAt: after, in: keys) == .noun

@@ -1166,6 +1166,18 @@ struct NumberWordsTests {
     }
 
     @Test(
+        "reads a year said after a single digit as the year, not as a spoken hundred",
+        arguments: [
+            ("q one twenty twenty six", "q one 2026"),
+            ("we start in q four twenty twenty six", "we start in q four 2026"),
+            ("one twenty five", "1:25"),
+        ]
+    )
+    func yearAfterADigit(input: String, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass()) == expected)
+    }
+
+    @Test(
         "writes a romanised Hindi number in digits only before an amount, unit or time word",
         arguments: [
             ("paanch sau rupaye de do", "500 rupaye de do"),
