@@ -147,8 +147,8 @@ public enum Restatement {
                     || repeatsPhrase(from: candidate, before: trigger, after: restart, in: live, of: draft)
             {
                 let spanStart = doubledStart(of: anchor, after: restart, in: live, of: draft)
-                guard !unpausedEveryday || restartSaysSpanOver(spanStart..<trigger, at: restart, in: live, of: draft)
-                else { return unanchored }
+                let saysItOver = restartSaysSpanOver(spanStart..<trigger, at: restart, in: live, of: draft)
+                guard !unpausedEveryday || saysItOver else { return unanchored }
                 guard holdsContent(spanStart..<trigger, in: live, of: draft),
                     !coordinates(spanStart, before: trigger, in: live, of: draft)
                 else { return nil }
