@@ -710,11 +710,11 @@
     },
     "dev-design-note-acronyms" : {
       "category" : "developerGenre",
-      "verdict" : "fail"
+      "verdict" : "pass"
     },
     "dev-endpoint-summary" : {
       "category" : "developerGenre",
-      "verdict" : "fail"
+      "verdict" : "pass"
     },
     "dev-env-setup" : {
       "category" : "developerGenre",
@@ -2192,6 +2192,166 @@
       "category" : "everyday",
       "verdict" : "pass"
     },
+    "markup-css-align" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-css-before" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-css-child" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-css-class-rule" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-css-close" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-css-colour" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-css-declare-and-close" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-css-descendant" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-css-display" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-css-element" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-css-group" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-css-hex" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-css-hover" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-css-hyphen-property" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-css-id-rule" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-css-root" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-css-style-element" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-css-two-declarations" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-css-z-index" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-css-zero" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-html-anchor-quoted" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-html-break" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-html-button" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-html-continue-tag" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-html-data-attribute" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-html-div-class" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-html-div-quoted-class" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-html-end-body" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-html-end-div" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-html-end-item" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-html-heading-id" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-html-image" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-html-input" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-html-item-class" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-html-link" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-html-list" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-html-meta" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-html-paragraph" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-html-section" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "markup-html-span" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
     "message-at-home-stays" : {
       "category" : "contextual",
       "verdict" : "pass"
@@ -3378,7 +3538,7 @@
     },
     "probe-cover-letter" : {
       "category" : "everyday",
-      "verdict" : "fail"
+      "verdict" : "pass"
     },
     "probe-decision-record" : {
       "category" : "everyday",
@@ -3386,7 +3546,7 @@
     },
     "probe-docker-build-no-cache" : {
       "category" : "technical",
-      "verdict" : "fail"
+      "verdict" : "pass"
     },
     "probe-docker-run-flags" : {
       "category" : "technical",
@@ -4846,7 +5006,7 @@
     },
     "spoken-colon-before-an-item" : {
       "category" : "everyday",
-      "verdict" : "fail"
+      "verdict" : "pass"
     },
     "spoken-comma" : {
       "category" : "everyday",
@@ -5309,6 +5469,10 @@
       "verdict" : "pass"
     },
     "sql-statement-update-rating" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-terminated-semicolon-said" : {
       "category" : "technical",
       "verdict" : "pass"
     },

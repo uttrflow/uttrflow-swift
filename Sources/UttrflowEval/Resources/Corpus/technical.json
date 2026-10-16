@@ -1347,5 +1347,18 @@
     "destination": "terminal",
     "expectedExact": "date >> log.txt",
     "addedFor": 7032
+  },
+  {
+    "id": "datastore-names-in-prose-7929",
+    "spoken": "we keep sessions in redis and postgres on port five four three two",
+    "expected": "We keep sessions in Redis and Postgres on port 5432.",
+    "mustKeep": ["Redis", "Postgres", "5432"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages"
+    },
+    "destination": "document",
+    "expectedExact": "We keep sessions in Redis and Postgres on port 5432.",
+    "addedFor": 7929
   }
 ]
