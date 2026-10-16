@@ -67,6 +67,8 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         var sentenceEnd: Int?
         // The quotes opened and not yet closed, innermost last, each with the name that opened it.
         var openQuotes: [(mark: String, name: [String])] = []
+        // Where the sentence ends that an opening quote name was kept as words in, so its closing name is kept too.
+        var keptOpeningUntil = -1
         while position < live.count {
             let countBeforeMutation = live.count
             if replaceLongFlag(at: position, literal: literal, in: &live, of: &draft) {
@@ -108,13 +110,17 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                     endsSentence: false)
                 continue
             }
-            let said = SpokenCommands.marks.first { draft.spells($0.words, at: position, in: live) }
+            let said = SpokenCommands.marks.first {
+                $0.isEnabled(in: destination) && draft.spells($0.words, at: position, in: live)
+            }
             guard
                 let said,
                 case let closesOwn = closesOwnQuotation(said, opened: openQuotes.last?.name),
                 case let found = closesOwn ? said.asClosing : said,
                 case let paired = found.words == ["dash"] ? pairs[live[position]] : nil,
                 paired ?? true,
+                !Self.closesAKeptOpening(
+                    found, quoting: !openQuotes.isEmpty, at: position, until: keptOpeningUntil),
                 paired != nil
                     || isUsed(found, at: position, in: live, of: draft, repeated: repeated),
                 isPaired(
@@ -131,6 +137,11 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                     in: &live, of: &draft)
             else {
                 // A name kept as words is kept whole, so no shorter name inside it is read on its own.
+                if let said, said.placement == .opening, !SpokenCommands.isBracket(said.text),
+                    openQuotes.isEmpty
+                {
+                    keptOpeningUntil = sentenceEnd ?? live.count
+                }
                 position += said?.words.count ?? 1
                 continue
             }
@@ -144,6 +155,13 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 endsSentence: WordShape(written).endsSentence)
         }
         return draft
+    }
+
+    /// Whether a quote's closing name follows an opening name kept as words, so it names the mark too.
+    private static func closesAKeptOpening(
+        _ command: SpokenCommand, quoting: Bool, at position: Int, until end: Int
+    ) -> Bool {
+        command.placement == .closing && !SpokenCommands.isBracket(command.text) && !quoting && position < end
     }
 
     /// Whether an opening name said again closes the innermost quotation it opened, where its row says it does.
