@@ -173,5 +173,25 @@
     "spoken": "usne mujhe galat bola",
     "expected": "Usne mujhe galat bola.",
     "mustKeep": ["galat", "bola"]
+  },
+  {
+    "id": "hinglish-devanagari-loanwords-cancel-budget-update",
+    "note": "English words the recogniser writes in Devanagari come out in English spelling, not by sound.",
+    "language": "hi",
+    "addedFor": 7949,
+    "spoken": "कल की मीटिंग कैंसल हो गई और बजट भी अपडेट करना है",
+    "expected": "Kal ki meeting cancel ho gayi aur budget bhi update karna hai.",
+    "mustKeep": ["cancel", "budget", "update"],
+    "mustNotAdd": ["kainsal", "bajat"]
+  },
+  {
+    "id": "hinglish-devanagari-loanwords-right-payment-confirm",
+    "note": "A tag question and two business words in Devanagari keep their English spelling.",
+    "language": "hi",
+    "addedFor": 7949,
+    "spoken": "तुम कल आ रहे हो, राइट, पेमेंट कन्फर्म कर देना",
+    "expected": "Tum kal aa rahe ho, right, payment confirm kar dena.",
+    "mustKeep": ["right", "payment", "confirm"],
+    "mustNotAdd": ["rait"]
   }
 ]

@@ -45,7 +45,7 @@ what hold whatever a model writes.
 chat, not the way a scholar transliterates it. It has no diacritics and never produces
 "karanā"; it produces "karna".
 
-- **Common spellings first.** A table of <!-- count:Romaniser.commonSpellingList -->204 frequent words (`commonSpellings`) holds the
+- **Common spellings first.** A table of <!-- count:Romaniser.commonSpellingList -->319 frequent words (`commonSpellings`) holds the
   spelling people actually use: है hai, हाँ haan, ठीक thik, नहीं nahi, मैं main, में mein, क्या
   kya, क्यों kyun, हूँ hoon, and loanwords people write in English (ऑफिस office, मिनट minute).
   Chandrabindu and anusvara key the same entry, so हाँ and हां meet.
@@ -145,7 +145,11 @@ kept. `UTTRFLOW_SEED` replays one seed. None is broken on the tree this landed o
 ### English loanwords outside the table
 
 Only the loanwords in `commonSpellings` come out in English spelling; every other English word
-the recogniser writes in Devanagari is spelt by the syllable rules ("मैनेजर" mainejar).
+the recogniser writes in Devanagari is spelt by the syllable rules. The table is keyed by the exact
+Devanagari spelling, so it cannot touch a Hindi word, and a word that is also an ordinary Hindi word
+("सेब", "बस", "पास") is left out. Adding about 120 everyday business, travel and device words
+moved the Hinglish output word error rate of the six Hindi-frame passages of `make accuracy-gate`
+from 40.6% to 38.7% on the same decodes (`uttrflow-eval transcribe`, shipping model, synthesised voice).
 `LoanwordRestorationProbeTests` measures whether the guard's own acceptance test
 (`isRespelling`: a shared sound key of at least two sounds, within one phoneme, not an ordinary
 collision) could restore the English spelling, taking candidates from
