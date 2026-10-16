@@ -108,20 +108,10 @@ struct HistoryPageView: View {
 
     private var caption: some View {
         let notice = presentation.retentionNotice
-        return HStack(spacing: 0) {
-            Text(
-                [chrome.caption, notice.phrase].compactMap(\.self).filter { !$0.isEmpty }
-                    .joined(separator: " · ")
-            )
-            .foregroundStyle(PagePalette.quiet)
-            Button(" · \(notice.link.title)") {
-                onIntent(notice.link.intent)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(PagePalette.dictation)
-        }
-        .font(.system(size: 13))
-        .lineLimit(1)
+        return HistoryCaptionView(
+            text: [chrome.caption, notice.phrase].compactMap(\.self).filter { !$0.isEmpty }
+                .joined(separator: " · "),
+            link: notice.link, onIntent: onIntent)
     }
 
     /// Four across where they fit, two to a row where they do not.
