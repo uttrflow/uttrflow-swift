@@ -269,17 +269,25 @@ public struct FirstWordPass: WholeTextCleaningPass {
         guard WordShape(draft.words[index].text).key == "i" else {
             return false
         }
+        let numberAfter =
+            position + 1 < live.count && live[position + 1] == index + 1
+            && NumberWords.isNumber(draft.shape(at: live[position + 1]).key)
         let previousIsLetter =
             position > 0
             && live[position - 1] + 1 == index
             && !draft.shape(at: live[position - 1]).endsClause
-            && LetterRun.isLetterName(draft.shape(at: live[position - 1]).key)
+            && isLetterNameBesideI(draft.shape(at: live[position - 1]).key, codeEvidence: numberAfter)
         let nextIsLetter =
             position + 1 < live.count
             && live[position + 1] == index + 1
             && !draft.shape(at: index).endsClause
-            && LetterRun.isLetterName(draft.shape(at: live[position + 1]).key)
+            && isLetterNameBesideI(draft.shape(at: live[position + 1]).key, codeEvidence: false)
         return previousIsLetter || nextIsLetter
+    }
+
+    /// Whether a neighbour names a letter; an everyday word ("you", "see", "oh") does only beside a number, as "see i two".
+    private static func isLetterNameBesideI(_ key: String, codeEvidence: Bool) -> Bool {
+        LetterRun.isLetterName(key) && (codeEvidence || !LetterRun.ambiguousNames.contains(key))
     }
 
     /// Gives unambiguous weekday and month names their conventional case without guessing at May or March.
