@@ -379,7 +379,7 @@ public struct NumberFormsPass: PieceCleaningPass {
         }
         let fixedShapes: [(Int, [String], [WordShape]) -> Phrase?] = [
             score, readingOver, zoneOffset, signedDigitRun, numericDate, cuedYear, cuedClock,
-            twentyFourHourClock, dottedNumber, spokenDigitRun, leadingDecimal, decade,
+            colonClock, twentyFourHourClock, dottedNumber, spokenDigitRun, leadingDecimal, decade,
         ]
         for reading in fixedShapes {
             if let found = reading(position, keys, shapes) { return found }
@@ -786,6 +786,33 @@ public struct NumberFormsPass: PieceCleaningPass {
                 sentenceEndIsCue: false)
         else { return nil }
         return Phrase(text: time.text, count: end - position)
+    }
+
+    /// An hour, a spoken "colon" and its minutes as one clock time, "ten colon thirty" as `10:30`, only where a time is cued.
+    private static func colonClock(at position: Int, keys: [String], shapes: [WordShape]) -> Phrase? {
+        let hourWords = unbroken(from: position, keys: keys, shapes: shapes)
+        guard let hour = NumberWords.cardinal(hourWords), (0...23).contains(hour.value),
+            hour.count == hourWords.count, position + hour.count < keys.count,
+            shapes[position + hour.count - 1].suffix == ":"
+        else { return nil }
+        let minuteStart = position + hour.count
+        guard shapes[minuteStart].prefix.isEmpty else { return nil }
+        let minutes: Phrase
+        if clockZeros.contains(keys[minuteStart]), minuteStart + 1 < keys.count,
+            clockZeros.contains(keys[minuteStart + 1]), shapes[minuteStart].suffix.isEmpty
+        {
+            minutes = Phrase(text: "00", count: 2)
+        } else if let spoken = self.minutes(at: minuteStart, keys: keys, shapes: shapes) {
+            minutes = spoken
+        } else {
+            return nil
+        }
+        let end = minuteStart + minutes.count
+        guard
+            timeAcceptable(
+                position: position, minuteStart: minuteStart, minuteEnd: end, keys: keys, shapes: shapes)
+        else { return nil }
+        return Phrase(text: "\(hour.value):\(minutes.text)", count: end - position)
     }
 
     /// "u t c plus five thirty" as `UTC+5:30`: a zone, a sign, an hour up to 14 and an optional :30 or :45.
