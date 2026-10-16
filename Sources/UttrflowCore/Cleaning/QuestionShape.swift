@@ -254,7 +254,7 @@ public enum QuestionShape {
         return hindiQuestionWords.contains(first) || (first == "kya" && hindiSubjects.contains(second))
     }
 
-    /// Words that follow "which is" when the clause carries on the speaker's thought: "which is why I left", "which is how it works".
+    /// Words that follow "which is" when the clause carries on the speaker's thought.
     private static let relativeWhichTails: Set<String> = ["why", "how", "where", "when", "because", "what"]
 
     /// Whether a clause opens "which", a copula and a word that makes it a relative clause rather than a question.
