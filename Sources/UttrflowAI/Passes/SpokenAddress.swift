@@ -103,6 +103,9 @@ struct SpokenAddress: Equatable {
             return identifier
         }
         if let file = readFileName(at: position, within: run, in: live, of: draft) { return file }
+        if let tagged = readTagged(at: position, within: run, in: live, of: draft, expecting: expecting) {
+            return tagged
+        }
         guard let local = part(from: position, within: run, in: live, of: draft, side: .local),
             local.hasLetter, FunctionWords.isContent(local.spelled)
         else { return nil }
@@ -183,14 +186,20 @@ struct SpokenAddress: Equatable {
         guard place > 0, place + 1 < run.upperBound, draft.shape(at: live[place - 1]).suffix.isEmpty,
             draft.shape(at: live[place]).key == "colon"
         else { return nil }
-        // Digits said one by one are a port or a code, never a cardinal: "eight zero eight zero" is 8080.
-        if let digits = spokenDigits(from: place + 1, within: run, in: live, of: draft), digits.used >= 2,
+        guard let (value, used) = portNumber(at: place + 1, within: run, in: live, of: draft) else { return nil }
+        return (value, 1 + used)
+    }
+
+    /// A number said as a cardinal or as digits one by one, which are a port or a code: "eight zero eight zero" is 8080.
+    static func portNumber(
+        at place: Int, within run: Range<Int>, in live: [Int], of draft: Draft
+    ) -> (value: Int, used: Int)? {
+        if let digits = spokenDigits(from: place, within: run, in: live, of: draft), digits.used >= 2,
             digits.text.first != "0", let value = Int(digits.text)
         {
-            return (value, 1 + digits.used)
+            return (value, digits.used)
         }
-        guard let (value, used) = number(at: place + 1, within: run, in: live, of: draft) else { return nil }
-        return (value, 1 + used)
+        return number(at: place, within: run, in: live, of: draft)
     }
 
     /// A file's line and optional column said after it, written joined without grouping: "main.py:42:7".
@@ -427,7 +436,7 @@ struct SpokenAddress: Equatable {
     }
 
     /// The labels spoken from `position`, which stands inside `run`: a spoken or a heard dot carries on to the next label, and a spoken joiner or number extends the one being read.
-    private static func part(
+    static func part(
         from position: Int, within run: Range<Int>, in live: [Int], of draft: Draft, side: Side = .domain
     ) -> Part? {
         // "www dot" can end a piece, so the host it announces may lie past the run.

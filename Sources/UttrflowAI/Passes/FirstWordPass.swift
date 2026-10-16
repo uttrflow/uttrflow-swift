@@ -457,9 +457,13 @@ public struct FirstWordPass: WholeTextCleaningPass {
 
     /// Copies the case the word was heard in from where it stands, skipping fillers; a changed word is left alone.
     static func matchingHeardCase(_ word: String, heard: [String]) -> String {
-        let letters = WordShape(word).core.filter(\.isLetter).lowercased()
+        let core = WordShape(word).core
+        let letters = core.filter(\.isLetter).lowercased()
+        // A word that gained characters since it was heard, as "postgres:16" from "postgres", keeps them.
         guard !letters.isEmpty,
-            let spoken = heard.first(where: { $0.filter(\.isLetter).lowercased() == letters })
+            let spoken = heard.first(where: {
+                $0.filter(\.isLetter).lowercased() == letters && WordShape($0).core.count == core.count
+            })
         else { return word }
         return WordShape(word).replacingCore(with: WordShape(spoken).core)
     }
