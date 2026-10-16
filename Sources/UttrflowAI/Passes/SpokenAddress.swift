@@ -266,6 +266,7 @@ struct SpokenAddress: Equatable {
         guard
             let host = readWebAddress(at: separator + 3, within: run, in: live, of: draft)
                 ?? readNumericHost(at: separator + 3, within: run, in: live, of: draft)
+                ?? readLocalhost(at: separator + 3, within: run, in: live, of: draft)
         else {
             return nil
         }
@@ -273,6 +274,17 @@ struct SpokenAddress: Equatable {
         let first = draft.shape(at: live[position])
         return SpokenAddress(
             length: end - position, text: first.prefix + scheme.lowercased() + "://" + host.text)
+    }
+
+    /// Reads a bare "localhost" that a spoken scheme has already shown to be a host.
+    private static func readLocalhost(
+        at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft
+    ) -> SpokenAddress? {
+        guard position < run.upperBound, draft.shape(at: live[position]).key == "localhost" else {
+            return nil
+        }
+        return finishHost(
+            "localhost", from: position, hostEnd: position + 1, within: run, in: live, of: draft)
     }
 
     /// Reads a known host and its spoken slash-separated path.

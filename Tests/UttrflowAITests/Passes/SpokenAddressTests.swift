@@ -311,6 +311,8 @@ struct SpokenAddressTests {
                 "open example.com/search?q=cats&page=two"
             ),
             ("http colon slash slash ten dot zero dot zero dot one slash docs", "http://10.0.0.1/docs"),
+            ("curl http colon slash slash localhost", "curl http://localhost"),
+            ("open https colon slash slash localhost now", "open https://localhost now"),
         ]
     )
     func writesHostsAndPaths(input: String, expected: String) {
