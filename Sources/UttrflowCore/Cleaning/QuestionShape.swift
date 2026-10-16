@@ -45,6 +45,22 @@ public enum QuestionShape {
     /// Verbs that, following a relative pronoun after a comma, head a predicate rather than an inversion.
     private static let relativeClauseVerbs: Set<String> = verbsBeforeSubject.union(lexicalQuestionVerbs)
 
+    /// Whether a sentence ends on the copula of its own question-word clause.
+    package static func endsOnEmbeddedQuestionCopula(_ sentence: [WordShape]) -> Bool {
+        let words = sentence.map { $0.key.replacingOccurrences(of: "\u{2019}", with: "'") }.filter {
+            !$0.isEmpty
+        }
+        guard let last = words.last, copulaVerbs.contains(last), words.count >= 3 else { return false }
+        // Its own subject stands between the question word and the copula: a pronoun, or a determiner and a noun.
+        let pronoun =
+            words.count >= 3 && questionWords.contains(words[words.count - 3])
+            && (subjects.contains(words[words.count - 2]) || words[words.count - 2] == "that")
+        let nounPhrase =
+            words.count >= 4 && questionWords.contains(words[words.count - 4])
+            && determiners.contains(words[words.count - 3])
+        return pronoun || nounPhrase
+    }
+
     /// The word that closes a leading address or question lead-in before an inverted clause.
     public static func leadingQuestionOpenerIndex(in shapes: [WordShape]) -> Int? {
         let spoken = shapes.indices.filter { !shapes[$0].key.isEmpty }
@@ -226,7 +242,7 @@ public enum QuestionShape {
                     return false
                 }
                 if verbsBeforeSubject.contains(word) || pronounVerbs.contains(word) {
-                    return true
+                    return !continuesWithRelativeWhich(clause)
                 }
                 let verbIndex = offset + 1
                 let following = clause.dropFirst(verbIndex + 1).first
@@ -252,6 +268,14 @@ public enum QuestionShape {
             return subjects.contains(second) || determiners.contains(second)
         }
         return hindiQuestionWords.contains(first) || (first == "kya" && hindiSubjects.contains(second))
+    }
+
+    /// Whether a clause opens "which", a copula and a word that makes it a relative clause rather than a question.
+    private static func continuesWithRelativeWhich(_ clause: [String]) -> Bool {
+        guard clause.first == "which", clause.count >= 3, copulaVerbs.contains(clause[1]) else {
+            return false
+        }
+        return FunctionWords.relativeWhichTails.contains(clause[2])
     }
 
     /// Whether "what a" or "how" with a modifier heads an exclamation, which keeps its subject before its verb: "how nice it is".
@@ -326,7 +350,18 @@ public enum QuestionShape {
     private static func isDependentOrReportedSubject(at index: Int, in clause: [String]) -> Bool {
         if index > 0, subordinateWords.contains(clause[index - 1]) { return true }
         if index > 0, reportedVerbs.contains(clause[index - 1]) { return true }
+        if opensEmbeddedQuestion(before: index, in: clause) { return true }
         return index > 1 && ["tell", "tells", "told"].contains(clause[index - 2]) && clause[index - 1] == "me"
+    }
+
+    /// Whether a question word within three words before the subject makes it the subject of an embedded question.
+    private static func opensEmbeddedQuestion(before index: Int, in clause: [String]) -> Bool {
+        for place in stride(from: index - 1, through: max(1, index - 3), by: -1) {
+            if questionWords.contains(clause[place]) { return true }
+            let word = clause[place]
+            if newSubjects.contains(word) || verbsBeforeSubject.contains(word) { return false }
+        }
+        return false
     }
 
     /// Whether a later clause also opens an inverted question.
