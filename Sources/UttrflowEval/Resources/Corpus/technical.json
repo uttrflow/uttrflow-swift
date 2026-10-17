@@ -1420,5 +1420,13 @@
     "mustKeep": ["aux", "grep", "json"],
     "expectedExact": "ps aux | grep json",
     "addedFor": 7948
+  },
+  {
+    "id": "dev-mark-names-listed-in-a-sentence",
+    "note": "punctuation marks named in a sentence about them stay words when they are listed with and",
+    "spoken": "the ternary operator uses question mark and colon and the statement ends with a semicolon",
+    "expected": "The ternary operator uses question mark and colon and the statement ends with a semicolon.",
+    "mustKeep": ["question mark", "colon", "semicolon"],
+    "addedFor": 8012
   }
 ]

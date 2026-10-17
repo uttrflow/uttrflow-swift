@@ -187,6 +187,7 @@ dev-hotfix-handoff	Handing over the hotfix. The patch is commit a4c9e1 on the re
 dev-incident-note	Update on the outage: error rates are back under 1% since 14:20 UTC. The cause was a config push that set the pool size to 5 instead of 50. We rolled it back and will add a check to the deploy pipeline.
 dev-letter-run-beside-number	The API returns a 404 for v1 but the v2 route works. We saw it on build 347 and on the CI runner with 8 GB of ram.
 dev-library-pin	We pin the parser library at version 4.2 because 4.3 changed how it handles tabs. The upgrade is tracked in issue 981 and needs about two days of work. Until then the bot will keep opening the same PR so please close it.
+dev-mark-names-listed-in-a-sentence	The ternary operator uses question mark and colon and the statement ends with a semicolon.
 dev-migration-plan	Migration plan for the user table:\n1. Add the new column as nullable\n2. Backfill it in batches of 10,000 rows\n3. Make it not null once the backfill reports zero missing\n\nEach step ships in its own release.
 dev-onboarding-message	Welcome aboard. Your first task is in the tracker under the label good first task. The docs are at docs.example.com/start if you get stuck write to dev-help@example.com.
 dev-path-at-sentence-start	/etc/hosts is read before DNS so the entry we added there wins. ~/.ssh/config holds the jump host and it needs mode 600.

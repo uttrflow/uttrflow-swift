@@ -41,6 +41,32 @@ struct SpokenSymbolMentionTests {
         #expect(result == written, "\(result)")
     }
 
+    @Test(
+        "two mark names joined by and or or are a list of marks, so every name stays a word",
+        .bug(id: 8012),
+        arguments: [
+            ("the ternary uses question mark and colon", "The ternary uses question mark and colon."),
+            ("the symbols are comma and semicolon", "The symbols are comma and semicolon."),
+            ("the difference between colon and semicolon", "The difference between colon and semicolon."),
+            ("ask him comma or period", "Ask him comma or period."),
+        ])
+    func coordinatedMarkNamesStayWords(spoken: String, written: String) async throws {
+        let result = try await rules(spoken)
+        #expect(result == written, "\(result)")
+    }
+
+    @Test(
+        "a mark followed by and and something that is no mark name is still written",
+        .bug(id: 8012),
+        arguments: [
+            ("hello comma and goodbye period", "Hello, and goodbye."),
+            ("dear sam comma and best wishes period", "Dear sam, and best wishes."),
+        ])
+    func markBeforeAndStillWritten(spoken: String, written: String) async throws {
+        let result = try await rules(spoken)
+        #expect(result == written, "\(result)")
+    }
+
     @Test("a mark name after a modifier key nobody pressed is still written")
     func modifierWithoutKeyVerbStillMarks() async throws {
         #expect(try await rules("i ran the command comma then i left").contains("command,"))
