@@ -1420,6 +1420,20 @@ struct NumberWordsTests {
     }
 
     @Test(
+        "keeps the words when a Hindi number before baje is larger than any clock shows",
+        arguments: [
+            ("kal subah saath baje utna hai", "kal subah saath baje utna hai"),
+            ("pachaas baje", "pachaas baje"),
+            ("mujhe saath baje uthna hai", "mujhe saath baje uthna hai"),
+            ("saat baje uthna hai", "7 baje uthna hai"),
+            ("chaubees baje tak", "24 baje tak"),
+        ]
+    )
+    func hindiClockPastTwentyFour(input: String, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass()) == expected)
+    }
+
+    @Test(
         "joins a spoken k after a number to it as one amount",
         arguments: [
             ("it is about six k so bring shoes", "it is about 6k so bring shoes"),

@@ -270,5 +270,15 @@
     "expected": "Invoice ka reply bhejo aur browser restart karo.",
     "mustKeep": ["invoice", "reply", "browser", "restart"],
     "mustNotAdd": ["inwois", "riplai", "brauzar", "reestaart"]
+  },
+  {
+    "id": "hinglish-saath-baje-not-sixty",
+    "note": "A number no clock shows is not written before baje; the recogniser's word stays.",
+    "language": "hi",
+    "addedFor": 8017,
+    "spoken": "kal subah saath baje utna hai",
+    "expected": "Kal subah saath baje utna hai.",
+    "mustKeep": ["saath", "baje"],
+    "mustNotAdd": ["60"]
   }
 ]
