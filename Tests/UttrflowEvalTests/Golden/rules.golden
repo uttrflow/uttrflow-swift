@@ -328,6 +328,7 @@ email-two-paragraphs	Thanks for your note.\n\nI've attached the revised quote fo
 emphatic-double-kept	The plan is very very late and much much worse than last week.
 ends-on-copula-of-embedded-question	I know what it is.
 ends-on-copula-of-embedded-question-where	Show me where we are.
+exit-code-said-in-two-halves-is-not-a-clock-time	The script exited with code 127 after the migration step.
 extension-is-digits-kept	My extension is 445.
 extension-is-spoken-digit-run	My extension is 445.
 extension-repeated-digits	You can reach me on extension 442442.

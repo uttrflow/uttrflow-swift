@@ -1010,6 +1010,9 @@
     "ends-on-copula-of-embedded-question@2",
     "ends-on-copula-of-embedded-question@3",
     "ends-on-copula-of-embedded-question@4",
+    "exit-code-said-in-two-halves-is-not-a-clock-time@11",
+    "exit-code-said-in-two-halves-is-not-a-clock-time@3",
+    "exit-code-said-in-two-halves-is-not-a-clock-time@8",
     "extension-repeated-digits@1",
     "extension-repeated-digits@3",
     "extension-repeated-digits@4",
@@ -5605,5 +5608,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5585
+  "total" : 5588
 }
