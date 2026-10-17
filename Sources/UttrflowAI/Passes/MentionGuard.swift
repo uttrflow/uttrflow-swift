@@ -89,7 +89,9 @@ public enum MentionGuard {
         // An opening mark goes on the word after it, so a text beginning with one is using it, not naming it.
         guard position > 0 else { return !kind.attachesAfter }
         if namesChordKey(at: position, in: live, of: draft) { return true }
-        if coordinatesMarkNames(at: position, spanning: length, in: live, of: draft, kind: kind) { return true }
+        if coordinatesMarkNames(at: position, spanning: length, in: live, of: draft, kind: kind) {
+            return true
+        }
         if kind == .closing, isOpenQuotation(before: position, in: live, of: draft) { return false }
         let next = position + length
         if opensThePhrase(
