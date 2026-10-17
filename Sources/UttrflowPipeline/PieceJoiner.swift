@@ -132,6 +132,12 @@ enum PieceJoiner {
         let headWords = WordTokens.words(head, .display).suffix(longestSpokenUnit)
         let tailWords = WordTokens.words(tail, .display).prefix(longestSpokenUnit)
         guard !headWords.isEmpty, !tailWords.isEmpty else { return false }
+        // A mark that ends a sentence closes the head, so no number, time or address runs on from it into the tail.
+        if let closing = spokenMark(at: Array(headWords), fromStart: false), !closing.opening,
+            [".", "?", "!"].contains(closing.symbol)
+        {
+            return false
+        }
         let units = CleaningPipeline(
             passes: CleaningPipeline.piece(
                 numbers: formatter.numbers, digits: situation.digits(for: formatter),

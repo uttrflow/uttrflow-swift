@@ -425,6 +425,11 @@ alone. Some cleanings only make sense over the whole:
   joined words; a round ten ("twenty" | "thirty") stays two numbers. A numeral that ends a piece
   before a currency or unit word that opens the next ("ten" | "dollars", `NumberFormsPass.seamUnits`)
   is one quantity, so the seam takes no stop and the word stays lower case.
+- **A closing mark name ends its piece.** A piece that ends on a spoken "full stop", "period",
+  "question mark" or "exclamation mark" is closed by it: no number, time or address runs on from
+  it into the next piece, so the seam does not tidy the two again as one. Read together the
+  mid-sentence name would turn back into the word ("ship it period" | "we leave tomorrow" would
+  say "period"), and a name that ends a piece is the mark the pause set apart.
 
 Some passes are only correct over the whole message, and their scope is in the type.
 `CleaningPipeline.piece(numbers:digits:…)` is what a piece gets — it takes no
