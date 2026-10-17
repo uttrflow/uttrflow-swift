@@ -57,6 +57,7 @@ struct QuestionShapeTests {
         "reads a direct question from its word order",
         arguments: [
             "where did you put the keys", "which branch should I merge into",
+            "which is better", "which works better", "which one do you want",
             "what time is the meeting tomorrow", "what time is it", "how many people are coming",
             "how are you", "can you send it", "did you see the email", "is it ready",
             "what's the status of the release", "can you review the pull request", "did the build go green",
@@ -148,6 +149,8 @@ struct QuestionShapeTests {
             "the plan is simple, which does not help",
             "I forgot my umbrella again, which is really annoying",
             "the memory usage keeps growing, which looks like a leak in the cache layer",
+            "which brings it to twelve", "which allows us to ship early", "which leads to a longer review",
+            "which means we are late",
             "the author, whose work I had admired, retired last year",
             "the man, whom I met yesterday, sent a follow-up note",
             "do it now", "do it yourself", "have it ready by friday", "have it your way",

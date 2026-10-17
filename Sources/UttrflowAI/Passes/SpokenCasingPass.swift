@@ -3,7 +3,7 @@ public import UttrflowCore
 /// Writes the words a spoken casing command covers in the style it names, and drops the command.
 public struct SpokenCasingPass: PieceCleaningPass {
     public static let id: PassID = .spokenCasing
-    public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    public static let laws: Set<PassLaw> = [.idempotent, .keepsDigits, .latinOnly]
     public static let orderIndependentWith: Set<PassID> = [.layoutWords]
 
     /// Where the words are going, which picks the table rows that apply.

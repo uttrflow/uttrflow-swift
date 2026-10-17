@@ -43,9 +43,9 @@ public struct StammersPass: PieceCleaningPass {
                 keys.remove(at: i)
                 continue
             }
-            // A doubled number is data beside another number or a nearby digit cue.
-            if word == previous, NumberWords.isNumber(word),
-                !Self.isDoubledNumberAtPieceEdge(at: i, in: live),
+            // A doubled number is data unless it is a single-word cardinal stammered at the start of a piece.
+            if word == previous, Self.isSingleWordCardinal(word),
+                Self.isStammerPosition(at: i, in: live),
                 !Self.surroundedByNumber(at: i, in: live, draft: draft),
                 !NumberFormsPass.hasLabelCue(at: i - 1, keys: keys, shapes: shapes)
             {
@@ -61,9 +61,14 @@ public struct StammersPass: PieceCleaningPass {
         return draft
     }
 
-    /// Keeps an ambiguous doubled digit when its pair touches a piece boundary.
-    private static func isDoubledNumberAtPieceEdge(at i: Int, in live: [Int]) -> Bool {
-        i == 1 || i == live.count - 1
+    /// Whether the number is one word from zero to nineteen; a tens or scale word doubles as a year, a score or an even split.
+    private static func isSingleWordCardinal(_ word: String) -> Bool {
+        NumberWords.units[word] != nil || NumberWords.teens[word] != nil
+    }
+
+    /// Whether the pair opens the piece and a word follows it, the only place a doubled number reads as a restart.
+    private static func isStammerPosition(at i: Int, in live: [Int]) -> Bool {
+        i == 1 && live.count > 2
     }
 
     /// Keeps Hindi's doubled numeral when a content word follows it.

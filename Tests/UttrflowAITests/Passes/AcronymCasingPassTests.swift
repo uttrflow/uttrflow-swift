@@ -236,7 +236,8 @@ struct AcronymCasingPassTests {
         "keeps the case a command line was said in",
         arguments: [
             "cd ios", "npm run ios", "npm install typescript", "aws s3 ls", "echo json",
-            "python -m http.server 8000",
+            "python -m http.server 8000", "man ssh", "history | grep ssh", "ps aux | grep json",
+            "psql -h localhost -d sql", "systemctl status api", "dig +short example.com",
         ])
     func commandLineKeepsCase(command: String) {
         #expect(terminal.run(Draft(text: command)).text == command)
@@ -245,5 +246,16 @@ struct AcronymCasingPassTests {
     @Test("still writes a known name in its casing where a terminal line reads as a sentence")
     func terminalSentenceCased() {
         #expect(terminal.run(Draft(text: "check the api in the sdk")).text == "check the API in the SDK")
+    }
+
+    @Test(
+        "still writes a known name in its casing after a command word in prose outside a terminal",
+        arguments: [
+            ("history of api is useful", "History of API is useful."),
+            ("man the api desk", "Man the API desk."),
+        ])
+    func commandWordInProseOutsideTerminal(input: String, expected: String) {
+        let notes = CleaningPipeline.message(for: .standard(for: .plain), situation: .unknown)
+        #expect(notes.run(Draft(text: input)).text == expected)
     }
 }

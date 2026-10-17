@@ -79,6 +79,7 @@ caret-replace-whole-sentence	The van is booked.
 chat-function-stays-prose	We need something that takes a batch of orders and hands back the ones that failed.
 chat-identifier-casing	The crash only happens in payment sheet after the card scanner closes.
 chat-totals	Add up the invoices grouped by currency and sort by the total.
+clock-time-said-with-colon	Meet at 10:30.
 code-comment-keeps-spoken-commands	Camel case user id open paren close paren.
 code-editor-code-keeps-no-stop	this invalidates the cache after every write
 code-editor-command-keeps-case-docker	docker compose up
@@ -195,6 +196,13 @@ dev-review-comment	Nit: this loop runs one query per row because the lookup sits
 dev-review-reply	Good catch. I moved the timeout into the config struct and renamed it request_timeout_seconds. The default is still 30. I also added a test for the zero case which used to hang forever.
 dev-shell-pipeline	grep -r error logs/app.log | sort | uniq -c | sort -nr | head -20
 dev-standup-update	Yesterday I merged the retry fix for the sync worker and paired on the flaky login test. Today I am picking up core dash 208 to move the session cache to redis. I am blocked on the staging database because it still runs postgres 14 and the new index needs 16.
+dev-terminal-and-chain	make build && make test
+dev-terminal-and-chain-said-double	cd /tmp && ls -la
+dev-terminal-history-grep-keeps-case	history | grep ssh
+dev-terminal-man-page-keeps-case	man ssh
+dev-terminal-or-chain	npm test || echo failed
+dev-terminal-or-chain-said-double-pipe	npm test || echo failed
+dev-terminal-process-filter-keeps-case	ps aux | grep json
 dev-test-failure-report	The leap year test in the date parser fails on the arm runner only. It expects 29 days in February and gets 28. The x86 runner passes so I think it is the time zone data on the image.
 dev-version-bump	Heads up I bumped the SDK from 2.3.1 to 3.0.0. It drops support for node 16 so the build image needs node 20 or later. The changelog lists two breaking changes and both are in the auth module.
 dialect-aint	That ain't going to work for the client.
@@ -216,6 +224,7 @@ dictation-keeps-markdown-words-italic	The title goes in italic in the reference 
 dictation-keeps-markdown-words-italics	Put the book names in italics please.
 dictionary-entry-case-2302	eBay listings were up again YoY and the Docker image is smaller.
 dictionary-four-word-entry-2342	The quarterly report goes to Harbour Street Credit Union on Friday.
+dictionary-function-words-kept-7963	I said I'd go and it is a good idea.
 dictionary-lower-case-after-line-document-4290	The service restarted\nnginx serves the page again.
 dictionary-lower-case-after-stop-code-4290	The cache is warm. jq filters the output.
 dictionary-lower-case-after-stop-document-4290	The build passed. pnpm install is next.
@@ -226,7 +235,9 @@ dictionary-lower-case-start-code-4290	kubectl rollout restarts the pods.
 dictionary-lower-case-start-document-4290	kubectl apply reads the new config.
 dictionary-lower-case-start-messaging-4290	ffmpeg cut the clip in two seconds
 dictionary-lower-case-zsh-code-4290	zsh loads the profile on start.
+dictionary-surely-heard-name-7982	Please ask Meera about the report today.
 dictionary-symbol-only-entry-2343	The loop adds one to the counter each time it runs.
+dictionary-word-of-longer-entry-7959	Deepak and Rao went to the market.
 document-at-name-stays	At Sam, can you take a look?
 document-bullet-caret-capitalises	The migration finished overnight
 document-list-only-when-spoken	What's left to pack\n- The tent\n- The stove\n- The first aid kit
@@ -264,6 +275,9 @@ dotted-clock-after-before	Please send the draft before 4:30 on Friday.
 dotted-clock-after-until	The pharmacy stays open until 9:45 tonight.
 dotted-rate-before-percent-kept	The loan is fixed at 6.25% for five years.
 double-negative-keep	We didn't do nothing wrong in that release.
+doubled-number-even-split-kept	A fifty fifty chance.
+doubled-number-score-kept	The score was two two at half time.
+doubled-number-year-kept	It was 2020 and then covid.
 doubled-place-name-kept	We flew to bora bora last year for the wedding.
 doubtful-word-from-window	We should clear the cash before the deploy
 doubtful-word-heard-word-stands	We should clear the cash before the deploy.
@@ -311,6 +325,8 @@ email-subject-travel	Updated travel plans
 email-subject-welcome	Welcome to the team
 email-two-paragraphs	Thanks for your note.\n\nI've attached the revised quote for the second floor.
 emphatic-double-kept	The plan is very very late and much much worse than last week.
+ends-on-copula-of-embedded-question	I know what it is.
+ends-on-copula-of-embedded-question-where	Show me where we are.
 extension-is-digits-kept	My extension is 445.
 extension-is-spoken-digit-run	My extension is 445.
 extension-repeated-digits	You can reach me on extension 442442.
@@ -410,7 +426,7 @@ fmt-paragraph-two-breaks	First point\n\nSecond point\n\nLast point.
 fmt-paren-aside	The report (draft two) is attached.
 fmt-question-after-statement	The room is booked, do you need a projector?
 fmt-question-can-you	Can you send me the file?
-fmt-question-indirect-is-statement	I wonder where the keys are
+fmt-question-indirect-is-statement	I wonder where the keys are.
 fmt-question-tag	The meeting is at three isn't it?
 fmt-question-what-time	What time does the shop open?
 fmt-quote-nested	She said "he wrote 'done' on the board" and left.
@@ -435,6 +451,8 @@ hinglish-apology-kept	Main late hoon sorry main abhi aata hoon.
 hinglish-correction-nahi-nahi	Meeting 5 baje hai.
 hinglish-correction-paused-nahi	4 baje milte hain.
 hinglish-correction-replaced-head	Parso ki meeting cancel hai.
+hinglish-devanagari-loanwords-cancel-budget-update	Kal ki meeting cancel ho gayi aur budget bhi update karna hai.
+hinglish-devanagari-loanwords-right-payment-confirm	Tum kal aa rahe ho, right, payment confirm kar dena.
 hinglish-false-start	Yaar wo wo bug bahut weird hai mujhe samajh nahi aa raha.
 hinglish-galat-bola-kept	Usne mujhe galat bola.
 hinglish-galat-bola-restatement-kept	Tumne pehle galat bola aur ab sahi bol rahe ho.
@@ -449,6 +467,7 @@ hinglish-mera-matlab-kept	Aap samjhe mera matlab.
 hinglish-na-question-tag	Tum kal aa rahe ho na?
 hinglish-nahi-nahi-answer-kept	Kya aap thak gaye ho nahi nahi main bilkul theek hoon?
 hinglish-negation-kept	Mujhe yeh build thik nahi lag raha.
+hinglish-pause-comma-at-end	Chalo thik hai, phir milte hain.
 hinglish-paused-nahi-kept	Do log nahi, sab log aayenge.
 hinglish-question	Kya tum aaj ka PR review kar sakte ho?
 hinglish-question-after-verb	Report bhej di kya?
@@ -461,6 +480,8 @@ hinglish-romanised-respelling-2377	Kal ki meeting nahi hai main ghar se kaam kar
 hinglish-sorry-sorry-kept	Sorry sorry main bhool gaya.
 hinglish-spoken-colon-before-kal	Note: kal chutti hai.
 hinglish-spoken-comma-before-aur	Chai, aur biscuit.
+hinglish-the-closes-sentence	Usne 15 agast ko 100 rupaye diye the.
+hinglish-the-stop-mid-text-kept	Ve kal dilli gaye the. Ve kal dilli gaye the.
 hinglish-trailing-english	Mujhe kal morning mein doctor ke paas jaana hai so I'll be offline.
 homophone-by-buy-2326	I need to by groceries after work.
 homophone-cash-cache-2326	Clear the browser cash and reload the page.
@@ -504,6 +525,7 @@ hostile-title-preamble	We should book the venue this week, did you get a quote?
 hostile-title-translate	The meeting moved to the afternoon, can you still make it?
 hyphenated-bedroom-count-kept	Two three-bedroom flats.
 i-mean-correction	Send the invoice on Wednesday.
+if-it-is-right-is-no-tag-question	I don't know if it is right.
 indian-grouping-lakh-transfer	1,00,000 rupaye transfer kar do.
 indian-grouping-quote	Rs. 2,50,000 ka quote aaya.
 indian-grouping-total-bill	Total bill 3,45,000 rupaye aaya.
@@ -518,6 +540,9 @@ joined-q-and-a-few-kept	Invite q and a few others.
 joined-r-and-d	R&D owns the roadmap.
 joined-slash-and-burn-kept	They farm by slash and burn.
 joined-slash-key-kept	Press the slash key twice.
+keeps-heard-capital-on-company-name	Visit Apple today.
+keeps-heard-capital-on-name-that-is-also-a-word	Open Slack and message Grace.
+keeps-heard-capitals-in-a-quoted-label	Use the "Save As" option.
 key-go-to-the-end-in-a-sentence-stays-words	Go to the end of the page and sign it.
 key-go-to-the-start-in-a-sentence-stays-words	Go to the start of the chapter and read it again.
 key-press-enter-in-a-sentence-stays-words	Press enter to submit the form.
@@ -846,6 +871,8 @@ one-line-room	Room 12
 one-line-three-sentences	Bring a laptop. Arrive early. Park at the back.
 one-line-title	Project plan
 one-line-two-sentences	The door is locked. Use the side entrance.
+one-word-quotation-ends-its-sentence	He said "hello."
+one-word-quoted-term-ends-its-sentence	She called it "unbelievable".
 or-rather-before-a-negation-kept	Would you like to stay or rather not?
 or-rather-replaces-a-word	She wanted coffee.
 ordinal-not-date	The twenty first may fail.
@@ -887,8 +914,8 @@ probe-clinical-note	Patient is a 52 year old with chest tightness for two days b
 probe-contract-clauses	Clause 9.1 the supplier shall item a deliver within 30 days of the order item b replace any damaged goods at its own cost and item c keep records for six years.
 probe-cover-letter	Dear Ms Alvarez,\n\nI am writing to apply for the senior analyst position advertised on your careers page.\n\nIn my current role I lead a team of six analysts and reduced reporting time by 30%.\n\nI would welcome the chance to discuss my application,\nYours sincerely,\nAsha Verma
 probe-decision-record	We decided to store sessions in redis rather than postgres because the read volume is high and the data is disposable the trade off is that a restart logs everyone out so we will enable append only persistence.
-probe-docker-build-no-cache	docker build --no-cache dot
-probe-docker-run-flags	docker run --rm -p 8000: 8000 -v ~/projects/app: /app node: 20 alpine
+probe-docker-build-no-cache	docker build --no-cache .
+probe-docker-run-flags	docker run --rm -p 8000:8000 -v ~/projects/app: /app node:20 alpine
 probe-dockerfile-from	From node: 20 dash alpine as build
 probe-file-name-opening	config.yaml is missing the timeout key so the client falls back to 30 seconds.
 probe-flight-details	We fly on flight UA 472 from JFK to heathrow on Friday the third of October departing at 6:45 am from gate B12 and landing at 6:10 pm local time at terminal five.
@@ -911,7 +938,7 @@ probe-regex-pattern	The pattern is caret [a dash z] plus at [a dash z] plus doll
 probe-repro-steps	Steps to reproduce: one open the app two press command comma three switch to the privacy tab\nExpected: the tab opens\nActual: the app quits on mac OS 14
 probe-retry-bullets	This change moves retry handling into the HTTP client:\n- Adds a max retries option\n- Respects the retry after header\n- Removes the old backoff helper\n\nTested locally with the unit suite.
 probe-revenue-figures	Q3 revenue was 1.2 million dollars up 8% on the previous quarter and churn fell from 4.1% to 3.6% we closed 42 new accounts against a target of 50 and support tickets dropped by 30%.
-probe-shell-pipeline	cat access dot log | grep -v health | sort | uniq -c | sort -rn | head -20
+probe-shell-pipeline	cat access.log | grep -v health | sort | uniq -c | sort -rn | head -20
 probe-short-hash	revert A3F9C2 because it broke the nightly build
 probe-short-verse	Roses are red\nViolets are blue\nSugar is sweet\nAnd so are you.\n\nThe moon is bright\nThe stars are near\nI wish that you were here.
 probe-spoken-correction	No wait Thursday works better for the board.
@@ -945,6 +972,8 @@ prose-spoken-parentheses-as-marks	The budget (draft two) is due Friday.
 quantity-after-has-beside-a-label-word	The model has 70,000,000,000 parameters and the table has 2,000,000 rows.
 question-mark-new-line	Is it ready?\nYes.
 question-mark-new-line-thanks	What do you think?\nThanks.
+question-with-embedded-question-know-what-mean	Do you know what I mean?
+question-with-embedded-question-see-what-did	Did you see what he did?
 quick-entry-calendar-time	Team review every Monday at 9:45
 quick-entry-fantastical	Lunch with Sam tomorrow
 quick-entry-fantastical-every-week	Team review every Monday
@@ -957,8 +986,11 @@ quick-entry-things-time	Call the plumber tomorrow at 5:30
 quick-entry-todoist	Water the plants every other day
 quick-entry-todoist-today	Send the invoice today
 quotation-opening-the-text	"The build is green" that is what he said.
+quote-pair-after-say-stays-whole	Type open quote yes close quote.
 quoted-whole-utterance	"We ship on Friday."
 quoted-words-mid-sentence	He said "we ship on Friday" and left.
+range-of-two-hundreds-between	The fee is between 500 and 600 dollars.
+range-of-two-hundreds-from	From 200 and 300 people came.
 reminders-title-no-stop	Water the plants
 repeated-continuation-kept	Blah blah blah and so on and so on.
 repeated-frame-for-kept	I'll pay for lunch for everyone.
@@ -1253,7 +1285,7 @@ spoken-at-sign-before-a-handle	Ping me @sam on the thread.
 spoken-code-digit-run	The code is 1234.
 spoken-colon-at-the-end	The steps are as follows:
 spoken-colon-before-a-clause	The reason is simple: we ran out of time.
-spoken-colon-before-an-item	One more thing colon the demo moves to Friday.
+spoken-colon-before-an-item	One more thing: the demo moves to Friday.
 spoken-comma	We still need milk, eggs, and bread from the shop.
 spoken-comma-after-a-greeting	Hi team, I wanted to check on the invoice.
 spoken-comma-after-an-opener	However, the second build passed.
@@ -1406,6 +1438,9 @@ web-chat-message-2280	Sounds good I will join the call in 5 minutes
 web-mail-compose-2280	Hi sam thanks for the update I will review the draft tomorrow.
 web-search-field-2280	cheap flights to lisbon in may
 weekday-and-month-casing	Can we push the demo to Thursday instead of Wednesday in August?
+which-after-a-stop-continues-the-sentence	The total is 10. Which brings it to 12. Which is why we left early.
+which-is-why-stays-a-statement	Which is why I left early.
+year-after-by-not-a-clock-time	We had 50 customers and by 2024 we had 5000.
 zone-central-european-4031	The webinar is at four Central European Time.
 zone-central-time-slot-kept-4031	The central time slot works for me.
 zone-coordinated-universal-4031	Log every event in Coordinated Universal Time.
