@@ -187,6 +187,47 @@ struct VoiceActivityTests {
         #expect(VoiceActivity.speechRange(in: audio, sampleRate: Signal.rate) == nil)
     }
 
+    /// A burst of tone `seconds` long, the loudness of a word.
+    private func word(_ seconds: Double) -> [Float] { Signal.speech(seconds, level: 0.3) }
+
+    @Test("keeps short words ahead of the first long one, which are speech and not clicks")
+    func keepsShortWordsAheadOfALongOne() throws {
+        // "Put the keys": two words under the 120 ms that tells a word from a click, 60 ms apart.
+        let audio =
+            Signal.silence(1) + word(0.1) + Signal.silence(0.06) + word(0.1) + Signal.silence(0.06)
+            + word(0.5) + Signal.silence(1)
+        let range = try #require(VoiceActivity.speechRange(in: audio, sampleRate: Signal.rate))
+
+        // The first word starts at 1 s; what is kept ahead of it is lead-in, not a word cut off.
+        #expect(range.lowerBound <= Signal.rate)
+    }
+
+    @Test("keeps short words after the last long one")
+    func keepsShortWordsAfterALongOne() throws {
+        let audio =
+            Signal.silence(1) + word(0.5) + Signal.silence(0.06) + word(0.1) + Signal.silence(0.06)
+            + word(0.1) + Signal.silence(1)
+        let range = try #require(VoiceActivity.speechRange(in: audio, sampleRate: Signal.rate))
+
+        #expect(range.upperBound >= Signal.rate + Int(0.82 * Double(Signal.rate)))
+    }
+
+    @Test("still drops a click that no word is within the margin of")
+    func dropsAClickFarFromSpeech() throws {
+        let audio = Signal.silence(1) + word(0.05) + Signal.silence(1) + word(0.5) + Signal.silence(1)
+        let range = try #require(VoiceActivity.speechRange(in: audio, sampleRate: Signal.rate))
+
+        #expect(range.lowerBound > Signal.rate * 3 / 2)
+    }
+
+    @Test("quiet longer than the margin parts a short word from the speech after it")
+    func quietLongerThanTheMarginDoesNotBridge() throws {
+        let audio = Signal.silence(1) + word(0.1) + Signal.silence(0.5) + word(0.5) + Signal.silence(1)
+        let range = try #require(VoiceActivity.speechRange(in: audio, sampleRate: Signal.rate))
+
+        #expect(range.lowerBound > Signal.rate * 6 / 5)
+    }
+
     @Test("speech still running when the recording ends is kept")
     func keepsSpeechRunningToTheEnd() throws {
         let audio = Signal.silence(3) + Signal.speech(3)

@@ -201,6 +201,26 @@ measured with `Scripts/decoder_compute_plan.swift` and the recorded corpus as ab
   ([`early-transcription.md`](early-transcription.md)); it goes alone, padded, only where the join
   would pass `maximumLength` or cross a discontinuity.
 
+### Short words at the head of a phrase
+
+The trim before the decode ([silence.md](silence.md)) used to treat any run of speech under
+`VoiceActivity.minimumSpeech` as a click, so a phrase that opens with two words under 120 ms ("put the
+keys back") lost them whenever the first long run sat more than `margin` after the first word. It
+now joins runs that are no more than `margin` of quiet apart.
+
+Measured with `say` voices Daniel, Samantha and Karen at 190 words a minute, 24 command-style
+sentences each (72 clips), through `BackedSpeechEngine` with the shipping model, in a debug build under
+heavy load from other builds, one pass, synthetic voices only (no recorded human speech):
+
+| Trim | clips missing the first word | word edits over 468 words |
+|---|---|---|
+| before | 4 of 72 | 12 |
+| after | 0 of 72 | 8 |
+
+The same change recovered the first word of 8 of 8 clips in a second set that opened on "set", "get",
+"put" or "let" (Daniel's "Set a timer for ten minutes ..." lost it before), and left the other 59 of 60
+clips of a mixed sentence set word for word the same.
+
 ### Padding, measured
 
 `uttrflow-eval short-clip` decodes the short-utterance class (`ShortUtterances`: 63 replies of one to
