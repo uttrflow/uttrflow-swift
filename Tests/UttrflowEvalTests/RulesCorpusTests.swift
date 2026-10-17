@@ -132,21 +132,6 @@ struct RulesCorpusTests {
         #expect(Set(repairs.map(\.id)).isDisjoint(with: Self.rulesMustPass))
     }
 
-        #expect(named.count == 553 + Self.knownFailures.count)
-        #expect(
-            named.subtracting(Self.modelOnly).subtracting(Self.knownFailures).isSubset(of: Self.rulesMustPass)
-        )
-        #expect(Self.knownFailures.isSubset(of: named))
-        #expect(Self.knownFailures.isDisjoint(with: Self.rulesMustPass))
-        #expect(Self.modelOnly.isSubset(of: named))
-        #expect(Self.modelOnly.isDisjoint(with: Self.rulesMustPass))
-        // A grammar case the rules pass is one whose reference keeps the words as spoken, as dialect does.
-        let repairs = EvaluationCorpus.cases(in: .grammar).filter { testCase in
-            !Self.leftAlone.contains { $0.id == testCase.id && $0.text == testCase.expected }
-        }
-        #expect(Set(repairs.map(\.id)).isDisjoint(with: Self.rulesMustPass))
-    }
-
     /// What the rules write for every grammar case: the floor never "fixes" grammar, so only Tier 1 cleaning touches it.
     static let leftAlone: [(id: String, text: String)] = [
         ("agreement-there-is", "There is three of them waiting outside."),

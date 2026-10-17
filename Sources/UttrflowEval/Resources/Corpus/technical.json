@@ -1478,5 +1478,33 @@
     "destination": "terminal",
     "expectedExact": "go test ./...",
     "addedFor": 8013
+  },
+  {
+    "id": "shell-chmod-symbolic-mode",
+    "note": "a symbolic permission mode said after chmod is one word with its operator",
+    "spoken": "chmod u plus x deploy dot sh",
+    "expected": "chmod u+x deploy.sh",
+    "mustKeep": ["u+x", "deploy.sh"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "expectedExact": "chmod u+x deploy.sh",
+    "addedFor": 8015
+  },
+  {
+    "id": "shell-chmod-marked-subject-not-joined",
+    "note": "a mark after the subject of a symbolic mode is the speaker's, so the words are not joined",
+    "spoken": "chmod u, plus x deploy dot sh",
+    "expected": "chmod u plus x deploy.sh",
+    "mustKeep": ["plus", "deploy.sh"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "expectedExact": "chmod u plus x deploy.sh",
+    "addedFor": 8015
   }
 ]
