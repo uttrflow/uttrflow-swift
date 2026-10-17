@@ -28,6 +28,7 @@ struct SpokenDotArgumentTests {
             ("python3 dash m http dot server", "python3 -m http.server"),
             ("git add dot", "git add ."),
             ("cd dot dot", "cd .."),
+            ("Docker build dash dash no dash cache dot.", "docker build --no-cache ."),
         ]
     )
     func writesReportedDictations(spoken: String, expected: String) {

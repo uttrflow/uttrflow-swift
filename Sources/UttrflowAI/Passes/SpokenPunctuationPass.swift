@@ -4,7 +4,7 @@ public import UttrflowCore
 /// Turns a punctuation mark said by name into the mark, and a spoken email address into the address, when used rather than mentioned.
 public struct SpokenPunctuationPass: PieceCleaningPass {
     public static let id: PassID = .spokenPunctuation
-    public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    public static let laws: Set<PassLaw> = [.idempotent, .latinOnly]
     public static let orderIndependentWith: Set<PassID> = [.spokenCasing, .caretEcho]
     private let destination: Destination
     /// Whether the screen alone makes every spoken dash an option marker: a place options are typed, outside a comment.

@@ -108,6 +108,35 @@ struct NonWordCorrectionTests {
         #expect(engine.proposals(for: utterance, against: index).isEmpty)
     }
 
+    /// A spelling the recogniser committed to as a name: capitalised in mid-sentence and scored surely.
+    @Test(
+        "keeps a capitalised name inside a sentence that the recogniser heard surely",
+        arguments: [
+            ("Please ask Meera about the report today", "Mira"),
+            ("Please ask Zoya about the report today", "Zoe"),
+            ("Hi Meera, thanks for the report", "Mira"),
+        ])
+    func keepsASurelyHeardName(sentence: String, entry: String) {
+        let utterance = CorrectionFixtures.spoken(sentence, sure: 0.95)
+        #expect(engine.proposals(for: utterance, against: Self.index([entry])).isEmpty)
+    }
+
+    @Test("still respells that name when the recogniser was unsure of it")
+    func respellsAnUnsureName() throws {
+        let utterance = CorrectionFixtures.spoken("Please ?Meera about the report today")
+        let proposals = engine.proposals(for: utterance, against: Self.index(["Mira"]))
+        #expect(try #require(proposals.first).replacement == "Mira")
+    }
+
+    @Test(
+        "still respells a capitalised non-word that opens a sentence",
+        arguments: ["Meera sent the report today", "Thanks for that. Meera sent the report today"])
+    func respellsASentenceOpening(sentence: String) throws {
+        let utterance = CorrectionFixtures.spoken(sentence, sure: 0.95)
+        let proposals = engine.proposals(for: utterance, against: Self.index(["Mira"]))
+        #expect(try #require(proposals.first).replacement == "Mira")
+    }
+
     /// "Rao" is no English word, but the dictionary writes it inside `Deepak Rao`, so the user writes it.
     @Test(
         "leaves a word the dictionary writes inside a longer entry",
