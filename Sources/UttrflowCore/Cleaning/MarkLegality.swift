@@ -43,7 +43,8 @@ public enum MarkLegality {
         if let kind = Abbreviations.kind(of: shape.core), kind != .initial {
             return kind.leadsOn ? .leadingAbbreviation : .abbreviation
         }
-        return FunctionWords.leadsOn(shape.core) ? .leadsOn : .word
+        // The letter A closes a phrase ("vitamin A."); only the article leads on.
+        return FunctionWords.leadsOn(shape.core) && !shape.isLetterA ? .leadsOn : .word
     }
 
     /// Whether `mark` may stand straight after `token`.

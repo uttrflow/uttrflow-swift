@@ -29,6 +29,9 @@ public struct WordShape: Equatable, Sendable {
     /// Whether the word closes a clause or a sentence.
     public var endsClause: Bool { suffix.contains(where: { ",.;:!?".contains($0) }) }
 
+    /// Whether the word is the capital letter A, a label ("Part A", "Grade A") where the article is written "a".
+    public var isLetterA: Bool { core == "A" }
+
     /// Whether the word is a command option such as "-i" or "--force", whose letters are case-sensitive.
     public var isOption: Bool {
         (prefix == "-" || prefix == "--") && core.first.map { $0.isLetter || $0.isNumber } == true

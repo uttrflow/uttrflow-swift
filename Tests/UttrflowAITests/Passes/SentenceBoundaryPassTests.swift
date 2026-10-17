@@ -27,6 +27,25 @@ struct SentenceBoundaryPassTests {
     }
 
     @Test(
+        "a capital A is the letter of a label, so it keeps its case and its comma",
+        arguments: [
+            ("Part A, part B, and part C are due Monday.", "Part A, part B, and part C are due Monday."),
+            ("The answer is A, not B.", "The answer is A, not B."),
+            ("Ask the question, then answer A, B, or C.", "Ask the question, then answer A, B, or C."),
+            ("Grade A, grade B, and grade C eggs.", "Grade A, grade B, and grade C eggs."),
+            ("Vitamin C, vitamin D, and vitamin A.", "Vitamin C, vitamin D, and vitamin A."),
+            ("Option B, option A, or option C.", "Option B, option A, or option C."),
+        ])
+    func keepsALetterA(input: String, expected: String) {
+        #expect(cleaned(input) == expected)
+    }
+
+    @Test("the article a still loses the comma that splits it from its noun")
+    func theArticleStillLosesItsComma() {
+        #expect(cleaned("We went to a, store") == "We went to a store.")
+    }
+
+    @Test(
         "takes back a comma or stop inside a closed phrase",
         arguments: [
             ("We went to the, store", "We went to the store."),
