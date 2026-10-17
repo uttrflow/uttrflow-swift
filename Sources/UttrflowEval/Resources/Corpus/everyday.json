@@ -571,6 +571,14 @@
     "mustNotAdd": ["?"]
   },
   {
+    "id": "toll-free-prefix-keeps-its-zeros-after-a-label",
+    "addedFor": 8004,
+    "spoken": "our toll free number is one eight hundred two two two three three three four",
+    "expected": "Our toll free number is 18002223334.",
+    "mustKeep": ["18002223334"],
+    "mustNotAdd": ["1802223334"]
+  },
+  {
     "id": "year-after-by-not-a-clock-time",
     "spoken": "we had fifty customers and by twenty twenty four we had five thousand",
     "expected": "We had 50 customers and by 2024 we had 5000.",

@@ -826,6 +826,28 @@ struct NumberFormsPassTests {
         #expect(output.filter(\.isNumber) == "8005550199")
     }
 
+    /// After a label word the digits run together; a scale then a string of single digits is the scale and the digits.
+    @Test(
+        "keeps the two zeros of a toll-free prefix after a label word",
+        arguments: [
+            (
+                "the toll free line is one eight hundred nine nine nine eight eight eight seven",
+                "the toll free line is 18009998887"
+            ),
+            (
+                "the number is one eight hundred five five five oh one two three",
+                "the number is 18005550123"
+            ),
+            ("the number is one eight hundred five five five one two one two", "the number is 18005551212"),
+            ("the number is two hundred five five five", "the number is 200555"),
+            ("my room number is three oh four", "my room number is 304"),
+        ]
+    )
+    func tollFreeAfterLabel(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+        #expect(cleaned(input, by: sut).filter(\.isNumber).count >= expected.filter(\.isNumber).count)
+    }
+
     @Test("keeps the unit in a cardinal before a currency")
     func scaleCardinalBeforeCurrency() {
         #expect(cleaned("eight hundred five dollars", by: sut) == "805 dollars")
