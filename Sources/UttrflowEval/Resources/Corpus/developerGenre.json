@@ -263,38 +263,5 @@
     "mustKeep": ["5%", "25%", "Monday"],
     "expectedExact": "The new checkout flag is on for 5% of users in the EU region. Set the rollout to 25% on Monday if the error rate stays flat and leave the US at zero until legal signs off.",
     "addedFor": 3841
-  },
-  {
-    "id": "dev-terminal-history-grep-keeps-case",
-    "note": "a pipeline that starts with a program outside the old command table keeps the search word in the case it was said in",
-    "spoken": "history pipe grep ssh",
-    "expected": "history | grep ssh",
-    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
-    "destination": "terminal",
-    "mustKeep": ["grep", "ssh"],
-    "expectedExact": "history | grep ssh",
-    "addedFor": 7948
-  },
-  {
-    "id": "dev-terminal-man-page-keeps-case",
-    "note": "a manual page request names the program in the case it was said in",
-    "spoken": "man ssh",
-    "expected": "man ssh",
-    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
-    "destination": "terminal",
-    "mustKeep": ["man", "ssh"],
-    "expectedExact": "man ssh",
-    "addedFor": 7948
-  },
-  {
-    "id": "dev-terminal-process-filter-keeps-case",
-    "note": "a process listing filtered by a format name keeps the filter in lower case",
-    "spoken": "ps aux pipe grep json",
-    "expected": "ps aux | grep json",
-    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
-    "destination": "terminal",
-    "mustKeep": ["aux", "grep", "json"],
-    "expectedExact": "ps aux | grep json",
-    "addedFor": 7948
   }
 ]
