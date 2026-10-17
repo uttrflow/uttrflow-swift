@@ -416,26 +416,32 @@ public struct FirstWordPass: WholeTextCleaningPass {
         .verb, .adverb, .preposition, .conjunction, .determiner, .pronoun, .particle, .interjection,
     ]
 
-    /// Whether a capital on an ordinary word is stray: the word cannot be a name, it sits in a title-cased run, or the text also writes it in lower case.
+    /// Whether a capital on an ordinary word is stray: beside a capitalised Hindi word, or outside a capitalised run when the text writes it in lower case or it is a function word.
     static func isEvidentlyStray(_ core: String, in text: String) -> Bool {
         let words = WordTokens.words(text, .display)
         let cores = words.map { WordShape($0).core }
-        if cores.contains(core.lowercased()) { return true }
         let tags = LexicalClass.tags(ofWords: words)
-        let capitalised = { (index: Int) in
-            cores.indices.contains(index) && cores[index].first?.isUppercase == true
-                && !startsASentence(index, in: words)
-                && (LexicalClass.isKnownEnglishWord(cores[index].lowercased())
-                    || isHinglishWord(cores[index], in: text))
-                && !LexicalClass.isNameInDictionary(cores[index].lowercased())
+        let writtenLower = cores.contains(core.lowercased())
+        let hindiCapital = cores.indices.contains {
+            cores[$0].first?.isUppercase == true && !startsASentence($0, in: words)
+                && isHinglishWord(cores[$0], in: text)
         }
-        let strayCount = cores.indices.filter(capitalised).count
+        let capitalNeighbours = { (index: Int) in
+            [index - 1, index + 1].filter { place in
+                cores.indices.contains(place) && cores[place].first?.isUppercase == true
+                    && !startsASentence(place, in: words)
+            }
+        }
         return cores.indices.filter { cores[$0] == core }.contains { index in
             guard !isInsideQuotation(index, in: words) else { return false }
-            if let tag = tags.indices.contains(index) ? tags[index] : nil, neverNameClasses.contains(tag) {
-                return true
-            }
-            return strayCount >= 3 || capitalised(index - 1) || capitalised(index + 1)
+            let neighbours = capitalNeighbours(index)
+            // A romanised Hindi word has no capital of its own, so a run holding one is the sampler's.
+            if !neighbours.isEmpty, hindiCapital { return true }
+            // A name or title is a run of capitalised words, so a capital beside another is the speaker's.
+            guard neighbours.isEmpty else { return false }
+            if writtenLower { return true }
+            guard let tag = tags.indices.contains(index) ? tags[index] : nil else { return false }
+            return neverNameClasses.contains(tag)
         }
     }
 
