@@ -1376,6 +1376,14 @@
     "hinglish-devanagari-loanwords-time-match-error@7",
     "hinglish-devanagari-loanwords-time-match-error@8",
     "hinglish-devanagari-loanwords-time-match-error@9",
+    "hinglish-digit-before-crore@1",
+    "hinglish-digit-before-crore@2",
+    "hinglish-digit-before-crore@4",
+    "hinglish-digit-before-crore@5",
+    "hinglish-digit-before-crore@6",
+    "hinglish-digit-before-hazaar@1",
+    "hinglish-digit-before-hazaar@3",
+    "hinglish-digit-before-hazaar@4",
     "hinglish-false-start@1",
     "hinglish-false-start@10",
     "hinglish-false-start@11",
@@ -5605,5 +5613,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5585
+  "total" : 5593
 }
