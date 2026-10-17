@@ -89,6 +89,7 @@ public enum MentionGuard {
         // An opening mark goes on the word after it, so a text beginning with one is using it, not naming it.
         guard position > 0 else { return !kind.attachesAfter }
         if namesChordKey(at: position, in: live, of: draft) { return true }
+        if coordinatesMarkNames(at: position, spanning: length, in: live, of: draft) { return true }
         if kind == .closing, isOpenQuotation(before: position, in: live, of: draft) { return false }
         let next = position + length
         if opensThePhrase(
@@ -106,6 +107,37 @@ public enum MentionGuard {
             return false
         }
         return !closesDashPair(at: position, in: live, of: draft)
+    }
+
+    /// Every punctuation mark name as its words, filed under the word it opens on.
+    private static let markNamesByOpening: [String: [[String]]] = Dictionary(
+        grouping: SpokenCommands.marks.map(\.words).filter { !$0.isEmpty }, by: { $0[0] })
+
+    /// The words that join two names of marks into one list of marks.
+    private static let coordinators: Set<String> = ["and", "or"]
+
+    /// Whether the mark name at `position` is joined by "and" or "or" to another mark name, as a sentence lists the marks it is about: "question mark and colon".
+    static func coordinatesMarkNames(
+        at position: Int, spanning length: Int, in live: [Int], of draft: Draft
+    ) -> Bool {
+        let next = position + length
+        let last = draft.shape(at: live[next - 1])
+        if !last.endsClause, next + 1 < live.count, coordinators.contains(draft.shape(at: live[next]).key),
+            !draft.shape(at: live[next]).endsClause,
+            (markNamesByOpening[draft.shape(at: live[next + 1]).key] ?? []).contains(where: {
+                draft.spells($0, at: next + 1, in: live)
+            })
+        {
+            return true
+        }
+        guard position >= 2, coordinators.contains(draft.shape(at: live[position - 1]).key),
+            !draft.shape(at: live[position - 1]).endsClause
+        else { return false }
+        return markNamesByOpening.values.joined().contains { name in
+            let start = position - 1 - name.count
+            return start >= 0 && !draft.shape(at: live[position - 2]).endsClause
+                && draft.spells(name, at: start, in: live)
+        }
     }
 
     /// Verbs that press a key, so a mark name after the modifier keys they press is the chord's key.
