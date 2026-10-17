@@ -725,6 +725,14 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             || LayoutWordsPass.opensList(at: next, in: live, of: draft)
     }
 
+    /// The word with the spoken mark on its end; a question mark and an exclamation mark, in either order, make a pair.
+    private static func marked(_ text: String, with mark: String) -> String {
+        guard mark == "?" || mark == "!", let last = text.last, "?!".contains(last), String(last) != mark,
+            !"?!".contains(text.dropLast().last ?? " ")
+        else { return WordShape.marked(text, with: mark) }
+        return text + mark
+    }
+
     /// Fixes the mark to its neighbour and drops the spoken name, or refuses when the neighbour is missing.
     private func attach(
         _ mark: String, kind: SpokenMarkKind, at position: Int, spanning length: Int,
@@ -754,8 +762,8 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             live.remove(at: after)
         } else {
             let previous = live[position - 1]
-            draft.replace(
-                at: previous, with: WordShape.marked(draft.words[previous].text, with: mark), by: Self.id)
+            let written = Self.marked(draft.words[previous].text, with: mark)
+            draft.replace(at: previous, with: written, by: Self.id)
         }
         // A mark written onto the name, as "at sign" writes onto "open paren", moves on rather than going with it.
         for index in live[position..<after] {
