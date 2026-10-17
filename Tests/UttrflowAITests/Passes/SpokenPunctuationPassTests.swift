@@ -9,6 +9,20 @@ struct SpokenPunctuationPassTests {
     private let sut = SpokenPunctuationPass()
 
     @Test(
+        "keeps a question mark and an exclamation mark said together as a pair",
+        arguments: [
+            ("what the heck question mark exclamation mark", "what the heck?!"),
+            ("are you sure question mark exclamation point", "are you sure?!"),
+            ("what exclamation mark question mark", "what!?"),
+            ("wait question mark question mark", "wait?"),
+            ("stop exclamation mark exclamation mark", "stop!"),
+            ("really question mark exclamation mark exclamation mark", "really?!"),
+        ])
+    func questionAndExclamationPair(input: String, expected: String) {
+        #expect(sut.apply(Draft(text: input)).text == expected)
+    }
+
+    @Test(
         "turns a mark said by name into the mark on the word before it",
         arguments: [
             ("add milk comma eggs comma and bread", "add milk, eggs, and bread"),

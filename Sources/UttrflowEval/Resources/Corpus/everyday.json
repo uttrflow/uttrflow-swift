@@ -619,6 +619,14 @@
     "mustNotAdd": ["1:27"]
   },
   {
+    "id": "spoken-question-and-exclamation-mark-make-a-pair",
+    "addedFor": 8008,
+    "spoken": "you moved the whole schedule question mark exclamation mark without telling anyone",
+    "expected": "You moved the whole schedule?! Without telling anyone.",
+    "mustKeep": ["schedule?!", "anyone"],
+    "mustNotAdd": ["schedule!"]
+  },
+  {
     "id": "year-after-by-not-a-clock-time",
     "spoken": "we had fifty customers and by twenty twenty four we had five thousand",
     "expected": "We had 50 customers and by 2024 we had 5000.",
