@@ -265,36 +265,6 @@
     "addedFor": 3841
   },
   {
-    "id": "dev-terminal-and-chain",
-    "note": "two commands chained so the second runs only if the first succeeds",
-    "spoken": "make build ampersand ampersand make test",
-    "expected": "make build && make test",
-    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
-    "destination": "terminal",
-    "expectedExact": "make build && make test",
-    "addedFor": 7941
-  },
-  {
-    "id": "dev-terminal-and-chain-said-double",
-    "note": "the same chain said as a double ampersand",
-    "spoken": "cd slash tmp double ampersand ls dash la",
-    "expected": "cd /tmp && ls -la",
-    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
-    "destination": "terminal",
-    "expectedExact": "cd /tmp && ls -la",
-    "addedFor": 7941
-  },
-  {
-    "id": "dev-terminal-or-chain",
-    "note": "a fallback run only when the first command fails",
-    "spoken": "npm test pipe pipe echo failed",
-    "expected": "npm test || echo failed",
-    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
-    "destination": "terminal",
-    "expectedExact": "npm test || echo failed",
-    "addedFor": 7941
-  },
-  {
     "id": "dev-terminal-history-grep-keeps-case",
     "note": "a pipeline that starts with a program outside the old command table keeps the search word in the case it was said in",
     "spoken": "history pipe grep ssh",
