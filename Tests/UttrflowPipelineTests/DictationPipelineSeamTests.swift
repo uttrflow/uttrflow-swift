@@ -242,6 +242,21 @@ struct DictationPipelineSeamTests {
         #expect(outcome?.text == "I opened PaymentSheet. Today.")
         #expect(outcome?.changes.corrections.map(\.wordRange) == [2..<4])
     }
+
+    @Test(
+        "a spoken full stop that ends a piece stays a stop when the next piece opens on an ordinary word",
+        arguments: [
+            (["ship it period", "we leave tomorrow"], "Ship it. We leave tomorrow."),
+            (["the report is late full stop", "dad"], "The report is late. Dad."),
+            (
+                ["the plan is ready", "ship it full stop", "yeh baat dad ko mat batana"],
+                "The plan is ready. Ship it. Yeh baat Dad ko mat batana."
+            ),
+            (["ship it period", "that is all"], "Ship it. That is all."),
+        ])
+    func closingMarkEndsItsPiece(lines: [String], expected: String) async {
+        #expect(await dictate(lines, seeing: Self.document) == expected)
+    }
 }
 
 private struct SeamSnippetExpander: SnippetExpanding {
