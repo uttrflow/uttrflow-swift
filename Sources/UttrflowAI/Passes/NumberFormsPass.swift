@@ -996,6 +996,9 @@ public struct NumberFormsPass: PieceCleaningPass {
     /// Units after which a decimal with no whole part reads as a number; "second" is safe after digits.
     static let leadingDecimalUnits = measures.union(currencies).union(["second", "seconds", "minute", "hour"])
 
+    /// Scale words after which a decimal with no whole part is a fraction of the scale, "point five million", never the whole number before it.
+    private static let leadingDecimalScales: Set<String> = ["thousand", "million", "billion", "trillion"]
+
     /// "point five percent", "minus point two": a decimal with no whole part, cued by a sign before or a unit after.
     private static func leadingDecimal(at position: Int, keys: [String], shapes: [WordShape]) -> Phrase? {
         guard keys[position] == "point", let group = digitGroup(at: position + 1, keys: keys, shapes: shapes)
@@ -1009,7 +1012,7 @@ public struct NumberFormsPass: PieceCleaningPass {
             position > 0 && joined(position, shapes) && ["negative", "minus"].contains(keys[position - 1])
         // An adjective before "point" makes it the noun, as in "a good point five minutes ago".
         let measured =
-            joined(end, shapes) && leadingDecimalUnits.contains(keys[end])
+            joined(end, shapes) && (leadingDecimalUnits.contains(keys[end]) || leadingDecimalScales.contains(keys[end]))
             && (position == 0 || LexicalClass.tag(ofWordAt: position - 1, in: keys) != .adjective)
         guard signed || measured else { return nil }
         return Phrase(text: text, count: end - position)
