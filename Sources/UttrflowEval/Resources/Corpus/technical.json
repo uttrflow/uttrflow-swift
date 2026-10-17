@@ -1420,5 +1420,19 @@
     "mustKeep": ["aux", "grep", "json"],
     "expectedExact": "ps aux | grep json",
     "addedFor": 7948
+  },
+  {
+    "id": "shell-go-package-pattern",
+    "note": "a package pattern said as dot slash and three dots is written whole, not as an ellipsis or a lost dot",
+    "spoken": "go test dot slash dot dot dot",
+    "expected": "go test ./...",
+    "mustKeep": ["./..."],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "expectedExact": "go test ./...",
+    "addedFor": 8013
   }
 ]

@@ -100,6 +100,12 @@ extension SpokenAddress {
     private static func segment(
         at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft
     ) -> SpokenAddress? {
+        // Three spoken dots are a package pattern's wildcard, as in "dot slash dot dot dot".
+        if position + 3 <= run.upperBound,
+            (position..<(position + 3)).allSatisfy({ draft.shape(at: live[$0]).key == "dot" })
+        {
+            return SpokenAddress(length: 3, text: "...")
+        }
         // Before a name a "dot" opens a hidden one, as "dot config" is ".config"; before a "slash" it is a root.
         let hidden =
             position + 1 < run.upperBound && draft.shape(at: live[position]).key == "dot"
