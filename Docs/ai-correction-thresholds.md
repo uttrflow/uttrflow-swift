@@ -75,6 +75,7 @@ must share a sound key with the entry. An all-capitals entry is said letter by l
 only its pronunciation is read that way. "payment sheet" to `PaymentSheet`, "utter flow" to
 `Uttrflow` and "cube lit" to `Kubelet` pass it; "air well" to `URL` does not. An entry's pronunciation counts as well as its spelling, so
 a user who writes "cube cuttle" against `Kubectl` gets that run back.
+A run that holds a letter spoken as its name ("e g", "t b", "h z"; "a" and "I" are words) is an abbreviation or a unit, so only a reading the entry is written as can claim it, never a shared sound key.
 
 ## A heard non-word
 

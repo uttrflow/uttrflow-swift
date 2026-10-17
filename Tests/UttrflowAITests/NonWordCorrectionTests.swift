@@ -63,6 +63,19 @@ struct NonWordCorrectionTests {
         #expect(engine.proposals(for: utterance, against: index).isEmpty)
     }
 
+    /// Letters spoken as their names are an abbreviation, a unit or a code; no name's sound claims them.
+    @Test(
+        "leaves doubted spelled letters, even beside a name they loosely sound like",
+        arguments: [
+            ("bring snacks e g chips", "Isha"), ("we need it a s a p", "Zoe"),
+            ("the drive holds two t b of photos", "Deepa"), ("the hum is sixty h z", "Zoe"),
+            ("r and d owns the roadmap", "Dana"),
+        ])
+    func leavesSpelledLetters(sentence: String, name: String) {
+        let utterance = CorrectionFixtures.spoken(sentence, sure: 0.3)
+        #expect(engine.proposals(for: utterance, against: Self.index([name])).isEmpty)
+    }
+
     /// Capitals past the first letter are written on purpose, so "YOYO" is not respelt as an entry that sounds like it.
     @Test("leaves a word written in capitals")
     func leavesCapitals() {

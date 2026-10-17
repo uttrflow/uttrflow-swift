@@ -157,5 +157,32 @@
     "expected": "Please ask Meera about the report today.",
     "expectedExact": "Please ask Meera about the report today.",
     "dictionary": ["Mira", "Zoe"]
+  },
+  {
+    "id": "dictionary-spelled-letters-e-g-8032",
+    "note": "Letters spoken as their names, however doubtful, are an abbreviation or a unit, not a dictionary name that sounds like them.",
+    "addedFor": 8032,
+    "spoken": "bring snacks e g chips",
+    "expected": "Bring snacks e.g. chips.",
+    "doubtful": ["e g"],
+    "dictionary": ["Isha"]
+  },
+  {
+    "id": "dictionary-spelled-letters-unit-tb-8032",
+    "note": "Letters spoken as their names, however doubtful, are an abbreviation or a unit, not a dictionary name that sounds like them.",
+    "addedFor": 8032,
+    "spoken": "the drive holds two t b of photos",
+    "expected": "The drive holds 2 TB of photos.",
+    "doubtful": ["t b"],
+    "dictionary": ["Deepa"]
+  },
+  {
+    "id": "dictionary-spelled-letters-asap-8032",
+    "note": "Letters spoken as their names, however doubtful, are an abbreviation or a unit, not a dictionary name that sounds like them.",
+    "addedFor": 8032,
+    "spoken": "we need it a s a p",
+    "expected": "We need it ASAP.",
+    "doubtful": ["a s"],
+    "dictionary": ["Zoe"]
   }
 ]
