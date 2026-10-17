@@ -1741,5 +1741,27 @@
     "expected": "The score was two two at half time.",
     "mustKeep": ["two two"],
     "addedFor": 7851
+  },
+  {
+    "id": "title-of-a-work-keeps-its-capitals",
+    "note": "A title the recogniser capitalised is a run of capitalised words, which is the speaker's and not a stray capital.",
+    "spoken": "I just finished reading The Lord of the Rings and now I want to watch the films.",
+    "expected": "I just finished reading The Lord of the Rings and now I want to watch the films.",
+    "mustKeep": ["The Lord of the Rings"],
+    "addedFor": 8047
+  },
+  {
+    "id": "institution-name-keeps-its-capitals",
+    "spoken": "I booked a room at the Grand Hotel on Park Avenue for Friday.",
+    "expected": "I booked a room at the Grand Hotel on Park Avenue for Friday.",
+    "mustKeep": ["Grand Hotel", "Park Avenue"],
+    "addedFor": 8047
+  },
+  {
+    "id": "product-name-keeps-its-capitals",
+    "spoken": "Please open Visual Studio Code and then the Terminal app.",
+    "expected": "Please open Visual Studio Code and then the Terminal app.",
+    "mustKeep": ["Visual Studio Code"],
+    "addedFor": 8047
   }
 ]

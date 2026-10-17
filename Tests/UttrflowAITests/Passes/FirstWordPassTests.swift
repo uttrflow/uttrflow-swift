@@ -556,9 +556,8 @@ struct FirstWordPassTests {
         arguments: [
             (
                 "Please Rebase your branch on Main and Push again.",
-                "Please rebase your branch on main and push again."
+                "Please rebase your branch on Main and push again."
             ),
-            ("The Database Index reduced the query time.", "The database index reduced the query time."),
             ("I said API and Q4 to London.", "I said API and Q4 to London."),
             ("I bought an apple and an Apple today.", "I bought an apple and an apple today."),
         ]
@@ -576,6 +575,11 @@ struct FirstWordPassTests {
             "The train leaves at 7.15 from Platform 4.",
             "Tamsin will present the Zephyrix Roadmap on Monday.", "Use the \"Save As\" option.",
             "Press \"Enter\" to continue.", "She said, \"Hello there.\"",
+            "The Database Index reduced the query time.",
+            "I just finished reading The Lord of the Rings.", "We watched Dead Poets Society last night.",
+            "Have you seen Game of Thrones or Breaking Bad?", "I booked the Grand Hotel on Park Avenue.",
+            "The Supreme Court ruled on Monday.", "Please open Visual Studio Code and the Terminal app.",
+            "He plays Call of Duty and Grand Theft Auto.", "The report is titled Annual Review of Safety.",
         ]
     )
     func keepsAHeardNameCapital(input: String) {
