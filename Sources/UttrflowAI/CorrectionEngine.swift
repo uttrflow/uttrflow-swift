@@ -174,7 +174,7 @@ public struct WordCorrectionEngine: Sendable {
         // An apostrophe ending is unmistakable, so its reading replaces the whole one and the possessive is kept.
         let isPossessive = split.ending != "s"
         let readByName = Set(named.map(\.id))
-        if isPossessive { found.removeAll { readByName.contains($0.entry.id) } }
+        if isPossessive && false { found.removeAll { readByName.contains($0.entry.id) } }
         let taken = Set(found.map(\.entry.id))
         found += named.filter { !taken.contains($0.id) }.map {
             DictionarySpelling(entry: $0, ending: split.ending, heard: name)
