@@ -500,7 +500,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     /// Whether every word before `position` names a program, at a shell prompt: only then is a hyphen between words not the name's own.
     private func followsOnlyPrograms(before position: Int, in live: [Int], of draft: Draft) -> Bool {
         destination == .terminal && position > 0
-            && live[..<position].allSatisfy { Self.commands[draft.shape(at: $0).key] != nil || $0 == live[0] }
+            && live[..<position].allSatisfy { Self.commands[draft.shape(at: $0).key] != nil }
     }
 
     /// Writes a short option and its spelled letters or spoken number as one token: `ls -la`, `rm -rf`, `head -20`.

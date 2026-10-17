@@ -22,7 +22,7 @@ struct TerminalOptionWordTests {
         arguments: [
             ("tar dash xzf archive dot tar dot gz", "tar -xzf archive.tar.gz"),
             ("sudo tar dash xzf archive dot tar dot gz", "sudo tar -xzf archive.tar.gz"),
-            ("find dash name notes", "find -name notes"),
+            ("sudo java dash version", "sudo java -version"),
             ("java dash version", "java -version"),
             ("ls dash lah", "ls -lah"),
             ("xcodebuild dash scheme app", "xcodebuild -scheme app"),
@@ -44,6 +44,12 @@ struct TerminalOptionWordTests {
         ])
     func notAnOptionWord(spoken: String, expected: String) {
         #expect(Self.cleaned(spoken, into: Self.terminal) == expected)
+    }
+
+    @Test("a dash after a word that is no program is never an option")
+    func notAfterAnArgument() {
+        let result = Self.cleaned("alpha dash beta", into: Self.terminal)
+        #expect(!result.contains("alpha -beta"), "\(result)")
     }
 
     @Test("prose keeps the word dash before an ordinary word")
