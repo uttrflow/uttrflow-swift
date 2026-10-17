@@ -130,8 +130,13 @@ public enum MentionGuard {
         let last = draft.shape(at: live[next - 1])
         if !last.endsClause, next + 1 < live.count, coordinators.contains(draft.shape(at: live[next]).key),
             !draft.shape(at: live[next]).endsClause,
-            (markNamesByOpening[draft.shape(at: live[next + 1]).key] ?? []).contains(where: {
-                draft.spells($0, at: next + 1, in: live)
+            (markNamesByOpening[draft.shape(at: live[next + 1]).key] ?? []).contains(where: { name in
+                guard draft.spells(name, at: next + 1, in: live) else { return false }
+                // An ordinary noun after the second name ("comma and colon cancer") makes it a modifier, not a mark's name.
+                let after = next + 1 + name.count
+                guard after < live.count, !draft.shape(at: live[after - 1]).endsClause else { return true }
+                let word = draft.shape(at: live[after]).key
+                return coordinators.contains(word) || FunctionWords.all.contains(word)
             })
         {
             return true

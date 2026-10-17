@@ -472,7 +472,7 @@ public enum Romaniser {
         ("गुरुग्राम", "Gurugram"), ("चंडीगढ़", "Chandigarh"), ("भोपाल", "Bhopal"), ("इंदौर", "Indore"),
         ("पटना", "Patna"), ("नागपुर", "Nagpur"), ("कानपुर", "Kanpur"), ("वाराणसी", "Varanasi"),
         ("राहुल", "Rahul"), ("रोहित", "Rohit"), ("कोहली", "Kohli"), ("वर्मा", "Verma"),
-        ("गुप्ता", "Gupta"), ("पटेल", "Patel"), ("मेहता", "Mehta"), ("कपूर", "Kapoor"), ("जोशी", "Joshi"),
+        ("गुप्ता", "Gupta"), ("पटेल", "Patel"), ("मेहता", "Mehta"), ("जोशी", "Joshi"),
         ("अग्रवाल", "Agarwal"), ("अंजलि", "Anjali"), ("रमेश", "Ramesh"), ("सुरेश", "Suresh"),
         ("आदित्य", "Aditya"), ("सिद्धार्थ", "Siddharth"), ("ऐश्वर्या", "Aishwarya"), ("नेहा", "Neha"),
         ("स्नेहा", "Sneha"), ("दिव्या", "Divya"), ("राजेश", "Rajesh"), ("संजय", "Sanjay"),

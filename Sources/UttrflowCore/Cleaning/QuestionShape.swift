@@ -33,7 +33,7 @@ public enum QuestionShape {
         _ clause: [String], startingAt start: Int, in shapes: [WordShape]
     ) -> Bool {
         // An inverted subject pronoun after the verb asks: "my brother, the tall one, is he coming".
-        guard let verb = clause.first, verbsBeforeSubject.contains(verb),
+        guard let verb = clause.first, nounPhraseVerbs.contains(verb),
             !subjects.contains(clause.dropFirst().first ?? "")
         else { return false }
         // Two commas stand before the clause: the first closes the subject, the last closes the aside.

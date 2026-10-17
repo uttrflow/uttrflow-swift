@@ -25,6 +25,7 @@ struct TerminalSymbolicModeTests {
             ("chmod g minus w notes dot txt", "chmod g-w notes.txt"),
             ("chmod ugo plus rwx data dot bin", "chmod ugo+rwx data.bin"),
             ("sudo chmod a minus x run dot sh", "sudo chmod a-x run.sh"),
+            ("chmod u plus x, deploy", "chmod u+x, deploy"),
         ])
     func symbolicMode(spoken: String, expected: String) {
         #expect(Self.cleaned(spoken, into: Self.terminal) == expected)
@@ -48,6 +49,6 @@ struct TerminalSymbolicModeTests {
     @Test("prose after the word chmod keeps plus")
     func proseKeepsPlus() {
         let result = Self.cleaned("chmod plus x makes a file executable", into: Self.notes)
-        #expect(result.contains("plus"), "\(result)")
+        #expect(result == "Chmod plus x makes a file executable.", "\(result)")
     }
 }

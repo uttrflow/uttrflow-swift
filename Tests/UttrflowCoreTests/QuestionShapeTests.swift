@@ -188,6 +188,7 @@ struct QuestionShapeTests {
         arguments: [
             "john, my brother, is he coming", "the build, i think, is it green",
             "i sent the report, as promised, did you see it", "the winner, john, did he win",
+            "my manager, priya, can the build ship", "the road, which was closed, will the bridge hold",
         ])
     func asksAfterAnAside(text: String) {
         #expect(QuestionShape.asks(shapes(text)))

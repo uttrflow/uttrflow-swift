@@ -845,7 +845,6 @@ struct NumberFormsPassTests {
     )
     func tollFreeAfterLabel(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
-        #expect(cleaned(input, by: sut).filter(\.isNumber).count >= expected.filter(\.isNumber).count)
     }
 
     @Test(

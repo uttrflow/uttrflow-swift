@@ -34,7 +34,7 @@ struct RomanisedNameCorpusTests {
     func unownedAndControl() async throws {
         let score = try await RomanisedNameCorpus.score(Self.run)
         #expect(score.nameAccuracy(.owned) == 1)
-        #expect(score.nameAccuracy(.unowned) == 2.0 / 3.0)
+        #expect(abs((score.nameAccuracy(.unowned) ?? 0) - 2.0 / 3.0) < 1e-9)
         #expect(score.lowerCaseAccuracy == 1)
     }
 }

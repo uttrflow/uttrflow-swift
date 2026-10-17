@@ -61,6 +61,7 @@ struct SpokenSymbolMentionTests {
         arguments: [
             ("hello comma and goodbye period", "Hello, and goodbye."),
             ("dear sam comma and best wishes period", "Dear sam, and best wishes."),
+            ("screened for milk comma and colon cancer", "Screened for milk, and colon cancer."),
         ])
     func markBeforeAndStillWritten(spoken: String, written: String) async throws {
         let result = try await rules(spoken)

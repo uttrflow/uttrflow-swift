@@ -684,8 +684,8 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     /// Names that stand between two phrases, where the noun "comma" or "colon" would instead be the object or modifier of the word before.
     static let seamNames: Set<[String]> = [["comma"], ["colon"]]
 
-    /// Word classes after which the noun reading takes the name as an object or modifier: "has colon trouble", "from colon cancer".
-    private static let nounTakers: Set<NLTag> = [.verb, .preposition, .adjective, .determiner]
+    /// Word classes after which the noun reading takes the name as an object or modifier: "has colon trouble", "from colon cancer", "and colon cancer".
+    private static let nounTakers: Set<NLTag> = [.verb, .preposition, .adjective, .determiner, .conjunction]
 
     /// Whether a spoken comma or colon follows a word that closes a phrase, so it is not the object or modifier of that word and does not join the word after it into a compound.
     private func closesAPhrase(_ words: [String], at position: Int, in live: [Int], of draft: Draft) -> Bool {
@@ -801,6 +801,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
 
     /// The word with the spoken mark on its end; a question mark and an exclamation mark, in either order, make a pair.
     private static func marked(_ text: String, with mark: String) -> String {
+        // The character before the last one keeps an existing "?!" or "!?" from taking a third mark.
         guard mark == "?" || mark == "!", let last = text.last, "?!".contains(last), String(last) != mark,
             !"?!".contains(text.dropLast().last ?? " ")
         else { return WordShape.marked(text, with: mark) }

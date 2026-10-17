@@ -39,9 +39,13 @@ struct TerminalDotsTests {
         #expect(Self.cleaned(spoken, into: Self.terminal) == expected)
     }
 
-    @Test("a recogniser's final stop after the wildcard is taken back, and an ellipsis keeps its dots")
+    @Test("a recogniser's final stop after the wildcard is taken back")
     func finalStopAfterTheWildcard() {
         #expect(Self.cleaned("Go test dot slash dot dot dot.", into: Self.terminal) == "go test ./...")
+    }
+
+    @Test("a trailing stop is taken off a wildcard, and an ellipsis keeps its dots")
+    func trailingStopOnlyOffTheWildcard() {
         #expect(WordShape.withoutTrailingStop("./....") == "./...")
         #expect(WordShape.withoutTrailingStop("wait...") == "wait...")
     }

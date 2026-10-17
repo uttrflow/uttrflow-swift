@@ -26,6 +26,7 @@ struct TerminalOptionWordTests {
             ("java dash version", "java -version"),
             ("ls dash lah", "ls -lah"),
             ("xcodebuild dash scheme app", "xcodebuild -scheme app"),
+            ("java dash abcdefghijklmnop", "java -abcdefghijklmnop"),
         ])
     func optionWord(spoken: String, expected: String) {
         #expect(Self.cleaned(spoken, into: Self.terminal) == expected)
@@ -46,15 +47,21 @@ struct TerminalOptionWordTests {
         #expect(Self.cleaned(spoken, into: Self.terminal) == expected)
     }
 
+    @Test("an option longer than the limit of sixteen letters keeps its words")
+    func optionPastTheLimit() {
+        #expect(
+            Self.cleaned("java dash abcdefghijklmnopq", into: Self.terminal) == "java dash abcdefghijklmnopq")
+    }
+
     @Test("a dash after a word that is no program is never an option")
     func notAfterAnArgument() {
         let result = Self.cleaned("alpha dash beta", into: Self.terminal)
-        #expect(!result.contains("alpha -beta"), "\(result)")
+        #expect(result == "alpha dash beta", "\(result)")
     }
 
     @Test("prose keeps the word dash before an ordinary word")
     func proseKeepsDash() {
         let result = Self.cleaned("the flag is dash version", into: Self.notes)
-        #expect(result.contains("dash"), "\(result)")
+        #expect(result == "The flag is dash version.", "\(result)")
     }
 }

@@ -257,6 +257,12 @@ struct DictationPipelineSeamTests {
     func closingMarkEndsItsPiece(lines: [String], expected: String) async {
         #expect(await dictate(lines, seeing: Self.document) == expected)
     }
+
+    @Test("a mark name only mentioned at the end of a piece stays a word, and a number after it stands alone")
+    func mentionedMarkNameBeforeANumber() async {
+        let result = await dictate(["the trial period", "ten days"], seeing: Self.document)
+        #expect(result == "The trial period. 10 days.", "\(result)")
+    }
 }
 
 private struct SeamSnippetExpander: SnippetExpanding {

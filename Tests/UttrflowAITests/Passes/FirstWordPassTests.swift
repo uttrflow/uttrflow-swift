@@ -555,8 +555,12 @@ struct FirstWordPassTests {
         "lowers a capital the recogniser put on an ordinary word where it cannot be a name",
         arguments: [
             (
-                "Please Rebase your branch on Main and Push again.",
-                "Please rebase your branch on Main and push again."
+                "Please Rebase your branch and Push again.",
+                "Please rebase your branch and push again."
+            ),
+            (
+                "We need to Review the plan and Send it today.",
+                "We need to review the plan and send it today."
             ),
             ("I said API and Q4 to London.", "I said API and Q4 to London."),
             ("I bought an apple and an Apple today.", "I bought an apple and an apple today."),
@@ -580,6 +584,7 @@ struct FirstWordPassTests {
             "Have you seen Game of Thrones or Breaking Bad?", "I booked the Grand Hotel on Park Avenue.",
             "The Supreme Court ruled on Monday.", "Please open Visual Studio Code and the Terminal app.",
             "He plays Call of Duty and Grand Theft Auto.", "The report is titled Annual Review of Safety.",
+            "Please rebase your branch on Main and push again.",
         ]
     )
     func keepsAHeardNameCapital(input: String) {

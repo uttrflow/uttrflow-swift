@@ -416,7 +416,7 @@ public struct FirstWordPass: WholeTextCleaningPass {
         .verb, .adverb, .preposition, .conjunction, .determiner, .pronoun, .particle, .interjection,
     ]
 
-    /// Whether a capital on an ordinary word is stray: beside a capitalised Hindi word, or outside a capitalised run when the text writes it in lower case or it is a function word.
+    /// Whether a capital on an ordinary word is stray: a capital beside another is the speaker's, and a lone one is stray when the text writes the word lower case or its class is never a name's.
     static func isEvidentlyStray(_ core: String, in text: String) -> Bool {
         let words = WordTokens.words(text, .display)
         let cores = words.map { WordShape($0).core }

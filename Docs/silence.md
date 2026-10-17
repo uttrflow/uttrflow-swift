@@ -72,8 +72,8 @@ The second test is bounded by the speaking level on purpose. It cannot tell a st
 steady hiss, and getting that wrong in one direction costs a dictation while the other costs a
 stray line, so anything at a speaking level is kept whatever its shape.
 
-The same pass returns *where* the speech is: from the first to the last run of at least
-`minimumSpeech` above the threshold, with `margin` either side so no onset is clipped. Only that
+The same pass returns *where* the speech is: from the first to the last stretch of speech
+above the threshold, with `margin` either side so no onset is clipped. Only that
 span is transcribed, and segment timings are shifted back by the trimmed lead-in so they still
 describe the recording the user made. A loud, modulated recording with no run long enough to
 point at is kept whole.
