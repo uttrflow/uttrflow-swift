@@ -553,6 +553,8 @@ key-press-return-in-a-sentence-stays-words	Press return when you are done.
 key-press-tab-in-a-sentence-stays-words	Press tab to move to the next field.
 kubernetes	The Kubernetes pod keeps restarting after the deploy.
 late-to-meeting	Hey john I'll probably be about 20 minutes late to the meeting because the deployment is still running.
+letter-a-answer-choice-keeps-case	Ask the question, then answer A, B, or C.
+letter-a-label-keeps-its-comma-and-case	Part A, part B, and part C are due Monday.
 literal-prose-email-sentence	Write to sam@example.com.
 literal-prose-five	Five.
 literal-prose-five-dollars	5 dollars.
