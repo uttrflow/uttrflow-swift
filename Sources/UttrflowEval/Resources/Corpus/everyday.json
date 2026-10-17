@@ -571,6 +571,14 @@
     "mustNotAdd": ["?"]
   },
   {
+    "id": "plus-or-minus-keeps-its-words-before-a-percentage",
+    "addedFor": 8006,
+    "spoken": "the tolerance on every unit is plus or minus two percent",
+    "expected": "The tolerance on every unit is plus or minus 2%.",
+    "mustKeep": ["plus or minus", "2%"],
+    "mustNotAdd": ["-2%"]
+  },
+  {
     "id": "year-after-by-not-a-clock-time",
     "spoken": "we had fifty customers and by twenty twenty four we had five thousand",
     "expected": "We had 50 customers and by 2024 we had 5000.",
