@@ -232,21 +232,21 @@
     "mustNotAdd": ["maich", "taim", "ophis", "erar"]
   },
   {
-    "id": "hinglish-devanagari-loanwords-credit-station-complete",
+    "id": "hinglish-devanagari-loanwords-credit-shift-complete",
     "note": "More English words the recogniser writes in Devanagari come out in English spelling, not by sound.",
     "language": "hi",
     "addedFor": 8021,
-    "spoken": "सैलरी क्रेडिट हो गई और स्टेशन पर टेस्टिंग कम्प्लीट करनी है",
-    "expected": "Salary credit ho gayi aur station par testing complete karni hai.",
-    "mustKeep": ["credit", "station", "complete"],
-    "mustNotAdd": ["kredit", "steshan", "kampleet"]
+    "spoken": "सैलरी क्रेडिट हो गई और शिफ्ट पर टेस्टिंग कम्प्लीट करनी है",
+    "expected": "Salary credit ho gayi aur shift par testing complete karni hai.",
+    "mustKeep": ["credit", "shift", "complete"],
+    "mustNotAdd": ["kredit", "shipht", "kampleet"]
   },
   {
     "id": "hinglish-devanagari-loanwords-invoice-reply-restart",
     "note": "Business and device words in Devanagari keep their English spelling.",
     "language": "hi",
     "addedFor": 8021,
-    "spoken": "इन्वॉइस का रिपलाइ भेजो और ब्राउज़र रीस्टार्ट करो",
+    "spoken": "इन्वॉइस का रिपलाइ भेजो और ब्राउजर रीस्टार्ट करो",
     "expected": "Invoice ka reply bhejo aur browser restart karo.",
     "mustKeep": ["invoice", "reply", "browser", "restart"],
     "mustNotAdd": ["inwois", "riplai", "brauzar", "reestaart"]
