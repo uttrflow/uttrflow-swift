@@ -650,6 +650,22 @@ struct NumberFormsPassTests {
     }
 
     @Test(
+        "reads twenty twenty four as a year after every cue but at",
+        arguments: [
+            ("we had fifty by twenty twenty four", "we had 50 by 2024"),
+            ("before twenty twenty five", "before 2025"),
+            ("the plan runs after twenty thirty", "the plan runs after 2030"),
+            ("about twenty twenty two", "about 2022"),
+            ("meet at twenty twenty", "meet at 20:20"),
+            ("meet at twenty thirty", "meet at 20:30"),
+            ("open until twenty three fifty nine", "open until 23:59"),
+        ]
+    )
+    func aYearAfterACue(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
         "joins an hour and its minutes said around a colon, only where a time is cued",
         arguments: [
             ("meet at ten: thirty", "meet at 10:30"),

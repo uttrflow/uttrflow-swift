@@ -53,6 +53,7 @@ issue closes, the page changes in the same pull request.
 | Recognition, correction or cleanup | the `make bakeoff` score before and after; a drop in any metric is named and justified |
 | AI suggestions | precision and coverage before and after, from the loop in `Docs/predict-reliability.md` |
 | Input, insertion, context reading or suggestions | evidence from a real application for each kind it affects ([product.md](product.md#applications)) |
+| Corpus case added or changed | the generated pages and `rules.golden` regenerated with `UTTRFLOW_UPDATE_GOLDEN=1`, and a green `make eval` run on the branch before it merges; the Eval workflow runs on pull requests only |
 | App shell, resources or entitlements (`Sources/Uttrflow/`, `Resources/`) | `make app-preflight` passes |
 | Docs only | `make docs-audit` and `make disclosure-audit` pass |
 | Dependency, workflow or minimum macOS or Xcode version | its own pull request, linking the issue that agreed it |
