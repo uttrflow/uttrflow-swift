@@ -571,6 +571,14 @@
     "mustNotAdd": ["?"]
   },
   {
+    "id": "exit-code-said-in-two-halves-is-not-a-clock-time",
+    "addedFor": 8035,
+    "spoken": "the script exited with code one twenty seven after the migration step",
+    "expected": "The script exited with code 127 after the migration step.",
+    "mustKeep": ["code 127", "migration"],
+    "mustNotAdd": ["1:27"]
+  },
+  {
     "id": "year-after-by-not-a-clock-time",
     "spoken": "we had fifty customers and by twenty twenty four we had five thousand",
     "expected": "We had 50 customers and by 2024 we had 5000.",

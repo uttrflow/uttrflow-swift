@@ -823,6 +823,22 @@ struct NumberFormsPassTests {
         #expect(output.filter(\.isNumber) == "8005550199")
     }
 
+    @Test(
+        "writes a code or status number said in two halves as one number, not a clock time",
+        arguments: [
+            ("exit code one twenty seven", "exit code 127"),
+            ("error code one twenty seven", "error code 127"),
+            ("return code two fifty five", "return code 255"),
+            ("exit status one twenty eight", "exit status 128"),
+            ("exit code two thirty", "exit code 230"),
+            ("route one twenty eight", "route 128"),
+            ("the meeting is at one twenty seven", "the meeting is at 1:27"),
+        ]
+    )
+    func codeNumbersAreNotClockTimes(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test("keeps the unit in a cardinal before a currency")
     func scaleCardinalBeforeCurrency() {
         #expect(cleaned("eight hundred five dollars", by: sut) == "805 dollars")
