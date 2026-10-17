@@ -642,11 +642,17 @@ public struct NumberFormsPass: PieceCleaningPass {
             return Phrase(text: text, count: end + following.count + 1 - position)
         }
         var text = item.text
-        while joined(end, shapes),
-            let group = NumberWords.cardinal(unbroken(from: end, keys: keys, shapes: shapes))
-        {
-            text += String(group.value)
-            end += group.count
+        // A scale then single digits is the scale and the digits, as it is outside a context, so a toll-free prefix keeps its zeros.
+        while joined(end, shapes) {
+            if let group = digitStringAware(at: end, keys: keys, shapes: shapes) {
+                text += String(group.value)
+                end += group.count
+            } else if let step = digitStep(at: end, keys: keys, shapes: shapes) {
+                text += step.text
+                end += step.count
+            } else {
+                break
+            }
         }
         return end == position + item.count ? nil : Phrase(text: text, count: end - position)
     }
@@ -1024,6 +1030,14 @@ public struct NumberFormsPass: PieceCleaningPass {
         if let digits = NumberWords.digits(keys[position]) {
             return Item(value: Int(digits), text: digits, count: 1, spoken: false)
         }
+        guard let reading = digitStringAware(at: position, keys: keys, shapes: shapes) else { return nil }
+        return Item(value: reading.value, text: String(reading.value), count: reading.count, spoken: true)
+    }
+
+    /// The longest cardinal at `position`, shortened by its last unit when that unit starts a string of single digits, so "eight hundred" and the digits after it stay apart.
+    private static func digitStringAware(
+        at position: Int, keys: [String], shapes: [WordShape]
+    ) -> (value: Int, count: Int)? {
         guard let parsed = NumberWords.cardinal(unbroken(from: position, keys: keys, shapes: shapes)) else {
             return nil
         }
@@ -1035,9 +1049,9 @@ public struct NumberFormsPass: PieceCleaningPass {
             joined(last, shapes), joined(last + 1, shapes), singleDigit(keys[last + 1]) != nil,
             let shorter = NumberWords.cardinal(keys[position..<last]), shorter.count == parsed.count - 1
         {
-            return Item(value: shorter.value, text: String(shorter.value), count: shorter.count, spoken: true)
+            return (shorter.value, shorter.count)
         }
-        return Item(value: parsed.value, text: String(parsed.value), count: parsed.count, spoken: true)
+        return (parsed.value, parsed.count)
     }
 
     /// Whether a meridiem stands at `index`, written as one word or said as its two letters, "p m".

@@ -1429,6 +1429,7 @@ terminal-search-wezterm	deprecation warning
 terminal-spoken-new-line-stays-on-one-line	cd src ls
 terminal-spoken-new-paragraph-stays-on-one-line	git status git diff
 time-of-day	The dentist moved my appointment to 2:30 pm tomorrow.
+toll-free-prefix-keeps-its-zeros-after-a-label	Our toll free number is 18002223334.
 trigger-as-its-own-sentence	Meet me at five.
 trigger-phrase-heads-clauses-i-mean-to	I mean to finish the report and I mean to send the invoice.
 trigger-phrase-heads-clauses-never-mind	She said never mind the delay and he said never mind the cost.

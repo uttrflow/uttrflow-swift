@@ -5422,6 +5422,8 @@
     "time-of-day@5",
     "time-of-day@8",
     "time-of-day@9",
+    "toll-free-prefix-keeps-its-zeros-after-a-label@2",
+    "toll-free-prefix-keeps-its-zeros-after-a-label@3",
     "trigger-as-its-own-sentence@1",
     "trigger-as-its-own-sentence@2",
     "trigger-as-its-own-sentence@3",
@@ -5572,5 +5574,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5552
+  "total" : 5554
 }
