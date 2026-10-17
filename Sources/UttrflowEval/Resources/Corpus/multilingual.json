@@ -230,5 +230,15 @@
     "expected": "Kal ka match dekha kya, time pe office aa jaana, error aaya to mujhe batana.",
     "mustKeep": ["match", "time", "office", "error"],
     "mustNotAdd": ["maich", "taim", "ophis", "erar"]
+  },
+  {
+    "id": "hinglish-devanagari-english-months",
+    "note": "English month names the recogniser writes in Devanagari come out as people type them, not by sound.",
+    "language": "hi",
+    "addedFor": 8046,
+    "spoken": "प्रोजेक्ट की डेडलाइन 15 मार्च है और रिलीज़ सितंबर में है",
+    "expected": "Project ki deadline 15 March hai aur release September mein hai.",
+    "mustKeep": ["March", "September"],
+    "mustNotAdd": ["maarch", "sitanbar"]
   }
 ]

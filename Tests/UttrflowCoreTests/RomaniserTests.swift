@@ -33,6 +33,17 @@ struct RomaniserTests {
     }
 
     @Test(
+        "writes the English month names as people type them, and keeps the Hindi-form months as spoken",
+        arguments: [
+            ("मार्च", "March"), ("अप्रैल", "April"), ("जून", "June"), ("जुलाई", "July"), ("सितंबर", "September"),
+            ("अक्टूबर", "October"), ("नवंबर", "November"), ("दिसंबर", "December"), ("दिसम्बर", "December"),
+            ("जनवरी", "janvari"), ("फरवरी", "farvari"), ("अगस्त", "agast"),
+        ])
+    func monthNames(devanagari: String, typed: String) {
+        #expect(Romaniser.romanised(devanagari) == typed)
+    }
+
+    @Test(
         "drops the unwritten vowel at the end of a word and between syllables, and keeps it before a conjunct",
         arguments: [
             ("करना", "karna"), ("समझना", "samajhna"), ("निकलने", "nikalne"), ("भागदौड़", "bhaagdaud"),

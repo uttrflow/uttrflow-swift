@@ -456,6 +456,10 @@ public enum Romaniser {
         ("इंतजार", "intezaar"), ("संपादक", "sampadak"), ("रहा", "raha"), ("रही", "rahi"),
         ("रहे", "rahe"), ("था", "tha"), ("थी", "thi"), ("थे", "the"), ("अभी", "abhi"), ("कभी", "kabhi"),
         ("सभी", "sabhi"), ("कोई", "koi"), ("बात", "baat"), ("आज", "aaj"), ("कल", "kal"),
+        // The English month names, which people type in English; the Hindi-form months stay as spoken.
+        ("मार्च", "March"), ("अप्रैल", "April"), ("अप्रेल", "April"), ("जून", "June"), ("जुलाई", "July"),
+        ("सितंबर", "September"), ("सितम्बर", "September"), ("अक्टूबर", "October"), ("अक्तूबर", "October"),
+        ("नवंबर", "November"), ("नवम्बर", "November"), ("दिसंबर", "December"), ("दिसम्बर", "December"),
         ("चाय", "chai"), ("जनवरी", "janvari"), ("फ़रवरी", "farvari"), ("फरवरी", "farvari"),
         ("ताइम", "time"), ("ओफिस", "office"), ("आफिस", "office"), ("ऑफीस", "office"),
         ("ट्राफिक", "traffic"), ("मैच", "match"), ("एरर", "error"), ("प्रोसेस", "process"),

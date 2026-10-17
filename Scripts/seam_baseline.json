@@ -1348,6 +1348,16 @@
     "hinglish-correction-replaced-head@6",
     "hinglish-correction-replaced-head@7",
     "hinglish-correction-replaced-head@8",
+    "hinglish-devanagari-english-months@1",
+    "hinglish-devanagari-english-months@10",
+    "hinglish-devanagari-english-months@2",
+    "hinglish-devanagari-english-months@3",
+    "hinglish-devanagari-english-months@4",
+    "hinglish-devanagari-english-months@5",
+    "hinglish-devanagari-english-months@6",
+    "hinglish-devanagari-english-months@7",
+    "hinglish-devanagari-english-months@8",
+    "hinglish-devanagari-english-months@9",
     "hinglish-devanagari-loanwords-cancel-budget-update@1",
     "hinglish-devanagari-loanwords-cancel-budget-update@10",
     "hinglish-devanagari-loanwords-cancel-budget-update@11",
@@ -5605,5 +5615,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5585
+  "total" : 5595
 }
