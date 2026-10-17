@@ -1420,5 +1420,19 @@
     "mustKeep": ["aux", "grep", "json"],
     "expectedExact": "ps aux | grep json",
     "addedFor": 7948
+  },
+  {
+    "id": "shell-chmod-symbolic-mode",
+    "note": "a symbolic permission mode said after chmod is one word with its operator",
+    "spoken": "chmod u plus x deploy dot sh",
+    "expected": "chmod u+x deploy.sh",
+    "mustKeep": ["u+x", "deploy.sh"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "expectedExact": "chmod u+x deploy.sh",
+    "addedFor": 8015
   }
 ]

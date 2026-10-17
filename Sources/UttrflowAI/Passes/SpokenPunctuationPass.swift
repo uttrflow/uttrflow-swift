@@ -87,6 +87,11 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 position += 1
                 continue
             }
+            if let next = replaceSymbolicMode(at: position, in: &live, of: &draft) {
+                sentenceEnd = nil
+                position = next
+                continue
+            }
             if sentenceEnd.map({ position >= $0 }) ?? true {
                 sentenceEnd = draft.sentenceEnd(from: position, in: live)
             }
@@ -493,6 +498,49 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
 
     /// The most letters one spoken short-option cluster joins: `tar -xzvf` and a little more.
     static let clusterLimit = 6
+
+    /// The signs a symbolic permission mode is said with, and what each writes.
+    private static let modeSigns: [String: String] = ["plus": "+", "minus": "-"]
+
+    /// The letters that name whose permissions a mode changes, and those that name the permissions.
+    private static let modeWho: Set<Character> = ["u", "g", "o", "a"]
+    private static let modePermissions: Set<Character> = ["r", "w", "x", "X", "s", "t"]
+
+    /// Writes a symbolic mode said after chmod as one word: "u plus x" is `u+x` and "plus rwx" is `+rwx`; returns the position to go on from.
+    private func replaceSymbolicMode(at position: Int, in live: inout [Int], of draft: inout Draft) -> Int? {
+        guard destination == .terminal, position > 0, position + 1 < live.count,
+            let sign = Self.modeSigns[draft.shape(at: live[position]).key],
+            draft.shape(at: live[position]).prefix.isEmpty, draft.shape(at: live[position]).suffix.isEmpty
+        else { return nil }
+        let before = (0..<position).map { draft.shape(at: live[$0]).key }
+        let who = before.last.flatMap { word in
+            word.count <= 4 && !word.isEmpty && word.allSatisfy(Self.modeWho.contains) ? word : nil
+        }
+        let command = who == nil ? before : before.dropLast()
+        // chmod opens the line, alone or after sudo, and no mark or flag stands between it and the mode.
+        guard command.last == "chmod", command.count <= 2, command.first == "chmod" || command.first == "sudo"
+        else { return nil }
+        var permissions = ""
+        var next = position + 1
+        while next < live.count, permissions.count < 4 {
+            let shape = draft.shape(at: live[next])
+            let word = shape.core
+            guard shape.prefix.isEmpty, !word.isEmpty, word.count <= 3,
+                word.allSatisfy(Self.modePermissions.contains)
+            else { break }
+            permissions += word
+            next += 1
+            if !shape.suffix.isEmpty { break }
+        }
+        guard !permissions.isEmpty else { return nil }
+        let closing = draft.shape(at: live[next - 1]).suffix
+        let token = (who ?? "") + sign + permissions + closing
+        let head = who == nil ? position : position - 1
+        draft.replace(at: live[head], with: token, by: Self.id)
+        for index in live[(head + 1)..<next] { draft.remove(at: index, by: Self.id) }
+        live.removeSubrange((head + 1)..<next)
+        return head + 1
+    }
 
     /// Writes a short option and its spelled letters or spoken number as one token: `ls -la`, `rm -rf`, `head -20`.
     private func replaceShortFlag(at position: Int, in live: inout [Int], of draft: inout Draft) -> Bool {
