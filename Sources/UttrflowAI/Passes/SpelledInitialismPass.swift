@@ -242,7 +242,7 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         guard !numbers.isEmpty else { return false }
         // The article or the pronoun opens a code only beside a second letter.
         if opening == "a" || opening == "i", !startsWithInitialism, letters < 2 { return false }
-        // The article then a number then a lone "x" or "m" is a quantity with its unit, "a ten x engineer", never a code.
+        // The article, a number and a lone x or m make a quantity with its unit, never a code.
         if opening == "a" || opening == "i", !startsWithInitialism, pieces.count == 3,
             case .letters(let unit) = pieces[2], measureLetters.contains(unit.lowercased())
         {
