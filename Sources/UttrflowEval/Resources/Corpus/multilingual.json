@@ -230,5 +230,25 @@
     "expected": "Kal ka match dekha kya, time pe office aa jaana, error aaya to mujhe batana.",
     "mustKeep": ["match", "time", "office", "error"],
     "mustNotAdd": ["maich", "taim", "ophis", "erar"]
+  },
+  {
+    "id": "hinglish-digit-before-hazaar",
+    "note": "A scale word after a numeral stays as said; its value is not written beside the numeral.",
+    "language": "hi",
+    "addedFor": 8016,
+    "spoken": "mujhe 5 hazaar rupaye chahiye",
+    "expected": "Mujhe 5 hazaar rupaye chahiye.",
+    "mustKeep": ["hazaar"],
+    "mustNotAdd": ["1,000"]
+  },
+  {
+    "id": "hinglish-digit-before-crore",
+    "note": "A scale word after a numeral stays as said in a sentence the word is does not make English.",
+    "language": "hi",
+    "addedFor": 8016,
+    "spoken": "ye flat 3 crore rupaye ka hai",
+    "expected": "Ye flat 3 crore rupaye ka hai.",
+    "mustKeep": ["crore"],
+    "mustNotAdd": ["10,000,000"]
   }
 ]
