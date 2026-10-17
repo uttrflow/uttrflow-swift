@@ -21,6 +21,17 @@ struct AcronymCasingPassTests {
         #expect(rules.run(Draft(text: input)).text == expected)
     }
 
+    @Test(
+        "writes a hash or cipher name in its casing before the bit size, without adding a hyphen",
+        arguments: [
+            ("we hash with sha two fifty six", "We hash with SHA 256."),
+            ("verify the sha two fifty six checksum", "Verify the SHA 256 checksum."),
+            ("aes one twenty eight and aes two fifty six", "AES 128 and AES 256."),
+        ])
+    func hashAndCipherSizes(input: String, expected: String) {
+        #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
     /// The recogniser spells "https" and "ai" as one token, which makes them ordinary, but the lexicon spells them out.
     @Test("writes a spelt-out acronym whose letters spell an ordinary word in the lexicon's casing")
     func speltOutOrdinaryAcronym() {

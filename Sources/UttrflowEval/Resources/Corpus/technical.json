@@ -1425,7 +1425,7 @@
     "id": "dev-hash-and-cipher-sizes",
     "note": "the bit size said right after a hash or cipher name is one numeral, not a clock time",
     "spoken": "we hash passwords with sha two fifty six and encrypt the file with aes one twenty eight",
-    "expected": "We hash passwords with sha 256 and encrypt the file with AES 128.",
+    "expected": "We hash passwords with SHA 256 and encrypt the file with AES 128.",
     "mustKeep": ["256", "128"],
     "addedFor": 8011
   }
