@@ -216,4 +216,17 @@ struct DataTableTests {
                 "billion": 1_000_000_000, "trillion": 1_000_000_000_000,
             ])
     }
+
+                "bus", "gate", "grade", "size", "model", "code", "status",
+            ])
+        #expect(NumberWords.units.count == 10)
+        #expect(NumberWords.teens.count == 10)
+        #expect(NumberWords.tens.count == 8)
+        #expect(
+            NumberWords.scales == [
+                "hundred": 100, "thousand": 1_000, "lakh": 100_000, "lac": 100_000, "million": 1_000_000,
+                "crore": 10_000_000,
+                "billion": 1_000_000_000, "trillion": 1_000_000_000_000,
+            ])
+    }
 }
