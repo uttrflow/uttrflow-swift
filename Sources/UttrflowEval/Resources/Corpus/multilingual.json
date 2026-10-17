@@ -222,6 +222,16 @@
     "mustNotAdd": ["rait"]
   },
   {
+    "id": "hinglish-devanagari-loanwords-time-match-error",
+    "note": "Spellings the recogniser writes for English words, \"ताइम\" and \"मैच\" among them, come out in English.",
+    "language": "hi",
+    "addedFor": 7997,
+    "spoken": "कल का मैच देखा क्या, ताइम पे ओफिस आ जाना, एरर आया तो मुझे बताना",
+    "expected": "Kal ka match dekha kya, time pe office aa jaana, error aaya to mujhe batana.",
+    "mustKeep": ["match", "time", "office", "error"],
+    "mustNotAdd": ["maich", "taim", "ophis", "erar"]
+  },
+  {
     "id": "hinglish-saath-baje-not-sixty",
     "note": "A number no clock shows is not written before baje; the recogniser's word stays.",
     "language": "hi",
