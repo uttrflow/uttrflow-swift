@@ -3661,12 +3661,14 @@
     "paused-full-stop-6688@4",
     "paused-full-stop-6688@5",
     "paused-full-stop-6688@6",
+    "paused-full-stop-6688@7",
     "paused-full-stop-6688@8",
     "paused-full-stop-mid-text-6688@10",
     "paused-full-stop-mid-text-6688@11",
     "paused-full-stop-mid-text-6688@4",
     "paused-full-stop-mid-text-6688@5",
     "paused-full-stop-mid-text-6688@6",
+    "paused-full-stop-mid-text-6688@7",
     "paused-full-stop-mid-text-6688@8",
     "paused-question-after-statement@4",
     "paused-question-after-statement@5",
@@ -3692,6 +3694,7 @@
     "period-as-a-word@4",
     "period-as-a-word@5",
     "period-furniture-as-words@3",
+    "period-furniture-as-words@4",
     "period-furniture-as-words@8",
     "plural-slip@1",
     "plural-slip@2",
@@ -5583,5 +5586,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5563
+  "total" : 5566
 }
