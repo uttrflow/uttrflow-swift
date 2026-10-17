@@ -30,7 +30,7 @@ struct RomanisedNameCorpusTests {
         }
     }
 
-    @Test("a name only the shipped list holds is written right, any other stays lower case, nothing gains a capital")
+    @Test("a listed name is written right, any other stays lower case, and nothing else gains a capital")
     func unownedAndControl() async throws {
         let score = try await RomanisedNameCorpus.score(Self.run)
         #expect(score.nameAccuracy(.owned) == 1)
