@@ -75,6 +75,10 @@
     "article-an-before-consonant-sound@4",
     "article-an-before-consonant-sound@5",
     "article-before-spelled-letter@1",
+    "article-stays-apart-from-a-number-and-a-unit-letter@1",
+    "article-stays-apart-from-a-number-and-a-unit-letter@4",
+    "article-stays-apart-from-a-number-and-a-unit-letter@5",
+    "article-stays-apart-from-a-number-and-a-unit-letter@9",
     "asks-for-help@1",
     "asks-for-help@2",
     "asks-for-help@3",
@@ -5605,5 +5609,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5585
+  "total" : 5589
 }
