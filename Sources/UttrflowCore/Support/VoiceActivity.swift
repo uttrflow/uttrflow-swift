@@ -48,7 +48,10 @@ public enum VoiceActivity: Sendable {
 
         let threshold = threshold(forFloor: floor)
         let minimumFrames = Swift.max(1, Int(minimumSpeech / frameDuration))
-        guard let voiced = voicedFrames(in: loudness, above: threshold, lasting: minimumFrames)
+        // A word shorter than `minimumSpeech` at the head of a phrase is speech, not a click, so quiet no
+        // longer than the margin does not part it from the words after it.
+        let bridge = Int(Self.margin / frameDuration)
+        guard let voiced = voicedFrames(in: loudness, above: threshold, lasting: minimumFrames, bridging: bridge)
         else {
             // Loud and modulated, but no run long enough to point at: keep all of it.
             return samples.isEmpty ? nil : 0..<samples.count
@@ -136,29 +139,44 @@ public enum VoiceActivity: Sendable {
         return sorted[Swift.min(Swift.max(index, 0), sorted.count - 1)]
     }
 
-    /// First to last frame belonging to a run of at least `minimumFrames` above `threshold`.
+    /// First to last frame belonging to speech: a run of at least `minimumFrames` above `threshold`, and the
+    /// shorter runs joined to it by quiet of at most `bridging` frames, which are the words around a long one.
     private static func voicedFrames(
-        in loudness: [Float], above threshold: Float, lasting minimumFrames: Int
+        in loudness: [Float], above threshold: Float, lasting minimumFrames: Int, bridging: Int = 0
     ) -> Range<Int>? {
-        var first: Int?
-        var last: Int?
+        var runs: [Range<Int>] = []
         var runStart: Int?
         for (index, value) in loudness.enumerated() {
             if value >= threshold {
                 if runStart == nil { runStart = index }
             } else if let start = runStart {
-                if index - start >= minimumFrames {
-                    if first == nil { first = start }
-                    last = index
-                }
+                runs.append(start..<index)
                 runStart = nil
             }
         }
         // A run still open at the end counts: speech need not stop before the key does.
-        if let start = runStart, loudness.count - start >= minimumFrames {
-            if first == nil { first = start }
-            last = loudness.count
+        if let start = runStart { runs.append(start..<loudness.count) }
+
+        var first: Int?
+        var last: Int?
+        var cluster: Range<Int>?
+        var holdsAWord = false
+        func close() {
+            guard let cluster, holdsAWord else { return }
+            if first == nil { first = cluster.lowerBound }
+            last = cluster.upperBound
         }
+        for run in runs {
+            if let open = cluster, run.lowerBound - open.upperBound <= bridging {
+                cluster = open.lowerBound..<run.upperBound
+            } else {
+                close()
+                cluster = run
+                holdsAWord = false
+            }
+            if run.count >= minimumFrames { holdsAWord = true }
+        }
+        close()
         guard let first, let last else { return nil }
         return first..<last
     }
