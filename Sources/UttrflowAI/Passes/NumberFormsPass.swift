@@ -1106,6 +1106,8 @@ public struct NumberFormsPass: PieceCleaningPass {
         guard let read = NumberWords.hindiCardinal(keys[start..<end]) else { return nil }
         let unit = start + read.count
         guard joined(unit, shapes) else { return nil }
+        // No clock shows past 24, so a larger number before a clock word is another word the recogniser misheard.
+        guard !(hindiClockWords.contains(keys[unit]) && read.value > 24) else { return nil }
         let shared = sharedMeasures.contains(keys[unit])
         guard
             hindiMeasures.contains(keys[unit])
