@@ -399,6 +399,7 @@ public struct FirstWordPass: WholeTextCleaningPass {
     func strayCapitalLowered(_ word: String, in text: String) -> String {
         let core = WordShape(word).core
         guard policy == .fromInsertionPoint, core.first?.isUppercase == true, !Self.keepsCapital(word),
+            !WordShape(word).isLetterA,
             LexicalClass.isKnownEnglishWord(core.lowercased()) || Self.isHinglishWord(core, in: text),
             !LexicalClass.isNameInDictionary(core.lowercased()),
             !ownWords.contains(core.lowercased()),

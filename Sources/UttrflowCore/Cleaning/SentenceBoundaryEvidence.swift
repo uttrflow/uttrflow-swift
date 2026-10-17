@@ -207,6 +207,8 @@ public enum SentenceBoundaryEvidence {
     public static func commaSplitsClosedPhrase(_ word: String, into next: String) -> Bool {
         let shape = WordShape(word)
         guard shape.suffix == ",", shape.prefix.isEmpty else { return false }
+        // A capital A is a label, so the comma after it belongs to the list.
+        guard !shape.isLetterA else { return false }
         let key = shape.key
         let upcoming = WordTokens.words(next, .display).prefix(1).map { $0.lowercased() }
         if let word = upcoming.first, QuestionShape.subjects.contains(word) { return false }
