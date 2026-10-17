@@ -595,6 +595,14 @@
     "mustNotAdd": ["-2%"]
   },
   {
+    "id": "article-stays-apart-from-a-number-and-a-unit-letter",
+    "addedFor": 8007,
+    "spoken": "she is a ten x engineer on the platform team",
+    "expected": "She is a 10 x engineer on the platform team.",
+    "mustKeep": ["a 10 x engineer", "platform"],
+    "mustNotAdd": ["A10X"]
+  },
+  {
     "id": "year-after-by-not-a-clock-time",
     "spoken": "we had fifty customers and by twenty twenty four we had five thousand",
     "expected": "We had 50 customers and by 2024 we had 5000.",

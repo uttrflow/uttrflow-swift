@@ -232,6 +232,9 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         (left + 1..<right).allSatisfy { draft.words[$0].state == .removed(by: id) }
     }
 
+    /// The lone letters that stand for a multiplier or a unit when they follow a number: "ten x", "two m".
+    private static let measureLetters: Set<String> = ["x", "m"]
+
     /// Whether pieces read as a code: three or more, or an initialism or a lone letter then three digits.
     private static func isCode(_ pieces: [CodePiece], startsWithInitialism: Bool, opening: String) -> Bool {
         let numbers = pieces.filter { if case .letters = $0 { false } else { true } }
@@ -239,6 +242,12 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         guard !numbers.isEmpty else { return false }
         // The article or the pronoun opens a code only beside a second letter.
         if opening == "a" || opening == "i", !startsWithInitialism, letters < 2 { return false }
+        // The article, a number and a lone x or m make a quantity with its unit, never a code.
+        if opening == "a" || opening == "i", !startsWithInitialism, pieces.count == 3,
+            case .letters(let unit) = pieces[2], measureLetters.contains(unit.lowercased())
+        {
+            return false
+        }
         if pieces.count >= 3 { return true }
         guard pieces.count == 2, case .digits(let digits) = pieces[1] else { return false }
         return startsWithInitialism || digits.count >= 3
