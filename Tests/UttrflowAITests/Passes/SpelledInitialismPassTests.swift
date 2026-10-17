@@ -126,6 +126,19 @@ struct SpelledInitialismPassTests {
     }
 
     @Test(
+        "keeps the article apart from a number and a lone x or m after it",
+        arguments: [
+            ("a ten x engineer", "a 10 x engineer"),
+            ("it was a ten m run", "it was a 10 m run"),
+            ("we got a twelve x speedup", "we got a 12x speedup"),
+            ("commit a three f", "commit A3F"),
+            ("a b ten x", "AB10X"),
+        ])
+    func articleBeforeNumberAndUnitLetter(input: String, expected: String) {
+        #expect(CleaningPipeline(passes: [NumberFormsPass(), sut]).run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
         "joins a doubled letter the stammer pass kept as spelling",
         arguments: [("a a one two three", "AA123"), ("b a a four", "BAA four"), ("i i t", "IIT")])
     func spelledDouble(input: String, expected: String) {
