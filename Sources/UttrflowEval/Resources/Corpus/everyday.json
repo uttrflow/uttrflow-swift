@@ -571,6 +571,14 @@
     "mustNotAdd": ["?"]
   },
   {
+    "id": "plural-century-and-decade-said-as-two-number-words",
+    "addedFor": 8009,
+    "spoken": "the mill opened in the nineteen hundreds and was rebuilt in the twenty tens",
+    "expected": "The mill opened in the 1900s and was rebuilt in the 2010s.",
+    "mustKeep": ["1900s", "2010s"],
+    "mustNotAdd": ["19 hundreds", "20 tens"]
+  },
+  {
     "id": "year-after-by-not-a-clock-time",
     "spoken": "we had fifty customers and by twenty twenty four we had five thousand",
     "expected": "We had 50 customers and by 2024 we had 5000.",

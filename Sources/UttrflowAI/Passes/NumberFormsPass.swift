@@ -1408,13 +1408,22 @@ public struct NumberFormsPass: PieceCleaningPass {
         guard let century = NumberWords.teens[keys[position]] ?? NumberWords.tens[keys[position]],
             [19, 20].contains(century),
             joined(position + 1, shapes),
-            let decade = NumberWords.tens.first(where: {
-                $0.value >= 20 && $0.value <= 90
-                    && ($0.key.hasSuffix("y") ? String($0.key.dropLast()) + "ies" : $0.key + "s")
-                        == keys[position + 1]
-            })?.value
+            let decade = decadeValue(of: keys[position + 1])
         else { return nil }
         return Phrase(text: "\(century * 100 + decade)s", count: 2)
+    }
+
+    /// The tens a plural decade word stands for: "eighties" is 80, "tens" is 10, and "hundreds" is the century's own 0.
+    private static func decadeValue(of key: String) -> Int? {
+        switch key {
+        case "hundreds": return 0
+        case "tens": return 10
+        default:
+            return NumberWords.tens.first(where: {
+                $0.value >= 20 && $0.value <= 90
+                    && ($0.key.hasSuffix("y") ? String($0.key.dropLast()) + "ies" : $0.key + "s") == key
+            })?.value
+        }
     }
 
     /// Keeps fixed spoken idioms intact so their number words are not partially rewritten.
