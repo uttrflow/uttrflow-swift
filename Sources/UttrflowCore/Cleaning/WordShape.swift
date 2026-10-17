@@ -268,7 +268,9 @@ public struct WordShape: Equatable, Sendable {
         let quoted = trailingQuotes(of: text)
         let body = String(text.dropLast(quoted.count))
         // A word that is only a dot is the current directory, never a stop.
-        guard body != ".", body.hasSuffix("."), !body.hasSuffix("..") else { return text }
+        guard body != ".", body.hasSuffix(".") else { return text }
+        // A path ending in the `/...` wildcard keeps its three dots and loses only the stop after them.
+        guard !body.hasSuffix("..") || body.hasSuffix("/....") else { return text }
         return String(body.dropLast()) + quoted
     }
 
