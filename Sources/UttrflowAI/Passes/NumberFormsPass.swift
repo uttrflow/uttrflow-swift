@@ -388,7 +388,8 @@ public struct NumberFormsPass: PieceCleaningPass {
             return amount
         }
         if (keys[position] == "negative" || keys[position] == "minus"), joined(position + 1, shapes),
-            !subtracts(at: position, keys: keys, shapes: shapes)
+            !subtracts(at: position, keys: keys, shapes: shapes),
+            !completesPlusOrMinus(at: position, keys: keys, shapes: shapes)
         {
             return negative(at: position, keys: keys, shapes: shapes, policy: policy, digits: digits)
         }
@@ -956,6 +957,12 @@ public struct NumberFormsPass: PieceCleaningPass {
         let previous = keys[position - 1]
         return NumberWords.digits(previous) != nil || NumberWords.cardinal([previous]) != nil
             || NumberWords.scales[previous] != nil
+    }
+
+    /// Whether "minus" here ends "plus or minus", a tolerance whose number is not negative.
+    private static func completesPlusOrMinus(at position: Int, keys: [String], shapes: [WordShape]) -> Bool {
+        keys[position] == "minus" && position > 1 && joined(position - 1, shapes) && joined(position, shapes)
+            && keys[position - 1] == "or" && keys[position - 2] == "plus"
     }
 
     /// The written magnitude of a lone "k", "m" or "b" at `index`: "m" and "b" count only after a decimal or before a noun, else nil.

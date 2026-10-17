@@ -863,6 +863,20 @@ struct NumberFormsPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test(
+        "keeps the words plus or minus and writes only the number after them",
+        arguments: [
+            ("plus or minus two percent", "plus or minus 2%"),
+            ("within plus or minus ten", "within plus or minus 10"),
+            ("a margin of plus or minus twelve", "a margin of plus or minus 12"),
+            ("it dropped to minus fourteen", "it dropped to -14"),
+            ("minus twelve point five degrees", "-12.5 degrees"),
+        ]
+    )
+    func plusOrMinus(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test("keeps the unit in a cardinal before a currency")
     func scaleCardinalBeforeCurrency() {
         #expect(cleaned("eight hundred five dollars", by: sut) == "805 dollars")
