@@ -1322,6 +1322,7 @@ spoken-package-filename	Open package.json.
 spoken-percent-sign-after-a-number	Sales grew by 40% this year.
 spoken-period	Ship it.
 spoken-phone-digit-run	Call me on 9876543210.
+spoken-question-and-exclamation-mark-make-a-pair	You moved the whole schedule?! Without telling anyone.
 spoken-scheme-address	Go to https://example.com.
 spoken-web-address-and-path	Visit example.com/docs.
 spoken-www-address	The site is www.example.com.

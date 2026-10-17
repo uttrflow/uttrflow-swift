@@ -5310,6 +5310,9 @@
     "spoken-phone-digit-run@11",
     "spoken-phone-digit-run@12",
     "spoken-phone-digit-run@2",
+    "spoken-question-and-exclamation-mark-make-a-pair@1",
+    "spoken-question-and-exclamation-mark-make-a-pair@11",
+    "spoken-question-and-exclamation-mark-make-a-pair@4",
     "spoken-scheme-address@1",
     "spoken-web-address-and-path@1",
     "sql-editor-comment-sentence@5",
@@ -5605,5 +5608,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5585
+  "total" : 5588
 }
