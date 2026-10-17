@@ -1,6 +1,7 @@
 acronym-spelled-like-a-filler	We rushed him to ER before midnight.
 acronym-whole-word	Check the API and JSON, deploy through ecs over HTTPS, call the rest API, and use aws for the rapid response.
 acronyms	The API returns a JSON payload over HTTPS.
+actually-adverb-repeat-fixed	The driver never fixed the leak in the drawer although our manager actually fixed the answer.
 actually-between-numbers	Let's get coffee at three.
 actually-make-it-as-arriving-kept	We did not actually make it to the party.
 actually-make-it-between-amounts	The budget is 12k.
@@ -478,6 +479,7 @@ hinglish-reply-haan-2371	Haan.
 hinglish-reply-theek-hai-2371	Theek hai.
 hinglish-request	Arre suno zara wo report bhej dena.
 hinglish-romanised-respelling-2377	Kal ki meeting nahi hai main ghar se kaam karunga.
+hinglish-saath-baje-not-sixty	Kal subah saath baje utna hai.
 hinglish-sorry-sorry-kept	Sorry sorry main bhool gaya.
 hinglish-spoken-colon-before-kal	Note: kal chutti hai.
 hinglish-spoken-comma-before-aur	Chai, aur biscuit.
@@ -821,6 +823,8 @@ new-paragraph-after-modifier-kept-2353	His first new paragraph was long.
 no-after-bullet-point-kept	Release notes:\n- The old API is gone\n- No old clients remain
 no-after-new-line-kept	We ship a new build\nNo new dependencies.
 no-after-new-paragraph-kept	The file is over 50 MB.\n\nNo schema changes and no new dependencies.
+no-determiner-repeat-good-reason	We kept the receipt for a good reason and then our plumber lost the tickets for no good reason.
+no-determiner-repeat-spare-key	He found a spare key in the drawer and the landlord said there was no spare key anywhere.
 no-make-it-as-making-kept	There was no make it or break it moment for us.
 no-make-that-as-making-kept	There was no make that cake moment for us.
 no-make-that-between-amounts	I need five loaves.
