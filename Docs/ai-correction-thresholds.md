@@ -101,6 +101,7 @@ correct word failed the test before it:
 | listed romanised Hindi (`LoanwordRestoration.isRomanisedHindi`) | the tokenizer splits Hindi | "nikal" |
 | in a sentence holding listed romanised Hindi that is not English | Hindi has content words no list holds | "nikaal", "kitaab" |
 | written with capitals past its first letter | a form written on purpose | "YOYO" |
+| one letter, or letters with no vowel | a spelled letter, a command or an abbreviation, never a name half heard | "e", "ls", "kb" |
 | one of two added entries sounding like it | nothing chooses between them | |
 | capitalised inside a sentence and scored as heard surely | the recogniser committed to it as a name | "Meera" with `Mira` |
 | a word of a longer entry in the dictionary | the user writes it | "Rao" with `Deepak Rao` |

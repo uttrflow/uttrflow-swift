@@ -256,7 +256,12 @@ public struct WordCorrectionEngine: Sendable {
     private static func mayBeNonWord(_ letters: String) -> Bool {
         // Capitals past the first letter are a form written on purpose, as "YOYO" is, not a word misheard.
         !letters.isEmpty && letters.allSatisfy(\.isLetter) && letters.dropFirst().allSatisfy(\.isLowercase)
-            && !GeneralVocabulary.isOrdinary(letters)
+            && !GeneralVocabulary.isOrdinary(letters) && isPronounceableAsAName(letters)
+    }
+
+    /// Whether the letters could be a name half heard: a spelled letter, or a run with no vowel such as `ls` or `kb`, is a code, never a name.
+    private static func isPronounceableAsAName(_ letters: String) -> Bool {
+        letters.count > 1 && letters.contains { "aeiouyAEIOUY".contains($0) }
     }
 
     /// Whether any word of the utterance is listed romanised Hindi that is not also English, as "kar" is and "main" is not.
