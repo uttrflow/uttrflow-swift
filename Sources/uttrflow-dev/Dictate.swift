@@ -12,8 +12,8 @@ struct Dictate: AsyncParsableCommand {
         abstract: "Dictate an audio file through the whole pipeline, as if it were spoken live."
     )
 
-    @Argument(help: "A 16 kHz mono WAV to play into the pipeline.")
-    var file: String
+    @Argument(help: "16 kHz mono WAVs to play into the pipeline.")
+    var files: [String]
 
     @Flag(name: .long, help: "Do all the work after the key comes up, the way it used to be done.")
     var allAtOnce = false
@@ -32,9 +32,6 @@ struct Dictate: AsyncParsableCommand {
         guard store.isInstalled(model) else {
             throw notInstalled(model, in: store)
         }
-        let audio = try AudioFileReader.read(contentsOf: URL(fileURLWithPath: file))
-        guard !audio.isEmpty else { throw CleanExit.message("The file holds no audio.") }
-
         var configuration = EngineConfiguration.default
         if let engine {
             guard let kind = TransformerKind(rawValue: engine), TransformerKind.selectable.contains(kind)
@@ -43,17 +40,20 @@ struct Dictate: AsyncParsableCommand {
         }
         let speech = SpeechEngineFactory.make(
             kind: .whisperKit, model: model, modelFolder: store.location(of: model))
-        let playback = PlaybackCaptureEngine(audio: audio, sharesEarly: !allAtOnce)
+        print("Loading the recogniser…")
+        var first = true
+        for file in files {
+        let audio = try AudioFileReader.read(contentsOf: URL(fileURLWithPath: file))
+        guard !audio.isEmpty else { throw CleanExit.message("The file holds no audio.") }
+        let playback = PlaybackCaptureEngine(audio: audio, sharesEarly: !allAtOnce, realTime: false)
         let inserter = PrintingInserter()
         let pipeline = DictationPipeline(
             capture: playback, speech: speech, cleaner: TextTransformers.router(configuration: configuration),
             context: FixedScreen(), inserter: inserter,
             windowing: allAtOnce ? .onePiece : .standard)
-
-        print("Loading the recogniser…")
         await pipeline.prepare()
         guard await pipeline.isReady else { throw CleanExit.message("The recogniser did not load.") }
-
+        _ = first; first = false
         let states = await pipeline.states()
         let watcher = Task { () -> (DictationState, ContinuousClock.Instant) in
             for await state in states where !state.isBusy && state != .idle {
@@ -61,27 +61,18 @@ struct Dictate: AsyncParsableCommand {
             }
             return (.idle, ContinuousClock.now)
         }
-
-        let how = allAtOnce ? ", all work at key-up" : ""
-        print("Playing \(seconds(audio.duration))s of audio as if spoken\(how)…")
         await pipeline.startRecording()
         await playback.playedOut()
-        let keyUp = ContinuousClock.now
         await pipeline.finishRecording()
-        let (ended, at) = await watcher.value
-        let wait = keyUp.duration(to: at)
-
+        let (ended, _) = await watcher.value
         switch ended {
         case .inserted(let outcome):
-            print("\n\(outcome.text)\n")
-            print("  audio        \(seconds(audio.duration))s")
-            print("  wait         \(seconds(wait))s after the key came up")
-            print("  tidied by    \(outcome.cleanedBy.rawValue)")
+            print("RESULT\t\((file as NSString).lastPathComponent)\t\(outcome.text.replacingOccurrences(of: "\n", with: "\\n"))")
         case .failed(let failure):
-            print("\nFailed: \(failure.message)")
-            print("  wait         \(seconds(wait))s after the key came up")
+            print("RESULT\t\((file as NSString).lastPathComponent)\tFAILED \(failure.message)")
         default:
-            print("\nEnded in \(ended)")
+            print("RESULT\t\((file as NSString).lastPathComponent)\tEnded \(ended)")
+        }
         }
     }
 
