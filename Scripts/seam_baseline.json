@@ -1788,6 +1788,13 @@
     "late-to-meeting@6",
     "late-to-meeting@7",
     "late-to-meeting@9",
+    "letter-a-answer-choice-keeps-case@1",
+    "letter-a-answer-choice-keeps-case@4",
+    "letter-a-answer-choice-keeps-case@5",
+    "letter-a-label-keeps-its-comma-and-case@1",
+    "letter-a-label-keeps-its-comma-and-case@3",
+    "letter-a-label-keeps-its-comma-and-case@6",
+    "letter-a-label-keeps-its-comma-and-case@9",
     "literal-prose-host-is-down@3",
     "literal-prose-number-sentence@1",
     "literal-prose-number-sentence@4",
@@ -5605,5 +5612,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5585
+  "total" : 5592
 }

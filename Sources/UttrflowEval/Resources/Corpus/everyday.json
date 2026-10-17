@@ -1747,6 +1747,7 @@
     "note": "A capital A inside a sentence is the letter of a label, not the article: it keeps its capital and the comma the speaker paused on.",
     "spoken": "Part A, part B, and part C are due Monday.",
     "expected": "Part A, part B, and part C are due Monday.",
+    "expectedExact": "Part A, part B, and part C are due Monday.",
     "mustKeep": ["Part A,", "part B"],
     "addedFor": 8042
   },
@@ -1754,6 +1755,7 @@
     "id": "letter-a-answer-choice-keeps-case",
     "spoken": "Ask the question, then answer A, B, or C.",
     "expected": "Ask the question, then answer A, B, or C.",
+    "expectedExact": "Ask the question, then answer A, B, or C.",
     "mustKeep": ["answer A, B"],
     "addedFor": 8042
   }
