@@ -280,5 +280,25 @@
     "expected": "Kal subah saath baje utna hai.",
     "mustKeep": ["saath", "baje"],
     "mustNotAdd": ["60"]
+  },
+  {
+    "id": "hinglish-devanagari-cities",
+    "note": "Cities the recogniser writes in Devanagari come out as people type them, not by sound.",
+    "language": "hi",
+    "addedFor": 8018,
+    "spoken": "मैं मुंबई और हैदराबाद जा रहा हूँ",
+    "expected": "Main Mumbai aur Hyderabad ja raha hoon.",
+    "mustKeep": ["Mumbai", "Hyderabad"],
+    "mustNotAdd": ["munbai", "haidrabaad"]
+  },
+  {
+    "id": "hinglish-devanagari-common-names",
+    "note": "Common given names and surnames in Devanagari keep their typed spelling and capital.",
+    "language": "hi",
+    "addedFor": 8018,
+    "spoken": "राहुल ने गुप्ता जी को फोन किया",
+    "expected": "Rahul ne Gupta ji ko phone kiya.",
+    "mustKeep": ["Rahul", "Gupta"],
+    "mustNotAdd": ["raahul"]
   }
 ]

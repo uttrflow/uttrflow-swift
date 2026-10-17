@@ -45,7 +45,7 @@ what hold whatever a model writes.
 chat, not the way a scholar transliterates it. It has no diacritics and never produces
 "karanā"; it produces "karna".
 
-- **Common spellings first.** A table of <!-- count:Romaniser.commonSpellingList -->367 frequent words (`commonSpellings`) holds the
+- **Common spellings first.** A table of <!-- count:Romaniser.commonSpellingList -->381 frequent words (`commonSpellings`) holds the
   spelling people actually use: है hai, हाँ haan, ठीक thik, नहीं nahi, मैं main, में mein, क्या
   kya, क्यों kyun, हूँ hoon, and loanwords people write in English (ऑफिस office, मिनट minute).
   Chandrabindu and anusvara key the same entry, so हाँ and हां meet.
@@ -218,9 +218,13 @@ shows, or a weekday (the weekday table is romanised by `Romaniser` itself, so th
 A name that is a listed romanised Hindi word ("Kal") or an ordinary word is never cased, and no
 word is capitalised by shape or position. `RomanisedNameCorpus` holds 24 invented sentences scored
 case-sensitively beside the case-folded word error rate: before the pass 12 of 19 sentences whose
-name a source the person owns can spell were written right, after it 19 of 19; the 4 sentences whose
-name only a shipped list of names and places could spell stay lower case, and the 1 control gains no
-capital. No shipped list exists; `LoanwordRestoration` already restores a respelled dictionary name.
+name a source the person owns can spell were written right, after it 19 of 19; of the 4 sentences whose
+name only a shipped list of names and places could spell, the short shipped list lifts the share of those names written right from 0 to 0.67 (a city in it is
+written right; "Rohan" and "Delhi" are not in it) and the rest stay lower case, and the 1 control gains no
+capital. The only shipped list is the short run of the best known Indian cities and the most common given
+names and surnames in `Romaniser.commonSpellings`, keyed by the exact Devanagari spelling like every
+other entry there, so a Hindi word is never touched; a name that is also an ordinary Hindi word
+("सिंह", "पूजा") is left out. `LoanwordRestoration` already restores a respelled dictionary name.
 Honorific and kinship words after a name stay lower case unless `FirstWordPass` cases a kinship word
 as a name ("Didi"); that case is not yet handled.
 
