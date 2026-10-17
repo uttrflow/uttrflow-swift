@@ -877,6 +877,20 @@ struct NumberFormsPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test(
+        "writes a plural decade or century said as two number words as one year ending in s",
+        arguments: [
+            ("the nineteen hundreds", "the 1900s"),
+            ("the twenty tens", "the 2010s"),
+            ("in the nineteen tens and twenties", "in the 1910s and twenties"),
+            ("the nineteen eighties", "the 1980s"),
+            ("the twenty twenties", "the 2020s"),
+        ]
+    )
+    func pluralDecades(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test("keeps the unit in a cardinal before a currency")
     func scaleCardinalBeforeCurrency() {
         #expect(cleaned("eight hundred five dollars", by: sut) == "805 dollars")
