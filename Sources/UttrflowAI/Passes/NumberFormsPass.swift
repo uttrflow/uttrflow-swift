@@ -1104,6 +1104,10 @@ public struct NumberFormsPass: PieceCleaningPass {
             if !shapes[end - 1].suffix.isEmpty { break }
         }
         guard let read = NumberWords.hindiCardinal(keys[start..<end]) else { return nil }
+        // A scale word straight after a numeral multiplies it ("5 hazaar") and is not an amount of its own.
+        let scaleOnly = NumberWords.hindi[keys[start]].map { $0 >= 100 } ?? false
+        guard !(scaleOnly && start > 0 && joined(start, shapes) && keys[start - 1].first?.isNumber == true)
+        else { return nil }
         let unit = start + read.count
         guard joined(unit, shapes) else { return nil }
         let shared = sharedMeasures.contains(keys[unit])

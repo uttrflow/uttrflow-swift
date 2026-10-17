@@ -1303,6 +1303,24 @@ struct NumberWordsTests {
     }
 
     @Test(
+        "leaves a scale word as said when a numeral already counts it, rather than adding its value beside the numeral",
+        arguments: [
+            ("mujhe 5 hazaar rupaye chahiye", "mujhe 5 hazaar rupaye chahiye"),
+            ("ye 3 lakh rupaye ka hai", "ye 3 lakh rupaye ka hai"),
+            ("mere 3 sau rupaye hain", "mere 3 sau rupaye hain"),
+            ("total 3 crore rupaye hai", "total 3 crore rupaye hai"),
+            ("bill 2.5 lakh rupaye hai", "bill 2.5 lakh rupaye hai"),
+            ("it is 4 crore rupees", "it is 4 crore rupees"),
+            ("is 12 lakh rupees", "is 12 lakh rupees"),
+            ("5 do hazaar rupaye", "5 2,000 rupaye"),
+            ("mujhe hazaar rupaye chahiye", "mujhe 1,000 rupaye chahiye"),
+        ]
+    )
+    func scaleWordAfterANumeral(input: String, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass()) == expected)
+    }
+
+    @Test(
         "keeps a Hindi number word before a unit English shares when the sentence around it is English",
         arguments: [
             ("it costs about sau rupees each", "it costs about sau rupees each"),
