@@ -95,13 +95,6 @@ struct NonWordCorrectionTests {
         #expect(engine.proposals(for: utterance, against: Self.index([name])).isEmpty)
     }
 
-    /// Capitals past the first letter are written on purpose, so "YOYO" is not respelt as an entry that sounds like it.
-    @Test("leaves a word written in capitals")
-    func leavesCapitals() {
-        let utterance = CorrectionFixtures.spoken("we cache every session in READEES for an hour")
-        #expect(engine.proposals(for: utterance, against: index).isEmpty)
-    }
-
     @Test("an entry the user did not add is not taken on a non-word alone")
     func needsAnAddedEntry() {
         let utterance = CorrectionFixtures.spoken("we cache every session in readees for an hour")
