@@ -441,20 +441,20 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "8e4176ab9cd67ca374275cacb5cbeb304ac493c67457295842117e13d1f5a469",
+      "sha256": "487691b2b0bc3dad1c43ac41c1f824c86096758dd94efbcee22af289f5421134",
       "path": "Sources/UttrflowEval/Resources/Corpus/dictionary.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 6303,
+      "bytes": 7528,
       "licence": "MIT"
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "0963c88d642de83bb7accd681039a08f229ad51fd6ecc53235391fbd4ebd620d",
+      "sha256": "ea40f63aaee0857d54832e6f7d48e29ad29f38b29aaa47c5d724787d7f30a104",
       "path": "Sources/UttrflowEval/Resources/Corpus/everyday.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 59794,
+      "bytes": 60133,
       "licence": "MIT"
     },
     {
@@ -504,11 +504,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "f8b49d062d2ce7710f4380bba2e39fef02ffac3fcc56940d4b43dbc6165faf8d",
+      "sha256": "d1e1c75ab88d95abffd9807093501347a87a7b3b67cf2867f95fa139dfd8b072",
       "path": "Sources/UttrflowEval/Resources/Corpus/multilingual.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 7061,
+      "bytes": 8425,
       "licence": "MIT"
     },
     {
