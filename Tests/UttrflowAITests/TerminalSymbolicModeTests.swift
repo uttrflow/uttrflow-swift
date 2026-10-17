@@ -18,7 +18,7 @@ struct TerminalSymbolicModeTests {
     }
 
     @Test(
-        "plus or minus between the people and the permissions is the operator joined to both",
+        "plus or minus between the people and the permissions is the sign joined to both",
         arguments: [
             ("chmod plus x deploy dot sh", "chmod +x deploy.sh"),
             ("chmod u plus x run dot sh", "chmod u+x run.sh"),

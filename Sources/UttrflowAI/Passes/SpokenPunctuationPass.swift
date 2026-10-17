@@ -503,8 +503,8 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     private static let modeSigns: [String: String] = ["plus": "+", "minus": "-"]
 
     /// The letters that name whose permissions a mode changes, and those that name the permissions.
-    private static let modeWho: Set<Character> = ["u", "g", "o", "a"]
-    private static let modePermissions: Set<Character> = ["r", "w", "x", "X", "s", "t"]
+    private static let modeWho = "ugoa"
+    private static let modePermissions = "rwxXst"
 
     /// Writes a symbolic mode said after chmod as one word: "u plus x" is `u+x` and "plus rwx" is `+rwx`; returns the position to go on from.
     private func replaceSymbolicMode(at position: Int, in live: inout [Int], of draft: inout Draft) -> Int? {
