@@ -5427,6 +5427,25 @@
     "trigger-as-its-own-sentence@3",
     "trigger-as-its-own-sentence@5",
     "trigger-as-its-own-sentence@6",
+    "trigger-phrase-heads-clauses-i-mean-to@1",
+    "trigger-phrase-heads-clauses-i-mean-to@2",
+    "trigger-phrase-heads-clauses-i-mean-to@4",
+    "trigger-phrase-heads-clauses-i-mean-to@6",
+    "trigger-phrase-heads-clauses-i-mean-to@8",
+    "trigger-phrase-heads-clauses-i-mean-to@9",
+    "trigger-phrase-heads-clauses-never-mind@1",
+    "trigger-phrase-heads-clauses-never-mind@10",
+    "trigger-phrase-heads-clauses-never-mind@2",
+    "trigger-phrase-heads-clauses-never-mind@3",
+    "trigger-phrase-heads-clauses-never-mind@4",
+    "trigger-phrase-heads-clauses-never-mind@6",
+    "trigger-phrase-heads-clauses-never-mind@8",
+    "trigger-phrase-heads-clauses-never-mind@9",
+    "trigger-phrase-heads-clauses-scratch-that-itch@1",
+    "trigger-phrase-heads-clauses-scratch-that-itch@2",
+    "trigger-phrase-heads-clauses-scratch-that-itch@3",
+    "trigger-phrase-heads-clauses-scratch-that-itch@4",
+    "trigger-phrase-heads-clauses-scratch-that-itch@6",
     "twenty-four-seven-idiom@5",
     "two-single-digits-kept@1",
     "undecided-number-pair-kept-as-words@1",
@@ -5553,5 +5572,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5533
+  "total" : 5552
 }
