@@ -106,6 +106,7 @@
         {"id": "HMAC", "category": "acronym", "spoken": ["h mac", "h m a c"]},
         {"id": "RSA", "category": "acronym", "spoken": ["r s a"]},
         {"id": "AES", "category": "acronym", "spoken": ["a e s"]},
+        {"id": "SHA", "category": "acronym", "spoken": ["s h a"]},
         {"id": "LDAP", "category": "acronym", "spoken": ["l dap", "l d a p"]},
         {"id": "NAT", "category": "acronym", "spoken": ["n a t"]},
         {"id": "MTU", "category": "acronym", "spoken": ["m t u"]},

@@ -354,6 +354,9 @@ struct NumberFormsPassTests {
             ("wall plugs size six", "wall plugs size 6"),
             ("the model one twenty is out", "the model 120 is out"),
             ("the train is at one twenty", "the train is at 1:20"),
+            ("we hash with sha two fifty six", "we hash with sha 256"),
+            ("verify the sha five twelve checksum", "verify the sha 512 checksum"),
+            ("aes one twenty eight and aes two fifty six", "aes 128 and aes 256"),
         ]
     )
     func labelledNumbers(input: String, expected: String) {
