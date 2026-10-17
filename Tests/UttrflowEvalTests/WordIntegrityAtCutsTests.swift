@@ -21,7 +21,7 @@ struct WordIntegrityAtCutsTests {
 
     /// The cases whose cut inside a spoken correction keeps the words the speaker took back.
     static let correctionSplitByCut: [String: String] = [
-        "long-form-correcting-an-item-in-a-list": correctionSplit,
+        "long-form-correcting-an-item-in-a-list": correctionSplit
     ]
 
     static let correctionSplit =
