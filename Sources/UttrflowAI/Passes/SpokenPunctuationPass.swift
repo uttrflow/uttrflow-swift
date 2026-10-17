@@ -5,7 +5,7 @@ public import UttrflowCore
 public struct SpokenPunctuationPass: PieceCleaningPass {
     public static let id: PassID = .spokenPunctuation
     public static let laws: Set<PassLaw> = [.idempotent, .latinOnly]
-    public static let orderIndependentWith: Set<PassID> = [.spokenCasing, .caretEcho]
+    public static let orderIndependentWith: Set<PassID> = [.caretEcho]
     private let destination: Destination
     /// Whether the screen alone makes every spoken dash an option marker: a place options are typed, outside a comment.
     private let isCommandLine: Bool
