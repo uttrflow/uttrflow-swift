@@ -166,5 +166,32 @@
     "expected": "Pipe ls --no-color into the file.",
     "mustKeep": ["ls"],
     "dictionary": ["Ellis"]
+  },
+  {
+    "id": "dictionary-spelled-letters-e-g-8032",
+    "note": "Letters spoken as their names, however doubtful, are an abbreviation or a unit, not a dictionary name that sounds like them.",
+    "addedFor": 8032,
+    "spoken": "bring snacks e g chips and fruit e g apples",
+    "expected": "Bring snacks e.g. chips and fruit e.g. apples.",
+    "doubtful": ["e g"],
+    "dictionary": ["Isha"]
+  },
+  {
+    "id": "dictionary-spelled-letters-unit-tb-8032",
+    "note": "Letters spoken as their names, however doubtful, are an abbreviation or a unit, not a dictionary name that sounds like them.",
+    "addedFor": 8032,
+    "spoken": "the drive holds two t b of photos and one t b of video",
+    "expected": "The drive holds 2 TB of photos and 1 TB of video.",
+    "doubtful": ["t b"],
+    "dictionary": ["Deepa"]
+  },
+  {
+    "id": "dictionary-spelled-letters-unit-hz-8032",
+    "note": "Letters spoken as their names, however doubtful, are an abbreviation or a unit, not a dictionary name that sounds like them.",
+    "addedFor": 8032,
+    "spoken": "the hum is sixty h z and the tone is four h z",
+    "expected": "The hum is 60 Hz and the tone is 4 Hz.",
+    "doubtful": ["h z"],
+    "dictionary": ["Zoe"]
   }
 ]
