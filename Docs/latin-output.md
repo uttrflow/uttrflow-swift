@@ -45,7 +45,7 @@ what hold whatever a model writes.
 chat, not the way a scholar transliterates it. It has no diacritics and never produces
 "karanā"; it produces "karna".
 
-- **Common spellings first.** A table of <!-- count:Romaniser.commonSpellingList -->340 frequent words (`commonSpellings`) holds the
+- **Common spellings first.** A table of <!-- count:Romaniser.commonSpellingList -->381 frequent words (`commonSpellings`) holds the
   spelling people actually use: है hai, हाँ haan, ठीक thik, नहीं nahi, मैं main, में mein, क्या
   kya, क्यों kyun, हूँ hoon, and loanwords people write in English (ऑफिस office, मिनट minute).
   Chandrabindu and anusvara key the same entry, so हाँ and हां meet.

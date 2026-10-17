@@ -1348,6 +1348,18 @@
     "hinglish-correction-replaced-head@6",
     "hinglish-correction-replaced-head@7",
     "hinglish-correction-replaced-head@8",
+    "hinglish-devanagari-cities@1",
+    "hinglish-devanagari-cities@2",
+    "hinglish-devanagari-cities@3",
+    "hinglish-devanagari-cities@4",
+    "hinglish-devanagari-cities@5",
+    "hinglish-devanagari-cities@6",
+    "hinglish-devanagari-common-names@1",
+    "hinglish-devanagari-common-names@2",
+    "hinglish-devanagari-common-names@3",
+    "hinglish-devanagari-common-names@4",
+    "hinglish-devanagari-common-names@5",
+    "hinglish-devanagari-common-names@6",
     "hinglish-devanagari-loanwords-cancel-budget-update@1",
     "hinglish-devanagari-loanwords-cancel-budget-update@10",
     "hinglish-devanagari-loanwords-cancel-budget-update@11",
@@ -5605,5 +5617,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5585
+  "total" : 5597
 }
