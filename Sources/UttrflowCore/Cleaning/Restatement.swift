@@ -435,13 +435,18 @@ public enum Restatement {
         span.contains { FunctionWords.isContent(draft.shape(at: live[$0]).key) }
     }
 
-    /// Whether the trigger heads each item of a list rather than correcting one: the word before the half it would take back is the trigger over again, or an answer this trigger answers ("yes … no …", "thanks … sorry …").
+    /// Whether the trigger heads each item of a list rather than correcting one: the words before the half it would take back are the whole trigger over again, or an answer this trigger answers ("yes … no …", "thanks … sorry …").
     private static func coordinates(
         _ start: Int, before trigger: Int, in live: [Int], of draft: Draft
     ) -> Bool {
         guard start > 0 else { return false }
-        let before = draft.shape(at: live[start - 1]).key
-        let head = draft.shape(at: live[trigger]).key
-        return before == head || (answerHeads.contains(before) && answerHeads.contains(head))
+        let key = { (position: Int) in draft.shape(at: live[position]).key }
+        let before = key(start - 1)
+        let head = key(trigger)
+        if before == head || (answerHeads.contains(before) && answerHeads.contains(head)) { return true }
+        // A trigger of several words is the one phrase over again when all of its words end the text before the half.
+        guard let length = triggerLength(at: trigger, in: live, of: draft), length > 1, start >= length
+        else { return false }
+        return (start - length..<start).map(key) == (trigger..<trigger + length).map(key)
     }
 }

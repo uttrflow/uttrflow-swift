@@ -170,17 +170,33 @@ struct StammersPassTests {
         #expect(draft.words.map(\.state) == [.kept, .removed(by: StammersPass.id), .kept])
     }
 
-    /// A doubled number is an accidental stammer when the next word is not another number, since "extension four four two" and "port eight zero zero zero" are digit-by-digit readings the rule has to keep.
+    /// A transcript must not drop words, so a doubled number is removed only as a single-word cardinal stammered at the start of a piece.
     @Test(
-        "removes a doubled number when the next word is not a number",
+        "removes a single-word cardinal stammered at the start of a piece",
         arguments: [
-            ("it costs five five dollars", "it costs five dollars"),
-            ("there were three three people in the room", "there were three people in the room"),
-            ("I waited five five minutes", "I waited five minutes"),
+            ("five five dollars", "five dollars"),
+            ("three three people came", "three people came"),
         ]
     )
-    func removesDoubledNumberNotFollowedByNumber(input: String, expected: String) {
+    func removesDoubledNumberAtStart(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "keeps a doubled number mid-sentence, where it is a year, a score or an even split",
+        arguments: [
+            "it costs five five dollars",
+            "there were three three people in the room",
+            "it was twenty twenty and then covid",
+            "a fifty fifty chance",
+            "we are fifty fifty on this",
+            "we drew one one today",
+            "the score was two two at half time",
+            "twenty twenty was a long year",
+        ]
+    )
+    func keepsDoubledNumberMidSentence(input: String) {
+        #expect(cleaned(input, by: sut) == input)
     }
 
     @Test(

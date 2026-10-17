@@ -381,6 +381,9 @@ struct SelfCorrectionPassTests {
             "there's no room, no room at all",
             "say no 3 no 4",
             "the bus is no 7 no 8",
+            "I mean to finish the report and I mean to send the invoice",
+            "scratch that itch on your arm and scratch that itch on your leg",
+            "she said never mind the delay and he said never mind the cost",
         ]
     )
     func leavesTriggerHeadedLists(input: String) {

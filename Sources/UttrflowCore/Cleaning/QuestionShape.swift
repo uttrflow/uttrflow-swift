@@ -115,7 +115,7 @@ public enum QuestionShape {
 
     /// Whether a clause-starting subject has a predicate and a plausible complement before "right".
     private static func hasClauseBeforeRight(_ words: [String]) -> Bool {
-        // A copula right before "right" makes it that clause's predicate: "I don't know if it is right".
+        // A copula right before "right" makes it that clause's predicate, as in a clause that asks whether something is correct.
         guard !copulaVerbs.contains(words.last ?? "") else { return false }
         let clause = Array(words.drop(while: openers.contains))
         guard let predicateIndex = tagClausePredicateIndex(in: clause) else { return false }
@@ -234,6 +234,7 @@ public enum QuestionShape {
         guard let first = clause.first else { return false }
         let second = clause.dropFirst().first ?? ""
         if contractedQuestionWords.contains(first) { return true }
+        if continuesWithRelativeVerb(clause) { return false }
         if questionWords.contains(first) {
             // "what we need is…" names a thing; "what time is it" asks, so a subject before the verb says no.
             for (offset, word) in clause.dropFirst().prefix(3).enumerated() {
@@ -289,6 +290,17 @@ public enum QuestionShape {
 
     /// Words after "how" that still ask with the subject straight after them: "how many of you", "how about you".
     private static let howQuestionHeads: Set<String> = ["many", "much", "about"]
+
+    /// Whether a clause opens "which" and a verb no question lists, so it carries on the sentence before it: "which brings it to ten".
+    private static func continuesWithRelativeVerb(_ clause: [String]) -> Bool {
+        guard clause.first == "which", clause.count >= 3 else { return false }
+        let second = clause[1]
+        // A verb the question lists takes its own subject; any other -s verb here is a relative clause.
+        guard second.hasSuffix("s"), !lexicalQuestionVerbs.contains(second), !questionWords.contains(second),
+            !verbsBeforeSubject.contains(second), !copulaVerbs.contains(second)
+        else { return false }
+        return LexicalClass.tag(ofWordAt: 1, in: clause) == .verb
+    }
 
     /// Whether the question word clause is the subject of a later main verb, as in "what works for you is fine".
     private static func isFreeRelativeSubject(_ clause: [String], verbIndex: Int) -> Bool {

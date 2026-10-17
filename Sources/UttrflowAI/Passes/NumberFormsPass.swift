@@ -875,6 +875,11 @@ public struct NumberFormsPass: PieceCleaningPass {
         let hasBeforeCue =
             position > 0 && !startsASentence(position, shapes) && timeCues.contains(keys[position - 1])
         guard hasBeforeCue, keys[minuteStart] != "hundred" else { return nil }
+        // Only "at" says a clock: after any other cue "twenty twenty four" is the year, said in two halves.
+        let readsAsYear =
+            hour.value == 20 && keys[position - 1] != "at"
+            && year(after: 20, at: minuteStart, keys: keys, shapes: shapes) != nil
+        guard !readsAsYear else { return nil }
         return Phrase(text: "\(hourText):\(minutes.text)", count: end - position)
     }
 
@@ -934,7 +939,7 @@ public struct NumberFormsPass: PieceCleaningPass {
             && !opensItsOwnHundred(at: position, keys: keys)
     }
 
-    /// Whether the number here is followed by "hundred" after a hundred and an "and": "five hundred and six hundred".
+    /// Whether the number here is followed by "hundred" after a hundred and an "and", which are two numbers.
     private static func opensItsOwnHundred(at position: Int, keys: [String]) -> Bool {
         keys[position - 2] == "hundred" && position + 1 < keys.count && keys[position + 1] == "hundred"
     }
@@ -1251,7 +1256,7 @@ public struct NumberFormsPass: PieceCleaningPass {
     /// Words before a digit run that say it is a code or a number to dial, not a count.
     static let digitCues = contextWords.union(NumberCues.words(for: .digitRun))
 
-    /// Verbs of having, which end a label cue: "the table has two million rows" counts rows, it does not label table two.
+    /// Verbs of having, which end a label cue: a count after "has" counts the things after it and does not take the noun before it as a label.
     private static let labelBreakers: Set<String> = ["has", "have", "had"]
 
     /// Whether a label word cues the number, across a sign and English function words such as "to"; a Hindi word or a lone letter ends it.
