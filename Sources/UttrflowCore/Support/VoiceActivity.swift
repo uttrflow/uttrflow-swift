@@ -48,10 +48,11 @@ public enum VoiceActivity: Sendable {
 
         let threshold = threshold(forFloor: floor)
         let minimumFrames = Swift.max(1, Int(minimumSpeech / frameDuration))
-        // A word shorter than `minimumSpeech` at the head of a phrase is speech, not a click, so quiet no
-        // longer than the margin does not part it from the words after it.
+        // Quiet of at most the margin does not part a short word from the words after it.
         let bridge = Int(Self.margin / frameDuration)
-        guard let voiced = voicedFrames(in: loudness, above: threshold, lasting: minimumFrames, bridging: bridge)
+        guard
+            let voiced = voicedFrames(
+                in: loudness, above: threshold, lasting: minimumFrames, bridging: bridge)
         else {
             // Loud and modulated, but no run long enough to point at: keep all of it.
             return samples.isEmpty ? nil : 0..<samples.count
@@ -139,8 +140,7 @@ public enum VoiceActivity: Sendable {
         return sorted[Swift.min(Swift.max(index, 0), sorted.count - 1)]
     }
 
-    /// First to last frame belonging to speech: a run of at least `minimumFrames` above `threshold`, and the
-    /// shorter runs joined to it by quiet of at most `bridging` frames, which are the words around a long one.
+    /// First to last frame of speech: runs above `threshold`, joined over `bridging` quiet frames, one a word.
     private static func voicedFrames(
         in loudness: [Float], above threshold: Float, lasting minimumFrames: Int, bridging: Int = 0
     ) -> Range<Int>? {
