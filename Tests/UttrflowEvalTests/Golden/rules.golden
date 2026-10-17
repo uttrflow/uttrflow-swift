@@ -1139,6 +1139,8 @@ segment-support-agent-ticket-number	I have escalated ticket 4419 to the billing 
 self-correction	Let's meet at five on Tuesday.
 sentence-per-new-line	Agenda\nOne intro\nTwo demo
 shell-append-spoken-double-greater-than	date >> log.txt
+shell-option-said-as-one-word-java	java -version
+shell-option-said-as-one-word-tar	tar -xzf backup.tar.gz
 shell-redirect-spoken-greater-than	cat notes.txt > copy.txt
 short-yes	Yes.
 signed-temperature	Temperature fell to -5 degrees overnight.
