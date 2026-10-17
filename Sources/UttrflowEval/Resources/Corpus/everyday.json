@@ -1555,6 +1555,27 @@
     "addedFor": 7032
   },
   {
+    "id": "no-determiner-repeat-spare-key",
+    "spoken": "he found a spare key in the drawer and the landlord said there was no spare key anywhere",
+    "expected": "He found a spare key in the drawer and the landlord said there was no spare key anywhere.",
+    "mustKeep": ["landlord", "no spare key"],
+    "addedFor": 7958
+  },
+  {
+    "id": "no-determiner-repeat-good-reason",
+    "spoken": "we kept the receipt for a good reason and then our plumber lost the tickets for no good reason",
+    "expected": "We kept the receipt for a good reason and then our plumber lost the tickets for no good reason.",
+    "mustKeep": ["plumber", "no good reason"],
+    "addedFor": 7958
+  },
+  {
+    "id": "actually-adverb-repeat-fixed",
+    "spoken": "the driver never fixed the leak in the drawer although our manager actually fixed the answer",
+    "expected": "The driver never fixed the leak in the drawer although our manager actually fixed the answer.",
+    "mustKeep": ["leak", "manager"],
+    "addedFor": 7958
+  },
+  {
     "id": "clock-time-said-with-colon",
     "note": "An hour, the spoken colon and its minutes are one clock time, not a colon and a spaced number.",
     "spoken": "meet at ten colon thirty",
