@@ -204,7 +204,7 @@ struct DataTableTests {
             NumberCues.words(for: .designator) == [
                 "port", "version", "extension", "page", "chapter", "step", "number", "line", "section",
                 "figure", "table", "level", "room", "floor", "route", "flight", "interstate", "highway",
-                "bus", "gate", "grade", "size", "model",
+                "bus", "gate", "grade", "size", "model", "code", "status",
             ])
         #expect(NumberWords.units.count == 10)
         #expect(NumberWords.teens.count == 10)
