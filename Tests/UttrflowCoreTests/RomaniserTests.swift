@@ -33,6 +33,18 @@ struct RomaniserTests {
     }
 
     @Test(
+        "writes the best known Indian cities and common names as people type them, with their capital",
+        arguments: [
+            ("मुंबई", "Mumbai"), ("बैंगलोर", "Bangalore"), ("बेंगलुरु", "Bengaluru"), ("हैदराबाद", "Hyderabad"),
+            ("अहमदाबाद", "Ahmedabad"), ("चेन्नई", "Chennai"), ("कोलकाता", "Kolkata"), ("पुणे", "Pune"),
+            ("जयपुर", "Jaipur"), ("गोवा", "Goa"), ("राहुल", "Rahul"), ("कोहली", "Kohli"), ("गुप्ता", "Gupta"),
+            ("अंजलि", "Anjali"), ("ऐश्वर्या", "Aishwarya"), ("सिद्धार्थ", "Siddharth"),
+        ])
+    func citiesAndNames(devanagari: String, typed: String) {
+        #expect(Romaniser.romanised(devanagari) == typed)
+    }
+
+    @Test(
         "drops the unwritten vowel at the end of a word and between syllables, and keeps it before a conjunct",
         arguments: [
             ("करना", "karna"), ("समझना", "samajhna"), ("निकलने", "nikalne"), ("भागदौड़", "bhaagdaud"),

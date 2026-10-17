@@ -220,7 +220,10 @@ word is capitalised by shape or position. `RomanisedNameCorpus` holds 24 invente
 case-sensitively beside the case-folded word error rate: before the pass 12 of 19 sentences whose
 name a source the person owns can spell were written right, after it 19 of 19; the 4 sentences whose
 name only a shipped list of names and places could spell stay lower case, and the 1 control gains no
-capital. No shipped list exists; `LoanwordRestoration` already restores a respelled dictionary name.
+capital. The only shipped list is the short run of the best known Indian cities and the most common given
+names and surnames in `Romaniser.commonSpellings`, keyed by the exact Devanagari spelling like every
+other entry there, so a Hindi word is never touched; a name that is also an ordinary Hindi word
+("सिंह", "पूजा") is left out. `LoanwordRestoration` already restores a respelled dictionary name.
 Honorific and kinship words after a name stay lower case unless `FirstWordPass` cases a kinship word
 as a name ("Didi"); that case is not yet handled.
 
