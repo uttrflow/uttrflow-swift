@@ -3697,6 +3697,8 @@
     "plural-slip@2",
     "plural-slip@3",
     "plural-slip@4",
+    "plus-or-minus-keeps-its-words-before-a-percentage@2",
+    "plus-or-minus-keeps-its-words-before-a-percentage@3",
     "port-number@3",
     "port-number@5",
     "port-number@8",
@@ -5583,5 +5585,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5563
+  "total" : 5565
 }

@@ -902,6 +902,7 @@ period-after-new-line	First line\nSecond line.
 period-as-a-word	The trial period ended last week.
 period-furniture-as-words	The museum shows period furniture from the old manor.
 plural-slip	We need two more developer on this team.
+plus-or-minus-keeps-its-words-before-a-percentage	The tolerance on every unit is plus or minus 2%.
 port-number	The gateway listens on port 8080 in staging.
 preposition-depends-of	The date depends of the weather.
 preposition-discussed-about	We discussed about the budget on Monday.
