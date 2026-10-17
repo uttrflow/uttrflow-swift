@@ -242,6 +242,8 @@
     "dash-training-as-words@1",
     "dash-training-as-words@2",
     "dash-training-as-words@4",
+    "decimal-without-whole-part-before-a-scale-word@3",
+    "decimal-without-whole-part-before-a-scale-word@6",
     "deictic-opening-here-are-files@1",
     "deictic-opening-here-is-list@1",
     "deictic-opening-here-is-list@5",
@@ -5583,5 +5585,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5563
+  "total" : 5565
 }
