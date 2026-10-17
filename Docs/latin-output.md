@@ -45,7 +45,7 @@ what hold whatever a model writes.
 chat, not the way a scholar transliterates it. It has no diacritics and never produces
 "karanā"; it produces "karna".
 
-- **Common spellings first.** A table of <!-- count:Romaniser.commonSpellingList -->319 frequent words (`commonSpellings`) holds the
+- **Common spellings first.** A table of <!-- count:Romaniser.commonSpellingList -->340 frequent words (`commonSpellings`) holds the
   spelling people actually use: है hai, हाँ haan, ठीक thik, नहीं nahi, मैं main, में mein, क्या
   kya, क्यों kyun, हूँ hoon, and loanwords people write in English (ऑफिस office, मिनट minute).
   Chandrabindu and anusvara key the same entry, so हाँ and हां meet.
@@ -162,10 +162,10 @@ on 100 invented loanwords and 122 ordinary Hindi words, on an Apple M5 Pro:
 
 | Loanwords | Count | Examples |
 |---|---|---|
-| already spelt in English | 53 | report, link, student, cancel, budget |
+| already spelt in English | 55 | report, link, student, cancel, budget |
 
-| restorable by the match | 18 | mainejar manager, histri history |
-| same sound, but not in the vocabulary | 9 | draapht draft, foldar folder |
+| restorable by the match | 17 | mainejar manager, histri history |
+| same sound, but not in the vocabulary | 8 | draapht draft, foldar folder |
 | sounds differ by the guard's test | 20 | kanpani company |
 
 | Hindi words | Count | Wrongly restored |
@@ -189,7 +189,7 @@ when exactly one candidate qualifies. It never translates and never drops a word
 |---|---|---|
 | technical lexicon alone | 0 | 0 of 122 |
 
-| lexicon plus the 18 restorable words as personal words | 18 of 18 | 1 of 122: baal bill |
+| lexicon plus the 17 restorable words as personal words | 17 of 17 | 1 of 122: baal bill |
 
 
 Whether the seam could replace the table's own English entries was measured by romanising
