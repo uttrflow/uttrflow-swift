@@ -72,6 +72,10 @@ struct SelfCorrectionPassTests {
             "the team actually shipped the release",
             "she gave no reason",
             "he said no thanks to the offer",
+            "he found a spare key in the drawer and the landlord said there was no spare key anywhere",
+            "we kept the receipt for a good reason and then our plumber lost the tickets for no good reason",
+            "the driver never fixed the leak in the drawer although our manager actually fixed the answer",
+            "he fixed the sink and she actually fixed the sink",
         ]
     )
     func keepsOrdinaryActuallyAndNo(input: String) {
