@@ -512,6 +512,12 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             let sign = Self.modeSigns[draft.shape(at: live[position]).key],
             draft.shape(at: live[position]).prefix.isEmpty, draft.shape(at: live[position]).suffix.isEmpty
         else { return nil }
+        // A mark on the command word or the subject is the speaker's, and a join would delete it.
+        let unmarked = (0..<position).allSatisfy { index in
+            let shape = draft.shape(at: live[index])
+            return shape.prefix.isEmpty && shape.suffix.isEmpty
+        }
+        guard unmarked else { return nil }
         let before = (0..<position).map { draft.shape(at: live[$0]).key }
         let who = before.last.flatMap { word in
             word.count <= 4 && !word.isEmpty && word.allSatisfy(Self.modeWho.contains) ? word : nil

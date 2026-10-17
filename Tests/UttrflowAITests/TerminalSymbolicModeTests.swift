@@ -31,10 +31,15 @@ struct TerminalSymbolicModeTests {
     }
 
     @Test(
-        "plus and minus elsewhere at a command line, or in prose, are not a mode",
+        "plus and minus elsewhere, or after a word the speaker marked, are not a mode",
         arguments: [
             ("chmod seven five five file", "chmod 755 file"),
             ("echo hello plus x", "echo hello plus x"),
+            ("chmod u, plus x file", "chmod u plus x file"),
+            ("chmod, u plus x file", "chmod u plus x file"),
+            ("chmod. u plus x file", "chmod u plus x file"),
+            ("chmod: plus x file", "chmod plus x file"),
+            ("sudo, chmod u plus x file", "sudo chmod u plus x file"),
         ])
     func notAMode(spoken: String, expected: String) {
         #expect(Self.cleaned(spoken, into: Self.terminal) == expected)
