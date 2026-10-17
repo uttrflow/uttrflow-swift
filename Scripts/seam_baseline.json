@@ -3715,6 +3715,9 @@
     "period-as-a-word@5",
     "period-furniture-as-words@3",
     "period-furniture-as-words@8",
+    "plural-century-and-decade-said-as-two-number-words@3",
+    "plural-century-and-decade-said-as-two-number-words@4",
+    "plural-century-and-decade-said-as-two-number-words@7",
     "plural-slip@1",
     "plural-slip@2",
     "plural-slip@3",
@@ -5605,5 +5608,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5585
+  "total" : 5588
 }
