@@ -5494,6 +5494,12 @@
     "which-is-why-stays-a-statement@3",
     "which-is-why-stays-a-statement@4",
     "which-is-why-stays-a-statement@5",
+    "wrapped-subject-appositive-stays-a-statement@6",
+    "wrapped-subject-relative-clause-stays-a-statement@3",
+    "wrapped-subject-relative-clause-stays-a-statement@8",
+    "wrapped-subject-spoken-commas-stays-a-statement@13",
+    "wrapped-subject-spoken-commas-stays-a-statement@7",
+    "wrapped-subject-spoken-commas-stays-a-statement@8",
     "year-after-by-not-a-clock-time@1",
     "year-after-by-not-a-clock-time@10",
     "year-after-by-not-a-clock-time@11",
@@ -5583,5 +5589,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5563
+  "total" : 5569
 }

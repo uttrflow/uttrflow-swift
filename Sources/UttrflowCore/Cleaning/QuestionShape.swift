@@ -28,7 +28,7 @@ public enum QuestionShape {
         return opensAQuestion(clause) && !runsOn(clause)
     }
 
-    /// Whether the clause after the last comma is the predicate of a subject that a comma-wrapped aside interrupted: "the winner, john, was the youngest player".
+    /// Whether the clause after the last comma is the predicate of a subject that a comma-wrapped aside (an appositive, a relative clause or a parenthetical) interrupted.
     private static func finishesWrappedSubject(
         _ clause: [String], startingAt start: Int, in shapes: [WordShape]
     ) -> Bool {
