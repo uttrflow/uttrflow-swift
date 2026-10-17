@@ -943,6 +943,13 @@
     "double-negative-keep@2",
     "double-negative-keep@3",
     "double-negative-keep@4",
+    "doubled-number-even-split-kept@3",
+    "doubled-number-score-kept@3",
+    "doubled-number-score-kept@5",
+    "doubled-number-year-kept@1",
+    "doubled-number-year-kept@3",
+    "doubled-number-year-kept@4",
+    "doubled-number-year-kept@6",
     "doubled-place-name-kept@1",
     "doubled-place-name-kept@2",
     "doubled-place-name-kept@4",
@@ -5546,5 +5553,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5526
+  "total" : 5533
 }
