@@ -157,5 +157,14 @@
     "expected": "Please ask Meera about the report today.",
     "expectedExact": "Please ask Meera about the report today.",
     "dictionary": ["Mira", "Zoe"]
+  },
+  {
+    "id": "dictionary-command-not-respelt-as-name-8026",
+    "note": "A vowelless command is no name half heard, so a dictionary name that loosely sounds like it does not replace it.",
+    "addedFor": 8026,
+    "spoken": "pipe ls dash dash no dash color into the file",
+    "expected": "Pipe ls --no-color into the file.",
+    "mustKeep": ["ls"],
+    "dictionary": ["Ellis"]
   }
 ]
