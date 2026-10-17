@@ -1359,6 +1359,21 @@
     "hinglish-devanagari-loanwords-cancel-budget-update@7",
     "hinglish-devanagari-loanwords-cancel-budget-update@8",
     "hinglish-devanagari-loanwords-cancel-budget-update@9",
+    "hinglish-devanagari-loanwords-credit-shift-complete@1",
+    "hinglish-devanagari-loanwords-credit-shift-complete@10",
+    "hinglish-devanagari-loanwords-credit-shift-complete@2",
+    "hinglish-devanagari-loanwords-credit-shift-complete@3",
+    "hinglish-devanagari-loanwords-credit-shift-complete@4",
+    "hinglish-devanagari-loanwords-credit-shift-complete@5",
+    "hinglish-devanagari-loanwords-credit-shift-complete@6",
+    "hinglish-devanagari-loanwords-credit-shift-complete@8",
+    "hinglish-devanagari-loanwords-credit-shift-complete@9",
+    "hinglish-devanagari-loanwords-invoice-reply-restart@1",
+    "hinglish-devanagari-loanwords-invoice-reply-restart@3",
+    "hinglish-devanagari-loanwords-invoice-reply-restart@4",
+    "hinglish-devanagari-loanwords-invoice-reply-restart@5",
+    "hinglish-devanagari-loanwords-invoice-reply-restart@6",
+    "hinglish-devanagari-loanwords-invoice-reply-restart@7",
     "hinglish-devanagari-loanwords-right-payment-confirm@1",
     "hinglish-devanagari-loanwords-right-payment-confirm@2",
     "hinglish-devanagari-loanwords-right-payment-confirm@4",
@@ -5605,5 +5620,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5585
+  "total" : 5600
 }
