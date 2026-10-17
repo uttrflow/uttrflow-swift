@@ -494,6 +494,15 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     /// The most letters one spoken short-option cluster joins: `tar -xzvf` and a little more.
     static let clusterLimit = 6
 
+    /// The most letters one option said as a single word may have at a shell prompt: `-configuration`.
+    static let optionWordLimit = 16
+
+    /// Whether every word before `position` names a program, at a shell prompt: only then is a hyphen between words not the name's own.
+    private func followsOnlyPrograms(before position: Int, in live: [Int], of draft: Draft) -> Bool {
+        destination == .terminal && position > 0
+            && live[..<position].allSatisfy { Self.commands[draft.shape(at: $0).key] != nil }
+    }
+
     /// Writes a short option and its spelled letters or spoken number as one token: `ls -la`, `rm -rf`, `head -20`.
     private func replaceShortFlag(at position: Int, in live: inout [Int], of draft: inout Draft) -> Bool {
         guard position + 1 < live.count, position > 0,
@@ -504,7 +513,9 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 at: position, spanning: 1, in: live, of: draft,
                 reach: MentionGuard.phraseReach, kind: .joining),
             let (option, length) =
-                letterCluster(after: position, in: live, of: draft)
+                letterCluster(
+                    after: position, in: live, of: draft,
+                    wholeWord: followsOnlyPrograms(before: position, in: live, of: draft))
                 ?? numericOption(after: position, in: live, of: draft)
         else { return false }
         // The option keeps the mark its last word carried, so a spoken stop or comma survives the join.
@@ -516,7 +527,9 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     }
 
     /// The letters spelled after an option marker, each one spoken alone or after "capital", and how many words said them.
-    private func letterCluster(after position: Int, in live: [Int], of draft: Draft) -> (String, Int)? {
+    private func letterCluster(
+        after position: Int, in live: [Int], of draft: Draft, wholeWord allowsLongWord: Bool = false
+    ) -> (String, Int)? {
         var letters = ""
         var next = position + 1
         while next < live.count, letters.count < Self.clusterLimit {
@@ -524,10 +537,17 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             let capital = said.key == "capital" && said.suffix.isEmpty && next + 1 < live.count
             let shape = capital ? draft.shape(at: live[next + 1]) : said
             // A one-word option said whole, "dash la", is its own cluster and ends it.
-            let limit = letters.isEmpty && !capital ? 2 : 1
+            let wholeWord = letters.isEmpty && !capital
+            let limit = wholeWord ? (allowsLongWord ? Self.optionWordLimit : 2) : 1
             guard shape.prefix.isEmpty, (1...limit).contains(shape.core.utf8.count),
                 Self.isLatinLetters(shape.core)
             else { break }
+            // A word of three letters or more is an option such as `-version` only when it is no function word and no number.
+            if wholeWord, shape.core.utf8.count > 2,
+                isFunctionWordEvidence(shape.key) || NumberWords.isNumber(shape.key)
+            {
+                break
+            }
             // A letter that a slash, a dot or an underscore carries on starts a path or a name, not another option.
             let carried = next + (capital ? 2 : 1)
             if !letters.isEmpty, shape.suffix.isEmpty, carried < live.count,

@@ -1436,5 +1436,33 @@
     "expected": "The ternary operator uses question mark and colon and the statement ends with a semicolon.",
     "mustKeep": ["question mark", "colon", "semicolon"],
     "addedFor": 8012
+  },
+  {
+    "id": "shell-option-said-as-one-word-tar",
+    "note": "a short option said as one word of three letters keeps its dash at a command line",
+    "spoken": "tar dash xzf backup dot tar dot gz",
+    "expected": "tar -xzf backup.tar.gz",
+    "mustKeep": ["-xzf", "backup.tar.gz"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "expectedExact": "tar -xzf backup.tar.gz",
+    "addedFor": 8014
+  },
+  {
+    "id": "shell-option-said-as-one-word-java",
+    "note": "a short option said as one whole word after the program keeps its dash at a command line",
+    "spoken": "java dash version",
+    "expected": "java -version",
+    "mustKeep": ["-version"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "expectedExact": "java -version",
+    "addedFor": 8014
   }
 ]
