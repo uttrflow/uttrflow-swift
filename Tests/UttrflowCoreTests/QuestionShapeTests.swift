@@ -170,6 +170,30 @@ struct QuestionShapeTests {
     }
 
     @Test(
+        "leaves a subject, a comma-wrapped aside and its predicate a statement",
+        arguments: [
+            "the winner, john, was the youngest player", "my manager, priya, is the best lead",
+            "the report, as i said, is the final draft", "the app, however, is the slowest part",
+            "this plan, in my view, is the safest option", "the road, which was closed, is the shortest way",
+            "the tests, which passed, are the key evidence",
+            "the cafe by the station, which opens early, is the best one",
+            "so the office, in pune, is the biggest one",
+        ])
+    func leavesAWrappedSubject(text: String) {
+        #expect(!QuestionShape.asks(shapes(text)))
+    }
+
+    @Test(
+        "still reads an inversion after an aside as a question",
+        arguments: [
+            "john, my brother, is he coming", "the build, i think, is it green",
+            "i sent the report, as promised, did you see it", "the winner, john, did he win",
+        ])
+    func asksAfterAnAside(text: String) {
+        #expect(QuestionShape.asks(shapes(text)))
+    }
+
+    @Test(
         "reads a positive tag after a subject and predicate as a question",
         arguments: [
             "the build passed is it", "you sent it did you", "the build is green is it",
