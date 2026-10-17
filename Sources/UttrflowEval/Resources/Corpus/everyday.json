@@ -579,6 +579,14 @@
     "mustNotAdd": ["1802223334"]
   },
   {
+    "id": "decimal-without-whole-part-before-a-scale-word",
+    "addedFor": 8005,
+    "spoken": "the pilot reached point five million households by the end of march",
+    "expected": "The pilot reached 0.5 million households by the end of March.",
+    "mustKeep": ["0.5 million", "households"],
+    "mustNotAdd": ["5,000,000", "point"]
+  },
+  {
     "id": "year-after-by-not-a-clock-time",
     "spoken": "we had fifty customers and by twenty twenty four we had five thousand",
     "expected": "We had 50 customers and by 2024 we had 5000.",

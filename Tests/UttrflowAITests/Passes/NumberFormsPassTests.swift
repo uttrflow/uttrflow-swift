@@ -848,6 +848,21 @@ struct NumberFormsPassTests {
         #expect(cleaned(input, by: sut).filter(\.isNumber).count >= expected.filter(\.isNumber).count)
     }
 
+    @Test(
+        "writes a decimal with no whole part before a scale word as a fraction of that scale",
+        arguments: [
+            ("point five million", "0.5 million"),
+            ("it grew by point five million users", "it grew by 0.5 million users"),
+            ("about point two five billion people", "about 0.25 billion people"),
+            ("point seven five thousand", "0.75 thousand"),
+            ("zero point five million", "0.5 million"),
+            ("five million", "5,000,000"),
+        ]
+    )
+    func decimalBeforeScale(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test("keeps the unit in a cardinal before a currency")
     func scaleCardinalBeforeCurrency() {
         #expect(cleaned("eight hundred five dollars", by: sut) == "805 dollars")
