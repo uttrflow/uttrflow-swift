@@ -247,4 +247,15 @@ struct AcronymCasingPassTests {
     func terminalSentenceCased() {
         #expect(terminal.run(Draft(text: "check the api in the sdk")).text == "check the API in the SDK")
     }
+
+    @Test(
+        "still writes a known name in its casing after a command word in prose outside a terminal",
+        arguments: [
+            ("history of api is useful", "History of API is useful."),
+            ("man the api desk", "Man the API desk."),
+        ])
+    func commandWordInProseOutsideTerminal(input: String, expected: String) {
+        let notes = CleaningPipeline.message(for: .standard(for: .plain), situation: .unknown)
+        #expect(notes.run(Draft(text: input)).text == expected)
+    }
 }
