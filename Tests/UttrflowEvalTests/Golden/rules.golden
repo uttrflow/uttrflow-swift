@@ -1293,7 +1293,7 @@ spoken-comma-after-yes	Yes, that works for me.
 spoken-comma-before-a-clause	If the tests pass, we ship tonight.
 spoken-comma-before-and	We stayed late, and then we went home.
 spoken-comma-before-next-sentence-of-course	We shipped, of course it broke.
-spoken-commas-around-a-clause	The cafe by the station, which opens early, is the best one?
+spoken-commas-around-a-clause	The cafe by the station, which opens early, is the best one.
 spoken-commas-in-a-bare-list	We need apples, pears, plums.
 spoken-commas-in-a-list	Pack the charger, the cable, and the adapter.
 spoken-dash-before-a-clause	We left early — it was raining.
@@ -1443,6 +1443,9 @@ web-search-field-2280	cheap flights to lisbon in may
 weekday-and-month-casing	Can we push the demo to Thursday instead of Wednesday in August?
 which-after-a-stop-continues-the-sentence	The total is 10. Which brings it to 12. Which is why we left early.
 which-is-why-stays-a-statement	Which is why I left early.
+wrapped-subject-appositive-stays-a-statement	The winner, john, was the youngest player.
+wrapped-subject-relative-clause-stays-a-statement	The road, which was closed, is the shortest way.
+wrapped-subject-spoken-commas-stays-a-statement	The cafe by the station, which opens early, is the best one.
 year-after-by-not-a-clock-time	We had 50 customers and by 2024 we had 5000.
 zone-central-european-4031	The webinar is at four Central European Time.
 zone-central-time-slot-kept-4031	The central time slot works for me.

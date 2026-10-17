@@ -24,7 +24,33 @@ public enum QuestionShape {
         // A comma-led relative pronoun introduces a non-restrictive clause, not a trailing question.
         let precededByComma = start > 0 && shapes[start - 1].suffix.contains(",")
         if isRelativeClause(clause, afterComma: precededByComma) { return false }
+        if finishesWrappedSubject(clause, startingAt: start, in: shapes) { return false }
         return opensAQuestion(clause) && !runsOn(clause)
+    }
+
+    /// Whether the clause after the last comma is the predicate of a subject that a comma-wrapped aside interrupted: "the winner, john, was the youngest player".
+    private static func finishesWrappedSubject(
+        _ clause: [String], startingAt start: Int, in shapes: [WordShape]
+    ) -> Bool {
+        // An inverted subject pronoun after the verb asks: "my brother, the tall one, is he coming".
+        guard let verb = clause.first, verbsBeforeSubject.contains(verb),
+            !subjects.contains(clause.dropFirst().first ?? "")
+        else { return false }
+        // Two commas stand before the clause: the first closes the subject, the last closes the aside.
+        guard let subjectEnd = shapes.prefix(start - 1).firstIndex(where: { $0.suffix.contains(",") })
+        else { return false }
+        // The subject is a noun phrase with no verb of its own, so nothing else could be its predicate.
+        let subject = shapes[...subjectEnd].map { $0.key.replacingOccurrences(of: "\u{2019}", with: "'") }
+        guard let opening = subject.first(where: { !openers.contains($0) }), determiners.contains(opening)
+        else { return false }
+        return !subject.contains(where: hasVerbOfItsOwn)
+    }
+
+    /// Whether a word could be the verb or the subject pronoun of a clause, which a bare subject noun phrase has neither of.
+    private static func hasVerbOfItsOwn(_ word: String) -> Bool {
+        verbsBeforeSubject.contains(word) || pronounVerbs.contains(word) || subjects.contains(word)
+            || newSubjects.contains(word) || contractedNewSubjects.contains(word)
+            || lexicalQuestionVerbs.contains(word) || questionWords.contains(word) || word.hasSuffix("ed")
     }
 
     /// Whether a clause opening with "which", "whom" or "whose" is a non-restrictive relative clause.

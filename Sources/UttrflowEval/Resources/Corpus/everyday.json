@@ -1720,5 +1720,27 @@
     "expected": "The score was two two at half time.",
     "mustKeep": ["two two"],
     "addedFor": 7851
+  },
+  {
+    "id": "wrapped-subject-appositive-stays-a-statement",
+    "note": "A subject interrupted by an aside and finished by its predicate is a statement, not an inverted question.",
+    "spoken": "the winner, john, was the youngest player",
+    "expected": "The winner, John, was the youngest player.",
+    "mustKeep": ["winner", "youngest player"],
+    "addedFor": 8019
+  },
+  {
+    "id": "wrapped-subject-relative-clause-stays-a-statement",
+    "spoken": "the road, which was closed, is the shortest way",
+    "expected": "The road, which was closed, is the shortest way.",
+    "mustKeep": ["road", "shortest way"],
+    "addedFor": 8019
+  },
+  {
+    "id": "wrapped-subject-spoken-commas-stays-a-statement",
+    "spoken": "the cafe by the station comma which opens early comma is the best one",
+    "expected": "The cafe by the station, which opens early, is the best one.",
+    "mustKeep": ["cafe", "best one"],
+    "addedFor": 8019
   }
 ]
