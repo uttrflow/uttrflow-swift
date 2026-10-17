@@ -29,7 +29,7 @@
         {"id": "mark.hyphen", "words": ["hyphen"], "action": "mark", "text": "-"},
         {"id": "mark.dash", "words": ["dash"], "action": "mark", "text": "—"},
         {"id": "mark.dots", "words": ["dot", "dot", "dot"], "action": "mark", "text": "...", "destinations": ["terminal"]},
-        {"id": "mark.ellipsis", "words": ["dot", "dot", "dot"], "action": "mark", "text": "…"},
+        {"id": "mark.ellipsis", "words": ["dot", "dot", "dot"], "action": "mark", "text": "…", "destinations": ["document", "spreadsheet", "sqlEditor", "codeEditor", "messaging", "email", "plain"]},
         {"id": "mark.percent-sign", "words": ["percent", "sign"], "action": "mark", "text": "%"},
         {"id": "mark.at-sign", "words": ["at", "sign"], "action": "mark", "text": "@"},
         {"id": "mark.hash-sign", "words": ["hash", "sign"], "action": "mark", "text": "#"},

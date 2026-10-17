@@ -39,6 +39,13 @@ struct TerminalDotsTests {
         #expect(Self.cleaned(spoken, into: Self.terminal) == expected)
     }
 
+    @Test("a recogniser's final stop after the wildcard is taken back, and an ellipsis keeps its dots")
+    func finalStopAfterTheWildcard() {
+        #expect(Self.cleaned("Go test dot slash dot dot dot.", into: Self.terminal) == "go test ./...")
+        #expect(WordShape.withoutTrailingStop("./....") == "./...")
+        #expect(WordShape.withoutTrailingStop("wait...") == "wait...")
+    }
+
     @Test("prose still writes three spoken dots as an ellipsis")
     func proseKeepsEllipsis() {
         #expect(Self.cleaned("and then dot dot dot nothing happened", into: Self.notes).contains("\u{2026}"))
