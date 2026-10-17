@@ -67,7 +67,7 @@ struct NonWordCorrectionTests {
     @Test(
         "leaves a vowelless command, even beside an entry it loosely sounds like",
         arguments: [
-            ("pipe ls dash dash no dash color into the file", "ls", "Ellis"),
+            ("pipe ls dash dash no dash color into the file", "ls", "Ellis")
         ])
     func leavesACodeForAName(sentence: String, word: String, name: String) {
         let utterance = CorrectionFixtures.spoken(sentence)

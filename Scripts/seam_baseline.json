@@ -821,6 +821,8 @@
     "dictation-keeps-markdown-words-italics@3",
     "dictation-keeps-markdown-words-italics@4",
     "dictation-keeps-markdown-words-italics@6",
+    "dictionary-command-not-respelt-as-name-8026@1",
+    "dictionary-command-not-respelt-as-name-8026@2",
     "dictionary-entry-case-2302@1",
     "dictionary-entry-case-2302@10",
     "dictionary-entry-case-2302@4",
@@ -5605,5 +5607,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5585
+  "total" : 5587
 }
