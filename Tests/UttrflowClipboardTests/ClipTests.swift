@@ -48,6 +48,12 @@ struct ClipTests {
         #expect(clip(text).additionalLineCount == 1)
     }
 
+    @Test("a single space is one character, not characters")
+    func whitespaceSummarySingular() {
+        #expect(clip(" ").summary == "Whitespace only · 1 character")
+        #expect(clip("  ").summary == "Whitespace only · 2 characters")
+    }
+
     @Test("bounds the complete preview and marks truncation")
     func previewCap() {
         let text = String(repeating: "x", count: Clip.previewCharacterLimit + 1)
