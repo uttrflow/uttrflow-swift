@@ -1104,6 +1104,7 @@
     "UttrflowCore enum ContextReadRung": 1,
     "UttrflowCore enum ContextUnavailableReason": 1,
     "UttrflowCore enum CorrectionReason": 1,
+    "UttrflowCore enum CountedNoun": 1,
     "UttrflowCore enum Cue": 1,
     "UttrflowCore enum DataTableError": 1,
     "UttrflowCore enum DataTableSource": 1,
@@ -1306,7 +1307,7 @@
     "UttrflowCore func contents": 1,
     "UttrflowCore func contrast": 1,
     "UttrflowCore func coordinationFile": 1,
-    "UttrflowCore func count": 1,
+    "UttrflowCore func count": 2,
     "UttrflowCore func current": 3,
     "UttrflowCore func day": 1,
     "UttrflowCore func decide": 1,
@@ -1431,7 +1432,7 @@
     "UttrflowCore func next": 1,
     "UttrflowCore func nextCut": 1,
     "UttrflowCore func normalised": 1,
-    "UttrflowCore func of": 6,
+    "UttrflowCore func of": 7,
     "UttrflowCore func onGaveUp": 1,
     "UttrflowCore func onScreenNames": 1,
     "UttrflowCore func open": 1,
@@ -6376,5 +6377,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 9073
+  "total": 9076
 }
