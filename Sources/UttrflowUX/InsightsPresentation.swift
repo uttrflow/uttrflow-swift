@@ -1,5 +1,6 @@
 // The Insights page: a calendar of how much was said each day, a range switch, and measured figures.
 public import Foundation
+import UttrflowCore
 public import UttrflowHistory
 public import UttrflowSettings
 
@@ -291,7 +292,8 @@ public enum InsightsPresenter {
         formatter.timeZone = calendar.timeZone
         formatter.dateTemplate = crossesYear ? "dMMMMy" : "dMMMM"
         let interval = formatter.string(from: first, to: last)
-        return "\(words.formatted(.number.locale(locale))) words · \(interval)"
+        return
+            "\(words.formatted(.number.locale(locale))) \(CountedNoun.of(words, "word", "words")) · \(interval)"
     }
 
     /// The weekday initials, turned so the calendar's first weekday leads.
@@ -368,7 +370,8 @@ public enum InsightsPresenter {
             ? "History is kept until you delete it."
             : "History is kept for \(MainFormatting.count(retention, "day", "days"))."
         let days = "\(spoken.formatted(.number.locale(locale))) of \(reach.formatted(.number.locale(locale)))"
-        return "Dictated on \(days) days shown. \(kept) Earlier days are not counted."
+        return
+            "Dictated on \(days) \(CountedNoun.of(reach, "day", "days")) shown. \(kept) Earlier days are not counted."
     }
 
     // MARK: - Not yet

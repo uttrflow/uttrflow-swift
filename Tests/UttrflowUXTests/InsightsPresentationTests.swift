@@ -553,3 +553,29 @@ struct InsightsWaitingTests {
         #expect(page.calendar?.days.allSatisfy(\.isKept) == true)
     }
 }
+
+@Suite("Counts of one in the Insights labels")
+struct InsightsSingularTests {
+    private static let day = Date(timeIntervalSince1970: 1_790_000_000)
+    private static let locale = Locale(identifier: "en_GB")
+
+    @Test("one word in the range label is a word, and two are words")
+    func captionSingular() {
+        let one = InsightsPresenter.caption(
+            words: 1, from: Self.day, to: Self.day, calendar: .current, locale: Self.locale)
+        #expect(one.hasPrefix("1 word · "))
+        let many = InsightsPresenter.caption(
+            words: 2, from: Self.day, to: Self.day, calendar: .current, locale: Self.locale)
+        #expect(many.hasPrefix("2 words · "))
+    }
+
+    @Test("one reachable day is a day, and two are days")
+    func coverageSingular() {
+        let one = InsightsPresenter.coverage(
+            spoken: 1, reach: 1, retention: 1, locale: Self.locale)
+        #expect(one.hasPrefix("Dictated on 1 of 1 day shown."))
+        let many = InsightsPresenter.coverage(
+            spoken: 1, reach: 2, retention: 2, locale: Self.locale)
+        #expect(many.hasPrefix("Dictated on 1 of 2 days shown."))
+    }
+}
