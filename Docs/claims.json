@@ -36,7 +36,7 @@
     {
       "id": "model-download-stays",
       "file": "Sources/UttrflowUX/OnboardingPresenter.swift",
-      "text": "One-time download · stays on this Mac",
+      "text": "one-time download · stays on this Mac",
       "kind": "privacy",
       "evidence": {
         "doc": "Docs/offline.md"

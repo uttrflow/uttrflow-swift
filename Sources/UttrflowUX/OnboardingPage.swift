@@ -167,6 +167,8 @@ public enum OnboardingField: Sendable, Equatable {
 
 /// How the download ring is drawn.
 public enum OnboardingDownload: Sendable, Equatable {
+    /// Empty, waiting for the user to start it.
+    case offered
     /// Filling, with the percentage in the middle.
     case running
     /// Stopped where it was, in red.
