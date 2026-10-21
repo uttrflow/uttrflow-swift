@@ -338,18 +338,22 @@ public struct NumberFormsPass: PieceCleaningPass {
 
     /// Writes one `H.MM` word as `H:MM` only with a meridiem or a time cue; only a cue reads past 12.
     private static func dottedTime(at position: Int, keys: [String], shapes: [WordShape]) -> String? {
-        let parts = keys[position].split(separator: ".", omittingEmptySubsequences: false)
+        let attached = attachedMeridiem(in: keys[position])
+        let digits = keys[position].dropLast(attached.count)
+        let parts = digits.split(separator: ".", omittingEmptySubsequences: false)
         guard parts.count == 2, shapes[position].prefix.isEmpty,
             parts[0].allSatisfy(\.isNumber), let hour = Int(parts[0]), (0...23).contains(hour),
             parts[1].count == 2, parts[1].allSatisfy(\.isNumber), let minute = Int(parts[1]),
             (0...59).contains(minute), !quantified(at: position, keys: keys, shapes: shapes)
         else { return nil }
+        let dots = CharacterSet(charactersIn: ".")
+        let next = position + 1 < keys.count ? keys[position + 1].trimmingCharacters(in: dots) : ""
         let hasMeridiem =
-            shapes[position].suffix.isEmpty && joined(position + 1, shapes)
-            && meridiems.contains(keys[position + 1].trimmingCharacters(in: CharacterSet(charactersIn: ".")))
+            !attached.isEmpty
+            || shapes[position].suffix.isEmpty && joined(position + 1, shapes) && meridiems.contains(next)
         let hasCue = hasTimeCue(before: position, keys: keys, shapes: shapes)
         guard hasCue || (hasMeridiem && (1...12).contains(hour)) else { return nil }
-        return "\(hour):\(parts[1])"
+        return "\(hour):\(parts[1])" + attached
     }
 
     /// Whether a percent sign, a unit or a further digit group after the number at `position` makes it a quantity.
@@ -909,8 +913,27 @@ public struct NumberFormsPass: PieceCleaningPass {
     private static func hasTimeCue(before position: Int, keys: [String], shapes: [WordShape]) -> Bool {
         guard position > 0, !startsASentence(position, shapes) else { return false }
         if timeCues.contains(keys[position - 1]) { return true }
+        if endsAClockRange(at: position, keys: keys, shapes: shapes) { return true }
         return keys[position - 1] == "for" && position > 1 && !startsASentence(position - 1, shapes)
             && timedNouns.contains(keys[position - 2])
+    }
+
+    /// The meridiem written straight after the minutes of a dotted word, as the "pm" of "2.30pm", or empty.
+    private static func attachedMeridiem(in key: String) -> String {
+        ["am", "pm", "a.m", "p.m"].first { key.hasSuffix($0) && key.count > $0.count } ?? ""
+    }
+
+    /// Whether the word at `position` ends a range opened by "from" and an hour, or by "between" and an hour.
+    private static func endsAClockRange(at position: Int, keys: [String], shapes: [WordShape]) -> Bool {
+        guard position > 2, joined(position, shapes), joined(position - 1, shapes),
+            joined(position - 2, shapes), !startsASentence(position - 3, shapes),
+            (keys[position - 1] == "to" && keys[position - 3] == "from")
+                || (keys[position - 1] == "and" && keys[position - 3] == "between")
+        else { return false }
+        let parts = keys[position - 2].split(separator: ".", omittingEmptySubsequences: false)
+        let isHour = (1...2).contains(parts[0].count) && parts[0].allSatisfy(\.isNumber)
+        let hasMinutes = parts.count == 2 && parts[1].count == 2 && parts[1].allSatisfy(\.isNumber)
+        return isHour && (parts.count == 1 || hasMinutes)
     }
 
     /// Whether the number here is the smaller part of an amount, after a number and its currency.
