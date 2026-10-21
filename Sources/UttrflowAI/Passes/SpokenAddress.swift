@@ -312,34 +312,50 @@ struct SpokenAddress: Equatable {
         return NumberWords.cardinal(ArraySlice(keys)).map { ($0.value, $0.count) }
     }
 
-    /// Reads an explicitly spoken web scheme and its host.
+    /// Reads an explicitly spoken scheme and its host: a web scheme, or any word before "colon slash slash".
     private static func readExplicitURL(
         at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft, expecting: Expectation
     ) -> SpokenAddress? {
         let (scheme, used) = label(at: position, within: run, in: live, of: draft)
         let separator = position + used
-        // A command line names any scheme, "s3 colon slash slash bucket"; elsewhere only a web scheme is sure.
-        let named =
-            schemes.contains(scheme.lowercased())
-            || expecting.contains(.paths) && isScheme(scheme)
-        guard named, separator + 3 < run.upperBound,
+        guard schemes.contains(scheme.lowercased()) || isScheme(scheme), separator + 3 < run.upperBound,
             draft.shape(at: live[separator]).key == "colon",
             draft.shape(at: live[separator + 1]).key == "slash",
             draft.shape(at: live[separator + 2]).key == "slash"
         else { return nil }
+        let start = separator + 3
+        // A bare host such as "bucket" is sure only at a command line; a known ending, a number or "localhost" is sure anywhere.
         guard
-            let host = readWebAddress(at: separator + 3, within: run, in: live, of: draft)
-                ?? readNumericHost(at: separator + 3, within: run, in: live, of: draft)
-                ?? readLocalhost(at: separator + 3, within: run, in: live, of: draft)
+            let host = readUserinfoHost(at: start, within: run, in: live, of: draft)
+                ?? readWebAddress(at: start, within: run, in: live, of: draft)
+                ?? readNumericHost(at: start, within: run, in: live, of: draft)
+                ?? readLocalhost(at: start, within: run, in: live, of: draft)
                 ?? (expecting.contains(.paths)
-                    ? readBareHost(at: separator + 3, within: run, in: live, of: draft) : nil)
+                    ? readBareHost(at: start, within: run, in: live, of: draft) : nil)
         else {
             return nil
         }
-        let end = separator + 3 + host.length
+        let end = start + host.length
         let first = draft.shape(at: live[position])
         return SpokenAddress(
             length: end - position, text: first.prefix + scheme.lowercased() + "://" + host.text)
+    }
+
+    /// Reads the user a connection URI names before its host: "app at db dot example dot com" is `app@db.example.com`.
+    private static func readUserinfoHost(
+        at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft
+    ) -> SpokenAddress? {
+        guard let user = part(from: position, within: run, in: live, of: draft, side: .local), user.hasLetter,
+            position + user.length + 1 < run.upperBound,
+            draft.shape(at: live[position + user.length]).key == "at"
+        else { return nil }
+        let hostStart = position + user.length + 1
+        guard
+            let host = readWebAddress(at: hostStart, within: run, in: live, of: draft)
+                ?? readLocalhost(at: hostStart, within: run, in: live, of: draft)
+        else { return nil }
+        return SpokenAddress(
+            length: user.length + 1 + host.length, text: user.spelled + "@" + host.text)
     }
 
     /// Whether a word can name a URL scheme: a letter, then letters, digits, plus, dot or hyphen, and no function word.
