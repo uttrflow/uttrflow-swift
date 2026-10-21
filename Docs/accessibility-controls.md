@@ -138,7 +138,7 @@ leave a stale pass behind.
 | Settings | `Sources/Uttrflow/Settings/ApplicationPicker+System.swift#NSPopUpButton#1` | NSPopUpButton | accessibilityLabel | unchecked |
 | Settings | `Sources/Uttrflow/Settings/SettingsControlStyles.swift#Button#1` | Button | label view | unchecked |
 | Settings | `Sources/Uttrflow/Settings/SettingsControlStyles.swift#Button#2` | Button | label view | unchecked |
-| Settings | `Sources/Uttrflow/Settings/SettingsControlStyles.swift#Menu#1` | Menu | label view | unchecked |
+| Settings | `Sources/Uttrflow/Settings/SettingsControlStyles.swift#Menu#1` | Menu | accessibilityLabel | unchecked |
 | Settings | `Sources/Uttrflow/Settings/SettingsControlStyles.swift#Button#3` | Button | label view | unchecked |
 | Settings | `Sources/Uttrflow/Settings/SettingsControlStyles.swift#Button#4` | Button | accessibilityLabel | unchecked |
 | Settings | `Sources/Uttrflow/Settings/SettingsControlView.swift#Toggle#1` | Toggle | expression | unchecked |
