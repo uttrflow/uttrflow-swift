@@ -6106,7 +6106,7 @@
     "UttrflowUX typealias CorrectionsScope": 1,
     "UttrflowUX typealias HistoryEntry": 1,
     "UttrflowUX var accent": 1,
-    "UttrflowUX var accessibilityLabel": 3,
+    "UttrflowUX var accessibilityLabel": 4,
     "UttrflowUX var account": 1,
     "UttrflowUX var action": 1,
     "UttrflowUX var activation": 1,
@@ -6303,5 +6303,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 8953
+  "total": 8954
 }
