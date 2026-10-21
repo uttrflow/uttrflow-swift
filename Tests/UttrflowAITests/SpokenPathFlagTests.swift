@@ -19,7 +19,7 @@ struct SpokenPathFlagTests {
         let request = TransformationRequest(
             transcription: .fixture(text: spoken, language: .english), situation: situation)
         let text = try await RuleBasedTransformer().transform(request).text
-        #expect(String(text.drop(while: { _ in false }).reversed().drop(while: { $0 == "." }).reversed()) == expected)
+        #expect(Self.withoutStop(text) == expected)
     }
 
     @Test("still joins a dash that continues a segment's name")
@@ -30,6 +30,10 @@ struct SpokenPathFlagTests {
             transcription: .fixture(text: "cd slash home slash my dash project", language: .english),
             situation: situation)
         let text = try await RuleBasedTransformer().transform(request).text
-        #expect(String(text.drop(while: { _ in false }).reversed().drop(while: { $0 == "." }).reversed()) == "cd /home/my-project")
+        #expect(Self.withoutStop(text) == "cd /home/my-project")
+    }
+
+    private static func withoutStop(_ text: String) -> String {
+        String(text.reversed().drop(while: { $0 == "." }).reversed())
     }
 }
