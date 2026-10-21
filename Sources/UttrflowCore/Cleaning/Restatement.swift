@@ -104,7 +104,7 @@ public enum Restatement {
         return start
     }
 
-    /// Whether the restart carries on as a clause of its own: a copula follows within as many words as the half it replaces, while that half holds none and begins inside a clause, so removing the half would hang the copula's predicate on the words before it ("I'll take the red one no the green one is better").
+    /// Whether the restart carries on as a clause of its own: a copula follows within as many words as the half it replaces, while that half holds none and begins inside a clause, so removing the half would hang the copula's predicate on the words before it.
     private static func restartOpensOwnClause(
         from start: Int, trigger: Int, restart: Int, in live: [Int], of draft: Draft
     ) -> Bool {
