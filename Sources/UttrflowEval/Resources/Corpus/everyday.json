@@ -1861,5 +1861,20 @@
     "expectedExact": "Please open Visual Studio Code and then the Terminal app.",
     "mustKeep": ["Visual Studio Code"],
     "addedFor": 8047
+    },
+  {
+    "id": "counting-aloud-is-not-a-clock-time",
+    "note": "A run of consecutive numbers is a count; no time is made of its last two.",
+    "spoken": "ten eleven twelve thirteen",
+    "expected": "10 11 12 13",
+    "mustKeep": ["10", "13"],
+    "addedFor": 7939
+  },
+  {
+    "id": "counting-from-one-keeps-its-words",
+    "spoken": "the child counted six seven eight nine ten out loud",
+    "expected": "The child counted six seven eight nine ten out loud.",
+    "mustKeep": ["nine", "ten"],
+    "addedFor": 7939
   }
 ]

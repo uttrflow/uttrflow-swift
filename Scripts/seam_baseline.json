@@ -243,6 +243,8 @@
     "correction-between-commas@9",
     "count-before-modified-noun-kept-apart@1",
     "count-before-modified-noun-kept-apart@4",
+    "counting-from-one-keeps-its-words@3",
+    "counting-from-one-keeps-its-words@8",
     "dash-cam-as-words@1",
     "dash-cam-as-words@2",
     "dash-cam-as-words@3",
@@ -5731,5 +5733,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5711
+  "total" : 5713
 }
