@@ -120,6 +120,20 @@ struct SidebarBadgeTests {
         #expect(items.allSatisfy { $0.badge == nil })
     }
 
+    @Test(
+        "VoiceOver hears the count in the singular when exactly one change was made",
+        arguments: [(1, "Dictionary, 1 change today"), (7, "Dictionary, 7 changes today")])
+    func spokenCount(changes: Int, expected: String) {
+        let items = HistoryFixture.sidebar(correctionsToday: changes).items
+        #expect(items.first { $0.title == "Dictionary" }?.accessibilityLabel == expected)
+    }
+
+    @Test("a row without a badge is read by its title")
+    func spokenTitle() {
+        let items = HistoryFixture.sidebar(correctionsToday: 0).items
+        #expect(items.allSatisfy { $0.accessibilityLabel == $0.title })
+    }
+
     @Test("no other row is badged")
     func onlyCorrections() {
         let badged = HistoryFixture.sidebar(correctionsToday: 3).items.filter { $0.badge != nil }
