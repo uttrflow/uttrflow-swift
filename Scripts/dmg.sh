@@ -56,7 +56,7 @@ step() {
 }
 
 APP="${1:-dist/Uttrflow.app}"
-ICON="Design/uttrflow.icns"
+ICON="Resources/AppIcon/uttrflow.icns"
 VOLUME_NAME="Uttrflow"
 
 # Everything that gets mounted has to get detached, including on the failure paths —

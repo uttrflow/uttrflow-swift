@@ -1088,7 +1088,7 @@ fi
 # 7. The design gate stays in `make verify`.
 # ---------------------------------------------------------------------------
 #
-# Every design check (palette, typeface, generator, canvas and contrast audits) runs under
+# Every design check (palette, typeface, no-canvas and contrast audits) runs under
 # `make design-audit`, described in Docs/agents/design.md. A gate outside `verify` is a gate CI never runs.
 printf '\nDesign gate in verify\n'
 

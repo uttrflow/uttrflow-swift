@@ -47,7 +47,7 @@
     },
     {
       "redistribution": true,
-      "producedBy": "identity kit export, see Design/ICON.md",
+      "producedBy": "identity kit export, see Resources/AppIcon/ICON.md",
       "note": "trademark terms in TRADEMARK.md",
       "sha256": "c90cad1d5da4ccff156dd82b56bc897ff8686b4ff22500f26e949d2239629d80",
       "path": "Sources/Uttrflow/Resources/MenuBarIconTemplate.png",
@@ -57,7 +57,7 @@
     },
     {
       "redistribution": true,
-      "producedBy": "identity kit export, see Design/ICON.md",
+      "producedBy": "identity kit export, see Resources/AppIcon/ICON.md",
       "note": "trademark terms in TRADEMARK.md",
       "sha256": "f210b6c9a90e21a035fb6c51e299af47e5d3e6a8acbb3e7298804a5ee2086160",
       "path": "Sources/Uttrflow/Resources/MenuBarIconTemplate@2x.png",
@@ -133,7 +133,7 @@
     },
     {
       "redistribution": true,
-      "producedBy": "identity kit export, see Design/ICON.md",
+      "producedBy": "identity kit export, see Resources/AppIcon/ICON.md",
       "note": "trademark terms in TRADEMARK.md",
       "sha256": "93df6644de5ed044e207a4a5c2d59c53991df67c8374a68649d5de79c147cbd0",
       "path": "Sources/Uttrflow/Resources/uttrflow-logo.png",

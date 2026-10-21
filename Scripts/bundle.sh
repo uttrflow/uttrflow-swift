@@ -262,7 +262,7 @@ DERIVED_DATA="$PACKAGE_ROOT/.build/xcode"
 PRODUCTS_DIR="$DERIVED_DATA/Build/Products/$CONFIGURATION"
 SOURCE_PLIST="Resources/Uttrflow-Info.plist"
 ENTITLEMENTS="Resources/Uttrflow.entitlements"
-ICON="Design/uttrflow.icns"
+ICON="Resources/AppIcon/uttrflow.icns"
 
 # Reads one key out of a plist, failing if it is absent. Everything the bundle needs
 # to know about itself comes from Resources/Uttrflow-Info.plist through this, so the
