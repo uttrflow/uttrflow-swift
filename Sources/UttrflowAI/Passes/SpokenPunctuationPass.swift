@@ -563,9 +563,10 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             let row = SpokenCommands.flags.first(where: {
                 $0.words.count == 1 && draft.spells($0.words, at: position, in: live)
             }),
-            !MentionGuard.isMentioned(
-                at: position, spanning: 1, in: live, of: draft,
-                reach: MentionGuard.phraseReach, kind: .joining),
+            followsSubcommand(before: position, in: live, of: draft)
+                || !MentionGuard.isMentioned(
+                    at: position, spanning: 1, in: live, of: draft,
+                    reach: MentionGuard.phraseReach, kind: .joining),
             let (option, length) =
                 letterCluster(
                     after: position, in: live, of: draft,
@@ -578,6 +579,11 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         for index in live[(position + 1)...(position + length)] { draft.remove(at: index, by: Self.id) }
         live.removeSubrange((position + 1)...(position + length))
         return true
+    }
+
+    /// Whether the word before `position` is a sub-command said right after a program, as "add" in "yarn add".
+    private func followsSubcommand(before position: Int, in live: [Int], of draft: Draft) -> Bool {
+        position > 1 && namesCommand(at: position - 2, in: live, of: draft)
     }
 
     /// The letters spelled after an option marker, each one spoken alone or after "capital", and how many words said them.
@@ -610,6 +616,12 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 break
             }
             let letter = capital ? shape.core.uppercased() : shape.core
+            // A "v" before a dotted number prefixes a version tag, `git tag -a v1.4.2`, not another flag letter.
+            if !letters.isEmpty, !capital, shape.key == "v",
+                Self.opensDottedNumber(at: next + 1, in: live, of: draft)
+            {
+                break
+            }
             // A letter said again at once is a stammer, so joining it would write a word never said.
             if letters.hasSuffix(letter) { break }
             letters += letter
@@ -617,6 +629,16 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             if shape.core.utf8.count > 1 || !shape.suffix.isEmpty { break }
         }
         return letters.isEmpty ? nil : (letters, next - position - 1)
+    }
+
+    /// Whether the words from `position` say a number with a point in it, `one point four` or `1.4.2`.
+    private static func opensDottedNumber(at position: Int, in live: [Int], of draft: Draft) -> Bool {
+        guard position < live.count else { return false }
+        let first = draft.shape(at: live[position])
+        if first.core.first?.isNumber == true, first.core.contains(".") { return true }
+        guard NumberWords.isNumber(first.key), first.suffix.isEmpty, position + 1 < live.count
+        else { return false }
+        return draft.shape(at: live[position + 1]).key == "point"
     }
 
     /// A spoken or written whole number after an option marker, `head -20`, and how many words said it.
