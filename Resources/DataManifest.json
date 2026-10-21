@@ -639,11 +639,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "f6d055e551bae09d9e1bbb27a6e43010b575f4e188c4875a73b662ae0a3d528e",
+      "sha256": "bd02570572e93a44a71612a659a3b5780a63cd0b5f9036f933c8978bead3dd68",
       "path": "Sources/UttrflowEval/Resources/Corpus/technical.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 53034,
+      "bytes": 53526,
       "licence": "MIT"
     },
     {

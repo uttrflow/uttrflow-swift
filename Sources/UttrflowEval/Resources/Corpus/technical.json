@@ -1520,5 +1520,16 @@
     "destination": "terminal",
     "expectedExact": "docker run --name my-container nginx",
     "addedFor": 7942
+  },
+  {
+    "id": "dev-terminal-install-shorthand-flag",
+    "note": "a one-letter option after the install shorthand stays an option, never joined with the shorthand into letters",
+    "spoken": "npm i dash g typescript",
+    "expected": "npm i -g typescript",
+    "mustKeep": ["i", "-g", "typescript"],
+    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
+    "destination": "terminal",
+    "expectedExact": "npm i -g typescript",
+    "addedFor": 7919
   }
 ]

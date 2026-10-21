@@ -420,9 +420,9 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         return before
     }
 
-    /// The letter a word names, where a cut-off is an unfinished word and names no letter.
+    /// The letter a word names, where a cut-off is an unfinished word and a command option, `-g`, is its own token: neither names a letter.
     private static func letterName(_ shape: WordShape) -> String? {
-        shape.isCutOff ? nil : LetterRun.letter(named: shape.key)
+        shape.isCutOff || shape.isOption ? nil : LetterRun.letter(named: shape.key)
     }
 
     /// Whether a run is evidence of spelling: three or more letter names, or a pair of bare single letters.

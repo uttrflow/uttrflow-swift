@@ -204,6 +204,7 @@ dev-standup-update	Yesterday I merged the retry fix for the sync worker and pair
 dev-terminal-and-chain	make build && make test
 dev-terminal-and-chain-said-double	cd /tmp && ls -la
 dev-terminal-history-grep-keeps-case	history | grep ssh
+dev-terminal-install-shorthand-flag	npm i -g typescript
 dev-terminal-man-page-keeps-case	man ssh
 dev-terminal-or-chain	npm test || echo failed
 dev-terminal-or-chain-said-double-pipe	npm test || echo failed

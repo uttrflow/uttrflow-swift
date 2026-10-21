@@ -91,6 +91,19 @@ struct SpelledInitialismPassTests {
     }
 
     @Test(
+        "never reads a command option as a letter name", .bug(id: 7919),
+        arguments: [
+            ("npm i -g typescript", "npm i -g typescript"),
+            ("npm i -D vitest", "npm i -D vitest"),
+            ("brew i -g foo", "brew i -g foo"),
+            ("ls -l -a", "ls -l -a"),
+            ("tar x -f a b c", "tar x -f ABC"),
+        ])
+    func optionIsNoLetter(input: String, expected: String) {
+        #expect(sut.apply(Draft(text: input)).text == expected)
+    }
+
+    @Test(
         "joins a pair only when both are bare letters, and any run of three",
         arguments: [
             ("are o bhai sun", "are o bhai sun"),
