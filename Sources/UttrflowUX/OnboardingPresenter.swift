@@ -197,14 +197,21 @@ public enum OnboardingPresenter {
 
     // MARK: The download
 
-    /// The download page: running, stopped, or done; it cannot be left until the model is on disk.
+    /// The download page: offered, running, stopped, or done; it cannot be left until the model is on disk.
     private static func setup(_ state: OnboardingState) -> OnboardingPage {
         switch state.detail {
-        case .installing(let fraction):
+        case .offeringInstall(let bytes):
+            page(
+                state, mood: .brand, picture: .download(0, .offered), title: "One download to go.",
+                buttons: [.prominent("Download", "arrow.down", .recover(.downloadSpeechModel))],
+                hint: downloadHint(bytes.map(MenuBarPresenter.size(of:))),
+                explanation: staysOnThisMac)
+        case .installing(let fraction, let bytes):
             page(
                 state, mood: .live, picture: .download(fraction, .running), title: "Tuning in.",
                 buttons: [.plain("Cancel", "xmark", .cancelInstall), .disabled("Continue", "arrow.right")],
-                hint: "One-time download · stays on this Mac", explanation: staysOnThisMac)
+                hint: downloadHint(bytes.map { MenuBarPresenter.received(fraction, of: $0) }),
+                explanation: staysOnThisMac)
         case .installFailed(let message, let reached):
             page(
                 state, mood: .failure, picture: .download(reached, .stopped), title: "Download stopped.",
@@ -217,6 +224,14 @@ public enum OnboardingPresenter {
                 buttons: [.prominent("Continue", "arrow.right", .advance)], explanation: staysOnThisMac)
         }
     }
+
+    /// The download page's hint, led by its size or what has arrived, or by saying the size is not known.
+    private static func downloadHint(_ size: String?) -> String {
+        "\(size ?? "Size not known") · \(oneTimeDownload)"
+    }
+
+    /// What every form of the download page's hint ends with.
+    private static let oneTimeDownload = "one-time download · stays on this Mac"
 
     /// Why the wait is worth it, said on every form of the download page.
     static let staysOnThisMac = """

@@ -18,6 +18,7 @@ enum OnboardingMotion {
     /// What VoiceOver reads for the download ring.
     static func downloadLabel(_ download: OnboardingDownload, share: Double) -> String {
         switch download {
+        case .offered: "The speech model is not downloaded yet"
         case .running: "Downloading the speech model, \(Int(share * 100))%"
         case .stopped: "The download stopped at \(Int(share * 100))%"
         case .finished: "The speech model is ready"

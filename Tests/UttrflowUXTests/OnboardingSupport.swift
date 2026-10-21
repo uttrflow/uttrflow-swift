@@ -96,13 +96,20 @@ final class GatedInstaller: OnboardingModelInstaller {
     private let installed: Mutex<Bool>
     private let attempts = Mutex(0)
 
+    /// What the download weighs, or `nil` when the test does not say.
+    let downloadBytes: Int64?
+
     /// Starts with the model present or not.
-    init(isInstalled: Bool = false) {
+    init(isInstalled: Bool = false, downloadBytes: Int64? = nil) {
         installed = Mutex(isInstalled)
+        self.downloadBytes = downloadBytes
     }
 
     /// Whether the model is on disk.
     var isInstalled: Bool { installed.withLock { $0 } }
+
+    /// Whether a download is running now.
+    var isDownloading: Bool { gate.withLock { $0 != nil } }
 
     /// Takes the model off disk, the way a user deleting it behind the app's back would.
     func remove() { installed.withLock { $0 = false } }
@@ -140,6 +147,12 @@ final class GatedInstaller: OnboardingModelInstaller {
 struct InstantInstaller: OnboardingModelInstaller {
     /// Whether the model is on disk.
     let isInstalled: Bool
+
+    /// Never known, since this download is over before anything could show it.
+    var downloadBytes: Int64? { nil }
+
+    /// Never, since its download is over before it is asked about.
+    var isDownloading: Bool { false }
 
     /// Reports completion at once.
     func install(onProgress: @escaping @Sendable (Double) -> Void) async throws(SpeechEngineError) {

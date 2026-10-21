@@ -11,6 +11,12 @@ public protocol OnboardingModelInstaller: Sendable {
     /// Whether the model onboarding would fetch is already there.
     var isInstalled: Bool { get }
 
+    /// What the download weighs, from the pinned manifest; `nil` when that is not known.
+    var downloadBytes: Int64? { get }
+
+    /// Whether a download is running now, so a page opened during one joins it rather than offering another.
+    @MainActor var isDownloading: Bool { get }
+
     /// Fetches it, reporting progress from `0` to `1`.
     func install(onProgress: @escaping @Sendable (Double) -> Void) async throws(SpeechEngineError)
 }
@@ -282,8 +288,13 @@ public final class OnboardingFlow {
             set(step: step, detail: .permission(await microphone.status()))
         case .accessibility:
             set(step: step, detail: .permission(await accessibility.status()))
+        // Nothing is fetched until Download is pressed, unless a download is already running to join.
         case .setup:
-            await beginInstall()
+            if installer.isDownloading {
+                await beginInstall()
+            } else {
+                set(step: .setup, detail: .offeringInstall(installer.downloadBytes))
+            }
         case .ready:
             set(step: .ready, detail: .finishing(await readiness()))
         }
@@ -328,7 +339,7 @@ public final class OnboardingFlow {
         case .retry:
             await refresh()
         case .downloadSpeechModel:
-            await enter(.setup)
+            await beginInstall()
         case .pasteManually, .showHistory, .retryFromRecording, .restoreRecording, .copyTranscript:
             // Offered by failures elsewhere in the app, never by a page here; ignored.
             break
@@ -350,7 +361,8 @@ public final class OnboardingFlow {
         installGeneration += 1
         let generation = installGeneration
         downloaded = 0
-        set(step: .setup, detail: .installing(0))
+        let total = installer.downloadBytes
+        set(step: .setup, detail: .installing(0, of: total))
 
         let progress = AsyncStream<Double>.makeStream()
         let work = Task { [installer] () -> SpeechEngineError? in
@@ -367,7 +379,7 @@ public final class OnboardingFlow {
         // Progress from a run the user has walked away from is dropped, since its page is off screen.
         for await fraction in progress.stream where generation == installGeneration {
             downloaded = fraction
-            set(step: .setup, detail: .installing(fraction))
+            set(step: .setup, detail: .installing(fraction, of: total))
         }
 
         let failure = await work.value
