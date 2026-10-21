@@ -72,11 +72,16 @@ enum IntegrityAudit {
         let now = WordShape(word.text).key
         let heard = WordShape(word.heard).key
         switch kind {
-        case .number: return digits(now) != digits(heard)
+        case .number: return digits(now) != digits(heard) && !writesItsValue(now, heard: heard)
         case .negator:
             return carries(now) && !letterRuns(now).contains(where: MeaningPreservationGuard.isNegation)
         case .unit: return plainWord(word.text) && now != heard
         }
+    }
+
+    /// Whether a grouped decimal, "2.5,000", now stands as the whole number its scale makes of it, "2,500".
+    private static func writesItsValue(_ now: String, heard: String) -> Bool {
+        NumberFormsPass.scaledGroupedDecimal(heard).map { String($0) == digits(now) } ?? false
     }
 
     /// Whether a word is spelled in letters or digits; an operator or a symbol is a command's spelling of what was said.

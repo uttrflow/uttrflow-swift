@@ -253,6 +253,12 @@
     "dash-training-as-words@1",
     "dash-training-as-words@2",
     "dash-training-as-words@4",
+    "decimal-with-thousands-group-is-whole-amount@11",
+    "decimal-with-thousands-group-is-whole-amount@2",
+    "decimal-with-thousands-group-is-whole-amount@7",
+    "decimal-with-thousands-group-is-whole-amount@9",
+    "decimal-with-two-thousands-groups-is-whole-amount@1",
+    "decimal-with-two-thousands-groups-is-whole-amount@2",
     "decimal-without-whole-part-before-a-scale-word@3",
     "decimal-without-whole-part-before-a-scale-word@6",
     "deictic-opening-here-are-files@1",
@@ -5731,5 +5737,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5711
+  "total" : 5717
 }
