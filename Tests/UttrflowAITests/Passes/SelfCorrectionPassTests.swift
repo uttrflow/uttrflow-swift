@@ -442,6 +442,18 @@ struct SelfCorrectionPassTests {
             punctuation.apply(sut.apply(draft)).text == sut.apply(punctuation.apply(draft)).text)
     }
 
+    @Test(
+        "keeps the word a one-word casing command covers and the words no caps after it",
+        arguments: [
+            "all caps urgent no caps please reply",
+            "all caps urgent and no caps please reply",
+            "all caps urgent no caps",
+        ]
+    )
+    func keepsCasingOperand(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
     @Test("records the discarded half and the trigger as removed by this pass")
     func provenance() {
         let draft = sut.apply(Draft(text: "at four no sorry at five"))

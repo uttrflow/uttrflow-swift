@@ -371,6 +371,8 @@ fmt-casing-mention-was	All caps was the old style.
 fmt-casing-not-capital-gains	Capital gains tax is due in April.
 fmt-casing-not-capital-of	The capital of France is Paris.
 fmt-casing-not-no-caps-bottles	There are no caps on the bottles.
+fmt-casing-operand-and-no-caps	URGENT and no caps please reply.
+fmt-casing-operand-then-no-caps	URGENT no caps please reply.
 fmt-casing-span-without-off	All caps on the shelf.
 fmt-casing-use-before-words	This is IMPORTANT for everyone.
 fmt-casing-use-span	DO NOT ENTER without a badge.

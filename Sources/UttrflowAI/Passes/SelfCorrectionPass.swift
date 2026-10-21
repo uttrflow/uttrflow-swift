@@ -105,10 +105,22 @@ public struct SelfCorrectionPass: PieceCleaningPass {
             let start = Restatement.discardedStart(
                 before: position, after: position + trigger, in: live, of: draft,
                 asksForLayout: LayoutWordsPass.asksForLayout),
-            restatesWholeOption(from: start, restart: position + trigger, in: live, of: draft)
+            restatesWholeOption(from: start, restart: position + trigger, in: live, of: draft),
+            !isCasedOperand(from: start, in: live, of: draft)
         else { return nil }
         let through = Restatement.standsAlone(position, before: position + trigger, in: live, of: draft)
         return (start..<(position + trigger), through)
+    }
+
+    /// Whether `start` falls inside a one-word casing command or on its operand, so the words after are dictated, not a retraction.
+    private func isCasedOperand(from start: Int, in live: [Int], of draft: Draft) -> Bool {
+        SpokenCommands.casings.contains { row in
+            guard row.reach == .word else { return false }
+            return (max(0, start - row.words.count)...start).contains { opening in
+                opening + row.words.count <= live.count
+                    && draft.spells(row.words, at: opening, in: live, acrossSentences: true)
+            }
+        }
     }
 
     /// Whether a spoken opening mark or long option marker ends just before `position`, so the word there is its operand rather than a correction.
