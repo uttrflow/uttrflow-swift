@@ -133,7 +133,9 @@ enum NotationEvidence {
     }
 
     /// The words a dictated statement opens with; the rest of its keywords are rows of the notation table.
-    static let statementOpeners: Set<String> = ["select", "insert", "update", "delete"]
+    static let statementOpeners: Set<String> = [
+        "select", "insert", "update", "delete", "create", "alter", "drop", "truncate", "with",
+    ]
 
     /// Whether `words` are a statement in a query editor, read from the evidence that writes its notation.
     static func isQueryStatement(

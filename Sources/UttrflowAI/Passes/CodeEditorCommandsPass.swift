@@ -121,7 +121,9 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
             for offset in 0..<consumed { draft.remove(at: live[position + offset], by: Self.id) }
             return .joinedBefore
         }
-        draft.replace(at: live[position], with: text + suffix, by: Self.id)
+        // An opening bracket already standing on the word stays: "(select" is "(SELECT".
+        let prefix = draft.shape(at: live[position]).prefix
+        draft.replace(at: live[position], with: prefix + text + suffix, by: Self.id)
         for offset in 1..<consumed { draft.remove(at: live[position + offset], by: Self.id) }
         return .inPlace
     }
