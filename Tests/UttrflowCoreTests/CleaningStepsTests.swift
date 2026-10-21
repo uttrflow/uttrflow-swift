@@ -49,8 +49,13 @@ struct CleaningStepsTests {
 
     @Test("a step's line quotes its trigger words with the same curly quotes as its example")
     func detailQuotesAreCurly() {
-        for step in CleaningSteps.offered {
+        let quoting = CleaningSteps.offered.filter { step in
+            step.detail.contains { "\"\u{201C}\u{201D}".contains($0) }
+        }
+        #expect(!quoting.isEmpty)
+        for step in quoting {
             #expect(!step.detail.contains("\""), "\(step.name)")
+            #expect(step.detail.contains("\u{201C}") && step.detail.contains("\u{201D}"), "\(step.name)")
         }
     }
 
