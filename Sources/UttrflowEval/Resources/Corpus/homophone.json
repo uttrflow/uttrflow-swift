@@ -61,5 +61,15 @@
     "mustKeep": ["no milk"],
     "mustNotAdd": ["know"],
     "addedFor": 2326
+  },
+  {
+    "id": "homophone-or-are-coordinator",
+    "note": "A coordinator the recogniser was unsure of between two prices stays the coordinator; its sound-alike are is never offered.",
+    "spoken": "it costs about $49 a month or $450 if you pay annually",
+    "expected": "It costs about $49 a month, or $450 if you pay annually.",
+    "mustKeep": ["or"],
+    "mustNotAdd": ["are"],
+    "doubtful": ["or"],
+    "addedFor": 7994
   }
 ]

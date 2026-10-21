@@ -125,7 +125,7 @@ public struct DoubtfulWords: Sendable {
         guard EvidencePolicy.unscored(draft, in: .doubtfulWords) == nil, !sources.isEmpty else { return [] }
         let said = UncertainSpan.saidWords(in: draft).map(\.text)
         let apart = await apartFromContext(in: draft, for: situation)
-        let runs = UncertainSpan.spans(in: draft, apart: apart)
+        let runs = UncertainSpan.spans(in: draft, apart: apart).filter { !Self.isCoordinator($0) }
         guard !runs.isEmpty else { return [] }
 
         let reach = NGramModel.maxOrder - 1
@@ -155,6 +155,11 @@ public struct DoubtfulWords: Sendable {
             if found.count == Self.maximumSpans { break }
         }
         return found
+    }
+
+    /// Whether the run is one coordinating conjunction, which joins two alternatives or additions, so a sound-alike in its place always changes what was said.
+    private static func isCoordinator(_ run: UncertainSpan) -> Bool {
+        run.range.count == 1 && FunctionWords.isCoordinator(run.text)
     }
 
     /// The said words context doubts, less any the user's dictionary, the screen or the shipped terms hold as heard.
