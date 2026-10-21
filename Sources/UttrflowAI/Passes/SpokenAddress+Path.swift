@@ -29,6 +29,31 @@ extension SpokenAddress {
         return SpokenAddress(length: length, text: first.prefix + root.text + path.text + last.suffix)
     }
 
+    /// Reads the path an ssh-style remote carries after its host, a "colon" and then a rooted or relative path: ":acme/widgets.git".
+    static func readRemotePath(
+        at place: Int, within run: Range<Int>, in live: [Int], of draft: Draft
+    ) -> SpokenAddress? {
+        guard place > run.lowerBound, place + 1 < run.upperBound else { return nil }
+        let colon = draft.shape(at: live[place])
+        guard colon.key == "colon", colon.prefix.isEmpty, colon.suffix.isEmpty,
+            draft.shape(at: live[place - 1]).suffix.isEmpty
+        else { return nil }
+        let start = place + 1
+        if let path = readPath(at: start, within: run, in: live, of: draft) {
+            return SpokenAddress(length: 1 + path.length, text: ":" + path.text)
+        }
+        guard let head = segment(at: start, within: run, in: live, of: draft) else { return nil }
+        var end = start + head.length
+        var text = head.text
+        while end + 1 < run.upperBound, draft.shape(at: live[end - 1]).suffix.isEmpty,
+            let next = nextSegment(at: end, within: run, in: live, of: draft)
+        {
+            text += "/" + next.text
+            end += next.length
+        }
+        return SpokenAddress(length: end - place, text: ":" + text)
+    }
+
     /// Reads the home mark and the number said right after it at a command line, a directory-stack entry: "tilde one" is "~1".
     static func readStackEntry(
         at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft, expecting: Expectation
