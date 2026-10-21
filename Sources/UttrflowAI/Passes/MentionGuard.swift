@@ -94,9 +94,11 @@ public enum MentionGuard {
         }
         if kind == .closing, isOpenQuotation(before: position, in: live, of: draft) { return false }
         let next = position + length
+        // A name the recogniser stopped after closes its sentence, as the end of the text does.
+        let closesSentence = next == live.count || draft.shape(at: live[next - 1]).suffix == "."
         if opensThePhrase(
             ending: position, reaching: reach, in: live, of: draft, bridgedBy: bridging,
-            finalMark: kind == .trailing && next == live.count, opening: kind.attachesAfter,
+            finalMark: kind == .trailing && closesSentence, opening: kind.attachesAfter,
             corroboratedByLayout: corroboratedByLayout,
             clauseFollows: opensClause(at: next, in: live, of: draft),
             predicateFollows: opensPredicate(at: next, in: live, of: draft)
