@@ -83,9 +83,9 @@ extension SpokenAddress {
                     && (!TechnicalToken.wordLikeFileExtensions.contains($0)
                         || isFileCued(before: position, in: live, of: draft))
             } ?? false
-        // Two slashes say a path on their own, as after a root, unless a command or a function word heads it: "cd slash tmp slash x".
+        // Two slashes after a later word say a path on their own, unless a command or function word heads it: "post slash api".
         let said =
-            text.filter { $0 == "/" }.count > 1 && !runsOnPath(head.text)
+            position > 0 && text.filter { $0 == "/" }.count > 1 && !runsOnPath(head.text)
             && head.text.split(separator: ".").allSatisfy { FunctionWords.isContent(String($0)) }
         guard announced || closed || said else { return nil }
         let (reference, used) = readReference(at: end, within: run, in: live, of: draft)
