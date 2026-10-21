@@ -92,11 +92,12 @@ enum MainMenu {
         return menu
     }
 
+    /// The Help menu holds the one page that helps: Diagnostics, named for what it opens, with no Help key.
     static func help(for name: String) -> NSMenu {
         let menu = NSMenu(title: "Help")
         menu.addItem(
-            withTitle: "\(name) Help", action: #selector(AppDelegate.showDiagnosticsFromMenu(_:)),
-            keyEquivalent: "?")
+            withTitle: "\(name) Diagnostics", action: #selector(AppDelegate.showDiagnosticsFromMenu(_:)),
+            keyEquivalent: "")
         return menu
     }
 }
