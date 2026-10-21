@@ -648,6 +648,21 @@
     "mustNotAdd": ["Tuesday", "fourteenth"]
   },
   {
+    "id": "weekday-date-closed-by-a-full-stop-kept",
+    "addedFor": 8098,
+    "spoken": "See you on Tuesday the fourteenth. No wait Wednesday the fifteenth",
+    "expected": "See you on Tuesday the fourteenth. No wait Wednesday the fifteenth.",
+    "mustKeep": ["Tuesday the fourteenth", "Wednesday the fifteenth"]
+  },
+  {
+    "id": "weekday-date-restated-after-a-trigger-standing-alone",
+    "addedFor": 8098,
+    "spoken": "See you on Tuesday the fourteenth. No wait. Wednesday the fifteenth",
+    "expected": "See you on Wednesday the fifteenth.",
+    "mustKeep": ["Wednesday the fifteenth"],
+    "mustNotAdd": ["Tuesday", "fourteenth"]
+  },
+  {
     "id": "weekday-and-spoken-date-restated-with-make-that",
     "spoken": "by friday the twenty third actually make that monday the twenty sixth",
     "expected": "By Monday the 26th.",

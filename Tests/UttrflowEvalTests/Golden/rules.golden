@@ -1489,6 +1489,8 @@ web-search-field-2280	cheap flights to lisbon in may
 weekday-and-month-casing	Can we push the demo to Thursday instead of Wednesday in August?
 weekday-and-ordinal-date-restated	See you on Wednesday the fifteenth.
 weekday-and-spoken-date-restated-with-make-that	By Monday the 26th.
+weekday-date-closed-by-a-full-stop-kept	See you on Tuesday the fourteenth. No wait Wednesday the fifteenth.
+weekday-date-restated-after-a-trigger-standing-alone	See you on Wednesday the fifteenth.
 which-after-a-stop-continues-the-sentence	The total is 10. Which brings it to 12. Which is why we left early.
 which-is-why-stays-a-statement	Which is why I left early.
 wrapped-subject-appositive-stays-a-statement	The winner, john, was the youngest player.

@@ -49,6 +49,14 @@ struct RestatementTests {
         #expect(Restatement.discardedStart(before: trigger, after: restart, in: live, of: draft) == start)
     }
 
+    @Test("a full stop after the old date keeps it, unless the trigger stands alone as its own sentence")
+    func dateClosedByAFullStop() {
+        let closed = reading("see you on tuesday the fourteenth. no wait wednesday the fifteenth")
+        #expect(Restatement.discardedStart(before: 6, after: 8, in: closed.live, of: closed.draft) == nil)
+        let alone = reading("see you on tuesday the fourteenth. no wait. wednesday the fifteenth")
+        #expect(Restatement.discardedStart(before: 6, after: 8, in: alone.live, of: alone.draft) == 3)
+    }
+
     @Test(
         "correction and or rather used as ordinary words take nothing back",
         arguments: [
