@@ -46,7 +46,8 @@ struct SettingsDiagnosticsFactAccessibilityTests {
         #expect(buttons.compactMap { $0.accessibilityLabel?() ?? nil } == ["Open System Settings"])
         let statuses = all.filter { $0.accessibilityRole?() == .staticText }
         #expect(
-            statuses.compactMap { $0.accessibilityLabel?() ?? nil } == ["Microphone: Not allowed"],
+            statuses.compactMap { ($0.accessibilityValue?() as Any??) as? String }
+                == ["Microphone: Not allowed"],
             "the status is not read whole")
     }
 }
