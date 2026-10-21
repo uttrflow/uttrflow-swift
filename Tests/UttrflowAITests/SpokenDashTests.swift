@@ -274,6 +274,7 @@ struct ShortOptionClusterTests {
             ("git tag dash a v one point four point two", "git tag -a v1.4.2"),
             ("git tag dash d v two point oh point zero", "git tag -d v2.0.0"),
             ("git tag dash a v 1.4.2", "git tag -a v1.4.2"),
+            ("git tag v one point two point three dash rc dot one", "git tag v1.2.3-rc.1"),
             ("ssh dash v host", "ssh -v host"),
             ("tar dash x z v f archive", "tar -xzvf archive"),
         ])

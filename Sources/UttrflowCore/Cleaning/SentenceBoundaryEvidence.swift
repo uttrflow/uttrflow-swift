@@ -17,7 +17,9 @@ public enum SentenceBoundaryEvidence {
         }
         let followingKeys = following.map(\.key)
         if text.last == ".", subordinators.contains(previous[0].key) { return true }
-        if opensOnPostmodifier(following) || opensDependentFragment(following) { return true }
+        if opensOnPostmodifier(following) || opensDependentFragment(following) || endsInOpenFragment(previous) {
+            return true
+        }
         if leadsIntoNext(previous, following) || opensWithAPhrase(previous, following)
             || completesFinalPhrase(previous, following) || completesSeamPreposition(previous, following)
             || splitsSubjectFromPredicate(previous, following) || awaitsComplement(previous, following)
@@ -88,6 +90,14 @@ public enum SentenceBoundaryEvidence {
         if fragment.dropLast().contains(where: \.endsClause) { return false }
         if endsOnImperative(Array(fragment)) { return false }
         return subjectVerbPairs(LexicalClass.tags(ofWords: fragment.dropFirst().map(\.core))) < 2
+    }
+
+    /// "at noon. if the hall is booked | then call": the words after the last stop open a subordinate clause the cut leaves without its main clause, so the sentence runs on and the stop before the clause is judged on the whole clause.
+    private static func endsInOpenFragment(_ previous: [WordShape]) -> Bool {
+        guard let last = previous.last, !last.endsSentence,
+            let stop = previous.lastIndex(where: \.endsSentence)
+        else { return false }
+        return opensDependentFragment(Array(previous[(stop + 1)...]))
     }
 
     /// "if nobody answers leave it with the shop": a clause with its own verb, then a bare verb taking an object, is a whole sentence.
