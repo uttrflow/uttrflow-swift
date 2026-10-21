@@ -22,3 +22,9 @@ retry_wait_time = 5
 user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 accept = ["200..=299", "403", "429"]
 exclude_path = [".build", "dist"]
+
+# The AMI corpus host (cited in Docs/eval-methodology.md) times out for every caller, so the
+# links are correct but unreachable. Remove these two lines when the host answers again.
+exclude = [
+  "^https://groups\\.inf\\.ed\\.ac\\.uk/ami/(download/|corpus/license\\.shtml)$",
+]
