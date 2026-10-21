@@ -347,7 +347,6 @@ struct PageSortMenu: View {
         .labelsHidden()
         .controlSize(.small)
         .fixedSize()
-        .accessibilityLabel(sort.title)
     }
 
     /// Reads the order from the presentation and reports a change back as an intent.
