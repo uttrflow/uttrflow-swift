@@ -91,9 +91,11 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
         guard command.placement == .joining, position > 0, after < live.count else { return false }
         let left = draft.words[live[position - 1]].text
         let right = draft.words[live[after]].text
-        guard Self.isName(left), Self.isName(right.trimmingCharacters(in: .punctuationCharacters)) else {
-            return false
-        }
+        // An option's dashes stay with its name, as "--since equals yesterday" is `--since=yesterday`.
+        let name = left.drop { $0 == "-" }
+        guard
+            Self.isName(String(name)), Self.isName(right.trimmingCharacters(in: .punctuationCharacters))
+        else { return false }
         draft.replace(at: live[position - 1], with: left + command.text + right, by: Self.id)
         for offset in position...after { draft.remove(at: live[offset], by: Self.id) }
         return true

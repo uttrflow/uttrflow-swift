@@ -1506,5 +1506,31 @@
     "destination": "terminal",
     "expectedExact": "chmod u plus x deploy.sh",
     "addedFor": 8015
+  },
+  {
+    "id": "shell-assign-spoken-equals-variable",
+    "spoken": "export NODE underscore ENV equals production",
+    "expected": "export NODE_ENV=production",
+    "mustKeep": ["NODE_ENV=production"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "expectedExact": "export NODE_ENV=production",
+    "addedFor": 7943
+  },
+  {
+    "id": "shell-assign-spoken-equals-long-option",
+    "spoken": "git log dash dash since equals yesterday",
+    "expected": "git log --since=yesterday",
+    "mustKeep": ["--since=yesterday"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "expectedExact": "git log --since=yesterday",
+    "addedFor": 7943
   }
 ]
