@@ -88,7 +88,14 @@ struct SpokenAddress: Equatable {
         let startsPath =
             expecting.contains(.paths) && position + 1 < sentenceEnd
             && draft.shape(at: live[position + 1]).key == "slash"
-        guard startsPath || !MentionGuard.phraseOpeners.contains(draft.shape(at: live[position]).key) else {
+        // "no" opens a phrase, but a joiner right after it ("no dash reply") makes it the start of a mailbox if an address follows.
+        let joinsOpener =
+            position + 1 < sentenceEnd && joiners[draft.shape(at: live[position + 1]).key] != nil
+            && draft.shape(at: live[position]).key == "no"
+        guard
+            startsPath || joinsOpener
+                || !MentionGuard.phraseOpeners.contains(draft.shape(at: live[position]).key)
+        else {
             return nil
         }
         if let url = readExplicitURL(at: position, within: run, in: live, of: draft, expecting: expecting) {
@@ -218,7 +225,24 @@ struct SpokenAddress: Equatable {
         {
             return (value, digits.used)
         }
-        return number(at: place, within: run, in: live, of: draft)
+        guard let first = number(at: place, within: run, in: live, of: draft) else { return nil }
+        if let pair = pairedNumber(after: first, at: place, within: run, in: live, of: draft) { return pair }
+        return first
+    }
+
+    /// Two spoken two-digit numbers said in turn, which a port writes side by side: "sixty three seventy nine" is 6379.
+    private static func pairedNumber(
+        after first: (value: Int, used: Int), at place: Int, within run: Range<Int>, in live: [Int],
+        of draft: Draft
+    ) -> (value: Int, used: Int)? {
+        let next = place + first.used
+        guard (10...99).contains(first.value), next < run.upperBound,
+            draft.shape(at: live[next - 1]).suffix.isEmpty,
+            NumberWords.value(of: draft.shape(at: live[place]).key) != nil,
+            NumberWords.value(of: draft.shape(at: live[next]).key) != nil,
+            let second = number(at: next, within: run, in: live, of: draft), (10...99).contains(second.value)
+        else { return nil }
+        return (first.value * 100 + second.value, first.used + second.used)
     }
 
     /// A file's line and optional column said after it, written joined without grouping: "main.py:42:7".
@@ -529,6 +553,12 @@ struct SpokenAddress: Equatable {
             else {
                 return nil
             }
+            // A dash and one lone letter that nothing carries on is a command-line flag, not part of the name.
+            if joiner == "-", next.core.count == 1, next.core.allSatisfy(\.isLetter),
+                place + 2 >= run.upperBound || !continuesName(after: place + 1, in: live, of: draft)
+            {
+                return nil
+            }
             return (String(joiner) + next.core, 2, !proseJoiners.contains(joiner))
         }
         guard side == .local else { return nil }
@@ -538,6 +568,12 @@ struct SpokenAddress: Equatable {
             .prefix { NumberWords.value(of: $0) != nil }
         guard let number = NumberWords.cardinal(ArraySlice(keys)) else { return nil }
         return (String(number.value), number.count, false)
+    }
+
+    /// Whether the word after the one at `place` carries a name on: a dot, an "at", a slash or an underscore.
+    private static func continuesName(after place: Int, in live: [Int], of draft: Draft) -> Bool {
+        guard draft.shape(at: live[place]).suffix.isEmpty else { return false }
+        return ["dot", "at", "slash", "underscore"].contains(draft.shape(at: live[place + 1]).key)
     }
 
     /// The digits a run of spoken digit words from `place` reads as, with how many words it used.
