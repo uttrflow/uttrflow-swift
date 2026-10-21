@@ -69,6 +69,19 @@ struct RepeatedPhrasePassTests {
         #expect(cleaned(input, by: sut) == input)
     }
 
+    /// "X and X" joins two of the same word, so a further "and" after it is the list going on, not a restart.
+    @Test(
+        "keeps a word coordinated with itself before a further and",
+        arguments: [
+            "ask harris and harris and lee",
+            "the firm of smith and smith and jones won",
+            "harris and harris and harris and lee",
+        ]
+    )
+    func keepsCoordinatedPair(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
     @Test("the standard pipeline keeps every word in a deliberate continuation")
     func standardPipelineKeepsChain() async throws {
         let request = TransformationRequest(
@@ -76,6 +89,14 @@ struct RepeatedPhrasePassTests {
             context: .unknown)
         let result = try await RuleBasedTransformer().transform(request)
         #expect(result.text == "It went on and on and on and on and on.")
+    }
+
+    @Test("the standard pipeline keeps a word coordinated with itself")
+    func standardPipelineKeepsCoordinatedPair() async throws {
+        let request = TransformationRequest(
+            transcription: Transcription(text: "ask harris and harris and lee"), context: .unknown)
+        let result = try await RuleBasedTransformer().transform(request)
+        #expect(result.text == "Ask harris and harris and lee.")
     }
 
     @Test("drops the first copy and keeps the second")
