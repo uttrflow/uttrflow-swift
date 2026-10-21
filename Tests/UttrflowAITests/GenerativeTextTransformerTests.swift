@@ -739,7 +739,7 @@ struct RuleBasedTransformerTests {
             ("the the deployment is running", "The deployment is running."),
             ("hello. um there", "Hello. There."),
             ("let's meet at four no sorry at five", "Let's meet at five."),
-            ("we're on postgres sixteen point two", "We're on postgres 16.2."),
+            ("we're on postgres sixteen point two", "We're on Postgres 16.2."),
             ("milk comma eggs comma and bread", "Milk, eggs, and bread."),
         ]
     )
