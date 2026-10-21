@@ -543,6 +543,12 @@ struct SpokenAddress: Equatable {
             else {
                 return nil
             }
+            // A dash and one lone letter that nothing carries on is a command-line flag, not part of the name.
+            if joiner == "-", next.core.count == 1, next.core.allSatisfy(\.isLetter),
+                place + 2 >= run.upperBound || !continuesName(after: place + 1, in: live, of: draft)
+            {
+                return nil
+            }
             return (String(joiner) + next.core, 2, !proseJoiners.contains(joiner))
         }
         guard side == .local else { return nil }
@@ -552,6 +558,12 @@ struct SpokenAddress: Equatable {
             .prefix { NumberWords.value(of: $0) != nil }
         guard let number = NumberWords.cardinal(ArraySlice(keys)) else { return nil }
         return (String(number.value), number.count, false)
+    }
+
+    /// Whether the word after the one at `place` carries a name on: a dot, an "at", a slash or an underscore.
+    private static func continuesName(after place: Int, in live: [Int], of draft: Draft) -> Bool {
+        guard draft.shape(at: live[place]).suffix.isEmpty else { return false }
+        return ["dot", "at", "slash", "underscore"].contains(draft.shape(at: live[place + 1]).key)
     }
 
     /// The digits a run of spoken digit words from `place` reads as, with how many words it used.
