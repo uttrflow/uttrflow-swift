@@ -1611,6 +1611,18 @@
     "homophone-one-won-2326@3",
     "homophone-one-won-2326@5",
     "homophone-one-won-2326@6",
+    "homophone-or-are-coordinator-twice@1",
+    "homophone-or-are-coordinator-twice@11",
+    "homophone-or-are-coordinator-twice@3",
+    "homophone-or-are-coordinator-twice@5",
+    "homophone-or-are-coordinator-twice@8",
+    "homophone-or-are-coordinator@1",
+    "homophone-or-are-coordinator@10",
+    "homophone-or-are-coordinator@11",
+    "homophone-or-are-coordinator@2",
+    "homophone-or-are-coordinator@3",
+    "homophone-or-are-coordinator@4",
+    "homophone-or-are-coordinator@6",
     "homophone-right-word-kept-2326@1",
     "homophone-right-word-kept-2326@4",
     "homophone-to-too-2326@5",
@@ -5731,5 +5743,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5711
+  "total" : 5723
 }
