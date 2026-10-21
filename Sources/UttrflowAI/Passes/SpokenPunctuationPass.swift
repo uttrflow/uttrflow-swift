@@ -563,9 +563,10 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             let row = SpokenCommands.flags.first(where: {
                 $0.words.count == 1 && draft.spells($0.words, at: position, in: live)
             }),
-            !MentionGuard.isMentioned(
-                at: position, spanning: 1, in: live, of: draft,
-                reach: MentionGuard.phraseReach, kind: .joining),
+            followsSubcommand(before: position, in: live, of: draft)
+                || !MentionGuard.isMentioned(
+                    at: position, spanning: 1, in: live, of: draft,
+                    reach: MentionGuard.phraseReach, kind: .joining),
             let (option, length) =
                 letterCluster(
                     after: position, in: live, of: draft,
@@ -578,6 +579,11 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         for index in live[(position + 1)...(position + length)] { draft.remove(at: index, by: Self.id) }
         live.removeSubrange((position + 1)...(position + length))
         return true
+    }
+
+    /// Whether the word before `position` is a sub-command said right after a program, as "add" in "yarn add".
+    private func followsSubcommand(before position: Int, in live: [Int], of draft: Draft) -> Bool {
+        position > 1 && namesCommand(at: position - 2, in: live, of: draft)
     }
 
     /// The letters spelled after an option marker, each one spoken alone or after "capital", and how many words said them.
