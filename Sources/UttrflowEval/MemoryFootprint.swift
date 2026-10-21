@@ -81,24 +81,21 @@ public enum PeakMemory {
                 await recorder.observe()
             }
         }
-        // Cancelled and awaited on both paths, so a stray poller cannot bill a reading to finished work.
+        // Cancelled and the recorder closed, never awaited: a busy machine may not schedule the poller again for seconds.
         let value: Success
         do {
             value = try await operation()
         } catch {
-            await stop(poller)
+            poller.cancel()
+            await recorder.close()
             throw error
         }
-        await stop(poller)
+        poller.cancel()
 
         // One last reading after the work, so a peak in the final milliseconds does not fall between polls.
         await recorder.observe()
+        await recorder.close()
         return (value, await recorder.peak)
-    }
-
-    private static func stop(_ poller: Task<Void, Never>) async {
-        poller.cancel()
-        await poller.value
     }
 }
 
@@ -106,13 +103,19 @@ public enum PeakMemory {
 private actor Recorder {
     private let read: @Sendable () -> MemoryReading?
     private(set) var peak: MemoryReading?
+    /// Set once the work is over, so a stray poller cannot bill a reading to finished work.
+    private var closed = false
 
     init(read: @escaping @Sendable () -> MemoryReading?) {
         self.read = read
     }
 
+    func close() {
+        closed = true
+    }
+
     func observe() {
-        guard let now = read() else { return }
+        guard !closed, let now = read() else { return }
         guard let highest = peak else {
             peak = now
             return
