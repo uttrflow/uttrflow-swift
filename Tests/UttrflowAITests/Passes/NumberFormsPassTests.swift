@@ -567,6 +567,19 @@ struct NumberFormsPassTests {
     }
 
     @Test(
+        "writes a pre-release suffix after a spoken version as a hyphenated label",
+        arguments: [
+            ("the version is two point zero point zero dash rc dot one", "the version is 2.0.0-rc.1"),
+            ("tag it one point two point three dash alpha dot two", "tag it 1.2.3-alpha.2"),
+            ("install two dot one dot three dash beta", "install 2.1.3-beta"),
+            ("install two point one point three dash everything", "install 2.1.3 dash everything"),
+        ]
+    )
+    func preReleaseSuffix(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
         "writes times of day",
         arguments: [
             ("two thirty pm", "2:30 pm"),
