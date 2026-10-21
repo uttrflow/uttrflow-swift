@@ -932,6 +932,7 @@ public struct NumberFormsPass: PieceCleaningPass {
         let hasBeforeCue = hasTimeCue(before: position, keys: keys, shapes: shapes)
         let endsTheSentence =
             sentenceEndIsCue && (minuteEnd >= shapes.count || shapes[minuteEnd - 1].endsSentence)
+            && !continuesACount(at: position, keys: keys, shapes: shapes)
         let hasAfterCue =
             minuteEnd < shapes.count && joined(minuteEnd, shapes)
             && (isMeridiem(at: minuteEnd, keys: keys, shapes: shapes) || keys[minuteEnd] == "o'clock")
