@@ -304,7 +304,7 @@ public enum HistoryPresenter {
 
         return HistoryRetentionNotice(
             sentence: sentence,
-            link: MainAction(title: "change in Settings › Privacy", intent: .go(.settings(.privacy))),
+            link: MainAction(title: "Change in Settings › Privacy", intent: .go(.settings(.privacy))),
             phrase: SettingsRetention.isAlways(days: text)
                 ? "kept until you delete it" : "kept for \(MainFormatting.count(text, "day", "days"))"
         )
