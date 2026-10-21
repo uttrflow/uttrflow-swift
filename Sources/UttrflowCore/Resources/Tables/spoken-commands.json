@@ -72,7 +72,7 @@
         {"id": "code.equals", "words": ["equals"], "action": "codeSymbol", "text": "=", "destinations": ["codeEditor", "sqlEditor"]},
         {"id": "code.arrow", "words": ["arrow"], "action": "codeSymbol", "text": "->", "destinations": ["codeEditor"], "languages": ["swift", "python"]},
         {"id": "code.arrow-function", "words": ["arrow"], "action": "codeSymbol", "text": "=>", "destinations": ["codeEditor"], "languages": ["javascript", "typescript"]},
-        {"id": "code.dot", "words": ["dot"], "action": "codeSymbol", "text": ".", "destinations": ["codeEditor"]},
+        {"id": "code.dot", "words": ["dot"], "action": "codeSymbol", "text": ".", "placement": "joining", "destinations": ["codeEditor"]},
         {"id": "code.underscore", "words": ["underscore"], "action": "codeSymbol", "text": "_", "destinations": ["codeEditor"]},
         {"id": "code.colon", "words": ["colon"], "action": "codeSymbol", "text": ":", "destinations": ["codeEditor"]},
         {"id": "code.semicolon", "words": ["semicolon"], "action": "codeSymbol", "text": ";", "destinations": ["codeEditor"]},
