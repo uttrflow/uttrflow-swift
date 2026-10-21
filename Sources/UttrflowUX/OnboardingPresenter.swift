@@ -272,7 +272,7 @@ public enum OnboardingPresenter {
         let suggestionsCaption =
             "AI suggestions finish your line as you type in another app. Off by default; turn on in Settings › AI suggestions."
         let skip = OnboardingAction(
-            title: "Skip to dashboard", intent: .finish, isProminent: false, countdown: nil,
+            title: "Skip to Home", intent: .finish, isProminent: false, countdown: nil,
             caption: suggestionsCaption)
         let copies = state.detail.readiness == .pastesManually
         let clipboardHint =
@@ -346,9 +346,9 @@ public enum OnboardingPresenter {
                         lit: [], keys: keys, bracket: nil, isHeld: false, demonstrates: false,
                         field: .filled(words), isListening: false, celebrates: true)),
                 title: "It works!")
-            page.subtitle = "That’s all there is to it. Opening your dashboard…"
+            page.subtitle = "That’s all there is to it. Opening Home…"
             page.action = OnboardingAction(
-                title: "Open dashboard", intent: .finish, isProminent: true, countdown: heardLinger,
+                title: "Open Home", intent: .finish, isProminent: true, countdown: heardLinger,
                 caption: nil)
         }
         return page
