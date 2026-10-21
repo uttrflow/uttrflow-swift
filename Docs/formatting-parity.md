@@ -13,7 +13,7 @@ A refused answer falls back to the rules' text, as the router does.
 | questions | both | 9 | 7 | 1: `probe-hinglish-status` | 0 | 1 |
 | quotes-and-brackets | rules | 13 | 8 | 1: `probe-regex-pattern` | 0 | 0 |
 | ellipses | rules | 5 | 4 | 0 | 0 | 0 |
-| capitalisation-and-tokens | both | 97 | 82 | 7: `probe-docker-run-flags`, `probe-sql-join`, `probe-regex-pattern`, `probe-yaml-keys`, `probe-todo-comment`, `probe-dockerfile-from`, `probe-apology-message` | 0 | 1 |
+| capitalisation-and-tokens | both | 99 | 84 | 7: `probe-docker-run-flags`, `probe-sql-join`, `probe-regex-pattern`, `probe-yaml-keys`, `probe-todo-comment`, `probe-dockerfile-from`, `probe-apology-message` | 0 | 1 |
 | numbers | rules | 43 | 26 | 7: `fmt-list-count-not-list`, `fmt-hinglish-number`, `probe-docker-run-flags`, `probe-sql-join`, `probe-yaml-keys`, `probe-dockerfile-from`, `probe-apology-message` | 0 | 1 |
 | lists | both | 14 | 10 | 2: `fmt-list-count-not-list`, `probe-yaml-keys` | 0 | 0 |
 | paragraphs | rules | 13 | 10 | 0 | 0 | 0 |
