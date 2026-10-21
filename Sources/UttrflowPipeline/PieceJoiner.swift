@@ -129,7 +129,7 @@ enum PieceJoiner {
     static func unitRunsAcross(
         _ head: String, into tail: String, under formatter: DestinationFormatter, going situation: Situation
     ) -> Bool {
-        let headWords = WordTokens.words(head, .display).suffix(longestSpokenUnit)
+        let headWords = unitWords(of: WordTokens.words(head, .display))
         let tailWords = WordTokens.words(tail, .display).prefix(longestSpokenUnit)
         guard !headWords.isEmpty, !tailWords.isEmpty else { return false }
         // A mark that ends a sentence closes the head, so no number, time or address runs on from it into the tail.
@@ -175,6 +175,16 @@ enum PieceJoiner {
 
     /// The most words either side of a cut that one spoken number, time or address is read from.
     static let longestSpokenUnit = 8
+
+    /// The most words before a cut that a spoken web address or path is read from, host and path together.
+    static let longestSpokenAddress = 16
+
+    /// The words before a cut that a unit ending at it is read from: a web address or path reaches back past its host.
+    private static func unitWords(of words: [String]) -> ArraySlice<String> {
+        let near = words.suffix(longestSpokenUnit)
+        let inAddress = near.contains { ["dot", "slash"].contains(WordShape($0).key) }
+        return inAddress ? words.suffix(longestSpokenAddress) : near
+    }
 
     /// The destination's piece passes that read several words as one unit, the ones a cut can split.
     private static let unitReaders: Set<PassID> = [
