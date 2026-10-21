@@ -61,7 +61,8 @@ that carries no exception, so text that could hold a transcript has no way in.
   host name, among them.
 - Every frame's `filename` and `package`, and every debug image's `code_file`, is cut to
   its last path component; a bare home folder becomes `~`. Source context lines and
-  variables are removed.
+  variables are removed. Of a stacktrace's CPU registers only `pc`, `lr`, `sp` and `fp`
+  stay; Swift keeps a short string inline in the others.
 - An exception's value is kept only for a hang, whose text the SDK writes, with every path
   in it cut the same way. Every other value is removed: an `NSException` or a Swift error
   is built from app data, and for a Mach exception or a signal the SDK replaces the value
