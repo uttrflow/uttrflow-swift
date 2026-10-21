@@ -25,6 +25,19 @@ struct SpokenPathTests {
     }
 
     @Test(
+        "writes a spoken colon that opens a segment as a route parameter",
+        .bug(id: 7901),
+        arguments: [
+            ("use slash users slash colon id slash posts", "use /users/:id/posts"),
+            ("the route is slash users slash colon id", "the route is /users/:id"),
+        ]
+    )
+    func writesRouteParameters(input: String, expected: String) {
+        #expect(cleaned(input, by: prose) == expected)
+        #expect(cleaned(input, by: terminal) == expected)
+    }
+
+    @Test(
         "writes a hidden file named by a dot before a name the lexicon writes as a file ending",
         arguments: [
             (
