@@ -188,10 +188,14 @@ extension SpokenAddress {
         if opensHiddenFolder(at: place, within: run, in: live, of: draft) {
             return segment(at: place, within: run, in: live, of: draft)
         }
-        guard draft.shape(at: live[place]).key == "slash",
-            let next = segment(at: place + 1, within: run, in: live, of: draft)
-        else { return nil }
-        return SpokenAddress(length: 1 + next.length, text: next.text)
+        guard draft.shape(at: live[place]).key == "slash" else { return nil }
+        // A "colon" opening a segment names a route parameter: "slash colon id" is "/:id".
+        let parameter =
+            place + 2 < run.upperBound && draft.shape(at: live[place + 1]).key == "colon"
+            && draft.shape(at: live[place + 1]).suffix.isEmpty
+        let start = place + 1 + (parameter ? 1 : 0)
+        guard let next = segment(at: start, within: run, in: live, of: draft) else { return nil }
+        return SpokenAddress(length: start - place + next.length, text: (parameter ? ":" : "") + next.text)
     }
 
     /// Whether a "dot" opens a hidden folder the lexicon lists that a "slash" follows, rather than joining two labels.
