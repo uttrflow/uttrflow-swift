@@ -85,6 +85,23 @@ struct SpokenPathTests {
         #expect(cleaned(input, by: terminal) == expected)
     }
 
+    @Test(
+        "writes three or more labels joined by slash as one path, unless the first is a command run on the path",
+        .bug(id: 7899),
+        arguments: [
+            ("copy src slash lib slash utils to dist", "copy src/lib/utils to dist"),
+            ("cat var slash log slash syslog", "cat var/log/syslog"),
+            ("cd slash users slash sam", "cd /users/sam"),
+            (
+                "the new endpoint is post slash api slash v two slash invoices",
+                "the new endpoint is post /api/v2/invoices"
+            ),
+        ]
+    )
+    func writesUnannouncedRelativePaths(input: String, expected: String) {
+        #expect(cleaned(input, by: prose) == expected)
+    }
+
     @Test("leaves the same unannounced words as prose outside a command line")
     func leavesUnannouncedProsePaths() {
         let unannounced = "grep error logs slash app dot log"
@@ -104,6 +121,16 @@ struct SpokenPathTests {
                 AppContext.unknown,
                 "tilde slash dot s s h slash config holds the jump host and it needs mode six hundred",
                 "~/.ssh/config holds the jump host and it needs mode 600."
+            ),
+            (
+                AppContext.unknown,
+                "mkdir dash p src slash lib slash utils",
+                "Mkdir -p src/lib/utils."
+            ),
+            (
+                AppContext(applicationName: "Code", bundleIdentifier: "com.microsoft.VSCode"),
+                "copy src slash lib slash utils to dist",
+                "Copy src/lib/utils to dist"
             ),
             (
                 AppContext.unknown,

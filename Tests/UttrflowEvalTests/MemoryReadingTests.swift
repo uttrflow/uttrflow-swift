@@ -37,6 +37,27 @@ private final class ScriptedReadings: Sendable {
     var callCount: Int { progress.withLock { $0.calls } }
 }
 
+/// A clock whose sleep never ends, even when cancelled, standing in for a poller a busy machine never schedules again.
+private final class StalledClock: Clock, Sendable {
+    let now = ContinuousClock.Instant.now
+    var minimumResolution: Duration { .nanoseconds(1) }
+    /// Kept rather than dropped, so the parked sleeps are never reported as leaked.
+    private let parked = Mutex<[CheckedContinuation<Void, Never>]>([])
+
+    func sleep(until deadline: ContinuousClock.Instant, tolerance: Duration?) async throws {
+        await withCheckedContinuation { continuation in parked.withLock { $0.append(continuation) } }
+    }
+
+    /// Ends every parked sleep, so a test that timed out waiting on one does not hang the run.
+    func release() {
+        let sleepers = parked.withLock { parked in
+            defer { parked = [] }
+            return parked
+        }
+        for sleeper in sleepers { sleeper.resume() }
+    }
+}
+
 @Suite("Reading this process's memory")
 struct MemoryReadingTests {
     @Test("reports both figures for this running process")
@@ -81,6 +102,8 @@ struct PeakMemoryTests {
         ) {
             // Advances only once the poller is actually asleep, so the count of polls is exact.
             for _ in 0..<3 { await clock.advanceWhenSomethingIsWaiting(by: .milliseconds(1)) }
+            // And the third poll has landed once the poller sleeps again, before the work ends.
+            await clock.waitUntilSomethingIsWaiting()
             return "done"
         }
         #expect(value == "done")
@@ -120,6 +143,22 @@ struct PeakMemoryTests {
                 throw Boom()
             }
         }
+    }
+
+    /// Waiting for the poller would put every watch behind whatever else holds the machine's threads.
+    @Test(
+        "returns once the work is done, without waiting for the poller to run again",
+        .timeLimit(.minutes(1)))
+    func neverWaitsForThePoller() async {
+        let readings = ScriptedReadings([100, 500])
+        let clock = StalledClock()
+        let (value, peak) = await withTaskCancellationHandler {
+            await PeakMemory.observed(interval: .milliseconds(1), read: readings.read, clock: clock) { 7 }
+        } onCancel: {
+            clock.release()
+        }
+        #expect(value == 7)
+        #expect(peak?.footprintBytes == 500)
     }
 
     /// The poller must never spin: on a clock that never advances, cancelling it must not need a second reading.
