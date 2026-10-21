@@ -71,5 +71,15 @@
     "mustNotAdd": ["are"],
     "doubtful": ["or"],
     "addedFor": 7994
+  },
+  {
+    "id": "homophone-or-are-coordinator-twice",
+    "note": "The same unsure coordinator said twice in one sentence stays the coordinator in both places; its sound-alike are is never offered.",
+    "spoken": "you can pay by card or by cash or by bank transfer",
+    "expected": "You can pay by card or by cash or by bank transfer.",
+    "mustKeep": ["or"],
+    "mustNotAdd": ["are"],
+    "doubtful": ["or"],
+    "addedFor": 7994
   }
 ]

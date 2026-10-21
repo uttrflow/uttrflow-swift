@@ -1611,6 +1611,11 @@
     "homophone-one-won-2326@3",
     "homophone-one-won-2326@5",
     "homophone-one-won-2326@6",
+    "homophone-or-are-coordinator-twice@1",
+    "homophone-or-are-coordinator-twice@11",
+    "homophone-or-are-coordinator-twice@3",
+    "homophone-or-are-coordinator-twice@5",
+    "homophone-or-are-coordinator-twice@8",
     "homophone-or-are-coordinator@1",
     "homophone-or-are-coordinator@10",
     "homophone-or-are-coordinator@11",
@@ -5738,5 +5743,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5718
+  "total" : 5723
 }
