@@ -1861,5 +1861,13 @@
     "expectedExact": "Please open Visual Studio Code and then the Terminal app.",
     "mustKeep": ["Visual Studio Code"],
     "addedFor": 8047
+  },
+  {
+    "id": "question-after-a-spoken-dash-ends-in-a-question-mark",
+    "addedFor": 7969,
+    "spoken": "wait dash is it",
+    "expected": "Wait — is it?",
+    "mustKeep": ["is it?"],
+    "mustNotAdd": ["it."]
   }
 ]

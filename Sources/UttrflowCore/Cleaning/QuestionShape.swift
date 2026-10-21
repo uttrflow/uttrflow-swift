@@ -7,6 +7,7 @@ public enum QuestionShape {
         let shapes = spoken.lastIndex { $0.suffix.contains(":") }.map { Array(spoken[($0 + 1)...]) } ?? spoken
         let words = shapes.map { $0.key.replacingOccurrences(of: "\u{2019}", with: "'") }
         guard !words.isEmpty else { return false }
+        if asksAfterDash(sentence) { return true }
         if endsOnATag(words) || endsOnAPositiveTag(words) || trailingTagStart(in: shapes) != nil {
             return true
         }
@@ -51,6 +52,18 @@ public enum QuestionShape {
         verbsBeforeSubject.contains(word) || pronounVerbs.contains(word) || subjects.contains(word)
             || newSubjects.contains(word) || contractedNewSubjects.contains(word)
             || lexicalQuestionVerbs.contains(word) || questionWords.contains(word) || word.hasSuffix("ed")
+    }
+
+    /// Whether the clause after the last written dash is a direct question, whatever the words before it were.
+    private static func asksAfterDash(_ sentence: [WordShape]) -> Bool {
+        let dashes = "\u{2014}\u{2013}"
+        let marked = { (shape: WordShape) in (shape.prefix + shape.suffix).contains(where: dashes.contains) }
+        guard let dash = sentence.lastIndex(where: marked) else { return false }
+        let tail = sentence[(dash + 1)...].filter { !$0.key.isEmpty }.map {
+            $0.key.replacingOccurrences(of: "\u{2019}", with: "'")
+        }
+        let clause = clauseAfterOpeners(tail)
+        return opensAQuestion(clause) && !runsOn(clause) && !isRelativeClause(clause, afterComma: true)
     }
 
     /// Whether a clause opening with "which", "whom" or "whose" is a non-restrictive relative clause.
