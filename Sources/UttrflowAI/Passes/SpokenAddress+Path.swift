@@ -165,7 +165,8 @@ extension SpokenAddress {
                     place += used
                 }
                 while let (grown, used, _) = growth(
-                    at: place, within: run, in: live, of: draft, side: .domain)
+                    at: place, within: run, in: live, of: draft, side: .domain),
+                    !endsInFlag(grown, at: place + used, within: run, in: live, of: draft)
                 {
                     piece += grown
                     place += used
@@ -179,6 +180,15 @@ extension SpokenAddress {
         }
         guard !pieces.isEmpty else { return nil }
         return SpokenAddress(length: place - position, text: pieces.joined(separator: "."))
+    }
+
+    /// Whether a dash and one letter that close the path are an option letter said after it, not a hyphenated name: "hosts dash n".
+    private static func endsInFlag(
+        _ grown: String, at next: Int, within run: Range<Int>, in live: [Int], of draft: Draft
+    ) -> Bool {
+        guard grown.count == 2, grown.first == "-", grown.last?.isLetter == true else { return false }
+        guard next < run.upperBound else { return true }
+        return !["slash", "dot"].contains(draft.shape(at: live[next]).key)
     }
 
     /// The segment after its "slash", or a listed hidden folder a "dot" opens, with the words it used: "home dot ssh slash config".
