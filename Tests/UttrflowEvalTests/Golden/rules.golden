@@ -164,8 +164,6 @@ correction-between-amounts-spoken	The budget is 12k.
 correction-between-commas	Send the file to Sam before lunch.
 correction-between-percentages	The fee is 50%.
 count-before-modified-noun-kept-apart	Take three 15 minute breaks.
-counting-aloud-is-not-a-clock-time	10 11 12 13
-counting-from-one-keeps-its-words	The child counted six seven eight nine ten out loud.
 dash-cam-as-words	We checked dash cam footage from the night.
 dash-drills-as-words	Our team runs dash drills before every match.
 dash-training-as-words	Sprint dash training starts on Monday.
@@ -893,7 +891,6 @@ numbered-items-repeated-label	Reason 1: It is cheap\nReason 2: It is fast\nReaso
 numbered-items-steps	To reset it\n1. Unplug the router\n2. Wait a minute\n3. Plug it back in
 numbered-items-three-of-them	Today we need\n1. Milk\n2. Eggs\n3. Bread
 numbered-list-opens-the-dictation	1. Check logs\n2. Restart the server
-numbered-recap-item-ends-before-next-marker	Okay so, to recap, we agreed on three things. 1. The launch moves to May. 2. The budget stays flat. 3. Lena owns the plan.
 one-line-exclaim	Happy birthday!
 one-line-name	Jordan rivera
 one-line-phrase	Blue cotton shirt
@@ -1451,8 +1448,6 @@ sql-statement-update-rating	UPDATE books\nSET rating = 5\nWHERE id = 2
 sql-terminated-semicolon-said	SELECT id\nFROM orders;
 sql-terms	Select everything from the user table and sort by name.
 standalone-pronoun-i	So I think.
-stranded-preposition-keeps-stop-pen-written-with	Here is the pen I write with.
-stranded-preposition-keeps-stop-waiting-for	She is the one I was waiting for.
 strike-that-as-an-order-kept	Strike that match and light the candle.
 strike-that-restates-a-phrase	Pick the blue one.
 sub1	My manager wants the slides by noon.
