@@ -377,6 +377,9 @@ public struct NumberFormsPass: PieceCleaningPass {
         {
             return price
         }
+        if let range = sharedScaleRange(at: position, keys: keys, shapes: shapes, digits: digits) {
+            return range
+        }
         let fixedShapes: [(Int, [String], [WordShape]) -> Phrase?] = [
             score, readingOver, zoneOffset, signedDigitRun, numericDate, cuedYear, cuedClock,
             colonClock, twentyFourHourClock, dottedNumber, spokenDigitRun, leadingDecimal, decade,
@@ -1073,7 +1076,7 @@ public struct NumberFormsPass: PieceCleaningPass {
     }
 
     /// Whether the word at `index` follows its predecessor with no punctuation between them.
-    private static func joined(_ index: Int, _ shapes: [WordShape]) -> Bool {
+    static func joined(_ index: Int, _ shapes: [WordShape]) -> Bool {
         index < shapes.count && shapes[index - 1].suffix.isEmpty && shapes[index].prefix.isEmpty
     }
 
@@ -1180,7 +1183,7 @@ public struct NumberFormsPass: PieceCleaningPass {
     }
 
     /// The keys from `start` up to the first word that carries punctuation.
-    private static func unbroken(from start: Int, keys: [String], shapes: [WordShape]) -> ArraySlice<String> {
+    static func unbroken(from start: Int, keys: [String], shapes: [WordShape]) -> ArraySlice<String> {
         var end = start
         // A number reads only number words and "and", so the run ends at the first other word.
         while end < keys.count, end == start || joined(end, shapes),

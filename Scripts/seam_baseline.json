@@ -4591,10 +4591,18 @@
     "quoted-words-mid-sentence@1",
     "quoted-words-mid-sentence@2",
     "quoted-words-mid-sentence@6",
+    "range-keeps-its-own-scales@1",
+    "range-keeps-its-own-scales@2",
+    "range-keeps-its-own-scales@4",
+    "range-keeps-its-own-scales@7",
     "range-of-two-hundreds-between@6",
     "range-of-two-hundreds-from@3",
     "range-of-two-hundreds-from@6",
     "range-of-two-hundreds-from@7",
+    "range-shares-hundred@1",
+    "range-shares-hundred@2",
+    "range-shares-hundred@6",
+    "range-shares-thousand@7",
     "repeated-continuation-kept@1",
     "repeated-continuation-kept@2",
     "repeated-continuation-kept@3",
@@ -5731,5 +5739,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5711
+  "total" : 5719
 }
