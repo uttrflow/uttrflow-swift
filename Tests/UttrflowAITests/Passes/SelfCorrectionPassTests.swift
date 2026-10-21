@@ -25,6 +25,24 @@ struct SelfCorrectionPassTests {
     }
 
     @Test(
+        "keeps a restart that opens a clause of its own, so no second predicate joins the lead",
+        arguments: [
+            (
+                "I'll take the red one, no, the blue one is better",
+                "I'll take the red one, no, the blue one is better"
+            ),
+            (
+                "I'll take the red one, no, the blue one, no actually the green one is better",
+                "I'll take the blue one no actually the green one is better"
+            ),
+            ("the red one, no, the blue one is better", "the blue one is better"),
+        ]
+    )
+    func keepsRestartThatOpensClause(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
         "replaces a restated phrase with its restatement",
         arguments: [
             ("let's meet at four no sorry at five on tuesday", "let's meet at five on tuesday"),

@@ -93,10 +93,35 @@ public enum Restatement {
         return nil
     }
 
-    /// Where the discarded half starts, or nil when the halves do not match in shape.
+    /// Where the discarded half starts, or nil when the halves do not match in shape or the restart opens a new clause.
     public static func discardedStart(
         before trigger: Int, after restart: Int, in live: [Int], of draft: Draft,
         asksForLayout: LayoutDecision = { _, _, _, _ in true }
+    ) -> Int? {
+        guard
+            let start = matchedStart(
+                before: trigger, after: restart, in: live, of: draft, asksForLayout: asksForLayout),
+            !opensClause(start..<trigger, at: restart, in: live, of: draft)
+        else { return nil }
+        return start
+    }
+
+    /// Whether the restart says as many words as were taken back and a copula follows them, so it is the subject of a clause of its own and joins a lead no copula closed as a second predicate.
+    private static func opensClause(
+        _ discarded: Range<Int>, at restart: Int, in live: [Int], of draft: Draft
+    ) -> Bool {
+        let key = { (position: Int) in draft.shape(at: live[position]).key }
+        let copula = restart + discarded.count
+        guard discarded.lowerBound > 0, !endsSentence(discarded.lowerBound - 1, in: live, of: draft),
+            copula < live.count, copulas.contains(key(copula)),
+            !discarded.contains(where: { copulas.contains(key($0)) })
+        else { return false }
+        return !(restart..<copula).contains { draft.shape(at: live[$0]).endsClause }
+    }
+
+    private static func matchedStart(
+        before trigger: Int, after restart: Int, in live: [Int], of draft: Draft,
+        asksForLayout: LayoutDecision
     ) -> Int? {
         guard trigger > 0 else { return nil }
         let earliest = max(0, trigger - reach)
