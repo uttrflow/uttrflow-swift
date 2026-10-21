@@ -236,7 +236,7 @@ struct RulesCorpusTests {
         arguments: [
             ("self-correction", "Let's meet at five on Tuesday."),
             ("ellipsis-glued-fillers", "The...the invoice is...overdue."),
-            ("version-number", "We're on postgres 16.2 right now."),
+            ("version-number", "We're on Postgres 16.2 right now."),
             ("spoken-decade", "The 1990s were fun."),
             ("twenty-four-seven-idiom", "It's a twenty four seven service."),
             ("fifty-fifty-idiom", "It's fifty fifty."),
