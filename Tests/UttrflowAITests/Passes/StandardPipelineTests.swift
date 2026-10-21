@@ -173,7 +173,7 @@ struct StandardPipelineTests {
             ),
             ("let's meet at four no sorry at five on tuesday", "Let's meet at five on Tuesday."),
             ("we still need milk comma eggs comma and bread", "We still need milk, eggs, and bread."),
-            ("we're on postgres sixteen point two right now", "We're on postgres 16.2 right now."),
+            ("we're on postgres sixteen point two right now", "We're on Postgres 16.2 right now."),
             ("first line new line second line", "First line\nSecond line."),
             ("what do you think question mark new line thanks", "What do you think?\nThanks."),
             ("agenda new line one intro new line two demo", "Agenda\nOne intro\nTwo demo"),

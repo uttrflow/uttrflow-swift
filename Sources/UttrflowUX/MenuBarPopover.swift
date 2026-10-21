@@ -198,11 +198,11 @@ extension MenuBarPresenter {
                 progress: loadEstimate(for: state).map { .fraction($0.fraction) } ?? .indeterminate)
         case .loadFailed:
             return MenuBarStatus(
-                title: "Model didn’t load", detail: "Nothing was lost", emphasis: .attention,
+                title: SpeechModelLoad.failed.status, detail: "Nothing was lost", emphasis: .attention,
                 action: fix, actionEmphasis: .attention)
         case .loadFailedAgain, .incomplete:
             return MenuBarStatus(
-                title: "Model is damaged", detail: "Download it again to repair it",
+                title: SpeechModelLoad.broken.status, detail: "Download it again to repair it",
                 emphasis: .attention, action: fix, actionEmphasis: .attention)
         case .notInstalled:
             let offline = "works offline after"

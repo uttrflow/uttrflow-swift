@@ -39,6 +39,8 @@ struct RestatementTests {
             ("need four loaves no make that five loaves", 3, 6, 1),
             ("meet at four no make that five", 3, 6, 2),
             ("book the blue room actually make that the green room", 4, 7, 1),
+            ("see you on tuesday the fourteenth no wait wednesday the fifteenth", 6, 8, 3),
+            ("by friday the twenty third actually make that monday the twenty sixth", 5, 8, 1),
         ]
     )
     func spokenCorrectionPhrasesAreTriggers(text: String, trigger: Int, restart: Int, start: Int) {

@@ -130,7 +130,10 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 !Self.closesAKeptOpening(
                     found, quoting: !openQuotes.isEmpty, at: position, until: keptOpeningUntil),
                 paired != nil
-                    || isUsed(found, at: position, in: live, of: draft, repeated: repeated),
+                    || isUsed(
+                        found, at: position, in: live, of: draft, repeated: repeated,
+                        commandArgument: literalHyphens
+                            && isCommandArgument(at: position, in: live, of: draft)),
                 isPaired(
                     found, at: position, in: live, of: draft, open: openBrackets,
                     quoting: !openQuotes.isEmpty, sentenceEnd: sentenceEnd ?? live.count,
@@ -221,10 +224,13 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
 
     /// Whether a mark name is used rather than mentioned, said as the verb, or said without evidence of a seam.
     private func isUsed(
-        _ found: SpokenCommand, at position: Int, in live: [Int], of draft: Draft, repeated: Set<Int>
+        _ found: SpokenCommand, at position: Int, in live: [Int], of draft: Draft, repeated: Set<Int>,
+        commandArgument: Bool = false
     ) -> Bool {
         // A bracket or a list comma in a dictated statement is part of its syntax, whatever word follows it.
         if isStatementSyntax(found, in: live, of: draft) { return true }
+        // A name joined by a dash after a program is typed, whatever word begins it: "my dash container".
+        if commandArgument { return !isVerb(found.words, at: position, in: live, of: draft) }
         return !MentionGuard.isMentioned(
             at: position, spanning: found.words.count, in: live, of: draft,
             reach: MentionGuard.phraseReach, kind: found.placement)
@@ -239,6 +245,17 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         else { return false }
         let words = live.map { CodeEditorCommandsPass.bare(draft.words[$0].text) }.filter { !$0.isEmpty }
         return NotationEvidence.isQueryStatement(words: words, destination: destination, region: region)
+    }
+
+    /// Whether the dash at `position` joins the parts of an argument typed after a program's name, which is never prose.
+    private func isCommandArgument(at position: Int, in live: [Int], of draft: Draft) -> Bool {
+        guard destination == .terminal, position > 1, position + 1 < live.count,
+            draft.shape(at: live[position]).key == "dash",
+            MentionGuard.determiners.contains(draft.shape(at: live[position - 1]).key),
+            draft.shape(at: live[position - 1]).suffix.isEmpty,
+            !isFunctionWordEvidence(draft.shape(at: live[position + 1]).key)
+        else { return false }
+        return TechnicalLexicon.isProgram(draft.shape(at: live[0]).key, in: .terminal)
     }
 
     /// Decides a sentence's two prose dashes around words as one, by word index: marks when either is used and both may stand there.
@@ -792,6 +809,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 || isCommaBracketed(before: next, spanning: length, in: live, of: draft)
                 || isPauseBracketed(before: next, spanning: length, in: live, of: draft)
                 || opensDeterminerClause(at: next, in: live, of: draft)
+                || isStoppedBeforeCapital(before: next, in: live, of: draft)
         case "-", "\u{2014}": return !closes(at: next, in: live, of: draft)
         default: return true
         }
@@ -814,6 +832,12 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             let before = draft.pause(before: live[next - length]), let after = draft.pause(before: live[next])
         else { return false }
         return before >= sentencePause && after >= sentencePause
+    }
+
+    /// Whether the recogniser stopped after the name and began the next sentence with a capital, which says the name closed its sentence.
+    private func isStoppedBeforeCapital(before next: Int, in live: [Int], of draft: Draft) -> Bool {
+        guard next > 0, next < live.count, draft.shape(at: live[next - 1]).suffix == "." else { return false }
+        return draft.words[live[next]].text.first(where: \.isLetter)?.isUppercase ?? false
     }
 
     /// Whether a determiner-led clause starts at `next`, so a full stop before it is a sentence boundary.

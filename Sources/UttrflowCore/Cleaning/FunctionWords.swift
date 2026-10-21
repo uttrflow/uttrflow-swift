@@ -14,10 +14,13 @@ public enum FunctionWords {
         return leadingOn.contains(key) || Restatement.contractedSubjects.contains(key)
     }
 
-    /// Whether a full stop the recogniser wrote after the word stands: "is", "are", "was" and "were" end "Yes, it is." and "Here they are."
+    /// Whether a full stop the recogniser wrote after the word stands: "is" ends "Yes, it is." and a stopped "for" or "with" ends a relative clause
     package static func closesWhenStopped(_ word: String) -> Bool {
         closing.contains(word.lowercased())
     }
+
+    /// Whether the word joins two alternatives or additions ("and", "or", "but", "nor"), so a sound-alike in its place says something else.
+    package static func isCoordinator(_ word: String) -> Bool { coordinators.contains(word.lowercased()) }
 
     /// Whether the small word carries meaning the rewrite must keep: who acts, whether it is possible or required, or where it goes.
     public static func isMeaningBearing(_ word: String) -> Bool {
@@ -45,7 +48,7 @@ public enum FunctionWords {
     /// Articles, possessives, conjunctions, prepositions that take an object, and the copula.
     static let leadingOn = words(in: .leadsOn)
 
-    /// The copulas a written stop after them is kept, since they end an elliptical answer or a relative clause.
+    /// The copulas and prepositions a written stop after them is kept, since they end an elliptical answer or a relative clause.
     static let closing = words(in: .closesWhenStopped)
 
     /// The words after "which is" that make the clause carry on the speaker's thought.
@@ -56,6 +59,9 @@ public enum FunctionWords {
 
     /// Conjunctions that open a clause which cannot stand as a sentence by itself ("if", "unless", "whereas").
     static let subordinators = words(in: .subordinator)
+
+    /// Conjunctions that join two alternatives or additions of equal rank.
+    static let coordinators = words(in: .coordinator)
 
     /// English words that ask for agreement when they close a Hindi sentence ("right", "okay", "no").
     static let closingTags = words(in: .closingTag)
@@ -108,7 +114,7 @@ public enum FunctionWords {
         case function, leadsOn, meaningBearing, caseSensitive, determiner, prose, subordinator, closingTag,
             auxiliary, boundaryDeterminer, neverLast, neverFronted, imperativeObject, bareVerbLeader, modal,
             commaPreposition, seamPreposition, httpMethod, multiplierComparison, closesWhenStopped,
-            relativeWhichTail
+            relativeWhichTail, coordinator
     }
 
     /// One small word and the lists it belongs to.

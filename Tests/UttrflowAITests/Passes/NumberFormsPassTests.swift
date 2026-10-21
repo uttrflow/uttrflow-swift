@@ -814,6 +814,27 @@ struct NumberFormsPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test(
+        "writes a dotted time with its meridiem attached, and the end of a from-to range, as a clock time",
+        .bug(id: 8058),
+        arguments: [
+            ("on the 21st of November at 2.30pm.", "on the 21st of November at 2:30pm."),
+            ("see you at 3.30pm tomorrow", "see you at 3:30pm tomorrow"),
+            ("the call is 9.15am sharp", "the call is 9:15am sharp"),
+            ("we meet from 10 to 11.30 in the main room", "we meet from 10 to 11:30 in the main room"),
+            ("open between 9 and 11.30 daily", "open between 9 and 11:30 daily"),
+            ("open from 9.30 to 11.30 daily", "open from 9:30 to 11:30 daily"),
+            ("it grew from 10 to 11.30 percent", "it grew from 10 to 11.30%"),
+            ("it cost from 10 to 11.30 dollars", "it cost from 10 to 11.30 dollars"),
+            ("he ran 2.30pmx", "he ran 2.30pmx"),
+            ("the ratio went to 11.30", "the ratio went to 11.30"),
+            ("from 10, to 11.30", "from 10, to 11.30"),
+        ]
+    )
+    func attachedMeridiemAndRangeEndTimes(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     /// A run of three or more single digits is a digit string, never a clock time; a clock time needs a cue or a non-digit-run minute.
     @Test(
         "writes single-digit runs as a digit string",

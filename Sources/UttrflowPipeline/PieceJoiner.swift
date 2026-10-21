@@ -407,12 +407,19 @@ enum PieceJoiner {
             && isSpokenGroup(first.core)
     }
 
-    /// Whether a numeral ends a piece and a currency or unit word opens the next, as "10" | "dollars": the quantity is one phrase.
+    /// Whether a numeral ends a piece and the next opens on what it counts, "10" | "dollars" or "30" | "degrees": one phrase.
     private static func numberTakesUnit(_ last: WordShape, _ first: WordShape) -> Bool {
-        guard first.prefix.isEmpty, last.suffix.isEmpty || last.suffix == ".",
-            integer(last.core) != nil, NumberFormsPass.seamUnits.contains(first.key)
+        guard first.prefix.isEmpty, last.suffix.isEmpty || last.suffix == ".", integer(last.core) != nil
         else { return false }
-        return true
+        return NumberFormsPass.seamUnits.contains(first.key) || Quantities.isMinorUnit(first.key)
+            || isCountedNoun(first.key, after: last.core)
+    }
+
+    /// Whether the tagger reads the word as a plural noun straight after the numeral, as in "30 degrees".
+    private static func isCountedNoun(_ word: String, after numeral: String) -> Bool {
+        let words = [numeral, word]
+        return LexicalClass.tag(ofWordAt: 1, in: words) == .noun
+            && LexicalClass.lemma(ofWordAt: 1, in: words).map { $0.lowercased() != word } ?? false
     }
 
     /// Whether the recognizer heard the preceding piece end on a number scale word.

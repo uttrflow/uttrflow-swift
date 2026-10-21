@@ -1,3 +1,5 @@
+import Foundation
+
 /// What a trigger phrase needs to see before it takes anything back, so an everyday word is not mistaken for a correction.
 public enum RestatementEvidence: String, Decodable, Sendable, Equatable {
     /// Two halves of the same shape: an aligned anchor, two numbers, or one content word replaced in the same slot.
@@ -91,10 +93,35 @@ public enum Restatement {
         return nil
     }
 
-    /// Where the discarded half starts, or nil when the halves do not match in shape.
+    /// Where the discarded half starts, or nil when the halves do not match in shape or the restart opens a new clause.
     public static func discardedStart(
         before trigger: Int, after restart: Int, in live: [Int], of draft: Draft,
         asksForLayout: LayoutDecision = { _, _, _, _ in true }
+    ) -> Int? {
+        guard
+            let start = matchedStart(
+                before: trigger, after: restart, in: live, of: draft, asksForLayout: asksForLayout),
+            !opensClause(start..<trigger, at: restart, in: live, of: draft)
+        else { return nil }
+        return start
+    }
+
+    /// Whether the restart says as many words as were taken back and a copula follows them, so it is the subject of a clause of its own and joins a lead no copula closed as a second predicate.
+    private static func opensClause(
+        _ discarded: Range<Int>, at restart: Int, in live: [Int], of draft: Draft
+    ) -> Bool {
+        let key = { (position: Int) in draft.shape(at: live[position]).key }
+        let copula = restart + discarded.count
+        guard discarded.lowerBound > 0, !endsSentence(discarded.lowerBound - 1, in: live, of: draft),
+            copula < live.count, copulas.contains(key(copula)),
+            !discarded.contains(where: { copulas.contains(key($0)) })
+        else { return false }
+        return !(restart..<copula).contains { draft.shape(at: live[$0]).endsClause }
+    }
+
+    private static func matchedStart(
+        before trigger: Int, after restart: Int, in live: [Int], of draft: Draft,
+        asksForLayout: LayoutDecision
     ) -> Int? {
         guard trigger > 0 else { return nil }
         let earliest = max(0, trigger - reach)
@@ -126,6 +153,7 @@ public enum Restatement {
             before: trigger, after: restart, evidence: evidence, in: live, of: draft)
         let unanchored =
             replacedHeadStart(before: trigger, after: restart, evidence: evidence, in: live, of: draft)
+            ?? restatedDateStart(before: trigger, after: restart, in: live, of: draft)
             ?? (replacesOneWord ? trigger - 1 : nil)
         // An everyday word that is also a trigger takes back a phrase only after a pause, or when the restart says the phrase over.
         let unpausedEveryday =
@@ -159,6 +187,32 @@ public enum Restatement {
             }
         }
         return unanchored
+    }
+
+    /// The English weekday names, as lower-cased word keys.
+    private static let weekdays: Set<String> = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "en_US_POSIX")
+        return Set(calendar.weekdaySymbols.map { $0.lowercased() })
+    }()
+
+    /// Where a date said as weekday, "the" and an ordinal is taken back whole when the restart says another such date.
+    private static func restatedDateStart(
+        before trigger: Int, after restart: Int, in live: [Int], of draft: Draft
+    ) -> Int? {
+        let key = { (position: Int) in draft.shape(at: live[position]).key }
+        guard restart + 2 < live.count, weekdays.contains(key(restart)), key(restart + 1) == "the",
+            NumberWords.ordinalLength((restart + 2..<live.count).map(key)[...]) != nil
+        else { return nil }
+        for length in 1...2 {
+            let start = trigger - length - 2
+            guard start >= 0, weekdays.contains(key(start)), key(start + 1) == "the",
+                NumberWords.ordinalLength((start + 2..<trigger).map(key)[...]) == length,
+                !(start..<trigger - 1).contains(where: { endsSentence($0, in: live, of: draft) })
+            else { continue }
+            return start
+        }
+        return nil
     }
 
     /// Where a content word is taken back when the restart replaces it and repeats every word after it ("red wala lo strike that blue wala lo").

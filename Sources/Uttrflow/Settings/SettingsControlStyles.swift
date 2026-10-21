@@ -89,6 +89,8 @@ struct SettingsSegmented: View {
 
 /// A long list behind a control that looks like the others; a `Menu`, since a pop-up's chrome is fixed.
 struct SettingsMenu: View {
+    /// What the row says the menu is for; the menu hides its own title, so VoiceOver needs this.
+    let label: String
     let options: [(id: String, title: String)]
     @Binding var selection: String
 
@@ -113,6 +115,7 @@ struct SettingsMenu: View {
                 Image(systemName: "chevron.down")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(PagePalette.faint)
+                    .accessibilityHidden(true)
             }
             .padding(.horizontal, 10)
             .frame(height: 28)
@@ -128,6 +131,8 @@ struct SettingsMenu: View {
         .buttonStyle(.plain)
         .menuIndicator(.hidden)
         .fixedSize()
+        .accessibilityLabel(label)
+        .accessibilityValue(options.first { $0.id == selection }?.title ?? selection)
     }
 }
 

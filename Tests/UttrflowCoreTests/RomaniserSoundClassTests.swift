@@ -29,7 +29,7 @@ struct RomaniserSoundClassTests {
         "conjunct": [
             ("क्षमा", "kshama"), ("लक्ष्य", "lakshya"), ("मित्र", "mitra"), ("पत्र", "patra"), ("ज्ञान", "gyaan"),
             ("विज्ञान", "vigyaan"), ("श्री", "shri"), ("श्रम", "shram"), ("द्वार", "dwaar"), ("स्वाद", "swaad"),
-            ("प्रेम", "prem"), ("क्रम", "kram"), ("पत्ता", "patta"), ("बच्चा", "baccha"), ("दिल्ली", "dilli"),
+            ("प्रेम", "prem"), ("क्रम", "kram"), ("पत्ता", "patta"), ("बच्चा", "baccha"), ("बिल्ली", "billi"),
             ("पक्का", "pakka"), ("खट्टा", "khatta"), ("अक्सर", "aksar"),
         ],
         "final halant": [("जगत्", "jagat"), ("विद्युत्", "vidyut"), ("सम्यक्", "samyak")],

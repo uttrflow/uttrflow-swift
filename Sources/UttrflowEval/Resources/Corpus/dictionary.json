@@ -193,5 +193,16 @@
     "expected": "The hum is 60 Hz and the tone is 4 Hz.",
     "doubtful": ["h z"],
     "dictionary": ["Zoe"]
+  },
+  {
+    "id": "dictionary-possessive-kept-7989",
+    "note": "A dictionary word said with a possessive ending is written in the entry's spelling with the ending kept.",
+    "addedFor": 7989,
+    "spoken": "we asked about the kubernetes's status and the kubernetes's version today",
+    "expected": "We asked about the Kubernetes's status and the Kubernetes's version today.",
+    "expectedExact": "We asked about the Kubernetes's status and the Kubernetes's version today.",
+    "mustKeep": ["Kubernetes's"],
+    "doubtful": ["kubernetes's"],
+    "dictionary": ["Kubernetes"]
   }
 ]
