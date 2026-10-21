@@ -4600,6 +4600,19 @@
     "repeated-continuation-kept@3",
     "repeated-continuation-kept@5",
     "repeated-continuation-kept@8",
+    "repeated-correction-restart-opens-clause@10",
+    "repeated-correction-restart-opens-clause@11",
+    "repeated-correction-restart-opens-clause@12",
+    "repeated-correction-restart-opens-clause@13",
+    "repeated-correction-restart-opens-clause@14",
+    "repeated-correction-restart-opens-clause@2",
+    "repeated-correction-restart-opens-clause@3",
+    "repeated-correction-restart-opens-clause@4",
+    "repeated-correction-restart-opens-clause@5",
+    "repeated-correction-restart-opens-clause@6",
+    "repeated-correction-restart-opens-clause@7",
+    "repeated-correction-restart-opens-clause@8",
+    "repeated-correction-restart-opens-clause@9",
     "repeated-frame-for-kept@2",
     "repeated-frame-for-kept@4",
     "repeated-frame-kept@3",
@@ -5731,5 +5744,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5711
+  "total" : 5724
 }

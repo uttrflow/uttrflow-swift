@@ -27,7 +27,10 @@ struct SelfCorrectionPassTests {
     @Test(
         "keeps a restart that opens a clause of its own, so no second predicate joins the lead",
         arguments: [
-            ("I'll take the red one, no, the blue one is better", "I'll take the red one, no, the blue one is better"),
+            (
+                "I'll take the red one, no, the blue one is better",
+                "I'll take the red one, no, the blue one is better"
+            ),
             (
                 "I'll take the red one, no, the blue one, no actually the green one is better",
                 "I'll take the blue one no actually the green one is better"
