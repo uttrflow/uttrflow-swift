@@ -551,6 +551,13 @@
     "mustNotAdd": ["red", "strike"]
   },
   {
+    "id": "repeated-correction-restart-opens-clause",
+    "spoken": "I'll take the red one, no, the blue one, no actually the green one is better",
+    "expected": "I'll take the blue one no actually the green one is better.",
+    "mustKeep": ["take", "green one is better"],
+    "mustNotAdd": ["red"]
+  },
+  {
     "id": "strike-that-as-an-order-kept",
     "spoken": "strike that match and light the candle",
     "expected": "Strike that match and light the candle.",
