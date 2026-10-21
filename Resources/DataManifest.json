@@ -258,10 +258,10 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "04a28880ecac69a00c3439870d129959601bdf1909ae6940bd06d310abaa9bce",
+      "sha256": "c02d92f001b5f2b5be0724e035fc6d44737f25b7ef26ee6513c22cd1b29401fd",
       "path": "Sources/UttrflowCore/Resources/Tables/function-words.json",
       "origin": "authored",
-      "bytes": 16576
+      "bytes": 16773
     },
     {
       "licence": "MIT",
@@ -450,11 +450,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "db5fdf14c7de3991f578345bc58945fae3a98b57f6667fc7cf8075b3d9c9cce5",
+      "sha256": "6d90c307874f74c841afd1274bfb8efec40f5db7508a9681ce2cd3c3e165dc26",
       "path": "Sources/UttrflowEval/Resources/Corpus/everyday.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 69301,
+      "bytes": 70278,
       "licence": "MIT"
     },
     {

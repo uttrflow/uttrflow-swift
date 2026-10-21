@@ -121,6 +121,27 @@ struct SentenceBoundaryPassTests {
         #expect(cleaned(input) == expected)
     }
 
+    @Test(
+        "keeps the stop after a stranded preposition or a greeting's address, and the next sentence's capital",
+        .bug(id: 8106),
+        arguments: [
+            ("This is all I can think of. Thanks.", "This is all I can think of. Thanks."),
+            ("It's about the people you work with. Thanks.", "It's about the people you work with. Thanks."),
+            ("That is what I was looking for. See you soon.", "That is what I was looking for. See you soon."),
+            (
+                "Hi all. Quick reminder that the office is closed.",
+                "Hi all. Quick reminder that the office is closed."
+            ),
+            (
+                "Thanks all. Quick reminder that the office is closed.",
+                "Thanks all. Quick reminder that the office is closed."
+            ),
+            ("We need the color of. The sky at noon", "We need the color of the sky at noon."),
+        ])
+    func keepsStopAfterClosedClause(input: String, expected: String) {
+        #expect(cleaned(input) == expected)
+    }
+
     @Test("keeps a subject-bearing independent sentence after the stop")
     func keepsIndependentSentence() {
         #expect(cleaned("I left. She arrived") == "I left. She arrived.")

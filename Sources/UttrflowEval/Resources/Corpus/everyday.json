@@ -1905,5 +1905,23 @@
     "expected": "We expect 200 to 300 people.",
     "mustKeep": ["200", "300"],
     "addedFor": 7936
+  },
+  {
+    "id": "greeting-address-keeps-recogniser-stop",
+    "note": "A greeting closed on its address is a sentence, so the stop the recogniser wrote after it stays.",
+    "spoken": "Hi all. Quick reminder that the office is closed on Monday.",
+    "expected": "Hi all. Quick reminder that the office is closed on Monday.",
+    "expectedExact": "Hi all. Quick reminder that the office is closed on Monday.",
+    "mustKeep": ["Hi all.", "Quick reminder"],
+    "addedFor": 8106
+  },
+  {
+    "id": "stranded-preposition-keeps-recogniser-stop",
+    "note": "A relative clause ending on its preposition is finished, so the stops the recogniser wrote after it stay.",
+    "spoken": "This is all I can think of. That is the city she comes from.",
+    "expected": "This is all I can think of. That is the city she comes from.",
+    "expectedExact": "This is all I can think of. That is the city she comes from.",
+    "mustKeep": ["think of.", "comes from."],
+    "addedFor": 8106
   }
 ]
