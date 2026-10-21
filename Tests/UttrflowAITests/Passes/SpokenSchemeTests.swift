@@ -43,4 +43,45 @@ struct SpokenSchemeTests {
         let spoken = "aws s3 ls s3 colon slash slash bucket"
         #expect(cleaned(spoken, by: prose) != "aws s3 ls s3://bucket")
     }
+
+    @Test(
+        "writes any scheme before a host the words show is one, in every destination",
+        .bug(id: 7917),
+        arguments: [
+            (
+                "mongodb colon slash slash localhost colon twenty seven thousand seventeen",
+                "mongodb://localhost:27017"
+            ),
+            (
+                "ws colon slash slash localhost colon eight zero eight zero slash socket",
+                "ws://localhost:8080/socket"
+            ),
+            ("ftp colon slash slash files dot example dot com slash pub", "ftp://files.example.com/pub"),
+            ("ssh colon slash slash ten dot zero dot zero dot one", "ssh://10.0.0.1"),
+        ]
+    )
+    func writesSchemesBeforeKnownHosts(input: String, expected: String) {
+        #expect(cleaned(input, by: prose) == expected)
+        #expect(cleaned(input, by: terminal) == expected)
+    }
+
+    @Test(
+        "writes the user said before the host's at",
+        .bug(id: 7917),
+        arguments: [
+            (
+                "postgres colon slash slash app at db dot example dot com slash orders",
+                "postgres://app@db.example.com/orders"
+            ),
+            (
+                "psql postgres colon slash slash app at localhost colon five four three two",
+                "psql postgres://app@localhost:5432"
+            ),
+            ("https colon slash slash sam at example dot com", "https://sam@example.com"),
+        ]
+    )
+    func writesUserInfo(input: String, expected: String) {
+        #expect(cleaned(input, by: prose) == expected)
+        #expect(cleaned(input, by: terminal) == expected)
+    }
 }

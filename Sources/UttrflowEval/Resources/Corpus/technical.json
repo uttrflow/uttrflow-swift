@@ -1520,5 +1520,16 @@
     "destination": "terminal",
     "expectedExact": "docker run --name my-container nginx",
     "addedFor": 7942
+  },
+  {
+    "id": "code-editor-connection-uri",
+    "note": "a scheme other than http before a known host is a URL in a code editor too, with the user said before at",
+    "spoken": "postgres colon slash slash app at db dot example dot com slash orders",
+    "expected": "postgres://app@db.example.com/orders",
+    "mustKeep": ["postgres://app@db.example.com/orders"],
+    "context": {"applicationName": "Visual Studio Code", "bundleIdentifier": "com.microsoft.VSCode"},
+    "destination": "codeEditor",
+    "expectedExact": "postgres://app@db.example.com/orders",
+    "addedFor": 7917
   }
 ]
