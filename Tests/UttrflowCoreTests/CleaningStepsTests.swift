@@ -47,6 +47,13 @@ struct CleaningStepsTests {
         }
     }
 
+    @Test("a step's line quotes its trigger words with the same curly quotes as its example")
+    func detailQuotesAreCurly() {
+        for step in CleaningSteps.offered {
+            #expect(!step.detail.contains("\""), "\(step.name)")
+        }
+    }
+
     @Test("a step nobody offers is named by its identifier rather than by nothing")
     func unknownStepName() {
         #expect(CleaningSteps.step(.firstWord) == nil)

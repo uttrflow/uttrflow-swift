@@ -333,6 +333,13 @@ struct HistoryRetentionTests {
         #expect(page.retentionNotice.link.intent == .go(.settings(.privacy)))
     }
 
+    /// The link's title is its accessibility name, so Voice Control can click it by what it reads.
+    @Test("the link to the privacy settings is named as Insights names it")
+    func noticeLinkTitle() {
+        let page = HistoryFixture.page(entries: [])
+        #expect(page.retentionNotice.link.title == "Change in Settings › Privacy")
+    }
+
     @Test("the notice says text kept always stays until it is deleted")
     func noticeWhenKeptAlways() {
         let page = HistoryFixture.page(entries: [])
