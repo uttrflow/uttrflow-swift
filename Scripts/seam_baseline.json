@@ -1401,6 +1401,20 @@
     "hinglish-devanagari-english-months@7",
     "hinglish-devanagari-english-months@8",
     "hinglish-devanagari-english-months@9",
+    "hinglish-devanagari-given-names@1",
+    "hinglish-devanagari-given-names@10",
+    "hinglish-devanagari-given-names@11",
+    "hinglish-devanagari-given-names@12",
+    "hinglish-devanagari-given-names@13",
+    "hinglish-devanagari-given-names@14",
+    "hinglish-devanagari-given-names@2",
+    "hinglish-devanagari-given-names@3",
+    "hinglish-devanagari-given-names@4",
+    "hinglish-devanagari-given-names@5",
+    "hinglish-devanagari-given-names@6",
+    "hinglish-devanagari-given-names@7",
+    "hinglish-devanagari-given-names@8",
+    "hinglish-devanagari-given-names@9",
     "hinglish-devanagari-loanwords-cancel-budget-update@1",
     "hinglish-devanagari-loanwords-cancel-budget-update@10",
     "hinglish-devanagari-loanwords-cancel-budget-update@11",
@@ -5731,5 +5745,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5711
+  "total" : 5725
 }
