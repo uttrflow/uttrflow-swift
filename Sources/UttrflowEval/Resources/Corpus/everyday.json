@@ -1861,5 +1861,23 @@
     "expectedExact": "Please open Visual Studio Code and then the Terminal app.",
     "mustKeep": ["Visual Studio Code"],
     "addedFor": 8047
+  },
+  {
+    "id": "dotted-time-with-attached-meridiem",
+    "note": "a half-hour time the recogniser writes with a full stop and a meridiem joined to it is one clock time",
+    "spoken": "Our appointment is on the twenty first of November at 2.30pm.",
+    "expected": "Our appointment is on the 21st of November at 2:30pm.",
+    "expectedExact": "Our appointment is on the 21st of November at 2:30pm.",
+    "mustKeep": ["2:30pm"],
+    "addedFor": 8058
+  },
+  {
+    "id": "dotted-time-ends-a-from-to-range",
+    "note": "the end of a from-to range whose start is an hour is a clock time like the start",
+    "spoken": "Our team meets every Tuesday from 10 to 11.30 in the main conference room.",
+    "expected": "Our team meets every Tuesday from 10 to 11:30 in the main conference room.",
+    "expectedExact": "Our team meets every Tuesday from 10 to 11:30 in the main conference room.",
+    "mustKeep": ["11:30"],
+    "addedFor": 8058
   }
 ]
