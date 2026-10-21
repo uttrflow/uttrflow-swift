@@ -164,13 +164,22 @@ public struct WordCorrectionEngine: Sendable {
     public static func spellings(of heard: String, in dictionary: PhoneticIndex) -> [DictionarySpelling] {
         let whole = dictionary.candidates(soundingLike: heard)
         guard !whole.contains(where: { $0.word == heard }) else { return [] }
-        var found = whole.map { DictionarySpelling(entry: $0, ending: "", heard: heard) }
         var words = heard.split(separator: " ").map(String.init)
-        guard let last = words.popLast(), let split = WordForms.nameEnding(of: last) else { return found }
+        guard let last = words.popLast(), let split = WordForms.nameEnding(of: last) else {
+            return whole.map { DictionarySpelling(entry: $0, ending: "", heard: heard) }
+        }
         // A name said with a plural or possessive ending is looked up without it, and the ending is reattached verbatim.
         let name = (words + [split.name]).joined(separator: " ")
         let named = dictionary.candidates(soundingLike: name)
         guard !named.contains(where: { $0.word == name }) else { return [] }
+        // An apostrophe makes no sound, so "kubernetes's" also sounds like the bare entry; the possessive is a spoken ending the spelling keeps.
+        let possessive = split.ending != "s"
+        let ending = Dictionary(named.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var found = whole.map { entry in
+            possessive && ending[entry.id] != nil
+                ? DictionarySpelling(entry: entry, ending: split.ending, heard: name)
+                : DictionarySpelling(entry: entry, ending: "", heard: heard)
+        }
         let taken = Set(whole.map(\.id))
         found += named.filter { !taken.contains($0.id) }.map {
             DictionarySpelling(entry: $0, ending: split.ending, heard: name)

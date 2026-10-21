@@ -868,6 +868,12 @@
     "dictionary-lower-case-start-messaging-4290@1",
     "dictionary-lower-case-start-messaging-4290@4",
     "dictionary-lower-case-start-messaging-4290@6",
+    "dictionary-possessive-kept-7989@1",
+    "dictionary-possessive-kept-7989@10",
+    "dictionary-possessive-kept-7989@2",
+    "dictionary-possessive-kept-7989@5",
+    "dictionary-possessive-kept-7989@6",
+    "dictionary-possessive-kept-7989@9",
     "dictionary-spelled-letters-e-g-8032@1",
     "dictionary-spelled-letters-e-g-8032@2",
     "dictionary-spelled-letters-e-g-8032@5",
@@ -5731,5 +5737,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5711
+  "total" : 5717
 }

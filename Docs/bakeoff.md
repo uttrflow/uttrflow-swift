@@ -10,9 +10,9 @@ and the scorer is `Scorer` (`Sources/UttrflowEval/Scorer.swift`). Why each row a
 
 ## The corpus
 
-**The corpus is 1,318 cases in sixteen categories** — `everyday` 263, `contextual` 252, `grammar` 34,
+**The corpus is 1,319 cases in sixteen categories** — `everyday` 263, `contextual` 252, `grammar` 34,
 `technical` 331, `multilingual` 181, `notARequest` 107, `oneLineField` 10, `secondLanguage` 40,
-`bareLiteral` 27, `commandInput` 8, `longInput` 4, `developerGenre` 25, `dictionary` 20,
+`bareLiteral` 27, `commandInput` 8, `longInput` 4, `developerGenre` 25, `dictionary` 21,
 `webDestination` 3, `homophone` 7, `hinglishReply` 6 — and everything in it is
 synthesised or written by hand. `Scripts/docs_audit.sh` checks this sentence against the files `all` reads and
 `RequestCorpus.swift`. The count of record for any run is the one `make bakeoff` prints in its
