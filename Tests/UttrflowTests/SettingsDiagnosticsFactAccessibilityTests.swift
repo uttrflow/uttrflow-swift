@@ -27,7 +27,8 @@ struct SettingsDiagnosticsFactAccessibilityTests {
         NSApplication.shared.finishLaunching()
         let row = DiagnosticsRow(
             title: "Microphone", detail: "Not allowed", state: .attention,
-            action: MainAction(title: "Open System Settings", intent: .recover(.openSystemSettings(.microphone))))
+            action: MainAction(
+                title: "Open System Settings", intent: .recover(.openSystemSettings(.microphone))))
         let window = NSWindow(
             contentRect: NSRect(x: -4_000, y: -4_000, width: 720, height: 120),
             styleMask: [.borderless], backing: .buffered, defer: false)
