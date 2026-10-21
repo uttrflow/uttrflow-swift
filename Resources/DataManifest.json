@@ -369,10 +369,10 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "bb93438105b213e1d96c5842048c61a72010632e505cff5c61442d633678528b",
+      "sha256": "74de60771fba39919c2ff7250efc0692828cfc8d567daef2cb7f567ffd866a8e",
       "path": "Sources/UttrflowCore/Resources/Tables/spoken-commands.json",
       "origin": "authored",
-      "bytes": 25859
+      "bytes": 25975
     },
     {
       "licence": "MIT",
