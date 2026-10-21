@@ -253,14 +253,16 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         return startsWithInitialism || digits.count >= 3
     }
 
-    /// A lower-case "v" or "x" before a dotted number is a version or architecture prefix, written without a space.
+    /// A lower-case "v" or "x" before a dotted number is a version or architecture prefix, written without a space; the number may end in a pre-release label, "1.2.3-rc.1".
     private static func versionPrefix(at position: Int, in live: [Int], draft: Draft) -> Draft? {
         guard position + 1 < live.count, live[position + 1] == live[position] + 1 else { return nil }
         let prefix = draft.shape(at: live[position])
         let number = draft.shape(at: live[position + 1])
+        let parts = number.key.split(separator: "-", maxSplits: 1, omittingEmptySubsequences: false)
         guard prefix.core == "v" || prefix.core == "x", prefix.suffix.isEmpty,
-            number.key.contains("."), number.key.first?.isNumber == true,
-            number.key.allSatisfy({ $0.isNumber || $0 == "." })
+            let version = parts.first, version.contains("."), version.first?.isNumber == true,
+            version.allSatisfy({ $0.isNumber || $0 == "." }),
+            parts.dropFirst().allSatisfy({ $0.allSatisfy { $0.isLetter || $0.isNumber || $0 == "." } })
         else { return nil }
         var draft = draft
         let written = LetterRun.written(
@@ -418,7 +420,8 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
 
     /// The letter a word names, where a cut-off is an unfinished word and names no letter.
     private static func letterName(_ shape: WordShape) -> String? {
-        shape.isCutOff ? nil : LetterRun.letter(named: shape.key)
+        // A letter after a dash is a command option, `-g`, whose letter is no spelling.
+        shape.isCutOff || shape.isOption ? nil : LetterRun.letter(named: shape.key)
     }
 
     /// Whether a run is evidence of spelling: three or more letter names, or a pair of bare single letters.

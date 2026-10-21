@@ -29,6 +29,31 @@ extension SpokenAddress {
         return SpokenAddress(length: length, text: first.prefix + root.text + path.text + last.suffix)
     }
 
+    /// Reads the path an ssh-style remote carries after its host, a "colon" and then a rooted or relative path: ":acme/widgets.git".
+    static func readRemotePath(
+        at place: Int, within run: Range<Int>, in live: [Int], of draft: Draft
+    ) -> SpokenAddress? {
+        guard place > run.lowerBound, place + 1 < run.upperBound else { return nil }
+        let colon = draft.shape(at: live[place])
+        guard colon.key == "colon", colon.prefix.isEmpty, colon.suffix.isEmpty,
+            draft.shape(at: live[place - 1]).suffix.isEmpty
+        else { return nil }
+        let start = place + 1
+        if let path = readPath(at: start, within: run, in: live, of: draft) {
+            return SpokenAddress(length: 1 + path.length, text: ":" + path.text)
+        }
+        guard let head = segment(at: start, within: run, in: live, of: draft) else { return nil }
+        var end = start + head.length
+        var text = head.text
+        while end + 1 < run.upperBound, draft.shape(at: live[end - 1]).suffix.isEmpty,
+            let next = nextSegment(at: end, within: run, in: live, of: draft)
+        {
+            text += "/" + next.text
+            end += next.length
+        }
+        return SpokenAddress(length: end - place, text: ":" + text)
+    }
+
     /// Reads the home mark and the number said right after it at a command line, a directory-stack entry: "tilde one" is "~1".
     static func readStackEntry(
         at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft, expecting: Expectation
@@ -83,12 +108,21 @@ extension SpokenAddress {
                     && (!TechnicalToken.wordLikeFileExtensions.contains($0)
                         || isFileCued(before: position, in: live, of: draft))
             } ?? false
-        guard announced || closed else { return nil }
+        // Two slashes after a later word say a path on their own, unless a command or function word heads it: "post slash api".
+        let said =
+            position > 0 && text.filter { $0 == "/" }.count > 1 && !runsOnPath(head.text)
+            && head.text.split(separator: ".").allSatisfy { FunctionWords.isContent(String($0)) }
+        guard announced || closed || said else { return nil }
         let (reference, used) = readReference(at: end, within: run, in: live, of: draft)
         end += used
         let first = draft.shape(at: live[position])
         let last = draft.shape(at: live[end - 1])
         return SpokenAddress(length: end - position, text: first.prefix + text + reference + last.suffix)
+    }
+
+    /// Whether a word names a program or a request method, which a path follows rather than starts with: "post slash api".
+    private static func runsOnPath(_ word: String) -> Bool {
+        TechnicalLexicon.isProgram(word.lowercased()) || FunctionWords.httpMethods.contains(word.lowercased())
     }
 
     /// One-word names the notation table writes as marks, which name a mark rather than a path segment.
@@ -156,7 +190,8 @@ extension SpokenAddress {
                     place += used
                 }
                 while let (grown, used, _) = growth(
-                    at: place, within: run, in: live, of: draft, side: .domain)
+                    at: place, within: run, in: live, of: draft, side: .domain),
+                    !endsInFlag(grown, at: place + used, within: run, in: live, of: draft)
                 {
                     piece += grown
                     place += used
@@ -164,12 +199,22 @@ extension SpokenAddress {
                 pieces.append(piece)
             }
             guard place + 1 < run.upperBound, draft.shape(at: live[place]).key == "dot",
-                !opensHiddenFolder(at: place, within: run, in: live, of: draft)
+                !opensHiddenFolder(at: place, within: run, in: live, of: draft),
+                !opensParentDirectory(at: place, within: run, in: live, of: draft)
             else { break }
             place += 1
         }
         guard !pieces.isEmpty else { return nil }
         return SpokenAddress(length: place - position, text: pieces.joined(separator: "."))
+    }
+
+    /// Whether a dash and one letter that close the path are an option letter said after it, not a hyphenated name: "hosts dash n".
+    private static func endsInFlag(
+        _ grown: String, at next: Int, within run: Range<Int>, in live: [Int], of draft: Draft
+    ) -> Bool {
+        guard grown.count == 2, grown.first == "-", grown.last?.isLetter == true else { return false }
+        guard next < run.upperBound else { return true }
+        return !["slash", "dot"].contains(draft.shape(at: live[next]).key)
     }
 
     /// The segment after its "slash", or a listed hidden folder a "dot" opens, with the words it used: "home dot ssh slash config".
@@ -185,8 +230,21 @@ extension SpokenAddress {
             place + 2 < run.upperBound && draft.shape(at: live[place + 1]).key == "colon"
             && draft.shape(at: live[place + 1]).suffix.isEmpty
         let start = place + 1 + (parameter ? 1 : 0)
+        // Two spoken dots between slashes name the parent directory again: "dot dot slash dot dot slash build".
+        if !parameter, opensParentDirectory(at: start, within: run, in: live, of: draft) {
+            return SpokenAddress(length: start - place + 2, text: "..")
+        }
         guard let next = segment(at: start, within: run, in: live, of: draft) else { return nil }
         return SpokenAddress(length: start - place + next.length, text: (parameter ? ":" : "") + next.text)
+    }
+
+    /// Whether two spoken dots and a "slash" start here, a parent directory a command word must not take a dot from.
+    private static func opensParentDirectory(
+        at place: Int, within run: Range<Int>, in live: [Int], of draft: Draft
+    ) -> Bool {
+        place + 2 < run.upperBound
+            && (place..<(place + 2)).allSatisfy { draft.shape(at: live[$0]).key == "dot" }
+            && draft.shape(at: live[place + 2]).key == "slash"
     }
 
     /// Whether a "dot" opens a hidden folder the lexicon lists that a "slash" follows, rather than joining two labels.
