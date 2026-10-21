@@ -22,6 +22,12 @@ public final class SharedModelInstall: OnboardingModelInstaller {
     /// Whether the model is on disk.
     public nonisolated var isInstalled: Bool { installer.isInstalled }
 
+    /// What the download weighs, as the wrapped installer knows it.
+    public nonisolated var downloadBytes: Int64? { installer.downloadBytes }
+
+    /// Whether the one download is running, whichever window started it.
+    public var isDownloading: Bool { isRunning }
+
     /// Whether an install is running now.
     public var isRunning: Bool { running != nil }
 

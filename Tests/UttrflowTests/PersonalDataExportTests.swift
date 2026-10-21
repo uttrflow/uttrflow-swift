@@ -11,9 +11,10 @@ struct PersonalDataExportTests {
     func disclosesPlaintextAndExclusionChoice() {
         #expect(PersonalDataExport.disclosureMessage.contains("not encrypted"))
         #expect(PersonalDataExport.disclosureMessage.contains("exclude snippets"))
+        #expect(PersonalDataExport.disclosureMessage.contains("recognised credentials"))
     }
 
-    @Test("excludes snippets containing recognized credentials when chosen")
+    @Test("excludes snippets containing recognised credentials when chosen")
     func excludesRecognizedCredentialSnippets() {
         let archive = PersonalDataExport.archive(
             dictionary: [],
