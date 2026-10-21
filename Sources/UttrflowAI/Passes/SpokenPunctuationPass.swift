@@ -610,6 +610,12 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 break
             }
             let letter = capital ? shape.core.uppercased() : shape.core
+            // A "v" before a dotted number prefixes a version tag, `git tag -a v1.4.2`, not another flag letter.
+            if !letters.isEmpty, !capital, shape.key == "v",
+                Self.opensDottedNumber(at: next + 1, in: live, of: draft)
+            {
+                break
+            }
             // A letter said again at once is a stammer, so joining it would write a word never said.
             if letters.hasSuffix(letter) { break }
             letters += letter
@@ -617,6 +623,16 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             if shape.core.utf8.count > 1 || !shape.suffix.isEmpty { break }
         }
         return letters.isEmpty ? nil : (letters, next - position - 1)
+    }
+
+    /// Whether the words from `position` say a number with a point in it, `one point four` or `1.4.2`.
+    private static func opensDottedNumber(at position: Int, in live: [Int], of draft: Draft) -> Bool {
+        guard position < live.count else { return false }
+        let first = draft.shape(at: live[position])
+        if first.core.first?.isNumber == true, first.core.contains(".") { return true }
+        guard NumberWords.isNumber(first.key), first.suffix.isEmpty, position + 1 < live.count
+        else { return false }
+        return draft.shape(at: live[position + 1]).key == "point"
     }
 
     /// A spoken or written whole number after an option marker, `head -20`, and how many words said it.
