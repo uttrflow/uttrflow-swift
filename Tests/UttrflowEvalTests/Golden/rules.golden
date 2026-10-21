@@ -1450,6 +1450,7 @@ terminal-command-keeps-case	npm run build
 terminal-command-keeps-case-mid-pipeline	ls -la
 terminal-command-keeps-no-stop	git status
 terminal-command-writes-double-dash-flag	git push --force
+terminal-possessive-name-keeps-hyphen	docker run --name my-container nginx
 terminal-prose-at-stays	the server is slow at peak
 terminal-search-alacritty	out of memory
 terminal-search-ghostty	no such file

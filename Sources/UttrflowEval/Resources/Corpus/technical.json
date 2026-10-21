@@ -1506,5 +1506,19 @@
     "destination": "terminal",
     "expectedExact": "chmod u plus x deploy.sh",
     "addedFor": 8015
+  },
+  {
+    "id": "terminal-possessive-name-keeps-hyphen",
+    "note": "a name that begins with my is one argument at a command line, so the dash joins it",
+    "spoken": "docker run dash dash name my dash container nginx",
+    "expected": "docker run --name my-container nginx",
+    "mustKeep": ["--name", "my-container"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "expectedExact": "docker run --name my-container nginx",
+    "addedFor": 7942
   }
 ]
