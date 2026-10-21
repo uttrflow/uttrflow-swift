@@ -119,6 +119,53 @@ public struct RecordedEditor: Sendable {
         return planned
     }
 
+    /// Rewrites the span the newest edit wrote with the text `plan` makes of what it took out and wrote; a declined plan writes nothing.
+    public func correct<Planned: Sendable>(
+        _ plan: @escaping @Sendable (_ original: String, _ written: String) -> Planned?,
+        writing text: @escaping @Sendable (Planned) -> String
+    ) async throws(TextInsertionError) -> Planned {
+        let focus = focus
+        let ledger = ledger
+        let history = history
+        return try await AccessibilityThread.run { () throws(TextInsertionError) in
+            let focused = focus.focusedFieldIdentity()
+            let secure = focus.focusedFieldIsSecure()
+            guard let field = focus.focusedTextField() as? any RecordedSpanEditing else {
+                throw .insertionRejected(description: "the field cannot edit by range")
+            }
+            return try Self.correct(
+                plan, writing: text, on: field, ledger: ledger, history: history, focused: focused,
+                isSecure: secure)
+        }
+    }
+
+    /// Corrects the newest edit in `field`; one undo afterwards restores what the first edit took out.
+    static func correct<Planned>(
+        _ plan: (_ original: String, _ written: String) -> Planned?, writing text: (Planned) -> String,
+        on field: any RecordedSpanEditing, ledger: InsertionLedger, history: EditHistory,
+        focused: FieldIdentity?, isSecure: Bool
+    ) throws(TextInsertionError) -> Planned {
+        guard let previous = history.newest(in: focused) else {
+            throw .insertionRejected(description: "there is no recent edit to correct")
+        }
+        guard let planned = plan(previous.removed, previous.written.text) else {
+            throw .insertionRejected(description: "the last edit is not one that can be corrected")
+        }
+        let redo: EditUndo
+        do {
+            redo = try field.edit(previous.target(focused: focused, isSecure: isSecure), to: text(planned))
+        } catch {
+            ledger.clear()
+            throw error
+        }
+        _ = history.take(in: focused)
+        history.note(
+            EditUndo(written: redo.written, removed: previous.removed, before: redo.before, after: redo.after)
+        )
+        ledger.clear()
+        return planned
+    }
+
     /// Applies `edit` to `field` and returns its notice; split out so it runs against a fake field in tests.
     @discardableResult
     static func apply(
