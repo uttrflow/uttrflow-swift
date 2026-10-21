@@ -42,7 +42,9 @@ struct ShellOperatorTests {
 
     @Test("joins a variable or an option to its value with an equals sign")
     func assignments() {
-        #expect(run("export NODE underscore ENV equals production", in: .terminal) == "export NODE_ENV=production")
+        #expect(
+            run("export NODE underscore ENV equals production", in: .terminal) == "export NODE_ENV=production"
+        )
         #expect(run("git log dash dash since equals yesterday", in: .terminal) == "git log --since=yesterday")
         #expect(run("FOO equals bar make", in: .terminal) == "FOO=bar make")
         let prose = "hard work equals success over a long period"
