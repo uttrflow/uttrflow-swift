@@ -24,6 +24,24 @@ public enum NumberWords {
         let rank: Rank
     }
 
+    /// The ordinal words and their values, such as "third" and "thirtieth".
+    package static let ordinals: [String: Int] = [
+        "first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5, "sixth": 6, "seventh": 7,
+        "eighth": 8, "ninth": 9, "tenth": 10, "eleventh": 11, "twelfth": 12, "thirteenth": 13,
+        "fourteenth": 14, "fifteenth": 15, "sixteenth": 16, "seventeenth": 17, "eighteenth": 18,
+        "nineteenth": 19, "twentieth": 20, "thirtieth": 30, "fortieth": 40, "fiftieth": 50,
+        "sixtieth": 60, "seventieth": 70, "eightieth": 80, "ninetieth": 90,
+    ]
+
+    /// How many words of `keys` spell an ordinal such as "fifteenth" or "twenty third", or nil when they do not start with one.
+    package static func ordinalLength(_ keys: ArraySlice<String>) -> Int? {
+        guard let first = keys.first else { return nil }
+        if ordinals[first] != nil { return 1 }
+        guard tens[first] != nil, let unit = keys.dropFirst().first, let value = ordinals[unit], value < 10
+        else { return nil }
+        return 2
+    }
+
     /// The value of a single number word, or nil for any other word.
     public static func value(of key: String) -> Int? {
         units[key] ?? teens[key] ?? tens[key] ?? scales[key]

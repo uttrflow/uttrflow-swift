@@ -634,6 +634,20 @@
     "mustNotAdd": ["20:24"]
   },
   {
+    "id": "weekday-and-ordinal-date-restated",
+    "spoken": "see you on tuesday the fourteenth no wait wednesday the fifteenth",
+    "expected": "See you on Wednesday the fifteenth.",
+    "mustKeep": ["Wednesday the fifteenth"],
+    "mustNotAdd": ["Tuesday", "fourteenth"]
+  },
+  {
+    "id": "weekday-and-spoken-date-restated-with-make-that",
+    "spoken": "by friday the twenty third actually make that monday the twenty sixth",
+    "expected": "By Monday the 26th.",
+    "mustKeep": ["Monday the 26th"],
+    "mustNotAdd": ["Friday", "20"]
+  },
+  {
     "id": "or-rather-before-a-negation-kept",
     "spoken": "would you like to stay or rather not",
     "expected": "Would you like to stay or rather not?",

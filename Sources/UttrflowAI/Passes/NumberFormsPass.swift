@@ -28,13 +28,7 @@ public struct NumberFormsPass: PieceCleaningPass {
         "january": 31, "february": 29, "march": 31, "april": 30, "may": 31, "june": 30,
         "july": 31, "august": 31, "september": 30, "october": 31, "november": 30, "december": 31,
     ]
-    package static let ordinalUnits: [String: Int] = [
-        "first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5, "sixth": 6, "seventh": 7,
-        "eighth": 8, "ninth": 9, "tenth": 10, "eleventh": 11, "twelfth": 12, "thirteenth": 13,
-        "fourteenth": 14, "fifteenth": 15, "sixteenth": 16, "seventeenth": 17, "eighteenth": 18,
-        "nineteenth": 19, "twentieth": 20, "thirtieth": 30, "fortieth": 40, "fiftieth": 50,
-        "sixtieth": 60, "seventieth": 70, "eightieth": 80, "ninetieth": 90,
-    ]
+    package static let ordinalUnits = NumberWords.ordinals
     /// Other currencies and units with no second meaning; "pound", "feet" and "second" stay out.
     static let measures: Set<String> = [
         "yen", "dirham", "dirhams", "franc", "francs", "kilometre", "kilometres", "kilometer", "kilometers",
