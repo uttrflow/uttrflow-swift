@@ -310,5 +310,15 @@
     "expected": "Project ki deadline 15 March hai aur release September mein hai.",
     "mustKeep": ["March", "September"],
     "mustNotAdd": ["maarch", "sitanbar"]
+  },
+  {
+    "id": "hinglish-devanagari-given-names",
+    "note": "Given names and a city the recogniser writes in Devanagari keep a capital in running Hinglish, as a name it wrote in Latin does.",
+    "language": "hi",
+    "addedFor": 8060,
+    "spoken": "मेरा नाम नवीन है और प्रिया रोहन और मीना के साथ दिल्ली जा रही है",
+    "expected": "Mera naam Naveen hai aur Priya Rohan aur Meena ke saath Delhi ja rahi hai.",
+    "mustKeep": ["Naveen", "Priya", "Rohan", "Meena", "Delhi"],
+    "mustNotAdd": ["naveen", "priya", "rohan", "meena", "deli"]
   }
 ]
