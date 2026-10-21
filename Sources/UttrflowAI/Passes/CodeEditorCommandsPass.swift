@@ -18,6 +18,9 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
     /// What the screen said for the notation, to which the speech's own cues are added.
     var evidence = Applicability(cues: [.caretInCode])
 
+    /// Whether the stammer step is on, so a doubled word the pause marks hid is cut as a stammer once they come off.
+    var cutsStammers = false
+
     func apply(_ draft: Draft) -> Draft {
         let words = draft.presentIndices.map { Self.bare(draft.words[$0].text) }
         let screen = NotationEvidence.applicability(
@@ -32,6 +35,8 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
             ? Applicability(cues: [.markupTag]) : NotationEvidence.applicability(of: words, given: screen)
         guard evidence.activates(at: NotationEvidence.activationThreshold) else { return draft }
         var draft = NotationInput.settled(draft, by: Self.id)
+        // A second run reads the words without their pause marks, so the first must judge a stammer on them too.
+        if cutsStammers { draft = StammersPass().apply(draft) }
         var slot = markup?.slot
         var position = 0
         while position < draft.presentIndices.count {

@@ -15,7 +15,7 @@ struct IllegalMarkSequencePropertyTests {
     }
 
     /// Failures that stand today, as destination and property with the issue that fixes each; the list only shrinks.
-    static let knownFaults: [String: Int] = ["terminal notIdempotent": 7327]
+    static let knownFaults: [String: Int] = [:]
 
     static let seeds = Seeded.seeds(0..<150)
 
