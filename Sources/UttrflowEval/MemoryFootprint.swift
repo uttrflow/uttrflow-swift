@@ -1,5 +1,6 @@
 // Reads and polls this process's memory use.
 import Foundation
+import Synchronization
 
 /// Footprint and resident size together; only the second shows mapped weights. See Docs/eval-profiling.md.
 public struct MemoryReading: Sendable, Equatable {
@@ -73,53 +74,65 @@ public enum PeakMemory {
         during operation: () async throws(Failure) -> Success
     ) async throws(Failure) -> (value: Success, peak: MemoryReading?) {
         let recorder = Recorder(read: read)
-        await recorder.observe()
+        recorder.observe()
         let poller = Task {
             while (try? await clock.sleep(for: interval)) != nil {
                 // Checked after the sleep too: a reading after cancellation belongs to the caller's next work.
                 guard !Task.isCancelled else { break }
-                await recorder.observe()
+                recorder.observe()
             }
         }
-        // Cancelled and awaited on both paths, so a stray poller cannot bill a reading to finished work.
+        // Stopped by a flag the poller's reads honour, never by awaiting it, which would queue behind other work.
         let value: Success
         do {
             value = try await operation()
         } catch {
-            await stop(poller)
+            poller.cancel()
+            recorder.stop()
             throw error
         }
-        await stop(poller)
+        poller.cancel()
 
         // One last reading after the work, so a peak in the final milliseconds does not fall between polls.
-        await recorder.observe()
-        return (value, await recorder.peak)
-    }
-
-    private static func stop(_ poller: Task<Void, Never>) async {
-        poller.cancel()
-        await poller.value
+        recorder.observe()
+        return (value, recorder.stop())
     }
 }
 
-/// Keeps the highest of each figure seen; an actor because the poller and the caller both write.
-private actor Recorder {
+/// Keeps the highest of each figure seen; locked because the poller and the caller both write.
+private final class Recorder: Sendable {
+    private struct State {
+        var peak: MemoryReading?
+        var stopped = false
+    }
+
     private let read: @Sendable () -> MemoryReading?
-    private(set) var peak: MemoryReading?
+    private let state = Mutex(State())
 
     init(read: @escaping @Sendable () -> MemoryReading?) {
         self.read = read
     }
 
     func observe() {
-        guard let now = read() else { return }
-        guard let highest = peak else {
-            peak = now
-            return
+        state.withLock { state in
+            guard !state.stopped, let now = read() else { return }
+            guard let highest = state.peak else {
+                state.peak = now
+                return
+            }
+            state.peak = MemoryReading(
+                footprintBytes: max(highest.footprintBytes, now.footprintBytes),
+                residentBytes: max(highest.residentBytes, now.residentBytes)
+            )
         }
-        peak = MemoryReading(
-            footprintBytes: max(highest.footprintBytes, now.footprintBytes),
-            residentBytes: max(highest.residentBytes, now.residentBytes)
-        )
+    }
+
+    /// Ends observation for good and returns the highest figures seen.
+    @discardableResult
+    func stop() -> MemoryReading? {
+        state.withLock { state in
+            state.stopped = true
+            return state.peak
+        }
     }
 }
