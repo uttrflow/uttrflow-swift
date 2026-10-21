@@ -84,6 +84,8 @@ struct SpokenAddress: Equatable {
         // A ratio is read first, because its first number may be "one", which also opens a noun phrase.
         let run = position..<sentenceEnd
         if let ratio = readRatio(at: position, within: run, in: live, of: draft) { return ratio }
+        // Four numbers joined by "dot" are an address even where the first is "one", which also opens a noun phrase.
+        if let host = readNumericHost(at: position, within: run, in: live, of: draft) { return host }
         // A determiner opens a noun phrase, so the symbol name after it is a word, but at a prompt "a slash b" is a path.
         let startsPath =
             expecting.contains(.paths) && position + 1 < sentenceEnd
@@ -101,7 +103,6 @@ struct SpokenAddress: Equatable {
         if let url = readExplicitURL(at: position, within: run, in: live, of: draft, expecting: expecting) {
             return url
         }
-        if let host = readNumericHost(at: position, within: run, in: live, of: draft) { return host }
         if let address = readWebAddress(at: position, within: run, in: live, of: draft) { return address }
         if let entry = readStackEntry(at: position, within: run, in: live, of: draft, expecting: expecting) {
             return entry
@@ -114,6 +115,9 @@ struct SpokenAddress: Equatable {
         }
         if let identifier = readIdentifier(at: position, within: run, in: live, of: draft) {
             return identifier
+        }
+        if let glob = readGlobName(at: position, within: run, in: live, of: draft, expecting: expecting) {
+            return glob
         }
         if let file = readFileName(at: position, within: run, in: live, of: draft) { return file }
         if let tagged = readTagged(at: position, within: run, in: live, of: draft, expecting: expecting) {
@@ -157,8 +161,9 @@ struct SpokenAddress: Equatable {
                 guard place < run.upperBound, draft.shape(at: live[place]).key == "dot" else { return nil }
                 place += 1
             }
-            guard let (value, used) = number(at: place, within: run, in: live, of: draft), used > 0,
-                value <= 255
+            guard
+                let (value, used) = octet(
+                    at: place, within: run, in: live, of: draft, isLast: octets.count == 3)
             else {
                 return nil
             }
@@ -168,6 +173,32 @@ struct SpokenAddress: Equatable {
         return finishHost(
             octets.map(String.init).joined(separator: "."), from: position, hostEnd: place, within: run,
             in: live, of: draft)
+    }
+
+    /// One part of an IPv4 address and its word count, read as a number, "one twenty seven" or up to three spoken digits.
+    private static func octet(
+        at place: Int, within run: Range<Int>, in live: [Int], of draft: Draft, isLast: Bool
+    ) -> (value: Int, used: Int)? {
+        var candidates: [(value: Int, used: Int)] = []
+        if let plain = number(at: place, within: run, in: live, of: draft), plain.used > 0 {
+            candidates.append(plain)
+        }
+        let keys = (place..<run.upperBound).lazy.map { draft.shape(at: live[$0]).key }
+            .prefix { NumberWords.value(of: $0) != nil }
+        if let hundred = NumberWords.colloquialHundred(ArraySlice(keys)) {
+            candidates.append((hundred.value, hundred.count))
+        }
+        if let digits = spokenDigits(from: place, within: run, in: live, of: draft), digits.used <= 3,
+            let value = Int(digits.text)
+        {
+            candidates.append((value, digits.used))
+        }
+        return candidates.first { candidate in
+            guard candidate.value <= 255 else { return false }
+            let after = place + candidate.used
+            return isLast
+                || (after < run.upperBound && draft.shape(at: live[after]).key == "dot")
+        }
     }
 
     /// The host's port, path and query, read after `hostEnd`, written with the marks the first and last word stood with.
