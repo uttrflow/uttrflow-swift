@@ -1180,6 +1180,7 @@ shell-chmod-symbolic-mode	chmod u+x deploy.sh
 shell-go-package-pattern	go test ./...
 shell-option-said-as-one-word-java	java -version
 shell-option-said-as-one-word-tar	tar -xzf backup.tar.gz
+shell-port-said-as-two-halves	redis-cli -u redis://localhost:6379/0
 shell-redirect-spoken-greater-than	cat notes.txt > copy.txt
 short-yes	Yes.
 signed-temperature	Temperature fell to -5 degrees overnight.

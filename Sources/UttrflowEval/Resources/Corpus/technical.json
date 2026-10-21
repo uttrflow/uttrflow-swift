@@ -1520,5 +1520,16 @@
     "destination": "terminal",
     "expectedExact": "docker run --name my-container nginx",
     "addedFor": 7942
+  },
+  {
+    "id": "shell-port-said-as-two-halves",
+    "note": "a port after a spoken colon said as two two-digit numbers is the four digits side by side",
+    "spoken": "redis dash cli dash u redis colon slash slash localhost colon sixty three seventy nine slash zero",
+    "expected": "redis-cli -u redis://localhost:6379/0",
+    "mustKeep": ["redis://localhost:6379/0"],
+    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
+    "destination": "terminal",
+    "expectedExact": "redis-cli -u redis://localhost:6379/0",
+    "addedFor": 7918
   }
 ]

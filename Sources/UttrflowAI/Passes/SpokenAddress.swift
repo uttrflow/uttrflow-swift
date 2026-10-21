@@ -193,31 +193,6 @@ struct SpokenAddress: Equatable {
         return SpokenAddress(length: end - position, text: first.prefix + text + last.suffix)
     }
 
-    /// A "colon" joined to the word before it and the spoken number after it, and how many words both used.
-    static func colonNumber(
-        at place: Int, within run: Range<Int>, in live: [Int], of draft: Draft
-    ) -> (value: Int, used: Int)? {
-        guard place > 0, place + 1 < run.upperBound, draft.shape(at: live[place - 1]).suffix.isEmpty,
-            draft.shape(at: live[place]).key == "colon"
-        else { return nil }
-        guard let (value, used) = portNumber(at: place + 1, within: run, in: live, of: draft) else {
-            return nil
-        }
-        return (value, 1 + used)
-    }
-
-    /// A number said as a cardinal or as digits one by one, which are a port or a code: "eight zero eight zero" is 8080.
-    static func portNumber(
-        at place: Int, within run: Range<Int>, in live: [Int], of draft: Draft
-    ) -> (value: Int, used: Int)? {
-        if let digits = spokenDigits(from: place, within: run, in: live, of: draft), digits.used >= 2,
-            digits.text.first != "0", let value = Int(digits.text)
-        {
-            return (value, digits.used)
-        }
-        return number(at: place, within: run, in: live, of: draft)
-    }
-
     /// A file's line and optional column said after it, written joined without grouping: "main.py:42:7".
     static func readReference(
         at place: Int, within run: Range<Int>, in live: [Int], of draft: Draft
