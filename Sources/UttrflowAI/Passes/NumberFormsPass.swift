@@ -1274,9 +1274,7 @@ public struct NumberFormsPass: PieceCleaningPass {
     }
 
     /// Identifiers a version's pre-release suffix names after "dash".
-    private static let preReleaseLabels: Set<String> = [
-        "alpha", "beta", "rc", "preview", "canary", "nightly", "snapshot",
-    ]
+    private static let preReleaseLabels = NumberCues.words(for: .preRelease)
 
     /// A version's pre-release suffix: "dash rc dot one" is "-rc.1", the label alone is "-rc". The spoken dash may already be a hyphen.
     private static func preReleaseSuffix(at start: Int, keys: [String], shapes: [WordShape]) -> Phrase? {

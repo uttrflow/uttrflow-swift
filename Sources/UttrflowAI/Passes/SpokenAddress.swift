@@ -626,7 +626,8 @@ struct SpokenAddress: Equatable {
     /// Whether the word after the one at `place` carries a name on: a dot, an "at", a slash or an underscore.
     private static func continuesName(after place: Int, in live: [Int], of draft: Draft) -> Bool {
         guard draft.shape(at: live[place]).suffix.isEmpty else { return false }
-        return ["dot", "at", "slash", "underscore"].contains(draft.shape(at: live[place + 1]).key)
+        let next = draft.shape(at: live[place + 1]).key
+        return ["dot", "at", "slash"].contains(next) || joiners[next] == "_"
     }
 
     /// The digits a run of spoken digit words from `place` reads as, with how many words it used.

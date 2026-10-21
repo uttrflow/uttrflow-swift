@@ -1560,5 +1560,19 @@
     "destination": "terminal",
     "expectedExact": "rm *.tmp",
     "addedFor": 7944
+  },
+  {
+    "id": "terminal-echoes-replace-first-and-last",
+    "note": "replace first and replace last are words at a command line, where only a whole utterance of them is an edit command",
+    "spoken": "echo replace first then replace last",
+    "expected": "echo replace first then replace last",
+    "mustKeep": ["replace first", "replace last"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "expectedExact": "echo replace first then replace last",
+    "addedFor": 4260
   }
 ]

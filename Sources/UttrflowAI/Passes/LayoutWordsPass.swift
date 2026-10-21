@@ -334,7 +334,8 @@ public struct LayoutWordsPass: PieceCleaningPass {
     static func itemNumber(
         at position: Int, in live: [Int], of draft: Draft
     ) -> (value: Int, count: Int)? {
-        guard live.indices.contains(position) else { return nil }
+        // A mark an earlier run wrote is a laid-out item, not a numeral said after "number".
+        guard live.indices.contains(position), !draft.words[live[position]].isLayoutMark else { return nil }
         let key = draft.shape(at: live[position]).key
         if let digits = NumberWords.digits(key) {
             guard let value = Int(digits), value > 0 else { return nil }

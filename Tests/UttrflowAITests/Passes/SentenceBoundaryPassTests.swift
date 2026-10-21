@@ -166,9 +166,11 @@ struct SentenceBoundaryPassTests {
         #expect(standard.run(Draft(text: input)).text == expected)
     }
 
-    @Test("a cut inside a conditional clause after a stop leaves the sentence running on", arguments: [
-        "the patch is out. if the error budget drops below 90%", "at noon. if the hall is booked",
-    ])
+    @Test(
+        "a cut inside a conditional clause after a stop leaves the sentence running on",
+        arguments: [
+            "the patch is out. if the error budget drops below 90%", "at noon. if the hall is booked",
+        ])
     func cutInsideConditionalRunsOn(piece: String) {
         #expect(SentenceBoundaryEvidence.sentenceRunsOn(piece, into: "overnight roll back with the runbook"))
     }

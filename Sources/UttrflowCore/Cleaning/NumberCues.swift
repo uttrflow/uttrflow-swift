@@ -20,6 +20,8 @@ public enum NumberCues {
         case designator
         /// A singular noun for something on a timetable, after which an hour and minute is a time of day.
         case scheduled
+        /// A label that a version's pre-release suffix names after "dash", as in "dash rc dot one".
+        case preRelease
     }
 
     /// The cue words that say `cue`.

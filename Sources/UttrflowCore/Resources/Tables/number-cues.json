@@ -89,6 +89,13 @@
         { "id": "dinner", "cues": ["scheduled"] },
         { "id": "lunch", "cues": ["scheduled"] },
         { "id": "breakfast", "cues": ["scheduled"] },
-        { "id": "meeting", "cues": ["scheduled"] }
+        { "id": "meeting", "cues": ["scheduled"] },
+        { "id": "alpha", "cues": ["preRelease"] },
+        { "id": "beta", "cues": ["preRelease"] },
+        { "id": "rc", "cues": ["preRelease"] },
+        { "id": "preview", "cues": ["preRelease"] },
+        { "id": "canary", "cues": ["preRelease"] },
+        { "id": "nightly", "cues": ["preRelease"] },
+        { "id": "snapshot", "cues": ["preRelease"] }
     ]
 }

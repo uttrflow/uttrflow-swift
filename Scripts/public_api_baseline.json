@@ -25,6 +25,7 @@
     "UttrflowAI enum PromptContract": 1,
     "UttrflowAI enum PromptText": 1,
     "UttrflowAI enum RemovalAudit": 1,
+    "UttrflowAI enum ReplaceChoice": 1,
     "UttrflowAI enum ReplaceCommand": 1,
     "UttrflowAI enum ReplaceOutcome": 1,
     "UttrflowAI enum ResponseUnwrapper": 1,
@@ -52,6 +53,7 @@
     "UttrflowAI func collapseSpacing": 1,
     "UttrflowAI func collapseWhitespace": 1,
     "UttrflowAI func conversation": 1,
+    "UttrflowAI func correction": 1,
     "UttrflowAI func decode": 1,
     "UttrflowAI func defaultFile": 1,
     "UttrflowAI func delete": 1,
@@ -3855,6 +3857,7 @@
     "UttrflowInput func confirms": 1,
     "UttrflowInput func coordinator": 1,
     "UttrflowInput func copy": 1,
+    "UttrflowInput func correct": 1,
     "UttrflowInput func decide": 1,
     "UttrflowInput func deleteBackwards": 1,
     "UttrflowInput func destinationAtLanding": 1,
@@ -6149,6 +6152,7 @@
     "UttrflowUX var dictation": 2,
     "UttrflowUX var displayText": 1,
     "UttrflowUX var download": 1,
+    "UttrflowUX var downloadBytes": 1,
     "UttrflowUX var draft": 1,
     "UttrflowUX var effect": 1,
     "UttrflowUX var explanation": 1,
@@ -6185,6 +6189,7 @@
     "UttrflowUX var isConfigured": 1,
     "UttrflowUX var isConfirmed": 1,
     "UttrflowUX var isDictating": 1,
+    "UttrflowUX var isDownloading": 1,
     "UttrflowUX var isEmpty": 1,
     "UttrflowUX var isEnabled": 1,
     "UttrflowUX var isFinished": 1,
@@ -6304,5 +6309,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 8954
+  "total": 8959
 }

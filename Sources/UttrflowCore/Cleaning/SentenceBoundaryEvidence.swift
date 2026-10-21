@@ -17,7 +17,8 @@ public enum SentenceBoundaryEvidence {
         }
         let followingKeys = following.map(\.key)
         if text.last == ".", subordinators.contains(previous[0].key) { return true }
-        if opensOnPostmodifier(following) || opensDependentFragment(following) || endsInOpenFragment(previous) {
+        if opensOnPostmodifier(following) || opensDependentFragment(following) || endsInOpenFragment(previous)
+        {
             return true
         }
         if leadsIntoNext(previous, following) || opensWithAPhrase(previous, following)

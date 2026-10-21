@@ -20,8 +20,8 @@ struct SshRemoteTests {
         "a remote joins its user, host, colon and path",
         arguments: [
             (
-                "git clone git at github dot com colon acme slash widgets dot git",
-                "git clone git@github.com:acme/widgets.git"
+                "git clone git at git dot example dot com colon acme slash widgets dot git",
+                "git clone git@git.example.com:acme/widgets.git"
             ),
             (
                 "scp file dot txt me at host dot example dot com colon slash tmp",

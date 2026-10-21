@@ -61,7 +61,7 @@ leave a stale pass behind.
 | Main window | `Sources/Uttrflow/Main/DictionaryPageView.swift#Button#4` | Button | label view | unchecked |
 | Main window | `Sources/Uttrflow/Main/DictionarySelectionBar.swift#Button#1` | Button | expression | unchecked |
 | Main window | `Sources/Uttrflow/Main/DictionarySelectionBar.swift#Button#2` | Button | expression | unchecked |
-| Main window | `Sources/Uttrflow/Main/HistoryPageView.swift#Button#1` | Button | text " · \(notice.link.title)" | unchecked |
+| Main window | `Sources/Uttrflow/Main/HistoryPageView.swift#Button#1` | Button | expression | unchecked |
 | Main window | `Sources/Uttrflow/Main/HistoryPageView.swift#TextField#1` | TextField | expression | unchecked |
 | Main window | `Sources/Uttrflow/Main/HistoryRailRow.swift#Menu#1` | Menu | text "Fix Word" | unchecked |
 | Main window | `Sources/Uttrflow/Main/HistoryRailRow.swift#Menu#2` | Menu | text "What Changed" | unchecked |
@@ -94,7 +94,7 @@ leave a stale pass behind.
 | Main window | `Sources/Uttrflow/Main/PageParts.swift#Button#1` | Button | label view | unchecked |
 | Main window | `Sources/Uttrflow/Main/PageParts.swift#Button#2` | Button | label view | unchecked |
 | Main window | `Sources/Uttrflow/Main/PageParts.swift#Button#3` | Button | accessibilityLabel | unchecked |
-| Main window | `Sources/Uttrflow/Main/PageParts.swift#Picker#1` | Picker | accessibilityLabel | unchecked |
+| Main window | `Sources/Uttrflow/Main/PageParts.swift#Picker#1` | Picker | expression | unchecked |
 | Main window | `Sources/Uttrflow/Main/SnippetsPageView.swift#TextField#1` | TextField | container label | unchecked |
 | Main window | `Sources/Uttrflow/Main/SnippetsPageView.swift#Toggle#1` | Toggle | text "Secret: hide this text everywhere and copy it concealed" | unchecked |
 | Main window | `Sources/Uttrflow/Sidebar/SidebarView.swift#Button#1` | Button | accessibilityLabel | unchecked |

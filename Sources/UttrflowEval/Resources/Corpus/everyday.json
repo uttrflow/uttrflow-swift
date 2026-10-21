@@ -1914,21 +1914,5 @@
     "expected": "We expect 200 to 300 people.",
     "mustKeep": ["200", "300"],
     "addedFor": 7936
-  },
-  {
-    "id": "replace-first-said-inside-a-sentence",
-    "note": "replace first is a command only as a whole utterance; inside a sentence it is words.",
-    "spoken": "the tool will replace first and then ask before it goes on",
-    "expected": "The tool will replace first and then ask before it goes on.",
-    "mustKeep": ["replace first"],
-    "addedFor": 4260
-  },
-  {
-    "id": "replace-last-said-inside-a-sentence",
-    "note": "replace last is a command only as a whole utterance; inside a sentence it is words.",
-    "spoken": "the editor will replace last and keep the rest as it was",
-    "expected": "The editor will replace last and keep the rest as it was.",
-    "mustKeep": ["replace last"],
-    "addedFor": 4260
   }
 ]

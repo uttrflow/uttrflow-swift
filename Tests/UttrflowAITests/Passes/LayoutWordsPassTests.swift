@@ -102,6 +102,12 @@ struct LayoutWordsPassTests {
         #expect(!cleaned(input, by: sut).isEmpty)
     }
 
+    @Test("reads an item mark a first run wrote as the mark, never as a number said")
+    func rerunLeavesWrittenItemMark() {
+        let once = sut.apply(Draft(text: "number number two number three"))
+        #expect(sut.apply(once).text == once.text)
+    }
+
     @Test("keeps consecutive numbered items safe for each insertion state")
     func keepsNumberedItemsSafeAcrossInsertionStates() {
         let precedingTexts: [String?] = [
