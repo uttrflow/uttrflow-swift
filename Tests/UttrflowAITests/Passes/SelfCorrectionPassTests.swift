@@ -454,6 +454,11 @@ struct SelfCorrectionPassTests {
         #expect(cleaned(input, by: sut) == input)
     }
 
+    @Test("still applies an explicit correction of the word a casing command covers")
+    func correctsCasingOperand() {
+        #expect(cleaned("all caps monday no wait tuesday", by: sut) == "all caps tuesday")
+    }
+
     @Test("records the discarded half and the trigger as removed by this pass")
     func provenance() {
         let draft = sut.apply(Draft(text: "at four no sorry at five"))
