@@ -27,6 +27,30 @@ struct SentenceBoundaryPassTests {
     }
 
     @Test(
+        "ends the item that runs into the next numbered marker, so the marker is not read as a date",
+        arguments: [
+            (
+                "Okay so, to recap, we agreed on three things. 1. The launch moves to May 2. The budget stays flat. 3. Lena owns the plan.",
+                "Okay so, to recap, we agreed on three things. 1. The launch moves to May. 2. The budget stays flat. 3. Lena owns the plan."
+            ),
+            (
+                "We agreed on three things. 1. The launch moves to May 2. The budget stays flat.",
+                "We agreed on three things. 1. The launch moves to May 2. The budget stays flat."
+            ),
+            (
+                "The launch moves to May 2. The budget stays flat. 3. Lena owns the plan.",
+                "The launch moves to May 2. The budget stays flat. 3. Lena owns the plan."
+            ),
+            (
+                "We agreed on three things. 1. Ship on May 2. 2. Keep the budget flat. 3. Lena owns the plan.",
+                "We agreed on three things. 1. Ship on May 2. 2. Keep the budget flat. 3. Lena owns the plan."
+            ),
+        ])
+    func endsItemBeforeNumberedMarker(input: String, expected: String) {
+        #expect(cleaned(input) == expected)
+    }
+
+    @Test(
         "a capital A is the letter of a label, so it keeps its case and its comma",
         arguments: [
             ("Part A, part B, and part C are due Monday.", "Part A, part B, and part C are due Monday."),

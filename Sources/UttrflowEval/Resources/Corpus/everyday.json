@@ -1861,5 +1861,14 @@
     "expectedExact": "Please open Visual Studio Code and then the Terminal app.",
     "mustKeep": ["Visual Studio Code"],
     "addedFor": 8047
+  },
+  {
+    "id": "numbered-recap-item-ends-before-next-marker",
+    "note": "A recap the recogniser numbered without a stop after its first item is not read as the date May 2.",
+    "spoken": "Okay so, to recap, we agreed on three things. 1. The launch moves to May 2. The budget stays flat. 3. Lena owns the plan.",
+    "expected": "Okay so, to recap, we agreed on three things. 1. The launch moves to May. 2. The budget stays flat. 3. Lena owns the plan.",
+    "mustKeep": ["launch", "budget"],
+    "mustNotAdd": ["May 2."],
+    "addedFor": 8062
   }
 ]
