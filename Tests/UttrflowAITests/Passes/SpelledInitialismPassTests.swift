@@ -450,6 +450,20 @@ struct SpelledCodeShippedTests {
     }
 
     @Test(
+        "keeps the last letter of a spelled acronym of three or more letters whatever word follows",
+        arguments: [
+            ("the n a s a team", "The NASA team."),
+            ("the n a s a rocket", "The NASA rocket."),
+            ("the u s a government", "The USA government."),
+            ("we flew to the u s a last year", "We flew to the USA last year."),
+            ("the n a s a is big", "The NASA is big."),
+            ("i work at n a s a", "I work at NASA."),
+        ])
+    func acronymEndingInAKeepsItsLetter(input: String, expected: String) {
+        #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
         "leaves a final a that opens a noun phrase, and letters the lexicon does not hold, as before",
         arguments: [
             ("press q a few times", "Press q a few times."),
