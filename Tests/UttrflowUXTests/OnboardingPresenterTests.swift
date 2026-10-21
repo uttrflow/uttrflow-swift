@@ -117,7 +117,7 @@ struct OnboardingPresenterTests {
         }
     }
 
-    /// Once words have arrived the page counts down to the dashboard, and offers it straight away.
+    /// Once words have arrived the page counts down to Home, and offers it straight away.
     @Test("never leaves the user on a page with nothing they can press")
     func noPageIsADeadEnd() {
         for state in everyState {
@@ -127,9 +127,9 @@ struct OnboardingPresenterTests {
         #expect(
             closing.action
                 == OnboardingAction(
-                    title: "Open dashboard", intent: .finish, isProminent: true,
+                    title: "Open Home", intent: .finish, isProminent: true,
                     countdown: OnboardingPresenter.heardLinger, caption: nil))
-        #expect(closing.subtitle == "That’s all there is to it. Opening your dashboard…")
+        #expect(closing.subtitle == "That’s all there is to it. Opening Home…")
     }
 
     @Test("puts the providers on the sign-in page, and only where one can be chosen or chosen again")
@@ -459,7 +459,7 @@ struct OnboardingPresenterTests {
         #expect(
             trying.action
                 == OnboardingAction(
-                    title: "Skip to dashboard", intent: .finish, isProminent: false, countdown: nil,
+                    title: "Skip to Home", intent: .finish, isProminent: false, countdown: nil,
                     caption: caption))
         #expect(trying.link == nil)
         #expect(trying.hint == "Open the Clipboard panel with ⇧⌘V to browse and paste recent copies.")
