@@ -3712,6 +3712,16 @@
     "numbered-list-opens-the-dictation@3",
     "numbered-list-opens-the-dictation@4",
     "numbered-list-opens-the-dictation@6",
+    "numbered-recap-item-ends-before-next-marker@1",
+    "numbered-recap-item-ends-before-next-marker@12",
+    "numbered-recap-item-ends-before-next-marker@15",
+    "numbered-recap-item-ends-before-next-marker@19",
+    "numbered-recap-item-ends-before-next-marker@20",
+    "numbered-recap-item-ends-before-next-marker@22",
+    "numbered-recap-item-ends-before-next-marker@5",
+    "numbered-recap-item-ends-before-next-marker@6",
+    "numbered-recap-item-ends-before-next-marker@8",
+    "numbered-recap-item-ends-before-next-marker@9",
     "one-line-exclaim@1",
     "one-line-name@1",
     "one-line-phrase@1",
@@ -5731,5 +5741,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5711
+  "total" : 5721
 }
