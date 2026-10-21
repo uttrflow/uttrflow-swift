@@ -577,6 +577,10 @@ public struct NumberFormsPass: PieceCleaningPass {
 
     /// A written numeral in the grouping `digits` says, at the same value; plain digits gain commas only as a quantity.
     static func regrouped(_ key: String, digits: DigitGrouping, quantity: Bool) -> String {
+        if let scaled = scaledGroupedDecimal(key) {
+            guard digits != .none else { return String(scaled) }
+            return NumberWords.render(scaled, grouping: digits, isAmount: true)
+        }
         let plain = key.filter { $0 != "," }
         guard plain.allSatisfy({ $0.isASCII && $0.isNumber }), plain.first != "0", let value = Int(plain)
         else { return key }

@@ -1861,5 +1861,20 @@
     "expectedExact": "Please open Visual Studio Code and then the Terminal app.",
     "mustKeep": ["Visual Studio Code"],
     "addedFor": 8047
+    },
+  {
+    "id": "decimal-with-thousands-group-is-whole-amount",
+    "note": "A decimal the recogniser grouped by thousands, 2.5,000, is the amount said, 2,500.",
+    "spoken": "The budget for the offsite is roughly £2.5,000, split across three departments.",
+    "expected": "The budget for the offsite is roughly £2,500, split across three departments.",
+    "mustKeep": ["£2,500"],
+    "addedFor": 8033
+  },
+  {
+    "id": "decimal-with-two-thousands-groups-is-whole-amount",
+    "spoken": "We raised 1.5,000,000 dollars from the sale.",
+    "expected": "We raised 1,500,000 dollars from the sale.",
+    "mustKeep": ["1,500,000"],
+    "addedFor": 8033
   }
 ]
