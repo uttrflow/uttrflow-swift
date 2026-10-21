@@ -123,6 +123,26 @@ struct SentenceBoundaryPassTests {
     }
 
     @Test(
+        "keeps the recogniser's stop before a long conditional clause whose main clause the tags miss",
+        arguments: [
+            (
+                "It signed off an hour ago. if the error budget drops below ninety percent overnight "
+                    + "roll back with the runbook in the wiki",
+                "It signed off an hour ago. If the error budget drops below 90% overnight "
+                    + "roll back with the runbook in the wiki."
+            ),
+            (
+                "The docs are at docs dot example dot com slash start. "
+                    + "if you get stuck write to dev dash help at example dot com",
+                "The docs are at docs.example.com/start. If you get stuck write to dev-help@example.com."
+            ),
+        ])
+    func keepsStopBeforeLongConditional(input: String, expected: String) {
+        let standard = CleaningPipeline.standard(for: .standard(for: .plain), situation: .unknown)
+        #expect(standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
         "keeps a stop before a lowercase word when the preceding words can end a sentence",
         arguments: [
             ("We shipped it. eBay is next", "We shipped it. eBay is next."),
