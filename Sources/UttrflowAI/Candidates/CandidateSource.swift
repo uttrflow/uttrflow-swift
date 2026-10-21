@@ -1,4 +1,5 @@
 public import struct Foundation.UUID
+private import NaturalLanguage
 public import UttrflowCore
 public import UttrflowDictionary
 
@@ -125,7 +126,9 @@ public struct DoubtfulWords: Sendable {
         guard EvidencePolicy.unscored(draft, in: .doubtfulWords) == nil, !sources.isEmpty else { return [] }
         let said = UncertainSpan.saidWords(in: draft).map(\.text)
         let apart = await apartFromContext(in: draft, for: situation)
-        let runs = UncertainSpan.spans(in: draft, apart: apart).filter { !Self.isCoordinator($0) }
+        let runs = UncertainSpan.spans(in: draft, apart: apart).filter {
+            !Self.isCoordinator($0) && !Self.isCount($0, in: said)
+        }
         guard !runs.isEmpty else { return [] }
 
         let reach = NGramModel.maxOrder - 1
@@ -160,6 +163,18 @@ public struct DoubtfulWords: Sendable {
     /// Whether the run is one coordinating conjunction, which joins two alternatives or additions, so a sound-alike in its place always changes what was said.
     private static func isCoordinator(_ run: UncertainSpan) -> Bool {
         run.range.count == 1 && FunctionWords.isCoordinator(run.text)
+    }
+
+    /// Whether the run is one number word its sentence reads as a count, before what it counts ("two designers") or after a determiner ("the one I"), so a sound-alike in its place changes the number said.
+    private static func isCount(_ run: UncertainSpan, in said: [String]) -> Bool {
+        let index = run.range.lowerBound
+        guard run.range.count == 1, NumberWords.value(of: WordShape(run.text).key) != nil,
+            LexicalClass.tag(ofWordAt: index, in: said) == .number
+        else { return false }
+        let next = LexicalClass.tag(ofWordAt: index + 1, in: said)
+        let counted = next == .noun || next == .adjective
+        let determined = index > 0 && FunctionWords.determiners.contains(WordShape(said[index - 1]).key)
+        return counted || determined
     }
 
     /// The said words context doubts, less any the user's dictionary, the screen or the shipped terms hold as heard.
