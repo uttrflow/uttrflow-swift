@@ -89,8 +89,7 @@ struct SentenceBoundaryPass: WholeTextCleaningPass {
         return digits.allSatisfy(\.isASCII) && digits.allSatisfy(\.isNumber) ? Int(digits) : nil
     }
 
-    /// Ends the item before a marker the recogniser numbered "1. … 2. … 3. …" but left without a stop, so "to May 2." is not read as a date.
-    /// A marker counts only when the marker before it opened a sentence, the marker after it opens one, and a capital follows it.
+    /// Ends the item before a numbered marker the recogniser left without a stop, when the markers on both sides open sentences.
     private static func endItemsBeforeMarkers(_ draft: inout Draft) {
         let live = draft.presentIndices
         let values = live.map { markerValue(draft.words[$0].text) }
