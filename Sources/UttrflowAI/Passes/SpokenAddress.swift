@@ -215,7 +215,24 @@ struct SpokenAddress: Equatable {
         {
             return (value, digits.used)
         }
-        return number(at: place, within: run, in: live, of: draft)
+        guard let first = number(at: place, within: run, in: live, of: draft) else { return nil }
+        if let pair = pairedNumber(after: first, at: place, within: run, in: live, of: draft) { return pair }
+        return first
+    }
+
+    /// Two spoken two-digit numbers said in turn, which a port writes side by side: "sixty three seventy nine" is 6379.
+    private static func pairedNumber(
+        after first: (value: Int, used: Int), at place: Int, within run: Range<Int>, in live: [Int],
+        of draft: Draft
+    ) -> (value: Int, used: Int)? {
+        let next = place + first.used
+        guard (10...99).contains(first.value), next < run.upperBound,
+            draft.shape(at: live[next - 1]).suffix.isEmpty,
+            NumberWords.value(of: draft.shape(at: live[place]).key) != nil,
+            NumberWords.value(of: draft.shape(at: live[next]).key) != nil,
+            let second = number(at: next, within: run, in: live, of: draft), (10...99).contains(second.value)
+        else { return nil }
+        return (first.value * 100 + second.value, first.used + second.used)
     }
 
     /// A file's line and optional column said after it, written joined without grouping: "main.py:42:7".
