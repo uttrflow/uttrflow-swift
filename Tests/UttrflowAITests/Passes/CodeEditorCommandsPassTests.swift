@@ -36,6 +36,20 @@ struct CodeEditorCommandsPassTests {
         }
     }
 
+    @Test("joins a spoken member access into one name instead of starting a sentence")
+    func memberAccess() {
+        let app = AppContext(
+            applicationName: "Code", bundleIdentifier: "com.microsoft.VSCode",
+            documentName: "main.ts", precedingText: "function main() {\n  const a = 1;\n  ")
+        let situation = Situation(app: app, insertion: app.insertionPoint, destination: .codeEditor)
+        let pipeline = CleaningPipeline.beforeModel(for: .standard(for: .codeEditor), situation: situation)
+        #expect(
+            pipeline.run(Draft(text: "const names equals users dot map semicolon")).text
+                == "const names = users.map;")
+        #expect(pipeline.run(Draft(text: "return u arrow u dot name")).text == "return u => u.name")
+        #expect(pipeline.run(Draft(text: "let x equals foo dot bar")).text == "let x = foo.bar")
+    }
+
     @Test("stops identifier casing at a spoken clause mark")
     func clauseBoundary() {
         let app = AppContext(documentName: "Example.swift")

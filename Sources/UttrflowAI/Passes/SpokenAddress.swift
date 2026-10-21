@@ -348,7 +348,7 @@ struct SpokenAddress: Equatable {
             return Int(core).map { ($0, 1) }
         }
         let keys = (place..<run.upperBound).lazy.map { draft.shape(at: live[$0]).key }
-            .prefix { NumberWords.value(of: $0) != nil }
+            .prefix { NumberWords.value(of: $0) != nil || $0 == "and" }
         return NumberWords.cardinal(ArraySlice(keys)).map { ($0.value, $0.count) }
     }
 
