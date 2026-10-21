@@ -127,7 +127,10 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 !Self.closesAKeptOpening(
                     found, quoting: !openQuotes.isEmpty, at: position, until: keptOpeningUntil),
                 paired != nil
-                    || isUsed(found, at: position, in: live, of: draft, repeated: repeated),
+                    || isUsed(
+                        found, at: position, in: live, of: draft, repeated: repeated,
+                        commandArgument: literalHyphens
+                            && isCommandArgument(at: position, in: live, of: draft)),
                 isPaired(
                     found, at: position, in: live, of: draft, open: openBrackets,
                     quoting: !openQuotes.isEmpty, sentenceEnd: sentenceEnd ?? live.count,
@@ -218,13 +221,27 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
 
     /// Whether a mark name is used rather than mentioned, said as the verb, or said without evidence of a seam.
     private func isUsed(
-        _ found: SpokenCommand, at position: Int, in live: [Int], of draft: Draft, repeated: Set<Int>
+        _ found: SpokenCommand, at position: Int, in live: [Int], of draft: Draft, repeated: Set<Int>,
+        commandArgument: Bool = false
     ) -> Bool {
-        !MentionGuard.isMentioned(
+        // A name joined by a dash after a program is typed, whatever word begins it: "my dash container".
+        if commandArgument { return !isVerb(found.words, at: position, in: live, of: draft) }
+        return !MentionGuard.isMentioned(
             at: position, spanning: found.words.count, in: live, of: draft,
             reach: MentionGuard.phraseReach, kind: found.placement)
             && !isVerb(found.words, at: position, in: live, of: draft)
             && isEvidenced(found.words, at: position, in: live, of: draft, repeated: repeated)
+    }
+
+    /// Whether the dash at `position` joins the parts of an argument typed after a program's name, which is never prose.
+    private func isCommandArgument(at position: Int, in live: [Int], of draft: Draft) -> Bool {
+        guard destination == .terminal, position > 1, position + 1 < live.count,
+            draft.shape(at: live[position]).key == "dash",
+            MentionGuard.determiners.contains(draft.shape(at: live[position - 1]).key),
+            draft.shape(at: live[position - 1]).suffix.isEmpty,
+            !isFunctionWordEvidence(draft.shape(at: live[position + 1]).key)
+        else { return false }
+        return TechnicalLexicon.isProgram(draft.shape(at: live[0]).key, in: .terminal)
     }
 
     /// Decides a sentence's two prose dashes around words as one, by word index: marks when either is used and both may stand there.
