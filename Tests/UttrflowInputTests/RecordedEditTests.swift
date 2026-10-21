@@ -141,6 +141,50 @@ struct RecordedEditTests {
         #expect(fake.textWrites.isEmpty)
     }
 
+    @Test("a correction rewrites the span the last edit wrote, and one undo puts the dictation back")
+    func correctsTheLastEdit() throws {
+        let fake = FakeSelectionField("Hi, hello world")
+        let history = EditHistory()
+        try RecordedEditor.rewrite(
+            { $0.replacingOccurrences(of: "world", with: "there") }, on: SelectionWriter(field: fake),
+            ledger: ledger(), history: history, focused: Self.field, isSecure: false)
+        var seen: (original: String, written: String)?
+        let planned = try RecordedEditor.correct(
+            { original, written in
+                seen = (original, written)
+                return "hello again"
+            }, writing: { $0 }, on: SelectionWriter(field: fake), ledger: InsertionLedger(),
+            history: history, focused: Self.field, isSecure: false)
+        #expect(planned == "hello again")
+        #expect(seen?.original == "hello world" && seen?.written == "hello there")
+        #expect(fake.text == "Hi, hello again")
+        try run(.undo, on: fake, ledger: InsertionLedger(), history: history)
+        #expect(fake.text == "Hi, hello world")
+    }
+
+    @Test("a correction with no recent edit, or whose plan declines, refuses and writes nothing")
+    func correctionRefuses() throws {
+        let fake = FakeSelectionField("Hi, hello world")
+        #expect(throws: TextInsertionError.self) {
+            try RecordedEditor.correct(
+                { _, _ in "x" }, writing: { $0 }, on: SelectionWriter(field: fake), ledger: InsertionLedger(),
+                history: EditHistory(), focused: Self.field, isSecure: false)
+        }
+        let history = EditHistory()
+        try RecordedEditor.rewrite(
+            { $0.replacingOccurrences(of: "world", with: "there") }, on: SelectionWriter(field: fake),
+            ledger: ledger(), history: history, focused: Self.field, isSecure: false)
+        let writes = fake.textWrites.count
+        #expect(throws: TextInsertionError.self) {
+            try RecordedEditor.correct(
+                { _, _ in String?.none }, writing: { $0 }, on: SelectionWriter(field: fake),
+                ledger: InsertionLedger(), history: history, focused: Self.field, isSecure: false)
+        }
+        #expect(fake.textWrites.count == writes)
+        try run(.undo, on: fake, ledger: InsertionLedger(), history: history)
+        #expect(fake.text == "Hi, hello world")
+    }
+
     @Test("a field changed since the dictation refuses and keeps its text")
     func refusesAChangedField() {
         let fake = FakeSelectionField("Hi, hello word")

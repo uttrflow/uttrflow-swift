@@ -86,6 +86,20 @@ struct SpokenPathTests {
     }
 
     @Test(
+        "writes a parent directory said more than once as dots between slashes",
+        .bug(id: 7898),
+        arguments: [
+            ("cd dot dot slash dot dot slash build", "cd ../../build"),
+            ("open dot dot slash readme dot md", "open ../readme.md"),
+            ("cp dot dot slash config dot yml dot", "cp ../config.yml ."),
+            ("cd dot dot slash dot dot slash dot dot slash lib", "cd ../../../lib"),
+        ]
+    )
+    func writesRepeatedParentDirectories(input: String, expected: String) {
+        #expect(cleaned(input, by: terminal) == expected)
+    }
+
+    @Test(
         "writes three or more labels joined by slash as one path, unless the first is a command run on the path",
         .bug(id: 7899),
         arguments: [
