@@ -450,11 +450,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "cbe78698088769c36b1a84dee131fef50b6b53900940ca0c587550405d827f06",
+      "sha256": "d4c009996a52b000e446c8359c4cb6bbd4b786169f79c43e7910d26e8c8614fe",
       "path": "Sources/UttrflowEval/Resources/Corpus/everyday.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 67665,
+      "bytes": 68254,
       "licence": "MIT"
     },
     {
