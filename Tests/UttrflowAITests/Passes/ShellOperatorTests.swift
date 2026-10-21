@@ -60,6 +60,9 @@ struct ShellOperatorTests {
         #expect(run("export PORT equals eight zero eight zero", in: .terminal) == "export PORT=8080")
         #expect(run("git log dash dash max dash count equals five", in: .terminal) == "git log --max-count=5")
         #expect(run("docker run dash m two g nginx", in: .terminal) == "docker run -m 2 g nginx")
+        #expect(run("export PORT equals 8080", in: .terminal) == "export PORT=8080")
+        #expect(run("export N equals two x", in: .terminal) == "export N=2 x")
+        #expect(run("dash dash timeout equals five m", in: .terminal) == "--timeout=5m")
     }
 
     @Test("reads a determiner before a word as prose, and before a notation word as code")

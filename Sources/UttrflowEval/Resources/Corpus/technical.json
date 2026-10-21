@@ -1562,5 +1562,19 @@
     "destination": "terminal",
     "expectedExact": "docker run --memory=2g nginx",
     "addedFor": 7943
+  },
+  {
+    "id": "shell-assign-written-digits",
+    "note": "a value the recogniser already wrote in digits is assigned the same way as a spoken one",
+    "spoken": "export PORT equals 8080",
+    "expected": "export PORT=8080",
+    "mustKeep": ["PORT=8080"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "expectedExact": "export PORT=8080",
+    "addedFor": 7943
   }
 ]

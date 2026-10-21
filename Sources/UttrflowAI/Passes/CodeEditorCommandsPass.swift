@@ -87,9 +87,13 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
         let left = draft.words[live[position - 1]].text
         let right = draft.words[live[after]].text
         let rightName = right.trimmingCharacters(in: .punctuationCharacters)
-        guard Self.isOptionOrName(left), Self.isName(rightName) else { return false }
-        // A spoken number is written as digits by a later pass, so the symbol waits on the name and spacing joins the digits.
-        if NumberWords.isNumber(rightName.lowercased()) {
+        // At a command line a number, spoken or in digits, is assigned: the symbol waits on the name and spacing joins the digits.
+        let isNumber = rightName.allSatisfy(\.isNumber) || NumberWords.isNumber(rightName.lowercased())
+        guard Self.isOptionOrName(left), !rightName.isEmpty, isNumber || Self.isName(rightName) else {
+            return false
+        }
+        if isNumber {
+            guard destination == .terminal else { return false }
             draft.replace(at: live[position - 1], with: left + command.text, by: Self.id)
             for offset in position..<after { draft.remove(at: live[offset], by: Self.id) }
             return true

@@ -2,6 +2,10 @@
     "schema": 1,
     "rows": [
         { "id": "ip", "cues": ["dotted"] },
+        { "id": "k", "cues": ["sizeSuffix"] },
+        { "id": "m", "cues": ["sizeSuffix"] },
+        { "id": "g", "cues": ["sizeSuffix"] },
+        { "id": "t", "cues": ["sizeSuffix"] },
         { "id": "address", "cues": ["dotted"] },
         { "id": "version", "cues": ["dotted", "designator"] },
         { "id": "v", "cues": ["dotted"] },

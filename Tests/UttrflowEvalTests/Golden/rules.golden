@@ -1178,6 +1178,7 @@ shell-append-spoken-double-greater-than	date >> log.txt
 shell-assign-environment-variable	export NODE_ENV=production
 shell-assign-long-option	git log --since=yesterday
 shell-assign-number-with-unit	docker run --memory=2g nginx
+shell-assign-written-digits	export PORT=8080
 shell-chmod-marked-subject-not-joined	chmod u plus x deploy.sh
 shell-chmod-symbolic-mode	chmod u+x deploy.sh
 shell-go-package-pattern	go test ./...

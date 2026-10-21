@@ -42,7 +42,10 @@ public struct SpacingPass: PieceCleaningPass {
     private static let joiningSymbols = Set(
         SpokenCommands.codeSymbols.filter { $0.placement == .joining }.map(\.text))
 
-    /// Joins the digits a joining symbol waited for onto it, with a one-letter unit after them, as `--memory=` and "2 g" are `--memory=2g`.
+    /// The one-letter size units a command-line value takes straight after its digits, as the "g" of `--memory=2g`.
+    private static let sizeSuffixes = NumberCues.words(for: .sizeSuffix)
+
+    /// Joins the digits a joining symbol waited for onto it, with a size unit after them, as `--memory=` and "2 g" are `--memory=2g`.
     private static func joinNumbersAfterSymbols(_ draft: inout Draft) {
         let live = draft.presentIndices
         var position = 0
@@ -59,9 +62,7 @@ public struct SpacingPass: PieceCleaningPass {
             var joined = word.text + draft.words[live[position + 1]].text
             draft.remove(at: live[position + 1], by: id)
             var next = position + 2
-            if next < live.count, draft.words[live[next]].text.count == 1,
-                draft.words[live[next]].text.allSatisfy(\.isLetter)
-            {
+            if next < live.count, sizeSuffixes.contains(draft.words[live[next]].text.lowercased()) {
                 joined += draft.words[live[next]].text
                 draft.remove(at: live[next], by: id)
                 next += 1

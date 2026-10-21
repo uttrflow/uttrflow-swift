@@ -20,6 +20,8 @@ public enum NumberCues {
         case designator
         /// A singular noun for something on a timetable, after which an hour and minute is a time of day.
         case scheduled
+        /// A one-letter size unit a command-line value takes straight after its digits, as in `--memory=2g`.
+        case sizeSuffix
     }
 
     /// The cue words that say `cue`.

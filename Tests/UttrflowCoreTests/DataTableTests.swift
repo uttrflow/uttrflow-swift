@@ -200,6 +200,7 @@ struct DataTableTests {
         #expect(NumberCues.words(for: .measureLead).count == 8)
         #expect(NumberCues.words(for: .measureTail).count == 8)
         #expect(NumberCues.words(for: .range) == ["to", "through"])
+        #expect(NumberCues.words(for: .sizeSuffix) == ["k", "m", "g", "t"])
         #expect(
             NumberCues.words(for: .designator) == [
                 "port", "version", "extension", "page", "chapter", "step", "number", "line", "section",
