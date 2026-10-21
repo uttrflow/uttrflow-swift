@@ -128,22 +128,31 @@ struct SpokenAddress: Equatable {
             return current
         }
         guard let local = part(from: position, within: run, in: live, of: draft, side: .local),
-            local.hasLetter, FunctionWords.isContent(local.spelled)
+            local.hasLetter
         else { return nil }
         let joint = position + local.length
         guard joint + 1 < run.upperBound, draft.shape(at: live[joint]).key == "at",
             let domain = part(from: joint + 1, within: run, in: live, of: draft),
-            domain.labels.count > 1, let top = domain.labels.last, topLevels.contains(top.lowercased()),
-            local.isShaped || expecting.contains(.addresses)
+            domain.labels.count > 1, let top = domain.labels.last, topLevels.contains(top.lowercased())
+        else { return nil }
+        let hostEnd = joint + 1 + domain.length
+        // On a command line a path after the host's "colon" makes the words an ssh-style remote: "git at github dot com colon acme".
+        let remote =
+            expecting.contains(.paths)
+            ? readRemotePath(at: hostEnd, within: run, in: live, of: draft) : nil
+        guard
+            FunctionWords.isContent(local.spelled) || remote != nil,
+            local.isShaped || expecting.contains(.addresses) || remote != nil
                 || isIntroduced(before: position, in: live, of: draft)
         else { return nil }
-        let span = position..<(joint + 1 + domain.length)
+        let span = position..<(hostEnd + (remote?.length ?? 0))
         guard onlyEndsAreMarked(span, in: live, of: draft) else { return nil }
         let first = draft.shape(at: live[span.lowerBound])
         let last = draft.shape(at: live[span.upperBound - 1])
         return SpokenAddress(
             length: span.count,
-            text: first.prefix + local.spelled + "@" + domain.spelled.lowercased() + last.suffix)
+            text: first.prefix + local.spelled + "@" + domain.spelled.lowercased() + (remote?.text ?? "")
+                + last.suffix)
     }
 
     /// Reads an IPv4 address, four spoken numbers of at most 255 joined by "dot", and any port and path after it.
