@@ -25,7 +25,7 @@ struct Quantity: Equatable, Hashable {
 }
 
 /// Reading the quantities out of a text, which is a different job from splitting it into words.
-enum Quantities {
+package enum Quantities {
     /// Symbols that stand before the digits they belong to.
     static let leading: Set<Character> = ["$", "\u{00A3}", "\u{20AC}", "\u{20B9}", "\u{00A5}"]
 
@@ -47,7 +47,7 @@ enum Quantities {
     ]
 
     /// Whether `word` names the hundredth part of some currency.
-    static func isMinorUnit(_ word: String) -> Bool {
+    package static func isMinorUnit(_ word: String) -> Bool {
         currencyUnits.contains { $0.minors.contains(word) }
     }
 

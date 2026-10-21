@@ -1861,5 +1861,20 @@
     "expectedExact": "Please open Visual Studio Code and then the Terminal app.",
     "mustKeep": ["Visual Studio Code"],
     "addedFor": 8047
+    },
+  {
+    "id": "number-and-counted-noun-stay-one-phrase",
+    "note": "A pause between a number and the noun it counts is not a sentence end; every cut of the case is checked by the seam audit.",
+    "spoken": "the room was thirty degrees and the parcel weighs fifty kilos",
+    "expected": "The room was 30 degrees and the parcel weighs 50 kilos.",
+    "mustKeep": ["30 degrees", "50 kilos"],
+    "addedFor": 7938
+  },
+  {
+    "id": "number-and-minor-currency-unit-stay-one-phrase",
+    "spoken": "it costs twelve dollars and fifty cents for ten people",
+    "expected": "It costs 12 dollars and 50 cents for 10 people.",
+    "mustKeep": ["50 cents", "10 people"],
+    "addedFor": 7938
   }
 ]
