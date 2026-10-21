@@ -424,6 +424,18 @@ struct SpokenAddressTests {
     }
 
     @Test(
+        "keeps every word of a last octet said as a hundred",
+        arguments: [
+            ("ping ten dot zero dot zero dot two hundred and fifty five", "ping 10.0.0.255"),
+            ("ping ten dot zero dot zero dot one hundred", "ping 10.0.0.100"),
+            ("ping ten dot zero dot zero dot two hundred", "ping 10.0.0.200"),
+        ]
+    )
+    func writesAnAddressEndingInAHundred(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
         "leaves a colon that is not a reference to the clause rule",
         arguments: [
             "localhost is fine",

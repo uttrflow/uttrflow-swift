@@ -551,6 +551,7 @@ struct NumberFormsPassTests {
         "writes a spoken dot between digit groups as a dot when three groups or a cue say so",
         arguments: [
             ("one nine two dot one six eight dot one dot one", "192.168.1.1"),
+            ("one nine two dot one six eight dot one dot one hundred", "192.168.1.100"),
             ("the ip is ten dot zero dot zero dot one", "the ip is 10.0.0.1"),
             ("install two dot one dot three", "install 2.1.3"),
             ("version two dot five", "version 2.5"),

@@ -1200,7 +1200,16 @@ public struct NumberFormsPass: PieceCleaningPass {
             text.append(digit)
             end += 1
         }
-        if !text.isEmpty { return Phrase(text: text, count: end - start) }
+        // A digit word that opens a spoken hundred is the whole number: "one hundred" is 100, not 1 and a stray word.
+        if !text.isEmpty {
+            if end < keys.count, joined(end, shapes), keys[end] == "hundred",
+                let group = NumberWords.cardinal(unbroken(from: start, keys: keys, shapes: shapes)),
+                group.count > end - start
+            {
+                return Phrase(text: String(group.value), count: group.count)
+            }
+            return Phrase(text: text, count: end - start)
+        }
         guard joined(start, shapes) else { return nil }
         if let digits = NumberWords.digits(keys[start]) { return Phrase(text: digits, count: 1) }
         guard let group = NumberWords.cardinal(unbroken(from: start, keys: keys, shapes: shapes)),
