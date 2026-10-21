@@ -1905,5 +1905,14 @@
     "expected": "We expect 200 to 300 people.",
     "mustKeep": ["200", "300"],
     "addedFor": 7936
+  },
+  {
+    "id": "numbered-steps-keep-capital-after-colon",
+    "note": "Each step's first word keeps the capital the recogniser wrote after the colon, so every item reads alike.",
+    "spoken": "Step 1: Open the app. Step 2: Click Settings. Step 3: Choose privacy.",
+    "expected": "Step 1: Open the app. Step 2: Click Settings. Step 3: Choose privacy.",
+    "expectedExact": "Step 1: Open the app. Step 2: Click Settings. Step 3: Choose privacy.",
+    "mustKeep": ["Open", "Choose"],
+    "addedFor": 8113
   }
 ]
