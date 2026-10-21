@@ -108,20 +108,10 @@ struct HistoryPageView: View {
 
     private var caption: some View {
         let notice = presentation.retentionNotice
-        return HStack(spacing: 0) {
-            Text(
-                [chrome.caption, notice.phrase].compactMap(\.self).filter { !$0.isEmpty }
-                    .joined(separator: " · ")
-            )
-            .foregroundStyle(PagePalette.quiet)
-            Button(" · \(notice.link.title)") {
-                onIntent(notice.link.intent)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(PagePalette.dictation)
-        }
-        .font(.system(size: 13))
-        .lineLimit(1)
+        return HistoryCaption(
+            text: [chrome.caption, notice.phrase].compactMap(\.self).filter { !$0.isEmpty }
+                .joined(separator: " · "),
+            link: notice.link, onIntent: onIntent)
     }
 
     /// Four across where they fit, two to a row where they do not.
@@ -251,5 +241,31 @@ struct HistoryStatTile: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(tile.accessibilityLabel)
+    }
+}
+
+/// The caption under the History title; the link keeps its full width and its own name, and the text before it truncates first.
+struct HistoryCaption: View {
+    let text: String
+    let link: MainAction
+    var onIntent: (MainIntent) -> Void = { _ in }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Text(text)
+                .foregroundStyle(PagePalette.quiet)
+            Text(" · ")
+                .foregroundStyle(PagePalette.quiet)
+                .accessibilityHidden(true)
+                .fixedSize()
+            Button(link.title) {
+                onIntent(link.intent)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(PagePalette.dictation)
+            .fixedSize()
+        }
+        .font(.system(size: 13))
+        .lineLimit(1)
     }
 }
