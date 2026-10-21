@@ -83,12 +83,21 @@ extension SpokenAddress {
                     && (!TechnicalToken.wordLikeFileExtensions.contains($0)
                         || isFileCued(before: position, in: live, of: draft))
             } ?? false
-        guard announced || closed else { return nil }
+        // Two slashes after a later word say a path on their own, unless a command or function word heads it: "post slash api".
+        let said =
+            position > 0 && text.filter { $0 == "/" }.count > 1 && !runsOnPath(head.text)
+            && head.text.split(separator: ".").allSatisfy { FunctionWords.isContent(String($0)) }
+        guard announced || closed || said else { return nil }
         let (reference, used) = readReference(at: end, within: run, in: live, of: draft)
         end += used
         let first = draft.shape(at: live[position])
         let last = draft.shape(at: live[end - 1])
         return SpokenAddress(length: end - position, text: first.prefix + text + reference + last.suffix)
+    }
+
+    /// Whether a word names a program or a request method, which a path follows rather than starts with: "post slash api".
+    private static func runsOnPath(_ word: String) -> Bool {
+        TechnicalLexicon.isProgram(word.lowercased()) || FunctionWords.httpMethods.contains(word.lowercased())
     }
 
     /// One-word names the notation table writes as marks, which name a mark rather than a path segment.
