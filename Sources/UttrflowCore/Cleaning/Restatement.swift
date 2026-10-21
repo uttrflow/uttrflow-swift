@@ -171,7 +171,7 @@ public enum Restatement {
         return Set(calendar.weekdaySymbols.map { $0.lowercased() })
     }()
 
-    /// Where a date said as weekday, "the" and an ordinal is taken back whole when the restart says another such date ("tuesday the fourteenth no wait wednesday the fifteenth").
+    /// Where a date said as weekday, "the" and an ordinal is taken back whole when the restart says another such date.
     private static func restatedDateStart(
         before trigger: Int, after restart: Int, in live: [Int], of draft: Draft
     ) -> Int? {

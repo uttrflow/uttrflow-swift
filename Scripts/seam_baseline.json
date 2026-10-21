@@ -5623,6 +5623,21 @@
     "weekday-and-month-casing@2",
     "weekday-and-month-casing@5",
     "weekday-and-month-casing@7",
+    "weekday-and-ordinal-date-restated@1",
+    "weekday-and-ordinal-date-restated@10",
+    "weekday-and-ordinal-date-restated@2",
+    "weekday-and-ordinal-date-restated@4",
+    "weekday-and-ordinal-date-restated@5",
+    "weekday-and-ordinal-date-restated@7",
+    "weekday-and-ordinal-date-restated@9",
+    "weekday-and-spoken-date-restated-with-make-that@10",
+    "weekday-and-spoken-date-restated-with-make-that@2",
+    "weekday-and-spoken-date-restated-with-make-that@3",
+    "weekday-and-spoken-date-restated-with-make-that@5",
+    "weekday-and-spoken-date-restated-with-make-that@6",
+    "weekday-and-spoken-date-restated-with-make-that@7",
+    "weekday-and-spoken-date-restated-with-make-that@8",
+    "weekday-and-spoken-date-restated-with-make-that@9",
     "which-after-a-stop-continues-the-sentence@10",
     "which-after-a-stop-continues-the-sentence@12",
     "which-after-a-stop-continues-the-sentence@13",
@@ -5731,5 +5746,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5711
+  "total" : 5726
 }
