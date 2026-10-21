@@ -5412,6 +5412,9 @@
     "spoken-percent-sign-after-a-number@1",
     "spoken-percent-sign-after-a-number@2",
     "spoken-percent-sign-after-a-number@6",
+    "spoken-period-stopped-by-the-recogniser@1",
+    "spoken-period-stopped-by-the-recogniser@3",
+    "spoken-period-stopped-by-the-recogniser@6",
     "spoken-period@1",
     "spoken-phone-digit-run@1",
     "spoken-phone-digit-run@11",
@@ -5731,5 +5734,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5711
+  "total" : 5714
 }

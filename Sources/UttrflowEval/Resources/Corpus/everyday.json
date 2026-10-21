@@ -1861,5 +1861,14 @@
     "expectedExact": "Please open Visual Studio Code and then the Terminal app.",
     "mustKeep": ["Visual Studio Code"],
     "addedFor": 8047
+  },
+  {
+    "id": "spoken-period-stopped-by-the-recogniser",
+    "note": "a period said by name that the recogniser wrote with its own stop and a capital after it is the mark",
+    "spoken": "Hi team, please review the doc by noon period. Thanks, Alex.",
+    "expected": "Hi team, please review the doc by noon. Thanks, Alex.",
+    "expectedExact": "Hi team, please review the doc by noon. Thanks, Alex.",
+    "mustKeep": ["noon.", "Thanks"],
+    "addedFor": 8059
   }
 ]

@@ -756,6 +756,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 || isCommaBracketed(before: next, spanning: length, in: live, of: draft)
                 || isPauseBracketed(before: next, spanning: length, in: live, of: draft)
                 || opensDeterminerClause(at: next, in: live, of: draft)
+                || isStoppedBeforeCapital(before: next, in: live, of: draft)
         case "-", "\u{2014}": return !closes(at: next, in: live, of: draft)
         default: return true
         }
@@ -778,6 +779,12 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             let before = draft.pause(before: live[next - length]), let after = draft.pause(before: live[next])
         else { return false }
         return before >= sentencePause && after >= sentencePause
+    }
+
+    /// Whether the recogniser stopped after the name and began the next sentence with a capital, which says the name closed its sentence.
+    private func isStoppedBeforeCapital(before next: Int, in live: [Int], of draft: Draft) -> Bool {
+        guard next > 0, next < live.count, draft.shape(at: live[next - 1]).suffix == "." else { return false }
+        return draft.words[live[next]].text.first(where: \.isLetter)?.isUppercase ?? false
     }
 
     /// Whether a determiner-led clause starts at `next`, so a full stop before it is a sentence boundary.
