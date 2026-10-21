@@ -865,6 +865,8 @@ notes-prose-at-stays	Dinner is ready at home.
 notes-spoken-email-after-address	My email address is jane@example.net.
 noun-spelled-like-a-filler	I took her to the ER last night.
 np3	We need the final version of the contract.
+number-and-counted-noun-stay-one-phrase	The room was 30 degrees and the parcel weighs 50 kilos.
+number-and-minor-currency-unit-stay-one-phrase	It costs 12 dollars and 50 cents for 10 people.
 number-before-spelled-unit-symbol	The laptop ships with 8 GB of memory.
 number-before-written-unit-symbol	The build machine has 8 GB of memory.
 number-bus-not-an-item	Take bus number 12 to the station.
