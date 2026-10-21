@@ -142,6 +142,8 @@
         {"id": "case.hashtag", "words": ["hashtag"], "action": "casing", "text": "hashtag", "reach": "pause", "destinations": ["document", "email", "messaging", "plain"]},
         {"id": "case.upper-word", "words": ["all", "caps"], "action": "casing", "text": "upper", "reach": "word", "destinations": ["document", "email", "messaging", "plain"]},
         {"id": "edit.replace", "words": ["replace"], "action": "replace", "text": "", "reach": "span", "until": ["with"]},
+        {"id": "edit.replace-first", "words": ["replace", "first"], "action": "replace", "text": "first"},
+        {"id": "edit.replace-last", "words": ["replace", "last"], "action": "replace", "text": "last"},
         {"id": "key.enter", "words": ["press", "enter"], "action": "key", "text": "return", "destinations": ["document", "spreadsheet", "email", "messaging", "plain"]},
         {"id": "key.return", "words": ["press", "return"], "action": "key", "text": "return", "destinations": ["document", "spreadsheet", "email", "messaging", "plain"]},
         {"id": "key.tab", "words": ["press", "tab"], "action": "key", "text": "tab", "destinations": ["document", "spreadsheet", "email", "messaging", "plain"]},
