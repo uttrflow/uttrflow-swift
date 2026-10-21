@@ -34,7 +34,10 @@ private let everyState: [OnboardingState] = [
     OnboardingState(step: .accessibility, detail: .permission(.restricted)),
     OnboardingState(step: .accessibility, detail: .permission(.granted)),
     OnboardingState(step: .accessibility, detail: .awaitingSystemSettings),
+    OnboardingState(step: .setup, detail: .offeringInstall(645_668_913)),
+    OnboardingState(step: .setup, detail: .offeringInstall(nil)),
     OnboardingState(step: .setup, detail: .installing(0.5)),
+    OnboardingState(step: .setup, detail: .installing(0.5, of: 645_668_913)),
     OnboardingState(step: .setup, detail: .installFailed("It stopped.", reached: 0.4)),
     OnboardingState(step: .setup, detail: .installed),
     OnboardingState(step: .setup, detail: .reading),
@@ -355,6 +358,25 @@ struct OnboardingPresenterTests {
     }
 
     // MARK: The download
+
+    @Test("offers the download with its size before fetching anything, and says when the size is not known")
+    func theDownloadIsOffered() {
+        let offered = page(OnboardingState(step: .setup, detail: .offeringInstall(645_668_913)))
+        #expect(offered.picture == .download(0, .offered))
+        #expect(offered.buttons.map(\.intent) == [.recover(.downloadSpeechModel)])
+        #expect(offered.hint == "646 MB · one-time download · stays on this Mac")
+
+        let unknown = page(OnboardingState(step: .setup, detail: .offeringInstall(nil)))
+        #expect(unknown.hint == "Size not known · one-time download · stays on this Mac")
+    }
+
+    @Test("counts the bytes that have arrived when the total is known, and only the share when it is not")
+    func theDownloadCountsBytes() {
+        let counted = page(OnboardingState(step: .setup, detail: .installing(0.25, of: 645_668_913)))
+        #expect(counted.hint == "162 MB of 646 MB · one-time download · stays on this Mac")
+        let uncounted = page(OnboardingState(step: .setup, detail: .installing(0.25)))
+        #expect(uncounted.hint == "Size not known · one-time download · stays on this Mac")
+    }
 
     @Test("keeps Continue in view while the download runs, and keeps it unpressable")
     func theDownloadPageWaits() {

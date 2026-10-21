@@ -374,13 +374,41 @@ struct OnboardingFlowTests {
 
     // MARK: The download
 
+    @Test("states the size and starts nothing until Download is pressed, then counts the bytes")
+    func downloadWaitsForAPress() async {
+        let installer = GatedInstaller(downloadBytes: 645_668_913)
+        let harness = Harness(
+            microphone: .granted, accessibility: .granted, installer: installer)
+
+        await harness.flow.start()
+        #expect(harness.step == .setup)
+        #expect(harness.detail == .offeringInstall(645_668_913))
+        #expect(installer.startedDownloads == 0, "entering the page started a download")
+        #expect(harness.buttonTitles == ["Download"])
+        await harness.flow.perform(.advance)
+        #expect(harness.step == .setup, "an advance walked past a download never started")
+        await harness.flow.refresh()
+        #expect(installer.startedDownloads == 0)
+
+        let running = Task { _ = await harness.press("Download") }
+        await settle(until: { installer.startedDownloads == 1 })
+        #expect(harness.detail == .installing(0, of: 645_668_913))
+        installer.send(.report(0.5))
+        await settle(until: { harness.detail == .installing(0.5, of: 645_668_913) })
+        #expect(harness.page.hint == "323 MB of 646 MB · one-time download · stays on this Mac")
+        installer.send(.succeed)
+        await running.value
+        #expect(harness.detail == .installed)
+    }
+
     @Test("draws the download as it goes, and waits for Continue when it lands")
     func downloadRunsToTheEnd() async {
         let installer = GatedInstaller()
         let harness = Harness(
             microphone: .granted, accessibility: .granted, installer: installer)
 
-        let running = Task { await harness.flow.start() }
+        await harness.flow.start()
+        let running = Task { _ = await harness.press("Download") }
         await settle(until: { installer.startedDownloads == 1 })
         #expect(harness.step == .setup)
         #expect(harness.detail == .installing(0))
@@ -410,7 +438,8 @@ struct OnboardingFlowTests {
         let harness = Harness(
             microphone: .granted, accessibility: .granted, installer: installer)
 
-        let running = Task { await harness.flow.start() }
+        await harness.flow.start()
+        let running = Task { _ = await harness.press("Download") }
         await settle(until: { installer.startedDownloads == 1 })
         installer.send(.report(0.3))
         await settle(until: { harness.detail == .installing(0.3) })
@@ -435,7 +464,8 @@ struct OnboardingFlowTests {
         let harness = Harness(
             microphone: .granted, accessibility: .granted, installer: installer)
 
-        let running = Task { await harness.flow.start() }
+        await harness.flow.start()
+        let running = Task { _ = await harness.press("Download") }
         await settle(until: { installer.startedDownloads == 1 })
         installer.send(.report(0.4))
         await settle(until: { harness.detail == .installing(0.4) })
@@ -458,7 +488,8 @@ struct OnboardingFlowTests {
     func signingOutReturnsToSignIn() async {
         let installer = GatedInstaller()
         let harness = Harness(microphone: .granted, accessibility: .granted, installer: installer)
-        let running = Task { await harness.flow.start() }
+        await harness.flow.start()
+        let running = Task { _ = await harness.press("Download") }
         await settle(until: { installer.startedDownloads == 1 })
         installer.send(.report(0.4))
         await settle(until: { harness.detail == .installing(0.4) })
@@ -711,7 +742,8 @@ struct OnboardingFlowTests {
     func refreshingAPageThatWaitsOnNothing() async {
         let installer = GatedInstaller()
         let harness = Harness(microphone: .granted, accessibility: .granted, installer: installer)
-        let running = Task { await harness.flow.start() }
+        await harness.flow.start()
+        let running = Task { _ = await harness.press("Download") }
         await settle(until: { installer.startedDownloads == 1 })
         let published = harness.published.count
 
