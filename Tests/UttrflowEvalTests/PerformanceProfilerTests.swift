@@ -198,6 +198,39 @@ struct PerformanceProfilerTests {
         #expect((report.modelLoad.peak?.footprintBytes ?? 0) < (loaded?.reading.footprintBytes ?? 0))
     }
 
+    /// A poll on a clock other than the one given would make the readings depend on how busy the machine is.
+    @Test("memory is polled on the clock the profile was given")
+    func pollsOnTheGivenClock() async {
+        let clock = ManualClock()
+        let memory = FakeMemory(base: 100_000_000, step: 690)
+        let calls = Calls()
+        let report = await PerformanceProfiler(
+            configuration: .init(repetitions: 1, leakRepetitions: 1)
+        ).run(
+            recordings: recordings(), disk: disk,
+            machine: MachineDescription(chip: "test", memoryBytes: 8, operatingSystem: "macOS"),
+            read: memory.read, clock: clock,
+            loadSpeechModel: {
+                // Only the first load is watched; the warm one has no poller to drive.
+                let first = calls.loads.withLock { count in
+                    defer { count += 1 }
+                    return count == 0
+                }
+                guard first else { return true }
+                // One poll, then wait for the poller to sleep again so its reading has landed.
+                await clock.advanceWhenSomethingIsWaiting(by: PeakMemory.defaultInterval)
+                await clock.waitUntilSomethingIsWaiting()
+                return true
+            },
+            dictate: { _ in [] }
+        )
+        // Idle, before the load, the poll, after the load, then loaded: the peak is three steps up.
+        let peak: Int64 = 100_000_000 + 3 * 690
+        let fourSteps: Int64 = 4 * 690
+        #expect(report.modelLoad.peak?.footprintBytes == peak)
+        #expect(report.modelLoad.addedBytes == fourSteps)
+    }
+
     @Test("progress is announced for every phase")
     func announcesProgress() async {
         let calls = Calls()
