@@ -418,7 +418,8 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
 
     /// The letter a word names, where a cut-off is an unfinished word and names no letter.
     private static func letterName(_ shape: WordShape) -> String? {
-        shape.isCutOff ? nil : LetterRun.letter(named: shape.key)
+        // A letter after a dash is a command option, `-g`, whose letter is no spelling.
+        shape.isCutOff || shape.isOption ? nil : LetterRun.letter(named: shape.key)
     }
 
     /// Whether a run is evidence of spelling: three or more letter names, or a pair of bare single letters.

@@ -96,4 +96,55 @@ struct ReplaceCommandTests {
                 == ReplaceRequest(find: "um Aaron", replacement: "<um Aarav>"))
         #expect(await ReplaceCommand.tidyingReplacement(in: "delete that") { _ in "x" } == "delete that")
     }
+
+    @Test("a whole utterance of replace first or replace last picks which match, in any case and with a stop")
+    func readsTheChoice() {
+        #expect(ReplaceCommand.choice(from: "Replace first.") == .first)
+        #expect(ReplaceCommand.choice(from: "replace last") == .last)
+        #expect(ReplaceCommand.choice(from: "replace first with Aarav") == nil)
+        #expect(ReplaceCommand.choice(from: "please replace first") == nil)
+        #expect(ReplaceCommand.choice(from: "replace Aaron") == nil)
+        #expect(ReplaceCommand.request(from: "replace first") == nil)
+    }
+
+    @Test("choosing the first of two matches replaces the one nearest the start")
+    func firstMatchChosen() {
+        let request = ReplaceRequest(find: "the build", replacement: "the release")
+        #expect(
+            ReplaceCommand.apply(request, to: "The build failed, so rerun the build.", choosing: .first)
+                == .replaced(text: "The release failed, so rerun the build.", matches: 2))
+    }
+
+    @Test("the notice names the match taken")
+    func noticeNamesTheChoice() {
+        #expect(
+            ReplaceCommand.done(matches: 3, choosing: .first)
+                == "Replaced the first of 3 matches in the last dictation.")
+        #expect(
+            ReplaceCommand.done(matches: 1, choosing: .first) == "Replaced the words in the last dictation.")
+    }
+
+    @Test("a correction redoes the edit that replaced the last of several matches, from the text before it")
+    func correctionRedoesTheEdit() throws {
+        let request = ReplaceRequest(find: "the build", replacement: "the release")
+        let original = "The build failed, so rerun the build."
+        let written = "The build failed, so rerun the release."
+        let change = try #require(
+            ReplaceCommand.correction(
+                of: request, from: original, replacedBy: written, choosing: .first))
+        #expect(change.text == "The release failed, so rerun the build." && change.matches == 2)
+    }
+
+    @Test("a correction declines when the newest edit was not that replace, or had one match")
+    func correctionDeclinesOtherEdits() {
+        let request = ReplaceRequest(find: "the build", replacement: "the release")
+        #expect(
+            ReplaceCommand.correction(
+                of: request, from: "The build failed, so rerun the build.", replacedBy: "Something else.",
+                choosing: .first) == nil)
+        #expect(
+            ReplaceCommand.correction(
+                of: request, from: "Rerun the build.", replacedBy: "Rerun the release.", choosing: .first)
+                == nil)
+    }
 }
