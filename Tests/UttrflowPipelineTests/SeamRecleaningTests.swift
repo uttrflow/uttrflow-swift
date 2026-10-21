@@ -116,6 +116,21 @@ struct SeamRecleaningTests {
         }
     }
 
+    @Test(
+        "a digit run after a dash in a web address is written whole at every cut inside the run",
+        arguments: [3, 4, 5])
+    func addressDigitRunAcrossCut(_ cut: Int) async {
+        let words =
+            "join at meet dot example dot com slash retro dash team dash one two three and bring your notes"
+            .split(separator: " ").map(String.init)
+        let at = words.firstIndex(of: "one")! + cut - 3
+        let pieces = [words[..<at].joined(separator: " "), words[at...].joined(separator: " ")]
+        let whole = await written([words.joined(separator: " ")])
+        let text = await written(pieces)
+        #expect(whole?.contains("retro-team-123") == true)
+        #expect(text == whole, "cut at \(at): \(text ?? "")")
+    }
+
     @Test("a mark name is read across a cut at every word boundary")
     func everyCut() async {
         let words = "send me the file question mark and then call me".split(separator: " ").map(String.init)
