@@ -80,7 +80,7 @@ public struct PerformanceProfiler: Sendable {
             let beforeCPU = readCPU()
             let start = clock.now
             let (stages, observed) = await PeakMemory.observed(
-                interval: configuration.pollInterval, read: read
+                interval: configuration.pollInterval, read: read, clock: clock
             ) {
                 await dictate(recording)
             }
@@ -101,7 +101,7 @@ public struct PerformanceProfiler: Sendable {
         let firstLoadStart = clock.now
         // Watched, not sampled either side: a cold load's compile spike is gone before it returns.
         let (loaded, loadPeak) = await PeakMemory.observed(
-            interval: configuration.pollInterval, read: read
+            interval: configuration.pollInterval, read: read, clock: clock
         ) {
             await loadSpeechModel()
         }
