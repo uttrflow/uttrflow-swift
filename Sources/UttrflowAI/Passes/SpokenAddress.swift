@@ -88,7 +88,14 @@ struct SpokenAddress: Equatable {
         let startsPath =
             expecting.contains(.paths) && position + 1 < sentenceEnd
             && draft.shape(at: live[position + 1]).key == "slash"
-        guard startsPath || !MentionGuard.phraseOpeners.contains(draft.shape(at: live[position]).key) else {
+        // "no" opens a phrase, but a joiner right after it ("no dash reply") makes it the start of a mailbox if an address follows.
+        let joinsOpener =
+            position + 1 < sentenceEnd && joiners[draft.shape(at: live[position + 1]).key] != nil
+            && draft.shape(at: live[position]).key == "no"
+        guard
+            startsPath || joinsOpener
+                || !MentionGuard.phraseOpeners.contains(draft.shape(at: live[position]).key)
+        else {
             return nil
         }
         if let url = readExplicitURL(at: position, within: run, in: live, of: draft, expecting: expecting) {
