@@ -78,7 +78,7 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
         text.lowercased().trimmingCharacters(in: .letters.inverted)
     }
 
-    /// Writes a joining symbol between the names on both sides of it, as "orders dot id" is `orders.id`; false when either side is no name.
+    /// Writes a joining symbol between the names on both sides of it, as "orders dot id" is `orders.id` and "dash dash since equals today" is `--since=today`; false when either side is no name.
     private func join(
         _ command: SpokenCommand, at position: Int, in live: [Int], of draft: inout Draft
     ) -> Bool {
@@ -86,7 +86,11 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
         guard command.placement == .joining, position > 0, after < live.count else { return false }
         let left = draft.words[live[position - 1]].text
         let right = draft.words[live[after]].text
-        guard Self.isName(left), Self.isName(right.trimmingCharacters(in: .punctuationCharacters)) else {
+        let rightName = right.trimmingCharacters(in: .punctuationCharacters)
+        // A spoken number is written as digits by a later pass, which a joined name would hide it from.
+        guard Self.isName(Self.optionName(left)), Self.isName(rightName),
+            !NumberWords.isNumber(rightName.lowercased())
+        else {
             return false
         }
         draft.replace(at: live[position - 1], with: left + command.text + right, by: Self.id)
@@ -95,9 +99,15 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
     }
 
     /// A word an identifier can be: letters, digits and underscores, with a letter or underscore first.
-    private static func isName(_ text: String) -> Bool {
+    private static func isName(_ text: some StringProtocol) -> Bool {
         guard let first = text.first, first.isLetter || first == "_" else { return false }
         return text.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "." }
+    }
+
+    /// The name an option marker stands before, as `since` in `--since`; any other word as it is.
+    private static func optionName(_ text: String) -> Substring {
+        let dashes = text.prefix { $0 == "-" }.count
+        return dashes <= 2 ? text.dropFirst(dashes) : Substring(text)
     }
 
     /// Where a written symbol goes: onto its own first word, or onto the word before it.

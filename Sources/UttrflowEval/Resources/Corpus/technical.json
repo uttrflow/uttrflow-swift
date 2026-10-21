@@ -1520,5 +1520,33 @@
     "destination": "terminal",
     "expectedExact": "docker run --name my-container nginx",
     "addedFor": 7942
+  },
+  {
+    "id": "shell-assign-environment-variable",
+    "note": "a spoken equals between a variable and its value at a command line is an assignment, written with no spaces",
+    "spoken": "export NODE underscore ENV equals production",
+    "expected": "export NODE_ENV=production",
+    "mustKeep": ["NODE_ENV=production"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "expectedExact": "export NODE_ENV=production",
+    "addedFor": 7943
+  },
+  {
+    "id": "shell-assign-long-option",
+    "note": "a spoken equals after a long option joins the option to its value",
+    "spoken": "git log dash dash since equals yesterday",
+    "expected": "git log --since=yesterday",
+    "mustKeep": ["--since=yesterday"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "expectedExact": "git log --since=yesterday",
+    "addedFor": 7943
   }
 ]
