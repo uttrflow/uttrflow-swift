@@ -87,11 +87,12 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
         let left = draft.words[live[position - 1]].text
         let right = draft.words[live[after]].text
         let rightName = right.trimmingCharacters(in: .punctuationCharacters)
-        // A spoken number is written as digits by a later pass, which a joined name would hide it from.
-        guard Self.isName(Self.optionName(left)), Self.isName(rightName),
-            !NumberWords.isNumber(rightName.lowercased())
-        else {
-            return false
+        guard Self.isOptionOrName(left), Self.isName(rightName) else { return false }
+        // A spoken number is written as digits by a later pass, so the symbol waits on the name and spacing joins the digits.
+        if NumberWords.isNumber(rightName.lowercased()) {
+            draft.replace(at: live[position - 1], with: left + command.text, by: Self.id)
+            for offset in position..<after { draft.remove(at: live[offset], by: Self.id) }
+            return true
         }
         draft.replace(at: live[position - 1], with: left + command.text + right, by: Self.id)
         for offset in position...after { draft.remove(at: live[offset], by: Self.id) }
@@ -102,6 +103,13 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
     private static func isName(_ text: some StringProtocol) -> Bool {
         guard let first = text.first, first.isLetter || first == "_" else { return false }
         return text.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "." }
+    }
+
+    /// Whether a word is a name, or an option whose dashed name joins names with hyphens, as `--max-count` does.
+    private static func isOptionOrName(_ text: String) -> Bool {
+        let name = optionName(text)
+        guard name.count < text.count else { return isName(name) }
+        return name.split(separator: "-", omittingEmptySubsequences: false).allSatisfy(isName)
     }
 
     /// The name an option marker stands before, as `since` in `--since`; any other word as it is.

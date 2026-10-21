@@ -1548,5 +1548,19 @@
     "destination": "terminal",
     "expectedExact": "git log --since=yesterday",
     "addedFor": 7943
+  },
+  {
+    "id": "shell-assign-number-with-unit",
+    "note": "a spoken number assigned to an option is joined to it with its one-letter unit, as a command line reads one token",
+    "spoken": "docker run dash dash memory equals two g nginx",
+    "expected": "docker run --memory=2g nginx",
+    "mustKeep": ["--memory=2g"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "expectedExact": "docker run --memory=2g nginx",
+    "addedFor": 7943
   }
 ]

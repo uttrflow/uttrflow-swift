@@ -50,6 +50,16 @@ struct ShellOperatorTests {
         #expect(run("export NODE equals production", in: .document) == "export NODE equals production")
     }
 
+    @Test("joins a spoken number to the option or variable it is assigned to, with its unit letter")
+    func numberAssignments() {
+        #expect(
+            run("docker run dash dash memory equals two g nginx", in: .terminal)
+                == "docker run --memory=2g nginx")
+        #expect(run("export PORT equals eight zero eight zero", in: .terminal) == "export PORT=8080")
+        #expect(run("git log dash dash max dash count equals five", in: .terminal) == "git log --max-count=5")
+        #expect(run("docker run dash m two g nginx", in: .terminal) == "docker run -m 2 g nginx")
+    }
+
     @Test("reads a determiner before a word as prose, and before a notation word as code")
     func determinerEvidence() {
         let prose = "our costs this year were greater than we planned"
