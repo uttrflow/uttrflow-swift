@@ -7,6 +7,8 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     public static let laws: Set<PassLaw> = [.idempotent, .latinOnly]
     public static let orderIndependentWith: Set<PassID> = [.caretEcho]
     private let destination: Destination
+    /// Where the caret stands, which decides whether a query editor holds a statement.
+    private let region: CaretStructure.Region
     /// Whether the screen alone makes every spoken dash an option marker: a place options are typed, outside a comment.
     private let isCommandLine: Bool
     /// What the field holds without a word announcing it: addresses in a recipient field, paths at a command line.
@@ -41,6 +43,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         mode: AdapterMode = .auto
     ) {
         self.destination = destination
+        self.region = region
         self.sentencePause = PauseStopPass.sentencePause(for: pauses)
         // The flag rows name where options are typed; the one notation rule rules out a comment or prose body there.
         let screen = NotationEvidence.applicability(destination: destination, region: region, mode: mode)
@@ -220,11 +223,22 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     private func isUsed(
         _ found: SpokenCommand, at position: Int, in live: [Int], of draft: Draft, repeated: Set<Int>
     ) -> Bool {
-        !MentionGuard.isMentioned(
+        // A bracket or a list comma in a dictated statement is part of its syntax, whatever word follows it.
+        if isStatementSyntax(found, in: live, of: draft) { return true }
+        return !MentionGuard.isMentioned(
             at: position, spanning: found.words.count, in: live, of: draft,
             reach: MentionGuard.phraseReach, kind: found.placement)
             && !isVerb(found.words, at: position, in: live, of: draft)
             && isEvidenced(found.words, at: position, in: live, of: draft, repeated: repeated)
+    }
+
+    /// Whether a bracket or a comma is said inside a statement in a query editor, which reads them as notation and never as words.
+    private func isStatementSyntax(_ found: SpokenCommand, in live: [Int], of draft: Draft) -> Bool {
+        guard destination == .sqlEditor,
+            SpokenCommands.isBracket(found.text) || Self.seamNames.contains(found.words)
+        else { return false }
+        let words = live.map { CodeEditorCommandsPass.bare(draft.words[$0].text) }.filter { !$0.isEmpty }
+        return NotationEvidence.isQueryStatement(words: words, destination: destination, region: region)
     }
 
     /// Decides a sentence's two prose dashes around words as one, by word index: marks when either is used and both may stand there.
