@@ -108,6 +108,9 @@ struct SpokenAddress: Equatable {
         if let identifier = readIdentifier(at: position, within: run, in: live, of: draft) {
             return identifier
         }
+        if let glob = readGlobName(at: position, within: run, in: live, of: draft, expecting: expecting) {
+            return glob
+        }
         if let file = readFileName(at: position, within: run, in: live, of: draft) { return file }
         if let tagged = readTagged(at: position, within: run, in: live, of: draft, expecting: expecting) {
             return tagged

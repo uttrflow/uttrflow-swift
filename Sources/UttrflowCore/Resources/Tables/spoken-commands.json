@@ -50,6 +50,7 @@
         {"id": "shell.append", "words": ["double", "greater", "than"], "action": "codeSymbol", "text": ">>", "destinations": ["terminal"]},
         {"id": "shell.redirect", "words": ["greater", "than"], "action": "codeSymbol", "text": ">", "destinations": ["terminal"]},
         {"id": "shell.home", "words": ["tilde"], "action": "codeSymbol", "text": "~", "destinations": ["terminal"]},
+        {"id": "shell.glob", "words": ["star"], "action": "codeSymbol", "text": "*", "destinations": ["terminal"]},
         {"id": "code.strict-not-equals", "words": ["not", "triple", "equals"], "action": "codeSymbol", "text": "!==", "destinations": ["codeEditor"], "languages": ["swift", "javascript", "typescript"]},
         {"id": "code.triple-equals", "words": ["triple", "equals"], "action": "codeSymbol", "text": "===", "destinations": ["codeEditor"], "languages": ["swift", "javascript", "typescript"]},
         {"id": "code.double-equals", "words": ["double", "equals"], "action": "codeSymbol", "text": "==", "destinations": ["codeEditor"]},
