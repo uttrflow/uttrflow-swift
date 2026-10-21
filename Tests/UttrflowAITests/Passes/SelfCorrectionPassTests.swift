@@ -64,6 +64,26 @@ struct SelfCorrectionPassTests {
     }
 
     @Test(
+        "keeps the words as said when the restart carries on as a clause of its own after a verb",
+        arguments: [
+            (
+                "I'll take the red one, no, the blue one, no actually the green one is better.",
+                "I'll take the blue one, no actually the green one is better."
+            ),
+            (
+                "I'll take the blue one, no actually the green one is better.",
+                "I'll take the blue one, no actually the green one is better."
+            ),
+            ("we want the old plan sorry the new plan is cheaper", "we want the old plan sorry the new plan is cheaper"),
+            ("the red one, no, the blue one is better.", "the blue one is better."),
+            ("I said the red one is cheap, no, the blue one is cheap.", "I said the blue one is cheap."),
+        ]
+    )
+    func keepsRestartThatOpensItsOwnClause(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
         "keeps ordinary actually and no between content words",
         arguments: [
             "the weather actually improved overnight",

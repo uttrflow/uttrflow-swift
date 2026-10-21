@@ -76,7 +76,8 @@ public struct SelfCorrectionPass: PieceCleaningPass {
                 live.count, discarded.upperBound + trigger - discarded.lowerBound)
         guard let closing = restatement.first(where: { draft.shape(at: live[$0]).endsClause }),
             closing < live.count - 1, draft.shape(at: live[closing]).suffix == ",",
-            !opensWithSubordinator(before: discarded.lowerBound, in: live, of: draft)
+            !opensWithSubordinator(before: discarded.lowerBound, in: live, of: draft),
+            Restatement.triggerRun(at: closing + 1, in: live, of: draft) == 0
         else { return nil }
         return live[closing]
     }
