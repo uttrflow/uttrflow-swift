@@ -14,7 +14,7 @@ public enum FunctionWords {
         return leadingOn.contains(key) || Restatement.contractedSubjects.contains(key)
     }
 
-    /// Whether a full stop the recogniser wrote after the word stands: "is", "are", "was" and "were" end "Yes, it is." and "Here they are."
+    /// Whether a full stop the recogniser wrote after the word stands: "is" ends "Yes, it is." and a stopped "for" or "with" ends a relative clause
     package static func closesWhenStopped(_ word: String) -> Bool {
         closing.contains(word.lowercased())
     }
@@ -45,7 +45,7 @@ public enum FunctionWords {
     /// Articles, possessives, conjunctions, prepositions that take an object, and the copula.
     static let leadingOn = words(in: .leadsOn)
 
-    /// The copulas a written stop after them is kept, since they end an elliptical answer or a relative clause.
+    /// The copulas and prepositions a written stop after them is kept, since they end an elliptical answer or a relative clause.
     static let closing = words(in: .closesWhenStopped)
 
     /// The words after "which is" that make the clause carry on the speaker's thought.

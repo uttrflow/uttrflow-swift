@@ -1861,5 +1861,23 @@
     "expectedExact": "Please open Visual Studio Code and then the Terminal app.",
     "mustKeep": ["Visual Studio Code"],
     "addedFor": 8047
+  },
+  {
+    "id": "stranded-preposition-keeps-stop-pen-written-with",
+    "note": "a clause that ends on its preposition is a finished sentence, so the recogniser stop stays",
+    "spoken": "Here is the pen I write with.",
+    "expected": "Here is the pen I write with.",
+    "expectedExact": "Here is the pen I write with.",
+    "mustKeep": ["write with."],
+    "addedFor": 8057
+  },
+  {
+    "id": "stranded-preposition-keeps-stop-waiting-for",
+    "note": "a clause that ends on its preposition is a finished sentence, so the recogniser stop stays",
+    "spoken": "She is the one I was waiting for.",
+    "expected": "She is the one I was waiting for.",
+    "expectedExact": "She is the one I was waiting for.",
+    "mustKeep": ["waiting for."],
+    "addedFor": 8057
   }
 ]

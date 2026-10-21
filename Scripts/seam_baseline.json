@@ -5522,6 +5522,14 @@
     "sql-terms@8",
     "standalone-pronoun-i@1",
     "standalone-pronoun-i@2",
+    "stranded-preposition-keeps-stop-pen-written-with@1",
+    "stranded-preposition-keeps-stop-pen-written-with@4",
+    "stranded-preposition-keeps-stop-pen-written-with@5",
+    "stranded-preposition-keeps-stop-pen-written-with@6",
+    "stranded-preposition-keeps-stop-waiting-for@1",
+    "stranded-preposition-keeps-stop-waiting-for@4",
+    "stranded-preposition-keeps-stop-waiting-for@5",
+    "stranded-preposition-keeps-stop-waiting-for@7",
     "strike-that-as-an-order-kept@1",
     "strike-that-as-an-order-kept@3",
     "strike-that-restates-a-phrase@2",
@@ -5731,5 +5739,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5711
+  "total" : 5719
 }
