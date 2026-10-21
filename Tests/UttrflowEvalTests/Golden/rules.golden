@@ -1020,8 +1020,11 @@ quotation-opening-the-text	"The build is green" that is what he said.
 quote-pair-after-say-stays-whole	Type open quote yes close quote.
 quoted-whole-utterance	"We ship on Friday."
 quoted-words-mid-sentence	He said "we ship on Friday" and left.
+range-keeps-its-own-scales	We expect 200 to 300 people.
 range-of-two-hundreds-between	The fee is between 500 and 600 dollars.
 range-of-two-hundreds-from	From 200 and 300 people came.
+range-shares-hundred	We sold 500 or 600 copies.
+range-shares-thousand	The crowd was 2000 to 3000 people.
 reminders-title-no-stop	Water the plants
 repeated-continuation-kept	Blah blah blah and so on and so on.
 repeated-frame-for-kept	I'll pay for lunch for everyone.
