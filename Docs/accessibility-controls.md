@@ -151,8 +151,8 @@ leave a stale pass behind.
 | Settings | `Sources/Uttrflow/Settings/SettingsControlView.swift#Button#5` | Button | expression | unchecked |
 | Settings | `Sources/Uttrflow/Settings/SettingsControlView.swift#Button#6` | Button | accessibilityLabel | unchecked |
 | Settings | `Sources/Uttrflow/Settings/SettingsControlView.swift#Button#7` | Button | label view | unchecked |
-| Settings | `Sources/Uttrflow/Settings/SettingsDiagnosticsView.swift#Button#1` | Button | expression | unchecked |
-| Settings | `Sources/Uttrflow/Settings/SettingsDiagnosticsView.swift#Button#2` | Button | text "Copy" | unchecked |
+| Settings | `Sources/Uttrflow/Settings/SettingsDiagnosticsView.swift#Button#1` | Button | text "Copy" | unchecked |
+| Settings | `Sources/Uttrflow/Settings/SettingsDiagnosticsView.swift#Button#2` | Button | expression | unchecked |
 | Settings | `Sources/Uttrflow/Settings/SettingsDiagnosticsView.swift#Button#3` | Button | expression | unchecked |
 | Settings | `Sources/Uttrflow/Settings/SettingsPageView.swift#TextField#1` | TextField | expression | unchecked |
 | Settings | `Sources/Uttrflow/Settings/SettingsPageView.swift#Button#1` | Button | accessibilityLabel | unchecked |

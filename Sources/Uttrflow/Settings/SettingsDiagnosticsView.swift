@@ -126,42 +126,8 @@ struct SettingsDiagnosticsView: View {
 
     /// One fact: its name, and its value coloured by whether it is fine, with the fix beside it.
     private func fact(_ row: DiagnosticsRow, icon: SettingsIcon?) -> some View {
-        HStack(spacing: 14) {
-            if let icon {
-                SettingsIconTile(icon: icon)
-            }
-            Text(row.title)
-                .font(.system(size: 13.5))
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 12)
-            // The build and the machine are values to quote, so they are set as code and selectable.
-            if presentation.system.contains(row) {
-                Text(row.detail)
-                    .font(.system(size: 12, design: .monospaced))
-                    .foregroundStyle(SettingsPalette.ink(0.75))
-                    .textSelection(.enabled)
-            } else if row.state == .good {
-                SettingsStatusView(text: row.detail)
-            } else {
-                // Wrapped rather than truncated: a step's row names the words it changed.
-                Text(row.detail)
-                    .font(.system(size: 12))
-                    .foregroundStyle(
-                        row.state == .attention ? PagePalette.clipboardInk : PagePalette.faint
-                    )
-                    .multilineTextAlignment(.trailing)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            if let action = row.action {
-                Button(action.title) { onIntent(action.intent) }
-                    .buttonStyle(SettingsButtonStyle())
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 13)
-        .frame(minHeight: 58)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(row.title): \(row.detail)")
+        SettingsDiagnosticsFact(
+            row: row, icon: icon, isSystemValue: presentation.system.contains(row), onIntent: onIntent)
     }
 
     private var copyRow: some View {
@@ -352,6 +318,63 @@ struct SettingsModelCardView: View {
         case .good: SettingsStatusView(text: card.status)
         case .attention: SettingsStatusView(text: card.status, tone: PagePalette.clipboardInk)
         case .unknown: SettingsStatusView(text: card.status, tone: PagePalette.faint)
+        }
+    }
+}
+
+/// One fact of the Diagnostics page; the status is one element and the fix beside it is its own, named by its title.
+struct SettingsDiagnosticsFact: View {
+    let row: DiagnosticsRow
+    let icon: SettingsIcon?
+    /// Whether the value is the build or the machine, set as code and selectable.
+    let isSystemValue: Bool
+    var onIntent: (MainIntent) -> Void = { _ in }
+
+    var body: some View {
+        HStack(spacing: 14) {
+            status
+            if let action = row.action {
+                Button(action.title) { onIntent(action.intent) }
+                    .buttonStyle(SettingsButtonStyle())
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
+        .frame(minHeight: 58)
+    }
+
+    /// The name and the value, read as one status.
+    private var status: some View {
+        HStack(spacing: 14) {
+            if let icon {
+                SettingsIconTile(icon: icon)
+            }
+            Text(row.title)
+                .font(.system(size: 13.5))
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 12)
+            value
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(row.title): \(row.detail)")
+    }
+
+    @ViewBuilder private var value: some View {
+        // The build and the machine are values to quote, so they are set as code and selectable.
+        if isSystemValue {
+            Text(row.detail)
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundStyle(SettingsPalette.ink(0.75))
+                .textSelection(.enabled)
+        } else if row.state == .good {
+            SettingsStatusView(text: row.detail)
+        } else {
+            // Wrapped rather than truncated: a step's row names the words it changed.
+            Text(row.detail)
+                .font(.system(size: 12))
+                .foregroundStyle(row.state == .attention ? PagePalette.clipboardInk : PagePalette.faint)
+                .multilineTextAlignment(.trailing)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
