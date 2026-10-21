@@ -204,5 +204,14 @@
     "mustKeep": ["Kubernetes's"],
     "doubtful": ["kubernetes's"],
     "dictionary": ["Kubernetes"]
+  },
+  {
+    "id": "dictionary-possessive-heard-surely-8111",
+    "note": "A dictionary word heard surely in the possessive is written in the entry's case with the ending kept, as the bare word is.",
+    "addedFor": 8111,
+    "spoken": "please open grafana's settings before the review",
+    "expected": "Please open Grafana's settings before the review.",
+    "mustKeep": ["Grafana's"],
+    "dictionary": ["Grafana"]
   }
 ]
