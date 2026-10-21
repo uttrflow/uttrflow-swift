@@ -85,6 +85,20 @@ struct SpokenPathTests {
         #expect(cleaned(input, by: terminal) == expected)
     }
 
+    @Test(
+        "writes a parent directory said more than once as dots between slashes",
+        .bug(id: 7898),
+        arguments: [
+            ("cd dot dot slash dot dot slash build", "cd ../../build"),
+            ("open dot dot slash readme dot md", "open ../readme.md"),
+            ("cp dot dot slash config dot yml dot", "cp ../config.yml ."),
+            ("cd dot dot slash dot dot slash dot dot slash lib", "cd ../../../lib"),
+        ]
+    )
+    func writesRepeatedParentDirectories(input: String, expected: String) {
+        #expect(cleaned(input, by: terminal) == expected)
+    }
+
     @Test("leaves the same unannounced words as prose outside a command line")
     func leavesUnannouncedProsePaths() {
         let unannounced = "grep error logs slash app dot log"
