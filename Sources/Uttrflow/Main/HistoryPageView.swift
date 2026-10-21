@@ -106,6 +106,7 @@ struct HistoryPageView: View {
         .padding(.bottom, 6)
     }
 
+    /// The link keeps its full width and its own name; the text before it truncates first.
     private var caption: some View {
         let notice = presentation.retentionNotice
         return HStack(spacing: 0) {
@@ -114,11 +115,16 @@ struct HistoryPageView: View {
                     .joined(separator: " · ")
             )
             .foregroundStyle(PagePalette.quiet)
-            Button(" · \(notice.link.title)") {
+            Text(" · ")
+                .foregroundStyle(PagePalette.quiet)
+                .accessibilityHidden(true)
+                .fixedSize()
+            Button(notice.link.title) {
                 onIntent(notice.link.intent)
             }
             .buttonStyle(.plain)
             .foregroundStyle(PagePalette.dictation)
+            .fixedSize()
         }
         .font(.system(size: 13))
         .lineLimit(1)
