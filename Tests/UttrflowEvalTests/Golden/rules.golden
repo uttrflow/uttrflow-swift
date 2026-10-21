@@ -1448,6 +1448,8 @@ sql-statement-update-rating	UPDATE books\nSET rating = 5\nWHERE id = 2
 sql-terminated-semicolon-said	SELECT id\nFROM orders;
 sql-terms	Select everything from the user table and sort by name.
 standalone-pronoun-i	So I think.
+stranded-preposition-keeps-stop-pen-written-with	Here is the pen I write with.
+stranded-preposition-keeps-stop-waiting-for	She is the one I was waiting for.
 strike-that-as-an-order-kept	Strike that match and light the candle.
 strike-that-restates-a-phrase	Pick the blue one.
 sub1	My manager wants the slides by noon.

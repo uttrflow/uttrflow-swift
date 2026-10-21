@@ -102,6 +102,22 @@ struct TerminalStopPassTests {
     }
 
     @Test(
+        "keeps the stop the recogniser wrote after a stranded preposition, and adds none where it wrote none",
+        .bug(id: 8057),
+        arguments: [
+            ("It's about the people you work with.", "It's about the people you work with."),
+            ("That is what I was looking for.", "That is what I was looking for."),
+            ("I have no idea where he went to.", "I have no idea where he went to."),
+            ("Here is the pen I write with.", "Here is the pen I write with."),
+            ("Ask who she is waiting at.", "Ask who she is waiting at."),
+            ("the people you work with", "the people you work with"),
+        ])
+    func keepsARecogniserStopAfterAStrandedPreposition(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+        #expect(CleaningPipeline.standard.run(Draft(text: input)).text.hasSuffix(expected.suffix(4)))
+    }
+
+    @Test(
         "ends no dictation with a stop after a word that leaves the clause open",
         arguments: [
             ("i went to the bank and", "i went to the bank and"),
