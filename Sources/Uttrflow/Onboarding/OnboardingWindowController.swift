@@ -202,6 +202,12 @@ struct SpeechModelInstall: OnboardingModelInstaller {
 
     var isInstalled: Bool { store.isInstalled(model) }
 
+    /// The pinned weights' size, the same figure the menu bar and Home show before a download.
+    var downloadBytes: Int64? { model.downloadBytes }
+
+    /// Never on its own; the app wraps it in ``SharedModelInstall``, which knows.
+    var isDownloading: Bool { false }
+
     func install(onProgress: @escaping @Sendable (Double) -> Void) async throws(SpeechEngineError) {
         try await store.install(model, onProgress: onProgress)
     }

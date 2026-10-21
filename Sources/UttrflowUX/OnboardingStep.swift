@@ -63,8 +63,11 @@ public enum OnboardingDetail: Sendable, Equatable {
     /// The user has been sent to System Settings, and the page says it is waiting.
     case awaitingSystemSettings
 
-    /// The download, from `0` to `1`.
-    case installing(Double)
+    /// The download page before anything is fetched, with what the download weighs when that is known.
+    case offeringInstall(Int64?)
+
+    /// The download, from `0` to `1`, with its total bytes when they are known.
+    case installing(Double, of: Int64? = nil)
 
     /// The download stopped, with the sentence to put in front of the user and how far it had come.
     case installFailed(String, reached: Double = 0)
