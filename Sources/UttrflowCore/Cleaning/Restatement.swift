@@ -99,22 +99,22 @@ public enum Restatement {
         guard
             let start = alignedStart(
                 before: trigger, after: restart, in: live, of: draft, asksForLayout: asksForLayout),
-            !restartOpensOwnClause(from: start, restart: restart, in: live, of: draft)
+            !restartOpensOwnClause(from: start, trigger: trigger, restart: restart, in: live, of: draft)
         else { return nil }
         return start
     }
 
-    /// Whether the restart carries on as a clause with its own copula while the half it would replace holds none and begins inside a clause, so removing the half would hang the copula's predicate on the words before it ("I'll take the red one no the green one is better").
+    /// Whether the restart carries on as a clause of its own: a copula follows within as many words as the half it replaces, while that half holds none and begins inside a clause, so removing the half would hang the copula's predicate on the words before it ("I'll take the red one no the green one is better").
     private static func restartOpensOwnClause(
-        from start: Int, restart: Int, in live: [Int], of draft: Draft
+        from start: Int, trigger: Int, restart: Int, in live: [Int], of draft: Draft
     ) -> Bool {
         guard start > 0, !draft.shape(at: live[start - 1]).endsClause,
             !(start..<restart).contains(where: { copulas.contains(draft.shape(at: live[$0]).key) })
         else { return false }
-        for position in restart..<live.count {
-            let word = draft.shape(at: live[position])
-            if copulas.contains(word.key) { return true }
-            if word.endsClause { return false }
+        let replaced = trigger - start
+        for position in restart..<min(live.count, restart + replaced + 1) {
+            if copulas.contains(draft.shape(at: live[position]).key) { return position - restart <= replaced }
+            if draft.shape(at: live[position]).endsClause { return false }
         }
         return false
     }

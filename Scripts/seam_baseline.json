@@ -973,6 +973,16 @@
     "dotted-rate-before-percent-kept@4",
     "dotted-rate-before-percent-kept@7",
     "dotted-rate-before-percent-kept@9",
+    "double-correction-keeps-clause-whole@10",
+    "double-correction-keeps-clause-whole@11",
+    "double-correction-keeps-clause-whole@12",
+    "double-correction-keeps-clause-whole@13",
+    "double-correction-keeps-clause-whole@14",
+    "double-correction-keeps-clause-whole@2",
+    "double-correction-keeps-clause-whole@3",
+    "double-correction-keeps-clause-whole@4",
+    "double-correction-keeps-clause-whole@6",
+    "double-correction-keeps-clause-whole@8",
     "double-negative-keep@1",
     "double-negative-keep@2",
     "double-negative-keep@3",
@@ -5731,5 +5741,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5711
+  "total" : 5721
 }
