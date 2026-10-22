@@ -545,6 +545,32 @@ struct SecretDetectionTests {
         }
     }
 
+    @Test(
+        "masks a password a person chose in a URL query",
+        arguments: [
+            "https://db.example.com/app?user=root&password=Vb4nM7xQ2p",
+            "jdbc:mysql://db.example.com:3306/app?user=root&password=Vb4nM7xQ2p",
+            "mongodb://db.example.com/?authSource=admin&password=Vb4nM7xQ2p",
+            "https://db.example.com/app?pwd=hunter2",
+            "https://db.example.com/app?Passwd=correcthorsebattery",
+        ])
+    func chosenPasswordInQuery(_ text: String) {
+        #expect(ClipKindDetector.kind(of: text) == .secret)
+    }
+
+    @Test(
+        "leaves a password parameter that is empty, plain or a placeholder as a link",
+        arguments: [
+            "https://db.example.com/app?password=",
+            "https://db.example.com/app?password=secret",
+            "https://db.example.com/app?password=${DB_PASSWORD}",
+            "https://db.example.com/app?password=YOUR_PASSWORD_1",
+            "https://db.example.com/app?password=xxxxxxxx",
+        ])
+    func placeholderPasswordInQuery(_ text: String) {
+        #expect(ClipKindDetector.kind(of: text) == .link)
+    }
+
     @Test("does not mask short or ordinary URL parameter values")
     func ordinaryValuesInCredentialURLParameters() {
         let names = [

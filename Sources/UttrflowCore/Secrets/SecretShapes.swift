@@ -24,6 +24,7 @@ public enum SecretShapes {
         if literals.pem, text.contains(pemHeader) { return true }
         if literals.jwt, hasJSONWebToken(text) { return true }
         if literals.dockerAuth, DockerAuthShape.matches(text) { return true }
+        if literals.url, hasAuthenticatorSeed(text) { return true }
         if literals.url, hasCredentialledURL(text) || hasBearerURL(text) || hasTokenUserinfoURL(text) {
             return true
         }
@@ -53,6 +54,13 @@ public enum SecretShapes {
         var read = 0
         defer { tally?.record(read) }
         return CredentialledURLScan.matches(text, read: &read)
+    }
+
+    /// An `otpauth://` or `otpauth-migration://` URI, which carries the seed of an authenticator.
+    static func hasAuthenticatorSeed(_ text: String) -> Bool {
+        var read = 0
+        defer { tally?.record(read) }
+        return AuthenticatorSeedShape.matches(text, read: &read)
     }
 
     /// A URL whose userinfo is one generated token with no colon, as `https://<token>@host/repo` carries it.
