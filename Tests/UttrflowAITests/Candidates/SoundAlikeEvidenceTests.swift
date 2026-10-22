@@ -130,3 +130,31 @@ struct HeardWordFitTests {
         #expect(!HeardWordFit.isName(1..<2, in: ["add", "john", "login"]))
     }
 }
+
+@Suite("A word in a romanised Hindi clause is offered no English reading", .bug(id: 8158))
+struct HindiClauseSoundAlikeTests {
+    @Test(
+        "an unlisted spelling beside a Hindi copula is ruled out by no rule",
+        arguments: [
+            ("Thiek hai, I will do it tomorrow.", 0),
+            ("Achcha, so the client wants changes. Thiek hai.", 6),
+            ("Woh thiek tha, I checked.", 1),
+        ])
+    func copulaClauseIsHindi(text: String, index: Int) {
+        let said = text.split(separator: " ").map(String.init)
+        #expect(HeardWordFit.ruledOut(index..<(index + 1), in: said) == nil)
+    }
+
+    @Test("the unsure spelling is offered no English sound-alike")
+    func noEnglishReadingOffered() async {
+        let spans = await DoubtfulWords.standard.spans(
+            in: Draft.heard("?Thiek hai, I will do it tomorrow."), for: .unknown)
+        let found = spans.filter { $0.heard == "Thiek" }.flatMap { $0.candidates.map(\.spelling) }
+        #expect(found.isEmpty, "Thiek was offered \(found)")
+    }
+
+    @Test("an unknown word in an English sentence is still ruled out")
+    func englishSentenceStillRuledOut() {
+        #expect(HeardWordFit.ruledOut(1..<2, in: ["we", "xqzv", "three", "things"]) == .notAWord)
+    }
+}

@@ -293,10 +293,11 @@ public struct WordCorrectionEngine: Sendable {
         speaksHindi(utterance.words.map(\.text))
     }
 
-    /// Whether any of the words is listed romanised Hindi that is not also English.
+    /// Whether any of the words is listed romanised Hindi that is not also English, or a Hindi copula, which the English model lists ("hai").
     static func speaksHindi(_ words: [String]) -> Bool {
         words.contains { word in
             let letters = WordShape(word).key
+            if HindiWords.copulas.contains(letters) { return true }
             return LoanwordRestoration.isRomanisedHindi(letters) && !LexicalClass.isKnownEnglishWord(letters)
         }
     }
