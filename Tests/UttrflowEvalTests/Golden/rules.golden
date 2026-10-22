@@ -457,6 +457,7 @@ fmt-token-web-path-stopped	Visit example.com/pricing.
 four-digit-number-ungrouped-in-prose	The repo has more than 2000 files.
 full-stop-new-paragraph	The build is green.\n\nThanks everyone.
 function-name	Call get_user with the id and check the response.
+greeting-address-keeps-recogniser-stop	Hi all. Quick reminder that the office is closed on Monday.
 greeting-kept	Hey sarah just checking in on the design review.
 hindi-translation-refused	Meeting 4 baje hai, nahi nahi, 5 baje hai.
 hindi-worked-example-refused	Matlab main kal aayega, haan, accha to phir milte hain.
@@ -1448,6 +1449,7 @@ sql-statement-update-rating	UPDATE books\nSET rating = 5\nWHERE id = 2
 sql-terminated-semicolon-said	SELECT id\nFROM orders;
 sql-terms	Select everything from the user table and sort by name.
 standalone-pronoun-i	So I think.
+stranded-preposition-keeps-recogniser-stop	This is all I can think of. That is the city she comes from.
 strike-that-as-an-order-kept	Strike that match and light the candle.
 strike-that-restates-a-phrase	Pick the blue one.
 sub1	My manager wants the slides by noon.

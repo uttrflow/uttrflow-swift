@@ -26,6 +26,14 @@ struct SentenceBoundaryPass: WholeTextCleaningPass {
             guard !Abbreviations.ownsStop(shape.core) else { continue }
             // "the" closing a Hindi clause is थे, which ends a sentence; the evidence reads only the English word.
             guard !draft.isHindi(at: index) else { continue }
+            let clause = Self.clause(endingAt: position, in: live, of: draft)
+            // "Hi all." and "the one we spoke of." end their sentences though their last word could lead on.
+            guard !TerminalStopPass.isGreetingAddress(clause, in: draft),
+                !SentenceBoundaryEvidence.endsOnStrandedPreposition(
+                    clause.dropLast().map { draft.words[$0].text } + [
+                        WordShape.withoutTrailingStop(draft.words[index].text)
+                    ])
+            else { continue }
             let following = Self.sentenceAfter(position, in: live, of: draft)
             guard
                 SentenceBoundaryEvidence.sentenceRunsOn(
@@ -59,6 +67,17 @@ struct SentenceBoundaryPass: WholeTextCleaningPass {
         let words = live[start...position].map { draft.words[$0].text }
         return words.dropLast().joined(separator: " ")
             + (words.count > 1 ? " " : "") + WordShape.withoutTrailingStop(words[words.count - 1])
+    }
+
+    /// The word indices of the sentence ending at `position`, back to the last sentence end or layout mark.
+    private static func clause(endingAt position: Int, in live: [Int], of draft: Draft) -> [Int] {
+        var start = position
+        while start > 0, !draft.words[live[start - 1]].isLayoutMark,
+            !draft.shape(at: live[start - 1]).endsSentence
+        {
+            start -= 1
+        }
+        return Array(live[start...position])
     }
 
     /// The up to two words before the one at `position`, the context a noun "look" needs.

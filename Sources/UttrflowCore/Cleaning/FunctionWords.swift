@@ -51,6 +51,9 @@ public enum FunctionWords {
     /// The copulas and prepositions a written stop after them is kept, since they end an elliptical answer or a relative clause.
     static let closing = words(in: .closesWhenStopped)
 
+    /// Question words and quantity words a relative clause's object gap refers back to: "what we asked for", "all we spoke of".
+    static let objectGapHeads = words(in: .objectGapHead)
+
     /// The words after "which is" that make the clause carry on the speaker's thought.
     static let relativeWhichTails = words(in: .relativeWhichTail)
 
@@ -114,7 +117,7 @@ public enum FunctionWords {
         case function, leadsOn, meaningBearing, caseSensitive, determiner, prose, subordinator, closingTag,
             auxiliary, boundaryDeterminer, neverLast, neverFronted, imperativeObject, bareVerbLeader, modal,
             commaPreposition, seamPreposition, httpMethod, multiplierComparison, closesWhenStopped,
-            relativeWhichTail, coordinator
+            relativeWhichTail, coordinator, objectGapHead
     }
 
     /// One small word and the lists it belongs to.

@@ -110,6 +110,8 @@ struct TerminalStopPassTests {
             ("I have no idea where he went to.", "I have no idea where he went to."),
             ("Here is the pen I write with.", "Here is the pen I write with."),
             ("Ask who she is waiting at.", "Ask who she is waiting at."),
+            ("This is the one I was thinking of.", "This is the one I was thinking of."),
+            ("That is the city she comes from.", "That is the city she comes from."),
             ("the people you work with", "the people you work with"),
         ])
     func keepsARecogniserStopAfterAStrandedPreposition(input: String, expected: String) {
