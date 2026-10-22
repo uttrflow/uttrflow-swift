@@ -13,7 +13,7 @@
         { "id": "release", "cues": ["dotted"] },
         { "id": "is", "cues": ["digitRun"] },
         { "id": "code", "cues": ["digitRun", "designator"] },
-        { "id": "status", "cues": ["designator"] },
+        { "id": "status", "cues": ["designator", "headingLabel"] },
         { "id": "pin", "cues": ["digitRun"] },
         { "id": "passcode", "cues": ["digitRun"] },
         { "id": "password", "cues": ["digitRun"] },
@@ -100,6 +100,11 @@
         { "id": "preview", "cues": ["preRelease"] },
         { "id": "canary", "cues": ["preRelease"] },
         { "id": "nightly", "cues": ["preRelease"] },
-        { "id": "snapshot", "cues": ["preRelease"] }
+        { "id": "snapshot", "cues": ["preRelease"] },
+        { "id": "warning", "cues": ["headingLabel"] },
+        { "id": "summary", "cues": ["headingLabel"] },
+        { "id": "reminder", "cues": ["headingLabel"] },
+        { "id": "question", "cues": ["headingLabel"] },
+        { "id": "answer", "cues": ["headingLabel"] }
     ]
 }

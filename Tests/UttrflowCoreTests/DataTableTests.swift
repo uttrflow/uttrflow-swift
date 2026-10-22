@@ -202,6 +202,10 @@ struct DataTableTests {
         #expect(NumberCues.words(for: .range) == ["to", "through"])
         #expect(NumberCues.words(for: .sizeSuffix) == ["k", "m", "g", "t"])
         #expect(
+            NumberCues.words(for: .headingLabel) == [
+                "status", "warning", "summary", "reminder", "question", "answer",
+            ])
+        #expect(
             NumberCues.words(for: .designator) == [
                 "port", "version", "extension", "page", "chapter", "step", "number", "line", "section",
                 "figure", "table", "level", "room", "floor", "route", "flight", "interstate", "highway",
