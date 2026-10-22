@@ -106,8 +106,30 @@ public struct SpacingPass: PieceCleaningPass {
         return words == [text] ? nil : words
     }
 
+    /// Labels a colon sets off from the clause it heads, which a colon glued to one is never code for ("status:blocked").
+    private static let labelWords: Set<String> = [
+        "status", "warning", "summary", "reminder", "question", "answer",
+    ]
+
+    /// "1:open" as "1:" and "open", and "status:blocked." as "status:" and "blocked.": a step number or a label word, then letters, which no time, ratio or port is.
+    private static func gluedLabel(_ left: String, _ right: String) -> (String, String)? {
+        let numbered = (1...3).contains(left.count) && left.allSatisfy { $0.isASCII && $0.isNumber }
+        guard numbered || labelWords.contains(left.lowercased()) else { return nil }
+        let word = String(right.reversed().drop { ",.?!".contains($0) }.reversed())
+        guard word.count >= 2, word.allSatisfy(\.isLetter), !["am", "pm"].contains(word.lowercased()) else {
+            return nil
+        }
+        return (left + ":", right)
+    }
+
     /// "done.Next" as "done." and "Next", "the.env" as "the" and ".env": one mark between plain words, never a file, host or abbreviation.
     static func gluedHalves(_ text: String) -> (String, String)? {
+        if text.filter({ $0 == ":" }).count == 1, TechnicalToken.classify(text) == nil,
+            let colon = text.firstIndex(of: ":"),
+            let halves = gluedLabel(String(text[..<colon]), String(text[text.index(after: colon)...]))
+        {
+            return halves
+        }
         let marks = text.indices.filter { WordShape.clauseMarks.contains(text[$0]) }
         guard marks.count == 1, let at = marks.first else { return nil }
         let left = text[..<at]
