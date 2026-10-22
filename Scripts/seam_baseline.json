@@ -3798,6 +3798,12 @@
     "one-line-three-sentences@4",
     "one-line-title@1",
     "one-line-two-sentences@7",
+    "one-spoken-new-line-stays-one-line@1",
+    "one-spoken-new-line-stays-one-line@10",
+    "one-spoken-new-line-stays-one-line@4",
+    "one-spoken-new-line-stays-one-line@5",
+    "one-spoken-new-line-stays-one-line@7",
+    "one-spoken-new-line-stays-one-line@9",
     "one-word-quotation-ends-its-sentence@1",
     "one-word-quotation-ends-its-sentence@2",
     "one-word-quoted-term-ends-its-sentence@1",
@@ -5887,5 +5893,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5867
+  "total" : 5873
 }

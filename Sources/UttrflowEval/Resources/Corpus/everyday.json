@@ -2045,5 +2045,17 @@
       "Butter"
     ],
     "addedFor": 8132
+  },
+  {
+    "id": "one-spoken-new-line-stays-one-line",
+    "note": "One spoken new line is one line break, never a blank line between paragraphs.",
+    "spoken": "thanks for the note new line i will read it tonight",
+    "expected": "Thanks for the note\nI will read it tonight.",
+    "expectedExact": "Thanks for the note\nI will read it tonight.",
+    "mustKeep": [
+      "note",
+      "tonight"
+    ],
+    "addedFor": 8159
   }
 ]
