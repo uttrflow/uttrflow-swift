@@ -5,7 +5,7 @@ Every copy is checked for a credential before it is listed. A clip that is one i
 history or saved-clips files. `SecretShapes.matches(_:)` in `Sources/UttrflowCore/Secrets/` is the one
 answer; the shapes it asks are in `SecretShapes.swift`, `SecretScanners.swift`,
 `PatternWindows.swift`, `CardNumberShape.swift`, `CommandCredentialShape.swift`,
-`BearerURLShape.swift`, `DockerAuthShape.swift` and `BIP39RecoveryPhrase.swift`, and the
+`BearerURLShape.swift`, `AuthenticatorSeedShape.swift`, `DockerAuthShape.swift` and `BIP39RecoveryPhrase.swift`, and the
 password-manager markers are read by `PasteboardMarkers`. How the panel masks a secret is in
 [`panel.md`](panel.md#masking).
 
@@ -196,6 +196,8 @@ by few of them.
 13. The statistical rule (below).
 
 ## Telegram bot addresses
+
+An `otpauth://` or `otpauth-migration://` URI is a secret when its query holds a non-empty `secret` or `data` parameter, because that value generates every future one-time code for the account (`AuthenticatorSeedShape`). The scheme and parameter names are matched without regard to case, and the URI may sit inside other text; one with no seed stays a link.
 
 The Telegram Bot API token is a bearer credential in the first path segment: `bot`, a decimal bot identifier, a colon, and a 35-character token. `BearerURLShape` recognizes that complete shape only on `api.telegram.org`; the ordinary entropy rule skips URLs because their punctuation and surrounding address distort the token signal. The host and path are parsed together, so an unrelated URL with a similar path stays a link.
 
