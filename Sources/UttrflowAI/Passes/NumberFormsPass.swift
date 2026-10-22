@@ -549,7 +549,11 @@ public struct NumberFormsPass: PieceCleaningPass {
                 value: item.value, text: regrouped(item.text, digits: digits, quantity: quantity),
                 count: item.count, spoken: false)
         }
-        let inContext = hasLabelCue(at: position, keys: keys, shapes: shapes)
+        // "the code and one with the price": a label word earlier in the clause does not make the pronoun a code digit.
+        let inContext =
+            hasLabelCue(at: position, keys: keys, shapes: shapes)
+            && !(item.spoken && item.value == 1 && item.count == 1
+                && isDescribedOne(at: position, keys: keys))
         if let measured = decimalAndPercent(item, at: position, keys: keys, shapes: shapes) {
             return measured
         }
@@ -707,12 +711,21 @@ public struct NumberFormsPass: PieceCleaningPass {
         return leads || closes
     }
 
+    /// Words that after "one" start a phrase describing it, "one with the coupon code", so "one" stands for a thing.
+    private static let pronounPrepositions: Set<String> = ["with", "without", "for"]
+
+    /// Whether the word after the "one" at `position` opens a phrase that describes it, "one with the coupon code".
+    private static func isDescribedOne(at position: Int, keys: [String]) -> Bool {
+        keys.indices.contains(position + 1) && pronounPrepositions.contains(keys[position + 1])
+    }
+
     /// Whether "one" is the pronoun of "no one", "this one" or "one another" rather than a count of what follows.
     private static func headsItsOwnPhrase(at position: Int, keys: [String]) -> Bool {
         let tags = LexicalClass.tags(ofWords: keys)
         func tag(_ index: Int) -> NLTag? { tags.indices.contains(index) ? tags[index] : nil }
         let modifiable: Set<NLTag> = [.noun, .adjective, .number]
         if tag(position) == .noun || tag(position) == .pronoun { return true }
+        if isDescribedOne(at: position, keys: keys) { return true }
         if tag(position - 1) == .determiner, !modifiable.contains(tag(position + 1) ?? .otherWord) {
             return true
         }
