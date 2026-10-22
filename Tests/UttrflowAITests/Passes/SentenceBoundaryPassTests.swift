@@ -127,7 +127,10 @@ struct SentenceBoundaryPassTests {
         arguments: [
             ("This is all I can think of. Thanks.", "This is all I can think of. Thanks."),
             ("It's about the people you work with. Thanks.", "It's about the people you work with. Thanks."),
-            ("That is what I was looking for. See you soon.", "That is what I was looking for. See you soon."),
+            (
+                "That is what I was looking for. See you soon.",
+                "That is what I was looking for. See you soon."
+            ),
             (
                 "Hi all. Quick reminder that the office is closed.",
                 "Hi all. Quick reminder that the office is closed."
