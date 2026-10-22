@@ -615,9 +615,10 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         return true
     }
 
-    /// Whether the word before `position` is a sub-command said right after a program, as "add" in "yarn add".
+    /// Whether the word before `position` is a sub-command said right after a program, as "add" in "yarn add", and no function word such as "my" in "echo my dash of salt".
     private func followsSubcommand(before position: Int, in live: [Int], of draft: Draft) -> Bool {
         position > 1 && namesCommand(at: position - 2, in: live, of: draft)
+            && !isFunctionWordEvidence(draft.shape(at: live[position - 1]).key)
     }
 
     /// The letters spelled after an option marker, each one spoken alone or after "capital", and how many words said them.
