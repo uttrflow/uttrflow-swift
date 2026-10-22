@@ -8,6 +8,24 @@ struct SpokenAddressTests {
     private let sut = SpokenPunctuationPass()
 
     @Test(
+        "joins a mailbox whose last label is a domain ending to the domain after at",
+        .bug(id: 8157),
+        arguments: [
+            ("mail anil dot kumar dot dev at example dot com", "mail anil.kumar.dev@example.com"),
+            ("mail anil.kumar.dev at example.com", "mail anil.kumar.dev@example.com"),
+            ("write to priya_sharma.dev at example.com", "write to priya_sharma.dev@example.com"),
+            ("ping ops dot io at example dot org", "ping ops.io@example.org"),
+        ])
+    func mailboxEndingInADomainEnding(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test("leaves a site said before at and a time as the site", .bug(id: 8157))
+    func siteBeforeAtATime() {
+        #expect(cleaned("the demo is on example dot dev at noon", by: sut) == "the demo is on example.dev at noon")
+    }
+
+    @Test(
         "writes the address where the words spell one",
         arguments: [
             ("forward the logs to support at example.com", "forward the logs to support@example.com"),

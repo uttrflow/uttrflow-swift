@@ -1017,6 +1017,8 @@
     "email-greeting-kept@4",
     "email-greeting-kept@5",
     "email-greeting-kept@7",
+    "email-mailbox-ending-in-domain-ending@1",
+    "email-mailbox-ending-in-domain-ending@10",
     "email-one-line-category@1",
     "email-one-line-folder@1",
     "email-one-line-mailbox@1",
@@ -5507,10 +5509,6 @@
     "spoken-dash-before-a-clause@1",
     "spoken-dash-before-a-clause@2",
     "spoken-dash-before-a-clause@5",
-    "spoken-dash-takes-the-pause-comma-place@5",
-    "spoken-dash-takes-the-pause-comma-place@6",
-    "spoken-dash-takes-the-pause-comma-place@7",
-    "spoken-dash-takes-the-pause-comma-place@8",
     "spoken-domain-api-path@3",
     "spoken-dot-env-filename@4",
     "spoken-ellipsis-mid-sentence@5",
@@ -5891,5 +5889,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5871
+  "total" : 5869
 }
