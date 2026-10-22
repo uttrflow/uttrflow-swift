@@ -70,11 +70,24 @@ enum BearerURLShape {
         return rest.split { $0 == "&" || $0 == ";" || $0 == "#" || $0 == "?" }.contains { pair in
             let name = pair.prefix { $0 != "=" }
             let value = pair.dropFirst(name.count + 1)
-            return value.count >= shortestValue
-                && credentialParameters.contains(normalizedParameterName(percentDecoded(name)))
+            let parameter = normalizedParameterName(percentDecoded(name))
+            if passwordParameters.contains(parameter), isChosenPassword(percentDecoded(value)) { return true }
+            return value.count >= shortestValue && credentialParameters.contains(parameter)
                 && SecretShapes.looksGenerated(percentDecoded(value))
         }
     }
+
+    /// Query parameters whose name says the value is a password, lowercase; a person chose it, so it need not look generated.
+    private static let passwordParameters: Set<String> = ["password", "passwd", "pwd"]
+
+    /// Whether a password parameter's value is one a person typed: not a placeholder, and with a digit or at least 12 characters, as a named secret line needs.
+    private static func isChosenPassword(_ value: String) -> Bool {
+        !CredentialPlaceholder.matches(value)
+            && (value.contains(where: \.isNumber) || value.count >= chosenPasswordLength)
+    }
+
+    /// The length at which a password parameter's value needs no digit to count.
+    private static let chosenPasswordLength = 12
 
     /// Treat hyphens and underscores as equivalent in credential parameter names.
     private static func normalizedParameterName(_ name: String) -> String {
