@@ -275,6 +275,21 @@ struct SpokenPunctuationPassTests {
     }
 
     @Test(
+        "ends a quotation with the stop the recogniser wrote after its closing name, in place of the comma before it",
+        .bug(id: 8109),
+        arguments: [
+            ("She said, quote, I will be there by noon, unquote.", "She said, \"I will be there by noon.\""),
+            ("She said quote I will be there by noon unquote.", "She said \"I will be there by noon.\""),
+            ("He asked, quote, are you ready, end quote?", "He asked, \"are you ready?\""),
+            ("She said, quote, wait? unquote.", "She said, \"wait?\""),
+        ]
+    )
+    func endsAQuotationOnTheClosingNamesStop(spoken: String, expected: String) {
+        #expect(cleaned(spoken, by: sut) == expected)
+        #expect(CleaningPipeline.standard.run(Draft(text: spoken)).text == expected)
+    }
+
+    @Test(
         "writes open and close parentheses as brackets and keeps a mentioned parenthesis",
         arguments: [
             ("add the flag open parentheses optional close parentheses", "add the flag (optional)"),
