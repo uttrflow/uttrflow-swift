@@ -3574,6 +3574,9 @@
     "np3@1",
     "np3@3",
     "np3@4",
+    "number-before-a-copula-is-not-a-list-marker@2",
+    "number-before-a-copula-is-not-a-list-marker@4",
+    "number-before-a-copula-is-not-a-list-marker@6",
     "number-before-spelled-unit-symbol@2",
     "number-before-spelled-unit-symbol@3",
     "number-before-written-unit-symbol@2",
@@ -5731,5 +5734,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5711
+  "total" : 5714
 }

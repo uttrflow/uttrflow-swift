@@ -179,6 +179,18 @@ struct LayoutWordsPassTests {
         #expect(cleaned(input, by: sut) == input)
     }
 
+    @Test(
+        "keeps a number said straight before a copula or an auxiliary as the subject of its clause",
+        arguments: [
+            "number one is speed number two is cost",
+            "number one was the plan number two was the backup",
+            "number one will ship first number two should wait",
+        ]
+    )
+    func keepsNumberBeforeAPredicateAsProse(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
     /// Issue 254: with no lookback to ask, a phrase opening its sentence is an item only if the speaker set it off.
     @Test(
         "reads a phrase opening its sentence as layout only when a mark sets it off",

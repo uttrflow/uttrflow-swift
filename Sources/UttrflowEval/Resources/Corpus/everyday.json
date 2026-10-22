@@ -1861,5 +1861,13 @@
     "expectedExact": "Please open Visual Studio Code and then the Terminal app.",
     "mustKeep": ["Visual Studio Code"],
     "addedFor": 8047
+    },
+  {
+    "id": "number-before-a-copula-is-not-a-list-marker",
+    "addedFor": 7968,
+    "spoken": "number one is speed number two is cost",
+    "expected": "Number 1 is speed number 2 is cost.",
+    "mustKeep": ["is speed", "is cost"],
+    "mustNotAdd": ["1. Is", "2. Is"]
   }
 ]
