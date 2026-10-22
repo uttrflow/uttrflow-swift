@@ -39,6 +39,21 @@ public enum SentenceBoundaryEvidence {
         }
     }
 
+    /// "the shop he spoke of. Lunch is ready": whether a stop written after the clause's words ends it, its closing preposition's object standing before it, as a subject straight after a head noun or a question word shows.
+    package static func endsOnStrandedPreposition(_ words: [String]) -> Bool {
+        let clause = words.map(WordShape.init)
+        guard clause.count > 3, let last = clause.last, FunctionWords.closesWhenStopped(last.core) else {
+            return false
+        }
+        let tags = LexicalClass.tags(ofWords: clause.map(\.core))
+        guard let closing = tags.last, closing == .preposition || closing == .particle else { return false }
+        return (1..<(clause.count - 2)).contains { index in
+            tags[index] == .pronoun && QuestionShape.subjects.contains(clause[index].key)
+                && (tags[index - 1].map(gapHeadClasses.contains) == true
+                    || FunctionWords.objectGapHeads.contains(clause[index - 1].key))
+        }
+    }
+
     /// "without any. changes", "walked through. the old town": the last word's class, read with the next words, leads on into them.
     private static func leadsIntoNext(_ previous: [WordShape], _ following: [WordShape]) -> Bool {
         guard let last = previous.last, let first = following.first else { return false }
@@ -274,4 +289,6 @@ public enum SentenceBoundaryEvidence {
     private static let subordinators = FunctionWords.subordinators
     /// The most words a lone subordinate fragment holds, its opener included; a longer clause has a main clause the tags missed.
     private static let longestFragmentWords = 9
+    /// The classes of a head a relative clause's object gap refers back to: "the town we moved from".
+    private static let gapHeadClasses: Set<NLTag> = [.noun, .number]
 }

@@ -153,7 +153,7 @@ public enum Restatement {
             before: trigger, after: restart, evidence: evidence, in: live, of: draft)
         let unanchored =
             replacedHeadStart(before: trigger, after: restart, evidence: evidence, in: live, of: draft)
-            ?? restatedDateStart(before: trigger, after: restart, in: live, of: draft)
+            ?? restatedDateStart(before: trigger, after: restart, through: through, in: live, of: draft)
             ?? (replacesOneWord ? trigger - 1 : nil)
         // An everyday word that is also a trigger takes back a phrase only after a pause, or when the restart says the phrase over.
         let unpausedEveryday =
@@ -196,9 +196,9 @@ public enum Restatement {
         return Set(calendar.weekdaySymbols.map { $0.lowercased() })
     }()
 
-    /// Where a date said as weekday, "the" and an ordinal is taken back whole when the restart says another such date.
+    /// Where a date said as weekday, "the" and an ordinal is taken back whole when the restart says another such date, and kept when a full stop closes it before a trigger that does not stand alone.
     private static func restatedDateStart(
-        before trigger: Int, after restart: Int, in live: [Int], of draft: Draft
+        before trigger: Int, after restart: Int, through: Bool, in live: [Int], of draft: Draft
     ) -> Int? {
         let key = { (position: Int) in draft.shape(at: live[position]).key }
         guard restart + 2 < live.count, weekdays.contains(key(restart)), key(restart + 1) == "the",
@@ -208,7 +208,9 @@ public enum Restatement {
             let start = trigger - length - 2
             guard start >= 0, weekdays.contains(key(start)), key(start + 1) == "the",
                 NumberWords.ordinalLength((start + 2..<trigger).map(key)[...]) == length,
-                !(start..<trigger - 1).contains(where: { endsSentence($0, in: live, of: draft) })
+                !(start..<(through ? trigger - 1 : trigger)).contains(where: {
+                    endsSentence($0, in: live, of: draft)
+                })
             else { continue }
             return start
         }

@@ -199,6 +199,20 @@ struct SelfCorrectionPassTests {
     }
 
     @Test(
+        "takes back the half before \"wait no\" as it does before \"no wait\"",
+        .bug(id: 8112),
+        arguments: [
+            ("book the room for thursday wait no friday", "book the room for friday"),
+            ("Book the room for Thursday, wait, no, Friday.", "Book the room for Friday."),
+            ("Book the room for Thursday wait no Friday.", "Book the room for Friday."),
+            ("at four wait no at five", "at five"),
+        ]
+    )
+    func takesBackBeforeWaitNo(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
         "takes back the sign of an amount along with its number",
         arguments: [
             ("The total is $40, no wait, $50.", "The total is $50."),

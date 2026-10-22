@@ -46,7 +46,7 @@ public struct PerformanceProfiler: Sendable {
         self.configuration = configuration
     }
 
-    /// Runs the whole profile; `loadSpeechModel` runs twice and must load fresh, `dictate` never throws.
+    /// Runs the whole profile; `loadSpeechModel` runs twice and must load fresh, `dictate` never throws, and memory is polled on `pollClock`.
     public func run(
         recordings: [ProfileRecording],
         disk: DiskFootprint,
@@ -54,6 +54,7 @@ public struct PerformanceProfiler: Sendable {
         read: @escaping @Sendable () -> MemoryReading? = MemoryFootprint.reading,
         readCPU: @escaping @Sendable () -> CPUReading? = { nil },
         clock: some Clock<Duration> = ContinuousClock(),
+        pollClock: some Clock<Duration> = ContinuousClock(),
         onPhase: ((Phase) -> Void)? = nil,
         loadSpeechModel: () async -> Bool,
         dictate: (ProfileRecording) async -> [StageMeasurement]
@@ -80,7 +81,7 @@ public struct PerformanceProfiler: Sendable {
             let beforeCPU = readCPU()
             let start = clock.now
             let (stages, observed) = await PeakMemory.observed(
-                interval: configuration.pollInterval, read: read, clock: clock
+                interval: configuration.pollInterval, read: read, clock: pollClock
             ) {
                 await dictate(recording)
             }
@@ -101,7 +102,7 @@ public struct PerformanceProfiler: Sendable {
         let firstLoadStart = clock.now
         // Watched, not sampled either side: a cold load's compile spike is gone before it returns.
         let (loaded, loadPeak) = await PeakMemory.observed(
-            interval: configuration.pollInterval, read: read, clock: clock
+            interval: configuration.pollInterval, read: read, clock: pollClock
         ) {
             await loadSpeechModel()
         }

@@ -241,7 +241,8 @@ dictionary-lower-case-start-code-4290	kubectl rollout restarts the pods.
 dictionary-lower-case-start-document-4290	kubectl apply reads the new config.
 dictionary-lower-case-start-messaging-4290	ffmpeg cut the clip in two seconds
 dictionary-lower-case-zsh-code-4290	zsh loads the profile on start.
-dictionary-possessive-kept-7989	We asked about the kubernetes's status and the kubernetes's version today.
+dictionary-possessive-heard-surely-8111	Please open Grafana's settings before the review.
+dictionary-possessive-kept-7989	We asked about the Kubernetes's status and the Kubernetes's version today.
 dictionary-spelled-letters-e-g-8032	Bring snacks e.g. chips and fruit e.g. apples.
 dictionary-spelled-letters-unit-hz-8032	The hum is 60 Hz and the tone is 4 Hz.
 dictionary-spelled-letters-unit-tb-8032	The drive holds 2 TB of photos and 1 TB of video.
@@ -457,6 +458,7 @@ fmt-token-web-path-stopped	Visit example.com/pricing.
 four-digit-number-ungrouped-in-prose	The repo has more than 2000 files.
 full-stop-new-paragraph	The build is green.\n\nThanks everyone.
 function-name	Call get_user with the id and check the response.
+greeting-address-keeps-recogniser-stop	Hi all. Quick reminder that the office is closed on Monday.
 greeting-kept	Hey sarah just checking in on the design review.
 hindi-translation-refused	Meeting 4 baje hai, nahi nahi, 5 baje hai.
 hindi-worked-example-refused	Matlab main kal aayega, haan, accha to phir milte hain.
@@ -511,10 +513,12 @@ homophone-cash-cache-2326	Clear the browser cash and reload the page.
 homophone-knew-new-2325	We bought a knew printer for the office.
 homophone-no-know-6689	I no the answer to that question.
 homophone-one-won-2326	Our team one the hackathon last weekend.
+homophone-one-won-after-determiner	This is the one we picked and not that one.
 homophone-or-are-coordinator	It costs about $49 a month or $450 if you pay annually.
 homophone-or-are-coordinator-twice	You can pay by card or by cash or by bank transfer.
 homophone-right-word-kept-2326	There is no milk left in the fridge.
 homophone-to-too-2326	The coffee is to hot to drink.
+homophone-two-too-count	We hired two engineers in spring and two designers this quarter.
 hostile-app-answered-question	I finished the report, did you get a chance to read it?
 hostile-app-code	The invoice went out, did you hear from finance?
 hostile-app-forced-reply	The train leaves at six, do you need a lift?
@@ -600,6 +604,7 @@ lowercase-start-after-complete-sentence-pronoun	Please send it today. I will che
 lowercase-start-after-complete-sentence-she	He is here. She is not.
 lowercase-start-after-complete-sentence-that	The price is 5 dollars. That is cheap.
 lowercase-start-after-complete-sentence-vitals	The patient is stable. Vitals are normal.
+mark-name-after-written-mark-dropped	Hello, how are you?
 markup-css-align	text-align: center;
 markup-css-before	a::before {
 markup-css-child	ul > li {
@@ -891,6 +896,7 @@ numbered-items-repeated-label	Reason 1: It is cheap\nReason 2: It is fast\nReaso
 numbered-items-steps	To reset it\n1. Unplug the router\n2. Wait a minute\n3. Plug it back in
 numbered-items-three-of-them	Today we need\n1. Milk\n2. Eggs\n3. Bread
 numbered-list-opens-the-dictation	1. Check logs\n2. Restart the server
+numbered-steps-keep-capital-after-colon	Step 1: Open the app. Step 2: Click Settings. Step 3: Choose privacy.
 one-line-exclaim	Happy birthday!
 one-line-name	Jordan rivera
 one-line-phrase	Blue cotton shirt
@@ -1019,7 +1025,9 @@ quick-entry-things-time	Call the plumber tomorrow at 5:30
 quick-entry-todoist	Water the plants every other day
 quick-entry-todoist-today	Send the invoice today
 quotation-opening-the-text	"The build is green" that is what he said.
+quote-as-verb-kept-before-quotation	And I quote "this is the best plan we have had" in the minutes.
 quote-pair-after-say-stays-whole	Type open quote yes close quote.
+quote-unquote-ends-on-recogniser-stop	She said, "I will be there by noon."
 quoted-whole-utterance	"We ship on Friday."
 quoted-words-mid-sentence	He said "we ship on Friday" and left.
 range-keeps-its-own-scales	We expect 200 to 300 people.
@@ -1027,6 +1035,8 @@ range-of-two-hundreds-between	The fee is between 500 and 600 dollars.
 range-of-two-hundreds-from	From 200 and 300 people came.
 range-shares-hundred	We sold 500 or 600 copies.
 range-shares-thousand	The crowd was 2000 to 3000 people.
+range-shares-written-thousand	The price went from 20,000 to 30,000.
+range-shares-written-thousand-between	Between 3,000 and 4,000 people.
 reminders-title-no-stop	Water the plants
 repeated-continuation-kept	Blah blah blah and so on and so on.
 repeated-correction-restart-opens-clause	I'll take the blue one no actually the green one is better.
@@ -1452,6 +1462,7 @@ sql-terminated-semicolon-said	SELECT id\nFROM orders;
 sql-terms	Select everything from the user table and sort by name.
 standalone-pronoun-i	So I think.
 stop-kept-before-long-if-clause-7956	The patch is out. If the error budget drops below 90% overnight roll back with the runbook in the wiki.
+stranded-preposition-keeps-recogniser-stop	This is all I can think of. That is the city she comes from.
 strike-that-as-an-order-kept	Strike that match and light the candle.
 strike-that-restates-a-phrase	Pick the blue one.
 sub1	My manager wants the slides by noon.
@@ -1489,12 +1500,16 @@ twenty-four-seven-idiom	It's a twenty four seven service.
 two-single-digits-kept	One or two.
 undecided-number-pair-kept-as-words	Return four thirteen when the body is too large.
 version-number	We're on Postgres 16.2 right now.
+wait-no-more-than-kept	You can wait no more than 10 minutes.
+wait-no-takes-back-the-day	Book the room for Friday.
 web-chat-message-2280	Sounds good I will join the call in 5 minutes
 web-mail-compose-2280	Hi sam thanks for the update I will review the draft tomorrow.
 web-search-field-2280	cheap flights to lisbon in may
 weekday-and-month-casing	Can we push the demo to Thursday instead of Wednesday in August?
 weekday-and-ordinal-date-restated	See you on Wednesday the fifteenth.
 weekday-and-spoken-date-restated-with-make-that	By Monday the 26th.
+weekday-date-closed-by-a-full-stop-kept	See you on Tuesday the fourteenth. No wait Wednesday the fifteenth.
+weekday-date-restated-after-a-trigger-standing-alone	See you on Wednesday the fifteenth.
 which-after-a-stop-continues-the-sentence	The total is 10. Which brings it to 12. Which is why we left early.
 which-is-why-stays-a-statement	Which is why I left early.
 wrapped-subject-appositive-stays-a-statement	The winner, john, was the youngest player.

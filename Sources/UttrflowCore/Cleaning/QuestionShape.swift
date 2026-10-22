@@ -560,7 +560,7 @@ public enum QuestionShape {
     ]
 
     /// Subject pronouns and the indefinite subjects a question inverts around.
-    static let subjects: Set<String> = [
+    package static let subjects: Set<String> = [
         "i", "you", "we", "they", "he", "she", "it", "there", "anyone", "anybody", "someone", "somebody",
         "everyone",
         "everybody", "anything", "something", "everything",

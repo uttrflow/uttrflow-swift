@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UttrflowCore
 import UttrflowDictionary
 
 @testable import UttrflowAI
@@ -36,5 +37,28 @@ struct PossessiveDictionaryTests {
     @Test("a possessive already written is left alone")
     func writtenPossessiveStays() {
         #expect(WordCorrectionEngine.spellings(of: "Kubernetes's", in: Self.index("Kubernetes")).isEmpty)
+    }
+
+    @Test(
+        "a surely heard possessive of an entry is written in the entry's case with its ending kept",
+        .bug(id: 8111),
+        arguments: [
+            ("Kubernetes", "we checked kubernetes's status", "Kubernetes's"),
+            ("Grafana", "open grafana's settings.", "Grafana's"),
+            ("Kubernetes", "the kubernetes\u{2019}s logs", "Kubernetes\u{2019}s"),
+        ])
+    func recasesThePossessive(entry: String, said: String, written: String) {
+        let heard = said.split(separator: " ").map { SpokenWord(text: String($0), confidence: 0.95) }
+        let recased = WordCorrectionEngine.recasings(
+            of: Utterance(words: heard), against: Self.index(entry))
+        #expect(recased.map { WordShape($0.replacement).core } == [written], "\(said) → \(recased)")
+    }
+
+    @Test("a possessive written in the entry's case, or a plural, is not recased", .bug(id: 8111))
+    func leavesAWrittenPossessiveAndAPluralAlone() {
+        let heard = ["Kubernetes's", "kuberneteses"].map { SpokenWord(text: $0, confidence: 0.95) }
+        let recased = WordCorrectionEngine.recasings(
+            of: Utterance(words: heard), against: Self.index("Kubernetes"))
+        #expect(recased.isEmpty, "\(recased)")
     }
 }

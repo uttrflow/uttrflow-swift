@@ -231,10 +231,10 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "89815b5e3e3906082dc59aebb0d34e8c8fc4e0024ce0a6a9fc735be1e1f9b2f7",
+      "sha256": "8a5dc5157f41d130a2094e2fe52271247a5a1295d521a0d6a7a5c976bb43d820",
       "path": "Sources/UttrflowCore/Resources/Tables/correction-triggers.json",
       "origin": "authored",
-      "bytes": 2435
+      "bytes": 2537
     },
     {
       "licence": "MIT",
@@ -258,10 +258,10 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "04a28880ecac69a00c3439870d129959601bdf1909ae6940bd06d310abaa9bce",
+      "sha256": "3272e534ca17fbb40d68161c1cf391acb1ebedeb5075407b70c6d3d4278b158a",
       "path": "Sources/UttrflowCore/Resources/Tables/function-words.json",
       "origin": "authored",
-      "bytes": 16576
+      "bytes": 16949
     },
     {
       "licence": "MIT",
@@ -441,20 +441,20 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "d09412a6ab9e7bf206b939389af93115d415b9fcb3aa6961201ef2cae4a5ae3f",
+      "sha256": "1e9ae69e9da1873e5cd63f9307ad510b36269255c6fcead413ce91bedc4e6cf1",
       "path": "Sources/UttrflowEval/Resources/Corpus/dictionary.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 9706,
+      "bytes": 10124,
       "licence": "MIT"
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "f89d2746307c1d419c0225f20d7bd3d40554cb3452a64078a0b3a194cfa112b0",
+      "sha256": "84de7522c5b037150c63c8481bbb615d9702da4cd8dcdac26b1062c344fe3084",
       "path": "Sources/UttrflowEval/Resources/Corpus/everyday.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 69890,
+      "bytes": 74498,
       "licence": "MIT"
     },
     {
@@ -477,11 +477,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "523c834f60cb65e07c73bdccc7156ae0f19c99ca845ede51d109048ceb3dcc85",
+      "sha256": "951a0da731481292e6443177f1375365869cfb371dd083a509e9347931695129",
       "path": "Sources/UttrflowEval/Resources/Corpus/homophone.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 3076,
+      "bytes": 4039,
       "licence": "MIT"
     },
     {

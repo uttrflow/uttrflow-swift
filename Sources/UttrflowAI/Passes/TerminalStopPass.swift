@@ -447,6 +447,14 @@ public struct TerminalStopPass: WholeTextCleaningPass {
         }?.count
     }
 
+    /// Whether the words are a greeting opener or a closing and one word of address after it: "Hi all", "Thanks all".
+    static func isGreetingAddress(_ indices: [Int], in draft: Draft) -> Bool {
+        let opener =
+            greetingOpenerLength(indices, in: draft)
+            ?? closingLength(of: indices.map { draft.words[$0].text })
+        return opener > 0 && indices.count == opener + 1
+    }
+
     /// Whether this is the email's first greeting paragraph or final closing paragraph.
     private static func isEmailGreetingOrSignOff(_ paragraph: [Int], in draft: Draft) -> Bool {
         let paragraphs = paragraphWords(in: draft)

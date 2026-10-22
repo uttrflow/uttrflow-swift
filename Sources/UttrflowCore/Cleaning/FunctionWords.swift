@@ -51,6 +51,9 @@ public enum FunctionWords {
     /// The copulas and prepositions a written stop after them is kept, since they end an elliptical answer or a relative clause.
     static let closing = words(in: .closesWhenStopped)
 
+    /// Question words and quantity words a relative clause's object gap refers back to: "what we asked for", "all we spoke of".
+    static let objectGapHeads = words(in: .objectGapHead)
+
     /// The words after "which is" that make the clause carry on the speaker's thought.
     static let relativeWhichTails = words(in: .relativeWhichTail)
 
@@ -82,13 +85,22 @@ public enum FunctionWords {
     static let neverFronted = words(in: .neverFronted)
 
     /// Object pronouns an imperative takes straight after its verb ("let it", "give them").
-    static let imperativeObjects = words(in: .imperativeObject)
+    package static let imperativeObjects = words(in: .imperativeObject)
 
     /// Words a bare verb follows inside one clause, beyond the inverting verbs ("do", "must", "let").
     static let bareVerbLeaders = words(in: .bareVerbLeader)
 
     /// Modal verbs, which need a verb after them.
     static let modals = words(in: .modal)
+
+    /// Possessive determiners that are never a pronoun, so each needs a noun after it ("their", "your").
+    package static let possessives = words(in: .possessive)
+
+    /// The present and past forms of "be" ("is", "were").
+    package static let beForms = words(in: .beForm)
+
+    /// Pronouns that are only ever an object, never a subject or a determiner ("me", "them").
+    package static let objectOnlyPronouns = words(in: .objectOnly)
 
     /// Prepositions that take an object after a comma.
     static let commaPrepositions = words(in: .commaPreposition)
@@ -114,7 +126,7 @@ public enum FunctionWords {
         case function, leadsOn, meaningBearing, caseSensitive, determiner, prose, subordinator, closingTag,
             auxiliary, boundaryDeterminer, neverLast, neverFronted, imperativeObject, bareVerbLeader, modal,
             commaPreposition, seamPreposition, httpMethod, multiplierComparison, closesWhenStopped,
-            relativeWhichTail, coordinator
+            relativeWhichTail, coordinator, objectGapHead, possessive, beForm, objectOnly
     }
 
     /// One small word and the lists it belongs to.

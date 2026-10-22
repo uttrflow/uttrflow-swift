@@ -40,7 +40,7 @@ only add correct deletions, where the rules missed a doubled word.
 
 ## Recorded on the rules engine
 
-60 cases: precision 98.6%, recall 84.1%, over-deletion 0.3% (1 of 307 fluent words, by the
+60 cases: precision 98.6%, recall 89.0%, over-deletion 0.3% (1 of 307 fluent words, by the
 stammers pass, in a fluent control). Weakest: restart recall 71.4% (a restart inside a word with
-no hyphen) and editing-phrase recall 73.3% ("make that", "wait no"). The classes and their cases
+no hyphen) and editing-phrase recall 86.7% ("make that"). The classes and their cases
 include ones the rules are expected to miss; the baseline records what they score, not a target.

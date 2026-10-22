@@ -11,7 +11,7 @@ and states its own choice for the unknown case.
 | Layer | Source | Unknown confidence means | Why |
 |---|---|---|---|
 | Doubtful-word candidates | `Sources/UttrflowAI/Candidates/CandidateSource.swift` (`DoubtfulWords.spans`) | offers nothing | with no doubt signal every span would look certain or every span doubtful; neither is evidence |
-| Meaning guard, sound-alike check | `Sources/UttrflowAI/MeaningPreservationGuard.swift` (`confidentHomophoneVerdict`) | accepts the rewrite | the refusal protects a word the recogniser was sure of; an unknown word was not shown to be sure |
+| Meaning guard, sound-alike check | `Sources/UttrflowAI/MeaningPreservationGuard.swift` (`confidentHomophoneVerdict`) | accepts the rewrite | the refusal reads each word's score against the readings offered for it; with no score, no reading was offered and no word was shown sure |
 | Rules-alone route | `Sources/UttrflowAI/RulesAlone.swift` | sends the text to the model | a doubted word is the model's to resolve, and unknown cannot rule doubt out |
 | Dictionary spellings into the transcript | `Sources/UttrflowPipeline/DictationPipeline+Text.swift` (`saying`) | rewrites the text and drops word scores | no score exists to carry forward |
 | Explanation export | `Sources/UttrflowAI/DictationExplanation.swift` | prints "not scored" | a stand-in score printed as 1 would read as certainty |

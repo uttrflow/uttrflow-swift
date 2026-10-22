@@ -30,12 +30,12 @@ struct SpokenArgumentNameTests {
 
     @Test("keeps the word where a function word follows the dash")
     func keepsProse() {
-        #expect(Self.terminal("echo my dash of salt") != "echo my-of salt")
+        #expect(Self.terminal("echo my dash of salt") == "echo my dash of salt")
     }
 
     @Test("keeps the word outside a command line")
     func keepsWordOutsideATerminal() {
         let prose = SpokenPunctuationPass()
-        #expect(cleaned("my dash container", by: prose) != "my-container")
+        #expect(cleaned("my dash container", by: prose) == "my dash container")
     }
 }

@@ -126,7 +126,7 @@ struct HomophonePolicyProbeTests {
         #expect(offeredThenRefused == Self.expectedOfferedThenRefused)
     }
 
-    /// Measured on the shipping sources and guard: a reading the guard would refuse is never offered.
-    static let expectedOffered = 99
+    /// Measured on the shipping sources and guard: only a heard word a `HeardWordFit` rule rules out is offered, and a reading the guard would refuse never is.
+    static let expectedOffered = 9
     static let expectedOfferedThenRefused = 0
 }
