@@ -172,8 +172,14 @@ private func makePipeline(
         learner: learner,
         vocabulary: vocabulary,
         metrics: RecordingMetricsRecorder(),
-        clock: ManualClock()
+        clock: ManualClock(),
+        pollClock: ManualClock()
     )
+}
+
+/// The rules engine alone on a clock that never moves, so a loaded machine cannot time the route out.
+private func rulesOnlyRouter() -> TransformerRouter {
+    TransformerRouter(engines: [RuleBasedTransformer()], preference: [.rules], clock: ManualClock())
 }
 
 /// One whole dictation, start to finish.
@@ -327,7 +333,7 @@ struct DictationPipelineDictionaryRestatementTests {
     private func correctedPipeline(for spoken: String) -> DictationPipeline {
         makePipeline(
             spoken: spoken,
-            cleaner: TransformerRouter(engines: [RuleBasedTransformer()], preference: [.rules]),
+            cleaner: rulesOnlyRouter(),
             corrector: FakeCorrector(proposing: [
                 DictationCorrection(
                     heard: "payment sheet", wrote: "PaymentSheet", wordRange: 5..<7,
@@ -346,7 +352,7 @@ struct DictationPipelineDictionaryRestatementTests {
     func rulesRemoveEverySpokenComponent(spoken: String, expected: String) async {
         let pipeline = makePipeline(
             spoken: spoken,
-            cleaner: TransformerRouter(engines: [RuleBasedTransformer()], preference: [.rules]))
+            cleaner: rulesOnlyRouter())
 
         await dictate(with: pipeline)
 
@@ -378,7 +384,7 @@ struct DictationPipelineDictionaryRestatementTests {
     func matchingSpokenAnchorControl() async {
         let pipeline = makePipeline(
             spoken: "open the payment form sorry payment page",
-            cleaner: TransformerRouter(engines: [RuleBasedTransformer()], preference: [.rules]))
+            cleaner: rulesOnlyRouter())
 
         await dictate(with: pipeline)
 
