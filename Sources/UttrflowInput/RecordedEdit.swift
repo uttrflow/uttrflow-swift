@@ -9,6 +9,8 @@ public enum RecordedEdit: String, Sendable, CaseIterable {
     case select
     /// Undoes the last spoken edit, or, with none to undo, takes the last dictation out.
     case undo
+    /// Runs the delete that asked for it, when heard in time; said on its own, not with "that".
+    case confirm
 
     /// The notice once the edit ran, given the text it took out; it counts the words but never names one.
     func done(removing removed: String?) -> String {
@@ -23,7 +25,12 @@ public enum RecordedEdit: String, Sendable, CaseIterable {
     /// The edit the whole utterance names, ignoring the recogniser's case and closing mark; nil for anything else.
     public init?(heard: String) {
         let keys = heard.split(whereSeparator: \.isWhitespace).map { WordShape(String($0)).key }
-        guard keys.count == 2, keys[1] == "that", let edit = RecordedEdit(rawValue: keys[0]) else {
+        if keys == [ConfirmationPolicy.word] {
+            self = .confirm
+            return
+        }
+        guard keys.count == 2, keys[1] == "that", let edit = RecordedEdit(rawValue: keys[0]), edit != .confirm
+        else {
             return nil
         }
         self = edit
@@ -44,11 +51,16 @@ public struct RecordedEditor: Sendable {
     private let ledger: InsertionLedger
     private let history: EditHistory
     private let focus: any AccessibilityFocus
+    private let pending: PendingConfirmation
 
-    public init(ledger: InsertionLedger, history: EditHistory, focus: any AccessibilityFocus) {
+    public init(
+        ledger: InsertionLedger, history: EditHistory, focus: any AccessibilityFocus,
+        pending: PendingConfirmation = PendingConfirmation()
+    ) {
         self.ledger = ledger
         self.history = history
         self.focus = focus
+        self.pending = pending
     }
 
     /// Runs `edit` in the field in front, returning its notice; it throws, changing nothing, unless the dictation is still there.
@@ -57,6 +69,7 @@ public struct RecordedEditor: Sendable {
         let focus = focus
         let ledger = ledger
         let history = history
+        let pending = pending
         return try await AccessibilityThread.run { () throws(TextInsertionError) in
             let focused = focus.focusedFieldIdentity()
             let secure = focus.focusedFieldIsSecure()
@@ -64,7 +77,8 @@ public struct RecordedEditor: Sendable {
                 throw .insertionRejected(description: "the field cannot edit by range")
             }
             return try Self.apply(
-                edit, to: field, ledger: ledger, history: history, focused: focused, isSecure: secure)
+                edit, to: field, ledger: ledger, history: history, focused: focused, isSecure: secure,
+                pending: pending)
         }
     }
 
@@ -170,8 +184,10 @@ public struct RecordedEditor: Sendable {
     @discardableResult
     static func apply(
         _ edit: RecordedEdit, to field: any RecordedSpanEditing, ledger: InsertionLedger,
-        history: EditHistory, focused: FieldIdentity?, isSecure: Bool
+        history: EditHistory, focused: FieldIdentity?, isSecure: Bool,
+        pending: PendingConfirmation = PendingConfirmation()
     ) throws(TextInsertionError) -> String {
+        if edit != .confirm { pending.cancel() }
         if edit == .undo, history.holdsEdit(in: focused) {
             try field.undo(from: history, focused: focused, isSecure: isSecure)
             return edit.done(removing: nil)
@@ -184,9 +200,19 @@ public struct RecordedEditor: Sendable {
         case .select:
             try field.select(target)
             return edit.done(removing: nil)
+        case .confirm:
+            guard pending.take(matching: record) else {
+                throw .insertionRejected(description: "nothing waits to be confirmed, or it was too late")
+            }
+            try write("", over: target, in: field, ledger: ledger, history: history)
+            return RecordedEdit.delete.done(removing: record.text)
         case .delete, .undo:
             guard !spansParagraphs(record.text) else {
-                throw .insertionRejected(description: "the last dictation runs over more than one line")
+                pending.ask(for: record)
+                throw .insertionRejected(
+                    description: "the last dictation runs over more than one line; say "
+                        + "\u{201C}\(ConfirmationPolicy.word)\u{201D} within "
+                        + "\(ConfirmationPolicy.window.components.seconds) seconds to delete it")
             }
             try write("", over: target, in: field, ledger: ledger, history: history)
             return edit.done(removing: record.text)
