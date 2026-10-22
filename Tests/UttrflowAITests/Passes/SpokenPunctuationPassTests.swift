@@ -282,6 +282,7 @@ struct SpokenPunctuationPassTests {
             ("She said quote I will be there by noon unquote.", "She said \"I will be there by noon.\""),
             ("He asked, quote, are you ready, end quote?", "He asked, \"are you ready?\""),
             ("She said, quote, wait? unquote.", "She said, \"wait?\""),
+            ("She said, quote, wait, unquote!", "She said, \"wait!\""),
         ]
     )
     func endsAQuotationOnTheClosingNamesStop(spoken: String, expected: String) {
