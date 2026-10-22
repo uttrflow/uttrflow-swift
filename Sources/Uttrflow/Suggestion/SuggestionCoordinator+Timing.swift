@@ -34,4 +34,9 @@ extension SuggestionCoordinator {
         let milliseconds = elapsed.seconds * 1_000 + elapsed.attoseconds / 1_000_000_000_000_000
         return Int(max(0, milliseconds))
     }
+
+    /// Milliseconds since `started` by the turn's own clock.
+    func since(_ started: ContinuousClock.Instant) -> Int {
+        Self.elapsedMilliseconds(since: started, now: turnClock())
+    }
 }

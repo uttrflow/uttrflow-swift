@@ -129,7 +129,7 @@ final class SuggestionCoordinator {
     var isTickerScheduled: Bool { ticking.isScheduled }
     var isSecureInputRecheckScheduled: Bool { secureInputRecheck != nil }
     /// Where a turn reads the time its budget is spent against, so a test can hold it still.
-    private let turnClock: @Sendable () -> ContinuousClock.Instant
+    let turnClock: @Sendable () -> ContinuousClock.Instant
     private var lastKeystroke = Date.distantPast
     private var lastFluentKeystroke = Date.distantPast
     /// The last observed key-down, used to distinguish typing from edits made without a key.
@@ -1361,10 +1361,6 @@ final class SuggestionCoordinator {
         )
         // The gates answer within a moment, so the field read at the turn's start still stands for whatever is drawn.
         return session.resolve(allowed, for: request, now: Date(), elapsedMilliseconds: since(started))
-    }
-
-    private func since(_ started: ContinuousClock.Instant) -> Int {
-        Self.elapsedMilliseconds(since: started, now: turnClock())
     }
 
     /// What the corpus remembers, or failing that what this machine holds at `now`; the machine never outranks the person's own history.
