@@ -75,7 +75,8 @@ public enum PeakMemory {
     ) async throws(Failure) -> (value: Success, peak: MemoryReading?) {
         let recorder = Recorder(read: read)
         recorder.observe()
-        let poller = Task {
+        // Immediate, so the first sleep is on `clock` before `operation` starts, not whenever a thread frees up.
+        let poller = Task.immediate {
             while (try? await clock.sleep(for: interval)) != nil {
                 // Checked after the sleep too: a reading after cancellation belongs to the caller's next work.
                 guard !Task.isCancelled else { break }
