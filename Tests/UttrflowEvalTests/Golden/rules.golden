@@ -990,6 +990,7 @@ probe-version-bump	Bump the client from 1.4.2 to 1.5.0 and pin node to 22
 probe-yaml-keys	Set replicas: 3 and image: registry.example.com/api: 1.4.2
 product-name-keeps-its-capitals	Please open Visual Studio Code and then the Terminal app.
 pronoun-i	I think I'll take the earlier train.
+pronoun-one-after-a-label-in-the-previous-conjunct-kept	We found two bugs in the payment screen. One with the coupon code and one with the currency format.
 pronoun-opening-everything-is	Everything is the way it should be.
 pronoun-opening-i-am-sure	I am a hundred percent sure.
 pronoun-opening-it-is-good-control	It is good.

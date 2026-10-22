@@ -4580,6 +4580,13 @@
     "pronoun-i@2",
     "pronoun-i@4",
     "pronoun-i@6",
+    "pronoun-one-after-a-label-in-the-previous-conjunct-kept@1",
+    "pronoun-one-after-a-label-in-the-previous-conjunct-kept@12",
+    "pronoun-one-after-a-label-in-the-previous-conjunct-kept@13",
+    "pronoun-one-after-a-label-in-the-previous-conjunct-kept@18",
+    "pronoun-one-after-a-label-in-the-previous-conjunct-kept@2",
+    "pronoun-one-after-a-label-in-the-previous-conjunct-kept@3",
+    "pronoun-one-after-a-label-in-the-previous-conjunct-kept@7",
     "pronoun-opening-everything-is@1",
     "pronoun-opening-everything-is@4",
     "pronoun-opening-everything-is@5",
@@ -5862,5 +5869,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5842
+  "total" : 5849
 }

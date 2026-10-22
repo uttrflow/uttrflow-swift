@@ -1316,6 +1316,9 @@ public struct NumberFormsPass: PieceCleaningPass {
     /// Verbs of having, which end a label cue: a count after "has" counts the things after it and does not take the noun before it as a label.
     private static let labelBreakers: Set<String> = ["has", "have", "had"]
 
+    /// Conjunctions that start a new conjunct: a label before one does not cue a number after it, "the code and one more".
+    private static let conjunctBreakers: Set<String> = ["and", "or", "but"]
+
     /// Whether a label word cues the number, across a sign and English function words such as "to"; a Hindi word or a lone letter ends it.
     package static func hasLabelCue(at position: Int, keys: [String], shapes: [WordShape]) -> Bool {
         guard position > 0, !startsASentence(position, shapes) else { return false }
@@ -1327,6 +1330,10 @@ public struct NumberFormsPass: PieceCleaningPass {
             let word = keys[cuePosition]
             if contextWords.contains(word) { return true }
             if labelBreakers.contains(word) || FunctionWords.isContent(word) { return false }
+            if conjunctBreakers.contains(word), cuePosition > 0, !NumberWords.isNumber(keys[cuePosition - 1])
+            {
+                return false
+            }
             if HindiWords.functionWords.contains(word), !FunctionWords.english.contains(word) { return false }
             cuePosition -= 1
         }
