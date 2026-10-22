@@ -282,6 +282,16 @@ struct LayoutWordsPassTests {
         #expect(CleaningPipeline(passes: [spoken, sut]).run(Draft(text: input)).text == expected)
     }
 
+    @Test(
+        "keeps a leading break that opens a piece, which may follow a cut, even when a later break is spoken")
+    func keepsLeadingBreakOfPiece() {
+        let pass = LayoutWordsPass(readsWholeText: false)
+        let text = CleaningPipeline(passes: [pass]).run(
+            Draft(text: "new line first item new line second item")
+        ).text
+        #expect(text.hasPrefix("new line"))
+    }
+
     @Test("drops a leading break command in a known empty field")
     func leadingBreakInEmptyField() {
         let pass = LayoutWordsPass(insertionPoint: InsertionPoint(precedingText: ""))

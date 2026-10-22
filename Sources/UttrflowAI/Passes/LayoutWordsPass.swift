@@ -9,14 +9,18 @@ public struct LayoutWordsPass: PieceCleaningPass {
 
     let layout: LayoutPolicy
     private let insertionState: InsertionPoint.SentenceState
+    /// Whether the text is the whole message; a piece may open after a cut, where the break it opens with is still owed.
+    private let readsWholeText: Bool
 
     /// The word that opens a numbered item. It has no row in `SpokenCommands.layout` because the number after it picks the mark.
     static let numbering = "number"
 
     public init(
-        layout: LayoutPolicy = [.paragraphs, .lists], insertionPoint: InsertionPoint = .unknown
+        layout: LayoutPolicy = [.paragraphs, .lists], insertionPoint: InsertionPoint = .unknown,
+        readsWholeText: Bool = true
     ) {
         self.layout = layout
+        self.readsWholeText = readsWholeText
         self.insertionState = insertionPoint.sentenceState
     }
 
@@ -34,7 +38,8 @@ public struct LayoutWordsPass: PieceCleaningPass {
             guard
                 let found = opening(
                     mark(at: position, in: live, of: draft), at: position,
-                    corroboratedByLaterBreak: position == 0 && hasLaterBreak(in: live, of: draft)),
+                    corroboratedByLaterBreak: position == 0 && readsWholeText
+                        && hasLaterBreak(in: live, of: draft)),
                 position + found.length < live.count,
                 isUsed(found, at: position, in: live, of: draft, among: corroborated),
                 corroborated.contains(live[position])
