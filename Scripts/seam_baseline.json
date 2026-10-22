@@ -863,6 +863,10 @@
     "dictionary-lower-case-start-messaging-4290@1",
     "dictionary-lower-case-start-messaging-4290@4",
     "dictionary-lower-case-start-messaging-4290@6",
+    "dictionary-possessive-heard-surely-8111@1",
+    "dictionary-possessive-heard-surely-8111@2",
+    "dictionary-possessive-heard-surely-8111@3",
+    "dictionary-possessive-heard-surely-8111@4",
     "dictionary-possessive-kept-7989@1",
     "dictionary-possessive-kept-7989@10",
     "dictionary-possessive-kept-7989@2",
@@ -5822,5 +5826,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5782
+  "total" : 5773
 }

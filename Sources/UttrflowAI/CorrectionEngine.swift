@@ -137,16 +137,31 @@ public struct WordCorrectionEngine: Sendable {
         let trail = String(heard.reversed().prefix(while: isEdge).reversed())
         guard lead.count + trail.count < heard.count else { return nil }
         let core = String(heard.dropFirst(lead.count).dropLast(trail.count))
-        guard let entry = dictionary.entries(speltAs: core).first, entry.word != core else { return nil }
+        guard let (entry, ending) = entry(speltAs: core, in: dictionary), entry.word + ending != core else {
+            return nil
+        }
         // An everyday word keeps the heard case unless the screen writes it the entry's way beside a heard neighbour.
-        let isEveryday = core.split(separator: " ").allSatisfy { GeneralVocabulary.isEveryday(String($0)) }
+        let isEveryday = core.dropLast(ending.count).split(separator: " ").allSatisfy {
+            GeneralVocabulary.isEveryday(String($0))
+        }
         guard !isEveryday || screen.shows(entry.word, besideAnyOf: neighbours(of: range, in: words)) else {
             return nil
         }
         return WordCorrection(
-            heard: heard, replacement: lead + entry.word + trail,
+            heard: heard, replacement: lead + entry.word + ending + trail,
             wordRange: start..<(start + run.count), entryID: entry.id, reason: .spelledAsInDictionary,
             heardConfidence: run.map(\.confidence).min() ?? 1)
+    }
+
+    /// The entry spelt as the run bar case, else the one its name is spelt as before a possessive ending, with that ending kept as heard.
+    private static func entry(
+        speltAs core: String, in dictionary: PhoneticIndex
+    ) -> (entry: DictionaryEntry, ending: String)? {
+        if let entry = dictionary.entries(speltAs: core).first { return (entry, "") }
+        guard let split = WordForms.nameEnding(of: core), split.ending != "s",
+            let entry = dictionary.entries(speltAs: split.name).first
+        else { return nil }
+        return (entry, split.ending)
     }
 
     /// The lower-cased words spoken just before and just after a run.
