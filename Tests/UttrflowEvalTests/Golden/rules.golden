@@ -1175,6 +1175,7 @@ segment-support-agent-ticket-number	I have escalated ticket 4419 to the billing 
 self-correction	Let's meet at five on Tuesday.
 sentence-per-new-line	Agenda\nOne intro\nTwo demo
 shell-append-spoken-double-greater-than	date >> log.txt
+shell-assign-spoken-digits	export PORT=8080
 shell-assign-spoken-equals-long-option	git log --since=yesterday
 shell-assign-spoken-equals-variable	export NODE_ENV=production
 shell-chmod-marked-subject-not-joined	chmod u plus x deploy.sh

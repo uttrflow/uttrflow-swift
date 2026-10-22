@@ -253,7 +253,7 @@ struct SpokenAddress: Equatable {
         return (value, 1 + used)
     }
 
-    /// A number said as a cardinal or as digits one by one, which are a port or a code: "eight zero eight zero" is 8080.
+    /// A number said as a cardinal or as digits one by one, which are a port or a code.
     static func portNumber(
         at place: Int, within run: Range<Int>, in live: [Int], of draft: Draft
     ) -> (value: Int, used: Int)? {
