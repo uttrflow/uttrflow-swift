@@ -10,7 +10,7 @@ and the scorer is `Scorer` (`Sources/UttrflowEval/Scorer.swift`). Why each row a
 
 ## The corpus
 
-**The corpus is 1,343 cases in sixteen categories** — `everyday` 280, `contextual` 252, `grammar` 34,
+**The corpus is 1,344 cases in sixteen categories** — `everyday` 281, `contextual` 252, `grammar` 34,
 `technical` 332, `multilingual` 182, `notARequest` 107, `oneLineField` 10, `secondLanguage` 40,
 `bareLiteral` 27, `commandInput` 8, `longInput` 4, `developerGenre` 25, `dictionary` 22,
 `webDestination` 3, `homophone` 11, `hinglishReply` 6 — and everything in it is
