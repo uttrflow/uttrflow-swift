@@ -4664,6 +4664,7 @@
     "range-shares-hundred@1",
     "range-shares-hundred@2",
     "range-shares-hundred@6",
+    "range-shares-written-thousand@3",
     "repeated-continuation-kept@1",
     "repeated-continuation-kept@2",
     "repeated-continuation-kept@3",
@@ -5853,5 +5854,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5773
+  "total" : 5834
 }
