@@ -850,6 +850,8 @@ negated-option-verify-terminal	git commit --no-verify
 new-line-after-a-modifier-kept	Our best new line got a laugh.
 new-paragraph	Thanks for the update.\n\nThe second issue is the login timeout.
 new-paragraph-after-modifier-kept-2353	His first new paragraph was long.
+newline-written-as-one-word	To do\nCall the bank\nEmail the team
+newparagraph-written-as-one-word	Thanks for the note.\n\nSee you soon.
 no-after-bullet-point-kept	Release notes:\n- The old API is gone\n- No old clients remain
 no-after-new-line-kept	We ship a new build\nNo new dependencies.
 no-after-new-paragraph-kept	The file is over 50 MB.\n\nNo schema changes and no new dependencies.

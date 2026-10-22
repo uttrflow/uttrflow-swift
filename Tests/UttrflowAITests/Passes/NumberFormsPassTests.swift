@@ -257,6 +257,23 @@ struct NumberFormsPassTests {
     }
 
     @Test(
+        "a pronoun one before with or for stays a word whatever noun follows",
+        arguments: [
+            ("One with the code and one with the price.", "One with the code and one with the price."),
+            ("One with the code and one with the currency.", "One with the code and one with the currency."),
+            (
+                "One with the coupon code and one with the currency format.",
+                "One with the coupon code and one with the currency format."
+            ),
+            ("one for the price and one for the cost", "one for the price and one for the cost"),
+        ]
+    )
+    func pronounOneBeforePreposition(input: String, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass(policy: .always)) == expected)
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
         "a small amount in another currency or unit is a numeral in prose",
         arguments: [
             ("it costs five yen", "it costs 5 yen"),

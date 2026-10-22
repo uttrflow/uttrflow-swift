@@ -754,15 +754,24 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         let tags = LexicalClass.tags(ofWords: keys)
         let before = position - 1 - start
         let after = position + 1 - start
-        // A participle after the name joins it into a compound modifier, as in comma-separated.
+        // A lone first word that is a noun is a heading, as in "Subject colon" and "Status colon blocked".
+        let isHeading = before == 0 && Self.isNoun(keys[0])
+        // A participle after the name joins it into a compound modifier, as in comma-separated, unless it ends a heading's line.
         if after < keys.count, tags[after] == .verb, Self.isParticiple(keys[after]),
+            !(isHeading && after == keys.count - 1),
             LexicalClass.lemma(ofWordAt: after, in: keys).map({ $0 != keys[after] }) ?? false
         {
             return false
         }
+        if isHeading { return true }
         // The first word of a sentence is an imperative or a heading, never the verb the name is the object of.
         guard let tag = tags[before], before > 0 || tag != .verb else { return true }
         return !Self.nounTakers.contains(tag)
+    }
+
+    /// Whether a word is a noun after both "the" and "a", which a word read alone as an adjective or a verb can still be: "the subject", "a subject", but not "a reduce".
+    private static func isNoun(_ word: String) -> Bool {
+        ["the", "a"].allSatisfy { LexicalClass.tag(ofWordAt: 1, in: [$0, word]) == .noun }
     }
 
     /// Whether a word completes "it was", as a participle does and a plural or a present-tense verb does not: "separated", not "logins".
