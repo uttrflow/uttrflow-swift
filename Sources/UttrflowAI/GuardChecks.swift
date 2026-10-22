@@ -118,6 +118,9 @@ extension MeaningPreservationGuard {
             GuardCheck("scriptWordCount") {
                 scriptWordCountVerdict(original: $0.original, rewritten: $0.rewritten)
             },
+            GuardCheck("scriptWordOrder") {
+                scriptWordOrderVerdict(original: $0.original, rewritten: $0.rewritten)
+            },
             GuardCheck("removal") {
                 removalVerdict($0.restored, kept: $0.original, rewritten: $0.rewritten, echoed: $0.echoed)
             },
