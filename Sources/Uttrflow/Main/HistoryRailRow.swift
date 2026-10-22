@@ -1,5 +1,6 @@
 // One History row on the time rail: the time and dot in the gutter, then the dictation's card.
 
+import UttrflowCore
 import UttrflowUX
 import SwiftUI
 
@@ -180,6 +181,11 @@ struct HistoryRailRow: View {
                 }
                 if let arrival = row.arrival {
                     Label(arrival, systemImage: "exclamationmark.circle")
+                        .labelStyle(HistoryTagLabelStyle())
+                        .foregroundStyle(PagePalette.clipboardInk)
+                }
+                if let quality = row.quality {
+                    Label(quality, systemImage: OutcomeQuality.degradedSymbol)
                         .labelStyle(HistoryTagLabelStyle())
                         .foregroundStyle(PagePalette.clipboardInk)
                 }
