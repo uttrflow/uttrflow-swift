@@ -90,6 +90,15 @@ public enum FunctionWords {
     /// Modal verbs, which need a verb after them.
     static let modals = words(in: .modal)
 
+    /// Possessive determiners that are never a pronoun, so each needs a noun after it ("their", "your").
+    package static let possessives = words(in: .possessive)
+
+    /// The present and past forms of "be" ("is", "were").
+    package static let beForms = words(in: .beForm)
+
+    /// Pronouns that are only ever an object, never a subject or a determiner ("me", "them").
+    package static let objectOnlyPronouns = words(in: .objectOnly)
+
     /// Prepositions that take an object after a comma.
     static let commaPrepositions = words(in: .commaPreposition)
 
@@ -114,7 +123,7 @@ public enum FunctionWords {
         case function, leadsOn, meaningBearing, caseSensitive, determiner, prose, subordinator, closingTag,
             auxiliary, boundaryDeterminer, neverLast, neverFronted, imperativeObject, bareVerbLeader, modal,
             commaPreposition, seamPreposition, httpMethod, multiplierComparison, closesWhenStopped,
-            relativeWhichTail, coordinator
+            relativeWhichTail, coordinator, possessive, beForm, objectOnly
     }
 
     /// One small word and the lists it belongs to.

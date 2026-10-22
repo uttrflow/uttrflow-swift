@@ -29,13 +29,13 @@ struct CountingNumberDoubtTests {
     }
 
     @Test(
-        "a number word the sentence cannot read as a count is still offered its partner",
+        "a number word that is no count is offered its partner only on evidence, which these have none of",
         arguments: [
             ("our team ?one the hackathon last weekend", "one", "won"),
             ("this is ?four you", "four", "for"),
         ])
-    func numberGrammarRulesOutStillOffered(text: String, heard: String, partner: String) async {
+    func numberWithoutEvidenceGetsNoReading(text: String, heard: String, partner: String) async {
         let found = await spans(text)
-        #expect(offered(found, for: heard).contains(partner), "got \(offered(found, for: heard))")
+        #expect(!offered(found, for: heard).contains(partner), "got \(offered(found, for: heard))")
     }
 }
