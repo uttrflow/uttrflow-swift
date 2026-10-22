@@ -138,7 +138,14 @@ public enum DestinationRules {
                 "terminal", "iterm", "iterm2", "warp", "kitty", "alacritty", "ghostty", "wezterm",
                 "tabby",
             ],
-            kind: .terminal
+            kind: .terminal, refusesUnreadField: true
+        ),
+        DestinationRule(
+            bundlePrefixes: [
+                "com.apple.ScreenSharing", "com.microsoft.rdc.macos", "com.teamviewer",
+                "com.anydesk", "com.realvnc", "com.p5sys.jump", "com.citrix.receiver",
+            ],
+            destination: .plain, refusesUnreadField: true
         ),
         DestinationRule(
             bundlePrefixes: [
