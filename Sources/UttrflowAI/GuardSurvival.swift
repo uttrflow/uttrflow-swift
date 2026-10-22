@@ -8,9 +8,17 @@ extension MeaningPreservationGuard {
     static func wordOrderVerdict(
         kept: [GrammarToken], written: [GrammarToken], allowingFormRepairs: Bool = false
     ) -> GuardVerdict {
-        let alignment = WordErrorRate.measure(
+        let moved = hasMovedWord(
             reference: kept.filter(\.isPlain).map(\.matching),
-            hypothesis: written.filter(\.isPlain).map(\.matching))
+            hypothesis: written.filter(\.isPlain).map(\.matching), allowingFormRepairs: allowingFormRepairs)
+        return moved ? .rejected(reason: "the rewrite moved a word", kind: .movedWord) : .accepted
+    }
+
+    /// Whether the alignment of two word runs deletes and inserts, or substitutes both ways, the same word: it stands elsewhere.
+    static func hasMovedWord(
+        reference: [String], hypothesis: [String], allowingFormRepairs: Bool = false
+    ) -> Bool {
+        let alignment = WordErrorRate.measure(reference: reference, hypothesis: hypothesis)
         var deleted: Set<String> = []
         var inserted: Set<String> = []
         var substitutedFrom: Set<String> = []
@@ -30,10 +38,7 @@ extension MeaningPreservationGuard {
                 substitutedTo.insert(hypothesis)
             }
         }
-        guard deleted.isDisjoint(with: inserted), substitutedFrom.isDisjoint(with: substitutedTo) else {
-            return .rejected(reason: "the rewrite moved a word", kind: .movedWord)
-        }
-        return .accepted
+        return !deleted.isDisjoint(with: inserted) || !substitutedFrom.isDisjoint(with: substitutedTo)
     }
 
     /// Walks the kept content words along the rewrite, so a word may change its form but never its place.

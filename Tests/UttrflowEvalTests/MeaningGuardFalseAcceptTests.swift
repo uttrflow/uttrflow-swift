@@ -8,9 +8,7 @@ import Testing
 @Suite("Meaning guard false accepts over a classed model-error set")
 struct MeaningGuardFalseAcceptTests {
     /// Accepted mutations per class at the last measurement; the gate lets each fall and never rise.
-    static let baseline: [ModelErrorClass: Int] = [
-        .swapWords: 2
-    ]
+    static let baseline: [ModelErrorClass: Int] = [:]
 
     struct Judged {
         let id: String
