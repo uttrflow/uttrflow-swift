@@ -1905,5 +1905,14 @@
     "expected": "We expect 200 to 300 people.",
     "mustKeep": ["200", "300"],
     "addedFor": 7936
+  },
+  {
+    "id": "mark-name-after-written-mark-dropped",
+    "note": "The recogniser wrote the question mark and then the name it acted on, so the name goes and the mark stays once.",
+    "spoken": "Hello, how are you? Question mark.",
+    "expected": "Hello, how are you?",
+    "mustKeep": ["how are you?"],
+    "mustNotAdd": ["Question", "mark"],
+    "addedFor": 8108
   }
 ]
