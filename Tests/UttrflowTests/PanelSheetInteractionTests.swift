@@ -10,7 +10,7 @@ import UttrflowUX
 @Suite(
     "Synthetic panel sheet and auxiliary controls",
     .enabled(if: AXIsProcessTrusted(), "SwiftUI exposes controls only to a trusted accessibility client"),
-    .serialized)
+    .serialized, .timeLimit(.minutes(1)))
 struct PanelSheetInteractionTests {
     private func elements(under root: AnyObject) -> [AnyObject] {
         let children = (root.accessibilityChildren?() ?? []).map { $0 as AnyObject }
@@ -32,11 +32,29 @@ struct PanelSheetInteractionTests {
         return (window, host)
     }
 
-    private func button(_ name: String, under host: NSView) throws -> AnyObject {
-        try #require(
+    /// Suspends, which lets the run loop turn, until `found` yields an element; the suite's time limit ends a wait that never does.
+    private func awaiting(_ found: () -> AnyObject?) async throws -> AnyObject {
+        while true {
+            if let element = found() { return element }
+            if Task.isCancelled { throw CancellationError() }
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+    }
+
+    private func button(_ name: String, under host: NSView) async throws -> AnyObject {
+        try await awaiting {
             elements(under: host).first {
                 $0.accessibilityRole?() == .button && $0.accessibilityLabel?() as? String == name
-            })
+            }
+        }
+    }
+
+    /// Suspends until the relayed value satisfies `condition`, since a press reports success before its action has run.
+    private func relayed(until condition: () -> Bool) async throws {
+        while !condition() {
+            if Task.isCancelled { throw CancellationError() }
+            try? await Task.sleep(for: .milliseconds(5))
+        }
     }
 
     private func panel(enabled: Bool = true, onKey: @escaping (PanelKey) -> Void) -> QuickPanelView {
@@ -56,17 +74,19 @@ struct PanelSheetInteractionTests {
         var keys: [PanelKey] = []
         let (window, view) = await host(panel { keys.append($0) })
         defer { window.close() }
-        let cancel = try button("Cancel", under: view)
-        let confirm = try button("Synthetic confirm", under: view)
+        let cancel = try await button("Cancel", under: view)
+        let confirm = try await button("Synthetic confirm", under: view)
         keys.removeAll()
         #expect(cancel.accessibilityPerformPress?() == true)
         #expect(confirm.accessibilityPerformPress?() == true)
-        let collection = try #require(
+        let collection = try await awaiting {
             elements(under: view).first {
                 $0.accessibilityRole?() == .button
                     && ($0.accessibilityLabel?() as? String)?.contains("Synthetic destination") == true
-            })
+            }
+        }
         #expect(collection.accessibilityPerformPress?() == true)
+        try await relayed { keys.count >= 3 }
         #expect(keys == [.escape, .return, .draft("Synthetic destination")])
     }
 
@@ -75,7 +95,7 @@ struct PanelSheetInteractionTests {
         var keys: [PanelKey] = []
         let (window, view) = await host(panel(enabled: false) { keys.append($0) })
         defer { window.close() }
-        let confirm = try button("Synthetic confirm", under: view)
+        let confirm = try await button("Synthetic confirm", under: view)
         keys.removeAll()
         #expect(confirm.isAccessibilityEnabled?() == false)
         _ = confirm.accessibilityPerformPress?()
@@ -94,8 +114,9 @@ struct PanelSheetInteractionTests {
                 state: state, showsClearSearch: true, emptyAction: action,
                 onClearSearch: { clears += 1 }, onIntent: { intents.append($0) }))
         defer { window.close() }
-        #expect(try button("Clear search · Esc", under: view).accessibilityPerformPress?() == true)
-        #expect(try button("Synthetic recovery", under: view).accessibilityPerformPress?() == true)
+        #expect(try await button("Clear search · Esc", under: view).accessibilityPerformPress?() == true)
+        #expect(try await button("Synthetic recovery", under: view).accessibilityPerformPress?() == true)
+        try await relayed { clears >= 1 && !intents.isEmpty }
         #expect(clears == 1)
         #expect(intents == [.keepQuery("synthetic")])
     }
@@ -108,8 +129,9 @@ struct PanelSheetInteractionTests {
             ApplicationScopeRow(
                 line: ApplicationScopeLine(applications: applications), applications: binding))
         defer { window.close() }
-        #expect(try button("Every App", under: view).accessibilityPerformPress?() == true)
+        #expect(try await button("Every App", under: view).accessibilityPerformPress?() == true)
+        try await relayed { applications.isEmpty }
         #expect(applications.isEmpty)
-        #expect(try button("Add App…", under: view).isAccessibilityEnabled?() == true)
+        #expect(try await button("Add App…", under: view).isAccessibilityEnabled?() == true)
     }
 }
