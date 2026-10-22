@@ -38,7 +38,7 @@ public struct WordShape: Equatable, Sendable {
     }
 
     /// Whether the word is a clause enumerator such as "(a)", "(iv)" or "(2)", which is lower case where it opens a line.
-    public var isBracketedEnumerator: Bool {
+    package var isBracketedEnumerator: Bool {
         guard prefix == "(", suffix == ")", !core.isEmpty else { return false }
         if core.allSatisfy(\.isNumber) { return core.count <= 2 }
         return core.count == 1
