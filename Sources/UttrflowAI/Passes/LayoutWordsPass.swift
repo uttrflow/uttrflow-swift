@@ -330,8 +330,22 @@ public struct LayoutWordsPass: PieceCleaningPass {
         return (item.count + 1, "\(lineBreak)\(item.value). ", true)
     }
 
-    /// The item number, spoken or already a numeral, and how many words it took. See `Docs/cleanup.md`.
+    /// The item number, spoken or already a numeral, and how many words it took. A number said straight before a copula or an auxiliary is the subject of a clause, not a marker. See `Docs/cleanup.md`.
     static func itemNumber(
+        at position: Int, in live: [Int], of draft: Draft
+    ) -> (value: Int, count: Int)? {
+        guard let number = spokenNumber(at: position, in: live, of: draft) else { return nil }
+        let next = position + number.count
+        if live.indices.contains(next), predicateOpeners.contains(draft.shape(at: live[next]).key) {
+            return nil
+        }
+        return number
+    }
+
+    /// Auxiliaries that open the predicate of a clause; "do" and "have" are left out since a list item can open on them as a command.
+    private static let predicateOpeners = FunctionWords.auxiliaries.subtracting(["do", "have"])
+
+    private static func spokenNumber(
         at position: Int, in live: [Int], of draft: Draft
     ) -> (value: Int, count: Int)? {
         guard live.indices.contains(position) else { return nil }
