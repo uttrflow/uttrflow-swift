@@ -140,9 +140,10 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                     in: live, of: draft),
                 case let written = Self.quote(found, inside: openQuotes.map(\.mark))
                     ?? mark(found.text, literalHyphens: literalHyphens),
+                case let keepsName = Self.quotesAsVerb(found, at: position, in: live, of: draft),
                 attach(
                     written, kind: found.placement, at: position, spanning: found.words.count,
-                    in: &live, of: &draft)
+                    in: &live, of: &draft, keepingName: keepsName)
             else {
                 // A name kept as words is kept whole, so no shorter name inside it is read on its own.
                 if let said, said.placement == .opening, !SpokenCommands.isBracket(said.text),
@@ -153,6 +154,8 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 position += said?.words.count ?? 1
                 continue
             }
+            // A name kept as the verb stays in place, so reading goes on after it.
+            if keepsName { position += found.words.count }
             if found.placement == .opening, !SpokenCommands.isBracket(found.text) {
                 openQuotes.append((written, found.words))
             }
@@ -832,10 +835,27 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         return text + mark
     }
 
-    /// Fixes the mark to its neighbour and drops the spoken name, or refuses when the neighbour is missing.
+    /// Whether an opening quote's name follows its subject, "I quote" or "to quote", so the word is the verb and stays.
+    private static func quotesAsVerb(
+        _ command: SpokenCommand, at position: Int, in live: [Int], of draft: Draft
+    ) -> Bool {
+        guard command.placement == .opening, command.words == ["quote"], position > 0 else { return false }
+        let before = draft.shape(at: live[position - 1])
+        guard !before.endsClause else { return false }
+        if before.key == "to" { return true }
+        // A pronoun that can be an object, or one a verb takes ("called it quote", "told you quote"), is no subject.
+        guard QuestionShape.subjects.contains(before.key),
+            !FunctionWords.imperativeObjects.contains(before.key)
+        else { return false }
+        guard position > 1, !draft.shape(at: live[position - 2]).endsClause else { return true }
+        let words = live[(position - 2)...position].map { draft.shape(at: $0).key }
+        return LexicalClass.tag(ofWordAt: 0, in: words) != .verb
+    }
+
+    /// Fixes the mark to its neighbour and drops the spoken name unless it is kept as a word, or refuses when the neighbour is missing.
     private func attach(
         _ mark: String, kind: SpokenMarkKind, at position: Int, spanning length: Int,
-        in live: inout [Int], of draft: inout Draft
+        in live: inout [Int], of draft: inout Draft, keepingName: Bool = false
     ) -> Bool {
         let after = position + length
         // An opening or leading mark needs the word it goes on after it, a standalone one a word on each side, every other the one before.
@@ -864,6 +884,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             let written = Self.marked(draft.words[previous].text, with: mark)
             draft.replace(at: previous, with: written, by: Self.id)
         }
+        if keepingName { return true }
         // A mark written onto the name, as "at sign" writes onto "open paren", moves on rather than going with it.
         for index in live[position..<after] {
             draft.remove(at: index, by: Self.id, carryingOpeningMarks: true)

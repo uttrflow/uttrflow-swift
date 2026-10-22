@@ -82,7 +82,7 @@ public enum FunctionWords {
     static let neverFronted = words(in: .neverFronted)
 
     /// Object pronouns an imperative takes straight after its verb ("let it", "give them").
-    static let imperativeObjects = words(in: .imperativeObject)
+    package static let imperativeObjects = words(in: .imperativeObject)
 
     /// Words a bare verb follows inside one clause, beyond the inverting verbs ("do", "must", "let").
     static let bareVerbLeaders = words(in: .bareVerbLeader)
