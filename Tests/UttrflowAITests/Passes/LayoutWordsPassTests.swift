@@ -31,6 +31,9 @@ struct LayoutWordsPassTests {
                 "priorities this week\n1. hire a designer\n2. finish the audit"
             ),
             ("agenda new line one intro new line two demo", "agenda\none intro\ntwo demo"),
+            ("to do newline call the bank newline email sarah", "to do\ncall the bank\nemail sarah"),
+            ("hi sam newline thanks for the note", "hi sam\nthanks for the note"),
+            ("thanks newparagraph the second issue", "thanks\n\nthe second issue"),
             (
                 "here is the plan. number one, fix the build. number two, ship it",
                 "here is the plan.\n1. fix the build.\n2. ship it"
