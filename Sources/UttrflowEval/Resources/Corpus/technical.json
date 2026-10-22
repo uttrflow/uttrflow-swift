@@ -1534,6 +1534,19 @@
     "addedFor": 7943
   },
   {
+    "id": "shell-assign-spoken-digits",
+    "spoken": "export PORT equals eight zero eight zero",
+    "expected": "export PORT=8080",
+    "mustKeep": ["PORT=8080"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "expectedExact": "export PORT=8080",
+    "addedFor": 7943
+  },
+  {
     "id": "terminal-possessive-name-keeps-hyphen",
     "note": "a name that begins with my is one argument at a command line, so the dash joins it",
     "spoken": "docker run dash dash name my dash container nginx",

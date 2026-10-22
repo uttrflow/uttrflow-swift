@@ -20,6 +20,7 @@ public struct SpacingPass: PieceCleaningPass {
                 draft.insert(word, at: index + 1 + offset, by: Self.id)
             }
         }
+        Self.joinNumbersAfterSymbols(&draft)
         var previous: Int?
         for index in draft.presentIndices {
             let text = draft.words[index].text
@@ -35,6 +36,46 @@ public struct SpacingPass: PieceCleaningPass {
             previous = index
         }
         return draft
+    }
+
+    /// The symbols that join the words on both sides of them in code, as "=" does in `--memory=2g`.
+    private static let joiningSymbols = Set(
+        SpokenCommands.codeSymbols.filter { $0.placement == .joining }.map(\.text))
+
+    /// The one-letter size units a command-line value takes straight after its digits, as the "g" of `--memory=2g`.
+    private static let sizeSuffixes = NumberCues.words(for: .sizeSuffix)
+
+    /// Joins the digits a joining symbol waited for onto it, with a size unit after them, as `--memory=` and "2 g" are `--memory=2g`.
+    private static func joinNumbersAfterSymbols(_ draft: inout Draft) {
+        let live = draft.presentIndices
+        var position = 0
+        while position + 1 < live.count {
+            let word = draft.words[live[position]]
+            guard word.edits.last?.by == CodeEditorCommandsPass.id,
+                joiningSymbols.contains(where: { endsNameThen($0, word.text) }),
+                let digits = draft.words[live[position + 1]].text.first, digits.isNumber,
+                draft.words[live[position + 1]].text.allSatisfy(\.isNumber)
+            else {
+                position += 1
+                continue
+            }
+            var joined = word.text + draft.words[live[position + 1]].text
+            draft.remove(at: live[position + 1], by: id)
+            var next = position + 2
+            if next < live.count, sizeSuffixes.contains(draft.words[live[next]].text.lowercased()) {
+                joined += draft.words[live[next]].text
+                draft.remove(at: live[next], by: id)
+                next += 1
+            }
+            draft.replace(at: live[position], with: joined, by: id)
+            position = next
+        }
+    }
+
+    /// Whether `text` is a name with `symbol` written straight after it, as `--memory=` is and a lone `>=` is not.
+    private static func endsNameThen(_ symbol: String, _ text: String) -> Bool {
+        guard text.hasSuffix(symbol), let last = text.dropLast(symbol.count).last else { return false }
+        return last.isLetter || last.isNumber || last == "_"
     }
 
     /// Whether a spoken name was written as a word of its own, as "dot" is "." in "git add dot", which stays apart from the word before it.

@@ -22,6 +22,8 @@ public enum NumberCues {
         case scheduled
         /// A label that a version's pre-release suffix names after "dash", as in "dash rc dot one".
         case preRelease
+        /// A one-letter size unit a command-line value takes straight after its digits, as in `--memory=2g`.
+        case sizeSuffix
     }
 
     /// The cue words that say `cue`.
