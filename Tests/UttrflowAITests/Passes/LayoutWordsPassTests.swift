@@ -267,6 +267,21 @@ struct LayoutWordsPassTests {
         #expect(CleaningPipeline(passes: [spoken, pass]).run(Draft(text: input)).text == expected)
     }
 
+    @Test(
+        "drops a leading break that later spoken breaks corroborate, in a field of unknown content",
+        arguments: [
+            (
+                "new line first item, new line second item, new line third item",
+                "first item\nsecond item\nthird item"
+            ),
+            ("new line first item new line second item", "first item\nsecond item"),
+        ]
+    )
+    func dropsCorroboratedLeadingBreak(input: String, expected: String) {
+        let spoken = SpokenPunctuationPass(destination: .plain)
+        #expect(CleaningPipeline(passes: [spoken, sut]).run(Draft(text: input)).text == expected)
+    }
+
     @Test("drops a leading break command in a known empty field")
     func leadingBreakInEmptyField() {
         let pass = LayoutWordsPass(insertionPoint: InsertionPoint(precedingText: ""))
