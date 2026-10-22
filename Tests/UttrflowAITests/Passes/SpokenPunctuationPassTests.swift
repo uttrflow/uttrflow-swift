@@ -291,6 +291,26 @@ struct SpokenPunctuationPassTests {
     }
 
     @Test(
+        "keeps quote said as a verb after its subject and opens the quotation after it",
+        .bug(id: 8107),
+        arguments: [
+            (
+                "he told me and i quote this is the best quarter end quote",
+                "he told me and i quote \"this is the best quarter\""
+            ),
+            ("we quote ship it unquote in the notes", "we quote \"ship it\" in the notes"),
+            ("to quote ship it unquote is easy", "to quote \"ship it\" is easy"),
+            ("she said quote ready unquote and left", "she said \"ready\" and left"),
+            ("tell me quote ready unquote and go", "tell me \"ready\" and go"),
+            ("she called it quote final unquote today", "she called it \"final\" today"),
+            ("i told you quote ready unquote and left", "i told you \"ready\" and left"),
+        ]
+    )
+    func keepsQuoteSaidAsAVerb(spoken: String, expected: String) {
+        #expect(cleaned(spoken, by: sut) == expected)
+    }
+
+    @Test(
         "writes open and close parentheses as brackets and keeps a mentioned parenthesis",
         arguments: [
             ("add the flag open parentheses optional close parentheses", "add the flag (optional)"),

@@ -1999,5 +1999,13 @@
     "mustNotAdd": ["unquote"],
     "mustEndWith": "noon.\"",
     "addedFor": 8109
+  },
+  {
+    "id": "quote-as-verb-kept-before-quotation",
+    "note": "\"quote\" after its subject is the verb and stays; the quotation still opens after it.",
+    "spoken": "and i quote this is the best plan we have had end quote in the minutes",
+    "expected": "And I quote \"this is the best plan we have had\" in the minutes.",
+    "mustKeep": ["I quote", "\"this is the best plan we have had\""],
+    "addedFor": 8107
   }
 ]
