@@ -152,6 +152,8 @@ by few of them.
    webhook, or a URL whose query or fragment carries `sig`, `signature`, `X-Amz-Signature`,
    `X-Goog-Signature`, `access_token`, `id_token`, `refresh_token` or `token` with a value of at
    least eight characters, which is what a signed (SAS, pre-signed) URL or a magic link is.
+   A `password`, `passwd` or `pwd` parameter needs no generated shape: a value with a digit or at
+   least twelve characters that is not a placeholder is masked.
    `?token=` with nothing, or with a short placeholder, stays a link. Parameter names are
    percent-decoded first (`access%5Ftoken`), a host's closing dot is ignored
    (`hooks.slack.com.`), and a URL nested after a later `://` in another one's path or query
