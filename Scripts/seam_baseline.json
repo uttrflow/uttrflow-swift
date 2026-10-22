@@ -1049,6 +1049,11 @@
     "ends-on-copula-of-embedded-question@2",
     "ends-on-copula-of-embedded-question@3",
     "ends-on-copula-of-embedded-question@4",
+    "everyday-which-phrase-keeps-its-inversion@1",
+    "everyday-which-phrase-keeps-its-inversion@3",
+    "everyday-which-phrase-keeps-its-inversion@4",
+    "everyday-which-phrase-keeps-its-inversion@5",
+    "everyday-which-phrase-keeps-its-inversion@6",
     "exit-code-said-in-two-halves-is-not-a-clock-time@11",
     "exit-code-said-in-two-halves-is-not-a-clock-time@3",
     "exit-code-said-in-two-halves-is-not-a-clock-time@8",
@@ -1581,13 +1586,6 @@
     "hinglish-question@8",
     "hinglish-reply-devanagari-2371@1",
     "hinglish-reply-theek-hai-2371@1",
-    "hinglish-reply-unsure-thiek-hai@1",
-    "hinglish-reply-unsure-thiek-hai@2",
-    "hinglish-reply-unsure-thiek-hai@3",
-    "hinglish-reply-unsure-thiek-hai@4",
-    "hinglish-reply-unsure-thiek-hai@5",
-    "hinglish-reply-unsure-thiek-hai@6",
-    "hinglish-reply-unsure-thiek-hai@7",
     "hinglish-request@1",
     "hinglish-request@2",
     "hinglish-request@3",
@@ -5894,5 +5892,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5874
+  "total" : 5872
 }

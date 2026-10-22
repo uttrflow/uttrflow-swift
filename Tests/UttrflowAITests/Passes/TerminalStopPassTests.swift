@@ -293,6 +293,21 @@ struct TerminalStopPassTests {
     }
 
     @Test(
+        "reads the auxiliary after a which or whose phrase as that question's own, with no comma before it",
+        .bug(id: 8155),
+        arguments: [
+            ("which team did you join", "which team did you join?"),
+            ("which one did you pick, the first or the second", "which one did you pick, the first or the second?"),
+            ("which way do we go", "which way do we go?"),
+            ("which do you prefer", "which do you prefer?"),
+            ("whose laptop did you borrow", "whose laptop did you borrow?"),
+            ("which file should I open", "which file should I open?"),
+        ])
+    func whichPhraseKeepsItsInversion(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
         "sets off an English aside opening or closing a Hindi sentence with a comma",
         arguments: [
             ("actually mujhe aaj nahi aana", "actually, mujhe aaj nahi aana."),

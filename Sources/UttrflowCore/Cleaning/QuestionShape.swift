@@ -200,6 +200,8 @@ public enum QuestionShape {
             let verb = words[index]
             let subject = words[index + 1]
             let before = Array(words[..<index])
+            // "which car did they pick" inverts its own question, so the verb after the question phrase opens nothing new.
+            guard !isQuestionPhrase(before) else { return false }
             // A command takes "will you" as its own tag, so after one only a request opens a question: "let's meet can you do nine".
             let joins =
                 opensOnItsSubject(before)
@@ -229,6 +231,13 @@ public enum QuestionShape {
         guard let opening = words.first(where: { !openers.contains($0) }) else { return false }
         return subjects.contains(opening) || contractedNewSubjects.contains(opening)
             || determiners.contains(opening)
+    }
+
+    /// Whether words are a question word and the noun it asks about, with no verb yet: "which car", "whose laptop".
+    private static func isQuestionPhrase(_ words: [String]) -> Bool {
+        let phrase = words.drop(while: openers.contains)
+        guard let first = phrase.first, questionWords.contains(first) else { return false }
+        return !phrase.dropFirst().contains(where: isQuestionVerb)
     }
 
     /// Whether the word before an inverted verb is its subject, its auxiliary or an agreement: "so did I".
