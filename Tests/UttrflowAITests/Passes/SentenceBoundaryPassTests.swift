@@ -51,6 +51,56 @@ struct SentenceBoundaryPassTests {
     }
 
     @Test(
+        "ends the step that runs into the next Step N: label, with or without a following step",
+        arguments: [
+            (
+                "Step 1: open the settings Step 2: click save",
+                "Step 1: open the settings. Step 2: click save."
+            ),
+            (
+                "Step 1: open the app Step 2: sign in Step 3: click start",
+                "Step 1: open the app. Step 2: sign in. Step 3: click start."
+            ),
+            (
+                "Let us begin. Step 1: open the app Step 2: sign in",
+                "Let us begin. Step 1: open the app. Step 2: sign in."
+            ),
+            (
+                "Step 1:open the app Step 2:sign in Step 3:click start",
+                "Step 1: open the app. Step 2: sign in. Step 3: click start."
+            ),
+            // A stop already there, a lone label and a step that is not in order are left alone.
+            (
+                "Step 1: open the settings. Step 2: click save.",
+                "Step 1: open the settings. Step 2: click save."
+            ),
+            ("Take the next step 2: it is quick", "Take the next step 2: it is quick."),
+            (
+                "Step 1: open the settings Step 3: click save",
+                "Step 1: open the settings Step 3: click save."
+            ),
+        ])
+    func endsStepBeforeStepLabel(input: String, expected: String) {
+        #expect(cleaned(input) == expected)
+    }
+
+    @Test(
+        "a numbered list that opens the dictation ends its first item before the second marker",
+        arguments: [
+            (
+                "1. open the settings 2. click save",
+                "1. Open the settings. 2. Click save."
+            ),
+            (
+                "We agreed on it. 1. ship on may 2. keep the budget flat",
+                "We agreed on it. 1. Ship on may 2. Keep the budget flat."
+            ),
+        ])
+    func endsItemOfOpeningList(input: String, expected: String) {
+        #expect(cleaned(input) == expected)
+    }
+
+    @Test(
         "a capital A is the letter of a label, so it keeps its case and its comma",
         arguments: [
             ("Part A, part B, and part C are due Monday.", "Part A, part B, and part C are due Monday."),

@@ -108,24 +108,57 @@ struct SentenceBoundaryPass: WholeTextCleaningPass {
         return digits.allSatisfy(\.isASCII) && digits.allSatisfy(\.isNumber) ? Int(digits) : nil
     }
 
-    /// Ends the item before a numbered marker the recogniser left without a stop, when the markers on both sides open sentences.
+    /// The number a word such as "2:" labels, or nil for any other word.
+    private static func labelValue(_ text: String) -> Int? {
+        guard text.hasSuffix(":"), text.count <= 4 else { return nil }
+        let digits = text.dropLast()
+        return digits.allSatisfy(\.isASCII) && digits.allSatisfy(\.isNumber) ? Int(digits) : nil
+    }
+
+    /// Ends the item before a numbered marker the recogniser left without a stop: "N." when the markers on both sides open sentences, "Step N:" when the step before it does, and "2." after an opening "1." when a lower-case item follows.
     private static func endItemsBeforeMarkers(_ draft: inout Draft) {
         let live = draft.presentIndices
         let values = live.map { markerValue(draft.words[$0].text) }
+        // The value of a "Step N:" label, held on the position of the word "Step".
+        let steps: [Int?] = live.indices.map { position in
+            guard position + 1 < live.count, draft.shape(at: live[position]).key == "step",
+                draft.shape(at: live[position]).prefix.isEmpty, draft.shape(at: live[position]).suffix.isEmpty
+            else { return nil }
+            return labelValue(draft.words[live[position + 1]].text)
+        }
         func opensSentence(_ position: Int) -> Bool {
             position == 0 || draft.shape(at: live[position - 1]).endsSentence
                 || draft.words[live[position - 1]].isLayoutMark
         }
+        func runsOnFromBefore(_ position: Int) -> Bool {
+            position > 0 && position + 1 < live.count && !opensSentence(position)
+                && draft.shape(at: live[position - 1]).suffix.isEmpty
+                && !draft.words[live[position - 1]].isLayoutMark
+        }
         for position in live.indices where position > 0 && position + 1 < live.count {
-            guard let value = values[position], value >= 2, !opensSentence(position),
-                draft.shape(at: live[position - 1]).suffix.isEmpty,
-                !draft.words[live[position - 1]].isLayoutMark,
-                draft.shape(at: live[position + 1]).core.first?.isUppercase == true,
-                let before = values[..<position].lastIndex(where: { $0 != nil }),
-                values[before] == value - 1, opensSentence(before),
-                let after = values[(position + 1)...].firstIndex(where: { $0 != nil }),
-                values[after] == value + 1, opensSentence(after)
-            else { continue }
+            let numbered: Bool = {
+                guard let value = values[position], value >= 2, runsOnFromBefore(position),
+                    let before = values[..<position].lastIndex(where: { $0 != nil }),
+                    values[before] == value - 1, opensSentence(before)
+                else { return false }
+                let nextWord = draft.shape(at: live[position + 1]).core
+                if nextWord.first?.isUppercase == true {
+                    guard let after = values[(position + 1)...].firstIndex(where: { $0 != nil }) else {
+                        return false
+                    }
+                    return values[after] == value + 1 && opensSentence(after)
+                }
+                // A list that opens the dictation is one however its items are cased.
+                return before == 0 && value == 2 && nextWord.first?.isLowercase == true
+            }()
+            let stepped: Bool = {
+                guard let value = steps[position], value >= 2, runsOnFromBefore(position),
+                    let before = steps[..<position].lastIndex(where: { $0 != nil }),
+                    steps[before] == value - 1, opensSentence(before)
+                else { return false }
+                return true
+            }()
+            guard numbered || stepped else { continue }
             draft.replace(
                 at: live[position - 1], with: WordShape.finished(draft.words[live[position - 1]].text),
                 by: Self.id)
