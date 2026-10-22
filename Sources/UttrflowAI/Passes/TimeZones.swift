@@ -40,6 +40,19 @@ enum TimeZones {
             return [([key], zone.abbreviation), (key.map(String.init), zone.abbreviation)]
         })
 
+    /// The first words of every zone name, lower-cased: "eastern" in "Eastern Standard Time".
+    private static let leadingNameWords: Set<String> = Set(
+        table.flatMap(\.names).compactMap { $0.split(separator: " ").first.map { $0.lowercased() } })
+
+    /// Whether `word` opens a zone or place name rather than a sentence, given the word after it: "Eastern ...", "London time".
+    static func opensName(_ word: String, followedBy next: String?) -> Bool {
+        let key = WordShape(word).key
+        if leadingNameWords.contains(key) || ["pacific", "central", "mountain", "atlantic"].contains(key) {
+            return true
+        }
+        return next.map { WordShape($0).key == "time" } == true
+    }
+
     /// Each zone name's words, longest first, so "eastern standard time" wins over a shorter name inside it.
     private static let names: [[String]] = table.flatMap(\.names)
         .map { $0.split(separator: " ").map(String.init) }
