@@ -134,6 +134,18 @@ struct PeakMemoryTests {
         #expect(asleep)
     }
 
+    /// A sleep of no time never suspends, so a poller started on the caller would loop there and the work never run.
+    @Test("a zero interval reads only before and after the work")
+    func zeroIntervalNeverPolls() async {
+        let readings = ScriptedReadings([100, 200])
+        let (value, peak) = await PeakMemory.observed(
+            interval: .zero, read: readings.read, clock: ManualClock()
+        ) { 7 }
+        #expect(value == 7)
+        #expect(peak?.footprintBytes == 200)
+        #expect(readings.callCount == 2)
+    }
+
     /// The poller must never spin: on a clock that never advances, cancelling it must not need a second reading.
     @Test("never polls again once the clock stops moving")
     func neverSpinsOnAStalledClock() async {
