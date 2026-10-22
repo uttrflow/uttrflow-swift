@@ -43,7 +43,11 @@ file browser, letters are commands. A web area, group or cell counts as text ent
 element reports itself editable (`AXEditable`, or a settable `AXValue`). It still types when the
 application publishes no focused element at all or its role cannot be read, such as after an
 Accessibility timeout (`FocusedElementKind.unpublished`), which is how a bundled-browser composer takes
-dictation. The check is made in `canInsert()`, before the first chunk and before every later one.
+dictation, with one exception: a `DestinationRules` row that sets `refusesUnreadField` refuses in
+that case too, because a key there may reach a shell or a remote machine rather than text. Terminals
+and remote-desktop clients are the two classes the table lists; every other app keeps typing, and a
+new class is a row, not a branch. The check is made in `canInsert()`, before the first chunk and
+before every later one.
 
 The typed strategy posts its text `TypedTextInsertionEngine.chunkLength` characters at a time,
 yields between chunks and makes the same checks again before each chunk after the first, against

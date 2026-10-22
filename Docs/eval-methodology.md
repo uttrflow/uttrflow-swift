@@ -547,7 +547,7 @@ The cost class of each pair is `ConfusionCost.of` on its two readings, the same 
 [ai-correction-thresholds.md](ai-correction-thresholds.md#two-directions-of-doubt-override-less-flag-more));
 the inventory holds no tier of its own. `ConfusablePairsTests` pins the class each group lands in:
 every negation pair is `meaningFlip`, every teen/ten pair and every amount word `numberFlip`, and
-"a", "an", "on" and the meaning swaps `cosmetic`. A pair moves to a costlier class only when its
+"a", "an" and "on" `cosmetic`, and the meaning swaps `meaningFlip`. A pair moves to a costlier class only when its
 measured flip rate below says so, by changing `ConfusionCost`, never by a list here.
 
 ```bash
@@ -631,9 +631,10 @@ What the run says:
   with no change across rate or noise.
   Noise raises the error rate in every class and leaves the flip rate near its clean value.
 
-Every pair keeps the class `ConfusionCost` gives it; this run changes none. Moving the meaning
-swaps up a class is a separate decision, because it would make the override harder for every
-accept/except in running text.
+This run was measured with the meaning swaps `cosmetic`. Their 50.0% flip rate, unchanged by rate or
+noise, moved them to `meaningFlip` (the `meaning-swaps.json` table), so a candidate that swaps one
+for its sound-alike needs the costliest evidence margin to override and is flagged on less doubt.
+Re-run `uttrflow-eval confusable-pairs` to see the table's class column with the new class.
 
 ## Accent classes and the correction gates (`accent`)
 
