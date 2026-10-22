@@ -3,15 +3,15 @@ private import Synchronization
 import UttrflowCore
 
 /// The word that confirms a delete over more than one line, and how long it may take to be heard.
-public enum ConfirmationPolicy {
+enum ConfirmationPolicy {
     /// The word heard whole under the command key.
-    public static let word = "confirm"
+    static let word = "confirm"
     /// How long after the ask the word still counts.
-    public static let window: Duration = .seconds(3)
+    static let window: Duration = .seconds(3)
 }
 
 /// A delete asked for and not yet confirmed; it names the span but never keeps its text, and expires on its own.
-public final class PendingConfirmation: Sendable {
+final class PendingConfirmation: Sendable {
     private struct Entry: Sendable {
         let record: InsertionRecord
         let askedAt: UInt64
@@ -20,7 +20,7 @@ public final class PendingConfirmation: Sendable {
     private let entry = Mutex<Entry?>(nil)
     private let clock: ElapsedClock
 
-    public init() { clock = ElapsedClock() }
+    init() { clock = ElapsedClock() }
 
     init<C: Clock<Duration>>(clock: C) { self.clock = ElapsedClock(clock) }
 
