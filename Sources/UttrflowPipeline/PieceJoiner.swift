@@ -615,18 +615,42 @@ enum PieceJoiner {
         {
             return start..<(position + trigger)
         }
-        guard let tail = trailingTriggerStart(before: position, in: live, of: draft),
-            position < live.count,
+        if let tail = trailingTriggerStart(before: position, in: live, of: draft), position < live.count,
             let start = Restatement.discardedStart(
                 before: tail, after: position, in: live, of: draft,
                 asksForLayout: LayoutWordsPass.asksForLayout)
-        else { return nil }
-        return start..<position
+        {
+            return start..<position
+        }
+        return correctionAcrossSeam(at: position, in: live, of: draft)
     }
 
-    /// Finds a correction trigger that ends exactly at the seam and takes back the words before it.
+    /// The most words a run of correction triggers ("no actually make that") is read from.
+    private static let longestTriggerRun = 6
+
+    /// How far past a seam a trigger may start and still take back words from before it.
+    private static let farthestTriggerAfterSeam = 12
+
+    /// The words a correction takes back when the seam falls inside them or inside its trigger, or nil when none does.
+    private static func correctionAcrossSeam(at position: Int, in live: [Int], of draft: Draft) -> Range<Int>?
+    {
+        for trigger in max(1, position - longestTriggerRun + 1)...(position + farthestTriggerAfterSeam)
+        where trigger != position {
+            let length = Restatement.triggerRun(at: trigger, in: live, of: draft)
+            guard length > 0, trigger + length > position, trigger + length < live.count,
+                let start = Restatement.discardedStart(
+                    before: trigger, after: trigger + length, in: live, of: draft,
+                    asksForLayout: LayoutWordsPass.asksForLayout),
+                start < position
+            else { continue }
+            return start..<(trigger + length)
+        }
+        return nil
+    }
+
+    /// Finds the longest correction trigger run that ends exactly at the seam, so "no actually make that" is read whole.
     private static func trailingTriggerStart(before position: Int, in live: [Int], of draft: Draft) -> Int? {
-        for start in stride(from: position - 1, through: max(0, position - 3), by: -1) {
+        for start in max(0, position - longestTriggerRun)..<position {
             let length = Restatement.triggerRun(at: start, in: live, of: draft)
             if length > 0, start + length == position { return start }
         }
