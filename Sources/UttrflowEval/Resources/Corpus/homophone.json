@@ -101,5 +101,15 @@
     "mustNotAdd": ["won"],
     "doubtful": ["one"],
     "addedFor": 8105
+  },
+  {
+    "id": "doubted-verb-get-not-offered-a-shipped-term",
+    "note": "A doubted verb in a prose sentence stands; a shipped term that sounds like it is no evidence for it.",
+    "spoken": "ETC ETC, you get the idea.",
+    "expected": "ETC ETC, you get the idea.",
+    "mustKeep": ["get the idea"],
+    "mustNotAdd": ["git"],
+    "doubtful": ["get"],
+    "addedFor": 8129
   }
 ]

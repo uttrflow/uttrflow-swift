@@ -153,7 +153,9 @@ public struct DoubtfulWords: Sendable {
         where !taken.contains(where: { $0.overlaps(run.range) }) {
             guard !set.hypotheses.isEmpty else { continue }
             let standing = Standing(
-                evidenced: evidencedSpellings(answers, at: place),
+                evidenced: evidencedSpellings(
+                    answers, at: place,
+                    countingTerms: !Self.isProseVerb(run, in: said, for: situation)),
                 named: HeardWordFit.isName(run.range, in: said),
                 ruledOut: HeardWordFit.ruledOut(run.range, in: said) != nil)
             let readings = set.ranked(by: scorer).filter {
@@ -189,11 +191,25 @@ public struct DoubtfulWords: Sendable {
         return counted || determined
     }
 
-    /// The spellings a source other than a `SoundAlikeSource` offered for the run at `place`, lower-cased.
-    private func evidencedSpellings(_ answers: [[[Reading]]], at place: Int) -> Set<String> {
+    /// The spellings a source other than a `SoundAlikeSource` offered for the run at `place`, lower-cased; the shipped terms only when `countingTerms`.
+    private func evidencedSpellings(
+        _ answers: [[[Reading]]], at place: Int, countingTerms: Bool
+    ) -> Set<String> {
         Set(
-            sources.indices.filter { !(sources[$0] is any SoundAlikeSource) }
-                .flatMap { answers[$0][place] }.map { $0.spelling.lowercased() })
+            sources.indices.filter {
+                !(sources[$0] is any SoundAlikeSource)
+                    && (countingTerms || !(sources[$0] is TechnicalCandidates))
+            }
+            .flatMap { answers[$0][place] }.map { $0.spelling.lowercased() })
+    }
+
+    /// Whether the run is one word its sentence reads as a verb, outside code and a terminal: a shipped term names a thing or a command, so it is no evidence for the verb of a prose sentence ("you get the idea").
+    private static func isProseVerb(_ run: UncertainSpan, in said: [String], for situation: Situation) -> Bool
+    {
+        guard run.range.count == 1, ![.codeEditor, .terminal].contains(situation.destination) else {
+            return false
+        }
+        return LexicalClass.tag(ofWordAt: run.range.lowerBound, in: said) == .verb
     }
 
     /// What stands behind the heard run, which decides whether a reading may replace it. See Docs/cleanup.md.
