@@ -3828,6 +3828,15 @@
     "participle-should-have-ate@4",
     "participle-was-broke@4",
     "participle-was-wrote@1",
+    "pause-comma-before-spoken-line-break-dropped@1",
+    "pause-comma-before-spoken-line-break-dropped@2",
+    "pause-comma-before-spoken-line-break-dropped@3",
+    "pause-comma-before-spoken-line-break-dropped@4",
+    "pause-comma-before-spoken-line-break-dropped@5",
+    "pause-comma-before-spoken-line-break-dropped@6",
+    "pause-comma-before-spoken-line-break-dropped@7",
+    "pause-comma-before-spoken-line-break-dropped@8",
+    "pause-comma-before-spoken-line-break-dropped@9",
     "paused-after-article-runs-on@1",
     "paused-after-article-runs-on@2",
     "paused-after-article-runs-on@6",
@@ -5862,5 +5871,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5842
+  "total" : 5851
 }

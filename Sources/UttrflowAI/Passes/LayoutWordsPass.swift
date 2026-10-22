@@ -42,6 +42,8 @@ public struct LayoutWordsPass: PieceCleaningPass {
             }
             if found.isList {
                 removeClauseMarkBeforeList(at: position, in: live, from: &draft)
+            } else {
+                removePauseCommaBeforeBreak(at: position, in: live, from: &draft)
             }
             if let label = labelledItems[live[position]],
                 let item = Self.itemNumber(at: position + 1, in: live, of: draft)
@@ -115,6 +117,28 @@ public struct LayoutWordsPass: PieceCleaningPass {
         else { return }
         let suffix = shape.suffix.filter { $0 != clauseMark }
         draft.replace(at: previous, with: shape.prefix + shape.core + suffix, by: Self.id)
+    }
+
+    /// Removes the recogniser's comma ending a line a spoken break opened, before the next break: it marks the pause the break writes.
+    private func removePauseCommaBeforeBreak(at position: Int, in live: [Int], from draft: inout Draft) {
+        guard position > 0 else { return }
+        let previous = live[position - 1]
+        let shape = draft.shape(at: previous)
+        guard !shape.core.isEmpty, shape.suffix.hasSuffix(","),
+            !draft.words[previous].edits.contains(where: { $0.by == SpokenPunctuationPass.id }),
+            Self.lineOpensOnBreak(before: previous, in: draft)
+        else { return }
+        draft.replace(at: previous, with: shape.prefix + shape.core + shape.suffix.dropLast(), by: Self.id)
+    }
+
+    /// Whether the line holding the word at `index` was opened by a spoken break, written or dropped at the head of the text.
+    private static func lineOpensOnBreak(before index: Int, in draft: Draft) -> Bool {
+        for earlier in draft.words.indices[..<index].reversed() {
+            let word = draft.words[earlier]
+            let opensLine = word.isPresent ? word.isLayoutMark : word.edits.contains { $0.by == Self.id }
+            if opensLine { return true }
+        }
+        return false
     }
 
     /// Labels that repeat before a corroborated, consecutive sequence of numbered items.

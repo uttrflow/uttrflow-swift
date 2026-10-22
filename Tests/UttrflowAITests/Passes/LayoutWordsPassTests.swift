@@ -227,6 +227,25 @@ struct LayoutWordsPassTests {
         #expect(cleaned("new paragraph thanks sam", by: pass) == expected)
     }
 
+    @Test(
+        "drops the recogniser's comma that ends a line a spoken break opened, and keeps the first line's",
+        arguments: [
+            ("Groceries new line eggs, new line bread, new line butter", "Groceries\neggs\nbread\nbutter"),
+            ("To do new line, call the bank, new line, email Sarah.", "To do\ncall the bank\nemail Sarah."),
+            (
+                "my signature is thanks, new line Alex, new line engineering lead",
+                "my signature is thanks,\nAlex\nengineering lead"
+            ),
+            ("milk, new line eggs", "milk,\neggs"),
+            ("eggs new line bread comma new line butter", "eggs\nbread,\nbutter"),
+        ]
+    )
+    func dropsPauseCommaBeforeBreak(input: String, expected: String) {
+        let pass = LayoutWordsPass()
+        let spoken = SpokenPunctuationPass(destination: .plain)
+        #expect(CleaningPipeline(passes: [spoken, pass]).run(Draft(text: input)).text == expected)
+    }
+
     @Test("drops a leading break command in a known empty field")
     func leadingBreakInEmptyField() {
         let pass = LayoutWordsPass(insertionPoint: InsertionPoint(precedingText: ""))

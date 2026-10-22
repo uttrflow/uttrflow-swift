@@ -2007,5 +2007,18 @@
     "expected": "And I quote \"this is the best plan we have had\" in the minutes.",
     "mustKeep": ["I quote", "\"this is the best plan we have had\""],
     "addedFor": 8107
+  },
+  {
+    "id": "pause-comma-before-spoken-line-break-dropped",
+    "note": "A comma the recogniser wrote before each spoken new line marks the pause the break already writes, so the items keep no comma.",
+    "spoken": "Groceries new line eggs, new line bread, new line butter",
+    "expected": "Groceries\nEggs\nBread\nButter",
+    "expectedExact": "Groceries\nEggs\nBread\nButter",
+    "mustKeep": [
+      "Eggs",
+      "Bread",
+      "Butter"
+    ],
+    "addedFor": 8132
   }
 ]
