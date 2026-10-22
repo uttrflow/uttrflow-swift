@@ -8,7 +8,7 @@ public enum ConfusionCost: Int, Sendable, Comparable, CaseIterable {
     case cosmetic
     /// The readings differ in a quantity: "fifteen" for "fifty", "hundred" for "thousand".
     case numberFlip
-    /// One reading reverses the other: "can" for "can't", a dropped "not".
+    /// One reading reverses or replaces the other's meaning: "can" for "can't", a dropped "not", "accept" for "except".
     case meaningFlip
 
     public static func < (lhs: Self, rhs: Self) -> Bool { lhs.rawValue < rhs.rawValue }
@@ -18,6 +18,7 @@ public enum ConfusionCost: Int, Sendable, Comparable, CaseIterable {
         let heardWords = spokenWords(heard)
         let candidateWords = spokenWords(candidate)
         if negations(in: heardWords) != negations(in: candidateWords) { return .meaningFlip }
+        if swapsMeaning(heardWords, candidateWords) { return .meaningFlip }
         if quantities(in: heardWords) != quantities(in: candidateWords) { return .numberFlip }
         return .cosmetic
     }
@@ -28,6 +29,12 @@ public enum ConfusionCost: Int, Sendable, Comparable, CaseIterable {
             $0.filter { $0.isLetter || $0.isNumber || $0 == "'" || $0 == "\u{2019}" }
                 .replacingOccurrences(of: "\u{2019}", with: "'")
         }
+    }
+
+    /// Whether one word stands in for a sound-alike of another meaning, the rest unchanged.
+    private static func swapsMeaning(_ heard: [String], _ candidate: [String]) -> Bool {
+        guard heard.count == candidate.count else { return false }
+        return zip(heard, candidate).contains { MeaningSwaps.areSwaps($0, $1) }
     }
 
     /// How many words reverse the sentence, so a negator swapped for another is not a flip.
