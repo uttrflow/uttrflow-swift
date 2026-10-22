@@ -2007,5 +2007,13 @@
     "expected": "And I quote \"this is the best plan we have had\" in the minutes.",
     "mustKeep": ["I quote", "\"this is the best plan we have had\""],
     "addedFor": 8107
+  },
+  {
+    "id": "question-after-a-spoken-dash-ends-in-a-question-mark",
+    "addedFor": 7969,
+    "spoken": "wait dash is it",
+    "expected": "Wait — is it?",
+    "mustKeep": ["is it?"],
+    "mustNotAdd": ["it."]
   }
 ]

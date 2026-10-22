@@ -1009,6 +1009,7 @@ prose-keeps-spoken-snake-case	Snake case max retries.
 prose-number-word-kept	One of them failed the build.
 prose-spoken-parentheses-as-marks	The budget (draft two) is due Friday.
 quantity-after-has-beside-a-label-word	The model has 70,000,000,000 parameters and the table has 2,000,000 rows.
+question-after-a-spoken-dash-ends-in-a-question-mark	Wait —, is it?
 question-mark-new-line	Is it ready?\nYes.
 question-mark-new-line-thanks	What do you think?\nThanks.
 question-with-embedded-question-know-what-mean	Do you know what I mean?

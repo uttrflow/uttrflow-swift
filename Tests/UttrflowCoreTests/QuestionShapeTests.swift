@@ -54,6 +54,17 @@ struct QuestionShapeTests {
     }
 
     @Test(
+        "reads the clause after a written dash on its own, and a relative which after one as a statement",
+        arguments: [
+            ("wait\u{2014} what time is it", true), ("wait \u{2014} what did you say", true),
+            ("so\u{2014} are you coming", true), ("it is fine\u{2014} which is good", false),
+            ("we shipped it\u{2014} what a week", false),
+        ])
+    func readsAClauseAfterADash(text: String, asks: Bool) {
+        #expect(QuestionShape.asks(shapes(text)) == asks)
+    }
+
+    @Test(
         "reads a direct question from its word order",
         arguments: [
             "where did you put the keys", "which branch should I merge into",
