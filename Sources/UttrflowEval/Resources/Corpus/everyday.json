@@ -1954,5 +1954,22 @@
     "expected": "Between 3,000 and 4,000 people.",
     "mustKeep": ["3,000", "4,000"],
     "addedFor": 8110
+  },
+  {
+    "id": "wait-no-takes-back-the-day",
+    "note": "\"wait no\" announces a correction as \"no wait\" does, so the day it replaces is taken back.",
+    "spoken": "book the room for thursday wait no friday",
+    "expected": "Book the room for Friday.",
+    "mustKeep": ["Friday"],
+    "mustNotAdd": ["Thursday"],
+    "addedFor": 8112
+  },
+  {
+    "id": "wait-no-more-than-kept",
+    "note": "\"wait no more than\" corrects nothing, so every word stays.",
+    "spoken": "you can wait no more than ten minutes",
+    "expected": "You can wait no more than 10 minutes.",
+    "mustKeep": ["wait no more than"],
+    "addedFor": 8112
   }
 ]
