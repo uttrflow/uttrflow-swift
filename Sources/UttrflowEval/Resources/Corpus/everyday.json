@@ -2045,5 +2045,17 @@
       "Butter"
     ],
     "addedFor": 8132
+  },
+  {
+    "id": "spoken-dash-takes-the-pause-comma-place",
+    "note": "The recogniser writes a comma for the pause before a spoken dash; the dash marks that pause, so only the dash stands.",
+    "spoken": "the launch slipped, dash we ship next week instead",
+    "expected": "The launch slipped \u2014 we ship next week instead.",
+    "expectedExact": "The launch slipped \u2014 we ship next week instead.",
+    "mustKeep": [
+      "slipped",
+      "ship"
+    ],
+    "addedFor": 8156
   }
 ]

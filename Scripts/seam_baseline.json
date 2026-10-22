@@ -5507,6 +5507,10 @@
     "spoken-dash-before-a-clause@1",
     "spoken-dash-before-a-clause@2",
     "spoken-dash-before-a-clause@5",
+    "spoken-dash-takes-the-pause-comma-place@5",
+    "spoken-dash-takes-the-pause-comma-place@6",
+    "spoken-dash-takes-the-pause-comma-place@7",
+    "spoken-dash-takes-the-pause-comma-place@8",
     "spoken-domain-api-path@3",
     "spoken-dot-env-filename@4",
     "spoken-ellipsis-mid-sentence@5",
@@ -5887,5 +5891,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5867
+  "total" : 5871
 }

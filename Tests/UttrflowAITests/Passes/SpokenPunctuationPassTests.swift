@@ -368,6 +368,19 @@ struct SpokenPunctuationPassTests {
         #expect(cleaned("we went home dash it was late", by: sut) == "we went home \u{2014} it was late")
     }
 
+    @Test(
+        "a spoken dash takes the place of the recogniser's pause comma before it, and keeps a comma the speaker said",
+        .bug(id: 8156),
+        arguments: [
+            ("Here is the plan, dash are you in?", "Here is the plan \u{2014} are you in?"),
+            ("we went home, dash it was late", "we went home \u{2014} it was late"),
+            ("we went home comma dash it was late", "we went home, \u{2014} it was late"),
+            ("we went home. dash it was late", "we went home. \u{2014} it was late"),
+        ])
+    func dashReplacesPauseComma(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     /// A pair of dashes is an aside only around words; between numbers it is a date, a range or a code.
     @Test(
         "leaves two dashes between numbers as words instead of writing an aside",
