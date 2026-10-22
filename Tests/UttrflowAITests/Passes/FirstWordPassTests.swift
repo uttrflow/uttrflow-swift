@@ -591,6 +591,20 @@ struct FirstWordPassTests {
         #expect(cleaned(input, by: sut) == input)
     }
 
+    /// A capital after a colon opens what the colon introduces, as a list item's or a label's first word.
+    @Test(
+        "keeps the capital the recogniser wrote on the first word after a colon",
+        .bug(id: 8113),
+        arguments: [
+            "Step 1: Open the app. Step 2: Click Settings. Step 3: Choose privacy.",
+            "Note: Bring the badge tomorrow.",
+            "Step 1: open the app.",
+        ]
+    )
+    func keepsACapitalAfterAColon(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
     /// A sampled fallback can set a Hinglish sentence in Title Case; a romanised Hindi word has no capital of its own.
     @Test(
         "lowers a stray capital on a romanised Hindi word in a Hinglish sentence",
