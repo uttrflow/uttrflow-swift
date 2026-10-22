@@ -122,14 +122,6 @@ extension MeaningPreservationGuard {
         addedKind("at", "an at sign") { $0 == "@" },
         addedKind("bullet", "a bullet") { $0 == "\u{2022}" },
         SymbolCheck(
-            name: "scoreFraction", reason: "the rewrite wrote a spoken 'out of' as a fraction",
-            kind: .lostWord,
-            violates: { original, rewritten in
-                let spokenScore = #"\d\s+out\s+of\s+\d"#
-                return original.range(of: spokenScore, options: [.regularExpression, .caseInsensitive]) != nil
-                    && digitFractions(in: rewritten) > digitFractions(in: original)
-            }),
-        SymbolCheck(
             name: "notation", reason: "the rewrite added a notation mark nothing said names",
             kind: .inventedSymbol,
             violates: { original, rewritten in
@@ -155,11 +147,6 @@ extension MeaningPreservationGuard {
                         symbolNames[word.lowercased()].map { $0.contains(where: member) } ?? false
                     }
             })
-    }
-
-    /// How many digit-slash-digit fractions a text holds.
-    private static func digitFractions(in text: String) -> Int {
-        text.matches(of: /\d\/\d/).count
     }
 
     /// How many times a symbol occurs in a text.
