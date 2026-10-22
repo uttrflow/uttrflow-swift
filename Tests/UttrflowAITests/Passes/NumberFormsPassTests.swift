@@ -393,6 +393,23 @@ struct NumberFormsPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test(
+        "a conjunction ends the label cue, so a pronoun one in the next conjunct stays a word",
+        arguments: [
+            ("one with the code and one with the format", "one with the code and one with the format"),
+            (
+                "one with the coupon code and one with the currency format",
+                "one with the coupon code and one with the currency format"
+            ),
+            ("enter the code and one more thing", "enter the code and one more thing"),
+            ("the code or one of the others", "the code or one of the others"),
+            ("room three and four", "room 3 and 4"),
+        ]
+    )
+    func conjunctionEndsALabelCue(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test("ordinary cardinal conversion stays intact beside protected expressions")
     func ordinaryNumbersRemainUnchanged() {
         #expect(cleaned("twenty four people and fifty users", by: sut) == "24 people and 50 users")

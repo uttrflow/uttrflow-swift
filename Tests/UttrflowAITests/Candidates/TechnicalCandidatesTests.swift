@@ -33,4 +33,20 @@ struct TechnicalCandidatesTests {
             in: .heard("add ?Oath login", unsure: 0.32), for: .unknown)
         #expect(spans.flatMap(\.candidates).map(\.spelling).contains("OAuth"), "\(spans)")
     }
+
+    @Test(
+        "offers no shipped term for a doubted word its prose sentence reads as a verb",
+        arguments: ["ETC ETC, you ?get the idea.", "we ?get the build tonight", "I ?get it now"]
+    )
+    func keepsAVerbInProse(heard: String) async {
+        let spans = await DoubtfulWords.standard.spans(in: .heard(heard, unsure: 0.3), for: .unknown)
+        #expect(!spans.flatMap(\.candidates).map(\.spelling).contains("git"), "\(spans)")
+    }
+
+    @Test("still offers a shipped term for a doubted verb at a terminal")
+    func offersATermAtATerminal() async {
+        let terminal = Situation(app: .unknown, insertion: .unknown, destination: .terminal)
+        let spans = await DoubtfulWords.standard.spans(in: .heard("?get status", unsure: 0.3), for: terminal)
+        #expect(spans.flatMap(\.candidates).map(\.spelling).contains("git"), "\(spans)")
+    }
 }

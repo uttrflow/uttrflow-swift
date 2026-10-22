@@ -65,6 +65,14 @@ struct ShellOperatorTests {
         #expect(run("dash dash timeout equals five m", in: .terminal) == "--timeout=5m")
     }
 
+    @Test("joins only a size unit letter to an assigned number, never another letter")
+    func assignedNumberKeepsOtherLettersApart() {
+        #expect(run("N equals two x", in: .terminal) == "N=2 x")
+        #expect(run("export N equals two y", in: .terminal) == "export N=2 y")
+        #expect(run("export SIZE equals two k", in: .terminal) == "export SIZE=2k")
+        #expect(run("export SIZE equals two t", in: .terminal) == "export SIZE=2t")
+    }
+
     @Test("reads a determiner before a word as prose, and before a notation word as code")
     func determinerEvidence() {
         let prose = "our costs this year were greater than we planned"

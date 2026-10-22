@@ -2034,5 +2034,43 @@
     "mustKeep": ["thanks for the note", "see you soon"],
     "mustNotAdd": ["newparagraph"],
     "addedFor": 8133
+  },
+  {
+    "id": "question-after-a-spoken-dash-ends-in-a-question-mark",
+    "addedFor": 7969,
+    "spoken": "wait dash is it",
+    "expected": "Wait — is it?",
+    "mustKeep": ["is it?"],
+    "mustNotAdd": ["it."]
+  },
+  {
+    "id": "pronoun-one-after-a-label-in-the-previous-conjunct-kept",
+    "note": "A label word before \"and\" does not cue a number after it, so the pronoun \"one\" stays a word.",
+    "spoken": "We found two bugs in the payment screen. One with the coupon code and one with the currency format.",
+    "expected": "We found two bugs in the payment screen. One with the coupon code and one with the currency format.",
+    "mustKeep": ["and one with the currency format"],
+    "mustNotAdd": ["1"],
+    "addedFor": 8130
+    },
+  {
+    "id": "number-before-a-copula-is-not-a-list-marker",
+    "addedFor": 7968,
+    "spoken": "number one is speed number two is cost",
+    "expected": "Number 1 is speed number 2 is cost.",
+    "mustKeep": ["is speed", "is cost"],
+    "mustNotAdd": ["1. Is", "2. Is"]
+  },
+  {
+    "id": "pause-comma-before-spoken-line-break-dropped",
+    "note": "A comma the recogniser wrote before each spoken new line marks the pause the break already writes, so the items keep no comma.",
+    "spoken": "Groceries new line eggs, new line bread, new line butter",
+    "expected": "Groceries\nEggs\nBread\nButter",
+    "expectedExact": "Groceries\nEggs\nBread\nButter",
+    "mustKeep": [
+      "Eggs",
+      "Bread",
+      "Butter"
+    ],
+    "addedFor": 8132
   }
 ]

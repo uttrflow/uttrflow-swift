@@ -188,6 +188,18 @@ struct LayoutWordsPassTests {
         #expect(cleaned(input, by: sut) == input)
     }
 
+    @Test(
+        "keeps a number said straight before a copula or an auxiliary as the subject of its clause",
+        arguments: [
+            "number one is speed number two is cost",
+            "number one was the plan number two was the backup",
+            "number one will ship first number two should wait",
+        ]
+    )
+    func keepsNumberBeforeAPredicateAsProse(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
     /// Issue 254: with no lookback to ask, a phrase opening its sentence is an item only if the speaker set it off.
     @Test(
         "reads a phrase opening its sentence as layout only when a mark sets it off",
@@ -234,6 +246,25 @@ struct LayoutWordsPassTests {
     func leadingBreakWithTextBeforeCaret(precedingText: String, expected: String) {
         let pass = LayoutWordsPass(insertionPoint: InsertionPoint(precedingText: precedingText))
         #expect(cleaned("new paragraph thanks sam", by: pass) == expected)
+    }
+
+    @Test(
+        "drops the recogniser's comma that ends a line a spoken break opened, and keeps the first line's",
+        arguments: [
+            ("Groceries new line eggs, new line bread, new line butter", "Groceries\neggs\nbread\nbutter"),
+            ("To do new line, call the bank, new line, email Sarah.", "To do\ncall the bank\nemail Sarah."),
+            (
+                "my signature is thanks, new line Alex, new line engineering lead",
+                "my signature is thanks,\nAlex\nengineering lead"
+            ),
+            ("milk, new line eggs", "milk,\neggs"),
+            ("eggs new line bread comma new line butter", "eggs\nbread,\nbutter"),
+        ]
+    )
+    func dropsPauseCommaBeforeBreak(input: String, expected: String) {
+        let pass = LayoutWordsPass()
+        let spoken = SpokenPunctuationPass(destination: .plain)
+        #expect(CleaningPipeline(passes: [spoken, pass]).run(Draft(text: input)).text == expected)
     }
 
     @Test("drops a leading break command in a known empty field")

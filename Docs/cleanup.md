@@ -586,7 +586,7 @@ only when one of these holds:
 | Evidence | Where it is read |
 |---|---|
 | the user's dictionary holds the reading | `Reading.entryID` |
-| a source that offers words somebody wrote down offered it: the dictionary, the screen, the shipped terms | any source but a `SoundAlikeSource` |
+| a source that offers words somebody wrote down offered it: the dictionary, the screen, the shipped terms; a shipped term only where the run is not one word its sentence reads as a verb, outside a code editor and a terminal, so "you get the idea" is never offered `git` | any source but a `SoundAlikeSource`; `DoubtfulWords.isProseVerb` for the shipped terms |
 | the heard words cannot stand where they were said | `HeardWordFit.ruledOut` |
 
 `HeardWordFit` has five rules, each with a test: a word of the run is in neither the pronunciation

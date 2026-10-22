@@ -290,6 +290,7 @@ doubled-number-even-split-kept	A fifty fifty chance.
 doubled-number-score-kept	The score was two two at half time.
 doubled-number-year-kept	It was 2020 and then covid.
 doubled-place-name-kept	We flew to bora bora last year for the wedding.
+doubted-verb-get-not-offered-a-shipped-term	ETC ETC, you get the idea, so let us get going.
 doubtful-word-from-window	We should clear the cash before the deploy
 doubtful-word-heard-word-stands	We should clear the cash before the deploy.
 doubtful-word-with-nothing-on-screen	The migration ran twice on the reader last night.
@@ -870,6 +871,7 @@ notes-prose-at-stays	Dinner is ready at home.
 notes-spoken-email-after-address	My email address is jane@example.net.
 noun-spelled-like-a-filler	I took her to the ER last night.
 np3	We need the final version of the contract.
+number-before-a-copula-is-not-a-list-marker	Number 1 is speed number 2 is cost.
 number-before-spelled-unit-symbol	The laptop ships with 8 GB of memory.
 number-before-written-unit-symbol	The build machine has 8 GB of memory.
 number-bus-not-an-item	Take bus number 12 to the station.
@@ -926,6 +928,7 @@ participle-have-wrote	I have wrote the summary already.
 participle-should-have-ate	I should have ate before the call.
 participle-was-broke	The window was broke during transit.
 participle-was-wrote	It was wrote in the notes.
+pause-comma-before-spoken-line-break-dropped	Groceries\nEggs\nBread\nButter
 paused-after-article-runs-on	We need to finish the report by Friday.
 paused-after-preposition-runs-on	She put the keys on the shelf by the door.
 paused-before-because-runs-on	I stayed home because it was raining.
@@ -992,6 +995,7 @@ probe-version-bump	Bump the client from 1.4.2 to 1.5.0 and pin node to 22
 probe-yaml-keys	Set replicas: 3 and image: registry.example.com/api: 1.4.2
 product-name-keeps-its-capitals	Please open Visual Studio Code and then the Terminal app.
 pronoun-i	I think I'll take the earlier train.
+pronoun-one-after-a-label-in-the-previous-conjunct-kept	We found two bugs in the payment screen. One with the coupon code and one with the currency format.
 pronoun-opening-everything-is	Everything is the way it should be.
 pronoun-opening-i-am-sure	I am a hundred percent sure.
 pronoun-opening-it-is-good-control	It is good.
@@ -1011,6 +1015,7 @@ prose-keeps-spoken-snake-case	Snake case max retries.
 prose-number-word-kept	One of them failed the build.
 prose-spoken-parentheses-as-marks	The budget (draft two) is due Friday.
 quantity-after-has-beside-a-label-word	The model has 70,000,000,000 parameters and the table has 2,000,000 rows.
+question-after-a-spoken-dash-ends-in-a-question-mark	Wait —, is it?
 question-mark-new-line	Is it ready?\nYes.
 question-mark-new-line-thanks	What do you think?\nThanks.
 question-with-embedded-question-know-what-mean	Do you know what I mean?

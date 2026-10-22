@@ -75,23 +75,26 @@ public enum PeakMemory {
     ) async throws(Failure) -> (value: Success, peak: MemoryReading?) {
         let recorder = Recorder(read: read)
         recorder.observe()
-        let poller = Task {
-            while (try? await clock.sleep(for: interval)) != nil {
-                // Checked after the sleep too: a reading after cancellation belongs to the caller's next work.
-                guard !Task.isCancelled else { break }
-                recorder.observe()
-            }
-        }
+        // Asleep on `clock` before `operation` starts; none for a non-positive interval, whose sleep never suspends.
+        let poller: Task<Void, Never>? =
+            interval > .zero
+            ? Task.immediate {
+                while (try? await clock.sleep(for: interval)) != nil {
+                    // Checked after the sleep too: a reading after cancellation belongs to the caller's next work.
+                    guard !Task.isCancelled else { break }
+                    recorder.observe()
+                }
+            } : nil
         // Stopped by a flag the poller's reads honour, never by awaiting it, which would queue behind other work.
         let value: Success
         do {
             value = try await operation()
         } catch {
-            poller.cancel()
+            poller?.cancel()
             recorder.stop()
             throw error
         }
-        poller.cancel()
+        poller?.cancel()
 
         // One last reading after the work, so a peak in the final milliseconds does not fall between polls.
         recorder.observe()
