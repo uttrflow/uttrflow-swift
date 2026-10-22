@@ -66,8 +66,8 @@ extension MeaningPreservationGuard {
     /// Refuses a romanised Hindi rewrite that puts a word where the speaker did not, small words included, which the word-by-word check leaves out.
     static func scriptWordOrderVerdict(original: String, rewritten: String) -> GuardVerdict {
         guard Romaniser.containsDevanagari(original) else { return .accepted }
-        let spoken = withoutStammers(romanisedWords(Romaniser.romanised(original))).map(\.key)
-        let spelt = withoutStammers(romanisedWords(rewritten)).map(\.key)
+        let spoken = stammerFreeWords(Romaniser.romanised(original)).map(\.key)
+        let spelt = stammerFreeWords(rewritten).map(\.key)
         return hasMovedWord(reference: spoken, hypothesis: spelt)
             ? .rejected(reason: "the rewrite moved a word", kind: .movedWord) : .accepted
     }

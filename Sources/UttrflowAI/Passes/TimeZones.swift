@@ -47,7 +47,7 @@ enum TimeZones {
     /// Whether `word` opens a zone or place name rather than a sentence, given the word after it: "Eastern ...", "London time".
     static func opensName(_ word: String, followedBy next: String?) -> Bool {
         let key = WordShape(word).key
-        if leadingNameWords.contains(key) || ["pacific", "central", "mountain", "atlantic"].contains(key) {
+        if leadingNameWords.contains(key) || key == "atlantic" {
             return true
         }
         return next.map { WordShape($0).key == "time" } == true

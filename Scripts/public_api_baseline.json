@@ -1321,7 +1321,7 @@
     "UttrflowCore func discardedStart": 1,
     "UttrflowCore func distance": 1,
     "UttrflowCore func dropping": 1,
-    "UttrflowCore func encode": 5,
+    "UttrflowCore func encode": 6,
     "UttrflowCore func endsSentence": 1,
     "UttrflowCore func enforced": 1,
     "UttrflowCore func enforcement": 1,
@@ -1573,7 +1573,7 @@
     "UttrflowCore func writeOwnerOnlyAtomically": 1,
     "UttrflowCore func writesOnlyLatin": 1,
     "UttrflowCore func writtenWords": 1,
-    "UttrflowCore init init": 171,
+    "UttrflowCore init init": 172,
     "UttrflowCore let `default`": 6,
     "UttrflowCore let accessibilityRole": 1,
     "UttrflowCore let acronymCasing": 1,
@@ -3788,6 +3788,7 @@
     "UttrflowHistory let notation": 1,
     "UttrflowHistory let now": 1,
     "UttrflowHistory let pass": 1,
+    "UttrflowHistory let quality": 1,
     "UttrflowHistory let reason": 2,
     "UttrflowHistory let slowCause": 1,
     "UttrflowHistory let snippetID": 1,
@@ -5755,6 +5756,7 @@
     "UttrflowUX let provider": 4,
     "UttrflowUX let providerID": 1,
     "UttrflowUX let providers": 1,
+    "UttrflowUX let quality": 1,
     "UttrflowUX let qualityLayers": 1,
     "UttrflowUX let query": 7,
     "UttrflowUX let range": 2,
@@ -6309,5 +6311,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 8959
+  "total": 8963
 }
