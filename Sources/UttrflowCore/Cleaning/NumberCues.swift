@@ -24,6 +24,8 @@ public enum NumberCues {
         case preRelease
         /// A one-letter size unit a command-line value takes straight after its digits, as in `--memory=2g`.
         case sizeSuffix
+        /// A word that heads a clause with a colon, as in "status: blocked", which a colon glued to it is never code for.
+        case headingLabel
     }
 
     /// The cue words that say `cue`.

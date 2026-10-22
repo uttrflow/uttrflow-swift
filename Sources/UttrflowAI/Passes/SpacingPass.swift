@@ -107,9 +107,7 @@ public struct SpacingPass: PieceCleaningPass {
     }
 
     /// Labels a colon sets off from the clause it heads, which a colon glued to one is never code for ("status:blocked").
-    private static let labelWords: Set<String> = [
-        "status", "warning", "summary", "reminder", "question", "answer",
-    ]
+    private static let labelWords = NumberCues.words(for: .headingLabel)
 
     /// "1:open" as "1:" and "open", and "status:blocked." as "status:" and "blocked.": a step number or a label word, then letters, which no time, ratio or port is.
     private static func gluedLabel(_ left: String, _ right: String) -> (String, String)? {
