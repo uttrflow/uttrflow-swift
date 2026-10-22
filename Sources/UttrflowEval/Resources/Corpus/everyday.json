@@ -2007,5 +2007,14 @@
     "expected": "And I quote \"this is the best plan we have had\" in the minutes.",
     "mustKeep": ["I quote", "\"this is the best plan we have had\""],
     "addedFor": 8107
+  },
+  {
+    "id": "pronoun-one-after-a-label-in-the-previous-conjunct-kept",
+    "note": "A label word before \"and\" does not cue a number after it, so the pronoun \"one\" stays a word.",
+    "spoken": "We found two bugs in the payment screen. One with the coupon code and one with the currency format.",
+    "expected": "We found two bugs in the payment screen. One with the coupon code and one with the currency format.",
+    "mustKeep": ["and one with the currency format"],
+    "mustNotAdd": ["1"],
+    "addedFor": 8130
   }
 ]
