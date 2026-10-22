@@ -248,6 +248,19 @@ struct SpelledInitialismPassTests {
     }
 
     @Test(
+        "writes a zone abbreviation said after a clock meridiem in capitals",
+        arguments: [
+            ("at 3 pm ist tomorrow", "at 3 pm IST tomorrow"),
+            ("lets do it at 10 am pst", "lets do it at 10 am PST"),
+            ("call me at 9 am est.", "call me at 9 am EST."), ("it is at 6 pm gmt", "it is at 6 pm GMT"),
+            ("at 3 p.m. ist tomorrow", "at 3 pm IST tomorrow"),
+            ("at 3 pm in the est", "at 3 pm in the est"), ("we said ist", "we said ist"),
+        ])
+    func zoneAfterMeridiem(input: String, expected: String) {
+        #expect(CleaningPipeline(passes: [sut]).run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
         "leaves am and pm that do not follow a clock time",
         arguments: ["i am here", "the PM said so", "a.m. radio", "at 25 pm"])
     func leavesNonMeridiem(input: String) {
