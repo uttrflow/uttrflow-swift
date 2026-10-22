@@ -4623,6 +4623,7 @@
     "quotation-opening-the-text@9",
     "quote-pair-after-say-stays-whole@4",
     "quote-pair-after-say-stays-whole@5",
+    "quote-unquote-ends-on-recogniser-stop@1",
     "quoted-words-mid-sentence@1",
     "quoted-words-mid-sentence@2",
     "quoted-words-mid-sentence@6",

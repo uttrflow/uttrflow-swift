@@ -861,7 +861,16 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             live.remove(at: after)
         } else {
             let previous = live[position - 1]
-            let written = Self.marked(draft.words[previous].text, with: mark)
+            var before = draft.words[previous].text
+            // A stop written after a closing quote's name ends the quotation inside it, in place of the comma set before the name.
+            if kind == .closing, !SpokenCommands.isBracket(mark), !WordShape(before).endsSentence,
+                let ending = WordShape(draft.words[live[after - 1]].text).suffix.last(where: {
+                    ".?!".contains($0)
+                })
+            {
+                before = WordShape.marked(before, with: String(ending))
+            }
+            let written = Self.marked(before, with: mark)
             draft.replace(at: previous, with: written, by: Self.id)
         }
         // A mark written onto the name, as "at sign" writes onto "open paren", moves on rather than going with it.

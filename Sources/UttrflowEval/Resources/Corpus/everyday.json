@@ -1905,5 +1905,15 @@
     "expected": "We expect 200 to 300 people.",
     "mustKeep": ["200", "300"],
     "addedFor": 7936
+  },
+  {
+    "id": "quote-unquote-ends-on-recogniser-stop",
+    "note": "The comma before unquote belongs to the command, and the recogniser's stop after it ends the quotation.",
+    "spoken": "She said, quote, I will be there by noon, unquote.",
+    "expected": "She said, \"I will be there by noon.\"",
+    "mustKeep": ["noon"],
+    "mustNotAdd": ["unquote"],
+    "mustEndWith": "noon.\"",
+    "addedFor": 8109
   }
 ]
