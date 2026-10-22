@@ -1197,7 +1197,6 @@
     "fmt-correction-i-mean-it-stays@5",
     "fmt-correction-i-mean-it-stays@6",
     "fmt-correction-i-mean@1",
-    "fmt-correction-i-mean@3",
     "fmt-correction-i-mean@5",
     "fmt-correction-no-wait@2",
     "fmt-correction-no-wait@3",
@@ -3527,6 +3526,16 @@
     "new-paragraph@1",
     "new-paragraph@12",
     "new-paragraph@8",
+    "newline-written-as-one-word@2",
+    "newline-written-as-one-word@3",
+    "newline-written-as-one-word@4",
+    "newline-written-as-one-word@6",
+    "newline-written-as-one-word@7",
+    "newparagraph-written-as-one-word@1",
+    "newparagraph-written-as-one-word@4",
+    "newparagraph-written-as-one-word@5",
+    "newparagraph-written-as-one-word@6",
+    "newparagraph-written-as-one-word@7",
     "no-after-bullet-point-kept@1",
     "no-after-bullet-point-kept@11",
     "no-after-bullet-point-kept@12",
@@ -5818,5 +5827,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5842
+  "total" : 5807
 }

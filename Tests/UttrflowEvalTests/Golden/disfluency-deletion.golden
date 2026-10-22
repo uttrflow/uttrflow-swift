@@ -1,6 +1,6 @@
-all	cases=60 deletable=82 deleted=74 correct=73 fluent=307 precision=98.6% recall=89.0% f1=93.6% over-deletion=0.3% by=fillers=11,repeatedPhrase=11,selfCorrection=44,stammers=8
+all	cases=60 deletable=82 deleted=78 correct=77 fluent=307 precision=98.7% recall=93.9% f1=96.2% over-deletion=0.3% by=fillers=11,repeatedPhrase=11,selfCorrection=48,stammers=8
 discourse-marker	cases=10 deletable=0 deleted=0 correct=0 fluent=55 precision=- recall=- f1=- over-deletion=0.0% by=-
-editing-phrase	cases=7 deletable=30 deleted=26 correct=26 fluent=33 precision=100.0% recall=86.7% f1=92.9% over-deletion=0.0% by=selfCorrection=26
+editing-phrase	cases=7 deletable=30 deleted=30 correct=30 fluent=33 precision=100.0% recall=100.0% f1=100.0% over-deletion=0.0% by=selfCorrection=30
 filled-pause	cases=9 deletable=10 deleted=10 correct=10 fluent=44 precision=100.0% recall=100.0% f1=100.0% over-deletion=0.0% by=fillers=10
 fluent-control	cases=11 deletable=0 deleted=1 correct=0 fluent=69 precision=0.0% recall=- f1=- over-deletion=1.4% by=stammers=1
 repetition	cases=8 deletable=10 deleted=9 correct=9 fluent=39 precision=100.0% recall=90.0% f1=94.7% over-deletion=0.0% by=repeatedPhrase=2,stammers=7
