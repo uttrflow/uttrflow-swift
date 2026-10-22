@@ -51,6 +51,23 @@ private struct FixedGhostScorer: CandidateScoring {
     func confidence(ofGenerated line: String) async -> Double? { 1 }
 }
 
+/// A turn clock the test steers: its first reading is the turn's start, every later one is `afterwards` on.
+private final class SteeredTurnClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private let start = ContinuousClock.now
+    private let afterwards: Duration
+    private var readings = 0
+
+    init(afterwards: Duration) { self.afterwards = afterwards }
+
+    func now() -> ContinuousClock.Instant {
+        lock.lock()
+        defer { lock.unlock() }
+        readings += 1
+        return readings == 1 ? start : start.advanced(by: afterwards)
+    }
+}
+
 @MainActor
 @Suite("Suggestion capture routing")
 struct SuggestionCaptureRoutingTests {
@@ -58,6 +75,21 @@ struct SuggestionCaptureRoutingTests {
         "a real turn reaches its generated suggestion while a corpus write is blocked",
         .timeLimit(.minutes(1)))
     func blockedCaptureWriteDoesNotDelayTurn() async throws {
+        // The turn's own budget reads this clock, so a loaded machine cannot spend it.
+        let steered = SteeredTurnClock(afterwards: .zero)
+        #expect(try await suggestionAfterBlockedWriteTurn(clock: steered) == .certain("hello world"))
+    }
+
+    @Test(
+        "a turn that outlasts its budget stays quiet while a corpus write is blocked",
+        .timeLimit(.minutes(1)))
+    func overBudgetTurnStaysQuiet() async throws {
+        let steered = SteeredTurnClock(
+            afterwards: .milliseconds(SuggestionSession.turnBudgetInMilliseconds + 1_000))
+        #expect(try await suggestionAfterBlockedWriteTurn(clock: steered) == .silent)
+    }
+
+    private func suggestionAfterBlockedWriteTurn(clock: SteeredTurnClock) async throws -> Suggestion? {
         let container = FileManager.default.temporaryDirectory
             .appending(path: "suggestion-capture-blocked-draw-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
@@ -76,7 +108,7 @@ struct SuggestionCaptureRoutingTests {
             container: container, preferences: SuggestionPreferences(isEnabled: true),
             scoring: FixedGhostScorer(), generating: FixedGhostGenerator(), captureSink: sink,
             focusedFieldReader: { snapshot },
-            frontmostBundleIdentifier: { application }, panel: panel)
+            frontmostBundleIdentifier: { application }, panel: panel, turnClock: { clock.now() })
         defer {
             coordinator.stop()
             panel.hide()
@@ -90,16 +122,16 @@ struct SuggestionCaptureRoutingTests {
         let turnStart = ContinuousClock.now.advanced(by: .seconds(1))
         guard case .free(let turn) = coordinator.turns.begin(at: turnStart) else {
             Issue.record("the test turn should be admitted")
-            return
+            return nil
         }
         // The Return this turn hands capture is a corpus write the sink holds until released.
         await coordinator.turn(turn, because: .returnPressed)
         await sink.waitUntilBlocked()
-
-        #expect(coordinator.session.suggestion == .certain("hello world"))
+        let drawn = coordinator.session.suggestion
 
         await sink.release()
         await coordinator.finishWrites()
+        return drawn
     }
 
     @Test("pending capture typing stays bounded and overflow discards its contents")
