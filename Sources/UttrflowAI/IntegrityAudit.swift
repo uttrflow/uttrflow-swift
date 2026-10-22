@@ -24,16 +24,20 @@ enum IntegrityAudit {
     ) -> [IntegrityViolation] {
         let unauthorised = Set(RemovalAudit.unauthorisedPlaces(in: draft, grants: grants))
         let written = Set(WordTokens.words(draft.text.lowercased(), .comparison))
+        let heard = draft.words.filter { !$0.isLayoutMark && !$0.heard.isEmpty }.map { WordShape($0.heard) }
         var found: [IntegrityViolation] = []
         var afterNumber = false
+        var place = 0
         for index in draft.words.indices {
             let word = draft.words[index]
             guard !word.isLayoutMark, !word.heard.isEmpty else { continue }
+            defer { place += 1 }
             let key = WordShape(word.heard).key
             if let kind = protectedKind(of: key, afterNumber: afterNumber),
                 let pass = answerable(
                     word, kind: kind, grants: grants,
-                    unauthorised: unauthorised.contains(index) && !written.contains(key))
+                    unauthorised: unauthorised.contains(index) && !written.contains(key),
+                    scaled: NumberFormsPass.sharedScaleDigits(at: place, heard: heard))
             {
                 found.append(IntegrityViolation(pass: pass, kind: kind, heard: word.heard))
             }
@@ -52,7 +56,7 @@ enum IntegrityAudit {
     /// The pass that lost or changed the word without a licence, or nil when it stands or a grant allows it.
     private static func answerable(
         _ word: Draft.Word, kind: IntegrityViolation.Kind, grants: [PassID: RemovalGrant],
-        unauthorised: Bool
+        unauthorised: Bool, scaled: String?
     ) -> PassID? {
         switch word.state {
         case .removed(let pass):
@@ -63,16 +67,17 @@ enum IntegrityAudit {
         case .kept, .inserted:
             return nil
         case .replaced(let pass, _):
-            return changed(word, kind: kind) ? pass : nil
+            return changed(word, kind: kind, scaled: scaled) ? pass : nil
         }
     }
 
-    /// Whether the word as it reads now lacks what was heard.
-    private static func changed(_ word: Draft.Word, kind: IntegrityViolation.Kind) -> Bool {
+    /// Whether the word as it reads now lacks what was heard; `scaled` is the digits a shared-scale range writes from the heard words there.
+    private static func changed(_ word: Draft.Word, kind: IntegrityViolation.Kind, scaled: String?) -> Bool {
         let now = WordShape(word.text).key
         let heard = WordShape(word.heard).key
         switch kind {
-        case .number: return digits(now) != digits(heard) && !writesItsValue(now, heard: heard)
+        case .number:
+            return digits(now) != digits(heard) && !writesItsValue(now, heard: heard) && digits(now) != scaled
         case .negator:
             return carries(now) && !letterRuns(now).contains(where: MeaningPreservationGuard.isNegation)
         case .unit: return plainWord(word.text) && now != heard

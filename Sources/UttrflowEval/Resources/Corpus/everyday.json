@@ -1938,5 +1938,21 @@
     "expectedExact": "This is all I can think of. That is the city she comes from.",
     "mustKeep": ["think of.", "comes from."],
     "addedFor": 8106
+  },
+  {
+    "id": "range-shares-written-thousand",
+    "note": "The recogniser writes a range with one shared scale in digits; the near end takes the far end's scale.",
+    "spoken": "The price went from 20 to 30,000.",
+    "expected": "The price went from 20,000 to 30,000.",
+    "mustKeep": ["20,000", "30,000"],
+    "addedFor": 8110
+  },
+  {
+    "id": "range-shares-written-thousand-between",
+    "note": "The same written range opened by between and joined by and.",
+    "spoken": "between 3 and 4,000 people.",
+    "expected": "Between 3,000 and 4,000 people.",
+    "mustKeep": ["3,000", "4,000"],
+    "addedFor": 8110
   }
 ]
