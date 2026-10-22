@@ -231,10 +231,10 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "89815b5e3e3906082dc59aebb0d34e8c8fc4e0024ce0a6a9fc735be1e1f9b2f7",
+      "sha256": "8a5dc5157f41d130a2094e2fe52271247a5a1295d521a0d6a7a5c976bb43d820",
       "path": "Sources/UttrflowCore/Resources/Tables/correction-triggers.json",
       "origin": "authored",
-      "bytes": 2435
+      "bytes": 2537
     },
     {
       "licence": "MIT",
@@ -258,10 +258,10 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "765ce2bae053a269a4c627c7b4370c1ef4e5eb9fc86c9216648e40ed37d17496",
+      "sha256": "3272e534ca17fbb40d68161c1cf391acb1ebedeb5075407b70c6d3d4278b158a",
       "path": "Sources/UttrflowCore/Resources/Tables/function-words.json",
       "origin": "authored",
-      "bytes": 16432
+      "bytes": 16949
     },
     {
       "licence": "MIT",
@@ -378,10 +378,10 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "written for this repository, copied from no list; read through DataTable; see Docs/data-tables.md",
-      "sha256": "c6fb3629b112b113ef419e57feaee1aec61233c46d8ab1b7f66741ab0978572c",
+      "sha256": "cd939c65db408cb65df79b10ecc23bb072ffc85eb4d5a2889a2967f190c3e696",
       "path": "Sources/UttrflowCore/Resources/Tables/technical-lexicon.json",
       "origin": "authored",
-      "bytes": 36187
+      "bytes": 36993
     },
     {
       "licence": "MIT",
@@ -441,20 +441,20 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "4942d4ab9185e0cd9d9b430e94d7c7468dbb3c0c8039a3694e1e4e0797ca3bc3",
+      "sha256": "1e9ae69e9da1873e5cd63f9307ad510b36269255c6fcead413ce91bedc4e6cf1",
       "path": "Sources/UttrflowEval/Resources/Corpus/dictionary.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 9125,
+      "bytes": 10124,
       "licence": "MIT"
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "bd99f98907a33c5cc49002900b3b68339f0c4a1159dd7881a92e975bc283baa5",
+      "sha256": "207e7c41b41069711aae6c147587138c0ce3e12a70d4e0c3a96a4f4ec6b95303",
       "path": "Sources/UttrflowEval/Resources/Corpus/everyday.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 67944,
+      "bytes": 74188,
       "licence": "MIT"
     },
     {
@@ -477,11 +477,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "dde0e35b6aa54e4124d2fcba4fd25a23fc54fe61b61861532c81686a48e125a0",
+      "sha256": "951a0da731481292e6443177f1375365869cfb371dd083a509e9347931695129",
       "path": "Sources/UttrflowEval/Resources/Corpus/homophone.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 2205,
+      "bytes": 4039,
       "licence": "MIT"
     },
     {
@@ -504,11 +504,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "f0e17cdb31fc36b399115af49d1dc2cc82bf3d73b51a677ed5949bd2d7d7abdc",
+      "sha256": "2a5eba2f1938b1e35c72a39faf499048ed2998e669d58c3ab7452495b9a6fcd9",
       "path": "Sources/UttrflowEval/Resources/Corpus/multilingual.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 12626,
+      "bytes": 13269,
       "licence": "MIT"
     },
     {
@@ -639,11 +639,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "b9345283534ed5962399a6e0e0efcf2135d5b05ebce77efbd8612258260fa749",
+      "sha256": "f6d055e551bae09d9e1bbb27a6e43010b575f4e188c4875a73b662ae0a3d528e",
       "path": "Sources/UttrflowEval/Resources/Corpus/technical.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 52488,
+      "bytes": 53034,
       "licence": "MIT"
     },
     {

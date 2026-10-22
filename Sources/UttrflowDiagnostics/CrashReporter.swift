@@ -160,8 +160,17 @@ public final class CrashReporter: Sendable {
         return event
     }
 
-    /// Each frame's file and image cut to their last component.
+    /// The registers that hold an address; every other register can hold the inline bytes of a short string.
+    private enum AddressRegister: String {
+        case pc, lr, sp, fp
+    }
+
+    /// Whether a register name is one of the address registers.
+    static func holdsAddress(_ name: String) -> Bool { AddressRegister(rawValue: name) != nil }
+
+    /// Each frame's file and image cut to their last component, and every register that is not an address removed.
     private static func scrub(_ stacktrace: SentryStacktrace?) {
+        stacktrace?.registers = (stacktrace?.registers ?? [:]).filter { holdsAddress($0.key) }
         for frame in stacktrace?.frames ?? [] {
             frame.fileName = frame.fileName.map(lastComponent)
             frame.package = frame.package.map(lastComponent)

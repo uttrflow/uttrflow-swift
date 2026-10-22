@@ -608,12 +608,12 @@ struct OnboardingFlowTests {
         #expect(harness.detail == .finishing(.ready, trial: .listening))
     }
 
-    @Test("Skip to dashboard closes onboarding")
-    func skippingToTheDashboard() async throws {
+    @Test("Skip to Home closes onboarding")
+    func skippingToHome() async throws {
         let harness = Harness(microphone: .granted, accessibility: .granted)
         await harness.flow.start()
         let skip = try #require(harness.page.action)
-        #expect(skip.title == "Skip to dashboard")
+        #expect(skip.title == "Skip to Home")
         await harness.flow.perform(skip.intent)
         #expect(harness.finishedWith == .ready)
     }

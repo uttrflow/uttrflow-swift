@@ -127,7 +127,10 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 !Self.closesAKeptOpening(
                     found, quoting: !openQuotes.isEmpty, at: position, until: keptOpeningUntil),
                 paired != nil
-                    || isUsed(found, at: position, in: live, of: draft, repeated: repeated),
+                    || isUsed(
+                        found, at: position, in: live, of: draft, repeated: repeated,
+                        commandArgument: literalHyphens
+                            && isCommandArgument(at: position, in: live, of: draft)),
                 isPaired(
                     found, at: position, in: live, of: draft, open: openBrackets,
                     quoting: !openQuotes.isEmpty, sentenceEnd: sentenceEnd ?? live.count,
@@ -137,9 +140,10 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                     in: live, of: draft),
                 case let written = Self.quote(found, inside: openQuotes.map(\.mark))
                     ?? mark(found.text, literalHyphens: literalHyphens),
+                case let keepsName = Self.quotesAsVerb(found, at: position, in: live, of: draft),
                 attach(
                     written, kind: found.placement, at: position, spanning: found.words.count,
-                    in: &live, of: &draft)
+                    in: &live, of: &draft, keepingName: keepsName)
             else {
                 // A name kept as words is kept whole, so no shorter name inside it is read on its own.
                 if let said, said.placement == .opening, !SpokenCommands.isBracket(said.text),
@@ -150,6 +154,8 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 position += said?.words.count ?? 1
                 continue
             }
+            // A name kept as the verb stays in place, so reading goes on after it.
+            if keepsName { position += found.words.count }
             if found.placement == .opening, !SpokenCommands.isBracket(found.text) {
                 openQuotes.append((written, found.words))
             }
@@ -218,13 +224,27 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
 
     /// Whether a mark name is used rather than mentioned, said as the verb, or said without evidence of a seam.
     private func isUsed(
-        _ found: SpokenCommand, at position: Int, in live: [Int], of draft: Draft, repeated: Set<Int>
+        _ found: SpokenCommand, at position: Int, in live: [Int], of draft: Draft, repeated: Set<Int>,
+        commandArgument: Bool = false
     ) -> Bool {
-        !MentionGuard.isMentioned(
+        // A name joined by a dash after a program is typed, whatever word begins it: "my dash container".
+        if commandArgument { return !isVerb(found.words, at: position, in: live, of: draft) }
+        return !MentionGuard.isMentioned(
             at: position, spanning: found.words.count, in: live, of: draft,
             reach: MentionGuard.phraseReach, kind: found.placement)
             && !isVerb(found.words, at: position, in: live, of: draft)
             && isEvidenced(found.words, at: position, in: live, of: draft, repeated: repeated)
+    }
+
+    /// Whether the dash at `position` joins the parts of an argument typed after a program's name, which is never prose.
+    private func isCommandArgument(at position: Int, in live: [Int], of draft: Draft) -> Bool {
+        guard destination == .terminal, position > 1, position + 1 < live.count,
+            draft.shape(at: live[position]).key == "dash",
+            MentionGuard.determiners.contains(draft.shape(at: live[position - 1]).key),
+            draft.shape(at: live[position - 1]).suffix.isEmpty,
+            !isFunctionWordEvidence(draft.shape(at: live[position + 1]).key)
+        else { return false }
+        return TechnicalLexicon.isProgram(draft.shape(at: live[0]).key, in: .terminal)
     }
 
     /// Decides a sentence's two prose dashes around words as one, by word index: marks when either is used and both may stand there.
@@ -756,6 +776,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 || isCommaBracketed(before: next, spanning: length, in: live, of: draft)
                 || isPauseBracketed(before: next, spanning: length, in: live, of: draft)
                 || opensDeterminerClause(at: next, in: live, of: draft)
+                || isStoppedBeforeCapital(before: next, in: live, of: draft)
         case "-", "\u{2014}": return !closes(at: next, in: live, of: draft)
         default: return true
         }
@@ -778,6 +799,12 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             let before = draft.pause(before: live[next - length]), let after = draft.pause(before: live[next])
         else { return false }
         return before >= sentencePause && after >= sentencePause
+    }
+
+    /// Whether the recogniser stopped after the name and began the next sentence with a capital, which says the name closed its sentence.
+    private func isStoppedBeforeCapital(before next: Int, in live: [Int], of draft: Draft) -> Bool {
+        guard next > 0, next < live.count, draft.shape(at: live[next - 1]).suffix == "." else { return false }
+        return draft.words[live[next]].text.first(where: \.isLetter)?.isUppercase ?? false
     }
 
     /// Whether a determiner-led clause starts at `next`, so a full stop before it is a sentence boundary.
@@ -808,10 +835,27 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         return text + mark
     }
 
-    /// Fixes the mark to its neighbour and drops the spoken name, or refuses when the neighbour is missing.
+    /// Whether an opening quote's name follows its subject, "I quote" or "to quote", so the word is the verb and stays.
+    private static func quotesAsVerb(
+        _ command: SpokenCommand, at position: Int, in live: [Int], of draft: Draft
+    ) -> Bool {
+        guard command.placement == .opening, command.words == ["quote"], position > 0 else { return false }
+        let before = draft.shape(at: live[position - 1])
+        guard !before.endsClause else { return false }
+        if before.key == "to" { return true }
+        // A pronoun that can be an object, or one a verb takes ("called it quote", "told you quote"), is no subject.
+        guard QuestionShape.subjects.contains(before.key),
+            !FunctionWords.imperativeObjects.contains(before.key)
+        else { return false }
+        guard position > 1, !draft.shape(at: live[position - 2]).endsClause else { return true }
+        let words = live[(position - 2)...position].map { draft.shape(at: $0).key }
+        return LexicalClass.tag(ofWordAt: 0, in: words) != .verb
+    }
+
+    /// Fixes the mark to its neighbour and drops the spoken name unless it is kept as a word, or refuses when the neighbour is missing.
     private func attach(
         _ mark: String, kind: SpokenMarkKind, at position: Int, spanning length: Int,
-        in live: inout [Int], of draft: inout Draft
+        in live: inout [Int], of draft: inout Draft, keepingName: Bool = false
     ) -> Bool {
         let after = position + length
         // An opening or leading mark needs the word it goes on after it, a standalone one a word on each side, every other the one before.
@@ -837,9 +881,19 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             live.remove(at: after)
         } else {
             let previous = live[position - 1]
-            let written = Self.marked(draft.words[previous].text, with: mark)
+            var before = draft.words[previous].text
+            // A stop written after a closing quote's name ends the quotation inside it, in place of the comma set before the name.
+            if kind == .closing, !SpokenCommands.isBracket(mark), !WordShape(before).endsSentence,
+                let ending = WordShape(draft.words[live[after - 1]].text).suffix.last(where: {
+                    ".?!".contains($0)
+                })
+            {
+                before = WordShape.marked(before, with: String(ending))
+            }
+            let written = Self.marked(before, with: mark)
             draft.replace(at: previous, with: written, by: Self.id)
         }
+        if keepingName { return true }
         // A mark written onto the name, as "at sign" writes onto "open paren", moves on rather than going with it.
         for index in live[position..<after] {
             draft.remove(at: index, by: Self.id, carryingOpeningMarks: true)

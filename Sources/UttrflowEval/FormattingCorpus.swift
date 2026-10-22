@@ -136,6 +136,18 @@ extension EvaluationCorpus {
             expected: "There are no caps on the bottles.",
             mustKeep: ["caps", "bottles"], classes: [.capitalisationAndTokens]
         ),
+        .init(
+            id: "fmt-casing-operand-then-no-caps", category: .everyday,
+            spoken: "all caps urgent no caps please reply",
+            expected: "URGENT no caps please reply.",
+            mustKeep: ["URGENT", "caps"], classes: [.capitalisationAndTokens]
+        ),
+        .init(
+            id: "fmt-casing-operand-and-no-caps", category: .everyday,
+            spoken: "all caps urgent and no caps please reply",
+            expected: "URGENT and no caps please reply.",
+            mustKeep: ["URGENT", "and", "caps"], classes: [.capitalisationAndTokens]
+        ),
     ]
 
     static let boundaryCases: [EvaluationCase] = [

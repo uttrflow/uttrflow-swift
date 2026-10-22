@@ -174,7 +174,7 @@ struct DataTableTests {
         #expect(SQLWords.aliasStoppers.count == 30)
         #expect(SQLWords.keywords.count == 31)
         #expect(SQLWords.keywords.contains("select"))
-        #expect(FunctionWords.table.rows.count == 241)
+        #expect(FunctionWords.table.rows.count == 242)
         #expect(FunctionWords.all.count == 306)
         #expect(FunctionWords.leadingOn.count == 48)
         #expect(FunctionWords.boundaryDeterminers.count == 16)

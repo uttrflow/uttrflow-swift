@@ -137,16 +137,31 @@ public struct WordCorrectionEngine: Sendable {
         let trail = String(heard.reversed().prefix(while: isEdge).reversed())
         guard lead.count + trail.count < heard.count else { return nil }
         let core = String(heard.dropFirst(lead.count).dropLast(trail.count))
-        guard let entry = dictionary.entries(speltAs: core).first, entry.word != core else { return nil }
+        guard let (entry, ending) = entry(speltAs: core, in: dictionary), entry.word + ending != core else {
+            return nil
+        }
         // An everyday word keeps the heard case unless the screen writes it the entry's way beside a heard neighbour.
-        let isEveryday = core.split(separator: " ").allSatisfy { GeneralVocabulary.isEveryday(String($0)) }
+        let isEveryday = core.dropLast(ending.count).split(separator: " ").allSatisfy {
+            GeneralVocabulary.isEveryday(String($0))
+        }
         guard !isEveryday || screen.shows(entry.word, besideAnyOf: neighbours(of: range, in: words)) else {
             return nil
         }
         return WordCorrection(
-            heard: heard, replacement: lead + entry.word + trail,
+            heard: heard, replacement: lead + entry.word + ending + trail,
             wordRange: start..<(start + run.count), entryID: entry.id, reason: .spelledAsInDictionary,
             heardConfidence: run.map(\.confidence).min() ?? 1)
+    }
+
+    /// The entry spelt as the run bar case, else the one its name is spelt as before a possessive ending, with that ending kept as heard.
+    private static func entry(
+        speltAs core: String, in dictionary: PhoneticIndex
+    ) -> (entry: DictionaryEntry, ending: String)? {
+        if let entry = dictionary.entries(speltAs: core).first { return (entry, "") }
+        guard let split = WordForms.nameEnding(of: core), split.ending != "s",
+            let entry = dictionary.entries(speltAs: split.name).first
+        else { return nil }
+        return (entry, split.ending)
     }
 
     /// The lower-cased words spoken just before and just after a run.
@@ -164,13 +179,22 @@ public struct WordCorrectionEngine: Sendable {
     public static func spellings(of heard: String, in dictionary: PhoneticIndex) -> [DictionarySpelling] {
         let whole = dictionary.candidates(soundingLike: heard)
         guard !whole.contains(where: { $0.word == heard }) else { return [] }
-        var found = whole.map { DictionarySpelling(entry: $0, ending: "", heard: heard) }
         var words = heard.split(separator: " ").map(String.init)
-        guard let last = words.popLast(), let split = WordForms.nameEnding(of: last) else { return found }
+        guard let last = words.popLast(), let split = WordForms.nameEnding(of: last) else {
+            return whole.map { DictionarySpelling(entry: $0, ending: "", heard: heard) }
+        }
         // A name said with a plural or possessive ending is looked up without it, and the ending is reattached verbatim.
         let name = (words + [split.name]).joined(separator: " ")
         let named = dictionary.candidates(soundingLike: name)
         guard !named.contains(where: { $0.word == name }) else { return [] }
+        // An apostrophe makes no sound, so "kubernetes's" also sounds like the bare entry; the possessive is a spoken ending the spelling keeps.
+        let possessive = split.ending != "s"
+        let ending = Dictionary(named.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var found = whole.map { entry in
+            possessive && ending[entry.id] != nil
+                ? DictionarySpelling(entry: entry, ending: split.ending, heard: name)
+                : DictionarySpelling(entry: entry, ending: "", heard: heard)
+        }
         let taken = Set(whole.map(\.id))
         found += named.filter { !taken.contains($0.id) }.map {
             DictionarySpelling(entry: $0, ending: split.ending, heard: name)

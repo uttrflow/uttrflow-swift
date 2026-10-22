@@ -119,7 +119,7 @@ public struct MeaningPreservationGuard: Sendable {
         return inherited
     }
 
-    /// Refuses a sound-alike substitution over a kept word the recogniser was sure of or an override settled.
+    /// Refuses a sound-alike substitution over a kept word unless it is the reading offered for it, and always over a word an override settled.
     static func confidentHomophoneVerdict(
         _ draft: Draft, aligned: RewriteAlignment, excusing excused: Set<Int>
     ) -> GuardVerdict {
@@ -138,18 +138,23 @@ public struct MeaningPreservationGuard: Sendable {
         for change in aligned.changes {
             for index in change.kept {
                 // A word written as a reading offered for it is the speaker's doubt, never a word an override settled.
-                guard let word = heard[index],
-                    DoubtPolicy.isProtected(confidence: word.confidence, settled: word.settled),
-                    word.settled || !excused.contains(index)
-                else { continue }
+                guard let word = heard[index], word.settled || !excused.contains(index) else { continue }
                 let token = aligned.kept[index]
-                if change.rewritten.contains(where: {
-                    GeneralVocabulary.soundAlikes(of: token.matching).contains(aligned.rewritten[$0].matching)
-                }) {
+                guard
+                    change.rewritten.contains(where: {
+                        GeneralVocabulary.soundAlikes(of: token.matching).contains(
+                            aligned.rewritten[$0].matching)
+                    })
+                else { continue }
+                // A doubtful word keeps its spelling too: only an offered reading has evidence for the sound-alike.
+                guard DoubtPolicy.isProtected(confidence: word.confidence, settled: word.settled) else {
                     return .rejected(
-                        reason: "the rewrite replaced high-confidence '\(token.text)' with a sound-alike",
+                        reason: "the rewrite replaced doubtful '\(token.text)' with a sound-alike",
                         kind: .lostWord)
                 }
+                return .rejected(
+                    reason: "the rewrite replaced high-confidence '\(token.text)' with a sound-alike",
+                    kind: .lostWord)
             }
         }
         return .accepted

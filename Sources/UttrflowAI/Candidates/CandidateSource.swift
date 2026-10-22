@@ -1,4 +1,5 @@
 public import struct Foundation.UUID
+private import NaturalLanguage
 public import UttrflowCore
 public import UttrflowDictionary
 
@@ -31,6 +32,9 @@ public protocol CandidateSource: Sendable {
     /// Whether this source holds the word spelt as heard, so a sentence it looks out of place in cannot doubt it.
     func vouches(for heard: String, in situation: Situation) async -> Bool
 }
+
+/// A source of sound-alikes from the general vocabulary, which nobody wrote down, so no reading it offers is evidence in itself.
+protocol SoundAlikeSource: CandidateSource {}
 
 extension CandidateSource {
     /// One run at a time, which is right for a source whose index does not depend on the situation.
@@ -125,12 +129,16 @@ public struct DoubtfulWords: Sendable {
         guard EvidencePolicy.unscored(draft, in: .doubtfulWords) == nil, !sources.isEmpty else { return [] }
         let said = UncertainSpan.saidWords(in: draft).map(\.text)
         let apart = await apartFromContext(in: draft, for: situation)
-        let runs = UncertainSpan.spans(in: draft, apart: apart)
+        let runs = UncertainSpan.spans(in: draft, apart: apart).filter {
+            !Self.isCoordinator($0) && !Self.isCount($0, in: said)
+        }
         guard !runs.isEmpty else { return [] }
 
         let reach = NGramModel.maxOrder - 1
-        let offered = await hypotheses(
-            for: runs.map { Draft.Word(text: $0.text, heard: $0.text, evidence: .score($0.confidence)) },
+        let words = runs.map { Draft.Word(text: $0.text, heard: $0.text, evidence: .score($0.confidence)) }
+        let answers = await answers(for: words, in: situation)
+        let offered = Self.hypotheses(
+            for: words, answers: answers,
             around: runs.map { run in
                 let lower = min(run.range.lowerBound, said.count)
                 let upper = min(run.range.upperBound, said.count)
@@ -138,12 +146,19 @@ public struct DoubtfulWords: Sendable {
                     Array(said[max(lower - reach, 0)..<lower]),
                     Array(said[upper..<min(upper + reach, said.count)])
                 )
-            },
-            in: situation)
+            })
         var found: [DoubtfulSpan] = []
         var taken: [Range<Int>] = []
-        for (run, set) in zip(runs, offered) where !taken.contains(where: { $0.overlaps(run.range) }) {
-            let readings = set.ranked(by: scorer).filter { Self.guardAccepts($0, for: run, in: draft) }
+        for (place, (run, set)) in zip(runs, offered).enumerated()
+        where !taken.contains(where: { $0.overlaps(run.range) }) {
+            guard !set.hypotheses.isEmpty else { continue }
+            let standing = Standing(
+                evidenced: evidencedSpellings(answers, at: place),
+                named: HeardWordFit.isName(run.range, in: said),
+                ruledOut: HeardWordFit.ruledOut(run.range, in: said) != nil)
+            let readings = set.ranked(by: scorer).filter {
+                standing.admits($0) && Self.guardAccepts($0, for: run, in: draft)
+            }
             guard !readings.isEmpty else { continue }
             taken.append(run.range)
             found.append(
@@ -155,6 +170,46 @@ public struct DoubtfulWords: Sendable {
             if found.count == Self.maximumSpans { break }
         }
         return found
+    }
+
+    /// Whether the run is one coordinating conjunction, which joins two alternatives or additions, so a sound-alike in its place always changes what was said.
+    private static func isCoordinator(_ run: UncertainSpan) -> Bool {
+        run.range.count == 1 && FunctionWords.isCoordinator(run.text)
+    }
+
+    /// Whether the run is one number word its sentence reads as a count, before what it counts ("two designers") or after a determiner ("the one I"), so a sound-alike in its place changes the number said.
+    private static func isCount(_ run: UncertainSpan, in said: [String]) -> Bool {
+        let index = run.range.lowerBound
+        guard run.range.count == 1, NumberWords.value(of: WordShape(run.text).key) != nil,
+            LexicalClass.tag(ofWordAt: index, in: said) == .number
+        else { return false }
+        let next = LexicalClass.tag(ofWordAt: index + 1, in: said)
+        let counted = next == .noun || next == .adjective
+        let determined = index > 0 && FunctionWords.determiners.contains(WordShape(said[index - 1]).key)
+        return counted || determined
+    }
+
+    /// The spellings a source other than a `SoundAlikeSource` offered for the run at `place`, lower-cased.
+    private func evidencedSpellings(_ answers: [[[Reading]]], at place: Int) -> Set<String> {
+        Set(
+            sources.indices.filter { !(sources[$0] is any SoundAlikeSource) }
+                .flatMap { answers[$0][place] }.map { $0.spelling.lowercased() })
+    }
+
+    /// What stands behind the heard run, which decides whether a reading may replace it. See Docs/cleanup.md.
+    struct Standing {
+        /// The spellings an evidence source offered, lower-cased.
+        let evidenced: Set<String>
+        /// Whether the run holds a name, which only the user's dictionary may re-spell.
+        let named: Bool
+        /// Whether a `HeardWordFit` rule says the heard words cannot stand where they were said.
+        let ruledOut: Bool
+
+        /// Whether the reading may be offered: the user's dictionary holds it, or the run is no name and an evidence source offered the reading or the heard words cannot stand.
+        func admits(_ reading: Reading) -> Bool {
+            if reading.entryID != nil { return true }
+            return !named && (ruledOut || evidenced.contains(reading.spelling.lowercased()))
+        }
     }
 
     /// The said words context doubts, less any the user's dictionary, the screen or the shipped terms hold as heard.
@@ -197,6 +252,11 @@ public struct DoubtfulWords: Sendable {
         for words: [Draft.Word], around context: [(before: [String], after: [String])] = [],
         in situation: Situation
     ) async -> [HypothesisSet] {
+        Self.hypotheses(for: words, answers: await answers(for: words, in: situation), around: context)
+    }
+
+    /// Every source's readings for every run, by source then run, the sources running beside each other.
+    private func answers(for words: [Draft.Word], in situation: Situation) async -> [[[Reading]]] {
         var answers: [[[Reading]]] = Array(repeating: [], count: sources.count)
         await withTaskGroup(of: (Int, [[Reading]]).self) { group in
             for (position, source) in sources.enumerated() {
@@ -204,7 +264,14 @@ public struct DoubtfulWords: Sendable {
             }
             for await (position, found) in group { answers[position] = found }
         }
-        return words.indices.map { index -> HypothesisSet in
+        return answers
+    }
+
+    /// The sources' answers gathered per run, with the said words `around` each run when given.
+    private static func hypotheses(
+        for words: [Draft.Word], answers: [[[Reading]]], around context: [(before: [String], after: [String])]
+    ) -> [HypothesisSet] {
+        words.indices.map { index -> HypothesisSet in
             let near: (before: [String], after: [String]) =
                 context.indices.contains(index) ? context[index] : ([], [])
             return HypothesisSet(

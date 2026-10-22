@@ -61,5 +61,45 @@
     "mustKeep": ["no milk"],
     "mustNotAdd": ["know"],
     "addedFor": 2326
+  },
+  {
+    "id": "homophone-or-are-coordinator",
+    "note": "A coordinator the recogniser was unsure of between two prices stays the coordinator; its sound-alike are is never offered.",
+    "spoken": "it costs about $49 a month or $450 if you pay annually",
+    "expected": "It costs about $49 a month, or $450 if you pay annually.",
+    "mustKeep": ["or"],
+    "mustNotAdd": ["are"],
+    "doubtful": ["or"],
+    "addedFor": 7994
+  },
+  {
+    "id": "homophone-or-are-coordinator-twice",
+    "note": "The same unsure coordinator said twice in one sentence stays the coordinator in both places; its sound-alike are is never offered.",
+    "spoken": "you can pay by card or by cash or by bank transfer",
+    "expected": "You can pay by card or by cash or by bank transfer.",
+    "mustKeep": ["or"],
+    "mustNotAdd": ["are"],
+    "doubtful": ["or"],
+    "addedFor": 7994
+  },
+  {
+    "id": "homophone-two-too-count",
+    "note": "An unsure number word that counts the noun after it stays the number, beside the same number said surely; its sound-alikes too and to are never offered.",
+    "spoken": "we hired two engineers in spring and two designers this quarter",
+    "expected": "We hired two engineers in spring and two designers this quarter.",
+    "mustKeep": ["two designers"],
+    "mustNotAdd": ["too designers", "to designers"],
+    "doubtful": ["two"],
+    "addedFor": 8105
+  },
+  {
+    "id": "homophone-one-won-after-determiner",
+    "note": "An unsure one after a determiner stands for a thing already named and stays one, beside the same word said surely; its sound-alike won is never offered.",
+    "spoken": "this is the one we picked and not that one",
+    "expected": "This is the one we picked and not that one.",
+    "mustKeep": ["the one"],
+    "mustNotAdd": ["won"],
+    "doubtful": ["one"],
+    "addedFor": 8105
   }
 ]

@@ -39,12 +39,22 @@ struct RestatementTests {
             ("need four loaves no make that five loaves", 3, 6, 1),
             ("meet at four no make that five", 3, 6, 2),
             ("book the blue room actually make that the green room", 4, 7, 1),
+            ("see you on tuesday the fourteenth no wait wednesday the fifteenth", 6, 8, 3),
+            ("by friday the twenty third actually make that monday the twenty sixth", 5, 8, 1),
         ]
     )
     func spokenCorrectionPhrasesAreTriggers(text: String, trigger: Int, restart: Int, start: Int) {
         let (draft, live) = reading(text)
         #expect(Restatement.triggerRun(at: trigger, in: live, of: draft) == restart - trigger)
         #expect(Restatement.discardedStart(before: trigger, after: restart, in: live, of: draft) == start)
+    }
+
+    @Test("a full stop after the old date keeps it, unless the trigger stands alone as its own sentence")
+    func dateClosedByAFullStop() {
+        let closed = reading("see you on tuesday the fourteenth. no wait wednesday the fifteenth")
+        #expect(Restatement.discardedStart(before: 6, after: 8, in: closed.live, of: closed.draft) == nil)
+        let alone = reading("see you on tuesday the fourteenth. no wait. wednesday the fifteenth")
+        #expect(Restatement.discardedStart(before: 6, after: 8, in: alone.live, of: alone.draft) == 3)
     }
 
     @Test(

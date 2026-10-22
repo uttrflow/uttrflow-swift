@@ -17,6 +17,9 @@ private final class FakeMemory: Sendable {
         self.step = step
     }
 
+    /// How many times memory has been read so far.
+    var readCount: Int64 { reads.withLock { $0 } }
+
     var read: @Sendable () -> MemoryReading? {
         // `self` rather than a capture list: `Mutex` is non-copyable, and the class is `Sendable`.
         {
@@ -65,6 +68,7 @@ struct PerformanceProfilerTests {
             machine: MachineDescription(chip: "test", memoryBytes: 8, operatingSystem: "macOS"),
             read: memory.read,
             clock: clock,
+            pollClock: ManualClock(),
             onPhase: { phase in calls.phases.withLock { $0.append(phase) } },
             loadSpeechModel: {
                 calls.loads.withLock { $0 += 1 }
@@ -217,6 +221,43 @@ struct PerformanceProfilerTests {
         #expect((report.timeline.peak?.footprintBytes ?? 0) >= highestLeakReading)
         #expect(report.timeline.peak?.residentBytes == (report.timeline.peak?.footprintBytes ?? 0) * 2)
         #expect((report.peakFootprintBytes ?? 0) >= highestLeakReading)
+    }
+
+    /// The poll sleeps on the injected clock, so no real timer or scheduled poller adds a reading.
+    @Test("memory is read exactly as often as the profile asks, on a clock that never ticks")
+    func pollingFollowsTheInjectedClock() async {
+        let memory = FakeMemory()
+        _ = await profile(
+            configuration: .init(repetitions: 1, leakRepetitions: 1, pollInterval: .microseconds(1)),
+            memory: memory)
+        // 5 named moments, the load's watch 2, 2 per dictation (warm-up, 1 leak, 3 lengths), 1 leak reading.
+        #expect(memory.readCount == 5 + 2 + 2 * 5 + 1)
+    }
+
+    /// Each watched call waits for the poller to sleep on the injected clock, which a poller on real time never does.
+    @Test("the poller sleeps on the clock the profile is given", .timeLimit(.minutes(1)))
+    func pollerSleepsOnTheGivenClock() async {
+        let memory = FakeMemory()
+        let pollClock = ManualClock()
+        var loads = 0
+        _ = await PerformanceProfiler(
+            configuration: .init(repetitions: 1, leakRepetitions: 1, pollInterval: .microseconds(1))
+        ).run(
+            recordings: recordings(), disk: disk,
+            machine: MachineDescription(chip: "test", memoryBytes: 8, operatingSystem: "macOS"),
+            read: memory.read, clock: ManualClock(), pollClock: pollClock,
+            loadSpeechModel: {
+                loads += 1
+                // Only the cold load is watched; the warm one is timed alone.
+                if loads == 1 { await pollClock.waitUntilSomethingIsWaiting() }
+                return true
+            },
+            dictate: { _ in
+                await pollClock.waitUntilSomethingIsWaiting()
+                return []
+            }
+        )
+        #expect(memory.readCount == 5 + 2 + 2 * 5 + 1)
     }
 
     @Test("the disk figures are carried through untouched")

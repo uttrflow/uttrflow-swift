@@ -551,6 +551,13 @@
     "mustNotAdd": ["red", "strike"]
   },
   {
+    "id": "repeated-correction-restart-opens-clause",
+    "spoken": "I'll take the red one, no, the blue one, no actually the green one is better",
+    "expected": "I'll take the blue one no actually the green one is better.",
+    "mustKeep": ["take", "green one is better"],
+    "mustNotAdd": ["red"]
+  },
+  {
     "id": "strike-that-as-an-order-kept",
     "spoken": "strike that match and light the candle",
     "expected": "Strike that match and light the candle.",
@@ -632,6 +639,35 @@
     "expected": "We had 50 customers and by 2024 we had 5000.",
     "mustKeep": ["2024", "5000"],
     "mustNotAdd": ["20:24"]
+  },
+  {
+    "id": "weekday-and-ordinal-date-restated",
+    "spoken": "see you on tuesday the fourteenth no wait wednesday the fifteenth",
+    "expected": "See you on Wednesday the fifteenth.",
+    "mustKeep": ["Wednesday the fifteenth"],
+    "mustNotAdd": ["Tuesday", "fourteenth"]
+  },
+  {
+    "id": "weekday-date-closed-by-a-full-stop-kept",
+    "addedFor": 8098,
+    "spoken": "See you on Tuesday the fourteenth. No wait Wednesday the fifteenth",
+    "expected": "See you on Tuesday the fourteenth. No wait Wednesday the fifteenth.",
+    "mustKeep": ["Tuesday the fourteenth", "Wednesday the fifteenth"]
+  },
+  {
+    "id": "weekday-date-restated-after-a-trigger-standing-alone",
+    "addedFor": 8098,
+    "spoken": "See you on Tuesday the fourteenth. No wait. Wednesday the fifteenth",
+    "expected": "See you on Wednesday the fifteenth.",
+    "mustKeep": ["Wednesday the fifteenth"],
+    "mustNotAdd": ["Tuesday", "fourteenth"]
+  },
+  {
+    "id": "weekday-and-spoken-date-restated-with-make-that",
+    "spoken": "by friday the twenty third actually make that monday the twenty sixth",
+    "expected": "By Monday the 26th.",
+    "mustKeep": ["Monday the 26th"],
+    "mustNotAdd": ["Friday", "20"]
   },
   {
     "id": "or-rather-before-a-negation-kept",
@@ -1861,6 +1897,116 @@
     "expectedExact": "Please open Visual Studio Code and then the Terminal app.",
     "mustKeep": ["Visual Studio Code"],
     "addedFor": 8047
+    },
+  {
+    "id": "range-shares-hundred",
+    "note": "The one scale said after a range belongs to both ends.",
+    "spoken": "we sold five or six hundred copies",
+    "expected": "We sold 500 or 600 copies.",
+    "mustKeep": ["500", "600"],
+    "addedFor": 7936
+  },
+  {
+    "id": "range-shares-thousand",
+    "spoken": "the crowd was two to three thousand people",
+    "expected": "The crowd was 2000 to 3000 people.",
+    "mustKeep": ["2000", "3000"],
+    "addedFor": 7936
+  },
+  {
+    "id": "range-keeps-its-own-scales",
+    "note": "Each end that carries its own scale is already complete and stays.",
+    "spoken": "we expect two hundred to three hundred people",
+    "expected": "We expect 200 to 300 people.",
+    "mustKeep": ["200", "300"],
+    "addedFor": 7936
+  },
+  {
+    "id": "greeting-address-keeps-recogniser-stop",
+    "note": "A greeting closed on its address is a sentence, so the stop the recogniser wrote after it stays.",
+    "spoken": "Hi all. Quick reminder that the office is closed on Monday.",
+    "expected": "Hi all. Quick reminder that the office is closed on Monday.",
+    "expectedExact": "Hi all. Quick reminder that the office is closed on Monday.",
+    "mustKeep": ["Hi all.", "Quick reminder"],
+    "addedFor": 8106
+  },
+  {
+    "id": "stranded-preposition-keeps-recogniser-stop",
+    "note": "A relative clause ending on its preposition is finished, so the stops the recogniser wrote after it stay.",
+    "spoken": "This is all I can think of. That is the city she comes from.",
+    "expected": "This is all I can think of. That is the city she comes from.",
+    "expectedExact": "This is all I can think of. That is the city she comes from.",
+    "mustKeep": ["think of.", "comes from."],
+    "addedFor": 8106
+  },
+  {
+    "id": "range-shares-written-thousand",
+    "note": "The recogniser writes a range with one shared scale in digits; the near end takes the far end's scale.",
+    "spoken": "The price went from 20 to 30,000.",
+    "expected": "The price went from 20,000 to 30,000.",
+    "mustKeep": ["20,000", "30,000"],
+    "addedFor": 8110
+  },
+  {
+    "id": "range-shares-written-thousand-between",
+    "note": "The same written range opened by between and joined by and.",
+    "spoken": "between 3 and 4,000 people.",
+    "expected": "Between 3,000 and 4,000 people.",
+    "mustKeep": ["3,000", "4,000"],
+    "addedFor": 8110
+  },
+  {
+    "id": "wait-no-takes-back-the-day",
+    "note": "\"wait no\" announces a correction as \"no wait\" does, so the day it replaces is taken back.",
+    "spoken": "book the room for thursday wait no friday",
+    "expected": "Book the room for Friday.",
+    "mustKeep": ["Friday"],
+    "mustNotAdd": ["Thursday"],
+    "addedFor": 8112
+  },
+  {
+    "id": "wait-no-more-than-kept",
+    "note": "\"wait no more than\" corrects nothing, so every word stays.",
+    "spoken": "you can wait no more than ten minutes",
+    "expected": "You can wait no more than 10 minutes.",
+    "mustKeep": ["wait no more than"],
+    "addedFor": 8112
+  },
+  {
+    "id": "numbered-steps-keep-capital-after-colon",
+    "note": "Each step's first word keeps the capital the recogniser wrote after the colon, so every item reads alike.",
+    "spoken": "Step 1: Open the app. Step 2: Click Settings. Step 3: Choose privacy.",
+    "expected": "Step 1: Open the app. Step 2: Click Settings. Step 3: Choose privacy.",
+    "expectedExact": "Step 1: Open the app. Step 2: Click Settings. Step 3: Choose privacy.",
+    "mustKeep": ["Open", "Choose"],
+    "addedFor": 8113
+  },
+  {
+    "id": "mark-name-after-written-mark-dropped",
+    "note": "The recogniser wrote the question mark and then the name it acted on, so the name goes and the mark stays once.",
+    "spoken": "Hello, how are you? Question mark.",
+    "expected": "Hello, how are you?",
+    "mustKeep": ["how are you?"],
+    "mustNotAdd": ["Question", "mark"],
+    "addedFor": 8108
+  },
+  {
+    "id": "quote-unquote-ends-on-recogniser-stop",
+    "note": "The comma before unquote belongs to the command, and the recogniser's stop after it ends the quotation.",
+    "spoken": "She said, quote, I will be there by noon, unquote.",
+    "expected": "She said, \"I will be there by noon.\"",
+    "mustKeep": ["noon"],
+    "mustNotAdd": ["unquote"],
+    "mustEndWith": "noon.\"",
+    "addedFor": 8109
+  },
+  {
+    "id": "quote-as-verb-kept-before-quotation",
+    "note": "\"quote\" after its subject is the verb and stays; the quotation still opens after it.",
+    "spoken": "and i quote this is the best plan we have had end quote in the minutes",
+    "expected": "And I quote \"this is the best plan we have had\" in the minutes.",
+    "mustKeep": ["I quote", "\"this is the best plan we have had\""],
+    "addedFor": 8107
     },
   {
     "id": "number-before-a-copula-is-not-a-list-marker",

@@ -108,6 +108,42 @@ struct SpokenPunctuationPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test(
+        "writes a period the recogniser stopped and followed with a capital as the mark, and keeps a noun",
+        .bug(id: 8059),
+        arguments: [
+            (
+                "Hi team, please review the doc by noon period. Thanks, Alex.",
+                "Hi team, please review the doc by noon. Thanks, Alex."
+            ),
+            (
+                "Hi team, please review the doc by noon Period. Thanks, Alex.",
+                "Hi team, please review the doc by noon. Thanks, Alex."
+            ),
+            ("It was a long waiting period. Thanks", "It was a long waiting period. Thanks"),
+            ("The trial period. Thanks", "The trial period. Thanks"),
+            ("During that period. Thanks", "During that period. Thanks"),
+            ("review the doc by noon period. thanks", "review the doc by noon period. thanks"),
+        ]
+    )
+    func stoppedPeriodBeforeCapital(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "lays out the break names the recogniser capitalised and stopped, in a whole email",
+        .bug(id: 8059)
+    )
+    func capitalisedMarksInAnEmail() {
+        let heard =
+            "Dear Sarah, New Line, I hope you are doing well. Period. New Paragraph. I wanted to follow up. "
+            + "Period. Please let me know. Period. New Line. Best regards. New Line. David."
+        #expect(
+            CleaningPipeline.standard.run(Draft(text: heard)).text
+                == "Dear Sarah,\nI hope you are doing well.\n\nI wanted to follow up. Please let me know.\n"
+                + "Best regards.\nDavid.")
+    }
+
     @Test("converts a final spoken period after a noun object")
     func finalSpokenPeriodAfterNounObject() {
         #expect(cleaned("i finished the draft period", by: sut) == "i finished the draft.")
@@ -235,6 +271,42 @@ struct SpokenPunctuationPassTests {
         ]
     )
     func quoteUnquote(spoken: String, expected: String) {
+        #expect(cleaned(spoken, by: sut) == expected)
+    }
+
+    @Test(
+        "ends a quotation with the stop the recogniser wrote after its closing name, in place of the comma before it",
+        .bug(id: 8109),
+        arguments: [
+            ("She said, quote, I will be there by noon, unquote.", "She said, \"I will be there by noon.\""),
+            ("She said quote I will be there by noon unquote.", "She said \"I will be there by noon.\""),
+            ("He asked, quote, are you ready, end quote?", "He asked, \"are you ready?\""),
+            ("She said, quote, wait? unquote.", "She said, \"wait?\""),
+            ("She said, quote, wait, unquote!", "She said, \"wait!\""),
+        ]
+    )
+    func endsAQuotationOnTheClosingNamesStop(spoken: String, expected: String) {
+        #expect(cleaned(spoken, by: sut) == expected)
+        #expect(CleaningPipeline.standard.run(Draft(text: spoken)).text == expected)
+    }
+
+    @Test(
+        "keeps quote said as a verb after its subject and opens the quotation after it",
+        .bug(id: 8107),
+        arguments: [
+            (
+                "he told me and i quote this is the best quarter end quote",
+                "he told me and i quote \"this is the best quarter\""
+            ),
+            ("we quote ship it unquote in the notes", "we quote \"ship it\" in the notes"),
+            ("to quote ship it unquote is easy", "to quote \"ship it\" is easy"),
+            ("she said quote ready unquote and left", "she said \"ready\" and left"),
+            ("tell me quote ready unquote and go", "tell me \"ready\" and go"),
+            ("she called it quote final unquote today", "she called it \"final\" today"),
+            ("i told you quote ready unquote and left", "i told you \"ready\" and left"),
+        ]
+    )
+    func keepsQuoteSaidAsAVerb(spoken: String, expected: String) {
         #expect(cleaned(spoken, by: sut) == expected)
     }
 
