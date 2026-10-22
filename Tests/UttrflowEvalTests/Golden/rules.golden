@@ -301,6 +301,7 @@ editor-selected-identifier	Let's rename setUserPrefs before the release nobody k
 ellipsis-glued-fillers	The...the invoice is...overdue.
 email-continues-mid-sentence	the quote you sent last week.
 email-greeting-kept	Hi meera just confirming the venue for the offsite is booked.
+email-mailbox-ending-in-domain-ending	Mail neha.rao.dev@example.com today.
 email-one-line-category	Client projects
 email-one-line-folder	Travel bookings
 email-one-line-mailbox	Receipts and invoices
