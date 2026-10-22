@@ -153,8 +153,15 @@ struct HindiClauseSoundAlikeTests {
         #expect(found.isEmpty, "Thiek was offered \(found)")
     }
 
-    @Test("an unknown word in an English sentence is still ruled out")
-    func englishSentenceStillRuledOut() {
-        #expect(HeardWordFit.ruledOut(1..<2, in: ["we", "xqzv", "three", "things"]) == .notAWord)
+    @Test(
+        "an unknown word in an English sentence is still ruled out, whatever another sentence says",
+        arguments: [
+            ("we xqzv three things", 1),
+            ("We need xqzv for the build. Okay hai.", 2),
+            ("Thiek hai. We need xqzv for the build.", 4),
+        ])
+    func englishSentenceStillRuledOut(text: String, index: Int) {
+        let said = text.split(separator: " ").map(String.init)
+        #expect(HeardWordFit.ruledOut(index..<(index + 1), in: said) == .notAWord)
     }
 }
