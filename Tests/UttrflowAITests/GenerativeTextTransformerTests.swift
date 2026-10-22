@@ -57,8 +57,9 @@ struct GenerativeTextTransformerTests {
         #expect(try await sut.transform(request).text == "lowercase query")
     }
 
+    /// A destination that sends the words as spoken has no slip for the model to repair, so the rules settle it.
     @Test(
-        "leaves to the rules an English draft that owes only its capital and stop",
+        "leaves to the rules an English draft that owes only its capital and stop where no grammar is repaired",
         arguments: [
             "she is a nurse today", "sales actually grew last quarter",
             "call me on nine eight seven six five four three two one zero",
@@ -67,9 +68,21 @@ struct GenerativeTextTransformerTests {
     func skipsSettledDraft(text: String) async throws {
         let model = FakeCleanupModel { _ in "Changed by the model." }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
-        let result = try await sut.transform(request(text))
+        let result = try await sut.transform(request(text, destination: .messaging))
         #expect(model.calls.isEmpty)
         #expect(result.producedBy == .rules)
+    }
+
+    /// A grammar slip is such a draft too, so a place that repairs grammar asks the model rather than ship it as spoken.
+    @Test(
+        "asks the model about a settled draft where the destination repairs grammar",
+        arguments: [Destination.plain, .document, .email])
+    func asksModelWhereGrammarIsRepaired(destination: Destination) async throws {
+        let model = FakeCleanupModel { _ in "An hour ago." }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
+        let result = try await sut.transform(request("a hour ago", destination: destination))
+        #expect(model.calls.count == 1)
+        #expect(result.producedBy == .foundationModels)
     }
 
     @Test(
@@ -166,11 +179,6 @@ struct GenerativeTextTransformerTests {
                 "We ship on Monday, full stop, no delays.",
                 "We ship on Monday. No delays."
             ),
-            (
-                "the word open quote done close quote matters",
-                "The word \"open quote\" done' matters.",
-                "The word \"done\" matters."
-            ),
         ]
     )
     func removesEchoedSpokenMarkNames(input: String, modelOutput: String, expected: String) async throws {
@@ -178,6 +186,13 @@ struct GenerativeTextTransformerTests {
             kind: .foundationModels, model: FakeCleanupModel { _ in modelOutput })
 
         #expect(try await sut.transform(request(input)).text == expected)
+    }
+
+    @Test("sets quotation marks for spoken open and close quote without the model")
+    func rulesSetSpokenQuotes() async throws {
+        let text = try await RuleBasedTransformer()
+            .transform(request("the word open quote done close quote matters")).text
+        #expect(text == "The word \"done\" matters.")
     }
 
     @Test("converts ordinary spoken punctuation names with content continuations and at dictation end")
@@ -194,7 +209,7 @@ struct GenerativeTextTransformerTests {
         ]
         for (input, expected) in cases {
             let sut = GenerativeTextTransformer(
-                kind: .foundationModels, model: FakeCleanupModel { _ in input })
+                kind: .foundationModels, model: FakeCleanupModel { _ in expected })
             #expect(try await sut.transform(request(input)).text == expected)
         }
     }
