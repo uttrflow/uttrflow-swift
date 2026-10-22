@@ -1980,5 +1980,14 @@
     "expectedExact": "Step 1: Open the app. Step 2: Click Settings. Step 3: Choose privacy.",
     "mustKeep": ["Open", "Choose"],
     "addedFor": 8113
+  },
+  {
+    "id": "mark-name-after-written-mark-dropped",
+    "note": "The recogniser wrote the question mark and then the name it acted on, so the name goes and the mark stays once.",
+    "spoken": "Hello, how are you? Question mark.",
+    "expected": "Hello, how are you?",
+    "mustKeep": ["how are you?"],
+    "mustNotAdd": ["Question", "mark"],
+    "addedFor": 8108
   }
 ]
