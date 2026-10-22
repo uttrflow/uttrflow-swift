@@ -1,3 +1,4 @@
+import NaturalLanguage
 import UttrflowCore
 
 /// The time zones a dictation names, as one table read for offsets ("UTC+5:30") and for the casing of zone names.
@@ -40,6 +41,23 @@ enum TimeZones {
     private static let names: [[String]] = table.flatMap(\.names)
         .map { $0.split(separator: " ").map(String.init) }
         .sorted { $0.count > $1.count }
+
+    /// The words a zone is named by on its own: each abbreviation and each name's first word, lower-cased.
+    private static let openingKeys: Set<String> = Set(
+        table.flatMap { zone in
+            [zone.abbreviation.lowercased()] + zone.names.compactMap { $0.split(separator: " ").first?.lowercased() }
+        })
+
+    /// Whether the words from the first of `shapes` name a zone, as after a clock time: "IST", "Eastern", "London time".
+    static func opensZone(_ shapes: ArraySlice<WordShape>) -> Bool {
+        guard let first = shapes.first, first.prefix.isEmpty else { return false }
+        if openingKeys.contains(first.key) { return true }
+        // A place before "time" names that place's clock, as in "London time".
+        guard first.suffix.isEmpty, let second = shapes.dropFirst().first, second.prefix.isEmpty,
+            second.key == "time"
+        else { return false }
+        return LexicalClass.tag(ofWordAt: 0, in: [first.core, second.core]) == .noun
+    }
 
     /// The written form of every word in `shapes` that belongs to a zone name, keyed by its position.
     static func nameWords(in shapes: [WordShape]) -> [Int: String] {

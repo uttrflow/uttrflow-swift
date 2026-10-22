@@ -221,6 +221,19 @@ struct SpelledInitialismPassTests {
     }
 
     @Test(
+        "drops a dotted meridiem's stop before the zone it is in, and keeps it where a sentence starts",
+        arguments: [
+            ("the deadline is at 5 p.m. Eastern Time.", "the deadline is at 5 pm Eastern Time."),
+            ("it starts at 9 a.m. Pacific which is 12 p.m. Eastern.", "it starts at 9 am Pacific which is 12 pm Eastern."),
+            ("the meeting is at 3 p.m. London time.", "the meeting is at 3 pm London time."),
+            ("the call is at 3 p.m. IST tomorrow", "the call is at 3 pm IST tomorrow"),
+            ("we left at 5 p.m. Then time flew.", "we left at 5 pm. Then time flew."),
+        ])
+    func meridiemStopBeforeZone(input: String, expected: String) {
+        #expect(CleaningPipeline(passes: [sut]).run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
         "leaves am and pm that do not follow a clock time",
         arguments: ["i am here", "the PM said so", "a.m. radio", "at 25 pm"])
     func leavesNonMeridiem(input: String) {

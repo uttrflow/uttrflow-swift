@@ -15,9 +15,10 @@ extension SpelledInitialismPass {
             let text = draft.words[index].text
             let next = position + 1 < live.count ? draft.words[live[position + 1]].text : nil
             var suffix = shape.suffix
-            // A dotted form's stop belongs to the abbreviation unless it also ends the sentence.
+            // A dotted form's stop belongs to the abbreviation unless it also ends the sentence; a zone after it goes on with the time.
+            let zoneFollows = TimeZones.opensZone(live[(position + 1)...].prefix(2).map { draft.shape(at: $0) }[...])
             if shape.key.contains("."), suffix.hasPrefix("."),
-                next == nil || !Abbreviations.endsSentence(text, followedBy: next)
+                next == nil || zoneFollows || !Abbreviations.endsSentence(text, followedBy: next)
             {
                 suffix.removeFirst()
             }

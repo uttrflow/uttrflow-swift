@@ -2007,5 +2007,16 @@
     "expected": "And I quote \"this is the best plan we have had\" in the minutes.",
     "mustKeep": ["I quote", "\"this is the best plan we have had\""],
     "addedFor": 8107
+  },
+  {
+    "id": "dotted-meridiem-before-place-time-keeps-sentence",
+    "note": "A place named after a clock time is the time it is in, not a new sentence, so the dotted meridiem loses its stop.",
+    "spoken": "The meeting is at 3 p.m. London time.",
+    "expected": "The meeting is at 3 pm London time.",
+    "expectedExact": "The meeting is at 3 pm London time.",
+    "mustKeep": [
+      "3 pm London time"
+    ],
+    "addedFor": 8131
   }
 ]

@@ -284,6 +284,7 @@ door-code-repeated-digits	The door code is 4747.
 dotted-amount-before-currency-kept	The bus tickets sell at 3.50 dollars each.
 dotted-clock-after-before	Please send the draft before 4:30 on Friday.
 dotted-clock-after-until	The pharmacy stays open until 9:45 tonight.
+dotted-meridiem-before-place-time-keeps-sentence	The meeting is at 3 pm London time.
 dotted-rate-before-percent-kept	The loan is fixed at 6.25% for five years.
 double-negative-keep	We didn't do nothing wrong in that release.
 doubled-number-even-split-kept	A fifty fifty chance.
