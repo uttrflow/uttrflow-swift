@@ -105,6 +105,12 @@ public enum FunctionWords {
     /// Prepositions that take an object after a comma.
     static let commaPrepositions = words(in: .commaPreposition)
 
+    /// Small words that take a clause head into their phrase, so no pause between them is a comma ("thanks for", "done with").
+    package static let headCarryOns = words(in: .headCarryOn)
+
+    /// Small words a capital after a run-on piece seam is lowered on, since they open the clause the seam split and are never a name.
+    package static let runOnSeamLowers = words(in: .runOnSeamLower)
+
     /// Prepositions that close a phrasal verb ("hold on, wait").
     static let seamPrepositions = words(in: .seamPreposition)
 
@@ -126,7 +132,8 @@ public enum FunctionWords {
         case function, leadsOn, meaningBearing, caseSensitive, determiner, prose, subordinator, closingTag,
             auxiliary, boundaryDeterminer, neverLast, neverFronted, imperativeObject, bareVerbLeader, modal,
             commaPreposition, seamPreposition, httpMethod, multiplierComparison, closesWhenStopped,
-            relativeWhichTail, coordinator, objectGapHead, possessive, beForm, objectOnly
+            relativeWhichTail, coordinator, objectGapHead, possessive, beForm, objectOnly, runOnSeamLower,
+            headCarryOn
     }
 
     /// One small word and the lists it belongs to.

@@ -56,9 +56,7 @@ public struct PauseStopPass: PieceCleaningPass {
     private static let heads: Set<String> = ["sorry", "thanks", "done"]
 
     /// Words that take a head into its phrase, so no pause between them is a comma: "thanks for", "done with".
-    private static let carryOn: Set<String> = [
-        "for", "with", "to", "of", "by", "in", "on", "at", "from", "about",
-    ]
+    private static let carryOn = FunctionWords.headCarryOns
 
     private static let prose: Set<Destination> = [.document, .messaging, .email, .plain]
 }

@@ -330,15 +330,7 @@ enum PieceJoiner {
         return text.replacingCharacters(in: start..<end, with: lowercased)
     }
 
-    private static let lowercaseAtRunOnSeam: Set<String> = [
-        "a", "an", "and", "as", "at", "but", "by", "for", "from", "if", "in", "into", "of",
-        "on", "or", "so", "that", "the", "then", "these", "this", "those", "to", "when",
-        "which", "while", "who", "with",
-        // A form of "be" or "have" after a run-on seam is the verb of the clause the seam split.
-        "is", "are", "was", "were", "has", "have", "had",
-        // A pronoun or possessive opens the clause the seam split and is never a name.
-        "he", "she", "it", "we", "they", "you", "there", "his", "her", "its", "our", "their", "my", "your",
-    ]
+    private static let lowercaseAtRunOnSeam = FunctionWords.runOnSeamLowers
 
     /// The words that open a noun phrase, as the mention guard reads them, without the relatives "which" and "whose".
     private static let determiners = MentionGuard.determiners.subtracting(["which", "whose"])
