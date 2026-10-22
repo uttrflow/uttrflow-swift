@@ -5,6 +5,7 @@ import Testing
 import UttrflowAI
 import UttrflowCore
 import UttrflowPipeline
+import UttrflowTestSupport
 
 @testable import Uttrflow
 
@@ -40,11 +41,9 @@ struct DiagnosticsEngineProbeTests {
         return app.transformerAvailability
     }
 
-    private func waitFor(_ app: AppDelegate, foundationModels available: Bool) async {
-        for _ in 0..<100 {
-            if app.transformerAvailability[.foundationModels] == available { return }
-            try? await Task.sleep(for: .milliseconds(10))
-        }
+    /// Waits for the probe the trigger started to land its answer, however long a loaded host makes it take.
+    private func waitFor(_ app: AppDelegate, foundationModels available: Bool) async throws {
+        try await eventually { app.transformerAvailability[.foundationModels] == available }
     }
 
     /// #152: the snapshot's availability was never populated, so every row read `nil`.
@@ -72,7 +71,7 @@ struct DiagnosticsEngineProbeTests {
     }
 
     @Test("availability changes are read when the app becomes active")
-    func availabilityRefreshesOnActivation() async {
+    func availabilityRefreshesOnActivation() async throws {
         let sandbox = Sandbox()
         let readiness = MutableTransformerReadiness([.foundationModels, .rules])
         let app = AppDelegate(
@@ -84,14 +83,14 @@ struct DiagnosticsEngineProbeTests {
 
         await readiness.set([.rules])
         app.applicationDidBecomeActive(Notification(name: Notification.Name("app-active")))
-        await waitFor(app, foundationModels: false)
+        try await waitFor(app, foundationModels: false)
 
         #expect(app.transformerAvailability[.foundationModels] == false)
         #expect(app.transformerAvailability[.rules] == true)
     }
 
     @Test("showing Diagnostics asks again after availability changes")
-    func availabilityRefreshesWhenDiagnosticsOpens() async {
+    func availabilityRefreshesWhenDiagnosticsOpens() async throws {
         let sandbox = Sandbox()
         let readiness = MutableTransformerReadiness([.foundationModels, .rules])
         let session = HeldSession(signedIn: true)
@@ -104,14 +103,14 @@ struct DiagnosticsEngineProbeTests {
         await readiness.set([.rules])
 
         app.showDiagnosticsFromMenu(nil)
-        await waitFor(app, foundationModels: false)
+        try await waitFor(app, foundationModels: false)
 
         #expect(app.lastOpened == .settings(.diagnostics))
         #expect(app.transformerAvailability[.foundationModels] == false)
     }
 
     @Test("a dictation that falls back records its engine and refreshes availability")
-    func fallbackDictationRefreshesAvailability() async {
+    func fallbackDictationRefreshesAvailability() async throws {
         let sandbox = Sandbox()
         let readiness = MutableTransformerReadiness([.foundationModels, .rules])
         let app = AppDelegate(
@@ -125,7 +124,7 @@ struct DiagnosticsEngineProbeTests {
             .inserted(
                 DictationOutcome(
                     text: "hello", method: .clipboard, cleanedBy: .rules)))
-        await waitFor(app, foundationModels: false)
+        try await waitFor(app, foundationModels: false)
 
         #expect(app.lastCleanedBy == .rules)
         #expect(app.transformerAvailability[.foundationModels] == false)
