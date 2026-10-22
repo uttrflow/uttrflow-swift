@@ -224,6 +224,13 @@ public struct TerminalStopPass: WholeTextCleaningPass {
             }
         }
         let spoken = lines.filter { !$0.isEmpty }
+        // Lettered clauses of one sentence are not a list of bare items: the sentence takes its stop at the last.
+        let enumerated = lines[lastParagraphStart...].dropFirst().filter { !$0.isEmpty }.allSatisfy {
+            draft.shape(at: $0[0]).isBracketedEnumerator
+        }
+        if enumerated && lines[lastParagraphStart...].dropFirst().contains(where: { !$0.isEmpty }) {
+            return false
+        }
         return lines[lastParagraphStart...].filter { !$0.isEmpty }.count >= 3
             && spoken.dropLast().allSatisfy { line in
                 line.last.map { !draft.shape(at: $0).endsSentence } ?? true

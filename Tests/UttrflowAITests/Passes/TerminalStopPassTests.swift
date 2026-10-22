@@ -730,4 +730,13 @@ struct TerminalStopPassTests {
     func leavesHashtagRunOpen(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
     }
+
+    @Test("keeps the stop of a sentence whose clauses open with lettered enumerators")
+    func keepsStopAfterEnumeratedClauses() {
+        let clauses =
+            "Clause 9.1 the supplier shall\n(a) deliver within 30 days\n(b) replace damaged goods and\n(c) keep records for six years."
+        #expect(document.apply(Draft(keepingLineBreaks: clauses)).text == clauses)
+        let bare = "Packing list\nsocks\nshirts\ntowel."
+        #expect(document.apply(Draft(keepingLineBreaks: bare)).text == "Packing list\nsocks\nshirts\ntowel")
+    }
 }
