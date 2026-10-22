@@ -78,7 +78,7 @@ struct PanelSheetInteractionTests {
         defer { window.close() }
         // The sheet focuses its field a turn after it appears.
         try await eventually { window.firstResponder is NSText }
-        keys.removeAll()
+        #expect(keys.isEmpty)
         // Giving up focus ends the edit, which hands the field's text back through its binding.
         #expect(window.makeFirstResponder(nil))
         #expect(keys.isEmpty)

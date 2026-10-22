@@ -8,15 +8,18 @@ public final class MainActorHeartbeat {
     private var lastBeat: ContinuousClock.Instant?
     private var starvedAtLastBeat = Duration.zero
     private var timer: (any DispatchSourceTimer)?
-    private var watch: StarvationWatch?
+    private(set) var watch: StarvationWatch?
 
     /// The longest time the main actor went without letting a beat run, since ``start()``, not counting time the host gave its thread no processor.
     public private(set) var longestGap: Duration = .zero
 
     public init() {}
 
-    /// Starts beating; the first gap is measured from now.
+    isolated deinit { end() }
+
+    /// Starts beating, ending any earlier beating first; the first gap is measured from now.
     public func start() {
+        end()
         let watch = StarvationWatch(watching: pthread_mach_thread_np(pthread_self()))
         self.watch = watch
         lastBeat = .now
@@ -32,11 +35,8 @@ public final class MainActorHeartbeat {
 
     /// Stops beating and returns the longest gap, counting the one that ends now.
     public func stop() -> Duration {
-        timer?.cancel()
-        timer = nil
         beat()
-        watch?.stop()
-        watch = nil
+        end()
         return longestGap
     }
 
@@ -46,6 +46,14 @@ public final class MainActorHeartbeat {
         heartbeat.start()
         try? await Task.sleep(for: span)
         return heartbeat.stop()
+    }
+
+    /// Cancels the timer and the sampler, so a heartbeat abandoned mid-test leaves no thread behind.
+    private func end() {
+        timer?.cancel()
+        timer = nil
+        watch?.stop()
+        watch = nil
     }
 
     private func beat() {
@@ -59,14 +67,37 @@ public final class MainActorHeartbeat {
     }
 }
 
-/// Samples one thread from a high-priority thread of its own and adds up the time it is ready to run but given no processor.
-private final class StarvationWatch: Sendable {
+/// Adds up how long a thread is ready to run while its processor time stands still past ``tick``.
+struct StarvationTally {
     /// How long a ready thread's processor time may stand still before it counts as starved; the kernel updates a running thread's time about every 10 ms.
     static let tick = Duration.milliseconds(20)
+
+    /// The time counted as starved so far.
+    private(set) var starved = Duration.zero
+    private var streak: (since: ContinuousClock.Instant, time: Duration, counted: Duration)?
+
+    /// Takes one reading of the thread's processor time and readiness at `now`; `nil` is a reading the kernel refused.
+    mutating func record(_ reading: (time: Duration, ready: Bool)?, at now: ContinuousClock.Instant) {
+        guard let reading, reading.ready else {
+            streak = nil
+            return
+        }
+        guard let open = streak, open.time == reading.time else {
+            streak = (now, reading.time, .zero)
+            return
+        }
+        let excess = max(.zero, open.since.duration(to: now) - Self.tick)
+        starved += excess - open.counted
+        streak = (open.since, open.time, excess)
+    }
+}
+
+/// Samples one thread from a high-priority thread of its own and adds up the time it is ready to run but given no processor.
+final class StarvationWatch: Sendable {
     static let interval: useconds_t = 250
 
     private struct State {
-        var starved = Duration.zero
+        var tally = StarvationTally()
         var stopped = false
     }
 
@@ -79,25 +110,18 @@ private final class StarvationWatch: Sendable {
     }
 
     /// The time the watched thread has spent ready but unscheduled since the watch began.
-    var starved: Duration { state.withLock(\.starved) }
+    var starved: Duration { state.withLock(\.tally.starved) }
+
+    /// Whether ``stop()`` has ended the sampling.
+    var isStopped: Bool { state.withLock(\.stopped) }
 
     func stop() { state.withLock { $0.stopped = true } }
 
     private func sample(_ thread: thread_act_t) {
-        var streak: (since: ContinuousClock.Instant, time: Duration, counted: Duration)?
-        while !state.withLock(\.stopped) {
+        while !isStopped {
+            let reading = Self.reading(of: thread)
             let now = ContinuousClock.now
-            if let reading = Self.reading(of: thread), reading.ready {
-                if let open = streak, open.time == reading.time {
-                    let excess = max(.zero, open.since.duration(to: now) - Self.tick)
-                    state.withLock { $0.starved += excess - open.counted }
-                    streak = (open.since, open.time, excess)
-                } else {
-                    streak = (now, reading.time, .zero)
-                }
-            } else {
-                streak = nil
-            }
+            state.withLock { $0.tally.record(reading, at: now) }
             usleep(Self.interval)
         }
     }
