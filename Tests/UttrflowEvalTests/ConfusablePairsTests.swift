@@ -25,7 +25,7 @@ struct ConfusablePairsTests {
         #expect(pair.secondReading == "the tests are passing")
     }
 
-    @Test("negations flip meaning, teens and amounts flip numbers, articles and meaning swaps stay cosmetic")
+    @Test("negations and meaning swaps flip meaning, teens and amounts flip numbers, articles stay cosmetic")
     func costClassByGroup() {
         let cosmeticAmounts: Set<String> = ["a", "an", "on"]
         for pair in ConfusablePairs.all {
@@ -35,7 +35,7 @@ struct ConfusablePairsTests {
                 case .negation, .hindiNegation: .meaningFlip
                 case .teenTen: .numberFlip
                 case .nearQuantity: cosmeticAmounts.contains(pair.first) ? .cosmetic : .numberFlip
-                case .meaningSwap: .cosmetic
+                case .meaningSwap: .meaningFlip
                 }
             #expect(cost == expected, "\(pair.firstReading) / \(pair.secondReading)")
         }
