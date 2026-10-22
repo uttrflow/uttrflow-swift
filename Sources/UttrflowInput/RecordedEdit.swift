@@ -53,9 +53,13 @@ public struct RecordedEditor: Sendable {
     private let focus: any AccessibilityFocus
     private let pending: PendingConfirmation
 
-    public init(
+    public init(ledger: InsertionLedger, history: EditHistory, focus: any AccessibilityFocus) {
+        self.init(ledger: ledger, history: history, focus: focus, pending: PendingConfirmation())
+    }
+
+    init(
         ledger: InsertionLedger, history: EditHistory, focus: any AccessibilityFocus,
-        pending: PendingConfirmation = PendingConfirmation()
+        pending: PendingConfirmation
     ) {
         self.ledger = ledger
         self.history = history
