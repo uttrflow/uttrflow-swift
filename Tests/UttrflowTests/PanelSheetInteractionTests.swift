@@ -49,6 +49,14 @@ struct PanelSheetInteractionTests {
         }
     }
 
+    /// Suspends until the sheet field holds focus, which the sheet takes on a later turn and echoes to its draft as it does.
+    private func fieldFocused(in window: NSWindow) async throws {
+        while !(window.firstResponder is NSText) {
+            if Task.isCancelled { throw CancellationError() }
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+    }
+
     /// Suspends until the relayed value satisfies `condition`, since a press reports success before its action has run.
     private func relayed(until condition: () -> Bool) async throws {
         while !condition() {
@@ -76,6 +84,7 @@ struct PanelSheetInteractionTests {
         defer { window.close() }
         let cancel = try await button("Cancel", under: view)
         let confirm = try await button("Synthetic confirm", under: view)
+        try await fieldFocused(in: window)
         keys.removeAll()
         #expect(cancel.accessibilityPerformPress?() == true)
         #expect(confirm.accessibilityPerformPress?() == true)
@@ -96,6 +105,7 @@ struct PanelSheetInteractionTests {
         let (window, view) = await host(panel(enabled: false) { keys.append($0) })
         defer { window.close() }
         let confirm = try await button("Synthetic confirm", under: view)
+        try await fieldFocused(in: window)
         keys.removeAll()
         #expect(confirm.isAccessibilityEnabled?() == false)
         _ = confirm.accessibilityPerformPress?()
