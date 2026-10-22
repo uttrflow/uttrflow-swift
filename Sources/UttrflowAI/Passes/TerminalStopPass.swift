@@ -447,6 +447,13 @@ public struct TerminalStopPass: WholeTextCleaningPass {
         }?.count
     }
 
+    /// Whether the text is only a conventional greeting opener, "Hi" or "Good morning", which a name or the message must follow.
+    package static func isGreetingOpener(_ text: String) -> Bool {
+        let draft = Draft(text: text)
+        let live = draft.presentIndices
+        return !live.isEmpty && greetingOpenerLength(live, in: draft) == live.count
+    }
+
     /// Whether the words are a greeting opener or a closing and one word of address after it: "Hi all", "Thanks all".
     static func isGreetingAddress(_ indices: [Int], in draft: Draft) -> Bool {
         let opener =

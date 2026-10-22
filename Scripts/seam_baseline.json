@@ -994,7 +994,6 @@
     "email-continues-mid-sentence@3",
     "email-continues-mid-sentence@4",
     "email-continues-mid-sentence@5",
-    "email-greeting-kept@1",
     "email-greeting-kept@10",
     "email-greeting-kept@2",
     "email-greeting-kept@3",
@@ -4023,7 +4022,6 @@
     "probe-contract-clauses@4",
     "probe-contract-clauses@7",
     "probe-contract-clauses@8",
-    "probe-cover-letter@1",
     "probe-cover-letter@11",
     "probe-cover-letter@14",
     "probe-cover-letter@15",
@@ -5827,5 +5825,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5807
+  "total" : 5805
 }

@@ -109,7 +109,8 @@ enum PieceJoiner {
         _ pieces: [String], heard: [String], under formatter: DestinationFormatter
     ) -> [String] {
         let runsOn = pieces.indices.dropLast().map { index in
-            sentenceRunsOn(pieces[index], into: pieces[index + 1])
+            opensEmailWithGreeting(pieces[index], at: index, under: formatter)
+                || sentenceRunsOn(pieces[index], into: pieces[index + 1])
                 || groupRunsAcross(
                     pieces[index], into: pieces[index + 1],
                     previousWasHeardEndingOnScale: heardScaleEnding(heard, at: index))
@@ -123,6 +124,13 @@ enum PieceJoiner {
             guard index < pieces.count - 1 else { return seamed }
             return endedAtSeam(seamed, before: pieces[index + 1], runsOn: runsOn[index], under: formatter)
         }
+    }
+
+    /// Whether the piece is an email's opening greeting word alone, "Hi" | "Priya", which a pause cuts from the name it greets and leaves without a stop.
+    private static func opensEmailWithGreeting(
+        _ text: String, at index: Int, under formatter: DestinationFormatter
+    ) -> Bool {
+        index == 0 && formatter.destination == .email && TerminalStopPass.isGreetingOpener(text)
     }
 
     /// Whether the passes that read a spoken unit or notation command read one across the cut, so only one piece writes it.
