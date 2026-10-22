@@ -29,6 +29,10 @@ enum TimeZones {
         Zone("JST", ["Japan Standard Time"]), Zone("AEST", ["Australian Eastern Standard Time"]),
     ]
 
+    /// Each zone's written abbreviation, keyed by its lower-case letters.
+    static let abbreviationsByKey: [String: String] = Dictionary(
+        uniqueKeysWithValues: table.map { ($0.abbreviation.lowercased(), $0.abbreviation) })
+
     /// The zones an offset is counted from, keyed by each way they are heard: one word or spoken letters.
     static let offsetZones: [[String]: String] = Dictionary(
         uniqueKeysWithValues: table.filter(\.countsOffsets).flatMap { zone in
