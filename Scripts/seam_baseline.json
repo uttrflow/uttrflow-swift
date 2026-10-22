@@ -1049,6 +1049,11 @@
     "ends-on-copula-of-embedded-question@2",
     "ends-on-copula-of-embedded-question@3",
     "ends-on-copula-of-embedded-question@4",
+    "everyday-which-phrase-keeps-its-inversion@1",
+    "everyday-which-phrase-keeps-its-inversion@3",
+    "everyday-which-phrase-keeps-its-inversion@4",
+    "everyday-which-phrase-keeps-its-inversion@5",
+    "everyday-which-phrase-keeps-its-inversion@6",
     "exit-code-said-in-two-halves-is-not-a-clock-time@11",
     "exit-code-said-in-two-halves-is-not-a-clock-time@3",
     "exit-code-said-in-two-halves-is-not-a-clock-time@8",
@@ -5887,5 +5892,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5867
+  "total" : 5872
 }
