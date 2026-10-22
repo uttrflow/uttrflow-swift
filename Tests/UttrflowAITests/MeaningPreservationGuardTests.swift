@@ -1112,7 +1112,12 @@ struct GrammarGuardTests {
         let sure = split([("yes,we", 0.95), ("knew", 0.95), ("it", 0.3)])
 
         #expect(unsure.text == "yes, we can here it now")
-        #expect(sut.verdict(draft: unsure, rewritten: "Yes, we can hear it now.") == .accepted)
+        #expect(
+            sut.verdict(draft: unsure, rewritten: "Yes, we can hear it now.")
+                == .rejected(
+                    reason: "the rewrite replaced doubtful 'here' with a sound-alike",
+                    kind: .lostWord)
+        )
         #expect(
             sut.verdict(draft: sure, rewritten: "Yes, we new it.")
                 == .rejected(
