@@ -72,11 +72,13 @@ struct SuggestionCaptureRoutingTests {
 
         let sink = BlockingCaptureSink()
         let panel = SuggestionPanelController()
+        // The turn's clock stands still, so a loaded host cannot run the turn past its budget or its stall limit.
+        let frozen = ContinuousClock.now
         let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
             scoring: FixedGhostScorer(), generating: FixedGhostGenerator(), captureSink: sink,
             focusedFieldReader: { snapshot },
-            frontmostBundleIdentifier: { application }, panel: panel)
+            frontmostBundleIdentifier: { application }, now: { frozen }, panel: panel)
         defer {
             coordinator.stop()
             panel.hide()
@@ -87,7 +89,7 @@ struct SuggestionCaptureRoutingTests {
         coordinator.session.keystrokeArrived()
         _ = try await coordinator.capture.handle(.keystroke("hello", at: moment), in: reading)
 
-        let turnStart = ContinuousClock.now.advanced(by: .seconds(1))
+        let turnStart = frozen.advanced(by: .seconds(1))
         guard case .free(let turn) = coordinator.turns.begin(at: turnStart) else {
             Issue.record("the test turn should be admitted")
             return

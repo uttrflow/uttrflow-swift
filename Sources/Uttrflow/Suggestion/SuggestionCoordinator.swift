@@ -84,6 +84,8 @@ final class SuggestionCoordinator {
     private let focusedFieldReader: @Sendable () async -> FocusedFieldSnapshot?
     /// The frontmost application's bundle identifier, which decides whether a key or a turn is acted on.
     let frontmostBundleIdentifier: @MainActor () -> String?
+    /// The clock a turn is admitted and timed on.
+    let now: @MainActor () -> ContinuousClock.Instant
     /// What the model last answered or had nothing for, which decides whether it is asked again.
     private var modelPass = ModelPass()
     /// The model pass in flight, cancelled by the next keystroke so a burst never queues one pass per key.
@@ -206,6 +208,7 @@ final class SuggestionCoordinator {
         frontmostBundleIdentifier: @escaping @MainActor () -> String? = {
             NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         },
+        now: @escaping @MainActor () -> ContinuousClock.Instant = { ContinuousClock.now },
         workspaceCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
         scheduleSelectionChecks: @escaping SelectionCheckScheduling = SuggestionCoordinator.selectionTimer,
         panel: SuggestionPanelController = .shared,
@@ -218,6 +221,7 @@ final class SuggestionCoordinator {
         self.focusedSelectionReader = focusedSelectionReader
         self.focusedFieldReader = focusedFieldReader
         self.frontmostBundleIdentifier = frontmostBundleIdentifier
+        self.now = now
         self.workspaceCenter = workspaceCenter
         self.scheduleSelectionChecks = scheduleSelectionChecks
         self.panel = panel
@@ -942,7 +946,7 @@ final class SuggestionCoordinator {
             }
         }
         scheduling.wake(
-            reason, at: ContinuousClock.now,
+            reason, at: now(),
             stalled: {
                 Self.log.error(
                     "\(SuggestionLog.stall(step: self.progress?.step, application: self.progress?.application, afterSeconds: TurnGate.stallSeconds), privacy: .public)"
@@ -1024,7 +1028,7 @@ final class SuggestionCoordinator {
             draw(session.turn(in: nil, at: PredictionContext(typed: "")).step)
             return
         }
-        let turnStartedAt = ContinuousClock.now
+        let turnStartedAt = now()
         let started = Date()
         guard preferences.isEnabled(in: snapshot.bundleIdentifier, at: started) else {
             captureFeed.discard()
@@ -1357,10 +1361,6 @@ final class SuggestionCoordinator {
         )
         // The gates answer within a moment, so the field read at the turn's start still stands for whatever is drawn.
         return session.resolve(allowed, for: request, now: Date(), elapsedMilliseconds: since(started))
-    }
-
-    private func since(_ started: ContinuousClock.Instant) -> Int {
-        Self.elapsedMilliseconds(since: started, now: .now)
     }
 
     /// What the corpus remembers, or failing that what this machine holds at `now`; the machine never outranks the person's own history.

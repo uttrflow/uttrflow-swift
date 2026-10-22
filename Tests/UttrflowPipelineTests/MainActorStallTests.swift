@@ -76,4 +76,19 @@ struct MainActorStallTests {
 
         #expect(gap >= .milliseconds(100))
     }
+
+    @Test("a state observer that computes for 100 ms is caught")
+    func computingObserverIsCaught() async throws {
+        let gap = try await longestGapDuringDictation { state in
+            if case .transcribing = state { compute(nanoseconds: 100_000_000) }
+        }
+
+        #expect(gap >= .milliseconds(100))
+    }
+}
+
+/// Keeps this thread computing until it has used that much processor time, however long the host takes to give it.
+private func compute(nanoseconds: UInt64) {
+    let start = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)
+    while clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - start < nanoseconds {}
 }

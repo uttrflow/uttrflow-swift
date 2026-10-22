@@ -2,6 +2,7 @@ import AppKit
 import ApplicationServices
 import SwiftUI
 import Testing
+import UttrflowTestSupport
 import UttrflowUX
 
 @testable import Uttrflow
@@ -68,6 +69,19 @@ struct PanelSheetInteractionTests {
             })
         #expect(collection.accessibilityPerformPress?() == true)
         #expect(keys == [.escape, .return, .draft("Synthetic destination")])
+    }
+
+    @Test("the sheet field writing back its unchanged text relays no key")
+    func unchangedWriteBackRelaysNothing() async throws {
+        var keys: [PanelKey] = []
+        let (window, _) = await host(panel { keys.append($0) })
+        defer { window.close() }
+        // The sheet focuses its field a turn after it appears.
+        try await eventually { window.firstResponder is NSText }
+        keys.removeAll()
+        // Giving up focus ends the edit, which hands the field's text back through its binding.
+        #expect(window.makeFirstResponder(nil))
+        #expect(keys.isEmpty)
     }
 
     @Test("a disabled confirmation remains visible and refuses activation")
