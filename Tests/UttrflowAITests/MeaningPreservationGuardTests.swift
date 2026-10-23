@@ -2101,7 +2101,8 @@ struct SpokenLineBreakLayoutTests {
     func lineRaisedToParagraph() {
         #expect(
             !MeaningPreservationGuard.layoutVerdict(
-                kept: "retry the request\nlog the failure", rewritten: "Retry the request.\n\nLog the failure."
+                kept: "retry the request\nlog the failure",
+                rewritten: "Retry the request.\n\nLog the failure."
             ).isAccepted)
     }
 }

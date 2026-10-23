@@ -22,7 +22,9 @@ struct SpokenAddressTests {
 
     @Test("leaves a site said before at and a time as the site", .bug(id: 8157))
     func siteBeforeAtATime() {
-        #expect(cleaned("the demo is on example dot dev at noon", by: sut) == "the demo is on example.dev at noon")
+        #expect(
+            cleaned("the demo is on example dot dev at noon", by: sut) == "the demo is on example.dev at noon"
+        )
     }
 
     @Test(

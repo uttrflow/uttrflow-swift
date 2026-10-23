@@ -50,7 +50,8 @@ enum HeardWordFit {
     static func sentence(around range: Range<Int>, in said: [String]) -> Range<Int> {
         let start = said[..<range.lowerBound].lastIndex { WordShape($0).endsSentence }.map { $0 + 1 } ?? 0
         let end =
-            said[(range.upperBound - 1)...].firstIndex { WordShape($0).endsSentence }.map { $0 + 1 } ?? said.count
+            said[(range.upperBound - 1)...].firstIndex { WordShape($0).endsSentence }.map { $0 + 1 }
+            ?? said.count
         return start..<end
     }
 

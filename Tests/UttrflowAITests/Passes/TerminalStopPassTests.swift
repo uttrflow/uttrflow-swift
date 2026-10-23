@@ -297,7 +297,10 @@ struct TerminalStopPassTests {
         .bug(id: 8155),
         arguments: [
             ("which team did you join", "which team did you join?"),
-            ("which one did you pick, the first or the second", "which one did you pick, the first or the second?"),
+            (
+                "which one did you pick, the first or the second",
+                "which one did you pick, the first or the second?"
+            ),
             ("which way do we go", "which way do we go?"),
             ("which do you prefer", "which do you prefer?"),
             ("whose laptop did you borrow", "whose laptop did you borrow?"),

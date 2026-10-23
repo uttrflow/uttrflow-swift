@@ -395,7 +395,8 @@ struct SpokenAddress: Equatable {
     private static func opensMailboxDomain(
         at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft
     ) -> Bool {
-        guard position > 0, !draft.shape(at: live[position - 1]).endsClause, position + 1 < run.upperBound, draft.shape(at: live[position]).key == "at",
+        guard position > 0, !draft.shape(at: live[position - 1]).endsClause, position + 1 < run.upperBound,
+            draft.shape(at: live[position]).key == "at",
             let domain = part(from: position + 1, within: run, in: live, of: draft),
             domain.labels.count > 1, let top = domain.labels.last
         else { return false }
