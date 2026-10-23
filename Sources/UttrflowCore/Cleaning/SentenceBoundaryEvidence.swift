@@ -17,7 +17,10 @@ public enum SentenceBoundaryEvidence {
         }
         let followingKeys = following.map(\.key)
         if text.last == ".", subordinators.contains(previous[0].key) { return true }
-        if opensOnPostmodifier(following) || opensDependentFragment(following) { return true }
+        if opensOnPostmodifier(following) || opensDependentFragment(following) || endsInOpenFragment(previous)
+        {
+            return true
+        }
         if leadsIntoNext(previous, following) || opensWithAPhrase(previous, following)
             || completesFinalPhrase(previous, following) || completesSeamPreposition(previous, following)
             || splitsSubjectFromPredicate(previous, following) || awaitsComplement(previous, following)
@@ -98,10 +101,19 @@ public enum SentenceBoundaryEvidence {
         guard following.count > 1, subordinators.contains(following[0].key) else { return false }
         let clauseEnd = following.firstIndex(where: \.endsSentence).map { $0 + 1 } ?? following.count
         let fragment = following.prefix(clauseEnd)
+        if fragment.count > longestFragmentWords { return false }
         if fragment.last?.suffix.contains("?") == true { return false }
         if fragment.dropLast().contains(where: \.endsClause) { return false }
         if endsOnImperative(Array(fragment)) { return false }
         return subjectVerbPairs(LexicalClass.tags(ofWords: fragment.dropFirst().map(\.core))) < 2
+    }
+
+    /// "at noon. if the hall is booked | then call": the words after the last stop open a subordinate clause the cut leaves without its main clause, so the sentence runs on and the stop before the clause is judged on the whole clause.
+    private static func endsInOpenFragment(_ previous: [WordShape]) -> Bool {
+        guard let last = previous.last, !last.endsSentence,
+            let stop = previous.lastIndex(where: \.endsSentence)
+        else { return false }
+        return opensDependentFragment(Array(previous[(stop + 1)...]))
     }
 
     /// "if nobody answers leave it with the shop": a clause with its own verb, then a bare verb taking an object, is a whole sentence.
@@ -114,6 +126,7 @@ public enum SentenceBoundaryEvidence {
             guard let last = head.last, !bareVerbLeaders.contains(last.key),
                 imperativeObjects.contains(fragment[split + 1].key)
                     || imperativeParticles.contains(fragment[split + 1].key)
+                    || fragment[split + 1].key == "to"
                     || FunctionWords.determiners.contains(fragment[split + 1].key)
             else { continue }
             let headHasVerb =
@@ -274,6 +287,8 @@ public enum SentenceBoundaryEvidence {
         ["could", "finish"], ["pick", "up"], ["look"], ["covers"],
     ]
     private static let subordinators = FunctionWords.subordinators
+    /// The most words a lone subordinate fragment holds, its opener included; a longer clause has a main clause the tags missed.
+    private static let longestFragmentWords = 9
     /// The classes of a head a relative clause's object gap refers back to: "the town we moved from".
     private static let gapHeadClasses: Set<NLTag> = [.noun, .number]
 }

@@ -715,4 +715,10 @@ struct FirstWordPassTests {
         )
         #expect(cleaned("#launchday is here", by: sut) == "#launchday is here")
     }
+
+    @Test("keeps a clause enumerator lower case where it opens a line, and the words after it as they are")
+    func keepsClauseEnumeratorCase() {
+        let text = "Clause 9.1 the supplier shall\n(a) deliver within 30 days\n(iv) keep records"
+        #expect(sut.apply(Draft(keepingLineBreaks: text)).text == text)
+    }
 }

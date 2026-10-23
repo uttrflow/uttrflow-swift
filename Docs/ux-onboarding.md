@@ -20,6 +20,10 @@ Uttrflow is for is said on the sign-in page itself; there is no separate welcome
   once the model is on disk, and its Cancel stops the download and offers Try again rather than
   moving on. `OnboardingFlow` refuses a stray `.advance` on an unanswered page, so the rule holds
   even if a page offered one by mistake.
+- Entering the download page fetches nothing. It offers Download beside the size from the pinned
+  manifest (`OnboardingModelInstaller.downloadBytes`, or "Size not known" without one), and joins a
+  download unasked only when one is already running. While it runs, the hint counts megabytes
+  received of the total; it shows no rate or time left.
 - The clipboard page follows sign-in, because the choice must come before any copy is recorded. It says
   how long copies are kept (the stored `clipboardRetentionDays`) and offers Keep and Turn off,
   which save `clipboardEnabled` at once, beside Continue. Keeping is the default, so the setting

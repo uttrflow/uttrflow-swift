@@ -1,10 +1,10 @@
 // The shared history fixture, and tests for the History page: grouping, retention, search, empties.
 import Foundation
-import UttrflowCore
 import UttrflowHistory
 import UttrflowSettings
 import Testing
 
+@testable import UttrflowCore
 @testable import UttrflowUX
 
 /// A fixed clock and a fixed region, so a test cannot pass in one time zone and fail in another.
@@ -39,7 +39,8 @@ enum HistoryFixture {
         applicationIdentifier: String? = nil,
         changes: RecordedChanges? = RecordedChanges(),
         isFlagged: Bool = false,
-        arrival: RecordedArrival? = nil
+        arrival: RecordedArrival? = nil,
+        quality: OutcomeQuality? = nil
     ) -> HistoryEntry {
         HistoryEntry(
             id: UUID(),
@@ -51,7 +52,8 @@ enum HistoryFixture {
             applicationIdentifier: applicationIdentifier,
             changes: changes,
             isFlagged: isFlagged,
-            arrival: arrival)
+            arrival: arrival,
+            quality: quality)
     }
 
     /// A snapshot over these entries at the fixed clock.
@@ -217,6 +219,20 @@ struct HistoryPresentationTests {
         }
         #expect(labels == ["Not inserted", "Unconfirmed", nil, nil, nil])
     }
+    @Test(
+        "a row tidied less than asked says so in the shared words; a complete or unrecorded row stays quiet")
+    func rowsCarryTheQuality() {
+        let qualities: [OutcomeQuality?] = [.complete, nil] + OutcomeQuality.incomplete
+        let lines = qualities.map {
+            HistoryPresenter.row(
+                for: HistoryFixture.entry(quality: $0), relativeTo: HistoryFixture.now,
+                locale: HistoryFixture.locale
+            ).quality
+        }
+        let expected = [nil, nil] + OutcomeQuality.incomplete.map { $0.presentation?.line }
+        #expect(lines == expected)
+        #expect(lines.dropFirst(2).allSatisfy { $0?.isEmpty == false })
+    }
 }
 
 @Suite("History row actions")
@@ -331,6 +347,13 @@ struct HistoryRetentionTests {
             page.retentionNotice.sentence
                 == "Kept on this Mac for 7 days, then deleted. Recordings are never saved.")
         #expect(page.retentionNotice.link.intent == .go(.settings(.privacy)))
+    }
+
+    /// The link's title is its accessibility name, so Voice Control can click it by what it reads.
+    @Test("the link to the privacy settings is named as Insights names it")
+    func noticeLinkTitle() {
+        let page = HistoryFixture.page(entries: [])
+        #expect(page.retentionNotice.link.title == "Change in Settings › Privacy")
     }
 
     @Test("the notice says text kept always stays until it is deleted")

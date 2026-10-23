@@ -20,6 +20,12 @@ public enum NumberCues {
         case designator
         /// A singular noun for something on a timetable, after which an hour and minute is a time of day.
         case scheduled
+        /// A label that a version's pre-release suffix names after "dash", as in "dash rc dot one".
+        case preRelease
+        /// A one-letter size unit a command-line value takes straight after its digits, as in `--memory=2g`.
+        case sizeSuffix
+        /// A word that heads a clause with a colon, as in "status: blocked", which a colon glued to it is never code for.
+        case headingLabel
     }
 
     /// The cue words that say `cue`.

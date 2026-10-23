@@ -19,6 +19,25 @@ extension SpokenAddress {
         return SpokenAddress(length: span.count, text: first.prefix + name.spelled + last.suffix)
     }
 
+    /// Reads a spoken wildcard before an ending at a command line, "star dot tmp" is "*.tmp", so the star is the glob character and not a name.
+    static func readGlobName(
+        at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft, expecting: Expectation
+    ) -> SpokenAddress? {
+        guard expecting.contains(.paths), position > 0, position + 2 < run.upperBound,
+            TechnicalLexicon.isProgram(draft.shape(at: live[0]).key, in: .terminal)
+        else { return nil }
+        let star = draft.shape(at: live[position])
+        guard star.key == "star", star.prefix.isEmpty, star.suffix.isEmpty,
+            draft.shape(at: live[position + 1]).key == "dot",
+            let ending = part(from: position + 2, within: run, in: live, of: draft),
+            ending.labels.allSatisfy({ isNameLabel($0) })
+        else { return nil }
+        let span = position..<(position + 2 + ending.length)
+        guard onlyEndsAreMarked(span, in: live, of: draft) else { return nil }
+        let last = draft.shape(at: live[span.upperBound - 1])
+        return SpokenAddress(length: span.count, text: "*." + ending.spelled + last.suffix)
+    }
+
     /// Whether a label is a word of a name: it holds a letter, it is no number, and it is not the spoken dot of an ellipsis.
     private static func isNameLabel(_ label: String) -> Bool {
         let key = label.lowercased()

@@ -70,6 +70,8 @@ public struct HistoryRow: Sendable, Equatable, Identifiable {
     public let isFlagged: Bool
     /// "Not inserted" or "Unconfirmed" when the words may not have reached the field; absent otherwise.
     public let arrival: String?
+    /// The shared one-line wording when the text was tidied less than asked or is missing speech; absent when complete or unrecorded.
+    public let quality: String?
     /// The buttons shown while the row is pointed at: copy, copy to paste elsewhere, flag.
     public let actions: [MainAction]
     /// What the row's context menu offers.
@@ -91,7 +93,7 @@ public struct HistoryRow: Sendable, Equatable, Identifiable {
     public init(
         id: UUID, application: HistoryApplication?, when: String, text: String,
         time: String = "", length: String = "", tag: String? = nil, isFlagged: Bool = false,
-        arrival: String? = nil, actions: [MainAction] = [], more: [MainAction] = [],
+        arrival: String? = nil, quality: String? = nil, actions: [MainAction] = [], more: [MainAction] = [],
         recording: HistoryRecording? = nil, fixes: [MainAction] = [], whatChanged: [String] = [],
         asHeard: String? = nil, formattedAs: String? = nil, asSpoken: MainAction? = nil
     ) {
@@ -104,6 +106,7 @@ public struct HistoryRow: Sendable, Equatable, Identifiable {
         self.tag = tag
         self.isFlagged = isFlagged
         self.arrival = arrival
+        self.quality = quality
         self.actions = actions
         self.more = more
         self.recording = recording
@@ -304,7 +307,7 @@ public enum HistoryPresenter {
 
         return HistoryRetentionNotice(
             sentence: sentence,
-            link: MainAction(title: "change in Settings › Privacy", intent: .go(.settings(.privacy))),
+            link: MainAction(title: "Change in Settings › Privacy", intent: .go(.settings(.privacy))),
             phrase: SettingsRetention.isAlways(days: text)
                 ? "kept until you delete it" : "kept for \(MainFormatting.count(text, "day", "days"))"
         )
@@ -443,6 +446,7 @@ public enum HistoryPresenter {
             tag: tone == .changed ? tag : nil,
             isFlagged: entry.isFlagged,
             arrival: arrivalLabel(for: entry.arrival),
+            quality: entry.quality?.presentation?.line,
             actions: [
                 MainAction(title: "Copy", symbolName: "doc.on.doc", intent: .copy(entry.text)),
                 // From the main window Uttrflow is in front, so the button says what it actually does. See `Docs/insertion.md`.

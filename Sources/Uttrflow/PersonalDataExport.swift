@@ -11,7 +11,7 @@ enum PersonalDataExport {
     }
 
     static let disclosureMessage =
-        "The export file is not encrypted. You can exclude snippets marked secret or containing recognized credentials, or include every snippet."
+        "The export file is not encrypted. You can exclude snippets marked secret or containing recognised credentials, or include every snippet."
 
     /// `refused` is oldest first, as the archive keeps it.
     static func archive(

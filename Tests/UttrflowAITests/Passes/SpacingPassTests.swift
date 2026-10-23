@@ -55,6 +55,11 @@ struct SpacingPassTests {
             ("add the.env file to.gitignore", "add the .env file to .gitignore"),
             ("The.env file", "The .env file"),
             ("source my.zshrc", "source my .zshrc"),
+            ("Step 1:open the app", "Step 1: open the app"),
+            ("Step 2:sign", "Step 2: sign"),
+            ("status:blocked", "status: blocked"),
+            ("Status:blocked.", "Status: blocked."),
+            ("Warning:disk full", "Warning: disk full"),
         ]
     )
     func gluedMark(input: String, expected: String) {
@@ -79,7 +84,8 @@ struct SpacingPassTests {
     @Test(
         "leaves a dotted or marked token that is not two words alone",
         arguments: [
-            "3.5", "3.14", "v1.2.3", "1,000", "10:30", "v2.1", "2.3.1", "v10.4.2", "example.com",
+            "3.5", "3.14", "v1.2.3", "1,000", "10:30", "3:1", "5:pm", "9:AM", "1:1", "localhost:8080",
+            ":root", ":hover", "status:404", "v2.1", "2.3.1", "v10.4.2", "example.com",
             "docs.example.org",
             "www.example.net", "co.uk", "file.txt", "notes.md", "main.swift", "index.html", "maths.py",
             "Draft.pages", "Budget.numbers", "Incident.docx", "Retention.xlsx", "Node.js", "README.MD",

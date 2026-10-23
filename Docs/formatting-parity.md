@@ -12,16 +12,16 @@ A refused answer falls back to the rules' text, as the router does.
 | commas | both | 10 | 7 | 1: `probe-hinglish-status` | 0 | 0 |
 | questions | both | 9 | 7 | 1: `probe-hinglish-status` | 0 | 1 |
 | quotes-and-brackets | rules | 13 | 8 | 1: `probe-regex-pattern` | 0 | 0 |
-| ellipses | rules | 5 | 4 | 0 | 0 | 0 |
+| ellipses | rules | 5 | 4 | 0 | 0 | 1 |
 | capitalisation-and-tokens | both | 99 | 84 | 7: `probe-docker-run-flags`, `probe-sql-join`, `probe-regex-pattern`, `probe-yaml-keys`, `probe-todo-comment`, `probe-dockerfile-from`, `probe-apology-message` | 0 | 1 |
-| numbers | rules | 43 | 26 | 7: `fmt-list-count-not-list`, `fmt-hinglish-number`, `probe-docker-run-flags`, `probe-sql-join`, `probe-yaml-keys`, `probe-dockerfile-from`, `probe-apology-message` | 0 | 1 |
-| lists | both | 14 | 10 | 2: `fmt-list-count-not-list`, `probe-yaml-keys` | 0 | 0 |
-| paragraphs | rules | 13 | 10 | 0 | 0 | 0 |
-| corrections | rules | 7 | 6 | 0 | 0 | 1 |
-| per-destination | both | 72 | 50 | 8: `probe-docker-run-flags`, `probe-sql-join`, `probe-regex-pattern`, `probe-yaml-keys`, `probe-todo-comment`, `probe-dockerfile-from`, `probe-apology-message`, `probe-hinglish-status` | 0 | 1 |
+| numbers | rules | 43 | 26 | 9: `fmt-list-count-not-list`, `fmt-correction-actually`, `fmt-hinglish-number`, `probe-docker-run-flags`, `probe-sql-join`, `probe-yaml-keys`, `probe-dockerfile-from`, `probe-protocol-names`, `probe-apology-message` | 0 | 2 |
+| lists | both | 14 | 10 | 4: `fmt-list-numbered-spoken`, `fmt-list-first-second-third`, `fmt-list-count-not-list`, `probe-yaml-keys` | 0 | 0 |
+| paragraphs | rules | 13 | 10 | 0 | 0 | 1 |
+| corrections | rules | 7 | 6 | 1: `fmt-correction-actually` | 0 | 1 |
+| per-destination | both | 72 | 50 | 9: `probe-docker-run-flags`, `probe-sql-join`, `probe-regex-pattern`, `probe-yaml-keys`, `probe-todo-comment`, `probe-dockerfile-from`, `probe-protocol-names`, `probe-apology-message`, `probe-hinglish-status` | 0 | 2 |
 | code-and-markdown | both | 17 | 8 | 6: `probe-docker-run-flags`, `probe-sql-join`, `probe-regex-pattern`, `probe-yaml-keys`, `probe-todo-comment`, `probe-dockerfile-from` | 0 | 0 |
 | hinglish | model | 6 | 4 | 2: `fmt-hinglish-number`, `probe-hinglish-status` | 0 | 0 |
-| text-after-caret | rules | 30 | 30 | 0 | 0 | 0 |
+| text-after-caret | rules | 30 | 30 | 0 | 0 | 3 |
 | abstention | model | 357 | 357 | 0 | 0 | 0 |
 
 ## Model-only classes

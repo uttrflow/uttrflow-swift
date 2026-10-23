@@ -332,7 +332,7 @@ pin, a delete) carries it to disk; with no other write, `flushUse` writes it aft
 (30 seconds), and quitting writes it before the process exits. A paste therefore costs no rewrite
 of the history file. If the app is killed before any of those, the uses since the last write are
 lost, and all that costs is an eviction order that many seconds stale: no clip, pin or name is
-ever held back this way. A collection is renamed, emptied or deleted by one store call
+ever held back this way. A write the disk refuses, including the one at quit, shows no new message to the person; it is logged in the `clipboard` category by error case alone, and the change stays in memory for the next write. A collection is renamed, emptied or deleted by one store call
 (`moveCategory`, `deleteCategory`), which is one write per file however many clips it holds.
 
 A held use is the one write allowed to fail silently: it is bookkeeping for a future eviction, and

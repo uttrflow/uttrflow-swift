@@ -198,11 +198,11 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
             grammar: prepared.formatter.grammar, grants: prepared.pipeline.grants)
     }
 
-    /// The rules' result when an English draft owes only its capital and stop and the rules settle its ending, so the model has nothing to add.
+    /// The rules' result when a draft owes only its capital and stop and the place repairs no grammar, so the model has nothing to add.
     private static func floorSettles(
         _ request: TransformationRequest, draft: Draft, formatter: DestinationFormatter, steps: CleaningSteps
     ) async throws(TransformationError) -> TransformationResult? {
-        guard request.effectiveLanguage == .english,
+        guard request.effectiveLanguage == .english, formatter.grammar != .repair,
             formatter.owesFormatting(TextTidy.collapseSpacing(draft.text))
         else { return nil }
         let tokens = MeaningPreservationGuard.grammarTokens(draft.text)

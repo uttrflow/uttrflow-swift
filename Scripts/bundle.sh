@@ -312,6 +312,7 @@ ALLOWED_TEXT_RESOURCES=(
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/kinship-words.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/letter-sounds.txt"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/mark-spacing.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/meaning-swaps.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/name-particles.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/number-cues.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/number-words.json"

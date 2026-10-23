@@ -174,7 +174,7 @@ struct DataTableTests {
         #expect(SQLWords.aliasStoppers.count == 30)
         #expect(SQLWords.keywords.count == 31)
         #expect(SQLWords.keywords.contains("select"))
-        #expect(FunctionWords.table.rows.count == 242)
+        #expect(FunctionWords.table.rows.count == 243)
         #expect(FunctionWords.all.count == 306)
         #expect(FunctionWords.leadingOn.count == 48)
         #expect(FunctionWords.boundaryDeterminers.count == 16)
@@ -184,6 +184,8 @@ struct DataTableTests {
         #expect(FunctionWords.bareVerbLeaders.count == 9)
         #expect(FunctionWords.modals.count == 8)
         #expect(FunctionWords.commaPrepositions.count == 8)
+        #expect(FunctionWords.headCarryOns.count == 10)
+        #expect(FunctionWords.runOnSeamLowers.count == 49)
         #expect(FunctionWords.seamPrepositions == ["on", "in", "up", "around"])
         #expect(FunctionWords.httpMethods.count == 6)
         #expect(FunctionWords.multiplierComparisons.count == 18)
@@ -200,6 +202,11 @@ struct DataTableTests {
         #expect(NumberCues.words(for: .measureLead).count == 8)
         #expect(NumberCues.words(for: .measureTail).count == 8)
         #expect(NumberCues.words(for: .range) == ["to", "through"])
+        #expect(NumberCues.words(for: .sizeSuffix) == ["k", "m", "g", "t"])
+        #expect(
+            NumberCues.words(for: .headingLabel) == [
+                "status", "warning", "summary", "reminder", "question", "answer",
+            ])
         #expect(
             NumberCues.words(for: .designator) == [
                 "port", "version", "extension", "page", "chapter", "step", "number", "line", "section",

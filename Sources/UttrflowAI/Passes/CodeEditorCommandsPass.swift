@@ -18,6 +18,9 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
     /// What the screen said for the notation, to which the speech's own cues are added.
     var evidence = Applicability(cues: [.caretInCode])
 
+    /// Whether the stammer step is on, so a doubled word the pause marks hid is cut as a stammer once they come off.
+    var cutsStammers = false
+
     func apply(_ draft: Draft) -> Draft {
         let words = draft.presentIndices.map { Self.bare(draft.words[$0].text) }
         let screen = NotationEvidence.applicability(
@@ -32,6 +35,8 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
             ? Applicability(cues: [.markupTag]) : NotationEvidence.applicability(of: words, given: screen)
         guard evidence.activates(at: NotationEvidence.activationThreshold) else { return draft }
         var draft = NotationInput.settled(draft, by: Self.id)
+        // A second run reads the words without their pause marks, so the first must judge a stammer on them too.
+        if cutsStammers { draft = StammersPass().apply(draft) }
         var slot = markup?.slot
         var position = 0
         while position < draft.presentIndices.count {
@@ -78,7 +83,7 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
         text.lowercased().trimmingCharacters(in: .letters.inverted)
     }
 
-    /// Writes a joining symbol between the names on both sides of it, as "orders dot id" is `orders.id`; false when either side is no name.
+    /// Writes a joining symbol between the names on both sides of it, as "orders dot id" is `orders.id` and "dash dash since equals today" is `--since=today`; false when either side is no name.
     private func join(
         _ command: SpokenCommand, at position: Int, in live: [Int], of draft: inout Draft
     ) -> Bool {
@@ -86,8 +91,17 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
         guard command.placement == .joining, position > 0, after < live.count else { return false }
         let left = draft.words[live[position - 1]].text
         let right = draft.words[live[after]].text
-        guard Self.isName(left), Self.isName(right.trimmingCharacters(in: .punctuationCharacters)) else {
+        let rightName = right.trimmingCharacters(in: .punctuationCharacters)
+        // At a command line a number, spoken or in digits, is assigned: the symbol waits on the name and spacing joins the digits.
+        let isNumber = rightName.allSatisfy(\.isNumber) || NumberWords.isNumber(rightName.lowercased())
+        guard Self.isOptionOrName(left), !rightName.isEmpty, isNumber || Self.isName(rightName) else {
             return false
+        }
+        if isNumber {
+            guard destination == .terminal else { return false }
+            draft.replace(at: live[position - 1], with: left + command.text, by: Self.id)
+            for offset in position..<after { draft.remove(at: live[offset], by: Self.id) }
+            return true
         }
         draft.replace(at: live[position - 1], with: left + command.text + right, by: Self.id)
         for offset in position...after { draft.remove(at: live[offset], by: Self.id) }
@@ -95,9 +109,22 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
     }
 
     /// A word an identifier can be: letters, digits and underscores, with a letter or underscore first.
-    private static func isName(_ text: String) -> Bool {
+    private static func isName(_ text: some StringProtocol) -> Bool {
         guard let first = text.first, first.isLetter || first == "_" else { return false }
         return text.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "." }
+    }
+
+    /// Whether a word is a name, or an option whose dashed name joins names with hyphens, as `--max-count` does.
+    private static func isOptionOrName(_ text: String) -> Bool {
+        let name = optionName(text)
+        guard name.count < text.count else { return isName(name) }
+        return name.split(separator: "-", omittingEmptySubsequences: false).allSatisfy(isName)
+    }
+
+    /// The name an option marker stands before, as `since` in `--since`; any other word as it is.
+    private static func optionName(_ text: String) -> Substring {
+        let dashes = text.prefix { $0 == "-" }.count
+        return dashes <= 2 ? text.dropFirst(dashes) : Substring(text)
     }
 
     /// Where a written symbol goes: onto its own first word, or onto the word before it.
@@ -114,7 +141,9 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
             for offset in 0..<consumed { draft.remove(at: live[position + offset], by: Self.id) }
             return .joinedBefore
         }
-        draft.replace(at: live[position], with: text + suffix, by: Self.id)
+        // An opening bracket already standing on the word stays: "(select" is "(SELECT".
+        let prefix = draft.shape(at: live[position]).prefix
+        draft.replace(at: live[position], with: prefix + text + suffix, by: Self.id)
         for offset in 1..<consumed { draft.remove(at: live[position + offset], by: Self.id) }
         return .inPlace
     }

@@ -1508,6 +1508,45 @@
     "addedFor": 8015
   },
   {
+    "id": "shell-assign-spoken-equals-variable",
+    "spoken": "export NODE underscore ENV equals production",
+    "expected": "export NODE_ENV=production",
+    "mustKeep": ["NODE_ENV=production"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "expectedExact": "export NODE_ENV=production",
+    "addedFor": 7943
+  },
+  {
+    "id": "shell-assign-spoken-equals-long-option",
+    "spoken": "git log dash dash since equals yesterday",
+    "expected": "git log --since=yesterday",
+    "mustKeep": ["--since=yesterday"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "expectedExact": "git log --since=yesterday",
+    "addedFor": 7943
+  },
+  {
+    "id": "shell-assign-spoken-digits",
+    "spoken": "export PORT equals eight zero eight zero",
+    "expected": "export PORT=8080",
+    "mustKeep": ["PORT=8080"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "expectedExact": "export PORT=8080",
+    "addedFor": 7943
+  },
+  {
     "id": "terminal-possessive-name-keeps-hyphen",
     "note": "a name that begins with my is one argument at a command line, so the dash joins it",
     "spoken": "docker run dash dash name my dash container nginx",
@@ -1520,6 +1559,34 @@
     "destination": "terminal",
     "expectedExact": "docker run --name my-container nginx",
     "addedFor": 7942
+  },
+  {
+    "id": "terminal-star-is-the-glob",
+    "note": "star at a shell prompt is the asterisk, so a spoken glob is typed as one",
+    "spoken": "rm star dot tmp",
+    "expected": "rm *.tmp",
+    "mustKeep": ["*.tmp"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "expectedExact": "rm *.tmp",
+    "addedFor": 7944
+  },
+  {
+    "id": "terminal-echoes-replace-first-and-last",
+    "note": "replace first and replace last are words at a command line, where only a whole utterance of them is an edit command",
+    "spoken": "echo replace first then replace last",
+    "expected": "echo replace first then replace last",
+    "mustKeep": ["replace first", "replace last"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "expectedExact": "echo replace first then replace last",
+    "addedFor": 4260
   },
   {
     "id": "email-mailbox-ending-in-domain-ending",

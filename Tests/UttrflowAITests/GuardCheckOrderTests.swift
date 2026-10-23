@@ -13,7 +13,8 @@ struct GuardCheckOrderTests {
         #expect(
             MeaningPreservationGuard.checks.map(\.name) == [
                 "empty", "preamble", "length", "numbers", "symbols", "spokenPunctuation",
-                "scriptWordCount", "removal", "readings", "confidentHomophone", "layout", "grammar",
+                "scriptWordCount", "scriptWordOrder", "removal", "readings", "confidentHomophone", "layout",
+                "grammar",
             ])
     }
 

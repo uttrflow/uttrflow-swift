@@ -109,7 +109,8 @@ enum PieceJoiner {
         _ pieces: [String], heard: [String], under formatter: DestinationFormatter
     ) -> [String] {
         let runsOn = pieces.indices.dropLast().map { index in
-            sentenceRunsOn(pieces[index], into: pieces[index + 1])
+            opensEmailWithGreeting(pieces[index], at: index, under: formatter)
+                || sentenceRunsOn(pieces[index], into: pieces[index + 1])
                 || groupRunsAcross(
                     pieces[index], into: pieces[index + 1],
                     previousWasHeardEndingOnScale: heardScaleEnding(heard, at: index))
@@ -125,11 +126,18 @@ enum PieceJoiner {
         }
     }
 
+    /// Whether the piece is an email's opening greeting word alone, "Hi" | "Priya", which a pause cuts from the name it greets and leaves without a stop.
+    private static func opensEmailWithGreeting(
+        _ text: String, at index: Int, under formatter: DestinationFormatter
+    ) -> Bool {
+        index == 0 && formatter.destination == .email && TerminalStopPass.isGreetingOpener(text)
+    }
+
     /// Whether the passes that read a spoken unit or notation command read one across the cut, so only one piece writes it.
     static func unitRunsAcross(
         _ head: String, into tail: String, under formatter: DestinationFormatter, going situation: Situation
     ) -> Bool {
-        let headWords = WordTokens.words(head, .display).suffix(longestSpokenUnit)
+        let headWords = unitWords(of: WordTokens.words(head, .display))
         let tailWords = WordTokens.words(tail, .display).prefix(longestSpokenUnit)
         guard !headWords.isEmpty, !tailWords.isEmpty else { return false }
         // A mark that ends a sentence closes the head, so no number, time or address runs on from it into the tail.
@@ -175,6 +183,16 @@ enum PieceJoiner {
 
     /// The most words either side of a cut that one spoken number, time or address is read from.
     static let longestSpokenUnit = 8
+
+    /// The most words before a cut that a spoken web address or path is read from, host and path together.
+    static let longestSpokenAddress = 16
+
+    /// The words before a cut that a unit ending at it is read from: a web address or path reaches back past its host.
+    private static func unitWords(of words: [String]) -> ArraySlice<String> {
+        let near = words.suffix(longestSpokenUnit)
+        let inAddress = near.contains { ["dot", "slash"].contains(WordShape($0).key) }
+        return inAddress ? words.suffix(longestSpokenAddress) : near
+    }
 
     /// The destination's piece passes that read several words as one unit, the ones a cut can split.
     private static let unitReaders: Set<PassID> = [
@@ -312,15 +330,7 @@ enum PieceJoiner {
         return text.replacingCharacters(in: start..<end, with: lowercased)
     }
 
-    private static let lowercaseAtRunOnSeam: Set<String> = [
-        "a", "an", "and", "as", "at", "but", "by", "for", "from", "if", "in", "into", "of",
-        "on", "or", "so", "that", "the", "then", "these", "this", "those", "to", "when",
-        "which", "while", "who", "with",
-        // A form of "be" or "have" after a run-on seam is the verb of the clause the seam split.
-        "is", "are", "was", "were", "has", "have", "had",
-        // A pronoun or possessive opens the clause the seam split and is never a name.
-        "he", "she", "it", "we", "they", "you", "there", "his", "her", "its", "our", "their", "my", "your",
-    ]
+    private static let lowercaseAtRunOnSeam = FunctionWords.runOnSeamLowers
 
     /// The words that open a noun phrase, as the mention guard reads them, without the relatives "which" and "whose".
     private static let determiners = MentionGuard.determiners.subtracting(["which", "whose"])
@@ -605,18 +615,42 @@ enum PieceJoiner {
         {
             return start..<(position + trigger)
         }
-        guard let tail = trailingTriggerStart(before: position, in: live, of: draft),
-            position < live.count,
+        if let tail = trailingTriggerStart(before: position, in: live, of: draft), position < live.count,
             let start = Restatement.discardedStart(
                 before: tail, after: position, in: live, of: draft,
                 asksForLayout: LayoutWordsPass.asksForLayout)
-        else { return nil }
-        return start..<position
+        {
+            return start..<position
+        }
+        return correctionAcrossSeam(at: position, in: live, of: draft)
     }
 
-    /// Finds a correction trigger that ends exactly at the seam and takes back the words before it.
+    /// The most words a run of correction triggers ("no actually make that") is read from.
+    private static let longestTriggerRun = 6
+
+    /// How far past a seam a trigger may start and still take back words from before it.
+    private static let farthestTriggerAfterSeam = 12
+
+    /// The words a correction takes back when the seam falls inside them or inside its trigger, or nil when none does.
+    private static func correctionAcrossSeam(at position: Int, in live: [Int], of draft: Draft) -> Range<Int>?
+    {
+        for trigger in max(1, position - longestTriggerRun + 1)...(position + farthestTriggerAfterSeam)
+        where trigger != position {
+            let length = Restatement.triggerRun(at: trigger, in: live, of: draft)
+            guard length > 0, trigger + length > position, trigger + length < live.count,
+                let start = Restatement.discardedStart(
+                    before: trigger, after: trigger + length, in: live, of: draft,
+                    asksForLayout: LayoutWordsPass.asksForLayout),
+                start < position
+            else { continue }
+            return start..<(trigger + length)
+        }
+        return nil
+    }
+
+    /// Finds the longest correction trigger run that ends exactly at the seam, so "no actually make that" is read whole.
     private static func trailingTriggerStart(before position: Int, in live: [Int], of draft: Draft) -> Int? {
-        for start in stride(from: position - 1, through: max(0, position - 3), by: -1) {
+        for start in max(0, position - longestTriggerRun)..<position {
             let length = Restatement.triggerRun(at: start, in: live, of: draft)
             if length > 0, start + length == position { return start }
         }

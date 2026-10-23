@@ -24,6 +24,14 @@ struct SQLNotationTests {
         text.lowercased().split { !$0.isLetter }.map(String.init)
     }
 
+    @Test("a number after a spoken dot is not joined onto the table name")
+    func numberAfterADotStaysApart() {
+        let app = AppContext(applicationName: "TablePlus", bundleIdentifier: "com.tinyapp.TablePlus")
+        let situation = Situation(app: app, insertion: app.insertionPoint, destination: .sqlEditor)
+        let pipeline = CleaningPipeline.beforeModel(for: .standard(for: .sqlEditor), situation: situation)
+        #expect(!pipeline.run(Draft(text: "select orders dot one from orders")).text.contains("orders.1"))
+    }
+
     @Test("writes all forty statements exactly")
     func writesEveryStatement() {
         #expect(Self.statements.count == 40)
