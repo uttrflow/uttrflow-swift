@@ -8,6 +8,26 @@ struct SpokenAddressTests {
     private let sut = SpokenPunctuationPass()
 
     @Test(
+        "joins a mailbox whose last label is a domain ending to the domain after at",
+        .bug(id: 8157),
+        arguments: [
+            ("mail anil dot kumar dot dev at example dot com", "mail anil.kumar.dev@example.com"),
+            ("mail anil.kumar.dev at example.com", "mail anil.kumar.dev@example.com"),
+            ("write to priya_sharma.dev at example.com", "write to priya_sharma.dev@example.com"),
+            ("ping ops dot io at example dot org", "ping ops.io@example.org"),
+        ])
+    func mailboxEndingInADomainEnding(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test("leaves a site said before at and a time as the site", .bug(id: 8157))
+    func siteBeforeAtATime() {
+        #expect(
+            cleaned("the demo is on example dot dev at noon", by: sut) == "the demo is on example.dev at noon"
+        )
+    }
+
+    @Test(
         "writes the address where the words spell one",
         arguments: [
             ("forward the logs to support at example.com", "forward the logs to support@example.com"),
@@ -43,6 +63,7 @@ struct SpokenAddressTests {
             ),
             ("contact support at example.com today", "contact support@example.com today"),
             ("cc billing at example dot com", "cc billing@example.com"),
+            ("anil dot dev at example dot com", "anil.dev@example.com"),
         ]
     )
     func writesTheAddress(input: String, expected: String) {
@@ -153,6 +174,7 @@ struct SpokenAddressTests {
         "writes dictated web addresses paths filenames and identifiers",
         arguments: [
             ("visit example dot com slash docs", "visit example.com/docs"),
+            ("visit example dot dev at example dot com", "visit example.dev at example.com"),
             ("the site is www dot example dot com", "the site is www.example.com"),
             ("go to https colon slash slash example dot com", "go to https://example.com"),
             ("go to w w w dot example dot org", "go to www.example.org"),

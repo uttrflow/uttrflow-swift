@@ -172,14 +172,8 @@ private func makePipeline(
         learner: learner,
         vocabulary: vocabulary,
         metrics: RecordingMetricsRecorder(),
-        clock: ManualClock(),
-        pollClock: ManualClock()
+        clock: ManualClock()
     )
-}
-
-/// The rules engine alone on a clock that never moves, so a loaded machine cannot time the route out.
-private func rulesOnlyRouter() -> TransformerRouter {
-    TransformerRouter(engines: [RuleBasedTransformer()], preference: [.rules], clock: ManualClock())
 }
 
 /// One whole dictation, start to finish.
@@ -330,10 +324,15 @@ struct DictationPipelineCorrectionTests {
 
 @Suite("Dictation pipeline: dictionary terms in restatements")
 struct DictationPipelineDictionaryRestatementTests {
+    /// The rules alone, timed on a clock only the test moves, so a loaded host cannot run out their allowance.
+    private func rules() -> TransformerRouter {
+        TransformerRouter(engines: [RuleBasedTransformer()], preference: [.rules], clock: ManualClock())
+    }
+
     private func correctedPipeline(for spoken: String) -> DictationPipeline {
         makePipeline(
             spoken: spoken,
-            cleaner: rulesOnlyRouter(),
+            cleaner: rules(),
             corrector: FakeCorrector(proposing: [
                 DictationCorrection(
                     heard: "payment sheet", wrote: "PaymentSheet", wordRange: 5..<7,
@@ -352,7 +351,7 @@ struct DictationPipelineDictionaryRestatementTests {
     func rulesRemoveEverySpokenComponent(spoken: String, expected: String) async {
         let pipeline = makePipeline(
             spoken: spoken,
-            cleaner: rulesOnlyRouter())
+            cleaner: rules())
 
         await dictate(with: pipeline)
 
@@ -384,7 +383,7 @@ struct DictationPipelineDictionaryRestatementTests {
     func matchingSpokenAnchorControl() async {
         let pipeline = makePipeline(
             spoken: "open the payment form sorry payment page",
-            cleaner: rulesOnlyRouter())
+            cleaner: rules())
 
         await dictate(with: pipeline)
 

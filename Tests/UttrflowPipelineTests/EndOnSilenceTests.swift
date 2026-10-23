@@ -84,11 +84,11 @@ struct EndOnSilenceTests {
             }
         }
 
-        /// Polls until the countdown has been reported `count` times, waiting real time for the analysis, for at most five seconds.
+        /// Runs one silence check at a time until the countdown has been reported `count` times.
         func listen(untilReported count: Int) async {
-            for _ in 0..<500 where log.shown.count < count {
-                await clock.advanceWhenSomethingIsWaiting(by: SilenceStop.poll)
-                try? await Task.sleep(for: .milliseconds(10))
+            // A check is due exactly one poll ahead only once the previous one has reported and gone back to sleep.
+            while log.shown.count < count, !Task.isCancelled {
+                if !clock.advanceIfSomethingIsWaiting(exactly: SilenceStop.poll) { await Task.yield() }
             }
         }
 

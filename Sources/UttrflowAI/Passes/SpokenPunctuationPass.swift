@@ -936,6 +936,12 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             {
                 before = WordShape.marked(before, with: String(ending))
             }
+            // A spaced dash marks the pause the recogniser's comma marked, so it takes that comma's place; a said comma stays.
+            if mark.count == 1, let only = mark.first, MarkSpacing.spacesJoin(only), before.hasSuffix(","),
+                !draft.words[previous].edits.contains(where: { $0.by == Self.id })
+            {
+                before.removeLast()
+            }
             let written = Self.marked(before, with: mark)
             draft.replace(at: previous, with: written, by: Self.id)
         }

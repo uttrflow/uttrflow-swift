@@ -137,7 +137,8 @@ struct SpokenAddress: Equatable {
         let joint = position + local.length
         guard joint + 1 < run.upperBound, draft.shape(at: live[joint]).key == "at",
             let domain = part(from: joint + 1, within: run, in: live, of: draft),
-            domain.labels.count > 1, let top = domain.labels.last, topLevels.contains(top.lowercased())
+            domain.labels.count > 1, let top = domain.labels.last, topLevels.contains(top.lowercased()),
+            !siteCueBefore(position, within: run, in: live, of: draft)
         else { return nil }
         let hostEnd = joint + 1 + domain.length
         // On a command line a path after the host's "colon" makes the words an ssh-style remote: "git at github dot com colon acme".
@@ -457,6 +458,12 @@ struct SpokenAddress: Equatable {
         // A bare name a noun follows names a company, not a site ("at Example dot com offices"); a named mark is no noun.
         let after = position + address.length
         let isBare = prefix.isEmpty && after == hostPosition + host.length
+        // A bare host before "at" and a domain is a mailbox whose last label is an ending: "anil dot dev at example dot com".
+        if isBare, !siteCueBefore(position, within: run, in: live, of: draft),
+            opensMailboxDomain(at: after, within: run, in: live, of: draft)
+        {
+            return nil
+        }
         if isBare, after < run.upperBound, !draft.shape(at: live[after - 1]).endsClause,
             FunctionWords.isContent(draft.shape(at: live[after]).key),
             !SpokenCommands.marks.contains(where: {
@@ -467,6 +474,28 @@ struct SpokenAddress: Equatable {
             return nil
         }
         return address
+    }
+
+    /// Whether a word that cues a site ("visit", "website") stands just before `position`, so the host is a site, not a mailbox.
+    private static func siteCueBefore(
+        _ position: Int, within run: Range<Int>, in live: [Int], of draft: Draft
+    ) -> Bool {
+        guard position > 0 else { return false }
+        return siteCues.contains(draft.shape(at: live[position - 1]).key.lowercased())
+    }
+
+    private static let siteCues: Set<String> = ["visit", "website", "site"]
+
+    /// Whether "at" stands at `position` with a domain of a known ending after it, so the words before it are a mailbox.
+    private static func opensMailboxDomain(
+        at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft
+    ) -> Bool {
+        guard position > 0, !draft.shape(at: live[position - 1]).endsClause, position + 1 < run.upperBound,
+            draft.shape(at: live[position]).key == "at",
+            let domain = part(from: position + 1, within: run, in: live, of: draft),
+            domain.labels.count > 1, let top = domain.labels.last
+        else { return false }
+        return topLevels.contains(top.lowercased())
     }
 
     /// Whether `stem` can open a file name: any word but a determiner, and a small word only before an ending that follows a name ("out dot txt", not "to dot env").

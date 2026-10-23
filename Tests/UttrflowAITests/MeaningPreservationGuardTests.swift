@@ -2081,3 +2081,28 @@ extension String {
     /// The text with its first letter upper-cased.
     fileprivate var capitalizedFirst: String { prefix(1).uppercased() + dropFirst() }
 }
+
+@Suite("The guard refuses a paragraph break the speaker did not say", .bug(id: 8159))
+struct SpokenLineBreakLayoutTests {
+    @Test("one spoken new line rewritten as a blank line is refused, and kept as one line is accepted")
+    func oneNewLineIsNoParagraph() {
+        let draft = CleaningPipeline.standard.run(
+            Draft(text: "thanks for the update new line I will review it tomorrow"))
+        let guarded = MeaningPreservationGuard()
+        #expect(
+            !guarded.verdict(draft: draft, rewritten: "Thanks for the update.\n\nI will review it tomorrow.")
+                .isAccepted)
+        #expect(
+            guarded.verdict(draft: draft, rewritten: "Thanks for the update\nI will review it tomorrow.")
+                .isAccepted)
+    }
+
+    @Test("a spoken line turned into a paragraph is refused like a flattened one")
+    func lineRaisedToParagraph() {
+        #expect(
+            !MeaningPreservationGuard.layoutVerdict(
+                kept: "retry the request\nlog the failure",
+                rewritten: "Retry the request.\n\nLog the failure."
+            ).isAccepted)
+    }
+}

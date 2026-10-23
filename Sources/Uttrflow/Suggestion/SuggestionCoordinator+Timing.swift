@@ -35,8 +35,8 @@ extension SuggestionCoordinator {
         return Int(max(0, milliseconds))
     }
 
-    /// Milliseconds since `started` by the turn's own clock.
+    /// How long this turn has taken so far on the coordinator's clock.
     func since(_ started: ContinuousClock.Instant) -> Int {
-        Self.elapsedMilliseconds(since: started, now: turnClock())
+        Self.elapsedMilliseconds(since: started, now: now())
     }
 }

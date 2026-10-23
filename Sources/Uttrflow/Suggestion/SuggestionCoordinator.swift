@@ -84,6 +84,8 @@ final class SuggestionCoordinator {
     private let focusedFieldReader: @Sendable () async -> FocusedFieldSnapshot?
     /// The frontmost application's bundle identifier, which decides whether a key or a turn is acted on.
     let frontmostBundleIdentifier: @MainActor () -> String?
+    /// The clock a turn is admitted and timed on.
+    let now: @MainActor () -> ContinuousClock.Instant
     /// What the model last answered or had nothing for, which decides whether it is asked again.
     private var modelPass = ModelPass()
     /// The model pass in flight, cancelled by the next keystroke so a burst never queues one pass per key.
@@ -128,8 +130,6 @@ final class SuggestionCoordinator {
     var isSelectionReadInFlight: Bool { selectionPolling.isReadInFlight }
     var isTickerScheduled: Bool { ticking.isScheduled }
     var isSecureInputRecheckScheduled: Bool { secureInputRecheck != nil }
-    /// Where a turn reads the time its budget is spent against, so a test can hold it still.
-    let turnClock: @Sendable () -> ContinuousClock.Instant
     private var lastKeystroke = Date.distantPast
     private var lastFluentKeystroke = Date.distantPast
     /// The last observed key-down, used to distinguish typing from edits made without a key.
@@ -208,13 +208,12 @@ final class SuggestionCoordinator {
         frontmostBundleIdentifier: @escaping @MainActor () -> String? = {
             NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         },
+        now: @escaping @MainActor () -> ContinuousClock.Instant = { ContinuousClock.now },
         workspaceCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
         scheduleSelectionChecks: @escaping SelectionCheckScheduling = SuggestionCoordinator.selectionTimer,
         panel: SuggestionPanelController = .shared,
-        editHeard: @escaping @Sendable (EditedSpan) async -> Void = { _ in },
-        turnClock: @escaping @Sendable () -> ContinuousClock.Instant = { .now }
+        editHeard: @escaping @Sendable (EditedSpan) async -> Void = { _ in }
     ) async throws {
-        self.turnClock = turnClock
         self.preferences = preferences
         self.processActivity = processActivity
         self.secureInput = secureInput
@@ -222,6 +221,7 @@ final class SuggestionCoordinator {
         self.focusedSelectionReader = focusedSelectionReader
         self.focusedFieldReader = focusedFieldReader
         self.frontmostBundleIdentifier = frontmostBundleIdentifier
+        self.now = now
         self.workspaceCenter = workspaceCenter
         self.scheduleSelectionChecks = scheduleSelectionChecks
         self.panel = panel
@@ -946,7 +946,7 @@ final class SuggestionCoordinator {
             }
         }
         scheduling.wake(
-            reason, at: ContinuousClock.now,
+            reason, at: now(),
             stalled: {
                 Self.log.error(
                     "\(SuggestionLog.stall(step: self.progress?.step, application: self.progress?.application, afterSeconds: TurnGate.stallSeconds), privacy: .public)"
@@ -1028,7 +1028,7 @@ final class SuggestionCoordinator {
             draw(session.turn(in: nil, at: PredictionContext(typed: "")).step)
             return
         }
-        let turnStartedAt = turnClock()
+        let turnStartedAt = now()
         let started = Date()
         guard preferences.isEnabled(in: snapshot.bundleIdentifier, at: started) else {
             captureFeed.discard()

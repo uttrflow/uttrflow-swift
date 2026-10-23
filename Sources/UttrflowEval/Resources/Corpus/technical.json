@@ -1587,5 +1587,15 @@
     "destination": "terminal",
     "expectedExact": "echo replace first then replace last",
     "addedFor": 4260
+  },
+  {
+    "id": "email-mailbox-ending-in-domain-ending",
+    "note": "A mailbox whose last label is also a domain ending is still joined to the domain said after at.",
+    "spoken": "mail neha dot rao dot dev at example dot com today",
+    "expected": "Mail neha.rao.dev@example.com today.",
+    "mustKeep": ["neha.rao.dev@example.com"],
+    "mustNotAdd": ["at"],
+    "expectedExact": "Mail neha.rao.dev@example.com today.",
+    "addedFor": 8157
   }
 ]

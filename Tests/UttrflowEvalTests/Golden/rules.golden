@@ -301,6 +301,7 @@ editor-selected-identifier	Let's rename setUserPrefs before the release nobody k
 ellipsis-glued-fillers	The...the invoice is...overdue.
 email-continues-mid-sentence	the quote you sent last week.
 email-greeting-kept	Hi meera just confirming the venue for the offsite is booked.
+email-mailbox-ending-in-domain-ending	Mail neha.rao.dev@example.com today.
 email-one-line-category	Client projects
 email-one-line-folder	Travel bookings
 email-one-line-mailbox	Receipts and invoices
@@ -339,6 +340,7 @@ email-two-paragraphs	Thanks for your note.\n\nI've attached the revised quote fo
 emphatic-double-kept	The plan is very very late and much much worse than last week.
 ends-on-copula-of-embedded-question	I know what it is.
 ends-on-copula-of-embedded-question-where	Show me where we are.
+everyday-which-phrase-keeps-its-inversion	Which team did you join last spring?
 exit-code-said-in-two-halves-is-not-a-clock-time	The script exited with code 127 after the migration step.
 extension-is-digits-kept	My extension is 445.
 extension-is-spoken-digit-run	My extension is 445.
@@ -500,6 +502,7 @@ hinglish-question-word-after-subject	Meeting kab hai?
 hinglish-reply-devanagari-2371	Thik hai.
 hinglish-reply-haan-2371	Haan.
 hinglish-reply-theek-hai-2371	Theek hai.
+hinglish-reply-unsure-thiek-hai	Mera kaam thiek hai aur tumhara bhi thiek hai.
 hinglish-request	Arre suno zara wo report bhej dena.
 hinglish-romanised-respelling-2377	Kal ki meeting nahi hai main ghar se kaam karunga.
 hinglish-saath-baje-not-sixty	Kal subah saath baje utna hai.
@@ -911,6 +914,7 @@ one-line-room	Room 12
 one-line-three-sentences	Bring a laptop. Arrive early. Park at the back.
 one-line-title	Project plan
 one-line-two-sentences	The door is locked. Use the side entrance.
+one-spoken-new-line-stays-one-line	Thanks for the note\nI will read it tonight.
 one-word-quotation-ends-its-sentence	He said "hello."
 one-word-quoted-term-ends-its-sentence	She called it "unbelievable".
 or-rather-before-a-negation-kept	Would you like to stay or rather not?
@@ -1359,6 +1363,7 @@ spoken-commas-around-a-clause	The cafe by the station, which opens early, is the
 spoken-commas-in-a-bare-list	We need apples, pears, plums.
 spoken-commas-in-a-list	Pack the charger, the cable, and the adapter.
 spoken-dash-before-a-clause	We left early — it was raining.
+spoken-dash-takes-the-pause-comma-place	The launch slipped — we ship next week instead.
 spoken-date-with-the	The 21st of March.
 spoken-date-without-the	21st of March.
 spoken-decade	The 1990s were fun.

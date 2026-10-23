@@ -24,7 +24,9 @@ enum HeardWordFit {
     /// The rule that rules the run at `range` of the said words out, or `nil` when the words can stand as heard.
     static func ruledOut(_ range: Range<Int>, in said: [String]) -> Rule? {
         guard !range.isEmpty, range.upperBound <= said.count else { return nil }
-        if range.contains(where: { isUnknown(said[$0]) }), !WordCorrectionEngine.speaksHindi(said) {
+        if range.contains(where: { isUnknown(said[$0]) }),
+            !WordCorrectionEngine.speaksHindi(Array(said[sentence(around: range, in: said)]))
+        {
             return .notAWord
         }
         guard range.count == 1 else { return nil }
@@ -42,6 +44,15 @@ enum HeardWordFit {
             return .tooBeforeObject
         }
         return nil
+    }
+
+    /// The said words of the sentence that holds the run, between the stops on either side of it.
+    static func sentence(around range: Range<Int>, in said: [String]) -> Range<Int> {
+        let start = said[..<range.lowerBound].lastIndex { WordShape($0).endsSentence }.map { $0 + 1 } ?? 0
+        let end =
+            said[(range.upperBound - 1)...].firstIndex { WordShape($0).endsSentence }.map { $0 + 1 }
+            ?? said.count
+        return start..<end
     }
 
     /// Whether the run holds a name, which no sound-alike re-spells unless the user's dictionary holds it ("John", never "Jon").
