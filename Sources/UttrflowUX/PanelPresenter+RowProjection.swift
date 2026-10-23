@@ -78,7 +78,7 @@ extension PanelPresenter {
         }
         guard let image = clip.image else {
             guard clip.richText != nil else { return nil }
-            return "\(clip.text.count) characters"
+            return MainFormatting.count(clip.text.count, "character", "characters")
         }
         if snapshot.missingImages.contains(clip.id) {
             return "The picture is no longer on this Mac"

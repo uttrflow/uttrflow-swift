@@ -224,7 +224,7 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
         let visible = firstLine.trimmingCharacters(in: .whitespaces)
         if !visible.isEmpty { return visible }
         guard !text.isEmpty else { return "" }
-        return "Whitespace only · \(text.count) characters"
+        return "Whitespace only · \(CountedNoun.count(text.count, "character", "characters"))"
     }
 
     /// The number of following lines, counting a trailing newline as content that will be pasted.
