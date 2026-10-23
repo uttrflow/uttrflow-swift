@@ -63,6 +63,7 @@ struct SpokenAddressTests {
             ),
             ("contact support at example.com today", "contact support@example.com today"),
             ("cc billing at example dot com", "cc billing@example.com"),
+            ("anil dot dev at example dot com", "anil.dev@example.com"),
         ]
     )
     func writesTheAddress(input: String, expected: String) {
@@ -173,6 +174,7 @@ struct SpokenAddressTests {
         "writes dictated web addresses paths filenames and identifiers",
         arguments: [
             ("visit example dot com slash docs", "visit example.com/docs"),
+            ("visit example dot dev at example dot com", "visit example.dev at example.com"),
             ("the site is www dot example dot com", "the site is www.example.com"),
             ("go to https colon slash slash example dot com", "go to https://example.com"),
             ("go to w w w dot example dot org", "go to www.example.org"),

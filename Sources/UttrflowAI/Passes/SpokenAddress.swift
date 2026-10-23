@@ -128,7 +128,8 @@ struct SpokenAddress: Equatable {
             let domain = part(from: joint + 1, within: run, in: live, of: draft),
             domain.labels.count > 1, let top = domain.labels.last, topLevels.contains(top.lowercased()),
             local.isShaped || expecting.contains(.addresses)
-                || isIntroduced(before: position, in: live, of: draft)
+                || isIntroduced(before: position, in: live, of: draft),
+            !siteCueBefore(position, within: run, in: live, of: draft)
         else { return nil }
         let span = position..<(joint + 1 + domain.length)
         guard onlyEndsAreMarked(span, in: live, of: draft) else { return nil }
@@ -378,7 +379,11 @@ struct SpokenAddress: Equatable {
         let after = position + address.length
         let isBare = prefix.isEmpty && after == hostPosition + host.length
         // A bare host before "at" and a domain is a mailbox whose last label is an ending: "anil dot dev at example dot com".
-        if isBare, opensMailboxDomain(at: after, within: run, in: live, of: draft) { return nil }
+        if isBare, !siteCueBefore(position, within: run, in: live, of: draft),
+            opensMailboxDomain(at: after, within: run, in: live, of: draft)
+        {
+            return nil
+        }
         if isBare, after < run.upperBound, !draft.shape(at: live[after - 1]).endsClause,
             FunctionWords.isContent(draft.shape(at: live[after]).key),
             !SpokenCommands.marks.contains(where: {
@@ -390,6 +395,16 @@ struct SpokenAddress: Equatable {
         }
         return address
     }
+
+    /// Whether a word that cues a site ("visit", "website") stands just before `position`, so the host is a site, not a mailbox.
+    private static func siteCueBefore(
+        _ position: Int, within run: Range<Int>, in live: [Int], of draft: Draft
+    ) -> Bool {
+        guard position > 0 else { return false }
+        return siteCues.contains(draft.shape(at: live[position - 1]).key.lowercased())
+    }
+
+    private static let siteCues: Set<String> = ["visit", "website", "site", "browse"]
 
     /// Whether "at" stands at `position` with a domain of a known ending after it, so the words before it are a mailbox.
     private static func opensMailboxDomain(
