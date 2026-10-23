@@ -136,14 +136,14 @@ The eight shipped values (`DestinationFormatter.registry`):
 
 | Destination | First word | Terminal stop | Layout | Grammar | Numbers | Digits |
 |---|---|---|---|---|---|---|
-| document | from caret | always | paragraphs, lists | repair | numerals ≥10 | 12,000 |
+| document | from caret | always | paragraphs, lists | repair | always numerals | 12,000 |
 | spreadsheet | as spoken | never | single line | as spoken | always numerals | 12,000 |
 | sqlEditor | from caret | always | preserve newlines | as spoken | always numerals | 12000 |
 | codeEditor | from caret | never in code, always in a comment | preserve newlines | as spoken | always numerals | 12000 |
 | terminal | as spoken | never | single line | as spoken | always numerals | 12000 |
-| messaging | from caret | off for ≤2 sentences | paragraphs | as spoken | numerals ≥10 | 12,000 |
-| email | from caret | always | paragraphs, lists | repair | numerals ≥10 | 12,000 |
-| plain | from caret | always | paragraphs, lists | repair | numerals ≥10 | 12,000 |
+| messaging | from caret | off for ≤2 sentences | paragraphs | as spoken | always numerals | 12,000 |
+| email | from caret | always | paragraphs, lists | repair | always numerals | 12,000 |
+| plain | from caret | always | paragraphs, lists | repair | always numerals | 12,000 |
 
 Everything a formatter decides is a policy value with two to four cases, so a change is a
 value change and a test change, never a new branch. Whether the caret sits in a code comment

@@ -90,7 +90,7 @@ public enum SentenceCount {
 
 /// Which spoken numbers a place wants written as numerals.
 public enum NumberPolicy: Sendable, Equatable {
-    /// Every number is a numeral, zero to nine included, as a cell or an editor wants.
+    /// Every number is a numeral, zero to nine included: the default in every place, prose too.
     case always
     /// Ten and up are numerals; zero to nine stay words unless they sit in a number phrase.
     case fromTen
@@ -141,7 +141,7 @@ public struct DestinationFormatter: Sendable, Equatable {
 
     public init(
         destination: Destination, firstWord: FirstWordPolicy, terminalStop: TerminalStopPolicy,
-        layout: LayoutPolicy, grammar: GrammarPolicy, numbers: NumberPolicy = .fromTen,
+        layout: LayoutPolicy, grammar: GrammarPolicy, numbers: NumberPolicy = .always,
         digits: DigitGrouping = .thousands, promptBlock: PromptBlockID, consequence: Consequence = .stores
     ) {
         self.destination = destination
@@ -159,7 +159,7 @@ public struct DestinationFormatter: Sendable, Equatable {
     public static let registry: [Destination: DestinationFormatter] = [
         .document: DestinationFormatter(
             destination: .document, firstWord: .fromInsertionPoint, terminalStop: .always,
-            layout: [.paragraphs, .lists], grammar: .repair, numbers: .fromTen,
+            layout: [.paragraphs, .lists], grammar: .repair, numbers: .always,
             promptBlock: "document"),
         .spreadsheet: DestinationFormatter(
             destination: .spreadsheet, firstWord: .asSpoken, terminalStop: .never, layout: .singleLine,
@@ -179,14 +179,14 @@ public struct DestinationFormatter: Sendable, Equatable {
         .messaging: DestinationFormatter(
             destination: .messaging, firstWord: .fromInsertionPoint,
             terminalStop: .offForShortMessages(sentences: 2), layout: .paragraphs,
-            grammar: .asSpoken, numbers: .fromTen, promptBlock: "messaging", consequence: .sends),
+            grammar: .asSpoken, numbers: .always, promptBlock: "messaging", consequence: .sends),
         .email: DestinationFormatter(
             destination: .email, firstWord: .fromInsertionPoint, terminalStop: .always,
-            layout: [.paragraphs, .lists], grammar: .repair, numbers: .fromTen,
+            layout: [.paragraphs, .lists], grammar: .repair, numbers: .always,
             promptBlock: "email"),
         .plain: DestinationFormatter(
             destination: .plain, firstWord: .fromInsertionPoint, terminalStop: .always,
-            layout: [.paragraphs, .lists], grammar: .repair, numbers: .fromTen, promptBlock: "plain"),
+            layout: [.paragraphs, .lists], grammar: .repair, numbers: .always, promptBlock: "plain"),
     ]
 
     /// Whether a line opening with a program typed at a prompt keeps its heard case: source, never a comment's prose.
@@ -217,7 +217,7 @@ public struct DestinationFormatter: Sendable, Equatable {
         registry[destination]
             ?? DestinationFormatter(
                 destination: .plain, firstWord: .fromInsertionPoint, terminalStop: .always,
-                layout: .paragraphs, grammar: .repair, numbers: .fromTen,
+                layout: .paragraphs, grammar: .repair, numbers: .always,
                 promptBlock: "plain")
     }
 
