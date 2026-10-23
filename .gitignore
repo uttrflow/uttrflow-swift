@@ -11,12 +11,6 @@ xcuserdata/
 # Downloaded speech and language models. Large, reproducible, never committed.
 /Models/
 
-# Seeded design canvas — regenerated from Design/*.dc.html by the seed helper.
-Design/uttrflow-interface.html
-
-# Scratch render written by Design/_preview_gen.py.
-Design/_preview.html
-
 # Recorded evaluation corpus written by `uttrflow-eval record`. A voice is personal data.
 /.uttrflow-corpus/
 

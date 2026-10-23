@@ -120,11 +120,9 @@ on ignores it. Pieces and measurements: `Docs/predict.md`, `Docs/predict-precisi
 | Rule | Limit | Held by |
 |---|---|---|
 | Colours | one source, `BrandPalette`; a new colour is a new token there, never an inline literal | `Docs/redesign-tokens.md` |
-| Artboards match the app | 0 hex mismatches between `Design/_gen_*.py` and `BrandPalette`, light or dark | `Scripts/design_token_parity_audit.py` |
 | Contrast | every text and surface pair meets the audited ratio | `Scripts/design_contrast_audit.py` |
-| Screen contracts | sidebar, chrome, dictation, diagnostics, insights, identity and sign-in artboards match their presentation models | `make docs-audit` |
-| Artboard changes | edit the generator in `Design/` and regenerate; a `*.dc.html` is never edited by hand | review |
-| Appearance | each screen has a light and a `-Dark` artboard, and a change updates both | review |
+| Design source | the SwiftUI and AppKit views, `BrandPalette.swift` and `BrandFont.swift`; 0 generated canvases (`Design/*.dc.html`, `Design/_gen_*.py`) | `Scripts/design_source_audit.py` |
+| Appearance | a visible change is shown in light and dark, and a change updates both | review |
 
 ## Applications
 

@@ -6,8 +6,9 @@ names. `make design-audit` runs every check below and is a prerequisite of `make
 
 ## Principles
 
-1. **Production wins.** A canvas, mockup or doc that disagrees with the Swift code is wrong, and
-   is fixed to match the code, never the reverse in the same change.
+1. **Production wins.** The Swift views are the only picture of the app: 0 generated canvases
+   are kept beside them. A mockup or doc that disagrees with the Swift code is wrong, and is
+   fixed to match the code, never the reverse in the same change.
 2. **One home per decision.** A colour, typeface or metric is declared once and named everywhere
    else; two views drawing the same thing point at the same member.
 3. **Native first.** A macOS control, system font, SF Symbol or system material is used as the
@@ -24,13 +25,11 @@ names. `make design-audit` runs every check below and is a prerequisite of `make
 | Spacing, radii, sizes | the surface's own metrics enum: `MainMetrics`, `PageMetrics`, `SidebarMetrics`, `SettingsMetrics`, `QuickPanelMetrics`, `DockMetrics`, `DockSetupMetrics`, `OnboardingMetrics`, `ClipboardDemonstrationMetrics` | the enum's members | review |
 | Control styles | `PageButtonStyle`, `MainPrimaryButtonStyle`, `MainSecondaryButtonStyle`, `HomeQuietButtonStyle`, `SettingsSwitchStyle`, `SettingsButtonStyle`, `OnboardingPressStyle` | `.buttonStyle`, `.toggleStyle` | review |
 | Motion | `Sources/Uttrflow/Motion/MotionBudget.swift` (Reduce Motion, Low Power Mode, thermal state) | `MotionBudget` | `MotionBudgetTests` |
-| Mark and icon | `Sources/Uttrflow/Brand/UttrflowMark.swift`, `UttrflowMarkView.swift`; `Design/ICON.md` for the app icon | SF Symbols for every other glyph | review |
-| Sidebar, chrome, page captions | `SidebarPresenter.order`, `MainWindowView.swift`, each page's presenter in `Sources/UttrflowUX` | the views | the contract audits below |
-| Design canvases | `Design/_gen_*.py` generators | `Design/*.dc.html`, `Design/canvas.json` (generated) | `design_audit.py` |
+| Mark and icon | `Sources/Uttrflow/Brand/UttrflowMark.swift`, `UttrflowMarkView.swift`; `Resources/AppIcon/ICON.md` for the app icon | SF Symbols for every other glyph | review |
+| Sidebar, chrome, page captions | `SidebarPresenter.order`, `MainWindowView.swift`, each page's presenter in `Sources/UttrflowUX` | the views | review |
 | Token reference | `BrandPalette.Redesign` | `Docs/redesign-tokens.md` quotes it | `design_source_audit.py` |
 
-Swift wins over a generator; a generator wins over its `.dc.html` and `canvas.json`; a doc that
-quotes a value loses to the file it quotes. How colours resolve per appearance is in
+A doc that quotes a value loses to the file it quotes. How colours resolve per appearance is in
 [`app-main-window.md`](../app-main-window.md#colours).
 
 ## Rules
@@ -40,12 +39,9 @@ quotes a value loses to the file it quotes. How colours resolve per appearance i
 | A colour is a `BrandPalette` role: 0 colours built from literal channels, hex helpers, colour literals or asset colours, and 0 colour-shaped hex literals in `Sources/Uttrflow` or `Sources/UttrflowUX`, outside `BrandPalette.swift` | `python3 Scripts/design_source_audit.py` | exits 0 |
 | 0 hued system colours (`NSColor.systemRed`, `Color.orange`, `.fill(.green)`); white, black, clear and the system's semantic label and window colours are native and allowed | `python3 Scripts/design_source_audit.py` | exits 0 |
 | A bundled typeface is reached only through `BrandFont`: 0 custom fonts or family names elsewhere | `python3 Scripts/design_source_audit.py` | exits 0 |
-| A generator draws palette values: every hex in `Design/_gen_*.py` is a `BrandPalette` value or a reasoned `SCENERY` entry, and every "Matches BrandPalette.…" token equals that role | `python3 Scripts/design_source_audit.py` | exits 0 |
+| 0 generated canvases: no `Design/*.dc.html`, `Design/_gen_*.py` or canvas manifest is tracked or on disk | `python3 Scripts/design_source_audit.py` | exits 0 |
+| Text roles clear 4.5:1 and marks 3:1 on the shared `BrandPalette` surfaces, light and dark | `python3 Scripts/design_contrast_audit.py` | exits 0 |
 | Every value in the `Docs/redesign-tokens.md` colour table equals its `BrandPalette.Redesign` role | `python3 Scripts/design_source_audit.py` | exits 0 |
-| Every committed canvas is what its generator writes | `python3 Scripts/design_audit.py` | exits 0 |
-| Shared canvas surface and text tokens equal `BrandPalette` | `python3 Scripts/design_token_parity_audit.py` | exits 0 |
-| Canvas text clears 4.5:1 over its translucent backing | `python3 Scripts/design_contrast_audit.py` | exits 0 |
-| Canvas sidebar, chrome, Dictation, Diagnostics, Insights, sign-in and identity sheet match production | the `design_*_contract_audit.py`, `insights_contract_audit.py`, `signin_artboard_contract_audit.py` and `identity_role_audit.py` scripts | exit 0 |
 | Production text tones clear 4.5:1 and marks 3:1 on their surfaces, in both appearances and Increase Contrast | `swift test --filter Contrast` | passes |
 | `make verify` runs `make design-audit` | `make docs-audit` | exits 0 |
 
@@ -55,10 +51,8 @@ first.
 
 ## Exceptions
 
-An exception is an entry in `ALLOWED` or `SCENERY` in `Scripts/design_source_audit.py`, with the
-platform or architecture reason. A stale entry fails the audit. 0 inline suppressions, 0 ignore
-files. `SCENERY` entries marked untied are canvas colours with no palette role yet; the count is
-printed on every run, and an entry is retired by tying the generator to a role.
+An exception is an entry in `ALLOWED` in `Scripts/design_source_audit.py`, with the platform or
+architecture reason. A stale entry fails the audit. 0 inline suppressions, 0 ignore files.
 
 ## Changing the design
 
@@ -76,8 +70,7 @@ printed on every run, and an entry is retired by tying the generator to a role.
 5. **Accessibility.** Every new colour pair is checked in light, dark and Increase Contrast; every
    animation goes through `MotionBudget`; every control has an accessibility label
    (`make accessibility-controls`).
-6. **Canvases.** Edit the generator, run it (`python3 Design/_gen_<name>.py`), commit the
-   generator and its output together. 0 hand edits to `.dc.html` or `canvas.json`.
+6. **No canvases.** Change the Swift view; 0 generated pictures of a screen are committed beside it.
 7. Run `make design-audit`, then `make verify`.
 
 ## Review-only

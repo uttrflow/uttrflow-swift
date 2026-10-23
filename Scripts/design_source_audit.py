@@ -3,8 +3,8 @@
 
 `Docs/agents/design.md` names the homes: every colour the app draws is a role in
 `Sources/Uttrflow/Brand/BrandPalette.swift`, and every bundled typeface is reached through
-`Sources/Uttrflow/Brand/BrandFont.swift`. The design generators in `Design/` draw from the same
-palette, and `Docs/redesign-tokens.md` quotes it. This audit reads all four and fails on:
+`Sources/Uttrflow/Brand/BrandFont.swift`. The Swift views are the only picture of the app, and
+`Docs/redesign-tokens.md` quotes the palette. This audit reads all three and fails on:
 
   colour-constructor   a Swift colour built from literal channels, a hex helper, a colour
                        literal or an asset-catalogue colour, outside BrandPalette.swift
@@ -12,13 +12,13 @@ palette, and `Docs/redesign-tokens.md` quotes it. This audit reads all four and 
   colour-named         a hued system or SwiftUI colour (`.systemRed`, `Color.orange`) in Swift
   font-custom          a custom font built outside BrandFont.swift
   font-family          a bundled family name spelled outside BrandFont.swift
-  generator-hex        a hex in a Design/ generator that is no BrandPalette value
-  generator-annotation a generator token that says it matches a BrandPalette role and does not
+  canvas               a generated canvas (`Design/*.dc.html`, `Design/_gen_*.py`,
+                       `Design/canvas.json`): a second picture of the app beside the code
   docs-token           a value in Docs/redesign-tokens.md that disagrees with BrandPalette.Redesign
   allowlist            an ALLOWED entry that no longer matches anything (stale)
   structure            an expected source structure the audit can no longer find
 
-Exceptions live only in ALLOWED and SCENERY below, each with its reason; there is no inline
+Exceptions live only in ALLOWED below, each with its reason; there is no inline
 suppression. Usage:
 
     python3 Scripts/design_source_audit.py              (part of `make design-audit`)
@@ -57,51 +57,8 @@ ALLOWED = {
         "reads the host field's font traits; it draws nothing",
 }
 
-SCENERY_REASON = "the desktop or stage the artboard sits on; production draws no such surface"
-CHROME_REASON = "another app's window or the macOS window controls, drawn as context"
-MARK_REASON = "another product's own mark, drawn as the provider it names"
-MATH_REASON = "a contrast calculation or a comment, never drawn"
-UNTIED_REASON = (
-    "a canvas colour with no BrandPalette role yet; to retire it, tie it to a role"
-    " (or add the role in Swift first) and delete the entry"
-)
-
-
-def _entries(path, reason, *hexes):
-    return {(path, h): reason for h in hexes}
-
-
-# (generator, hex) -> reason. A hex here is not a BrandPalette value on purpose.
-SCENERY = {
-    **_entries("Design/_gen_common.py", MATH_REASON, "1E1E1E"),
-    **_entries("Design/_gen_common.py", SCENERY_REASON, "E8E8ED", "F2F1F6", "DFDEE6", "CFCEDA"),
-    **_entries("Design/_gen_common.py", CHROME_REASON, "FF5F57", "FEBC2E", "28C840"),
-    **_entries("Design/_gen_dock.py", SCENERY_REASON, "6E97A8", "466673", "2B4049"),
-    **_entries("Design/_gen_dock.py", UNTIED_REASON, "04100F"),
-    **_entries("Design/_gen_errors.py", SCENERY_REASON, "EFEFF3", "F4F4F8", "E9E9EF"),
-    **_entries("Design/_gen_errors.py", UNTIED_REASON, "8E8E93"),
-    **_entries(
-        "Design/_gen_identity.py", SCENERY_REASON, "EFEFF3", "F5F4F8", "E9E8EE", "4A6773", "2B4049"),
-    **_entries("Design/_gen_identity.py", UNTIED_REASON, "1B2024", "0A0D0F", "0B1F1D", "1D1D1F"),
-    **_entries("Design/_gen_menubar.py", SCENERY_REASON, "6E909E", "446370", "273840"),
-    **_entries("Design/_gen_menubar.py", UNTIED_REASON, "793F15", "0F5751"),
-    **_entries("Design/_gen_onboarding.py", MATH_REASON, "1E1E1E"),
-    **_entries(
-        "Design/_gen_onboarding.py", UNTIED_REASON,
-        "F4F4F7", "E7E7EC", "F5FAF9", "4BD46B", "2FB84E", "3A3A3D", "2C2C2E"),
-    **_entries(
-        "Design/_gen_placement.py", SCENERY_REASON,
-        "EFEFF3", "F4F4F8", "E8E8EE", "6E97A8", "466673", "2B4049"),
-    **_entries(
-        "Design/_gen_predict.py", CHROME_REASON, "1D1D1F", "1C1C1E", "E8E8ED", "2C2C2E", "F5F5F7"),
-    **_entries("Design/_gen_predict.py", MATH_REASON, "1E1E1E", "F6F6F8", "2C2C2F"),
-    **_entries("Design/_gen_predict.py", UNTIED_REASON, "262628"),
-    **_entries("Design/_gen_settings.py", UNTIED_REASON, "5B8090", "334B55"),
-    **_entries("Design/_gen_shell.py", SCENERY_REASON, "1B1B21", "3E3E4A", "26262F", "16161B"),
-    **_entries("Design/_gen_shell.py", UNTIED_REASON, "A85300", "FFB067", "1E7B36", "5EDC80"),
-    **_entries("Design/_gen_shell.py", CHROME_REASON, "4A154B", "0F6CBD", "1D6F42", "D93025"),
-    **_entries("Design/_gen_shell.py", MARK_REASON, "4285F4", "34A853", "FBBC05", "EA4335"),
-}
+# Generated canvases drift from the views they picture; none may come back.
+CANVAS_GLOBS = ("Design/*.dc.html", "Design/_gen_*.py", "Design/canvas.json")
 
 COLOUR_TYPE = r"(?<![\w.])(?:SwiftUI\.)?(?:Color|NSColor|CGColor|UIColor)"
 CONSTRUCTOR = re.compile(COLOUR_TYPE + r"\s*\((?P<args>[^()]*(?:\([^()]*\)[^()]*)*)\)")
@@ -305,42 +262,12 @@ def check_swift(root, findings):
                                  f"\"{family}\" is a BrandFont family; reach it through BrandFont")
 
 
-def check_generators(root, findings, palette_text, declarations):
-    known = palette_hexes(palette_text)
-    used = set()
-    generators = sorted((root / "Design").glob("_gen_*.py"))
-    if not generators:
-        findings.items.append("Design: [structure] no _gen_*.py generators found")
-    for generator in generators:
-        relative = generator.relative_to(root).as_posix()
-        lines = generator.read_text().splitlines()
-        for number, line in enumerate(lines, 1):
-            for match in re.finditer(r"(?<![&\w])#([0-9A-Fa-f]{6})\b", line):
-                value = match.group(1).upper()
-                if value in known:
-                    continue
-                if (relative, value) in SCENERY:
-                    used.add((relative, value))
-                    continue
-                findings.items.append(
-                    f"{relative}:{number}: [generator-hex] #{value} is no BrandPalette value; draw"
-                    " the palette role production draws, or add the role in Swift first")
-            note = re.search(r"[Mm]atches BrandPalette\.([\w.]+)\.(light|dark)", line)
-            if note and number < len(lines):
-                token = re.search(r"--[\w-]+:\s*#([0-9A-Fa-f]{6});", lines[number])
-                resolved = resolve_path(declarations, note.group(1))
-                if not token or not resolved:
-                    findings.items.append(
-                        f"{relative}:{number}: [generator-annotation] BrandPalette.{note.group(1)}"
-                        " cannot be resolved, or no `--token: #hex;` follows the note")
-                    continue
-                expected = resolved[1] if note.group(2) == "dark" else resolved[2]
-                if token.group(1).upper() != expected:
-                    findings.items.append(
-                        f"{relative}:{number + 1}: [generator-annotation] says BrandPalette."
-                        f"{note.group(1)}.{note.group(2)} (#{expected}), draws #{token.group(1).upper()}")
-    for key in sorted(set(SCENERY) - used):
-        findings.items.append(f"{key[0]}: [allowlist] SCENERY entry #{key[1]} matches nothing; delete it")
+def check_canvases(root, findings):
+    for pattern in CANVAS_GLOBS:
+        for path in sorted(root.glob(pattern)):
+            findings.items.append(
+                f"{path.relative_to(root).as_posix()}: [canvas] a generated canvas is a second"
+                " picture of the app; the Swift views are the design, so delete it")
 
 
 CELL = re.compile(r"^`?(#[0-9A-Fa-f]{6}|white|black)`?(?:\s+at\s+([\d.]+)%)?$")
@@ -405,7 +332,7 @@ def audit(root):
     if not resolve_path(declarations, "Redesign.pageGround") and root == REPO_ROOT:
         findings.items.append(f"{PALETTE}: [structure] Redesign.pageGround no longer resolves")
     check_swift(root, findings)
-    check_generators(root, findings, palette_text, declarations)
+    check_canvases(root, findings)
     if (root / TOKENS_DOC).is_file() or root == REPO_ROOT:
         check_tokens_doc(root, findings, declarations)
     for key in sorted(set(ALLOWED) - findings.used):
@@ -430,18 +357,18 @@ enum BrandPalette {
 """
 FIXTURE_FONT = 'enum BrandFont {\n    static let family = "Outfit"\n}\n'
 FIXTURE_DOC = "| `pageGround` | `#0B0C10` | `#F2F1EC` |\n| `film` | white at 8% | `#FFFFFF` |\n"
-FIXTURE_GENERATOR = "TOKENS = '''\n  /* Matches BrandPalette.Teal.ink.light. */\n  --ink: #0E6B64;\n'''\n"
 
 
-def _tree(scratch, view="", generator=FIXTURE_GENERATOR, doc=FIXTURE_DOC, font=FIXTURE_FONT):
+def _tree(scratch, view="", doc=FIXTURE_DOC, font=FIXTURE_FONT, canvas=None):
     root = Path(scratch)
     files = {
         PALETTE: FIXTURE_PALETTE,
         FONT: font,
         Path("Sources/Uttrflow/Main/View.swift"): view,
-        Path("Design/_gen_page.py"): generator,
         TOKENS_DOC: doc,
     }
+    if canvas:
+        files[Path(canvas)] = "<html></html>\n"
     for path, text in files.items():
         (root / path).parent.mkdir(parents=True, exist_ok=True)
         (root / path).write_text(text)
@@ -453,9 +380,6 @@ def _rules(items):
 
 
 def self_test():
-    global SCENERY
-    saved = SCENERY
-    SCENERY = {}
     cases = [
         ("a view drawing palette roles passes",
          dict(view="let a = Color(rgb: BrandPalette.Teal.primary)\n.foregroundStyle(.white)\n"), []),
@@ -473,12 +397,10 @@ def self_test():
         ("a custom font fails", dict(view='Font.custom(name, size: 12)\n'), ["font-custom"]),
         ("a brand family literal fails", dict(view='let f = "Outfit"\n'), ["font-family"]),
         ("BrandFont without a family fails safe", dict(font="enum BrandFont {}\n"), ["structure"]),
-        ("a generator hex off the palette fails",
-         dict(generator=FIXTURE_GENERATOR + "X = '#123456'\n"), ["generator-hex"]),
-        ("an HTML entity in a generator passes",
-         dict(generator=FIXTURE_GENERATOR + "X = '&#128279;'\n"), []),
-        ("a generator token drifting from its role fails",
-         dict(generator=FIXTURE_GENERATOR.replace("#0E6B64", "#29C0B4")), ["generator-annotation"]),
+        ("a generated canvas fails", dict(canvas="Design/Main-Home.dc.html"), ["canvas"]),
+        ("a canvas generator fails", dict(canvas="Design/_gen_main.py"), ["canvas"]),
+        ("a canvas manifest fails", dict(canvas="Design/canvas.json"), ["canvas"]),
+        ("another page in Design passes", dict(canvas="Design/released/home.html"), []),
         ("a docs value drifting from the palette fails",
          dict(doc=FIXTURE_DOC.replace("#F2F1EC", "#F2F1ED")), ["docs-token"]),
         ("a docs opacity drifting from the palette fails",
@@ -488,38 +410,30 @@ def self_test():
         ("a docs table with nothing checkable fails safe", dict(doc="no table\n"), ["structure"]),
     ]
     failed = 0
+    for name, kwargs, expected in cases:
+        with tempfile.TemporaryDirectory() as scratch:
+            got = _rules(audit(_tree(scratch, **kwargs)))
+        ok = got == expected
+        failed += not ok
+        print(f"  {'✓' if ok else '✗'} {name}" + ("" if ok else f": expected {expected}, got {got}"))
+
+    allowed_key = ("Sources/Uttrflow/Main/View.swift", "colour-named", "NSColor.systemPink")
+    ALLOWED[allowed_key] = "self-test"
     try:
-        for name, kwargs, expected in cases:
-            with tempfile.TemporaryDirectory() as scratch:
-                got = _rules(audit(_tree(scratch, **kwargs)))
-            ok = got == expected
-            failed += not ok
-            print(f"  {'✓' if ok else '✗'} {name}" + ("" if ok else f": expected {expected}, got {got}"))
-
-        allowed_key = ("Sources/Uttrflow/Main/View.swift", "colour-named", "NSColor.systemPink")
-        ALLOWED[allowed_key] = "self-test"
-        try:
-            with tempfile.TemporaryDirectory() as scratch:
-                passed = _rules(audit(_tree(scratch, view="NSColor.systemPink.set()\n"))) == []
-            with tempfile.TemporaryDirectory() as scratch:
-                stale = _rules(audit(_tree(scratch, view="\n"))) == ["allowlist"]
-        finally:
-            del ALLOWED[allowed_key]
-        for ok, name in ((passed, "an allowed exception passes"), (stale, "a stale exception fails")):
-            failed += not ok
-            print(f"  {'✓' if ok else '✗'} {name}")
-
-        SCENERY = {("Design/_gen_page.py", "ABCDEF"): "self-test"}
         with tempfile.TemporaryDirectory() as scratch:
-            ok = _rules(audit(_tree(scratch))) == ["allowlist"]
-        failed += not ok
-        print(f"  {'✓' if ok else '✗'} a stale SCENERY entry fails")
+            passed = _rules(audit(_tree(scratch, view="NSColor.systemPink.set()\n"))) == []
         with tempfile.TemporaryDirectory() as scratch:
-            ok = _rules(audit(Path(scratch))) == ["structure"]
-        failed += not ok
-        print(f"  {'✓' if ok else '✗'} a missing BrandPalette.swift fails safe")
+            stale = _rules(audit(_tree(scratch, view="\n"))) == ["allowlist"]
     finally:
-        SCENERY = saved
+        del ALLOWED[allowed_key]
+    for ok, name in ((passed, "an allowed exception passes"), (stale, "a stale exception fails")):
+        failed += not ok
+        print(f"  {'✓' if ok else '✗'} {name}")
+
+    with tempfile.TemporaryDirectory() as scratch:
+        ok = _rules(audit(Path(scratch))) == ["structure"]
+    failed += not ok
+    print(f"  {'✓' if ok else '✗'} a missing BrandPalette.swift fails safe")
     return failed == 0
 
 
@@ -541,10 +455,9 @@ def main():
             print(f"  {item}", file=sys.stderr)
         print("  The rules and their homes are in Docs/agents/design.md.", file=sys.stderr)
         return 1
-    untied = sum(1 for reason in SCENERY.values() if reason == UNTIED_REASON)
     print(
-        f"design_source_audit: colours and typefaces stay in their homes; {len(ALLOWED)} allowed"
-        f" exceptions, {len(SCENERY)} canvas-only generator colours ({untied} untied to a role)")
+        f"design_source_audit: colours and typefaces stay in their homes, no generated canvas;"
+        f" {len(ALLOWED)} allowed exceptions")
     return 0
 
 
