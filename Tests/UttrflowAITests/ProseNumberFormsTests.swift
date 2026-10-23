@@ -22,11 +22,11 @@ struct ProseNumberFormsTests {
     @Test(
         "a spoken number in prose is a numeral, zero to nine included",
         arguments: [
-            ("I paid five dollars for three apples and twelve oranges", "I paid 5 dollars for 3 apples and 12 oranges"),
-            ("we raised two point five million dollars from nine investors", "we raised 2.5 million dollars from 9 investors"),
+            ("I paid five dollars for three apples and twelve oranges", "I paid $5 for 3 apples and 12 oranges"),
+            ("we raised two point five million dollars from nine investors", "we raised $2.5 million from 9 investors"),
             ("eight percent of fifty is four", "8% of 50 is 4"),
             ("meet me at five", "meet me at 5"),
-            ("the taxi cost five dollars", "the taxi cost 5 dollars"),
+            ("the taxi cost five dollars", "the taxi cost $5"),
             ("we have two kids", "we have 2 kids"),
             ("take the four o'clock bus", "take the 4 o'clock bus"),
             ("add one row", "add 1 row"),
@@ -38,7 +38,7 @@ struct ProseNumberFormsTests {
             ("two seconds", "2 seconds"),
             ("about fifteen people", "about 15 people"),
             ("three hundred forty-five people", "345 people"),
-            ("nine thousand rupees", "9000 rupees"),
+            ("nine thousand rupees", "₹9,000"),
             ("forty-five thousand", "45,000"),
             ("two thirty pm", "2:30 pm"),
             ("the third of June", "the 3rd of June"),
@@ -52,6 +52,35 @@ struct ProseNumberFormsTests {
     }
 
     @Test(
+        "a spoken amount in prose is a currency symbol and digits",
+        arguments: [
+            ("it costs five dollars", "it costs $5"),
+            ("it costs twelve dollars", "it costs $12"),
+            ("nine dollars ninety nine", "$9.99"),
+            ("two dollars fifty", "$2.50"),
+            ("a five dollar bill", "a $5 bill"),
+            ("twelve thousand five hundred dollars", "$12,500"),
+            ("three euros", "€3"),
+            ("forty euros for the ticket", "€40 for the ticket"),
+            ("two hundred rupees", "₹200"),
+            ("we raised ten million dollars", "we raised $10,000,000"),
+            ("he paid two dollars and sixty cents", "he paid $2 and 60 cents"),
+            ("five dollars, please", "$5, please"),
+        ]
+    )
+    func currencyForms(input: String, expected: String) {
+        for destination in Self.prose {
+            let output = Self.cleaned(input, into: destination)
+            #expect(Self.stripped(output) == Self.stripped(expected), "\(destination): \(output)")
+        }
+    }
+
+    @Test("code and terminal places keep the currency word beside the digits", arguments: [Destination.codeEditor, .sqlEditor, .terminal])
+    func codePlacesKeepTheWord(destination: Destination) {
+        #expect(Self.stripped(Self.cleaned("it costs five dollars", into: destination)).hasSuffix("5 dollars"))
+    }
+
+    @Test(
         "a word that is not a count stays a word in prose",
         arguments: [
             ("no one knows", "no one knows"),
@@ -61,6 +90,13 @@ struct ProseNumberFormsTests {
             ("open twenty four seven", "open twenty four seven"),
             ("give me a second", "give me a second"),
             ("about a hundred users", "about a hundred users"),
+            ("pick the blue one", "pick the blue one"),
+            ("we need a new one", "we need a new one"),
+            ("two thirds of the team", "two thirds of the team"),
+            ("return four thirteen when it is too large", "return four thirteen when it is too large"),
+            ("ten minus three is seven", "10 minus 3 is 7"),
+            ("it weighs five pounds", "it weighs 5 pounds"),
+            ("one or two", "one or two"),
         ]
     )
     func exceptions(input: String, expected: String) {
