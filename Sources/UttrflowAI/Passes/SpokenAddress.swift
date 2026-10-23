@@ -404,7 +404,7 @@ struct SpokenAddress: Equatable {
         return siteCues.contains(draft.shape(at: live[position - 1]).key.lowercased())
     }
 
-    private static let siteCues: Set<String> = ["visit", "website", "site", "browse"]
+    private static let siteCues: Set<String> = ["visit", "website", "site"]
 
     /// Whether "at" stands at `position` with a domain of a known ending after it, so the words before it are a mailbox.
     private static func opensMailboxDomain(
