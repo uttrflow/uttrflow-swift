@@ -151,8 +151,15 @@ Edit is offered on every clip that is text, and not on:
 
 - a picture, which has no text;
 - a masked secret, until it is revealed, because the field would show what the mask hides;
-- a clip with a formatted form, a note included: plain editing would discard the formatting and a
-  note's checklist state, and a written note and a formatted copy are the same field to the store.
+- a clip with a formatted form that its plain form cannot carry, such as bold, links, headings or
+  tables in a formatted copy.
+
+A note made with "Make a note", or one Edit wrote, is paragraphs and checklist items only, so Edit
+opens on its plain form, where boxes read `[ ] ` and `[x] `. Save rebuilds the note: a line that
+starts with a box becomes a checklist item and every other line a paragraph. `ClipboardStore.setText`
+sets both forms in one write, taking the text from `RichTextPlainForm` of the rebuilt note. A
+formatted form is editable when rebuilding it from its plain form gives it back unchanged
+(`NotePromotion.isEditableNote`).
 
 A kept clip whose new text the detector takes for a secret would be held in memory only and gone
 after the next launch ([`clipboard-secrets.md`](clipboard-secrets.md)). The first Save says so and
