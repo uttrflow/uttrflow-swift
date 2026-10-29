@@ -99,6 +99,17 @@ and first-word casing, and passes that to `TextInserting.placeCaret(back:)`. The
 inserter keeps an `InsertionLedger`, so only a confirmed Accessibility write into the field still
 in front can have its caret moved; every other route leaves the caret at the end.
 
+## Fill-in slots
+
+A body may hold `{slot:name}` any number of times. The phrases said after the trigger in the
+same dictation fill the slots in order, one phrase per slot; a phrase ends where
+`SnippetExpander.endsAPhrase` ends one (`. ! ? ; :` or a line break), and that mark is
+dropped between fills. A slot with no phrase left is written empty. The name is a label for
+the person writing the body and is never inserted. Only the `{slot:` spelling is a slot, so
+other braces in stored bodies keep their meaning; `\{slot:` writes the opening literally.
+`SnippetBody.slots` records where each slot sits, and `AppliedSnippet.matched` covers the
+trigger and every fill word, so undo and history show what was said.
+
 ## When a snippet does not fire
 
 A snippet does not fire when the transcript also contains its expansion's words anywhere:
