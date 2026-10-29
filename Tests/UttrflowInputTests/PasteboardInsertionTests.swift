@@ -9,7 +9,7 @@ import UttrflowClipboard
 import UttrflowTestSupport
 
 /// A clipboard that records everything written to it and never touches the real one.
-final class FakePasteboard: Pasteboard {
+final class FakePasteboard: Pasteboard, SnapshotRestorablePasteboard {
     private struct State {
         var text: String?
         var changeCount = 0

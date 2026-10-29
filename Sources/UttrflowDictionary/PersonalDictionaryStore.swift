@@ -407,7 +407,7 @@ public actor PersonalDictionaryStore {
 
     /// Counts one accepted use per distinct entry, never past its `timesUsed`.
     @discardableResult
-    public func recordAccepted(of ids: [UUID]) throws(DictionaryStoreError) -> [DictionaryEntry] {
+    func recordAccepted(of ids: [UUID]) throws(DictionaryStoreError) -> [DictionaryEntry] {
         try update(Set(ids)) {
             $0.timesAccepted = min(DictionaryEntry.clamped($0.timesAccepted + 1), $0.timesUsed)
         }

@@ -31,9 +31,6 @@ public struct CueSound: Hashable, Sendable {
     /// Played when a recording is cancelled: lower and quieter than the stop, so it is not mistaken for one.
     public static let discarded = CueSound("Bottle", semitones: -7, lowPassHz: 1800, volume: 0.5)
 
-    /// Played when a new recording is refused because the last dictation is still finishing: short, soft and low.
-    public static let refused = CueSound("Tink", semitones: -12, lowPassHz: 1500, volume: 0.4)
-
     /// The low-pass resonance in decibels, the unit a browser's biquad reads its `Q` in.
     public static let lowPassResonanceDecibels = 0.5
 

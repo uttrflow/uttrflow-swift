@@ -9,7 +9,7 @@ public enum EditAway {
         public let entryID: UUID
         public let word: String
         /// Whether the entry is still on probation, which is the only standing an edit-away may revoke.
-        public let isProvisional: Bool
+        let isProvisional: Bool
 
         public init(entryID: UUID, word: String, isProvisional: Bool = true) {
             self.entryID = entryID
@@ -18,8 +18,23 @@ public enum EditAway {
         }
     }
 
-    /// Entries whose word is gone while both neighbours stay; the caller sends each through `recordRevert(of:)`.
-    public static func editedAway(_ applied: [Applied], inserted: String, fieldNow: String) -> [UUID] {
+    /// Settles a landed dictation against `store`: reverts probation words edited away, counts unedited ones accepted.
+    @discardableResult
+    public static func editedAway(
+        _ applied: [Applied], inserted: String, fieldNow: String, in store: PersonalDictionaryStore
+    ) async -> [UUID] {
+        let away = Set(editedAway(applied, inserted: inserted, fieldNow: fieldNow))
+        let probation = Set(applied.filter(\.isProvisional).map(\.entryID))
+        for id in away.intersection(probation) {
+            _ = try? await store.recordRevert(of: id)
+        }
+        let accepted = kept(applied, fieldNow: fieldNow).filter { !away.contains($0) }
+        if !accepted.isEmpty { _ = try? await store.recordAccepted(of: accepted) }
+        return Array(away)
+    }
+
+    /// Entries whose word is gone while both neighbours stay.
+    static func editedAway(_ applied: [Applied], inserted: String, fieldNow: String) -> [UUID] {
         let before = words(of: inserted)
         let after = words(of: fieldNow)
         return applied.compactMap { entry in
@@ -37,7 +52,7 @@ public enum EditAway {
     }
 
     /// Entries whose word is still in the field: inserted, and left unedited. A field that cannot be read judges none.
-    public static func kept(_ applied: [Applied], fieldNow: String) -> [UUID] {
+    static func kept(_ applied: [Applied], fieldNow: String) -> [UUID] {
         let after = words(of: fieldNow)
         return applied.compactMap { entry in
             let target = words(of: entry.word)

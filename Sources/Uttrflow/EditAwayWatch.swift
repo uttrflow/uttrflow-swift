@@ -25,13 +25,7 @@ struct EditAwayWatch: Sendable {
         guard !applied.isEmpty, let landed = await readField() else { return }
         await wait(Self.window)
         guard let later = await readField(), later.field == landed.field else { return }
-        let away = Set(EditAway.editedAway(applied, inserted: inserted, fieldNow: later.text))
-        let probation = Set(applied.filter(\.isProvisional).map(\.entryID))
-        for id in away.intersection(probation) {
-            _ = try? await dictionary.recordRevert(of: id)
-        }
-        let accepted = EditAway.kept(applied, fieldNow: later.text).filter { !away.contains($0) }
-        if !accepted.isEmpty { _ = try? await dictionary.recordAccepted(of: accepted) }
+        await EditAway.editedAway(applied, inserted: inserted, fieldNow: later.text, in: dictionary)
     }
 
     /// The existing field reader, kept to fields that name themselves and give their text.

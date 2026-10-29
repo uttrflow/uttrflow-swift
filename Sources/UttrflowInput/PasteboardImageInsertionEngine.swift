@@ -9,13 +9,10 @@ public struct PasteboardImageInsertionEngine: Sendable {
     private let restoreDelay: Duration
     private let sleep: @Sendable (Duration) async -> Void
 
-    /// How long the picture stays on the clipboard after ⌘V before the user's own contents return.
-    public static let defaultRestoreDelay: Duration = .milliseconds(1500)
-
     public init(
         focus: any AccessibilityFocus, pasteboard: any Pasteboard,
         keystrokes: any KeystrokeSender,
-        restoreDelay: Duration = defaultRestoreDelay,
+        restoreDelay: Duration = .milliseconds(1500),
         sleep: @escaping @Sendable (Duration) async -> Void = { try? await Task.sleep(for: $0) }
     ) {
         self.focus = focus
@@ -34,7 +31,8 @@ public struct PasteboardImageInsertionEngine: Sendable {
         try PasteboardPasteAction.requireExternal(focus: focus)
         // Checked before the write too, so a switch already made never costs the user their clipboard.
         try TextInsertion.requireTarget(destination, focus: focus)
-        let before = pasteboard.snapshot()
+        let restorable = pasteboard as? any SnapshotRestorablePasteboard
+        let before = restorable?.snapshot()
         let write = pasteboard.setImage(data)
         try PasteboardInsertionCancellation.requireLive(
             on: pasteboard, afterWritingAt: write.changeCount)
@@ -48,11 +46,11 @@ public struct PasteboardImageInsertionEngine: Sendable {
         try PasteboardPasteAction.postIfExternal(
             focus: focus, keystrokes: keystrokes, targeting: destination,
             pasteboard: pasteboard, writeChangeCount: write.changeCount)
-        guard let before, let ours = write.changeCount else { return nil }
-        let (pasteboard, delay, sleep) = (pasteboard, restoreDelay, sleep)
+        guard let restorable, let before, let ours = write.changeCount else { return nil }
+        let (delay, sleep) = (restoreDelay, sleep)
         return Task.detached {
             await sleep(delay)
-            _ = pasteboard.restore(before, ifUnchangedSince: ours)
+            _ = restorable.restore(before, ifUnchangedSince: ours)
         }
     }
 }

@@ -687,10 +687,10 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
 
     private func beginListening(route: UtteranceRoute, adoptingModifierCapture: Bool = false) async {
         resetControlStartedRecording()
-        // Said aloud, not dropped: the pipeline refuses a start while the last take is processed, and that take is kept.
+        // Said aloud with the discarded cue, not dropped: no recording is open here, so no stop is owed.
         guard !(await pipeline.isBusy) else {
             await pipeline.cancelModifierPress()
-            cue.playRefused()
+            cue.playDiscarded()
             return
         }
         await pipeline.route(next: route)

@@ -47,7 +47,7 @@ and hands back a task for the rest: recognition, tidying, insertion, the paste c
 counting and learning. The queue moves on while that task runs.
 
 So a press made during those seconds is decided when it arrives, not replayed when they end: the
-pipeline is busy, the controller refuses it with the soft refused cue, no microphone opens, and the
+pipeline is busy, the controller refuses it with the soft discarded cue, no microphone opens, and the
 release that follows finds nothing listening and does nothing. The dock is showing the dictation
 still being processed, which is what tells the user why. A press is never held until the words land and then judged by the
 clock at that moment, because that turns a long hold into a slip and loses the start of a held

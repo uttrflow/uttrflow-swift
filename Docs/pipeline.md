@@ -131,7 +131,7 @@ The states a dictation passes through are `DictationState`: `.idle`, `.recording
 `startRecording()` returns without a word while `isBusy` holds, and `isBusy` covers
 `.transcribing`, `.tidying` and `.inserting` as well as `.recording`. A press in that window
 opens no microphone, and the controller refuses it aloud: `beginListening` checks `isBusy` first
-and plays the soft `CueSound.refused` cue, then returns. The earlier dictation runs on and lands;
+and plays the soft discarded cue, then returns. The earlier dictation runs on and lands;
 a new recording is never admitted beside it, so there is one rule and no queue. The cue obeys the
 sound setting and plays for every start, a key or a click.
 

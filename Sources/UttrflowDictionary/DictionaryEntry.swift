@@ -28,7 +28,7 @@ public struct DictionaryEntry: Sendable, Equatable, Identifiable, Codable {
     /// How many landed dictations this entry appeared in, by a rewrite or spelled right by the recogniser.
     public var timesUsed: Int
     /// How many of those uses the person left unedited; the only use count that raises rank. See `Docs/app-dictionary-store.md`.
-    public var timesAccepted: Int
+    var timesAccepted: Int
     /// How many uses the user undid; the ratio to `timesUsed` is what lets a bad word retire itself.
     public var timesReverted: Int
     /// The bundle identifiers it is offered in, as the person chose them; empty is everywhere. See ``ApplicationScope``.

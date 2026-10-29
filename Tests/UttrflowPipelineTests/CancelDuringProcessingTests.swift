@@ -86,8 +86,7 @@ private final class RefusalCue: RecordingCueing {
     func playStart() { counts.withLock { $0.starts += 1 } }
     func playStop() {}
     func playWarning() {}
-    func playDiscarded() {}
-    func playRefused() { counts.withLock { $0.refusals += 1 } }
+    func playDiscarded() { counts.withLock { $0.refusals += 1 } }
     var starts: Int { counts.withLock { $0.starts } }
     var refusals: Int { counts.withLock { $0.refusals } }
 }

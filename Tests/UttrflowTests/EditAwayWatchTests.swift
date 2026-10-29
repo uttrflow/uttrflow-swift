@@ -7,6 +7,7 @@ import UttrflowContext
 import UttrflowDictionary
 
 @testable import Uttrflow
+@testable import UttrflowDictionary
 
 @Suite("Edit-away watch")
 struct EditAwayWatchTests {
