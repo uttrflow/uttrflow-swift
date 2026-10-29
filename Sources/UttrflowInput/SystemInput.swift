@@ -145,6 +145,27 @@ public struct SystemPasteboard: Pasteboard {
         return .written(changeCount: changeCount)
     }
 
+    public func snapshot() -> PasteboardSnapshot? {
+        let items = (NSPasteboard.general.pasteboardItems ?? []).map { item in
+            item.types.reduce(into: [String: Data]()) { entry, type in
+                if let data = item.data(forType: type) { entry[type.rawValue] = data }
+            }
+        }
+        return PasteboardSnapshot(items: items)
+    }
+
+    public func restore(_ snapshot: PasteboardSnapshot, ifUnchangedSince changeCount: Int) -> Bool {
+        guard NSPasteboard.general.changeCount == changeCount else { return false }
+        guard !snapshot.items.isEmpty else { return discardContents(ifUnchangedSince: changeCount) }
+        let items = snapshot.items.map { entry in
+            let item = NSPasteboardItem()
+            for (type, data) in entry { item.setData(data, forType: NSPasteboard.PasteboardType(type)) }
+            return item
+        }
+        clearForThisMacOnly()
+        return NSPasteboard.general.writeObjects(items)
+    }
+
     /// Clears the pasteboard and keeps what goes on it next off Universal Clipboard. See `Docs/insertion.md`.
     private func clearForThisMacOnly(on pasteboard: NSPasteboard = .general) {
         pasteboard.prepareForNewContents(with: .currentHostOnly)

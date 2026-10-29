@@ -42,5 +42,11 @@ public struct ConcealingPasteboard: Pasteboard {
         base.writeConcealedText(text)
     }
 
+    public func snapshot() -> PasteboardSnapshot? { base.snapshot() }
+
+    public func restore(_ snapshot: PasteboardSnapshot, ifUnchangedSince changeCount: Int) -> Bool {
+        base.restore(snapshot, ifUnchangedSince: changeCount)
+    }
+
     public func setImage(_ data: Data) -> PasteboardWriteResult { base.setImage(data) }
 }

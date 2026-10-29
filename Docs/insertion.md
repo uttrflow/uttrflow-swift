@@ -23,7 +23,7 @@ its `AX write`, `Paste`, `Confirmed` and `Full route` columns and the secure-fie
 | A clip or recent dictation inserted from the menu bar or main window | `TextInsertion.coordinator(…)` | Accessibility, paste, clipboard | Written by the paste, or by the clipboard floor when everything else refuses; a paste's arrival is checked |
 | The Paste last dictation shortcut | `TextInsertion.dictation()` | Accessibility, typed | Never written; if both strategies refuse, the transcript stays available for explicit Copy |
 | A secret clip | either clip route over `ConcealingPasteboard` | as above | Every text write carries `org.nspasteboard.ConcealedType` |
-| A picture clip | `PasteboardImageInsertionEngine` | paste | The picture stays on the clipboard, since a paste whose arrival is not confirmed cannot be safely undone |
+| A picture clip | `PasteboardImageInsertionEngine` | paste | The clipboard is captured first and restored 1.5 s after ⌘V while it still holds the picture; a target slower than that can paste the old clipboard or nothing |
 | A retry of a kept recording | `ClipboardTextInsertionEngine` alone | clipboard | Written; see [recordings.md](recordings.md) |
 
 A clip with a formatted (HTML) flavour skips the Accessibility strategy, which would write the

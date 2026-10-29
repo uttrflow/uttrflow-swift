@@ -19,6 +19,14 @@ public enum PasteboardWriteResult: Sendable, Equatable {
     }
 }
 
+/// Everything on the clipboard at one moment, item by item and type by type, so it can be put back.
+public struct PasteboardSnapshot: Sendable, Equatable {
+    /// One entry per clipboard item, each mapping a type identifier to its bytes; empty means an empty clipboard.
+    public let items: [[String: Data]]
+
+    public init(items: [[String: Data]]) { self.items = items }
+}
+
 /// The system clipboard, reduced to what insertion needs and testable without touching the real one.
 public protocol Pasteboard: Sendable {
     /// The current text, or `nil` when the clipboard holds something else.
@@ -38,6 +46,12 @@ public protocol Pasteboard: Sendable {
 
     /// Writes text and returns the generation created by that write.
     func writeText(_ text: String, richText: String?) -> PasteboardWriteResult
+
+    /// Everything on the clipboard now, or `nil` when this pasteboard cannot capture it.
+    func snapshot() -> PasteboardSnapshot?
+
+    /// Puts the snapshot back only while the clipboard is still at `changeCount`, so a newer copy is never overwritten.
+    func restore(_ snapshot: PasteboardSnapshot, ifUnchangedSince changeCount: Int) -> Bool
 
     /// Writes dictated text as a paste that clipboard histories should not retain.
     func writeTransientText(_ text: String, richText: String?) -> PasteboardWriteResult
@@ -71,6 +85,12 @@ extension KeystrokeSender {
 extension Pasteboard {
     /// A pasteboard that cannot carry files refuses them.
     public func setFiles(_ urls: [URL]) -> PasteboardWriteResult { .refused }
+
+    /// A pasteboard that cannot capture its contents has nothing to restore.
+    public func snapshot() -> PasteboardSnapshot? { nil }
+
+    /// A pasteboard that cannot capture its contents restores nothing.
+    public func restore(_ snapshot: PasteboardSnapshot, ifUnchangedSince changeCount: Int) -> Bool { false }
 
     /// Test doubles and pasteboards without ownership tracking may decline this check.
     public func changeCount() -> Int? { nil }
