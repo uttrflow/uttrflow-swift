@@ -186,7 +186,11 @@ extension DictationPipeline {
             // A field found secure at the write counts from here on, before anything is learnt from it.
             if attempt.intoSecureField { destinationIsSecure = true }
             let slowCause = await timeWait(recorded: tally)
-            await settleRecording(wordsLost: MissedSpeech.isMissing(missedPieces))
+            let recordingID = openRecording
+            let wordsLost = MissedSpeech.isMissing(missedPieces)
+            // A retry's own audio is the recording it read, so only a live dictation keeps one for a fix.
+            let keptForFix = await settleRecording(wordsLost: wordsLost, keepingFinished: delivery != .copy)
+                && !wordsLost
             transition(
                 to: .inserted(
                     DictationOutcome(
@@ -201,7 +205,8 @@ extension DictationPipeline {
                         doubtful: doubtful,
                         slowCause: slowCause, guardRefusals: guardRefusals,
                         quality: OutcomeQuality(
-                            producedBy: cleanedBy, account: account, missedPieces: missedPieces))))
+                            producedBy: cleanedBy, account: account, missedPieces: missedPieces),
+                        keptRecording: keptForFix ? recordingID : nil)))
             return attempt
         } catch {
             guard !wasCancelled(mine) else { return nil }

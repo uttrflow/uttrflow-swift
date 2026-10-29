@@ -472,7 +472,7 @@ public enum HistoryPresenter {
                     ]
                     : []) + [.delete(.forgetDictation(entry.id))],
             // A "Fix" title would spell the hidden words out.
-            fixes: shown.isSecret ? [] : fixes(for: entry.text),
+            fixes: shown.isSecret ? [] : fixes(for: entry.text, of: entry.id),
             whatChanged: (entry.changes?.corrections ?? []).map(phrase(for:))
                 + (entry.whatChanged ?? []).map(phrase(for:)),
             asHeard: entry.heard.map {
@@ -535,13 +535,13 @@ public enum HistoryPresenter {
     }
 
     /// One action per distinct word in the text, in text order, for teaching the dictionary its right spelling.
-    static func fixes(for text: String) -> [MainAction] {
+    static func fixes(for text: String, of dictation: UUID) -> [MainAction] {
         var seen: Set<String> = []
         return text.split(whereSeparator: \.isWhitespace).compactMap { token in
             let word = String(token).trimmingCharacters(in: .punctuationCharacters.union(.symbols))
             guard word.contains(where: \.isLetter), seen.insert(word).inserted else { return nil }
             return MainAction(
-                title: "Fix “\(word)”", symbolName: "character.cursor.ibeam", intent: .fixWord(word))
+                title: "Fix “\(word)”", symbolName: "character.cursor.ibeam", intent: .fixWord(word, from: dictation))
         }
     }
 
