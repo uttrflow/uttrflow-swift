@@ -15,14 +15,14 @@ struct DictionaryAppearancesTests {
             word: "Orvanta", origin: .observed, firstSeen: start, timesUsed: used, timesReverted: reverted)
     }
 
-    /// Replays dictations against an entry the way the store counts them, once per dictation.
+    /// Replays dictations against an entry the way the store counts them, once per dictation, each left unedited.
     private func replay(_ texts: [String], into entry: DictionaryEntry) -> DictionaryEntry {
-        var counted = entry
-        for text in texts {
-            let used = DictionaryAppearances.used([counted], applied: [], writtenIn: text)
-            if used == [entry.id] { counted.timesUsed += 1 }
-        }
-        return counted
+        let uses = texts.filter {
+            DictionaryAppearances.used([entry], applied: [], writtenIn: $0) == [entry.id]
+        }.count
+        return DictionaryEntry(
+            id: entry.id, word: entry.word, origin: entry.origin, firstSeen: entry.firstSeen,
+            timesUsed: entry.timesUsed + uses, timesReverted: entry.timesReverted)
     }
 
     /// Issue 4275: the prompt made the recogniser spell the word, so no correction fired, yet it was used.
