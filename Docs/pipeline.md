@@ -129,9 +129,11 @@ The states a dictation passes through are `DictationState`: `.idle`, `.recording
 ## A press while the last dictation finishes
 
 `startRecording()` returns without a word while `isBusy` holds, and `isBusy` covers
-`.transcribing`, `.tidying` and `.inserting` as well as `.recording`. The controller plays the
-start cue only when the pipeline is then listening, so a press in that window opens no
-microphone, plays no cue and shows no failure: the user speaks into nothing.
+`.transcribing`, `.tidying` and `.inserting` as well as `.recording`. A press in that window
+opens no microphone, and the controller refuses it aloud: `beginListening` checks `isBusy` first
+and plays the soft `CueSound.refused` cue, then returns. The earlier dictation runs on and lands;
+a new recording is never admitted beside it, so there is one rule and no queue. The cue obeys the
+sound setting and plays for every start, a key or a click.
 
 How long the window lasts, from key-up to the pipeline leaving the busy states, measured with
 `uttrflow-dev bench` (debug build, real-time playback, shipping tidier, printing inserter, so no

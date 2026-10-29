@@ -123,6 +123,21 @@ struct SoundPlayingRecordingCueTests {
         #expect(player.requested == [.start, .discarded])
     }
 
+    @Test("plays the refused sound once, obeys the setting and leaves the stop owed unchanged")
+    func playsRefused() {
+        let player = SpyPlayer()
+        let enabled = Mutex(true)
+        let cue = SoundPlayingRecordingCue(player: player, soundsEnabled: { enabled.withLock { $0 } })
+
+        cue.playRefused()
+        enabled.withLock { $0 = false }
+        cue.playRefused()
+        enabled.withLock { $0 = true }
+        cue.playStop()
+
+        #expect(player.requested == [.refused])
+    }
+
     @Test("the discarded sound obeys the sound setting")
     func discardedObeysSetting() {
         let player = SpyPlayer()
@@ -201,7 +216,7 @@ struct SoundPlayingRecordingCueTests {
             player: player, startSound: frog, stopSound: purr
         )
 
-        #expect(player.prewarmed == [frog, purr, .warning, .discarded])
+        #expect(player.prewarmed == [frog, purr, .warning, .discarded, .refused])
         #expect(player.requested.isEmpty, "warming must not be audible")
     }
 
