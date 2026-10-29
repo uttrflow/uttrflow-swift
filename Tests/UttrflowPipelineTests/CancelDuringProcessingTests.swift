@@ -80,6 +80,18 @@ private final class GatedInserter: TextInserting {
     var received: [String] { taken.withLock { $0 } }
 }
 
+/// Counts the starts and refusals sounded, which are all a press during processing may produce.
+private final class RefusalCue: RecordingCueing {
+    private let counts = Mutex((starts: 0, refusals: 0))
+    func playStart() { counts.withLock { $0.starts += 1 } }
+    func playStop() {}
+    func playWarning() {}
+    func playDiscarded() {}
+    func playRefused() { counts.withLock { $0.refusals += 1 } }
+    var starts: Int { counts.withLock { $0.starts } }
+    var refusals: Int { counts.withLock { $0.refusals } }
+}
+
 enum HeldStage: CaseIterable, Sendable {
     case transcribing, tidying, inserting
 }
@@ -94,7 +106,7 @@ private struct Rig {
     let clock: ManualClock
 }
 
-private func makeRig(holding stage: HeldStage) -> Rig {
+private func makeRig(holding stage: HeldStage, cue: any RecordingCueing = SilentCue()) -> Rig {
     let gate = Gate()
     let open = Gate()
     open.open()
@@ -116,7 +128,7 @@ private func makeRig(holding stage: HeldStage) -> Rig {
     )
     let clock = ManualClock()
     let controller = DictationController(
-        dependencies: .init(pipeline: pipeline, monitor: QuietMonitor()), clock: clock)
+        dependencies: .init(pipeline: pipeline, monitor: QuietMonitor(), cue: cue), clock: clock)
     return Rig(
         controller: controller, pipeline: pipeline, inserter: inserter, recordings: recordings,
         recording: recording, gate: gate, clock: clock)
@@ -187,5 +199,49 @@ struct CancelDuringProcessingTests {
 
         #expect(await rig.pipeline.currentState == .idle)
         #expect(await rig.controller.command(.cancel) == .nothingRecording)
+    }
+}
+
+@Suite("A key press while the last dictation is processed", .timeLimit(.minutes(1)))
+struct PressDuringProcessingTests {
+
+    @Test(
+        "is refused with the soft cue, and the first dictation still lands",
+        arguments: HeldStage.allCases)
+    func refusedWhileProcessing(_ stage: HeldStage) async throws {
+        let cue = RefusalCue()
+        let rig = makeRig(holding: stage, cue: cue)
+        rig.controller.submit(.pressed)
+        await rig.controller.caughtUp()
+        rig.clock.advance(by: .seconds(2))
+        rig.controller.submit(.released)
+        await rig.controller.caughtUp()
+        try await eventually { rig.gate.hasArrival }
+        #expect(cue.starts == 1)
+        #expect(cue.refusals == 0)
+
+        rig.controller.submit(.pressed)
+        await rig.controller.caughtUp()
+        rig.controller.submit(.released)
+        await rig.controller.caughtUp()
+        #expect(cue.refusals == 1, "the refused press is heard, never silent")
+        #expect(cue.starts == 1, "no start cue for a microphone that did not open")
+        #expect(await rig.pipeline.currentState.isBusy)
+        #expect(!(await rig.pipeline.currentState.isListening))
+
+        rig.gate.open()
+        await rig.controller.drained()
+        #expect(rig.inserter.received == ["Hello there."], "the first dictation is not lost")
+        #expect(cue.refusals == 1)
+    }
+
+    @Test("at rest the press starts a dictation and is not refused")
+    func restIsNotRefused() async {
+        let cue = RefusalCue()
+        let rig = makeRig(holding: .transcribing, cue: cue)
+        rig.controller.submit(.pressed)
+        await rig.controller.caughtUp()
+        #expect(cue.starts == 1)
+        #expect(cue.refusals == 0)
     }
 }

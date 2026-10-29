@@ -8,6 +8,8 @@ public protocol RecordingCueing: Sendable {
     func playWarning()
     /// Plays the soft cue that a recording was cancelled and its words will not be typed.
     func playDiscarded()
+    /// Plays the soft cue that a new recording was refused because the last dictation is still being finished.
+    func playRefused()
     /// Whether the next cue is heard, so a spoken line can give way to it while the microphone is open.
     var isAudible: Bool { get }
 }
@@ -15,6 +17,8 @@ public protocol RecordingCueing: Sendable {
 extension RecordingCueing {
     /// Assumed silent, so a cue that cannot say otherwise never costs a VoiceOver user the spoken line.
     public var isAudible: Bool { false }
+    /// Assumed silent, so a cue with no refusal sound still compiles and says nothing.
+    public func playRefused() {}
 }
 
 /// Says nothing, which is what the user gets when they turn sounds off.
@@ -29,4 +33,6 @@ public struct SilentCue: RecordingCueing {
     public func playWarning() {}
     /// Plays nothing.
     public func playDiscarded() {}
+    /// Plays nothing.
+    public func playRefused() {}
 }
