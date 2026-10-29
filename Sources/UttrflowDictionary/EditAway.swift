@@ -8,10 +8,13 @@ public enum EditAway {
     public struct Applied: Sendable, Equatable {
         public let entryID: UUID
         public let word: String
+        /// Whether the entry is still on probation, which is the only standing an edit-away may revoke.
+        public let isProvisional: Bool
 
-        public init(entryID: UUID, word: String) {
+        public init(entryID: UUID, word: String, isProvisional: Bool = true) {
             self.entryID = entryID
             self.word = word
+            self.isProvisional = isProvisional
         }
     }
 
@@ -30,6 +33,15 @@ public enum EditAway {
                 return nil
             }
             return entry.entryID
+        }
+    }
+
+    /// Entries whose word is still in the field: inserted, and left unedited. A field that cannot be read judges none.
+    public static func kept(_ applied: [Applied], fieldNow: String) -> [UUID] {
+        let after = words(of: fieldNow)
+        return applied.compactMap { entry in
+            let target = words(of: entry.word)
+            return !target.isEmpty && position(of: target, in: after) != nil ? entry.entryID : nil
         }
     }
 

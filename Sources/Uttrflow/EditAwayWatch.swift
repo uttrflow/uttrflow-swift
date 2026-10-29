@@ -10,7 +10,7 @@ struct LandedFieldRead: Sendable, Equatable {
     let text: String
 }
 
-/// Sends each provisional word edited away after a dictation through `recordRevert(of:)`. See `Docs/app-dictionary-store.md`.
+/// Sends each provisional word edited away after a dictation through `recordRevert(of:)`, and counts each applied word left unedited as accepted. See `Docs/app-dictionary-store.md`.
 struct EditAwayWatch: Sendable {
     /// How long after landing the field is read again; long enough for a quick fix, short enough to be about this dictation.
     static let window: Duration = .seconds(10)
@@ -25,9 +25,13 @@ struct EditAwayWatch: Sendable {
         guard !applied.isEmpty, let landed = await readField() else { return }
         await wait(Self.window)
         guard let later = await readField(), later.field == landed.field else { return }
-        for id in EditAway.editedAway(applied, inserted: inserted, fieldNow: later.text) {
+        let away = Set(EditAway.editedAway(applied, inserted: inserted, fieldNow: later.text))
+        let probation = Set(applied.filter(\.isProvisional).map(\.entryID))
+        for id in away.intersection(probation) {
             _ = try? await dictionary.recordRevert(of: id)
         }
+        let accepted = EditAway.kept(applied, fieldNow: later.text).filter { !away.contains($0) }
+        if !accepted.isEmpty { _ = try? await dictionary.recordAccepted(of: accepted) }
     }
 
     /// The existing field reader, kept to fields that name themselves and give their text.
