@@ -1,5 +1,5 @@
 // What the main window says when a change it was asked to make was refused.
-import Foundation
+package import struct Foundation.UUID
 import UttrflowCore
 
 /// A refused change, said where the user pressed; the window carries the latest one only.
@@ -72,6 +72,7 @@ extension MainNotice {
             message: "Saved “\(word)”. Retry the recording to see the fix; the new words are copied.",
             symbolName: "character.book.closed.fill", tone: .neutral,
             action: MainAction(
-                title: "Retry This Recording", symbolName: "arrow.clockwise", intent: .retryRecording(recording)))
+                title: "Retry This Recording", symbolName: "arrow.clockwise",
+                intent: .retryRecording(recording)))
     }
 }
