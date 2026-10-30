@@ -602,12 +602,27 @@ struct HistoryWordCountTests {
             for: record, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
         #expect(
             row.whatChanged == [
-                "Filler words: removed before “We”",
-                "Numbers: rewrote as “25”",
-                "Spoken punctuation: added “people.”",
-                "Stammers: removed at the end",
-                "Filler words: added",
+                "Removed filler words: before “We”",
+                "Wrote numbers as numerals: as “25”",
+                "Added spoken punctuation: “people.”",
+                "Removed a stammer: at the end",
+                "Removed filler words",
             ])
+    }
+
+    @Test("What changed calls every step by a plain label, never by its code name")
+    func whatChangedLabelsEveryStep() {
+        let steps: [PassID] = [
+            .fillers, .stammers, .repeatedPhrase, .selfCorrection, .spokenPunctuation, .spokenEmoji,
+            .spokenCasing, .codeEditorCommands, .layoutWords, .markdownContinuation, .numberForms,
+            .contractions, .spacing, .pauseStop, .spelledInitialism, .acronymCasing, .atMention,
+            .firstWord, .terminalStop, .caretEcho,
+        ]
+        let labels = steps.map { HistoryPresenter.label(of: $0) }
+        #expect(HistoryPresenter.label(of: .firstWord) == "Fixed capitals")
+        #expect(zip(steps, labels).allSatisfy { $0.rawValue != $1 })
+        #expect(Set(labels).count == steps.count)
+        #expect(HistoryPresenter.label(of: "notAStep") == "Tidied the text")
     }
 
     @Test("What changed names the signal that decided each dictionary word, before the clean-up steps")
@@ -630,7 +645,7 @@ struct HistoryWordCountTests {
             row.whatChanged == [
                 "Dictionary: rewrote “cooper netties” as “Kubernetes” (Seen on screen)",
                 "Dictionary: rewrote “phoenix” as “Fennick” (You said it clearly elsewhere), undone",
-                "Filler words: removed before “Ship”",
+                "Removed filler words: before “Ship”",
             ])
     }
 
