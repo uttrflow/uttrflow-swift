@@ -474,7 +474,7 @@ struct SettingsLanguagesPaneTests {
         #expect(example?.written == transformed)
         #expect(
             SettingsTidyingLevel.rowExplanation
-                == "Both levels remove filler sounds and stammers and add punctuation. Standard also repairs grammar slips, which adds a moment to each dictation. Neither level changes, reorders or drops the words you meant. The steps that run are listed under Dictation, in Clean-up steps."
+                == "Both levels remove filler sounds and stammers and add punctuation. Standard also repairs grammar slips. Neither level changes, reorders or drops the words you meant. The steps that run are listed under Dictation, in Clean-up steps."
         )
     }
 
