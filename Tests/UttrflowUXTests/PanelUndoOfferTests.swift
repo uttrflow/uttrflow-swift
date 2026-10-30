@@ -23,6 +23,33 @@ struct PanelUndoOfferTests {
         #expect(offer.isLatest(secondTicket))
     }
 
+    @Test("an edit after a delete is what undo reverses", .bug(id: 5481))
+    func editSupersedesDelete() {
+        var offer = PanelUndoOffer()
+        let deleted = clip("deleted")
+        let ticket = offer.offer([deleted])
+        let edited = UUID()
+        offer.offerEdit(of: edited, previousText: "before")
+
+        #expect(!offer.isLatest(ticket))
+        let claim = offer.claimForRestore()
+        #expect(claim?.edit == PanelUndoEdit(id: edited, previousText: "before"))
+        #expect(claim?.clips.isEmpty == true)
+        #expect(offer.claimForRestore() == nil)
+    }
+
+    @Test("a delete after an edit is what undo reverses", .bug(id: 5481))
+    func deleteSupersedesEdit() {
+        var offer = PanelUndoOffer()
+        offer.offerEdit(of: UUID(), previousText: "before")
+        let deleted = clip("deleted")
+        _ = offer.offer([deleted])
+
+        let claim = offer.claimForRestore()
+        #expect(claim?.edit == nil)
+        #expect(claim?.clips == [deleted])
+    }
+
     @Test("one offer can restore every clip removed together")
     func offerRestoresAGroup() {
         var offer = PanelUndoOffer()

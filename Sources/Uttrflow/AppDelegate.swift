@@ -207,6 +207,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private(set) var suggestionModel: SuggestionModelReadiness = .notAsked {
         didSet {
             guard suggestionModel != oldValue else { return }
+            SuggestionWarmUp.shared.modelIs(suggestionModel)
             settingsPage.setSuggestionModel(suggestionModel)
             refreshMenuBar()
         }
@@ -2378,9 +2379,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .rewriteText(let id, let tidied):
             _ = try await clipboard.setText(tidied, of: id, keeping: retention)
         case .editText(let id, let text):
+            let previous = panel?.clips.first { $0.id == id }?.text
             _ = try await clipboard.setText(text, of: id, keeping: retention)
             // Awaited before the redraw that follows, so the edited clip is drawn at the top.
             _ = await clipboard.markUsed(id, at: Date(), keeping: retention)
+            guard let previous else { break }
+            undoOffer.offerEdit(of: id, previousText: previous)
+            panel?.canUndoDelete = true
+            panel?.undoAnnouncementID = UUID()
+            await clipboard.forgetHeldPictures()
+            await startForgettingTheUndo()
         case .setRichText(let id, let note):
             _ = try await clipboard.setRichText(note, of: id, keeping: retention)
         case .renameCategory(let from, let to):
@@ -2483,9 +2491,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             intentWork = Task { [weak self] in
                 guard let self else { return }
                 do throws(ClipboardStoreError) {
-                    try await claim.waitForDelete()
                     let notice = try await PanelUndoRestorer.restore(
-                        claim.clips, to: self.clipboard, keeping: self.retention)
+                        claim, to: self.clipboard, keeping: self.retention)
                     if owner.isSameOpen(self.panel, opens: self.quickPanel.opens) {
                         self.panel?.notice = notice
                     }

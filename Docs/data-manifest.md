@@ -51,8 +51,9 @@ are never copied into the tree ([ngram-sources.md](ngram-sources.md)). Every scr
 writes UTF-8 with `\n` line ends, in source order, with no timestamp, so a rebuild from the same
 pins gives the same bytes whatever the locale, working directory or hash seed, and the check compares them
 with the committed digest. A rebuild that changes a file fails here until its entry is updated
-in the same commit. The rebuild needs the archives, so `make verify` checks the committed files
-only.
+in the same commit. `make verify` and `make verify-static` run the rebuild too when `ASSET_CACHE` is
+set; CI sets it to a cached folder of the archives, so every change rebuilds the assets and a
+drifted file fails. Without it they check the committed files only.
 
 Changing an existing asset means refreshing its digest and size in the same commit. Run:
 
