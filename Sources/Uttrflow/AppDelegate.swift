@@ -2839,7 +2839,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 for: state, when: Date(), id: outcome.keptRecording ?? UUID(), keeping: historyKeeping)
             let audio = outcome.keptRecording
             let recorded = kept != nil
-            finishedAudioWork = Task { [recordings] in await recordings.settleFinished(audio, recorded: recorded) }
+            finishedAudioWork = Task { [recordings] in
+                await recordings.settleFinished(audio, recorded: recorded)
+            }
             guard let record = kept else { break }
             let previous = recents.entries.first
             keep(record)
