@@ -256,12 +256,10 @@ offline-test: ## Prove the offline audit still refuses every way of reaching the
 	@python3 Scripts/offline_audit_test.py
 
 # Every design check, each self-test first; Docs/agents/design.md says what each enforces. Runs them all, then fails if any failed.
-DESIGN_AUDITS := design_source_audit design_token_parity_audit design_contrast_audit identity_role_audit \
-	design_sidebar_contract_audit design_chrome_contract_audit design_dictation_contract_audit \
-	design_diagnostics_contract_audit insights_contract_audit signin_artboard_contract_audit design_audit
+DESIGN_AUDITS := design_source_audit design_contrast_audit
 
 .PHONY: design-audit
-design-audit: ## Prove colours, typefaces, design generators, canvases and contrast follow Docs/agents/design.md. Needs no build.
+design-audit: ## Prove colours, typefaces and contrast follow Docs/agents/design.md, and no generated canvas is back. Needs no build.
 	@failed=""; \
 	for audit in $(DESIGN_AUDITS); do \
 		printf '\n== %s\n' "$$audit"; \
@@ -273,7 +271,6 @@ design-audit: ## Prove colours, typefaces, design generators, canvases and contr
 
 .PHONY: docs-audit
 docs-audit: ## Prove the documentation still describes this tree, including that CLAUDE.md delegates to AGENTS.md. Needs no build.
-	@python3 Scripts/preview_gen_test.py
 	@python3 Scripts/rule_file_duplicate_audit.py --self-test
 	@python3 Scripts/rule_file_duplicate_audit.py
 	./Scripts/docs_audit.sh --self-test

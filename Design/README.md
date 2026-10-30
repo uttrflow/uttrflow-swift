@@ -18,5 +18,4 @@ folder or in a sibling repository. Where a page and the code disagree, the page 
 code is fixed.
 
 The mood images are the app's own, in `Sources/Uttrflow/Resources/Mood/`; the pages link to them
-and never hold a copy. `uttrflow.icns`, `uttrflow.iconset/` and `uttrflow-logo-original.png` are
-build inputs; `ICON.md` says how the icon is made.
+and never hold a copy. The app icon and its build inputs are in `Resources/AppIcon/`; `ICON.md` there says how it is made.
