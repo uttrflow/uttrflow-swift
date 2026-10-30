@@ -59,6 +59,22 @@ struct SuggestionPreferencesTests {
         }
     }
 
+    @Test("Ships switched off in banking and health families, renamed builds included, and a choice for the family turns them on.")
+    func sensitiveFamiliesShipOff() {
+        var preferences = SuggestionPreferences(isEnabled: true)
+        #expect(preferences.state(of: "com.chase") == .offAsPrivate)
+        #expect(preferences.state(of: "Com.Chase.Mobile.Beta") == .offAsPrivate)
+        #expect(preferences.state(of: "com.apple.health") == .offAsPrivate)
+        #expect(preferences.state(of: "com.1password.1password.beta") == .offAsPrivate)
+        #expect(preferences.state(of: "com.chaser") == .on)
+        preferences.set("com.chase", isOn: true)
+        #expect(preferences.isEnabled(in: "com.chase.mobile", at: moment))
+        preferences.set("com.chase.mobile", isOn: false)
+        #expect(preferences.state(of: "com.chase.mobile") == .turnedOff)
+        preferences.set("com.fitbit", isOn: false)
+        #expect(preferences.state(of: "com.fitbit.app") == .turnedOff)
+    }
+
     @Test(
         "Ships switched on in editors without competing inline completions.",
         arguments: ["com.apple.dt.Xcode"])

@@ -21,7 +21,36 @@ struct ClipboardPreferencesTests {
         #expect(file.load().value == preferences)
 
         preferences.include("COM.EXAMPLE.SECRET")
-        #expect(preferences.excludedBundleIdentifiers.isEmpty)
+        #expect(preferences.excludedBundleIdentifiers == ClipboardPreferences().excludedBundleIdentifiers)
+    }
+
+    @Test("ships capture off in banking and health families, renamed builds included, until the user turns it on")
+    func sensitiveFamiliesShipExcluded() throws {
+        var preferences = ClipboardPreferences()
+        #expect(preferences.excludes("com.chase"))
+        #expect(preferences.excludes("Com.Chase.Mobile.Beta"))
+        #expect(preferences.excludes("com.apple.health"))
+        #expect(!preferences.excludes("com.chaser"))
+        #expect(!preferences.excludes("com.example.notes"))
+
+        preferences.include("com.chase")
+        #expect(!preferences.excludes("com.chase.mobile"))
+        #expect(preferences.excludes("com.paypal.desktop"))
+
+        let data = try JSONEncoder().encode(preferences)
+        #expect(try JSONDecoder().decode(ClipboardPreferences.self, from: data) == preferences)
+
+        preferences.exclude("com.chase")
+        #expect(preferences.excludes("com.chase.mobile"))
+        preferences.exclude("com.example.notes")
+        #expect(preferences.excludes("com.example.notes.helper"))
+    }
+
+    @Test("reads a file saved before the shipped families with those families still off")
+    func olderFileKeepsFamiliesOff() throws {
+        let data = Data(#"{"excludedBundleIdentifiers":[]}"#.utf8)
+        let preferences = try JSONDecoder().decode(ClipboardPreferences.self, from: data)
+        #expect(preferences.excludes("com.revolut.app"))
     }
 
     @Test("sets aside unreadable privacy settings and writes a valid recovery back privately")

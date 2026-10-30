@@ -24,8 +24,11 @@ public enum SuggestionApplications {
     public static let offByDefault: [SuggestionApplication] = DestinationRules.inlineCompletionEditors
         .map { SuggestionApplication(bundleIdentifier: $0.bundleIdentifier, name: $0.name) }
 
-    /// Password managers, remote-desktop clients and virtual machines, whose ordinary fields still hold what is private.
-    public static let privateByDefault: [SuggestionApplication] = [
+    /// Password managers, remote-desktop clients, virtual machines, banking and health apps, whose ordinary fields still hold what is private.
+    public static let privateByDefault: [SuggestionApplication] = privateApplications + SensitiveApplications.families
+        .map { SuggestionApplication(bundleIdentifier: $0.prefix, name: $0.name) }
+
+    private static let privateApplications: [SuggestionApplication] = [
         SuggestionApplication(bundleIdentifier: "com.1password.1password", name: "1Password"),
         SuggestionApplication(bundleIdentifier: "com.agilebits.onepassword7", name: "1Password 7"),
         SuggestionApplication(bundleIdentifier: "com.bitwarden.desktop", name: "Bitwarden"),
@@ -42,16 +45,24 @@ public enum SuggestionApplications {
     /// Every application that ships switched off, for whichever reason.
     public static var shippedOff: [SuggestionApplication] { offByDefault + privateByDefault }
 
-    /// Whether this application ships switched off, compared the way identifiers compare.
+    /// Whether this application ships switched off, matched by family so a renamed or beta build is covered too.
     public static func isOffByDefault(_ bundleIdentifier: String) -> Bool {
-        let identifier = ApplicationKey.of(bundleIdentifier)
-        return shippedOff.contains { $0.bundleIdentifier == identifier }
+        shippedEntry(for: bundleIdentifier) != nil
     }
 
     /// Whether this application ships switched off because what it holds is private.
     public static func isPrivateByDefault(_ bundleIdentifier: String) -> Bool {
+        entry(for: bundleIdentifier, in: privateByDefault) != nil
+    }
+
+    /// The shipped entry whose family holds this application, which is where a choice made for the whole family is filed.
+    static func shippedEntry(for bundleIdentifier: String) -> SuggestionApplication? {
+        entry(for: bundleIdentifier, in: shippedOff)
+    }
+
+    private static func entry(for bundleIdentifier: String, in list: [SuggestionApplication]) -> SuggestionApplication? {
         let identifier = ApplicationKey.of(bundleIdentifier)
-        return privateByDefault.contains { $0.bundleIdentifier == identifier }
+        return list.first { ApplicationFamily.member(identifier, of: $0.bundleIdentifier) }
     }
 
     /// Where the app looks up an installed application's own name; nothing installed means the fallback alone.
@@ -191,6 +202,10 @@ public struct SuggestionPreferences: Sendable, Equatable, Codable {
         let identifier = ApplicationKey.of(bundleIdentifier)
         if turnedOff.contains(identifier) { return .turnedOff }
         if turnedOn.contains(identifier) { return .on }
+        if let family = SuggestionApplications.shippedEntry(for: identifier)?.bundleIdentifier {
+            if turnedOff.contains(family) { return .turnedOff }
+            if turnedOn.contains(family) { return .on }
+        }
         if SuggestionApplications.isPrivateByDefault(identifier) { return .offAsPrivate }
         return SuggestionApplications.isOffByDefault(identifier) ? .offByDefault : .on
     }
