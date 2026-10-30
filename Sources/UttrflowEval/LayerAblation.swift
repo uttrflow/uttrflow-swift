@@ -86,11 +86,16 @@ package struct LayerAblation: Sendable, Equatable {
     }
 
     /// A pipeline with no microphone, recogniser, screen or field behind it, so only the layers under test act.
-    package static let recordedChain: DegradedPathMatrix.Building = {
-        layers, corrector, speechWords, cleaner in
-        DictationPipeline(
-            capture: NoMicrophone(), speech: NoRecogniser(), cleaner: cleaner, context: NoScreen(),
-            inserter: NoField(), speechWords: speechWords, corrector: corrector, layers: layers)
+    package static let recordedChain = chain(expanding: NoTextChanges())
+
+    /// The same pipeline with `snippets` as its snippet matcher.
+    static func chain(expanding snippets: any SnippetExpanding) -> DegradedPathMatrix.Building {
+        { layers, corrector, speechWords, cleaner in
+            DictationPipeline(
+                capture: NoMicrophone(), speech: NoRecogniser(), cleaner: cleaner, context: NoScreen(),
+                inserter: NoField(), speechWords: speechWords, corrector: corrector, snippets: snippets,
+                layers: layers)
+        }
     }
 }
 

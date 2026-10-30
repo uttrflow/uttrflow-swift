@@ -5,9 +5,15 @@ import Testing
 @testable import UttrflowEval
 
 struct CaseSelectionTests {
-    @Test("with no --case the whole corpus is scored")
+    @Test("with no --case the whole corpus is scored, the snippet cases with it")
     func wholeCorpusByDefault() throws {
-        #expect(try Bakeoff.parse([]).scored == EvaluationCorpus.all)
+        #expect(try Bakeoff.parse([]).scored == EvaluationCorpus.all + EvaluationCorpus.snippet)
+    }
+
+    @Test("--case scores a snippet case it names")
+    func oneSnippetCase() throws {
+        let named = try #require(EvaluationCorpus.snippet.first)
+        #expect(try Bakeoff.parse(["--case", named.id]).scored == [named])
     }
 
     @Test("--case scores the one case it names")
