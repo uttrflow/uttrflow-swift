@@ -11,7 +11,7 @@ public enum EvaluationCorpus {
         + homophone + hinglishReply + sourceNotation + markupNotation
 
     public static func cases(in category: EvaluationCase.Category) -> [EvaluationCase] {
-        all.filter { $0.category == category }
+        (all + snippet).filter { $0.category == category }
     }
 
     public static func cases(for language: LanguageCode) -> [EvaluationCase] {
