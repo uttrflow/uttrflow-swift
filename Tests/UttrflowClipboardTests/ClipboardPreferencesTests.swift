@@ -24,7 +24,7 @@ struct ClipboardPreferencesTests {
         #expect(preferences.excludedBundleIdentifiers == ClipboardPreferences().excludedBundleIdentifiers)
     }
 
-    @Test("ships capture off in banking and health families, renamed builds included, until the user turns it on")
+    @Test("ships capture off in banking and health families and their builds until the user turns it on")
     func sensitiveFamiliesShipExcluded() throws {
         var preferences = ClipboardPreferences()
         #expect(preferences.excludes("com.chase"))

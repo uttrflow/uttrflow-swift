@@ -24,9 +24,12 @@ public enum SuggestionApplications {
     public static let offByDefault: [SuggestionApplication] = DestinationRules.inlineCompletionEditors
         .map { SuggestionApplication(bundleIdentifier: $0.bundleIdentifier, name: $0.name) }
 
-    /// Password managers, remote-desktop clients, virtual machines, banking and health apps, whose ordinary fields still hold what is private.
-    public static let privateByDefault: [SuggestionApplication] = privateApplications + SensitiveApplications.families
-        .map { SuggestionApplication(bundleIdentifier: $0.prefix, name: $0.name) }
+    /// Password managers, remote desktops, virtual machines, banking and health apps, whose ordinary fields hold what is private.
+    public static let privateByDefault: [SuggestionApplication] =
+        privateApplications
+        + SensitiveApplications.families.map {
+            SuggestionApplication(bundleIdentifier: $0.prefix, name: $0.name)
+        }
 
     private static let privateApplications: [SuggestionApplication] = [
         SuggestionApplication(bundleIdentifier: "com.1password.1password", name: "1Password"),
@@ -55,12 +58,14 @@ public enum SuggestionApplications {
         entry(for: bundleIdentifier, in: privateByDefault) != nil
     }
 
-    /// The shipped entry whose family holds this application, which is where a choice made for the whole family is filed.
+    /// The shipped entry whose family holds this application, where a choice for the whole family is filed.
     static func shippedEntry(for bundleIdentifier: String) -> SuggestionApplication? {
         entry(for: bundleIdentifier, in: shippedOff)
     }
 
-    private static func entry(for bundleIdentifier: String, in list: [SuggestionApplication]) -> SuggestionApplication? {
+    private static func entry(
+        for bundleIdentifier: String, in list: [SuggestionApplication]
+    ) -> SuggestionApplication? {
         let identifier = ApplicationKey.of(bundleIdentifier)
         return list.first { ApplicationFamily.member(identifier, of: $0.bundleIdentifier) }
     }

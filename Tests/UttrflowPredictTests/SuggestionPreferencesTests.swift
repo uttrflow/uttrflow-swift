@@ -59,7 +59,7 @@ struct SuggestionPreferencesTests {
         }
     }
 
-    @Test("Ships switched off in banking and health families, renamed builds included, and a choice for the family turns them on.")
+    @Test("Ships switched off in banking and health families and builds, and a family choice turns them on.")
     func sensitiveFamiliesShipOff() {
         var preferences = SuggestionPreferences(isEnabled: true)
         #expect(preferences.state(of: "com.chase") == .offAsPrivate)
