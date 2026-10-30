@@ -65,7 +65,8 @@ struct SuggestionPreferencesTests {
         #expect(preferences.state(of: "com.chase") == .offAsPrivate)
         #expect(preferences.state(of: "Com.Chase.Mobile.Beta") == .offAsPrivate)
         #expect(preferences.state(of: "com.apple.health") == .offAsPrivate)
-        #expect(preferences.state(of: "com.1password.1password.beta") == .offAsPrivate)
+        let betaBuild = SuggestionApplications.privateByDefault[0].bundleIdentifier + ".beta"
+        #expect(preferences.state(of: betaBuild) == .offAsPrivate)
         #expect(preferences.state(of: "com.chaser") == .on)
         preferences.set("com.chase", isOn: true)
         #expect(preferences.isEnabled(in: "com.chase.mobile", at: moment))
