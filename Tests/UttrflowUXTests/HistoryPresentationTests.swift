@@ -572,19 +572,22 @@ struct HistoryWordCountTests {
     @Test("each distinct written word offers a fix carrying that spelling, and the row text is untouched")
     func offersAFixPerWrittenWord() {
         let text = "Ask Nickel, then Nickel's team: Nickel."
-        let row = HistoryFixture.page(entries: [HistoryFixture.entry(text)]).days.first?.rows.first
+        let entry = HistoryFixture.entry(text)
+        let row = HistoryFixture.page(entries: [entry]).days.first?.rows.first
+        let id = entry.id
 
         #expect(row?.text == text)
         #expect(
             row?.fixes.map(\.intent) == [
-                .fixWord("Ask"), .fixWord("Nickel"), .fixWord("then"), .fixWord("Nickel's"), .fixWord("team"),
+                .fixWord("Ask", from: id), .fixWord("Nickel", from: id), .fixWord("then", from: id),
+                .fixWord("Nickel's", from: id), .fixWord("team", from: id),
             ])
         #expect(row?.fixes.first?.title == "Fix “Ask”")
     }
 
     @Test("a token with no letters offers no fix")
     func skipsTokensWithoutLetters() {
-        #expect(HistoryPresenter.fixes(for: "42 — 7%").isEmpty)
+        #expect(HistoryPresenter.fixes(for: "42 — 7%", of: UUID()).isEmpty)
     }
 
     @Test("What changed names each ledgered step, what it did and where it landed, one phrase per change")

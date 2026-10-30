@@ -26,7 +26,7 @@ import UttrflowUX
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Records which of the three insertion routes a dictation took, which nothing else can tell.
-    private nonisolated static let log = Logger(
+    nonisolated static let log = Logger(
         subsystem: "com.uttrflow.Uttrflow", category: "insertion")
 
     private let settingsStore: UserDefaultsSettingsStore
@@ -56,11 +56,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Where dictations are kept between launches, and the only thing that decides what is deleted.
     private let history: DictationHistoryStore
     /// Each dictation's audio, kept beside it only until its words land. See `Docs/recordings.md`.
-    private let recordings: RecordingStore
+    let recordings: RecordingStore
     /// What the app observed about how this user speaks, under History's retention. See `Docs/learned-state.md`.
     private let evidence: EvidenceLedgerStore?
     /// The user's own words, shared by all three parts of a dictation that read them.
-    private let dictionary: PersonalDictionaryStore
+    let dictionary: PersonalDictionaryStore
     private let snippets: SnippetStore
     /// The account layer, made once and shared, because a second one signs with a different key.
     private let account: OnboardingAccountLayer
@@ -397,7 +397,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// The editor opening against the disk, kept so a caller can wait for it rather than poll for it.
     private(set) var openingEditor: Task<Void, Never>?
     /// The store work the last main-window intent set going, so a test awaits it rather than a clock.
-    private(set) var intentWork: Task<Void, Never>?
+    var intentWork: Task<Void, Never>?
     /// The last sweep of expired recordings and transcripts, so a test awaits it rather than a clock.
     private(set) var sweeping: Task<Void, Never>?
     /// A3, A7 — where the user was when the panel closed, while reopening still counts as undoing.
@@ -2836,7 +2836,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 """)
             // A secure field's words are kept nowhere: not as the last transcript, in history, or as a clip.
             let kept = DictationRecordMapping.record(
-                for: state, when: Date(), id: UUID(), keeping: historyKeeping)
+                for: state, when: Date(), id: outcome.keptRecording ?? UUID(), keeping: historyKeeping)
+            let audio = outcome.keptRecording
+            let recorded = kept != nil
+            finishedAudioWork = Task { [recordings] in
+                await recordings.settleFinished(audio, recorded: recorded)
+            }
             guard let record = kept else { break }
             let previous = recents.entries.first
             keep(record)
@@ -3570,7 +3575,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// The same, for the word editor.
     private var wordEditorIsOpen = false
     /// Why the last Save was refused, per editor, until the next keystroke clears it.
-    private var wordRefusal: String?
+    var wordRefusal: String?
+    /// Lets a test wait for a finished dictation's audio to be kept or deleted.
+    private(set) var finishedAudioWork: Task<Void, Never>?
+    var fixingDictation: UUID?
     /// The spoken try of a dictionary word under way or last finished, and the work running it.
     private var wordTrial: DictionaryTrial?
     private var wordTrialWork: Task<Void, Never>?
@@ -3579,7 +3587,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var snippetArrival: SnippetArrival?
     private var snippetArrivalWork: Task<Void, Never>?
     /// Why the last delete, flag, restore or undo did not happen, until one of them works or the page changes.
-    private(set) var actionNotice: MainNotice?
+    var actionNotice: MainNotice?
     /// The complete snippet held for the short main-window undo window.
     private var deletedSnippet: Snippet?
     private var snippetUndoTask: Task<Void, Never>?
@@ -3771,6 +3779,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     .first { $0.id == id }?.text
                 try await self.forgetClips(of: id, saying: spoken)
                 try await self.history.delete(id, keeping: retention)
+                await self.recordings.discard(id)
             }
 
         case .keepDictationAsClip(let id):
@@ -3791,11 +3800,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             redrawPages([page])
         case .addWord:
             editWord(DictionaryDraft())
-        case .fixWord(let written):
-            // The wrong spelling is the recogniser's reading of the sound, so it fills "Say it like"; the editor focuses "Write it as".
-            actionNotice = nil
-            mainWindow?.show(.dictionary)
-            editWord(DictionaryDraft(pronunciation: written))
+        case .fixWord(let written, let dictation):
+            fixWord(written, from: dictation)
         case .editWord(let id):
             guard let entry = knownWords.first(where: { $0.id == id }) else { return }
             editWord(
@@ -3803,6 +3809,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     editing: id, word: entry.word, pronunciation: entry.pronunciationField,
                     applications: entry.applications))
         case .cancelWordEdit:
+            fixingDictation = nil
             editWord(nil)
         case .saveWord(let word, let pronunciation, let applications):
             saveWord(word, pronunciation: pronunciation, applications: applications)
@@ -4188,7 +4195,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Opens or closes the inline word editor, in both places that track it.
-    private func editWord(_ draft: DictionaryDraft?) {
+    func editWord(_ draft: DictionaryDraft?) {
         endWordTrial()
         editorGeneration += 1
         wordEditorIsOpen = draft != nil
@@ -4274,21 +4281,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         guard wordTrial != nil else { return }
         wordTrial = nil
         redrawPages([.dictionary])
-    }
-
-    private func saveWord(_ word: String, pronunciation: String, applications: [String]) {
-        intentWork = Task { [weak self] in
-            guard let self else { return }
-            do throws(DictionaryStoreError) {
-                try await dictionary.add(
-                    word: word, pronunciation: pronunciation, at: Date(), applications: applications)
-                editWord(nil)
-            } catch {
-                Self.log.error("could not add word: \(error.userMessage, privacy: .public)")
-                wordRefusal = error.userMessage
-                refreshMainWindow()
-            }
-        }
     }
 
     /// Respells the word a draft duplicates, closing the editor only once it is in, as saving does.
