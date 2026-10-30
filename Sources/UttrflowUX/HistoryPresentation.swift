@@ -507,7 +507,7 @@ public enum HistoryPresenter {
     /// One ledgered change as one phrase: the step's plain label, then where it landed when the ledger says.
     static func phrase(for line: WhatChangedLine) -> String {
         let label = label(of: line.pass)
-        let where_: String? =
+        let place: String? =
             switch (line.kind, line.location) {
             case (.removed, .word(let word)?): "before “\(word)”"
             case (.removed, .end?): "at the end"
@@ -516,7 +516,7 @@ public enum HistoryPresenter {
             // Unlocated, or a rewrite or addition pointing past the text: the label alone, never a guessed word.
             default: nil
             }
-        return where_.map { "\(label): \($0)" } ?? label
+        return place.map { "\(label): \($0)" } ?? label
     }
 
     /// What a History row says a step did, one short label per step and never its code name.
