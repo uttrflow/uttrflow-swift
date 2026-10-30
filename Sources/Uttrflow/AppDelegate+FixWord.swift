@@ -1,5 +1,6 @@
 // Fixing a word from a History row, and saving a word from the editor.
 import Foundation
+import UttrflowCore
 import UttrflowDictionary
 import UttrflowUX
 

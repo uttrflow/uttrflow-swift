@@ -397,7 +397,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// The editor opening against the disk, kept so a caller can wait for it rather than poll for it.
     private(set) var openingEditor: Task<Void, Never>?
     /// The store work the last main-window intent set going, so a test awaits it rather than a clock.
-    private(set) var intentWork: Task<Void, Never>?
+    var intentWork: Task<Void, Never>?
     /// The last sweep of expired recordings and transcripts, so a test awaits it rather than a clock.
     private(set) var sweeping: Task<Void, Never>?
     /// A3, A7 — where the user was when the panel closed, while reopening still counts as undoing.
