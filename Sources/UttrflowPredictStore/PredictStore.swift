@@ -26,13 +26,26 @@ public actor PredictStore: PredictionStore {
     /// How many candidates a query returns, which is more than any list shows.
     static let candidateLimit = 16
 
+    /// How long learned changes gather before one sealed snapshot holds them all.
+    static let writeBatchInterval: Duration = .seconds(2)
+
     /// The open file every read and write goes through.
     private(set) var database: Database
 
     /// Opens the corpus, replacing a file that is not a database at all and refusing one from a newer build.
     public init(path: String, encryptedStore: EncryptedStore? = nil) throws(PredictStoreError) {
         database = try Self.opened(at: path, encryptedStore: encryptedStore)
+        database.defersWrites = true
+        database.onDeferredWrite = { [weak self] in
+            Task { [weak self] in
+                try? await Task.sleep(for: Self.writeBatchInterval)
+                try? await self?.flushLearnedChanges()
+            }
+        }
     }
+
+    /// Seals every learned change still waiting for its batch.
+    func flushLearnedChanges() throws(PredictStoreError) { try database.flush() }
 
     /// Where the corpus lives, beside the clipboard and the history, versioned in its name.
     public static func defaultFile(in directory: URL) -> URL {
@@ -538,6 +551,7 @@ public actor PredictStore: PredictionStore {
         try database.run("DELETE FROM surface WHERE bundle_id = ?") {
             $0.bind(1, ApplicationKey.of(bundleIdentifier))
         }
+        try database.flush()
         leaveNothingBehind()
     }
 
@@ -566,12 +580,14 @@ public actor PredictStore: PredictionStore {
                 $0.bind(3, text)
             }
         }
+        try database.flush()
         leaveNothingBehind()
     }
 
     /// Forgets every surface, and with it every entry and succession they hold.
     public func forgetEverything() throws(PredictStoreError) {
         try database.execute("DELETE FROM surface")
+        try database.flush()
         leaveNothingBehind()
     }
 
@@ -638,7 +654,10 @@ public actor PredictStore: PredictionStore {
                     $0.bind(2, Int64(version))
                 })
         }
-        if removed > 0 { leaveNothingBehind() }
+        if removed > 0 {
+            try database.flush()
+            leaveNothingBehind()
+        }
         return removed
     }
 

@@ -263,13 +263,16 @@ event or acceptance.
 
 ## The corpus on disk, and forgetting
 
-The working database is SQLite held in memory. Each committed change is sealed with AES-GCM
+The working database is SQLite held in memory. Its whole image is sealed with AES-GCM
 (`EncryptedStore`, key in the Keychain, this device only) and written atomically to
-`predict.v1.sqlite`; no plaintext `-wal` or `-shm` files exist beside it. The snapshot and the
-consent file are excluded from backup (`PrivateFile`). A legacy plaintext file is copied in through
-SQLite, committed WAL frames included, before the first sealed snapshot replaces it, and its
-sidecars are removed. A snapshot that cannot be sealed or written fails the change rather than
-claiming it is durable.
+`predict.v1.sqlite`. Learned changes are batched off the typing path: one snapshot seals every
+change made in the `PredictStore.writeBatchInterval` (2 s) after the first, and closing the store
+seals what is still waiting. Forgetting and sweeps seal at once. No plaintext `-wal` or `-shm`
+files exist beside it. The snapshot and the consent file are excluded from backup (`PrivateFile`).
+A legacy plaintext file is copied in through SQLite, committed WAL frames included, before the
+first sealed snapshot replaces it, and its sidecars are removed. A forgetting snapshot that cannot
+be sealed or written fails the change rather than claiming it is durable; a batched snapshot that
+fails is retried by the next change's batch.
 
 Settings reaches the corpus through `PredictCorpus`, which opens it only for the question asked and
 never creates it, so forgetting works whether or not the loop is running.
