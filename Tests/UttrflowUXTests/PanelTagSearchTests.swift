@@ -57,6 +57,20 @@ struct PanelTagSearchTests {
         #expect(rows.map(\.match) == [.alias, .tag, .category, .content])
     }
 
+    @Test("a query starting with # lists tags first and still finds the text")
+    func hashRanksTagsFirst() {
+        let named = PanelFixture.clip("one", minutesAgo: 1, alias: "#prodkey")
+        let text = PanelFixture.clip("#prod three", minutesAgo: 2)
+        let tag = PanelFixture.clip("four", minutesAgo: 3, tags: ["prod"])
+
+        let rows = Self.rows("#prod", in: [text, named, tag])
+
+        #expect(rows.first?.id == tag.id)
+        #expect(rows.map(\.match) == [.tag, .alias, .content])
+        #expect(
+            Self.rows("#include", in: [PanelFixture.clip("#include <stdio.h>", minutesAgo: 1)]).count == 1)
+    }
+
     @Test("a whole tag outranks a tag the query only begins, and a pin")
     func wholeTagLeads() {
         let begins = PanelFixture.clip("one", minutesAgo: 1, tags: ["database"], isPinned: true)

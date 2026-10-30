@@ -54,7 +54,9 @@ the whole tag or its beginning: never from inside a tag, never across two tags, 
 space, and never when it is shorter than two characters, which would begin too many tags. The
 clip's text is still searched as before, so a word that only appears in the middle of a tag
 finds the clip by its text or not at all. Tag matches are listed after the names you gave and
-before collections and contents; a whole tag leads a tag the query only begins.
+before collections and contents; a whole tag leads a tag the query only begins. A query that
+starts with `#` lists tag matches first, before names, and still searches names, collections and
+text, so `#include` or `#ff88` keeps finding a clip by its text.
 
 Tags are edited in the same sheet as the name: words that start with `#` are tags, split at spaces or
 commas, and the rest is the name, so `pgprod #db #prod` names the clip and tags it. A tag is reduced
