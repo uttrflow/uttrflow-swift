@@ -213,7 +213,9 @@ the undo offer being merely hidden costs nothing; the clip is not gone, only the
 says so.
 
 Outside a sheet, the undo offer wins while it is live, because it expires: `AppDelegate.undoWindow`
-is 8 seconds. Press **⌘Z** while the offer is visible to restore the deleted clip. Delete asks no
+is 8 seconds. Press **⌘Z** while the offer is visible to undo the most recent change: a delete
+restores the clip, and a text edit (⌘E) writes the clip's previous text back. There is one undo,
+and the later of a delete and an edit replaces the earlier. Delete asks no
 confirmation, and the undo is what pays for that, so the undo is **offered, not merely
 available**: an undo nobody is told about leaves the clip gone with neither a question
 beforehand nor a way back.

@@ -34,4 +34,25 @@ struct PanelRestoreUndoTests {
         #expect(cleanNotice == nil)
         #expect(await store.clips(keeping: retention).contains { $0.id == cleanRestore.id })
     }
+
+    @Test("undoing an edit writes the clip's old text back", .bug(id: 5481))
+    func undoEditRestoresText() async throws {
+        let sandbox = Sandbox()
+        let retention = ClipRetention(days: 7, now: .now)
+        let store = ClipboardStore(file: ClipboardStore.defaultFile(in: sandbox.root))
+        let original = Clip(text: "before the edit", kind: .text, copiedAt: .now, alias: "kept")
+        try await store.record(original, keeping: retention)
+        _ = try await store.setText("after the edit", of: original.id, keeping: retention)
+        var offer = PanelUndoOffer()
+        offer.offerEdit(of: original.id, previousText: original.text)
+        let claimed = offer.claimForRestore()
+        let claim = try #require(claimed)
+
+        let notice = try await PanelUndoRestorer.restore(claim, to: store, keeping: retention)
+
+        #expect(notice == nil)
+        let restored = await store.clips(keeping: retention).first { $0.id == original.id }
+        #expect(restored?.text == "before the edit")
+        #expect(restored?.alias == "kept")
+    }
 }
