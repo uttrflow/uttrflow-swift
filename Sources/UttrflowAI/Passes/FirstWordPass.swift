@@ -90,6 +90,13 @@ public struct FirstWordPass: WholeTextCleaningPass {
                 isFirst = false
                 continue
             }
+            if lineOpening, WordShape(word.text).isBracketedEnumerator {
+                // A clause's enumerator keeps its case, and the words after it carry on the clause.
+                startOfSentence = false
+                afterPause = false
+                isFirst = false
+                continue
+            }
             let letterAdjacent = Self.hasLetterNameBesideI(at: order, in: present, of: draft)
             if letterAdjacent, !isFirst, !startOfSentence, WordShape(word.text).key == "i" {
                 let cased = WordShape(word.text).replacingCore(with: "i")

@@ -10,8 +10,8 @@ and the scorer is `Scorer` (`Sources/UttrflowEval/Scorer.swift`). Why each row a
 
 ## The corpus
 
-**The corpus is 1,354 cases in sixteen categories** — `everyday` 288, `contextual` 252, `grammar` 34,
-`technical` 333, `multilingual` 182, `notARequest` 107, `oneLineField` 10, `secondLanguage` 40,
+**The corpus is 1,362 cases in sixteen categories** — `everyday` 291, `contextual` 252, `grammar` 34,
+`technical` 338, `multilingual` 182, `notARequest` 107, `oneLineField` 10, `secondLanguage` 40,
 `bareLiteral` 27, `commandInput` 8, `longInput` 4, `developerGenre` 25, `dictionary` 22,
 `webDestination` 3, `homophone` 12, `hinglishReply` 7 — and everything in it is
 synthesised or written by hand. `Scripts/docs_audit.sh` checks this sentence against the files `all` reads and
@@ -33,6 +33,10 @@ run-on sentence fails it however many words survive.
 vocabulary the way the pipeline hands them to the message passes; a case about an entry's
 spelling holds it with `expectedExact`. `webDestination` cases are said into an invented page in a browser: web mail,
 web chat and a search field. Each case in both is named after the issue it guards.
+`snippet` cases (`snippet.json`, `EvaluationCorpus.snippet`) say a trigger of the user's snippets.
+They are no part of `all`, because a tidier alone never expands one: the bake-off scores them on
+the text `DictationPipeline` writes with the candidate as its tidier and the case's snippets
+stored, the same expansion stage a dictation runs, and reports them as their own category.
 `developerGenre` is one invented whole dictation per kind of text a developer writes (a stand-up,
 a commit message, a bug report with steps, a shell pipeline, a decision record and twenty more),
 20 to 120 words each, where flags, paths, numbers, lists and casing meet in one text. Each case's

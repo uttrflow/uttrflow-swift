@@ -129,3 +129,7 @@ again, is refused with `ClipboardStoreError.keptPicturesFull`, which tells the u
 delete a picture; nothing is changed and nothing kept is deleted. A kept set already past the bound,
 from a smaller bound or an earlier build, stays in place: every write that does not add to it is
 allowed, so it shrinks only when the user unpins or deletes. Zero turns the bound off.
+
+Kept text has no bound at all, by decision: no count ceiling, no byte ceiling and no Settings
+notice as it grows. Every text clip the user names, tags, files or pins stays until the user
+removes it, and no write of kept text is refused for its size or number.

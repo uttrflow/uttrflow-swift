@@ -1,7 +1,7 @@
 import Foundation
 import Testing
-import UttrflowCore
 
+@testable import UttrflowCore
 @testable import UttrflowHistory
 
 /// Retention arithmetic and the on-disk shape of one record.
@@ -200,6 +200,25 @@ struct DictationRecordTests {
 
         #expect(read == records)
         #expect(older.map(\.guardRefusals) == [[.lostWord], nil])
+    }
+
+    @Test("a result's quality survives a round trip, and an unknown or missing one reads as none")
+    func keepsTheQuality() throws {
+        let when = Date(timeIntervalSinceReferenceDate: 721_692_800)
+        let records = ([OutcomeQuality.complete] + OutcomeQuality.incomplete).map {
+            DictationRecord(text: "Ship it", when: when, quality: $0)
+        }
+        let stored = """
+            [{"id":"6BA7B810-9DAD-11D1-80B4-00C04FD430C8","text":"Ship it","when":721692800,"quality":"fromTheFuture"},
+             {"id":"6BA7B811-9DAD-11D1-80B4-00C04FD430C8","text":"Ship it","when":721692800}]
+            """
+
+        let read = try JSONDecoder().decode(
+            [DictationRecord].self, from: JSONEncoder().encode(records))
+        let older = try JSONDecoder().decode([DictationRecord].self, from: Data(stored.utf8))
+
+        #expect(read == records)
+        #expect(older.map(\.quality) == [nil, nil])
     }
 
     @Test("notation survives a round trip; an old file, a new destination or a bad count read as none")

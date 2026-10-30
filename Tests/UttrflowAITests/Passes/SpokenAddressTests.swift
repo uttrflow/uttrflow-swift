@@ -322,6 +322,14 @@ struct SpokenAddressTests {
             ("connect to example dot com colon eight thousand", "connect to example.com:8000"),
             ("open localhost colon three thousand slash admin", "open localhost:3000/admin"),
             ("the server is at ten dot zero dot zero dot one", "the server is at 10.0.0.1"),
+            ("the address is one two seven dot zero dot zero dot one", "the address is 127.0.0.1"),
+            ("set the ip to one seven two dot sixteen dot zero dot one", "set the ip to 172.16.0.1"),
+            ("the address is one twenty seven dot zero dot zero dot one", "the address is 127.0.0.1"),
+            (
+                "the address is one two seven dot zero dot zero dot one colon eight zero eight zero",
+                "the address is 127.0.0.1:8080"
+            ),
+            ("one nine two dot one six eight dot zero dot one", "192.168.0.1"),
             ("ssh to ten dot zero dot zero dot one colon twenty two", "ssh to 10.0.0.1:22"),
             ("visit acme dash shop dot example dot com", "visit acme-shop.example.com"),
             (
@@ -442,6 +450,18 @@ struct SpokenAddressTests {
         ]
     )
     func writesFileReferences(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "keeps every word of a last octet said as a hundred",
+        arguments: [
+            ("ping ten dot zero dot zero dot two hundred and fifty five", "ping 10.0.0.255"),
+            ("ping ten dot zero dot zero dot one hundred", "ping 10.0.0.100"),
+            ("ping ten dot zero dot zero dot two hundred", "ping 10.0.0.200"),
+        ]
+    )
+    func writesAnAddressEndingInAHundred(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
     }
 

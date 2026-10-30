@@ -38,7 +38,7 @@ extension CleaningPipeline {
         numbers: NumberPolicy, digits: DigitGrouping, layout: LayoutPolicy = [.paragraphs, .lists],
         insertionPoint: InsertionPoint = .unknown, destination: Destination = .plain,
         intent: WritingIntent = .unknown, steps: CleaningSteps = .default, pauses: PauseLength = .usual,
-        screen: Situation = .unknown, mode: AdapterMode = .auto
+        screen: Situation = .unknown, mode: AdapterMode = .auto, readsWholeText: Bool = true
     ) -> CleaningPipeline {
         let identifiers = ScreenVocabulary(screen)
         var cleanings: [any PieceCleaningPass] = [
@@ -48,7 +48,8 @@ extension CleaningPipeline {
                 destination: destination, fieldRole: intent.fieldRole, region: intent.region, pauses: pauses,
                 mode: mode),
             SpokenEmojiPass(destination: destination),
-            LayoutWordsPass(layout: layout, insertionPoint: insertionPoint),
+            LayoutWordsPass(
+                layout: layout, insertionPoint: insertionPoint, readsWholeText: readsWholeText),
             SpelledNamePass(destination: destination), NumberFormsPass(policy: numbers, digits: digits),
             ContractionsPass(), SpacingPass(),
             // Last, so a pause inside a number or a removed filler is read on the words left standing.
@@ -81,7 +82,7 @@ extension CleaningPipeline {
                 cleanings.insert(
                     CodeEditorCommandsPass(
                         destination: destination, language: intent.language, markup: markup,
-                        evidence: notation),
+                        evidence: notation, cutsStammers: steps.runs(.stammers)),
                     at: markup?.slot == nil ? layoutPosition : punctuation ?? layoutPosition)
                 // After the spoken layout words, so a spoken "new line" is a break by then.
                 if destination == .sqlEditor,

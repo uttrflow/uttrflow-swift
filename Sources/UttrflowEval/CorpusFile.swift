@@ -77,12 +77,13 @@ enum CorpusFile {
         let classes: [FormattingClass]?
         let codeMix: CodeMixCell?
         let dictionary: [String]?
+        let snippets: [String: String]?
 
         enum CodingKeys: String, CodingKey, CaseIterable {
             case id, note, spoken, expected, language, origin, addedFor, mustKeep, mustNotAdd, context
             case destination, mustBeginWith, mustEndWith, expectedExact, adapter, doubtful
             case pausedAfter
-            case minimumSentences, classes, codeMix, dictionary
+            case minimumSentences, classes, codeMix, dictionary, snippets
         }
 
         init(from decoder: any Decoder) throws {
@@ -109,6 +110,7 @@ enum CorpusFile {
             classes = try values.decodeIfPresent([FormattingClass].self, forKey: .classes)
             codeMix = try values.decodeIfPresent(CodeMixCell.self, forKey: .codeMix)
             dictionary = try values.decodeIfPresent([String].self, forKey: .dictionary)
+            snippets = try values.decodeIfPresent([String: String].self, forKey: .snippets)
         }
 
         func evaluationCase(category: EvaluationCase.Category) throws -> EvaluationCase {
@@ -143,7 +145,8 @@ enum CorpusFile {
                 minimumSentences: minimumSentences, expectedExact: expectedExact,
                 adapter: adapter.map { AdapterID(rawValue: $0) }, doubtful: doubtful ?? [],
                 classes: classes ?? [], codeMix: codeMix, pausedAfter: pausedAfter ?? [],
-                dictionary: dictionary ?? [], origin: origin ?? .authored, addedFor: addedFor)
+                dictionary: dictionary ?? [], snippets: snippets ?? [:], origin: origin ?? .authored,
+                addedFor: addedFor)
         }
     }
 

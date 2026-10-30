@@ -190,7 +190,7 @@ struct SettingsAcceptKeyGuidanceTests {
             try explanation("com.microsoft.Excel") == "Tab accepts suggestions instead of cell navigation.")
         #expect(
             try explanation("com.apple.Notes")
-                == "Tab accepts suggestions instead of the notes app's own behavior.")
+                == "Tab accepts suggestions instead of the notes app's own behaviour.")
         #expect(try explanation("com.example.unknown") == nil)
     }
 
@@ -216,10 +216,19 @@ struct SettingsAcceptKeyGuidanceTests {
                 == "Leaves Tab to indentation and editor completion.")
         #expect(
             rows["suggestionAcceptKey.com.apple.notes"]?.explanation
-                == "Leaves Tab to the notes app's own behavior. Escape will not dismiss suggestions.")
+                == "Leaves Tab to the notes app's own behaviour. Escape will not dismiss suggestions.")
         #expect(
             rows["suggestionAcceptKey.com.example.unknown"]?.explanation
                 == "Leaves Tab available in this app.")
+    }
+
+    @Test("spells every accept-key explanation in British English")
+    func acceptKeyExplanationsUseBritishSpelling() {
+        let explanations = AcceptKey.allCases.flatMap { key in
+            ([nil] + AppKind.allCases.map(Optional.some)).compactMap { key.explanation(for: $0) }
+        }
+        #expect(!explanations.isEmpty)
+        #expect(explanations.allSatisfy { !$0.contains("behavior") })
     }
 }
 
@@ -465,7 +474,7 @@ struct SettingsLanguagesPaneTests {
         #expect(example?.written == transformed)
         #expect(
             SettingsTidyingLevel.rowExplanation
-                == "Both levels remove filler sounds and stammers and add punctuation. Standard also repairs grammar slips, which adds a moment to each dictation. Neither level changes, reorders or drops the words you meant. The steps that run are listed under Dictation, in Clean-up steps."
+                == "Both levels remove filler sounds and stammers and add punctuation. Standard also repairs grammar slips. Neither level changes, reorders or drops the words you meant. The steps that run are listed under Dictation, in Clean-up steps."
         )
     }
 

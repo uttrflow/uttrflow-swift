@@ -3,7 +3,7 @@
 public import struct Foundation.Date
 public import struct Foundation.UUID
 
-/// Keeps each dictation's audio on this Mac until its words land, so a lost dictation can be run again.
+/// Keeps each dictation's audio on this Mac for at most a day, so a lost or fixed dictation can be run again.
 public protocol RecordingKeeper: Sendable {
     /// The recording written for the dictation that just stopped, if one was.
     func current() async -> KeptRecording?

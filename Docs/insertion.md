@@ -23,7 +23,7 @@ its `AX write`, `Paste`, `Confirmed` and `Full route` columns and the secure-fie
 | A clip or recent dictation inserted from the menu bar or main window | `TextInsertion.coordinator(…)` | Accessibility, paste, clipboard | Written by the paste, or by the clipboard floor when everything else refuses; a paste's arrival is checked |
 | The Paste last dictation shortcut | `TextInsertion.dictation()` | Accessibility, typed | Never written; if both strategies refuse, the transcript stays available for explicit Copy |
 | A secret clip | either clip route over `ConcealingPasteboard` | as above | Every text write carries `org.nspasteboard.ConcealedType` |
-| A picture clip | `PasteboardImageInsertionEngine` | paste | The picture stays on the clipboard, since a paste whose arrival is not confirmed cannot be safely undone |
+| A picture clip | `PasteboardImageInsertionEngine` | paste | The clipboard is captured first and restored 1.5 s after ⌘V while it still holds the picture; a target slower than that can paste the old clipboard or nothing |
 | A retry of a kept recording | `ClipboardTextInsertionEngine` alone | clipboard | Written; see [recordings.md](recordings.md) |
 
 A clip with a formatted (HTML) flavour skips the Accessibility strategy, which would write the
@@ -43,7 +43,11 @@ file browser, letters are commands. A web area, group or cell counts as text ent
 element reports itself editable (`AXEditable`, or a settable `AXValue`). It still types when the
 application publishes no focused element at all or its role cannot be read, such as after an
 Accessibility timeout (`FocusedElementKind.unpublished`), which is how a bundled-browser composer takes
-dictation. The check is made in `canInsert()`, before the first chunk and before every later one.
+dictation, with one exception: a `DestinationRules` row that sets `refusesUnreadField` refuses in
+that case too, because a key there may reach a shell or a remote machine rather than text. Terminals
+and remote-desktop clients are the two classes the table lists; every other app keeps typing, and a
+new class is a row, not a branch. The check is made in `canInsert()`, before the first chunk and
+before every later one.
 
 The typed strategy posts its text `TypedTextInsertionEngine.chunkLength` characters at a time,
 yields between chunks and makes the same checks again before each chunk after the first, against

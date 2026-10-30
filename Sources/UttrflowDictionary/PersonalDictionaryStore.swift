@@ -172,7 +172,8 @@ public actor PersonalDictionaryStore {
                 id: id, word: typed, pronunciations: DictionaryEntry.pronunciations(inField: pronunciation),
                 origin: .added,
                 firstSeen: existing.firstSeen, timesUsed: existing.timesUsed,
-                timesReverted: existing.timesReverted, applications: applications))
+                timesAccepted: existing.timesAccepted, timesReverted: existing.timesReverted,
+                applications: applications))
     }
 
     /// Folds one spelling of a word into another: the kept entry takes both counters and the other goes.
@@ -187,6 +188,7 @@ public actor PersonalDictionaryStore {
             keeper.spellingKey == other.spellingKey
         else { return nil }
         keeper.timesUsed = DictionaryEntry.clamped(keeper.timesUsed + other.timesUsed)
+        keeper.timesAccepted = DictionaryEntry.clamped(keeper.timesAccepted + other.timesAccepted)
         keeper.timesReverted = DictionaryEntry.clamped(keeper.timesReverted + other.timesReverted)
         let merged = keeper
         try persist(entries.compactMap { $0.id == absorbed ? nil : $0.id == kept ? merged : $0 })
@@ -401,6 +403,14 @@ public actor PersonalDictionaryStore {
     public func recordUse(of ids: [UUID]) throws(DictionaryStoreError) -> [DictionaryEntry] {
         // Saturates rather than trapping, so a counter already at its ceiling stays there.
         try update(Set(ids)) { $0.timesUsed = DictionaryEntry.clamped($0.timesUsed + 1) }
+    }
+
+    /// Counts one accepted use per distinct entry, never past its `timesUsed`.
+    @discardableResult
+    func recordAccepted(of ids: [UUID]) throws(DictionaryStoreError) -> [DictionaryEntry] {
+        try update(Set(ids)) {
+            $0.timesAccepted = min(DictionaryEntry.clamped($0.timesAccepted + 1), $0.timesUsed)
+        }
     }
 
     /// Notes that the user undid a dictation this entry was applied to; a provisional word is removed and refused.

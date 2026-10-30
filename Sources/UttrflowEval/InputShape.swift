@@ -32,6 +32,7 @@ extension EvaluationCase {
             expected: expected, mustKeep: mustKeep, context: context, mustNotAdd: mustNotAdd,
             destination: destination, mustBeginWith: mustBeginWith, mustEndWith: mustEndWith,
             minimumSentences: minimumSentences, expectedExact: expectedExact, adapter: adapter,
-            doubtful: doubtful, pausedAfter: pausedAfter, dictionary: dictionary)
+            doubtful: doubtful, pausedAfter: pausedAfter, dictionary: dictionary,
+            snippets: snippets)
     }
 }

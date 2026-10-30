@@ -189,24 +189,17 @@ public enum Restatement {
         return unanchored
     }
 
-    /// The English weekday names, as lower-cased word keys.
-    private static let weekdays: Set<String> = {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.locale = Locale(identifier: "en_US_POSIX")
-        return Set(calendar.weekdaySymbols.map { $0.lowercased() })
-    }()
-
     /// Where a date said as weekday, "the" and an ordinal is taken back whole when the restart says another such date, and kept when a full stop closes it before a trigger that does not stand alone.
     private static func restatedDateStart(
         before trigger: Int, after restart: Int, through: Bool, in live: [Int], of draft: Draft
     ) -> Int? {
         let key = { (position: Int) in draft.shape(at: live[position]).key }
-        guard restart + 2 < live.count, weekdays.contains(key(restart)), key(restart + 1) == "the",
+        guard restart + 2 < live.count, WordSlot.weekdays.contains(key(restart)), key(restart + 1) == "the",
             NumberWords.ordinalLength((restart + 2..<live.count).map(key)[...]) != nil
         else { return nil }
         for length in 1...2 {
             let start = trigger - length - 2
-            guard start >= 0, weekdays.contains(key(start)), key(start + 1) == "the",
+            guard start >= 0, WordSlot.weekdays.contains(key(start)), key(start + 1) == "the",
                 NumberWords.ordinalLength((start + 2..<trigger).map(key)[...]) == length,
                 !(start..<(through ? trigger - 1 : trigger)).contains(where: {
                     endsSentence($0, in: live, of: draft)

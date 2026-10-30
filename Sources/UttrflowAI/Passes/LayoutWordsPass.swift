@@ -9,14 +9,18 @@ public struct LayoutWordsPass: PieceCleaningPass {
 
     let layout: LayoutPolicy
     private let insertionState: InsertionPoint.SentenceState
+    /// Whether the text is the whole message; a piece may open after a cut, where the break it opens with is still owed.
+    private let readsWholeText: Bool
 
     /// The word that opens a numbered item. It has no row in `SpokenCommands.layout` because the number after it picks the mark.
     static let numbering = "number"
 
     public init(
-        layout: LayoutPolicy = [.paragraphs, .lists], insertionPoint: InsertionPoint = .unknown
+        layout: LayoutPolicy = [.paragraphs, .lists], insertionPoint: InsertionPoint = .unknown,
+        readsWholeText: Bool = true
     ) {
         self.layout = layout
+        self.readsWholeText = readsWholeText
         self.insertionState = insertionPoint.sentenceState
     }
 
@@ -32,7 +36,10 @@ public struct LayoutWordsPass: PieceCleaningPass {
         var position = 0
         while position < live.count {
             guard
-                let found = opening(mark(at: position, in: live, of: draft), at: position),
+                let found = opening(
+                    mark(at: position, in: live, of: draft), at: position,
+                    corroboratedByLaterBreak: position == 0 && readsWholeText
+                        && hasLaterBreak(in: live, of: draft)),
                 position + found.length < live.count,
                 isUsed(found, at: position, in: live, of: draft, among: corroborated),
                 corroborated.contains(live[position])
@@ -176,7 +183,8 @@ public struct LayoutWordsPass: PieceCleaningPass {
 
     /// At the head, a break depends on the insertion point; an item number keeps its existing behavior.
     private func opening(
-        _ found: (length: Int, mark: String, isList: Bool)?, at position: Int
+        _ found: (length: Int, mark: String, isList: Bool)?, at position: Int,
+        corroboratedByLaterBreak: Bool
     ) -> (length: Int, mark: String, isList: Bool)? {
         guard let found, position == 0 else { return found }
         guard found.mark.allSatisfy(\.isNewline) else { return found }
@@ -186,7 +194,18 @@ public struct LayoutWordsPass: PieceCleaningPass {
         case .startOfSentence, .midSentence:
             return found
         case .unknown:
-            return nil
+            // A break said again later shows the first was dictated layout, not a mention.
+            return corroboratedByLaterBreak ? (found.length, "", found.isList) : nil
+        }
+    }
+
+    /// Whether another line break is spoken after the phrase opening the text.
+    private func hasLaterBreak(in live: [Int], of draft: Draft) -> Bool {
+        guard let first = mark(at: 0, in: live, of: draft) else { return false }
+        return live.indices.dropFirst(first.length).contains { position in
+            guard let later = mark(at: position, in: live, of: draft), later.mark.allSatisfy(\.isNewline)
+            else { return false }
+            return !later.mark.isEmpty
         }
     }
 
@@ -196,7 +215,11 @@ public struct LayoutWordsPass: PieceCleaningPass {
         among corroborated: Set<Int>
     ) -> Bool {
         let length = found.length
-        if position == 0, found.mark.allSatisfy(\.isNewline), insertionState != .unknown { return true }
+        if position == 0, found.mark.allSatisfy(\.isNewline),
+            insertionState != .unknown || found.mark.isEmpty
+        {
+            return true
+        }
         // Asked of the sentence, not the text, so a sentence before it cannot turn "number one is broken" into an item.
         guard position == 0 || draft.shape(at: live[position - 1]).endsSentence else {
             return Self.asksForLayout(at: position, spanning: length, in: live, of: draft)
@@ -358,6 +381,8 @@ public struct LayoutWordsPass: PieceCleaningPass {
     static func itemNumber(
         at position: Int, in live: [Int], of draft: Draft
     ) -> (value: Int, count: Int)? {
+        // A mark an earlier run wrote is a laid-out item, not a numeral said after "number".
+        guard live.indices.contains(position), !draft.words[live[position]].isLayoutMark else { return nil }
         guard let number = spokenNumber(at: position, in: live, of: draft) else { return nil }
         let next = position + number.count
         if live.indices.contains(next), predicateOpeners.contains(draft.shape(at: live[next]).key) {

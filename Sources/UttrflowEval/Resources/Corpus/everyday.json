@@ -1897,6 +1897,15 @@
     "expectedExact": "Please open Visual Studio Code and then the Terminal app.",
     "mustKeep": ["Visual Studio Code"],
     "addedFor": 8047
+  },
+  {
+    "id": "stop-kept-before-long-if-clause-7956",
+    "note": "The recogniser's stop before a long if clause stays, and the clause keeps its capital.",
+    "spoken": "the patch is out. if the error budget drops below ninety percent overnight roll back with the runbook in the wiki",
+    "expected": "The patch is out. If the error budget drops below 90% overnight roll back with the runbook in the wiki.",
+    "expectedExact": "The patch is out. If the error budget drops below 90% overnight roll back with the runbook in the wiki.",
+    "mustKeep": ["90%"],
+    "addedFor": 7956
     },
   {
     "id": "range-shares-hundred",
@@ -2007,6 +2016,24 @@
     "expected": "And I quote \"this is the best plan we have had\" in the minutes.",
     "mustKeep": ["I quote", "\"this is the best plan we have had\""],
     "addedFor": 8107
+  },
+  {
+    "id": "newline-written-as-one-word",
+    "note": "The recogniser often writes the spoken \"new line\" as one word; it is the same command.",
+    "spoken": "to do newline call the bank newline email the team",
+    "expected": "To do\nCall the bank\nEmail the team.",
+    "mustKeep": ["to do", "call the bank", "email the team"],
+    "mustNotAdd": ["newline"],
+    "addedFor": 8133
+  },
+  {
+    "id": "newparagraph-written-as-one-word",
+    "note": "The one-word form of \"new paragraph\" is the same command.",
+    "spoken": "thanks for the note newparagraph see you soon",
+    "expected": "Thanks for the note.\n\nSee you soon.",
+    "mustKeep": ["thanks for the note", "see you soon"],
+    "mustNotAdd": ["newparagraph"],
+    "addedFor": 8133
   },
   {
     "id": "question-after-a-spoken-dash-ends-in-a-question-mark",

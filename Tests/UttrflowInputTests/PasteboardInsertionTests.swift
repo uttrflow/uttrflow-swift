@@ -9,7 +9,7 @@ import UttrflowClipboard
 import UttrflowTestSupport
 
 /// A clipboard that records everything written to it and never touches the real one.
-final class FakePasteboard: Pasteboard {
+final class FakePasteboard: Pasteboard, SnapshotRestorablePasteboard {
     private struct State {
         var text: String?
         var changeCount = 0
@@ -25,6 +25,7 @@ final class FakePasteboard: Pasteboard {
         var onFileWrite: (@Sendable (FakePasteboard) -> Void)?
         var files: [[URL]] = []
         var onTextWrite: (@Sendable (FakePasteboard) -> Void)?
+        var supportsSnapshots = false
     }
 
     private let state = Mutex(State())
@@ -142,6 +143,32 @@ final class FakePasteboard: Pasteboard {
         }
         onFileWrite?(self)
         return result
+    }
+
+    /// Opts this clipboard in to being captured and restored, as the real one is.
+    func enableSnapshots() { state.withLock { $0.supportsSnapshots = true } }
+
+    func snapshot() -> PasteboardSnapshot? {
+        state.withLock { state in
+            guard state.supportsSnapshots else { return nil }
+            if let picture = state.currentPicture {
+                return PasteboardSnapshot(items: [["public.png": picture]])
+            }
+            guard let text = state.text else { return PasteboardSnapshot(items: []) }
+            return PasteboardSnapshot(items: [["public.utf8-plain-text": Data(text.utf8)]])
+        }
+    }
+
+    func restore(_ snapshot: PasteboardSnapshot, ifUnchangedSince changeCount: Int) -> Bool {
+        state.withLock { state in
+            guard state.changeCount == changeCount else { return false }
+            state.changeCount += 1
+            state.currentPicture = snapshot.items.first?["public.png"]
+            state.text = snapshot.items.first?["public.utf8-plain-text"].flatMap {
+                String(data: $0, encoding: .utf8)
+            }
+            return true
+        }
     }
 
     /// Stands in for another app copying something while the paste is in flight.
@@ -820,6 +847,98 @@ struct PasteboardImageInsertionEngineTests {
 
         #expect(pasteboard.pictures == [image])
         #expect(keystrokes.pasteCount == 1)
+    }
+
+    @Test("the user's text clipboard returns after the picture has been pasted")
+    func restoresTheClipboardAfterTheDelay() async throws {
+        let pasteboard = FakePasteboard(text: "the user's copy")
+        pasteboard.enableSnapshots()
+        let keystrokes = FakeKeystrokeSender()
+        let sut = PasteboardImageInsertionEngine(
+            focus: SwitchableFocus(), pasteboard: pasteboard, keystrokes: keystrokes,
+            restoreDelay: .zero, sleep: { _ in })
+
+        let restore = try sut.insert(Data([1, 2, 3]))
+        #expect(keystrokes.pasteCount == 1)
+        await restore?.value
+
+        #expect(pasteboard.text() == "the user's copy")
+        #expect(pasteboard.currentPicture == nil)
+    }
+
+    @Test("a picture that was on the clipboard returns too")
+    func restoresAPictureClipboard() async throws {
+        let pasteboard = FakePasteboard()
+        _ = pasteboard.setImage(Data([9, 9]))
+        pasteboard.enableSnapshots()
+        let sut = PasteboardImageInsertionEngine(
+            focus: SwitchableFocus(), pasteboard: pasteboard, keystrokes: FakeKeystrokeSender(),
+            restoreDelay: .zero, sleep: { _ in })
+
+        await (try sut.insert(Data([1, 2, 3])))?.value
+
+        #expect(pasteboard.currentPicture == Data([9, 9]))
+    }
+
+    @Test("an empty clipboard is left as the picture was, never refilled with stale text")
+    func restoresAnEmptyClipboard() async throws {
+        let pasteboard = FakePasteboard()
+        pasteboard.enableSnapshots()
+        let sut = PasteboardImageInsertionEngine(
+            focus: SwitchableFocus(), pasteboard: pasteboard, keystrokes: FakeKeystrokeSender(),
+            restoreDelay: .zero, sleep: { _ in })
+
+        await (try sut.insert(Data([1, 2, 3])))?.value
+
+        #expect(pasteboard.currentPicture == nil)
+        #expect(pasteboard.text() == nil)
+    }
+
+    @Test("a copy made during the delay is never overwritten")
+    func keepsANewerCopy() async throws {
+        let pasteboard = FakePasteboard(text: "old")
+        pasteboard.enableSnapshots()
+        let sut = PasteboardImageInsertionEngine(
+            focus: SwitchableFocus(), pasteboard: pasteboard, keystrokes: FakeKeystrokeSender(),
+            restoreDelay: .zero, sleep: { _ in pasteboard.copyFromAnotherApp("newer") })
+
+        await (try sut.insert(Data([1, 2, 3])))?.value
+
+        #expect(pasteboard.text() == "newer")
+    }
+
+    @Test("the restore waits for the delay it was given")
+    func waitsForTheDelay() async throws {
+        let pasteboard = FakePasteboard(text: "kept")
+        pasteboard.enableSnapshots()
+        let asked = Mutex<Duration?>(nil)
+        let sut = PasteboardImageInsertionEngine(
+            focus: SwitchableFocus(), pasteboard: pasteboard, keystrokes: FakeKeystrokeSender(),
+            restoreDelay: .seconds(2), sleep: { delay in asked.withLock { $0 = delay } })
+
+        await (try sut.insert(Data([1])))?.value
+
+        #expect(asked.withLock { $0 } == .seconds(2))
+    }
+
+    @Test("a clipboard that cannot be captured schedules no restore")
+    func schedulesNothingWithoutASnapshot() throws {
+        let sut = PasteboardImageInsertionEngine(
+            focus: SwitchableFocus(), pasteboard: FakePasteboard(text: "x"),
+            keystrokes: FakeKeystrokeSender())
+
+        #expect(try sut.insert(Data([1])) == nil)
+    }
+
+    @Test("a refused paste leaves no restore pending")
+    func schedulesNothingWhenThePasteIsRefused() {
+        let pasteboard = FakePasteboard(text: "x")
+        pasteboard.enableSnapshots()
+        let sut = PasteboardImageInsertionEngine(
+            focus: SwitchableFocus(), pasteboard: pasteboard,
+            keystrokes: FakeKeystrokeSender(error: .accessibilityDenied))
+
+        #expect(throws: TextInsertionError.self) { try sut.insert(Data([1])) }
     }
 
     @Test("cancellation after an image write removes it before posting paste")

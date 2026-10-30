@@ -36,6 +36,12 @@ final class Database {
     private var transactionDepth = 0
     /// Whether the in-memory image differs from its last durable snapshot.
     private var isDirty = false
+    /// Whether committed changes wait for `flush` instead of being sealed one at a time.
+    var defersWrites = false
+    /// Asks once for a later `flush` when a committed change waits, until that flush runs.
+    var onDeferredWrite: (() -> Void)?
+    /// Whether a batch is already asked for, covering changes no snapshot holds yet.
+    private var flushRequested = false
     /// The statements compiled so far, kept by their SQL because these run on every keystroke.
     private var cached: [String: OpaquePointer] = [:]
 
@@ -72,6 +78,7 @@ final class Database {
     }
 
     deinit {
+        try? flush()
         for statement in cached.values { sqlite3_finalize(statement) }
         sqlite3_close_v2(handle)
     }
@@ -153,7 +160,7 @@ final class Database {
             let result = try body()
             try execute("COMMIT")
             transactionDepth -= 1
-            if isReady, transactionDepth == 0, isDirty { try persistSnapshot() }
+            if transactionDepth == 0, isDirty { try persistOrDefer() }
             return result
         } catch {
             if transactionDepth == 0, isDirty, isReady {
@@ -174,6 +181,18 @@ final class Database {
         try removePlaintextSidecars()
         try? PrivateFile.tighten(at: file)
         try? PrivateFile.excludeFromBackup(at: file)
+    }
+
+    /// Seals any committed change still waiting, so it is durable when the call returns.
+    func flush() throws(PredictStoreError) {
+        guard isReady, transactionDepth == 0, isDirty else { return }
+        do {
+            try persistSnapshot()
+        } catch {
+            // The next committed change asks for another batch, which retries this one.
+            flushRequested = false
+            throw error
+        }
     }
 
     /// Persists structural migrations whose DDL does not affect SQLite's row-change count.
@@ -267,6 +286,7 @@ final class Database {
             throw .cannotOpen(file.path)
         }
         isDirty = false
+        flushRequested = false
         try removePlaintextSidecars()
     }
 
@@ -285,7 +305,16 @@ final class Database {
     /// Persists a successful mutation only after schema setup and outside a transaction.
     private func markDirty() throws(PredictStoreError) {
         isDirty = true
-        if isReady, transactionDepth == 0 { try persistSnapshot() }
+        if transactionDepth == 0 { try persistOrDefer() }
+    }
+
+    /// Seals a committed change now, or leaves it for one later `flush` that covers every change since.
+    private func persistOrDefer() throws(PredictStoreError) {
+        guard isReady else { return }
+        guard defersWrites, encryptedStore != nil else { return try persistSnapshot() }
+        guard !flushRequested else { return }
+        flushRequested = true
+        onDeferredWrite?()
     }
 
     /// Recognizes statements whose successful execution changes the database image.

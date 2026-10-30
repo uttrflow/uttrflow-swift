@@ -14,7 +14,7 @@ private func axUIElementGetWindow(
 ) -> AXError
 
 /// The real clipboard, untestable by construction and so excluded from the coverage gate.
-public struct SystemPasteboard: Pasteboard {
+public struct SystemPasteboard: Pasteboard, RawItemPasteboard {
     /// Told what this app is about to write, so the watcher can tell it from a copy. See `Docs/insertion.md`.
     private let willWrite: @Sendable (String) -> @Sendable (Int?) -> Void
     /// Told the bytes a picture write puts there, which is what names it to the watcher.
@@ -62,11 +62,9 @@ public struct SystemPasteboard: Pasteboard {
         let finishAnnouncement = willWrite(text)
         let item = Self.textItem(text, richText: richText, marker: marker)
         clearForThisMacOnly(on: pasteboard)
-        guard let changeCount = Self.writeItem(item, to: pasteboard) else {
-            finishAnnouncement(nil)
-            return .refused
-        }
-        guard InsertionPasteboardReadback.matches(pasteboard.string(forType: .string), for: text) else {
+        guard let changeCount = Self.writeItem(item, to: pasteboard),
+            InsertionPasteboardReadback.matches(pasteboard.string(forType: .string), for: text)
+        else {
             finishAnnouncement(nil)
             return .refused
         }
@@ -145,6 +143,23 @@ public struct SystemPasteboard: Pasteboard {
         return .written(changeCount: changeCount)
     }
 
+    /// The general pasteboard as bytes, which is all the snapshot and restore logic in `RawItemPasteboard` needs.
+    var rawItems: [[String: Data]] {
+        (NSPasteboard.general.pasteboardItems ?? []).map { item in
+            item.types.reduce(into: [String: Data]()) { $0[$1.rawValue] = item.data(forType: $1) }
+        }
+    }
+
+    func replaceRawItems(_ items: [[String: Data]]) -> Bool {
+        clearForThisMacOnly()
+        return NSPasteboard.general.writeObjects(
+            items.map { entry in
+                let item = NSPasteboardItem()
+                for (type, data) in entry { item.setData(data, forType: NSPasteboard.PasteboardType(type)) }
+                return item
+            })
+    }
+
     /// Clears the pasteboard and keeps what goes on it next off Universal Clipboard. See `Docs/insertion.md`.
     private func clearForThisMacOnly(on pasteboard: NSPasteboard = .general) {
         pasteboard.prepareForNewContents(with: .currentHostOnly)
@@ -152,7 +167,16 @@ public struct SystemPasteboard: Pasteboard {
 }
 
 /// What every failure to build a synthetic keystroke reports.
-private let unmakeableKeystroke = "could not create the keystroke"
+private let noKeystroke = "could not create the keystroke"
+
+/// The event source a synthetic keystroke needs, refused without Accessibility trust.
+private func trustedEventSource() throws(TextInsertionError) -> CGEventSource {
+    guard AXIsProcessTrusted() else { throw .accessibilityDenied }
+    guard let source = CGEventSource(stateID: .hidSystemState) else {
+        throw .insertionRejected(description: noKeystroke)
+    }
+    return source
+}
 
 /// Posts one tagged key-down and key-up, after `prepare` has set each up. See `Docs/input-synthetic-keystrokes.md`.
 private func postTaggedKeyPair(
@@ -168,7 +192,7 @@ func makeTaggedKeyPair(
     guard
         let keyDown = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true),
         let keyUp = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false)
-    else { throw .insertionRejected(description: unmakeableKeystroke) }
+    else { throw .insertionRejected(description: noKeystroke) }
 
     for event in [keyDown, keyUp] {
         prepare(event)
@@ -235,17 +259,12 @@ enum PasteKeyLayout {
     /// The current layout's key code for ⌘V, read from its ⌘ table, or the ASCII-capable layout's when the current one has none.
     @MainActor
     private static func readVKeyCode() -> CGKeyCode {
-        if let source = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue(),
-            let data = unicodeLayoutData(of: source),
-            let code = LayoutKeyCode.code(for: vCharacter, in: data, modifiers: LayoutKeyCode.commandHeld)
-        {
-            return code
-        }
-        if let source = TISCopyCurrentASCIICapableKeyboardLayoutInputSource()?.takeRetainedValue(),
-            let data = unicodeLayoutData(of: source),
-            let code = LayoutKeyCode.code(for: vCharacter, in: data, modifiers: LayoutKeyCode.commandHeld)
-        {
-            return code
+        for copy in [TISCopyCurrentKeyboardInputSource, TISCopyCurrentASCIICapableKeyboardLayoutInputSource] {
+            if let source = copy()?.takeRetainedValue(), let data = unicodeLayoutData(of: source),
+                let code = LayoutKeyCode.code(for: vCharacter, in: data, modifiers: LayoutKeyCode.commandHeld)
+            {
+                return code
+            }
         }
         return fallbackVKeyCode
     }
@@ -278,17 +297,12 @@ public struct CGEventKeystrokeSender: KeystrokeSender {
 
     /// Starts tracking layout changes, so `sendPaste()` posts the key that types V under the current one.
     @MainActor
-    public static func startObservingLayout() {
-        PasteKeyLayout.startObserving()
-    }
+    public static func startObservingLayout() { PasteKeyLayout.startObserving() }
 
     public func maySendPaste() -> Bool { AXIsProcessTrusted() }
 
     public func sendPaste() throws(TextInsertionError) {
-        guard AXIsProcessTrusted() else { throw .accessibilityDenied }
-        guard let source = CGEventSource(stateID: .hidSystemState) else {
-            throw .insertionRejected(description: unmakeableKeystroke)
-        }
+        let source = try trustedEventSource()
         try postTaggedKeyPair(from: source, keyCode: PasteKeyLayout.vKeyCode()) { $0.flags = .maskCommand }
     }
 }
@@ -299,10 +313,7 @@ extension CGEventKeystrokeSender {
 
     /// Presses ⌘Z once, which is how `uttrflow-dev insert --then-undo` asks the target to undo.
     public func sendUndo() throws(TextInsertionError) {
-        guard AXIsProcessTrusted() else { throw .accessibilityDenied }
-        guard let source = CGEventSource(stateID: .hidSystemState) else {
-            throw .insertionRejected(description: unmakeableKeystroke)
-        }
+        let source = try trustedEventSource()
         let code = PasteKeyLayout.commandKeyCode(
             for: UniChar(UnicodeScalar("z").value), fallback: Self.fallbackZKeyCode)
         try postTaggedKeyPair(from: source, keyCode: code) { $0.flags = .maskCommand }
@@ -319,10 +330,7 @@ public struct CGEventTypist: KeystrokeTyping {
     /// One press per character, because there is no bulk delete a synthetic keyboard can reach for.
     public func deleteBackwards(_ count: Int) throws(TextInsertionError) {
         guard count > 0 else { return }
-        guard AXIsProcessTrusted() else { throw .accessibilityDenied }
-        guard let source = CGEventSource(stateID: .hidSystemState) else {
-            throw .insertionRejected(description: unmakeableKeystroke)
-        }
+        let source = try trustedEventSource()
         try buildThenPost(
             Array(0..<count),
             build: { _ throws(TextInsertionError) in
@@ -332,10 +340,7 @@ public struct CGEventTypist: KeystrokeTyping {
     }
 
     public func type(_ text: String) throws(TextInsertionError) {
-        guard AXIsProcessTrusted() else { throw .accessibilityDenied }
-        guard let source = CGEventSource(stateID: .hidSystemState) else {
-            throw .insertionRejected(description: unmakeableKeystroke)
-        }
+        let source = try trustedEventSource()
         let keypresses = try LayoutKeyCode.keypresses(for: text, stroke: PasteKeyLayout.stroke(for:))
         try buildThenPost(
             keypresses,
@@ -407,8 +412,7 @@ public struct AXAccessibilityFocus: AcceptanceFieldReader {
 
     /// Asks the focused element's role and names first, reading the start of its value only when none of them says secure.
     public func focusedFieldIsSecure() -> Bool {
-        guard let element = focusedElement() else { return false }
-        return isSecureField(element)
+        focusedElement().map(isSecureField) ?? false
     }
 
     /// The focused field and a bare caret, refusing a secure field and a selection that a write would have collapsed.
@@ -684,9 +688,7 @@ private func isSecureField(_ element: AXUIElement) -> Bool {
 /// The string an Accessibility attribute holds, or `nil` when the element will not say.
 private func stringAttribute(_ name: String, of element: AXUIElement) -> String? {
     var current: AnyObject?
-    guard
-        AXUIElementCopyAttributeValue(element, name as CFString, &current) == .success
-    else { return nil }
+    guard AXUIElementCopyAttributeValue(element, name as CFString, &current) == .success else { return nil }
     return current as? String
 }
 
@@ -723,9 +725,7 @@ private func rangeAttribute(_ name: String, of element: AXUIElement) -> CFRange?
 
     // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
     var range = CFRange()
-    guard AXValueGetValue(unsafeDowncast(value, to: AXValue.self), .cfRange, &range) else {
-        return nil
-    }
+    guard AXValueGetValue(unsafeDowncast(value, to: AXValue.self), .cfRange, &range) else { return nil }
     return range
 }
 
@@ -753,9 +753,7 @@ private func selection(of element: AXUIElement) -> AccessibilitySelection {
 private func rangeValue(_ value: AnyObject) -> CFRange? {
     guard CFGetTypeID(value) == AXValueGetTypeID() else { return nil }
     var range = CFRange()
-    guard AXValueGetValue(unsafeDowncast(value, to: AXValue.self), .cfRange, &range) else {
-        return nil
-    }
+    guard AXValueGetValue(unsafeDowncast(value, to: AXValue.self), .cfRange, &range) else { return nil }
     return range
 }
 

@@ -176,7 +176,7 @@ The decided shape, inside `DoubtPolicy` (the one seam every consumer of doubt al
   class or the destination consequence (`stores` to `sends` to `executes`) never raises the
   override rate and never lowers the flag rate.
 - `ConfusionCost` classes a pair: `meaningFlip` when the readings differ in their count of
-  negators, `numberFlip` when they differ in a quantity word or numeral, else `cosmetic`.
+  negators or one word stands for a sound-alike of another meaning (a `meaning-swaps.json` row), `numberFlip` when they differ in a quantity word or numeral, else `cosmetic`.
 - Each step of cost (a tier above `cosmetic`, or a destination above `stores`) adds one signal
   to the override margin and lifts the flag line by `FlagPolicy.stepPerTier`:
 

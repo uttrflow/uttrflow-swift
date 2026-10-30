@@ -304,6 +304,17 @@ differs from the heard words only in its capitals is not counted: "Claude" for "
 sentence does to its first word whatever the dictionary holds, so the capital is no evidence the
 model chose the entry. Such an entry is still counted when the correction engine applies it.
 
+### Appeared and accepted
+
+Two counters, stated here once. `timesUsed` is appeared: it keeps a word in the prompt and out of
+age retirement. `timesAccepted` is accepted, never above `timesUsed`: `EditAwayWatch` reads the
+field again after its window and counts a use only when the word is still there, so the person
+left it unedited. `netUses`, which every rank site reads, is `timesAccepted - timesReverted`. A field
+that cannot be read, or that changed, counts nothing. A file from before the counter reads
+`timesAccepted` as `timesUsed`, so no rank resets. A wrong word applied a hundred times and never
+confirmed keeps the `netUses` of its first application (`AcceptedRankTests`). The persona ledger
+still notes applications.
+
 A third way leaves no rewrite at all: the vocabulary prompt makes the recogniser spell the entry
 right, so nothing corrects it. `timesUsed` therefore means "appeared in a landed dictation", not
 "was rewritten into one". After the words land, the pipeline hands the counter the text it wrote,

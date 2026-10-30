@@ -255,6 +255,12 @@ extension MenuBarPresenter {
         return "\(tenths / 10).\(tenths % 10) GB"
     }
 
+    /// How much of a `total`-byte download has arrived at `fraction`, as "323 MB of 646 MB".
+    static func received(_ fraction: Double, of total: Int64) -> String {
+        let arrived = Int64(Double(total) * min(max(fraction, 0), 1))
+        return "\(size(of: arrived)) of \(size(of: total))"
+    }
+
     // MARK: The buttons
 
     /// Talk, Clipboard, Settings and Home, each greyed rather than hidden when it cannot act.

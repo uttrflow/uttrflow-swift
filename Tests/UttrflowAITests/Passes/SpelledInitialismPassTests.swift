@@ -91,6 +91,19 @@ struct SpelledInitialismPassTests {
     }
 
     @Test(
+        "never reads a command option as a letter name", .bug(id: 7919),
+        arguments: [
+            ("npm i -g typescript", "npm i -g typescript"),
+            ("npm i -D vitest", "npm i -D vitest"),
+            ("brew i -g foo", "brew i -g foo"),
+            ("ls -l -a", "ls -l -a"),
+            ("tar x -f a b c", "tar x -f ABC"),
+        ])
+    func optionIsNoLetter(input: String, expected: String) {
+        #expect(sut.apply(Draft(text: input)).text == expected)
+    }
+
+    @Test(
         "joins a pair only when both are bare letters, and any run of three",
         arguments: [
             ("are o bhai sun", "are o bhai sun"),
@@ -217,6 +230,33 @@ struct SpelledInitialismPassTests {
             ("b 3 p m", "b 3 pm"), ("seat e 3 a m", "seat E3 am"),
         ])
     func writesMeridiemHouseForm(input: String, expected: String) {
+        #expect(CleaningPipeline(passes: [sut]).run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "drops the stop of a dotted meridiem before a zone or place name, keeps it before a new sentence",
+        arguments: [
+            ("at 5 p.m. Eastern Time on Friday", "at 5 pm Eastern Time on Friday"),
+            ("at 9 a.m. Pacific which is 12 p.m. Eastern.", "at 9 am Pacific which is 12 pm Eastern."),
+            ("at 3 p.m. London time", "at 3 pm London time"),
+            ("lunch is at 1 p.m. with the team", "lunch is at 1 pm with the team"),
+            ("we left at 5 p.m. Then we ate.", "we left at 5 pm. Then we ate."),
+            ("we left at 5 p.m. We ate.", "we left at 5 pm. We ate."),
+        ])
+    func dottedMeridiemBeforeName(input: String, expected: String) {
+        #expect(CleaningPipeline(passes: [sut]).run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "writes a zone abbreviation said after a clock meridiem in capitals",
+        arguments: [
+            ("at 3 pm ist tomorrow", "at 3 pm IST tomorrow"),
+            ("lets do it at 10 am pst", "lets do it at 10 am PST"),
+            ("call me at 9 am est.", "call me at 9 am EST."), ("it is at 6 pm gmt", "it is at 6 pm GMT"),
+            ("at 3 p.m. ist tomorrow", "at 3 pm IST tomorrow"),
+            ("at 3 pm in the est", "at 3 pm in the est"), ("we said ist", "we said ist"),
+        ])
+    func zoneAfterMeridiem(input: String, expected: String) {
         #expect(CleaningPipeline(passes: [sut]).run(Draft(text: input)).text == expected)
     }
 

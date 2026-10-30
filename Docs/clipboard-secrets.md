@@ -5,7 +5,7 @@ Every copy is checked for a credential before it is listed. A clip that is one i
 history or saved-clips files. `SecretShapes.matches(_:)` in `Sources/UttrflowCore/Secrets/` is the one
 answer; the shapes it asks are in `SecretShapes.swift`, `SecretScanners.swift`,
 `PatternWindows.swift`, `CardNumberShape.swift`, `CommandCredentialShape.swift`,
-`BearerURLShape.swift`, `DockerAuthShape.swift` and `BIP39RecoveryPhrase.swift`, and the
+`BearerURLShape.swift`, `AuthenticatorSeedShape.swift`, `DockerAuthShape.swift` and `BIP39RecoveryPhrase.swift`, and the
 password-manager markers are read by `PasteboardMarkers`. How the panel masks a secret is in
 [`panel.md`](panel.md#masking).
 
@@ -109,8 +109,11 @@ necessarily the one that wrote the clipboard.
 ## Per-application exclusions and pause
 
 Settings can exclude applications by bundle identifier (`ClipboardPreferences`) and pause capture
-for one hour ("Pause for 1 hour"). The exclusion list is empty by default; add an app from the
-running-app picker or choose an application bundle. A timed pause can be resumed early and its
+for one hour ("Pause for 1 hour"). The exclusion list starts with the banking and health families in
+`SensitiveApplications.families`; removing one from the list turns capture on for that family. Add
+an app from the running-app picker or choose an application bundle. Every entry is matched by family:
+it covers its own identifier and any identifier that continues it after a dot, so a beta or renamed
+build is excluded with it. A timed pause can be resumed early and its
 end time survives an app restart. Copies observed during a pause are passed over when capture
 resumes.
 
@@ -152,6 +155,8 @@ by few of them.
    webhook, or a URL whose query or fragment carries `sig`, `signature`, `X-Amz-Signature`,
    `X-Goog-Signature`, `access_token`, `id_token`, `refresh_token` or `token` with a value of at
    least eight characters, which is what a signed (SAS, pre-signed) URL or a magic link is.
+   A `password`, `passwd` or `pwd` parameter needs no generated shape: a value with a digit or at
+   least twelve characters that is not a placeholder is masked.
    `?token=` with nothing, or with a short placeholder, stays a link. Parameter names are
    percent-decoded first (`access%5Ftoken`), a host's closing dot is ignored
    (`hooks.slack.com.`), and a URL nested after a later `://` in another one's path or query
@@ -196,6 +201,8 @@ by few of them.
 13. The statistical rule (below).
 
 ## Telegram bot addresses
+
+An `otpauth://` or `otpauth-migration://` URI is a secret when its query holds a non-empty `secret` or `data` parameter, because that value generates every future one-time code for the account (`AuthenticatorSeedShape`). The scheme and parameter names are matched without regard to case, and the URI may sit inside other text; one with no seed stays a link.
 
 The Telegram Bot API token is a bearer credential in the first path segment: `bot`, a decimal bot identifier, a colon, and a 35-character token. `BearerURLShape` recognizes that complete shape only on `api.telegram.org`; the ordinary entropy rule skips URLs because their punctuation and surrounding address distort the token signal. The host and path are parsed together, so an unrelated URL with a similar path stays a link.
 

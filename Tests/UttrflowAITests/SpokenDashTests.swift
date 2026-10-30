@@ -268,6 +268,25 @@ struct ShortOptionClusterTests {
         #expect(SpokenPunctuationPass(destination: .terminal).apply(Draft(text: spoken)).text == expected)
     }
 
+    @Test(
+        "leaves a version tag after a one-letter flag as its own word",
+        arguments: [
+            ("git tag dash a v one point four point two", "git tag -a v1.4.2"),
+            ("git tag dash d v two point oh point zero", "git tag -d v2.0.0"),
+            ("git tag dash a v 1.4.2", "git tag -a v1.4.2"),
+            ("git tag v one point two point three dash rc dot one", "git tag v1.2.3-rc.1"),
+            ("ssh dash v host", "ssh -v host"),
+            ("tar dash x z v f archive", "tar -xzvf archive"),
+        ])
+    func keepsVersionTagApart(spoken: String, expected: String) {
+        let app = AppContext(applicationName: "Terminal", bundleIdentifier: "com.apple.Terminal")
+        let situation = SituationResolver.resolve(from: app)
+        let formatter = DestinationFormatter.standard(for: situation.destination)
+        let written = CleaningPipeline.standard(for: formatter, situation: situation)
+            .run(Draft(text: spoken)).text
+        #expect(written == expected)
+    }
+
     @Test("joins them in plain text after a program the lexicon knows")
     func joinsClustersAfterACommandInProse() {
         for (spoken, expected) in [

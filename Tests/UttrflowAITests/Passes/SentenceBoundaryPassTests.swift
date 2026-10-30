@@ -51,6 +51,56 @@ struct SentenceBoundaryPassTests {
     }
 
     @Test(
+        "ends the step that runs into the next Step N: label, with or without a following step",
+        arguments: [
+            (
+                "Step 1: open the settings Step 2: click save",
+                "Step 1: open the settings. Step 2: click save."
+            ),
+            (
+                "Step 1: open the app Step 2: sign in Step 3: click start",
+                "Step 1: open the app. Step 2: sign in. Step 3: click start."
+            ),
+            (
+                "Let us begin. Step 1: open the app Step 2: sign in",
+                "Let us begin. Step 1: open the app. Step 2: sign in."
+            ),
+            (
+                "Step 1:open the app Step 2:sign in Step 3:click start",
+                "Step 1: open the app. Step 2: sign in. Step 3: click start."
+            ),
+            // A stop already there, a lone label and a step that is not in order are left alone.
+            (
+                "Step 1: open the settings. Step 2: click save.",
+                "Step 1: open the settings. Step 2: click save."
+            ),
+            ("Take the next step 2: it is quick", "Take the next step 2: it is quick."),
+            (
+                "Step 1: open the settings Step 3: click save",
+                "Step 1: open the settings Step 3: click save."
+            ),
+        ])
+    func endsStepBeforeStepLabel(input: String, expected: String) {
+        #expect(cleaned(input) == expected)
+    }
+
+    @Test(
+        "a numbered list that opens the dictation ends its first item before the second marker",
+        arguments: [
+            (
+                "1. open the settings 2. click save",
+                "1. Open the settings. 2. Click save."
+            ),
+            (
+                "We agreed on it. 1. ship on may 2. keep the budget flat",
+                "We agreed on it. 1. Ship on may 2. Keep the budget flat."
+            ),
+        ])
+    func endsItemOfOpeningList(input: String, expected: String) {
+        #expect(cleaned(input) == expected)
+    }
+
+    @Test(
         "a capital A is the letter of a label, so it keeps its case and its comma",
         arguments: [
             ("Part A, part B, and part C are due Monday.", "Part A, part B, and part C are due Monday."),
@@ -168,6 +218,35 @@ struct SentenceBoundaryPassTests {
         ])
     func keepsStopBeforeConditionalWithImperative(input: String, expected: String) {
         #expect(cleaned(input) == expected)
+    }
+
+    @Test(
+        "keeps the recogniser's stop before a long conditional clause whose main clause the tags miss",
+        arguments: [
+            (
+                "It signed off an hour ago. if the error budget drops below ninety percent overnight "
+                    + "roll back with the runbook in the wiki",
+                "It signed off an hour ago. If the error budget drops below 90% overnight "
+                    + "roll back with the runbook in the wiki."
+            ),
+            (
+                "The docs are at docs dot example dot com slash start. "
+                    + "if you get stuck write to dev dash help at example dot com",
+                "The docs are at docs.example.com/start. If you get stuck write to dev-help@example.com."
+            ),
+        ])
+    func keepsStopBeforeLongConditional(input: String, expected: String) {
+        let standard = CleaningPipeline.standard(for: .standard(for: .plain), situation: .unknown)
+        #expect(standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "a cut inside a conditional clause after a stop leaves the sentence running on",
+        arguments: [
+            "the patch is out. if the error budget drops below 90%", "at noon. if the hall is booked",
+        ])
+    func cutInsideConditionalRunsOn(piece: String) {
+        #expect(SentenceBoundaryEvidence.sentenceRunsOn(piece, into: "overnight roll back with the runbook"))
     }
 
     @Test(

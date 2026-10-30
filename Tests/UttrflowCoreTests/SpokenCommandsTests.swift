@@ -11,8 +11,8 @@ struct SpokenCommandsTests {
     func shipped() {
         #expect(SpokenCommands.table.source == .bundled)
         #expect(SpokenCommands.marks.count == 34)
-        #expect(SpokenCommands.layout.count == 5)
-        #expect(SpokenCommands.codeSymbols.count == 50)
+        #expect(SpokenCommands.layout.count == 7)
+        #expect(SpokenCommands.codeSymbols.count == 52)
         #expect(SpokenCommands.keywords.count == 29)
         #expect(SpokenCommands.casings.count == 7)
         #expect(

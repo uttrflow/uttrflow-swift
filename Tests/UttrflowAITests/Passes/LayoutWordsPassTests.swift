@@ -31,6 +31,9 @@ struct LayoutWordsPassTests {
                 "priorities this week\n1. hire a designer\n2. finish the audit"
             ),
             ("agenda new line one intro new line two demo", "agenda\none intro\ntwo demo"),
+            ("to do newline call the bank newline email sarah", "to do\ncall the bank\nemail sarah"),
+            ("hi sam newline thanks for the note", "hi sam\nthanks for the note"),
+            ("thanks newparagraph the second issue", "thanks\n\nthe second issue"),
             (
                 "here is the plan. number one, fix the build. number two, ship it",
                 "here is the plan.\n1. fix the build.\n2. ship it"
@@ -100,6 +103,12 @@ struct LayoutWordsPassTests {
         ])
     func keepsConsecutiveNumbersSafe(input: String) {
         #expect(!cleaned(input, by: sut).isEmpty)
+    }
+
+    @Test("reads an item mark a first run wrote as the mark, never as a number said")
+    func rerunLeavesWrittenItemMark() {
+        let once = sut.apply(Draft(text: "number number two number three"))
+        #expect(sut.apply(once).text == once.text)
     }
 
     @Test("keeps consecutive numbered items safe for each insertion state")
@@ -256,6 +265,31 @@ struct LayoutWordsPassTests {
         let pass = LayoutWordsPass()
         let spoken = SpokenPunctuationPass(destination: .plain)
         #expect(CleaningPipeline(passes: [spoken, pass]).run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "drops a leading break that later spoken breaks corroborate, in a field of unknown content",
+        arguments: [
+            (
+                "new line first item, new line second item, new line third item",
+                "first item\nsecond item\nthird item"
+            ),
+            ("new line first item new line second item", "first item\nsecond item"),
+        ]
+    )
+    func dropsCorroboratedLeadingBreak(input: String, expected: String) {
+        let spoken = SpokenPunctuationPass(destination: .plain)
+        #expect(CleaningPipeline(passes: [spoken, sut]).run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "keeps a leading break that opens a piece, which may follow a cut, even when a later break is spoken")
+    func keepsLeadingBreakOfPiece() {
+        let pass = LayoutWordsPass(readsWholeText: false)
+        let text = CleaningPipeline(passes: [pass]).run(
+            Draft(text: "new line first item new line second item")
+        ).text
+        #expect(text.hasPrefix("new line"))
     }
 
     @Test("drops a leading break command in a known empty field")

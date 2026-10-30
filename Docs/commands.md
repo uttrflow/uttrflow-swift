@@ -91,7 +91,9 @@ field's selection; where no edit is planned, or the field is secure, it refuses 
 "undo that" undoes the newest spoken edit held in `EditHistory`, and with none held it takes the
 last dictation out. Every edit refuses, changing nothing, when another field is in front or the
 dictation is no longer exactly where it was written (`Docs/insertion.md`). A delete of a dictation
-that runs over more than one line is refused rather than run. A delete's notice counts the words it
+that runs over more than one line is not run at once: it refuses, and the single word "confirm" said
+whole within 3 seconds (`ConfirmationPolicy`, held by `PendingConfirmation`) then runs it; heard late,
+or after another command or a changed span, it refuses and does nothing. A delete's notice counts the words it
 took out and says "undo that" brings them back; it never names a word.
 `Tests/UttrflowInputTests/RecordedEditTests.swift` pins each edit and the refusals.
 
@@ -102,7 +104,10 @@ command refuses and nothing is written. Command words go through the dictionary 
 command reads them, so Y is written in the spelling the user filed. Y is then tidied by the rules
 as a piece (`DictationPipeline.tidiedPhrase`: fillers, numbers and spoken marks, no model, and no
 casing or closing stop, which belong to where Y lands); the command words are not tidied. With
-more than one match the notice says the last was replaced (`ReplaceCommand.done`).
+more than one match the notice says the last was replaced (`ReplaceCommand.done`). Said whole
+straight after, "replace first" redoes that replace on the first match (`ReplaceCommand.correction`,
+`RecordedEditor.correct`): it rewrites the span the replace wrote, refuses when the newest edit was
+not that replace, and one "undo that" then puts the original dictation back.
 
 ## Key presses
 
@@ -177,6 +182,9 @@ turbo, 216 takes.
 | inline code | 100% | none |
 | code block | 33.3% | nothing heard, "cold block" |
 
-No take ran a different command. The gate (`CommandAudioReport.passesGate`) is held at this run:
-recall at least 117 of 216, 0 misfires. Synthetic voices read cleanly, so a real speaker's recall
+No take ran a different command. A heading level the recogniser writes as a word that sounds like
+its number ("Heading to.", "Heading free.") is read as that level, which takes the same takes to
+67.1% (145 of 216). The gate (`CommandAudioReport.passesGate`) is held there: recall at least 145 of
+216, 0 misfires. The release target (`CommandAudioReport.recallTarget`) is 75% overall; Markdown
+commands ship once the floor reaches it. Synthetic voices read cleanly, so a real speaker's recall
 is lower than this, not higher; a recorded set replaces the table.

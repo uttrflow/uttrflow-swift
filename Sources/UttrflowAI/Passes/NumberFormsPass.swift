@@ -549,7 +549,11 @@ public struct NumberFormsPass: PieceCleaningPass {
                 value: item.value, text: regrouped(item.text, digits: digits, quantity: quantity),
                 count: item.count, spoken: false)
         }
-        let inContext = hasLabelCue(at: position, keys: keys, shapes: shapes)
+        // "the code and one with the price": a label word earlier in the clause does not make the pronoun a code digit.
+        let inContext =
+            hasLabelCue(at: position, keys: keys, shapes: shapes)
+            && !(item.spoken && item.value == 1 && item.count == 1
+                && isDescribedOne(at: position, keys: keys))
         if let measured = decimalAndPercent(item, at: position, keys: keys, shapes: shapes) {
             return measured
         }
@@ -607,6 +611,11 @@ public struct NumberFormsPass: PieceCleaningPass {
         {
             text += "." + group.text
             end += 1 + group.count
+        }
+        if text.filter({ $0 == "." }).count >= 2,
+            let suffix = preReleaseSuffix(at: end, keys: keys, shapes: shapes)
+        {
+            return Phrase(text: text + suffix.text, count: end + suffix.count - position)
         }
         if let percent = percentWords(at: end, keys: keys, shapes: shapes) {
             text += "%"
@@ -702,12 +711,21 @@ public struct NumberFormsPass: PieceCleaningPass {
         return leads || closes
     }
 
+    /// Words that after "one" start a phrase describing it, "one with a flag", so "one" stands for a thing.
+    private static let pronounPrepositions: Set<String> = ["with", "without", "for"]
+
+    /// Whether the word after the "one" at `position` opens a phrase that describes it, "one with a flag".
+    private static func isDescribedOne(at position: Int, keys: [String]) -> Bool {
+        keys.indices.contains(position + 1) && pronounPrepositions.contains(keys[position + 1])
+    }
+
     /// Whether "one" is the pronoun of "no one", "this one" or "one another" rather than a count of what follows.
     private static func headsItsOwnPhrase(at position: Int, keys: [String]) -> Bool {
         let tags = LexicalClass.tags(ofWords: keys)
         func tag(_ index: Int) -> NLTag? { tags.indices.contains(index) ? tags[index] : nil }
         let modifiable: Set<NLTag> = [.noun, .adjective, .number]
         if tag(position) == .noun || tag(position) == .pronoun { return true }
+        if isDescribedOne(at: position, keys: keys) { return true }
         if tag(position - 1) == .determiner, !modifiable.contains(tag(position + 1) ?? .otherWord) {
             return true
         }
@@ -1225,7 +1243,16 @@ public struct NumberFormsPass: PieceCleaningPass {
             text.append(digit)
             end += 1
         }
-        if !text.isEmpty { return Phrase(text: text, count: end - start) }
+        // A digit word that opens a spoken hundred is the whole number: "one hundred" is 100, not 1 and a stray word.
+        if !text.isEmpty {
+            if end < keys.count, joined(end, shapes), keys[end] == "hundred",
+                let group = NumberWords.cardinal(unbroken(from: start, keys: keys, shapes: shapes)),
+                group.count > end - start
+            {
+                return Phrase(text: String(group.value), count: group.count)
+            }
+            return Phrase(text: text, count: end - start)
+        }
         guard joined(start, shapes) else { return nil }
         if let digits = NumberWords.digits(keys[start]) { return Phrase(text: digits, count: 1) }
         guard let group = NumberWords.cardinal(unbroken(from: start, keys: keys, shapes: shapes)),
@@ -1253,7 +1280,36 @@ public struct NumberFormsPass: PieceCleaningPass {
         let cued =
             position > 0 && !startsASentence(position, shapes) && dottedCues.contains(keys[position - 1])
         guard groups >= 3 || (groups == 2 && cued) else { return nil }
+        if groups >= 3, let suffix = preReleaseSuffix(at: end, keys: keys, shapes: shapes) {
+            return Phrase(text: text + suffix.text, count: end + suffix.count - position)
+        }
         return Phrase(text: text, count: end - position)
+    }
+
+    /// Identifiers a version's pre-release suffix names after "dash".
+    private static let preReleaseLabels = NumberCues.words(for: .preRelease)
+
+    /// A version's pre-release suffix: "dash rc dot one" is "-rc.1", the label alone is "-rc". The spoken dash may already be a hyphen.
+    private static func preReleaseSuffix(at start: Int, keys: [String], shapes: [WordShape]) -> Phrase? {
+        guard start < shapes.count, shapes[start - 1].suffix.isEmpty else { return nil }
+        var label = keys[start]
+        var end = start + 1
+        if label == "dash", shapes[start].prefix.isEmpty {
+            guard joined(end, shapes) else { return nil }
+            label = keys[end]
+            end += 1
+        } else if shapes[start].prefix != "-" {
+            return nil
+        }
+        guard preReleaseLabels.contains(label) else { return nil }
+        var text = "-" + label
+        if joined(end, shapes), keys[end] == "dot" || keys[end] == "point",
+            let group = digitGroup(at: end + 1, keys: keys, shapes: shapes)
+        {
+            text += "." + group.text
+            end += 1 + group.count
+        }
+        return Phrase(text: text, count: end - start)
     }
 
     /// The first group of a dotted number: single digit words run together, digits, or one cardinal.

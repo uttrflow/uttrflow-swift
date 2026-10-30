@@ -218,17 +218,17 @@ public enum PanelPresenter {
     public static let emptyHint = "esc to close"
     /// A sheet's own keys, which differ from the list's. See `Docs/panel.md`.
     public static let sheetHint = "⏎ to save · esc to go back"
-    /// Offered rather than merely available, because F7 traded the dialog away for it.
-    public static let undoHint = "Deleted · ⌘Z restores the last delete only"
+    /// Offered after a delete or an edit, because F7 traded the delete dialog away for it.
+    public static let undoHint = "⌘Z undoes your last change"
     /// While searching, Escape clears the query before it closes anything. See `Docs/panel.md`.
     package static let searchHint = "esc to clear search"
     /// The undo offer while searching, which still says what Escape does first.
-    package static let searchUndoHint = "Deleted · ⌘Z restores the last delete only · esc clears search"
+    package static let searchUndoHint = "⌘Z undoes your last change · esc clears search"
     /// Drawn beside the list's hint, so the keyboard guide is found without opening a row menu.
     package static let shortcutsHint = "⌘/ shortcuts"
 
     /// The undo offer as VoiceOver says it, with the key spelled out rather than drawn.
-    public static let undoAnnouncement = "Deleted. Command-Z restores only the most recent deletion."
+    public static let undoAnnouncement = "Command-Z undoes your last change."
     /// What choosing a row does when the panel can paste.
     public static let pasteRowHint = "Pastes where you were typing"
     /// What choosing a row does when the panel can only copy.

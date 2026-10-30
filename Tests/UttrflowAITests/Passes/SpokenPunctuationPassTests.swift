@@ -556,6 +556,10 @@ struct SpokenPunctuationPassTests {
                 "we have colon trouble period the colon comma and more",
                 "we have colon trouble. the colon, and more"
             ),
+            ("Subject colon quarterly review.", "Subject: quarterly review."),
+            ("Status colon blocked.", "Status: blocked."),
+            ("subject colon quarterly review", "subject: quarterly review"),
+            ("status colon blocked", "status: blocked"),
         ]
     )
     func takesAnOrdinaryNameOnEvidence(input: String, expected: String) {

@@ -7,6 +7,7 @@ import UttrflowContext
 import UttrflowDictionary
 
 @testable import Uttrflow
+@testable import UttrflowDictionary
 
 @Suite("Edit-away watch")
 struct EditAwayWatchTests {
@@ -89,7 +90,7 @@ struct EditAwayWatchTests {
         #expect(outcome.kept == ["Kubernets"])
     }
 
-    @Test("the counters hand the watch only provisional entries, as they stood before this use")
+    @Test("the counters hand the watch every used entry, with its standing before this use")
     func countersHandOverProvisionalEntries() async throws {
         actor Seen {
             private(set) var calls: [([EditAway.Applied], String)] = []
@@ -98,7 +99,8 @@ struct EditAwayWatchTests {
         let (dictionary, learned, root) = try store()
         defer { try? FileManager.default.removeItem(at: root) }
         try await dictionary.add(learned)
-        try await dictionary.add(DictionaryEntry(word: "Uttrflow", origin: .added, firstSeen: now))
+        let typed = DictionaryEntry(word: "Uttrflow", origin: .added, firstSeen: now)
+        try await dictionary.add(typed)
         let seen = Seen()
         let counters = StoreCounters(
             dictionary: dictionary,
@@ -108,7 +110,76 @@ struct EditAwayWatchTests {
         try await counters.recordUse(ofEntries: [], writtenIn: "Uttrflow ships to Kubernets.")
 
         let calls = await seen.calls
-        #expect(calls.map(\.0) == [[EditAway.Applied(entryID: learned.id, word: "Kubernets")]])
+        #expect(
+            calls.map(\.0) == [
+                [
+                    EditAway.Applied(entryID: learned.id, word: "Kubernets"),
+                    EditAway.Applied(entryID: typed.id, word: "Uttrflow", isProvisional: false),
+                ]
+            ])
         #expect(calls.map(\.1) == ["Uttrflow ships to Kubernets."])
+    }
+}
+
+@Suite("Accepted uses")
+struct AcceptedUseTests {
+    private let now = Date(timeIntervalSince1970: 1_800_000_000)
+    private let field = FocusedFieldIdentity(processIdentifier: 7, elementHash: 11)
+    private let inserted = "Ship it to Kubernets tonight."
+
+    private func run(
+        _ answers: [LandedFieldRead?], uses: Int = 100
+    ) async throws -> DictionaryEntry {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let dictionary = PersonalDictionaryStore(file: PersonalDictionaryStore.defaultFile(in: root))
+        let entry = DictionaryEntry(word: "Kubernets", origin: .added, firstSeen: now)
+        try await dictionary.add(entry)
+        for _ in 0..<uses { try await dictionary.recordUse(of: entry.id) }
+        let reads = ReadList(answers)
+        let watch = EditAwayWatch(dictionary: dictionary, readField: { await reads.next() }, wait: { _ in })
+        await watch.watch(
+            [EditAway.Applied(entryID: entry.id, word: entry.word, isProvisional: false)], inserted: inserted)
+        return try #require(await dictionary.allEntries().first)
+    }
+
+    private actor ReadList {
+        private var answers: [LandedFieldRead?]
+        init(_ answers: [LandedFieldRead?]) { self.answers = answers }
+        func next() -> LandedFieldRead? { answers.count > 1 ? answers.removeFirst() : answers[0] }
+    }
+
+    @Test("a word applied a hundred times and never confirmed keeps its rank")
+    func unconfirmedUsesRaiseNothing() async throws {
+        let entry = try await run([nil], uses: 100)
+        #expect(entry.timesUsed == 100)
+        #expect(entry.netUses == 0)
+    }
+
+    @Test("a word edited away is not accepted")
+    func editedWordIsNotAccepted() async throws {
+        let entry = try await run(
+            [
+                LandedFieldRead(field: field, text: inserted),
+                LandedFieldRead(field: field, text: "Ship it to Kubernetes tonight."),
+            ], uses: 1)
+        #expect(entry.netUses == 0)
+    }
+
+    @Test("a word left unedited is accepted")
+    func unchangedWordIsAccepted() async throws {
+        let entry = try await run([LandedFieldRead(field: field, text: inserted)], uses: 1)
+        #expect(entry.netUses == 1)
+    }
+
+    @Test("a file from before the counter keeps its uses as accepted uses")
+    func oldFileKeepsRank() throws {
+        let json = """
+            {"id":"\(UUID().uuidString)","word":"Foo","origin":"added","firstSeen":0,"timesUsed":5,"timesReverted":1}
+            """
+        let entry = try JSONDecoder().decode(DictionaryEntry.self, from: Data(json.utf8))
+        #expect(entry.timesAccepted == 5)
+        #expect(entry.netUses == 4)
     }
 }

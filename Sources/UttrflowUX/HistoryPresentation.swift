@@ -70,6 +70,8 @@ public struct HistoryRow: Sendable, Equatable, Identifiable {
     public let isFlagged: Bool
     /// "Not inserted" or "Unconfirmed" when the words may not have reached the field; absent otherwise.
     public let arrival: String?
+    /// The shared one-line wording when the text was tidied less than asked or is missing speech; absent when complete or unrecorded.
+    public let quality: String?
     /// The buttons shown while the row is pointed at: copy, copy to paste elsewhere, flag.
     public let actions: [MainAction]
     /// What the row's context menu offers.
@@ -91,7 +93,7 @@ public struct HistoryRow: Sendable, Equatable, Identifiable {
     public init(
         id: UUID, application: HistoryApplication?, when: String, text: String,
         time: String = "", length: String = "", tag: String? = nil, isFlagged: Bool = false,
-        arrival: String? = nil, actions: [MainAction] = [], more: [MainAction] = [],
+        arrival: String? = nil, quality: String? = nil, actions: [MainAction] = [], more: [MainAction] = [],
         recording: HistoryRecording? = nil, fixes: [MainAction] = [], whatChanged: [String] = [],
         asHeard: String? = nil, formattedAs: String? = nil, asSpoken: MainAction? = nil
     ) {
@@ -104,6 +106,7 @@ public struct HistoryRow: Sendable, Equatable, Identifiable {
         self.tag = tag
         self.isFlagged = isFlagged
         self.arrival = arrival
+        self.quality = quality
         self.actions = actions
         self.more = more
         self.recording = recording
@@ -304,7 +307,7 @@ public enum HistoryPresenter {
 
         return HistoryRetentionNotice(
             sentence: sentence,
-            link: MainAction(title: "change in Settings › Privacy", intent: .go(.settings(.privacy))),
+            link: MainAction(title: "Change in Settings › Privacy", intent: .go(.settings(.privacy))),
             phrase: SettingsRetention.isAlways(days: text)
                 ? "kept until you delete it" : "kept for \(MainFormatting.count(text, "day", "days"))"
         )
@@ -443,6 +446,7 @@ public enum HistoryPresenter {
             tag: tone == .changed ? tag : nil,
             isFlagged: entry.isFlagged,
             arrival: arrivalLabel(for: entry.arrival),
+            quality: entry.quality?.presentation?.line,
             actions: [
                 MainAction(title: "Copy", symbolName: "doc.on.doc", intent: .copy(entry.text)),
                 // From the main window Uttrflow is in front, so the button says what it actually does. See `Docs/insertion.md`.
@@ -468,7 +472,7 @@ public enum HistoryPresenter {
                     ]
                     : []) + [.delete(.forgetDictation(entry.id))],
             // A "Fix" title would spell the hidden words out.
-            fixes: shown.isSecret ? [] : fixes(for: entry.text),
+            fixes: shown.isSecret ? [] : fixes(for: entry.text, of: entry.id),
             whatChanged: (entry.changes?.corrections ?? []).map(phrase(for:))
                 + (entry.whatChanged ?? []).map(phrase(for:)),
             asHeard: entry.heard.map {
@@ -500,22 +504,48 @@ public enum HistoryPresenter {
             + (correction.isUndone ? ", undone" : "")
     }
 
-    /// One ledgered change as one phrase, in the step names and verbs Diagnostics already uses.
+    /// One ledgered change as one phrase: the step's plain label, then where it landed when the ledger says.
     static func phrase(for line: WhatChangedLine) -> String {
-        let step = CleaningSteps.name(of: line.pass)
-        let did =
+        let label = label(of: line.pass)
+        let place: String? =
             switch (line.kind, line.location) {
-            case (.removed, .word(let word)?): "removed before “\(word)”"
-            case (.removed, .end?): "removed at the end"
-            case (.replaced, .word(let word)?): "rewrote as “\(word)”"
-            case (.inserted, .word(let word)?): "added “\(word)”"
-            // Unlocated, or a rewrite or addition pointing past the text: the step and verb, never a guessed word.
-            case (.removed, _): "removed"
-            case (.replaced, _): "rewrote"
-            case (.inserted, _): "added"
+            case (.removed, .word(let word)?): "before “\(word)”"
+            case (.removed, .end?): "at the end"
+            case (.replaced, .word(let word)?): "as “\(word)”"
+            case (.inserted, .word(let word)?): "“\(word)”"
+            // Unlocated, or a rewrite or addition pointing past the text: the label alone, never a guessed word.
+            default: nil
             }
-        return "\(step): \(did)"
+        return place.map { "\(label): \($0)" } ?? label
     }
+
+    /// What a History row says a step did, one short label per step and never its code name.
+    static func label(of step: PassID) -> String {
+        stepLabels[step] ?? "Tidied the text"
+    }
+
+    private static let stepLabels: [PassID: String] = [
+        .fillers: "Removed filler words",
+        .stammers: "Removed a stammer",
+        .repeatedPhrase: "Removed a repeated phrase",
+        .selfCorrection: "Removed a self-correction",
+        .spokenPunctuation: "Added spoken punctuation",
+        .spokenEmoji: "Added an emoji",
+        .spokenCasing: "Changed capitals as spoken",
+        .codeEditorCommands: "Typed a spoken symbol",
+        .layoutWords: "Applied layout words",
+        .markdownContinuation: "Continued the list",
+        .numberForms: "Wrote numbers as numerals",
+        .contractions: "Fixed contractions",
+        .spacing: "Fixed spacing",
+        .pauseStop: "Added a full stop at a pause",
+        .spelledInitialism: "Joined spelled letters",
+        .acronymCasing: "Fixed acronym capitals",
+        .atMention: "Wrote a mention",
+        .firstWord: "Fixed capitals",
+        .terminalStop: "Fixed the last mark",
+        .caretEcho: "Removed repeated text",
+    ]
 
     /// One flag per error class of `Docs/accuracy-targets.md`, so a flag can say what was wrong.
     static func flagReasons(for id: UUID) -> [MainAction] {
@@ -531,13 +561,14 @@ public enum HistoryPresenter {
     }
 
     /// One action per distinct word in the text, in text order, for teaching the dictionary its right spelling.
-    static func fixes(for text: String) -> [MainAction] {
+    static func fixes(for text: String, of dictation: UUID) -> [MainAction] {
         var seen: Set<String> = []
         return text.split(whereSeparator: \.isWhitespace).compactMap { token in
             let word = String(token).trimmingCharacters(in: .punctuationCharacters.union(.symbols))
             guard word.contains(where: \.isLetter), seen.insert(word).inserted else { return nil }
             return MainAction(
-                title: "Fix “\(word)”", symbolName: "character.cursor.ibeam", intent: .fixWord(word))
+                title: "Fix “\(word)”", symbolName: "character.cursor.ibeam",
+                intent: .fixWord(word, from: dictation))
         }
     }
 

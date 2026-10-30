@@ -224,6 +224,13 @@ public struct TerminalStopPass: WholeTextCleaningPass {
             }
         }
         let spoken = lines.filter { !$0.isEmpty }
+        // Lettered clauses of one sentence are not a list of bare items: the sentence takes its stop at the last.
+        let enumerated = lines[lastParagraphStart...].dropFirst().filter { !$0.isEmpty }.allSatisfy {
+            draft.shape(at: $0[0]).isBracketedEnumerator
+        }
+        if enumerated && lines[lastParagraphStart...].dropFirst().contains(where: { !$0.isEmpty }) {
+            return false
+        }
         return lines[lastParagraphStart...].filter { !$0.isEmpty }.count >= 3
             && spoken.dropLast().allSatisfy { line in
                 line.last.map { !draft.shape(at: $0).endsSentence } ?? true
@@ -445,6 +452,13 @@ public struct TerminalStopPass: WholeTextCleaningPass {
             indices.count >= words.count
                 && zip(words, indices).allSatisfy { firstWord(draft.words[$0.1].text) == $0.0 }
         }?.count
+    }
+
+    /// Whether the text is only a conventional greeting opener, "Hi" or "Good morning", which a name or the message must follow.
+    package static func isGreetingOpener(_ text: String) -> Bool {
+        let draft = Draft(text: text)
+        let live = draft.presentIndices
+        return !live.isEmpty && greetingOpenerLength(live, in: draft) == live.count
     }
 
     /// Whether the words are a greeting opener or a closing and one word of address after it: "Hi all", "Thanks all".

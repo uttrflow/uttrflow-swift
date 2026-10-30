@@ -77,6 +77,20 @@ struct PanelEditTests {
         #expect(PanelFixture.panel([note]).applying(.edit(note.id)).state.sheet == nil)
     }
 
+    /// A note made with "Make a note" is edited as its plain form, where boxes read `[ ] ` and `[x] `.
+    @Test("offered on a written note, opening on its plain form")
+    func onAWrittenNote() {
+        let plain = PanelFixture.clip("Groceries")
+        let note = Clip(
+            id: plain.id, text: plain.text, kind: .text, copiedAt: plain.copiedAt,
+            richText: "<p>Groceries</p><ul class=\"checklist\"><li class=\"checked\">Milk</li></ul>")
+
+        #expect(Self.actions(note).contains("Edit"))
+        #expect(
+            PanelFixture.panel([note]).applying(.edit(note.id)).state.sheet
+                == .editing(note.id, draft: "Groceries\n[x] Milk"))
+    }
+
     @Test("opens on the clip's whole text, worded as the issue's Edit and Save")
     func opensOnTheText() {
         let response = PanelFixture.panel([Self.kept]).applying(.edit(Self.kept.id))

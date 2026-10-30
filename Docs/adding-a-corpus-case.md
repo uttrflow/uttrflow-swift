@@ -32,6 +32,7 @@ The file name is the category, from `EvaluationCase.Category` in
 | `commandInput.json` | a query or command for a launcher panel |
 | `longInput.json` | a dictation of three hundred words or more |
 | `dictionary.json` | a dictation holding words from the user's dictionary |
+| `snippet.json` | a dictation that says a snippet's trigger, scored through the pipeline ([bakeoff.md](bakeoff.md#the-corpus)) |
 | `webDestination.json` | a dictation into a page in a browser: web mail, web chat or a search field |
 | `homophone.json` | a recogniser's wrong sound-alike, or a sound-alike already right |
 | `hinglishReply.json` | a short Hindi reply, an English loanword in Hindi, or romanised Hindi |
@@ -74,6 +75,7 @@ optional and takes the default shown.
 | `pausedAfter` | positions of the spoken words a sentence-length pause follows | `[]` |
 | `minimumSentences` | the fewest sentences the output must close | none |
 | `dictionary` | the user's dictionary words, handed to the engine as the request's vocabulary | `[]` |
+| `snippets` | the user's snippets, each trigger to its expansion, read only by the pipeline's expansion stage | `{}` |
 | `classes` | `FormattingClass` raw values the case exercises | `[]` |
 | `codeMix` | the code-mixing cell the case fills: `frame` (`english`, `hindi`), `kind` (`noun`, `verb`, `number`, `name`, `particle`, `question-tag`) and `position` (`start`, `middle`, `end`) | none |
 

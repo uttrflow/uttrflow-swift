@@ -27,6 +27,8 @@ public struct DictionaryEntry: Sendable, Equatable, Identifiable, Codable {
     public let firstSeen: Date
     /// How many landed dictations this entry appeared in, by a rewrite or spelled right by the recogniser.
     public var timesUsed: Int
+    /// How many of those uses the person left unedited; the only use count that raises rank. See `Docs/app-dictionary-store.md`.
+    var timesAccepted: Int
     /// How many uses the user undid; the ratio to `timesUsed` is what lets a bad word retire itself.
     public var timesReverted: Int
     /// The bundle identifiers it is offered in, as the person chose them; empty is everywhere. See ``ApplicationScope``.
@@ -41,18 +43,20 @@ public struct DictionaryEntry: Sendable, Equatable, Identifiable, Codable {
     /// An entry with at most one pronunciation, which is what the editor and most callers hold.
     public init(
         id: UUID = UUID(), word: String, pronunciation: String? = nil, origin: WordOrigin,
-        firstSeen: Date, timesUsed: Int = 0, timesReverted: Int = 0, applications: [String] = []
+        firstSeen: Date, timesUsed: Int = 0, timesAccepted: Int? = nil, timesReverted: Int = 0,
+        applications: [String] = []
     ) {
         self.init(
             id: id, word: word, pronunciations: pronunciation.map { [$0] } ?? [], origin: origin,
-            firstSeen: firstSeen, timesUsed: timesUsed, timesReverted: timesReverted,
-            applications: applications)
+            firstSeen: firstSeen, timesUsed: timesUsed, timesAccepted: timesAccepted,
+            timesReverted: timesReverted, applications: applications)
     }
 
     /// An entry said several ways; blanks and repeats are dropped and the list is cut at `maximumPronunciations`.
     public init(
         id: UUID = UUID(), word: String, pronunciations: [String], origin: WordOrigin,
-        firstSeen: Date, timesUsed: Int = 0, timesReverted: Int = 0, applications: [String] = []
+        firstSeen: Date, timesUsed: Int = 0, timesAccepted: Int? = nil, timesReverted: Int = 0,
+        applications: [String] = []
     ) {
         self.id = id
         self.word = word
@@ -60,13 +64,15 @@ public struct DictionaryEntry: Sendable, Equatable, Identifiable, Codable {
         self.origin = origin
         self.firstSeen = firstSeen
         self.timesUsed = Self.clamped(timesUsed)
+        // Unspoken, an entry's accepted uses are its uses, so a file from before the counter keeps its rank.
+        self.timesAccepted = min(Self.clamped(timesAccepted ?? timesUsed), self.timesUsed)
         self.timesReverted = Self.clamped(timesReverted)
         self.applications = ApplicationScope.normalised(applications)
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, word, pronunciation, pronunciations, origin, firstSeen, timesUsed, timesReverted,
-            applications
+        case id, word, pronunciation, pronunciations, origin, firstSeen, timesUsed, timesAccepted,
+            timesReverted, applications
     }
 
     /// Decodes a stray counter into domain, and a file from before the list as its one `pronunciation`.
@@ -81,6 +87,7 @@ public struct DictionaryEntry: Sendable, Equatable, Identifiable, Codable {
             origin: try values.decode(WordOrigin.self, forKey: .origin),
             firstSeen: try values.decode(Date.self, forKey: .firstSeen),
             timesUsed: try values.decode(Int.self, forKey: .timesUsed),
+            timesAccepted: try values.decodeIfPresent(Int.self, forKey: .timesAccepted),
             timesReverted: try values.decode(Int.self, forKey: .timesReverted),
             applications: try values.decodeIfPresent([String].self, forKey: .applications) ?? [])
     }
@@ -95,6 +102,8 @@ public struct DictionaryEntry: Sendable, Equatable, Identifiable, Codable {
         try values.encode(origin, forKey: .origin)
         try values.encode(firstSeen, forKey: .firstSeen)
         try values.encode(timesUsed, forKey: .timesUsed)
+        // Written only when it differs from `timesUsed`, which is what a file without it reads as.
+        if timesAccepted != timesUsed { try values.encode(timesAccepted, forKey: .timesAccepted) }
         try values.encode(timesReverted, forKey: .timesReverted)
         if !applications.isEmpty { try values.encode(applications, forKey: .applications) }
     }
@@ -151,12 +160,12 @@ public struct DictionaryEntry: Sendable, Equatable, Identifiable, Codable {
             id: id, word: Romaniser.romanised(word),
             pronunciations: pronunciations.isEmpty ? [word] : pronunciations,
             origin: origin,
-            firstSeen: firstSeen, timesUsed: timesUsed, timesReverted: timesReverted,
-            applications: applications)
+            firstSeen: firstSeen, timesUsed: timesUsed, timesAccepted: timesAccepted,
+            timesReverted: timesReverted, applications: applications)
     }
 
-    /// Uses the word survived, undos netted out; safe to compute because both counters stay in domain.
-    public var netUses: Int { timesUsed - timesReverted }
+    /// Accepted uses, undos netted out; the one count rank reads, safe because both counters stay in domain.
+    public var netUses: Int { timesAccepted - timesReverted }
 
     /// Uses without an undo that promote a learned word out of provisional standing. See `Docs/app-dictionary-store.md`.
     public static let promotionUses = 3

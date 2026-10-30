@@ -3,6 +3,7 @@
 public import UttrflowCore
 public import Foundation
 private import Synchronization
+private import os
 
 /// The settled clipboard after undo and whether the restored alias conflicts.
 public struct ClipboardRestoreResult: Sendable, Equatable {
@@ -88,6 +89,12 @@ public actor ClipboardStore {
 
     /// Counts the files written while bound, so a test can bound the writing without a clock.
     @TaskLocal package static var writes: StoreWriteTally?
+
+    /// Receives each refused write's log line, so a test can read what the log would carry.
+    @TaskLocal package static var refusedWriteLogForTesting: (@Sendable (String) -> Void)?
+
+    /// Records refused writes, which have no other trace when the quit flush or a timed flush meets them.
+    private nonisolated static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "clipboard")
 
     /// Lets a regression simulate another process replacing an index at the write boundary.
     @TaskLocal package static var beforePersistForTesting: (@Sendable (URL) -> Void)?
@@ -357,7 +364,7 @@ public actor ClipboardStore {
         return try settled(clips, keeping: retention)
     }
 
-    /// Replaces a clip's plain text and clears the old formatted form, keeping its identity.
+    /// Replaces a clip's plain text, keeping its identity; an editable note is rebuilt, any other formatted form cleared.
     @discardableResult
     public func setText(
         _ text: String, of id: UUID, keeping retention: ClipRetention
@@ -365,7 +372,15 @@ public actor ClipboardStore {
         try change(id, keeping: retention) { clip in
             // A file clip's words are its files' names, which an edit would only contradict.
             guard clip.files == nil else { return }
-            clip = Self.rebuilding(clip, text: text, richText: nil, image: clip.image)
+            guard let note = clip.richText, NotePromotion.isEditableNote(note) else {
+                clip = Self.rebuilding(clip, text: text, richText: nil, image: clip.image)
+                return
+            }
+            // One definition of the plain form, so the row, a paste and the checklist count agree.
+            let edited = NotePromotion.editedNote(from: text)
+            clip = Self.rebuilding(
+                clip, text: RichTextPlainForm.plainText(fromHTML: edited), richText: edited,
+                image: clip.image)
         }
     }
 
@@ -689,6 +704,18 @@ public actor ClipboardStore {
 
     /// Writes the list to memory and then to disk, filing each clip by what ``Clip/isKept`` says.
     private func save(_ clips: [Clip]) throws(ClipboardStoreError) {
+        do throws(ClipboardStoreError) {
+            try write(clips)
+        } catch {
+            // The error case alone: a clip's text never reaches the log.
+            Self.log.error("clipboard write refused: \(ErrorLog.failure(error), privacy: .public)")
+            Self.refusedWriteLogForTesting?("clipboard write refused: \(ErrorLog.failure(error))")
+            throw error
+        }
+    }
+
+    /// Does the write `save` reports on: memory first, then the files, then the pictures the list dropped.
+    private func write(_ clips: [Clip]) throws(ClipboardStoreError) {
         let current = loaded()
         try validateCurrentIndexFormatsBeforeWrite()
         guard indexReader.unsupportedFormatVersions.isEmpty else { throw .unsupportedFormat }
