@@ -17,17 +17,17 @@ struct DestinationFormatterTests {
     /// The design's table, one row per destination.
     static let table:
         [(Destination, FirstWordPolicy, TerminalStopPolicy, LayoutPolicy, GrammarPolicy, NumberPolicy)] = [
-            (.document, .fromInsertionPoint, .always, [.paragraphs, .lists], .repair, .fromTen),
+            (.document, .fromInsertionPoint, .always, [.paragraphs, .lists], .repair, .always),
             (.spreadsheet, .asSpoken, .never, .singleLine, .asSpoken, .always),
             (.sqlEditor, .fromInsertionPoint, .always, .preserveNewlines, .asSpoken, .always),
             (.codeEditor, .fromInsertionPoint, .never, .preserveNewlines, .asSpoken, .always),
             (.terminal, .asSpoken, .never, .singleLine, .asSpoken, .always),
             (
                 .messaging, .fromInsertionPoint, .offForShortMessages(sentences: 2), .paragraphs,
-                .asSpoken, .fromTen
+                .asSpoken, .always
             ),
-            (.email, .fromInsertionPoint, .always, [.paragraphs, .lists], .repair, .fromTen),
-            (.plain, .fromInsertionPoint, .always, [.paragraphs, .lists], .repair, .fromTen),
+            (.email, .fromInsertionPoint, .always, [.paragraphs, .lists], .repair, .always),
+            (.plain, .fromInsertionPoint, .always, [.paragraphs, .lists], .repair, .always),
         ]
 
     @Test(

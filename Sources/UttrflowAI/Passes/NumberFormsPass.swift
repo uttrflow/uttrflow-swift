@@ -23,7 +23,12 @@ public struct NumberFormsPass: PieceCleaningPass {
     static let clockZeros: Set<String> = ["oh", "o", "zero"]
     /// Words after which "nineteen oh five" is a year rather than a clock time or a count.
     static let yearCues: Set<String> = ["in", "since", "year", "of", "from", "until", "till"]
-    static let idioms: [[String]] = [["twenty", "four", "seven"], ["fifty", "fifty"]]
+    /// Fixed expressions whose number words are not a count, kept as words under every policy.
+    static let idioms: [[String]] = [
+        ["twenty", "four", "seven"], ["fifty", "fifty"], ["one", "or", "two"],
+        ["my", "two", "cents"], ["your", "two", "cents"], ["our", "two", "cents"], ["their", "two", "cents"],
+        ["his", "two", "cents"], ["her", "two", "cents"],
+    ]
     static let monthDays: [String: Int] = [
         "january": 31, "february": 29, "march": 31, "april": 30, "may": 31, "june": 30,
         "july": 31, "august": 31, "september": 30, "october": 31, "november": 30, "december": 31,
@@ -63,6 +68,12 @@ public struct NumberFormsPass: PieceCleaningPass {
         "avenue", "street", "road", "drive", "lane", "boulevard", "court", "place", "way",
     ]
 
+    /// The plural denominators a numerator stands before, which read as one fraction and not as a count.
+    static let fractionDenominators: Set<String> = [
+        "thirds", "fourths", "quarters", "fifths", "sixths", "sevenths", "eighths", "ninths", "tenths",
+        "sixteenths",
+    ]
+
     /// One rendered number and how many words it replaces.
     struct Phrase: Equatable {
         let text: String
@@ -77,9 +88,25 @@ public struct NumberFormsPass: PieceCleaningPass {
         let spoken: Bool
     }
 
-    public init(policy: NumberPolicy = .fromTen, digits: DigitGrouping = .thousands) {
+    /// Whether an operator word between numbers is written as its symbol wherever the policy takes every number.
+    let symbolsInRuns: Bool
+    /// Whether an amount written as a numeral takes its currency symbol before the digits.
+    let writesCurrencySymbol: Bool
+
+    /// Places that are prose, where "two plus two" keeps its word unless the sentence is only that sum.
+    static let proseDestinations: Set<Destination> = [.document, .messaging, .email, .plain]
+    /// Places where text is read by a program, so a `$` before digits would mean something else.
+    static let codeDestinations: Set<Destination> = [.sqlEditor, .codeEditor, .terminal]
+    /// Currency words that are also a weight or another unit, so a numeral before them keeps the word alone.
+    static let currencyWordsWithOtherMeaning: Set<String> = ["pound", "pounds"]
+
+    public init(
+        policy: NumberPolicy = .fromTen, digits: DigitGrouping = .thousands, destination: Destination? = nil
+    ) {
         self.policy = policy
         self.digits = digits
+        symbolsInRuns = destination.map { !Self.proseDestinations.contains($0) } ?? true
+        writesCurrencySymbol = destination.map { !Self.codeDestinations.contains($0) } ?? true
     }
 
     public func apply(_ draft: Draft) -> Draft {
@@ -87,7 +114,7 @@ public struct NumberFormsPass: PieceCleaningPass {
         let present = draft.presentIndices
         let (shapes, live) = Self.splittingTensUnits(present.map { draft.shape(at: $0) }, of: present)
         let keys = shapes.map(\.key)
-        let arithmetic = Self.arithmetic(keys: keys, shapes: shapes, policy: policy)
+        let arithmetic = Self.arithmetic(keys: keys, shapes: shapes, policy: policy, symbolsInRuns: symbolsInRuns)
         let grouped = Self.numeralGroupMembers(keys: keys, shapes: shapes, policy: policy, digits: digits)
             .union(arithmetic.numbers)
         var position = 0
@@ -138,11 +165,56 @@ public struct NumberFormsPass: PieceCleaningPass {
                 position += 1
                 continue
             }
+            if writesCurrencySymbol,
+                let amount = Self.amountWithSymbol(
+                    phrase, at: position, keys: keys, shapes: shapes, live: live)
+            {
+                let end = position + amount.count - 1
+                Self.write(
+                    shapes[position].prefix + amount.text + shapes[end].suffix, over: position...end,
+                    of: live, in: &draft)
+                position += amount.count
+                continue
+            }
             let text = shapes[position].prefix + phrase.text + shapes[last].suffix
             Self.write(text, over: position...last, of: live, in: &draft)
             position += phrase.count
         }
         return draft
+    }
+
+    /// A numeral amount and the currency word that names it, one phrase with the symbol before the digits: "5 dollars" is "$5".
+    /// The amount is plain digits, a decimal, or digits and a scale word; a signed, timed or ranged number keeps its word.
+    private static func amountWithSymbol(
+        _ phrase: Phrase, at position: Int, keys: [String], shapes: [WordShape], live: [Int]
+    ) -> Phrase? {
+        let parts = phrase.text.split(separator: " ", maxSplits: 1).map(String.init)
+        guard let digits = parts.first, digits.first?.isNumber == true,
+            digits.allSatisfy({ $0.isNumber || $0 == "," || $0 == "." })
+        else { return nil }
+        // "two dollars fifty" is already one phrase holding its currency word: "2.50 dollars".
+        if parts.count == 2, let symbol = currencySymbol(of: parts[1]) {
+            return Phrase(text: symbol + digits, count: phrase.count)
+        }
+        let scales: Set<String> = ["thousand", "million", "billion", "trillion"]
+        if parts.count == 2, !scales.contains(parts[1].lowercased()) { return nil }
+        var word = position + phrase.count
+        var text = phrase.text
+        // "two point five million dollars": the scale word stays beside the digits, the symbol goes before them.
+        if parts.count == 1, joined(word, shapes), scales.contains(keys[word]), joined(word + 1, shapes) {
+            text += " " + shapes[word].core
+            word += 1
+        }
+        guard joined(word, shapes), let symbol = currencySymbol(of: keys[word]), endsWord(word, live) else {
+            return nil
+        }
+        return Phrase(text: symbol + text, count: word + 1 - position)
+    }
+
+    /// The symbol a spoken currency word is written as, unless the word is as often a weight or another unit.
+    private static func currencySymbol(of word: String) -> String? {
+        let key = word.lowercased()
+        return currencyWordsWithOtherMeaning.contains(key) ? nil : Quantities.currencyWords[key]
     }
 
     /// Operator words to write as symbols, and the numbers beside them that become numerals.
@@ -165,7 +237,9 @@ public struct NumberFormsPass: PieceCleaningPass {
     }
 
     /// Operators between numbers, under `.always` or in a sentence of only numbers and operators. See `Docs/data-tables.md`.
-    static func arithmetic(keys: [String], shapes: [WordShape], policy: NumberPolicy) -> Arithmetic {
+    static func arithmetic(
+        keys: [String], shapes: [WordShape], policy: NumberPolicy, symbolsInRuns: Bool = true
+    ) -> Arithmetic {
         func endsSentence(_ index: Int) -> Bool {
             index == keys.count - 1 || shapes[index].suffix.contains(where: { ".?!:;".contains($0) })
         }
@@ -197,7 +271,7 @@ public struct NumberFormsPass: PieceCleaningPass {
             let runEnd = items.last.map { $0.start + $0.count } ?? start
             let wholeSentence =
                 (start == 0 || endsSentence(start - 1)) && runEnd > start && endsSentence(runEnd - 1)
-            if items.contains(where: { $0.symbol != nil }), policy == .always || wholeSentence {
+            if items.contains(where: { $0.symbol != nil }), (policy == .always && symbolsInRuns) || wholeSentence {
                 for item in items {
                     if let symbol = item.symbol {
                         found.operators[item.start] = (symbol, item.count)
@@ -679,6 +753,12 @@ public struct NumberFormsPass: PieceCleaningPass {
     ) -> Phrase? {
         guard item.spoken, let value = item.value else { return nil }
         let end = position + item.count
+        // "two thirds": the numerator of a fraction is not a count of things.
+        if !inContext, joined(end, shapes), fractionDenominators.contains(keys[end]) { return nil }
+        // "four thirteen": a pair that may be a time or a code is left whole rather than half written.
+        if !inContext, item.count == 1, undecidedHundred(at: position, keys: keys, shapes: shapes) != nil {
+            return nil
+        }
         let beforeWord =
             joined(end, shapes)
             && (currencies.contains(keys[end]) || measures.contains(keys[end])
@@ -730,6 +810,10 @@ public struct NumberFormsPass: PieceCleaningPass {
             return true
         }
         if tag(position + 1) == .determiner, !modifiable.contains(tag(position + 2) ?? .otherWord) {
+            return true
+        }
+        // "the blue one", "a new one": an adjective before it and nothing for it to count after it.
+        if tag(position - 1) == .adjective, !modifiable.contains(tag(position + 1) ?? .otherWord) {
             return true
         }
         let distributive = { (by: Int, other: Int) in
@@ -1547,12 +1631,19 @@ public struct NumberFormsPass: PieceCleaningPass {
     }
 
     /// Keeps fixed spoken idioms intact so their number words are not partially rewritten.
+    /// An idiom may open on a word before the number, so the count returned is of the words from `position` on.
     private static func unchangedIdiomCount(at position: Int, keys: [String], shapes: [WordShape]) -> Int? {
-        idioms.first { idiom in
-            position + idiom.count <= keys.count
-                && Array(keys[position..<(position + idiom.count)]) == idiom
-                && (position + 1..<position + idiom.count).allSatisfy { joined($0, shapes) }
-        }?.count
+        for idiom in idioms {
+            for offset in 0..<idiom.count {
+                let start = position - offset
+                guard start >= 0, start + idiom.count <= keys.count,
+                    Array(keys[start..<(start + idiom.count)]) == idiom,
+                    (start + 1..<start + idiom.count).allSatisfy({ joined($0, shapes) })
+                else { continue }
+                return idiom.count - offset
+            }
+        }
+        return nil
     }
 
     /// "two thirty", "two thirty pm", "two oh five pm", "ten am", "five o'clock"; am and pm stay separate.
