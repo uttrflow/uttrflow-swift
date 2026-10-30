@@ -40,7 +40,7 @@ struct SpelledNamePassTests {
     @Test("a name absent from the lexicon, and plain letters then a number, stay as today")
     func unlisted() async throws {
         let expected = [
-            "plan b two": "See plan B2 today.", "a one": "See a one today.", "i two": "See i two today.",
+            "plan b two": "See plan B2 today.", "a one": "See a 1 today.", "i two": "See i two today.",
         ]
         for (spoken, cleaned) in expected {
             #expect(try await clean("see \(spoken) today") == cleaned)

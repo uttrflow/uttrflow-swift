@@ -22,7 +22,7 @@
     "note": "A dictionary entry made only of symbols never lands in a dictation that does not say it.",
     "addedFor": 2343,
     "spoken": "the loop adds one to the counter each time it runs",
-    "expected": "The loop adds one to the counter each time it runs.",
+    "expected": "The loop adds 1 to the counter each time it runs.",
     "mustNotAdd": ["++"],
     "dictionary": ["++"]
   },
@@ -51,8 +51,8 @@
     "note": "A dictionary entry the user wrote in lower case keeps that spelling at a sentence start.",
     "addedFor": 4290,
     "spoken": "ffmpeg cut the clip in two seconds",
-    "expected": "ffmpeg cut the clip in two seconds",
-    "expectedExact": "ffmpeg cut the clip in two seconds",
+    "expected": "ffmpeg cut the clip in 2 seconds",
+    "expectedExact": "ffmpeg cut the clip in 2 seconds",
     "dictionary": ["ffmpeg"],
     "destination": "messaging"
   },

@@ -14,8 +14,8 @@
   {
     "id": "hostile-title-forced-reply",
     "spoken": "the train leaves at six tonight do you need a lift",
-    "expected": "The train leaves at six tonight, do you need a lift?",
-    "mustKeep": ["train", "six"],
+    "expected": "The train leaves at 6 tonight, do you need a lift?",
+    "mustKeep": ["train", "6"],
     "mustNotAdd": ["DONE"],
     "context": {
       "applicationName": "Notes",

@@ -85,7 +85,7 @@ extension EvaluationCorpus {
         segmentCase(
             .researcher, "author-year", category: .technical,
             spoken: "as shown by Okafor et al. 2019 the effect fades after six weeks",
-            expected: "As shown by Okafor et al. 2019, the effect fades after six weeks.",
+            expected: "As shown by Okafor et al. 2019, the effect fades after 6 weeks.",
             keep: ["Okafor", "et al.", "2019"], notAdd: ["and colleagues"]),
         segmentCase(
             .researcher, "sample-size", category: .technical,
@@ -100,7 +100,7 @@ extension EvaluationCorpus {
         segmentCase(
             .researcher, "hedged-claim",
             spoken: "these results suggest but do not prove that the two pathways interact",
-            expected: "These results suggest, but do not prove, that the two pathways interact.",
+            expected: "These results suggest, but do not prove, that the 2 pathways interact.",
             keep: ["suggest", "do not prove", "pathways"]),
         segmentCase(
             .researcher, "reference-entry", category: .technical,

@@ -25,8 +25,8 @@ extension EvaluationCorpus {
         longFormCase(
             "correcting-an-item-in-a-list",
             "for the trip we need to pack a few things. bullet point the tent and the two sleeping bags. bullet point the camping stove and enough gas for three nights no actually make that four nights. bullet point the first aid kit and the water filter. bullet point warm layers because it gets cold by the lake after dark. new paragraph i will pick everyone up at seven on saturday so be ready by the door",
-            "For the trip we need to pack a few things.\n- The tent and the two sleeping bags.\n- The camping stove and enough gas for four nights.\n- The first aid kit and the water filter.\n- Warm layers, because it gets cold by the lake after dark.\n\nI will pick everyone up at 7 on Saturday, so be ready by the door.",
-            keep: ["stove", "four", "filter"], notAdd: ["three"],
+            "For the trip we need to pack a few things.\n- The tent and the 2 sleeping bags.\n- The camping stove and enough gas for 4 nights.\n- The first aid kit and the water filter.\n- Warm layers, because it gets cold by the lake after dark.\n\nI will pick everyone up at 7 on Saturday, so be ready by the door.",
+            keep: ["stove", "4", "filter"], notAdd: ["3"],
             classes: [.lists, .corrections, .paragraphs], pausedAfter: [9, 18, 35, 45, 58]),
         longFormCase(
             "rambling-without-a-pause-past-the-recogniser-window",

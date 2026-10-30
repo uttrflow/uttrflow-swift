@@ -12,10 +12,10 @@ struct DatedMonthCaseTests {
     @Test(
         "takes a capital when a day or year follows it",
         arguments: [
-            ("see you on march fifth", "See you on March fifth."),
-            ("see you on may fifth", "See you on May fifth."),
-            ("we meet march fifth", "We meet March fifth."),
-            ("the meeting is on march third at two thirty pm", "The meeting is on March third at 2:30 pm."),
+            ("see you on march fifth", "See you on March 5."),
+            ("see you on may fifth", "See you on May 5."),
+            ("we meet march fifth", "We meet March 5."),
+            ("the meeting is on march third at two thirty pm", "The meeting is on March 3 at 2:30 pm."),
             ("see you on march twelfth", "See you on March 12."),
             ("we ship in may 2027", "We ship in May 2027."),
         ])

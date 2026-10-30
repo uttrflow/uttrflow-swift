@@ -7,25 +7,25 @@ and false conversions (numerals beyond the reference's). Every class counts unde
 
 | Class | Policy | Cases | Exact | Value errors | False conversions |
 |---|---|---|---|---|---|
-| cardinal | from-ten | 1 | 1 | 0 | 0 |
-| cardinal | always | 0 | 0 | 0 | 0 |
+| cardinal | from-ten | 0 | 0 | 0 | 0 |
+| cardinal | always | 1 | 1 | 0 | 0 |
 | ordinal | from-ten | 0 | 0 | 0 | 0 |
 | ordinal | always | 0 | 0 | 0 | 0 |
 | decimal | from-ten | 0 | 0 | 0 | 0 |
 | decimal | always | 0 | 0 | 0 | 0 |
 | fraction | from-ten | 0 | 0 | 0 | 0 |
 | fraction | always | 0 | 0 | 0 | 0 |
-| money | from-ten | 1 | 1 | 0 | 0 |
-| money | always | 0 | 0 | 0 | 0 |
-| measure | from-ten | 1 | 1 | 0 | 0 |
-| measure | always | 0 | 0 | 0 | 0 |
+| money | from-ten | 0 | 0 | 0 | 0 |
+| money | always | 1 | 1 | 0 | 0 |
+| measure | from-ten | 0 | 0 | 0 | 0 |
+| measure | always | 1 | 1 | 0 | 0 |
 | date | from-ten | 0 | 0 | 0 | 0 |
 | date | always | 0 | 0 | 0 | 0 |
-| time | from-ten | 1 | 1 | 0 | 0 |
-| time | always | 0 | 0 | 0 | 0 |
+| time | from-ten | 0 | 0 | 0 | 0 |
+| time | always | 1 | 1 | 0 | 0 |
 | telephone | from-ten | 0 | 0 | 0 | 0 |
 | telephone | always | 0 | 0 | 0 | 0 |
-| electronic | from-ten | 4 | 4 | 0 | 0 |
-| electronic | always | 0 | 0 | 0 | 0 |
-| stays-words | from-ten | 1 | 1 | 0 | 0 |
-| stays-words | always | 0 | 0 | 0 | 0 |
+| electronic | from-ten | 0 | 0 | 0 | 0 |
+| electronic | always | 4 | 4 | 0 | 0 |
+| stays-words | from-ten | 0 | 0 | 0 | 0 |
+| stays-words | always | 1 | 1 | 0 | 0 |

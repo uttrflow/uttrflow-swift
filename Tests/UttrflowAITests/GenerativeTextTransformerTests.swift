@@ -143,7 +143,7 @@ struct GenerativeTextTransformerTests {
 
         _ = try await sut.transform(request("um let's meet at four no sorry at five do you need a projector"))
 
-        #expect(model.calls.first?.text == "Spoken: \"let's meet at five do you need a projector\"")
+        #expect(model.calls.first?.text == "Spoken: \"let's meet at 5 do you need a projector\"")
     }
 
     @Test("finishes the capitals and the full stop the model forgot, and lays out the list it meant")
@@ -272,15 +272,15 @@ struct GenerativeTextTransformerTests {
         #expect(model.calls.first?.text.contains("1 of them") == true)
     }
 
-    /// Plain text keeps zero to nine as words, and that must not change with this.
-    @Test("leaves a small number as words where the destination says so")
-    func leavesSmallNumbersAloneInProse() async throws {
+    /// Plain text writes zero to nine as numerals too, so the passes hand the model the numeral.
+    @Test("writes a small number as a numeral in prose as well")
+    func writesSmallNumbersInProse() async throws {
         let model = FakeCleanupModel { _ in "One of them is booked. Do you need it?" }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
         _ = try await sut.transform(request("one of them is booked do you need it"))
 
-        #expect(model.calls.first?.text.contains("one of them") == true)
+        #expect(model.calls.first?.text.contains("1 of them") == true)
     }
 
     @Test("does not count a pass's removals against the model")
@@ -753,7 +753,7 @@ struct RuleBasedTransformerTests {
             ("uh i think so", "I think so."),
             ("the the deployment is running", "The deployment is running."),
             ("hello. um there", "Hello. There."),
-            ("let's meet at four no sorry at five", "Let's meet at five."),
+            ("let's meet at four no sorry at five", "Let's meet at 5."),
             ("we're on postgres sixteen point two", "We're on Postgres 16.2."),
             ("milk comma eggs comma and bread", "Milk, eggs, and bread."),
         ]

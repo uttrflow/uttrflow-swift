@@ -31,11 +31,11 @@ struct SentenceBoundaryPassTests {
         arguments: [
             (
                 "Okay so, to recap, we agreed on three things. 1. The launch moves to May 2. The budget stays flat. 3. Lena owns the plan.",
-                "Okay so, to recap, we agreed on three things. 1. The launch moves to May. 2. The budget stays flat. 3. Lena owns the plan."
+                "Okay so, to recap, we agreed on 3 things. 1. The launch moves to May. 2. The budget stays flat. 3. Lena owns the plan."
             ),
             (
                 "We agreed on three things. 1. The launch moves to May 2. The budget stays flat.",
-                "We agreed on three things. 1. The launch moves to May 2. The budget stays flat."
+                "We agreed on 3 things. 1. The launch moves to May 2. The budget stays flat."
             ),
             (
                 "The launch moves to May 2. The budget stays flat. 3. Lena owns the plan.",
@@ -43,7 +43,7 @@ struct SentenceBoundaryPassTests {
             ),
             (
                 "We agreed on three things. 1. Ship on May 2. 2. Keep the budget flat. 3. Lena owns the plan.",
-                "We agreed on three things. 1. Ship on May 2. 2. Keep the budget flat. 3. Lena owns the plan."
+                "We agreed on 3 things. 1. Ship on May 2. 2. Keep the budget flat. 3. Lena owns the plan."
             ),
         ])
     func endsItemBeforeNumberedMarker(input: String, expected: String) {

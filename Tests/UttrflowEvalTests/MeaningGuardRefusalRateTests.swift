@@ -17,18 +17,13 @@ struct MeaningGuardRefusalRateTests {
         "hinglish-correction-nahi-nahi": 5084,
         "sql-editor-totals": 5084,
         "dev-pr-description-list": 6569,
-        "dev-env-setup": 6569,
         "probe-chained-corrections": 5084,
         "probe-topic-shifts": 5084,
     ]
 
     /// Whole-dictation genre references still refused, all owned by #5365; the list only falls.
     static let genreAcknowledged: Set<String> = [
-        "genre-recipe-lentil-soup",
         "genre-recipe-flatbreads",
-        "genre-recipe-overnight-oats",
-        "genre-travel-plan-city-weekend",
-        "genre-product-description-desk-lamp",
         "genre-social-post-bakery-opening",
         "genre-social-post-volunteer-call",
         "genre-corrected-reply-meeting-time",

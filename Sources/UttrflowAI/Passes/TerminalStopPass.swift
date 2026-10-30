@@ -338,7 +338,7 @@ public struct TerminalStopPass: WholeTextCleaningPass {
         !paragraph.isEmpty
             && paragraph.allSatisfy {
                 let text = draft.words[$0].text
-                return TechnicalToken.classify(text) != nil || isDigits(text)
+                return TechnicalToken.classify(text) != nil || isDigits(WordShape.withoutTrailingStop(text))
             }
     }
 

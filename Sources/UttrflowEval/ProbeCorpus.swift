@@ -32,7 +32,7 @@ extension EvaluationCorpus {
             spoken:
                 "can we rename user id to account id in the billing module backtick user id backtick shows up in three places",
             expected:
-                "Can we rename `user_id` to `account_id` in the billing module? `user_id` shows up in three places.",
+                "Can we rename `user_id` to `account_id` in the billing module? `user_id` shows up in 3 places.",
             context: AppContext(applicationName: "Messages", bundleIdentifier: "com.apple.MobileSMS"),
             destination: .messaging, mustBeginWith: "Can", mustEndWith: "places.",
             classes: [.questions, .quotesAndBrackets, .numbers, .perDestination, .codeAndMarkdown],
@@ -183,7 +183,7 @@ extension EvaluationCorpus {
             spoken:
                 "we should keep the public api as rest with json but use g r p c between internal services o auth two for the browser and a service account for c i c d jobs the k eight s cluster stays in one region",
             expected:
-                "We should keep the public API as REST with JSON, but use gRPC between internal services, OAuth2 for the browser, and a service account for CI/CD jobs. The k8s cluster stays in one region.",
+                "We should keep the public API as REST with JSON, but use gRPC between internal services, OAuth2 for the browser, and a service account for CI/CD jobs. The k8s cluster stays in 1 region.",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
             destination: .document, mustBeginWith: "We", mustEndWith: "region.",
             classes: [.numbers, .perDestination],
@@ -305,7 +305,7 @@ extension EvaluationCorpus {
             spoken:
                 "option a is a fixed fee of twelve thousand five hundred dollars with delivery in four weeks while option b is eighteen thousand dollars with delivery in two weeks and includes training for up to ten staff",
             expected:
-                "Option A is a fixed fee of $12,500 with delivery in four weeks, while Option B is $18,000 with delivery in two weeks and includes training for up to 10 staff.",
+                "Option A is a fixed fee of $12,500 with delivery in 4 weeks, while Option B is $18,000 with delivery in 2 weeks and includes training for up to 10 staff.",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
             destination: .document, mustBeginWith: "Option", mustEndWith: "staff.",
             classes: [.numbers, .perDestination],
@@ -327,7 +327,7 @@ extension EvaluationCorpus {
             spoken:
                 "dear ms alvarez comma new paragraph i am writing to apply for the senior analyst position advertised on your careers page new paragraph in my current role i lead a team of six analysts and reduced reporting time by thirty percent new paragraph i would welcome the chance to discuss my application comma new line yours sincerely comma new line asha verma",
             expected:
-                "Dear Ms Alvarez,\n\nI am writing to apply for the senior analyst position advertised on your careers page.\n\nIn my current role I lead a team of six analysts and reduced reporting time by 30%.\n\nI would welcome the chance to discuss my application,\nYours sincerely,\nAsha Verma",
+                "Dear Ms Alvarez,\n\nI am writing to apply for the senior analyst position advertised on your careers page.\n\nIn my current role I lead a team of 6 analysts and reduced reporting time by 30%.\n\nI would welcome the chance to discuss my application,\nYours sincerely,\nAsha Verma",
             context: AppContext(applicationName: "Mail", bundleIdentifier: "com.apple.mail"),
             destination: .email, mustBeginWith: "Dear", mustEndWith: "Verma",
             classes: [.numbers, .paragraphs, .perDestination],
@@ -371,7 +371,7 @@ extension EvaluationCorpus {
             spoken:
                 "patient is a fifty two year old with chest tightness for two days blood pressure one forty over ninety heart rate seventy two b p m temperature ninety eight point six s p o two ninety eight percent on room air start aspirin eighty one m g by mouth once daily and recheck in two weeks",
             expected:
-                "Patient is a 52 year old with chest tightness for two days. Blood pressure 140/90, heart rate 72 bpm, temperature 98.6, SpO2 98% on room air. Start aspirin 81 mg by mouth once daily and recheck in two weeks.",
+                "Patient is a 52 year old with chest tightness for 2 days. Blood pressure 140/90, heart rate 72 bpm, temperature 98.6, SpO2 98% on room air. Start aspirin 81 mg by mouth once daily and recheck in 2 weeks.",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
             destination: .document, mustBeginWith: "Patient", mustEndWith: "weeks.",
             classes: [.numbers, .perDestination],
@@ -382,7 +382,7 @@ extension EvaluationCorpus {
             spoken:
                 "clause nine point one the supplier shall item a deliver within thirty days of the order item b replace any damaged goods at its own cost and item c keep records for six years",
             expected:
-                "Clause 9.1 The supplier shall\n(a) deliver within 30 days of the order\n(b) replace any damaged goods at its own cost and\n(c) keep records for six years.",
+                "Clause 9.1 The supplier shall\n(a) deliver within 30 days of the order\n(b) replace any damaged goods at its own cost and\n(c) keep records for 6 years.",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
             destination: .document, mustBeginWith: "Clause", mustEndWith: "years.",
             classes: [.capitalisationAndTokens, .numbers, .lists, .perDestination],
@@ -435,7 +435,7 @@ extension EvaluationCorpus {
             id: "probe-chained-corrections", category: .everyday,
             spoken:
                 "can we meet at four no sorry at five actually make it half past six on wednesday no thursday if that suits you",
-            expected: "Can we meet at half past six on Thursday if that suits you?",
+            expected: "Can we meet at half past 6 on Thursday if that suits you?",
             context: AppContext(applicationName: "Messages", bundleIdentifier: "com.apple.MobileSMS"),
             destination: .messaging, mustBeginWith: "Can", mustEndWith: "you?",
             classes: [.questions, .capitalisationAndTokens, .numbers, .corrections, .perDestination],
@@ -446,7 +446,7 @@ extension EvaluationCorpus {
             spoken:
                 "so about the offsite i think we should book the venue by the end of the month um the budget is still open though and finance needs a number by friday anyway on a different note the onboarding doc is out of date so i will rewrite the first three sections this week and then ask rohit to review it oh and one more thing the printer on the second floor is jammed again",
             expected:
-                "So about the offsite, I think we should book the venue by the end of the month. The budget is still open though, and finance needs a number by Friday.\n\nOn a different note, the onboarding doc is out of date, so I will rewrite the first three sections this week and then ask Rohit to review it.\n\nOh, and one more thing: the printer on the second floor is jammed again.",
+                "So about the offsite, I think we should book the venue by the end of the month. The budget is still open though, and finance needs a number by Friday.\n\nOn a different note, the onboarding doc is out of date, so I will rewrite the first 3 sections this week and then ask Rohit to review it.\n\nOh, and 1 more thing: the printer on the second floor is jammed again.",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
             destination: .document, mustBeginWith: "So", mustEndWith: "again.",
             classes: [.numbers, .perDestination],
@@ -468,7 +468,7 @@ extension EvaluationCorpus {
             spoken:
                 "she called it quote the final version unquote but it still had three open comments and one missing chart so we are not ready",
             expected:
-                "She called it \"the final version\" but it still had three open comments and one missing chart, so we are not ready.",
+                "She called it \"the final version\" but it still had 3 open comments and 1 missing chart, so we are not ready.",
             context: AppContext(applicationName: "Messages", bundleIdentifier: "com.apple.MobileSMS"),
             destination: .messaging, mustBeginWith: "She", mustEndWith: "ready.",
             classes: [.quotesAndBrackets, .numbers, .perDestination],

@@ -64,6 +64,6 @@ struct LayoutWordsPassEnumeratedSeriesTests {
         let text = CleaningPipeline.standard.run(
             Draft(text: "the following three items: milk, eggs, and bread.")
         ).text
-        #expect(text == "The following three items:\n- Milk\n- Eggs\n- Bread")
+        #expect(text == "The following 3 items:\n- Milk\n- Eggs\n- Bread")
     }
 }

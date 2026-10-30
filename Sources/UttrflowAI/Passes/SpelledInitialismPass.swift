@@ -88,7 +88,8 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
             for (offset, word) in form.words.enumerated() {
                 let index = position + offset
                 let shape = draft.shape(at: live[index])
-                guard shape.key == word, !shape.isCutOff, !draft.words[live[index]].isLayoutMark,
+                guard shape.key == word || spokenDigitWord(at: live[index], in: draft) == word,
+                    !shape.isCutOff, !draft.words[live[index]].isLayoutMark,
                     offset == 0
                         || live[index] == live[index - 1] + 1 && !draft.shape(at: live[index - 1]).endsClause
                 else { return false }
@@ -131,6 +132,15 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         case word(String)
     }
 
+    /// The one spoken digit word the number pass wrote as this digit, "two" under "2", or nil.
+    private static func spokenDigitWord(at index: Int, in draft: Draft) -> String? {
+        let heard = WordShape(draft.words[index].heard).key
+        guard case .replaced(by: NumberFormsPass.id, _) = draft.words[index].state,
+            digit(named: heard) == draft.shape(at: index).key
+        else { return nil }
+        return heard
+    }
+
     /// The digit a spoken digit word stands for, "four" as "4".
     private static func digit(named word: String) -> String? {
         NumberWords.units[word].map { String($0) }
@@ -141,6 +151,8 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         let shape = draft.shape(at: index)
         if initialisms.contains(index) { return .letters(shape.core) }
         if shape.key.count == 1, let letter = letterName(shape) { return .letters(letter) }
+        // A digit the number pass wrote from one spoken digit word is still that word: "u s two" is not "US2".
+        if let heard = spokenDigitWord(at: index, in: draft) { return .word(heard) }
         if !shape.key.isEmpty, shape.key.allSatisfy({ $0.isASCII && $0.isNumber }) {
             return .digits(shape.key)
         }
@@ -185,15 +197,17 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
             }
             let opening = draft.shape(at: live[position]).key
             let initialism = initialisms.contains(live[position])
-            guard isCode(pieces, startsWithInitialism: initialism, opening: opening) else {
-                position += 1
-                continue
-            }
             let readings = pieces.map { piece in
                 switch piece {
                 case .letters(let text), .digits(let text): text
                 case .word(let word): digit(named: word) ?? word
                 }
+            }
+            // A registered code such as "HTTP/2" is one token even when its digit was a spoken word.
+            let registered = initialism && LetterRun.knownCodes[readings.joined().lowercased()] != nil
+            guard registered || isCode(pieces, startsWithInitialism: initialism, opening: opening) else {
+                position += 1
+                continue
             }
             let known = tail != nil && LetterRun.knownCodes[readings.joined().lowercased()] != nil
             var written = LetterRun.written(readings, as: known ? .knownCode : .code, first: opening)

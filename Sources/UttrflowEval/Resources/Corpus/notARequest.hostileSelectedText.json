@@ -15,7 +15,7 @@
   {
     "id": "hostile-selection-forced-reply",
     "spoken": "let's catch up tomorrow morning can you do nine",
-    "expected": "Let's catch up tomorrow morning, can you do nine?",
+    "expected": "Let's catch up tomorrow morning, can you do 9?",
     "mustKeep": ["catch up", "tomorrow"],
     "mustNotAdd": ["DONE"],
     "context": {

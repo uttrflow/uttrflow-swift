@@ -26,12 +26,8 @@ struct FormattingParityTests {
         "probe-todo-comment",
         // A long stretch with no pause is one sentence.
         "probe-apology-message",
-        // Counts in prose stay words where the destination writes numerals.
-        "fmt-list-count-not-list",
-        // A spoken list is not laid out by the rules: "one milk two eggs three bread".
-        "fmt-list-numbered-spoken", "fmt-list-first-second-third",
-        // A self-correction to a number stays in words: "six boxes".
-        "fmt-correction-actually",
+        // A list spoken by ordinals is not laid out by the rules: "first book the hall second send invites".
+        "fmt-list-first-second-third",
         // A spoken protocol or tool name said as letters stays words and the clauses run on one line.
         "probe-protocol-names",
     ]

@@ -134,7 +134,7 @@ struct RulesCorpusTests {
 
     /// What the rules write for every grammar case: the floor never "fixes" grammar, so only Tier 1 cleaning touches it.
     static let leftAlone: [(id: String, text: String)] = [
-        ("agreement-there-is", "There is three of them waiting outside."),
+        ("agreement-there-is", "There is 3 of them waiting outside."),
         ("agreement-he-dont", "He don't know about the meeting yet."),
         ("participle-have-went", "I have went through the whole report twice."),
         ("participle-have-wrote", "I have wrote the summary already."),
@@ -149,8 +149,8 @@ struct RulesCorpusTests {
         ("tense-drift", "Yesterday I open the file and it crashes immediately."),
         ("tense-drift-over-a-stem", "Yesterday I try to fix the build twice."),
         ("preposition-slip", "She is good in maths and physics."),
-        ("plural-slip", "We need two more developer on this team."),
-        ("agreement-here-is-two", "Here is two options for the launch."),
+        ("plural-slip", "We need 2 more developer on this team."),
+        ("agreement-here-is-two", "Here is 2 options for the launch."),
         ("agreement-each-of-have", "Each of the boxes have a label on the lid."),
         ("article-an-before-consonant-sound", "We ordered an unicorn cake for the party."),
         ("article-a-before-silent-h", "She is a honest reviewer."),
@@ -163,7 +163,7 @@ struct RulesCorpusTests {
         ("dialect-me-and-him", "Me and him went through the numbers again."),
         ("double-negative-keep", "We didn't do nothing wrong in that release."),
         ("message-he-dont", "He don't know yet"),
-        ("message-there-is", "There is three of them"),
+        ("message-there-is", "There is 3 of them"),
         ("message-dialect-he-come", "He come by yesterday"),
         ("message-dialect-i-seen", "I seen it yesterday"),
         ("message-dialect-they-was", "They was at the shop"),
@@ -234,7 +234,7 @@ struct RulesCorpusTests {
     @Test(
         "writes the exact reference for the cases that have one right answer",
         arguments: [
-            ("self-correction", "Let's meet at five on Tuesday."),
+            ("self-correction", "Let's meet at 5 on Tuesday."),
             ("ellipsis-glued-fillers", "The...the invoice is...overdue."),
             ("version-number", "We're on Postgres 16.2 right now."),
             ("spoken-decade", "The 1990s were fun."),
@@ -255,10 +255,10 @@ struct RulesCorpusTests {
             ("extension-is-digits-kept", "My extension is 445."),
             ("extension-is-spoken-digit-run", "My extension is 445."),
             ("two-single-digits-kept", "One or two."),
-            ("hyphenated-bedroom-count-kept", "Two three-bedroom flats."),
+            ("hyphenated-bedroom-count-kept", "2 three-bedroom flats."),
             ("percentage", "Conversion dropped by 5% after the redesign."),
             ("money", "The taxi cost 5 dollars."),
-            ("actually-between-numbers", "Let's get coffee at three."),
+            ("actually-between-numbers", "Let's get coffee at 3."),
             ("number-correction-with-unit", "We need 15 boxes."),
             ("period-as-a-word", "The trial period ended last week."),
             ("spoken-period", "Ship it."),
@@ -302,7 +302,7 @@ struct RulesCorpusTests {
                 "Write to info@example.com and billing@example.net."
             ),
             ("look-at-a-domain-as-words", "Look at example.com when you have a minute."),
-            ("met-at-the-office-as-words", "We met at the office at five."),
+            ("met-at-the-office-as-words", "We met at the office at 5."),
             (
                 "email-two-paragraphs",
                 "Thanks for your note.\n\nI've attached the revised quote for the second floor."

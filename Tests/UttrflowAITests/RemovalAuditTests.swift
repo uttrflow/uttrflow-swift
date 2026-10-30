@@ -242,7 +242,7 @@ struct RemovalAuditTests {
     @Test("still makes the removals the rules are granted")
     func rulesKeepGrantedRemovals() async throws {
         let result = try await rulesText("um let's meet at four no sorry at five on tuesday")
-        #expect(result.text == "Let's meet at five on Tuesday.")
+        #expect(result.text == "Let's meet at 5 on Tuesday.")
         #expect(result.cleaning?.switchedOff.isEmpty == true)
     }
 

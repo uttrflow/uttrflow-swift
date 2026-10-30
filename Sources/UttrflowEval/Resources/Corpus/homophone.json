@@ -86,8 +86,8 @@
     "id": "homophone-two-too-count",
     "note": "An unsure number word that counts the noun after it stays the number, beside the same number said surely; its sound-alikes too and to are never offered.",
     "spoken": "we hired two engineers in spring and two designers this quarter",
-    "expected": "We hired two engineers in spring and two designers this quarter.",
-    "mustKeep": ["two designers"],
+    "expected": "We hired 2 engineers in spring and 2 designers this quarter.",
+    "mustKeep": ["2 designers"],
     "mustNotAdd": ["too designers", "to designers"],
     "doubtful": ["two"],
     "addedFor": 8105

@@ -414,11 +414,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "56a795529317f048e158ab3c81dc58eb74aba1f552e46a250879aa6c2d214e9e",
+      "sha256": "bcdf8f6ab34705b44ac1506fe5be5a483988a41fab60ad85ed0a57a5e65d681b",
       "path": "Sources/UttrflowEval/Resources/Corpus/bareLiteral.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 5546,
+      "bytes": 5538,
       "licence": "MIT"
     },
     {
@@ -432,47 +432,47 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "92336090b23f4a383e3d963a03bf2fad31c1a104f3b369ca151ea19048e61d20",
+      "sha256": "36fb488bb5e1c603d698a694f373ad7fa504b38994288e9ae8b1052b66606765",
       "path": "Sources/UttrflowEval/Resources/Corpus/contextual.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 116150,
+      "bytes": 116134,
       "licence": "MIT"
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "3f87e644c43e31482a07773e49fb7a64f6df8d195a4c2221e26531be000fad4b",
+      "sha256": "20f00094b51728c5115154c2a5cef1d3d28ebc4c7a5bf5a3ab99c952bcb79ad0",
       "path": "Sources/UttrflowEval/Resources/Corpus/developerGenre.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 23259,
+      "bytes": 23214,
       "licence": "MIT"
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "1e9ae69e9da1873e5cd63f9307ad510b36269255c6fcead413ce91bedc4e6cf1",
+      "sha256": "481b3d4d6dc123664a8553a4bd1fadbb25f96e3ac78f2447c3eefbcc70717e8e",
       "path": "Sources/UttrflowEval/Resources/Corpus/dictionary.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 10124,
+      "bytes": 10118,
       "licence": "MIT"
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "fd065b6270bc18f2b21484e954bab5b3d49b81dc90ed6f849314eefb18278b19",
+      "sha256": "bf504a3b1e0b7ac45bebd250f7f5522e5afd5b63bd80b9aefe6988755e95f006",
       "path": "Sources/UttrflowEval/Resources/Corpus/everyday.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 78110,
+      "bytes": 78031,
       "licence": "MIT"
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "f3a6f418b48580ddd774e9ce1e8a0862be65222d820a4961c5ea40dd7ee19b63",
+      "sha256": "ff5bbd23cbf234046eb63a84f5f09fb6f5e2d427d77277b8efcd3442e20b7c4a",
       "path": "Sources/UttrflowEval/Resources/Corpus/grammar.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 15745,
+      "bytes": 15723,
       "licence": "MIT"
     },
     {
@@ -486,29 +486,29 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "7f01bb30412d355053a7c1db2c780bb7176098eaf81de0d320c47cc660f4a820",
+      "sha256": "695349880e71b8b4f3a83670b07d19191827ed980ae5ecae77343294ebbc11cb",
       "path": "Sources/UttrflowEval/Resources/Corpus/homophone.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 4473,
+      "bytes": 4467,
       "licence": "MIT"
     },
     {
       "licence": "MIT",
       "redistribution": true,
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "49e118e6fda47ebbf8082b8df54a896462dd5a4960cb4554f85ee8f0fdebcd76",
+      "sha256": "bbbeb6783a98c3490b42fa1113022aa082211b1362018e70604294adcc961bfa",
       "path": "Sources/UttrflowEval/Resources/Corpus/longInput.json",
       "origin": "authored",
-      "bytes": 15751
+      "bytes": 15728
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "7d79221a35ebc8ae367b35a5c704b1ba46a49dd699be16ce4c42d33d00af0e2c",
+      "sha256": "0f66d57e66d94b7dc5d37e6a1df345d6394e4a004cc9d583695fd119fb938f87",
       "path": "Sources/UttrflowEval/Resources/Corpus/multilingual.codeMixing.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 48974,
+      "bytes": 48783,
       "licence": "MIT"
     },
     {
@@ -531,20 +531,20 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "d10fb83e0db27bc05174843fb7a8c086812deb36b8b3ec19f7f602b081c15fe6",
+      "sha256": "22b4d43d9d631fb3fa787c262da6de7ec03f76cb60038fbfc53bb6fc6d9d3950",
       "path": "Sources/UttrflowEval/Resources/Corpus/notARequest.hostileApplicationName.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 2034,
+      "bytes": 2032,
       "licence": "MIT"
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "f99ae761af473e6bc82304ebcb2f9063913f5a30c0da7af838d6c44863049a2e",
+      "sha256": "fc3d2267cef86654e2daa20d42ea07c253f95355a9ed398eabc323a55842d03f",
       "path": "Sources/UttrflowEval/Resources/Corpus/notARequest.hostileCaretText.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 2822,
+      "bytes": 2820,
       "licence": "MIT"
     },
     {
@@ -567,20 +567,20 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "8015bfea1897b54e4e43cf5185ea1b2477b84d653f8c437be41f2f2542981131",
+      "sha256": "8c86c2e04be665e0a847a7c9051a7c585ab5294ed725e9db8a2a243b3bf99d89",
       "path": "Sources/UttrflowEval/Resources/Corpus/notARequest.hostileSelectedText.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 1480,
+      "bytes": 1477,
       "licence": "MIT"
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "c352a8798f15384728f8c6b1d13328dd34dcd4db69f88ea773fa5d0a68460424",
+      "sha256": "0ea69b46e518c3ead541cfad9e123b46433b42333f02b963256c8a527d4909af",
       "path": "Sources/UttrflowEval/Resources/Corpus/notARequest.hostileWindowTitle.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 2587,
+      "bytes": 2583,
       "licence": "MIT"
     },
     {
@@ -648,11 +648,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "11e8b46d01b4f5560816d02b2c8322fd02e53d2d94a159bea4fd0e75bdf5fafe",
+      "sha256": "b966e20efbfe01b5a9c552bd286298432cb239f34392855c03c9209368f4d058",
       "path": "Sources/UttrflowEval/Resources/Corpus/technical.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 55680,
+      "bytes": 55655,
       "licence": "MIT"
     },
     {

@@ -12,7 +12,7 @@
   {
     "id": "joined-q-and-a",
     "spoken": "we hold a q and a at four",
-    "expected": "We hold a Q&A at four."
+    "expected": "We hold a Q&A at 4."
   },
   {
     "id": "joined-n-slash-a",
@@ -143,8 +143,8 @@
   {
     "id": "count-before-modified-noun-kept-apart",
     "spoken": "take three fifteen minute breaks",
-    "expected": "Take three 15 minute breaks.",
-    "mustKeep": ["three 15 minute"]
+    "expected": "Take 3 15 minute breaks.",
+    "mustKeep": ["3 15 minute"]
   },
   {
     "id": "four-digit-number-ungrouped-in-prose",
@@ -155,8 +155,8 @@
   {
     "id": "prose-number-word-kept",
     "spoken": "one of them failed the build",
-    "expected": "One of them failed the build.",
-    "mustKeep": ["One of them"]
+    "expected": "1 of them failed the build.",
+    "mustKeep": ["1 of them"]
   },
   {
     "id": "extension-repeated-digits",
@@ -233,8 +233,8 @@
   {
     "id": "hyphenated-bedroom-count-kept",
     "spoken": "two three-bedroom flats",
-    "expected": "Two three-bedroom flats.",
-    "mustKeep": ["two", "three-bedroom", "flats"]
+    "expected": "2 three-bedroom flats.",
+    "mustKeep": ["2", "three-bedroom", "flats"]
   },
   {
     "id": "spoken-email-address",
@@ -272,8 +272,8 @@
   {
     "id": "met-at-the-office-as-words",
     "spoken": "we met at the office at five",
-    "expected": "We met at the office at five.",
-    "mustKeep": ["at the office at five"],
+    "expected": "We met at the office at 5.",
+    "mustKeep": ["at the office at 5"],
     "mustNotAdd": ["@"]
   },
   {

@@ -14,31 +14,31 @@
     "id": "dev-pr-description-list",
     "note": "a spoken list whose items hold sizes and a status code",
     "spoken": "this pull request splits the upload handler into two stages colon bullet point validate the file size and type before reading the body bullet point stream the body to disk in sixty four k b chunks bullet point return four thirteen when the file is over fifty m b new paragraph no schema changes and no new dependencies",
-    "expected": "This pull request splits the upload handler into two stages:\n- Validate the file size and type before reading the body\n- Stream the body to disk in 64 KB chunks\n- Return 413 when the file is over 50 MB\n\nNo schema changes and no new dependencies.",
+    "expected": "This pull request splits the upload handler into 2 stages:\n- Validate the file size and type before reading the body\n- Stream the body to disk in 64 KB chunks\n- Return 413 when the file is over 50 MB\n\nNo schema changes and no new dependencies.",
     "context": {"applicationName": "Pages", "bundleIdentifier": "com.apple.iWork.Pages"},
     "destination": "document",
     "mustKeep": ["64 KB", "413", "50 MB"],
-    "expectedExact": "This pull request splits the upload handler into two stages:\n- Validate the file size and type before reading the body\n- Stream the body to disk in 64 KB chunks\n- Return 413 when the file is over 50 MB\n\nNo schema changes and no new dependencies.",
+    "expectedExact": "This pull request splits the upload handler into 2 stages:\n- Validate the file size and type before reading the body\n- Stream the body to disk in 64 KB chunks\n- Return 413 when the file is over 50 MB\n\nNo schema changes and no new dependencies.",
     "addedFor": 3841
   },
   {
     "id": "dev-review-comment",
     "note": "a nit label, a spoken question mark and a code word",
     "spoken": "nit colon this loop runs one query per row because the lookup sits inside the map call. could we load all the accounts once before the loop question mark the rest looks good to me and the tests cover the empty list case",
-    "expected": "Nit: this loop runs one query per row because the lookup sits inside the map call. Could we load all the accounts once before the loop? The rest looks good to me and the tests cover the empty list case.",
+    "expected": "Nit: this loop runs 1 query per row because the lookup sits inside the map call. Could we load all the accounts once before the loop? The rest looks good to me and the tests cover the empty list case.",
     "destination": "plain",
     "mustKeep": ["query", "accounts", "empty list"],
-    "expectedExact": "Nit: this loop runs one query per row because the lookup sits inside the map call. Could we load all the accounts once before the loop? The rest looks good to me and the tests cover the empty list case.",
+    "expectedExact": "Nit: this loop runs 1 query per row because the lookup sits inside the map call. Could we load all the accounts once before the loop? The rest looks good to me and the tests cover the empty list case.",
     "addedFor": 3841
   },
   {
     "id": "dev-commit-message",
     "note": "a subject line, a paragraph break and an issue number",
     "spoken": "return the default config when the file is empty new paragraph the parser read the first line before checking the length so an empty file threw an index error. it now returns the default config and logs one warning. closes issue four one two",
-    "expected": "Return the default config when the file is empty.\n\nThe parser read the first line before checking the length, so an empty file threw an index error. It now returns the default config and logs one warning. Closes issue 412.",
+    "expected": "Return the default config when the file is empty.\n\nThe parser read the first line before checking the length, so an empty file threw an index error. It now returns the default config and logs 1 warning. Closes issue 412.",
     "destination": "plain",
     "mustKeep": ["412", "index error", "warning"],
-    "expectedExact": "Return the default config when the file is empty.\n\nThe parser read the first line before checking the length, so an empty file threw an index error. It now returns the default config and logs one warning. Closes issue 412.",
+    "expectedExact": "Return the default config when the file is empty.\n\nThe parser read the first line before checking the length, so an empty file threw an index error. It now returns the default config and logs 1 warning. Closes issue 412.",
     "addedFor": 3841
   },
   {
@@ -76,11 +76,11 @@
     "id": "dev-version-bump",
     "note": "dotted versions at a sentence end and runtime versions",
     "spoken": "heads up i bumped the s d k from two point three point one to three point zero point zero. it drops support for node sixteen so the build image needs node twenty or later. the changelog lists two breaking changes and both are in the auth module",
-    "expected": "Heads up, I bumped the SDK from 2.3.1 to 3.0.0. It drops support for Node 16, so the build image needs Node 20 or later. The changelog lists two breaking changes and both are in the auth module.",
+    "expected": "Heads up, I bumped the SDK from 2.3.1 to 3.0.0. It drops support for Node 16, so the build image needs Node 20 or later. The changelog lists 2 breaking changes and both are in the auth module.",
     "context": {"applicationName": "Messages", "bundleIdentifier": "com.apple.MobileSMS"},
     "destination": "messaging",
     "mustKeep": ["2.3.1", "3.0.0", "Node 20"],
-    "expectedExact": "Heads up, I bumped the SDK from 2.3.1 to 3.0.0. It drops support for Node 16, so the build image needs Node 20 or later. The changelog lists two breaking changes and both are in the auth module.",
+    "expectedExact": "Heads up, I bumped the SDK from 2.3.1 to 3.0.0. It drops support for Node 16, so the build image needs Node 20 or later. The changelog lists 2 breaking changes and both are in the auth module.",
     "addedFor": 3841
   },
   {
@@ -131,10 +131,10 @@
     "id": "dev-env-setup",
     "note": "dotfiles, a spelled initialism and a port number",
     "spoken": "copy dot env dot example to dot env and set the database u r l to point at your local postgres on port five four three two. the seed script lives in scripts slash seed dot p y and takes about two minutes",
-    "expected": "Copy .env.example to .env and set the database URL to point at your local Postgres on port 5432. The seed script lives in scripts/seed.py and takes about two minutes.",
+    "expected": "Copy .env.example to .env and set the database URL to point at your local Postgres on port 5432. The seed script lives in scripts/seed.py and takes about 2 minutes.",
     "destination": "plain",
     "mustKeep": [".env.example", "5432", "scripts/seed.py"],
-    "expectedExact": "Copy .env.example to .env and set the database URL to point at your local Postgres on port 5432. The seed script lives in scripts/seed.py and takes about two minutes.",
+    "expectedExact": "Copy .env.example to .env and set the database URL to point at your local Postgres on port 5432. The seed script lives in scripts/seed.py and takes about 2 minutes.",
     "addedFor": 3841
   },
   {
@@ -194,21 +194,21 @@
     "id": "dev-review-reply",
     "note": "an identifier spoken with underscores and a number",
     "spoken": "good catch. i moved the timeout into the config struct and renamed it request underscore timeout underscore seconds. the default is still thirty. i also added a test for the zero case which used to hang forever",
-    "expected": "Good catch. I moved the timeout into the config struct and renamed it request_timeout_seconds. The default is still 30. I also added a test for the zero case, which used to hang forever.",
+    "expected": "Good catch. I moved the timeout into the config struct and renamed it request_timeout_seconds. The default is still 30. I also added a test for the 0 case, which used to hang forever.",
     "context": {"applicationName": "Messages", "bundleIdentifier": "com.apple.MobileSMS"},
     "destination": "messaging",
-    "mustKeep": ["request_timeout_seconds", "30", "zero case"],
-    "expectedExact": "Good catch. I moved the timeout into the config struct and renamed it request_timeout_seconds. The default is still 30. I also added a test for the zero case, which used to hang forever.",
+    "mustKeep": ["request_timeout_seconds", "30", "0 case"],
+    "expectedExact": "Good catch. I moved the timeout into the config struct and renamed it request_timeout_seconds. The default is still 30. I also added a test for the 0 case, which used to hang forever.",
     "addedFor": 3841
   },
   {
     "id": "dev-library-pin",
     "note": "short versions, an issue number and a spelled initialism",
     "spoken": "we pin the parser library at version four point two because four point three changed how it handles tabs. the upgrade is tracked in issue nine eighty one and needs about two days of work. until then the bot will keep opening the same p r so please close it",
-    "expected": "We pin the parser library at version 4.2 because 4.3 changed how it handles tabs. The upgrade is tracked in issue 981 and needs about two days of work. Until then, the bot will keep opening the same PR, so please close it.",
+    "expected": "We pin the parser library at version 4.2 because 4.3 changed how it handles tabs. The upgrade is tracked in issue 981 and needs about 2 days of work. Until then, the bot will keep opening the same PR, so please close it.",
     "destination": "plain",
     "mustKeep": ["4.2", "4.3", "981"],
-    "expectedExact": "We pin the parser library at version 4.2 because 4.3 changed how it handles tabs. The upgrade is tracked in issue 981 and needs about two days of work. Until then, the bot will keep opening the same PR, so please close it.",
+    "expectedExact": "We pin the parser library at version 4.2 because 4.3 changed how it handles tabs. The upgrade is tracked in issue 981 and needs about 2 days of work. Until then, the bot will keep opening the same PR, so please close it.",
     "addedFor": 3841
   },
   {
@@ -236,11 +236,11 @@
     "id": "dev-migration-plan",
     "note": "a numbered list holding a large round number",
     "spoken": "migration plan for the user table colon number one add the new column as nullable number two backfill it in batches of ten thousand rows number three make it not null once the backfill reports zero missing new paragraph each step ships in its own release",
-    "expected": "Migration plan for the user table:\n1. Add the new column as nullable\n2. Backfill it in batches of 10,000 rows\n3. Make it not null once the backfill reports zero missing\n\nEach step ships in its own release.",
+    "expected": "Migration plan for the user table:\n1. Add the new column as nullable\n2. Backfill it in batches of 10,000 rows\n3. Make it not null once the backfill reports 0 missing\n\nEach step ships in its own release.",
     "context": {"applicationName": "Pages", "bundleIdentifier": "com.apple.iWork.Pages"},
     "destination": "document",
     "mustKeep": ["nullable", "10,000", "not null"],
-    "expectedExact": "Migration plan for the user table:\n1. Add the new column as nullable\n2. Backfill it in batches of 10,000 rows\n3. Make it not null once the backfill reports zero missing\n\nEach step ships in its own release.",
+    "expectedExact": "Migration plan for the user table:\n1. Add the new column as nullable\n2. Backfill it in batches of 10,000 rows\n3. Make it not null once the backfill reports 0 missing\n\nEach step ships in its own release.",
     "addedFor": 3841
   },
   {
@@ -258,10 +258,10 @@
     "id": "dev-feature-flag-rollout",
     "note": "percentages, spelled regions and a weekday",
     "spoken": "the new checkout flag is on for five percent of users in the e u region. set the rollout to twenty five percent on monday if the error rate stays flat and leave the u s at zero until legal signs off",
-    "expected": "The new checkout flag is on for 5% of users in the EU region. Set the rollout to 25% on Monday if the error rate stays flat and leave the US at zero until legal signs off.",
+    "expected": "The new checkout flag is on for 5% of users in the EU region. Set the rollout to 25% on Monday if the error rate stays flat and leave the US at 0 until legal signs off.",
     "destination": "plain",
     "mustKeep": ["5%", "25%", "Monday"],
-    "expectedExact": "The new checkout flag is on for 5% of users in the EU region. Set the rollout to 25% on Monday if the error rate stays flat and leave the US at zero until legal signs off.",
+    "expectedExact": "The new checkout flag is on for 5% of users in the EU region. Set the rollout to 25% on Monday if the error rate stays flat and leave the US at 0 until legal signs off.",
     "addedFor": 3841
   }
 ]

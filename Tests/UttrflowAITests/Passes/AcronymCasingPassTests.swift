@@ -111,7 +111,7 @@ struct AcronymCasingPassTests {
         let draft = Draft(text: "we use python three")
         #expect(AcronymCasingPass(destination: .plain).apply(draft).text == "we use Python three")
         let standard = CleaningPipeline.standard(for: .standard(for: .plain), situation: .unknown)
-        #expect(standard.run(draft).text == "We use Python three.")
+        #expect(standard.run(draft).text == "We use Python 3.")
         #expect(
             standard.run(Draft(text: "we feed python three thousand mice")).text
                 == "We feed python 3000 mice.")
@@ -185,13 +185,13 @@ struct AcronymCasingPassTests {
                 == "we feed python three small mice")
         #expect(
             standard.run(Draft(text: "we feed python three small mice")).text
-                == "We feed python three small mice.")
+                == "We feed python 3 small mice.")
         #expect(
             plain.apply(Draft(text: "we feed python three of the mice")).text
                 == "we feed python three of the mice")
         #expect(
             standard.run(Draft(text: "we feed python three of the mice")).text
-                == "We feed python three of the mice.")
+                == "We feed python 3 of the mice.")
         let editor = AcronymCasingPass(destination: .codeEditor)
         #expect(editor.apply(Draft(text: "we let go three")).text == "we let go three")
     }

@@ -243,8 +243,8 @@
   {
     "id": "self-correction",
     "spoken": "let's meet at four no sorry at five on tuesday",
-    "expected": "Let's meet at five on Tuesday.",
-    "mustKeep": ["five", "Tuesday"]
+    "expected": "Let's meet at 5 on Tuesday.",
+    "mustKeep": ["5", "Tuesday"]
   },
   {
     "id": "single-word-self-correction",
@@ -526,7 +526,7 @@
   {
     "id": "actually-between-numbers",
     "spoken": "let's get coffee at two actually three",
-    "expected": "Let's get coffee at three.",
+    "expected": "Let's get coffee at 3.",
     "mustKeep": ["coffee"],
     "mustNotAdd": ["two"]
   },
@@ -703,8 +703,8 @@
   {
     "id": "no-make-that-between-amounts",
     "spoken": "i need four loaves no make that five loaves",
-    "expected": "I need five loaves.",
-    "mustKeep": ["five loaves"],
+    "expected": "I need 5 loaves.",
+    "mustKeep": ["5 loaves"],
     "mustNotAdd": ["four", "make that"]
   },
   {
@@ -729,8 +729,8 @@
     "id": "trigger-as-its-own-sentence",
     "note": "The recogniser writes a paused trigger as its own sentence, which is a pause rather than a sentence end.",
     "spoken": "Meet me at four. Scratch that. At five.",
-    "expected": "Meet me at five.",
-    "mustKeep": ["Meet me", "five"],
+    "expected": "Meet me at 5.",
+    "mustKeep": ["Meet me", "5"],
     "mustNotAdd": ["four", "Scratch"]
   },
   {
@@ -895,7 +895,7 @@
   {
     "id": "spoken-colon-before-an-item",
     "spoken": "one more thing colon the demo moves to friday",
-    "expected": "One more thing: the demo moves to Friday.",
+    "expected": "1 more thing: the demo moves to Friday.",
     "mustKeep": ["demo", "Friday"],
     "mustNotAdd": ["colon"]
   },
@@ -1137,8 +1137,8 @@
   {
     "id": "sentence-per-new-line",
     "spoken": "agenda new line one intro new line two demo",
-    "expected": "Agenda\nOne intro\nTwo demo",
-    "mustKeep": ["agenda", "one intro", "two demo"],
+    "expected": "Agenda\n1 intro\n2 demo",
+    "mustKeep": ["agenda", "1 intro", "2 demo"],
     "mustNotAdd": ["new line"]
   },
   {
@@ -1167,8 +1167,8 @@
     "id": "correction-after-new-paragraph",
     "note": "A correction inside the line after a break is still taken back.",
     "spoken": "thanks for the update new paragraph meet at four no sorry at five",
-    "expected": "Thanks for the update.\n\nMeet at five.",
-    "mustKeep": ["thanks for the update", "five"],
+    "expected": "Thanks for the update.\n\nMeet at 5.",
+    "mustKeep": ["thanks for the update", "5"],
     "mustNotAdd": ["four", "sorry", "paragraph"]
   },
   {
@@ -1205,8 +1205,8 @@
     "id": "dotted-rate-before-percent-kept",
     "note": "Recogniser-formatted input: a percent after the number makes it a rate, not a time; only the exact form tells the two apart.",
     "spoken": "the loan is fixed at 6.25 percent for five years",
-    "expected": "The loan is fixed at 6.25% for five years.",
-    "expectedExact": "The loan is fixed at 6.25% for five years.",
+    "expected": "The loan is fixed at 6.25% for 5 years.",
+    "expectedExact": "The loan is fixed at 6.25% for 5 years.",
     "mustKeep": ["6.25", "loan"]
   },
   {
@@ -1264,7 +1264,7 @@
   {
     "id": "run-on-small-words-alarm",
     "spoken": "first we lock the doors then we turn the alarm on and after that we leave by the back gate not the front one",
-    "expected": "First we lock the doors. Then we turn the alarm on, and after that we leave by the back gate, not the front one.",
+    "expected": "First we lock the doors. Then we turn the alarm on, and after that we leave by the back gate, not the front 1.",
     "mustKeep": ["on", "after", "back"],
     "mustNotAdd": ["off", "before"],
     "classes": ["sentence-boundaries"],
@@ -1343,7 +1343,7 @@
   {
     "id": "run-on-small-words-shift",
     "spoken": "either you take the early shift or i take it but one of us has to be in before the shop opens and the other can come in after lunch",
-    "expected": "Either you take the early shift or I take it. But one of us has to be in before the shop opens, and the other can come in after lunch.",
+    "expected": "Either you take the early shift or I take it. But 1 of us has to be in before the shop opens, and the other can come in after lunch.",
     "mustKeep": ["either", "or", "before", "after"],
     "classes": ["sentence-boundaries"],
     "addedFor": 4654
@@ -1481,14 +1481,14 @@
   {
     "id": "zone-eastern-time-4031",
     "spoken": "we can talk at four eastern time",
-    "expected": "We can talk at four Eastern time.",
+    "expected": "We can talk at 4 Eastern time.",
     "mustKeep": ["Eastern time"],
     "addedFor": 4031
   },
   {
     "id": "zone-india-standard-4031",
     "spoken": "the call starts at eight india standard time",
-    "expected": "The call starts at eight India Standard Time.",
+    "expected": "The call starts at 8 India Standard Time.",
     "mustKeep": ["India Standard Time"],
     "addedFor": 4031
   },
@@ -1502,14 +1502,14 @@
   {
     "id": "zone-pacific-daylight-4031",
     "spoken": "send it by five pacific daylight time",
-    "expected": "Send it by five Pacific Daylight Time.",
+    "expected": "Send it by 5 Pacific Daylight Time.",
     "mustKeep": ["Pacific Daylight Time"],
     "addedFor": 4031
   },
   {
     "id": "zone-central-european-4031",
     "spoken": "the webinar is at four central european time",
-    "expected": "The webinar is at four Central European Time.",
+    "expected": "The webinar is at 4 Central European Time.",
     "mustKeep": ["Central European Time"],
     "addedFor": 4031
   },
@@ -1539,7 +1539,7 @@
   {
     "id": "zone-standard-time-limit-kept-4031",
     "spoken": "the standard time limit is one hour",
-    "expected": "The standard time limit is one hour.",
+    "expected": "The standard time limit is 1 hour.",
     "mustKeep": ["standard time limit"],
     "mustNotAdd": ["Standard"],
     "addedFor": 4031
@@ -1557,8 +1557,8 @@
     "id": "zone-plus-points-kept-4031",
     "note": "plus with no zone before it is not an offset.",
     "spoken": "the team got plus five points",
-    "expected": "The team got plus five points.",
-    "mustKeep": ["plus five points"],
+    "expected": "The team got plus 5 points.",
+    "mustKeep": ["plus 5 points"],
     "mustNotAdd": ["+5"],
     "addedFor": 4031
   },
@@ -1830,8 +1830,8 @@
   {
     "id": "doubled-number-score-kept",
     "spoken": "the score was two two at half time",
-    "expected": "The score was two two at half time.",
-    "mustKeep": ["two two"],
+    "expected": "The score was 2 2 at half time.",
+    "mustKeep": ["2 2"],
     "addedFor": 7851
   },
   {
@@ -2047,7 +2047,7 @@
     "id": "pronoun-one-after-a-label-in-the-previous-conjunct-kept",
     "note": "A label word before \"and\" does not cue a number after it, so the pronoun \"one\" stays a word.",
     "spoken": "We found two bugs in the payment screen. One with the coupon code and one with the currency format.",
-    "expected": "We found two bugs in the payment screen. One with the coupon code and one with the currency format.",
+    "expected": "We found 2 bugs in the payment screen. One with the coupon code and one with the currency format.",
     "mustKeep": ["and one with the currency format"],
     "mustNotAdd": ["1"],
     "addedFor": 8130

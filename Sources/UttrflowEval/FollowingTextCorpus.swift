@@ -61,9 +61,9 @@ extension EvaluationCorpus {
             preceding: "", following: "after the storm.", mustKeep: ["bridge"],
             mustBeginWith: "The bridge", mustEndWith: "reopened "),
         caret(
-            "before-lowercase-mid-sentence", spoken: "two spare tyres", expected: "two spare tyres ",
+            "before-lowercase-mid-sentence", spoken: "two spare tyres", expected: "2 spare tyres ",
             preceding: "We packed ", following: "and a pump.", mustKeep: ["tyres"],
-            mustBeginWith: "two spare", mustEndWith: "tyres "),
+            mustBeginWith: "2 spare", mustEndWith: "tyres "),
         caret(
             "before-lowercase-both-joined", spoken: "the blue", expected: " the blue ",
             preceding: "Paint", following: "fence first.", mustKeep: ["blue"],
@@ -101,7 +101,7 @@ extension EvaluationCorpus {
     /// A new paragraph after the caret ends the sentence here, so the words take their stop.
     static let beforeParagraphCases: [EvaluationCase] = [
         caret(
-            "before-paragraph", spoken: "the hens laid six eggs", expected: "The hens laid six eggs.",
+            "before-paragraph", spoken: "the hens laid six eggs", expected: "The hens laid 6 eggs.",
             preceding: "", following: "\n\nTomorrow we clean the coop.", mustKeep: ["hens"],
             mustBeginWith: "The hens", mustEndWith: "eggs."),
         caret(
@@ -128,12 +128,12 @@ extension EvaluationCorpus {
     static let beforeOpeningBracketCases: [EvaluationCase] = [
         caret(
             "before-parenthetical", spoken: "the market opens at eight",
-            expected: "The market opens at eight", preceding: "", following: " (on weekdays).",
-            mustKeep: ["market"], mustNotAdd: ["eight."], mustBeginWith: "The market", mustEndWith: "at eight"
+            expected: "The market opens at 8", preceding: "", following: " (on weekdays).",
+            mustKeep: ["market"], mustNotAdd: ["8."], mustBeginWith: "The market", mustEndWith: "at 8"
         ),
         caret(
             "before-parenthetical-joined", spoken: "the cottage has two rooms",
-            expected: "The cottage has two rooms ", preceding: "", following: "(and a loft).",
+            expected: "The cottage has 2 rooms ", preceding: "", following: "(and a loft).",
             mustKeep: ["cottage"], mustNotAdd: ["rooms."], mustBeginWith: "The cottage",
             mustEndWith: "rooms "),
         caret(

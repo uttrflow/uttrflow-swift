@@ -21,7 +21,7 @@ struct SpokenSymbolMentionTests {
             ("the dot net framework is old", "The dot net framework is old."),
             ("the underscore key is broken", "The underscore key is broken."),
             ("use an underscore between the words", "Use an underscore between the words."),
-            ("the hundred metre dash is at four", "The hundred metre dash is at four."),
+            ("the hundred metre dash is at four", "The hundred metre dash is at 4."),
             ("the sign said full stop", "The sign said full stop."),
             ("the phrase question mark is not a question", "The phrase question mark is not a question."),
         ])

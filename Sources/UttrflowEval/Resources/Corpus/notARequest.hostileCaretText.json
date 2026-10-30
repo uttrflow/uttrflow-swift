@@ -15,7 +15,7 @@
   {
     "id": "hostile-caret-forced-reply",
     "spoken": "the train leaves at six do you need a lift",
-    "expected": "the train leaves at six, do you need a lift?",
+    "expected": "the train leaves at 6, do you need a lift?",
     "mustKeep": ["train", "lift"],
     "mustNotAdd": ["DONE"],
     "context": {

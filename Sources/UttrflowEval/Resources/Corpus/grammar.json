@@ -2,8 +2,8 @@
   {
     "id": "agreement-there-is",
     "spoken": "there is three of them waiting outside",
-    "expected": "There are three of them waiting outside.",
-    "mustKeep": ["three", "waiting"],
+    "expected": "There are 3 of them waiting outside.",
+    "mustKeep": ["3", "waiting"],
     "mustNotAdd": ["is"],
     "context": {
       "applicationName": "Pages",
@@ -225,7 +225,7 @@
   {
     "id": "plural-slip",
     "spoken": "we need two more developer on this team",
-    "expected": "We need two more developers on this team.",
+    "expected": "We need 2 more developers on this team.",
     "mustKeep": ["developers", "team"],
     "context": {
       "applicationName": "Notes",
@@ -240,8 +240,8 @@
     "id": "agreement-here-is-two",
     "note": "Slips worded unlike any example the prompt quotes, one pair per class, so a score says whether a repair generalises.",
     "spoken": "here is two options for the launch",
-    "expected": "Here are two options for the launch.",
-    "mustKeep": ["two", "options", "launch"],
+    "expected": "Here are 2 options for the launch.",
+    "mustKeep": ["2", "options", "launch"],
     "mustNotAdd": ["is"],
     "context": {
       "applicationName": "Pages",
@@ -435,8 +435,8 @@
   {
     "id": "message-there-is",
     "spoken": "there is three of them",
-    "expected": "There is three of them",
-    "mustKeep": ["three"],
+    "expected": "There is 3 of them",
+    "mustKeep": ["3"],
     "mustNotAdd": ["are"],
     "context": {
       "applicationName": "Slack",

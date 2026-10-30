@@ -158,9 +158,9 @@
   {
     "id": "literal-prose-five",
     "spoken": "five",
-    "expected": "Five.",
+    "expected": "5",
     "destination": "document",
-    "expectedExact": "Five.",
+    "expectedExact": "5",
     "addedFor": 4066
   },
   {

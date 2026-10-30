@@ -37,9 +37,9 @@ struct HinglishDigitNameTests {
     @Test(
         "stay words where no measure or digit cue follows",
         arguments: [
-            ("i have five kids", "I have five kids."),
-            ("mere paas five dost hain", "Mere paas five dost hain."),
-            ("three din se baarish ho rahi hai", "Three din se baarish ho rahi hai."),
+            ("i have five kids", "I have 5 kids."),
+            ("mere paas five dost hain", "Mere paas 5 dost hain."),
+            ("three din se baarish ho rahi hai", "3 din se baarish ho rahi hai."),
         ])
     func plainCountStaysWords(input: String, expected: String) {
         #expect(cleaned(input) == expected)

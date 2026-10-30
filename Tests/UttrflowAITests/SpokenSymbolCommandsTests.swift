@@ -36,7 +36,7 @@ struct SpokenSymbolCommandsTests {
     func keepsOrdinaryUses() async throws {
         for (spoken, expected) in [
             ("type an ampersand there", "Type an ampersand there."),
-            ("the at sign is on the two key", "The at sign is on the two key."),
+            ("the at sign is on the two key", "The at sign is on the 2 key."),
             ("we made a hash of it", "We made a hash of it."),
             ("the percent sign key is stuck", "The percent sign key is stuck."),
             ("look at the sign by the door", "Look at the sign by the door."),

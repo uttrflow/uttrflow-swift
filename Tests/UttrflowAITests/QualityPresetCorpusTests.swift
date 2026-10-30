@@ -22,7 +22,7 @@ struct QualityPresetCorpusTests {
         Case(
             preset: .verbatim, spoken: "we should we should leave at noon",
             written: "We should we should leave at noon."),
-        Case(preset: .standard, spoken: "the loop runs five times", written: "The loop runs five times."),
+        Case(preset: .standard, spoken: "the loop runs five times", written: "The loop runs 5 times."),
         Case(preset: .code, spoken: "the loop runs five times", written: "the loop runs 5 times"),
         Case(preset: .verbatim, spoken: "yes comma that works", written: "Yes, that works."),
     ]

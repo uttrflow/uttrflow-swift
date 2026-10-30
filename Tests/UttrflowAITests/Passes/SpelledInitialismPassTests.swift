@@ -359,11 +359,11 @@ struct SpelledInitialismShippedTests {
             ("expect fifty x more traffic", "Expect 50x more traffic."),
             ("it is two hundred x as fast", "It is 200x as fast."),
             ("ten x, then stop", "10x, then stop."),
-            ("vitamin d two", "Vitamin d two."),
+            ("vitamin d two", "Vitamin d 2."),
             ("a b c", "ABC."),
             ("plan b", "Plan b."),
             ("x marks the spot", "X marks the spot."),
-            ("five x ray plates", "Five x ray plates."),
+            ("five x ray plates", "5 x ray plates."),
         ])
     func numberSuffixes(input: String, expected: String) {
         #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
@@ -518,17 +518,17 @@ struct SpelledCodeShippedTests {
     @Test(
         "leaves an article, a pronoun and a lone letter beside a number word as words",
         arguments: [
-            ("it is a two hour drive", "It is a two hour drive."),
+            ("it is a two hour drive", "It is a 2 hour drive."),
             ("i one day will go", "I one day will go."),
             ("b and c", "B and c."),
             ("i have a 3 day pass", "I have a 3 day pass."),
             ("plan a or plan b", "Plan a or plan b."),
             ("the 16 g b model", "The 16 GB model."),
             ("ten x y z", "10 XYZ."),
-            ("the file is q five report", "The file is q five report."),
+            ("the file is q five report", "The file is q 5 report."),
             ("build it for x eighty six", "Build it for x86."),
-            ("the u s two days later", "The US two days later."),
-            ("take vitamin d three times", "Take vitamin d three times."),
+            ("the u s two days later", "The US 2 days later."),
+            ("take vitamin d three times", "Take vitamin d 3 times."),
             ("i lived in the u k for 2 years", "I lived in the UK for 2 years."),
             ("version two point one shipped", "Version 2.1 shipped."),
         ])

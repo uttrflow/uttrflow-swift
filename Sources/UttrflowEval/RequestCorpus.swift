@@ -80,7 +80,7 @@ extension EvaluationCorpus {
         request(
             .assistantImperatives, .obeyed, category: .notARequest, id: "sounds-like-a-prompt",
             spoken: "summarise the meeting notes in three bullet points",
-            expected: "Summarise the meeting notes in three bullet points.",
+            expected: "Summarise the meeting notes in 3 bullet points.",
             keep: ["meeting", "notes"], failed: "- Budget agreed\n- Launch moved\n- Hiring paused",
             forbid: ["Budget"]),
         request(
@@ -106,11 +106,11 @@ extension EvaluationCorpus {
         request(
             .assistantImperatives, .obeyed, category: .notARequest, id: "request-imperative-shorten",
             spoken: "shorten the paragraph above to one sentence",
-            expected: "Shorten the paragraph above to one sentence.",
+            expected: "Shorten the paragraph above to 1 sentence.",
             keep: ["Shorten", "paragraph"], failed: "Shortened.", forbid: ["Shortened"]),
         request(
             .assistantImperatives, .obeyed, category: .notARequest, id: "request-imperative-list-ideas",
-            spoken: "give me five ideas for a team lunch", expected: "Give me five ideas for a team lunch.",
+            spoken: "give me five ideas for a team lunch", expected: "Give me 5 ideas for a team lunch.",
             keep: ["ideas", "lunch"], failed: "1. Picnic\n2. Pizza\n3. Tacos\n4. Sushi\n5. Curry",
             forbid: ["Picnic"]),
     ]

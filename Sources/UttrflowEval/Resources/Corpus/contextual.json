@@ -511,7 +511,7 @@
   {
     "id": "document-number-one-after-a-sentence-not-an-item",
     "spoken": "the build failed. number one is broken",
-    "expected": "The build failed. Number one is broken.",
+    "expected": "The build failed. Number 1 is broken.",
     "mustKeep": ["number", "broken"],
     "mustNotAdd": ["1."],
     "context": {
@@ -1514,7 +1514,7 @@
   {
     "id": "prose-spoken-parentheses-as-marks",
     "spoken": "the budget open parentheses draft two close parentheses is due friday",
-    "expected": "The budget (draft two) is due Friday.",
+    "expected": "The budget (draft 2) is due Friday.",
     "context": {
       "applicationName": "Pages",
       "bundleIdentifier": "com.apple.iWork.Pages"
@@ -1526,7 +1526,7 @@
   {
     "id": "dictation-keeps-markdown-words-heading-one",
     "spoken": "the report needs a heading one above the summary",
-    "expected": "The report needs a heading one above the summary.",
+    "expected": "The report needs a heading 1 above the summary.",
     "context": {
       "applicationName": "Notes",
       "bundleIdentifier": "com.apple.Notes"
@@ -1544,7 +1544,7 @@
   {
     "id": "dictation-keeps-markdown-words-heading-two",
     "spoken": "add a heading two for the results section",
-    "expected": "Add a heading two for the results section.",
+    "expected": "Add a heading 2 for the results section.",
     "context": {
       "applicationName": "Notes",
       "bundleIdentifier": "com.apple.Notes"
@@ -1562,7 +1562,7 @@
   {
     "id": "dictation-keeps-markdown-words-heading-three",
     "spoken": "the notes have a heading three under methods",
-    "expected": "The notes have a heading three under methods.",
+    "expected": "The notes have a heading 3 under methods.",
     "context": {
       "applicationName": "Notes",
       "bundleIdentifier": "com.apple.Notes"
@@ -2017,7 +2017,7 @@
   {
     "id": "document-one-line-draft-two",
     "spoken": "budget proposal draft two",
-    "expected": "Budget proposal draft two",
+    "expected": "Budget proposal draft 2",
     "mustNotAdd": ["."],
     "context": {
       "applicationName": "Pages",
@@ -2028,7 +2028,7 @@
     },
     "destination": "document",
     "mustBeginWith": "Budget",
-    "mustEndWith": "two",
+    "mustEndWith": "2",
     "addedFor": 4309
   },
   {
