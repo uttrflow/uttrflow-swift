@@ -207,6 +207,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private(set) var suggestionModel: SuggestionModelReadiness = .notAsked {
         didSet {
             guard suggestionModel != oldValue else { return }
+            SuggestionWarmUp.shared.modelIs(suggestionModel)
             settingsPage.setSuggestionModel(suggestionModel)
             refreshMenuBar()
         }

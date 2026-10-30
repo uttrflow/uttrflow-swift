@@ -1096,7 +1096,7 @@ final class SuggestionCoordinator {
             guard ModelPass.shouldAsk(after: update, hasGenerator: generator != nil, isReady: ready),
                 let generator
             else {
-                return settle(update, in: snapshot)
+                return settledWithoutModel(update, generator != nil, ready, in: snapshot, settle: settle)
             }
             // The machine says first what the next word may be: anything, one of its values, or nothing here, which no pass can improve on.
             entering(.options, turn: number)
