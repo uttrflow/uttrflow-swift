@@ -541,7 +541,8 @@ public enum HistoryPresenter {
             let word = String(token).trimmingCharacters(in: .punctuationCharacters.union(.symbols))
             guard word.contains(where: \.isLetter), seen.insert(word).inserted else { return nil }
             return MainAction(
-                title: "Fix “\(word)”", symbolName: "character.cursor.ibeam", intent: .fixWord(word, from: dictation))
+                title: "Fix “\(word)”", symbolName: "character.cursor.ibeam",
+                intent: .fixWord(word, from: dictation))
         }
     }
 

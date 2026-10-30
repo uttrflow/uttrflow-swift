@@ -867,7 +867,7 @@ struct DictationPipelineEarlyWorkTests {
         #expect(inserter.received == ["W1 X. W4 X"])
     }
 
-    @Test("a dictation that missed a piece keeps its recording waiting, and one that missed none keeps it for a fix")
+    @Test("a missed piece keeps the recording waiting; a dictation that missed none keeps it for a fix")
     func missedPieceKeepsTheRecording() async {
         for missed in [false, true] {
             let recording = KeptRecording(id: UUID(), when: Date(), duration: .seconds(3))

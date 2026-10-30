@@ -1,4 +1,5 @@
 // What the main window says when a change it was asked to make was refused.
+import Foundation
 import UttrflowCore
 
 /// A refused change, said where the user pressed; the window carries the latest one only.
@@ -61,5 +62,16 @@ extension MainNotice {
     static func action(for recovery: RecoveryAction?) -> MainAction? {
         guard let recovery, recovery != .pasteManually else { return nil }
         return MainAction(title: MainPresenter.title(for: recovery), intent: .recover(recovery))
+    }
+}
+
+extension MainNotice {
+    /// Offers to run a fixed dictation's kept audio again, which copies the new words.
+    package static func retryAfterFix(saving word: String, recording: UUID) -> MainNotice {
+        MainNotice(
+            message: "Saved “\(word)”. Retry the recording to see the fix; the new words are copied.",
+            symbolName: "character.book.closed.fill", tone: .neutral,
+            action: MainAction(
+                title: "Retry This Recording", symbolName: "arrow.clockwise", intent: .retryRecording(recording)))
     }
 }

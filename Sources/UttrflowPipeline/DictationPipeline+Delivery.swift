@@ -189,8 +189,8 @@ extension DictationPipeline {
             let recordingID = openRecording
             let wordsLost = MissedSpeech.isMissing(missedPieces)
             // A retry's own audio is the recording it read, so only a live dictation keeps one for a fix.
-            let keptForFix = await settleRecording(wordsLost: wordsLost, keepingFinished: delivery != .copy)
-                && !wordsLost
+            let keptForFix =
+                await settleRecording(wordsLost: wordsLost, keepingFinished: delivery != .copy) && !wordsLost
             transition(
                 to: .inserted(
                     DictationOutcome(

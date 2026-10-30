@@ -160,6 +160,12 @@ public actor RecordingStore: RecordingKeeper {
         if last?.id == id { last = nil }
     }
 
+    /// Keeps a landed dictation's audio for a fix when History kept its record, and deletes it otherwise.
+    package func settleFinished(_ id: UUID?, recorded: Bool) async {
+        guard let id else { return }
+        if recorded { await keepFinished(id) } else { await discard(id) }
+    }
+
     /// Whether a finished dictation's audio is still kept at `now`, deleting whatever has gone stale.
     package func keepsFinished(_ id: UUID, now: Date) async -> Bool {
         _ = await listed(now: now)

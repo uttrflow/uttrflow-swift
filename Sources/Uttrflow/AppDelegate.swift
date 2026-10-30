@@ -26,7 +26,7 @@ import UttrflowUX
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Records which of the three insertion routes a dictation took, which nothing else can tell.
-    private nonisolated static let log = Logger(
+    nonisolated static let log = Logger(
         subsystem: "com.uttrflow.Uttrflow", category: "insertion")
 
     private let settingsStore: UserDefaultsSettingsStore
@@ -60,7 +60,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// What the app observed about how this user speaks, under History's retention. See `Docs/learned-state.md`.
     private let evidence: EvidenceLedgerStore?
     /// The user's own words, shared by all three parts of a dictation that read them.
-    private let dictionary: PersonalDictionaryStore
+    let dictionary: PersonalDictionaryStore
     private let snippets: SnippetStore
     /// The account layer, made once and shared, because a second one signs with a different key.
     private let account: OnboardingAccountLayer
@@ -2837,8 +2837,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             // A secure field's words are kept nowhere: not as the last transcript, in history, or as a clip.
             let kept = DictationRecordMapping.record(
                 for: state, when: Date(), id: outcome.keptRecording ?? UUID(), keeping: historyKeeping)
-            settleFinishedAudio(outcome.keptRecording, recorded: kept != nil)
-            // The record shares the kept recording's id, which is how a fix finds that audio again.
+            let audio = outcome.keptRecording
+            finishedAudioWork = Task { [recordings] in await recordings.settleFinished(audio, recorded: kept != nil) }
             guard let record = kept else { break }
             let previous = recents.entries.first
             keep(record)
@@ -3014,16 +3014,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             } catch {
                 Self.log.error("evidence not saved: \(ErrorLog.failure(error), privacy: .public)")
             }
-        }
-    }
-
-    /// Keeps a finished dictation's audio for a fix only when History keeps its words; otherwise deletes it at once.
-    private func settleFinishedAudio(_ id: UUID?, recorded: Bool) {
-        guard let id else { return }
-        let previous = finishedAudioWork
-        finishedAudioWork = Task { [recordings] in
-            await previous?.value
-            if recorded { await recordings.keepFinished(id) } else { await recordings.discard(id) }
         }
     }
 
@@ -3582,11 +3572,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// The same, for the word editor.
     private var wordEditorIsOpen = false
     /// Why the last Save was refused, per editor, until the next keystroke clears it.
-    private var wordRefusal: String?
+    var wordRefusal: String?
     /// Lets a test wait for a finished dictation's audio to be kept or deleted.
     private(set) var finishedAudioWork: Task<Void, Never>?
-    /// The dictation a Fix Word came from, whose kept audio a saved fix offers to retry.
-    private var fixingDictation: UUID?
+    var fixingDictation: UUID?
     /// The spoken try of a dictionary word under way or last finished, and the work running it.
     private var wordTrial: DictionaryTrial?
     private var wordTrialWork: Task<Void, Never>?
@@ -3595,7 +3584,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var snippetArrival: SnippetArrival?
     private var snippetArrivalWork: Task<Void, Never>?
     /// Why the last delete, flag, restore or undo did not happen, until one of them works or the page changes.
-    private(set) var actionNotice: MainNotice?
+    var actionNotice: MainNotice?
     /// The complete snippet held for the short main-window undo window.
     private var deletedSnippet: Snippet?
     private var snippetUndoTask: Task<Void, Never>?
@@ -3809,11 +3798,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .addWord:
             editWord(DictionaryDraft())
         case .fixWord(let written, let dictation):
-            // The wrong spelling is the recogniser's reading of the sound, so it fills "Say it like"; the editor focuses "Write it as".
-            actionNotice = nil
-            fixingDictation = dictation
-            mainWindow?.show(.dictionary)
-            editWord(DictionaryDraft(pronunciation: written))
+            fixWord(written, from: dictation)
         case .editWord(let id):
             guard let entry = knownWords.first(where: { $0.id == id }) else { return }
             editWord(
@@ -4207,7 +4192,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Opens or closes the inline word editor, in both places that track it.
-    private func editWord(_ draft: DictionaryDraft?) {
+    func editWord(_ draft: DictionaryDraft?) {
         endWordTrial()
         editorGeneration += 1
         wordEditorIsOpen = draft != nil
@@ -4293,36 +4278,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         guard wordTrial != nil else { return }
         wordTrial = nil
         redrawPages([.dictionary])
-    }
-
-    private func saveWord(_ word: String, pronunciation: String, applications: [String]) {
-        intentWork = Task { [weak self] in
-            guard let self else { return }
-            do throws(DictionaryStoreError) {
-                try await dictionary.add(
-                    word: word, pronunciation: pronunciation, at: Date(), applications: applications)
-                editWord(nil)
-                await offerRetryAfterFix(saving: word)
-            } catch {
-                Self.log.error("could not add word: \(error.userMessage, privacy: .public)")
-                wordRefusal = error.userMessage
-                refreshMainWindow()
-            }
-        }
-    }
-
-    /// Offers to run the fixed dictation's kept audio again, only while that audio is still on this Mac.
-    private func offerRetryAfterFix(saving word: String) async {
-        guard let dictation = fixingDictation else { return }
-        fixingDictation = nil
-        guard await recordings.keepsFinished(dictation, now: Date()) else { return }
-        actionNotice = MainNotice(
-            message: "Saved “\(word)”. Retry the recording to see the fix; the new words are copied.",
-            symbolName: "character.book.closed.fill", tone: .neutral,
-            action: MainAction(
-                title: "Retry This Recording", symbolName: "arrow.clockwise",
-                intent: .retryRecording(dictation)))
-        refreshMainWindow()
     }
 
     /// Respells the word a draft duplicates, closing the editor only once it is in, as saving does.
