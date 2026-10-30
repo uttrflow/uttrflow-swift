@@ -4,8 +4,6 @@ import UttrflowUX
 /// The suggestion surface, drawn from ``SuggestionPresentation`` and nothing else.
 struct SuggestionView: View {
     let presentation: SuggestionPresentation
-    /// Whether to draw the spinner for a model still on its first load in place of an empty surface.
-    var isWarmingUp = false
     /// The size the current form wants, so the panel claims no more of the screen.
     var onDesiredSize: (CGSize) -> Void = { _ in }
 
@@ -22,16 +20,13 @@ struct SuggestionView: View {
                 alignment: presentation.direction == .rightToLeft ? .topTrailing : .topLeading
             )
             .accessibilityElement(children: .combine)
-            .accessibilityLabel(isWarmingUp ? Self.warmingUpLabel : presentation.surfaceAccessibilityLabel)
+            .accessibilityLabel(presentation.surfaceAccessibilityLabel)
     }
-
-    /// What VoiceOver is told the spinner is.
-    static let warmingUpLabel = "AI suggestions are loading."
 
     @ViewBuilder private var form: some View {
         switch presentation.style {
         case .hidden:
-            if isWarmingUp { ProgressView().controlSize(.small) }
+            EmptyView()
         case .dot:
             dot
         case .ghost:

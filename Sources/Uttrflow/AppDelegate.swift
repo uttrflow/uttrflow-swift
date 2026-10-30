@@ -207,17 +207,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private(set) var suggestionModel: SuggestionModelReadiness = .notAsked {
         didSet {
             guard suggestionModel != oldValue else { return }
-            if suggestionModel == .ready { suggestionModelHasLoaded = true }
-            if suggestionModel == .notAsked { suggestionModelHasLoaded = false }
-            completions?.isModelWarmingUp = isSuggestionModelWarmingUp
+            SuggestionWarmUp.shared.modelIs(suggestionModel)
             settingsPage.setSuggestionModel(suggestionModel)
             refreshMenuBar()
         }
     }
-    /// Whether the model has loaded since the feature was last turned on, which tells a first load from a reload.
-    private var suggestionModelHasLoaded = false
-    /// Whether the model is on its first load, the one wait the suggestion panel shows a spinner for.
-    private var isSuggestionModelWarmingUp: Bool { suggestionModel == .loading && !suggestionModelHasLoaded }
     private var suggestionSecureInputNotice: String?
     private var suggestionRuntime: SuggestionRuntimeStatus = .idle {
         didSet {
@@ -1123,7 +1117,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private func installSuggestionCoordinator(_ coordinator: SuggestionCoordinator) {
         observeSuggestionCoordinator(coordinator)
         completions = coordinator
-        coordinator.isModelWarmingUp = isSuggestionModelWarmingUp
         suggestionRuntime = .starting
         switch coordinator.start() {
         case .success:

@@ -28,8 +28,6 @@ private struct SuggestionRequest: Equatable {
     var isItalic = false
     /// The field's own text colour, so the ghost reads against the field and not against Uttrflow's appearance.
     var textColor: TextColor?
-    /// Whether the model is still on its first load, so a silent turn draws the spinner instead of nothing.
-    var isWarmingUp = false
 
     /// How far apart two reads of one caret may be and still be the same place, since a field can report it a point off.
     static let caretTolerance: CGFloat = 1
@@ -140,24 +138,6 @@ final class SuggestionPanelController {
         return render()
     }
 
-    /// Draws the spinner at the caret while the model first loads; it offers nothing, so it claims no key.
-    func showWarmingUp(
-        caret: CGRect, direction: WritingDirection, window: CGRect?, field: CGRect?, fieldPointSize: CGFloat?
-    ) {
-        let next = SuggestionRequest(
-            placement: .inlineGhost, direction: direction, caret: caret, window: window, field: field,
-            fieldPointSize: fieldPointSize, isWarmingUp: true)
-        if showsWarmUp, next.draws(sameAs: request) { return }
-        request = next
-        render()
-    }
-
-    /// Takes the spinner away once the model has loaded, leaving a drawn suggestion where it is.
-    func stopWarmingUp() {
-        guard request.isWarmingUp else { return }
-        hide()
-    }
-
     /// Draws another offer, highlight or dot at the caret the panel already follows, answering whether it is on screen whole.
     @discardableResult
     func redraw(_ suggestion: Suggestion, typed: String, selection: SuggestionSelection) -> Bool {
@@ -165,7 +145,6 @@ final class SuggestionPanelController {
         next.suggestion = suggestion
         next.typed = typed
         next.selection = selection
-        next.isWarmingUp = false
         if isActuallyShowing, next.draws(sameAs: request), statusMessage != nil {
             request = next
             return render()
@@ -183,7 +162,6 @@ final class SuggestionPanelController {
         var next = request
         next.typed = typed
         next.suggestion = suggestion
-        next.isWarmingUp = false
         let after = SuggestionPresentation(
             suggestion, typed: typed, selection: next.selection, fieldPointSize: next.fieldPointSize,
             appearance: Self.appearance(), acceptKey: next.acceptKey, wordAcceptKey: next.wordAcceptKey,
@@ -201,19 +179,13 @@ final class SuggestionPanelController {
 
     func hide() {
         // Already hidden and already drawn hidden: redrawing would change nothing and costs a screen lookup per key.
-        if request.suggestion == .silent, !request.isWarmingUp, !panel.isVisible, drawn.style == .hidden {
-            return
-        }
+        if request.suggestion == .silent, !panel.isVisible, drawn.style == .hidden { return }
         request.suggestion = .silent
-        request.isWarmingUp = false
         render()
     }
 
     /// Whether a suggestion is on screen, which is what a scroll or a typed-through key acts on.
     var isShowing: Bool { isActuallyShowing }
-
-    /// Whether the spinner for a model still on its first load is on screen.
-    private(set) var showsWarmUp = false
 
     /// Exposed so a probe or a test can read back what was actually configured.
     var window: NSPanel { panel }
@@ -269,7 +241,6 @@ final class SuggestionPanelController {
         announcementTask = nil
         announcementCoalescer.reset()
         isActuallyShowing = false
-        showsWarmUp = false
         withdrawals += 1
         panel.orderOut(nil)
     }
@@ -309,12 +280,11 @@ final class SuggestionPanelController {
         {
             presentation = SuggestionPresentation(.silent)
         }
-        let warmsUp = request.isWarmingUp && request.suggestion == .silent && request.caret != nil
         hostingView.rootView = SuggestionView(
-            presentation: presentation, isWarmingUp: warmsUp,
+            presentation: presentation,
             onDesiredSize: { [weak self] size in self?.resize(to: size) })
         renders += 1
-        guard presentation.style != .hidden || warmsUp else {
+        guard presentation.style != .hidden else {
             withdraw()
             return false
         }
@@ -327,14 +297,7 @@ final class SuggestionPanelController {
             return false
         }
         // `orderFrontRegardless`, never `makeKeyAndOrderFront`: no keyboard is taken; a panel already up is not fronted again.
-        if !(isActuallyShowing || showsWarmUp) || !panel.isVisible { frontWindow(panel) }
-        // The spinner is no suggestion: nothing is armed for it, and it is not spoken while the person types.
-        guard !warmsUp else {
-            isActuallyShowing = false
-            showsWarmUp = true
-            return false
-        }
-        showsWarmUp = false
+        if !isActuallyShowing || !panel.isVisible { frontWindow(panel) }
         isActuallyShowing = true
         // The panel is out of VoiceOver's reach, so the offer and its accept key are spoken once as it appears.
         scheduleAnnouncement(announcer.announcement(for: presentation))

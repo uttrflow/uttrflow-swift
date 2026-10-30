@@ -54,10 +54,6 @@ final class SuggestionCoordinator {
     private let rejectedSuggestionRecorder: RejectedSuggestionRecorder
     let capture: CaptureSession
     private let panel: SuggestionPanelController
-    /// Whether the model is on its first load, when a line it would have answered shows a spinner instead of nothing.
-    var isModelWarmingUp = false {
-        didSet { if !isModelWarmingUp { panel.stopWarmingUp() } }
-    }
     private let interceptor = KeyInterceptor()
     private let secureInput: SecureInputWatch
     /// Whether secure keyboard entry is holding suggestions off, as this coordinator last saw it.
@@ -1100,14 +1096,7 @@ final class SuggestionCoordinator {
             guard ModelPass.shouldAsk(after: update, hasGenerator: generator != nil, isReady: ready),
                 let generator
             else {
-                settle(update, in: snapshot)
-                if Self.waitsForWarmUp(
-                    after: update, hasGenerator: generator != nil, isReady: ready,
-                    isWarmingUp: isModelWarmingUp)
-                {
-                    showWarmingUp(in: snapshot)
-                }
-                return
+                return settledWithoutModel(update, generator != nil, ready, in: snapshot, settle: settle)
             }
             // The machine says first what the next word may be: anything, one of its values, or nothing here, which no pass can improve on.
             entering(.options, turn: number)
@@ -1454,24 +1443,6 @@ final class SuggestionCoordinator {
         armSelectionMonitor(
             for: update.suggestion, at: snapshot.selection, identity: snapshot.focusedFieldIdentity)
         watchScrolls()
-    }
-
-    /// Whether a line the model would have answered is left silent only because the model is still on its first load.
-    nonisolated static func waitsForWarmUp(
-        after update: SuggestionUpdate, hasGenerator: Bool, isReady: Bool, isWarmingUp: Bool
-    ) -> Bool {
-        isWarmingUp && !isReady && update.suggestion == .silent
-            && ModelPass.shouldAsk(after: update, hasGenerator: hasGenerator, isReady: true)
-    }
-
-    /// Draws the spinner at the caret of a field that would hold a ghost, where nothing else was drawn.
-    private func showWarmingUp(in snapshot: FocusedFieldSnapshot) {
-        guard !panel.isShowing, !wakeState.isStopped, !secureInput.isBlocking, session.isCurrent,
-            snapshot.placement == .inlineGhost, let caret = snapshot.caret
-        else { return }
-        panel.showWarmingUp(
-            caret: caret, direction: snapshot.writingDirection == .rightToLeft ? .rightToLeft : .leftToRight,
-            window: snapshot.window, field: snapshot.ghostField, fieldPointSize: snapshot.pointSize)
     }
 
     /// The caret a ghost for `suggestion` is drawn at, or nil when the field offers no inline place for one.
