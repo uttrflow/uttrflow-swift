@@ -183,7 +183,7 @@ final class Database {
         try? PrivateFile.excludeFromBackup(at: file)
     }
 
-    /// Seals any committed change still waiting, so it is durable before this returns.
+    /// Seals any committed change still waiting, so it is durable when the call returns.
     func flush() throws(PredictStoreError) {
         guard isReady, transactionDepth == 0, isDirty else { return }
         do {
