@@ -444,6 +444,38 @@ struct LanguageHeldDecoderTests {
         #expect(decodes[0] == decodes[1])
     }
 
+    @Test(
+        "keeps the greedy words when a warmer retry translates the Hindi the speaker said",
+        arguments: [
+            "Kal meeting is. Please, slides are ready to keep up.",
+            "Tomorrow meeting hai, please slides ready keep.",
+        ])
+    func refusesATranslatingFallback(warm: String) {
+        let greedy = FakeTextDecoder.result(
+            language: "en", text: "Kal meeting hai, please slides ready rakhna.",
+            fallback: DecodingFallback(needsFallback: true, fallbackReason: "logProbThreshold"))
+        let kept = LanguageHeldDecoder.untranslated(
+            FakeTextDecoder.result(language: "en", text: warm), greedy: greedy)
+
+        #expect(kept.text == greedy.text)
+        #expect(kept.fallback == nil)
+    }
+
+    @Test(
+        "accepts a warmer retry that keeps every Hindi word, or a greedy decode with too little Hindi to judge by",
+        arguments: [
+            ("Kal meeting hai hai hai hai.", "Kal meeting hai, please slides ready rakhna."),
+            ("Please send the slides.", "Please send the files."),
+            ("Kal meeting.", "Tomorrow meeting."),
+        ])
+    func acceptsAFaithfulFallback(greedy: String, warm: String) {
+        let retried = FakeTextDecoder.result(language: "en", text: warm)
+        let kept = LanguageHeldDecoder.untranslated(
+            retried, greedy: FakeTextDecoder.result(language: "en", text: greedy))
+
+        #expect(kept.text == warm)
+    }
+
     // MARK: What is asked for
 
     @Test("transcribes, never translates, whether the language is detected or hinted")
@@ -535,11 +567,11 @@ private final class FakeTextDecoder: TextDecoding {
     }
 
     static func result(
-        language: String, compressionRatio: Float = 0, avgLogProb: Float = 0,
+        language: String, text: String = "", compressionRatio: Float = 0, avgLogProb: Float = 0,
         fallback: DecodingFallback? = nil
     ) -> DecodingResult {
         DecodingResult(
-            language: language, languageProbs: [:], tokens: [], tokenLogProbs: [], text: "",
+            language: language, languageProbs: [:], tokens: [], tokenLogProbs: [], text: text,
             avgLogProb: avgLogProb, noSpeechProb: 0, temperature: 0,
             compressionRatio: compressionRatio, cache: nil, timings: TranscriptionTimings(),
             fallback: fallback)

@@ -70,10 +70,13 @@ be found and turned on. The accept-key explanation follows the app's destination
 the native action Tab keeps or replaces and, for Right arrow, that Escape no longer dismisses
 suggestions.
 
-Password managers, remote-desktop clients and virtual machines also ship switched off, because
-their ordinary fields hold private information (`SuggestionApplications.privateByDefault`:
-1Password, Bitwarden, KeePassXC, Keychain Access, Passwords, Screen Sharing, Windows App,
-Parallels Desktop, VMware Fusion and UTM). They are listed the same way and turned on the same way.
+Password managers, remote-desktop clients, virtual machines, banking and health apps also ship
+switched off, because their ordinary fields hold private information
+(`SuggestionApplications.privateByDefault`: 1Password, Bitwarden, KeePassXC, Keychain Access,
+Passwords, Screen Sharing, Windows App, Parallels Desktop, VMware Fusion and UTM, plus the banking
+and health families in `SensitiveApplications.families`). Each entry is matched by family, so an
+identifier that continues it after a dot, such as a beta build, ships off too, and a choice made on
+the entry applies to the whole family. They are listed the same way and turned on the same way.
 
 ## The pieces
 
@@ -231,8 +234,8 @@ nothing whatever the application's answer, and its page host is never written as
 the only sign of a private window the capture path reads, so a browser that does not put one in the
 title is not detected: the limit is the browser's, not a promise. The applications in
 `SuggestionApplications.privateByDefault` (password managers, remote-desktop clients, virtual
-machines) are not learned from until the user allows them on the AI suggestions screen. No list of
-banking applications ships.
+machines, banking and health apps) are not learned from until the user allows them on the AI
+suggestions screen.
 
 Both sides file an application under `ApplicationKey`, its bundle identifier lowercased, because
 macOS is not consistent about case and the switch and the field reading see the identifier from

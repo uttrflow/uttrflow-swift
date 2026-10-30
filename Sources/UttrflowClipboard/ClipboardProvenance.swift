@@ -40,7 +40,7 @@ struct ClipboardProvenance: Sendable {
 
     func excludesDeclaredWriter(from excludedApplications: Set<String>) -> Bool {
         guard let writerBundleIdentifier = normalizedWriterBundleIdentifier else { return false }
-        return excludedApplications.contains(writerBundleIdentifier.lowercased())
+        return ClipboardPreferences.excludes(writerBundleIdentifier, in: excludedApplications)
     }
 
     func excludesFrontmostApplication(
@@ -51,11 +51,11 @@ struct ClipboardProvenance: Sendable {
         if changed {
             return [previous.bundleIdentifier, current.bundleIdentifier].contains {
                 guard let identifier = $0 else { return false }
-                return excludedApplications.contains(identifier.lowercased())
+                return ClipboardPreferences.excludes(identifier, in: excludedApplications)
             }
         }
         guard !isUnknown, let identifier = current.bundleIdentifier else { return false }
-        return excludedApplications.contains(identifier.lowercased())
+        return ClipboardPreferences.excludes(identifier, in: excludedApplications)
     }
 
     func sourceName(frontmostName: String?, isUnknown: Bool) -> String? {

@@ -3,6 +3,7 @@ import CoreML
 import Foundation
 import Synchronization
 import UttrflowCore
+import UttrflowDictionary
 import WhisperKit
 
 /// Chooses the likeliest of the allowed language tokens, at any temperature. See `Docs/speech-engines.md`.
@@ -98,6 +99,25 @@ final class LanguageHeldDecoder: TextDecoding {
             compressionRatio: result.compressionRatio, avgLogProb: result.avgLogProb)
     }
 
+    /// The greedy decode instead of a warmer retry that drops a romanised Hindi word it held; Hindi is romanised, never translated.
+    static func untranslated(_ warm: DecodingResult, greedy: DecodingResult?) -> DecodingResult {
+        guard let greedy else { return warm }
+        let held = hindiWords(in: greedy.text)
+        // One Hindi-looking word is no sign of Hinglish, so a retry that drops it may have heard it right.
+        guard held.count >= 2, !held.isSubset(of: hindiWords(in: warm.text)) else { return warm }
+        var kept = greedy
+        kept.fallback = nil
+        return kept
+    }
+
+    /// The distinct romanised Hindi words of a transcript that no English word is spelled as.
+    private static func hindiWords(in text: String) -> Set<String> {
+        Set(
+            WordTokens.words(text, .display).map { WordShape($0).core.lowercased() }.filter {
+                LoanwordRestoration.isRomanisedHindi($0) && !LexicalClass.isKnownEnglishWord($0)
+            })
+    }
+
     private var inner: any TextDecoding
     private let languages: [LanguageCode]
     /// Every decode window's per-step entropy, one record per `decodeText` call, fallback retries included.
@@ -106,6 +126,8 @@ final class LanguageHeldDecoder: TextDecoding {
     private let split = Mutex(RecognitionTimings.zero)
     /// The untranscribed language the last detection is certain of, which the next decode refuses.
     private let refusal = Mutex<LanguageCode?>(nil)
+    /// The current window's greedy decode, which a warmer retry that translates its Hindi gives way to.
+    private var greedy: DecodingResult?
 
     init(
         wrapping inner: any TextDecoding, languages: [LanguageCode],
@@ -231,6 +253,10 @@ final class LanguageHeldDecoder: TextDecoding {
         result.temperature = temperature
         result.fallback = Self.judged(result, options: decoderOptions)
         windows.append(evidence.window(of: result))
-        return result
+        guard temperature > 0 else {
+            greedy = result
+            return result
+        }
+        return Self.untranslated(result, greedy: greedy)
     }
 }
