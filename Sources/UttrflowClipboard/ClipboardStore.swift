@@ -364,7 +364,7 @@ public actor ClipboardStore {
         return try settled(clips, keeping: retention)
     }
 
-    /// Replaces a clip's plain text and clears the old formatted form, keeping its identity.
+    /// Replaces a clip's plain text, keeping its identity; an editable note is rebuilt, any other formatted form cleared.
     @discardableResult
     public func setText(
         _ text: String, of id: UUID, keeping retention: ClipRetention
@@ -372,7 +372,15 @@ public actor ClipboardStore {
         try change(id, keeping: retention) { clip in
             // A file clip's words are its files' names, which an edit would only contradict.
             guard clip.files == nil else { return }
-            clip = Self.rebuilding(clip, text: text, richText: nil, image: clip.image)
+            guard let note = clip.richText, NotePromotion.isEditableNote(note) else {
+                clip = Self.rebuilding(clip, text: text, richText: nil, image: clip.image)
+                return
+            }
+            // One definition of the plain form, so the row, a paste and the checklist count agree.
+            let edited = NotePromotion.editedNote(from: text)
+            clip = Self.rebuilding(
+                clip, text: RichTextPlainForm.plainText(fromHTML: edited), richText: edited,
+                image: clip.image)
         }
     }
 

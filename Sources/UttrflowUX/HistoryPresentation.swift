@@ -504,22 +504,48 @@ public enum HistoryPresenter {
             + (correction.isUndone ? ", undone" : "")
     }
 
-    /// One ledgered change as one phrase, in the step names and verbs Diagnostics already uses.
+    /// One ledgered change as one phrase: the step's plain label, then where it landed when the ledger says.
     static func phrase(for line: WhatChangedLine) -> String {
-        let step = CleaningSteps.name(of: line.pass)
-        let did =
+        let label = label(of: line.pass)
+        let place: String? =
             switch (line.kind, line.location) {
-            case (.removed, .word(let word)?): "removed before “\(word)”"
-            case (.removed, .end?): "removed at the end"
-            case (.replaced, .word(let word)?): "rewrote as “\(word)”"
-            case (.inserted, .word(let word)?): "added “\(word)”"
-            // Unlocated, or a rewrite or addition pointing past the text: the step and verb, never a guessed word.
-            case (.removed, _): "removed"
-            case (.replaced, _): "rewrote"
-            case (.inserted, _): "added"
+            case (.removed, .word(let word)?): "before “\(word)”"
+            case (.removed, .end?): "at the end"
+            case (.replaced, .word(let word)?): "as “\(word)”"
+            case (.inserted, .word(let word)?): "“\(word)”"
+            // Unlocated, or a rewrite or addition pointing past the text: the label alone, never a guessed word.
+            default: nil
             }
-        return "\(step): \(did)"
+        return place.map { "\(label): \($0)" } ?? label
     }
+
+    /// What a History row says a step did, one short label per step and never its code name.
+    static func label(of step: PassID) -> String {
+        stepLabels[step] ?? "Tidied the text"
+    }
+
+    private static let stepLabels: [PassID: String] = [
+        .fillers: "Removed filler words",
+        .stammers: "Removed a stammer",
+        .repeatedPhrase: "Removed a repeated phrase",
+        .selfCorrection: "Removed a self-correction",
+        .spokenPunctuation: "Added spoken punctuation",
+        .spokenEmoji: "Added an emoji",
+        .spokenCasing: "Changed capitals as spoken",
+        .codeEditorCommands: "Typed a spoken symbol",
+        .layoutWords: "Applied layout words",
+        .markdownContinuation: "Continued the list",
+        .numberForms: "Wrote numbers as numerals",
+        .contractions: "Fixed contractions",
+        .spacing: "Fixed spacing",
+        .pauseStop: "Added a full stop at a pause",
+        .spelledInitialism: "Joined spelled letters",
+        .acronymCasing: "Fixed acronym capitals",
+        .atMention: "Wrote a mention",
+        .firstWord: "Fixed capitals",
+        .terminalStop: "Fixed the last mark",
+        .caretEcho: "Removed repeated text",
+    ]
 
     /// One flag per error class of `Docs/accuracy-targets.md`, so a flag can say what was wrong.
     static func flagReasons(for id: UUID) -> [MainAction] {

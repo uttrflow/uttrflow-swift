@@ -5,20 +5,26 @@ extension PanelSnapshot {
     /// Said once before Save makes a kept clip a secret, which the store never writes to disk.
     static let unsavedSecretWarning = "This will no longer be saved between launches"
 
-    /// Any text on screen, except one whose formatted form plain editing would discard. See `Docs/panel.md`.
+    /// Any text on screen, except one whose formatted form plain editing would lose. See `Docs/panel.md`.
     func isEditable(_ clip: Clip) -> Bool {
-        clip.image == nil && clip.files == nil && clip.richText == nil && !isMasked(clip)
+        clip.image == nil && clip.files == nil && !isMasked(clip)
+            && clip.richText.map(NotePromotion.isEditableNote) ?? true
+    }
+
+    /// What the Edit field shows: a note's plain form, where its boxes read `[ ] ` and `[x] `.
+    private func editableText(of clip: Clip) -> String {
+        clip.richText.map(RichTextPlainForm.plainText(fromHTML:)) ?? clip.text
     }
 
     /// Opens Edit on the clip's whole text; a clip that cannot be edited opens nothing.
     func editing(_ id: Clip.ID) -> PanelResponse {
         guard let clip = clip(id), isEditable(clip) else { return stayingOpen }
-        return opening(.editing(id, draft: clip.text))
+        return opening(.editing(id, draft: editableText(of: clip)))
     }
 
     /// Whether Save would send anything: changed text that is not blank and that the store would keep.
     func canSave(_ draft: String, over clip: Clip) -> Bool {
-        draft != clip.text && ClipContent.isWorthKeeping(draft)
+        draft != editableText(of: clip) && ClipContent.isWorthKeeping(draft)
             && ClipboardBudget.standard.fitsLargestClip(weighing: draft.utf8.count)
     }
 
