@@ -39,6 +39,15 @@ struct CommandAudioRecallTests {
         #expect(report.passesGate)
     }
 
+    @Test("a heading level heard as a word that sounds like it is recalled, below the release target")
+    func headingHomophonesAreRecalled() {
+        let report = CommandAudioReport(takes: Self.takes, reads: MarkdownCommand.edit(for:on:))
+        let heading2 = report.rows.filter { $0.commandID.hasPrefix("markdown.heading-2") }
+        #expect(heading2.allSatisfy { $0.recall > 0.8 }, "\(heading2)")
+        #expect(report.recall >= 145.0 / 216.0)
+        #expect(CommandAudioReport.recallFloor < CommandAudioReport.recallTarget)
+    }
+
     @Test("a reader that takes only the bare phrase, not the recogniser's written forms, fails the gate")
     func weakenedReaderFailsTheGate() {
         let bare: (String, AppContext) -> String? = { heard, target in
