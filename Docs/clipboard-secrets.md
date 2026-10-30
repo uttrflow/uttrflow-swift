@@ -109,8 +109,11 @@ necessarily the one that wrote the clipboard.
 ## Per-application exclusions and pause
 
 Settings can exclude applications by bundle identifier (`ClipboardPreferences`) and pause capture
-for one hour ("Pause for 1 hour"). The exclusion list is empty by default; add an app from the
-running-app picker or choose an application bundle. A timed pause can be resumed early and its
+for one hour ("Pause for 1 hour"). The exclusion list starts with the banking and health families in
+`SensitiveApplications.families`; removing one from the list turns capture on for that family. Add
+an app from the running-app picker or choose an application bundle. Every entry is matched by family:
+it covers its own identifier and any identifier that continues it after a dot, so a beta or renamed
+build is excluded with it. A timed pause can be resumed early and its
 end time survives an app restart. Copies observed during a pause are passed over when capture
 resumes.
 

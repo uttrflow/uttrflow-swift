@@ -63,8 +63,8 @@ public actor PasteboardWatcher {
     private let clock: any Clock<Duration>
     /// Time on `clock` since this watcher was made.
     private let elapsed: @Sendable () -> Duration
-    /// Bundle identifiers excluded from capture; ambiguous provenance is excluded as well.
-    private var excludedApplications: Set<String> = []
+    /// Bundle identifiers excluded from capture, the shipped ones until the user's list arrives; ambiguous provenance is excluded as well.
+    private var excludedApplications: Set<String> = ClipboardPreferences().excludedBundleIdentifiers
     /// The last application's identity sampled at a clipboard polling tick.
     private var lastApplication: ClipboardApplicationSample
     /// A focus change during a slow clipboard read makes its pending copy's provenance unknown.

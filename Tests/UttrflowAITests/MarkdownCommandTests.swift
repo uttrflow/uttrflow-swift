@@ -35,6 +35,16 @@ struct MarkdownCommandTests {
         #expect(edit("heading one", selecting: "Plan", after: "The ") == nil)
     }
 
+    @Test("a heading level the recogniser wrote as a word that sounds like its number is that level")
+    func headingLevelHeardAsHomophone() {
+        #expect(edit("Heading to.", selecting: "Plan") == "## Plan")
+        #expect(edit("heading too", selecting: "Plan") == "## Plan")
+        #expect(edit("Heading free.", selecting: "Plan") == "### Plan")
+        #expect(edit("to", selecting: "Plan") == nil)
+        #expect(edit("heading to the shop", selecting: "Plan") == nil)
+        #expect(edit("block to", selecting: "Plan") == nil)
+    }
+
     @Test("a span mark with nothing selected has no span to close, so nothing is written")
     func emptySpan() {
         #expect(edit("bold", selecting: nil) == nil)

@@ -24,8 +24,15 @@ public enum MarkdownCommand {
     /// The Markdown row the whole utterance names, ignoring the recogniser's case and closing mark.
     public static func row(for utterance: String) -> SpokenCommand? {
         let keys = WordTokens.words(utterance, .display).map { WordShape($0).key }
-        return SpokenCommands.markdown.first { $0.words == keys }
+        if let row = SpokenCommands.markdown.first(where: { $0.words == keys }) { return row }
+        guard keys.count == 2, keys[0] == "heading", let level = headingLevelSoundsLike[keys[1]] else {
+            return nil
+        }
+        return SpokenCommands.markdown.first { $0.words == ["heading", level] }
     }
+
+    /// Words the recogniser writes for a spoken heading level when the voice says the number itself.
+    private static let headingLevelSoundsLike = ["to": "two", "too": "two", "free": "three"]
 
     /// The mark before every non-empty line; with nothing selected, the mark alone at the caret.
     private static func markLines(_ selection: String, with mark: String) -> String {

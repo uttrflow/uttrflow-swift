@@ -11,6 +11,9 @@ struct BundleIdentifierLiteralTests {
     static let allowedPrefixes = [
         "com.example", "net.example.", "com.uttrflow.", "co.uttrflow.", "org.nspasteboard.",
         "com.apple.keylayout.",
+        // Banking and health families: capture and suggestions start off there, text goes in plainly.
+        "com.chase", "com.bankofamerica", "com.wellsfargo", "com.paypal", "com.revolut", "com.monzo",
+        "com.apple.health", "com.myfitnesspal", "com.fitbit", "com.withings",
     ]
 
     /// Real identifiers the package names on purpose without giving them a row.
