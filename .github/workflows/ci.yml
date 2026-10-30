@@ -45,7 +45,17 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
+      # The pinned archives the derived assets are rebuilt from, about 47 MB. The key is the pin
+      # file, so only a changed pin downloads them again.
+      - name: Cache the asset archives
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ${{ runner.temp }}/asset-cache
+          key: asset-archives-${{ hashFiles('Resources/NgramSources.json') }}
+
       - name: Static checks
+        env:
+          ASSET_CACHE: ${{ runner.temp }}/asset-cache
         run: make --keep-going verify-static
 
   verify:

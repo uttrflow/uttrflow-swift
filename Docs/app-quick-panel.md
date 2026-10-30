@@ -213,9 +213,8 @@ solid pill (`Panel.segment`), white when dark and ink when light. Delete takes
 ## What VoiceOver is told
 
 Every notice the panel shows is also announced: the copy-only notices ("Copied — press ⌘V…"), a
-refused write, and a picture that is no longer on this Mac. So is the undo offer after a delete,
-spoken as `PanelPresenter.undoAnnouncement` ("Deleted. Command-Z restores only the most recent
-deletion."). A copy-only choice closes the panel after `NoticeLinger.standard` (2.5 s), which is
+refused write, and a picture that is no longer on this Mac. So is the undo offer after a delete or a text
+edit, spoken as `PanelPresenter.undoAnnouncement` ("Command-Z undoes your last change."). A copy-only choice closes the panel after `NoticeLinger.standard` (2.5 s), which is
 sooner than VoiceOver focus reaches the notice bar, so drawing it is not enough.
 
 `PanelPresenter` decides the words (`PanelPresentation.announcements`); the controller posts each
