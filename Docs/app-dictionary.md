@@ -129,6 +129,16 @@ each side, every written word one `GeneralVocabulary` would not know, and the wo
 recurs becomes a learnt entry whose pronunciation is the lowercased heard words ("cooper nettys" for
 "Kubernetes"), so it is filed under that sound as well as its spelling.
 
+### The daily pass
+
+`EditSettler` holds observed edits in memory only, at most 5,000 (`maximumPending`, the oldest lapsing),
+so no heard or written text is ever written to disk and a quit loses nothing durable. Its pass counts
+them oldest first through `learnEdit`, so the recurrence rule above is the only rule. Before each edit it
+asks the caller whether the machine is still idle (no dictation in flight, battery not low) and stops if
+not; it also stops after `timeBudget` (10 s). A pass that counts every held edit marks the day done, so
+a second pass the same day changes nothing; one that stops early leaves the rest held and may be run
+again. A write that fails keeps its edit held. No edit source feeds it and no scheduler runs it yet.
+
 ### The observed edit
 
 `ObservedEdit.between(inserted:left:)` turns the inserted text and the text the person left into one
