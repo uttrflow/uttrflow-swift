@@ -1251,3 +1251,40 @@ decoy that recurs on separate days is learnt, since recurrence is the only rule 
 | Precision, recall | 100.0%, 66.7% |
 | Pairs learnt from decoys | 0 |
 | False overrides on held-out | 241 of 10532 (2.3%), from the common-word pair to/too |
+
+## The recogniser's own marks and case (`raw-marks`)
+
+`uttrflow-eval raw-marks` speaks the English passages with Samantha and the Hinglish passages with
+Rishi, transcribes each with the shipping model and language detection, and scores the raw text
+against the passage's marked reference with `RawMarkScore`: marks per class by word alignment
+(`PunctuationTally`) and case per class (`CapitalisationTally`), beside the do-nothing floors of no
+marks and all lower case. The 95% interval resamples passages (2,000 draws, fixed seed). A
+passage the recogniser answered in Devanagari is counted and left out, because its marks cannot be
+aligned with the Latin reference. Synthetic speech on Apple M5 Pro, 48 GB, with
+`openai_whisper-large-v3-v20240930_turbo_632MB`; recorded clips were not measured.
+
+| Mark (English, 6 passages) | Wanted | Written | Right | F1 (95%) |
+|---|---|---|---|---|
+| comma | 20 | 6 | 6 | 46.2% (7.4–88.0) |
+| full stop | 18 | 32 | 17 | 68.0% (46.4–85.0) |
+| question | 1 | 2 | 1 | 66.7% (0.0–100.0) |
+| colon | 1 | 0 | 0 | 0.0% |
+
+| Mark (Hinglish, 6 of 18 passages) | Wanted | Written | Right | F1 (95%) |
+|---|---|---|---|---|
+| comma | 8 | 5 | 5 | 76.9% (28.6–95.2) |
+| full stop | 5 | 8 | 5 | 76.9% (57.1–92.3) |
+| question | 1 | 1 | 1 | 100.0% |
+
+Case is right on every sentence start, "I" and acronym in both languages, 92.3% on capitalised
+words inside a sentence in English and 100% in Hinglish, and 94.7% and 98.6% on lower-case words
+(the over-capitalising failure). An all-lower-case output scores 0% on each of the first four classes.
+
+- The recogniser under-writes commas (6 of 20 wanted in English) and over-writes stops (32 against
+  18 wanted). Fourteen of the 20 wanted English commas came back as a full stop, which is the
+  repair the tidier and the rules would have to make.
+- 12 of 18 Hinglish passages came back in Devanagari under language detection, so the Hinglish
+  rows rest on 6 passages and 14 marks. They bound nothing: every interval is wide.
+- The figures rest on 6 English passages and 6 Hinglish passages read by one voice each, so the
+  intervals are wide, and a synthesiser pauses at every written stop. They show that repair is
+  needed for commas; they do not rank the candidates for the bake-off.
