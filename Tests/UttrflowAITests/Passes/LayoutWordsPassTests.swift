@@ -94,6 +94,44 @@ struct LayoutWordsPassTests {
     }
 
     @Test(
+        "writes a sub-item one level in under the item above it",
+        arguments: [
+            (
+                "bullet point fruit sub bullet apples sub bullet pears bullet point milk",
+                "- fruit\n  - apples\n  - pears\n- milk"
+            ),
+            ("bullet point fruit sub point apples", "- fruit\n  - apples"),
+            ("bullet point fruit sub bullet point apples", "- fruit\n  - apples"),
+            (
+                "number one fruit sub bullet apples sub bullet pears number two milk",
+                "1. fruit\n   - apples\n   - pears\n2. milk"
+            ),
+            (
+                "bullet point fruit sub bullet apples new paragraph thanks",
+                "- fruit\n  - apples\n\nthanks"
+            ),
+        ]
+    )
+    func nestsOneLevel(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test("leaves sub bullet as words where no list is laid out or no item is set off")
+    func keepsSubBulletWordsWithoutLists() {
+        let noLists = LayoutWordsPass(layout: .paragraphs)
+        let input = "bullet point fruit sub bullet apples"
+        #expect(cleaned(input, by: noLists) == input)
+        let mention = "the sub bullet in the sub point list"
+        #expect(cleaned(mention, by: sut) == mention)
+    }
+
+    @Test("reads a sub-item's indent back from laid-out text")
+    func keepsIndentWhenReread() {
+        let text = "- fruit\n  - apples\n1. milk\n   - whole"
+        #expect(Draft(keepingLineBreaks: text).text == text)
+    }
+
+    @Test(
         "keeps numbered-item positions valid for reported consecutive-number inputs",
         arguments: [
             "Number 5, milk. Number 6, eggs.",
