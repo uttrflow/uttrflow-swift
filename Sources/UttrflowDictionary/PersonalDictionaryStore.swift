@@ -64,6 +64,13 @@ public actor PersonalDictionaryStore {
             directoryHint: .notDirectory)
     }
 
+    /// Which heard-to-written pairs the user deleted, so a relaunch does not count them again.
+    private var pairRefusalRecord: URL {
+        file.deletingLastPathComponent().appending(
+            path: "\(file.deletingPathExtension().lastPathComponent).refused-pairs.json",
+            directoryHint: .notDirectory)
+    }
+
     /// Which words the user deleted, so a relaunch does not learn them again. See `Docs/app-dictionary-store.md`.
     private var refusalRecord: URL {
         file.deletingLastPathComponent().appending(
@@ -268,10 +275,25 @@ public actor PersonalDictionaryStore {
             for entry in gone { cancelled += tally.refuse(entry.word) }
             ledger = tally
             try recordRefusals(tally.refusals)
+            cancelled += try await refusePairs(of: gone)
         }
         try persist(kept)
         try await remember(cancelled)
         return kept
+    }
+
+    /// Refuses each heard form a deleted learnt entry says it like, so the pair is not counted up again.
+    private func refusePairs(of gone: [DictionaryEntry]) async throws(DictionaryStoreError) -> [EvidenceRow] {
+        let learnt = gone.filter { $0.origin == .learned && !$0.pronunciations.isEmpty }
+        guard !learnt.isEmpty else { return [] }
+        var tally = await pairLedger()
+        var cancelled: [EvidenceRow] = []
+        for entry in learnt {
+            for heard in entry.pronunciations { cancelled += tally.refuse(heard: heard, meant: entry.word) }
+        }
+        pairs = tally
+        do { try writeRecord(tally.refusals, to: pairRefusalRecord) } catch { throw .couldNotWrite }
+        return cancelled
     }
 
     /// Forgets every word, the user's own included; ``removeLearned()`` is almost always the one meant.
@@ -497,7 +519,8 @@ public actor PersonalDictionaryStore {
         }
         // Another call may have loaded it while this one waited.
         if let pairs { return pairs }
-        let loaded = PairLedger(remembering: rows, digest: digest)
+        let refusals = readRecord([String].self, from: pairRefusalRecord).value ?? []
+        let loaded = PairLedger(refusing: refusals, remembering: rows, digest: digest)
         pairs = loaded
         return loaded
     }
@@ -526,6 +549,12 @@ public actor PersonalDictionaryStore {
 
     /// Throws away pending counts and every refusal, in memory and on disk.
     private func forgetEverything() async throws(DictionaryStoreError) {
+        var pairTally = await pairLedger()
+        let pairsCancelled = pairTally.clearPending()
+        // Reloaded from the ledger and the record on next use, both emptied here.
+        pairs = nil
+        do { try removeRecord(at: pairRefusalRecord) } catch { throw .couldNotWrite }
+        try await remember(pairsCancelled)
         var tally = await sightingLedger()
         let cancelled = tally.forgetEverything()
         ledger = tally
@@ -534,10 +563,13 @@ public actor PersonalDictionaryStore {
     }
 
     /// Deletes the refusal record if it is there.
-    private func removeRefusalRecord() throws {
+    private func removeRefusalRecord() throws { try removeRecord(at: refusalRecord) }
+
+    /// Deletes a sidecar record if it is there.
+    private func removeRecord(at url: URL) throws {
         let manager = FileManager.default
-        guard manager.fileExists(atPath: refusalRecord.path(percentEncoded: false)) else { return }
-        try manager.removeItem(at: refusalRecord)
+        guard manager.fileExists(atPath: url.path(percentEncoded: false)) else { return }
+        try manager.removeItem(at: url)
     }
 
     // MARK: - The file
