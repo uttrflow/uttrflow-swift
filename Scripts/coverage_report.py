@@ -108,6 +108,10 @@ EXCLUDED_FILES = {
         "change stored data are driven against a sandbox in MainIntentWiringTests, the "
         "rest are not"
     ),
+    "Uttrflow/AppDelegate+Clipboard.swift": (
+        "the clipboard half of AppDelegate's assembly, moved out unchanged; it drives the real "
+        "pasteboard, panel and paste gate, so it is covered where AppDelegate.swift is"
+    ),
     "Uttrflow/Updates/UpdateController.swift": (
         "owns Sparkle's updater and the one socket outside UttrflowAccount; it holds no rule "
         "of its own — when an update may install is UpdateGate, and which feed may be read is "
