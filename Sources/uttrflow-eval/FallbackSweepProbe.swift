@@ -97,7 +97,8 @@ struct FallbackSweepProbe: AsyncParsableCommand {
 enum ClipSet: String, ExpressibleByArgument {
     case sentences, short, hindi
 
-    private static let shortPhrases = ["ok", "yes", "sounds good", "call me later", "thank you"]
+    /// Spoken stimuli, written as sentences with their stops; the normaliser drops the stops from the reference.
+    private static let shortPhrases = ["ok.", "yes.", "sounds good.", "call me later.", "thank you."]
     private static let hindiPhrases = [
         "मुझे कल सुबह जल्दी उठना है", "आज शाम को हम बाज़ार चलेंगे", "कृपया दरवाज़ा बंद कर दीजिए",
         "यह किताब मेज़ पर रख दो", "हमें नौ बजे तक पहुँचना है", "चाय में थोड़ी चीनी डालिए",
