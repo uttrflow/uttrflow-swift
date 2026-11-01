@@ -181,5 +181,20 @@ takes 100 ms or more. Measured on an Apple M5 Pro, 48 GB, debug build, the build
 store whose setup adds about 85 ms trips it. Work that is not needed before the shortcut works
 belongs behind it, in the tasks `applicationDidFinishLaunching` starts after the first window.
 
-No budget is set yet for the whole time to the shortcut: that needs `uttrflow-dev launch` readings
-cold (after a restart) and warm on the base 8 GB Mac, which are not recorded here.
+### Time to the shortcut: readings and budget
+
+`uttrflow-dev launch --app dist/Uttrflow.app --runs 7`, on an Apple M5 Pro, 48 GB, a `make app`
+bundle, on an idle Mac with a warm page cache:
+
+| | min | median | max |
+|---|---|---|---|
+| warm, 7 launches | 945 ms | 996 ms | 2353 ms |
+
+The first launch of a run is the slow one (2353 ms): the next six sit between 945 ms and 1292 ms.
+
+- **Budget: the median of a warm run is under 2000 ms**, twice the reading above, so a launch-path
+  addition that doubles the time to the shortcut shows. The 100 ms store-setup check above stays the
+  tight gate; this one is the whole-launch guard, read by hand with the command above.
+- **Not measured yet:** a cold launch (after a restart, which an agent session cannot cause) and any
+  reading on the base 8 GB Mac. Until both are recorded the budget is set from the one Mac above and
+  is a ceiling for it, not a promise for every Mac.
