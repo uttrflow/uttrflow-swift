@@ -1,22 +1,8 @@
 import UttrflowCore
 
 extension LayoutWordsPass {
-    /// The words that name a part of a text, which a letter or a roman numeral then numbers. "plan" and "option" are left out: they name things, not parts.
-    private static let labelWords: Set<String> = [
-        "item", "paragraph", "limb", "clause", "subclause", "subparagraph",
-    ]
-
-    /// Words that put a label word inside a noun phrase, so "the item a customer buys" and "new paragraph" are not labels.
-    private static let nounPhraseOpeners: Set<String> = [
-        "new", "the", "this", "that", "these", "those", "a", "an", "each", "every", "any", "same", "one",
-        "per",
-        "of", "your", "my", "our", "their", "its", "his", "her",
-    ]
-
-    private static let joiners: Set<String> = ["and", "or", "then", "also"]
-
     private static let letters = "abcdefghijklmnopqrstuvwxyz".map(String.init)
-    private static let romans = ["i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x"]
+    private static let romans = LayoutSeriesWords.romans
 
     /// One label said at a position: the words that name it and the letter or numeral after them.
     private struct Label {
@@ -78,7 +64,7 @@ extension LayoutWordsPass {
     /// Whether the words from `start` up to `end` hold an item, not only a joining word: "item a and item b" has none.
     private func hasItemBetween(_ start: Int, _ end: Int, in live: [Int], of draft: Draft) -> Bool {
         guard end > start else { return false }
-        return end - start > 1 || !Self.joiners.contains(draft.shape(at: live[start]).key)
+        return end - start > 1 || !LayoutSeriesWords.joiners.contains(draft.shape(at: live[start]).key)
     }
 
     /// The label said at `position`, nil where the words are a noun phrase, a clause or a mention.
@@ -95,7 +81,7 @@ extension LayoutWordsPass {
             else { return nil }
             named = 2
             phrase = "sub" + second.key
-        } else if !Self.labelWords.contains(word.key) {
+        } else if !LayoutSeriesWords.labelWords.contains(word.key) {
             return nil
         }
         let numeral = position + named
@@ -107,7 +93,8 @@ extension LayoutWordsPass {
             Self.letters.contains(token.key) || Self.romans.contains(token.key)
         else { return nil }
         // A label opening a noun phrase is part of a sentence.
-        if position > 0, Self.nounPhraseOpeners.contains(draft.shape(at: live[position - 1]).key) {
+        if position > 0, LayoutSeriesWords.nounPhraseOpeners.contains(draft.shape(at: live[position - 1]).key)
+        {
             return nil
         }
         // A numeral said before a verb is the subject of a clause, as with a number after "number".

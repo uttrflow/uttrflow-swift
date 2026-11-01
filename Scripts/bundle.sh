@@ -310,6 +310,7 @@ ALLOWED_TEXT_RESOURCES=(
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/hindi-words.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/html-elements.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/kinship-words.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/layout-series-words.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/letter-sounds.txt"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/mark-spacing.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/meaning-swaps.json"
