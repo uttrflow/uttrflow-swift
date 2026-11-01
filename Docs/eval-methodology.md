@@ -1194,13 +1194,45 @@ the loop check is counted per recording.
 - Pitch shifts move the piece count by at most 5 of 32 (+4 and +6 semitones), and no loop-check
   hit.
 
-Not yet measured: word error rate per factor and pitch, cuts inside a word, and the word error
-rate floor at 1.3x and 1.6x for fast speakers. That run needs the shipping model on an otherwise
-idle machine:
+### Measured with the shipping model on the same recordings
 
-```bash
-uttrflow-eval pace --corpus-path <reader-1-quiet>
-```
+Shipping model (`openai_whisper-large-v3-v20240930_turbo_632MB`), one idle Mac, `reader-1`:
+`uttrflow-eval pace --corpus-path <session>` over the quiet, fast and noisy sessions. Word error rate
+is pooled per language; "worse" means the paired 95% interval on the change from 1.0x excludes zero.
+
+| WER | 1.0x | 0.7x | 0.85x | 1.3x | 1.6x | 1.9x |
+|---|---|---|---|---|---|---|
+| English, quiet (6) | 21.0% | 20.0% | 21.3% | 22.6% | 24.9% | 30.8% |
+| English, fast (6) | 16.4% | 21.0% | 18.7% | 19.7% | 23.0% worse | 24.6% worse |
+| English, noisy (6) | 18.7% | 20.0% | 16.7% | 21.0% | 29.2% worse | 34.4% worse |
+| Hindi, quiet (6) | 22.4% | 32.3% worse | 28.4% worse | 31.3% worse | 58.2% worse | 52.2% worse |
+| Hinglish, quiet (6) | 37.2% | 51.9% worse | 39.9% | 44.3% | 41.5% | 73.2% worse |
+
+| WER, pitch | -4 st | -2 st | +2 st | +4 st | +6 st |
+|---|---|---|---|---|---|
+| English, quiet | 23.3% | 22.0% | 22.0% | 18.0% | 21.6% |
+| English, fast | 23.6% worse | 19.7% | 23.6% worse | 21.6% | 20.7% |
+| English, noisy | 24.9% worse | 23.0% | 20.7% | 21.6% | 19.7% |
+| Hindi, quiet | 29.4% worse | 25.9% | 24.9% | 28.9% worse | 27.4% worse |
+| Hinglish, quiet | 39.3% | 37.7% | 51.4% worse | 61.2% worse | 44.8% |
+
+Cuts inside a word, over all cuts of recordings with timed words (18 quiet passages): 3/14 at 1.0x,
+6/35 at 0.7x, 6/25 at 0.85x, 2/7 at 1.3x, 1/3 at 1.6x and 0/1 at 1.9x; 2/14, 2/15, 4/14, 2/19 and
+4/19 at -4, -2, +2, +4 and +6 semitones. Early cuts stay at 0 to 2 in every condition. Loop-check
+cuts of a sentence really said twice, on the quiet passages: 0/18 up to 1.3x, 1/18 at 1.6x and 3/18
+at 1.9x; on the fast and noisy sessions, 1/6 and 0/6 at 1.6x and 6/6 and 4/6 at 1.9x.
+
+- Stated floor for fast speakers, English: 19.7% at 1.3x and 23.0% at 1.6x on the fast session
+  (16.4% at 1.0x); 22.6% and 24.9% on the quiet passages. English is not distinguishable from 1.0x
+  at 1.3x on any session; at 1.6x it is worse on the fast and noisy sessions.
+- Hindi and Hinglish are worse already at 0.7x and 1.3x, and Hindi reaches 58.2% at 1.6x, so the
+  floor above is English only.
+- The only pace-dependent threshold that misbehaves inside 0.85x to 1.6x is the repeated-sentence
+  limit (`RecognitionLoop.fastestSpeech`), which cut a sentence really said twice at 1.6x. Slower
+  speech is cut at more places, but the early-cut count stays flat, so `SpeechWindowing` needs no
+  change from this sweep.
+- One speaker and six passages per language, so a
+  difference under about 10 points is inside the interval.
 
 ## One sweep for a layer threshold (`sweep`)
 
