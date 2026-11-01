@@ -78,6 +78,7 @@ public struct LayoutWordsPass: PieceCleaningPass {
             position += 1
         }
         layOutEnumeratedSeries(&draft)
+        layOutLetteredItems(&draft)
         if layout.contains(.singleLine) { Self.joinOnOneLine(&draft, by: Self.id) }
         return draft
     }
@@ -114,7 +115,7 @@ public struct LayoutWordsPass: PieceCleaningPass {
     }
 
     /// Removes a comma or semicolon stranded before a list marker.
-    private func removeClauseMarkBeforeList(at position: Int, in live: [Int], from draft: inout Draft) {
+    func removeClauseMarkBeforeList(at position: Int, in live: [Int], from draft: inout Draft) {
         guard position > 0 else { return }
         let previous = live[position - 1]
         let shape = draft.shape(at: previous)
@@ -402,7 +403,7 @@ public struct LayoutWordsPass: PieceCleaningPass {
     }
 
     /// Auxiliaries that open the predicate of a clause; "do" and "have" are left out since a list item can open on them as a command.
-    private static let predicateOpeners = FunctionWords.auxiliaries.subtracting(["do", "have"])
+    static let predicateOpeners = FunctionWords.auxiliaries.subtracting(["do", "have"])
 
     private static func spokenNumber(
         at position: Int, in live: [Int], of draft: Draft
