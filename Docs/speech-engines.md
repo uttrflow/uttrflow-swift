@@ -15,7 +15,7 @@ prompt; [`speech-model-install.md`](speech-model-install.md) covers installing t
 |---|---|---|
 | `BackedSpeechEngine.minimumDuration` | 250 ms | shorter audio is refused as too short |
 | `LanguageHeldDecoder.compressionRatioThresholds` | `en`: default, `hi`: 3.0 | one decision per transcribed language; default keeps Whisper's 2.4 |
-| `RecognitionLoop.fastestSpeech` | 4.8 words a second | faster than this, a repeated run is a loop |
+| `RecognitionLoop.fastestSpeech` | 5.0 words a second | faster than this, a repeated run is a loop |
 | `RecognitionLoop.mostCopyDifference` | 0.2 WER | how far copies may differ and still be one loop |
 | `RecognitionLoop.fewestCopyWords` | 3 | the shortest copy that counts |
 | `CappedDecodeRetry.tokenCapThreshold` | 215 tokens | a decode this long ran out of decoder positions |
@@ -364,11 +364,15 @@ Hindi with an English voice, so `theek` heard as `Teak.` is partly the clip.
   catch this.
 - `RecognitionLoop.undone`, run on every piece `BackedSpeechEngine` transcribes, keeps one copy
   of a repeated run when at least three copies of three or more words differ by no more than 20%
-  word error rate and the words come faster than 4.8 a second of speech. A matching trailing
+  word error rate and the words come faster than 5.0 a second of speech. A matching trailing
   partial copy is removed with the run. Exactly two copies are checked the same way. A piece that fails the speech-rate or copy-match check is left as heard. So
   a sentence really said twice at a speaking rate keeps both.
-- 4.8 words a second sits in the gap between the fastest recorded speech (4.55) and the looped
-  clip (5.07, 14 words in 2.76 s). Rates are whitespace tokens over the speech-trimmed audio
+- 5.0 words a second sits in the gap between the fastest take replayed at 1.6x (4.93) and the looped
+  clip (5.07, 14 words in 2.76 s). It was 4.8, which cut a sentence really said twice at 1.6x in
+  2 of 30 takes; at 5.0 that count is 0 of 30, and the four takes read at 2.40 to 2.48 words a
+  second, whose whole-take loop runs 4.8 to 5.0, now get through. At 1.9x the count is 13 of 30
+  at 4.8 and 8 of 30 at 5.0, so speech faster than 1.6x can still lose a copy. The next figure is the
+  unreplayed rate (fastest recorded speech 4.55). Rates are whitespace tokens over the speech-trimmed audio
   (`AudioSamples.speechOnly`), as `RecognitionLoop` counts them; a short piece keeps 0.2 s of
   margin either side, so the run and sentence figures add 0.4 s. Measured on 30 recorded takes
   read by **one speaker**, so a faster speaker can sit above them:
@@ -384,7 +388,7 @@ Hindi with an English voice, so `theek` heard as `Teak.` is partly the clip.
   (inserted words, one on the fallback ladder) are left out of the run and sentence columns.
 - A loop of a sentence comes out at twice the rate it was said. The 57 measured sentences ran
   1.61 to 4.30 a second, median 2.65, so their loops would run 3.2 to 8.6: 38 of 57 lie above
-  4.8, and 39 of 57 above the old 4.5. A loop of a slow sentence still gets through; lowering
+  4.8 (fewer at 5.0), and 39 of 57 above the old 4.5. A loop of a slow sentence still gets through; lowering
   the limit to catch it would cut a fast speaker's real repeat first.
 
 - Double quotes that open the first word and close the last are taken off when there are no

@@ -1166,7 +1166,7 @@ uttrflow-eval pace --structure-only    # cuts and the loop check only; loads no 
     many have their reference text said twice, at that pace, cut to one copy by
     `RecognitionLoop.undone`. A sentence really said twice should keep both copies, so each is
     a false positive;
-  - over 4.8 w/s: reference words over speech seconds above `RecognitionLoop.fastestSpeech`.
+  - over 5.0 w/s: reference words over speech seconds above `RecognitionLoop.fastestSpeech`.
 
 ### Measured on one speaker's recordings, cuts and loop check only
 
@@ -1187,10 +1187,11 @@ the loop check is counted per recording.
 
 - Slower speech is cut into more pieces (53 against 32 at 0.7x, 43 at 0.85x), and faster speech
   into fewer (21 at 1.6x), because the pause lengths in `SpeechWindowing` are in seconds.
-- The repeated-sentence check cuts a sentence really said twice at 1.6x in 4 of 30 recordings and
-  at 1.9x in 17 of 30. Each is a false positive, and 1.6x is inside the 0.85x to 1.6x range, so
-  the limit needs a follow-up that changes it with before and after. The count is the count
-  of recordings whose words a second pass 4.8, so the speech rate alone decides it.
+- The repeated-sentence check at 4.8 cut a sentence really said twice at 1.6x in 2 of 30 recordings
+  (1/18 quiet, 1/6 fast, 0/6 noisy) and at 1.9x in 13 of 30. Each is a false positive, and 1.6x is
+  inside the 0.85x to 1.6x range, so the limit was raised to 5.0 (`Docs/speech-engines.md`): after,
+  0 of 30 at 1.6x and 8 of 30 at 1.9x. The count is the count of recordings whose words a second
+  pass the limit, so the speech rate alone decides it.
 - Pitch shifts move the piece count by at most 5 of 32 (+4 and +6 semitones), and no loop-check
   hit.
 
