@@ -1317,6 +1317,9 @@ words inside a sentence in English and 100% in Hinglish, and 94.7% and 98.6% on 
   repair the tidier and the rules would have to make.
 - 12 of 18 Hinglish passages came back in Devanagari under language detection, so the Hinglish
   rows rest on 6 passages and 14 marks. They bound nothing: every interval is wide.
+  This is a measurement artefact, not an output leak: the raw text never reaches insertion, and
+  `LatinScript.enforced` writes every Devanagari passage of the corpus in Latin letters
+  (`DevanagariRecogniserOutputTests`; layers in `Docs/latin-output.md`).
 - The figures rest on 6 English passages and 6 Hinglish passages read by one voice each, so the
   intervals are wide, and a synthesiser pauses at every written stop. They show that repair is
   needed for commas; they do not rank the candidates for the bake-off.
