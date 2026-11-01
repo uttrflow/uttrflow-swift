@@ -22,6 +22,7 @@ struct UttrflowEvalCommand: AsyncParsableCommand {
             DigitStringProbe.self, NameClassProbe.self, NoiseProbe.self, SeamScoreProbe.self,
             DisfluentSpeechProbe.self, RulesScorecard.self, PaceProbe.self, SweepThreshold.self,
             AutoLearnReplayProbe.self, PauseTimingProbe.self, GapDistributionProbe.self,
+            RawMarksProbe.self,
         ]
     )
 }
