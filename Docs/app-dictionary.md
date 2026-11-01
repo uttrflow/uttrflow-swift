@@ -129,6 +129,15 @@ each side, every written word one `GeneralVocabulary` would not know, and the wo
 recurs becomes a learnt entry whose pronunciation is the lowercased heard words ("cooper nettys" for
 "Kubernetes"), so it is filed under that sound as well as its spelling.
 
+### The observed edit
+
+`ObservedEdit.between(inserted:left:)` turns the inserted text and the text the person left into one
+replaced word range: the heard words, the written words and the index of the first heard word. It
+aligns the lowercased words with `WordErrorRate.measure`, never a second matcher, and returns an edit
+only when the non-matching operations form one contiguous run with 1 to `maximumWordsInACorrection`
+words on each side. A pure insertion or deletion, a case-only change, two separate runs (a moved
+clause) and a run longer than the limit (a rewrite) yield nothing. No source feeds it yet.
+
 ### The unit of evidence
 
 `SightingUnitProbeTests` replays an invented fortnight through `SightingLedger` under both rules:
