@@ -32,6 +32,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [question-mark-owner.md](question-mark-owner.md) | The probe that decides whether the recogniser or the question-shape rules own "?" |
 | [recogniser-evidence.md](recogniser-evidence.md) | What each recogniser signal can and cannot say |
 | [pause-timing.md](pause-timing.md) | Whether word times show a pause: error by pause length and word type, and the measure the timing rules use |
+| [pause-rhythm.md](pause-rhythm.md) | Gap lengths per speaker on the long-form corpus, and whether the rank of a gap among a speaker's own gaps calls breaks better than a fixed length |
 | [relisten-probe.md](relisten-probe.md) | Listening again to one doubtful word: forced scoring in the window against a cropped re-decode |
 | [unknown-confidence.md](unknown-confidence.md) | What each layer does when a word's confidence is unknown |
 | [decode-session.md](decode-session.md) | The decode loop the repository owns, and its parity with WhisperKit's |

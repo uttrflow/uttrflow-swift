@@ -21,13 +21,18 @@ public enum PauseTiming {
         let rate = AudioSamples.canonicalSampleRate
         let gap = max(0, gapMilliseconds) * rate / 1000
         let speech = Array(first[head]) + [Float](repeating: 0, count: gap) + Array(second[tail])
-        let level = Float(pow(10, roomDecibels / 20)) * 3.46
+        let samples = withRoom(speech, decibels: roomDecibels)
+        return Clip(samples: samples, firstEnd: head.count, secondStart: head.count + gap)
+    }
+
+    /// `speech` with seeded room noise under it, so a pause is a quiet room and not digital zeros.
+    public static func withRoom(_ speech: [Float], decibels: Double) -> [Float] {
+        let level = Float(pow(10, decibels / 20)) * 3.46
         var state: UInt64 = 0x9E37_79B9_7F4A_7C15
-        let samples = speech.map { sample -> Float in
+        return speech.map { sample -> Float in
             state = state &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
             return sample + (Float(state >> 40) / Float(1 << 24) - 0.5) * level
         }
-        return Clip(samples: samples, firstEnd: head.count, secondStart: head.count + gap)
     }
 
     /// The quiet `VoiceActivity` finds after the first phrase, read from the clip as far as the second begins.
