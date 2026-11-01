@@ -38,7 +38,7 @@ public struct TranscribedWord: Sendable, Equatable {
             settled: settled, start: start, end: end, tokens: tokens)
     }
 
-    private init(
+    fileprivate init(
         text: String, certainty: WordCertainty, settled: Bool,
         start: Duration?, end: Duration?, tokens: [TokenEvidence]
     ) {
@@ -49,6 +49,14 @@ public struct TranscribedWord: Sendable, Equatable {
         self.start = start
         self.end = end
         self.tokens = tokens
+    }
+}
+
+extension TranscribedWord {
+    /// The same word, score and evidence, placed at a different span of the audio.
+    package func timed(start: Duration?, end: Duration?) -> TranscribedWord {
+        TranscribedWord(
+            text: text, certainty: certainty, settled: settled, start: start, end: end, tokens: tokens)
     }
 }
 

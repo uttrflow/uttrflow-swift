@@ -90,3 +90,12 @@ measure as the evidence when they disagree.
 Reopened by: a recogniser or alignment change that brings the word-time median absolute error
 within 100 ms at 300 ms with the pause shown in 90% of trials, or a run on recorded speech whose
 audio-measure error at 300 ms exceeds 100 ms.
+
+## Where the decision is applied
+
+`PauseSnapping.snapped` (`UttrflowSpeech`) runs once, in `BackedSpeechEngine.transcribe`, on the
+recogniser's words and the speech it heard. It takes each quiet run of at least 100 ms from
+`VoiceActivity.quietRuns`, gives it to the word boundary nearest it (within 150 ms), and ends the
+word before at the run's start and begins the word after at its end. A gap of 300 ms or more that
+less than half a quiet run covers is closed. Audio with no quiet run is left as heard, so a noisy
+room costs no pauses it had. Every reader of `Draft.pause(before:)` then reads the audio's pause.
