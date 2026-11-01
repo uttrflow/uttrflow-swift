@@ -900,6 +900,20 @@ def check_latency_table(tree, findings, report):
     report.extend(f"  ✓ {stage}: p95 {p95:.3f} s, budget {budget:.3f} s" for stage, (p95, budget) in sorted(targets.items()))
 
 
+def check_microphone_open_budget(tree, findings, report):
+    """The `microphoneOpen` budget is its measured p95 plus the headroom; the opening is read per transport, not from a bench run."""
+    doc = tree.read("Docs/performance.md")
+    start = doc.find("## Microphone opening budget")
+    end = doc.find("\n## ", start + 1) if start >= 0 else -1
+    section = doc[start : end if end > 0 else len(doc)] if start >= 0 else ""
+    targets = {m[1]: (float(m[2]), float(m[3])) for m in LATENCY_ROW.finditer(section)}
+    if "microphoneOpen" not in targets:
+        findings.failures.append("latency: Docs/performance.md has no `microphoneOpen` row under `## Microphone opening budget`")
+        return
+    findings.failures.extend(unearned_budgets(targets))
+    report.extend(f"  ✓ {stage}: p95 {p95:.3f} s, budget {budget:.3f} s" for stage, (p95, budget) in sorted(targets.items()))
+
+
 def unearned_budgets(targets):
     """One line per row whose budget is not its measured p95 times the headroom."""
     return [
@@ -1129,6 +1143,7 @@ def audit(root, quiet=False, overrides=None):
         ("Counters: the harness judges readings by the budget table", lambda r: check_counters(tree, findings, r)),
         ("Suggestions: typing reads, callbacks and draws stay within their budget", lambda r: check_suggestion_path(tree, findings, r)),
         ("Latency: every stage budget is its measured p95 plus headroom", lambda r: check_latency_table(tree, findings, r)),
+        ("Microphone: the opening budget is its measured p95 plus headroom", lambda r: check_microphone_open_budget(tree, findings, r)),
         ("Layers: every quality layer's budget is its stage's p95 plus headroom", lambda r: check_layer_budgets(tree, findings, r)),
         ("Timeouts: every stage limit is its stage's p95 plus headroom, or says why not", lambda r: check_stage_timeouts(tree, findings, r)),
     ):
