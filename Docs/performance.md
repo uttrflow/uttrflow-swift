@@ -419,6 +419,34 @@ measured on speech with long pauses therefore understate the wait for fluent spe
 on public read speech with word alignments takes `--alignments <file>` (group, speaker, utterance,
 word, start, end, tab-separated, fetched at measurement time and never committed).
 
+## Microphone opening budget
+
+`microphoneOpen` is the time `AVAudioCaptureEngine.start()` takes to return: the audio graph is built,
+the input format read, the tap installed and the engine started, while the user is already speaking.
+It is read per input transport, not from a bench run, so it has its own table and the source audit
+holds it to the same rule as the stage table: the budget is the measured p95 times `LATENCY_HEADROOM`.
+The first sample after `start()` returns is a separate figure, the audio-capture measurement of
+first-second delivery on each input, and is not budgeted here.
+
+Measured by `uttrflow-dev latency --opens 30 --device <UID>` on a release build, 30 opens per row; a
+cold row adds `--idle 60`. The row below is the built-in microphone, measured at commit `82d614c21`
+on an Apple M5 Pro under a load average of 11 to 55 (other builds were running), so these are
+loaded-machine figures; re-run on a quiet Mac before a decision rests on them.
+
+| stage | p95 s | budget s | samples |
+|---|---|---|---|
+| `microphoneOpen` | 0.444 | 0.533 | 30 |
+
+The row is the cold built-in microphone (60 s closed before each opening). The warm run read
+p50 165 ms, p95 304 ms; the cold run p50 218 ms, p95 444 ms. A wired or USB microphone, a Bluetooth
+headset and a virtual or aggregate device were not available on the measuring Mac, so those
+transports have no figure and no budget: the probe takes any of them through `--device`, and the
+table gains a row when one is measured. What happens to the first words on a transport slower than
+the built-in microphone cannot be stated without that figure. On the built-in microphone the opening
+is about a fifth of a second at p50 and under half a second at p95, during which the user is already
+speaking. In the same runs, with `--device` naming the built-in microphone, 24 of 30 warm and 8 of 30
+cold openings saw no sample within 5 s, which the first-sample measurement has to explain.
+
 ## Processor
 
 Memory answers "will it fit"; this answers what it costs to run. A dictation that finishes in 2.4
