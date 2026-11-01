@@ -37,6 +37,7 @@ struct ObservedEditTests {
             ("run git push now", "totally different words are here today"),
             ("call me after lunch about the budget", "about the budget call me after lunch"),
             ("run gate push now", "launch git push soon"),
+            ("x y", "y x"),
             ("one two three four five six seven", "one 2 three four 5 six seven"),
         ])
     func yieldsNothing(inserted: String, left: String) {

@@ -16,6 +16,13 @@ struct RawMarkScoreTests {
         #expect(score.capitalisation.accuracy == score.lowerCaseBaseline.accuracy)
     }
 
+    @Test("the lower-case floor is built from the reference, so it scores zero on a capitalised reference")
+    func floorFollowsReference() {
+        let score = RawMarkScore(passageID: "a", raw: "Yes I will come", reference: "Yes I will come")
+        #expect(score.lowerCaseBaseline.accuracy(of: .sentenceStart) == 0)
+        #expect(score.capitalisation.accuracy(of: .sentenceStart) == 1)
+    }
+
     @Test("a matching output scores one everywhere and the interval collapses onto it")
     func exactOutput() {
         let reference = "Yes, I will come. Then lunch?"

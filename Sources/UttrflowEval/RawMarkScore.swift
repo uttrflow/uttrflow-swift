@@ -30,7 +30,7 @@ public struct RawMarkReport: Sendable, Equatable {
         _ scores: [RawMarkScore], resamples: Int = 2_000, confidence: Double = 0.95, seed: UInt64 = 0x5EED
     ) {
         self.scores = scores
-        self.resamples = resamples
+        self.resamples = max(1, resamples)
         self.confidence = confidence
         self.seed = seed
     }

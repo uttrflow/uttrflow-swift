@@ -14,6 +14,7 @@ struct DevanagariRecogniserOutputTests {
             guard let heard = passage.devanagari else { continue }
             checked += 1
             let written = LatinScript.enforced(heard)
+            #expect(!written.isEmpty, "\(passage.id) wrote nothing")
             #expect(!Romaniser.containsDevanagari(written), "\(passage.id) kept Devanagari: \(written)")
             #expect(LatinScript.isLatin(written), "\(passage.id) is not Latin: \(written)")
         }

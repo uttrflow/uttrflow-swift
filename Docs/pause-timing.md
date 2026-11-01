@@ -13,7 +13,10 @@ phrase to its speech at 10 ms, and joins the pair with silence of a known length
 are trimmed to their speech before they are joined. Each clip goes through the shipping engine
 with word times. The word-time gap is the start of the first word after the pause less the end of
 the last word before it; the error is that gap less the length built in. A clip whose transcript
-has a different number of words is skipped, because its boundary cannot be found.
+has a different number of words is skipped, because its boundary cannot be found; a clip with the
+right count but a drifted boundary is not caught by that check. The probe reads word times from
+`SpeechEngine.transcribe`, which applies `PauseSnapping`, so a re-run reports the snapped times and
+not the recogniser's own.
 
 The audio column is `VoiceActivity.trailingSilence` on the clip as far as the second phrase
 begins: the quiet the shipping voice-activity code finds after the first phrase.

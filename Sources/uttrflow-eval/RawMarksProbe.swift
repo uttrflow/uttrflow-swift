@@ -6,7 +6,7 @@ private import UttrflowCore
 private import UttrflowEval
 private import UttrflowSpeech
 
-/// Speaks the marked English and Hinglish passages, transcribes them, and scores what the recogniser wrote unaided.
+/// Speaks the marked English and Hinglish passages, transcribes them, and scores what the engine returned, after its repeat and marker clean-up and before any tidier.
 struct RawMarksProbe: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "raw-marks",

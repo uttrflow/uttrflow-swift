@@ -42,14 +42,17 @@ struct ClipReclassificationTests {
 struct ClipReclassificationRewriteTests {
     @Test("a pass that covers every current text keeps live eviction order")
     func coveredPassKeepsLiveOrder() {
-        let clip = Clip(text: "let a = 1", kind: .text, copiedAt: .now)
-        let live = clip.orderedForEviction(7)
-        let detected = clip.reclassified(as: ClipClassification(kind: .code, language: nil))
+        let first = Clip(text: "let a = 1", kind: .text, copiedAt: .now)
+        let second = Clip(text: "let b = 2", kind: .text, copiedAt: .now)
+        let live = [first.orderedForEviction(7), second.orderedForEviction(8)]
+        let detected = [first, second].map {
+            $0.reclassified(as: ClipClassification(kind: .code, language: nil))
+        }
         var secrecy = ClipSecrecyOverrides(file: TemporaryFile().url, encryptedStore: nil)
         let rewritten = ClipReclassification.rewrite(
-            [detected], from: [clip], into: [clip], liveOrder: [live], secrecy: &secrecy)
-        #expect(rewritten?.first?.kind == .code)
-        #expect(rewritten?.first?.lastUsedOrder == 7)
+            detected, from: [first, second], into: [first, second], liveOrder: live, secrecy: &secrecy)
+        #expect(rewritten?.map(\.kind) == [.code, .code])
+        #expect(rewritten?.map(\.lastUsedOrder) == [7, 8])
     }
 
     @Test("a clip that changed after the snapshot leaves the index for the next launch")

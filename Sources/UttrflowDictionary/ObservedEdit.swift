@@ -50,7 +50,12 @@ struct ObservedEdit: Sendable, Equatable {
         let limit = LearnableWords.maximumWordsInACorrection
         guard let run, (1...limit).contains(run.heard.count), (1...limit).contains(run.wrote.count)
         else { return nil }
-        return ObservedEdit(
-            heard: Array(before[run.heard]), wrote: Array(after[run.wrote]), position: run.position)
+        let heard = Array(before[run.heard])
+        let wrote = Array(after[run.wrote])
+        // The same words in another order are a move, not a correction of how a word was heard.
+        guard heard.map({ $0.lowercased() }).sorted() != wrote.map({ $0.lowercased() }).sorted() else {
+            return nil
+        }
+        return ObservedEdit(heard: heard, wrote: wrote, position: run.position)
     }
 }

@@ -47,11 +47,15 @@ final class ClipboardPause {
 
     /// Runs `onExpiry` once the deadline passes, unless a timer already runs or nothing is paused.
     func startTimerIfNeeded(onExpiry: @escaping @MainActor () -> Void) {
-        guard timer == nil, let until else { return }
-        let delay = max(0, until.timeIntervalSince(now()))
+        guard timer == nil, until != nil else { return }
         let sleep = self.sleep
         timer = Task { [weak self] in
-            try? await sleep(.seconds(delay))
+            // Re-read the clock after each sleep: a backward clock step must not end the pause early.
+            while let self, !Task.isCancelled, let deadline = self.until {
+                let delay = deadline.timeIntervalSince(self.now())
+                guard delay > 0 else { break }
+                try? await sleep(.seconds(delay))
+            }
             guard !Task.isCancelled, let self else { return }
             self.until = nil
             self.timer = nil

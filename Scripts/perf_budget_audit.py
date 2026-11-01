@@ -859,6 +859,7 @@ LATENCY_COMMIT = re.compile(r"^\|\s*commit `[0-9a-f]{7,40}`\s*\|", re.M)
 
 # The fewest samples a stage is judged on; fewer is a failure rather than a pass.
 LATENCY_MIN_SAMPLES = 3
+MICROPHONE_SAMPLES = re.compile(r"^\|\s*`microphoneOpen`\s*\|[^|]*\|[^|]*\|\s*(\d+)\s*\|", re.M)
 
 # The categories whose wait after key release has a budget, one per dictation length.
 LATENCY_WAIT_CATEGORIES = ("dur5", "dur30", "dur120")
@@ -910,6 +911,11 @@ def check_microphone_open_budget(tree, findings, report):
     if "microphoneOpen" not in targets:
         findings.failures.append("latency: Docs/performance.md has no `microphoneOpen` row under `## Microphone opening budget`")
         return
+    samples = MICROPHONE_SAMPLES.search(section)
+    if samples is None or int(samples[1]) < LATENCY_MIN_SAMPLES:
+        findings.failures.append(
+            f"latency: the `microphoneOpen` row needs a samples cell of at least {LATENCY_MIN_SAMPLES}"
+        )
     findings.failures.extend(unearned_budgets(targets))
     report.extend(f"  ✓ {stage}: p95 {p95:.3f} s, budget {budget:.3f} s" for stage, (p95, budget) in sorted(targets.items()))
 

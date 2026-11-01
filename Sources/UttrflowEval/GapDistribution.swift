@@ -25,9 +25,7 @@ public enum GapDistribution {
 
     /// The value `fraction` of the way through `values`, by nearest rank; zero when empty.
     public static func percentile(_ values: [Double], _ fraction: Double) -> Double {
-        let sorted = values.sorted()
-        guard !sorted.isEmpty else { return 0 }
-        return sorted[min(sorted.count - 1, Int((Double(sorted.count - 1) * fraction).rounded()))]
+        FinalPiece.percentile(values, fraction) ?? 0
     }
 
     /// Gap lengths per speaker: the gaps between words and hesitations, and the breaks, in milliseconds.

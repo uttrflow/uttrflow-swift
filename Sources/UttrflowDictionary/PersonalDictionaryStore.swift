@@ -267,7 +267,6 @@ public actor PersonalDictionaryStore {
     public func remove(_ ids: Set<UUID>) async throws(DictionaryStoreError) -> [DictionaryEntry] {
         let existing = load()
         let gone = existing.filter { ids.contains($0.id) }
-        let kept = existing.filter { !ids.contains($0.id) }
         // A deleted word must not simply be counted up again, whoever first put it there.
         var cancelled: [EvidenceRow] = []
         if !gone.isEmpty {
@@ -277,6 +276,8 @@ public actor PersonalDictionaryStore {
             try recordRefusals(tally.refusals)
             cancelled += try await refusePairs(of: gone)
         }
+        // Read again after the last suspension, so a write made while this one waited is not overwritten.
+        let kept = load().filter { !ids.contains($0.id) }
         try persist(kept)
         try await remember(cancelled)
         return kept

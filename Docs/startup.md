@@ -195,6 +195,6 @@ The first launch of a run is the slow one (2353 ms): the next six sit between 94
 - **Budget: the median of a warm run is under 2000 ms**, twice the reading above, so a launch-path
   addition that doubles the time to the shortcut shows. The 100 ms store-setup check above stays the
   tight gate; this one is the whole-launch guard, read by hand with the command above.
-- **Not measured yet:** a cold launch (after a restart, which an agent session cannot cause) and any
+- **Not measured yet** (owed, tracked in #8175): a cold launch (after a restart, which an agent session cannot cause) and any
   reading on the base 8 GB Mac. Until both are recorded the budget is set from the one Mac above and
   is a ceiling for it, not a promise for every Mac.
