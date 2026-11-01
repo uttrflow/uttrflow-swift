@@ -54,6 +54,7 @@ machine, and says so.
 | — | 2026-09-03 | not recorded | Apple M5 Pro | not recorded | not recorded | release, commit not recorded | `uttrflow-dev probe retrieval` | 50000 entries: range scan 4.7 µs, LIKE 19.8 µs, fuzzy 7128 µs, 6-byte mask 478 µs, 12-byte mask 1764 µs |
 | — | 2026-09-21 | not recorded | not recorded | not recorded | macOS 26.5.1 | not recorded | `uttrflow-dev transcribe` on three seconds of digital silence | `SpeechEngineError.nothingHeard` |
 | #2336 | 2026-10-08 | load 31.9 on 18 cores | Apple M5 Pro | 48 GB | macOS 26.5.1 (Build 25F80) | no build; tree at 5442d6bb10 | one-off `numpy` script on `say` clips, method in [silence.md](silence.md#a-second-voice-after-the-last-word-is-not-trimmed) | held-out half: foreign reply removed 453 of 1536 (29.5%); user's own reply cut 4 of 1536; joined or lone sentence cut 0 of 224 |
+| #4466 | 2026-11-01 | load 40-130 on unknown cores | not recorded | not recorded | macOS 26.5.1 (Build 25F80) | no build; tree at 25cf49e9e | throwaway Accessibility script on TextEdit, Notes, Chrome, Safari, Terminal | insertion and typed fix readable by value read in all five; 20 s read ok in all, 120 s read fails in Chrome; value-changed registers in all; see [autolearn-probe.md](autolearn-probe.md) |
 
 The first row re-takes the retrieval table of [predict-probe.md](predict-probe.md), whose
 original is the second row, transcribed from that page with the columns it never recorded
