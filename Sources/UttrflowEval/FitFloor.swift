@@ -27,7 +27,7 @@ public enum FittedLayer: String, Sendable, CaseIterable {
             DataFloor(
                 unit: .labelledSpan, rowsPerParameter: 10, wrongPerCell: 100, rowsPerCell: 0,
                 weightPerFeature: true,
-                fixedParameters: 1 + DataFloor.calibrationSteps)
+                fixedParameters: 1 + DataFloor.calibrationParameters)
         case .contextNgram:
             DataFloor(
                 unit: .sentence, rowsPerParameter: 0, wrongPerCell: 0, rowsPerCell: 2_000,
@@ -64,8 +64,8 @@ public struct DataFloor: Sendable, Equatable {
         case decision
     }
 
-    /// The most steps a fitted calibration map is allowed, each needing its share of rows.
-    public static let calibrationSteps = 10
+    /// The parameters the one calibration map has: its temperature.
+    public static let calibrationParameters = 1
 
     public let unit: Unit
     /// Fewest development rows per fitted parameter.
@@ -76,7 +76,7 @@ public struct DataFloor: Sendable, Equatable {
     public let rowsPerCell: Int
     /// Whether the fit learns one weight per feature.
     public let weightPerFeature: Bool
-    /// Parameters the fit has whatever its feature count: a bias, calibration steps, a threshold.
+    /// Parameters the fit has whatever its feature count: a bias, a calibration temperature, a threshold.
     public let fixedParameters: Int
 
     /// The parameters a fit over `featureCount` features has.

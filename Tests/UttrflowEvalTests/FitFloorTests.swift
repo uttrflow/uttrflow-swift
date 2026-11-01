@@ -75,7 +75,7 @@ struct FitFloorTests {
     @Test("Each layer counts its parameters from the floor's own shape")
     func parameterCounts() {
         let counts = FittedLayer.allCases.map { $0.floor.parameters(featureCount: 4) }
-        #expect(counts == [5, 15, 0, 0, 2, 1])
+        #expect(counts == [5, 6, 0, 0, 2, 1])
     }
 
     @Test("Docs/dictation-quality.md states every fitted layer's floor as the code holds it")

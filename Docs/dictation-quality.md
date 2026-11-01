@@ -134,13 +134,13 @@ exists for fitting, in Swift or in `Scripts/`.
 | Model family | Fit | Home |
 |---|---|---|
 | Linear scorer over fewer than 20 features | L2-regularised logistic regression | `LinearScorer.fit` |
-| Monotone calibration map | pool-adjacent-violators | `MonotoneCalibration.fit` |
+| Calibration map | one temperature, minimising log-loss | `TemperatureScaling.fit` |
 | Count table | a dictionary of counts | the layer's own reader format |
 
 A fit is bit-reproducible: the same rows give the same artifact digest in any process, on any
 thread count and on any Apple silicon Mac. Rows are read in the caller's array order, never by
-iterating a `Dictionary` or `Set`; sums run on one thread in that order; ties sort by a stated key
-(`MonotoneCalibration.fit` puts wrong before right at an equal score); a fit draws no randomness,
+iterating a `Dictionary` or `Set`; sums run on one thread in that order; ties need no key
+(the temperature search reads every row); a fit draws no randomness,
 and one that must draws from a seed it stores in its record. Stored floats keep 12 significant
 digits (`FitArtifact.stored`) and `digest` hashes that form, so a last-bit difference cannot change
 it. `FittingTests` pins the fixture's digest and refits on eight threads at once; it runs without
@@ -157,10 +157,24 @@ thread, synthetic rows of 20 features:
 |---|---|---|
 | `LinearScorer.fit`, 200 iterations | 100,000 | 7.7 s |
 | `LinearScorer.fit`, 200 iterations | 1,000,000 | 40.2 s |
-| `MonotoneCalibration.fit` | 1,000,000 | 0.17 s |
 | Bigram-shaped count table | 5,000,000 increments | 1.3 s |
 
 The largest fit is under one minute, against a ten-minute limit on a 16 GB Mac.
+
+### Which calibration map
+
+One map ships: temperature scaling, a score divided by one fitted temperature (`TemperatureScaling`).
+The rule is the simpler map unless the other wins by more than its interval at the data floor's
+size. A step map (isotonic regression) over-fits at tens of positive examples, and a second map
+behind a switch would be two paths for one job, so the step map and its test are deleted.
+
+| Map | Cross-validated ECE, Brier, log-loss | Status |
+|---|---|---|
+| Temperature scaling | not measured: no word-score fit table exists | chosen by the rule |
+| Isotonic (pool-adjacent-violators) | not measured | deleted |
+
+The comparison with paired intervals runs once a fit table with passage groups exists. If the
+isotonic map then wins by more than its interval, this section records it and reopens the choice.
 
 ### What a calibration was fitted under
 
@@ -244,7 +258,7 @@ a layer never ships on one language's evidence.
 | Layer | Unit | Rows per parameter | Wrong rows per cell | Rows per cell | Parameters | Item |
 |---|---|---|---|---|---|---|
 | `span-reranker` | labelled span | 10 | 30 | 0 | one weight per feature, plus a bias | 1.2 |
-| `doubt-detector` | labelled span | 10 | 100 | 0 | one weight per feature, a bias and up to 10 calibration steps, each needing about 10 wrong spans | 1.9 |
+| `doubt-detector` | labelled span | 10 | 100 | 0 | one weight per feature, a bias and a calibration temperature | 1.9 |
 | `context-ngram` | text sentence | 0 | 0 | 2,000 | counts only, no labels | 1.11 |
 | `masked-scorer` | labelled span | 0 | 2,000 | 0 | about 20 million, so thousands of wrong spans per cell rather than a ratio | 1.12 |
 | `override-gate` | decision | 10 | 30 | 300 | a calibration temperature and a threshold; 300 decisions bound the false-override rate under 1 in 100 with zero failures, and certifying the 1 in 1,000 target takes the 2,995 in [accuracy-targets.md](accuracy-targets.md#the-targets) | 1.13 |

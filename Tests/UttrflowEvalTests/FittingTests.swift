@@ -27,15 +27,18 @@ struct FittingTests {
         #expect(scorer.probability([]) == 0.5)
     }
 
-    @Test("A monotone calibration pools violators and never decreases")
-    func calibrationPools() {
-        let calibration = MonotoneCalibration.fit(
-            scores: [1, 2, 3, 4, 5, 6], labels: [false, true, false, false, true, true])
-        #expect(calibration.probabilities == calibration.probabilities.sorted())
-        #expect(calibration.probability(1) == 0)
-        #expect(calibration.probability(3) == 1.0 / 3)
-        #expect(calibration.probability(9) == 1)
-        #expect(MonotoneCalibration.fit(scores: [], labels: []).probability(1) == 0)
+    @Test("The calibration map is monotone, stays in [0, 1], and flattens an over-confident score")
+    func temperatureCalibrates() {
+        let scores = [-6.0, -4, -2, 0, 2, 4, 6, 6]
+        let labels = [false, true, false, true, false, true, true, false]
+        let calibration = TemperatureScaling.fit(scores: scores, labels: labels)
+        #expect(calibration.temperature > 1)
+        let curve = stride(from: -50.0, through: 50, by: 0.5).map(calibration.probability)
+        #expect(curve == curve.sorted())
+        #expect(curve.allSatisfy { (0.0...1.0).contains($0) })
+        #expect(calibration.probability(0) == 0.5)
+        #expect(TemperatureScaling.fit(scores: [], labels: []).temperature == 1)
+        #expect(TemperatureScaling(temperature: -3).temperature == 1)
     }
 
     // The digest of `rows`' fit, recorded on an Apple M5 Pro; any process or Mac must reproduce it.
@@ -56,10 +59,10 @@ struct FittingTests {
         #expect(digests == [LinearScorer.fit(Self.rows).digest])
     }
 
-    @Test("Equal scores calibrate the same whatever order their labels arrive in")
-    func calibrationTiesAreOrdered() {
-        let forward = MonotoneCalibration.fit(scores: [1, 1, 2, 2], labels: [true, false, false, true])
-        let reverse = MonotoneCalibration.fit(scores: [2, 2, 1, 1], labels: [true, false, false, true])
+    @Test("The same rows in any order calibrate to one digest")
+    func calibrationIgnoresOrder() {
+        let forward = TemperatureScaling.fit(scores: [1, 1, 2, 2], labels: [true, false, false, true])
+        let reverse = TemperatureScaling.fit(scores: [2, 2, 1, 1], labels: [true, false, false, true])
         #expect(forward.digest == reverse.digest)
     }
 

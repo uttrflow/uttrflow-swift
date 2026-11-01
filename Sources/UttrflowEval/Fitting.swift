@@ -93,45 +93,51 @@ public struct LinearScorer: Sendable, Equatable {
     }
 }
 
-/// A monotone map from a raw score to a calibrated probability, fitted by pool-adjacent-violators.
-public struct MonotoneCalibration: Sendable, Equatable {
-    /// The upper score of each step, ascending.
-    public let thresholds: [Double]
-    /// The probability for scores up to the matching threshold; never decreasing.
-    public let probabilities: [Double]
+/// The one calibration map: a score over a fitted temperature, squashed to a probability (see Docs/dictation-quality.md).
+public struct TemperatureScaling: Sendable, Equatable {
+    /// Searched range of the natural log of the temperature; wide enough for any score spread a fit sees.
+    static let logTemperatureRange = -4.0...4.0
+    /// Golden-section steps; fixed, so the same rows always give the same temperature.
+    static let searchSteps = 80
 
-    /// The calibrated probability of one score; scores above the last step take the last value.
+    /// The positive divisor of the score; above 1 flattens an over-confident score, below 1 sharpens it.
+    public let temperature: Double
+
+    public init(temperature: Double) {
+        self.temperature = temperature.isFinite && temperature > 0 ? temperature : 1
+    }
+
+    /// The calibrated probability of one score; never decreasing in the score and always in [0, 1].
     public func probability(_ score: Double) -> Double {
-        guard let last = probabilities.last else { return 0 }
-        var low = 0
-        var high = thresholds.count
-        while low < high {
-            let middle = (low + high) / 2
-            if thresholds[middle] < score { low = middle + 1 } else { high = middle }
-        }
-        return low < probabilities.count ? probabilities[low] : last
+        LinearScorer.sigmoid(score / temperature)
     }
 
     /// The digest of this calibration's stored form.
     public var digest: String {
-        FitArtifact.digest([("thresholds", thresholds), ("probabilities", probabilities)])
+        FitArtifact.digest([("temperature", [temperature])])
     }
 
-    /// Fits from scores and whether each was right; equal scores sort wrong before right, whatever the input order.
-    public static func fit(scores: [Double], labels: [Bool]) -> MonotoneCalibration {
-        let pairs = zip(scores, labels).sorted { $0.0 != $1.0 ? $0.0 < $1.0 : (!$0.1 && $1.1) }
-        var blocks: [(upper: Double, sum: Double, weight: Double)] = []
-        for (score, label) in pairs {
-            blocks.append((score, label ? 1 : 0, 1))
-            while blocks.count > 1,
-                let last = blocks.last, let previous = blocks.dropLast().last,
-                previous.sum / previous.weight >= last.sum / last.weight
-            {
-                blocks.removeLast(2)
-                blocks.append((last.upper, previous.sum + last.sum, previous.weight + last.weight))
+    /// Fits by minimising log-loss over the temperature; scores are read in the caller's order.
+    public static func fit(scores: [Double], labels: [Bool]) -> TemperatureScaling {
+        let pairs = Array(zip(scores, labels))
+        guard !pairs.isEmpty else { return TemperatureScaling(temperature: 1) }
+        func loss(_ logTemperature: Double) -> Double {
+            let temperature = exp(logTemperature)
+            var total = 0.0
+            for (score, label) in pairs {
+                let value = max(1e-12, min(1 - 1e-12, LinearScorer.sigmoid(score / temperature)))
+                total -= log(label ? value : 1 - value)
             }
+            return total
         }
-        return MonotoneCalibration(
-            thresholds: blocks.map(\.upper), probabilities: blocks.map { $0.sum / $0.weight })
+        let ratio = (5.0.squareRoot() - 1) / 2
+        var low = logTemperatureRange.lowerBound
+        var high = logTemperatureRange.upperBound
+        for _ in 0..<searchSteps {
+            let first = high - ratio * (high - low)
+            let second = low + ratio * (high - low)
+            if loss(first) <= loss(second) { high = second } else { low = first }
+        }
+        return TemperatureScaling(temperature: exp((low + high) / 2))
     }
 }
