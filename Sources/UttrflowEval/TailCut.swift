@@ -10,16 +10,23 @@ public enum TailCut {
     /// Speech is a frame whose level is within this many decibels of the clip's loudest frame.
     public static let speechFloorDecibels: Float = 40
 
-    /// The sample just after the last frame loud enough to be speech, or zero when nothing is.
-    public static func speechEnd(of samples: [Float]) -> Int {
+    /// From the first frame loud enough to be speech to just after the last, or nil when none is.
+    public static func speechRange(of samples: [Float]) -> Range<Int>? {
         let levels = stride(from: 0, to: samples.count, by: frameSamples).map { start in
             let frame = samples[start..<min(samples.count, start + frameSamples)]
             return (frame.reduce(Float(0)) { $0 + $1 * $1 } / Float(frame.count)).squareRoot()
         }
-        guard let peak = levels.max(), peak > 0 else { return 0 }
+        guard let peak = levels.max(), peak > 0 else { return nil }
         let floor = peak * Float(pow(10, Double(-speechFloorDecibels / 20)))
-        guard let last = levels.lastIndex(where: { $0 >= floor }) else { return 0 }
-        return min(samples.count, (last + 1) * frameSamples)
+        guard let first = levels.firstIndex(where: { $0 >= floor }),
+            let last = levels.lastIndex(where: { $0 >= floor })
+        else { return nil }
+        return (first * frameSamples)..<min(samples.count, (last + 1) * frameSamples)
+    }
+
+    /// The sample just after the last frame loud enough to be speech, or zero when nothing is.
+    public static func speechEnd(of samples: [Float]) -> Int {
+        speechRange(of: samples)?.upperBound ?? 0
     }
 
     /// One tap period in canonical samples, for a tap of `tapFrames` at the device's `inputRate`.
