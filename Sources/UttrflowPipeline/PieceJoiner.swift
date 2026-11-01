@@ -542,11 +542,9 @@ enum PieceJoiner {
     private static func layoutCommands(
         _ draft: inout Draft, at starts: [Int], under formatter: DestinationFormatter
     ) {
-        let commands: [(words: [String], mark: String, requiresLists: Bool)] = [
-            (["new", "line"], "\n", false), (["new", "paragraph"], "\n\n", false),
-            (["blank", "line"], "\n\n", false), (["bullet", "point"], "\n- ", true),
-            (["next", "point"], "\n- ", true),
-        ]
+        let commands: [(words: [String], mark: String, requiresLists: Bool)] = SpokenCommands.layout.map {
+            ($0.words, $0.text, $0.requiresLists)
+        }
         for opening in starts.indices.dropFirst() {
             let start = starts[opening]
             let end = opening + 1 < starts.count ? starts[opening + 1] : draft.words.count
@@ -580,7 +578,8 @@ enum PieceJoiner {
                     at: live[first - 1], with: WordShape.finished(draft.words[live[first - 1]].text),
                     by: id)
             }
-            draft.replace(at: live[first], with: found.command.mark, by: id)
+            draft.replace(
+                at: live[first], with: draft.nestedMark(found.command.mark, before: live[first]), by: id)
             draft.words[live[first]].breakEvidence = .spokenCommand
             for index in live[(first + 1)..<last] {
                 draft.remove(at: index, by: id)
