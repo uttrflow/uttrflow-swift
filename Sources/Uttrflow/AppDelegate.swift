@@ -157,8 +157,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var clipboardPreferences = ClipboardPreferences()
     private var clipboardPreferencesUnreadable = false
     private var clipboardPreferencesSetAside: URL?
-    private var clipboardPauseTask: Task<Void, Never>?
-    private var clipboardPauseUntil: Date?
+    private let clipboardPause = ClipboardPause()
     private var retentionSweepTask: Task<Void, Never>?
 
     /// Tab-to-complete, built only where the user has asked for it. See `Docs/predict.md`.
@@ -264,7 +263,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             clipboardPreferencesUnreadable = true
             clipboardPreferencesSetAside = setAside
         }
-        clipboardPauseUntil = clipboardPreferences.pausedUntil
+        clipboardPause.load(clipboardPreferences.pausedUntil)
         self.loginItem = loginItem
         self.settingsStore = settingsStore
         self.account = account
@@ -1751,17 +1750,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     var isClipboardPaused: Bool {
         guard !clipboardPreferencesUnreadable else { return true }
-        guard let clipboardPauseUntil else { return false }
-        return clipboardPauseUntil > Date()
+        return clipboardPause.isActive
     }
 
     /// Stops capture immediately and resumes from a fresh baseline after one hour.
     private func setClipboardPaused(_ isPaused: Bool) {
         guard !clipboardPreferencesUnreadable else { return }
-        clipboardPauseTask?.cancel()
-        clipboardPauseTask = nil
-        clipboardPauseUntil = isPaused ? Date().addingTimeInterval(60 * 60) : nil
-        clipboardPreferences.pausedUntil = clipboardPauseUntil
+        clipboardPreferences.pausedUntil = clipboardPause.set(isPaused)
         settingsPage.setClipboardCapturePaused(isPaused)
         saveClipboardPreferences()
         if isPaused {
@@ -1776,15 +1771,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     private func startClipboardPauseTimerIfNeeded() {
-        guard clipboardPauseTask == nil, let until = clipboardPauseUntil else { return }
-        let delay = max(0, until.timeIntervalSinceNow)
-        clipboardPauseTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(delay))
-            guard !Task.isCancelled else { return }
-            self?.clipboardPauseUntil = nil
+        clipboardPause.startTimerIfNeeded { [weak self] in
             self?.clipboardPreferences.pausedUntil = nil
             self?.saveClipboardPreferences()
-            self?.clipboardPauseTask = nil
             self?.followTheClipboardSwitch()
         }
     }
@@ -1855,7 +1844,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             clipboardPreferences = try clipboardPreferencesFile.restore(from: clipboardPreferencesSetAside)
             self.clipboardPreferencesSetAside = nil
             clipboardPreferencesUnreadable = false
-            clipboardPauseUntil = clipboardPreferences.pausedUntil
+            clipboardPause.load(clipboardPreferences.pausedUntil)
             actionNotice = nil
             followTheClipboardSwitch()
             refreshMainWindow()

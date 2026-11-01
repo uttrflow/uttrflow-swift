@@ -57,4 +57,16 @@ enum ClipReclassification {
             return ordered.image == nil && ordered.files == nil ? secrecy.applied(to: ordered) : ordered
         }
     }
+
+    /// The persistable records a finished detector pass should write, or nil while any current text lacks a result.
+    static func rewrite(
+        _ updated: [Clip], from snapshot: [Clip], into current: [Clip], liveOrder wholeList: [Clip],
+        secrecy: inout ClipSecrecyOverrides
+    ) -> [Clip]? {
+        let merge = merge(updated, from: snapshot, into: current)
+        // A changed or new clip has no detector result, so the next launch needs a fresh snapshot.
+        guard merge.coversCurrentText else { return nil }
+        // The rewritten index keeps the eviction orders the live list gave on load, so it reopens equal.
+        return ordered(merge.clips, in: wholeList, secrecy: &secrecy).filter(ClipboardStore.isPersistable)
+    }
 }
