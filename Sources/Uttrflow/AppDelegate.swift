@@ -359,7 +359,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         pasteboard: announcingPasteboard)
 
     /// Replays the last transcript through the clipboard-free dictation route.
-    var lastTranscriptInserter: any TextInserting = TextInsertion.dictation()
+    lazy var lastTranscriptInserter: any TextInserting = TextInsertion.dictation(
+        pasteboard: announcingPasteboard)
 
     /// Panel pastes do not read another app's text field just to decide whether to show a notice.
     private lazy var panelClipInserter: any TextInserting = TextInsertion.coordinator(
@@ -1463,7 +1464,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             cleaner: cleaner(for: settings),
             context: context,
             // Announced, like every write this app makes. See `Docs/insertion.md`.
-            inserter: TextInsertion.dictation(ledger: ledger),
+            inserter: TextInsertion.dictation(pasteboard: announcingPasteboard, ledger: ledger),
             speechWords: { seeing in await speechWords.vocabulary(favouring: seeing) },
             corrector: DictionaryCorrections(
                 index: { [dictionary] application in await dictionary.index(in: application) },

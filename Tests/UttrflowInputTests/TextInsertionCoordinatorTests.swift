@@ -48,12 +48,14 @@ struct TextInsertionCoordinatorTests {
     @Test("a dictation after Accessibility is turned off fails as the permission, with settings as recovery")
     func lostTrustIsNamed() async throws {
         let before = TextInsertion.dictation(
-            focus: FakeFocus(field: FakeTextField()), typist: SilentTypist())
+            focus: FakeFocus(field: FakeTextField()), typist: SilentTypist(),
+            pasteboard: FakePasteboard(), keystrokes: FakeKeystrokeSender())
         _ = try await before.insert("first")
 
         // As the system typist does once trust is gone: every keystroke is refused.
         let after = TextInsertion.dictation(
-            focus: FakeFocus(trusted: false), typist: SilentTypist(refusal: .accessibilityDenied))
+            focus: FakeFocus(trusted: false), typist: SilentTypist(refusal: .accessibilityDenied),
+            pasteboard: FakePasteboard(), keystrokes: FakeKeystrokeSender(error: .accessibilityDenied))
         let error = await #expect(throws: TextInsertionError.self) { try await after.insert("second") }
 
         #expect(error == .accessibilityDenied)
@@ -536,8 +538,8 @@ struct IdenticalSelectionInsertionTests {
         #expect(keystrokes.pasteCount == 0, "a successful same-text replacement must not also be pasted")
     }
 
-    @Test("stops fallback when an accepted Accessibility write has no resulting selection")
-    func doesNotDuplicateAnUnconfirmedWrite() async throws {
+    @Test("an accepted Accessibility write with no readable selection succeeds and is not pasted again")
+    func acceptedUnreadableWriteSucceeds() async throws {
         let field = SelectionWriter(
             field: FakeSelectionField("hello") {
                 $0.reportsSelection = false
@@ -547,10 +549,10 @@ struct IdenticalSelectionInsertionTests {
             focus: FakeFocus(field: field, somethingFocused: true),
             pasteboard: FakePasteboard(), keystrokes: keystrokes)
 
-        await #expect(throws: TextInsertionError.insertionUnconfirmed) {
-            try await coordinator.insert(" world")
-        }
+        let attempt = try await coordinator.insert(" world")
 
+        #expect(attempt.method == .accessibility)
+        #expect(attempt.arrival == .notReported)
         #expect(field.field.text == "hello world")
         #expect(keystrokes.pasteCount == 0)
     }

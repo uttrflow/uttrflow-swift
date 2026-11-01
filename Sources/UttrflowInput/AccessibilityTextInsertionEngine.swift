@@ -45,12 +45,15 @@ public struct AccessibilityTextInsertionEngine: TextInsertionEngine {
         // Asked immediately before the write, so a stage that timed out cannot land words seconds late.
         try TextInsertion.requireLive()
         try refuseIfSelfFrontmost()
-        try await AccessibilityThread.run { () throws(TextInsertionError) in
+        return try await AccessibilityThread.run { () throws(TextInsertionError) -> InsertionArrival in
             try TextInsertion.requireTarget(destination, focus: focus)
+            if let reporting = field as? any ArrivalReportingField {
+                return try reporting.writeReportingArrival(text)
+            }
+            // A field that only knows the strict write has proved the caret whenever it returns.
             try field.replaceSelection(with: text)
+            return text.isEmpty ? .notReported : .confirmed
         }
-        // `replaceSelection` throws unless the caret ended where the words end, so returning is the proof.
-        return text.isEmpty ? .notReported : .confirmed
     }
 }
 
