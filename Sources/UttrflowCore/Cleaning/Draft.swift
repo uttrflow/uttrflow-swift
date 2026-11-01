@@ -61,6 +61,8 @@ public struct Draft: Sendable, Equatable {
         /// Where the recogniser heard the word end; nil when untimed or inserted.
         public let end: Duration?
         public var state: State
+        /// For a line break, paragraph break or list mark, what justified writing it; nil on a word and on a break nothing justified.
+        public var breakEvidence: BreakEvidence?
         /// Every change a pass has made to this word, oldest first.
         public private(set) var edits: [Edit]
 

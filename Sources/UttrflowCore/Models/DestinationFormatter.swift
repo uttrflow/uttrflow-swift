@@ -192,6 +192,12 @@ public struct DestinationFormatter: Sendable, Equatable {
     /// Whether a line opening with a program typed at a prompt keeps its heard case: source, never a comment's prose.
     public var keepsCommandCase: Bool { destination == .codeEditor && !layout.contains(.paragraphs) }
 
+    /// The most paragraph breaks per 100 words that pauses and topic cues may write here, a break the speaker asked for not counting.
+    public var inferredBreaksPer100Words: Int {
+        guard layout.contains(.paragraphs), !layout.contains(.singleLine) else { return 0 }
+        return destination == .messaging ? 4 : 10
+    }
+
     /// Whether this place's first-word or stop policy would still change `text`, so an answer returning it unchanged did no work.
     public func owesFormatting(_ text: String) -> Bool {
         let first = text.first.map(String.init) ?? ""
