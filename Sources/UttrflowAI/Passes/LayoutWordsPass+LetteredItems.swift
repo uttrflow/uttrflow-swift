@@ -68,7 +68,8 @@ extension LayoutWordsPass {
             let named = keys[index] == "sub" ? 2 : 1
             let isLabel =
                 named == 2
-                ? ["clause", "paragraph"].contains(keys[index + 1]) : labelWords.contains(keys[index])
+                ? ["clause", "paragraph"].contains(keys[index + 1])
+                : LayoutSeriesWords.labelWords.contains(keys[index])
             if isLabel, index + named < keys.count, ["a", "i"].contains(keys[index + named]) { return true }
         }
         return false
