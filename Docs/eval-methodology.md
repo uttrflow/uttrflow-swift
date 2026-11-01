@@ -1009,6 +1009,20 @@ uttrflow-eval harvest-confusions --manifest <dir>/manifest.tsv \
 The table's `provenance.engine` names the model that decoded it; a table from another engine is
 rebuilt, not reused.
 
+**Recorded run, synthetic speech only.** The 35 invented sentences of `Scripts/dictation_bench.py`
+(personas, developer speech, numbers, emails, code, punctuation, nouns), read by Samantha:en_US,
+Daniel:en_GB and Rishi:en_IN at 160 and 220 words per minute: 210 clips, shipping model
+(`openai_whisper-large-v3-v20240930_turbo_632MB`), `--minimum-speakers 1`, release build.
+
+| table pairs | digest, run 1 and run 2 | held-out coverage (synthetic) | coverage of real calibration errors |
+|---|---|---|---|
+| 105 | `6d9d76fb07c46b74` (the two output files are byte-identical) | 80.3% | not measured |
+
+The last column needs the recorded calibration-split audio and a `transcribe` results folder
+(`--calibration-results`), which this run did not have. The held-out figure is one synthetic
+speaker group judged against others on the same sentences, so it is not evidence of coverage of
+real errors. The table is not committed: the command rebuilds it from the text set above.
+
 ## Wrong forms from synthetic voices as bias paths (`path-coverage`)
 
 The question is whether the wrong forms the recogniser writes for a rare term, spoken by system
