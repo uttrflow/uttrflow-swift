@@ -153,7 +153,8 @@ struct MisheardFormTests {
 
         var other: [DictionaryEntry] = []
         for number in [20, 21, 22] {
-            other += try await relaunched.learnEdit(heard: "cube control", wrote: "Kubernetes", at: day(number))
+            other += try await relaunched.learnEdit(
+                heard: "cube control", wrote: "Kubernetes", at: day(number))
         }
         #expect(other.map(\.word) == ["Kubernetes"])
     }
