@@ -13,8 +13,8 @@ public enum BreakEvidence: Sendable, Equatable {
     /// The break was already in a piece that was laid out and checked before the pieces were joined.
     case carried
 
-    /// Whether the speaker asked for the break, which no legality row overrules.
-    public var isSpoken: Bool { self == .spokenCommand }
+    /// Whether a legality row leaves the break's place alone: the speaker asked for it, or a piece carried it in checked.
+    public var isSettled: Bool { self == .spokenCommand || self == .carried }
 
     /// Whether the break was inferred from the shape of the speech rather than asked for or already checked.
     public var isInferred: Bool {
