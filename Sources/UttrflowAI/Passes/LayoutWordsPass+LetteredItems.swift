@@ -75,6 +75,19 @@ extension LayoutWordsPass {
         }
     }
 
+    /// Whether these words say a label and the first letter or numeral after it, so a label said later would continue that series.
+    public static func mayOpenSeries(_ words: [String]) -> Bool {
+        let keys = words.map { WordShape($0).key }
+        for index in keys.indices.dropLast() {
+            let named = keys[index] == "sub" ? 2 : 1
+            let isLabel =
+                named == 2
+                ? ["clause", "paragraph"].contains(keys[index + 1]) : labelWords.contains(keys[index])
+            if isLabel, index + named < keys.count, ["a", "i"].contains(keys[index + named]) { return true }
+        }
+        return false
+    }
+
     /// Whether the words from `start` up to `end` hold an item, not only a joining word: "item a and item b" has none.
     private func hasItemBetween(_ start: Int, _ end: Int, in live: [Int], of draft: Draft) -> Bool {
         guard end > start else { return false }

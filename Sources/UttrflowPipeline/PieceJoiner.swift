@@ -146,16 +146,18 @@ enum PieceJoiner {
         {
             return false
         }
-        let units = CleaningPipeline(
-            passes: CleaningPipeline.piece(
-                numbers: formatter.numbers, digits: situation.digits(for: formatter),
-                insertionPoint: situation.insertion, destination: formatter.destination,
-                intent: situation.intent, mode: situation.adapterMode
-            ).passes.filter { unitReaders.contains($0.id) })
+        let pieceReaders = CleaningPipeline.piece(
+            numbers: formatter.numbers, digits: situation.digits(for: formatter),
+            insertionPoint: situation.insertion, destination: formatter.destination,
+            intent: situation.intent, mode: situation.adapterMode
+        ).passes
+        let units = CleaningPipeline(passes: pieceReaders.filter { unitReaders.contains($0.id) })
+        let series = CleaningPipeline(passes: pieceReaders.filter { $0.id == .layoutWords })
         func read(_ words: [String]) -> [String] {
             // A capital the date gives its month counts, so "march | third" is read as the one date.
             WordTokens.words(units.run(Draft(text: words.joined(separator: " "))).text, .display)
         }
+        if letteredSeriesRunsAcross(head, into: tail, reading: series) { return true }
         let headRead = read(Array(headWords))
         let apart = headRead + read(Array(tailWords))
         let together = read(Array(headWords + tailWords))
@@ -164,6 +166,16 @@ enum PieceJoiner {
         let cued = NumberFormsPass.hasLabelCue(
             at: headRead.count - 1, keys: shapes.map(\.key), shapes: shapes)
         return cued || !gluesDigitGroups(together, from: apart, at: headRead.count)
+    }
+
+    /// Whether the head opens a lettered item series ("item a") that the tail goes on with, so the series is read from the whole head: a series is longer than the window a number is read in.
+    private static func letteredSeriesRunsAcross(
+        _ head: String, into tail: String, reading layout: CleaningPipeline
+    ) -> Bool {
+        let headWords = WordTokens.words(head, .display)
+        guard LayoutWordsPass.mayOpenSeries(headWords) else { return false }
+        func read(_ text: String) -> String { layout.run(Draft(text: text)).text }
+        return read(head + " " + tail) != read(head) + " " + read(tail)
     }
 
     /// Whether reading across the cut only fused two two-digit numbers into a year-like number ("20" "30"), not a century half and a second half that is no round ten.
