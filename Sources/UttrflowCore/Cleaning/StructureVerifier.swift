@@ -1,4 +1,4 @@
-/// Takes out, leaving every word, each break or list mark of a laid-out draft that has no evidence or stands where it cannot; a spoken break is not judged by place.
+/// Takes out, leaving every word, each break or list mark of a laid-out draft that has no evidence or stands where it cannot; a spoken or already checked break is not judged by place.
 public enum StructureVerifier {
     /// Which rule took a break out.
     public enum Reason: Sendable, Equatable {
@@ -45,7 +45,7 @@ public enum StructureVerifier {
                 drop(index, .untagged)
                 continue
             }
-            if !evidence.isSpoken, !draft.words[index].isListMark,
+            if !evidence.isSettled, !draft.words[index].isListMark,
                 let reason = illegal(at: index, in: draft)
             {
                 drop(index, reason)

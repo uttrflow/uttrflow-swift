@@ -60,6 +60,13 @@ struct StructureVerifierTests {
         #expect(result.text == "We shipped it and\nBilling is next.")
     }
 
+    @Test("keeps a break a piece already carried, after a comma, as it keeps one the speaker asked for")
+    func carriedBreakIsNotJudged() {
+        let result = verify(words("Thanks for your patience,") + [("\n", .carried)] + words("Dana."))
+        #expect(result.removed.isEmpty)
+        #expect(result.text == "Thanks for your patience,\nDana.")
+    }
+
     @Test("takes out an inferred break inside a bracket or a quotation")
     func insideSpan() {
         #expect(
