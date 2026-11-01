@@ -4,8 +4,7 @@ import Testing
 @testable import UttrflowCore
 @testable import UttrflowEval
 
-/// The recogniser answers some Hinglish passages in Devanagari; the last-resort layer must still write Latin.
-/// The pipeline's own insertion of such text is covered in `DictationPipelineLatinOutputTests`.
+/// The last-resort layer writes Latin for Devanagari answers; the pipeline path is in `DictationPipelineLatinOutputTests`.
 @Suite("Devanagari recogniser output")
 struct DevanagariRecogniserOutputTests {
     @Test("writes every Hindi and Hinglish passage heard in Devanagari as Latin letters")
