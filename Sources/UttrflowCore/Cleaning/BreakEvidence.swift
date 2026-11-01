@@ -8,6 +8,8 @@ public enum BreakEvidence: Sendable, Equatable {
     case topicCue
     /// A counted sequence the speaker enumerated: "first", "second", "number three".
     case ordinalEnumeration
+    /// A series the speaker announced with a count ("the following three items") and then spoke in full, that many members.
+    case announcedSeries
     /// The break was already in a piece that was laid out and checked before the pieces were joined.
     case carried
 
@@ -18,7 +20,7 @@ public enum BreakEvidence: Sendable, Equatable {
     public var isInferred: Bool {
         switch self {
         case .longPause, .topicCue, .ordinalEnumeration: true
-        case .spokenCommand, .carried: false
+        case .spokenCommand, .carried, .announcedSeries: false
         }
     }
 }

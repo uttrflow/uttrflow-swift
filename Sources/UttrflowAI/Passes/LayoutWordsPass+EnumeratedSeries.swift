@@ -15,6 +15,17 @@ extension LayoutWordsPass {
         "night", "nights", "morning", "mornings", "second", "seconds", "time", "times",
     ]
 
+    /// Plural nouns that do not end in "s"; a cue counting them announces a series just as "items" does.
+    private static let irregularPlurals: Set<String> = ["men", "women", "children", "people"]
+
+    /// Words that open a clause, not an item: a series running into one has not ended.
+    private static let clauseOpeners: Set<String> = [
+        "then", "but", "so", "because", "which", "while", "though", "although", "or",
+    ]
+
+    /// Verbs that make "the following three items are ..." a statement, whose first word is no member of the series.
+    private static let copulas: Set<String> = ["are", "is", "include", "includes", "were", "was"]
+
     /// The most words an item of a spoken series may take; a longer stretch is a clause.
     private static let longestItem = 6
 
@@ -49,7 +60,11 @@ extension LayoutWordsPass {
         let noun = position + 1 + count.count
         guard noun + 1 < live.count else { return nil }
         let nounShape = draft.shape(at: live[noun])
-        guard nounShape.key.count > 3, nounShape.key.hasSuffix("s"), !Self.measures.contains(nounShape.key),
+        guard
+            (nounShape.key.count > 3 && nounShape.key.hasSuffix("s"))
+                || Self.irregularPlurals.contains(nounShape.key),
+            !Self.measures.contains(nounShape.key),
+            !Self.copulas.contains(draft.shape(at: live[noun + 1]).key),
             nounShape.suffix.isEmpty || nounShape.suffix == ":" || nounShape.suffix == ","
         else { return nil }
         let end = draft.sentenceEnd(from: noun + 1, in: live)
@@ -79,7 +94,8 @@ extension LayoutWordsPass {
             items[items.count - 1].removeFirst()
         }
         guard items.count == count.value,
-            items.allSatisfy({ !$0.isEmpty && $0.count <= Self.longestItem })
+            items.allSatisfy({ !$0.isEmpty && $0.count <= Self.longestItem }),
+            !items.contains(where: { Self.clauseOpeners.contains(draft.shape(at: live[$0[0]]).key) })
         else { return nil }
         return Series(
             noun: live[noun], items: items.map { $0.map { live[$0] } },
@@ -102,6 +118,7 @@ extension LayoutWordsPass {
                 anchor = conjunction
             }
             draft.insert(mark, at: anchor, by: Self.id)
+            draft.words[anchor].breakEvidence = .announcedSeries
         }
         let shape = draft.shape(at: series.noun)
         draft.replace(at: series.noun, with: shape.prefix + shape.core + ":", by: Self.id)
