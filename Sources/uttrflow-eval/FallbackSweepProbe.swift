@@ -33,6 +33,11 @@ struct FallbackSweepProbe: AsyncParsableCommand {
     @Option(name: .long, help: "Use only the first this many clips of each voice.")
     var perVoice = SpokenClips.sentences.count
 
+    @Option(
+        name: .long,
+        help: "Clip set: sentences, short (one to three words) or hindi (Devanagari, voice Lekha).")
+    var set = ClipSet.sentences
+
     @Option(name: .long, parsing: .upToNextOption, help: "Dictionary terms given to the recogniser.")
     var vocabulary: [String] = []
 
@@ -49,9 +54,7 @@ struct FallbackSweepProbe: AsyncParsableCommand {
             throw CleanExit.message("\(model.variant) is not installed. Run: uttrflow-dev models install")
         }
         let folder = modelFolder.map { URL(fileURLWithPath: $0) } ?? store.location(of: model)
-        let all = try SpokenClips.generate(in: clipsPath, inputRate: 48_000)
-        let clips = all.enumerated().filter { $0.offset % SpokenClips.sentences.count < perVoice }
-            .map(\.element)
+        let clips = try set.clips(in: clipsPath, perVoice: perVoice)
         let plans =
             counts.map { SpeechFallbackPlan(temperatureCount: $0, logProbThreshold: -1.0) }
             + thresholds.map { SpeechFallbackPlan(temperatureCount: 5, logProbThreshold: $0) }
@@ -87,6 +90,37 @@ struct FallbackSweepProbe: AsyncParsableCommand {
             }
         }
         print("Fallback rate: decodes with a warmer re-decode. Identical: clips whose \(runs) runs agree.")
+    }
+}
+
+/// Which spoken clips a sweep decodes.
+enum ClipSet: String, ExpressibleByArgument {
+    case sentences, short, hindi
+
+    private static let shortPhrases = ["ok", "yes", "sounds good", "call me later", "thank you"]
+    private static let hindiPhrases = [
+        "मुझे कल सुबह जल्दी उठना है", "आज शाम को हम बाज़ार चलेंगे", "कृपया दरवाज़ा बंद कर दीजिए",
+        "यह किताब मेज़ पर रख दो", "हमें नौ बजे तक पहुँचना है", "चाय में थोड़ी चीनी डालिए",
+    ]
+
+    /// The clips of this set, `perVoice` phrases from each voice.
+    func clips(in path: String, perVoice: Int) throws -> [SpokenClip] {
+        let phrases: [String]
+        let voices: [String]
+        switch self {
+        case .sentences:
+            let all = try SpokenClips.generate(in: path, inputRate: 48_000)
+            return all.enumerated().filter { $0.offset % SpokenClips.sentences.count < perVoice }.map(
+                \.element)
+        case .short: (phrases, voices) = (Self.shortPhrases, SpokenClips.voices)
+        case .hindi: (phrases, voices) = (Self.hindiPhrases, ["Lekha"])
+        }
+        return try voices.flatMap { voice in
+            try phrases.prefix(perVoice).enumerated().map { index, phrase in
+                try SpokenClips.speak(
+                    phrase, voice: voice, name: "\(rawValue)-\(voice)-\(index)", in: path, inputRate: 48_000)
+            }
+        }
     }
 }
 

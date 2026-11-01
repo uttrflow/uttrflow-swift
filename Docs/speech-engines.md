@@ -563,6 +563,35 @@ A second sweep on the same clips, noisier (`--counts 0 1 2 5 --snrs 20 5 0`, 3 r
 Word error rises with noise (1.6%, 9.4%, 17.2%) but the fallback still never fires, even at 0 dB,
 so worst-case added seconds is 0.00 for every count.
 
+A third sweep adds the short-utterance and Hindi classes and runs each clip 8 times
+(`--set short|hindi|sentences --runs 8 --snrs inf 10 0`, same host and model, release build). The
+short set is 20 clips of 1 to 3 words (`ok`, `yes`, `sounds good`, `call me later`, `thank you`; four
+voices); the Hindi set is 6 Devanagari sentences by `Lekha`, scored against the Devanagari text; the
+sentence set is the 32 English clips. In every row the runs of every clip agreed (100.0% identical)
+and the fallback rate was 0.0%, with at most 0.15 s worst-case extra seconds. Rows that differ:
+
+| Set | Audio | Count | Log-prob | Mean extra s | Worst extra s | WER |
+|---|---|---|---|---|---|---|
+| short | clean, 10 dB | 0, 1, 2, 5 | -1.0, -0.7, -1.3 | 0.000 (0.009 at -0.7 clean) | 0.00 (0.10) | 11.1%, 16.7% |
+| short | 0 dB | 5, 1, 2 | -1.0 | 0.019 | 0.10 | 25.0% |
+| short | 0 dB | **0** | -1.0 | 0.019 | 0.10 | **50.0%** |
+| Hindi | clean, 10 dB | all | all | 0.000 | 0.00 | 23.5%, 41.2% |
+| Hindi | 0 dB | 5, 1, 2 | -1.0 | 0.034 | 0.15 | 85.3% |
+| Hindi | 0 dB | 0 | -1.0 | 0.034 | 0.15 | 82.4% |
+| sentences | clean, 10 dB | all | all | 0.000 | 0.00 | 0.4%, 3.3% |
+| sentences | 0 dB | 5, 1, 2 | -1.0 | 0.007 | 0.06 | 20.1% |
+| sentences | 0 dB | **0** | -1.0 | 0.007 | 0.06 | **27.5%** |
+
+- At 0 dB a window sometimes does fall back (mean extra seconds above zero while the rate rounds
+  to 0.0%), and removing the fallback raised word error on English short clips (25.0% to 50.0%) and
+  sentences (20.1% to 27.5%) while lowering it on Hindi by one word. One retry (count 1) already
+  gives the shipping result, so the ladder's depth beyond one step buys nothing measured here.
+- Run-to-run repeatability is not improved by any setting, because it was already 100.0%.
+  Nothing lands: a change needs the identical rate to rise, and it cannot.
+- Not measured: the recorded and degradation corpora (no recorded speech may be made), the
+  deterministic greedy re-decode arm, and the threshold half re-run after the segment-level signals
+  are corrected (#3567). Those remain open on the issue.
+
 On this set the fallback never fires, so no setting changes words, seconds or repeatability, and
 the shipping plan stays. The set cannot decide the question: the recorded and degradation corpora,
 Hindi, short utterances and 8 runs are not measured here, and the log-probability test still reads
