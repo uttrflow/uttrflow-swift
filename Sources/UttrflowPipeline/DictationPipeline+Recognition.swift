@@ -135,7 +135,7 @@ extension DictationPipeline {
         let preceding = dictationContext?.situation.recognitionContext
         let speaks = VoiceActivity.speechRange(in: slice.samples, sampleRate: slice.sampleRate) != nil
         let speech = retrySpeech ?? speech
-        // A load is waited for under its own limit, since a compile outlasts the recognition limit. See `Docs/startup.md`.
+        // Waits for a load under its own limit, since a compile outlasts the recognition limit. See `Docs/startup.md`.
         if !isReady {
             let loaded = try await withStageTimeout(speechLoadLimit, clock: clock) { [speech] in
                 try await speech.prepare()

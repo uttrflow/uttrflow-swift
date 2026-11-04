@@ -134,7 +134,7 @@ struct DictationPipelineLoadingTests {
         let finishing = Task { await pipeline.finishRecording() }
 
         while await pipeline.currentState != .transcribing { await Task.yield() }
-        // Well past the recognition limit, and in steps so each limit waiting now has run out if it was going to.
+        // Well past the recognition limit, in steps, so any limit waiting now runs out.
         for _ in 0..<4 {
             await clock.advanceWhenSomethingIsWaiting(by: StageTimeout.transcription + .seconds(60))
             for _ in 0..<50 { await Task.yield() }
