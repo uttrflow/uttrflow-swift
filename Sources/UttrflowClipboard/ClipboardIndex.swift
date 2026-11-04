@@ -7,12 +7,15 @@ import UttrflowCore
 package struct ClipboardIndex: Codable, Sendable, ElementwiseDecodable {
     package static let currentVersion = 2
     /// The detector version this build stamps on every index it judges; an older stamp is reclassified.
-    package static let currentClassifierVersion = 1
+    package static let currentClassifierVersion = 2
 
     package let version: Int
     package let clips: [Clip]
     package let classifierVersion: Int
     package let hasUnknownJSONKeys: Bool
+
+    /// Whether a released build would drop a clip on rewrite; the extra key makes it refuse.
+    private var holdsKeptSecrets: Bool { clips.contains { $0.kind == .secret } }
 
     package var isLegacy: Bool { version == 1 }
     package var isUnsupported: Bool { !isLegacy && version != Self.currentVersion }
@@ -51,9 +54,12 @@ package struct ClipboardIndex: Codable, Sendable, ElementwiseDecodable {
         try container.encode(version, forKey: .version)
         try container.encode(clips, forKey: .clips)
         try container.encode(classifierVersion, forKey: .classifierVersion)
+        if holdsKeptSecrets { try container.encode(true, forKey: .holdsKeptSecrets) }
     }
 
-    private enum CodingKeys: String, CodingKey { case version, clips, classifierVersion }
+    private enum CodingKeys: String, CodingKey, CaseIterable {
+        case version, clips, classifierVersion, holdsKeptSecrets
+    }
 
     /// Refuses JSON this build could decode only by silently discarding fields on its next write.
     package static func containsOnlyKnownJSONKeys(in data: Data) -> Bool {
@@ -62,7 +68,7 @@ package struct ClipboardIndex: Codable, Sendable, ElementwiseDecodable {
         if let legacyClips = root as? [Any] {
             clips = legacyClips
         } else if let index = root as? [String: Any],
-            Set(index.keys).isSubset(of: ["version", "clips", "classifierVersion"]),
+            Set(index.keys).isSubset(of: CodingKeys.allCases.map(\.rawValue)),
             let currentClips = index["clips"] as? [Any]
         {
             clips = currentClips

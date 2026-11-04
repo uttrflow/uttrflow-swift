@@ -67,7 +67,7 @@ public enum CaptureGate {
     }
 
     /// The version of the credential rules, raised whenever their behavior changes so learned lines are swept once.
-    public static let secretRulesVersion = 5
+    public static let secretRulesVersion = 6
 
     /// Removes every learned line the credential rules now recognise, once per `secretRulesVersion`, and counts them.
     @discardableResult

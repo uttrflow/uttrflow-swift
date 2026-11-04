@@ -57,17 +57,18 @@ struct TypedInsertionModalEditorTests {
         #expect(typist.typed == ["hello"])
     }
 
-    @Test(
-        "Dictation refused by a modal editor keeps the words for explicit copy and shows the existing notice."
-    )
-    func refusalMessage() async {
+    @Test("A modal editor never gets typed keys; the words arrive by paste, which is not a command key.")
+    func refusalFallsToPaste() async throws {
         let typist = RecordingTypist()
-        let coordinator = TextInsertion.dictation(focus: AppFocus(application: Self.macVim), typist: typist)
+        let keys = FakeKeystrokeSender()
+        let coordinator = TextInsertion.dictation(
+            focus: AppFocus(application: Self.macVim), typist: typist, pasteboard: FakePasteboard(),
+            keystrokes: keys)
 
-        let expected = TextInsertionError.insertionNeedsCopy(
-            description: TextInsertionError.noFocusedTextField.userMessage)
-        await #expect(throws: expected) { _ = try await coordinator.insert("delete the old branch") }
-        #expect(expected.userMessage == "The text couldn't be inserted. Your clipboard is unchanged.")
+        let attempt = try await coordinator.insert("delete the old branch")
+
+        #expect(attempt.method == .pasteboard)
+        #expect(keys.pasteCount == 1)
         #expect(typist.typed.isEmpty)
     }
 

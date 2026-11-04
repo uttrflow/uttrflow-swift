@@ -112,7 +112,6 @@ extension PanelSnapshot {
         var next = self
         next.sheet = sheet
         next.hasReviewedProtectedCategoryDeletion = false
-        next.hasWarnedOfUnsavedSecret = false
         next.hasAcknowledgedUnreviewableRewrite = false
         return PanelResponse(state: next, outcome: .open)
     }
@@ -170,8 +169,8 @@ extension PanelSnapshot {
                 state: closingSheet(),
                 outcome: .change(.setRichText(id, NotePromotion.note(from: clip.text))))
 
-        case .confirmingPaste(let id, let cleaned, let reason):
-            guard let clip = clip(id), clip.kind == .secret || !reason.isAboutHiddenClip else {
+        case .confirmingPaste(let id, let cleaned, _):
+            guard let clip = clip(id) else {
                 return PanelResponse(state: closingSheet(), outcome: .open)
             }
             return PanelResponse(
@@ -234,8 +233,7 @@ extension PanelSnapshot {
         case .renamingCategory(let name, _): next.sheet = .renamingCategory(name, draft: text)
         case .editing(let id, _):
             next.sheet = .editing(id, draft: text)
-            // A warning holds only for the text it is shown for, so new text is judged again.
-            next.hasWarnedOfUnsavedSecret = false
+        // A warning holds only for the text it is shown for, so new text is judged again.
         case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting,
             .confirmingPaste, .none:
             return self
@@ -275,7 +273,6 @@ extension PanelSnapshot {
         var next = self
         next.sheet = nil
         next.hasReviewedProtectedCategoryDeletion = false
-        next.hasWarnedOfUnsavedSecret = false
         next.hasAcknowledgedUnreviewableRewrite = false
         return next
     }

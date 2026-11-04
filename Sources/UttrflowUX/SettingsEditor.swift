@@ -146,7 +146,6 @@ public enum SettingsEditor {
         case .suggestionsEnabled: settings.suggestions.isEnabled = isOn
         case .quietSuggestions: settings.suggestions.isQuiet = isOn
         case .learnsFromDictation: settings.learnsFromDictation = isOn
-        case .confirmsHiddenClipPaste: settings.confirmsHiddenClipPaste = isOn
         }
     }
 
@@ -186,8 +185,7 @@ public enum SettingsEditor {
             capabilities.canCheckForUpdates
                 ? nil
                 : "This build has no update feed, so there is nothing to check."
-        case .suggestionsEnabled, .sendsCrashReports, .hidesWindowsFromCapture, .learnsFromDictation,
-            .confirmsHiddenClipPaste:
+        case .suggestionsEnabled, .sendsCrashReports, .hidesWindowsFromCapture, .learnsFromDictation:
             nil
         case .quietSuggestions:
             settings.suggestions.isEnabled ? nil : suggestionsAreOff

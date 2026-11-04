@@ -20,7 +20,7 @@ protocol SelectionAttributes: Sendable {
 }
 
 /// Writes into one focused field through its attributes, so the order of the steps is testable without a window.
-struct SelectionWriter<Field: SelectionAttributes>: FocusedTextField {
+struct SelectionWriter<Field: SelectionAttributes>: ArrivalReportingField {
     /// The field this writes into.
     let field: Field
     /// Times each write, so one that ran out the messaging timeout is told apart from a refusal.
@@ -29,6 +29,11 @@ struct SelectionWriter<Field: SelectionAttributes>: FocusedTextField {
     static var messagingTimeout: Duration { .seconds(2) }
 
     func replaceSelection(with text: String) throws(TextInsertionError) {
+        _ = try writeReportingArrival(text)
+    }
+
+    /// An accepted write that the field will not prove is `.notReported`, not a failure; only a write that provably changed nothing is refused. See `Docs/insertion.md`.
+    func writeReportingArrival(_ text: String) throws(TextInsertionError) -> InsertionArrival {
         // Read first so the write can be checked; a field that will not answer is trusted.
         let selectionBefore = field.selectedRange()
         let window = window(around: selectionBefore)
@@ -37,23 +42,19 @@ struct SelectionWriter<Field: SelectionAttributes>: FocusedTextField {
 
         try setSelectedText(text)
 
-        guard !text.isEmpty else { return }
-        guard let selectionBefore else { throw .insertionUnconfirmed }
-        let (expectedLocation, overflow) = selectionBefore.location.addingReportingOverflow(
-            text.utf16.count)
-        guard !overflow,
-            let after = field.selectedRange(), after.length == 0,
-            after.location == expectedLocation
-        else {
-            // An unconfirmed write may still land, so typed fallback must not repeat it. See `Docs/insertion.md`.
-            throw .insertionUnconfirmed
-        }
-
-        // A success that changed nothing is the failure this catches, unless the selection already held the text. See `Docs/insertion.md`.
+        guard !text.isEmpty else { return .notReported }
+        // A success that changed nothing is the failure this catches, unless the selection already held the text.
         if !alreadyHeld, let before, let after = snapshot(window), before == after {
             throw .insertionRejected(
                 description: "the field accepted the text and did not change")
         }
+        guard let selectionBefore else { return .notReported }
+        let (expectedLocation, overflow) = selectionBefore.location.addingReportingOverflow(
+            text.utf16.count)
+        guard !overflow, let after = field.selectedRange(), after.length == 0,
+            after.location == expectedLocation
+        else { return .notReported }
+        return .confirmed
     }
 
     /// Whether a reading is the selection `selection`.
