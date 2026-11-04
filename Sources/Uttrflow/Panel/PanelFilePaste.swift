@@ -46,9 +46,9 @@ enum PanelFilePaste {
         _ failure: TextInsertionError, _ placement: PanelFilePlacement,
         copy: () throws -> Void
     ) -> TextInsertionError {
-        guard case .paste = placement, PanelPasteFloor.keepsOnClipboard(after: failure) else {
-            return failure
-        }
+        guard case .paste = placement, failure != .clipboardUnavailable,
+            PanelPasteFloor.keepsOnClipboard(after: failure)
+        else { return failure }
         do {
             try copy()
             return failure
