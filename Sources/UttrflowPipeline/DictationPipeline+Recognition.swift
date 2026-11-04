@@ -135,6 +135,17 @@ extension DictationPipeline {
         let preceding = dictationContext?.situation.recognitionContext
         let speaks = VoiceActivity.speechRange(in: slice.samples, sampleRate: slice.sampleRate) != nil
         let speech = retrySpeech ?? speech
+        // Waits for a load under its own limit, since a compile outlasts the recognition limit. See `Docs/startup.md`.
+        if !isReady {
+            let wasLoading = isLoading
+            let waited = UttrflowCore.stopwatch(from: clock)
+            let loaded = try await withStageTimeout(speechLoadLimit, clock: clock) { [speech] in
+                try await speech.prepare()
+                return true
+            }
+            guard loaded == true else { throw SpeechEngineError.recogniserTimedOut }
+            if wasLoading || waited() >= SpeechModelLoad.estimateAfter { waitedForLoad = true }
+        }
         let heard = try await metrics.measuringInTime(
             .transcription, clock: clock, generation: mine
         ) {
