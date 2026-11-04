@@ -1256,12 +1256,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             guard !Task.isCancelled, let self, speechPressure.isReleased else { return }
             speechPressure.reloaded(at: .now)
             speechCalmReload = nil
-            do {
-                try await speechEngine?.prepare()
-                Self.speechLog.notice("speech model reloaded after memory pressure")
-            } catch {
-                Self.speechLog.notice("speech model reload after memory pressure failed")
-            }
+            let reloaded = (try? await speechEngine?.prepare()) != nil
+            Self.speechLog.notice("speech model reload after memory pressure: \(reloaded)")
         }
     }
 
