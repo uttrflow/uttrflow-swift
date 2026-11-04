@@ -70,6 +70,10 @@
 # dictation-presentation fixture also keeps the full-history scan clean after its
 # source literal is replaced; a real `api_key`-shaped credential with that same value
 # but a different assignment still fails.
+#
+# `KeptClipSurvivalTests.swift` and `SecretFalsePositiveTests.swift` need one entry per
+# fixture too: invented token, URL, command and private-key shapes, and the widely published
+# example JWT, each matched by its exact value so a real key added beside them still fails.
 [extend]
 useDefault = true
 
@@ -129,6 +133,8 @@ useDefault = true
             b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtz
             c2gtZWQyNTUxOQAAACDkQ2VydGlmaWNhdGVOb3RSZWFsbHlBS2V5QXRBbGxIZXJl
             -----END OPENSSH PRIVATE KEY-----$''',
+    # Invented values in KeptClipSurvivalTests.swift and SecretFalsePositiveTests.swift, and the published example token.
+    '''^REDACTED$''',
   ]
 
 [[allowlists]]
