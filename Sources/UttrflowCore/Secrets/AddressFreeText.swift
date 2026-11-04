@@ -36,8 +36,8 @@ enum AddressFreeText {
 
     private static func isWorkingDirectoryLine(_ line: Substring) -> Bool {
         let trimmed = line.trimmingPrefix(while: \.isWhitespace)
-        guard trimmed.prefix(3).lowercased() == "pwd" else { return false }
-        var rest = trimmed.dropFirst(3).trimmingPrefix(while: \.isWhitespace)
+        guard let name = trimmed.range(of: "pwd", options: [.anchored, .caseInsensitive]) else { return false }
+        var rest = trimmed[name.upperBound...].trimmingPrefix(while: \.isWhitespace)
         guard let separator = rest.first, separator == ":" || separator == "=" else { return false }
         rest = rest.dropFirst().trimmingPrefix(while: \.isWhitespace)
         return ["/", "~/", "./", "../"].contains { rest.hasPrefix($0) }

@@ -31,7 +31,7 @@ public enum SecretShapes {
             return true
         }
         if VendorKeyWindows.matches(text, pattern: vendorKey, tally: patternTally) { return true }
-        // The rules below read words; an address's credentials were the rules above, so its words are not theirs.
+        // The rules below read words; the rules above judge an address, so its words are not theirs.
         var words = AddressFreeText.removingWorkingDirectoryLines(
             from: AddressFreeText.removingAddresses(from: examplesRemoved))
         words.makeContiguousUTF8()

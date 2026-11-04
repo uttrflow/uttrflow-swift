@@ -929,7 +929,7 @@ struct SettingsSuggestionsTests {
     }
 }
 
-/// A setting this build no longer has is read past and not written back.
+/// A setting this build does not have is read past and not written back.
 @Suite("A retired setting")
 struct RetiredSettingTests {
     @Test("the hidden-clip question's switch is dropped at the next save")

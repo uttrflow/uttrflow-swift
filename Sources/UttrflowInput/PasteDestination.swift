@@ -1,6 +1,6 @@
 import UttrflowCore
 
-/// The field a paste question is about, read when it is asked and again before pasting.
+/// The field a paste question is about, read at the question and again at the paste.
 struct PasteDestination: Sendable, Equatable {
     /// The application that owns the focused element.
     let application: InsertionDestination?

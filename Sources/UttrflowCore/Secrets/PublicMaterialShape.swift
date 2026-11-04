@@ -11,10 +11,9 @@ enum PublicMaterialShape {
         "NEW CERTIFICATE REQUEST", "X509 CRL", "PGP PUBLIC KEY BLOCK", "PGP SIGNATURE",
     ]
 
-    /// OpenSSH public key algorithm names, the first word of an `authorized_keys` line.
+    /// OpenSSH public key algorithm names before any `@` vendor suffix, the first word of an `authorized_keys` line.
     private static let sshAlgorithms: Set<Substring> = [
-        "ssh-ed25519", "ssh-rsa", "ssh-dss", "sk-ssh-ed25519@openssh.com",
-        "sk-ecdsa-sha2-nistp256@openssh.com", "ecdsa-sha2-nistp256", "ecdsa-sha2-nistp384",
+        "ssh-ed25519", "ssh-rsa", "ssh-dss", "sk-ssh-ed25519", "sk-ecdsa-sha2-nistp256", "ecdsa-sha2-nistp256", "ecdsa-sha2-nistp384",
         "ecdsa-sha2-nistp521",
     ]
 
@@ -38,7 +37,7 @@ enum PublicMaterialShape {
         if trimmed.hasPrefix("-----BEGIN") { return isOnlyPublicPEM(trimmed) }
         let lines = trimmed.split(whereSeparator: \.isNewline)
         guard let first = lines.first, first.utf8.count >= 26 else { return false }
-        if sshAlgorithms.contains(first.prefix { $0 != " " }) { return lines.allSatisfy(isSSHPublicKey) }
+        if sshAlgorithms.contains(first.prefix { $0 != " " && $0 != "@" }) { return lines.allSatisfy(isSSHPublicKey) }
         let word = first.prefix { !$0.isWhitespace }
         return lines.count == 1 && word.count == first.count && isWalletAddress(first)
     }
@@ -72,7 +71,7 @@ enum PublicMaterialShape {
     /// `algorithm AAAA… [comment]`, with a comment too short and too plain to carry anything else.
     private static func isSSHPublicKey(_ line: Substring) -> Bool {
         let words = line.split(whereSeparator: \.isWhitespace)
-        guard words.count >= 2, words.count <= 5, sshAlgorithms.contains(words[0]), words[1].hasPrefix("AAAA"),
+        guard words.count >= 2, words.count <= 5, sshAlgorithms.contains(words[0].prefix { $0 != "@" }), words[1].hasPrefix("AAAA"),
             words[1].allSatisfy(isBase64)
         else { return false }
         return !words.dropFirst(2).contains { $0.contains("=") }
@@ -107,7 +106,7 @@ enum PublicMaterialShape {
         let decoded = [UInt8](repeating: 0, count: leadingZeros) + bytes.reversed()
         guard decoded.count > 4 else { return false }
         let hash = SHA256.hash(data: Data(SHA256.hash(data: Data(decoded.dropLast(4)))))
-        return Array(hash.prefix(4)) == Array(decoded.suffix(4))
+        return zip(hash, decoded.suffix(4)).allSatisfy { $0 == $1 }
     }
 
     /// A SegWit address (BIP-173 or BIP-350), checked by its own checksum.
