@@ -134,7 +134,13 @@ useDefault = true
             c2gtZWQyNTUxOQAAACDkQ2VydGlmaWNhdGVOb3RSZWFsbHlBS2V5QXRBbGxIZXJl
             -----END OPENSSH PRIVATE KEY-----$''',
     # Invented values in KeptClipSurvivalTests.swift and SecretFalsePositiveTests.swift, and the published example token.
-    '''^REDACTED$''',
+    '''^ghp_Zx9kLmQ2rT7pQ3vB8nW4sY6uC0eH5jD1aF3g$''',
+    '''^Zx9kLmQ2rT7pQ3vB8n$''',
+    '''^\-\-\-\-\-BEGIN\ PRIVATE\ KEY\-\-\-\-\-\\nMIIB9xZ2\\n\-\-\-\-\-END\ PRIVATE\ KEY\-\-\-\-\-",\
+\ \ \ \ \ \ \ \ \ \ \ \ "\-\-\-\-\-BEGIN\ OPENSSH\ PRIVATE\ KEY\-\-\-\-\-$''',
+    '''^eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ\.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c$''',
+    '''^1aB3xY9kLmQ2rT7p$''',
+    '''^deploy:Vb4nM7xQ2p$''',
   ]
 
 [[allowlists]]
