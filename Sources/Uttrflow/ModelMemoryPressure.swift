@@ -61,6 +61,11 @@ struct ModelMemoryPressure: Sendable, Equatable {
         return reloadedAt.duration(to: now) >= wait
     }
 
+    /// Whether the recogniser may go: a cold reload costs minutes, so only at critical, and once the last reload has held.
+    func allowsSpeechRelease(at level: MemoryPressureLevel, now: ContinuousClock.Instant) -> Bool {
+        level == .critical && allowsRelease(at: now)
+    }
+
     /// Records that the model was asked for again at this moment.
     mutating func reloaded(at now: ContinuousClock.Instant) {
         isReleased = false
