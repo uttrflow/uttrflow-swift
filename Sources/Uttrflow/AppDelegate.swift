@@ -1243,6 +1243,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         Task { await speechEngine.release() }
     }
 
+    /// Where the recogniser's releases and reloads are said, so a report can be read back from the unified log.
+    private static let speechLog = Logger(subsystem: "com.uttrflow.Uttrflow", category: "speech")
+
     /// Takes back a recogniser let go under pressure once memory stays calm, so the next press finds it loaded.
     private func reloadSpeechModelAfterCalm() {
         guard speechPressure.isReleased, speechCalmReload == nil else { return }
@@ -1253,7 +1256,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             guard !Task.isCancelled, let self, speechPressure.isReleased else { return }
             speechPressure.reloaded(at: .now)
             speechCalmReload = nil
-            try? await speechEngine?.prepare()
+            do {
+                try await speechEngine?.prepare()
+                Self.speechLog.notice("speech model reloaded after memory pressure")
+            } catch {
+                Self.speechLog.notice("speech model reload after memory pressure failed")
+            }
         }
     }
 
@@ -1392,6 +1400,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// A recogniser let go still dictates, since a press reloads it, and no load runs to speak of.
     func speechModelWasReleased() {
+        Self.speechLog.notice("speech model released under memory pressure")
         Task { await pipeline?.speechWasReleased() }
     }
 

@@ -88,6 +88,14 @@ fails with `modelLoadFailed`. It stops waiting instead of cancelling and waiting
 because a blocked recogniser load does not answer a cancel. The abandoned load finishes whenever it
 can, and a load that finishes late is ignored.
 
+## A model let go under pressure
+
+A release under memory pressure leaves the readiness as it was: dictation still works, since a
+press reloads the model, and saying "Getting ready" with no load running would hold until the next
+press. Calm reloads it in the background, on the wait `ModelMemoryPressure` sets, which doubles
+while reloads keep being followed by pressure. Each release and reload logs one `notice` under the
+`speech` category, read back with `/usr/bin/log show` as above.
+
 ## What a person is told during the load
 
 The menu bar is only seen when somebody opens it, so the load is also said wherever a person would
