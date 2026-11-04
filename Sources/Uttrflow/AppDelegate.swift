@@ -1390,7 +1390,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         return engine
     }
 
-    /// The recogniser was let go: dictation still works, since a press reloads it, and no load runs to speak of.
+    /// A recogniser let go still dictates, since a press reloads it, and no load runs to speak of.
     func speechModelWasReleased() {
         Task { await pipeline?.speechWasReleased() }
     }
