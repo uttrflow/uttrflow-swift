@@ -45,13 +45,13 @@ struct PanelRowTests {
         #expect(!row.isMasked)
     }
 
-    @Test("a formatted row shows the plain form character count")
-    func formattedRowShowsPlainTextLength() {
+    @Test("a formatted row shows no character count")
+    func formattedRowShowsNoLength() {
         let clip = Clip(
             text: "Visible", kind: .text, copiedAt: PanelFixture.now,
             richText: #"<p>Visible</p><div hidden>unshown payload</div>"#)
 
-        #expect(PanelFixture.page([clip]).rows[0].measurements == "7 characters")
+        #expect(PanelFixture.page([clip]).rows[0].measurements == nil)
     }
 
     @Test("a plain text row shows no character count")

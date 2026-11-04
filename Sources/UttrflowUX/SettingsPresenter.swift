@@ -258,7 +258,6 @@ public enum SettingsPresenter {
         case .suggestionsEnabled: settings.suggestions.isEnabled
         case .quietSuggestions: settings.suggestions.isQuiet
         case .learnsFromDictation: settings.learnsFromDictation
-        case .confirmsHiddenClipPaste: settings.confirmsHiddenClipPaste
         }
     }
 }

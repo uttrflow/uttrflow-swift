@@ -359,7 +359,6 @@ public enum SettingsToggleField: String, Sendable, Equatable, CaseIterable {
     case suggestionsEnabled
     case quietSuggestions
     case learnsFromDictation
-    case confirmsHiddenClipPaste
 }
 
 /// Everything the user can ask for on this screen; only ``SettingsEditor`` decides what happens.

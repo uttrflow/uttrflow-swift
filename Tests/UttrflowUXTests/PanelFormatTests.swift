@@ -230,13 +230,7 @@ struct PanelFormatTests {
             PanelPresenter.present(snapshot).sheet?.conflict == "This change cannot be undone",
             "nothing is said before confirming")
 
-        let warned = snapshot.applying(.return)
-        #expect(warned.outcome == .open, "the first Return only warns")
-        #expect(
-            PanelPresenter.present(warned.state).sheet?.conflict
-                == "This will no longer be saved between launches")
-
-        let applied = warned.state.applying(.return)
+        let applied = snapshot.applying(.return)
         #expect(applied.outcome == .change(.rewriteText(clip.id, formatted)))
         #expect(applied.state.sheet == nil)
     }

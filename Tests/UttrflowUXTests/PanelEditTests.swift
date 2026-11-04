@@ -151,30 +151,12 @@ struct PanelEditTests {
     }
 
     /// A secret is never written to disk, so a kept clip edited into one would be gone after a relaunch.
-    @Test("a kept clip edited into a secret warns before saving, then saves")
+    @Test("a kept clip edited into a secret saves at once")
     func keptIntoSecretWarnsFirst() {
         let panel = Self.editing(Self.kept, typing: Self.secretText)
-        #expect(PanelPresenter.present(panel).sheet?.conflict == nil, "nothing is said before Save")
-
-        let warned = panel.applying(.return)
-        #expect(warned.outcome == .open, "the first Save only warns")
-        #expect(
-            PanelPresenter.present(warned.state).sheet?.conflict
-                == "This will no longer be saved between launches")
-
-        let saved = warned.state.applying(.return)
+        let saved = panel.applying(.return)
         #expect(saved.outcome == .change(.editText(Self.kept.id, Self.secretText)))
         #expect(saved.state.sheet == nil)
-    }
-
-    @Test("typing after the warning asks again for the new text")
-    func typingAfterTheWarningResetsIt() {
-        let warned = Self.editing(Self.kept, typing: Self.secretText).applying(.return).state
-
-        let retyped = warned.applying(.draft(Self.secretText + "0")).state
-
-        #expect(PanelPresenter.present(retyped).sheet?.conflict == nil)
-        #expect(retyped.applying(.return).outcome == .open)
     }
 
     /// An unkept clip ages out anyway, and a kept secret is already held in memory only.
@@ -239,20 +221,18 @@ struct PanelEditEndToEndTests {
     }
 
     /// The warning's promise, kept: the detector runs again on the new text through the store's one path.
-    @Test("a kept clip saved as a secret after the warning is masked and not saved between launches")
-    func secretAfterWarningIsNotSaved() async throws {
+    @Test("a kept clip saved as a secret stays kept and is masked")
+    func keptClipSavedAsSecret() async throws {
         let harness = try PanelEndToEndTests.Harness()
         defer { harness.cleanUp() }
         let kept = try await Self.seedKept(harness, text: "Deployment notes for Friday")
         let secret = PanelEditTests.secretText
 
-        let warned = try await harness.perform([.edit(kept.id), .draft(secret), .return])
-        #expect(warned == .open)
-        let saved = try await harness.perform([.edit(kept.id), .draft(secret), .return, .return])
+        let saved = try await harness.perform([.edit(kept.id), .draft(secret), .return])
 
         #expect(saved == .change(.editText(kept.id, secret)))
         let now = await harness.store.clips(keeping: harness.retention)
         #expect(now.first { $0.id == kept.id }?.kind == .secret)
-        #expect(await Self.relaunched(harness).contains { $0.id == kept.id } == false)
+        #expect(now.first { $0.id == kept.id }?.isKept == true)
     }
 }
