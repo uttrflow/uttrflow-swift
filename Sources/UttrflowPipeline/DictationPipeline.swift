@@ -60,7 +60,7 @@ public actor DictationPipeline {
     var hasTurn = false
 
     /// How long `prepare()` waits for the speech model before calling the load failed.
-    private let speechLoadLimit: Duration
+    let speechLoadLimit: Duration
     /// How many loads are running, since a switch can begin one before the last has ended.
     private var loadsUnderWay = 0
 
@@ -251,7 +251,7 @@ public actor DictationPipeline {
     /// Why the last load ended without a model; cleared by a load that works.
     public private(set) var lastLoadFailure: SpeechLoadFailureClass?
 
-    /// Whether `prepare` is loading the recogniser right now, which is when a new dictation is refused.
+    /// Whether `prepare` is loading the recogniser right now; a dictation started now gets its words when it ends.
     public var isLoading: Bool { loadsUnderWay > 0 }
 
     /// Keeps readiness truthful when the speech engine unloads itself.

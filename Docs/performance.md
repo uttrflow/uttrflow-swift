@@ -208,8 +208,8 @@ model is released, reloaded and kept off a Mac under pressure is in
 
 The speech model fits inside the first two lines with room to spare, so it stays loaded between
 dictations. `AppDelegate` lets the recogniser go under memory pressure unless a dictation is under
-way; the next key-down loads it again, which costs 2–9 s with the Neural Engine compile cached,
-and the app shows the model as loading until it is ready. A critical reading always releases it.
+way. Calm reloads it in the background after the same wait, and a key-down before that loads it,
+which costs 2–9 s with the Neural Engine compile cached; no surface says loading meanwhile. A critical reading always releases it.
 A warning releases it only once the last reload has held for the wait of the same
 `ModelMemoryPressure` policy the suggestion model uses (120 s, doubling to 1,800 s while reloads
 keep being followed by pressure), so frequent warnings cannot make every dictation pay a reload.

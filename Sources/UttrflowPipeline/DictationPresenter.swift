@@ -231,6 +231,9 @@ public enum DictationPresenter {
                 drawn.symbolName, drawn.primaryLine, load.detail, action: drawn.action,
                 label: failure == .stillLoading
                     ? load.accessibilityLabel : "\(drawn.accessibilityLabel) \(load.accessibilityLabel)")
+        case .transcribing where load.isLoading:
+            // The words are waiting for the model, so the wait is said rather than a bare spinner.
+            return resting(load)
         case .recording, .transcribing, .tidying, .inserting, .inserted, .failed, .executed, .discarded:
             return drawn
         }

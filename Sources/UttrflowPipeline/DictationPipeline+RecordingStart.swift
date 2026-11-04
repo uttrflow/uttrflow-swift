@@ -5,8 +5,6 @@ extension DictationPipeline {
     /// Begins listening. Does nothing if a dictation is already under way.
     public func startRecording() async {
         guard !isBusy, early.pendingCaptureElapsed == nil else { return }
-        // Said rather than recorded: the words would wait behind the load, under a button saying nothing.
-        guard !isLoading else { return transition(to: .failed(.stillLoading)) }
         hasTurn = true
         generation += 1
         let mine = generation
@@ -18,7 +16,7 @@ extension DictationPipeline {
 
     /// Opens the microphone before a modifier shortcut settles, keeping speech from key-down onward.
     public func beginModifierPress(measuring elapsed: @escaping @Sendable () -> Duration) async {
-        guard early.pendingCapture == nil, !isBusy, !isLoading else { return }
+        guard early.pendingCapture == nil, !isBusy else { return }
         generation += 1
         let mine = generation
         observers.updateGeneration(mine)
@@ -38,10 +36,8 @@ extension DictationPipeline {
     /// Makes a modifier press's already-open microphone the recording under way.
     @discardableResult
     public func adoptModifierPress() async -> Bool {
-        guard !isBusy, !isLoading else {
+        guard !isBusy else {
             await cancelModifierPress()
-            // Told as a shortcut press is told, so the press is not met with silence.
-            if !isBusy { transition(to: .failed(.stillLoading)) }
             return false
         }
         hasTurn = true

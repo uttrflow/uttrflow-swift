@@ -42,8 +42,8 @@ public enum StageTimeout: Sendable {
     /// Insertion, generous because failing here loses the words from the target app.
     public static let insertion = Duration.seconds(15)
 
-    /// Loading the speech model: about twice the slowest measured cold load, 154 s. See `Docs/startup.md`.
-    public static let speechModelLoad = Duration.seconds(300)
+    /// Loading the speech model: past the slowest compile measured on a busy Mac, 438 s. See `Docs/startup.md`.
+    public static let speechModelLoad = Duration.seconds(600)
 }
 
 /// A point in time on an injected clock, after which waiting on work stops.

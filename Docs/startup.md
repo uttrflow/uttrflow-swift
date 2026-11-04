@@ -2,7 +2,7 @@
 
 At launch `AppDelegate` asks `DictationPipeline.prepare()` (`Sources/UttrflowPipeline/`) to load
 the speech model into memory, and dictation cannot start until that load ends. The first load
-after a restart takes minutes, so every surface says so: the words live in `SpeechModelLoad` and
+on a new build takes minutes, so every surface says so: the words live in `SpeechModelLoad` and
 the pacing in `SpeechModelLoadEstimate` (`Sources/UttrflowCore/Models/`), readiness in
 `SpeechModelReadiness` (`Sources/UttrflowUX/MenuBarPresentation.swift`), and the load itself in
 `WhisperKitBackend` (`Sources/UttrflowSpeech/`). Related: [`app-dock.md`](app-dock.md) for the
@@ -30,6 +30,22 @@ Measured with the default model (`SpeechModel.default`,
 |---|---|
 | first load after boot, cold page cache | 154 s |
 | every load after that, warm | 2.1 s |
+
+The compile is not reused when the signature of the running binary or the model's folder changes.
+`uttrflow-dev load-priority --runs 1`, Apple M5 Pro, 25F80, one-minute load average 33 to 67, each
+row the time to the end of the first load:
+
+| since the last load | time |
+|---|---|
+| nothing changed | 3 s |
+| same binary, another directory | 7 s |
+| freshly built binary, same model and folder | 213 s |
+| same binary, signed ad hoc again | 270 s |
+| same binary, model at a new folder | 438 s |
+
+So an ad-hoc build compiles once per build. A Developer ID build across versions and a restart with
+nothing changed are not measured here ([#8183](https://github.com/uttrflow/uttrflow-swift/issues/8183)). The app's load log (`speech-model-loads.v1.json`)
+marks each such load `isLikelyRecompile`.
 
 The model is already on disk, so none of this is download: it is CoreML specialising the encoder
 and decoder and paging 632 MB of weights in, and the lever is the model, not this code. The same
@@ -62,12 +78,12 @@ load average 10 are not measured yet, so the launch load keeps the default prior
 `applicationDidFinishLaunching` starts watching for the shortcut before it asks the pipeline to
 prepare, so a quick user can already be dictating when `prepare()` is called. The load runs
 regardless; only the move to the `failed` state is withheld while a dictation is under way, because
-failing a live recording would be wrong. `DictationPipeline.startRecording` declines while the
-pipeline's own load is running (`isLoading`) and says so with the `stillLoading` failure; a
-pipeline nobody prepared still records and loads on demand.
+failing a live recording would be wrong. A press during a load records, so no speech is lost: the
+piece's transcription first waits for the load under `StageTimeout.speechModelLoad`, outside the
+recognition limit, and the floating button says "Getting ready" while the words wait.
 
 A load that never returns is a failed load too. `prepare()` waits at most
-`StageTimeout.speechModelLoad`, 300 seconds, about twice the cold load measured above, and then
+`StageTimeout.speechModelLoad`, 600 seconds, past the slowest compile measured above, and then
 fails with `modelLoadFailed`. It stops waiting instead of cancelling and waiting for the cancel,
 because a blocked recogniser load does not answer a cancel. The abandoned load finishes whenever it
 can, and a load that finishes late is ignored.
@@ -89,7 +105,7 @@ the one home for the words and for when the minutes are said.
 | --- | --- | --- |
 | Home (`HomeModelStatus.load`) | "Getting ready…" over a sliding bar, "Loading the speech model" under it | "Try again" after the first failure, "Download again" once it is broken |
 | Floating button | `line` and `detail` | `line`, "Dictation can’t start without it" |
-| Shortcut or button pressed | "Speech model still loading…" (`SpeechModelLoad.refusal`) through the notice every dictation failure uses; the microphone never opens | dictation starts, and the recogniser tries the load again on demand |
+| Shortcut or button pressed | the recording starts, and the words arrive once the load ends | dictation starts, and the recogniser tries the load again on demand |
 | Clipboard panel microphone | off: "Speech model still loading" | off, as for a model that is not ready |
 | Menu bar status | "Getting ready…", then the estimate | "Speech model didn't load", with **Try again**; "Download again" once broken |
 
@@ -132,7 +148,7 @@ guess paced to a typical cold load:
 | Home | "Getting ready · about 1 min left", under it "Only after a restart. Everything else already works.", and the bar filled to the estimate. Holding: "Almost ready…" |
 | Floating button | a ring filled to the estimate, and the short time left |
 | Menu bar | the same heading as Home over a bar filled to the estimate |
-| A dictation refused during the load | "Speech model still loading…", and under it the time left |
+| A dictation waiting for its words | the floating button's ring and time left |
 
 The floating button and the menu bar redraw once a second while the load runs, from `AppDelegate`'s
 `speechLoadTicker`, which starts at `estimateAfter` and ends with the load; nothing ticks once the

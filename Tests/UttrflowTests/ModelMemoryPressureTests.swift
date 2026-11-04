@@ -243,6 +243,26 @@ struct MemoryPressureTests {
         return app
     }
 
+    @Test("a released speech model is not said to be loading, since no load runs")
+    func releasedSpeechModelIsNotLoading() {
+        let sandbox = Sandbox()
+        let app = app(Steps(), in: sandbox)
+        app.speechReadiness = .ready
+        app.speechModelWasReleased()
+        #expect(app.speechReadiness == .ready)
+    }
+
+    @Test("calm reloads a released speech model in the background, after the wait")
+    func calmReloadsTheSpeechModel() async {
+        let sandbox = Sandbox()
+        let app = app(Steps(), in: sandbox)
+        app.speechPressure = ModelMemoryPressure(firstWait: .zero, longestWait: .seconds(1_800))
+        app.speechPressure.released(at: .now)
+        app.memoryPressureChanged(to: .normal)
+        await app.speechCalmReload?.value
+        #expect(!app.speechPressure.isReleased)
+    }
+
     @Test("pressure releases a loaded model and says why")
     func pressureReleases() async {
         let steps = Steps()

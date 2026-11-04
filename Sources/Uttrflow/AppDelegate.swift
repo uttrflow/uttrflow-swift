@@ -89,7 +89,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var screenLockObserver: (any NSObjectProtocol)?
 
     /// Whether the recogniser can dictate, which is not whether its files are on disk.
-    private var speechReadiness: SpeechModelReadiness = .notInstalled
+    var speechReadiness: SpeechModelReadiness = .notInstalled
     /// Why the last speech model load failed, as the pipeline classed it; Diagnostics names it.
     private var speechLoadFailure: SpeechLoadFailureClass?
     /// The input UID the next recording opens, read off the main actor at every open.
@@ -193,6 +193,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     var speechPressure = ModelMemoryPressure()
     /// The reload waiting for memory to stay calm, cancelled by the next reading; internal so a test can wait for it.
     private(set) var pressureReload: Task<Void, Never>?
+    /// The background reload of a speech model let go under pressure, internal so a test can wait for it.
+    private(set) var speechCalmReload: Task<Void, Never>?
     private let pressureSource = MemoryPressureSource()
     /// Which clean-up engines answered that they could run; internal so a test can read it back.
     private(set) var transformerAvailability: [TransformerKind: Bool] = [:]
@@ -1241,6 +1243,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         Task { await speechEngine.release() }
     }
 
+    /// Takes back a recogniser let go under pressure once memory stays calm, so the next press finds it loaded.
+    private func reloadSpeechModelAfterCalm() {
+        guard speechPressure.isReleased, speechCalmReload == nil else { return }
+        let wait = speechPressure.wait
+        let waitForCalm = waitForCalm
+        speechCalmReload = Task { [weak self] in
+            try? await waitForCalm(wait)
+            guard !Task.isCancelled, let self, speechPressure.isReleased else { return }
+            speechPressure.reloaded(at: .now)
+            speechCalmReload = nil
+            try? await speechEngine?.prepare()
+        }
+    }
+
     /// Releases the suggestion model under pressure, then recovers it after calm. See `Docs/performance-suggestions.md`.
     func memoryPressureChanged(to level: MemoryPressureLevel) {
         switch level {
@@ -1248,6 +1264,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             PanelThumbnails.shared.releaseForMemoryPressure()
             pressureReload?.cancel()
             pressureReload = nil
+            speechCalmReload?.cancel()
+            speechCalmReload = nil
             releaseSpeechModelIfIdle(at: level)
             // A model shown as failed may still be retrying its reload, so pressure lets that go too.
             guard settings.suggestions.isEnabled, isModelPreparing || suggestionModel == .loadFailed
@@ -1260,6 +1278,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             releaseTheModel()
             suggestionModel = .releasedForMemory
         case .normal:
+            reloadSpeechModelAfterCalm()
             // A repeated calm keeps the countdown already running.
             guard memoryPressure.isReleased, pressureReload == nil,
                 let allowModelReload
@@ -1366,21 +1385,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             },
             didLoad: { [weak self] in
                 Task { @MainActor [weak self] in self?.speechModelWasLoaded() }
-            },
-            willLoad: { [weak self] in
-                Task { @MainActor [weak self] in self?.speechModelWillLoad() }
             })
         speechEngine = engine
         return engine
     }
 
-    /// The idle watcher released a recogniser that the readiness surfaces still called ready.
-    private func speechModelWasReleased() {
-        guard speechReadiness == .ready else { return }
-        speechReadiness = .loading
-        speechLoadStarted = nil
+    /// The recogniser was let go: dictation still works, since a press reloads it, and no load runs to speak of.
+    func speechModelWasReleased() {
         Task { await pipeline?.speechWasReleased() }
-        refreshSpeechModelSurfaces()
     }
 
     /// A cold reload finished, including one started lazily when the user began dictating.
@@ -1391,22 +1403,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         speechLoadStarted = nil
         speechLoadTicker?.cancel()
         speechLoadTicker = nil
-        refreshSpeechModelSurfaces()
-    }
-
-    /// Starts the elapsed-time indicator when a released model actually begins reloading.
-    private func speechModelWillLoad() {
-        guard speechReadiness == .loading, speechLoadStarted == nil else { return }
-        speechLoadStarted = .now
-        speechLoadTicker?.cancel()
-        speechLoadTicker = Task { [weak self] in
-            try? await Task.sleep(for: SpeechModelLoad.estimateAfter)
-            while !Task.isCancelled {
-                guard let self, speechReadiness == .loading else { return }
-                refreshSpeechModelEstimate()
-                try? await Task.sleep(for: SpeechModelLoadEstimate.redrawInterval)
-            }
-        }
         refreshSpeechModelSurfaces()
     }
 
