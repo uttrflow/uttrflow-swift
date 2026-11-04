@@ -6,8 +6,8 @@ in `Sources/UttrflowInput/`: `TextInsertion.swift` is the one place that names e
 `AccessibilityTextInsertionEngine`, `PasteboardTextInsertionEngine`, `TypedTextInsertionEngine`,
 `ClipboardTextInsertionEngine` and `PasteboardImageInsertionEngine`. The platform adapters —
 `SystemPasteboard`, `CGEventKeystrokeSender`, `CGEventTypist` and `AXAccessibilityFocus` — are in
-`SystemInput.swift`. **Dictation never writes the clipboard**: it tries an Accessibility write,
-then typed keystrokes, and if both refuse the transcript stays in History with
+`SystemInput.swift`. **Dictation writes the clipboard only as a last resort**: it tries an Accessibility
+write, then typed keystrokes, then a paste, and if all three refuse the transcript stays in History with
 an explicit Copy.
 
 Per-application results are collected in [compatibility.md](compatibility.md); this page feeds
@@ -17,11 +17,11 @@ its `AX write`, `Paste`, `Confirmed` and `Full route` columns and the secure-fie
 
 | What is inserted | Built by | Strategies, in order | Clipboard |
 |---|---|---|---|
-| A dictation | `TextInsertion.dictation()` | Accessibility, typed | Never written. When both refuse, the failure is `insertionNeedsCopy` and the recovery is Copy |
+| A dictation | `TextInsertion.dictation()` | Accessibility, typed, paste | Written only by the last-resort paste, with the transient marker and never for a secure field or while Uttrflow is in front; when the system will not post the key the clipboard is untouched. When all refuse, the failure is `insertionNeedsCopy` and the recovery is Copy |
 | An accepted suggestion | `TextInsertion.completion()` (`CompletionRoute`) | Accessibility, typed | Never written; see [predict-accept.md](predict-accept.md) |
 | A clip pasted from the clipboard panel | `TextInsertion.coordinator(…, confirmsArrival: false, clipboardFallback: false)` | Accessibility, paste, typed | Written by the paste and left there; arrival is not checked |
 | A clip or recent dictation inserted from the menu bar or main window | `TextInsertion.coordinator(…)` | Accessibility, paste, clipboard | Written by the paste, or by the clipboard floor when everything else refuses; a paste's arrival is checked |
-| The Paste last dictation shortcut | `TextInsertion.dictation()` | Accessibility, typed | Never written; if both strategies refuse, the transcript stays available for explicit Copy |
+| The Paste last dictation shortcut | `TextInsertion.dictation()` | Accessibility, typed, paste | As the dictation row |
 | A secret clip | either clip route over `ConcealingPasteboard` | as above | Every text write carries `org.nspasteboard.ConcealedType` |
 | A picture clip | `PasteboardImageInsertionEngine` | paste | The clipboard is captured first and restored 1.5 s after ⌘V while it still holds the picture; a target slower than that can paste the old clipboard or nothing |
 | A retry of a kept recording | `ClipboardTextInsertionEngine` alone | clipboard | Written; see [recordings.md](recordings.md) |
@@ -94,17 +94,23 @@ a spoken break there; until it does, a chat message and a terminal line arrive o
 
 Some applications built on a bundled browser engine publish a focused text field, accept a write
 to its selected text, answer `.success`, and change nothing. `SelectionWriter.replaceSelection(with:)`
-therefore reads the selection back immediately after every write and requires it to be a collapsed
-caret at the old start plus the text's UTF-16 length. Any missing or different selection throws
-`insertionUnconfirmed` immediately. That stops the route so the typed fallback cannot duplicate a
-write that lands later, and asks the user to check the field before retrying. A write that moves
-the caret but leaves the surrounding text unchanged throws `insertionRejected` ("the field
-accepted the text and did not change"), and the next strategy runs. A selection that already held the same text is the
-exception: replacing it changes nothing by definition, so the moved caret alone confirms the
-write and no fallback writes the words again.
+therefore reads the field back immediately after every write. A write that provably changed
+nothing (the text around the selection reads the same before and after) throws `insertionRejected`
+("the field accepted the text and did not change"), and the next strategy runs. A write the field
+accepted but will not prove, because the selection or caret cannot be read or differs, is not a
+failure: `SelectionWriter.writeReportingArrival(_:)` answers `.notReported` and the dictation is reported inserted
+without a confirmation. Only an Accessibility call that timed out stays `insertionUnconfirmed`,
+which stops the route so the typed fallback cannot duplicate a write that is still landing. A
+selection that already held the same text is the exception: replacing it changes nothing by
+definition, so it is never read as unchanged.
 
-The unit test records `ContinuousClock` immediately before `replaceSelection` and after it throws
-`insertionUnconfirmed`; the fake-field call must take less than 200 ms. This measures the writer's
+A field that shows no change straight after the write but applies it late can receive the words
+twice, once from the write and once from the next route; that cost was chosen over a dictation
+that reports "not confirmed" and inserts nothing. Every refusal is logged (`os_log`, category
+`insertion`) with the route and the reason, never the words.
+
+The unit test records `ContinuousClock` immediately before the write and after it throws; the
+fake-field call must take less than 200 ms. This measures the writer's
 own delay, not Accessibility latency in a real application.
 
 ## A web field's own state
