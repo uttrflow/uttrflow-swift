@@ -257,14 +257,14 @@ struct SelectionWriterTests {
         #expect(error == .insertionRejected(description: "the field accepted the text and did not change"))
     }
 
-    @Test("An unchanged write is unconfirmed without the settle delay", .bug(id: 5817))
+    @Test("An unchanged write is refused so the next route runs", .bug(id: 5817))
     func acceptedButUnchangedIsAFailure() {
         let field = FakeSelectionField("Hello") { $0.ignoresText = true }
         let error = #expect(throws: TextInsertionError.self) {
             try SelectionWriter(field: field).replaceSelection(with: " world")
         }
-        #expect(error == .insertionUnconfirmed)
-        #expect(error?.stopsFallback == true, "the typed route must not write the words a second time")
+        #expect(error == .insertionRejected(description: "the field accepted the text and did not change"))
+        #expect(error?.stopsFallback == false, "nothing changed, so another route may run")
     }
 
     /// The time bound on the same write runs in `make bench`, since a parallel test run cannot keep a wall-clock limit honest.
@@ -279,13 +279,13 @@ struct SelectionWriterTests {
         #expect(start.duration(to: clock.now) < .milliseconds(200))
     }
 
-    @Test("A write that lands late is not retried", .bug(id: 5817))
-    func lateWriteStaysUnconfirmed() {
+    @Test("A write that shows nothing yet is refused, and this route does not write it again", .bug(id: 5817))
+    func lateWriteIsRefusedOnce() {
         let field = FakeSelectionField("Hello") { $0.defersText = true }
         let error = #expect(throws: TextInsertionError.self) {
             try SelectionWriter(field: field).replaceSelection(with: " world")
         }
-        #expect(error == .insertionUnconfirmed)
+        #expect(error == .insertionRejected(description: "the field accepted the text and did not change"))
         #expect(field.textWrites == [" world"])
         field.applyDeferredText()
         #expect(field.text == "Hello world")
@@ -297,10 +297,8 @@ struct SelectionWriterTests {
         let field = FakeSelectionField("Hello") {
             $0.reportsSelection = false
         }
-        let error = #expect(throws: TextInsertionError.self) {
-            try SelectionWriter(field: field).replaceSelection(with: " world")
-        }
-        #expect(error == .insertionUnconfirmed)
+        let arrival = try? SelectionWriter(field: field).writeReportingArrival(" world")
+        #expect(arrival == .notReported, "an accepted write the field will not prove is not a failure")
         #expect(field.text == "Hello world")
         #expect(field.textWrites == [" world"])
     }
@@ -308,10 +306,8 @@ struct SelectionWriterTests {
     @Test("marks an accepted write ambiguous when the resulting caret is unexpected")
     func unexpectedResultingCaretIsAmbiguous() {
         let field = FakeSelectionField("Hello") { $0.collapsesSelectionAfterWrite = false }
-        let error = #expect(throws: TextInsertionError.self) {
-            try SelectionWriter(field: field).replaceSelection(with: " world")
-        }
-        #expect(error == .insertionUnconfirmed)
+        let arrival = try? SelectionWriter(field: field).writeReportingArrival(" world")
+        #expect(arrival == .notReported)
     }
 
     @Test("does not move the selection after an accepted write has an unexpected result")
@@ -319,10 +315,9 @@ struct SelectionWriterTests {
         let field = FakeSelectionField("I want") {
             $0.collapsesSelectionAfterWrite = false
         }
-        let error = #expect(throws: TextInsertionError.self) {
+        #expect(throws: Never.self) {
             try SelectionWriter(field: field).replaceSelection(replacing: "want", with: "need")
         }
-        #expect(error == .insertionUnconfirmed)
         #expect(field.text == "I need")
         #expect(
             field.selectionWrites == [2..<6],
@@ -334,10 +329,8 @@ struct SelectionWriterTests {
         let field = FakeSelectionField("Hello earth", caret: 6, length: 5) {
             $0.concurrentTextBeforeWrite = "neighbor"
         }
-        let error = #expect(throws: TextInsertionError.self) {
-            try SelectionWriter(field: field).replaceSelection(with: "world")
-        }
-        #expect(error == .insertionUnconfirmed)
+        let arrival = try? SelectionWriter(field: field).writeReportingArrival("world")
+        #expect(arrival == .notReported)
         #expect(field.text == "Hello neighborworld")
         #expect(field.textWrites == ["world"], "the accepted text write is never repeated")
     }

@@ -4,107 +4,7 @@ import UttrflowClipboard
 
 @testable import UttrflowUX
 
-/// A hidden clip pasted into a field not known to hide it waits for the user's answer in the panel.
-@Suite("Confirming a hidden clip's paste")
-struct PanelHiddenPasteQuestionTests {
-    private static let secret = PanelFixture.clip("sk-live-abcdef123456", kind: .secret)
-
-    private static func asking(unclassified: Bool = false, cleaned: Bool = false) -> PanelSnapshot {
-        PanelFixture.panel([secret]).askingBeforePaste(
-            of: secret.id, cleaned: cleaned,
-            reason: unclassified ? .hiddenIntoUnreadableField : .hiddenIntoVisibleField)
-    }
-
-    @Test("choosing a hidden clip asks the app to classify the field before anything is pasted")
-    func choosingStillAsksTheApp() {
-        let effect = PanelFixture.panel([Self.secret]).applying(.return).outcome.effect
-
-        #expect(effect == .closeAndInsertConcealed(Self.secret.text, used: Self.secret.id))
-    }
-
-    @Test("Return on the question pastes the hidden clip, marked as agreed")
-    func returnConfirms() {
-        let response = Self.asking().applying(.return)
-
-        #expect(response.state.sheet == nil)
-        #expect(
-            response.outcome.effect
-                == .closeAndInsertConfirmedConcealed(Self.secret.text, used: Self.secret.id))
-    }
-
-    @Test("Escape cancels: nothing is inserted and the panel stays up")
-    func escapeCancels() {
-        let response = Self.asking().applying(.escape)
-
-        #expect(response.state.sheet == nil)
-        #expect(response.outcome == .open)
-        #expect(response.outcome.effect == .redraw)
-    }
-
-    @Test("the cleaned form stays the cleaned form after agreeing")
-    func cleanedSurvives() {
-        let dirty = PanelFixture.clip("sk-live\u{200B}abcdef123456", kind: .secret)
-        let snapshot = PanelFixture.panel([dirty]).askingBeforePaste(
-            of: dirty.id, cleaned: true, reason: .hiddenIntoVisibleField)
-
-        let effect = snapshot.applying(.return).outcome.effect
-
-        #expect(effect == .closeAndInsertConfirmedConcealed("sk-liveabcdef123456", used: dirty.id))
-    }
-
-    @Test("the question never carries the clip's words")
-    func questionHidesTheClip() throws {
-        for unclassified in [false, true] {
-            let sheet = try #require(PanelPresenter.present(Self.asking(unclassified: unclassified)).sheet)
-            let drawn = [
-                sheet.title, sheet.note ?? "", sheet.confirmTitle, sheet.draft, sheet.conflict ?? "",
-            ]
-
-            #expect(sheet.kind == .confirmingPaste)
-            #expect(sheet.isConfirmEnabled)
-            #expect(drawn.allSatisfy { !$0.contains("sk-live") })
-        }
-    }
-
-    @Test("a field that cannot be classified is worded differently")
-    func unclassifiedWording() throws {
-        let known = try #require(PanelPresenter.present(Self.asking()).sheet)
-        let unknown = try #require(PanelPresenter.present(Self.asking(unclassified: true)).sheet)
-
-        #expect(known.title != unknown.title)
-    }
-
-    @Test("a question is not revived when the panel reopens")
-    func notResumed() {
-        let resume = PanelResume(
-            category: nil, selection: Self.secret.id,
-            sheet: Self.asking().sheet, closedAt: PanelFixture.now)
-        var reopened = PanelFixture.panel([Self.secret])
-
-        reopened.restore(resume)
-
-        #expect(reopened.sheet == nil)
-    }
-
-    @Test("the list behind the question stays inert")
-    func listIsInert() {
-        let response = Self.asking().applying(.down)
-
-        #expect(response.state.sheet != nil)
-        #expect(response.outcome == .open)
-    }
-
-    @Test("agreeing to a clip that is no longer hidden pastes nothing")
-    func staleQuestion() {
-        let plain = PanelFixture.clip("hello")
-        let snapshot = PanelFixture.panel([plain]).askingBeforePaste(
-            of: plain.id, cleaned: false, reason: .hiddenIntoVisibleField)
-
-        #expect(snapshot.applying(.return).outcome.effect == .redraw)
-    }
-}
-
-/// A multi-line clip pasted into a terminal asks through the same question, worded by its reason.
+/// A multi-line clip pasted into a terminal is the one paste that asks, worded by its reason.
 @Suite("Confirming a terminal paste in the panel")
 struct PanelTerminalPasteQuestionTests {
     private static let clip = PanelFixture.clip("ls\npwd")
@@ -129,6 +29,17 @@ struct PanelTerminalPasteQuestionTests {
         #expect(sheet.title == "This clip has 2 lines. Paste anyway?")
     }
 
+    @Test("a hidden clip into a terminal stays concealed when agreed")
+    func hiddenInTerminal() {
+        let secret = PanelFixture.clip("-----BEGIN PRIVATE KEY-----\nabc", kind: .secret)
+        let asked = PanelFixture.panel([secret]).askingBeforePaste(
+            of: secret.id, cleaned: false, reason: .multilineIntoTerminal(lines: 2))
+
+        #expect(
+            asked.applying(.return).outcome.effect
+                == .closeAndInsertConfirmedConcealed(secret.text, used: secret.id))
+    }
+
     @Test("a clip that is gone pastes nothing")
     func gone() {
         let snapshot = PanelFixture.panel([PanelFixture.clip("other")]).askingBeforePaste(
@@ -138,16 +49,49 @@ struct PanelTerminalPasteQuestionTests {
     }
 }
 
-/// The preference that turns the question off is a switch on the settings screen.
-@Suite("The hidden clip confirmation switch")
-struct HiddenClipConfirmationSwitchTests {
-    @Test("the switch changes the setting and the screen reads it back")
-    func switchRoundTrips() throws {
-        let off = try SettingsEditor.apply(
-            .toggle(.confirmsHiddenClipPaste, isOn: false), to: .default, given: .everything)
+/// A chosen hidden clip never asks; it goes straight down the concealed route.
+@Suite("Choosing a hidden clip in the panel")
+struct PanelHiddenClipChoiceTests {
+    private static let secret = PanelFixture.clip("Vb4nM7xQ2p-invented", kind: .secret)
 
-        #expect(!off.confirmsHiddenClipPaste)
-        #expect(!SettingsPresenter.value(of: .confirmsHiddenClipPaste, in: off))
-        #expect(SettingsPresenter.value(of: .confirmsHiddenClipPaste, in: .default))
+    @Test("Return pastes it at once, concealed")
+    func returnPastes() {
+        var panel = PanelFixture.panel([Self.secret])
+        panel.selection = Self.secret.id
+        let response = panel.applying(.return)
+
+        #expect(response.state.sheet == nil)
+        #expect(response.outcome.effect == .closeAndInsertConcealed(Self.secret.text, used: Self.secret.id))
+    }
+
+    @Test("a click pastes it at once, concealed")
+    func clickPastes() {
+        let response = PanelFixture.panel([Self.secret]).applying(.choose(Self.secret.id))
+
+        #expect(response.state.sheet == nil)
+        #expect(response.outcome.effect == .closeAndInsertConcealed(Self.secret.text, used: Self.secret.id))
+    }
+
+    @Test("copying it goes to the clipboard, concealed")
+    func copies() {
+        #expect(
+            PanelOutcome.copy(Self.secret).effect
+                == .closeAndCopyConcealed(Self.secret.text, used: Self.secret.id))
+    }
+
+    @Test("a masked row shows no measurement that reveals length, formatted or blank")
+    func maskedRowHidesLength() {
+        let formatted = Clip(
+            text: "Vb4nM7xQ2p-invented", kind: .secret, copiedAt: PanelFixture.now,
+            richText: "<p>Vb4nM7xQ2p-invented</p>")
+        let blank = PanelFixture.clip("     ", kind: .secret)
+
+        for clip in [formatted, blank] {
+            let row = PanelFixture.page([clip]).rows[0]
+            #expect(row.isMasked)
+            #expect(row.measurements == nil)
+            #expect(row.summary == PanelPresenter.mask)
+            #expect(row.preview == PanelPresenter.mask)
+        }
     }
 }

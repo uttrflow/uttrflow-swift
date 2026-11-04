@@ -545,8 +545,8 @@ public actor ClipboardStore {
         return policy.retained(unique, keeping: retention)
     }
 
-    /// Whether this clip may cross a launch boundary; secrets stay in this process only.
-    static func isPersistable(_ clip: Clip) -> Bool { clip.kind != .secret }
+    /// Whether this clip crosses a launch: all but a secret nobody kept, which stays in this process.
+    static func isPersistable(_ clip: Clip) -> Bool { clip.kind != .secret || clip.isKept }
 
     // MARK: - The two files
 
@@ -640,8 +640,11 @@ public actor ClipboardStore {
                 updated, from: snapshot, into: currentClips(in: url),
                 liveOrder: indexSnapshot.wholeList ?? [], secrecy: &secrecy)
         else { return }
+        // Only a sealed index may hold a secret's value, as in `write`.
+        let sealed = encryptedStore != nil
+        let onDisk = persistable.filter { sealed || $0.kind != .secret }
         do {
-            try persist(persistable, to: url, classifierVersion: ClipboardIndex.currentClassifierVersion)
+            try persist(onDisk, to: url, classifierVersion: ClipboardIndex.currentClassifierVersion)
             indexReader.classifierVersions[url] = ClipboardIndex.currentClassifierVersion
             replaceCurrentClips(persistable, in: url)
         } catch {
@@ -725,7 +728,9 @@ public actor ClipboardStore {
         // A picture written for a clip this list drops is ours to remove, whether the writes below land or not.
         let unnamed = pictureReferences.takeUnnamed(naming: named)
         defer { pictureVault.removePictures(unnamed) }
-        let persistable = clips.filter(Self.isPersistable)
+        // Only a sealed index may hold a secret's value: a store with no key writes the rest.
+        let sealed = encryptedStore != nil
+        let persistable = clips.filter { Self.isPersistable($0) && (sealed || $0.kind != .secret) }
 
         // Memory first and unconditionally, so a refusing disk does not also cost the change itself.
         indexSnapshot.wholeList = clips

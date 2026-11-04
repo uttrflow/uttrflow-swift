@@ -74,15 +74,18 @@ struct TypedInsertionUnpublishedFieldTests {
         #expect(typist.typed == ["hello"])
     }
 
-    @Test("Dictation refused for an unreadable field keeps the words for explicit copy.")
-    func refusalMessage() async {
+    @Test("An unreadable field is never typed into; the words arrive by paste.")
+    func refusalFallsToPaste() async throws {
         let typist = RecordingTypist()
+        let keys = FakeKeystrokeSender()
         let focus = KindFocus(application: Self.listed[0], kind: .unpublished)
-        let coordinator = TextInsertion.dictation(focus: focus, typist: typist)
+        let coordinator = TextInsertion.dictation(
+            focus: focus, typist: typist, pasteboard: FakePasteboard(), keystrokes: keys)
 
-        let expected = TextInsertionError.insertionNeedsCopy(
-            description: TextInsertionError.noFocusedTextField.userMessage)
-        await #expect(throws: expected) { _ = try await coordinator.insert("remove the old directory") }
+        let attempt = try await coordinator.insert("remove the old directory")
+
+        #expect(attempt.method == .pasteboard)
+        #expect(keys.pasteCount == 1)
         #expect(typist.typed.isEmpty)
     }
 

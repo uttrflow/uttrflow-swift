@@ -1068,42 +1068,70 @@ private final class PanelRouteTypist: KeystrokeTyping, @unchecked Sendable {
     func deleteBackwards(_ count: Int) throws(TextInsertionError) {}
 }
 
-@Suite("Clipboard-free dictation insertion")
-struct ClipboardFreeDictationInsertionTests {
-    @Test("uses Accessibility then typing and never borrows or writes the clipboard")
-    func routeLeavesClipboardAlone() async throws {
+@Suite("Dictation insertion route")
+struct DictationInsertionRouteTests {
+    @Test("typing is used first and leaves the clipboard alone")
+    func typingLeavesClipboardAlone() async throws {
         let pasteboard = FakePasteboard(text: "the user's copy")
+        let keys = FakeKeystrokeSender()
         let typist = RouteRecordingTypist()
-        let coordinator = TextInsertion.dictation(focus: FakeFocus(field: nil), typist: typist)
+        let coordinator = TextInsertion.dictation(
+            focus: FakeFocus(field: nil), typist: typist, pasteboard: pasteboard, keystrokes: keys)
 
-        #expect(coordinator.route == [.accessibility, .typed])
+        #expect(coordinator.route == [.accessibility, .typed, .pasteboard])
         let attempt = try await coordinator.insert("dictated words")
 
         #expect(attempt.method == .typed)
         #expect(typist.text == ["dictated words"])
         #expect(pasteboard.text() == "the user's copy")
         #expect(pasteboard.writes.isEmpty)
+        #expect(keys.pasteCount == 0)
     }
 
-    @Test("the named dictation route contains no pasteboard strategy")
-    func routeIsAccessibilityThenTyping() {
-        #expect(TextInsertion.dictation().route == [.accessibility, .typed])
-    }
-
-    @Test("refused typing becomes a truthful copy action instead of a clipboard claim")
-    func refusesWithoutReplacingClipboard() async {
+    @Test("when Accessibility and typing both refuse, the paste key is posted")
+    func pastesWhenEverythingElseRefuses() async throws {
+        let pasteboard = FakePasteboard()
+        let keys = FakeKeystrokeSender()
         let coordinator = TextInsertion.dictation(
             focus: FakeFocus(field: nil),
-            typist: RouteRecordingTypist(error: .insertionRejected(description: "unsupported character")))
+            typist: RouteRecordingTypist(error: .insertionRejected(description: "unsupported character")),
+            pasteboard: pasteboard, keystrokes: keys)
 
-        await #expect(
-            throws: TextInsertionError.insertionNeedsCopy(
-                description: TextInsertionError.insertionRejected(
-                    description: "unsupported character"
-                ).userMessage)
-        ) {
-            try await coordinator.insert("dictated words")
-        }
+        let attempt = try await coordinator.insert("dictated words")
+
+        #expect(attempt.method == .pasteboard)
+        #expect(keys.pasteCount == 1)
+        #expect(pasteboard.writes == ["dictated words"])
+    }
+
+    @Test("a secure field is never pasted into and the clipboard is not written")
+    func secureFieldIsNotPasted() async {
+        let pasteboard = FakePasteboard(text: "the user's copy")
+        let keys = FakeKeystrokeSender()
+        let coordinator = TextInsertion.dictation(
+            focus: FakeFocus(field: nil, secure: true),
+            typist: RouteRecordingTypist(error: .insertionRejected(description: "unsupported character")),
+            pasteboard: pasteboard, keystrokes: keys)
+
+        await #expect(throws: TextInsertionError.self) { try await coordinator.insert("open sesame") }
+
+        #expect(keys.pasteCount == 0)
+        #expect(pasteboard.writes.isEmpty && pasteboard.concealed.isEmpty)
+        #expect(pasteboard.text() == "the user's copy")
+    }
+
+    @Test("a paste the system will not post leaves a truthful copy action and the user's copy")
+    func refusedPasteKeepsClipboard() async {
+        let pasteboard = FakePasteboard(text: "the user's copy")
+        let coordinator = TextInsertion.dictation(
+            focus: FakeFocus(field: nil),
+            typist: RouteRecordingTypist(error: .insertionRejected(description: "unsupported character")),
+            pasteboard: pasteboard, keystrokes: FakeKeystrokeSender(error: .accessibilityDenied))
+
+        await #expect(throws: TextInsertionError.self) { try await coordinator.insert("dictated words") }
+
+        #expect(pasteboard.text() == "the user's copy")
+        #expect(pasteboard.writes.isEmpty)
     }
 }
 

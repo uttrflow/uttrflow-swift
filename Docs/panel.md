@@ -163,11 +163,8 @@ sets both forms in one write, taking the text from `RichTextPlainForm` of the re
 formatted form is editable when rebuilding it from its plain form gives it back unchanged
 (`NotePromotion.isEditableNote`).
 
-A kept clip whose new text the detector takes for a secret would be held in memory only and gone
-after the next launch ([`clipboard-secrets.md`](clipboard-secrets.md)). The first Save says so and
-saves nothing; a second Save of the same text saves it. Typing anything in between asks again.
-Format and Re-indent ask the same of their result: the first confirmation of a kept clip whose
-new text is a secret shows the warning in place of the undo line, and a second one applies it.
+A kept clip whose new text the detector takes for a secret saves at once and is masked from then
+on; it stays kept and on disk, sealed.
 
 ## Empty states: never specific and wrong
 

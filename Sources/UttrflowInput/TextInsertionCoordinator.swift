@@ -1,7 +1,10 @@
+import os
 public import UttrflowCore
 
 /// Gets finished text to the user by trying each strategy, ending in one that cannot fail.
 public struct TextInsertionCoordinator: TextInserting {
+    private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "insertion")
+
     private let strategies: [any TextInsertionEngine]
     /// Asked where the words went the moment they are written, since the recording's answer may be stale.
     private let focus: (any AccessibilityFocus)?
@@ -99,17 +102,28 @@ public struct TextInsertionCoordinator: TextInserting {
         let outcome = await FallbackRunner.firstSuccess(
             among: usable, stopAfterFailure: { ($0 as? TextInsertionError)?.stopsFallback == true }
         ) { strategy in
-            guard await strategy.canInsert() else { throw TextInsertionError.noFocusedTextField }
+            guard await strategy.canInsert() else {
+                Self.log.info("\(strategy.method.rawValue, privacy: .public) route cannot insert here")
+                throw TextInsertionError.noFocusedTextField
+            }
             // Passed through rather than dropped, so what the strategy found out survives the fallback.
             let arrival: InsertionArrival
-            if let destination {
-                if let richText {
-                    arrival = try await strategy.insert(text, richText: richText, targeting: destination)
+            do {
+                if let destination {
+                    if let richText {
+                        arrival = try await strategy.insert(text, richText: richText, targeting: destination)
+                    } else {
+                        arrival = try await strategy.insert(text, targeting: destination)
+                    }
                 } else {
-                    arrival = try await strategy.insert(text, targeting: destination)
+                    arrival = try await strategy.insert(text, richText: richText)
                 }
-            } else {
-                arrival = try await strategy.insert(text, richText: richText)
+            } catch {
+                // Names the route and the reason, never the words.
+                Self.log.info(
+                    "\(strategy.method.rawValue, privacy: .public) route refused: \(ErrorLog.failure(error), privacy: .public)"
+                )
+                throw error
             }
             // The strategy's own reading at the moment of sending wins; otherwise read the app after the write.
             let landed = await strategy.destinationAtLanding()

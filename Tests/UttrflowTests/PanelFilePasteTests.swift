@@ -158,3 +158,43 @@ struct PanelListFactsTests {
         #expect(facts.missingPictures == [picture.id])
     }
 }
+
+@Suite("A refused file paste and the clipboard")
+struct PanelFilePasteRefusalTests {
+    @Test("a paste refused before its write copies the files, so the report is true")
+    func copies() {
+        var copies = 0
+        let failure = PanelFilePaste.afterRefusal(.insertionTargetChanged, .paste) { copies += 1 }
+        #expect(copies == 1)
+        #expect(failure == .insertionTargetChanged)
+    }
+
+    @Test("a copy that also fails is reported as not copied")
+    func copyFails() {
+        let failure = PanelFilePaste.afterRefusal(.insertionTargetChanged, .paste) {
+            throw TextInsertionError.clipboardUnavailable
+        }
+        #expect(
+            PanelFilePaste.landing(
+                .paste, failure: failure, copyFailed: PanelNotice(symbolName: "x", message: "x")
+            ).report == .textCouldNotPaste)
+    }
+
+    @Test("a paste whose own write failed is not retried, so the report that nothing was copied stays true")
+    func writeFailed() {
+        var copies = 0
+        let failure = PanelFilePaste.afterRefusal(.clipboardUnavailable, .paste) { copies += 1 }
+        #expect(copies == 0)
+        #expect(
+            PanelFilePaste.landing(
+                .paste, failure: failure, copyFailed: PanelNotice(symbolName: "x", message: "x")
+            ).report == .textCouldNotPaste)
+    }
+
+    @Test("a newer copy on the clipboard is left alone")
+    func newerCopy() {
+        var copies = 0
+        _ = PanelFilePaste.afterRefusal(.clipboardChanged, .paste) { copies += 1 }
+        #expect(copies == 0)
+    }
+}

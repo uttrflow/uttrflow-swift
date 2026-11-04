@@ -111,9 +111,6 @@ public struct Settings: Sendable, Equatable, Codable {
     /// Whether Uttrflow's windows are kept out of screenshots, recordings and screen sharing. See `Docs/clipboard-secrets.md`.
     public var hidesWindowsFromCapture: Bool
 
-    /// Whether pasting a hidden clip into a field not known to hide what is typed asks first.
-    public var confirmsHiddenClipPaste: Bool
-
     /// Seconds a copied secret stays on the system clipboard before it is cleared; 0 leaves it there.
     public var secretClipboardClearSeconds: Int
 
@@ -168,7 +165,6 @@ public struct Settings: Sendable, Equatable, Codable {
         historyExcludedApplications: [String] = [],
         clipboardRetentionDays: Int = Settings.defaultRetentionDays,
         hidesWindowsFromCapture: Bool = true,
-        confirmsHiddenClipPaste: Bool = true,
         secretClipboardClearSeconds: Int = Settings.defaultSecretClipboardClearSeconds,
         suggestions: SuggestionPreferences = .default,
         microphoneUID: String? = nil,
@@ -207,7 +203,6 @@ public struct Settings: Sendable, Equatable, Codable {
         self.historyExcludedApplications = historyExcludedApplications
         self.clipboardRetentionDays = clipboardRetentionDays
         self.hidesWindowsFromCapture = hidesWindowsFromCapture
-        self.confirmsHiddenClipPaste = confirmsHiddenClipPaste
         self.secretClipboardClearSeconds = secretClipboardClearSeconds
         self.suggestions = suggestions
         self.microphoneUID = microphoneUID
@@ -299,7 +294,6 @@ extension Settings {
         case historyExcludedApplications
         case clipboardRetentionDays
         case hidesWindowsFromCapture
-        case confirmsHiddenClipPaste
         case secretClipboardClearSeconds
         case suggestions
         case microphoneUID
@@ -392,8 +386,6 @@ extension Settings {
             ),
             hidesWindowsFromCapture: container.value(
                 forKey: .hidesWindowsFromCapture, default: fallback.hidesWindowsFromCapture),
-            confirmsHiddenClipPaste: container.value(
-                forKey: .confirmsHiddenClipPaste, default: fallback.confirmsHiddenClipPaste),
             secretClipboardClearSeconds: Settings.secretClear(
                 container.value(
                     forKey: .secretClipboardClearSeconds, default: fallback.secretClipboardClearSeconds),

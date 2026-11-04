@@ -57,7 +57,7 @@ enum BearerURLShape {
     }
 
     /// Whether a byte cannot stand in a URL as copied: ASCII space or control, a quote or an angle bracket.
-    private static func endsURL(_ byte: UInt8) -> Bool {
+    static func endsURL(_ byte: UInt8) -> Bool {
         byte <= 0x20 || byte >= 0x80 || byte == 0x7F || byte == UInt8(ascii: "\"")
             || byte == UInt8(ascii: "'")
             || byte == UInt8(ascii: "<") || byte == UInt8(ascii: ">") || byte == UInt8(ascii: "`")
@@ -100,7 +100,7 @@ enum BearerURLShape {
     /// Query and fragment parameters that carry a signature or a token, lowercase.
     private static let credentialParameters: Set<String> = [
         "sig", "signature", "x_amz_signature", "x_goog_signature", "x_amz_security_token",
-        "api_key", "apikey", "key", "auth", "jwt", "password", "code",
+        "api_key", "apikey", "client_secret", "secret", "private_token", "jwt", "password",
         "access_token", "id_token", "refresh_token", "token",
     ]
 

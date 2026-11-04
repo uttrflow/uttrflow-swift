@@ -9,7 +9,7 @@ in [`clipboard-budget.md`](clipboard-budget.md); when a clip ages out is in
 
 `ClipboardStore+RecordTransforms.swift` owns clip identity matching and immutable record copies
 for rebuilding, relinking, arrival inheritance and undo restoration. `ClipboardStore` keeps actor
-coordination and file I/O; both use the same `isPersistable` predicate for memory-only secrets.
+coordination and file I/O; both use the same `isPersistable` predicate, false only for a secret nobody kept.
 `ClipMigration` owns synchronous index migration eligibility and legacy upgrades; the store
 keeps background scheduling, persistence validation and successful legacy-marker updates.
 `PictureVault` owns confined picture byte reads and writes, metadata creation and orphan-folder
@@ -155,11 +155,9 @@ collection, the pin) plus the identifier. The timestamp, the kind, the source, t
 from the new copy, because it genuinely was copied again, just now, from somewhere; dropping the
 language or the rich text would hollow out a clip while its row looked identical.
 
-One exception to the kind: a kept clip (pinned, named or filed) that is on disk keeps its kind and
-language when the same text arrives again classified as a secret. A secret is never written to
-disk, so taking the arrival's kind would delete the one clip the store promises never to age out,
-and the text was already on disk and shown in the panel under the user's own decision to keep it.
-A clip that is not kept still becomes a secret and leaves the disk.
+One exception to the kind: a kept clip keeps its kind and language when the same text arrives again
+judged differently about being a secret. Whether a kept clip is masked is settled by what the user
+did, in either direction, and a detector update leaves it the same way (`ClipReclassification`).
 
 The rich text comes from the new copy only when the new copy carries some. A plain copy of the
 same text keeps the clip's rich text, because that may be a note the user wrote or promoted in the
@@ -224,7 +222,26 @@ alone does not add a clipboard item.
 
 Anything kept survives unconditionally: it is exempt from the window and is not counted against
 the cap. Not as a special case checked in three places, but absent from the candidate list
-entirely: the `kept` pool has no tier, so there is no rule for it to be an exception to.
+entirely: the `kept` pool has no tier, so there is no rule for it to be an exception to. A kept
+secret is written like any other kept clip: the saved file is sealed under the device-only key
+([`local-store-encryption.md`](local-store-encryption.md)), and a store built without a key, which
+only tests and tools are, leaves the value out rather than writing it plainly. An index holding one
+also carries the key `holdsKeptSecrets`: a build from before kept secrets drops them when it reads,
+and that unknown key makes it refuse to rewrite the file, so going back to one cannot lose them.
+
+What can remove a kept clip: `delete`, `deleteCategory`, `forgetEverything` (each a person asking)
+and `deleteCopies` when a person deletes the dictation it copies. Every other path spares it:
+
+| Path | Why a kept clip survives |
+|---|---|
+| Window, count cap, memory quota, picture disk budget | not a candidate; kept pictures that do not fit are refused when kept, not evicted |
+| Clearing the history | `deleteEverything(keeping:)` spares `isKept` |
+| Copying the same text again | `inheriting` builds on the kept clip and keeps its marks and kind |
+| Renaming onto a name in use | refused; a duplicate name found in a file or an undo drops only the name, and pins the clip if no tag, collection or pin keeps it |
+| Taking off the last mark | the person's choice; it rejoins the history, and a secret leaves the file then |
+| A detector update | `ClipReclassification.merge` never changes whether a kept clip is masked |
+| An unreadable file or record | restored from `.bak`, set aside, quarantined or refused, and never replaced with an empty list |
+| A file from an older or a newer build | migrated in place, or left untouched and read-only |
 
 The window is `RetentionWindow`, shared with the history and the recordings, and it is asked two
 questions rather than one: whether a clip may still be shown, and whether this clock may be

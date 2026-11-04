@@ -14,6 +14,12 @@ public protocol FocusedTextField: Sendable {
     func placeCaret(in target: EditTarget, back units: Int) throws(TextInsertionError)
 }
 
+/// A field that can say whether the caret proved the write, which the strict `replaceSelection(with:)` hides.
+protocol ArrivalReportingField: FocusedTextField {
+    /// `.notReported` when the field took the words but would not show the caret; refuses what provably did not land.
+    func writeReportingArrival(_ text: String) throws(TextInsertionError) -> InsertionArrival
+}
+
 extension FocusedTextField {
     /// A field that cannot select backwards refuses, so the keystroke route takes the replacement instead.
     public func replaceSelection(

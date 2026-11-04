@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// Recognises a credential, keener to say yes than no. See Docs/clipboard-secrets.md.
+/// Recognises a credential, on evidence that it is one: a wrong mask costs as much as a missed one. See Docs/clipboard-secrets.md.
 public enum SecretShapes {
     /// Counts the characters the single-pass readers take while bound, so a test can bound the work without a clock.
     @TaskLocal package static var tally: ScanTally?
@@ -21,26 +21,31 @@ public enum SecretShapes {
                 dockerAuth: ClipBytes.contains(bytes, "\"auth\"")
             )
         }
-        if literals.pem, text.contains(pemHeader) { return true }
-        if literals.jwt, hasJSONWebToken(text) { return true }
+        if literals.pem, PublicMaterialShape.hasNonPublicPEM(text) { return true }
+        if PublicMaterialShape.matches(text) { return false }
+        let examplesRemoved = literals.jwt ? PublicMaterialShape.withoutPublishedExamples(text) : text
+        if literals.jwt, hasJSONWebToken(examplesRemoved) { return true }
         if literals.dockerAuth, DockerAuthShape.matches(text) { return true }
         if literals.url, hasAuthenticatorSeed(text) { return true }
-        if literals.url, hasCredentialledURL(text) || hasBearerURL(text) || hasTokenUserinfoURL(text) {
+        if literals.url,
+            hasCredentialledURL(text) || hasBearerURL(examplesRemoved) || hasTokenUserinfoURL(text)
+        {
             return true
         }
         if VendorKeyWindows.matches(text, pattern: vendorKey, tally: patternTally) { return true }
-        if NamedSecretStems.present(in: text), hasNamedSecret(text) { return true }
-        if ContextualCredentialScan.matches(text, tally: tally) { return true }
-        if CardNumberShape.matches(text) { return true }
-        if hasCommandCredential(text) { return true }
-        if BIP39RecoveryPhrase.matches(text) { return true }
-        return hasHighEntropyToken(text)
+        // The rules below read words; the rules above judge an address, so its words are not theirs.
+        var words = AddressFreeText.removingWorkingDirectoryLines(
+            from: AddressFreeText.removingAddresses(from: examplesRemoved))
+        words.makeContiguousUTF8()
+        if NamedSecretStems.present(in: words), hasNamedSecret(words) { return true }
+        if ContextualCredentialScan.matches(words, tally: tally) { return true }
+        if CardNumberShape.matches(words) { return true }
+        if hasCommandCredential(words) { return true }
+        if BIP39RecoveryPhrase.matches(words) { return true }
+        return hasHighEntropyToken(words)
     }
 
     // MARK: - Exact shapes
-
-    /// The first line of any PEM object; certificates are masked alongside keys, and that is fine.
-    private static let pemHeader = "-----BEGIN"
 
     /// A JWT anywhere in the text, so `Bearer eyJ…` is caught; the signature may be empty.
     static func hasJSONWebToken(_ text: String) -> Bool {
@@ -294,6 +299,22 @@ public enum SecretShapes {
         CredentialPlaceholder.matches(token) || isEntropyExemptAddress(token) || isUUID(token)
             || isJoinedWords(token)
             || DeveloperReferenceShape.matches(token)
+    }
+
+    /// `www.example.com/a/b` or `example.com/a?b=1`: a lowercase host, then a path of URL characters.
+    static func isSchemeLessAddress(_ token: String) -> Bool {
+        guard let end = token.firstIndex(where: { $0 == "/" || $0 == "?" }) else { return false }
+        let labels = token[..<end].split(separator: ".", omittingEmptySubsequences: false)
+        func isHostCharacter(_ character: Character) -> Bool {
+            character.isASCII && (character.isLowercase || character.isNumber || character == "-")
+        }
+        guard labels.count >= 2, let top = labels.last, top.count >= 2,
+            top.allSatisfy({ $0.isASCII && $0.isLowercase }),
+            labels.allSatisfy({ !$0.isEmpty && $0.allSatisfy(isHostCharacter) })
+        else { return false }
+        return token[end...].allSatisfy {
+            $0.isASCII && ($0.isLetter || $0.isNumber || "-._~/?=&%+,;#".contains($0))
+        }
     }
 
     /// Whether a token has the canonical 8-4-4-4-12 hexadecimal UUID shape.

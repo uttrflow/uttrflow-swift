@@ -53,16 +53,21 @@ public enum TextInsertion {
         return TextInsertionCoordinator(strategies: strategies, focus: focus)
     }
 
-    /// Dictation never writes the clipboard: after Accessibility, it types or leaves the transcript for explicit copy.
+    /// Accessibility, then typing, then a paste as the last resort; never a secure field, never the clipboard floor.
     public static func dictation(
         focus: any AccessibilityFocus = AXAccessibilityFocus(),
         typist: any KeystrokeTyping = CGEventTypist(),
+        pasteboard: any Pasteboard = SystemPasteboard(),
+        keystrokes: any KeystrokeSender = CGEventKeystrokeSender(),
         ledger: InsertionLedger? = nil
     ) -> TextInsertionCoordinator {
         TextInsertionCoordinator(
             strategies: [
                 AccessibilityTextInsertionEngine(focus: focus),
                 TypedTextInsertionEngine(focus: focus, typist: typist),
+                PasteboardTextInsertionEngine(
+                    focus: focus, pasteboard: pasteboard, keystrokes: keystrokes,
+                    keepsWordsWhenRefused: false, pastesIntoSecureFields: false),
             ], focus: focus, ledger: ledger ?? InsertionLedger())
     }
 

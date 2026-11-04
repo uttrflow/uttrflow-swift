@@ -21,7 +21,7 @@ struct SecretShapesSurvivorTests {
         "masks one generated word by its randomness alone",
         arguments: [
             "Zx9kLmQ2rT7pWq4N",
-            "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+            "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822c",
         ])
     func generatedWord(_ text: String) {
         #expect(SecretShapes.matches(text))

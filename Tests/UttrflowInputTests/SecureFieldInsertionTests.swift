@@ -66,6 +66,23 @@ struct SecureFieldInsertionTests {
         #expect(attempt.intoSecureField == false)
     }
 
+    @Test("a coordinator built like the panel's pastes into a secure field that refuses Accessibility")
+    func panelSecretRoute() async throws {
+        let pasteboard = FakePasteboard()
+        let keystrokes = FakeKeystrokeSender()
+        let coordinator = TextInsertion.coordinator(
+            focus: FakeFocus(field: nil, somethingFocused: true, secure: true),
+            pasteboard: ConcealingPasteboard(pasteboard), keystrokes: keystrokes,
+            confirmsArrival: false, clipboardFallback: false)
+
+        let attempt = try await coordinator.insert("open sesame")
+
+        #expect(attempt.method == .pasteboard)
+        #expect(attempt.intoSecureField)
+        #expect(keystrokes.pasteCount == 1)
+        #expect(pasteboard.concealed == ["open sesame"])
+    }
+
     @Test("the paste route marks the clipboard concealed for a secure field")
     func pasteConceals() async throws {
         let pasteboard = FakePasteboard()
