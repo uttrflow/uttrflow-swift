@@ -172,7 +172,7 @@ struct PanelFilePasteRefusalTests {
     @Test("a copy that also fails is reported as not copied")
     func copyFails() {
         let failure = PanelFilePaste.afterRefusal(.insertionTargetChanged, .paste) {
-            throw .clipboardUnavailable
+            throw TextInsertionError.clipboardUnavailable
         }
         #expect(
             PanelFilePaste.landing(
