@@ -396,13 +396,17 @@ enum BacktrackingPatterns {
 
     /// `SecretShapes.matches` as it read before the readers, with the unchanged rules borrowed from it.
     static func matches(_ text: String) -> Bool {
-        text.contains("-----BEGIN") || hasJSONWebToken(text) || hasCredentialledURL(text)
+        if PublicMaterialShape.hasNonPublicPEM(text) { return true }
+        if PublicMaterialShape.matches(text) { return false }
+        let examplesRemoved = PublicMaterialShape.withoutPublishedExamples(text)
+        let words = AddressFreeText.removingWorkingDirectoryLines(
+            from: AddressFreeText.removingAddresses(from: examplesRemoved))
+        return hasJSONWebToken(examplesRemoved) || hasCredentialledURL(text)
             || SecretShapes.hasBearerURL(text) || SecretShapes.hasTokenUserinfoURL(text)
-            || SecretShapes.hasCommandCredential(text)
             || text.matches(of: SecretShapes.vendorKey).contains(where: {
                 !CredentialPlaceholder.matches(String($0.output))
-            }) || hasNamedSecret(text)
-            || ContextualCredentialScan.matches(text, tally: nil) || hasCardNumber(text)
-            || SecretShapes.hasHighEntropyToken(text)
+            }) || SecretShapes.hasCommandCredential(words) || hasNamedSecret(words)
+            || ContextualCredentialScan.matches(words, tally: nil) || hasCardNumber(words)
+            || SecretShapes.hasHighEntropyToken(words)
     }
 }

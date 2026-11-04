@@ -7,7 +7,7 @@ import UttrflowCore
 package struct ClipboardIndex: Codable, Sendable, ElementwiseDecodable {
     package static let currentVersion = 2
     /// The detector version this build stamps on every index it judges; an older stamp is reclassified.
-    package static let currentClassifierVersion = 1
+    package static let currentClassifierVersion = 2
 
     package let version: Int
     package let clips: [Clip]

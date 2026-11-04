@@ -124,7 +124,6 @@ public struct PanelSnapshot: Sendable, Equatable {
     /// Whether the first press on a rewrite with no diff is done, so the next press keeps it.
     var hasAcknowledgedUnreviewableRewrite = false
     /// Whether Edit has said that saving this text would stop a kept clip being saved between launches.
-    var hasWarnedOfUnsavedSecret = false
     /// Hands the panel cache a sheet already drawn, so presenting it compares nothing on the caller's actor.
     public func remember(_ prepared: PreparedFormattingSheet) {
         PanelCache.current.formattingSheets.remember(prepared)

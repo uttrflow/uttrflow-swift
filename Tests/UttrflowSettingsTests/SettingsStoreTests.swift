@@ -929,25 +929,16 @@ struct SettingsSuggestionsTests {
     }
 }
 
-/// Whether a hidden clip's paste asks first is on until the user turns it off.
-@Suite("Confirming hidden clip pastes")
-struct HiddenClipConfirmationSettingTests {
-    @Test("it is on by default and when an older file lacks it")
-    func defaultsOn() throws {
-        #expect(Settings.default.confirmsHiddenClipPaste)
-        let older = try JSONDecoder().decode(Settings.self, from: Data("{}".utf8))
-        #expect(older.confirmsHiddenClipPaste)
-    }
+/// A setting this build no longer has is read past and not written back.
+@Suite("A retired setting")
+struct RetiredSettingTests {
+    @Test("the hidden-clip question's switch is dropped at the next save")
+    func dropped() throws {
+        let older = try JSONDecoder().decode(
+            Settings.self, from: Data(#"{"confirmsHiddenClipPaste": false}"#.utf8))
+        let written = try JSONEncoder().encode(older)
 
-    @Test("turning it off survives a round trip")
-    func roundTrips() throws {
-        var settings = Settings.default
-        settings.confirmsHiddenClipPaste = false
-
-        let data = try JSONEncoder().encode(settings)
-        let decoded = try JSONDecoder().decode(Settings.self, from: data)
-
-        #expect(!decoded.confirmsHiddenClipPaste)
+        #expect(!String(decoding: written, as: UTF8.self).contains("confirmsHiddenClipPaste"))
     }
 }
 
@@ -960,7 +951,6 @@ struct WindowCaptureSettingTests {
         let older = try JSONDecoder().decode(
             Settings.self, from: Data(#"{"confirmsHiddenClipPaste": false}"#.utf8))
         #expect(older.hidesWindowsFromCapture)
-        #expect(!older.confirmsHiddenClipPaste)
     }
 
     @Test("an unreadable value falls back to on")

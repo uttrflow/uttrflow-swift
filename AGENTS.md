@@ -62,6 +62,9 @@ Each links to its one home, where the limit and the check live.
 2. [Latin letters only; Hindi is romanised, never translated.](Docs/agents/product.md#dictation-and-clean-up)
 3. [The user's data stays on this Mac.](Docs/agents/product.md#across-every-feature)
 4. [Fix the root cause, with one implementation per capability.](Docs/agents/code-quality.md#fixing-a-defect)
+5. [A kept clip is removed only by the user's delete, and survives relaunch.](Docs/agents/product.md#clipboard-and-its-panel)
+6. [A URL without a credential is never masked.](Docs/agents/product.md#clipboard-and-its-panel)
+7. [Choosing a clip never asks for confirmation.](Docs/agents/product.md#clipboard-and-its-panel)
 
 ## Gates
 

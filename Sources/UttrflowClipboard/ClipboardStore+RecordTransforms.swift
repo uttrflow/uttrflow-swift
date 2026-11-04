@@ -42,9 +42,9 @@ extension ClipboardStore {
 
     /// Carries what the user chose about a clip onto the copy that has just replaced it.
     static func inheriting(_ previous: Clip, from arrival: Clip) -> Clip {
-        // A kept clip the user chose to keep on disk is never made a memory-only secret by a repeat of the same text.
-        let staysKept = previous.isKept && Self.isPersistable(previous) && !Self.isPersistable(arrival)
-        let classified = staysKept ? previous : arrival
+        // Whether a kept clip is masked is settled; a repeat of the same text never changes it, either way.
+        let staysAsIs = previous.isKept && (previous.kind == .secret) != (arrival.kind == .secret)
+        let classified = staysAsIs ? previous : arrival
         // Built on the previous clip, so its identity, origin and everything the user decided stay with it.
         return previous.with {
             $0.text = arrival.text
@@ -108,7 +108,7 @@ extension ClipboardStore {
                 existing.contains { $0.id != matching?.id && $0.alias == alias }
             } ?? false
         var deleted = clip
-        if aliasConflict { deleted.alias = nil }
+        if aliasConflict { deleted = deleted.losingAlias() }
 
         guard let matching else {
             return ClipboardRestoreResult(clips: [deleted] + existing, aliasWasAlreadyInUse: aliasConflict)

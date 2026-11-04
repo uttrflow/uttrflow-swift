@@ -32,7 +32,18 @@ struct EntropyValueExemption {
         return value.split(whereSeparator: { !$0.isASCII || !$0.isHexDigit }).contains {
             $0.count >= SecretShapes.hexTokenLength && contextualDigests.contains($0.lowercased())
         }
-            || isBase64Checksum(value)
+            || isBase64Checksum(value) || isContentDigest(value)
+    }
+
+    /// A git object name or a content digest, bare at 40 or 64 hex or labelled by its algorithm: public by design.
+    private func isContentDigest(_ value: String) -> Bool {
+        let parts = value.lowercased().split(separator: ":", omittingEmptySubsequences: false)
+        guard let digest = parts.last, digest.allSatisfy({ $0.isASCII && $0.isHexDigit }) else { return false }
+        switch parts.count {
+        case 1: return digest.count == 40 || digest.count == 64
+        case 2: return ["sha1": 40, "sha256": 64, "sha384": 96, "sha512": 128][parts[0]] == digest.count
+        default: return false
+        }
     }
 
     /// A labelled SHA checksum is not a credential when its decoded digest has the named bit length.

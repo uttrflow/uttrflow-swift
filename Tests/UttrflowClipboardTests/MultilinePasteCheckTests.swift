@@ -10,8 +10,7 @@ struct MultilinePasteCheckTests {
 
     private func question(for text: String, into bundleIdentifier: String?, isOn: Bool = true) -> String? {
         let situation = PasteQuestion.Situation(
-            isConcealed: false, field: .nonSecure, bundleIdentifier: bundleIdentifier, text: text,
-            confirmsHiddenClips: true, confirmsMultiline: isOn)
+            bundleIdentifier: bundleIdentifier, text: text, confirmsMultiline: isOn)
         guard case .ask(let reason) = PasteQuestion.decide(situation) else { return nil }
         return reason.title
     }

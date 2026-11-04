@@ -207,6 +207,14 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
     /// Whether the user deliberately kept this, which retention never ages out.
     public var isKept: Bool { alias != nil || !tags.isEmpty || category != nil || isPinned }
 
+    /// The clip without a name another clip holds, pinned if the name was all that kept it, since nobody chose to let it age.
+    func losingAlias() -> Clip {
+        var unnamed = self
+        unnamed.alias = nil
+        if !unnamed.isKept { unnamed.isPinned = true }
+        return unnamed
+    }
+
     /// E1 — whether this clip carries formatting worth telling the user about.
     public var isFormatted: Bool { richText != nil }
 

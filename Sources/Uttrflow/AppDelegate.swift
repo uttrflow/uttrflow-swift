@@ -2549,9 +2549,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     ) {
         let destination = panelTarget ?? InsertionDestination(applicationName: nil, bundleIdentifier: nil)
         let situation = PasteQuestion.Situation(
-            isConcealed: concealed, field: .secure, bundleIdentifier: destination.bundleIdentifier,
-            text: text,
-            confirmsHiddenClips: settings.confirmsHiddenClipPaste,
+            bundleIdentifier: destination.bundleIdentifier, text: text,
             confirmsMultiline: clipboardPreferences.confirmsMultilinePaste, isAgreed: agreed)
         let owner = PanelLateRequest(opens: quickPanel.opens, sheet: panel?.sheet)
         Task { [weak self, focus, pasteGate] in

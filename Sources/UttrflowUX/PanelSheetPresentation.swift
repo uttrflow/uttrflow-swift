@@ -209,12 +209,12 @@ extension PanelPresenter {
 
         case .formatting(let id, let formatted):
             let original = snapshot.clip(id)?.text ?? ""
-            return warningOfUnsavedSecret(
+            return wordedForItsStep(
                 PanelCache.current.formattingSheets.sheet(from: original, to: formatted), in: snapshot)
 
         case .reindenting(let id, let formatted):
             let original = snapshot.clip(id)?.text ?? ""
-            return warningOfUnsavedSecret(
+            return wordedForItsStep(
                 PanelCache.current.formattingSheets.sheet(
                     from: original, to: formatted, title: "Re-indent this code?",
                     confirmTitle: "Apply re-indent", kind: .reindenting),
@@ -227,7 +227,7 @@ extension PanelPresenter {
                 draft: draft,
                 placeholder: "",
                 note: nil,
-                conflict: snapshot.hasWarnedOfUnsavedSecret ? PanelSnapshot.unsavedSecretWarning : nil,
+                conflict: nil,
                 collections: [],
                 confirmTitle: "Save",
                 isConfirmEnabled: clip.map { snapshot.canSave(draft, over: $0) } ?? false)
@@ -308,19 +308,17 @@ extension PanelPresenter {
             isUnreviewable: isUnreviewable)
     }
 
-    /// A rewrite sheet worded for its step: the unsaved-secret warning, or the two presses to keep a change with no diff.
-    private static func warningOfUnsavedSecret(
+    /// A rewrite sheet worded for its step: the two presses to keep a change with no diff.
+    private static func wordedForItsStep(
         _ sheet: PanelSheetPresentation, in snapshot: PanelSnapshot
     ) -> PanelSheetPresentation {
         let acknowledged = snapshot.hasAcknowledgedUnreviewableRewrite
         let words = sheet.isUnreviewable
-        guard snapshot.hasWarnedOfUnsavedSecret || words else { return sheet }
+        guard words else { return sheet }
         let conflict: String? =
-            snapshot.hasWarnedOfUnsavedSecret
-            ? PanelSnapshot.unsavedSecretWarning
-            : (words && acknowledged
-                ? "Nothing here could be compared. Keeping it replaces the original and cannot be undone."
-                : sheet.conflict)
+            acknowledged
+            ? "Nothing here could be compared. Keeping it replaces the original and cannot be undone."
+            : sheet.conflict
         return PanelSheetPresentation(
             kind: sheet.kind, title: sheet.title, draft: sheet.draft, placeholder: sheet.placeholder,
             note: sheet.note, conflict: conflict,
