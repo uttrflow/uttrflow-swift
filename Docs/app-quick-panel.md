@@ -243,7 +243,8 @@ arrives.
 | Text left on the clipboard | "Copied — press ⌘V" |
 | A text route refuses | the words go on the clipboard (`PanelPasteFloor`) and it says "Copied — press ⌘V" |
 | A text route refuses after a newer copy or a cancel, or the clipboard write fails (`textCouldNotPaste`) | "Couldn't paste this clip"; the clipboard is unchanged and the clip stays in the panel |
-| A picture or files whose paste was refused | copied the same way, "Copied — press ⌘V" |
+| A picture or files whose paste was refused, when the copy succeeds | copied the same way, "Copied — press ⌘V" |
+| A picture or files refused after a newer copy or a cancel, or whose copy write failed | "Couldn't paste this clip" |
 | A picture whose file went before Return | "That picture is no longer on this Mac" |
 
 An explicit Copy from a panel row or the menu bar uses the same floating-button report and a

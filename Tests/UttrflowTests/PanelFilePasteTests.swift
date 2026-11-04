@@ -180,6 +180,17 @@ struct PanelFilePasteRefusalTests {
             ).report == .textCouldNotPaste)
     }
 
+    @Test("a paste whose own write failed is not retried, so the report that nothing was copied stays true")
+    func writeFailed() {
+        var copies = 0
+        let failure = PanelFilePaste.afterRefusal(.clipboardUnavailable, .paste) { copies += 1 }
+        #expect(copies == 0)
+        #expect(
+            PanelFilePaste.landing(
+                .paste, failure: failure, copyFailed: PanelNotice(symbolName: "x", message: "x")
+            ).report == .textCouldNotPaste)
+    }
+
     @Test("a newer copy on the clipboard is left alone")
     func newerCopy() {
         var copies = 0
