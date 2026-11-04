@@ -92,6 +92,13 @@ private struct LoadingHotkeyMonitor: HotkeyMonitoring {
 private let refusal = DictationFailure(
     message: "Speech model still loading…", recovery: nil, severity: .informational)
 
+extension DictationPipeline {
+    /// Returns once the read taken at key-down has settled.
+    fileprivate func waitForEarlyRead() async {
+        while recordingDestination == nil { await Task.yield() }
+    }
+}
+
 // MARK: - Tests
 
 @Suite("Dictating while the speech model loads")
@@ -118,6 +125,55 @@ struct DictationPipelineLoadingTests {
         await finishing.value
         #expect(await pipeline.isReady)
         #expect(!inserter.received.isEmpty)
+    }
+
+    @Test("words finished after a load, with the person now in another app, are copied and not typed there")
+    func movedAwayDuringTheLoadCopies() async {
+        let gate = LoadGate()
+        let inserter = FakeTextInserter()
+        let clipboard = FakeTextInserter()
+        let context = FakeContextEngine(
+            context: AppContext(applicationName: "Fixture Notes", bundleIdentifier: "com.example.notes"))
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(), speech: SlowLoadingSpeechEngine(gate: gate),
+            cleaner: FakeTranscriptCleaner(), context: context, inserter: inserter,
+            metrics: RecordingMetricsRecorder(), clipboard: clipboard, clock: ContinuousClock())
+        let loading = Task { await pipeline.prepare() }
+        await gate.waitUntilReached()
+        await pipeline.startRecording()
+        await pipeline.waitForEarlyRead()
+        await context.setContext(AppContext(applicationName: "Fixture Mail", bundleIdentifier: "com.example.mail"))
+        let finishing = Task { await pipeline.finishRecording() }
+        await gate.open()
+        await loading.value
+        await finishing.value
+
+        #expect(inserter.received.isEmpty, "never typed into the app the person moved to")
+        #expect(clipboard.received.count == 1, "the words are kept on the clipboard")
+    }
+
+    @Test("words finished after a load go to the field when the person stayed")
+    func stayedDuringTheLoadInserts() async {
+        let gate = LoadGate()
+        let inserter = FakeTextInserter()
+        let clipboard = FakeTextInserter()
+        let context = FakeContextEngine(
+            context: AppContext(applicationName: "Fixture Notes", bundleIdentifier: "com.example.notes"))
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(), speech: SlowLoadingSpeechEngine(gate: gate),
+            cleaner: FakeTranscriptCleaner(), context: context, inserter: inserter,
+            metrics: RecordingMetricsRecorder(), clipboard: clipboard, clock: ContinuousClock())
+        let loading = Task { await pipeline.prepare() }
+        await gate.waitUntilReached()
+        await pipeline.startRecording()
+        await pipeline.waitForEarlyRead()
+        let finishing = Task { await pipeline.finishRecording() }
+        await gate.open()
+        await loading.value
+        await finishing.value
+
+        #expect(inserter.received.count == 1)
+        #expect(clipboard.received.isEmpty)
     }
 
     @Test("a load slower than the transcription limit does not time the dictation out")

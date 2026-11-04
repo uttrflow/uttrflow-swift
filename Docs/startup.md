@@ -78,9 +78,10 @@ load average 10 are not measured yet, so the launch load keeps the default prior
 `applicationDidFinishLaunching` starts watching for the shortcut before it asks the pipeline to
 prepare, so a quick user can already be dictating when `prepare()` is called. The load runs
 regardless; only the move to the `failed` state is withheld while a dictation is under way, because
-failing a live recording would be wrong. A press during a load records, so no speech is lost: the
-piece's transcription first waits for the load under `StageTimeout.speechModelLoad`, outside the
-recognition limit, and the floating button says "Getting ready" while the words wait.
+failing a live recording would be wrong. A press during a load records, so no speech is lost:
+the piece's transcription first waits for the load under `StageTimeout.speechModelLoad`, outside the
+recognition limit. When the words have waited for a load they go to the application read at key-down;
+if the person has moved to another one, they are copied and the outcome says so, never typed there.
 
 A load that never returns is a failed load too. `prepare()` waits at most
 `StageTimeout.speechModelLoad`, 600 seconds, past the slowest compile measured above, and then
@@ -92,14 +93,15 @@ can, and a load that finishes late is ignored.
 
 A release under memory pressure leaves the readiness as it was: dictation still works, since a
 press reloads the model, and saying "Getting ready" with no load running would hold until the next
-press. Calm reloads it in the background, on the wait `ModelMemoryPressure` sets, which doubles
+press. Only a critical reading releases it, and not again until the last reload has held, since a
+reload can recompile for minutes. Calm reloads it in the background, on the wait `ModelMemoryPressure` sets, which doubles
 while reloads keep being followed by pressure. Each release and reload logs one `notice` under the
 `speech` category, read back with `/usr/bin/log show` as above.
 
 ## What a person is told during the load
 
-The menu bar is only seen when somebody opens it, so the load is also said wherever a person would
-try to dictate. Every surface reads the same `SpeechModelReadiness`, turned into `SpeechModelLoad`,
+The floating button does not announce a load: dictation works through it, so it draws what it would
+draw anyway. The menu bar and Home say it. Every surface reads the same `SpeechModelReadiness`, turned into `SpeechModelLoad`,
 the one home for the words and for when the minutes are said.
 
 | `SpeechModelLoad` | `title` (a window's heading) | `line` (floating button) | `status` (Home's ring) | `recovery` |
@@ -112,7 +114,7 @@ the one home for the words and for when the minutes are said.
 | Where | While loading | After a failed load |
 | --- | --- | --- |
 | Home (`HomeModelStatus.load`) | "Getting ready…" over a sliding bar, "Loading the speech model" under it | "Try again" after the first failure, "Download again" once it is broken |
-| Floating button | `line` and `detail` | `line`, "Dictation can’t start without it" |
+| Floating button | as at rest | `line`, "Dictation can’t start without it" |
 | Shortcut or button pressed | the recording starts, and the words arrive once the load ends | dictation starts, and the recogniser tries the load again on demand |
 | Clipboard panel microphone | off: "Speech model still loading" | off, as for a model that is not ready |
 | Menu bar status | "Getting ready…", then the estimate | "Speech model didn't load", with **Try again**; "Download again" once broken |
@@ -154,11 +156,10 @@ guess paced to a typical cold load:
 | Where | Past five seconds |
 | --- | --- |
 | Home | "Getting ready · about 1 min left", under it "Only after a restart. Everything else already works.", and the bar filled to the estimate. Holding: "Almost ready…" |
-| Floating button | a ring filled to the estimate, and the short time left |
 | Menu bar | the same heading as Home over a bar filled to the estimate |
-| A dictation waiting for its words | the floating button's ring and time left |
+| A dictation waiting for its words | the floating button's usual working state |
 
-The floating button and the menu bar redraw once a second while the load runs, from `AppDelegate`'s
+The menu bar redraws once a second while the load runs, from `AppDelegate`'s
 `speechLoadTicker`, which starts at `estimateAfter` and ends with the load; nothing ticks once the
 model is ready. Home is not redrawn by that ticker, because redrawing the main window rebuilds every
 page from the whole history. Its status block in `HomeHeroView` carries the load's start and runs

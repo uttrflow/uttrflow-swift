@@ -1235,10 +1235,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         return false
     }
 
-    /// Lets the recogniser go under pressure when idle, at a warning only once the last reload has held. See `Docs/performance.md`.
+    /// Lets the recogniser go under critical pressure when idle, once the last reload has held. See `Docs/performance.md`.
     private func releaseSpeechModelIfIdle(at level: MemoryPressureLevel) {
         guard case .idle = lastDictationState, let speechEngine else { return }
-        guard level == .critical || speechPressure.allowsRelease(at: .now) else { return }
+        guard speechPressure.allowsSpeechRelease(at: level, now: .now) else { return }
         speechPressure.released(at: .now)
         Task { await speechEngine.release() }
     }

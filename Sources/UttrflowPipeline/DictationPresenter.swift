@@ -221,7 +221,8 @@ public enum DictationPresenter {
             for: state, advice: advice, stopGesture: stopGesture, heardSoFar: heardSoFar, waited: waited,
             silenceSecondsLeft: silenceSecondsLeft)
         if case .idle = state, let download { return resting(downloading: download) }
-        guard let load = speechModel else { return drawn }
+        // A press records through a load, so only the menu bar and Home say one is running.
+        guard let load = speechModel, !load.isLoading else { return drawn }
         switch state {
         case .idle:
             return resting(load)
@@ -231,9 +232,6 @@ public enum DictationPresenter {
                 drawn.symbolName, drawn.primaryLine, load.detail, action: drawn.action,
                 label: failure == .stillLoading
                     ? load.accessibilityLabel : "\(drawn.accessibilityLabel) \(load.accessibilityLabel)")
-        case .transcribing where load.isLoading:
-            // The words are waiting for the model, so the wait is said rather than a bare spinner.
-            return resting(load)
         case .recording, .transcribing, .tidying, .inserting, .inserted, .failed, .executed, .discarded:
             return drawn
         }

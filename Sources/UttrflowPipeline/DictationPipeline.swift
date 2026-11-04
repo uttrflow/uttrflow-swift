@@ -91,6 +91,8 @@ public actor DictationPipeline {
     public static let restoreWindow: Duration = .seconds(60)
     /// Destination facts read for audio kept for a retry.
     var recordingDestination: AppContext?
+    /// Whether this dictation's words waited for a load, long enough that the person may have moved on.
+    var waitedForLoad = false
     /// The formatter destination read for that recording, retained even if app rules later change.
     var recordingFieldKind: Destination?
 
@@ -318,6 +320,7 @@ public actor DictationPipeline {
         inputTooLoud = false
         screenReads = DictationScreenReads()
         sinceRelease = nil
+        waitedForLoad = false
     }
 
     /// Abandons the dictation at any stage, inserting nothing; audio already claimed is kept so the speech can be retried.

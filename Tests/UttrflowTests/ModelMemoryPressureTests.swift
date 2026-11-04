@@ -243,6 +243,18 @@ struct MemoryPressureTests {
         return app
     }
 
+    @Test("the speech model is released only at critical, and not again until the reload has held")
+    func speechReleaseIsCriticalAndThrottled() {
+        var pressure = ModelMemoryPressure(firstWait: .seconds(120), longestWait: .seconds(1_800))
+        let start = ContinuousClock.now
+        #expect(!pressure.allowsSpeechRelease(at: .warning, now: start))
+        #expect(pressure.allowsSpeechRelease(at: .critical, now: start))
+        pressure.released(at: start)
+        pressure.reloaded(at: start)
+        #expect(!pressure.allowsSpeechRelease(at: .critical, now: start + .seconds(1)))
+        #expect(pressure.allowsSpeechRelease(at: .critical, now: start + .seconds(120)))
+    }
+
     @Test("a released speech model is not said to be loading, since no load runs")
     func releasedSpeechModelIsNotLoading() {
         let sandbox = Sandbox()

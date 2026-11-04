@@ -8,7 +8,7 @@ import Testing
 struct SpeechModelDockTests {
     @Test("resting during a load says it is getting ready, with no minutes in its first seconds")
     func restingShowsTheLoad() {
-        let dock = DictationPresenter.dock(for: .idle, speechModel: .loading(elapsed: .seconds(2)))
+        let dock = DictationPresenter.resting(.loading(elapsed: .seconds(2)))
 
         #expect(dock.setup == .loading(nil), "a spinner, since a warm load is over before an estimate helps")
         #expect(dock.primaryLine == "Getting ready…")
@@ -20,7 +20,7 @@ struct SpeechModelDockTests {
 
     @Test("a long load draws a ring filled to the estimate, with the short time left beside it")
     func longLoadGivesTheEstimate() {
-        let dock = DictationPresenter.dock(for: .idle, speechModel: .loading(elapsed: .seconds(90)))
+        let dock = DictationPresenter.resting(.loading(elapsed: .seconds(90)))
         let estimate = SpeechModelLoadEstimate(elapsed: .seconds(90))
 
         #expect(dock.setup == .loading(estimate.fraction))
@@ -34,7 +34,7 @@ struct SpeechModelDockTests {
         "the short time left counts down on the button",
         arguments: [(10, "~2 min"), (100, "~1 min"), (120, "<1 min")])
     func buttonCountsDown(seconds: Int, short: String) {
-        let dock = DictationPresenter.dock(for: .idle, speechModel: .loading(elapsed: .seconds(seconds)))
+        let dock = DictationPresenter.resting(.loading(elapsed: .seconds(seconds)))
 
         #expect(dock.secondaryLine == short)
         #expect(dock.primaryLine == "Getting ready")
@@ -42,8 +42,7 @@ struct SpeechModelDockTests {
 
     @Test("a load past the typical time holds its ring below full and says it is almost ready")
     func holdingLoad() {
-        let dock = DictationPresenter.dock(
-            for: .idle, speechModel: .loading(elapsed: SpeechModelLoadEstimate.typicalColdLoad + .seconds(40))
+        let dock = DictationPresenter.resting(.loading(elapsed: SpeechModelLoadEstimate.typicalColdLoad + .seconds(40))
         )
 
         #expect(dock.setup == .loading(SpeechModelLoadEstimate.ceiling))
@@ -110,17 +109,6 @@ struct SpeechModelDockTests {
                 == DictationPresenter.dock(for: .failed(failure)))
     }
 
-    @Test("a refused attempt is drawn wide, with its words and why")
-    func refusalIsDrawnWithWords() {
-        let dock = DictationPresenter.dock(
-            for: .failed(.stillLoading), speechModel: .loading(elapsed: .seconds(40)))
-
-        #expect(dock.symbolName == "hourglass", "the quiet disc would drop the sentence")
-        #expect(dock.primaryLine == "Speech model still loading…")
-        #expect(dock.secondaryLine == "About 2 min left")
-        #expect(dock.accessibilityLabel.hasPrefix("Loading the speech model, about 2 minutes left."))
-    }
-
     @Test("the refusal still reads without the load beside it")
     func refusalAlone() {
         let dock = DictationPresenter.dock(for: .failed(.stillLoading))
@@ -176,6 +164,22 @@ struct SpeechModelDockTests {
         ])
     func loadedChangesNothing(state: DictationState) {
         #expect(DictationPresenter.dock(for: state, speechModel: nil) == DictationPresenter.dock(for: state))
+    }
+
+    @Test(
+        "the resting button does not announce a load running in the background",
+        arguments: [Duration.zero, .seconds(40), .seconds(600)])
+    func idleLoadIsNotAnnounced(elapsed: Duration) {
+        #expect(
+            DictationPresenter.dock(for: .idle, speechModel: .loading(elapsed: elapsed))
+                == DictationPresenter.dock(for: .idle))
+    }
+
+    @Test("a dictation waiting for the load is drawn as any other")
+    func transcribingDuringLoadIsNormal() {
+        #expect(
+            DictationPresenter.dock(for: .transcribing, speechModel: .loading(elapsed: .seconds(40)))
+                == DictationPresenter.dock(for: .transcribing))
     }
 
     @Test("a dictation under way is never covered by the load")

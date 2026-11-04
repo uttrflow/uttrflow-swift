@@ -95,5 +95,6 @@ extension DictationPipeline {
         droppedSpans = []
         transition(to: .recording)
         beginWorkingAhead(mine)
+        if isLoading { waitedForLoad = true }
     }
 }
