@@ -2,7 +2,7 @@
 
 At launch `AppDelegate` asks `DictationPipeline.prepare()` (`Sources/UttrflowPipeline/`) to load
 the speech model into memory, and dictation cannot start until that load ends. The first load
-on a new build takes minutes, so every surface says so: the words live in `SpeechModelLoad` and
+can take minutes, so every surface says so: the words live in `SpeechModelLoad` and
 the pacing in `SpeechModelLoadEstimate` (`Sources/UttrflowCore/Models/`), readiness in
 `SpeechModelReadiness` (`Sources/UttrflowUX/MenuBarPresentation.swift`), and the load itself in
 `WhisperKitBackend` (`Sources/UttrflowSpeech/`). Related: [`app-dock.md`](app-dock.md) for the
@@ -31,21 +31,21 @@ Measured with the default model (`SpeechModel.default`,
 | first load after boot, cold page cache | 154 s |
 | every load after that, warm | 2.1 s |
 
-The compile is not reused when the signature of the running binary or the model's folder changes.
-`uttrflow-dev load-priority --runs 1`, Apple M5 Pro, 25F80, one-minute load average 33 to 67, each
-row the time to the end of the first load:
+The compile is not always reused, and nothing in this repository deletes or bypasses it: the cache
+belongs to the system. `uttrflow-dev load-priority --runs 1` and the built app, Apple M5 Pro, 25F80,
+one-minute load average 33 to 67, each row the time to the end of the first load:
 
 | since the last load | time |
 |---|---|
-| nothing changed | 3 s |
+| nothing changed, moments ago | 3 s |
+| new build, same bundle identifier, minutes ago | 2 s |
 | same binary, another directory | 7 s |
-| freshly built binary, same model and folder | 213 s |
-| same binary, signed ad hoc again | 270 s |
+| same binary, signed with a new identifier | 270 s |
 | same binary, model at a new folder | 438 s |
 
-So an ad-hoc build compiles once per build. A Developer ID build across versions and a restart with
-nothing changed are not measured here ([#8183](https://github.com/uttrflow/uttrflow-swift/issues/8183)). The app's load log (`speech-model-loads.v1.json`)
-marks each such load `isLikelyRecompile`.
+The load log (`speech-model-loads.v1.json`) also records loads of 131 to 176 s with the same macOS
+build and model revision, one inside a single process, so a compile can recur with nothing changed.
+What evicts it is not established ([#8183](https://github.com/uttrflow/uttrflow-swift/issues/8183)).
 
 The model is already on disk, so none of this is download: it is CoreML specialising the encoder
 and decoder and paging 632 MB of weights in, and the lever is the model, not this code. The same
