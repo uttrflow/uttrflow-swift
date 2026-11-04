@@ -728,7 +728,8 @@ public actor ClipboardStore {
         let unnamed = pictureReferences.takeUnnamed(naming: named)
         defer { pictureVault.removePictures(unnamed) }
         // Only a sealed index may hold a secret's value: a store with no key writes the rest.
-        let persistable = clips.filter { Self.isPersistable($0) && (encryptedStore != nil || $0.kind != .secret) }
+        let sealed = encryptedStore != nil
+        let persistable = clips.filter { Self.isPersistable($0) && (sealed || $0.kind != .secret) }
 
         // Memory first and unconditionally, so a refusing disk does not also cost the change itself.
         indexSnapshot.wholeList = clips

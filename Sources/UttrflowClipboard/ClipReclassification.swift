@@ -38,7 +38,8 @@ enum ClipReclassification {
                 return clip
             }
             // A detector update never masks or unmasks a clip the user pinned, named, tagged or filed.
-            guard !(clip.isKept && (clip.kind == .secret) != (replacement.kind == .secret)) else { return clip }
+            let changesMasking = (clip.kind == .secret) != (replacement.kind == .secret)
+            guard !(clip.isKept && changesMasking) else { return clip }
             return clip.reclassified(
                 as: ClipClassification(kind: replacement.kind, language: replacement.language))
         }

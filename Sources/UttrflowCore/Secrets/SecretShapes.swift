@@ -303,12 +303,16 @@ public enum SecretShapes {
     private static func isSchemeLessAddress(_ token: String) -> Bool {
         guard let end = token.firstIndex(where: { $0 == "/" || $0 == "?" }) else { return false }
         let labels = token[..<end].split(separator: ".", omittingEmptySubsequences: false)
-        guard labels.count >= 2, let top = labels.last, top.count >= 2, top.allSatisfy({ $0.isASCII && $0.isLowercase }),
-            labels.allSatisfy({ label in
-                !label.isEmpty && label.allSatisfy { $0.isASCII && ($0.isLowercase || $0.isNumber || $0 == "-") }
-            })
+        func isHostCharacter(_ character: Character) -> Bool {
+            character.isASCII && (character.isLowercase || character.isNumber || character == "-")
+        }
+        guard labels.count >= 2, let top = labels.last, top.count >= 2,
+            top.allSatisfy({ $0.isASCII && $0.isLowercase }),
+            labels.allSatisfy({ !$0.isEmpty && $0.allSatisfy(isHostCharacter) })
         else { return false }
-        return token[end...].allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || "-._~/?=&%+,;#".contains($0)) }
+        return token[end...].allSatisfy {
+            $0.isASCII && ($0.isLetter || $0.isNumber || "-._~/?=&%+,;#".contains($0))
+        }
     }
 
     /// Whether a token has the canonical 8-4-4-4-12 hexadecimal UUID shape.

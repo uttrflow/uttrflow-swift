@@ -11,7 +11,7 @@ enum PublicMaterialShape {
         "NEW CERTIFICATE REQUEST", "X509 CRL", "PGP PUBLIC KEY BLOCK", "PGP SIGNATURE",
     ]
 
-    /// OpenSSH public key algorithm names before any `@` vendor suffix, the first word of an `authorized_keys` line.
+    /// OpenSSH public key algorithm names before any `@` suffix, the first word of a key line.
     private static let sshAlgorithms: Set<Substring> = [
         "ssh-ed25519", "ssh-rsa", "ssh-dss", "sk-ssh-ed25519", "sk-ecdsa-sha2-nistp256", "ecdsa-sha2-nistp256", "ecdsa-sha2-nistp384",
         "ecdsa-sha2-nistp521",
@@ -57,7 +57,7 @@ enum PublicMaterialShape {
             let after = rest[marker.upperBound...]
             guard let close = after.firstRange(of: "-----") else { return false }
             let label = after[..<close.lowerBound]
-            let name = label.hasPrefix("BEGIN ") ? label.dropFirst(6) : label.hasPrefix("END ") ? label.dropFirst(4) : ""
+            let name = label.trimmingPrefix("BEGIN ").trimmingPrefix("END ")
             guard publicPEMLabels.contains(name) else { return false }
             rest = after[close.upperBound...]
         }

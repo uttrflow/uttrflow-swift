@@ -35,7 +35,7 @@ struct EntropyValueExemption {
             || isBase64Checksum(value) || isContentDigest(value)
     }
 
-    /// A git object name or a content digest, bare at 40 or 64 hex or labelled by its algorithm: public by design.
+    /// A git object name or content digest, bare at 40 or 64 hex or labelled by its algorithm.
     private func isContentDigest(_ value: String) -> Bool {
         let parts = value.lowercased().split(separator: ":", omittingEmptySubsequences: false)
         guard let digest = parts.last, digest.allSatisfy({ $0.isASCII && $0.isHexDigit }) else { return false }
