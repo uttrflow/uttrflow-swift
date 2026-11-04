@@ -859,6 +859,7 @@ LATENCY_COMMIT = re.compile(r"^\|\s*commit `[0-9a-f]{7,40}`\s*\|", re.M)
 
 # The fewest samples a stage is judged on; fewer is a failure rather than a pass.
 LATENCY_MIN_SAMPLES = 3
+MICROPHONE_SAMPLES = re.compile(r"^\|\s*`microphoneOpen`\s*\|[^|]*\|[^|]*\|\s*(\d+)\s*\|", re.M)
 
 # The categories whose wait after key release has a budget, one per dictation length.
 LATENCY_WAIT_CATEGORIES = ("dur5", "dur30", "dur120")
@@ -896,6 +897,25 @@ def check_latency_table(tree, findings, report):
         return
     if not LATENCY_COMMIT.search(latency_section(doc)):
         findings.failures.append("latency: the current latency table names no `| commit `<hash>` |` it was measured at")
+    findings.failures.extend(unearned_budgets(targets))
+    report.extend(f"  ✓ {stage}: p95 {p95:.3f} s, budget {budget:.3f} s" for stage, (p95, budget) in sorted(targets.items()))
+
+
+def check_microphone_open_budget(tree, findings, report):
+    """The `microphoneOpen` budget is its measured p95 plus the headroom; the opening is read per transport, not from a bench run."""
+    doc = tree.read("Docs/performance.md")
+    start = doc.find("## Microphone opening budget")
+    end = doc.find("\n## ", start + 1) if start >= 0 else -1
+    section = doc[start : end if end > 0 else len(doc)] if start >= 0 else ""
+    targets = {m[1]: (float(m[2]), float(m[3])) for m in LATENCY_ROW.finditer(section)}
+    if "microphoneOpen" not in targets:
+        findings.failures.append("latency: Docs/performance.md has no `microphoneOpen` row under `## Microphone opening budget`")
+        return
+    samples = MICROPHONE_SAMPLES.search(section)
+    if samples is None or int(samples[1]) < LATENCY_MIN_SAMPLES:
+        findings.failures.append(
+            f"latency: the `microphoneOpen` row needs a samples cell of at least {LATENCY_MIN_SAMPLES}"
+        )
     findings.failures.extend(unearned_budgets(targets))
     report.extend(f"  ✓ {stage}: p95 {p95:.3f} s, budget {budget:.3f} s" for stage, (p95, budget) in sorted(targets.items()))
 
@@ -1129,6 +1149,7 @@ def audit(root, quiet=False, overrides=None):
         ("Counters: the harness judges readings by the budget table", lambda r: check_counters(tree, findings, r)),
         ("Suggestions: typing reads, callbacks and draws stay within their budget", lambda r: check_suggestion_path(tree, findings, r)),
         ("Latency: every stage budget is its measured p95 plus headroom", lambda r: check_latency_table(tree, findings, r)),
+        ("Microphone: the opening budget is its measured p95 plus headroom", lambda r: check_microphone_open_budget(tree, findings, r)),
         ("Layers: every quality layer's budget is its stage's p95 plus headroom", lambda r: check_layer_budgets(tree, findings, r)),
         ("Timeouts: every stage limit is its stage's p95 plus headroom, or says why not", lambda r: check_stage_timeouts(tree, findings, r)),
     ):

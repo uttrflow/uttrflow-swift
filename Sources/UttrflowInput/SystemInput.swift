@@ -386,6 +386,16 @@ public struct AXAccessibilityFocus: AcceptanceFieldReader {
             isEditable: element.map(isEditable) ?? false)
     }
 
+    public func focusedWindowTitle() -> String? {
+        guard let element = focusedElement() else { return nil }
+        var window: AnyObject?
+        guard AXUIElementCopyAttributeValue(element, kAXWindowAttribute as CFString, &window) == .success,
+            let window, CFGetTypeID(window) == AXUIElementGetTypeID()
+        else { return nil }
+        // The type id is checked on the line above, so the cast cannot fail.
+        return stringAttribute(kAXTitleAttribute, of: unsafeDowncast(window, to: AXUIElement.self))
+    }
+
     public func isTrusted() -> Bool { AXIsProcessTrusted() }
 
     public func isSelfFrontmost() -> Bool {

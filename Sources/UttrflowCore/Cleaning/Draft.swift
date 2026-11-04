@@ -61,6 +61,8 @@ public struct Draft: Sendable, Equatable {
         /// Where the recogniser heard the word end; nil when untimed or inserted.
         public let end: Duration?
         public var state: State
+        /// For a line break, paragraph break or list mark, what justified writing it; nil on a word and on a break nothing justified.
+        public var breakEvidence: BreakEvidence?
         /// Every change a pass has made to this word, oldest first.
         public private(set) var edits: [Edit]
 
@@ -175,6 +177,20 @@ public struct Draft: Sendable, Equatable {
         return marks.last(where: { $0.text.hasPrefix("\n\n") || $0.isListMark })?.isListMark ?? false
     }
 
+    /// The mark of a sub-item before the word at `index`, indented to start under the text of the item above it.
+    public func nestedMark(_ mark: String, before index: Int) -> String {
+        let breaks = mark.prefix(while: \.isNewline)
+        let body = mark.dropFirst(breaks.count)
+        guard body.first == " " else { return mark }
+        for word in words[..<index].reversed() where word.isPresent {
+            if word.text.hasPrefix("\n\n"), !word.isListMark { break }
+            let item = word.text.drop(while: \.isNewline)
+            guard word.isListMark, item.first != " " else { continue }
+            return breaks + String(repeating: " ", count: item.count) + body.drop(while: { $0 == " " })
+        }
+        return mark
+    }
+
     /// The dash and space a list item begins with, after the line break that starts it.
     public static let bullet = "- "
     /// What a numbered item begins with once its digits are past: "1. ", "2. ".
@@ -217,7 +233,10 @@ public struct Draft: Sendable, Equatable {
             let isItem = isBullet || itemNumber != nil
             if isItem { lineWords.removeFirst() }
             let breaks = previousLine.map { String(repeating: "\n", count: number - $0) } ?? ""
-            let itemMark = isBullet ? Self.bullet : itemNumber.map { "\($0)\(Self.numberStop)" } ?? ""
+            // A sub-item keeps its indent, so reading the text back does not flatten it.
+            let indent = isItem ? String(line.prefix(while: { $0 == " " })) : ""
+            let itemMark =
+                indent + (isBullet ? Self.bullet : itemNumber.map { "\($0)\(Self.numberStop)" } ?? "")
             let mark = breaks + itemMark
             if !mark.isEmpty { words.append(Word(mark, evidence: .unknown)) }
             words += lineWords.map { Word($0, evidence: .unknown) }

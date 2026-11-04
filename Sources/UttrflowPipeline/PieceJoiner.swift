@@ -146,16 +146,18 @@ enum PieceJoiner {
         {
             return false
         }
-        let units = CleaningPipeline(
-            passes: CleaningPipeline.piece(
-                numbers: formatter.numbers, digits: situation.digits(for: formatter),
-                insertionPoint: situation.insertion, destination: formatter.destination,
-                intent: situation.intent, mode: situation.adapterMode
-            ).passes.filter { unitReaders.contains($0.id) })
+        let pieceReaders = CleaningPipeline.piece(
+            numbers: formatter.numbers, digits: situation.digits(for: formatter),
+            insertionPoint: situation.insertion, destination: formatter.destination,
+            intent: situation.intent, mode: situation.adapterMode
+        ).passes
+        let units = CleaningPipeline(passes: pieceReaders.filter { unitReaders.contains($0.id) })
+        let series = CleaningPipeline(passes: pieceReaders.filter { $0.id == .layoutWords })
         func read(_ words: [String]) -> [String] {
             // A capital the date gives its month counts, so "march | third" is read as the one date.
             WordTokens.words(units.run(Draft(text: words.joined(separator: " "))).text, .display)
         }
+        if letteredSeriesRunsAcross(head, into: tail, reading: series) { return true }
         let headRead = read(Array(headWords))
         let apart = headRead + read(Array(tailWords))
         let together = read(Array(headWords + tailWords))
@@ -164,6 +166,16 @@ enum PieceJoiner {
         let cued = NumberFormsPass.hasLabelCue(
             at: headRead.count - 1, keys: shapes.map(\.key), shapes: shapes)
         return cued || !gluesDigitGroups(together, from: apart, at: headRead.count)
+    }
+
+    /// Whether the head opens a lettered item series ("item a") that the tail goes on with, so the series is read from the whole head: a series is longer than the window a number is read in.
+    private static func letteredSeriesRunsAcross(
+        _ head: String, into tail: String, reading layout: CleaningPipeline
+    ) -> Bool {
+        let headWords = WordTokens.words(head, .display)
+        guard LayoutWordsPass.mayOpenSeries(headWords) else { return false }
+        func read(_ text: String) -> String { layout.run(Draft(text: text)).text }
+        return read(head + " " + tail) != read(head) + " " + read(tail)
     }
 
     /// Whether reading across the cut only fused two two-digit numbers into a year-like number ("20" "30"), not a century half and a second half that is no round ten.
@@ -450,6 +462,10 @@ enum PieceJoiner {
             var piece = Draft(keepingLineBreaks: text)
             owed += pauses.indices.contains(index) ? pauses[index] : .zero
             guard !piece.words.isEmpty else { continue }
+            // A mark already in a piece was laid out, and its words checked, before the pieces came together.
+            for position in piece.words.indices where piece.words[position].isLayoutMark {
+                piece.words[position].breakEvidence = .carried
+            }
             pauseBefore[draft.words.count] = owed
             owed = .zero
             var leadingBreaks = String(text.prefix(while: \.isNewline))
@@ -462,10 +478,10 @@ enum PieceJoiner {
                         piece.words[1].text = WordShape.capitalised(piece.words[1].text)
                     }
                 } else {
-                    piece.words.insert(
-                        Draft.Word(
-                            text: leadingBreaks, heard: "", evidence: .unknown, state: .inserted(by: id)),
-                        at: 0)
+                    var carried = Draft.Word(
+                        text: leadingBreaks, heard: "", evidence: .unknown, state: .inserted(by: id))
+                    carried.breakEvidence = .carried
+                    piece.words.insert(carried, at: 0)
                 }
             }
             starts.append(draft.words.count)
@@ -474,6 +490,7 @@ enum PieceJoiner {
         guard !starts.isEmpty else { return draft.text }
 
         var marks: [Int: String] = [:]
+        var evidence: [Int: BreakEvidence] = [:]
         var absorbed: Set<Int> = []
         for opening in starts.indices.dropFirst() {
             let live = draft.presentIndices
@@ -481,6 +498,7 @@ enum PieceJoiner {
                 isLineCommand(at: position - 2, in: draft)
             else { continue }
             draft.replace(at: live[position - 2], with: "\n", by: id)
+            draft.words[live[position - 2]].breakEvidence = .spokenCommand
             draft.remove(at: live[position - 1], by: id)
             absorbed.insert(opening)
         }
@@ -495,10 +513,12 @@ enum PieceJoiner {
         for listItem in items {
             if let mark = itemise(&draft, listItem, starts: starts) {
                 marks[listItem.opening] = mark
+                evidence[listItem.opening] = .ordinalEnumeration
             }
         }
         if let last = items.last, last.bodyEnd < draft.words.count {
             marks[last.bodyEnd] = "\n\n"
+            evidence[last.bodyEnd] = .ordinalEnumeration
         }
         let swallowed = Set(absorbed.map { starts[$0] })
         let breaking = starts.dropFirst().compactMap { pauseBefore[$0] }.filter { $0 > .zero }
@@ -506,29 +526,37 @@ enum PieceJoiner {
         let counted = ordinalsBefore(openings, in: draft, starts: starts)
         for opening in openings.dropFirst() {
             guard paragraphs(formatter), !swallowed.contains(opening),
-                !items.contains(where: { $0.opening == opening }),
-                opensTopic(
-                    draft, at: opening, starts: starts, afterPause: starts.contains(opening),
-                    counted: counted)
-                    || endsSubject(before: opening, in: draft, pause: pauseBefore[opening], among: breaking)
+                !items.contains(where: { $0.opening == opening })
             else { continue }
+            if let topic = topicEvidence(
+                draft, at: opening, starts: starts, afterPause: starts.contains(opening), counted: counted)
+            {
+                evidence[opening] = topic
+            } else if endsSubject(
+                before: opening, in: draft, pause: pauseBefore[opening], among: breaking)
+            {
+                evidence[opening] = .longPause(pauseBefore[opening] ?? .zero)
+            } else {
+                continue
+            }
             marks[opening] = "\n\n"
         }
         for (index, mark) in marks.sorted(by: { $0.key > $1.key }) {
             draft.insert(mark, at: index, by: id)
+            draft.words[index].breakEvidence = evidence[index]
         }
-        return draft.text
+        return StructureVerifier.verified(
+            draft, breaksPer100Words: formatter.inferredBreaksPer100Words, by: id
+        ).draft.text
     }
 
     /// Turns an explicit layout phrase at a noninitial piece boundary into its mark.
     private static func layoutCommands(
         _ draft: inout Draft, at starts: [Int], under formatter: DestinationFormatter
     ) {
-        let commands: [(words: [String], mark: String, requiresLists: Bool)] = [
-            (["new", "line"], "\n", false), (["new", "paragraph"], "\n\n", false),
-            (["blank", "line"], "\n\n", false), (["bullet", "point"], "\n- ", true),
-            (["next", "point"], "\n- ", true),
-        ]
+        let commands: [(words: [String], mark: String, requiresLists: Bool)] = SpokenCommands.layout.map {
+            ($0.words, $0.text, $0.requiresLists)
+        }
         for opening in starts.indices.dropFirst() {
             let start = starts[opening]
             let end = opening + 1 < starts.count ? starts[opening + 1] : draft.words.count
@@ -562,7 +590,9 @@ enum PieceJoiner {
                     at: live[first - 1], with: WordShape.finished(draft.words[live[first - 1]].text),
                     by: id)
             }
-            draft.replace(at: live[first], with: found.command.mark, by: id)
+            draft.replace(
+                at: live[first], with: draft.nestedMark(found.command.mark, before: live[first]), by: id)
+            draft.words[live[first]].breakEvidence = .spokenCommand
             for index in live[(first + 1)..<last] {
                 draft.remove(at: index, by: id)
             }
@@ -812,12 +842,12 @@ enum PieceJoiner {
 
     // MARK: Paragraphs between topics
 
-    /// Whether a sentence opens a new topic: a later ordinal item anywhere, or, after a pause, a phrase a speaker moves on with.
-    private static func opensTopic(
+    /// What shows a sentence opens a new topic: a later ordinal item anywhere, or, after a pause, a phrase a speaker moves on with; nil when nothing does.
+    private static func topicEvidence(
         _ draft: Draft, at word: Int, starts: [Int], afterPause: Bool, counted: [Int: Set<Int>]
-    ) -> Bool {
+    ) -> BreakEvidence? {
         let live = draft.presentIndices
-        guard let position = livePosition(of: word, in: live) else { return false }
+        guard let position = livePosition(of: word, in: live) else { return nil }
         let ordinalPosition: Int
         if Self.ordinals[draft.shape(at: live[position]).key] != nil {
             ordinalPosition = position
@@ -836,15 +866,17 @@ enum PieceJoiner {
             (ordinalPosition != position || draft.shape(at: live[ordinalPosition]).endsClause
                 || counted[word]?.contains(value - 1) == true)
         {
-            return true
+            return .ordinalEnumeration
         }
-        return afterPause
+        let cued =
+            afterPause
             && Self.topics.contains { phrase in
                 position + phrase.count <= live.count
                     && zip(phrase, live[position..<position + phrase.count]).allSatisfy {
                         $0 == draft.shape(at: $1).key
                     }
             }
+        return cued ? .topicCue : nil
     }
 
     /// The shortest pause that sets a new subject apart.

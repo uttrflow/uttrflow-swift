@@ -115,6 +115,11 @@ terms read off the screen. `removeEverything()` deletes the record; `removeLearn
 personal data archive carries the record to another Mac, where `importRefusals(_:)` adds it after
 that Mac's own refusals (`Docs/personal-data-archive.md`).
 
+Deleting a learnt entry also refuses each heard form it says like, as a pair, in
+`dictionary.v1.refused-pairs.json` (sealed whenever the list is): the pair stays refused after
+`allowAgain(_:)` lifts the word, while the same word under a different heard form can still be
+learnt. `removeEverything()` deletes that record too.
+
 **Not learning.** The record is not hidden: `refusedWords()` lists it newest first, in the
 user's own spelling, and the Dictionary page shows it under a "Not learning" disclosure with
 Allow again on each row. `allowAgain(_:)` is the inverse of a deletion: it lifts the refusal from

@@ -38,6 +38,18 @@ struct SilenceStopTests {
         #expect(VoiceActivity.edgeSilence(in: Spoken.room(2), sampleRate: Spoken.rate) == nil)
     }
 
+    @Test("lists the quiet between phrases, not the quiet before the first or after the last")
+    func listsQuietBetweenPhrases() {
+        let samples =
+            Spoken.room(0.5) + Spoken.phrase(1) + Spoken.room(0.6) + Spoken.phrase(1) + Spoken.room(0.3)
+            + Spoken.phrase(1) + Spoken.room(0.5)
+        let runs = VoiceActivity.quietRuns(in: samples, sampleRate: Spoken.rate)
+        #expect(runs.count == 2)
+        #expect(abs(Double(runs[0].count) / Double(Spoken.rate) - 0.6) < 0.1)
+        #expect(abs(Double(runs[1].count) / Double(Spoken.rate) - 0.3) < 0.1)
+        #expect(VoiceActivity.quietRuns(in: Spoken.room(2), sampleRate: Spoken.rate).isEmpty)
+    }
+
     @Test("measures the quiet after the last phrase, to within a frame")
     func measuresTrailingQuiet() throws {
         let samples = Spoken.phrase(2) + Spoken.room(0.6) + Spoken.phrase(1) + Spoken.room(3)

@@ -13,6 +13,8 @@ private struct AppFocus: AccessibilityFocus {
     func isSelfFrontmost() -> Bool { false }
     func focusedApplication() -> InsertionDestination? { application }
     func focusedElementKind() -> FocusedElementKind { .textEntry }
+    var title: String? = nil
+    func focusedWindowTitle() -> String? { title }
 }
 
 /// Records every key event posted.
@@ -44,6 +46,29 @@ struct TypedInsertionModalEditorTests {
             _ = try await engine.insert("delete the old branch")
         }
         #expect(typist.typed.isEmpty)
+    }
+
+    @Test(
+        "A terminal whose title names a full-screen editor gets zero key events; a shell prompt is typed.",
+        arguments: [
+            ("notes.txt — vim — 80×24", false), ("nvim main.swift", false), ("~ — zsh — 80×24", true),
+        ])
+    func terminalHostedEditorIsRefused(title: String, typable: Bool) async throws {
+        let typist = RecordingTypist()
+        var focus = AppFocus(
+            application: InsertionDestination(
+                applicationName: "Terminal", bundleIdentifier: DestinationRules.terminal))
+        focus.title = title
+        let engine = TypedTextInsertionEngine(focus: focus, typist: typist)
+
+        #expect(await engine.canInsert() == typable)
+        if typable {
+            _ = try await engine.insert("hello")
+            #expect(typist.typed == ["hello"])
+        } else {
+            await #expect(throws: TextInsertionError.noFocusedTextField) { _ = try await engine.insert("dd") }
+            #expect(typist.typed.isEmpty)
+        }
     }
 
     @Test("A code editor without the mark still takes typing.")

@@ -89,6 +89,9 @@ public protocol AccessibilityFocus: Sendable {
 
     /// What kind of element has focus, so typing never lands on a control whose keys are commands.
     func focusedElementKind() -> FocusedElementKind
+
+    /// The title of the window holding the focused element, which names the program a terminal is running.
+    func focusedWindowTitle() -> String?
 }
 
 /// Keeps "nothing published" apart from "a control that is not a text field", which the typed route treats differently.
@@ -116,6 +119,9 @@ extension AccessibilityFocus {
 
     /// Implementations that cannot read a role report nothing published, the case typing has always been allowed.
     public func focusedElementKind() -> FocusedElementKind { .unpublished }
+
+    /// Implementations that cannot read a window report no title, which names no program.
+    public func focusedWindowTitle() -> String? { nil }
 }
 
 /// What a field says about the text before its caret, keeping "too short" apart from "will not say".

@@ -220,6 +220,15 @@
     },
     {
       "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "5e28653a46cb37f91af82e9978c3222084d5dd3d49c1ddcdc33786bfa25c10f7",
+      "path": "Sources/UttrflowCore/Resources/Tables/layout-series-words.json",
+      "origin": "authored",
+      "redistribution": true,
+      "bytes": 4875,
+      "licence": "MIT"
+    },
+    {
+      "note": "read through DataTable; see Docs/data-tables.md",
       "sha256": "46e46953182774ba20f737b4a71c4755cc10f2b60fae3b2eee0baddd1b37001d",
       "path": "Sources/UttrflowCore/Resources/Tables/aside-words.json",
       "origin": "authored",
@@ -378,10 +387,10 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "fb5f64c4e23155bbadf1803f02e6f57d5cd43a86811a75443e60768e4a6326cd",
+      "sha256": "2a01b8c706dfadf55c2f4111a93fcc820768a08cc4cc7d567a7f50911b9e185b",
       "path": "Sources/UttrflowCore/Resources/Tables/spoken-commands.json",
       "origin": "authored",
-      "bytes": 26401
+      "bytes": 26791
     },
     {
       "licence": "MIT",

@@ -635,13 +635,11 @@ public actor ClipboardStore {
         guard indexReader.classifierVersions[url, default: 0] < ClipboardIndex.currentClassifierVersion,
             canReclassify(url)
         else { return }
-        let merge = Self.mergeClassifierResults(updated, from: snapshot, into: currentClips(in: url))
-        // A changed or new clip has no detector result, so the next launch needs a fresh snapshot.
-        guard merge.coversCurrentText else { return }
-        // The rewritten index keeps the eviction orders the live list gave on load, so it reopens equal.
-        let merged = ClipReclassification.ordered(
-            merge.clips, in: indexSnapshot.wholeList ?? [], secrecy: &secrecy)
-        let persistable = merged.filter(Self.isPersistable)
+        guard
+            let persistable = ClipReclassification.rewrite(
+                updated, from: snapshot, into: currentClips(in: url),
+                liveOrder: indexSnapshot.wholeList ?? [], secrecy: &secrecy)
+        else { return }
         // Only a sealed index may hold a secret's value, as in `write`.
         let sealed = encryptedStore != nil
         let onDisk = persistable.filter { sealed || $0.kind != .secret }

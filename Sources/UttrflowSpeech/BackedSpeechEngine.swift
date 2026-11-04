@@ -153,7 +153,9 @@ public actor BackedSpeechEngine: SpeechEngine {
             after: options.precedingText)
         touched()
         // The original duration, not the trimmed one: it is what the user spoke for.
-        let heard = raw.transcription(audioDuration: audio.duration, startingAt: speech.start)
+        let heard = PauseSnapping.snapped(
+            raw.transcription(audioDuration: audio.duration, startingAt: speech.start),
+            to: speech.audio, startingAt: speech.start)
         // Judged against the speech alone, since a loop is words the speech was too short to hold.
         let undone = RecognitionLoop.undone(heard, speechDuration: speech.audio.duration)
         guard loadWait > .zero else { return undone }

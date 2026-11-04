@@ -1,20 +1,6 @@
 import UttrflowCore
 
 extension LayoutWordsPass {
-    /// The words before "the following" that let it announce a series; a preposition before it makes it a time span.
-    private static let announcers: Set<String> = [
-        "are", "is", "include", "includes", "need", "needs", "bring", "buy", "get", "list", "note", "cover",
-        "covers",
-        "have", "has", "want", "add", "pack", "order",
-    ]
-
-    /// Nouns that make "the following three" a span of time or a count, not a series.
-    private static let measures: Set<String> = [
-        "day", "days", "week", "weeks", "month", "months", "year", "years", "hour", "hours", "minute",
-        "minutes",
-        "night", "nights", "morning", "mornings", "second", "seconds", "time", "times",
-    ]
-
     /// The most words an item of a spoken series may take; a longer stretch is a clause.
     private static let longestItem = 6
 
@@ -42,14 +28,18 @@ extension LayoutWordsPass {
         guard draft.shape(at: live[position]).key == "following",
             draft.shape(at: live[position - 1]).key == "the",
             position == 1 || draft.shape(at: live[position - 2]).endsSentence
-                || Self.announcers.contains(draft.shape(at: live[position - 2]).key),
+                || LayoutSeriesWords.announcers.contains(draft.shape(at: live[position - 2]).key),
             let count = Self.itemNumber(at: position + 1, in: live, of: draft),
             (2...9).contains(count.value)
         else { return nil }
         let noun = position + 1 + count.count
         guard noun + 1 < live.count else { return nil }
         let nounShape = draft.shape(at: live[noun])
-        guard nounShape.key.count > 3, nounShape.key.hasSuffix("s"), !Self.measures.contains(nounShape.key),
+        guard
+            (nounShape.key.count > 3 && nounShape.key.hasSuffix("s"))
+                || LayoutSeriesWords.irregularPlurals.contains(nounShape.key),
+            !LayoutSeriesWords.measures.contains(nounShape.key),
+            !LayoutSeriesWords.copulas.contains(draft.shape(at: live[noun + 1]).key),
             nounShape.suffix.isEmpty || nounShape.suffix == ":" || nounShape.suffix == ","
         else { return nil }
         let end = draft.sentenceEnd(from: noun + 1, in: live)
@@ -79,7 +69,10 @@ extension LayoutWordsPass {
             items[items.count - 1].removeFirst()
         }
         guard items.count == count.value,
-            items.allSatisfy({ !$0.isEmpty && $0.count <= Self.longestItem })
+            items.allSatisfy({ !$0.isEmpty && $0.count <= Self.longestItem }),
+            !items.contains(where: {
+                LayoutSeriesWords.clauseOpeners.contains(draft.shape(at: live[$0[0]]).key)
+            })
         else { return nil }
         return Series(
             noun: live[noun], items: items.map { $0.map { live[$0] } },
@@ -102,6 +95,7 @@ extension LayoutWordsPass {
                 anchor = conjunction
             }
             draft.insert(mark, at: anchor, by: Self.id)
+            draft.words[anchor].breakEvidence = .announcedSeries
         }
         let shape = draft.shape(at: series.noun)
         draft.replace(at: series.noun, with: shape.prefix + shape.core + ":", by: Self.id)

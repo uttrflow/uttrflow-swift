@@ -78,6 +78,7 @@ public struct LayoutWordsPass: PieceCleaningPass {
             position += 1
         }
         layOutEnumeratedSeries(&draft)
+        layOutLetteredItems(&draft)
         if layout.contains(.singleLine) { Self.joinOnOneLine(&draft, by: Self.id) }
         return draft
     }
@@ -114,7 +115,7 @@ public struct LayoutWordsPass: PieceCleaningPass {
     }
 
     /// Removes a comma or semicolon stranded before a list marker.
-    private func removeClauseMarkBeforeList(at position: Int, in live: [Int], from draft: inout Draft) {
+    func removeClauseMarkBeforeList(at position: Int, in live: [Int], from draft: inout Draft) {
         guard position > 0 else { return }
         let previous = live[position - 1]
         let shape = draft.shape(at: previous)
@@ -283,6 +284,15 @@ public struct LayoutWordsPass: PieceCleaningPass {
         _ found: (length: Int, mark: String, isList: Bool), at position: Int, in live: [Int], of draft: Draft
     ) -> Bool {
         if position == 0 { return true }
+        // A sub-item is set off by the item it nests under: a bullet or a numbered item said before it.
+        if found.mark.drop(while: \.isNewline).first == " ",
+            live.indices[..<position].contains(where: { other in
+                guard let earlier = mark(at: other, in: live, of: draft), earlier.isList else { return false }
+                return earlier.mark.drop(while: \.isNewline).first != " "
+            })
+        {
+            return true
+        }
         let before = draft.shape(at: live[position - 1])
         if before.endsClause && (!before.endsSentence || WordShape.trailsOff(before.suffix)) { return true }
         if draft.shape(at: live[position + found.length - 1]).endsClause { return true }
@@ -364,9 +374,10 @@ public struct LayoutWordsPass: PieceCleaningPass {
             draft.spells($0.words, at: position, in: live) && (allowsLists || !$0.requiresLists)
         }) {
             // At the head of the text an item has no line to break from.
-            let text =
+            let text = draft.nestedMark(
                 position == 0 && found.requiresLists
-                ? String(found.text.drop(while: \.isNewline)) : found.text
+                    ? String(found.text.drop(while: \.isNewline)) : found.text,
+                before: live[position])
             return (found.words.count, text, found.requiresLists)
         }
         guard draft.shape(at: live[position]).key == Self.numbering, position + 1 < live.count,
@@ -392,7 +403,7 @@ public struct LayoutWordsPass: PieceCleaningPass {
     }
 
     /// Auxiliaries that open the predicate of a clause; "do" and "have" are left out since a list item can open on them as a command.
-    private static let predicateOpeners = FunctionWords.auxiliaries.subtracting(["do", "have"])
+    static let predicateOpeners = FunctionWords.auxiliaries.subtracting(["do", "have"])
 
     private static func spokenNumber(
         at position: Int, in live: [Int], of draft: Draft

@@ -1009,6 +1009,20 @@ uttrflow-eval harvest-confusions --manifest <dir>/manifest.tsv \
 The table's `provenance.engine` names the model that decoded it; a table from another engine is
 rebuilt, not reused.
 
+**Recorded run, synthetic speech only.** The 35 invented sentences of `Scripts/dictation_bench.py`
+(personas, developer speech, numbers, emails, code, punctuation, nouns), read by Samantha:en_US,
+Daniel:en_GB and Rishi:en_IN at 160 and 220 words per minute: 210 clips, shipping model
+(`openai_whisper-large-v3-v20240930_turbo_632MB`), `--minimum-speakers 1`, release build.
+
+| table pairs | digest, run 1 and run 2 | held-out coverage (synthetic) | coverage of real calibration errors |
+|---|---|---|---|
+| 105 | `6d9d76fb07c46b74` (the two output files are byte-identical) | 80.3% | not measured |
+
+The last column needs the recorded calibration-split audio and a `transcribe` results folder
+(`--calibration-results`), which this run did not have. The held-out figure is one synthetic
+speaker group judged against others on the same sentences, so it is not evidence of coverage of
+real errors. The table is not committed: the command rebuilds it from the text set above.
+
 ## Wrong forms from synthetic voices as bias paths (`path-coverage`)
 
 The question is whether the wrong forms the recogniser writes for a rare term, spoken by system
@@ -1166,7 +1180,7 @@ uttrflow-eval pace --structure-only    # cuts and the loop check only; loads no 
     many have their reference text said twice, at that pace, cut to one copy by
     `RecognitionLoop.undone`. A sentence really said twice should keep both copies, so each is
     a false positive;
-  - over 4.8 w/s: reference words over speech seconds above `RecognitionLoop.fastestSpeech`.
+  - over 5.0 w/s: reference words over speech seconds above `RecognitionLoop.fastestSpeech`.
 
 ### Measured on one speaker's recordings, cuts and loop check only
 
@@ -1187,20 +1201,53 @@ the loop check is counted per recording.
 
 - Slower speech is cut into more pieces (53 against 32 at 0.7x, 43 at 0.85x), and faster speech
   into fewer (21 at 1.6x), because the pause lengths in `SpeechWindowing` are in seconds.
-- The repeated-sentence check cuts a sentence really said twice at 1.6x in 4 of 30 recordings and
-  at 1.9x in 17 of 30. Each is a false positive, and 1.6x is inside the 0.85x to 1.6x range, so
-  the limit needs a follow-up that changes it with before and after. The count is the count
-  of recordings whose words a second pass 4.8, so the speech rate alone decides it.
+- The repeated-sentence check at 4.8 cut a sentence really said twice at 1.6x in 2 of 30 recordings
+  (1/18 quiet, 1/6 fast, 0/6 noisy) and at 1.9x in 13 of 30. Each is a false positive, and 1.6x is
+  inside the 0.85x to 1.6x range, so the limit was raised to 5.0 (`Docs/speech-engines.md`): after,
+  0 of 30 at 1.6x and 8 of 30 at 1.9x. The count is the count of recordings whose words a second
+  pass the limit, so the speech rate alone decides it.
 - Pitch shifts move the piece count by at most 5 of 32 (+4 and +6 semitones), and no loop-check
   hit.
 
-Not yet measured: word error rate per factor and pitch, cuts inside a word, and the word error
-rate floor at 1.3x and 1.6x for fast speakers. That run needs the shipping model on an otherwise
-idle machine:
+### Measured with the shipping model on the same recordings
 
-```bash
-uttrflow-eval pace --corpus-path <reader-1-quiet>
-```
+Shipping model (`openai_whisper-large-v3-v20240930_turbo_632MB`), one idle Mac, `reader-1`:
+`uttrflow-eval pace --corpus-path <session>` over the quiet, fast and noisy sessions. Word error rate
+is pooled per language; "worse" means the paired 95% interval on the change from 1.0x excludes zero.
+
+| WER | 1.0x | 0.7x | 0.85x | 1.3x | 1.6x | 1.9x |
+|---|---|---|---|---|---|---|
+| English, quiet (6) | 21.0% | 20.0% | 21.3% | 22.6% | 24.9% | 30.8% |
+| English, fast (6) | 16.4% | 21.0% | 18.7% | 19.7% | 23.0% worse | 24.6% worse |
+| English, noisy (6) | 18.7% | 20.0% | 16.7% | 21.0% | 29.2% worse | 34.4% worse |
+| Hindi, quiet (6) | 22.4% | 32.3% worse | 28.4% worse | 31.3% worse | 58.2% worse | 52.2% worse |
+| Hinglish, quiet (6) | 37.2% | 51.9% worse | 39.9% | 44.3% | 41.5% | 73.2% worse |
+
+| WER, pitch | -4 st | -2 st | +2 st | +4 st | +6 st |
+|---|---|---|---|---|---|
+| English, quiet | 23.3% | 22.0% | 22.0% | 18.0% | 21.6% |
+| English, fast | 23.6% worse | 19.7% | 23.6% worse | 21.6% | 20.7% |
+| English, noisy | 24.9% worse | 23.0% | 20.7% | 21.6% | 19.7% |
+| Hindi, quiet | 29.4% worse | 25.9% | 24.9% | 28.9% worse | 27.4% worse |
+| Hinglish, quiet | 39.3% | 37.7% | 51.4% worse | 61.2% worse | 44.8% |
+
+Cuts inside a word, over all cuts of recordings with timed words (18 quiet passages): 3/14 at 1.0x,
+6/35 at 0.7x, 6/25 at 0.85x, 2/7 at 1.3x, 1/3 at 1.6x and 0/1 at 1.9x; 2/14, 2/15, 4/14, 2/19 and
+4/19 at -4, -2, +2, +4 and +6 semitones. Early cuts stay at 0 to 2 in every condition. Loop-check
+cuts of a sentence really said twice, on the quiet passages: 0/18 up to 1.3x, 1/18 at 1.6x and 3/18
+at 1.9x; on the fast and noisy sessions, 1/6 and 0/6 at 1.6x and 6/6 and 4/6 at 1.9x.
+
+- Stated floor for fast speakers, English: 19.7% at 1.3x and 23.0% at 1.6x on the fast session
+  (16.4% at 1.0x); 22.6% and 24.9% on the quiet passages. English is not distinguishable from 1.0x
+  at 1.3x on any session; at 1.6x it is worse on the fast and noisy sessions.
+- Hindi and Hinglish are worse already at 0.7x and 1.3x, and Hindi reaches 58.2% at 1.6x, so the
+  floor above is English only.
+- The only pace-dependent threshold that misbehaves inside 0.85x to 1.6x is the repeated-sentence
+  limit (`RecognitionLoop.fastestSpeech`), which cut a sentence really said twice at 1.6x. Slower
+  speech is cut at more places, but the early-cut count stays flat, so `SpeechWindowing` needs no
+  change from this sweep.
+- One speaker and six passages per language, so a
+  difference under about 10 points is inside the interval.
 
 ## One sweep for a layer threshold (`sweep`)
 
@@ -1251,3 +1298,43 @@ decoy that recurs on separate days is learnt, since recurrence is the only rule 
 | Precision, recall | 100.0%, 66.7% |
 | Pairs learnt from decoys | 0 |
 | False overrides on held-out | 241 of 10532 (2.3%), from the common-word pair to/too |
+
+## The recogniser's own marks and case (`raw-marks`)
+
+`uttrflow-eval raw-marks` speaks the English passages with Samantha and the Hinglish passages with
+Rishi, transcribes each with the shipping model and language detection, and scores the raw text
+against the passage's marked reference with `RawMarkScore`: marks per class by word alignment
+(`PunctuationTally`) and case per class (`CapitalisationTally`), beside the do-nothing floors of no
+marks and all lower case. The 95% interval resamples passages (2,000 draws, fixed seed). A
+passage the recogniser answered in Devanagari is counted and left out, because its marks cannot be
+aligned with the Latin reference. Synthetic speech on Apple M5 Pro, 48 GB, with
+`openai_whisper-large-v3-v20240930_turbo_632MB`; recorded clips were not measured.
+
+| Mark (English, 6 passages) | Wanted | Written | Right | F1 (95%) |
+|---|---|---|---|---|
+| comma | 20 | 6 | 6 | 46.2% (7.4–88.0) |
+| full stop | 18 | 32 | 17 | 68.0% (46.4–85.0) |
+| question | 1 | 2 | 1 | 66.7% (0.0–100.0) |
+| colon | 1 | 0 | 0 | 0.0% |
+
+| Mark (Hinglish, 6 of 18 passages) | Wanted | Written | Right | F1 (95%) |
+|---|---|---|---|---|
+| comma | 8 | 5 | 5 | 76.9% (28.6–95.2) |
+| full stop | 5 | 8 | 5 | 76.9% (57.1–92.3) |
+| question | 1 | 1 | 1 | 100.0% |
+
+Case is right on every sentence start, "I" and acronym in both languages, 92.3% on capitalised
+words inside a sentence in English and 100% in Hinglish, and 94.7% and 98.6% on lower-case words
+(the over-capitalising failure). An all-lower-case output scores 0% on each of the first four classes.
+
+- The recogniser under-writes commas (6 of 20 wanted in English) and over-writes stops (32 against
+  18 wanted). Fourteen of the 20 wanted English commas came back as a full stop, which is the
+  repair the tidier and the rules would have to make.
+- 12 of 18 Hinglish passages came back in Devanagari under language detection, so the Hinglish
+  rows rest on 6 passages and 14 marks. They bound nothing: every interval is wide.
+  This is a measurement artefact, not an output leak: the raw text never reaches insertion, and
+  `LatinScript.enforced` writes every Devanagari passage of the corpus in Latin letters
+  (`DevanagariRecogniserOutputTests`; layers in `Docs/latin-output.md`).
+- The figures rest on 6 English passages and 6 Hinglish passages read by one voice each, so the
+  intervals are wide, and a synthesiser pauses at every written stop. They show that repair is
+  needed for commas; they do not rank the candidates for the bake-off.

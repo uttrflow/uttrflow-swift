@@ -836,7 +836,7 @@ struct DictationPipelineEarlyWorkTests {
                 silentCalls: blank ? [] : [2], blankCalls: blank ? [2] : [])
             let pipeline = makePipeline(
                 capture: FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces)),
-                speech: speech, earlyPoll: .seconds(60))
+                speech: speech, earlyPoll: .seconds(60), clock: ManualClock())
 
             await pipeline.startRecording()
             await pipeline.finishRecording()
@@ -845,7 +845,9 @@ struct DictationPipelineEarlyWorkTests {
             #expect(outcome?.text == "W1 X. W3 X. W4 X")
             #expect(outcome?.missedPieces == 0)
             #expect(await speech.calls == 4)
-            #expect(await speech.biases[2].isEmpty, "the second decode goes without the vocabulary")
+            #expect(
+                await speech.biases.dropFirst(2).first?.isEmpty == true,
+                "the second decode goes without the vocabulary")
         }
     }
 

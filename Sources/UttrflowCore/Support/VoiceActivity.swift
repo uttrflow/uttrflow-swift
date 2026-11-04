@@ -76,6 +76,16 @@ public enum VoiceActivity: Sendable {
         return .seconds(Double(quiet) / Double(sampleRate))
     }
 
+    /// The quiet between one stretch of speech and the next, as sample ranges in order.
+    public static func quietRuns(in samples: [Float], sampleRate: Int) -> [Range<Int>] {
+        let frameLength = max(1, Int(frameDuration * Double(sampleRate)))
+        let loudness = frameLoudness(of: samples, frameLength: frameLength)
+        let threshold = threshold(forFloor: percentile(loudness.sorted(), floorPercentile))
+        let minimumFrames = Swift.max(1, Int(minimumSpeech / frameDuration))
+        let words = loudRuns(in: loudness, above: threshold).filter { $0.count >= minimumFrames }
+        return zip(words, words.dropFirst()).map { $0.upperBound * frameLength..<$1.lowerBound * frameLength }
+    }
+
     /// How long `samples` are quiet before their first speech and after their last, or `nil` when they hold none.
     package static func edgeSilence(
         in samples: [Float], sampleRate: Int
@@ -140,10 +150,8 @@ public enum VoiceActivity: Sendable {
         return sorted[Swift.min(Swift.max(index, 0), sorted.count - 1)]
     }
 
-    /// First to last frame of speech: runs above `threshold`, joined over `bridging` quiet frames, one a word.
-    private static func voicedFrames(
-        in loudness: [Float], above threshold: Float, lasting minimumFrames: Int, bridging: Int = 0
-    ) -> Range<Int>? {
+    /// Runs of frames at or above `threshold`; a run still open at the end counts, as speech need not stop first.
+    private static func loudRuns(in loudness: [Float], above threshold: Float) -> [Range<Int>] {
         var runs: [Range<Int>] = []
         var runStart: Int?
         for (index, value) in loudness.enumerated() {
@@ -154,9 +162,15 @@ public enum VoiceActivity: Sendable {
                 runStart = nil
             }
         }
-        // A run still open at the end counts: speech need not stop before the key does.
         if let start = runStart { runs.append(start..<loudness.count) }
+        return runs
+    }
 
+    /// First to last frame of speech: runs above `threshold`, joined over `bridging` quiet frames, one a word.
+    private static func voicedFrames(
+        in loudness: [Float], above threshold: Float, lasting minimumFrames: Int, bridging: Int = 0
+    ) -> Range<Int>? {
+        let runs = loudRuns(in: loudness, above: threshold)
         var first: Int?
         var last: Int?
         var cluster: Range<Int>?
