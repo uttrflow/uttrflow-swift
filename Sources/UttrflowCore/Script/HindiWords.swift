@@ -42,6 +42,10 @@ public enum HindiWords {
     public static let negations: Set<String> = Set(
         table.rows.filter { $0.classes.contains(.negation) }.map(\.id))
 
+    /// Copulas no English word is spelled as ("hai", "tha"), which make their clause Hindi even where the English model lists the spelling.
+    package static let copulas: Set<String> = Set(
+        table.rows.filter { $0.classes.contains(.copula) && !$0.english }.map(\.id))
+
     /// Whether the spelling is listed as Hindi and is also an English word: "the" for थे, "main" for मैं.
     static func isEnglishHomograph(_ word: String) -> Bool {
         rowsBySpelling[word.lowercased()]?.english == true

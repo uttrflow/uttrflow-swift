@@ -33,7 +33,7 @@ extension MeaningPreservationGuard {
     /// Paragraph breaks and line breaks, counting a paragraph as one break rather than two lines.
     private static func breaks(in text: String) -> (paragraphs: Int, lines: Int) {
         let paragraphs = text.components(separatedBy: "\n\n").count - 1
-        let lines = text.filter { $0.isNewline }.count - paragraphs
+        let lines = text.filter { $0.isNewline }.count - 2 * paragraphs
         return (paragraphs, lines)
     }
 

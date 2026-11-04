@@ -176,6 +176,41 @@ struct RecordingStoreTests {
         #expect(!FileManager.default.fileExists(atPath: writer.url.path))
     }
 
+    @Test("a finished dictation's audio is kept for a fix, readable, and never listed as waiting")
+    func finishedAudioIsKeptApart() async throws {
+        let sandbox = Sandbox()
+        let store = RecordingStore(directory: sandbox.directory)
+        let writer = try #require(await store.begin(at: now))
+        writer.append(Array(repeating: 0.2, count: 1_600))
+        let finished = await store.finish(writer)
+
+        await store.keepFinished(finished.id)
+
+        #expect(await store.waiting(now: now).isEmpty)
+        #expect(await store.keepsFinished(finished.id, now: now))
+        #expect(try await store.audio(of: finished.id).samples.count == 1_600)
+        await store.discard(finished.id)
+        #expect(await !store.keepsFinished(finished.id, now: now))
+        #expect(try FileManager.default.contentsOfDirectory(atPath: sandbox.directory.path).isEmpty)
+    }
+
+    @Test("a finished dictation's audio is deleted once a day old, by a store opened later as at launch")
+    func finishedAudioExpires() async throws {
+        let sandbox = Sandbox()
+        let store = RecordingStore(directory: sandbox.directory)
+        let writer = try #require(await store.begin(at: now))
+        writer.append([0.1])
+        let finished = await store.finish(writer)
+        await store.keepFinished(finished.id)
+
+        let relaunched = RecordingStore(directory: sandbox.directory)
+        let dayLater = now.addingTimeInterval(RecordingStore.defaultRetention.inSeconds + 60)
+        #expect(await relaunched.keepsFinished(finished.id, now: now))
+        #expect(await relaunched.waiting(now: dayLater).isEmpty)
+        #expect(await !relaunched.keepsFinished(finished.id, now: dayLater))
+        #expect(try FileManager.default.contentsOfDirectory(atPath: sandbox.directory.path).isEmpty)
+    }
+
     /// A negative age passed the old check, so a recording dated ahead waited until the clock caught up.
     @Test("a recording dated ahead of the clock is past its window, not kept until the clock catches up")
     func aFutureStampIsDueRatherThanKept() async throws {

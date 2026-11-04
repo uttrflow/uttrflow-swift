@@ -37,7 +37,16 @@ public struct WordShape: Equatable, Sendable {
         (prefix == "-" || prefix == "--") && core.first.map { $0.isLetter || $0.isNumber } == true
     }
 
-    /// Whether the word is a hashtag, "#launchday": a hash straight before letters and digits, one of them a letter.
+    /// Whether the word is a clause enumerator such as "(a)", "(iv)" or "(2)", which is lower case where it opens a line.
+    package var isBracketedEnumerator: Bool {
+        guard prefix == "(", suffix == ")", !core.isEmpty else { return false }
+        if core.allSatisfy(\.isNumber) { return core.count <= 2 }
+        return core.count == 1
+            ? core.allSatisfy { $0.isLowercase && $0.isLetter }
+            : core.count <= 4 && core.allSatisfy { "ivx".contains($0) }
+    }
+
+    /// Whether the word is a hashtag,"#launchday": a hash straight before letters and digits, one of them a letter.
     public var isHashtag: Bool {
         prefix == "#" && core.contains(where: \.isLetter)
             && core.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" }

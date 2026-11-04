@@ -408,6 +408,58 @@ struct SnippetExpanderTests {
     func markerOnlyIsUnusable() {
         #expect(!makeSnippet(trigger: "blank", expansion: "{caret}").isUsable)
     }
+
+    // MARK: Named fill-in slots
+
+    /// An expander holding one snippet with two slots.
+    private func slotExpander() -> SnippetExpander {
+        SnippetExpander(
+            snippets: [
+                makeSnippet(
+                    trigger: "reply intro", expansion: "Dear {slot:name}, thanks for {slot:topic}.")
+            ], in: nil)
+    }
+
+    @Test("each phrase said after the trigger fills the next slot, and undo restores those words")
+    func slotsFillFromFollowingPhrases() {
+        let result = slotExpander().expand("reply intro Sam Example. the invoice. See you.")
+        #expect(result.text == "Dear Sam Example, thanks for the invoice. See you.")
+        #expect(result.applied.map(\.matched) == ["reply intro Sam Example. the invoice"])
+        #expect(result.applied.map(\.expansion) == ["Dear Sam Example, thanks for the invoice."])
+        #expect(result.original == "reply intro Sam Example. the invoice. See you.")
+    }
+
+    @Test("fewer phrases than slots leaves the rest empty")
+    func missingPhraseLeavesSlotEmpty() {
+        let result = slotExpander().expand("reply intro Sam")
+        #expect(result.text == "Dear Sam, thanks for .")
+        #expect(result.applied.map(\.matched) == ["reply intro Sam"])
+    }
+
+    @Test("a slot typed with a backslash is written literally and takes no words")
+    func escapedSlot() {
+        let expander = SnippetExpander(
+            snippets: [makeSnippet(trigger: "syntax", expansion: "type \\{slot:name} here")],
+            in: nil)
+        let result = expander.expand("syntax now")
+        #expect(result.text == "Type {slot:name} here now")
+    }
+
+    @Test("braces that do not spell a slot stay text")
+    func otherBracesAreText() {
+        let expander = SnippetExpander(
+            snippets: [makeSnippet(trigger: "greet", expansion: "hi {customer name}")], in: nil)
+        #expect(expander.expand("greet Sam").text == "Hi {customer name} Sam")
+    }
+
+    @Test("a caret after a filled slot moves by the length of the fill")
+    func caretAfterSlot() {
+        let expander = SnippetExpander(
+            snippets: [makeSnippet(trigger: "note", expansion: "To {slot:who}: {caret}")], in: nil)
+        let result = expander.expand("note Sam")
+        #expect(result.text == "To Sam: ")
+        #expect(result.caret == "To Sam: ".utf16.count)
+    }
 }
 
 @Suite("A snippet confined to chosen applications")

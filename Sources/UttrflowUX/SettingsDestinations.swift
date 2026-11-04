@@ -82,8 +82,14 @@ public enum SettingsDestinations {
         of step: CleaningStep, _ steps: CleaningSteps, _ previewer: CleaningPreviewer
     ) -> String {
         guard let sample = previewer.sample(of: step, under: steps) else { return step.detail }
-        return step.detail + " Say \u{201C}\(step.example)\u{201D}."
-            + " Off: \u{201C}\(sample.without)\u{201D}. On: \u{201C}\(sample.with)\u{201D}."
+        return step.detail + " Say " + quoted(step.example)
+            + " Off: " + quoted(sample.without) + " On: " + quoted(sample.with)
+    }
+
+    /// A sample in curly quotes, closed by a full stop outside them only when it has no ending of its own.
+    static func quoted(_ sample: String) -> String {
+        let ending = sample.last.map { ".?!".contains($0) } ?? false
+        return "\u{201C}\(sample)\u{201D}" + (ending ? "" : ".")
     }
 
     /// The override rows: apps in kept history newest first, then other overrides, then a way to add an app.

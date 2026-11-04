@@ -165,6 +165,17 @@ struct RecognitionLoopTests {
         #expect(undone.text == twice)
     }
 
+    @Test("a sentence really said twice at 1.6 times the recorded pace keeps both copies")
+    func repeatAtOnePointSixTimesIsKept() {
+        let twice = "Send the new draft to the team. Send the new draft to the team."
+        // The fastest take replayed at 1.6x, 4.93 words a second; see Docs/eval-methodology.md, pace section.
+        let seconds = 14 / 4.93
+
+        let undone = RecognitionLoop.undone(heard(twice, seconds: seconds), speechDuration: .seconds(seconds))
+
+        #expect(undone.text == twice)
+    }
+
     @Test("two different sentences spoken fast are left alone")
     func differentHalvesAreKept() {
         let fast = "send the file today and call me back tonight"
@@ -178,7 +189,7 @@ struct RecognitionLoopTests {
     func partialLoopStops() {
         let partial = "send the file. send the file. send the file. send"
 
-        #expect(RecognitionLoop.isLooping(partial, within: .seconds(2)))
+        #expect(RecognitionLoop.isLooping(partial, within: .seconds(1.8)))
     }
 
     @Test("a phrase said three times in a window long enough to hold it keeps decoding")

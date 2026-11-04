@@ -11,8 +11,8 @@ extension MeaningPreservationGuard {
 
     /// The first content word the rewrite substituted, dropped or added against the romanised draft, in order, or `nil`. See `Docs/latin-output.md`.
     static func changedWord(said: String, written: String) -> String? {
-        let spoken = withoutStammers(romanisedWords(said))
-        let spelt = withoutStammers(romanisedWords(written))
+        let spoken = stammerFreeWords(said)
+        let spelt = stammerFreeWords(written)
         // A key either side spells as a grammar word is left out of both, so "arre" goes with the English "are".
         let grammar = Set((spoken + spelt).filter { isGrammarWord($0.word) }.map(\.key))
         let heard = spoken.filter { !grammar.contains($0.key) }
@@ -47,6 +47,11 @@ extension MeaningPreservationGuard {
             return RomanisedWord(
                 word: word, key: word.allSatisfy(\.isNumber) ? word : Romaniser.soundKey(word))
         }
+    }
+
+    /// The words of a romanised text with the adjacent repetitions the stammer pass would remove left out.
+    static func stammerFreeWords(_ text: String) -> [RomanisedWord] {
+        withoutStammers(romanisedWords(text))
     }
 
     /// Removes only adjacent repetitions the stammer pass would remove.

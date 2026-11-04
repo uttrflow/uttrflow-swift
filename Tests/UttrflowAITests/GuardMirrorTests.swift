@@ -64,6 +64,8 @@ struct GuardMirrorTests {
             "punctuation is the rewrite's to add, so only the produced side can lack it",
         "the rewrite replaced high-confidence":
             "recogniser confidence exists only on the draft side",
+        "the rewrite replaced doubtful":
+            "recogniser doubt exists only on the draft side",
     ]
 
     /// The reason the guard gives, or nil where it accepted.

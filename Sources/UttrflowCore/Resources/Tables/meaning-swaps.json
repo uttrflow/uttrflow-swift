@@ -1,0 +1,8 @@
+{
+    "schema": 1,
+    "rows": [
+        {"id": "accept-except", "words": ["accept", "except"]},
+        {"id": "affect-effect", "words": ["affect", "effect"]},
+        {"id": "lose-loose", "words": ["lose", "loose"]}
+    ]
+}

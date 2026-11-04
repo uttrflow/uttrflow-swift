@@ -82,6 +82,7 @@ extension PersonalDictionaryStore {
         let settled = entries.map { entry in
             var entry = entry
             entry.timesUsed = DictionaryEntry.clamped(earlier[entry.id]?.used ?? 0)
+            entry.timesAccepted = entry.timesUsed
             entry.timesReverted = DictionaryEntry.clamped(earlier[entry.id]?.reverted ?? 0)
             return entry
         }

@@ -395,4 +395,23 @@ struct SettingsCleaningExampleTests {
         #expect(text.contains("\u{201C}off \(step.id.rawValue)\u{201D}"))
         #expect(text.contains("\u{201C}on-run\u{201D}"))
     }
+
+    @Test("a sample that ends a sentence of its own gets no second full stop after its quote")
+    func oneFullStopPerSample() throws {
+        let finished = CleaningPreviewer { _, _ in
+            CleaningStepSample(without: "Um we ship on Friday.", with: "We ship on Friday?")
+        }
+        let group = SettingsDestinations.steps(.default, previewer: finished)
+        let text = try #require(group.rows.first?.explanation)
+        #expect(
+            text.hasSuffix(
+                "Off: \u{201C}Um we ship on Friday.\u{201D} On: \u{201C}We ship on Friday?\u{201D}"))
+    }
+
+    @Test("a sample with no punctuation of its own is closed by one full stop outside its quote")
+    func bareSampleIsClosed() throws {
+        let group = SettingsDestinations.steps(.default, previewer: previewer)
+        let text = try #require(group.rows.first?.explanation)
+        #expect(text.hasSuffix("Off: \u{201C}off fillers\u{201D}. On: \u{201C}on-run\u{201D}."))
+    }
 }

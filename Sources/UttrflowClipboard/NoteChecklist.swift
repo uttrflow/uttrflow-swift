@@ -31,6 +31,30 @@ public enum NotePromotion {
             .joined()
     }
 
+    /// An edited note: lines starting `[ ] ` or `[x] ` become checklist items, every other line a paragraph.
+    static func editedNote(from text: String) -> String {
+        var html = ""
+        var inList = false
+        for line in text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline) {
+            let box = line.hasPrefix("[x] ") ? "checked" : line.hasPrefix("[ ] ") ? "unchecked" : nil
+            if (box != nil) != inList {
+                html += inList ? "</ul>" : "<ul class=\"checklist\">"
+                inList.toggle()
+            }
+            if let box {
+                html += "<li class=\"\(box)\">" + escaped(String(line.dropFirst(4))) + "</li>"
+            } else {
+                html += "<p>" + escaped(String(line)) + "</p>"
+            }
+        }
+        return inList ? html + "</ul>" : html
+    }
+
+    /// Whether a note is one Edit can rewrite without loss: rebuilding it from its plain form gives it back.
+    package static func isEditableNote(_ html: String) -> Bool {
+        editedNote(from: RichTextPlainForm.plainText(fromHTML: html)) == html
+    }
+
     /// The five characters that would otherwise become markup when the note is read back.
     static func escaped(_ text: String) -> String {
         var out = ""

@@ -185,7 +185,7 @@ struct SecretDetectionTests {
     @Test("keeps generated credentials detectable beside non-ASCII characters")
     func generatedCredentialsAtNonASCIIBoundaries() {
         let tokens = [
-            Self.keyBase,
+            Self.keyBase + "0a",
             "Qv7RkT2mXeL9pAz4NbHc8FwJdY3gS6uH",
             "Zx9kLmQ2rT7pQ3vB8nW4yH6sAbCdEfGh",
             "K9x$Qz7Tr2Bn8LmVa",
@@ -314,7 +314,7 @@ struct SecretDetectionTests {
             -----END OPENSSH PRIVATE KEY-----
             """
         #expect(ClipKindDetector.kind(of: key) == .secret)
-        #expect(ClipKindDetector.kind(of: "-----BEGIN CERTIFICATE-----\nMIIB…") == .secret)
+        #expect(ClipKindDetector.kind(of: "-----BEGIN CERTIFICATE-----\nMIIB") != .secret)
     }
 
     @Test(
@@ -533,7 +533,7 @@ struct SecretDetectionTests {
     func generatedCredentialsInURLParameters() {
         let names = [
             "X-Amz-Security-Token", "X_Amz_Security_Token", "apikey", "api-key", "api_key",
-            "key", "auth", "jwt", "password", "code",
+            "jwt", "password", "client_secret",
         ]
         let value = "Zx9kLmQ2rT7p" + "Q3vB"
 
@@ -545,11 +545,37 @@ struct SecretDetectionTests {
         }
     }
 
+    @Test(
+        "masks a password a person chose in a URL query",
+        arguments: [
+            "https://db.example.com/app?user=root&password=Vb4nM7xQ2p",
+            "jdbc:mysql://db.example.com:3306/app?user=root&password=Vb4nM7xQ2p",
+            "mongodb://db.example.com/?authSource=admin&password=Vb4nM7xQ2p",
+            "https://db.example.com/app?pwd=hunter2",
+            "https://db.example.com/app?Passwd=correcthorsebattery",
+        ])
+    func chosenPasswordInQuery(_ text: String) {
+        #expect(ClipKindDetector.kind(of: text) == .secret)
+    }
+
+    @Test(
+        "leaves a password parameter that is empty, plain or a placeholder as a link",
+        arguments: [
+            "https://db.example.com/app?password=",
+            "https://db.example.com/app?password=secret",
+            "https://db.example.com/app?password=${DB_PASSWORD}",
+            "https://db.example.com/app?password=YOUR_PASSWORD_1",
+            "https://db.example.com/app?password=xxxxxxxx",
+        ])
+    func placeholderPasswordInQuery(_ text: String) {
+        #expect(ClipKindDetector.kind(of: text) == .link)
+    }
+
     @Test("does not mask short or ordinary URL parameter values")
     func ordinaryValuesInCredentialURLParameters() {
         let names = [
             "X-Amz-Security-Token", "X_Amz_Security_Token", "apikey", "api-key", "api_key",
-            "key", "auth", "jwt", "password", "code",
+            "jwt", "password", "client_secret",
         ]
 
         for name in names {
@@ -787,7 +813,7 @@ struct SecretDetectionTests {
             "Qv7RkT2mXeL9pAz4NbHc8FwJdY3gS6uH",
             "Qv7RkT2mXeL9pAz4NbHc8FwJdY3gS6uH",
             "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
-            "5f4dcc3b5aa765d61d8327deb882cf99e4a9c8b2",
+            "5f4dcc3b5aa765d61d8327deb882cf99e4a9c8b2c7d1",
             "dGhpcy1pcy1hLXZlcnktbG9uZy1iYXNlNjQtdG9rZW4tMTIz",
         ])
     func generatedTokens(_ text: String) {

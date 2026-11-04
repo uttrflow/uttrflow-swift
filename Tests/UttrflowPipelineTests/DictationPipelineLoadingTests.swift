@@ -92,34 +92,126 @@ private struct LoadingHotkeyMonitor: HotkeyMonitoring {
 private let refusal = DictationFailure(
     message: "Speech model still loading…", recovery: nil, severity: .informational)
 
+extension DictationPipeline {
+    /// Returns once the read taken at key-down has settled.
+    fileprivate func waitForEarlyRead() async {
+        while recordingDestination == nil { await Task.yield() }
+    }
+}
+
 // MARK: - Tests
 
 @Suite("Dictating while the speech model loads")
 struct DictationPipelineLoadingTests {
-    @Test("says the model is still loading and never opens the microphone")
-    func attemptDuringLoadIsRefused() async {
+    @Test("records through the load and delivers the words once the model is ready")
+    func attemptDuringLoadKeepsTheSpeech() async {
         let gate = LoadGate()
         let capture = FakeAudioCaptureEngine()
-        let pipeline = makePipeline(speech: SlowLoadingSpeechEngine(gate: gate), capture: capture)
+        let inserter = FakeTextInserter()
+        let pipeline = DictationPipeline(
+            capture: capture, speech: SlowLoadingSpeechEngine(gate: gate), cleaner: FakeTranscriptCleaner(),
+            context: FakeContextEngine(context: .fixture()), inserter: inserter,
+            metrics: RecordingMetricsRecorder(), clock: ManualClock())
         let loading = Task { await pipeline.prepare() }
         await gate.waitUntilReached()
 
         await pipeline.startRecording()
+        #expect(await pipeline.currentState == .recording)
+        #expect(await capture.calls.events == [.start])
 
-        #expect(await pipeline.currentState == .failed(refusal))
-        #expect(await capture.calls.isEmpty, "a recording that waits minutes for its words is not started")
+        let finishing = Task { await pipeline.finishRecording() }
         await gate.open()
         await loading.value
+        await finishing.value
+        #expect(await pipeline.isReady)
+        #expect(!inserter.received.isEmpty)
     }
 
-    @Test("clears the notice when the load finishes, and then dictates as before")
+    @Test("words finished after a load, with the person now in another app, are copied and not typed there")
+    func movedAwayDuringTheLoadCopies() async {
+        let gate = LoadGate()
+        let inserter = FakeTextInserter()
+        let clipboard = FakeTextInserter()
+        let context = FakeContextEngine(
+            context: AppContext(applicationName: "Fixture Notes", bundleIdentifier: "com.example.notes"))
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(), speech: SlowLoadingSpeechEngine(gate: gate),
+            cleaner: FakeTranscriptCleaner(), context: context, inserter: inserter,
+            metrics: RecordingMetricsRecorder(), clipboard: clipboard, clock: ContinuousClock())
+        let loading = Task { await pipeline.prepare() }
+        await gate.waitUntilReached()
+        await pipeline.startRecording()
+        await pipeline.waitForEarlyRead()
+        await context.setContext(
+            AppContext(applicationName: "Fixture Mail", bundleIdentifier: "com.example.mail"))
+        let finishing = Task { await pipeline.finishRecording() }
+        await gate.open()
+        await loading.value
+        await finishing.value
+
+        #expect(inserter.received.isEmpty, "never typed into the app the person moved to")
+        #expect(clipboard.received.count == 1, "the words are kept on the clipboard")
+    }
+
+    @Test("words finished after a load go to the field when the person stayed")
+    func stayedDuringTheLoadInserts() async {
+        let gate = LoadGate()
+        let inserter = FakeTextInserter()
+        let clipboard = FakeTextInserter()
+        let context = FakeContextEngine(
+            context: AppContext(applicationName: "Fixture Notes", bundleIdentifier: "com.example.notes"))
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(), speech: SlowLoadingSpeechEngine(gate: gate),
+            cleaner: FakeTranscriptCleaner(), context: context, inserter: inserter,
+            metrics: RecordingMetricsRecorder(), clipboard: clipboard, clock: ContinuousClock())
+        let loading = Task { await pipeline.prepare() }
+        await gate.waitUntilReached()
+        await pipeline.startRecording()
+        await pipeline.waitForEarlyRead()
+        let finishing = Task { await pipeline.finishRecording() }
+        await gate.open()
+        await loading.value
+        await finishing.value
+
+        #expect(inserter.received.count == 1)
+        #expect(clipboard.received.isEmpty)
+    }
+
+    @Test("a load slower than the transcription limit does not time the dictation out")
+    func slowLoadOutlastsTheTranscriptionLimit() async {
+        let gate = LoadGate()
+        let clock = ManualClock()
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(), speech: SlowLoadingSpeechEngine(gate: gate),
+            cleaner: FakeTranscriptCleaner(), context: FakeContextEngine(context: .fixture()),
+            inserter: FakeTextInserter(), metrics: RecordingMetricsRecorder(), clock: clock)
+        let loading = Task { await pipeline.prepare() }
+        await gate.waitUntilReached()
+        await pipeline.startRecording()
+        let finishing = Task { await pipeline.finishRecording() }
+
+        while await pipeline.currentState != .transcribing { await Task.yield() }
+        // Well past the recognition limit, in steps, so any limit waiting now runs out.
+        for _ in 0..<4 {
+            await clock.advanceWhenSomethingIsWaiting(by: StageTimeout.transcription + .seconds(60))
+            for _ in 0..<50 { await Task.yield() }
+        }
+        if case .failed(let failure) = await pipeline.currentState {
+            Issue.record("the dictation failed while the model was loading: \(failure)")
+        }
+        await gate.open()
+        await loading.value
+        await finishing.value
+        #expect(await !pipeline.isLoading)
+    }
+
+    @Test("dictates as before once the load finishes")
     func loadFinishingRestoresDictation() async {
         let gate = LoadGate()
         let capture = FakeAudioCaptureEngine()
         let pipeline = makePipeline(speech: SlowLoadingSpeechEngine(gate: gate), capture: capture)
         let loading = Task { await pipeline.prepare() }
         await gate.waitUntilReached()
-        await pipeline.startRecording()
 
         await gate.open()
         await loading.value
@@ -211,64 +303,20 @@ struct DictationPipelineLoadingTests {
         #expect(await pipeline.currentState == .recording)
     }
 
-    @Test("a modifier capture is cancelled when adoption is refused during loading")
-    func refusedModifierAdoptionCancelsItsCapture() async {
+    @Test("a modifier press during the load becomes the recording")
+    func modifierPressDuringLoadIsAdopted() async {
         let gate = LoadGate()
         let capture = FakeAudioCaptureEngine()
         let pipeline = makePipeline(speech: SlowLoadingSpeechEngine(gate: gate), capture: capture)
-        await pipeline.beginModifierPress(measuring: { .zero })
         let loading = Task { await pipeline.prepare() }
         await gate.waitUntilReached()
 
+        await pipeline.beginModifierPress(measuring: { .zero })
         let adopted = await pipeline.adoptModifierPress()
 
-        #expect(!adopted)
-        #expect(await capture.calls.events == [.start, .cancel])
-        await gate.open()
-        await loading.value
-    }
-
-    @Test("a refused modifier press plays no cue and starts no recording cap")
-    func refusedModifierPressHasNoCueOrCap() async throws {
-        let gate = LoadGate()
-        let capture = FakeAudioCaptureEngine()
-        let pipeline = makePipeline(speech: SlowLoadingSpeechEngine(gate: gate), capture: capture)
-        let loading = Task { await pipeline.prepare() }
-        await gate.waitUntilReached()
-        let clock = ManualClock()
-        let cue = LoadingCueSpy()
-        let warnings = Mutex(0)
-        let controller = DictationController(
-            dependencies: .init(
-                pipeline: pipeline,
-                monitor: LoadingHotkeyMonitor(),
-                cue: cue),
-            clock: clock,
-            options: .init(
-                limit: DictationLimit(warnAfter: .seconds(1), stopAfter: .seconds(2))
-            ),
-            observers: .init(
-                onWarning: { _ in warnings.withLock { $0 += 1 } }
-            )
-        )
-        try await controller.start(
-            binding: HotkeyBinding(keyCode: 58, modifiers: [.option, .command, .control]))
-
-        await controller.handle(.pressed)
-        clock.advance(by: .seconds(3))
-        await controller.handle(.released)
-        await controller.caughtUp()
-        if cue.startCount > 0 {
-            await clock.waitUntilSomethingIsWaiting()
-            clock.advance(by: .seconds(3))
-            await Task.yield()
-        }
-
-        #expect(cue.startCount == 0)
-        #expect(warnings.withLock { $0 } == 0)
-        #expect(await capture.calls.isEmpty)
-        #expect(await pipeline.currentState == .failed(refusal))
-        await controller.stop()
+        #expect(adopted)
+        #expect(await capture.calls.events == [.start])
+        await pipeline.cancel()
         await gate.open()
         await loading.value
     }

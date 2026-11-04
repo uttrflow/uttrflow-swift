@@ -10,10 +10,10 @@ and the scorer is `Scorer` (`Sources/UttrflowEval/Scorer.swift`). Why each row a
 
 ## The corpus
 
-**The corpus is 1,318 cases in sixteen categories** — `everyday` 263, `contextual` 252, `grammar` 34,
-`technical` 331, `multilingual` 181, `notARequest` 107, `oneLineField` 10, `secondLanguage` 40,
-`bareLiteral` 27, `commandInput` 8, `longInput` 4, `developerGenre` 25, `dictionary` 20,
-`webDestination` 3, `homophone` 7, `hinglishReply` 6 — and everything in it is
+**The corpus is 1,362 cases in sixteen categories** — `everyday` 291, `contextual` 252, `grammar` 34,
+`technical` 338, `multilingual` 182, `notARequest` 107, `oneLineField` 10, `secondLanguage` 40,
+`bareLiteral` 27, `commandInput` 8, `longInput` 4, `developerGenre` 25, `dictionary` 22,
+`webDestination` 3, `homophone` 12, `hinglishReply` 7 — and everything in it is
 synthesised or written by hand. `Scripts/docs_audit.sh` checks this sentence against the files `all` reads and
 `RequestCorpus.swift`. The count of record for any run is the one `make bakeoff` prints in its
 header, from `EvaluationCorpus.all.count`, beside the prompt version (`PromptBuilder.version`, 11).
@@ -33,6 +33,10 @@ run-on sentence fails it however many words survive.
 vocabulary the way the pipeline hands them to the message passes; a case about an entry's
 spelling holds it with `expectedExact`. `webDestination` cases are said into an invented page in a browser: web mail,
 web chat and a search field. Each case in both is named after the issue it guards.
+`snippet` cases (`snippet.json`, `EvaluationCorpus.snippet`) say a trigger of the user's snippets.
+They are no part of `all`, because a tidier alone never expands one: the bake-off scores them on
+the text `DictationPipeline` writes with the candidate as its tidier and the case's snippets
+stored, the same expansion stage a dictation runs, and reports them as their own category.
 `developerGenre` is one invented whole dictation per kind of text a developer writes (a stand-up,
 a commit message, a bug report with steps, a shell pipeline, a decision record and twenty more),
 20 to 120 words each, where flags, paths, numbers, lists and casing meet in one text. Each case's
@@ -259,6 +263,19 @@ A gate on cues would skip 98% of dictations and lose the grammar lift with them,
 predicate is the case's category, not a cue and not the doubtful-span count. Nothing is deleted
 yet: the full-corpus run (`tidy-gate` with no `--per-category`) replaces these figures before the
 router changes.
+
+## Baseline on the current corpus
+
+One `make bakeoff ARGS="--baselines-only"` run, 1,554 cases (1,552 scored), Apple M5 Pro, 48 GB,
+macOS build 25F80, Debug build, an otherwise idle Mac. It covers the rules and Apple rows only.
+The shipping-router row is not recorded: its measurement did not finish on the idle Mac (the run
+sat with no output for about 40 minutes at 3.5 CPU minutes), so no figure for it is stated here.
+
+```
+candidate   pass   words   marks   case   typical   slowest   declined
+rules       94%    99%     94%     99%    0.00 s    0.21 s    0
+Apple       60%    63%     64%    100%    1.09 s    7.34 s    131
+```
 
 ## Hard cases
 

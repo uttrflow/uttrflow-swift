@@ -253,14 +253,16 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         return startsWithInitialism || digits.count >= 3
     }
 
-    /// A lower-case "v" or "x" before a dotted number is a version or architecture prefix, written without a space.
+    /// A lower-case "v" or "x" before a dotted number is a version or architecture prefix, written without a space; the number may end in a pre-release label, "1.2.3-rc.1".
     private static func versionPrefix(at position: Int, in live: [Int], draft: Draft) -> Draft? {
         guard position + 1 < live.count, live[position + 1] == live[position] + 1 else { return nil }
         let prefix = draft.shape(at: live[position])
         let number = draft.shape(at: live[position + 1])
+        let parts = number.key.split(separator: "-", maxSplits: 1, omittingEmptySubsequences: false)
         guard prefix.core == "v" || prefix.core == "x", prefix.suffix.isEmpty,
-            number.key.contains("."), number.key.first?.isNumber == true,
-            number.key.allSatisfy({ $0.isNumber || $0 == "." })
+            let version = parts.first, version.contains("."), version.first?.isNumber == true,
+            version.allSatisfy({ $0.isNumber || $0 == "." }),
+            parts.dropFirst().allSatisfy({ $0.allSatisfy { $0.isLetter || $0.isNumber || $0 == "." } })
         else { return nil }
         var draft = draft
         let written = LetterRun.written(
@@ -292,6 +294,8 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
             let candidateEnd = candidateRunEnd(from: position, in: live, draft: draft)
             let value = live[position..<candidateEnd].compactMap { Self.letterName(draft.shape(at: $0)) }
                 .joined().lowercased()
+            // Letters that spell a lexicon acronym of three or more after the "a" make it the article: "she is a c e o".
+            if value.count > 3, Self.knownAcronyms.contains(String(value.dropFirst())) { return nil }
             let previous = position > 0 ? draft.shape(at: live[position - 1]) : nil
             let afterFunctionWord =
                 previous.map { !$0.endsClause && !FunctionWords.isContent($0.key) } ?? false
@@ -309,7 +313,7 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         {
             let candidateEnd = candidateRunEnd(from: position, in: live, draft: draft)
             let letters = live[position..<candidateEnd].map { draft.shape(at: $0).key }
-            if letters.contains("a") { return nil }
+            if letters.contains("a"), !Self.knownAcronyms.contains(letters.joined()) { return nil }
         }
         let initialismStart = position
         // An ambiguous letter name never starts a run; the run begins on the next single letter.
@@ -348,7 +352,9 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         from start: Int, through end: Int, in live: [Int], draft: Draft
     ) -> Bool {
         let value = live[start...end].compactMap { letterName(draft.shape(at: $0)) }.joined().lowercased()
-        // Three or more letters said one by one end in "a" as a letter wherever no noun follows to need the article.
+        // Three or more letters that spell a lexicon acronym keep their last letter whatever follows: "the n a s a team".
+        if end - start >= 2, knownAcronyms.contains(value) { return true }
+        // Other letters said one by one end in "a" as a letter wherever no noun follows to need the article.
         return (knownAcronyms.contains(value) || end - start >= 2)
             && !closingArticleOpensNoun(["a"], end: end + 1, in: live, draft: draft)
     }
@@ -418,7 +424,8 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
 
     /// The letter a word names, where a cut-off is an unfinished word and names no letter.
     private static func letterName(_ shape: WordShape) -> String? {
-        shape.isCutOff ? nil : LetterRun.letter(named: shape.key)
+        // A letter after a dash is a command option, `-g`, whose letter is no spelling.
+        shape.isCutOff || shape.isOption ? nil : LetterRun.letter(named: shape.key)
     }
 
     /// Whether a run is evidence of spelling: three or more letter names, or a pair of bare single letters.

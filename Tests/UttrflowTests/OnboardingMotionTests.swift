@@ -27,5 +27,7 @@ struct OnboardingMotionTests {
         #expect(OnboardingMotion.downloadLabel(.running, share: 0.42) == "Downloading the speech model, 42%")
         #expect(OnboardingMotion.downloadLabel(.stopped, share: 0.5) == "The download stopped at 50%")
         #expect(OnboardingMotion.downloadLabel(.finished, share: 1) == "The speech model is ready")
+        #expect(
+            OnboardingMotion.downloadLabel(.offered, share: 0) == "The speech model is not downloaded yet")
     }
 }

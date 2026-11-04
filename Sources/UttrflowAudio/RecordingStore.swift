@@ -121,6 +121,7 @@ public actor RecordingStore: RecordingKeeper {
         await settle(id)
         try? FileManager.default.removeItem(at: url(of: id))
         try? FileManager.default.removeItem(at: destinationURL(of: id))
+        try? FileManager.default.removeItem(at: finishedURL(of: id))
         if last?.id == id { last = nil }
         destinations[id] = nil
     }
@@ -151,7 +152,33 @@ public actor RecordingStore: RecordingKeeper {
         try LocalStore.removeEach(files)
     }
 
+    /// Keeps a recording whose words landed, for a fix to be retried, under the same window and byte limit, never listed as waiting.
+    package func keepFinished(_ id: UUID) async {
+        await settle(id)
+        guard FileManager.default.fileExists(atPath: url(of: id).path) else { return }
+        try? PrivateFile.write(Data(), to: finishedURL(of: id))
+        if last?.id == id { last = nil }
+    }
+
+    /// Keeps a landed dictation's audio for a fix when History kept its record, and deletes it otherwise.
+    package func settleFinished(_ id: UUID?, recorded: Bool) async {
+        guard let id else { return }
+        if recorded { await keepFinished(id) } else { await discard(id) }
+    }
+
+    /// Whether a finished dictation's audio is still kept at `now`, deleting whatever has gone stale.
+    package func keepsFinished(_ id: UUID, now: Date) async -> Bool {
+        _ = await listed(now: now)
+        return FileManager.default.fileExists(atPath: finishedURL(of: id).path)
+            && FileManager.default.fileExists(atPath: url(of: id).path)
+    }
+
     public func waiting(now: Date) async -> [KeptRecording] {
+        await listed(now: now).filter { !$0.finished }.map(\.recording)
+    }
+
+    /// Every recording inside the window and the byte limit, newest first, with anything stale deleted.
+    private func listed(now: Date) async -> [(recording: KeptRecording, finished: Bool)] {
         // The list is read from the files themselves, so anything still on its way to the disk has to land first.
         for id in settling.keys { await settle(id) }
         let files =
@@ -160,7 +187,7 @@ public actor RecordingStore: RecordingKeeper {
             ?? []
         // The promise as the rule the three stores share states it; the clock is the caller's.
         let window = RetentionWindow(span: retention.inSeconds, now: now)
-        var kept: [(recording: KeptRecording, bytes: Int)] = []
+        var kept: [(recording: KeptRecording, finished: Bool, bytes: Int)] = []
         for file in files {
             if file.standardizedFileURL == open?.url.standardizedFileURL { continue }
             guard file.pathExtension == "wav",
@@ -195,6 +222,7 @@ public actor RecordingStore: RecordingKeeper {
                         id: id, when: when, duration: RecordingWriter.duration(ofFrames: frames),
                         destination: destination(for: id)?.app,
                         fieldKind: destination(for: id)?.fieldKind),
+                    FileManager.default.fileExists(atPath: finishedURL(of: id).path),
                     values?.fileSize ?? 0
                 ))
         }
@@ -203,14 +231,14 @@ public actor RecordingStore: RecordingKeeper {
 
     /// Keeps the newest recordings whose stored sizes fit the byte limit, always the newest one, and deletes the rest.
     private func withinByteLimit(
-        _ newestFirst: [(recording: KeptRecording, bytes: Int)]
-    ) async -> [KeptRecording] {
+        _ newestFirst: [(recording: KeptRecording, finished: Bool, bytes: Int)]
+    ) async -> [(recording: KeptRecording, finished: Bool)] {
         var total = 0
-        var kept: [KeptRecording] = []
-        for (recording, bytes) in newestFirst {
+        var kept: [(recording: KeptRecording, finished: Bool)] = []
+        for (recording, finished, bytes) in newestFirst {
             total += bytes
             if kept.isEmpty || total <= byteLimit {
-                kept.append(recording)
+                kept.append((recording, finished))
             } else {
                 await discard(recording.id)
             }
@@ -256,6 +284,11 @@ public actor RecordingStore: RecordingKeeper {
 
     private func url(of id: UUID) -> URL {
         directory.appending(path: "\(id.uuidString).wav", directoryHint: .notDirectory)
+    }
+
+    /// The empty marker that says a recording's words landed, so it is kept for a fix rather than waiting.
+    private func finishedURL(of id: UUID) -> URL {
+        directory.appending(path: "\(id.uuidString).finished", directoryHint: .notDirectory)
     }
 
     private func destinationURL(of id: UUID) -> URL {

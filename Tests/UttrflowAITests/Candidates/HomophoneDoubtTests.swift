@@ -46,15 +46,15 @@ struct HomophoneDoubtTests {
         #expect(writeSpans.first?.range.count == 1)
     }
 
-    @Test("a homophone span is offered with its partner as a reading")
+    @Test("a homophone span is offered with its partner as a reading where its slot rules it out")
     func homophoneSpanOffersItsPartner() async {
-        let draft = sureDraft("please write the answer at the meeting")
+        let draft = sureDraft("send the answer too me at the meeting")
         let spans = await DoubtfulWords.standard.spans(in: draft, for: .unknown)
-        let write = spans.first(where: { $0.heard == "write" })
-        #expect(write != nil, "expected a doubtful span for `write`, got \(spans.map(\.heard))")
+        let too = spans.first(where: { $0.heard == "too" })
+        #expect(too != nil, "expected a doubtful span for `too`, got \(spans.map(\.heard))")
         #expect(
-            write?.candidates.map(\.spelling).contains("right") == true,
-            "expected `right` among candidates, got \(String(describing: write?.candidates))")
+            too?.candidates.map(\.spelling).contains("to") == true,
+            "expected `to` among candidates, got \(String(describing: too?.candidates))")
     }
 
     @Test("a non-homophone word at 0.8 produces no doubtful spans")

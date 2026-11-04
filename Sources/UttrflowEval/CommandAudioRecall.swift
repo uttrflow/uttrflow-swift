@@ -79,8 +79,10 @@ public struct CommandAudioReport: Sendable, Equatable {
         recall >= Self.recallFloor && misfires.count <= Self.misfireCeiling
     }
 
-    /// The overall recall of the recorded run, 117 of 216 takes; a reader or recogniser change may not lower it.
-    public static let recallFloor = 117.0 / 216.0
+    /// The overall recall of the recorded run read by the shipped reader, 145 of 216 takes; a change may not lower it.
+    public static let recallFloor = 145.0 / 216.0
+    /// The recall Markdown commands must reach before they ship; the floor rises toward it.
+    static let recallTarget = 0.75
     /// The misfires of the recorded run; a change may not add one.
     public static let misfireCeiling = 0
 }

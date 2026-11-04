@@ -19,12 +19,14 @@ public struct DestinationRule: Sendable, Equatable, Codable {
     public let field: FieldRole?
     /// Whether the app can read a typed key as a command rather than text, so only a route that cannot do that may write.
     public let keysMayBeCommands: Bool
+    /// Whether typing is refused while the app publishes no focused element, because there a key may reach something that is not text.
+    package let refusesUnreadField: Bool
 
     public init(
         bundlePrefixes: [String] = [], hostSuffixes: [String] = [], titleContains: [String] = [],
         nameWords: [String] = [],
         destination: Destination, terminalStop: TerminalStopPolicy? = nil, field: FieldRole? = nil,
-        keysMayBeCommands: Bool = false
+        keysMayBeCommands: Bool = false, refusesUnreadField: Bool = false
     ) {
         self.bundlePrefixes = bundlePrefixes
         self.titleContains = titleContains
@@ -35,6 +37,7 @@ public struct DestinationRule: Sendable, Equatable, Codable {
         self.terminalStop = terminalStop
         self.field = field
         self.keysMayBeCommands = keysMayBeCommands
+        self.refusesUnreadField = refusesUnreadField
     }
 
     /// A row built from the sort of app it names, so its destination cannot disagree with its caption.
@@ -42,7 +45,7 @@ public struct DestinationRule: Sendable, Equatable, Codable {
         bundlePrefixes: [String] = [], hostSuffixes: [String] = [], titleContains: [String] = [],
         nameWords: [String] = [],
         kind: AppKind, terminalStop: TerminalStopPolicy? = nil, field: FieldRole? = nil,
-        keysMayBeCommands: Bool = false
+        keysMayBeCommands: Bool = false, refusesUnreadField: Bool = false
     ) {
         self.bundlePrefixes = bundlePrefixes
         self.titleContains = titleContains
@@ -53,6 +56,7 @@ public struct DestinationRule: Sendable, Equatable, Codable {
         self.terminalStop = terminalStop
         self.field = field
         self.keysMayBeCommands = keysMayBeCommands
+        self.refusesUnreadField = refusesUnreadField
     }
 
     /// Whether the app's bundle identifier, page host, window title or name falls under this row.
@@ -173,5 +177,12 @@ public enum DestinationClassifier {
         in app: AppContext, rules: [DestinationRule] = DestinationRules.standard
     ) -> Bool {
         rule(for: app, rules: rules)?.keysMayBeCommands == true
+    }
+
+    /// Whether the table marks this app as one typing must not enter while it publishes no focused element.
+    package static func refusesUnreadField(
+        in app: AppContext, rules: [DestinationRule] = DestinationRules.standard
+    ) -> Bool {
+        rule(for: app, rules: rules)?.refusesUnreadField == true
     }
 }

@@ -154,7 +154,7 @@ struct PaceProbe: AsyncParsableCommand {
         print("\nPiece cuts and the loop check, pooled over every recording")
         print(
             "condition".padded(to: 12) + "pieces".padded(to: 8) + "early".padded(to: 8)
-                + "mid-word".padded(to: 10) + "said-twice cut".padded(to: 16) + "over 4.8 w/s")
+                + "mid-word".padded(to: 10) + "said-twice cut".padded(to: 16) + "over 5.0 w/s")
         for variant in SpeechVariant.sweep {
             guard let tally = tallies[variant.description] else { continue }
             print(

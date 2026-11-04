@@ -293,6 +293,16 @@ struct PieceJoinerParagraphTests {
                 == "First item\nsecond item")
     }
 
+    @Test("nests a sub bullet said across a seam under the item above it")
+    func subBulletAcrossSeam() {
+        #expect(
+            seamedAndLaidOut(["- Fruit", "sub bullet apples"], .document)
+                == "- Fruit\n  - Apples")
+        #expect(
+            seamedAndLaidOut(["1. Fruit", "sub bullet apples"], .document)
+                == "1. Fruit\n   - Apples")
+    }
+
     @Test("keeps a named new line at the end of a piece as words")
     func mentionedLineCommandAtPieceEnd() {
         #expect(

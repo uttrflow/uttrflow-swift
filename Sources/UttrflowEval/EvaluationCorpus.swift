@@ -11,7 +11,7 @@ public enum EvaluationCorpus {
         + homophone + hinglishReply + sourceNotation + markupNotation
 
     public static func cases(in category: EvaluationCase.Category) -> [EvaluationCase] {
-        all.filter { $0.category == category }
+        (all + snippet).filter { $0.category == category }
     }
 
     public static func cases(for language: LanguageCode) -> [EvaluationCase] {
@@ -138,6 +138,11 @@ public enum EvaluationCorpus {
 
     /// Short replies, English loanwords in Hindi and romanised Hindi, each named after the issue it guards.
     static let hinglishReply: [EvaluationCase] = CorpusFile.cases(in: .hinglishReply)
+
+    // MARK: Snippets
+
+    /// Each says a snippet's trigger; no part of `all`, since only the pipeline's expansion stage can pass one.
+    package static let snippet: [EvaluationCase] = CorpusFile.cases(in: .snippet)
 
     // MARK: Abstention. See Docs/formatting-matrix.md.
 

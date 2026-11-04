@@ -28,13 +28,7 @@ public struct NumberFormsPass: PieceCleaningPass {
         "january": 31, "february": 29, "march": 31, "april": 30, "may": 31, "june": 30,
         "july": 31, "august": 31, "september": 30, "october": 31, "november": 30, "december": 31,
     ]
-    package static let ordinalUnits: [String: Int] = [
-        "first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5, "sixth": 6, "seventh": 7,
-        "eighth": 8, "ninth": 9, "tenth": 10, "eleventh": 11, "twelfth": 12, "thirteenth": 13,
-        "fourteenth": 14, "fifteenth": 15, "sixteenth": 16, "seventeenth": 17, "eighteenth": 18,
-        "nineteenth": 19, "twentieth": 20, "thirtieth": 30, "fortieth": 40, "fiftieth": 50,
-        "sixtieth": 60, "seventieth": 70, "eightieth": 80, "ninetieth": 90,
-    ]
+    package static let ordinalUnits = NumberWords.ordinals
     /// Other currencies and units with no second meaning; "pound", "feet" and "second" stay out.
     static let measures: Set<String> = [
         "yen", "dirham", "dirhams", "franc", "francs", "kilometre", "kilometres", "kilometer", "kilometers",
@@ -344,18 +338,22 @@ public struct NumberFormsPass: PieceCleaningPass {
 
     /// Writes one `H.MM` word as `H:MM` only with a meridiem or a time cue; only a cue reads past 12.
     private static func dottedTime(at position: Int, keys: [String], shapes: [WordShape]) -> String? {
-        let parts = keys[position].split(separator: ".", omittingEmptySubsequences: false)
+        let attached = attachedMeridiem(in: keys[position])
+        let digits = keys[position].dropLast(attached.count)
+        let parts = digits.split(separator: ".", omittingEmptySubsequences: false)
         guard parts.count == 2, shapes[position].prefix.isEmpty,
             parts[0].allSatisfy(\.isNumber), let hour = Int(parts[0]), (0...23).contains(hour),
             parts[1].count == 2, parts[1].allSatisfy(\.isNumber), let minute = Int(parts[1]),
             (0...59).contains(minute), !quantified(at: position, keys: keys, shapes: shapes)
         else { return nil }
+        let dots = CharacterSet(charactersIn: ".")
+        let next = position + 1 < keys.count ? keys[position + 1].trimmingCharacters(in: dots) : ""
         let hasMeridiem =
-            shapes[position].suffix.isEmpty && joined(position + 1, shapes)
-            && meridiems.contains(keys[position + 1].trimmingCharacters(in: CharacterSet(charactersIn: ".")))
+            !attached.isEmpty
+            || shapes[position].suffix.isEmpty && joined(position + 1, shapes) && meridiems.contains(next)
         let hasCue = hasTimeCue(before: position, keys: keys, shapes: shapes)
         guard hasCue || (hasMeridiem && (1...12).contains(hour)) else { return nil }
-        return "\(hour):\(parts[1])"
+        return "\(hour):\(parts[1])" + attached
     }
 
     /// Whether a percent sign, a unit or a further digit group after the number at `position` makes it a quantity.
@@ -376,6 +374,9 @@ public struct NumberFormsPass: PieceCleaningPass {
             ?? priceShorthand(at: position, keys: keys, shapes: shapes)
         {
             return price
+        }
+        if let range = sharedScaleRange(at: position, keys: keys, shapes: shapes, digits: digits) {
+            return range
         }
         let fixedShapes: [(Int, [String], [WordShape]) -> Phrase?] = [
             score, readingOver, zoneOffset, signedDigitRun, numericDate, cuedYear, cuedClock,
@@ -548,7 +549,11 @@ public struct NumberFormsPass: PieceCleaningPass {
                 value: item.value, text: regrouped(item.text, digits: digits, quantity: quantity),
                 count: item.count, spoken: false)
         }
-        let inContext = hasLabelCue(at: position, keys: keys, shapes: shapes)
+        // "the code and one with the price": a label word earlier in the clause does not make the pronoun a code digit.
+        let inContext =
+            hasLabelCue(at: position, keys: keys, shapes: shapes)
+            && !(item.spoken && item.value == 1 && item.count == 1
+                && isDescribedOne(at: position, keys: keys))
         if let measured = decimalAndPercent(item, at: position, keys: keys, shapes: shapes) {
             return measured
         }
@@ -577,6 +582,10 @@ public struct NumberFormsPass: PieceCleaningPass {
 
     /// A written numeral in the grouping `digits` says, at the same value; plain digits gain commas only as a quantity.
     static func regrouped(_ key: String, digits: DigitGrouping, quantity: Bool) -> String {
+        if let scaled = scaledGroupedDecimal(key) {
+            guard digits != .none else { return String(scaled) }
+            return NumberWords.render(scaled, grouping: digits, isAmount: true)
+        }
         let plain = key.filter { $0 != "," }
         guard plain.allSatisfy({ $0.isASCII && $0.isNumber }), plain.first != "0", let value = Int(plain)
         else { return key }
@@ -602,6 +611,11 @@ public struct NumberFormsPass: PieceCleaningPass {
         {
             text += "." + group.text
             end += 1 + group.count
+        }
+        if text.filter({ $0 == "." }).count >= 2,
+            let suffix = preReleaseSuffix(at: end, keys: keys, shapes: shapes)
+        {
+            return Phrase(text: text + suffix.text, count: end + suffix.count - position)
         }
         if let percent = percentWords(at: end, keys: keys, shapes: shapes) {
             text += "%"
@@ -697,12 +711,21 @@ public struct NumberFormsPass: PieceCleaningPass {
         return leads || closes
     }
 
+    /// Words that after "one" start a phrase describing it, "one with a flag", so "one" stands for a thing.
+    private static let pronounPrepositions: Set<String> = ["with", "without", "for"]
+
+    /// Whether the word after the "one" at `position` opens a phrase that describes it, "one with a flag".
+    private static func isDescribedOne(at position: Int, keys: [String]) -> Bool {
+        keys.indices.contains(position + 1) && pronounPrepositions.contains(keys[position + 1])
+    }
+
     /// Whether "one" is the pronoun of "no one", "this one" or "one another" rather than a count of what follows.
     private static func headsItsOwnPhrase(at position: Int, keys: [String]) -> Bool {
         let tags = LexicalClass.tags(ofWords: keys)
         func tag(_ index: Int) -> NLTag? { tags.indices.contains(index) ? tags[index] : nil }
         let modifiable: Set<NLTag> = [.noun, .adjective, .number]
         if tag(position) == .noun || tag(position) == .pronoun { return true }
+        if isDescribedOne(at: position, keys: keys) { return true }
         if tag(position - 1) == .determiner, !modifiable.contains(tag(position + 1) ?? .otherWord) {
             return true
         }
@@ -908,8 +931,27 @@ public struct NumberFormsPass: PieceCleaningPass {
     private static func hasTimeCue(before position: Int, keys: [String], shapes: [WordShape]) -> Bool {
         guard position > 0, !startsASentence(position, shapes) else { return false }
         if timeCues.contains(keys[position - 1]) { return true }
+        if endsAClockRange(at: position, keys: keys, shapes: shapes) { return true }
         return keys[position - 1] == "for" && position > 1 && !startsASentence(position - 1, shapes)
             && timedNouns.contains(keys[position - 2])
+    }
+
+    /// The meridiem written straight after the minutes of a dotted word, as the "pm" of "2.30pm", or empty.
+    private static func attachedMeridiem(in key: String) -> String {
+        ["am", "pm", "a.m", "p.m"].first { key.hasSuffix($0) && key.count > $0.count } ?? ""
+    }
+
+    /// Whether the word at `position` ends a range opened by "from" and an hour, or by "between" and an hour.
+    private static func endsAClockRange(at position: Int, keys: [String], shapes: [WordShape]) -> Bool {
+        guard position > 2, joined(position, shapes), joined(position - 1, shapes),
+            joined(position - 2, shapes), !startsASentence(position - 3, shapes),
+            (keys[position - 1] == "to" && keys[position - 3] == "from")
+                || (keys[position - 1] == "and" && keys[position - 3] == "between")
+        else { return false }
+        let parts = keys[position - 2].split(separator: ".", omittingEmptySubsequences: false)
+        let isHour = (1...2).contains(parts[0].count) && parts[0].allSatisfy(\.isNumber)
+        let hasMinutes = parts.count == 2 && parts[1].count == 2 && parts[1].allSatisfy(\.isNumber)
+        return isHour && (parts.count == 1 || hasMinutes)
     }
 
     /// Whether the number here is the smaller part of an amount, after a number and its currency.
@@ -931,6 +973,7 @@ public struct NumberFormsPass: PieceCleaningPass {
         let hasBeforeCue = hasTimeCue(before: position, keys: keys, shapes: shapes)
         let endsTheSentence =
             sentenceEndIsCue && (minuteEnd >= shapes.count || shapes[minuteEnd - 1].endsSentence)
+            && !continuesACount(at: position, keys: keys, shapes: shapes)
         let hasAfterCue =
             minuteEnd < shapes.count && joined(minuteEnd, shapes)
             && (isMeridiem(at: minuteEnd, keys: keys, shapes: shapes) || keys[minuteEnd] == "o'clock")
@@ -1073,7 +1116,7 @@ public struct NumberFormsPass: PieceCleaningPass {
     }
 
     /// Whether the word at `index` follows its predecessor with no punctuation between them.
-    private static func joined(_ index: Int, _ shapes: [WordShape]) -> Bool {
+    static func joined(_ index: Int, _ shapes: [WordShape]) -> Bool {
         index < shapes.count && shapes[index - 1].suffix.isEmpty && shapes[index].prefix.isEmpty
     }
 
@@ -1180,7 +1223,7 @@ public struct NumberFormsPass: PieceCleaningPass {
     }
 
     /// The keys from `start` up to the first word that carries punctuation.
-    private static func unbroken(from start: Int, keys: [String], shapes: [WordShape]) -> ArraySlice<String> {
+    static func unbroken(from start: Int, keys: [String], shapes: [WordShape]) -> ArraySlice<String> {
         var end = start
         // A number reads only number words and "and", so the run ends at the first other word.
         while end < keys.count, end == start || joined(end, shapes),
@@ -1200,7 +1243,16 @@ public struct NumberFormsPass: PieceCleaningPass {
             text.append(digit)
             end += 1
         }
-        if !text.isEmpty { return Phrase(text: text, count: end - start) }
+        // A digit word that opens a spoken hundred is the whole number: "one hundred" is 100, not 1 and a stray word.
+        if !text.isEmpty {
+            if end < keys.count, joined(end, shapes), keys[end] == "hundred",
+                let group = NumberWords.cardinal(unbroken(from: start, keys: keys, shapes: shapes)),
+                group.count > end - start
+            {
+                return Phrase(text: String(group.value), count: group.count)
+            }
+            return Phrase(text: text, count: end - start)
+        }
         guard joined(start, shapes) else { return nil }
         if let digits = NumberWords.digits(keys[start]) { return Phrase(text: digits, count: 1) }
         guard let group = NumberWords.cardinal(unbroken(from: start, keys: keys, shapes: shapes)),
@@ -1228,7 +1280,36 @@ public struct NumberFormsPass: PieceCleaningPass {
         let cued =
             position > 0 && !startsASentence(position, shapes) && dottedCues.contains(keys[position - 1])
         guard groups >= 3 || (groups == 2 && cued) else { return nil }
+        if groups >= 3, let suffix = preReleaseSuffix(at: end, keys: keys, shapes: shapes) {
+            return Phrase(text: text + suffix.text, count: end + suffix.count - position)
+        }
         return Phrase(text: text, count: end - position)
+    }
+
+    /// Identifiers a version's pre-release suffix names after "dash".
+    private static let preReleaseLabels = NumberCues.words(for: .preRelease)
+
+    /// A version's pre-release suffix: "dash rc dot one" is "-rc.1", the label alone is "-rc". The spoken dash may already be a hyphen.
+    private static func preReleaseSuffix(at start: Int, keys: [String], shapes: [WordShape]) -> Phrase? {
+        guard start < shapes.count, shapes[start - 1].suffix.isEmpty else { return nil }
+        var label = keys[start]
+        var end = start + 1
+        if label == "dash", shapes[start].prefix.isEmpty {
+            guard joined(end, shapes) else { return nil }
+            label = keys[end]
+            end += 1
+        } else if shapes[start].prefix != "-" {
+            return nil
+        }
+        guard preReleaseLabels.contains(label) else { return nil }
+        var text = "-" + label
+        if joined(end, shapes), keys[end] == "dot" || keys[end] == "point",
+            let group = digitGroup(at: end + 1, keys: keys, shapes: shapes)
+        {
+            text += "." + group.text
+            end += 1 + group.count
+        }
+        return Phrase(text: text, count: end - start)
     }
 
     /// The first group of a dotted number: single digit words run together, digits, or one cardinal.
@@ -1291,6 +1372,9 @@ public struct NumberFormsPass: PieceCleaningPass {
     /// Verbs of having, which end a label cue: a count after "has" counts the things after it and does not take the noun before it as a label.
     private static let labelBreakers: Set<String> = ["has", "have", "had"]
 
+    /// Conjunctions that start a new conjunct: a label before one does not cue a number after it, "the code and one more".
+    private static let conjunctBreakers: Set<String> = ["and", "or", "but"]
+
     /// Whether a label word cues the number, across a sign and English function words such as "to"; a Hindi word or a lone letter ends it.
     package static func hasLabelCue(at position: Int, keys: [String], shapes: [WordShape]) -> Bool {
         guard position > 0, !startsASentence(position, shapes) else { return false }
@@ -1302,6 +1386,10 @@ public struct NumberFormsPass: PieceCleaningPass {
             let word = keys[cuePosition]
             if contextWords.contains(word) { return true }
             if labelBreakers.contains(word) || FunctionWords.isContent(word) { return false }
+            if conjunctBreakers.contains(word), cuePosition > 0, !NumberWords.isNumber(keys[cuePosition - 1])
+            {
+                return false
+            }
             if HindiWords.functionWords.contains(word), !FunctionWords.english.contains(word) { return false }
             cuePosition -= 1
         }

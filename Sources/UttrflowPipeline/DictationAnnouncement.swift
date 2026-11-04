@@ -130,16 +130,12 @@ private extension RecoveryAction {
     /// Where VoiceOver users can reach the recovery offered on the floating button.
     var instruction: String {
         switch self {
-        case .openSystemSettings:
-            "Open Settings from the Uttrflow menu."
-        case .retry:
-            "Choose Try Again from the Uttrflow menu."
-        case .downloadSpeechModel:
-            "Choose Download from the Uttrflow menu."
+        case .openSystemSettings, .retry, .downloadSpeechModel:
+            "Choose \(RecoveryActionTitle.title(for: self)) from the Uttrflow menu."
         case .pasteManually:
             "The text is on your clipboard. Press Command V to paste it."
         case .showHistory:
-            "Open History from the Uttrflow menu to find your words."
+            "Choose \(RecoveryActionTitle.title(for: self)) from the Uttrflow menu to find your words."
         case .copyTranscript:
             "Choose Copy on the floating button to copy your words."
         case .retryFromRecording:

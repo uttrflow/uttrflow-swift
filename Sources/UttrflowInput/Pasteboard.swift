@@ -19,6 +19,21 @@ public enum PasteboardWriteResult: Sendable, Equatable {
     }
 }
 
+/// Everything on the clipboard at one moment, item by item and type by type, so it can be put back.
+struct PasteboardSnapshot: Sendable, Equatable {
+    /// One entry per clipboard item, each mapping a type identifier to its bytes; empty means an empty clipboard.
+    let items: [[String: Data]]
+}
+
+/// A pasteboard that can capture its contents and put them back, which only the real one and its wrappers can do.
+protocol SnapshotRestorablePasteboard: Pasteboard {
+    /// Everything on the clipboard now, or `nil` when this pasteboard cannot capture it.
+    func snapshot() -> PasteboardSnapshot?
+
+    /// Puts the snapshot back only while the clipboard is still at `changeCount`, so a newer copy is never overwritten.
+    func restore(_ snapshot: PasteboardSnapshot, ifUnchangedSince changeCount: Int) -> Bool
+}
+
 /// The system clipboard, reduced to what insertion needs and testable without touching the real one.
 public protocol Pasteboard: Sendable {
     /// The current text, or `nil` when the clipboard holds something else.

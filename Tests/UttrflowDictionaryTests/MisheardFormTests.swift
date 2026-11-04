@@ -130,4 +130,32 @@ struct MisheardFormTests {
         let learnt = try await store().learnEdit(heard: "cooper nettys", wrote: "Kubernetes", at: day(12))
         #expect(learnt.map(\.word) == ["Kubernetes"])
     }
+
+    @Test("Deleting a learnt entry refuses its pair across a relaunch, even once the word is allowed again")
+    func deletedPairStaysRefused() async throws {
+        let sandbox = Sandbox()
+        let first = PersonalDictionaryStore(file: sandbox.file)
+        var learnt: [DictionaryEntry] = []
+        for number in [10, 11, 12] {
+            learnt += try await first.learnEdit(
+                heard: "cooper nettys", wrote: "Kubernetes", at: day(number))
+        }
+        try await first.remove(learnt[0].id)
+        try await first.allowAgain("Kubernetes")
+
+        let relaunched = PersonalDictionaryStore(file: sandbox.file)
+        var again: [DictionaryEntry] = []
+        for number in [20, 21, 22] {
+            again += try await relaunched.learnEdit(
+                heard: "cooper nettys", wrote: "Kubernetes", at: day(number))
+        }
+        #expect(again.isEmpty)
+
+        var other: [DictionaryEntry] = []
+        for number in [20, 21, 22] {
+            other += try await relaunched.learnEdit(
+                heard: "cube control", wrote: "Kubernetes", at: day(number))
+        }
+        #expect(other.map(\.word) == ["Kubernetes"])
+    }
 }

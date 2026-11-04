@@ -288,7 +288,7 @@ struct OnboardingKeycaps: View {
     }
 }
 
-/// The ring round the download: the percentage while it runs, a broken cloud when stopped, the mark when done.
+/// The ring round the download: an arrow, the percentage, a broken cloud when stopped, the mark when done.
 struct OnboardingDownloadRing: View {
     let fraction: Double
     let download: OnboardingDownload
@@ -315,6 +315,8 @@ struct OnboardingDownloadRing: View {
 
     @ViewBuilder private func center(_ share: Double) -> some View {
         switch download {
+        case .offered:
+            Image(systemName: "arrow.down").font(.system(size: 28, weight: .semibold)).foregroundStyle(.white)
         case .running:
             HStack(alignment: .firstTextBaseline, spacing: 0) {
                 Text("\(Int(share * 100))").font(BrandFont.display(size: 30, weight: .semibold)).tracking(

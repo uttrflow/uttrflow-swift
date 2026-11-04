@@ -58,10 +58,7 @@ public struct HomeModelStatus: Sendable, Equatable {
     /// The download under way, at a share from 0 to 1, with the bytes so far when the total is known.
     public static func downloading(_ fraction: Double, bytes: Int64? = nil) -> HomeModelStatus {
         let percent = MenuBarPresenter.percentage(of: fraction)
-        let received = bytes.map { total in
-            let arrived = Int64(Double(total) * min(max(fraction, 0), 1))
-            return "\(MenuBarPresenter.size(of: arrived)) of \(MenuBarPresenter.size(of: total))"
-        }
+        let received = bytes.map { MenuBarPresenter.received(fraction, of: $0) }
         return HomeModelStatus(
             title: "Setting up… \(percent)%",
             subtitle: ["Downloading the speech model", received].compactMap(\.self).joined(separator: " · "),

@@ -7,6 +7,7 @@ public enum QuestionShape {
         let shapes = spoken.lastIndex { $0.suffix.contains(":") }.map { Array(spoken[($0 + 1)...]) } ?? spoken
         let words = shapes.map { $0.key.replacingOccurrences(of: "\u{2019}", with: "'") }
         guard !words.isEmpty else { return false }
+        if asksAfterDash(sentence) { return true }
         if endsOnATag(words) || endsOnAPositiveTag(words) || trailingTagStart(in: shapes) != nil {
             return true
         }
@@ -51,6 +52,18 @@ public enum QuestionShape {
         verbsBeforeSubject.contains(word) || pronounVerbs.contains(word) || subjects.contains(word)
             || newSubjects.contains(word) || contractedNewSubjects.contains(word)
             || lexicalQuestionVerbs.contains(word) || questionWords.contains(word) || word.hasSuffix("ed")
+    }
+
+    /// Whether the clause after the last written dash is a direct question, whatever the words before it were.
+    private static func asksAfterDash(_ sentence: [WordShape]) -> Bool {
+        let dashes = "\u{2014}\u{2013}"
+        let marked = { (shape: WordShape) in (shape.prefix + shape.suffix).contains(where: dashes.contains) }
+        guard let dash = sentence.lastIndex(where: marked) else { return false }
+        let tail = sentence[(dash + 1)...].filter { !$0.key.isEmpty }.map {
+            $0.key.replacingOccurrences(of: "\u{2019}", with: "'")
+        }
+        let clause = clauseAfterOpeners(tail)
+        return opensAQuestion(clause) && !runsOn(clause) && !isRelativeClause(clause, afterComma: true)
     }
 
     /// Whether a clause opening with "which", "whom" or "whose" is a non-restrictive relative clause.
@@ -187,6 +200,8 @@ public enum QuestionShape {
             let verb = words[index]
             let subject = words[index + 1]
             let before = Array(words[..<index])
+            // "which car did they pick" inverts its own question, so the verb after the question phrase opens nothing new.
+            guard !isQuestionPhrase(before) else { return false }
             // A command takes "will you" as its own tag, so after one only a request opens a question: "let's meet can you do nine".
             let joins =
                 opensOnItsSubject(before)
@@ -216,6 +231,13 @@ public enum QuestionShape {
         guard let opening = words.first(where: { !openers.contains($0) }) else { return false }
         return subjects.contains(opening) || contractedNewSubjects.contains(opening)
             || determiners.contains(opening)
+    }
+
+    /// Whether words are a question word and the noun it asks about, with no verb yet: "which car", "whose laptop".
+    private static func isQuestionPhrase(_ words: [String]) -> Bool {
+        let phrase = words.drop(while: openers.contains)
+        guard let first = phrase.first, questionWords.contains(first) else { return false }
+        return !phrase.dropFirst().contains(where: isQuestionVerb)
     }
 
     /// Whether the word before an inverted verb is its subject, its auxiliary or an agreement: "so did I".
@@ -560,7 +582,7 @@ public enum QuestionShape {
     ]
 
     /// Subject pronouns and the indefinite subjects a question inverts around.
-    static let subjects: Set<String> = [
+    package static let subjects: Set<String> = [
         "i", "you", "we", "they", "he", "she", "it", "there", "anyone", "anybody", "someone", "somebody",
         "everyone",
         "everybody", "anything", "something", "everything",

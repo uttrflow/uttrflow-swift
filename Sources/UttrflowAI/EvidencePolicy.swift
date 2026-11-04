@@ -28,7 +28,7 @@ public enum EvidencePolicy {
     }
 
     /// Each layer's standing choice for unknown confidence; a change is made only on measured grounds.
-    public static func choice(for layer: Layer) -> Unscored {
+    static func choice(for layer: Layer) -> Unscored {
         switch layer {
         case .doubtfulWords: .offerNothing
         case .meaningGuard: .acceptRewrite

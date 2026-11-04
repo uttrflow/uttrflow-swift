@@ -519,6 +519,44 @@ struct ClipboardStoreTests {
         #expect(await relaunched.clips(keeping: week()).map(\.isPinned) == [false])
     }
 
+    @Test("a refused deletion and a refused quit flush are logged by error case, never clip text")
+    func refusedWritesAreLoggedWithoutClipText() async throws {
+        let folder = try TemporaryFolder()
+        let url = folder.url.appending(path: "clipboard.json", directoryHint: .notDirectory)
+        let store = ClipboardStore(file: url)
+        let secret = "hunter2-invented-secret"
+        let doomed = try #require(try await store.record(clip(secret), keeping: week()).first)
+        let logged = LoggedLines()
+
+        try await ClipboardStore.$refusedWriteLogForTesting.withValue({ logged.add($0) }) {
+            try await refusingWrites(in: folder.url) {
+                await #expect(throws: ClipboardStoreError.couldNotWrite) {
+                    try await store.delete(doomed.id, keeping: week())
+                }
+                await store.flushUse()
+            }
+        }
+
+        #expect(logged.lines.count == 2)
+        #expect(logged.lines.allSatisfy { $0.contains("ClipboardStoreError.couldNotWrite") })
+        #expect(logged.lines.allSatisfy { !$0.contains(secret) })
+    }
+
+    @Test("a write that lands logs nothing")
+    func landedWritesAreNotLogged() async throws {
+        let folder = try TemporaryFolder()
+        let url = folder.url.appending(path: "clipboard.json", directoryHint: .notDirectory)
+        let store = ClipboardStore(file: url)
+        let logged = LoggedLines()
+
+        try await ClipboardStore.$refusedWriteLogForTesting.withValue({ logged.add($0) }) {
+            try await store.record(clip("fine"), keeping: week())
+            await store.flushUse()
+        }
+
+        #expect(logged.lines.isEmpty)
+    }
+
     // MARK: - Refusing nothing
 
     @Test(
@@ -1178,4 +1216,13 @@ struct ClipRetentionDictationTests {
             remaining.contains { $0.text == "something they copied" },
             "an ordinary copy still ages by the clipboard window")
     }
+}
+
+/// Collects the lines a store logs, for a test to read back.
+private final class LoggedLines: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: [String] = []
+
+    func add(_ line: String) { lock.withLock { stored.append(line) } }
+    var lines: [String] { lock.withLock { stored } }
 }

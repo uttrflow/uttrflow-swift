@@ -113,6 +113,14 @@ struct MainMenuTests {
         let renamed = MainMenu.application(named: "Wossname")
         #expect(titles(of: renamed).contains("About Wossname"))
         #expect(titles(of: renamed).contains("Quit Wossname"))
-        #expect(titles(of: MainMenu.help(for: "Wossname")).contains("Wossname Help"))
+        #expect(titles(of: MainMenu.help(for: "Wossname")).contains("Wossname Diagnostics"))
+    }
+
+    @Test("the Help menu item is named for the page it opens and claims no Help key")
+    func helpMenuNamesDiagnostics() throws {
+        let item = try #require(MainMenu.help(for: "Uttrflow").items.first)
+        #expect(item.title == "Uttrflow Diagnostics")
+        #expect(item.action == #selector(AppDelegate.showDiagnosticsFromMenu(_:)))
+        #expect(item.keyEquivalent.isEmpty)
     }
 }

@@ -1,16 +1,16 @@
 # Recordings kept for retry
 
 Every dictation's audio is written to disk **while the key is held**, beside the buffer the
-recogniser reads, and deleted the moment the words land. If the words are lost — the recogniser
-throws or never answers, a piece of speech decodes to no words, the app quits mid-dictation — the
-file stays for a day, and the History
-page lists it with a Retry. Nothing leaves the Mac. The code is in `Sources/UttrflowAudio/`:
+recogniser reads, and kept for at most a day. If the words are lost — the recogniser throws or
+never answers, a piece of speech decodes to no words, the app quits mid-dictation — the History
+page lists it with a Retry. If they land, it is kept beside its History record so a word fixed
+from that record can be retried. Nothing leaves the Mac. The code is in `Sources/UttrflowAudio/`:
 `RecordingStore` owns the folder, `RecordingWriter` writes one recording, and
 `EncryptedRecordingFile` is the on-disk format. `DictationPipeline` decides what is kept.
 
 The promise the user reads is `SettingsPresenter.recordingsPromise`, one wording that Settings and
-onboarding both repeat: "Audio is deleted the moment it becomes text, and kept on this Mac for a
-day only if some of it couldn't be, so you can retry." `SettingsPrivacyCopyTests` checks that every
+onboarding both repeat: "Audio is kept on this Mac for a day so you can retry a dictation or a fixed
+word, then deleted; audio from a password field is deleted at once." `SettingsPrivacyCopyTests` checks that every
 sentence about audio names this Mac and says when the audio goes.
 
 ## The write is the commit
@@ -60,8 +60,9 @@ it can be read.
 |---|---|---|
 | Recording | `RecordingStore`'s open writer | Growing. Not listed: it is not a recording yet |
 | Current | the store's last finished recording, read through `current()` | The key was released; the pipeline claims its id once |
-| Waiting | any `<uuid>.wav` in the folder | Some words were lost, the dictation was cancelled after the key was released, or it was cancelled while recording and is inside its restore window. Listed on the History page |
-| Gone | — | Every word landed, nothing was heard, cancelled while recording under the restore threshold, restore window closed, retried, or older than a day |
+| Kept for a fix | a `<uuid>.wav` with an empty `<uuid>.finished` beside it | Every word landed; the History record shares the id. Never listed as waiting |
+| Waiting | any other `<uuid>.wav` in the folder | Some words were lost, the dictation was cancelled after the key was released, or it was cancelled while recording and is inside its restore window. Listed on the History page |
+| Gone | — | Every word landed into a secure field or a dictation History does not keep, its History record was deleted, nothing was heard, cancelled while recording under the restore threshold, restore window closed, retried, or older than a day |
 
 The folder is `recordings/` in the app's Application Support folder (`Uttrflow/` for the shipped
 build; another build's identifier gives it its own folder, `LocalStore.directory`). Each take is
@@ -73,9 +74,16 @@ recording exists only as a one-day retry buffer, so backup tools that honour the
 ## When the pipeline keeps it
 
 `DictationPipeline.settleRecording` decides, and the rule is one sentence: **the audio is kept
-exactly when words were lost.** A dictation whose words landed but left out a piece of speech that
-decoded to no words twice (`DictationOutcome.missedPieces` above zero) keeps it, so History offers
-Retry for the missing words; one with no missed piece discards it. A failure that carries a transcript (insertion failed, and the words are
+when words were lost, or when a live dictation's words landed, never for a secure field.** A
+landed dictation names its recording in `DictationOutcome.keptRecording`; the app gives the
+History record that id and calls `RecordingStore.keepFinished(_:)`, which marks it so it is never
+listed as waiting, or deletes it at once when History keeps no record. Deleting the record deletes
+the audio. After a Fix Word from that record is saved, `RecordingStore.keepsFinished(_:now:)`
+decides whether the notice offers "Retry This Recording", which is History's own Retry; the retry
+copies the new words, adds them as a new History row beside the old one, and deletes the audio
+it read, as every retry does. A dictation whose words landed but left out a piece of speech that
+decoded to no words twice (`DictationOutcome.missedPieces` above zero) keeps it as waiting, so
+History offers Retry for the missing words. A failure that carries a transcript (insertion failed, and the words are
 in History) discards it. An informational failure, such as nothing heard, discards it. A
 dictation into a secure field discards it, since its words are a secret. Everything else keeps it
 and, when the failure's own recovery was `retry` or none, offers `retryFromRecording` instead, with
@@ -122,7 +130,10 @@ and well under the recordings that are costly to lose.
 
 ## Retention
 
-A waiting recording is deleted once it is older than `RecordingStore.defaultRetention`, 24 hours.
+A waiting recording, or one kept for a fix, is deleted once it is older than
+`RecordingStore.defaultRetention`, 24 hours, by the same sweep, and counts toward the same byte
+limit. The sweep runs at launch, so a file a quit left behind is deleted the first time the app
+opens after its day is up (`finishedAudioExpires` in `RecordingStoreTests`).
 There is no setting for it: the window bounds what a crash can leave behind, and is not a
 preference.
 
@@ -176,6 +187,8 @@ dictation reads from the screen are not covered here.
 
 ## What it does not do
 
-- It does not re-transcribe a dictation that came out wrong: the audio behind a finished
-  transcript with no missed piece is deleted, so there is nothing to replay.
+- It does not re-transcribe a finished dictation by itself: a retry of one is offered only after a
+  word is fixed from its History row, and only within the day its audio is kept.
+- A retry of a finished dictation is formatted without its destination, since the destination is
+  read only from waiting recordings.
 - It cannot be turned off. The write is what makes retry possible at all.

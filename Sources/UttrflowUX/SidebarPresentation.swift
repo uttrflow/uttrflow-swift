@@ -44,6 +44,12 @@ public struct SidebarItem: Sendable, Equatable, Identifiable {
     /// The destination, which is unique.
     public var id: SidebarDestination { destination }
 
+    /// What VoiceOver reads: the title, and the day's changes when the row carries a count.
+    public var accessibilityLabel: String {
+        guard let badge, let changes = Int(badge) else { return title }
+        return "\(title), \(MainFormatting.count(changes, "change", "changes")) today"
+    }
+
     /// Builds a row; no badge unless given one.
     public init(
         destination: SidebarDestination,

@@ -64,6 +64,13 @@ public actor PersonalDictionaryStore {
             directoryHint: .notDirectory)
     }
 
+    /// Which heard-to-written pairs the user deleted, so a relaunch does not count them again.
+    private var pairRefusalRecord: URL {
+        file.deletingLastPathComponent().appending(
+            path: "\(file.deletingPathExtension().lastPathComponent).refused-pairs.json",
+            directoryHint: .notDirectory)
+    }
+
     /// Which words the user deleted, so a relaunch does not learn them again. See `Docs/app-dictionary-store.md`.
     private var refusalRecord: URL {
         file.deletingLastPathComponent().appending(
@@ -172,7 +179,8 @@ public actor PersonalDictionaryStore {
                 id: id, word: typed, pronunciations: DictionaryEntry.pronunciations(inField: pronunciation),
                 origin: .added,
                 firstSeen: existing.firstSeen, timesUsed: existing.timesUsed,
-                timesReverted: existing.timesReverted, applications: applications))
+                timesAccepted: existing.timesAccepted, timesReverted: existing.timesReverted,
+                applications: applications))
     }
 
     /// Folds one spelling of a word into another: the kept entry takes both counters and the other goes.
@@ -187,6 +195,7 @@ public actor PersonalDictionaryStore {
             keeper.spellingKey == other.spellingKey
         else { return nil }
         keeper.timesUsed = DictionaryEntry.clamped(keeper.timesUsed + other.timesUsed)
+        keeper.timesAccepted = DictionaryEntry.clamped(keeper.timesAccepted + other.timesAccepted)
         keeper.timesReverted = DictionaryEntry.clamped(keeper.timesReverted + other.timesReverted)
         let merged = keeper
         try persist(entries.compactMap { $0.id == absorbed ? nil : $0.id == kept ? merged : $0 })
@@ -258,7 +267,6 @@ public actor PersonalDictionaryStore {
     public func remove(_ ids: Set<UUID>) async throws(DictionaryStoreError) -> [DictionaryEntry] {
         let existing = load()
         let gone = existing.filter { ids.contains($0.id) }
-        let kept = existing.filter { !ids.contains($0.id) }
         // A deleted word must not simply be counted up again, whoever first put it there.
         var cancelled: [EvidenceRow] = []
         if !gone.isEmpty {
@@ -266,10 +274,27 @@ public actor PersonalDictionaryStore {
             for entry in gone { cancelled += tally.refuse(entry.word) }
             ledger = tally
             try recordRefusals(tally.refusals)
+            cancelled += try await refusePairs(of: gone)
         }
+        // Read again after the last suspension, so a write made while this one waited is not overwritten.
+        let kept = load().filter { !ids.contains($0.id) }
         try persist(kept)
         try await remember(cancelled)
         return kept
+    }
+
+    /// Refuses each heard form a deleted learnt entry says it like, so the pair is not counted up again.
+    private func refusePairs(of gone: [DictionaryEntry]) async throws(DictionaryStoreError) -> [EvidenceRow] {
+        let learnt = gone.filter { $0.origin == .learned && !$0.pronunciations.isEmpty }
+        guard !learnt.isEmpty else { return [] }
+        var tally = await pairLedger()
+        var cancelled: [EvidenceRow] = []
+        for entry in learnt {
+            for heard in entry.pronunciations { cancelled += tally.refuse(heard: heard, meant: entry.word) }
+        }
+        pairs = tally
+        do { try writeRecord(tally.refusals, to: pairRefusalRecord) } catch { throw .couldNotWrite }
+        return cancelled
     }
 
     /// Forgets every word, the user's own included; ``removeLearned()`` is almost always the one meant.
@@ -403,6 +428,14 @@ public actor PersonalDictionaryStore {
         try update(Set(ids)) { $0.timesUsed = DictionaryEntry.clamped($0.timesUsed + 1) }
     }
 
+    /// Counts one accepted use per distinct entry, never past its `timesUsed`.
+    @discardableResult
+    func recordAccepted(of ids: [UUID]) throws(DictionaryStoreError) -> [DictionaryEntry] {
+        try update(Set(ids)) {
+            $0.timesAccepted = min(DictionaryEntry.clamped($0.timesAccepted + 1), $0.timesUsed)
+        }
+    }
+
     /// Notes that the user undid a dictation this entry was applied to; a provisional word is removed and refused.
     @discardableResult
     public func recordRevert(of id: UUID) async throws(DictionaryStoreError) -> DictionaryEntry? {
@@ -487,7 +520,8 @@ public actor PersonalDictionaryStore {
         }
         // Another call may have loaded it while this one waited.
         if let pairs { return pairs }
-        let loaded = PairLedger(remembering: rows, digest: digest)
+        let refusals = readRecord([String].self, from: pairRefusalRecord).value ?? []
+        let loaded = PairLedger(refusing: refusals, remembering: rows, digest: digest)
         pairs = loaded
         return loaded
     }
@@ -516,6 +550,12 @@ public actor PersonalDictionaryStore {
 
     /// Throws away pending counts and every refusal, in memory and on disk.
     private func forgetEverything() async throws(DictionaryStoreError) {
+        var pairTally = await pairLedger()
+        let pairsCancelled = pairTally.clearPending()
+        // Reloaded from the ledger and the record on next use, both emptied here.
+        pairs = nil
+        do { try removeRecord(at: pairRefusalRecord) } catch { throw .couldNotWrite }
+        try await remember(pairsCancelled)
         var tally = await sightingLedger()
         let cancelled = tally.forgetEverything()
         ledger = tally
@@ -524,10 +564,13 @@ public actor PersonalDictionaryStore {
     }
 
     /// Deletes the refusal record if it is there.
-    private func removeRefusalRecord() throws {
+    private func removeRefusalRecord() throws { try removeRecord(at: refusalRecord) }
+
+    /// Deletes a sidecar record if it is there.
+    private func removeRecord(at url: URL) throws {
         let manager = FileManager.default
-        guard manager.fileExists(atPath: refusalRecord.path(percentEncoded: false)) else { return }
-        try manager.removeItem(at: refusalRecord)
+        guard manager.fileExists(atPath: url.path(percentEncoded: false)) else { return }
+        try manager.removeItem(at: url)
     }
 
     // MARK: - The file

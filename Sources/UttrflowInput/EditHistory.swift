@@ -46,6 +46,17 @@ public final class EditHistory: Sendable {
         }
     }
 
+    /// The newest edit in `field` still inside the window, left in place for a later undo.
+    func newest(in field: FieldIdentity?) -> EditUndo? {
+        let now = clock.nanoseconds
+        let (seconds, attoseconds) = Self.window.components
+        let window = UInt64(seconds) * 1_000_000_000 + UInt64(attoseconds / 1_000_000_000)
+        return entries.withLock { entries in
+            guard let field, entries.last?.undo.written.field == field else { return nil }
+            return entries.last.flatMap { now - $0.madeAt <= window ? $0.undo : nil }
+        }
+    }
+
     /// Whether an edit in `field` is still inside the window, without taking it.
     func holdsEdit(in field: FieldIdentity?) -> Bool {
         let now = clock.nanoseconds

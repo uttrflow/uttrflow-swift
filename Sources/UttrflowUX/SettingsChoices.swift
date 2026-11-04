@@ -25,7 +25,7 @@ public enum SettingsTidyingLevel: String, Sendable, Equatable, CaseIterable {
     /// What the row says underneath on both screens that draw it.
     public static let rowExplanation = """
         Both levels remove filler sounds and stammers and add punctuation. Standard also \
-        repairs grammar slips, which adds a moment to each dictation. \
+        repairs grammar slips. \
         Neither level changes, reorders or drops the words you meant. \
         The steps that run are listed under Dictation, in Clean-up steps.
         """
@@ -153,8 +153,8 @@ extension AcceptKey {
         case .codeEditor: "Tab accepts suggestions instead of indentation and editor completion."
         case .sqlEditor: "Tab accepts suggestions instead of indentation and SQL completion."
         case .spreadsheet: "Tab accepts suggestions instead of cell navigation."
-        case .documentEditor: "Tab accepts suggestions instead of the document editor's own behavior."
-        case .notes: "Tab accepts suggestions instead of the notes app's own behavior."
+        case .documentEditor: "Tab accepts suggestions instead of the document editor's own behaviour."
+        case .notes: "Tab accepts suggestions instead of the notes app's own behaviour."
         case .chat, .email, nil: nil
         }
     }
@@ -166,8 +166,8 @@ extension AcceptKey {
         case .codeEditor: "Leaves Tab to indentation and editor completion."
         case .sqlEditor: "Leaves Tab to indentation and SQL completion."
         case .spreadsheet: "Leaves Tab to cell navigation."
-        case .documentEditor: "Leaves Tab to the document editor's own behavior."
-        case .notes: "Leaves Tab to the notes app's own behavior."
+        case .documentEditor: "Leaves Tab to the document editor's own behaviour."
+        case .notes: "Leaves Tab to the notes app's own behaviour."
         case .chat, .email, nil: "Leaves Tab available in this app."
         }
     }

@@ -123,6 +123,19 @@ struct SoundPlayingRecordingCueTests {
         #expect(player.requested == [.start, .discarded])
     }
 
+    @Test("a discard with no recording open leaves the next start and stop paired")
+    func discardWithoutRecordingKeepsPairing() {
+        let player = SpyPlayer()
+        let cue = SoundPlayingRecordingCue(player: player)
+
+        cue.playDiscarded()
+        cue.playStop()
+        cue.playStart()
+        cue.playStop()
+
+        #expect(player.requested == [.discarded, .start, .stop])
+    }
+
     @Test("the discarded sound obeys the sound setting")
     func discardedObeysSetting() {
         let player = SpyPlayer()

@@ -20,6 +20,10 @@ Uttrflow is for is said on the sign-in page itself; there is no separate welcome
   once the model is on disk, and its Cancel stops the download and offers Try again rather than
   moving on. `OnboardingFlow` refuses a stray `.advance` on an unanswered page, so the rule holds
   even if a page offered one by mistake.
+- Entering the download page fetches nothing. It offers Download beside the size from the pinned
+  manifest (`OnboardingModelInstaller.downloadBytes`, or "Size not known" without one), and joins a
+  download unasked only when one is already running. While it runs, the hint counts megabytes
+  received of the total; it shows no rate or time left.
 - The clipboard page follows sign-in, because the choice must come before any copy is recorded. It says
   how long copies are kept (the stored `clipboardRetentionDays`) and offers Keep and Turn off,
   which save `clipboardEnabled` at once, beside Continue. Keeping is the default, so the setting
@@ -100,11 +104,11 @@ have, such as Space or Shift, is drawn as plain keycaps instead. `OnboardingWind
 each `DictationState` to an `OnboardingTrial`: recording is listening, and the words of an
 insertion, or of a failed one, since Uttrflow does not type into its own window, fill the page's
 field. `OnboardingFlow.tried(_:)` shows them with a small burst of confetti for
-`OnboardingPresenter.heardLinger` (3 s) and then closes onboarding, which opens the dashboard;
-"Open dashboard" does it at once. Empty words go back to waiting. "Skip to dashboard" is a
+`OnboardingPresenter.heardLinger` (3 s) and then closes onboarding, which opens Home;
+"Open Home" does it at once. Empty words go back to waiting. "Skip to Home" is a
 full-width button and closes onboarding at any time.
 
-On the first try page, the Skip to dashboard caption introduces AI suggestions: they can finish a
+On the first try page, the Skip to Home caption introduces AI suggestions: they can finish a
 line as the user types, start off, and can be turned on in Settings › AI suggestions. The accepting
 key depends on the application. This is informational; onboarding does not change the suggestions
 preference or add another consent step.

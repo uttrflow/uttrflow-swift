@@ -75,6 +75,7 @@ fileprivate let hinglishCorrections: [TriggerCase] = [
     corrected(
         "i mean", "ghar ka rent twenty i mean twenty five hazaar hai", "ghar ka rent twenty five hazaar hai"),
     corrected("no wait", "bus number forty no wait forty two pakdo", "bus number forty two pakdo"),
+    corrected("wait no", "meeting teen baje wait no chaar baje hai", "meeting chaar baje hai"),
     corrected("galat bola", "paanch baje galat bola chhe baje aana", "chhe baje aana"),
     corrected("galat bola", "teen kilo galat bola chaar kilo chawal lao", "chaar kilo chawal lao"),
     corrected("matlab", "do din, matlab, teen din lagenge", "teen din lagenge"),
@@ -111,6 +112,7 @@ fileprivate let hinglishPlain: [TriggerCase] = [
     plain("never mind", "never mind koi baat nahi"),
     plain("no wait", "no wait time hai yahan"),
     plain("wait sorry", "wait sorry bolne se kya hoga"),
+    plain("wait no", "wait no problem yaar"),
     plain("scratch that", "ye scratch that wala sticker hai"),
     plain("strike that", "bowler strike that wicket"),
     plain("actually make it", "actually make it simple yaar"),

@@ -1,5 +1,4 @@
-// The words every recovery button uses.
-public import UttrflowCore
+// The words every recovery button and every spoken instruction about one uses.
 
 /// The one title assigned to each recovery action.
 public enum RecoveryActionTitle {

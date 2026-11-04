@@ -110,6 +110,26 @@ struct DoubtDirectionTests {
         #expect(ConfusionCost.of(heard: "their files", candidate: "there files") == .cosmetic)
     }
 
+    @Test("a swap for a sound-alike of another meaning is classed with the costliest errors")
+    func meaningSwapsAreCostly() {
+        let swaps = [("accept", "except"), ("affect", "effect"), ("lose", "loose")]
+        for (first, second) in swaps {
+            for (heard, candidate) in [(first, second), (second, first)] {
+                #expect(
+                    ConfusionCost.of(heard: "we \(heard) all of it", candidate: "we \(candidate) all of it")
+                        == .meaningFlip, "\(heard) / \(candidate)")
+            }
+        }
+        #expect(ConfusionCost.of(heard: "we accept it", candidate: "we accept it") == .cosmetic)
+        #expect(ConfusionCost.of(heard: "we accept it", candidate: "they accept it") == .cosmetic)
+        let heard = "we accept all the changes"
+        let candidate = "we except all the changes"
+        let cost = ConfusionCost.of(heard: heard, candidate: candidate)
+        #expect(!DoubtPolicy.OverridePolicy.allows(margin: 2, cost: cost, consequence: .stores))
+        #expect(DoubtPolicy.OverridePolicy.allows(margin: 4, cost: cost, consequence: .stores))
+        #expect(DoubtPolicy.FlagPolicy.flags(confidence: 0.65, cost: cost, consequence: .stores))
+    }
+
     @Test("the cheapest tier is today's behaviour")
     func cheapestTierUnchanged() {
         #expect(DoubtPolicy.OverridePolicy.requiredMargin(cost: .cosmetic, consequence: .stores) == 2)

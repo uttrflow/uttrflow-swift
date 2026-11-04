@@ -22,7 +22,7 @@ struct PanelUndoHintTests {
     func offeredWhileLive() {
         #expect(PanelPresenter.present(Self.panel(canUndo: true)).hint == PanelPresenter.undoHint)
         #expect(PanelPresenter.present(Self.panel(canUndo: true)).hint.contains("⌘Z"))
-        #expect(PanelPresenter.present(Self.panel(canUndo: true)).hint.contains("last delete only"))
+        #expect(PanelPresenter.present(Self.panel(canUndo: true)).hint.contains("undoes your last change"))
     }
 
     @Test("and goes back to teaching the keys once it has expired")

@@ -8,6 +8,7 @@
         {"id": "en.no-sorry", "language": "en", "words": ["no", "sorry"], "evidence": "alignedHalves"},
         {"id": "en.no-wait", "language": "en", "words": ["no", "wait"], "evidence": "alignedHalves"},
         {"id": "en.wait-sorry", "language": "en", "words": ["wait", "sorry"], "evidence": "alignedHalves"},
+        {"id": "en.wait-no", "language": "en", "words": ["wait", "no"], "evidence": "alignedHalves"},
         {"id": "en.scratch-that", "language": "en", "words": ["scratch", "that"], "evidence": "alignedHalves"},
         {"id": "en.strike-that", "language": "en", "words": ["strike", "that"], "evidence": "alignedHalves"},
         {"id": "en.never-mind", "language": "en", "words": ["never", "mind"], "evidence": "alignedHalves"},

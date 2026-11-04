@@ -13,6 +13,8 @@ private struct AppFocus: AccessibilityFocus {
     func isSelfFrontmost() -> Bool { false }
     func focusedApplication() -> InsertionDestination? { application }
     func focusedElementKind() -> FocusedElementKind { .textEntry }
+    var title: String? = nil
+    func focusedWindowTitle() -> String? { title }
 }
 
 /// Records every key event posted.
@@ -46,6 +48,29 @@ struct TypedInsertionModalEditorTests {
         #expect(typist.typed.isEmpty)
     }
 
+    @Test(
+        "A terminal whose title names a full-screen editor gets zero key events; a shell prompt is typed.",
+        arguments: [
+            ("notes.txt — vim — 80×24", false), ("nvim main.swift", false), ("~ — zsh — 80×24", true),
+        ])
+    func terminalHostedEditorIsRefused(title: String, typable: Bool) async throws {
+        let typist = RecordingTypist()
+        var focus = AppFocus(
+            application: InsertionDestination(
+                applicationName: "Terminal", bundleIdentifier: DestinationRules.terminal))
+        focus.title = title
+        let engine = TypedTextInsertionEngine(focus: focus, typist: typist)
+
+        #expect(await engine.canInsert() == typable)
+        if typable {
+            _ = try await engine.insert("hello")
+            #expect(typist.typed == ["hello"])
+        } else {
+            await #expect(throws: TextInsertionError.noFocusedTextField) { _ = try await engine.insert("dd") }
+            #expect(typist.typed.isEmpty)
+        }
+    }
+
     @Test("A code editor without the mark still takes typing.")
     func plainEditorIsTyped() async throws {
         let typist = RecordingTypist()
@@ -57,17 +82,18 @@ struct TypedInsertionModalEditorTests {
         #expect(typist.typed == ["hello"])
     }
 
-    @Test(
-        "Dictation refused by a modal editor keeps the words for explicit copy and shows the existing notice."
-    )
-    func refusalMessage() async {
+    @Test("A modal editor never gets typed keys; the words arrive by paste, which is not a command key.")
+    func refusalFallsToPaste() async throws {
         let typist = RecordingTypist()
-        let coordinator = TextInsertion.dictation(focus: AppFocus(application: Self.macVim), typist: typist)
+        let keys = FakeKeystrokeSender()
+        let coordinator = TextInsertion.dictation(
+            focus: AppFocus(application: Self.macVim), typist: typist, pasteboard: FakePasteboard(),
+            keystrokes: keys)
 
-        let expected = TextInsertionError.insertionNeedsCopy(
-            description: TextInsertionError.noFocusedTextField.userMessage)
-        await #expect(throws: expected) { _ = try await coordinator.insert("delete the old branch") }
-        #expect(expected.userMessage == "The text couldn't be inserted. Your clipboard is unchanged.")
+        let attempt = try await coordinator.insert("delete the old branch")
+
+        #expect(attempt.method == .pasteboard)
+        #expect(keys.pasteCount == 1)
         #expect(typist.typed.isEmpty)
     }
 

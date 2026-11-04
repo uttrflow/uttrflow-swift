@@ -122,7 +122,7 @@ struct DictationAnnouncementTests {
                 DictationFailure(
                     message: PermissionError.microphoneDenied.userMessage,
                     recovery: .openSystemSettings(.microphone), severity: .blocking),
-                "Open Settings from the Uttrflow menu."
+                "Choose Open System Settings from the Uttrflow menu."
             ),
             (
                 DictationFailure(message: "Again.", recovery: .retry, severity: .recoverable),
@@ -131,7 +131,7 @@ struct DictationAnnouncementTests {
             (
                 DictationFailure(
                     message: "Model unavailable.", recovery: .downloadSpeechModel,
-                    severity: .blocking), "Choose Download from the Uttrflow menu."
+                    severity: .blocking), "Choose Finish Setup from the Uttrflow menu."
             ),
             (
                 DictationFailure(
@@ -141,7 +141,7 @@ struct DictationAnnouncementTests {
             (
                 DictationFailure(
                     message: "Not delivered.", recovery: .showHistory,
-                    severity: .degraded), "Open History from the Uttrflow menu to find your words."
+                    severity: .degraded), "Choose Show History from the Uttrflow menu to find your words."
             ),
             (
                 DictationFailure(
@@ -157,6 +157,18 @@ struct DictationAnnouncementTests {
             let message = failure.message.filter { $0 != "…" }
             #expect(said.text == instruction.map { "\(message) \($0)" } ?? message)
             #expect(!said.text.isEmpty)
+        }
+    }
+
+    @Test("a menu instruction uses the title the recovery button and menu item carry")
+    func instructionNamesTheTitle() throws {
+        let recoveries: [RecoveryAction] = [
+            .openSystemSettings(.microphone), .retry, .downloadSpeechModel, .showHistory,
+        ]
+        for recovery in recoveries {
+            let failure = DictationFailure(message: "Failed.", recovery: recovery, severity: .blocking)
+            let said = try #require(DictationPresenter.announcement(for: .failed(failure)))
+            #expect(said.text.contains("Choose \(RecoveryActionTitle.title(for: recovery)) from"))
         }
     }
 

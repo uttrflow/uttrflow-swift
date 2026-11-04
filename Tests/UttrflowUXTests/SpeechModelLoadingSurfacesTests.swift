@@ -368,8 +368,24 @@ struct SpeechModelLoadingSurfacesTests {
     func menuBarNamesTheFailure() {
         let menu = MenuBarPresenter.present(MenuBarState(speechModel: .loadFailed))
 
-        #expect(menu.statusLine == "Speech model didn't load")
+        #expect(menu.statusLine == "Speech model didn’t load")
         #expect(!MenuBarPresenter.canStartDictation(in: MenuBarState(speechModel: .loadFailed)))
+    }
+
+    @Test(
+        "the menu bar status line and popover header use the words every other surface uses",
+        arguments: [
+            (SpeechModelReadiness.loadFailed, SpeechModelLoad.failed),
+            (.loadFailedAgain, .broken), (.incomplete, .broken),
+        ])
+    func menuBarWordsMatchTheSharedHome(readiness: SpeechModelReadiness, load: SpeechModelLoad) {
+        let menu = MenuBarPresenter.present(MenuBarState(speechModel: readiness))
+        #expect(menu.statusLine == load.status)
+        guard case .status(let header) = menu.header else {
+            Issue.record("the header is not a status")
+            return
+        }
+        #expect(header.title == load.status)
     }
 
     @Test("the clipboard panel's microphone says loading, not downloading, during a load")

@@ -117,6 +117,12 @@ struct CrashReporterScrubTests {
     /// The host name no report may carry.
     private static let hostName = "someones-macbook.local"
 
+    /// The registers of a crashed thread: the addresses Sentry repairs frames with, and two holding the bytes of "hello".
+    private static let registers = [
+        "pc": "0x0000000100001234", "lr": "0x0000000100001200", "sp": "0x000000016fdff000",
+        "fp": "0x000000016fdff010", "x0": "0x00000006f6c6c6568", "x1": "0xe500000000000000",
+    ]
+
     /// A frame whose file and image are paths in the user's home folder.
     private func frame() -> Frame {
         let frame = Frame()
@@ -149,12 +155,12 @@ struct CrashReporterScrubTests {
             type: "EXC_BAD_ACCESS")
         exception.mechanism = Mechanism(type: mechanism)
         exception.mechanism?.desc = "someone's text"
-        exception.stacktrace = SentryStacktrace(frames: [frame()], registers: [:])
+        exception.stacktrace = SentryStacktrace(frames: [frame()], registers: Self.registers)
         event.exceptions = [exception]
         let thread = SentryThread(threadId: 0)
-        thread.stacktrace = SentryStacktrace(frames: [frame()], registers: [:])
+        thread.stacktrace = SentryStacktrace(frames: [frame()], registers: Self.registers)
         event.threads = [thread]
-        event.stacktrace = SentryStacktrace(frames: [frame()], registers: [:])
+        event.stacktrace = SentryStacktrace(frames: [frame()], registers: Self.registers)
         let image = DebugMeta()
         image.codeFile = "/Users/someone/Applications/Uttrflow.app/Contents/MacOS/Uttrflow"
         image.debugID = "A1B2C3D4-0000-4000-8000-00000000ABCD"
@@ -198,6 +204,21 @@ struct CrashReporterScrubTests {
         #expect(scrubbed.context?["os"]?["version"] as? String == "26.0.1")
         #expect(scrubbed.context?["app"]?["app_version"] as? String == "26.0926.0")
         #expect(Set(scrubbed.context?.keys.map { $0 } ?? []) == ["device", "os", "app"])
+    }
+
+    @Test("only the registers that hold an address leave, on every stacktrace an event has")
+    func registersThatCouldHoldTextGo() throws {
+        let scrubbed = try #require(CrashReporter.scrub(event(mechanism: "mach")))
+        let stacktraces = [
+            scrubbed.exceptions?.first?.stacktrace, scrubbed.threads?.first?.stacktrace, scrubbed.stacktrace,
+        ]
+        for stacktrace in stacktraces {
+            #expect(stacktrace?.registers.keys.sorted() == ["fp", "lr", "pc", "sp"])
+            #expect(stacktrace?.registers["lr"] == "0x0000000100001200")
+        }
+        let text = try sent(event(mechanism: "mach"))
+        #expect(!text.contains("6f6c6c6568"), "a register's bytes left the Mac")
+        #expect(!text.contains("e500000000000000"), "a register's bytes left the Mac")
     }
 
     @Test("an exception written from app data loses its text")

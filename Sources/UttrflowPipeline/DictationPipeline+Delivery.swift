@@ -7,8 +7,9 @@ extension DictationPipeline {
     /// Joins the pieces, re-cases them for where the caret is now, inserts or copies them, then counts and learns.
     func deliver(
         _ message: RunningMessage, from audio: AudioSamples, read appContext: AppContext?,
-        recording tally: StageTally, delivery: Delivery, for mine: Int
+        recording tally: StageTally, delivery requested: Delivery, for mine: Int
     ) async {
+        var delivery = requested
         // Silence is not a fault, but returning quietly to idle would look like a broken app.
         guard !message.pieces.isEmpty else {
             await reportCleaning(for: delivery)
@@ -46,8 +47,15 @@ extension DictationPipeline {
 
         let insertionContext: AppContext
         if delivery == .insert {
-            insertionContext = await insertionContextForWrite(matching: appContext)
+            // After a load the read at key-down is the field meant, and the person may have moved on since.
+            let meant = waitedForLoad ? recordingDestination ?? appContext : appContext
+            insertionContext = await insertionContextForWrite(matching: meant)
             guard !wasCancelled(mine) else { return }
+            if waitedForLoad, insertionContext == .unknown {
+                delivery = .copy
+                insertedInto = nil
+                insertedIntoIdentifier = nil
+            }
             output = recased(
                 output, writingInto: insertionContext, casedFor: seen, by: joiningFormatter,
                 heard: whole.heard.text, cleanedBy: whole.cleaned.producedBy)
@@ -186,7 +194,11 @@ extension DictationPipeline {
             // A field found secure at the write counts from here on, before anything is learnt from it.
             if attempt.intoSecureField { destinationIsSecure = true }
             let slowCause = await timeWait(recorded: tally)
-            await settleRecording(wordsLost: MissedSpeech.isMissing(missedPieces))
+            let recordingID = openRecording
+            let wordsLost = MissedSpeech.isMissing(missedPieces)
+            // A retry's own audio is the recording it read, so only a live dictation keeps one for a fix.
+            let keptForFix =
+                await settleRecording(wordsLost: wordsLost, keepingFinished: delivery != .copy) && !wordsLost
             transition(
                 to: .inserted(
                     DictationOutcome(
@@ -201,7 +213,8 @@ extension DictationPipeline {
                         doubtful: doubtful,
                         slowCause: slowCause, guardRefusals: guardRefusals,
                         quality: OutcomeQuality(
-                            producedBy: cleanedBy, account: account, missedPieces: missedPieces))))
+                            producedBy: cleanedBy, account: account, missedPieces: missedPieces),
+                        keptRecording: keptForFix ? recordingID : nil)))
             return attempt
         } catch {
             guard !wasCancelled(mine) else { return nil }

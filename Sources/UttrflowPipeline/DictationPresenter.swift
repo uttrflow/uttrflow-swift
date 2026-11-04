@@ -221,7 +221,8 @@ public enum DictationPresenter {
             for: state, advice: advice, stopGesture: stopGesture, heardSoFar: heardSoFar, waited: waited,
             silenceSecondsLeft: silenceSecondsLeft)
         if case .idle = state, let download { return resting(downloading: download) }
-        guard let load = speechModel else { return drawn }
+        // A press records through a load, so only the menu bar and Home say one is running.
+        guard let load = speechModel, !load.isLoading else { return drawn }
         switch state {
         case .idle:
             return resting(load)

@@ -13,6 +13,8 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
     private let confirmsArrival: Bool
     /// Whether a refused paste key leaves the words on the clipboard, as a route with a clipboard floor wants.
     private let keepsWordsWhenRefused: Bool
+    /// Whether a field that hides what is typed may be pasted into, as the clip routes do under a concealed marker.
+    private let pastesIntoSecureFields: Bool
     private let report: (@Sendable (PasteConfirmation.Outcome) -> Void)?
     private let onWaitingForGate: @Sendable () -> Void
     /// What was in front when the last paste was posted, which is where its words went.
@@ -25,11 +27,13 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
         confirmation: PasteConfirmation? = nil,
         confirmsArrival: Bool = true,
         keepsWordsWhenRefused: Bool = true,
+        pastesIntoSecureFields: Bool = true,
         reporting: (@Sendable (PasteConfirmation.Outcome) -> Void)? = nil
     ) {
         self.init(
             focus: focus, pasteboard: pasteboard, keystrokes: keystrokes, confirmation: confirmation,
             confirmsArrival: confirmsArrival, keepsWordsWhenRefused: keepsWordsWhenRefused,
+            pastesIntoSecureFields: pastesIntoSecureFields,
             reporting: reporting, onWaitingForGate: {})
     }
 
@@ -40,9 +44,11 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
         confirmation: PasteConfirmation? = nil,
         confirmsArrival: Bool = true,
         keepsWordsWhenRefused: Bool = true,
+        pastesIntoSecureFields: Bool = true,
         reporting: (@Sendable (PasteConfirmation.Outcome) -> Void)? = nil,
         onWaitingForGate: @escaping @Sendable () -> Void
     ) {
+        self.pastesIntoSecureFields = pastesIntoSecureFields
         self.focus = focus
         self.pasteboard = pasteboard
         self.keystrokes = keystrokes
@@ -107,6 +113,8 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
         let focus = focus
         let isSecure = await AccessibilityThread.run(orElse: true) { focus.focusedFieldIsSecure() }
         try TextInsertion.requireTarget(destination, focus: focus)
+        // Checked before anything is written, so a refused paste leaves the user's copy alone.
+        guard pastesIntoSecureFields || !isSecure else { throw .noFocusedTextField }
         try PasteboardInsertionCancellation.requireLive(on: pasteboard)
         // With no clipboard floor below, a paste key that cannot be posted must not cost the user's copy.
         guard keepsWordsWhenRefused || keystrokes.maySendPaste() else { throw .accessibilityDenied }

@@ -15,6 +15,26 @@ struct ClipKindDetectorTests {
         #expect(ClipKindDetector.kind(of: prefixes + webhook) == .secret)
     }
 
+    /// The seed of an authenticator generates every future code, so the URI is a secret and not a link.
+    @Test(
+        "calls an authenticator seed URI a secret",
+        arguments: [
+            "otpauth://totp/Example:me@example.com?secret=JBSWY3DPEHPK3PXP&issuer=Example",
+            "otpauth://hotp/Svc:bob?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&counter=1",
+            "otpauth-migration://offline?data=CjEKCkhlbGxvId6tvu8SGEV4YW1wbGU6YWxpY2VAZ29vZ2xlLmNvbRoHRXhhbXBsZSABKAEwAhABGAEgACjIuoP4Cg",
+            "  OTPAuth://totp/Svc:me?issuer=Svc&Secret=JBSWY3DPEHPK3PXP\n",
+            "Scan this: otpauth://totp/x?secret=JBSWY3DPEHPK3PXP",
+        ])
+    func authenticatorSeed(_ text: String) {
+        #expect(ClipKindDetector.kind(of: text) == .secret)
+    }
+
+    @Test("an authenticator URI with no seed is not a secret")
+    func authenticatorURIWithoutSeed() {
+        #expect(ClipKindDetector.kind(of: "otpauth://totp/Example?issuer=Example") != .secret)
+        #expect(ClipKindDetector.kind(of: "otpauth://totp/Example?secret=") != .secret)
+    }
+
     /// Most things are prose, the answer that costs nothing when wrong; each of these is a near-miss.
     @Test(
         "calls ordinary writing text",

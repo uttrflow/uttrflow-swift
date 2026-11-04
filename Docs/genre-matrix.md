@@ -25,7 +25,7 @@ similarity is word agreement and marks is comma and sentence-end agreement, each
 | poem | 3 | 138 | 2 of 3 | 3 of 3 | 100% | 67% | yes |
 | product-description | 3 | 158 | 1 of 3 | 3 of 3 | 99% | 67% | yes |
 | social-post | 3 | 133 | 0 of 3 | 1 of 3 | 95% | 50% | yes |
-| announcement | 3 | 147 | 0 of 3 | 3 of 3 | 99% | 49% | yes |
+| announcement | 3 | 147 | 0 of 3 | 3 of 3 | 99% | 50% | yes |
 | corrected-reply | 3 | 128 | 0 of 3 | 2 of 3 | 95% | 48% | yes |
 | hinglish-technical | 3 | 133 | 0 of 3 | 2 of 3 | 99% | 67% | yes |
 

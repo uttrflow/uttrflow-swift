@@ -48,16 +48,16 @@ public struct SnippetExpander: Sendable {
                 prefix.reversed().first(where: { !$0.isWhitespace }).map {
                     ".!?\n\r".contains($0)
                 } ?? true
-            let body = hit.body
-            var written = Self.expansion(body.text, sentenceStart: sentenceStart)
-            if caret == nil, let marked = body.caret {
+            let filled = Self.fill(hit.body, from: transcript, after: span.upperBound)
+            var written = Self.expansion(filled.text, sentenceStart: sentenceStart)
+            if caret == nil, let marked = filled.caret {
                 // Capitalising can change the first letter's length, which shifts a caret that sits after it.
-                let shift = marked == 0 ? 0 : written.utf16.count - body.text.utf16.count
+                let shift = marked == 0 ? 0 : written.utf16.count - filled.text.utf16.count
                 caret = text.utf16.count + marked + shift
             }
-            var after = span.upperBound
+            var after = filled.end
             if let next = transcript[after...].first,
-                let terminal = Self.terminalMark(in: body.text),
+                let terminal = Self.terminalMark(in: filled.text),
                 Self.sameTerminalClass(next, terminal)
             {
                 // A full stop after the trigger is the tidier's; any other mark is the speaker's and replaces the expansion's.
@@ -70,13 +70,46 @@ public struct SnippetExpander: Sendable {
             text += written
             applied.append(
                 AppliedSnippet(
-                    snippetID: hit.snippet.id, matched: String(transcript[span]),
-                    expansion: body.text))
+                    snippetID: hit.snippet.id,
+                    matched: String(transcript[span.lowerBound..<filled.end]),
+                    expansion: filled.text))
             copiedUpTo = after
             position += hit.words.count
+            while position < runs.count, runs[position].range.lowerBound < filled.end { position += 1 }
         }
         text += transcript[copiedUpTo...]
         return SnippetExpansion(original: transcript, text: text, applied: applied, caret: caret)
+    }
+
+    /// Moves the phrases said after a trigger into its body's slots, one phrase per slot, in order.
+    private static func fill(
+        _ body: SnippetBody, from transcript: String, after start: String.Index
+    ) -> (text: String, caret: Int?, end: String.Index) {
+        guard !body.slots.isEmpty else { return (body.text, body.caret, start) }
+        let units = Array(body.text.utf16)
+        var text = ""
+        var caret = body.caret
+        var end = start
+        var cursor = start
+        var copied = 0
+        for slot in body.slots {
+            let phraseStart = transcript[cursor...].firstIndex(where: { !$0.isWhitespace })
+            let phrase =
+                phraseStart.map { from in
+                    transcript[from...].prefix(while: { !endsAPhrase($0) })
+                        .trimmingCharacters(in: .whitespaces)
+                } ?? ""
+            if let from = phraseStart, !phrase.isEmpty {
+                end = transcript.index(from, offsetBy: phrase.count)
+                cursor = transcript[end...].first.map { _ in transcript.index(after: end) } ?? end
+            }
+            text += String(decoding: units[copied..<slot], as: UTF16.self) + phrase
+            if let marked = body.caret, marked > slot { caret = (caret ?? marked) + phrase.utf16.count }
+            copied = slot
+            if phrase.isEmpty { cursor = transcript.endIndex }
+        }
+        text += String(decoding: units[copied...], as: UTF16.self)
+        return (text, caret, end)
     }
 
     /// Carries sentence-start casing into a replacement while leaving every other saved character alone.

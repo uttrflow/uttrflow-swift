@@ -136,6 +136,18 @@ extension EvaluationCorpus {
             expected: "There are no caps on the bottles.",
             mustKeep: ["caps", "bottles"], classes: [.capitalisationAndTokens]
         ),
+        .init(
+            id: "fmt-casing-operand-then-no-caps", category: .everyday,
+            spoken: "all caps urgent no caps please reply",
+            expected: "URGENT no caps please reply.",
+            mustKeep: ["URGENT", "caps"], classes: [.capitalisationAndTokens]
+        ),
+        .init(
+            id: "fmt-casing-operand-and-no-caps", category: .everyday,
+            spoken: "all caps urgent and no caps please reply",
+            expected: "URGENT and no caps please reply.",
+            mustKeep: ["URGENT", "and", "caps"], classes: [.capitalisationAndTokens]
+        ),
     ]
 
     static let boundaryCases: [EvaluationCase] = [
@@ -451,6 +463,34 @@ extension EvaluationCorpus {
             spoken: "bullet point call the plumber bullet point pay the rent",
             expected: "- Call the plumber\n- Pay the rent",
             mustKeep: ["plumber", "rent"], mustNotAdd: ["bullet"], classes: [.lists]
+        ),
+        .init(
+            id: "fmt-list-sub-bullet", category: .everyday,
+            spoken: "bullet point fruit sub bullet apples sub bullet pears bullet point milk",
+            expected: "- Fruit\n  - Apples\n  - Pears\n- Milk",
+            mustKeep: ["Apples", "Pears", "Milk"], mustNotAdd: ["sub"], classes: [.lists]
+        ),
+        .init(
+            id: "fmt-list-sub-point-and-sub-bullet-point", category: .everyday,
+            spoken: "bullet point fruit sub point apples sub bullet point pears bullet point milk",
+            expected: "- Fruit\n  - Apples\n  - Pears\n- Milk",
+            mustKeep: ["Apples", "Pears", "Milk"], mustNotAdd: ["sub", "point"], classes: [.lists]
+        ),
+        .init(
+            id: "fmt-list-sub-bullet-under-numbered", category: .everyday,
+            spoken: "number one fruit sub bullet apples number two milk",
+            expected: "1. Fruit\n   - Apples\n2. Milk",
+            mustKeep: ["Apples", "Milk"], mustNotAdd: ["sub"], classes: [.lists]
+        ),
+        // Adversarial: a chat field lays out no list, so the words stay as spoken.
+        .init(
+            id: "fmt-list-sub-bullet-chat", category: .everyday,
+            spoken: "we need fruit sub bullet apples",
+            expected: "We need fruit sub bullet apples",
+            mustKeep: ["sub bullet"],
+            context: AppContext(applicationName: "Messages", bundleIdentifier: "com.apple.MobileSMS"),
+            mustNotAdd: ["\n", "."], destination: .messaging, mustBeginWith: "We", mustEndWith: "apples",
+            classes: [.lists, .perDestination]
         ),
         .init(
             id: "fmt-list-lead-in-document", category: .everyday,

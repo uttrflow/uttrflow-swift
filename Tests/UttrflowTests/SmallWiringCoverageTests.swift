@@ -31,9 +31,14 @@ struct SmallWiringCoverageTests {
         #expect(command.accepts("delete that"))
         #expect(command.accepts("undo that"))
         #expect(command.accepts("replace cat with dog"))
+        #expect(command.accepts("replace first"))
+        #expect(command.accepts("Replace last."))
         #expect(!command.accepts("good morning everyone"))
         await #expect(throws: TextInsertionError.self) {
             _ = try await command.run("good morning everyone", on: AppContext.unknown)
+        }
+        await #expect(throws: TextInsertionError.self) {
+            _ = try await command.run("replace first", on: AppContext.unknown)
         }
     }
 }

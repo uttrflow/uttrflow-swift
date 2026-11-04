@@ -31,6 +31,9 @@ struct LayoutWordsPassTests {
                 "priorities this week\n1. hire a designer\n2. finish the audit"
             ),
             ("agenda new line one intro new line two demo", "agenda\none intro\ntwo demo"),
+            ("to do newline call the bank newline email sarah", "to do\ncall the bank\nemail sarah"),
+            ("hi sam newline thanks for the note", "hi sam\nthanks for the note"),
+            ("thanks newparagraph the second issue", "thanks\n\nthe second issue"),
             (
                 "here is the plan. number one, fix the build. number two, ship it",
                 "here is the plan.\n1. fix the build.\n2. ship it"
@@ -91,6 +94,44 @@ struct LayoutWordsPassTests {
     }
 
     @Test(
+        "writes a sub-item one level in under the item above it",
+        arguments: [
+            (
+                "bullet point fruit sub bullet apples sub bullet pears bullet point milk",
+                "- fruit\n  - apples\n  - pears\n- milk"
+            ),
+            ("bullet point fruit sub point apples", "- fruit\n  - apples"),
+            ("bullet point fruit sub bullet point apples", "- fruit\n  - apples"),
+            (
+                "number one fruit sub bullet apples sub bullet pears number two milk",
+                "1. fruit\n   - apples\n   - pears\n2. milk"
+            ),
+            (
+                "bullet point fruit sub bullet apples new paragraph thanks",
+                "- fruit\n  - apples\n\nthanks"
+            ),
+        ]
+    )
+    func nestsOneLevel(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test("leaves sub bullet as words where no list is laid out or no item is set off")
+    func keepsSubBulletWordsWithoutLists() {
+        let noLists = LayoutWordsPass(layout: .paragraphs)
+        let input = "bullet point fruit sub bullet apples"
+        #expect(cleaned(input, by: noLists) == input)
+        let mention = "the sub bullet in the sub point list"
+        #expect(cleaned(mention, by: sut) == mention)
+    }
+
+    @Test("reads a sub-item's indent back from laid-out text")
+    func keepsIndentWhenReread() {
+        let text = "- fruit\n  - apples\n1. milk\n   - whole"
+        #expect(Draft(keepingLineBreaks: text).text == text)
+    }
+
+    @Test(
         "keeps numbered-item positions valid for reported consecutive-number inputs",
         arguments: [
             "Number 5, milk. Number 6, eggs.",
@@ -100,6 +141,12 @@ struct LayoutWordsPassTests {
         ])
     func keepsConsecutiveNumbersSafe(input: String) {
         #expect(!cleaned(input, by: sut).isEmpty)
+    }
+
+    @Test("reads an item mark a first run wrote as the mark, never as a number said")
+    func rerunLeavesWrittenItemMark() {
+        let once = sut.apply(Draft(text: "number number two number three"))
+        #expect(sut.apply(once).text == once.text)
     }
 
     @Test("keeps consecutive numbered items safe for each insertion state")
@@ -179,6 +226,18 @@ struct LayoutWordsPassTests {
         #expect(cleaned(input, by: sut) == input)
     }
 
+    @Test(
+        "keeps a number said straight before a copula or an auxiliary as the subject of its clause",
+        arguments: [
+            "number one is speed number two is cost",
+            "number one was the plan number two was the backup",
+            "number one will ship first number two should wait",
+        ]
+    )
+    func keepsNumberBeforeAPredicateAsProse(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
     /// Issue 254: with no lookback to ask, a phrase opening its sentence is an item only if the speaker set it off.
     @Test(
         "reads a phrase opening its sentence as layout only when a mark sets it off",
@@ -225,6 +284,50 @@ struct LayoutWordsPassTests {
     func leadingBreakWithTextBeforeCaret(precedingText: String, expected: String) {
         let pass = LayoutWordsPass(insertionPoint: InsertionPoint(precedingText: precedingText))
         #expect(cleaned("new paragraph thanks sam", by: pass) == expected)
+    }
+
+    @Test(
+        "drops the recogniser's comma that ends a line a spoken break opened, and keeps the first line's",
+        arguments: [
+            ("Groceries new line eggs, new line bread, new line butter", "Groceries\neggs\nbread\nbutter"),
+            ("To do new line, call the bank, new line, email Sarah.", "To do\ncall the bank\nemail Sarah."),
+            (
+                "my signature is thanks, new line Alex, new line engineering lead",
+                "my signature is thanks,\nAlex\nengineering lead"
+            ),
+            ("milk, new line eggs", "milk,\neggs"),
+            ("eggs new line bread comma new line butter", "eggs\nbread,\nbutter"),
+        ]
+    )
+    func dropsPauseCommaBeforeBreak(input: String, expected: String) {
+        let pass = LayoutWordsPass()
+        let spoken = SpokenPunctuationPass(destination: .plain)
+        #expect(CleaningPipeline(passes: [spoken, pass]).run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "drops a leading break that later spoken breaks corroborate, in a field of unknown content",
+        arguments: [
+            (
+                "new line first item, new line second item, new line third item",
+                "first item\nsecond item\nthird item"
+            ),
+            ("new line first item new line second item", "first item\nsecond item"),
+        ]
+    )
+    func dropsCorroboratedLeadingBreak(input: String, expected: String) {
+        let spoken = SpokenPunctuationPass(destination: .plain)
+        #expect(CleaningPipeline(passes: [spoken, sut]).run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "keeps a leading break that opens a piece, which may follow a cut, even when a later break is spoken")
+    func keepsLeadingBreakOfPiece() {
+        let pass = LayoutWordsPass(readsWholeText: false)
+        let text = CleaningPipeline(passes: [pass]).run(
+            Draft(text: "new line first item new line second item")
+        ).text
+        #expect(text.hasPrefix("new line"))
     }
 
     @Test("drops a leading break command in a known empty field")

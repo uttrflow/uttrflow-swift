@@ -1,7 +1,7 @@
 // How complete a finished dictation is, and the one wording every surface uses when it is not.
 
 /// How complete the inserted text is, decided once where the fallback ladder is known.
-public enum OutcomeQuality: Sendable, Equatable {
+public enum OutcomeQuality: Sendable, Equatable, Codable {
     /// Everything said is there and the clean-up the person asked for ran, or none was asked for.
     case complete
     /// The rules tidied the words because the language model could not.
@@ -25,6 +25,41 @@ public enum OutcomeQuality: Sendable, Equatable {
     static let incomplete: [OutcomeQuality] =
         RulesReason.allCases.map(OutcomeQuality.tidiedByRules)
         + UntidiedReason.allCases.map(OutcomeQuality.untidied) + [.partial]
+
+    /// The stable text a kept record stores; never shown, and never renamed, since older files hold it.
+    var storedName: String {
+        switch self {
+        case .complete: "complete"
+        case .partial: "partial"
+        case .tidiedByRules(let reason): "tidiedByRules.\(reason)"
+        case .untidied(let reason): "untidied.\(reason)"
+        }
+    }
+
+    /// Reads a stored name back; a name a newer build adds is `nil`, never a failure.
+    init?(storedName: String) {
+        guard
+            let match = ([OutcomeQuality.complete] + Self.incomplete).first(where: {
+                $0.storedName == storedName
+            })
+        else { return nil }
+        self = match
+    }
+
+    /// Stored as its name, so a rung a newer build adds can be left out instead of discarding the file.
+    public init(from decoder: any Decoder) throws {
+        let name = try decoder.singleValueContainer().decode(String.self)
+        guard let known = OutcomeQuality(storedName: name) else {
+            throw DecodingError.dataCorrupted(
+                .init(codingPath: decoder.codingPath, debugDescription: "Unknown quality"))
+        }
+        self = known
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(storedName)
+    }
 
     /// Reads the quality off the engine that tidied the words, the dictation's cleaning account and the missed pieces.
     public init(producedBy: TransformerKind, account: CleaningRecord, missedPieces: Int) {

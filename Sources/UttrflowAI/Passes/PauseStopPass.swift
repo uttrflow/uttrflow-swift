@@ -27,10 +27,19 @@ public struct PauseStopPass: PieceCleaningPass {
         var draft = draft
         let live = draft.presentIndices
         for (index, next) in zip(live, live.dropFirst()) {
-            guard let pause = draft.pause(before: next), pause >= sentencePause,
+            guard let pause = draft.pause(before: next), pause >= Self.commaPause,
                 !draft.words[index].isLayoutMark, !draft.words[next].isLayoutMark,
                 draft.shape(at: index).suffix.isEmpty, !draft.shape(at: index).core.isEmpty
             else { continue }
+            // A clause head the speaker set apart is a comma, whatever the length of the pause.
+            if Self.heads.contains(draft.shape(at: index).core.lowercased()) {
+                let following = draft.shape(at: next).core.lowercased()
+                if !Self.carryOn.contains(following) {
+                    draft.replace(at: index, with: draft.words[index].text + ",", by: Self.id)
+                }
+                continue
+            }
+            guard pause >= sentencePause else { continue }
             let before = live.prefix { $0 <= index }.map { draft.words[$0].text }.joined(separator: " ")
             let after = live.drop { $0 < next }.map { draft.words[$0].text }.joined(separator: " ")
             // The same evidence that keeps a seam's sentence going keeps this one going.
@@ -39,6 +48,15 @@ public struct PauseStopPass: PieceCleaningPass {
         }
         return draft
     }
+
+    /// The silence that makes a clause head a pause rather than a breath: the pause that also ends a spoken tag.
+    static let commaPause: Duration = .milliseconds(300)
+
+    /// Words that head a clause of their own, so a pause after one is a comma: "sorry, was busy".
+    private static let heads: Set<String> = ["sorry", "thanks", "done"]
+
+    /// Words that take a head into its phrase, so no pause between them is a comma: "thanks for", "done with".
+    private static let carryOn = FunctionWords.headCarryOns
 
     private static let prose: Set<Destination> = [.document, .messaging, .email, .plain]
 }

@@ -243,6 +243,38 @@ struct MemoryPressureTests {
         return app
     }
 
+    @Test("the speech model is released only at critical, and not again until the reload has held")
+    func speechReleaseIsCriticalAndThrottled() {
+        var pressure = ModelMemoryPressure(firstWait: .seconds(120), longestWait: .seconds(1_800))
+        let start = ContinuousClock.now
+        #expect(!pressure.allowsSpeechRelease(at: .warning, now: start))
+        #expect(pressure.allowsSpeechRelease(at: .critical, now: start))
+        pressure.released(at: start)
+        pressure.reloaded(at: start)
+        #expect(!pressure.allowsSpeechRelease(at: .critical, now: start + .seconds(1)))
+        #expect(pressure.allowsSpeechRelease(at: .critical, now: start + .seconds(120)))
+    }
+
+    @Test("a released speech model is not said to be loading, since no load runs")
+    func releasedSpeechModelIsNotLoading() {
+        let sandbox = Sandbox()
+        let app = app(Steps(), in: sandbox)
+        app.speechReadiness = .ready
+        app.speechModelWasReleased()
+        #expect(app.speechReadiness == .ready)
+    }
+
+    @Test("calm reloads a released speech model in the background, after the wait")
+    func calmReloadsTheSpeechModel() async {
+        let sandbox = Sandbox()
+        let app = app(Steps(), in: sandbox)
+        app.speechPressure = ModelMemoryPressure(firstWait: .zero, longestWait: .seconds(1_800))
+        app.speechPressure.released(at: .now)
+        app.memoryPressureChanged(to: .normal)
+        await app.speechCalmReload?.value
+        #expect(!app.speechPressure.isReleased)
+    }
+
     @Test("pressure releases a loaded model and says why")
     func pressureReleases() async {
         let steps = Steps()

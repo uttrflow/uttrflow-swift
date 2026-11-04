@@ -14,9 +14,17 @@ public struct ReplaceRequest: Sendable, Equatable {
     }
 }
 
+/// Which of several matches a replace takes.
+public enum ReplaceChoice: String, Sendable, Equatable {
+    /// The match nearest the start.
+    case first
+    /// The match nearest the end, which a replace takes unless told otherwise.
+    case last
+}
+
 /// What a replace does to the text of the last insertion.
 public enum ReplaceOutcome: Sendable, Equatable {
-    /// The new text, and how many places matched; with more than one, the match nearest the end was replaced.
+    /// The new text, and how many places matched; with more than one, the match chosen was replaced, by default the nearest the end.
     case replaced(text: String, matches: Int)
     /// No word sequence in the insertion is the one asked for, so nothing is edited.
     case notFound
@@ -35,6 +43,13 @@ public enum ReplaceCommand {
     /// The request an utterance makes, or `nil` when it does not say a replace row with words on both sides of `until`.
     public static func request(from utterance: String) -> ReplaceRequest? {
         parsed(utterance)?.request
+    }
+
+    /// The match a whole utterance of "replace first" or "replace last" picks, or `nil` for any other utterance.
+    public static func choice(from utterance: String) -> ReplaceChoice? {
+        let keys = WordTokens.words(utterance, .display).map { WordShape($0).key }
+        let row = SpokenCommands.replacements.first { $0.until.isEmpty && $0.words == keys }
+        return row.flatMap { ReplaceChoice(rawValue: $0.text) }
     }
 
     /// `utterance` with its words to write passed through `tidy`, as dictated words are; any other utterance is unchanged.
@@ -65,15 +80,28 @@ public enum ReplaceCommand {
         return nil
     }
 
-    /// The notice once a replace ran: it says when the last of several matches was taken, and names no words.
-    public static func done(matches: Int) -> String {
+    /// The notice once a replace ran: it says which of several matches was taken, and names no words.
+    public static func done(matches: Int, choosing choice: ReplaceChoice = .last) -> String {
         matches > 1
-            ? "Replaced the last of \(matches) matches in the last dictation."
+            ? "Replaced the \(choice.rawValue) of \(matches) matches in the last dictation."
             : "Replaced the words in the last dictation."
     }
 
-    /// `text` with the match of `request.find` nearest its end replaced by `request.replacement`.
-    public static func apply(_ request: ReplaceRequest, to text: String) -> ReplaceOutcome {
+    /// `original` with the `choice` match replaced, only when `written` is what replacing the last of several matches made of it.
+    public static func correction(
+        of request: ReplaceRequest, from original: String, replacedBy written: String,
+        choosing choice: ReplaceChoice
+    ) -> (text: String, matches: Int)? {
+        guard let last = apply(request, to: original).change, last.matches > 1, last.text == written else {
+            return nil
+        }
+        return apply(request, to: original, choosing: choice).change
+    }
+
+    /// `text` with the match of `request.find` nearest the end, or the start when `choice` is `.first`, replaced by `request.replacement`.
+    public static func apply(
+        _ request: ReplaceRequest, to text: String, choosing choice: ReplaceChoice = .last
+    ) -> ReplaceOutcome {
         let wanted = WordShape.words(request.find)
         let words = wordRanges(in: text)
         guard !wanted.isEmpty, wanted.count <= words.count else { return .notFound }
@@ -83,7 +111,7 @@ public enum ReplaceCommand {
                     String(text[words[start + offset]]), wanted[offset], allowingRegularInflections: false)
             }
         }
-        guard let start = starts.last else { return .notFound }
+        guard let start = choice == .first ? starts.first : starts.last else { return .notFound }
         let span = words[start].lowerBound..<words[start + wanted.count - 1].upperBound
         let written =
             startsSentence(at: span.lowerBound, in: text) && text[span].first?.isUppercase == true

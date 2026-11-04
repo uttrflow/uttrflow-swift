@@ -8,9 +8,7 @@ enum ClipOrdering {
         return clips.map { clip in
             guard let alias = clip.alias else { return clip }
             guard aliases.insert(alias).inserted else {
-                var unnamed = clip
-                unnamed.alias = nil
-                return unnamed
+                return clip.losingAlias()
             }
             return clip
         }

@@ -8,6 +8,26 @@ struct SpokenAddressTests {
     private let sut = SpokenPunctuationPass()
 
     @Test(
+        "joins a mailbox whose last label is a domain ending to the domain after at",
+        .bug(id: 8157),
+        arguments: [
+            ("mail anil dot kumar dot dev at example dot com", "mail anil.kumar.dev@example.com"),
+            ("mail anil.kumar.dev at example.com", "mail anil.kumar.dev@example.com"),
+            ("write to priya_sharma.dev at example.com", "write to priya_sharma.dev@example.com"),
+            ("ping ops dot io at example dot org", "ping ops.io@example.org"),
+        ])
+    func mailboxEndingInADomainEnding(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test("leaves a site said before at and a time as the site", .bug(id: 8157))
+    func siteBeforeAtATime() {
+        #expect(
+            cleaned("the demo is on example dot dev at noon", by: sut) == "the demo is on example.dev at noon"
+        )
+    }
+
+    @Test(
         "writes the address where the words spell one",
         arguments: [
             ("forward the logs to support at example.com", "forward the logs to support@example.com"),
@@ -43,6 +63,7 @@ struct SpokenAddressTests {
             ),
             ("contact support at example.com today", "contact support@example.com today"),
             ("cc billing at example dot com", "cc billing@example.com"),
+            ("anil dot dev at example dot com", "anil.dev@example.com"),
         ]
     )
     func writesTheAddress(input: String, expected: String) {
@@ -153,6 +174,7 @@ struct SpokenAddressTests {
         "writes dictated web addresses paths filenames and identifiers",
         arguments: [
             ("visit example dot com slash docs", "visit example.com/docs"),
+            ("visit example dot dev at example dot com", "visit example.dev at example.com"),
             ("the site is www dot example dot com", "the site is www.example.com"),
             ("go to https colon slash slash example dot com", "go to https://example.com"),
             ("go to w w w dot example dot org", "go to www.example.org"),
@@ -300,6 +322,14 @@ struct SpokenAddressTests {
             ("connect to example dot com colon eight thousand", "connect to example.com:8000"),
             ("open localhost colon three thousand slash admin", "open localhost:3000/admin"),
             ("the server is at ten dot zero dot zero dot one", "the server is at 10.0.0.1"),
+            ("the address is one two seven dot zero dot zero dot one", "the address is 127.0.0.1"),
+            ("set the ip to one seven two dot sixteen dot zero dot one", "set the ip to 172.16.0.1"),
+            ("the address is one twenty seven dot zero dot zero dot one", "the address is 127.0.0.1"),
+            (
+                "the address is one two seven dot zero dot zero dot one colon eight zero eight zero",
+                "the address is 127.0.0.1:8080"
+            ),
+            ("one nine two dot one six eight dot zero dot one", "192.168.0.1"),
             ("ssh to ten dot zero dot zero dot one colon twenty two", "ssh to 10.0.0.1:22"),
             ("visit acme dash shop dot example dot com", "visit acme-shop.example.com"),
             (
@@ -420,6 +450,18 @@ struct SpokenAddressTests {
         ]
     )
     func writesFileReferences(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "keeps every word of a last octet said as a hundred",
+        arguments: [
+            ("ping ten dot zero dot zero dot two hundred and fifty five", "ping 10.0.0.255"),
+            ("ping ten dot zero dot zero dot one hundred", "ping 10.0.0.100"),
+            ("ping ten dot zero dot zero dot two hundred", "ping 10.0.0.200"),
+        ]
+    )
+    func writesAnAddressEndingInAHundred(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
     }
 

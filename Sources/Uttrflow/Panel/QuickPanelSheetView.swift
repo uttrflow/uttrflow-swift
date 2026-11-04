@@ -77,7 +77,8 @@ extension QuickPanelView {
         // Edit grows with a clip's lines, and ⏎ still saves; ⌥⏎ starts a new line, as in any text field.
         TextField(
             sheet.placeholder,
-            text: Binding(get: { sheet.draft }, set: { relayKey(.draft($0)) }),
+            // Taking focus writes the unchanged text back, which is no edit and is not relayed.
+            text: Binding(get: { sheet.draft }, set: { if $0 != sheet.draft { relayKey(.draft($0)) } }),
             axis: sheet.kind == .editing ? .vertical : .horizontal
         )
         .lineLimit(sheet.kind == .editing ? 8 : 1)

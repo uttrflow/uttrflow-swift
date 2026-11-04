@@ -198,11 +198,11 @@ extension MenuBarPresenter {
                 progress: loadEstimate(for: state).map { .fraction($0.fraction) } ?? .indeterminate)
         case .loadFailed:
             return MenuBarStatus(
-                title: "Model didn’t load", detail: "Nothing was lost", emphasis: .attention,
+                title: SpeechModelLoad.failed.status, detail: "Nothing was lost", emphasis: .attention,
                 action: fix, actionEmphasis: .attention)
         case .loadFailedAgain, .incomplete:
             return MenuBarStatus(
-                title: "Model is damaged", detail: "Download it again to repair it",
+                title: SpeechModelLoad.broken.status, detail: "Download it again to repair it",
                 emphasis: .attention, action: fix, actionEmphasis: .attention)
         case .notInstalled:
             let offline = "works offline after"
@@ -253,6 +253,12 @@ extension MenuBarPresenter {
         guard megabytes >= 1_000 else { return "\(megabytes) MB" }
         let tenths = megabytes / 100 + (megabytes % 100 == 0 ? 0 : 1)
         return "\(tenths / 10).\(tenths % 10) GB"
+    }
+
+    /// How much of a `total`-byte download has arrived at `fraction`, as "323 MB of 646 MB".
+    static func received(_ fraction: Double, of total: Int64) -> String {
+        let arrived = Int64(Double(total) * min(max(fraction, 0), 1))
+        return "\(size(of: arrived)) of \(size(of: total))"
     }
 
     // MARK: The buttons

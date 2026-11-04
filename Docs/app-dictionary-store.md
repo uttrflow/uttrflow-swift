@@ -115,6 +115,11 @@ terms read off the screen. `removeEverything()` deletes the record; `removeLearn
 personal data archive carries the record to another Mac, where `importRefusals(_:)` adds it after
 that Mac's own refusals (`Docs/personal-data-archive.md`).
 
+Deleting a learnt entry also refuses each heard form it says like, as a pair, in
+`dictionary.v1.refused-pairs.json` (sealed whenever the list is): the pair stays refused after
+`allowAgain(_:)` lifts the word, while the same word under a different heard form can still be
+learnt. `removeEverything()` deletes that record too.
+
 **Not learning.** The record is not hidden: `refusedWords()` lists it newest first, in the
 user's own spelling, and the Dictionary page shows it under a "Not learning" disclosure with
 Allow again on each row. `allowAgain(_:)` is the inverse of a deletion: it lifts the refusal from
@@ -303,6 +308,17 @@ beside the corrections' — once per dictation whichever path used an entry, or 
 differs from the heard words only in its capitals is not counted: "Claude" for "claude" is what a
 sentence does to its first word whatever the dictionary holds, so the capital is no evidence the
 model chose the entry. Such an entry is still counted when the correction engine applies it.
+
+### Appeared and accepted
+
+Two counters, stated here once. `timesUsed` is appeared: it keeps a word in the prompt and out of
+age retirement. `timesAccepted` is accepted, never above `timesUsed`: `EditAwayWatch` reads the
+field again after its window and counts a use only when the word is still there, so the person
+left it unedited. `netUses`, which every rank site reads, is `timesAccepted - timesReverted`. A field
+that cannot be read, or that changed, counts nothing. A file from before the counter reads
+`timesAccepted` as `timesUsed`, so no rank resets. A wrong word applied a hundred times and never
+confirmed keeps the `netUses` of its first application (`AcceptedRankTests`). The persona ledger
+still notes applications.
 
 A third way leaves no rewrite at all: the vocabulary prompt makes the recogniser spell the entry
 right, so nothing corrects it. `timesUsed` therefore means "appeared in a landed dictation", not

@@ -213,9 +213,8 @@ solid pill (`Panel.segment`), white when dark and ink when light. Delete takes
 ## What VoiceOver is told
 
 Every notice the panel shows is also announced: the copy-only notices ("Copied — press ⌘V…"), a
-refused write, and a picture that is no longer on this Mac. So is the undo offer after a delete,
-spoken as `PanelPresenter.undoAnnouncement` ("Deleted. Command-Z restores only the most recent
-deletion."). A copy-only choice closes the panel after `NoticeLinger.standard` (2.5 s), which is
+refused write, and a picture that is no longer on this Mac. So is the undo offer after a delete or a text
+edit, spoken as `PanelPresenter.undoAnnouncement` ("Command-Z undoes your last change."). A copy-only choice closes the panel after `NoticeLinger.standard` (2.5 s), which is
 sooner than VoiceOver focus reaches the notice bar, so drawing it is not enough.
 
 `PanelPresenter` decides the words (`PanelPresentation.announcements`); the controller posts each
@@ -242,8 +241,10 @@ arrives.
 | --- | --- |
 | Text inserted into the target | nothing; the panel does not read the field back to announce success |
 | Text left on the clipboard | "Copied — press ⌘V" |
-| Clipboard-free text route refuses (`textCouldNotPaste`) | "Couldn't paste this clip"; the clipboard is unchanged |
-| A picture on the clipboard whose ⌘V was refused | "Copied — press ⌘V" |
+| A text route refuses | the words go on the clipboard (`PanelPasteFloor`) and it says "Copied — press ⌘V" |
+| A text route refuses after a newer copy or a cancel, or the clipboard write fails (`textCouldNotPaste`) | "Couldn't paste this clip"; the clipboard is unchanged and the clip stays in the panel |
+| A picture or files whose paste was refused, when the copy succeeds | copied the same way, "Copied — press ⌘V" |
+| A picture or files refused after a newer copy or a cancel, or whose copy write failed | "Couldn't paste this clip" |
 | A picture whose file went before Return | "That picture is no longer on this Mac" |
 
 An explicit Copy from a panel row or the menu bar uses the same floating-button report and a
@@ -252,7 +253,12 @@ VoiceOver announcement. Text and pictures say "Copied — press ⌘V"; concealed
 
 A dictation under way owns the floating button, so the report is spoken but not drawn over it.
 The drawn report stays for as long as a dictation failure does and then gives the button back.
-When the floating button is turned off, the announcement is the only surface.
+When the floating button is turned off, it appears for the length of the report and goes again.
+
+The panel records the frontmost application as it opens. Once it has closed,
+`PanelCaret.destination` moves the target to the focused element's owner if that application is
+still in front, because another application's non-activating panel can hold the caret. Uttrflow
+itself is never chosen, and a switch of frontmost application is still refused.
 
 ## Related
 

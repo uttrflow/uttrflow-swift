@@ -526,7 +526,7 @@ struct MenuBarHeaderTests {
             shown.header
                 == .status(
                     MenuBarStatus(
-                        title: "Model didn’t load", detail: "Nothing was lost", emphasis: .attention,
+                        title: "Speech model didn’t load", detail: "Nothing was lost", emphasis: .attention,
                         action: MenuBarCommand(title: "Try again", intent: .recover(.retry)),
                         actionEmphasis: .attention)))
     }
@@ -540,7 +540,7 @@ struct MenuBarHeaderTests {
             shown.header
                 == .status(
                     MenuBarStatus(
-                        title: "Model is damaged", detail: "Download it again to repair it",
+                        title: "Speech model is damaged", detail: "Download it again to repair it",
                         emphasis: .attention,
                         action: MenuBarCommand(
                             title: "Download again", intent: .recover(.downloadSpeechModel)),

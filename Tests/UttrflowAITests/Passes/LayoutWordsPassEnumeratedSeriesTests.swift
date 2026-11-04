@@ -40,10 +40,28 @@ struct LayoutWordsPassEnumeratedSeriesTests {
             "in the following three items: milk, eggs, and bread.",
             "the following three items: milk, eggs, and a very long item that runs on for words and words.",
             "the following two days: monday, tuesday.",
+            "the following three items are milk, eggs and bread.",
+            "the following three items: milk, eggs and bread, then we leave.",
+            "the following three people came: ann, bob and cy.",
+            "we bought milk, eggs, and bread.",
         ]
     )
     func keepsProse(input: String) {
         #expect(cleaned(input, by: sut) == input)
+    }
+
+    @Test("lists a series of an irregular plural the cue counts")
+    func irregularPlural() {
+        let input = "the following three men: ann, bob and cy."
+        #expect(cleaned(input, by: sut) == "the following three men:\n- ann\n- bob\n- cy.")
+    }
+
+    @Test("tags every list mark it writes as an announced series")
+    func tagsMarks() {
+        let draft = sut.apply(Draft(text: "the following three items: milk, eggs, and bread."))
+        let marks = draft.words.filter(\.isListMark)
+        #expect(marks.count == 3)
+        #expect(marks.allSatisfy { $0.breakEvidence == .announcedSeries })
     }
 
     @Test("writes no list where the destination takes none")

@@ -534,7 +534,7 @@ public enum MenuBarPresenter {
         case .loading:
             return loadEstimate(for: state)?.heading ?? "Getting ready…"
         case .loadFailed:
-            return "Speech model didn't load"
+            return SpeechModelLoad.failed.status
         case .loadFailedAgain, .incomplete:
             return SpeechModelLoad.broken.status
         case .notInstalled:

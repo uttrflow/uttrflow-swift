@@ -52,6 +52,8 @@ struct RomaniserTests {
             ("अहमदाबाद", "Ahmedabad"), ("चेन्नई", "Chennai"), ("कोलकाता", "Kolkata"), ("पुणे", "Pune"),
             ("जयपुर", "Jaipur"), ("गोवा", "Goa"), ("राहुल", "Rahul"), ("कोहली", "Kohli"), ("गुप्ता", "Gupta"),
             ("अंजलि", "Anjali"), ("ऐश्वर्या", "Aishwarya"), ("सिद्धार्थ", "Siddharth"),
+            ("दिल्ली", "Delhi"), ("नवीन", "Naveen"), ("प्रिया", "Priya"), ("रोहन", "Rohan"), ("मीना", "Meena"),
+            ("अमित", "Amit"), ("सुनील", "Sunil"), ("ऋषभ", "Rishabh"),
         ])
     func citiesAndNames(devanagari: String, typed: String) {
         #expect(Romaniser.romanised(devanagari) == typed)
@@ -73,7 +75,7 @@ struct RomaniserTests {
         arguments: [
             ("करना", "karna"), ("समझना", "samajhna"), ("निकलने", "nikalne"), ("भागदौड़", "bhaagdaud"),
             ("सड़क", "sadak"), ("कृपया", "kripya"), ("अनन्या", "ananya"),
-            ("विक्रम", "vikram"), ("अगस्त", "agast"), ("दोस्त", "dost"), ("मित्र", "mitra"), ("दिल्ली", "dilli"),
+            ("विक्रम", "vikram"), ("अगस्त", "agast"), ("दोस्त", "dost"), ("मित्र", "mitra"), ("बिल्ली", "billi"),
             ("घर", "ghar"),
         ])
     func silentVowels(devanagari: String, typed: String) {

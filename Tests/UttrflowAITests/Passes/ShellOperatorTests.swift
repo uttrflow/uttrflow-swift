@@ -40,6 +40,39 @@ struct ShellOperatorTests {
         #expect(!run("echo open paren close paren", in: .terminal).contains("()"))
     }
 
+    @Test("joins a variable or an option to its value with an equals sign")
+    func assignments() {
+        #expect(
+            run("export NODE underscore ENV equals production", in: .terminal) == "export NODE_ENV=production"
+        )
+        #expect(run("git log dash dash since equals yesterday", in: .terminal) == "git log --since=yesterday")
+        #expect(run("FOO equals bar make", in: .terminal) == "FOO=bar make")
+        let prose = "hard work equals success over a long period"
+        #expect(run(prose, in: .terminal) == prose)
+        #expect(run("export NODE equals production", in: .document) == "export NODE equals production")
+    }
+
+    @Test("joins a spoken number to the option or variable it is assigned to, with its unit letter")
+    func numberAssignments() {
+        #expect(
+            run("docker run dash dash memory equals two g nginx", in: .terminal)
+                == "docker run --memory=2g nginx")
+        #expect(run("export PORT equals eight zero eight zero", in: .terminal) == "export PORT=8080")
+        #expect(run("git log dash dash max dash count equals five", in: .terminal) == "git log --max-count=5")
+        #expect(run("docker run dash m two g nginx", in: .terminal) == "docker run -m 2 g nginx")
+        #expect(run("export PORT equals 8080", in: .terminal) == "export PORT=8080")
+        #expect(run("export N equals two x", in: .terminal) == "export N=2 x")
+        #expect(run("dash dash timeout equals five m", in: .terminal) == "--timeout=5m")
+    }
+
+    @Test("joins only a size unit letter to an assigned number, never another letter")
+    func assignedNumberKeepsOtherLettersApart() {
+        #expect(run("N equals two x", in: .terminal) == "N=2 x")
+        #expect(run("export N equals two y", in: .terminal) == "export N=2 y")
+        #expect(run("export SIZE equals two k", in: .terminal) == "export SIZE=2k")
+        #expect(run("export SIZE equals two t", in: .terminal) == "export SIZE=2t")
+    }
+
     @Test("reads a determiner before a word as prose, and before a notation word as code")
     func determinerEvidence() {
         let prose = "our costs this year were greater than we planned"

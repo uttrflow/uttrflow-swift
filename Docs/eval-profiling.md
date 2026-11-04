@@ -31,16 +31,19 @@ readers produce.
   is what "peak" has to mean when the process is only sampled.
 - One more reading is taken after the work finishes, so a peak in the final milliseconds does
   not fall between polls.
-- The poller is cancelled *and awaited* on both the success and the failure path, never
-  abandoned in a `defer`. An abandoned poller outlives the call that started it, can take one more
-  reading and attribute it to work that has already finished, and the stack it belongs to may be
-  torn down underneath it. Waiting costs one scheduler hop.
+- The poller is cancelled on both the success and the failure path, and the recorder is closed,
+  so a poller that wakes late takes no reading and cannot attribute one to work that has already
+  finished. It is *not* awaited: waiting needs the scheduler to run the poller again, and on a
+  machine whose threads are all busy that hop can take longer than the work being watched. The
+  poller holds only the recorder, the clock and the interval, so outliving the call is safe —
+  see `neverWaitsForThePoller` in `MemoryReadingTests.swift`.
 - The clock between readings is injectable, and for a sharper reason than convenience: the
   default sleeps on the wall clock, so a test asserting that polling happened would be asserting
   that the machine was not busy, and on a loaded Mac it fails. A test supplies `ManualClock`,
   which genuinely suspends `sleep(for:)` until the test advances it, and gets an exact number of
   readings — see `PeakMemoryTests` in `MemoryReadingTests.swift`. Cancelling the poller's sleep is
-  how the loop stops; it never spins.
+  how the loop stops; it never spins. `PerformanceProfiler` polls on the clock it was given, so
+  its tests never wait on the wall clock either.
 
 ## Processor time: two interfaces, half of each
 

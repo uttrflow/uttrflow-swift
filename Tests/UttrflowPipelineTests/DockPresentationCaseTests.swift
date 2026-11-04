@@ -215,7 +215,7 @@ struct DockPresentationCaseTests {
     func restingWhileLoading() {
         let load = SpeechModelLoad.loading(elapsed: .seconds(2))
         #expect(
-            DictationPresenter.dock(for: .idle, speechModel: load)
+            DictationPresenter.resting(load)
                 == DockPresentation(
                     symbolName: "hourglass", primaryLine: "Getting ready…", secondaryLine: nil,
                     showsWaveform: false, showsProgress: false, isRecording: false, action: nil,
@@ -267,18 +267,6 @@ struct DockPresentationCaseTests {
                     showsProgress: false, isRecording: false, action: microphoneDenied.recovery,
                     accessibilityLabel:
                         "\(microphoneDenied.message) \(SpeechModelLoad.failed.accessibilityLabel)"))
-    }
-
-    @Test("a dictation tried during the load reads only the load")
-    func stillLoadingDuringTheLoad() {
-        let load = SpeechModelLoad.loading(elapsed: .seconds(2))
-        #expect(
-            DictationPresenter.dock(for: .failed(.stillLoading), speechModel: load)
-                == DockPresentation(
-                    symbolName: "hourglass", primaryLine: "Speech model still loading…",
-                    secondaryLine: "Dictation starts once it’s ready", showsWaveform: false,
-                    showsProgress: false, isRecording: false, action: nil,
-                    accessibilityLabel: load.accessibilityLabel))
     }
 
     @Test("a notice about something else draws words and nothing that moves")

@@ -29,8 +29,9 @@ struct SharedModelInstallTests {
         let install = SharedModelInstall(wrapping: gated)
         let first = Harness(microphone: .granted, accessibility: .granted, installer: install)
         let second = Harness(microphone: .granted, accessibility: .granted, installer: install)
-        // Opening goes straight to the download page, so each window's start runs its download.
-        let firstRunning = Task { await first.flow.start() }
+        // The first window starts the download; the second, opened while it runs, joins it unasked.
+        await first.flow.start()
+        let firstRunning = Task { _ = await first.press("Download") }
         await settle(until: { gated.startedDownloads == 1 && install.isRunning })
         let secondRunning = Task { await second.flow.start() }
         await settle(until: { install.waiting == 2 })
@@ -57,7 +58,8 @@ struct SharedModelInstallTests {
         let install = SharedModelInstall(wrapping: gated)
         let app = AppSide(watching: install)
         let window = Harness(microphone: .granted, accessibility: .granted, installer: install)
-        let running = Task { await window.flow.start() }
+        await window.flow.start()
+        let running = Task { _ = await window.press("Download") }
         await settle(until: { gated.startedDownloads == 1 })
 
         // The red button cancels nothing, so what the app hears is all that is left to draw.
@@ -104,7 +106,8 @@ struct SharedModelInstallTests {
         let install = SharedModelInstall(wrapping: gated)
         let app = AppSide(watching: install)
         let window = Harness(microphone: .granted, accessibility: .granted, installer: install)
-        let running = Task { await window.flow.start() }
+        await window.flow.start()
+        let running = Task { _ = await window.press("Download") }
         await settle(until: { gated.startedDownloads == 1 && install.waiting == 1 })
         #expect(await window.press("Cancel"))
         await running.value

@@ -139,6 +139,7 @@ struct KeyHoldTests {
         let finishKeep = DispatchSemaphore(value: 0)
         let releaseStarted = DispatchSemaphore(value: 0)
         let releaseFinished = DispatchSemaphore(value: 0)
+        let keepFinished = DispatchSemaphore(value: 0)
         let keepResult = Mutex<Bool?>(nil)
         let posted = Mutex<[Int64]>([])
         hold.begin()
@@ -147,6 +148,7 @@ struct KeyHoldTests {
             guard let event = CGEvent(keyboardEventSource: nil, virtualKey: 36, keyDown: true) else {
                 enteredEligibilityCheck.signal()
                 keepResult.withLock { $0 = false }
+                keepFinished.signal()
                 return
             }
             let kept = hold.keep(event) {
@@ -154,6 +156,7 @@ struct KeyHoldTests {
                 finishKeep.wait()
             }
             keepResult.withLock { $0 = kept }
+            keepFinished.signal()
         }
         enteredEligibilityCheck.wait()
 
@@ -167,6 +170,8 @@ struct KeyHoldTests {
         releaseStarted.wait()
         finishKeep.signal()
         releaseFinished.wait()
+        // The release can finish before the keep call has stored its result, so wait for the result itself.
+        keepFinished.wait()
 
         #expect(keepResult.withLock { $0 } == true)
         #expect(posted.withLock { $0 } == [36])

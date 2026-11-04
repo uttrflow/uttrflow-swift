@@ -20,6 +20,17 @@
     "addedFor": 2371
   },
   {
+    "id": "hinglish-reply-unsure-thiek-hai",
+    "note": "An unsure Hindi word the recogniser spelled its own way, before a Hindi copula, keeps that spelling both times it is said; its English sound-alike is never offered.",
+    "language": "hi",
+    "spoken": "mera kaam thiek hai aur tumhara bhi thiek hai",
+    "expected": "Mera kaam thiek hai aur tumhara bhi thiek hai.",
+    "mustKeep": ["thiek", "hai"],
+    "mustNotAdd": ["thick"],
+    "doubtful": ["thiek"],
+    "addedFor": 8158
+  },
+  {
     "id": "hinglish-reply-devanagari-2371",
     "note": "A short reply the recogniser wrote in Devanagari is romanised, never translated.",
     "language": "hi",

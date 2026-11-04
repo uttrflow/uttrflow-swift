@@ -45,4 +45,23 @@ struct CarriedSmallWordTests {
             MeaningPreservationGuard.scriptWordCountVerdict(original: "वो वो bug", rewritten: "Wo bug.")
                 == .accepted)
     }
+
+    @Test("a Devanagari draft's words keep their order, a small word included")
+    func devanagariWordOrder() {
+        let spoken = "इसे अंग्रेज़ी में बदल दो"
+        #expect(
+            MeaningPreservationGuard.scriptWordOrderVerdict(
+                original: spoken, rewritten: "Ise mein angrezi badal do.")
+                != .accepted)
+        #expect(
+            MeaningPreservationGuard.scriptWordOrderVerdict(
+                original: spoken, rewritten: "Ise angrezi mein badal do.") == .accepted)
+    }
+
+    @Test("two small words that trade places beside a word written as a mark are refused")
+    func smallWordsSwappedBesideAMark() {
+        let said = "a fixed fee of 12,500 dollars with delivery in four weeks"
+        #expect(!accepted(said, "A fixed fee of $12,500 delivery with in four weeks."))
+        #expect(accepted(said, "A fixed fee of $12,500 with delivery in four weeks."))
+    }
 }

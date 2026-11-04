@@ -142,12 +142,12 @@ struct SettingsPrivacyCopyTests {
     }
 
     /// Pinned, so softening it takes a deliberate edit to a test rather than to a string.
-    @Test("the promise says the audio is deleted as it becomes text, and kept a day only to retry")
+    @Test("the promise says the audio is kept on this Mac a day only to retry, then deleted")
     func thePromiseIsTheHonestOne() {
         let promise = SettingsPresenter.recordingsPromise
-        #expect(promise.contains("deleted the moment it becomes text"))
-        #expect(promise.contains("kept on this Mac for a day only if some of it couldn’t be"))
-        #expect(promise.contains("retry"))
+        #expect(promise.contains("kept on this Mac for a day so you can retry"))
+        #expect(promise.contains("then deleted"))
+        #expect(promise.contains("password field is deleted at once"))
         #expect(SettingsPresenter.privacyPromise.hasPrefix(promise))
         #expect(!SettingsPresenter.privacyPromise.contains("Recordings are never saved"))
     }

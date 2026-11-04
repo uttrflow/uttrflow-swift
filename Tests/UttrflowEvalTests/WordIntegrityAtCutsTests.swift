@@ -19,14 +19,6 @@ struct WordIntegrityAtCutsTests {
     /// Every long-form case, whether or not the author marked a pause in it.
     static let cases = EvaluationCase.longFormCases
 
-    /// The cases whose cut inside a spoken correction keeps the words the speaker took back.
-    static let correctionSplitByCut: [String: String] = [
-        "long-form-correcting-an-item-in-a-list": correctionSplit
-    ]
-
-    static let correctionSplit =
-        "a cut inside a spoken correction's trigger leaves the words it replaces in the text"
-
     /// Cut at each word boundary alone (a pause can fall between any two words), including the natural pauses.
     @Test("a cut at any one word boundary writes every word once", arguments: cases)
     func anySingleCut(_ testCase: EvaluationCase) async {
@@ -36,11 +28,7 @@ struct WordIntegrityAtCutsTests {
             let damage = await Self.damage(testCase, cuts: [cut])
             if damage != Damage() { failures.append("cut after word \(cut): \(damage)") }
         }
-        guard let reason = Self.correctionSplitByCut[testCase.id] else {
-            #expect(failures.isEmpty, "\(testCase.id): \(failures.prefix(5))")
-            return
-        }
-        withKnownIssue(Comment(rawValue: reason)) { #expect(failures.isEmpty) }
+        #expect(failures.isEmpty, "\(testCase.id): \(failures.prefix(5))")
     }
 
     /// The natural pauses and the forced cut together: every pause the author marked, plus one at the window's end.

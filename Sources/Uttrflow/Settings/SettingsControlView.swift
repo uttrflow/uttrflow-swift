@@ -21,6 +21,9 @@ struct SettingsControlView: View {
         case .action, .removal:
             // A button names itself, so the row it acts on is the hint: "Resume, button. Pause for a while".
             view(for: control).accessibilityHint(label)
+        case .menu:
+            // The menu names itself and its chosen option; a label here would replace the option.
+            view(for: control)
         case .text(let value):
             view(for: control).accessibilityLabel(label).accessibilityValue(value)
         default:
@@ -59,7 +62,7 @@ struct SettingsControlView: View {
 
         case .menu(let options, let selectedID):
             SettingsMenu(
-                options: options.map { (id: $0.id, title: $0.title) },
+                label: label, options: options.map { (id: $0.id, title: $0.title) },
                 selection: selection(options, selectedID))
 
         case .shortcut(let action, let keys):

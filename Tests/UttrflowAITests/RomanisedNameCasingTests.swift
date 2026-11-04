@@ -37,7 +37,7 @@ struct RomanisedNameCasingTests {
 
     @Test("no source, no capital")
     func nothingOwned() {
-        #expect(written("कल दिल्ली जाना है") == "kal dilli jaana hai")
+        #expect(written("कल शिमला जाना है") == "kal shimla jaana hai")
     }
 
     @Test("a word that did not come from Devanagari is left as it was")

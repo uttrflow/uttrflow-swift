@@ -37,3 +37,32 @@ struct ClipReclassificationTests {
         #expect(persisted.clips == classified)
     }
 }
+
+@Suite("Detector rewrite without files")
+struct ClipReclassificationRewriteTests {
+    @Test("a pass that covers every current text keeps live eviction order")
+    func coveredPassKeepsLiveOrder() {
+        let first = Clip(text: "let a = 1", kind: .text, copiedAt: .now)
+        let second = Clip(text: "let b = 2", kind: .text, copiedAt: .now)
+        let live = [first.orderedForEviction(7), second.orderedForEviction(8)]
+        let detected = [first, second].map {
+            $0.reclassified(as: ClipClassification(kind: .code, language: nil))
+        }
+        var secrecy = ClipSecrecyOverrides(file: TemporaryFile().url, encryptedStore: nil)
+        let rewritten = ClipReclassification.rewrite(
+            detected, from: [first, second], into: [first, second], liveOrder: live, secrecy: &secrecy)
+        #expect(rewritten?.map(\.kind) == [.code, .code])
+        #expect(rewritten?.map(\.lastUsedOrder) == [7, 8])
+    }
+
+    @Test("a clip that changed after the snapshot leaves the index for the next launch")
+    func changedTextWritesNothing() {
+        let old = Clip(text: "one", kind: .text, copiedAt: .now)
+        var changed = old
+        changed.text = "two"
+        var secrecy = ClipSecrecyOverrides(file: TemporaryFile().url, encryptedStore: nil)
+        let rewritten = ClipReclassification.rewrite(
+            [old], from: [old], into: [changed], liveOrder: [], secrecy: &secrecy)
+        #expect(rewritten == nil)
+    }
+}

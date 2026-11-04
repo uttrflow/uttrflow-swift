@@ -67,6 +67,30 @@ struct RemovalAuditTests {
         #expect(unauthorised(spoken).isEmpty, "\(draft(spoken).text)")
     }
 
+    @Test(
+        "reads a mark's name said after the recogniser already wrote the mark as converted into it",
+        .bug(id: 8108),
+        arguments: [
+            ("Hello, how are you? Question mark.", "Hello, how are you?"),
+            ("Great job! See you tomorrow. Full stop.", "Great job! See you tomorrow."),
+            ("Great job! Exclamation mark. See you tomorrow.", "Great job! See you tomorrow."),
+        ])
+    func readsAnEchoedMarkNameAsConverted(spoken: String, expected: String) {
+        #expect(unauthorised(spoken).isEmpty, "\(draft(spoken).text)")
+        let audited = RuleBasedTransformer.audited(
+            CleaningPipeline.standard(for: .standard(for: .plain), situation: .unknown),
+            over: Draft(text: spoken))
+        #expect(audited.draft.text == expected)
+    }
+
+    @Test("still finds a mark's name taken out when the word before it does not end on that mark")
+    func findsAMarkNameTakenWithoutItsMark() {
+        var draft = Draft(text: "how are you. question mark")
+        draft.remove(at: 3, by: .spokenPunctuation)
+        draft.remove(at: 4, by: .spokenPunctuation)
+        #expect(RemovalAudit.unauthorised(in: draft, grants: pipeline.grants).count == 2)
+    }
+
     @Test("finds an acronym the filler pass took for a sound")
     func findsAcronymTakenForASound() {
         #expect(

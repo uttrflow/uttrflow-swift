@@ -2,7 +2,7 @@ public import UttrflowCore
 private import UttrflowDictionary
 
 /// The words the pronunciation lexicon lists as said exactly like this one, so a confidently wrong hearing can be reconsidered.
-public struct HomophoneCandidates: CandidateSource {
+public struct HomophoneCandidates: CandidateSource, SoundAlikeSource {
     /// The most partners offered, ordinary words first, so a crowded sound cannot fill the span's line.
     public static let maximumOffered = 2
 

@@ -15,17 +15,32 @@ extension SpelledInitialismPass {
             let text = draft.words[index].text
             let next = position + 1 < live.count ? draft.words[live[position + 1]].text : nil
             var suffix = shape.suffix
-            // A dotted form's stop belongs to the abbreviation unless it also ends the sentence.
+            // A dotted form's stop is the abbreviation's unless a sentence follows, which a zone name does not start.
+            let afterNext = position + 2 < live.count ? draft.words[live[position + 2]].text : nil
             if shape.key.contains("."), suffix.hasPrefix("."),
                 next == nil || !Abbreviations.endsSentence(text, followedBy: next)
+                    || next.map({ TimeZones.opensName($0, followedBy: afterNext) }) == true
             {
                 suffix.removeFirst()
             }
             let letters = shape.key.filter { $0 != "." }.map(String.init)
             let written = LetterRun.written(letters, as: .meridiem, first: text) + suffix
             if written != text { draft.replace(at: index, with: written, by: id) }
+            writingZone(after: position, in: live, draft: &draft)
         }
         return draft
+    }
+
+    /// Writes a zone abbreviation said right after a meridiem in capitals: "3 pm ist" is "3 pm IST".
+    private static func writingZone(after position: Int, in live: [Int], draft: inout Draft) {
+        guard position + 1 < live.count else { return }
+        let index = live[position + 1]
+        let shape = draft.shape(at: index)
+        guard shape.prefix.isEmpty, !draft.words[index].isLayoutMark,
+            let zone = TimeZones.abbreviationsByKey[shape.key], shape.core != zone,
+            !draft.shape(at: live[position]).endsClause
+        else { return }
+        draft.replace(at: index, with: shape.replacingCore(with: zone), by: id)
     }
 
     /// An hour, or an hour and minutes, in digits: "5", "10:30".

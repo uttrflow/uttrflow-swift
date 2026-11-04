@@ -1,10 +1,10 @@
 // The shared history fixture, and tests for the History page: grouping, retention, search, empties.
 import Foundation
-import UttrflowCore
 import UttrflowHistory
 import UttrflowSettings
 import Testing
 
+@testable import UttrflowCore
 @testable import UttrflowUX
 
 /// A fixed clock and a fixed region, so a test cannot pass in one time zone and fail in another.
@@ -39,7 +39,8 @@ enum HistoryFixture {
         applicationIdentifier: String? = nil,
         changes: RecordedChanges? = RecordedChanges(),
         isFlagged: Bool = false,
-        arrival: RecordedArrival? = nil
+        arrival: RecordedArrival? = nil,
+        quality: OutcomeQuality? = nil
     ) -> HistoryEntry {
         HistoryEntry(
             id: UUID(),
@@ -51,7 +52,8 @@ enum HistoryFixture {
             applicationIdentifier: applicationIdentifier,
             changes: changes,
             isFlagged: isFlagged,
-            arrival: arrival)
+            arrival: arrival,
+            quality: quality)
     }
 
     /// A snapshot over these entries at the fixed clock.
@@ -217,6 +219,20 @@ struct HistoryPresentationTests {
         }
         #expect(labels == ["Not inserted", "Unconfirmed", nil, nil, nil])
     }
+    @Test(
+        "a row tidied less than asked says so in the shared words; a complete or unrecorded row stays quiet")
+    func rowsCarryTheQuality() {
+        let qualities: [OutcomeQuality?] = [.complete, nil] + OutcomeQuality.incomplete
+        let lines = qualities.map {
+            HistoryPresenter.row(
+                for: HistoryFixture.entry(quality: $0), relativeTo: HistoryFixture.now,
+                locale: HistoryFixture.locale
+            ).quality
+        }
+        let expected = [nil, nil] + OutcomeQuality.incomplete.map { $0.presentation?.line }
+        #expect(lines == expected)
+        #expect(lines.dropFirst(2).allSatisfy { $0?.isEmpty == false })
+    }
 }
 
 @Suite("History row actions")
@@ -331,6 +347,13 @@ struct HistoryRetentionTests {
             page.retentionNotice.sentence
                 == "Kept on this Mac for 7 days, then deleted. Recordings are never saved.")
         #expect(page.retentionNotice.link.intent == .go(.settings(.privacy)))
+    }
+
+    /// The link's title is its accessibility name, so Voice Control can click it by what it reads.
+    @Test("the link to the privacy settings is named as Insights names it")
+    func noticeLinkTitle() {
+        let page = HistoryFixture.page(entries: [])
+        #expect(page.retentionNotice.link.title == "Change in Settings › Privacy")
     }
 
     @Test("the notice says text kept always stays until it is deleted")
@@ -549,19 +572,22 @@ struct HistoryWordCountTests {
     @Test("each distinct written word offers a fix carrying that spelling, and the row text is untouched")
     func offersAFixPerWrittenWord() {
         let text = "Ask Nickel, then Nickel's team: Nickel."
-        let row = HistoryFixture.page(entries: [HistoryFixture.entry(text)]).days.first?.rows.first
+        let entry = HistoryFixture.entry(text)
+        let row = HistoryFixture.page(entries: [entry]).days.first?.rows.first
+        let id = entry.id
 
         #expect(row?.text == text)
         #expect(
             row?.fixes.map(\.intent) == [
-                .fixWord("Ask"), .fixWord("Nickel"), .fixWord("then"), .fixWord("Nickel's"), .fixWord("team"),
+                .fixWord("Ask", from: id), .fixWord("Nickel", from: id), .fixWord("then", from: id),
+                .fixWord("Nickel's", from: id), .fixWord("team", from: id),
             ])
         #expect(row?.fixes.first?.title == "Fix “Ask”")
     }
 
     @Test("a token with no letters offers no fix")
     func skipsTokensWithoutLetters() {
-        #expect(HistoryPresenter.fixes(for: "42 — 7%").isEmpty)
+        #expect(HistoryPresenter.fixes(for: "42 — 7%", of: UUID()).isEmpty)
     }
 
     @Test("What changed names each ledgered step, what it did and where it landed, one phrase per change")
@@ -579,12 +605,27 @@ struct HistoryWordCountTests {
             for: record, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
         #expect(
             row.whatChanged == [
-                "Filler words: removed before “We”",
-                "Numbers: rewrote as “25”",
-                "Spoken punctuation: added “people.”",
-                "Stammers: removed at the end",
-                "Filler words: added",
+                "Removed filler words: before “We”",
+                "Wrote numbers as numerals: as “25”",
+                "Added spoken punctuation: “people.”",
+                "Removed a stammer: at the end",
+                "Removed filler words",
             ])
+    }
+
+    @Test("What changed calls every step by a plain label, never by its code name")
+    func whatChangedLabelsEveryStep() {
+        let steps: [PassID] = [
+            .fillers, .stammers, .repeatedPhrase, .selfCorrection, .spokenPunctuation, .spokenEmoji,
+            .spokenCasing, .codeEditorCommands, .layoutWords, .markdownContinuation, .numberForms,
+            .contractions, .spacing, .pauseStop, .spelledInitialism, .acronymCasing, .atMention,
+            .firstWord, .terminalStop, .caretEcho,
+        ]
+        let labels = steps.map { HistoryPresenter.label(of: $0) }
+        #expect(HistoryPresenter.label(of: .firstWord) == "Fixed capitals")
+        #expect(zip(steps, labels).allSatisfy { $0.rawValue != $1 })
+        #expect(Set(labels).count == steps.count)
+        #expect(HistoryPresenter.label(of: "notAStep") == "Tidied the text")
     }
 
     @Test("What changed names the signal that decided each dictionary word, before the clean-up steps")
@@ -607,7 +648,7 @@ struct HistoryWordCountTests {
             row.whatChanged == [
                 "Dictionary: rewrote “cooper netties” as “Kubernetes” (Seen on screen)",
                 "Dictionary: rewrote “phoenix” as “Fennick” (You said it clearly elsewhere), undone",
-                "Filler words: removed before “Ship”",
+                "Removed filler words: before “Ship”",
             ])
     }
 

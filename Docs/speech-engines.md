@@ -15,7 +15,7 @@ prompt; [`speech-model-install.md`](speech-model-install.md) covers installing t
 |---|---|---|
 | `BackedSpeechEngine.minimumDuration` | 250 ms | shorter audio is refused as too short |
 | `LanguageHeldDecoder.compressionRatioThresholds` | `en`: default, `hi`: 3.0 | one decision per transcribed language; default keeps Whisper's 2.4 |
-| `RecognitionLoop.fastestSpeech` | 4.8 words a second | faster than this, a repeated run is a loop |
+| `RecognitionLoop.fastestSpeech` | 5.0 words a second | faster than this, a repeated run is a loop |
 | `RecognitionLoop.mostCopyDifference` | 0.2 WER | how far copies may differ and still be one loop |
 | `RecognitionLoop.fewestCopyWords` | 3 | the shortest copy that counts |
 | `CappedDecodeRetry.tokenCapThreshold` | 215 tokens | a decode this long ran out of decoder positions |
@@ -364,11 +364,15 @@ Hindi with an English voice, so `theek` heard as `Teak.` is partly the clip.
   catch this.
 - `RecognitionLoop.undone`, run on every piece `BackedSpeechEngine` transcribes, keeps one copy
   of a repeated run when at least three copies of three or more words differ by no more than 20%
-  word error rate and the words come faster than 4.8 a second of speech. A matching trailing
+  word error rate and the words come faster than 5.0 a second of speech. A matching trailing
   partial copy is removed with the run. Exactly two copies are checked the same way. A piece that fails the speech-rate or copy-match check is left as heard. So
   a sentence really said twice at a speaking rate keeps both.
-- 4.8 words a second sits in the gap between the fastest recorded speech (4.55) and the looped
-  clip (5.07, 14 words in 2.76 s). Rates are whitespace tokens over the speech-trimmed audio
+- 5.0 words a second sits in the gap between the fastest take replayed at 1.6x (4.93) and the looped
+  clip (5.07, 14 words in 2.76 s). It was 4.8, which cut a sentence really said twice at 1.6x in
+  2 of 30 takes; at 5.0 that count is 0 of 30, and the four takes read at 2.40 to 2.48 words a
+  second, whose whole-take loop runs 4.8 to 5.0, now get through. At 1.9x the count is 13 of 30
+  at 4.8 and 8 of 30 at 5.0, so speech faster than 1.6x can still lose a copy. The next figure is the
+  unreplayed rate (fastest recorded speech 4.55). Rates are whitespace tokens over the speech-trimmed audio
   (`AudioSamples.speechOnly`), as `RecognitionLoop` counts them; a short piece keeps 0.2 s of
   margin either side, so the run and sentence figures add 0.4 s. Measured on 30 recorded takes
   read by **one speaker**, so a faster speaker can sit above them:
@@ -384,7 +388,7 @@ Hindi with an English voice, so `theek` heard as `Teak.` is partly the clip.
   (inserted words, one on the fallback ladder) are left out of the run and sentence columns.
 - A loop of a sentence comes out at twice the rate it was said. The 57 measured sentences ran
   1.61 to 4.30 a second, median 2.65, so their loops would run 3.2 to 8.6: 38 of 57 lie above
-  4.8, and 39 of 57 above the old 4.5. A loop of a slow sentence still gets through; lowering
+  4.8 (fewer at 5.0), and 39 of 57 above the old 4.5. A loop of a slow sentence still gets through; lowering
   the limit to catch it would cut a fast speaker's real repeat first.
 
 - Double quotes that open the first word and close the last are taken off when there are no
@@ -559,10 +563,40 @@ A second sweep on the same clips, noisier (`--counts 0 1 2 5 --snrs 20 5 0`, 3 r
 Word error rises with noise (1.6%, 9.4%, 17.2%) but the fallback still never fires, even at 0 dB,
 so worst-case added seconds is 0.00 for every count.
 
-On this set the fallback never fires, so no setting changes words, seconds or repeatability, and
-the shipping plan stays. The set cannot decide the question: the recorded and degradation corpora,
-Hindi, short utterances and 8 runs are not measured here, and the log-probability test still reads
-a mean that counts forced tokens.
+A third sweep adds the short-utterance and Hindi classes and runs each clip 8 times
+(`--set short|hindi|sentences --runs 8 --snrs inf 10 0`, same host and model, release build). The
+short set is 20 clips of 1 to 3 words (`ok`, `yes`, `sounds good`, `call me later`, `thank you`; four
+voices); the Hindi set is 6 Devanagari sentences by `Lekha`, scored against the Devanagari text; the
+sentence set is the 32 English clips. In every row the runs of every clip agreed (100.0% identical)
+and the fallback rate was 0.0%, with at most 0.15 s worst-case extra seconds. Rows that differ:
+
+| Set | Audio | Count | Log-prob | Mean extra s | Worst extra s | WER |
+|---|---|---|---|---|---|---|
+| short | clean, 10 dB | 0, 1, 2, 5 | -1.0, -0.7, -1.3 | 0.000 (0.009 at -0.7 clean) | 0.00 (0.10) | 11.1%, 16.7% |
+| short | 0 dB | 5, 1, 2 | -1.0 | 0.019 | 0.10 | 25.0% |
+| short | 0 dB | **0** | -1.0 | 0.019 | 0.10 | **50.0%** |
+| Hindi | clean, 10 dB | all | all | 0.000 | 0.00 | 23.5%, 41.2% |
+| Hindi | 0 dB | 5, 1, 2 | -1.0 | 0.034 | 0.15 | 85.3% |
+| Hindi | 0 dB | 0 | -1.0 | 0.034 | 0.15 | 82.4% |
+| sentences | clean, 10 dB | all | all | 0.000 | 0.00 | 0.4%, 3.3% |
+| sentences | 0 dB | 5, 1, 2 | -1.0 | 0.007 | 0.06 | 20.1% |
+| sentences | 0 dB | **0** | -1.0 | 0.007 | 0.06 | **27.5%** |
+
+- At 0 dB a window sometimes does fall back (mean extra seconds above zero while the rate rounds
+  to 0.0%), and removing the fallback raised word error on English short clips (25.0% to 50.0%) and
+  sentences (20.1% to 27.5%) while lowering it on Hindi by one word. One retry (count 1) already
+  gives the shipping result, so the ladder's depth beyond one step buys nothing measured here.
+- Run-to-run repeatability is not improved by any setting, because it was already 100.0%.
+  Nothing lands: a change needs the identical rate to rise, and it cannot.
+- Not measured: the recorded and degradation corpora (no recorded speech may be made), the
+  deterministic greedy re-decode arm, and the threshold half re-run after the segment-level signals
+  are corrected (#3567). Those remain open on the issue.
+
+On the clean and 10 dB rows no setting changes words or repeatability, and seconds change by at
+most 0.10 s; at 0 dB it sometimes fires, and one retry already gives the shipping result,
+so the shipping plan stays. The set cannot decide the question: the recorded and degradation
+corpora are not measured here, and the log-probability test still reads a mean that counts forced
+tokens.
 
 ## Per-word confidence
 

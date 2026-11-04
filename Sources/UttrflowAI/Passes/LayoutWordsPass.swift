@@ -9,14 +9,18 @@ public struct LayoutWordsPass: PieceCleaningPass {
 
     let layout: LayoutPolicy
     private let insertionState: InsertionPoint.SentenceState
+    /// Whether the text is the whole message; a piece may open after a cut, where the break it opens with is still owed.
+    private let readsWholeText: Bool
 
     /// The word that opens a numbered item. It has no row in `SpokenCommands.layout` because the number after it picks the mark.
     static let numbering = "number"
 
     public init(
-        layout: LayoutPolicy = [.paragraphs, .lists], insertionPoint: InsertionPoint = .unknown
+        layout: LayoutPolicy = [.paragraphs, .lists], insertionPoint: InsertionPoint = .unknown,
+        readsWholeText: Bool = true
     ) {
         self.layout = layout
+        self.readsWholeText = readsWholeText
         self.insertionState = insertionPoint.sentenceState
     }
 
@@ -32,7 +36,10 @@ public struct LayoutWordsPass: PieceCleaningPass {
         var position = 0
         while position < live.count {
             guard
-                let found = opening(mark(at: position, in: live, of: draft), at: position),
+                let found = opening(
+                    mark(at: position, in: live, of: draft), at: position,
+                    corroboratedByLaterBreak: position == 0 && readsWholeText
+                        && hasLaterBreak(in: live, of: draft)),
                 position + found.length < live.count,
                 isUsed(found, at: position, in: live, of: draft, among: corroborated),
                 corroborated.contains(live[position])
@@ -42,6 +49,8 @@ public struct LayoutWordsPass: PieceCleaningPass {
             }
             if found.isList {
                 removeClauseMarkBeforeList(at: position, in: live, from: &draft)
+            } else {
+                removePauseCommaBeforeBreak(at: position, in: live, from: &draft)
             }
             if let label = labelledItems[live[position]],
                 let item = Self.itemNumber(at: position + 1, in: live, of: draft)
@@ -69,6 +78,7 @@ public struct LayoutWordsPass: PieceCleaningPass {
             position += 1
         }
         layOutEnumeratedSeries(&draft)
+        layOutLetteredItems(&draft)
         if layout.contains(.singleLine) { Self.joinOnOneLine(&draft, by: Self.id) }
         return draft
     }
@@ -105,7 +115,7 @@ public struct LayoutWordsPass: PieceCleaningPass {
     }
 
     /// Removes a comma or semicolon stranded before a list marker.
-    private func removeClauseMarkBeforeList(at position: Int, in live: [Int], from draft: inout Draft) {
+    func removeClauseMarkBeforeList(at position: Int, in live: [Int], from draft: inout Draft) {
         guard position > 0 else { return }
         let previous = live[position - 1]
         let shape = draft.shape(at: previous)
@@ -115,6 +125,28 @@ public struct LayoutWordsPass: PieceCleaningPass {
         else { return }
         let suffix = shape.suffix.filter { $0 != clauseMark }
         draft.replace(at: previous, with: shape.prefix + shape.core + suffix, by: Self.id)
+    }
+
+    /// Removes the recogniser's comma ending a line a spoken break opened, before the next break: it marks the pause the break writes.
+    private func removePauseCommaBeforeBreak(at position: Int, in live: [Int], from draft: inout Draft) {
+        guard position > 0 else { return }
+        let previous = live[position - 1]
+        let shape = draft.shape(at: previous)
+        guard !shape.core.isEmpty, shape.suffix.hasSuffix(","),
+            !draft.words[previous].edits.contains(where: { $0.by == SpokenPunctuationPass.id }),
+            Self.lineOpensOnBreak(before: previous, in: draft)
+        else { return }
+        draft.replace(at: previous, with: shape.prefix + shape.core + shape.suffix.dropLast(), by: Self.id)
+    }
+
+    /// Whether the line holding the word at `index` was opened by a spoken break, written or dropped at the head of the text.
+    private static func lineOpensOnBreak(before index: Int, in draft: Draft) -> Bool {
+        for earlier in draft.words.indices[..<index].reversed() {
+            let word = draft.words[earlier]
+            let opensLine = word.isPresent ? word.isLayoutMark : word.edits.contains { $0.by == Self.id }
+            if opensLine { return true }
+        }
+        return false
     }
 
     /// Labels that repeat before a corroborated, consecutive sequence of numbered items.
@@ -152,7 +184,8 @@ public struct LayoutWordsPass: PieceCleaningPass {
 
     /// At the head, a break depends on the insertion point; an item number keeps its existing behavior.
     private func opening(
-        _ found: (length: Int, mark: String, isList: Bool)?, at position: Int
+        _ found: (length: Int, mark: String, isList: Bool)?, at position: Int,
+        corroboratedByLaterBreak: Bool
     ) -> (length: Int, mark: String, isList: Bool)? {
         guard let found, position == 0 else { return found }
         guard found.mark.allSatisfy(\.isNewline) else { return found }
@@ -162,7 +195,18 @@ public struct LayoutWordsPass: PieceCleaningPass {
         case .startOfSentence, .midSentence:
             return found
         case .unknown:
-            return nil
+            // A break said again later shows the first was dictated layout, not a mention.
+            return corroboratedByLaterBreak ? (found.length, "", found.isList) : nil
+        }
+    }
+
+    /// Whether another line break is spoken after the phrase opening the text.
+    private func hasLaterBreak(in live: [Int], of draft: Draft) -> Bool {
+        guard let first = mark(at: 0, in: live, of: draft) else { return false }
+        return live.indices.dropFirst(first.length).contains { position in
+            guard let later = mark(at: position, in: live, of: draft), later.mark.allSatisfy(\.isNewline)
+            else { return false }
+            return !later.mark.isEmpty
         }
     }
 
@@ -172,7 +216,11 @@ public struct LayoutWordsPass: PieceCleaningPass {
         among corroborated: Set<Int>
     ) -> Bool {
         let length = found.length
-        if position == 0, found.mark.allSatisfy(\.isNewline), insertionState != .unknown { return true }
+        if position == 0, found.mark.allSatisfy(\.isNewline),
+            insertionState != .unknown || found.mark.isEmpty
+        {
+            return true
+        }
         // Asked of the sentence, not the text, so a sentence before it cannot turn "number one is broken" into an item.
         guard position == 0 || draft.shape(at: live[position - 1]).endsSentence else {
             return Self.asksForLayout(at: position, spanning: length, in: live, of: draft)
@@ -236,6 +284,15 @@ public struct LayoutWordsPass: PieceCleaningPass {
         _ found: (length: Int, mark: String, isList: Bool), at position: Int, in live: [Int], of draft: Draft
     ) -> Bool {
         if position == 0 { return true }
+        // A sub-item is set off by the item it nests under: a bullet or a numbered item said before it.
+        if found.mark.drop(while: \.isNewline).first == " ",
+            live.indices[..<position].contains(where: { other in
+                guard let earlier = mark(at: other, in: live, of: draft), earlier.isList else { return false }
+                return earlier.mark.drop(while: \.isNewline).first != " "
+            })
+        {
+            return true
+        }
         let before = draft.shape(at: live[position - 1])
         if before.endsClause && (!before.endsSentence || WordShape.trailsOff(before.suffix)) { return true }
         if draft.shape(at: live[position + found.length - 1]).endsClause { return true }
@@ -317,9 +374,10 @@ public struct LayoutWordsPass: PieceCleaningPass {
             draft.spells($0.words, at: position, in: live) && (allowsLists || !$0.requiresLists)
         }) {
             // At the head of the text an item has no line to break from.
-            let text =
+            let text = draft.nestedMark(
                 position == 0 && found.requiresLists
-                ? String(found.text.drop(while: \.isNewline)) : found.text
+                    ? String(found.text.drop(while: \.isNewline)) : found.text,
+                before: live[position])
             return (found.words.count, text, found.requiresLists)
         }
         guard draft.shape(at: live[position]).key == Self.numbering, position + 1 < live.count,
@@ -330,8 +388,24 @@ public struct LayoutWordsPass: PieceCleaningPass {
         return (item.count + 1, "\(lineBreak)\(item.value). ", true)
     }
 
-    /// The item number, spoken or already a numeral, and how many words it took. See `Docs/cleanup.md`.
+    /// The item number, spoken or already a numeral, and how many words it took. A number said straight before a copula or an auxiliary is the subject of a clause, not a marker. See `Docs/cleanup.md`.
     static func itemNumber(
+        at position: Int, in live: [Int], of draft: Draft
+    ) -> (value: Int, count: Int)? {
+        // A mark an earlier run wrote is a laid-out item, not a numeral said after "number".
+        guard live.indices.contains(position), !draft.words[live[position]].isLayoutMark else { return nil }
+        guard let number = spokenNumber(at: position, in: live, of: draft) else { return nil }
+        let next = position + number.count
+        if live.indices.contains(next), predicateOpeners.contains(draft.shape(at: live[next]).key) {
+            return nil
+        }
+        return number
+    }
+
+    /// Auxiliaries that open the predicate of a clause; "do" and "have" are left out since a list item can open on them as a command.
+    static let predicateOpeners = FunctionWords.auxiliaries.subtracting(["do", "have"])
+
+    private static func spokenNumber(
         at position: Int, in live: [Int], of draft: Draft
     ) -> (value: Int, count: Int)? {
         guard live.indices.contains(position) else { return nil }

@@ -25,6 +25,24 @@ struct SelfCorrectionPassTests {
     }
 
     @Test(
+        "keeps a restart that opens a clause of its own, so no second predicate joins the lead",
+        arguments: [
+            (
+                "I'll take the red one, no, the blue one is better",
+                "I'll take the red one, no, the blue one is better"
+            ),
+            (
+                "I'll take the red one, no, the blue one, no actually the green one is better",
+                "I'll take the blue one no actually the green one is better"
+            ),
+            ("the red one, no, the blue one is better", "the blue one is better"),
+        ]
+    )
+    func keepsRestartThatOpensClause(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
         "replaces a restated phrase with its restatement",
         arguments: [
             ("let's meet at four no sorry at five on tuesday", "let's meet at five on tuesday"),
@@ -34,6 +52,10 @@ struct SelfCorrectionPassTests {
             ("the blue, actually green", "the green"),
             ("the red, no blue", "the blue"),
             ("meet on Friday scratch that Thursday", "meet on Thursday"),
+            ("The review is Thursday no wait Friday.", "The review is Friday."),
+            ("We ship Thursday no wait Friday.", "We ship Friday."),
+            ("Let's meet Thursday, no wait, Friday.", "Let's meet Friday."),
+            ("Let's meet Monday wait no Tuesday at three.", "Let's meet Tuesday at three."),
             ("at four never mind at five", "at five"),
             ("at four wait sorry at five", "at five"),
             ("at four no wait at five", "at five"),
@@ -177,6 +199,20 @@ struct SelfCorrectionPassTests {
         ]
     )
     func replacesNumber(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "takes back the half before \"wait no\" as it does before \"no wait\"",
+        .bug(id: 8112),
+        arguments: [
+            ("book the room for thursday wait no friday", "book the room for friday"),
+            ("Book the room for Thursday, wait, no, Friday.", "Book the room for Friday."),
+            ("Book the room for Thursday wait no Friday.", "Book the room for Friday."),
+            ("at four wait no at five", "at five"),
+        ]
+    )
+    func takesBackBeforeWaitNo(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
     }
 
@@ -440,6 +476,23 @@ struct SelfCorrectionPassTests {
         #expect(sut.apply(draft).text == input)
         #expect(
             punctuation.apply(sut.apply(draft)).text == sut.apply(punctuation.apply(draft)).text)
+    }
+
+    @Test(
+        "keeps the word a one-word casing command covers and the words no caps after it",
+        arguments: [
+            "all caps urgent no caps please reply",
+            "all caps urgent and no caps please reply",
+            "all caps urgent no caps",
+        ]
+    )
+    func keepsCasingOperand(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    @Test("still applies an explicit correction of the word a casing command covers")
+    func correctsCasingOperand() {
+        #expect(cleaned("all caps monday no wait tuesday", by: sut) == "all caps tuesday")
     }
 
     @Test("records the discarded half and the trigger as removed by this pass")

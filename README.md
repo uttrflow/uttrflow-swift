@@ -360,10 +360,11 @@ tools, the tests, the pre-push gate — and `make app` — never need the Metal 
 ## Privacy
 
 Dictation happens entirely on your Mac. **Audio is kept on this Mac for a day, and only so a
-failed dictation can be retried**: every recording is written beside the buffer the
-recogniser reads and deleted the moment the words land. If the words are lost — the
-recogniser fails, or the app dies mid-dictation — the recording stays for a day and sits at
-the top of the Dictation page with a Retry. The recording is encrypted in authenticated
+dictation can be retried**: every recording is written beside the buffer the recogniser
+reads. If the words are lost — the recogniser fails, or the app dies mid-dictation — the
+recording sits at the top of the Dictation page with a Retry. If they land, it stays so a word
+fixed from History can be retried. Either way it is deleted after a day, and a password
+field's audio at once. The recording is encrypted in authenticated
 chunks with a device-only Keychain key; nothing about it leaves the Mac. See
 [`Docs/recordings.md`](Docs/recordings.md). The text is kept locally so you can copy or
 re-insert it, and deleted after its retention window. Your dictionary, your history and

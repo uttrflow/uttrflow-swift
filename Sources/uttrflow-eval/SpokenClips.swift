@@ -31,29 +31,37 @@ enum SpokenClips {
 
     /// Every voice reading every sentence, written to `path` at `inputRate` and read back as canonical samples.
     static func generate(in path: String, inputRate: Double) throws -> [SpokenClip] {
-        let directory = URL(fileURLWithPath: path)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         var clips: [SpokenClip] = []
         for voice in voices {
             for (index, sentence) in sentences.enumerated() {
-                let url = directory.appendingPathComponent("\(voice)-\(index).wav")
-                if !FileManager.default.fileExists(atPath: url.path) {
-                    let say = Process()
-                    say.executableURL = URL(fileURLWithPath: "/usr/bin/say")
-                    say.arguments = [
-                        "-v", voice, "-o", url.path, "--data-format=LEF32@\(Int(inputRate))", sentence,
-                    ]
-                    try say.run()
-                    say.waitUntilExit()
-                    guard say.terminationStatus == 0 else {
-                        throw CleanExit.message("say failed for voice \(voice).")
-                    }
-                }
-                let audio = try AudioFileReader.read(contentsOf: url)
                 clips.append(
-                    SpokenClip(samples: audio.samples, words: TextNormaliser.standard.words(sentence)))
+                    try speak(
+                        sentence, voice: voice, name: "\(voice)-\(index)", in: path, inputRate: inputRate))
             }
         }
         return clips
+    }
+
+    /// One phrase in one voice, synthesised once under `name` and reused on later runs.
+    static func speak(
+        _ phrase: String, voice: String, name: String, in path: String, inputRate: Double
+    ) throws
+        -> SpokenClip
+    {
+        let directory = URL(fileURLWithPath: path)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let url = directory.appendingPathComponent("\(name).wav")
+        if !FileManager.default.fileExists(atPath: url.path) {
+            let say = Process()
+            say.executableURL = URL(fileURLWithPath: "/usr/bin/say")
+            say.arguments = ["-v", voice, "-o", url.path, "--data-format=LEF32@\(Int(inputRate))", phrase]
+            try say.run()
+            say.waitUntilExit()
+            guard say.terminationStatus == 0 else {
+                throw CleanExit.message("say failed for voice \(voice).")
+            }
+        }
+        let audio = try AudioFileReader.read(contentsOf: url)
+        return SpokenClip(samples: audio.samples, words: TextNormaliser.standard.words(phrase))
     }
 }

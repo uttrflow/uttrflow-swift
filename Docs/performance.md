@@ -207,12 +207,11 @@ model is released, reloaded and kept off a Mac under pressure is in
 | after turning suggestions off | back to the idle line within a second | same |
 
 The speech model fits inside the first two lines with room to spare, so it stays loaded between
-dictations. `AppDelegate` lets the recogniser go under memory pressure unless a dictation is under
-way; the next key-down loads it again, which costs 2–9 s with the Neural Engine compile cached,
-and the app shows the model as loading until it is ready. A critical reading always releases it.
-A warning releases it only once the last reload has held for the wait of the same
-`ModelMemoryPressure` policy the suggestion model uses (120 s, doubling to 1,800 s while reloads
-keep being followed by pressure), so frequent warnings cannot make every dictation pay a reload.
+dictations. `AppDelegate` lets the recogniser go only at critical pressure, unless a dictation is under way, and
+only once the last reload has held for the wait of the same `ModelMemoryPressure` policy the
+suggestion model uses (120 s, doubling to 1,800 s while reloads keep being followed by pressure),
+because a reload can recompile for minutes ([`startup.md`](startup.md)). Calm reloads it in the
+background after that wait, and a key-down before that loads it; no surface says loading meanwhile.
 
 The suggestion model is what the budget is about: on an 8 GB Mac its 3 GB is close to half of all
 memory, so nothing loads it for somebody who never asked, and turning the feature off releases its
@@ -418,6 +417,33 @@ and up to the 30 s window, because a shorter pause ends a window only after 15 s
 measured on speech with long pauses therefore understate the wait for fluent speakers. The same run
 on public read speech with word alignments takes `--alignments <file>` (group, speaker, utterance,
 word, start, end, tab-separated, fetched at measurement time and never committed).
+
+## Microphone opening budget
+
+`microphoneOpen` is the time `AVAudioCaptureEngine.start()` takes to return: the audio graph is built,
+the input format read, the tap installed and the engine started, while the user is already speaking.
+It is read per input transport, not from a bench run, so it has its own table and the source audit
+holds it to the same rule as the stage table: the budget is the measured p95 times `LATENCY_HEADROOM`.
+The first sample after `start()` returns is a separate figure, the audio-capture measurement of
+first-second delivery on each input, and is not budgeted here.
+
+Measured by `uttrflow-dev latency --opens 30 --device <UID>` on a release build, 30 opens per row; a
+cold row adds `--idle 60`. The row below is the built-in microphone, measured at commit `82d614c21`
+on an Apple M5 Pro under a load average of 11 to 55 (other builds were running), so these are
+loaded-machine figures; re-run on a quiet Mac before a decision rests on them.
+
+| stage | p95 s | budget s | samples |
+|---|---|---|---|
+| `microphoneOpen` | 0.444 | 0.533 | 30 |
+
+The row is the cold built-in microphone (60 s closed before each opening). The warm run read
+p50 165 ms, p95 304 ms; the cold run p50 218 ms, p95 444 ms. A wired or USB microphone, a Bluetooth
+headset and a virtual or aggregate device were not available on the measuring Mac, so those
+transports have no figure and no budget: the probe takes any of them through `--device`. What happens to the first words on a transport slower than
+the built-in microphone cannot be stated without that figure. On the built-in microphone the opening
+is about a fifth of a second at p50 and under half a second at p95, during which the user is already
+speaking. In the same runs, with `--device` naming the built-in microphone, 24 of 30 warm and 8 of 30
+cold openings saw no sample within 5 s; the cause is not established.
 
 ## Processor
 

@@ -216,7 +216,7 @@ struct SidebarRow: View {
         .onHover { isHovered = $0 }
         .help(item.title)
         .accessibilitySelection(isSelected)
-        .accessibilityLabel(item.badge.map { "\(item.title), \($0) changes today" } ?? item.title)
+        .accessibilityLabel(item.accessibilityLabel)
     }
 
     @ViewBuilder private var content: some View {

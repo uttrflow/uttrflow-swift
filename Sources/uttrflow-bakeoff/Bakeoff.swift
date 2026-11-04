@@ -43,10 +43,11 @@ struct Bakeoff: AsyncParsableCommand {
         help: "Score only the case with this id, listing why it failed; nothing is stored.")
     var caseID: String?
 
-    /// The cases this run scores: the whole corpus, or the one `--case` names.
+    /// The cases this run scores: the whole corpus and the snippet cases, or the one `--case` names.
     var scored: [EvaluationCase] {
-        guard let caseID else { return EvaluationCorpus.all }
-        return EvaluationCorpus.all.filter { $0.id == caseID }
+        let corpus = EvaluationCorpus.all + EvaluationCorpus.snippet
+        guard let caseID else { return corpus }
+        return corpus.filter { $0.id == caseID }
     }
 
     @Option(
@@ -325,7 +326,7 @@ struct Bakeoff: AsyncParsableCommand {
                 return .declined
             }
             return .produced(
-                try await formatted(request) { request in
+                try await formatted(testCase, through: router) { request in
                     let result = try await router.transform(request)
                     refusals.add(result.cleaning?.refusals ?? [], in: testCase.category)
                     return result.text
@@ -338,13 +339,16 @@ struct Bakeoff: AsyncParsableCommand {
     /// Scores the rules floor on bare and recogniser-shaped input side by side, naming what only the shape breaks.
     private func compareShapes() async {
         let rules = RuleBasedTransformer()
+        let rulesRouter = TransformerRouter(engines: [rules], preference: [.rules])
         var reports: [InputShape: EvaluationReport] = [:]
         for shape in InputShape.allCases {
             reports[shape] = await EvaluationRunner(cases: scored, shape: shape).run(
                 label: shape.rawValue, onFailure: EvaluationFailureDiagnostic.write
             ) {
                 testCase in
-                .produced(try await formatted(request(for: testCase)) { try await rules.transform($0).text })
+                .produced(
+                    try await formatted(testCase, through: rulesRouter) { try await rules.transform($0).text }
+                )
             }
         }
         guard let bare = reports[.bare], let shaped = reports[.recogniser] else { return }
@@ -364,7 +368,7 @@ struct Bakeoff: AsyncParsableCommand {
             label: CandidateDescription.shipping.name, onFailure: EvaluationFailureDiagnostic.write
         ) {
             testCase in
-            .produced(try await formatted(request(for: testCase)) { try await router.transform($0).text })
+            .produced(try await formatted(testCase, through: router) { try await router.transform($0).text })
         }
         return Measurement(description: .shipping, report: report)
     }
@@ -392,6 +396,7 @@ struct Bakeoff: AsyncParsableCommand {
         print("  ready in \(seconds(loadStart.duration(to: clock.now)))s")
 
         let transformer = TextTransformers.local(cleanup)
+        let alone = TransformerRouter(engines: [transformer], preference: [transformer.kind])
         let report = await runRepeated(
             label: description.name,
             onCase: { _ in FileHandle.standardError.write(Data(".".utf8)) }
@@ -401,7 +406,9 @@ struct Bakeoff: AsyncParsableCommand {
                 return .declined
             }
             do {
-                return .produced(try await formatted(request) { try await transformer.transform($0).text })
+                return .produced(
+                    try await formatted(testCase, through: alone) { try await transformer.transform($0).text }
+                )
             } catch {
                 // Say why: a rewrite thrown away for the wrong reason is invisible in a score.
                 FileHandle.standardError.write(
@@ -435,10 +442,16 @@ struct Bakeoff: AsyncParsableCommand {
         return first ?? EvaluationReport(label: label, scores: [], durations: [])
     }
 
-    /// What a candidate writes, or the words as heard when the formatting layer is off, as the pipeline leaves them.
+    /// What a candidate writes, the pipeline's own text for a snippet case, or the words as heard with formatting off.
     private func formatted(
-        _ request: TransformationRequest, by tidy: (TransformationRequest) async throws -> String
+        _ testCase: EvaluationCase, through cleaner: any TranscriptCleaning,
+        by tidy: (TransformationRequest) async throws -> String
     ) async throws -> String {
+        guard testCase.snippets.isEmpty else {
+            return await testCase.written(
+                through: cleaner, layers: running, withholdingContext: ignoreContext)
+        }
+        let request = request(for: testCase)
         guard running.isOn(.formatting) else { return request.transcription.text }
         return try await tidy(request)
     }

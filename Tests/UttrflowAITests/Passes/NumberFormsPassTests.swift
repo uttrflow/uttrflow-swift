@@ -257,6 +257,23 @@ struct NumberFormsPassTests {
     }
 
     @Test(
+        "a pronoun one before with or for stays a word whatever noun follows",
+        arguments: [
+            ("One with the code and one with the price.", "One with the code and one with the price."),
+            ("One with the code and one with the currency.", "One with the code and one with the currency."),
+            (
+                "One with the coupon code and one with the currency format.",
+                "One with the coupon code and one with the currency format."
+            ),
+            ("one for the price and one for the cost", "one for the price and one for the cost"),
+        ]
+    )
+    func pronounOneBeforePreposition(input: String, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass(policy: .always)) == expected)
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
         "a small amount in another currency or unit is a numeral in prose",
         arguments: [
             ("it costs five yen", "it costs 5 yen"),
@@ -373,6 +390,23 @@ struct NumberFormsPassTests {
         ]
     )
     func havingEndsALabelCue(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "a conjunction ends the label cue, so a pronoun one in the next conjunct stays a word",
+        arguments: [
+            ("one with the code and one with the format", "one with the code and one with the format"),
+            (
+                "one with the coupon code and one with the currency format",
+                "one with the coupon code and one with the currency format"
+            ),
+            ("enter the code and one more thing", "enter the code and one more thing"),
+            ("the code or one of the others", "the code or one of the others"),
+            ("room three and four", "room 3 and 4"),
+        ]
+    )
+    func conjunctionEndsALabelCue(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
     }
 
@@ -551,6 +585,7 @@ struct NumberFormsPassTests {
         "writes a spoken dot between digit groups as a dot when three groups or a cue say so",
         arguments: [
             ("one nine two dot one six eight dot one dot one", "192.168.1.1"),
+            ("one nine two dot one six eight dot one dot one hundred", "192.168.1.100"),
             ("the ip is ten dot zero dot zero dot one", "the ip is 10.0.0.1"),
             ("install two dot one dot three", "install 2.1.3"),
             ("version two dot five", "version 2.5"),
@@ -563,6 +598,19 @@ struct NumberFormsPassTests {
         ]
     )
     func dottedNumbers(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "writes a pre-release suffix after a spoken version as a hyphenated label",
+        arguments: [
+            ("the version is two point zero point zero dash rc dot one", "the version is 2.0.0-rc.1"),
+            ("tag it one point two point three dash alpha dot two", "tag it 1.2.3-alpha.2"),
+            ("install two dot one dot three dash beta", "install 2.1.3-beta"),
+            ("install two point one point three dash everything", "install 2.1.3 dash everything"),
+        ]
+    )
+    func preReleaseSuffix(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
     }
 
@@ -797,6 +845,27 @@ struct NumberFormsPassTests {
         ]
     )
     func dottedTimeCuesAndQuantities(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "writes a dotted time with its meridiem attached, and the end of a from-to range, as a clock time",
+        .bug(id: 8058),
+        arguments: [
+            ("on the 21st of November at 2.30pm.", "on the 21st of November at 2:30pm."),
+            ("see you at 3.30pm tomorrow", "see you at 3:30pm tomorrow"),
+            ("the call is 9.15am sharp", "the call is 9:15am sharp"),
+            ("we meet from 10 to 11.30 in the main room", "we meet from 10 to 11:30 in the main room"),
+            ("open between 9 and 11.30 daily", "open between 9 and 11:30 daily"),
+            ("open from 9.30 to 11.30 daily", "open from 9:30 to 11:30 daily"),
+            ("it grew from 10 to 11.30 percent", "it grew from 10 to 11.30%"),
+            ("it cost from 10 to 11.30 dollars", "it cost from 10 to 11.30 dollars"),
+            ("he ran 2.30pmx", "he ran 2.30pmx"),
+            ("the ratio went to 11.30", "the ratio went to 11.30"),
+            ("from 10, to 11.30", "from 10, to 11.30"),
+        ]
+    )
+    func attachedMeridiemAndRangeEndTimes(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
     }
 

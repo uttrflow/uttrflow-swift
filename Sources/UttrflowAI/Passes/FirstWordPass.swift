@@ -90,6 +90,13 @@ public struct FirstWordPass: WholeTextCleaningPass {
                 isFirst = false
                 continue
             }
+            if lineOpening, WordShape(word.text).isBracketedEnumerator {
+                // A clause's enumerator keeps its case, and the words after it carry on the clause.
+                startOfSentence = false
+                afterPause = false
+                isFirst = false
+                continue
+            }
             let letterAdjacent = Self.hasLetterNameBesideI(at: order, in: present, of: draft)
             if letterAdjacent, !isFirst, !startOfSentence, WordShape(word.text).key == "i" {
                 let cased = WordShape(word.text).replacingCore(with: "i")
@@ -136,9 +143,12 @@ public struct FirstWordPass: WholeTextCleaningPass {
                 let framedName = casing.framedForm(cased, at: index, in: draft) != nil
                 // Devanagari has no case, so a capital on a word heard in it comes from loanword restoration, never from the recogniser.
                 let restored = word.origin == .devanagari
+                // A capital after a colon opens what the colon introduces, as a list item's first word.
+                let afterColon =
+                    order > 0 && WordShape(draft.words[present[order - 1]].text).suffix.hasSuffix(":")
                 // A date the number pass wrote, as "March fifth", owes its capital to that pass, never to the recogniser.
                 let keepsCase =
-                    afterPause || framedName || restored || reasonWords[index] != nil
+                    afterPause || afterColon || framedName || restored || reasonWords[index] != nil
                     || Self.isWritten(by: NumberFormsPass.id, word)
                 let unstrayed = keepsCase ? cased : strayCapitalLowered(cased, in: text)
                 cased = Self.properNameCapitalised(

@@ -2,7 +2,7 @@
 
 At launch `AppDelegate` asks `DictationPipeline.prepare()` (`Sources/UttrflowPipeline/`) to load
 the speech model into memory, and dictation cannot start until that load ends. The first load
-after a restart takes minutes, so every surface says so: the words live in `SpeechModelLoad` and
+can take minutes, so every surface says so: the words live in `SpeechModelLoad` and
 the pacing in `SpeechModelLoadEstimate` (`Sources/UttrflowCore/Models/`), readiness in
 `SpeechModelReadiness` (`Sources/UttrflowUX/MenuBarPresentation.swift`), and the load itself in
 `WhisperKitBackend` (`Sources/UttrflowSpeech/`). Related: [`app-dock.md`](app-dock.md) for the
@@ -30,6 +30,22 @@ Measured with the default model (`SpeechModel.default`,
 |---|---|
 | first load after boot, cold page cache | 154 s |
 | every load after that, warm | 2.1 s |
+
+The compile is not always reused, and nothing in this repository deletes or bypasses it: the cache
+belongs to the system. `uttrflow-dev load-priority --runs 1` and the built app, Apple M5 Pro, 25F80,
+one-minute load average 33 to 67, each row the time to the end of the first load:
+
+| since the last load | time |
+|---|---|
+| nothing changed, moments ago | 3 s |
+| new build, same bundle identifier, minutes ago | 2 s |
+| same binary, another directory | 7 s |
+| same binary, signed with a new identifier | 270 s |
+| same binary, model at a new folder | 438 s |
+
+The load log (`speech-model-loads.v1.json`) also records loads of 131 to 176 s with the same macOS
+build and model revision, one inside a single process, so a compile can recur with nothing changed.
+What evicts it is not established ([#8183](https://github.com/uttrflow/uttrflow-swift/issues/8183)).
 
 The model is already on disk, so none of this is download: it is CoreML specialising the encoder
 and decoder and paging 632 MB of weights in, and the lever is the model, not this code. The same
@@ -62,20 +78,30 @@ load average 10 are not measured yet, so the launch load keeps the default prior
 `applicationDidFinishLaunching` starts watching for the shortcut before it asks the pipeline to
 prepare, so a quick user can already be dictating when `prepare()` is called. The load runs
 regardless; only the move to the `failed` state is withheld while a dictation is under way, because
-failing a live recording would be wrong. `DictationPipeline.startRecording` declines while the
-pipeline's own load is running (`isLoading`) and says so with the `stillLoading` failure; a
-pipeline nobody prepared still records and loads on demand.
+failing a live recording would be wrong. A press during a load records, so no speech is lost:
+the piece's transcription first waits for the load under `StageTimeout.speechModelLoad`, outside the
+recognition limit. When the words have waited for a load they go to the application read at key-down;
+if the person has moved to another one, they are copied and the outcome says so, never typed there.
 
 A load that never returns is a failed load too. `prepare()` waits at most
-`StageTimeout.speechModelLoad`, 300 seconds, about twice the cold load measured above, and then
+`StageTimeout.speechModelLoad`, 600 seconds, past the slowest compile measured above, and then
 fails with `modelLoadFailed`. It stops waiting instead of cancelling and waiting for the cancel,
 because a blocked recogniser load does not answer a cancel. The abandoned load finishes whenever it
 can, and a load that finishes late is ignored.
 
+## A model let go under pressure
+
+A release under memory pressure leaves the readiness as it was: dictation still works, since a
+press reloads the model, and saying "Getting ready" with no load running would hold until the next
+press. Only a critical reading releases it, and not again until the last reload has held, since a
+reload can recompile for minutes. Calm reloads it in the background, on the wait `ModelMemoryPressure` sets, which doubles
+while reloads keep being followed by pressure. Each release and reload logs one `notice` under the
+`speech` category, read back with `/usr/bin/log show` as above.
+
 ## What a person is told during the load
 
-The menu bar is only seen when somebody opens it, so the load is also said wherever a person would
-try to dictate. Every surface reads the same `SpeechModelReadiness`, turned into `SpeechModelLoad`,
+The floating button does not announce a load: dictation works through it, so it draws what it would
+draw anyway. The menu bar and Home say it. Every surface reads the same `SpeechModelReadiness`, turned into `SpeechModelLoad`,
 the one home for the words and for when the minutes are said.
 
 | `SpeechModelLoad` | `title` (a window's heading) | `line` (floating button) | `status` (Home's ring) | `recovery` |
@@ -88,8 +114,8 @@ the one home for the words and for when the minutes are said.
 | Where | While loading | After a failed load |
 | --- | --- | --- |
 | Home (`HomeModelStatus.load`) | "Getting ready…" over a sliding bar, "Loading the speech model" under it | "Try again" after the first failure, "Download again" once it is broken |
-| Floating button | `line` and `detail` | `line`, "Dictation can’t start without it" |
-| Shortcut or button pressed | "Speech model still loading…" (`SpeechModelLoad.refusal`) through the notice every dictation failure uses; the microphone never opens | dictation starts, and the recogniser tries the load again on demand |
+| Floating button | as at rest | `line`, "Dictation can’t start without it" |
+| Shortcut or button pressed | the recording starts, and the words arrive once the load ends | dictation starts, and the recogniser tries the load again on demand |
 | Clipboard panel microphone | off: "Speech model still loading" | off, as for a model that is not ready |
 | Menu bar status | "Getting ready…", then the estimate | "Speech model didn't load", with **Try again**; "Download again" once broken |
 
@@ -130,11 +156,10 @@ guess paced to a typical cold load:
 | Where | Past five seconds |
 | --- | --- |
 | Home | "Getting ready · about 1 min left", under it "Only after a restart. Everything else already works.", and the bar filled to the estimate. Holding: "Almost ready…" |
-| Floating button | a ring filled to the estimate, and the short time left |
 | Menu bar | the same heading as Home over a bar filled to the estimate |
-| A dictation refused during the load | "Speech model still loading…", and under it the time left |
+| A dictation waiting for its words | the floating button's usual working state |
 
-The floating button and the menu bar redraw once a second while the load runs, from `AppDelegate`'s
+The menu bar redraws once a second while the load runs, from `AppDelegate`'s
 `speechLoadTicker`, which starts at `estimateAfter` and ends with the load; nothing ticks once the
 model is ready. Home is not redrawn by that ticker, because redrawing the main window rebuilds every
 page from the whole history. Its status block in `HomeHeroView` carries the load's start and runs
@@ -181,5 +206,20 @@ takes 100 ms or more. Measured on an Apple M5 Pro, 48 GB, debug build, the build
 store whose setup adds about 85 ms trips it. Work that is not needed before the shortcut works
 belongs behind it, in the tasks `applicationDidFinishLaunching` starts after the first window.
 
-No budget is set yet for the whole time to the shortcut: that needs `uttrflow-dev launch` readings
-cold (after a restart) and warm on the base 8 GB Mac, which are not recorded here.
+### Time to the shortcut: readings and budget
+
+`uttrflow-dev launch --app dist/Uttrflow.app --runs 7`, on an Apple M5 Pro, 48 GB, a `make app`
+bundle, on an idle Mac with a warm page cache:
+
+| | min | median | max |
+|---|---|---|---|
+| warm, 7 launches | 945 ms | 996 ms | 2353 ms |
+
+The first launch of a run is the slow one (2353 ms): the next six sit between 945 ms and 1292 ms.
+
+- **Budget: the median of a warm run is under 2000 ms**, twice the reading above, so a launch-path
+  addition that doubles the time to the shortcut shows. The 100 ms store-setup check above stays the
+  tight gate; this one is the whole-launch guard, read by hand with the command above.
+- **Not measured yet** (owed, tracked in #8175): a cold launch (after a restart) and any
+  reading on the base 8 GB Mac. Until both are recorded the budget is set from the one Mac above and
+  is a ceiling for it, not a promise for every Mac.

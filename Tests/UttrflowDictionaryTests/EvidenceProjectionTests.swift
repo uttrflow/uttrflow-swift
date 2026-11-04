@@ -98,7 +98,10 @@ struct EvidenceProjectionTests {
         for (day, step) in steps.enumerated() {
             let stored: DictionaryEntry?
             switch step {
-            case .use: stored = try await store.recordUse(of: entry.id)
+            case .use:
+                // A ledger use is an accepted use: applied, then left unedited.
+                try await store.recordUse(of: entry.id)
+                stored = try await store.recordAccepted(of: [entry.id]).first
             case .revert: stored = try await store.recordRevert(of: entry.id)
             case .restore: stored = try await store.restore(entry.id)
             }

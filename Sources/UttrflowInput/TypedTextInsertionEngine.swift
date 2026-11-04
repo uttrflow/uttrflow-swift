@@ -37,12 +37,13 @@ public struct TypedTextInsertionEngine: TextInsertionEngine {
         self.finishWaitStarted = finishWaitStarted
     }
 
-    /// Anything but ourselves, a focused control or a modal editor; Electron apps expose no focused element and still take typing.
+    /// Anything but ourselves, a focused control, a modal editor or a listed class with no readable field; other apps that expose no focused element still take typing.
     public func canInsert() async -> Bool {
         guard !focus.isSelfFrontmost() else { return false }
         let focus = focus
         let kind = await AccessibilityThread.run(orElse: .unpublished) { focus.focusedElementKind() }
-        return kind != .control && !Self.keysMayBeCommands(in: focus.focusedApplication())
+        let title = await AccessibilityThread.run(orElse: nil) { focus.focusedWindowTitle() }
+        return Self.mayType(kind, in: focus.focusedApplication(), windowTitle: title)
     }
 
     /// Reads the caret back after typing, since a key event posted is not a character accepted. See `Docs/insertion.md`.
@@ -174,10 +175,25 @@ private final class TypedWriteState: Sendable {
 extension TypedTextInsertionEngine {
     /// Re-checked at the write rather than trusted from `canInsert()`, whose answer can go stale by now.
     private func refuseIfNotTypable() throws(TextInsertionError) {
-        guard !focus.isSelfFrontmost(), focus.focusedElementKind() != .control else {
+        let kind = focus.focusedElementKind()
+        guard !focus.isSelfFrontmost(),
+            Self.mayType(kind, in: focus.focusedApplication(), windowTitle: focus.focusedWindowTitle())
+        else {
             throw .noFocusedTextField
         }
-        guard !Self.keysMayBeCommands(in: focus.focusedApplication()) else { throw .noFocusedTextField }
+    }
+
+    /// The one answer both checks give: no control, no app whose keys are commands, no listed class with an unread field.
+    static func mayType(
+        _ kind: FocusedElementKind, in application: InsertionDestination?, windowTitle: String? = nil
+    ) -> Bool {
+        guard kind != .control, !keysMayBeCommands(in: application),
+            !heldByFullScreenProgram(application, windowTitle: windowTitle)
+        else { return false }
+        guard kind == .unpublished, let application else { return true }
+        return !DestinationClassifier.refusesUnreadField(
+            in: AppContext(
+                applicationName: application.applicationName, bundleIdentifier: application.bundleIdentifier))
     }
 
     /// Whether the table marks the app as one whose mode may turn typed letters into commands. See `Docs/compatibility.md`.
@@ -186,6 +202,12 @@ extension TypedTextInsertionEngine {
         return DestinationClassifier.keysMayBeCommands(
             in: AppContext(
                 applicationName: application.applicationName, bundleIdentifier: application.bundleIdentifier))
+    }
+
+    /// Whether a terminal's window title names a full-screen program, whose keys are its commands and never text.
+    static func heldByFullScreenProgram(_ application: InsertionDestination?, windowTitle: String?) -> Bool {
+        TerminalApplications.contains(application?.bundleIdentifier ?? "")
+            && FullScreenProgram.isNamed(inWindowTitle: windowTitle)
     }
 
     /// Characters posted between checks, small enough that a stop lands within a few milliseconds of typing.

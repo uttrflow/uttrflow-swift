@@ -836,7 +836,7 @@ struct DictationPipelineEarlyWorkTests {
                 silentCalls: blank ? [] : [2], blankCalls: blank ? [2] : [])
             let pipeline = makePipeline(
                 capture: FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces)),
-                speech: speech, earlyPoll: .seconds(60))
+                speech: speech, earlyPoll: .seconds(60), clock: ManualClock())
 
             await pipeline.startRecording()
             await pipeline.finishRecording()
@@ -845,7 +845,9 @@ struct DictationPipelineEarlyWorkTests {
             #expect(outcome?.text == "W1 X. W3 X. W4 X")
             #expect(outcome?.missedPieces == 0)
             #expect(await speech.calls == 4)
-            #expect(await speech.biases[2].isEmpty, "the second decode goes without the vocabulary")
+            #expect(
+                await speech.biases.dropFirst(2).first?.isEmpty == true,
+                "the second decode goes without the vocabulary")
         }
     }
 
@@ -867,7 +869,7 @@ struct DictationPipelineEarlyWorkTests {
         #expect(inserter.received == ["W1 X. W4 X"])
     }
 
-    @Test("a dictation that missed a piece keeps its recording, and one that missed none deletes it")
+    @Test("a missed piece keeps the recording waiting; a dictation that missed none keeps it for a fix")
     func missedPieceKeepsTheRecording() async {
         for missed in [false, true] {
             let recording = KeptRecording(id: UUID(), when: Date(), duration: .seconds(3))
@@ -881,7 +883,8 @@ struct DictationPipelineEarlyWorkTests {
             await pipeline.finishRecording()
 
             #expect(await pipeline.currentState.outcome?.missedPieces == (missed ? 1 : 0))
-            #expect(await recordings.discarded == (missed ? [] : [recording.id]))
+            #expect(await recordings.discarded.isEmpty)
+            #expect(await pipeline.currentState.outcome?.keptRecording == (missed ? nil : recording.id))
         }
     }
 

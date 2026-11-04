@@ -233,5 +233,22 @@ class LatencySampleValidationTests(unittest.TestCase):
 from perf_nested_comments_test import NestedPerfCommentTests
 
 
+class MicrophoneOpenBudgetTests(unittest.TestCase):
+    def failures(self, row):
+        doc = "## Microphone opening budget\n\n| stage | p95 s | budget s | samples |\n|---|---|---|---|\n" + row + "\n"
+        findings = audit.Findings()
+        audit.check_microphone_open_budget(SimpleNamespace(read=lambda path: doc), findings, [])
+        return findings.failures
+
+    def test_budget_of_p95_plus_headroom_passes(self):
+        self.assertEqual(self.failures("| `microphoneOpen` | 0.444 | 0.533 | 30 |"), [])
+
+    def test_loosened_budget_fails(self):
+        self.assertEqual(len(self.failures("| `microphoneOpen` | 0.444 | 0.800 | 30 |")), 1)
+
+    def test_missing_row_fails(self):
+        self.assertEqual(len(self.failures("")), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -68,12 +68,23 @@ public enum RemovalAudit {
             || FalseStartRestart.coversRemoval(at: index, in: draft)
     }
 
-    /// Whether the pass wrote something into the run of words it touched around this one.
+    /// Whether the pass wrote something into the run of words it touched around this one, or the run names the mark already written before it.
     private static func isConverted(at index: Int, by pass: PassID, in draft: Draft) -> Bool {
         let run = touchedRun(around: index, by: pass, in: draft)
         return run.contains { place in
             draft.words[place].edits.contains { $0.by == pass && $0.kind != .removed }
-        }
+        } || namesWrittenMark(run, in: draft)
+    }
+
+    /// "how are you? Question mark.": the removed words spell a mark's name and the word before them already ends on that mark.
+    private static func namesWrittenMark(_ run: [Int], in draft: Draft) -> Bool {
+        let removed = run.filter { !draft.words[$0].isPresent }
+        guard let first = removed.first,
+            let before = draft.words[..<first].lastIndex(where: \.isPresent)
+        else { return false }
+        let keys = removed.map { draft.shape(at: $0).key }
+        let written = draft.shape(at: before).suffix
+        return SpokenCommands.marks.contains { $0.words == keys && written.hasSuffix($0.text) }
     }
 
     /// The words either side of `index` the pass touched, stepping over words another pass removed.

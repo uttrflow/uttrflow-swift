@@ -102,6 +102,24 @@ struct TerminalStopPassTests {
     }
 
     @Test(
+        "keeps the stop the recogniser wrote after a stranded preposition, and adds none where it wrote none",
+        .bug(id: 8057),
+        arguments: [
+            ("It's about the people you work with.", "It's about the people you work with."),
+            ("That is what I was looking for.", "That is what I was looking for."),
+            ("I have no idea where he went to.", "I have no idea where he went to."),
+            ("Here is the pen I write with.", "Here is the pen I write with."),
+            ("Ask who she is waiting at.", "Ask who she is waiting at."),
+            ("This is the one I was thinking of.", "This is the one I was thinking of."),
+            ("That is the city she comes from.", "That is the city she comes from."),
+            ("the people you work with", "the people you work with"),
+        ])
+    func keepsARecogniserStopAfterAStrandedPreposition(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+        #expect(CleaningPipeline.standard.run(Draft(text: input)).text.hasSuffix(expected.suffix(4)))
+    }
+
+    @Test(
         "ends no dictation with a stop after a word that leaves the clause open",
         arguments: [
             ("i went to the bank and", "i went to the bank and"),
@@ -271,6 +289,24 @@ struct TerminalStopPassTests {
             ("Can you check? I think it's fine", "Can you check? I think it's fine."),
         ])
     func addsQuestionMark(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "reads the auxiliary after a which or whose phrase as that question's own, with no comma before it",
+        .bug(id: 8155),
+        arguments: [
+            ("which team did you join", "which team did you join?"),
+            (
+                "which one did you pick, the first or the second",
+                "which one did you pick, the first or the second?"
+            ),
+            ("which way do we go", "which way do we go?"),
+            ("which do you prefer", "which do you prefer?"),
+            ("whose laptop did you borrow", "whose laptop did you borrow?"),
+            ("which file should I open", "which file should I open?"),
+        ])
+    func whichPhraseKeepsItsInversion(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
     }
 
@@ -711,5 +747,14 @@ struct TerminalStopPassTests {
         ])
     func leavesHashtagRunOpen(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test("keeps the stop of a sentence whose clauses open with lettered enumerators")
+    func keepsStopAfterEnumeratedClauses() {
+        let clauses =
+            "Clause 9.1 the supplier shall\n(a) deliver within 30 days\n(b) replace damaged goods and\n(c) keep records for six years."
+        #expect(document.apply(Draft(keepingLineBreaks: clauses)).text == clauses)
+        let bare = "Packing list\nsocks\nshirts\ntowel."
+        #expect(document.apply(Draft(keepingLineBreaks: bare)).text == "Packing list\nsocks\nshirts\ntowel")
     }
 }

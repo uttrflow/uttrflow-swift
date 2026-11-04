@@ -1,11 +1,12 @@
 # Recognising a credential
 
 Every copy is checked for a credential before it is listed. A clip that is one is kind
-`.secret`: masked in the panel until deliberately revealed, and never written to the clipboard
-history or saved-clips files. `SecretShapes.matches(_:)` in `Sources/UttrflowCore/Secrets/` is the one
+`.secret`: masked in the panel until deliberately revealed. A secret nobody kept stays in this
+process only; one the user named, tagged, filed or pinned is written to the sealed saved-clips
+file like any other kept clip ([`clipboard-store.md`](clipboard-store.md#eviction)). `SecretShapes.matches(_:)` in `Sources/UttrflowCore/Secrets/` is the one
 answer; the shapes it asks are in `SecretShapes.swift`, `SecretScanners.swift`,
 `PatternWindows.swift`, `CardNumberShape.swift`, `CommandCredentialShape.swift`,
-`BearerURLShape.swift`, `DockerAuthShape.swift` and `BIP39RecoveryPhrase.swift`, and the
+`BearerURLShape.swift`, `AuthenticatorSeedShape.swift`, `DockerAuthShape.swift` and `BIP39RecoveryPhrase.swift`, and the
 password-manager markers are read by `PasteboardMarkers`. How the panel masks a secret is in
 [`panel.md`](panel.md#masking).
 
@@ -14,9 +15,30 @@ in `Sources/UttrflowPipeline/DictationState.swift` withholds the words of a cred
 dictation exactly as it withholds a secure field's: the words are still inserted, but
 `wordsToKeep` is nil, so no History row, last-transcript copy or dictionary lesson keeps them.
 
-`SecretShapes.matches(_:)` is keener to say yes than no. A false positive masks something
-harmless: the row shows dots, Return still pastes it, one keystroke reveals it. A false negative
-leaves a production password legible on a panel opened in meetings and on recorded calls.
+`SecretShapes.matches(_:)` says yes on evidence. A false negative leaves a credential legible on a
+panel opened in meetings; a false positive is not harmless either: the row loses its words, search
+stops reading it, and the user has to reveal something that needed no hiding, every time. So a shape
+needs a reason to think the text opens something, and looking random is not enough where the text
+is an address, a public key or a content digest.
+
+## What is not a credential
+
+- **An address.** A URL is masked only for what it carries: a password in its userinfo, a generated
+  token as its userinfo, a known token shape, a chosen value under `password`, `passwd` or `pwd`, or a
+  generated value under a credential-named parameter (`BearerURLShape.credentialParameters`). `key`, `code` and `auth` name too many ordinary
+  things to count. The rules that read words (named secrets, credential phrases, cards, commands,
+  recovery phrases, the statistical rule) are given the clip with its `scheme://…` addresses taken
+  out (`AddressFreeText`). A `;name=value` after an address that names a secret stays readable to them. A `host.tld/path` with no scheme is exempt from the statistical rule; a
+  container reference with a `:tag` is not one.
+- **Public material**, when it is the whole clip (`PublicMaterialShape`): OpenSSH public key lines
+  whose comment holds no credential,
+  public PEM objects (`PUBLIC KEY`, `CERTIFICATE` and the labels listed there), and wallet addresses
+  whose own checksum holds (Base58Check, Bech32, Bech32m), plus `0x` and 40 hex and the 95-character
+  Monero shape. A published example token is taken out wherever it stands.
+- **A content digest.** A bare 40 or 64 hex word, or one labelled `sha1:`, `sha256:`, `sha384:` or
+  `sha512:`, is a git object name or a checksum. Paid knowingly: a 40-hex token of an older format
+  copied alone stays legible; under a secret's name or in a URL's userinfo it is still masked.
+- **A working directory.** `pwd: /a/path` names no password.
 
 Visible placeholders and published example keys are not credentials. Named-secret values such as
 `API_KEY=your-key-here`, variable references, repeated-character runs, and connection strings whose
@@ -25,19 +47,12 @@ under secret names and in connection strings remain masked.
 
 ## Pasting a hidden clip
 
-Choosing a secret in the panel pastes it at once only when the focused field hides what is typed.
-In any other field, or one that cannot be classified, the panel asks first and takes Return to paste
-or Esc to cancel; cancelling inserts nothing and writes nothing to the clipboard. The field is read
-again after the answer and the paste is refused if the focus moved. The question never shows the
-clip, and the switch "Confirm hidden clips" in Settings turns it off. The detection is
-`HiddenPasteDestination` in `Sources/UttrflowInput/`; it is separate from the arrival check that
-`ConcealingPasteboard` routes use.
-
-The same question, from the same decision (`PasteQuestion` in `Sources/UttrflowCore/Models/`), also
-guards a clip with a line break pasted into a terminal, where each line would run as it arrives;
-the General switch "Ask before pasting several lines into a terminal" turns that one off. A paste
-asks once, and a hidden clip's question comes before the terminal one. `PasteGate` in
-`Sources/UttrflowInput/` keeps the field a question was about.
+Choosing a clip in the panel pastes it at once, on Return and on click, in every field; a secret goes
+up concealed (`ConcealingPasteboard`), so no clipboard history keeps it. Copying one is the same with
+no paste. The one exception is not about secrecy: a clip with a line break pasted into a terminal,
+where each line would run as it arrives, asks first (`PasteQuestion`), and the General switch "Ask
+before pasting several lines into a terminal" turns that off. `PasteGate` in `Sources/UttrflowInput/`
+keeps the field that question was about.
 
 ## What a password manager marks
 
@@ -65,10 +80,9 @@ carry only the `org.nspasteboard.*` types.
 A type no source documents as a marker, such as `net.antelle.keeweb` or a `com.nspasteboard.*`
 spelling, is ignored rather than guessed at.
 
-Secrets detected by shape follow the same storage rule as concealed clips: the row can appear in
-the running panel, masked until deliberately revealed, but the JSON history and saved-clips files
-omit it. A launch after copying a secret therefore cannot show that secret again; keeping,
-pinning or filing a secret lasts only until this process exits.
+Secrets detected by shape follow the same storage rule as concealed clips: unkept, the row can
+appear in the running panel, masked until deliberately revealed, and neither index holds it, so a
+launch cannot show it again. Kept, it is sealed in `saved.v1.json` and crosses every launch.
 
 ## The user's answer outranks the detector
 
@@ -79,9 +93,9 @@ text (`ClipboardStore.setSecret`, held by `ClipSecrecyOverrides`). Both are expl
 | Action | Offered on | What happens |
 |---|---|---|
 | This is not a secret | a secret | the clip takes the kind the detector gives it without the secret question, is written like any other clip, and the same text is never masked again |
-| Treat as secret | any other text clip | the clip is masked and leaves both files; a repeat copy of the same text is masked for as long as the app runs |
+| Treat as secret | any other text clip | the clip is masked; unkept, it leaves both files; kept, it stays sealed in the saved file and stays masked; a repeat copy of the same text is masked for as long as the app runs |
 
-"Not a secret" is the only answer that crosses a launch. It is kept in `not-secret.v1.json`
+"Not a secret" is the only answer kept outside a clip that crosses a launch. It is kept in `not-secret.v1.json`
 beside the clipboard files as a sorted list of keyed digests (`EncryptedStore.digest(of:for:)`,
 HMAC-SHA-256 under a key derived from the installation key), sealed like the indexes; the text
 itself is never written there, and a digest cannot be checked against a guess without the
@@ -91,8 +105,8 @@ the launch-time reclassification. If the file is present and unreadable, that la
 clips as they were rather than masking, and dropping, a clip the user unmasked; the file is never
 replaced while it is there.
 
-"Treat as secret" is not written anywhere: a secret leaves nothing on disk, and a digest of one
-would be a record of a credential. It withdraws an earlier "not a secret" for that text from the
+"Treat as secret" adds no answer to that file, since a digest of a secret would be a record of a
+credential; a kept clip carries the answer as its own stored kind. It withdraws an earlier "not a secret" for that text from the
 file. "Reset personalisation" removes the file with the clips.
 
 An ordinary short password has no shape that separates it from a word or a product code. A
@@ -109,8 +123,11 @@ necessarily the one that wrote the clipboard.
 ## Per-application exclusions and pause
 
 Settings can exclude applications by bundle identifier (`ClipboardPreferences`) and pause capture
-for one hour ("Pause for 1 hour"). The exclusion list is empty by default; add an app from the
-running-app picker or choose an application bundle. A timed pause can be resumed early and its
+for one hour ("Pause for 1 hour"). The exclusion list starts with the banking and health families in
+`SensitiveApplications.families`; removing one from the list turns capture on for that family. Add
+an app from the running-app picker or choose an application bundle. Every entry is matched by family:
+it covers its own identifier and any identifier that continues it after a dot, so a beta or renamed
+build is excluded with it. A timed pause can be resumed early and its
 end time survives an app restart. Copies observed during a pause are passed over when capture
 resumes.
 
@@ -139,8 +156,8 @@ macOS release; the manual checks in [`ui-tests.md`](ui-tests.md) record what eac
 Each shape that needs a literal is skipped when the clip's bytes lack it, so most clips are read
 by few of them.
 
-1. A PEM header (`-----BEGIN`). Certificates are masked with keys; telling them apart by label
-   is one label away from being wrong about the one that matters.
+1. A PEM header (`-----BEGIN`) whose label is not a public one, so every kind of private key and
+   any unknown label is masked and a certificate is not.
 2. A JWT anywhere in the text: three base64url segments beginning `eyJ` (what `{"` encodes to).
    The signature may be empty, because an `alg: none` token is still a token.
 3. A Docker config `"auth"` value that decodes from base64 to a non-empty `user:password`
@@ -150,8 +167,11 @@ by few of them.
    `https://example.com:8443/path` and `https://token@example.com/repo` out.
 5. A URL that works for whoever holds it (`BearerURLShape`): a Slack, Discord or Teams incoming
    webhook, or a URL whose query or fragment carries `sig`, `signature`, `X-Amz-Signature`,
-   `X-Goog-Signature`, `access_token`, `id_token`, `refresh_token` or `token` with a value of at
-   least eight characters, which is what a signed (SAS, pre-signed) URL or a magic link is.
+   `X-Goog-Signature`, `access_token`, `id_token`, `refresh_token`, `token`, `api_key`,
+   `client_secret` or a similar name with a generated value of at least eight characters, which is
+   what a signed (SAS, pre-signed) URL or a magic link is.
+   A `password`, `passwd` or `pwd` parameter needs no generated shape: a value with a digit or at
+   least twelve characters that is not a placeholder is masked.
    `?token=` with nothing, or with a short placeholder, stays a link. Parameter names are
    percent-decoded first (`access%5Ftoken`), a host's closing dot is ignored
    (`hooks.slack.com.`), and a URL nested after a later `://` in another one's path or query
@@ -196,6 +216,8 @@ by few of them.
 13. The statistical rule (below).
 
 ## Telegram bot addresses
+
+An `otpauth://` or `otpauth-migration://` URI is a secret when its query holds a non-empty `secret` or `data` parameter, because that value generates every future one-time code for the account (`AuthenticatorSeedShape`). The scheme and parameter names are matched without regard to case, and the URI may sit inside other text; one with no seed stays a link.
 
 The Telegram Bot API token is a bearer credential in the first path segment: `bot`, a decimal bot identifier, a colon, and a 35-character token. `BearerURLShape` recognizes that complete shape only on `api.telegram.org`; the ordinary entropy rule skips URLs because their punctuation and surrounding address distort the token signal. The host and path are parsed together, so an unrelated URL with a similar path stays a link.
 
@@ -257,13 +279,13 @@ whenever either rule changes.
 | 12 characters, the shortest word judged | `entropicTokenLength` |
 | 32 hex characters, a digest outright | `hexTokenLength` |
 
-Applies to single words on one-line clips only (a multi-line clip is a document and
+Applies to single words on one-line clips only, after addresses are taken out (a multi-line clip is a document and
 legitimately carries digests; the shapes above already catch `.env` lines and PEM blocks). The
 word must be at least 12 characters (shorter values are too common in identifiers), contain only
 ASCII letters, digits or the printable ASCII symbols the scanner allows, and contain both a
 letter and a digit. The byte and character readers use the same alphabet. Hex of 32 or more
-characters is a digest outright, because a sixteen-symbol alphabet can never reach the general
-floor. Canonical UUIDs and joined words are exempted by the same rule in both the byte and
+characters counts outright, because a sixteen-symbol alphabet can never reach the general
+floor, unless it is a content digest (above). Canonical UUIDs and joined words are exempted by the same rule in both the byte and
 character readers. Values that open like a path are left to the general rules; a quoted value is
 left alone as a path only when its unquoted contents match the complete local-path shape in
 `PathShape`.

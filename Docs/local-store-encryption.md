@@ -20,7 +20,7 @@ replace them.
 | Clips marked not secret | `not-secret.v1.json`, keyed digests only | As above |
 | Clipboard pictures | one PNG per picture | Each file sealed with `seal(_:for:)` under its file name |
 | Recordings waiting for a retry | one file per recording | A chunked format (`EncryptedRecordingFile`, magic `UTTRWAV1`); each chunk is an envelope bound to `<file>#chunk-<i>#frames-<n>` ([recordings.md](recordings.md)) |
-| Suggestion corpus | `predict.v1.sqlite` | The working database lives in memory; after each change the whole database is serialised and sealed, so no plaintext `-wal` or `-shm` file reaches the disk |
+| Suggestion corpus | `predict.v1.sqlite` | The working database lives in memory; learned changes are batched and forgetting is immediate, and each write serialises and seals the whole database, so no plaintext `-wal` or `-shm` file reaches the disk |
 
 An encrypted suggestion corpus permits one open store at a time. Its owner holds an exclusive
 `<database>.lock` file while the store is open; a second store cannot load a stale snapshot and

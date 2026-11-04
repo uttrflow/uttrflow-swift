@@ -77,9 +77,11 @@ extension MeaningPreservationGuard {
         {
             return .rejected(reason: reason, kind: kind)
         }
-        // Last of the order checks, so a moved content word or negation is refused by the check that can name it.
+        // Last of the order checks, so a moved content word or negation is refused by the check that can name it; a unit written as a symbol stands in no place.
+        let symbolled = unitsWrittenAsSymbols(keptTokens, in: alignment.rewrittenText)
         if case .rejected(let reason, let kind) = wordOrderVerdict(
-            kept: keptTokens, written: written, allowingFormRepairs: repairs)
+            kept: keptTokens.indices.filter { !symbolled.contains($0) }.map { keptTokens[$0] },
+            written: written, allowingFormRepairs: repairs)
         {
             return .rejected(reason: reason, kind: kind)
         }

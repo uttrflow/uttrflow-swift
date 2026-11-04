@@ -113,16 +113,29 @@ public struct SnippetBody: Sendable, Equatable {
     public let text: String
     /// UTF-16 units of ``text`` before the caret, or `nil` when the body has no marker; the first marker wins.
     public let caret: Int?
+    /// UTF-16 units of ``text`` before each `{slot:name}`, in order; `\{slot:` writes the opening literally.
+    package let slots: [Int]
+    /// How a slot opens; the name runs to the next `}` on the same line.
+    private static let slotOpening = "{slot:"
 
     /// Takes the markers out of `expansion`, keeping every other character as typed.
     public init(parsing expansion: String) {
         var text = ""
         var caret: Int?
+        var slots: [Int] = []
         var rest = Substring(expansion)
         while !rest.isEmpty {
             if rest.hasPrefix(Self.escapedCaretMarker) {
                 text += Self.caretMarker
                 rest = rest.dropFirst(Self.escapedCaretMarker.count)
+            } else if rest.hasPrefix("\\" + Self.slotOpening) {
+                text += Self.slotOpening
+                rest = rest.dropFirst(Self.slotOpening.count + 1)
+            } else if rest.hasPrefix(Self.slotOpening),
+                let close = rest.firstIndex(where: { $0 == "}" || $0.isNewline }), rest[close] == "}"
+            {
+                slots.append(text.utf16.count)
+                rest = rest[rest.index(after: close)...]
             } else if rest.hasPrefix(Self.caretMarker) {
                 if caret == nil { caret = text.utf16.count }
                 rest = rest.dropFirst(Self.caretMarker.count)
@@ -133,5 +146,6 @@ public struct SnippetBody: Sendable, Equatable {
         }
         self.text = text
         self.caret = caret
+        self.slots = slots
     }
 }
