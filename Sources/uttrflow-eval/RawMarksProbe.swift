@@ -61,7 +61,8 @@ struct RawMarksProbe: AsyncParsableCommand {
             var scores: [RawMarkScore] = []
             var devanagari = 0
             for passage in set.cases {
-                let url = directory.appendingPathComponent("\(set.voice)-\(passage.id).wav")
+                let digest = String(passage.romanised.hashValueStable, radix: 16)
+                let url = directory.appendingPathComponent("\(set.voice)-\(passage.id)-\(digest).wav")
                 if !FileManager.default.fileExists(atPath: url.path) {
                     guard SaySynthesizer().speak(passage.romanised, voice: set.voice, to: url) else {
                         throw CleanExit.message("`say` could not read \(passage.id).")

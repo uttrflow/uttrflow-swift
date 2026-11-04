@@ -73,7 +73,8 @@ Clips skipped because the recogniser wrote a different number of words: 1
 - The same word times invent a pause of 300 ms or more in 12% of the 150 ms clips and in 17% of
   the clips that pause after a content word.
 - A pause after a function word is the worst case (64% of pauses of 300 ms and more missing, median
-  error -300 ms), and a filler is the best (39% missing), but none is good enough to trust.
+  error -300 ms). A content word has the fewest missing (36%) and a filler has the smallest median
+  absolute error (160 ms), but none is good enough to trust.
 - No pause length from 150 ms to 1,000 ms meets the trust test (median absolute error within 100 ms
   and the pause shown in 90% of trials, at every length from there up), so the trusted minimum for
   the word times is none.

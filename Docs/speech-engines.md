@@ -592,8 +592,8 @@ and the fallback rate was 0.0%, with at most 0.15 s worst-case extra seconds. Ro
   deterministic greedy re-decode arm, and the threshold half re-run after the segment-level signals
   are corrected (#3567). Those remain open on the issue.
 
-On the clean and 10 dB rows the fallback never fires, so no setting changes words, seconds or
-repeatability there; at 0 dB it sometimes fires, and one retry already gives the shipping result,
+On the clean and 10 dB rows no setting changes words or repeatability, and seconds change by at
+most 0.10 s; at 0 dB it sometimes fires, and one retry already gives the shipping result,
 so the shipping plan stays. The set cannot decide the question: the recorded and degradation
 corpora are not measured here, and the log-probability test still reads a mean that counts forced
 tokens.

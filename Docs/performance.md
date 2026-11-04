@@ -439,12 +439,11 @@ loaded-machine figures; re-run on a quiet Mac before a decision rests on them.
 The row is the cold built-in microphone (60 s closed before each opening). The warm run read
 p50 165 ms, p95 304 ms; the cold run p50 218 ms, p95 444 ms. A wired or USB microphone, a Bluetooth
 headset and a virtual or aggregate device were not available on the measuring Mac, so those
-transports have no figure and no budget: the probe takes any of them through `--device`, and the
-table gains a row when one is measured. What happens to the first words on a transport slower than
+transports have no figure and no budget: the probe takes any of them through `--device`. What happens to the first words on a transport slower than
 the built-in microphone cannot be stated without that figure. On the built-in microphone the opening
 is about a fifth of a second at p50 and under half a second at p95, during which the user is already
 speaking. In the same runs, with `--device` naming the built-in microphone, 24 of 30 warm and 8 of 30
-cold openings saw no sample within 5 s, which the first-sample measurement has to explain.
+cold openings saw no sample within 5 s; the cause is not established.
 
 ## Processor
 

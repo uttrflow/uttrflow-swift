@@ -100,6 +100,11 @@ private actor Gate {
     }
 
     func waitUntilEntered(_ count: Int) async {
-        while entered < count { await Task.yield() }
+        var spins = 0
+        while entered < count, spins < 100_000 {
+            await Task.yield()
+            spins += 1
+        }
+        XCTAssertGreaterThanOrEqual(entered, count, "the sleeper was not re-entered")
     }
 }
