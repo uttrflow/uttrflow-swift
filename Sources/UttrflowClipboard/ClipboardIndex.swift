@@ -14,7 +14,7 @@ package struct ClipboardIndex: Codable, Sendable, ElementwiseDecodable {
     package let classifierVersion: Int
     package let hasUnknownJSONKeys: Bool
 
-    /// Whether a released build would drop a clip here when it rewrites this file; the extra key makes it refuse the write.
+    /// Whether a released build would drop a clip on rewrite; the extra key makes it refuse.
     private var holdsKeptSecrets: Bool { clips.contains { $0.kind == .secret } }
 
     package var isLegacy: Bool { version == 1 }
