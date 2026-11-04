@@ -78,4 +78,20 @@ struct PanelHiddenClipChoiceTests {
             PanelOutcome.copy(Self.secret).effect
                 == .closeAndCopyConcealed(Self.secret.text, used: Self.secret.id))
     }
+
+    @Test("a masked row shows no measurement that reveals length, formatted or blank")
+    func maskedRowHidesLength() {
+        let formatted = Clip(
+            text: "Vb4nM7xQ2p-invented", kind: .secret, copiedAt: PanelFixture.now,
+            richText: "<p>Vb4nM7xQ2p-invented</p>")
+        let blank = PanelFixture.clip("     ", kind: .secret)
+
+        for clip in [formatted, blank] {
+            let row = PanelFixture.page([clip]).rows[0]
+            #expect(row.isMasked)
+            #expect(row.measurements == nil)
+            #expect(row.summary == PanelPresenter.mask)
+            #expect(row.preview == PanelPresenter.mask)
+        }
+    }
 }
