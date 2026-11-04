@@ -2182,7 +2182,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .closeAndInsertImage(let clip):
             let destination = panelTarget ?? InsertionDestination(applicationName: nil, bundleIdentifier: nil)
             closeQuickPanel()
-            insertImage(clip, targeting: destination)
+            insertImage(clip, targeting: quickPanel.caretDestination(after: destination, focus: focus))
         case .say(let notice):
             // Stays open, or the sentence describes a clip the user cannot see.
             panel?.notice = notice
@@ -2278,17 +2278,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         guard case .files(let urls) = resolution else { return }
         let destination = panelTarget ?? InsertionDestination(applicationName: nil, bundleIdentifier: nil)
         if case .paste = placement { closeQuickPanel() }
+        let target = quickPanel.caretDestination(after: destination, focus: focus)
         markUsed(clip.id)
         let engine = PasteboardFileInsertionEngine(
             focus: focus, pasteboard: announcingPasteboard, keystrokes: CGEventKeystrokeSender())
         var failure: TextInsertionError?
         do {
             if case .paste = placement {
-                try engine.insert(urls, targeting: destination)
+                try engine.insert(urls, targeting: target)
             } else {
                 try engine.copy(urls)
             }
-        } catch { failure = error }
+        } catch {
+            failure = error
+            // The engine refuses a changed target before it writes, and the report says the files were copied.
+            if case .paste = placement, PanelPasteFloor.keepsOnClipboard(after: error),
+                (try? engine.copy(urls)) == nil
+            {
+                failure = .clipboardUnavailable
+            }
+        }
         let landing = PanelFilePaste.landing(
             placement, failure: failure, copyFailed: Self.clipboardCopyFailedNotice)
         if let effect = landing.effect { perform(effect) }
@@ -2562,7 +2571,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 // Closed first: insertion declines outright while Uttrflow is frontmost.
                 closeQuickPanel()
                 insert(
-                    text, richText: richText, concealed: concealed, targeting: destination, used: used,
+                    text, richText: richText, concealed: concealed,
+                    targeting: quickPanel.caretDestination(after: destination, focus: focus), used: used,
                     forPanel: true)
             case .ask(let reason):
                 let original = panel?.clips.first { $0.id == used }?.text
@@ -2617,7 +2627,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 // The image may already be on the clipboard if focus changes during the write.
                 Self.log.error(
                     "picture paste refused: \(failure.userMessage, privacy: .public)")
-                self?.reportPanelPaste(.pictureRefused)
+                // The engine refuses a changed target before it writes, so the copy is made here.
+                let copied =
+                    PanelPasteFloor.keepsOnClipboard(after: failure)
+                    ? await self?.putImageOnClipboard(clip) == .copied : false
+                self?.reportPanelPaste(copied ? .pictureRefused : .textCouldNotPaste)
             }
         }
     }
@@ -2692,10 +2706,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 )
                 if forPanel { self?.reportPanelPaste(.text(attempt)) }
             } catch {
-                // Every strategy refused, including the one that cannot.
+                // A route can stop before its clipboard strategy, so the words are kept here.
                 let why = (error as? any UttrflowFailure)?.userMessage ?? SuggestionLog.failure(error)
                 Self.log.error("clip insertion failed: \(why, privacy: .public)")
-                self?.reportPanelPaste(forPanel ? .textCouldNotPaste : .textRefused)
+                let copied =
+                    PanelPasteFloor.keepsOnClipboard(after: error)
+                    && self?.putOnClipboard(text, richText: richText, concealed: concealed, used: nil) == true
+                self?.reportPanelPaste(PanelPasteFloor.result(copied: copied))
             }
         }
     }
@@ -2711,6 +2728,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         pasteReport = DictationPresenter.dock(
             notice: report.symbolName, primaryLine: report.primaryLine,
             secondaryLine: report.secondaryLine, accessibilityLabel: report.spoken)
+        // Shown even with the button turned off, or a sighted person would never hear it.
+        if drawsWindows {
+            dock.setAnchor(settings.floatingButtonAnchor)
+            dock.show()
+        }
         dock.update(with: dockPresentation(for: lastDictationState))
         pasteReportTask?.cancel()
         pasteReportTask = Task { [weak self] in
@@ -2718,6 +2740,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             guard !Task.isCancelled, let self else { return }
             self.pasteReport = nil
             self.dock.update(with: self.dockPresentation(for: self.lastDictationState))
+            self.showTheFloatingButtonIfWanted()
         }
     }
 
