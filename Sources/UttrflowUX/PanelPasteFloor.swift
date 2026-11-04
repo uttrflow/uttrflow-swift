@@ -16,6 +16,11 @@ public enum PanelPasteFloor {
         return await copy()
     }
 
+    /// Keeps the words if it may, then reports what really happened.
+    public static func result(after failure: any Error, copy: () async -> Bool) async -> PanelPasteResult {
+        result(copied: await keep(after: failure, copy: copy))
+    }
+
     /// The report for a refused route, which claims a copy only when one was made.
     public static func result(copied: Bool) -> PanelPasteResult {
         copied ? .textRefused : .textCouldNotPaste

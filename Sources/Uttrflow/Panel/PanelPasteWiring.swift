@@ -2,6 +2,7 @@ import AppKit
 import UttrflowCore
 import UttrflowInput
 import UttrflowUX
+import SwiftUI
 
 extension QuickPanelController {
     /// Who holds the caret now the panel has gone, asked once it is off screen. See `Docs/app-quick-panel.md`.
@@ -26,5 +27,21 @@ extension DockPanelController {
     func showForReport(at anchor: DockAnchor) {
         setAnchor(anchor)
         show()
+    }
+}
+
+extension PanelPasteReport {
+    /// How the floating button draws this report.
+    var dock: DockPresentation {
+        DictationPresenter.dock(
+            notice: symbolName, primaryLine: primaryLine, secondaryLine: secondaryLine,
+            accessibilityLabel: spoken)
+    }
+
+    /// Tells VoiceOver at high priority, since the panel that would have said it has gone.
+    func announce() {
+        var words = AttributedString(spoken)
+        words.accessibilitySpeechAnnouncementPriority = .high
+        AccessibilityNotification.Announcement(words).post()
     }
 }

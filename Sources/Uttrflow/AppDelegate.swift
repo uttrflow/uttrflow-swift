@@ -2698,10 +2698,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             } catch {
                 let why = (error as? any UttrflowFailure)?.userMessage ?? SuggestionLog.failure(error)
                 Self.log.error("clip insertion failed: \(why, privacy: .public)")
-                let copied = await PanelPasteFloor.keep(after: error) {
-                    self?.putOnClipboard(text, richText: richText, concealed: concealed, used: nil) == true
-                }
-                self?.reportPanelPaste(PanelPasteFloor.result(copied: copied))
+                self?.reportPanelPaste(
+                    await PanelPasteFloor.result(after: error) {
+                        self?.putOnClipboard(text, richText: richText, concealed: concealed, used: nil)
+                            == true
+                    })
             }
         }
     }

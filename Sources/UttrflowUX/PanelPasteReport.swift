@@ -1,6 +1,5 @@
 // What the user is told after the panel has closed: a clip that did not visibly arrive, or a deliberate Copy.
 public import UttrflowCore
-import SwiftUI
 
 /// How a clipboard action from the panel ended, as the app saw it after the panel had gone.
 public enum PanelPasteResult: Sendable, Equatable {
@@ -65,20 +64,6 @@ public struct PanelPasteReport: Sendable, Equatable {
                 primaryLine: "That picture is no longer on this Mac", secondaryLine: nil,
                 spoken: "That picture is no longer on this Mac. Nothing was pasted.")
         }
-    }
-
-    /// How the floating button draws this report.
-    public var dock: DockPresentation {
-        DictationPresenter.dock(
-            notice: symbolName, primaryLine: primaryLine, secondaryLine: secondaryLine,
-            accessibilityLabel: spoken)
-    }
-
-    /// Tells VoiceOver at high priority, since the panel that would have said it has gone.
-    @MainActor public func announce() {
-        var words = AttributedString(spoken)
-        words.accessibilitySpeechAnnouncementPriority = .high
-        AccessibilityNotification.Announcement(words).post()
     }
 
     /// On the clipboard and not pasted, in the words the copy-only notices and the dictation use.
