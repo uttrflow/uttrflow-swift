@@ -57,7 +57,7 @@ package struct ClipboardIndex: Codable, Sendable, ElementwiseDecodable {
         if holdsKeptSecrets { try container.encode(true, forKey: .holdsKeptSecrets) }
     }
 
-    private enum CodingKeys: String, CodingKey { case version, clips, classifierVersion, holdsKeptSecrets }
+    private enum CodingKeys: String, CodingKey, CaseIterable { case version, clips, classifierVersion, holdsKeptSecrets }
 
     /// Refuses JSON this build could decode only by silently discarding fields on its next write.
     package static func containsOnlyKnownJSONKeys(in data: Data) -> Bool {
@@ -66,7 +66,7 @@ package struct ClipboardIndex: Codable, Sendable, ElementwiseDecodable {
         if let legacyClips = root as? [Any] {
             clips = legacyClips
         } else if let index = root as? [String: Any],
-            Set(index.keys).isSubset(of: ["version", "clips", "classifierVersion", "holdsKeptSecrets"]),
+            Set(index.keys).isSubset(of: CodingKeys.allCases.map(\.stringValue)),
             let currentClips = index["clips"] as? [Any]
         {
             clips = currentClips
