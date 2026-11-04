@@ -2563,8 +2563,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 closeQuickPanel()
                 insert(
                     text, richText: richText, concealed: concealed,
-                    targeting: quickPanel.caret(after: destination, focus: focus), used: used,
-                    forPanel: true)
+                    targeting: quickPanel.caret(after: destination, focus: focus), used: used, forPanel: true)
             case .ask(let reason):
                 let original = panel?.clips.first { $0.id == used }?.text
                 panel = panel?.askingBeforePaste(of: used, cleaned: original != text, reason: reason)

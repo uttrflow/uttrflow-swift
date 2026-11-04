@@ -11,13 +11,17 @@ public enum PanelPasteFloor {
     }
 
     /// Runs `copy` when the clipboard may be taken, and says whether the words are now on it.
-    public static func keep(after failure: any Error, copy: () async -> Bool) async -> Bool {
+    @MainActor public static func keep(
+        after failure: any Error, copy: @MainActor () async -> Bool
+    ) async -> Bool {
         guard keepsOnClipboard(after: failure) else { return false }
         return await copy()
     }
 
     /// Keeps the words if it may, then reports what really happened.
-    public static func result(after failure: any Error, copy: () async -> Bool) async -> PanelPasteResult {
+    @MainActor public static func result(
+        after failure: any Error, copy: @MainActor () async -> Bool
+    ) async -> PanelPasteResult {
         result(copied: await keep(after: failure, copy: copy))
     }
 
