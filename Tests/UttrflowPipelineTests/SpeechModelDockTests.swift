@@ -42,7 +42,8 @@ struct SpeechModelDockTests {
 
     @Test("a load past the typical time holds its ring below full and says it is almost ready")
     func holdingLoad() {
-        let dock = DictationPresenter.resting(.loading(elapsed: SpeechModelLoadEstimate.typicalColdLoad + .seconds(40))
+        let dock = DictationPresenter.resting(
+            .loading(elapsed: SpeechModelLoadEstimate.typicalColdLoad + .seconds(60)))
         )
 
         #expect(dock.setup == .loading(SpeechModelLoadEstimate.ceiling))

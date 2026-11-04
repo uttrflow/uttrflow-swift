@@ -142,7 +142,8 @@ struct DictationPipelineLoadingTests {
         await gate.waitUntilReached()
         await pipeline.startRecording()
         await pipeline.waitForEarlyRead()
-        await context.setContext(AppContext(applicationName: "Fixture Mail", bundleIdentifier: "com.example.mail"))
+        await context.setContext(
+            AppContext(applicationName: "Fixture Mail", bundleIdentifier: "com.example.mail"))
         let finishing = Task { await pipeline.finishRecording() }
         await gate.open()
         await loading.value
