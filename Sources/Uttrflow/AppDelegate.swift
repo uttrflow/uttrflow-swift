@@ -2698,11 +2698,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             } catch {
                 let why = (error as? any UttrflowFailure)?.userMessage ?? SuggestionLog.failure(error)
                 Self.log.error("clip insertion failed: \(why, privacy: .public)")
-                self?.reportPanelPaste(
-                    await PanelPasteFloor.result(after: error) {
-                        self?.putOnClipboard(text, richText: richText, concealed: concealed, used: nil)
-                            == true
-                    })
+                let result = await PanelPasteFloor.result(after: error) {
+                    self?.putOnClipboard(text, richText: richText, concealed: concealed) == true
+                }
+                self?.reportPanelPaste(result)
             }
         }
     }
@@ -2749,7 +2748,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Through the one pasteboard, so the write is announced and stays on this Mac. See `Docs/insertion.md`.
     @discardableResult
     private func putOnClipboard(
-        _ text: String, richText: String? = nil, concealed: Bool = false, used: Clip.ID?
+        _ text: String, richText: String? = nil, concealed: Bool = false, used: Clip.ID? = nil
     ) -> Bool {
         // A secret goes up marked, so no other clipboard history records it in plain text.
         let result: PasteboardWriteResult
