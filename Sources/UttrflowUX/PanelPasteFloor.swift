@@ -10,6 +10,12 @@ public enum PanelPasteFloor {
         }
     }
 
+    /// Runs `copy` when the clipboard may be taken, and says whether the words are now on it.
+    public static func keep(after failure: any Error, copy: () async -> Bool) async -> Bool {
+        guard keepsOnClipboard(after: failure) else { return false }
+        return await copy()
+    }
+
     /// The report for a refused route, which claims a copy only when one was made.
     public static func result(copied: Bool) -> PanelPasteResult {
         copied ? .textRefused : .textCouldNotPaste

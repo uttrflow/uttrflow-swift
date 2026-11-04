@@ -3,7 +3,6 @@
 import AppKit
 import UttrflowClipboard
 import UttrflowCore
-import UttrflowInput
 import UttrflowUX
 import SwiftUI
 
@@ -186,22 +185,6 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
             applicationName: caretOwner.localizedName, bundleIdentifier: caretOwner.bundleIdentifier,
             processIdentifier: caretOwner.processIdentifier)
     }
-    /// Who holds the caret now the panel has gone, asked once it is off screen. See `Docs/app-quick-panel.md`.
-    func caretDestination(
-        after captured: InsertionDestination, focus: any AccessibilityFocus
-    ) -> InsertionDestination {
-        let front = NSWorkspace.shared.frontmostApplication
-        return PanelCaret.destination(
-            captured: captured,
-            frontmost: front.map {
-                InsertionDestination(
-                    applicationName: $0.localizedName, bundleIdentifier: $0.bundleIdentifier,
-                    processIdentifier: $0.processIdentifier)
-            },
-            focused: focus.focusedApplication(),
-            ownProcess: ProcessInfo.processInfo.processIdentifier)
-    }
-
     /// Live only while the panel is on screen; see ``watchForLeaving()``.
     private var clicks: Any?
     private var switching: (any NSObjectProtocol)?

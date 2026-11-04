@@ -41,6 +41,20 @@ enum PanelFilePaste {
         }
     }
 
+    /// A refused paste can have stopped before its write, so the files are copied before the report says they were.
+    static func afterRefusal(
+        _ failure: TextInsertionError, _ placement: PanelFilePlacement,
+        copy: () throws -> Void
+    ) -> TextInsertionError {
+        guard case .paste = placement, PanelPasteFloor.keepsOnClipboard(after: failure) else {
+            return failure
+        }
+        do {
+            try copy()
+            return failure
+        } catch { return .clipboardUnavailable }
+    }
+
     /// Files left on the clipboard are said to be there; a clipboard another copy took over is said to be untouched.
     private static func report(after failure: TextInsertionError) -> PanelPasteResult {
         switch failure {
