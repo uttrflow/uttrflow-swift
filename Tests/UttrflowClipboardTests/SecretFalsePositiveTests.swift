@@ -113,6 +113,8 @@ struct SecretFalsePositiveTests {
             "ssh-ed25519 AAAAC3Nza ghp_Zx9kLmQ2rT7pQ3vB8nW4sY6uC0eH5jD1aF3g",
             "ssh-ed25519 AAAAC3Nza Authorization: Bearer Zx9kLmQ2rT7pQ3vB8n",
             "https://example.com/x?token=abc.def/Qv7RkT2mXeL9pAz4",
+            "pwd: /tmp password=Vb4nM7xQ2p",
+            "pwd: /tmp && mysql -pVb4nM7xQ2p",
         ] as [String])
     func smuggled(_ text: String) {
         #expect(SecretShapes.matches(text), "\(text)")

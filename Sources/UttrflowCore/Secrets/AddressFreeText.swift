@@ -60,7 +60,10 @@ enum AddressFreeText {
         var rest = trimmed[name.upperBound...].trimmingPrefix(while: \.isWhitespace)
         guard let separator = rest.first, separator == ":" || separator == "=" else { return false }
         rest = rest.dropFirst().trimmingPrefix(while: \.isWhitespace)
-        return PathShape.starts.contains { rest.hasPrefix($0) }
+        guard PathShape.starts.contains(where: { rest.hasPrefix($0) }) else { return false }
+        // Only the path: anything after it is still for the credential rules to read.
+        let path = rest.prefix { !$0.isWhitespace }
+        return rest[path.endIndex...].allSatisfy(\.isWhitespace)
     }
 
     private static func isSchemeScalar(_ scalar: Unicode.Scalar) -> Bool {
