@@ -66,7 +66,7 @@ struct SecureFieldInsertionTests {
         #expect(attempt.intoSecureField == false)
     }
 
-    @Test("the panel's hidden clip route pastes into a secure field that refuses Accessibility, concealed")
+    @Test("a coordinator built like the panel's pastes into a secure field that refuses Accessibility")
     func panelSecretRoute() async throws {
         let pasteboard = FakePasteboard()
         let keystrokes = FakeKeystrokeSender()

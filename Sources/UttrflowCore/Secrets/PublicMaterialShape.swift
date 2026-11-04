@@ -38,11 +38,11 @@ enum PublicMaterialShape {
         if trimmed.hasPrefix("-----BEGIN") { return isOnlyPublicPEM(trimmed) }
         let lines = trimmed.split(whereSeparator: \.isNewline)
         guard let first = lines.first, first.utf8.count >= 26 else { return false }
-        if sshAlgorithms.contains(first.prefix { $0 != " " && $0 != "@" }) {
+        if sshAlgorithms.contains(first.prefix { !$0.isWhitespace && $0 != "@" }) {
             return lines.allSatisfy(isSSHPublicKey)
         }
         let word = first.prefix { !$0.isWhitespace }
-        return lines.count == 1 && word.count == first.count && isWalletAddress(first)
+        return lines.count == 1 && first[word.endIndex...].allSatisfy(\.isWhitespace) && isWalletAddress(word)
     }
 
     /// The text with the published example tokens taken out, so what surrounds them is still judged.
@@ -50,25 +50,44 @@ enum PublicMaterialShape {
         publishedExampleTokens.reduce(text) { $0.replacing($1, with: "") }
     }
 
-    /// Markers around base64 lines only: a line of anything else beside them is not part of the object.
+    /// BEGIN and END pairs of one public label around base64 lines, with only blank space between blocks.
     private static func isOnlyPublicPEM(_ text: Substring) -> Bool {
-        var rest = text
-        for line in text.split(whereSeparator: \.isNewline) where !line.hasPrefix("-----") {
-            guard line.allSatisfy(isBase64) else { return false }
+        var open: Substring?
+        for line in text.split(whereSeparator: \.isNewline) {
+            let plain = line.trimmingPrefix(while: \.isWhitespace)
+            if plain.isEmpty { continue }
+            if plain.hasPrefix("-----BEGIN ") {
+                guard open == nil, let label = label(of: plain, after: "-----BEGIN ") else { return false }
+                open = label
+            } else if plain.hasPrefix("-----END ") {
+                guard let current = open, label(of: plain, after: "-----END ") == current else {
+                    return false
+                }
+                open = nil
+            } else {
+                guard open != nil, isBase64Line(plain) else { return false }
+            }
         }
-        while let marker = rest.firstRange(of: "-----") {
-            let after = rest[marker.upperBound...]
-            guard let close = after.firstRange(of: "-----") else { return false }
-            let label = after[..<close.lowerBound]
-            let name = label.trimmingPrefix("BEGIN ").trimmingPrefix("END ")
-            guard publicPEMLabels.contains(name) else { return false }
-            rest = after[close.upperBound...]
-        }
-        return true
+        return open == nil
+    }
+
+    /// The public label of a marker line that is nothing but the marker.
+    private static func label(of line: Substring, after opening: String) -> Substring? {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        guard trimmed.hasSuffix("-----") else { return nil }
+        let name = Substring(trimmed.dropFirst(opening.count).dropLast(5))
+        return publicPEMLabels.contains(name) ? name : nil
+    }
+
+    /// Base64 characters, with padding only at the end, so `name=value` is not a body line.
+    private static func isBase64Line(_ line: Substring) -> Bool {
+        let body = line.trimmingCharacters(in: .whitespaces)
+        let unpadded = body.prefix { $0 != "=" }
+        return unpadded.allSatisfy(isBase64) && body.dropFirst(unpadded.count).allSatisfy { $0 == "=" }
     }
 
     private static func isBase64(_ character: Character) -> Bool {
-        character.isASCII && (character.isLetter || character.isNumber || "+/=\r ".contains(character))
+        character.isASCII && (character.isLetter || character.isNumber || "+/=".contains(character))
     }
 
     /// `algorithm AAAA… [comment]`, with a comment too short and too plain to carry anything else.
@@ -78,7 +97,8 @@ enum PublicMaterialShape {
             words[1].hasPrefix("AAAA"),
             words[1].allSatisfy(isBase64)
         else { return false }
-        return !words.dropFirst(2).contains { $0.contains("=") }
+        let comment = words.dropFirst(2).joined(separator: " ")
+        return !comment.contains("=") && !SecretShapes.matches(comment)
     }
 
     private static func isWalletAddress(_ word: Substring) -> Bool {

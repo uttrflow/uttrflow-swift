@@ -29,6 +29,15 @@ struct PasteDestinationTests {
         #expect(await !asked.isUnchanged(on: now))
     }
 
+    @Test("a field that turned secure with no readable identity is a change")
+    func turnedSecure() async {
+        let asked = await PasteDestination.read(
+            from: ScriptedFocus(secure: true, identity: nil, application: Self.mail))
+
+        #expect(
+            await !asked.isUnchanged(on: ScriptedFocus(secure: false, identity: nil, application: Self.mail)))
+    }
+
     @Test("a focus that was lost is a change")
     func lostFocusChanged() async {
         let asked = await PasteDestination.read(

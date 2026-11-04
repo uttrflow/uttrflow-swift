@@ -14,6 +14,9 @@ package struct ClipboardIndex: Codable, Sendable, ElementwiseDecodable {
     package let classifierVersion: Int
     package let hasUnknownJSONKeys: Bool
 
+    /// Whether a released build would drop a clip here when it rewrites this file; the extra key makes it refuse the write.
+    private var holdsKeptSecrets: Bool { clips.contains { $0.kind == .secret } }
+
     package var isLegacy: Bool { version == 1 }
     package var isUnsupported: Bool { !isLegacy && version != Self.currentVersion }
 
@@ -51,9 +54,10 @@ package struct ClipboardIndex: Codable, Sendable, ElementwiseDecodable {
         try container.encode(version, forKey: .version)
         try container.encode(clips, forKey: .clips)
         try container.encode(classifierVersion, forKey: .classifierVersion)
+        if holdsKeptSecrets { try container.encode(true, forKey: .holdsKeptSecrets) }
     }
 
-    private enum CodingKeys: String, CodingKey { case version, clips, classifierVersion }
+    private enum CodingKeys: String, CodingKey { case version, clips, classifierVersion, holdsKeptSecrets }
 
     /// Refuses JSON this build could decode only by silently discarding fields on its next write.
     package static func containsOnlyKnownJSONKeys(in data: Data) -> Bool {
@@ -62,7 +66,7 @@ package struct ClipboardIndex: Codable, Sendable, ElementwiseDecodable {
         if let legacyClips = root as? [Any] {
             clips = legacyClips
         } else if let index = root as? [String: Any],
-            Set(index.keys).isSubset(of: ["version", "clips", "classifierVersion"]),
+            Set(index.keys).isSubset(of: ["version", "clips", "classifierVersion", "holdsKeptSecrets"]),
             let currentClips = index["clips"] as? [Any]
         {
             clips = currentClips

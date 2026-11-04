@@ -102,4 +102,34 @@ struct SecretFalsePositiveTests {
     func stillSecret(_ text: String) {
         #expect(SecretShapes.matches(text), "\(text)")
     }
+
+    @Test(
+        "credentials beside or inside public shapes are still masked",
+        arguments: [
+            "curl https://example.com;password=Vb4nM7xQ2p",
+            #"password="://Vb4nM7xQ2p""#,
+            "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\npassword=Vb4nM7xQ2p",
+            "-----BEGIN CERTIFICATE-----\npassword=Vb4nM7xQ2p\n-----END CERTIFICATE-----",
+            "ssh-ed25519 AAAAC3Nza ghp_Zx9kLmQ2rT7pQ3vB8nW4sY6uC0eH5jD1aF3g",
+            "ssh-ed25519 AAAAC3Nza Authorization: Bearer Zx9kLmQ2rT7pQ3vB8n",
+            "https://example.com/x?token=abc.def/Qv7RkT2mXeL9pAz4",
+        ] as [String])
+    func smuggled(_ text: String) {
+        #expect(SecretShapes.matches(text), "\(text)")
+    }
+
+    @Test(
+        "the same public shapes with honest edges are not masked",
+        arguments: [
+            "Checksum: \(hash64).",
+            "(\(hash40))",
+            "ssh-ed25519\tAAAAC3NzaC1lZDI1NTE5AAAAIK9xZ2mQ7vT3nB8zR4yL1aF6sD0gH5jC2eU8wP3kN7\tdev@example.com",
+            "121QsRpnveZ4bCtDGM4pTK8r3Fqcs93MKu ",
+            "https://example.com/café9F3kLm2QxT7pV8nZ4wS6u",
+            "https://example.com/x?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+            "https://example.com/a;jsessionid=9F3kLm2QxT7pV8nZ4wS6u",
+        ] as [String])
+    func honestEdges(_ text: String) {
+        #expect(!SecretShapes.matches(text), "\(text)")
+    }
 }

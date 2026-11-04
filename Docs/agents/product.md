@@ -90,9 +90,9 @@ on ignores it. Pieces and measurements: `Docs/predict.md`, `Docs/predict-precisi
 | Eviction | least recently used, not fewest copies; memory and disk are weighed separately |
 | Pasteboard access | only the clipboard adapters touch `NSPasteboard` (`make pasteboard-audit`) |
 | Credentials | recognised by `Docs/clipboard-secrets.md` before storage; measured cost recorded there |
-| Kept clips are permanent | 0 removals of a named, tagged, filed or pinned clip except by a person's delete or reset; 100% survive relaunch, secrets sealed and never in plaintext (`KeptClipSurvivalTests`) |
-| A URL without a credential is not masked | 0 masked URLs unless one carries a userinfo password, a known token shape or a generated value under a credential-named parameter (`SecretFalsePositiveTests`) |
-| Choosing a clip pastes at once | 0 questions before a hidden clip pastes, on Return or click, in any field; only several lines into a terminal ask (`PanelHiddenClipChoiceTests`) |
+| Kept clips are permanent | 0 removals of a named, tagged, filed or pinned clip except by a person deleting it, its collection or the dictation it copies, or a reset; 100% survive relaunch, secrets sealed and never in plaintext (`KeptClipSurvivalTests`) |
+| A URL without a credential is not masked | 0 masked URLs unless one carries a userinfo password, a known token shape, a generated value under a credential-named parameter, or a chosen value under `password`, `passwd` or `pwd` (`SecretFalsePositiveTests`) |
+| Choosing a clip pastes at once | 0 questions before a chosen clip pastes, on Return or click, in any field, except several lines into a terminal while that setting is on (`PanelHiddenClipChoiceTests`) |
 | Storage | JSON indexes and picture bytes are encrypted with the device-only Keychain key, excluded from backup |
 | Panel | a shortcut and a position are different numbers; geometry in `Docs/ux-panel-geometry.md`; paste eligibility in `Docs/ux-panel-insertion.md` |
 | Rich clips, code | plain form, language detection and re-indenting follow `Docs/clipboard-plain-form.md`, `Docs/clipboard-code-language.md`, `Docs/clipboard-reindent.md` |

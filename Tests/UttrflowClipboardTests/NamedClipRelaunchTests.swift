@@ -102,7 +102,7 @@ struct NamedClipRelaunchTests {
         let store = disk.launch()
         try await store.record(clip, keeping: Self.now)
         try await Self.keep(clip.id, by: mark, as: "name", in: store)
-        for index in 0..<600 where index % 100 == 0 {
+        for index in 0..<510 {
             try await store.record(
                 Clip(text: "note \(index)", kind: .text, copiedAt: Date()), keeping: Self.now)
         }

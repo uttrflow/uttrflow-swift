@@ -24,13 +24,14 @@ is an address, a public key or a content digest.
 ## What is not a credential
 
 - **An address.** A URL is masked only for what it carries: a password in its userinfo, a generated
-  token as its userinfo, a known token shape, or a generated value under a credential-named
-  parameter (`BearerURLShape.credentialParameters`). `key`, `code` and `auth` name too many ordinary
+  token as its userinfo, a known token shape, a chosen value under `password`, `passwd` or `pwd`, or a
+  generated value under a credential-named parameter (`BearerURLShape.credentialParameters`). `key`, `code` and `auth` name too many ordinary
   things to count. The rules that read words (named secrets, credential phrases, cards, commands,
   recovery phrases, the statistical rule) are given the clip with its `scheme://…` addresses taken
-  out (`AddressFreeText`). A `host.tld/path` with no scheme is exempt from the statistical rule; a
+  out (`AddressFreeText`). A `;name=value` after an address that names a secret stays readable to them. A `host.tld/path` with no scheme is exempt from the statistical rule; a
   container reference with a `:tag` is not one.
-- **Public material**, when it is the whole clip (`PublicMaterialShape`): OpenSSH public key lines,
+- **Public material**, when it is the whole clip (`PublicMaterialShape`): OpenSSH public key lines
+  whose comment holds no credential,
   public PEM objects (`PUBLIC KEY`, `CERTIFICATE` and the labels listed there), and wallet addresses
   whose own checksum holds (Base58Check, Bech32, Bech32m), plus `0x` and 40 hex and the 95-character
   Monero shape. A published example token is taken out wherever it stands.
@@ -94,7 +95,7 @@ text (`ClipboardStore.setSecret`, held by `ClipSecrecyOverrides`). Both are expl
 | This is not a secret | a secret | the clip takes the kind the detector gives it without the secret question, is written like any other clip, and the same text is never masked again |
 | Treat as secret | any other text clip | the clip is masked; unkept, it leaves both files; kept, it stays sealed in the saved file and stays masked; a repeat copy of the same text is masked for as long as the app runs |
 
-"Not a secret" is the only answer that crosses a launch. It is kept in `not-secret.v1.json`
+"Not a secret" is the only answer kept outside a clip that crosses a launch. It is kept in `not-secret.v1.json`
 beside the clipboard files as a sorted list of keyed digests (`EncryptedStore.digest(of:for:)`,
 HMAC-SHA-256 under a key derived from the installation key), sealed like the indexes; the text
 itself is never written there, and a digest cannot be checked against a guess without the

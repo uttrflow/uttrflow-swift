@@ -27,7 +27,9 @@ public enum SecretShapes {
         if literals.jwt, hasJSONWebToken(examplesRemoved) { return true }
         if literals.dockerAuth, DockerAuthShape.matches(text) { return true }
         if literals.url, hasAuthenticatorSeed(text) { return true }
-        if literals.url, hasCredentialledURL(text) || hasBearerURL(text) || hasTokenUserinfoURL(text) {
+        if literals.url,
+            hasCredentialledURL(text) || hasBearerURL(examplesRemoved) || hasTokenUserinfoURL(text)
+        {
             return true
         }
         if VendorKeyWindows.matches(text, pattern: vendorKey, tally: patternTally) { return true }
@@ -296,11 +298,11 @@ public enum SecretShapes {
     private static func isEntropyExemption(_ token: String) -> Bool {
         CredentialPlaceholder.matches(token) || isEntropyExemptAddress(token) || isUUID(token)
             || isJoinedWords(token)
-            || DeveloperReferenceShape.matches(token) || isSchemeLessAddress(token)
+            || DeveloperReferenceShape.matches(token)
     }
 
     /// `www.example.com/a/b` or `example.com/a?b=1`: a lowercase host, then a path of URL characters.
-    private static func isSchemeLessAddress(_ token: String) -> Bool {
+    static func isSchemeLessAddress(_ token: String) -> Bool {
         guard let end = token.firstIndex(where: { $0 == "/" || $0 == "?" }) else { return false }
         let labels = token[..<end].split(separator: ".", omittingEmptySubsequences: false)
         func isHostCharacter(_ character: Character) -> Bool {

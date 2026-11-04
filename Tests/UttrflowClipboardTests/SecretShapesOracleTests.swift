@@ -402,7 +402,7 @@ enum BacktrackingPatterns {
         let words = AddressFreeText.removingWorkingDirectoryLines(
             from: AddressFreeText.removingAddresses(from: examplesRemoved))
         return hasJSONWebToken(examplesRemoved) || hasCredentialledURL(text)
-            || SecretShapes.hasBearerURL(text) || SecretShapes.hasTokenUserinfoURL(text)
+            || SecretShapes.hasBearerURL(examplesRemoved) || SecretShapes.hasTokenUserinfoURL(text)
             || text.matches(of: SecretShapes.vendorKey).contains(where: {
                 !CredentialPlaceholder.matches(String($0.output))
             }) || SecretShapes.hasCommandCredential(words) || hasNamedSecret(words)

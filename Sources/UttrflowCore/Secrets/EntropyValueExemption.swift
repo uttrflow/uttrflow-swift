@@ -32,12 +32,13 @@ struct EntropyValueExemption {
         return value.split(whereSeparator: { !$0.isASCII || !$0.isHexDigit }).contains {
             $0.count >= SecretShapes.hexTokenLength && contextualDigests.contains($0.lowercased())
         }
-            || isBase64Checksum(value) || isContentDigest(value)
+            || isBase64Checksum(value) || isContentDigest(value) || SecretShapes.isSchemeLessAddress(value)
     }
 
     /// A git object name or content digest, bare at 40 or 64 hex or labelled by its algorithm.
     private func isContentDigest(_ value: String) -> Bool {
-        let parts = value.lowercased().split(separator: ":", omittingEmptySubsequences: false)
+        let bare = value.trimmingCharacters(in: CharacterSet(charactersIn: "().,;!?[]{}"))
+        let parts = bare.lowercased().split(separator: ":", omittingEmptySubsequences: false)
         guard let digest = parts.last, digest.allSatisfy({ $0.isASCII && $0.isHexDigit }) else {
             return false
         }

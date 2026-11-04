@@ -225,7 +225,9 @@ the cap. Not as a special case checked in three places, but absent from the cand
 entirely: the `kept` pool has no tier, so there is no rule for it to be an exception to. A kept
 secret is written like any other kept clip: the saved file is sealed under the device-only key
 ([`local-store-encryption.md`](local-store-encryption.md)), and a store built without a key, which
-only tests and tools are, leaves the value out rather than writing it plainly.
+only tests and tools are, leaves the value out rather than writing it plainly. An index holding one
+also carries the key `holdsKeptSecrets`: a build from before kept secrets drops them when it reads,
+and that unknown key makes it refuse to rewrite the file, so going back to one cannot lose them.
 
 What can remove a kept clip: `delete`, `deleteCategory`, `forgetEverything` (each a person asking)
 and `deleteCopies` when a person deletes the dictation it copies. Every other path spares it:
@@ -235,7 +237,7 @@ and `deleteCopies` when a person deletes the dictation it copies. Every other pa
 | Window, count cap, memory quota, picture disk budget | not a candidate; kept pictures that do not fit are refused when kept, not evicted |
 | Clearing the history | `deleteEverything(keeping:)` spares `isKept` |
 | Copying the same text again | `inheriting` builds on the kept clip and keeps its marks and kind |
-| Renaming onto a name in use | refused; a duplicate name found in a file or an undo drops only the name and pins the clip |
+| Renaming onto a name in use | refused; a duplicate name found in a file or an undo drops only the name, and pins the clip if no tag, collection or pin keeps it |
 | Taking off the last mark | the person's choice; it rejoins the history, and a secret leaves the file then |
 | A detector update | `ClipReclassification.merge` never changes whether a kept clip is masked |
 | An unreadable file or record | restored from `.bak`, set aside, quarantined or refused, and never replaced with an empty list |

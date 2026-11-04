@@ -7,25 +7,42 @@ enum AddressFreeText {
     /// The text without any `scheme://…` address, whose own credentials are the address rules' to judge.
     static func removingAddresses(from text: String) -> String {
         guard text.contains("://") else { return text }
-        var bytes = Array(text.utf8)
-        var kept: [UInt8] = []
-        kept.reserveCapacity(bytes.count)
+        let scalars = Array(text.unicodeScalars)
+        var kept = String.UnicodeScalarView()
         var index = 0
-        while index < bytes.count {
-            guard index + 3 <= bytes.count, bytes[index] == UInt8(ascii: ":"),
-                bytes[index + 1] == UInt8(ascii: "/"),
-                bytes[index + 2] == UInt8(ascii: "/")
+        while index < scalars.count {
+            guard index + 3 <= scalars.count, scalars[index] == ":", scalars[index + 1] == "/",
+                scalars[index + 2] == "/", let last = kept.last, isSchemeScalar(last)
             else {
-                kept.append(bytes[index])
+                kept.append(scalars[index])
                 index += 1
                 continue
             }
-            while let last = kept.last, isSchemeByte(last) { kept.removeLast() }
+            while let last = kept.last, isSchemeScalar(last) { kept.removeLast() }
             index += 3
-            while index < bytes.count, !BearerURLShape.endsURL(bytes[index]) { index += 1 }
+            let start = index
+            while index < scalars.count, !endsAddress(scalars[index]) { index += 1 }
+            index = endOfAddress(in: scalars[start..<index])
         }
-        bytes = kept
-        return String(decoding: bytes, as: UTF8.self)
+        return String(kept)
+    }
+
+    /// Where an address stops: at its end, or before a `;name=value` naming a secret, which a shell reads as a new command.
+    private static func endOfAddress(in span: ArraySlice<Unicode.Scalar>) -> Int {
+        guard let semicolon = span.firstIndex(of: ";") else { return span.endIndex }
+        var tail = String.UnicodeScalarView()
+        tail.append(contentsOf: span[(semicolon + 1)...])
+        return SecretShapes.hasNamedSecret(String(tail)) ? semicolon + 1 : span.endIndex
+    }
+
+    /// An ASCII boundary as the URL rules read it, or non-ASCII that is not part of a word: curly quotes, dashes, spaces.
+    private static func endsAddress(_ scalar: Unicode.Scalar) -> Bool {
+        if scalar.isASCII { return BearerURLShape.endsURL(UInt8(scalar.value)) }
+        let properties = scalar.properties
+        switch properties.generalCategory {
+        case .nonspacingMark, .spacingMark, .enclosingMark: return false
+        default: return !properties.isAlphabetic && properties.numericType == nil
+        }
     }
 
     /// The text without `pwd: /a/path` lines: a shell's working directory, where `pwd` names no password.
@@ -43,11 +60,12 @@ enum AddressFreeText {
         var rest = trimmed[name.upperBound...].trimmingPrefix(while: \.isWhitespace)
         guard let separator = rest.first, separator == ":" || separator == "=" else { return false }
         rest = rest.dropFirst().trimmingPrefix(while: \.isWhitespace)
-        return ["/", "~/", "./", "../"].contains { rest.hasPrefix($0) }
+        return PathShape.starts.contains { rest.hasPrefix($0) }
     }
 
-    private static func isSchemeByte(_ byte: UInt8) -> Bool {
-        (0x30...0x39).contains(byte) || (0x41...0x5A).contains(byte) || (0x61...0x7A).contains(byte)
-            || byte == UInt8(ascii: "+") || byte == UInt8(ascii: "-") || byte == UInt8(ascii: ".")
+    private static func isSchemeScalar(_ scalar: Unicode.Scalar) -> Bool {
+        scalar.isASCII
+            && (scalar.properties.isAlphabetic || ("0"..."9").contains(scalar)
+                || "+-.".unicodeScalars.contains(scalar))
     }
 }

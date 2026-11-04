@@ -184,4 +184,53 @@ struct KeptClipSurvivalTests {
         try await launch().forgetEverything()
         #expect(await launch().clips(keeping: Self.retention).isEmpty)
     }
+
+    @Test("undo over a plain copy leaves a kept secret masked")
+    func undoKeepsMasking() async throws {
+        let store = launch()
+        let clip = Clip(text: "blue-horse", kind: .secret, copiedAt: Date(), source: nil, isPinned: true)
+        try await store.record(clip, keeping: Self.retention)
+        try await store.delete(clip.id, keeping: Self.retention)
+        try await store.record(
+            Clip(text: "blue-horse", kind: .text, copiedAt: Date(), source: nil), keeping: Self.retention)
+
+        let restored = try await store.restore(clip, keeping: Self.retention)
+
+        #expect(restored.map(\.kind) == [.secret])
+    }
+
+    @Test("an index holding a kept secret makes an older build refuse to rewrite it")
+    func olderBuildCannotDropAKeptSecret() throws {
+        let secret = Clip(text: "blue-horse", kind: .secret, copiedAt: Date(), source: nil, isPinned: true)
+        let plain = Clip(text: "a note", kind: .text, copiedAt: Date(), source: nil, isPinned: true)
+        func keys(_ clips: [Clip]) throws -> Set<String> {
+            let data = try JSONEncoder().encode(ClipboardIndex(clips: clips))
+            let root = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+            return Set(root.keys)
+        }
+        // The keys every released build accepts; any other makes it refuse the write.
+        let released: Set<String> = ["version", "clips", "classifierVersion"]
+
+        #expect(try !keys([secret]).isSubset(of: released))
+        #expect(try keys([plain]) == released)
+        let data = try JSONEncoder().encode(ClipboardIndex(clips: [secret]))
+        #expect(ClipboardIndex.containsOnlyKnownJSONKeys(in: data), "this build reads what it wrote")
+    }
+
+    @Test("a detector pass on a store with no key writes no kept secret")
+    func noPlaintextFromTheDetectorPass() async throws {
+        let file = folder.appending(path: "saved.v1.json")
+        let stale = ClipboardIndex(
+            clips: [Clip(text: "a note", kind: .text, copiedAt: Date(), source: nil, isPinned: true)],
+            classifierVersion: 0)
+        try JSONEncoder().encode(stale).write(to: file)
+        let store = ClipboardStore(file: folder.appending(path: "clipboard.v1.json"))
+        let listed = await store.clips(keeping: Self.retention)
+        let id = try #require(listed.first?.id)
+        try await store.setSecret(true, of: id, keeping: Self.retention)
+        await store.waitForClassifierMigrations()
+
+        let onDisk = try bytesOnDisk()
+        #expect(onDisk.range(of: Data("a note".utf8)) == nil)
+    }
 }

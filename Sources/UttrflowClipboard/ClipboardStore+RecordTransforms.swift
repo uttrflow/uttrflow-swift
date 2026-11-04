@@ -43,7 +43,7 @@ extension ClipboardStore {
     /// Carries what the user chose about a clip onto the copy that has just replaced it.
     static func inheriting(_ previous: Clip, from arrival: Clip) -> Clip {
         // Whether a kept clip is masked is settled; a repeat of the same text never changes it, either way.
-        let staysAsIs = previous.isKept && (previous.kind == .secret) != (arrival.kind == .secret)
+        let staysAsIs = previous.keepsMasking(against: arrival)
         let classified = staysAsIs ? previous : arrival
         // Built on the previous clip, so its identity, origin and everything the user decided stay with it.
         return previous.with {
@@ -71,6 +71,11 @@ extension ClipboardStore {
     /// Restoring a duplicate revives the deleted clip's choices without rewinding the newer copy.
     static func restoring(_ deleted: Clip, over newer: Clip) -> Clip {
         newer.with {
+            // A kept secret comes back masked, whatever the copy made since it went was judged.
+            if deleted.kind == .secret, deleted.keepsMasking(against: newer) {
+                $0.kind = deleted.kind
+                $0.language = deleted.language
+            }
             $0.dictations += deleted.dictations.filter { !newer.dictations.contains($0) }
             $0.dictatedText = newer.dictatedText ?? deleted.dictatedText
             $0.alias = newer.alias ?? deleted.alias
