@@ -13,7 +13,8 @@ enum PublicMaterialShape {
 
     /// OpenSSH public key algorithm names before any `@` suffix, the first word of a key line.
     private static let sshAlgorithms: Set<Substring> = [
-        "ssh-ed25519", "ssh-rsa", "ssh-dss", "sk-ssh-ed25519", "sk-ecdsa-sha2-nistp256", "ecdsa-sha2-nistp256", "ecdsa-sha2-nistp384",
+        "ssh-ed25519", "ssh-rsa", "ssh-dss", "sk-ssh-ed25519", "sk-ecdsa-sha2-nistp256",
+        "ecdsa-sha2-nistp256", "ecdsa-sha2-nistp384",
         "ecdsa-sha2-nistp521",
     ]
 
@@ -37,7 +38,9 @@ enum PublicMaterialShape {
         if trimmed.hasPrefix("-----BEGIN") { return isOnlyPublicPEM(trimmed) }
         let lines = trimmed.split(whereSeparator: \.isNewline)
         guard let first = lines.first, first.utf8.count >= 26 else { return false }
-        if sshAlgorithms.contains(first.prefix { $0 != " " && $0 != "@" }) { return lines.allSatisfy(isSSHPublicKey) }
+        if sshAlgorithms.contains(first.prefix { $0 != " " && $0 != "@" }) {
+            return lines.allSatisfy(isSSHPublicKey)
+        }
         let word = first.prefix { !$0.isWhitespace }
         return lines.count == 1 && word.count == first.count && isWalletAddress(first)
     }
@@ -71,7 +74,8 @@ enum PublicMaterialShape {
     /// `algorithm AAAA… [comment]`, with a comment too short and too plain to carry anything else.
     private static func isSSHPublicKey(_ line: Substring) -> Bool {
         let words = line.split(whereSeparator: \.isWhitespace)
-        guard words.count >= 2, words.count <= 5, sshAlgorithms.contains(words[0].prefix { $0 != "@" }), words[1].hasPrefix("AAAA"),
+        guard words.count >= 2, words.count <= 5, sshAlgorithms.contains(words[0].prefix { $0 != "@" }),
+            words[1].hasPrefix("AAAA"),
             words[1].allSatisfy(isBase64)
         else { return false }
         return !words.dropFirst(2).contains { $0.contains("=") }
@@ -112,7 +116,8 @@ enum PublicMaterialShape {
     /// A SegWit address (BIP-173 or BIP-350), checked by its own checksum.
     private static func isBech32Address(_ word: Substring) -> Bool {
         let lowered = word.lowercased()
-        guard lowered.hasPrefix("bc1") || lowered.hasPrefix("ltc1"), word == lowered || word == word.uppercased(),
+        guard lowered.hasPrefix("bc1") || lowered.hasPrefix("ltc1"),
+            word == lowered || word == word.uppercased(),
             let separator = lowered.lastIndex(of: "1")
         else { return false }
         let alphabet = Array("qpzry9x8gf2tvdw0s3jn54khce6mua7l")

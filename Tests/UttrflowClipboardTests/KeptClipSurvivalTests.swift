@@ -136,7 +136,8 @@ struct KeptClipSurvivalTests {
                 largestPicture: 1, pictureEdge: 1, disk: 1),
             encryptedStore: sealing)
         let old = Clip(
-            text: "an old note", kind: .text, copiedAt: Date(timeIntervalSinceNow: -86_400 * 400), source: nil,
+            text: "an old note", kind: .text, copiedAt: Date(timeIntervalSinceNow: -86_400 * 400),
+            source: nil,
             isPinned: true)
         try await store.record(old, keeping: Self.retention)
         for index in 0..<5 {

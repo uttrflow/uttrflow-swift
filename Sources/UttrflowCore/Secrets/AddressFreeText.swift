@@ -12,7 +12,8 @@ enum AddressFreeText {
         kept.reserveCapacity(bytes.count)
         var index = 0
         while index < bytes.count {
-            guard index + 3 <= bytes.count, bytes[index] == UInt8(ascii: ":"), bytes[index + 1] == UInt8(ascii: "/"),
+            guard index + 3 <= bytes.count, bytes[index] == UInt8(ascii: ":"),
+                bytes[index + 1] == UInt8(ascii: "/"),
                 bytes[index + 2] == UInt8(ascii: "/")
             else {
                 kept.append(bytes[index])
@@ -36,7 +37,9 @@ enum AddressFreeText {
 
     private static func isWorkingDirectoryLine(_ line: Substring) -> Bool {
         let trimmed = line.trimmingPrefix(while: \.isWhitespace)
-        guard let name = trimmed.range(of: "pwd", options: [.anchored, .caseInsensitive]) else { return false }
+        guard let name = trimmed.range(of: "pwd", options: [.anchored, .caseInsensitive]) else {
+            return false
+        }
         var rest = trimmed[name.upperBound...].trimmingPrefix(while: \.isWhitespace)
         guard let separator = rest.first, separator == ":" || separator == "=" else { return false }
         rest = rest.dropFirst().trimmingPrefix(while: \.isWhitespace)

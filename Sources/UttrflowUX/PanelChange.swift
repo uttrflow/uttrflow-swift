@@ -233,7 +233,7 @@ extension PanelSnapshot {
         case .renamingCategory(let name, _): next.sheet = .renamingCategory(name, draft: text)
         case .editing(let id, _):
             next.sheet = .editing(id, draft: text)
-            // A warning holds only for the text it is shown for, so new text is judged again.
+        // A warning holds only for the text it is shown for, so new text is judged again.
         case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting,
             .confirmingPaste, .none:
             return self

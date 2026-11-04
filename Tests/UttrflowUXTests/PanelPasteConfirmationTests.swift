@@ -75,6 +75,7 @@ struct PanelHiddenClipChoiceTests {
     @Test("copying it goes to the clipboard, concealed")
     func copies() {
         #expect(
-            PanelOutcome.copy(Self.secret).effect == .closeAndCopyConcealed(Self.secret.text, used: Self.secret.id))
+            PanelOutcome.copy(Self.secret).effect
+                == .closeAndCopyConcealed(Self.secret.text, used: Self.secret.id))
     }
 }
