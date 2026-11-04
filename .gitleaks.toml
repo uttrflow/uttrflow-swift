@@ -71,7 +71,7 @@
 # source literal is replaced; a real `api_key`-shaped credential with that same value
 # but a different assignment still fails.
 #
-# `KeptClipSurvivalTests.swift` and `SecretFalsePositiveTests.swift` need one entry per
+# `KeptClipSurvivalTests.swift`, `NamedClipRelaunchTests.swift`, `PanelPasteConfirmationTests.swift` and `SecretFalsePositiveTests.swift` need one entry per
 # fixture too: invented token, URL, command and private-key shapes, and the widely published
 # example JWT, each matched by its exact value so a real key added beside them still fails.
 [extend]
@@ -134,6 +134,7 @@ useDefault = true
             c2gtZWQyNTUxOQAAACDkQ2VydGlmaWNhdGVOb3RSZWFsbHlBS2V5QXRBbGxIZXJl
             -----END OPENSSH PRIVATE KEY-----$''',
     # Invented values in KeptClipSurvivalTests.swift and SecretFalsePositiveTests.swift, and the published example token.
+    '''^Vb4nM7xQ2p\-invented$''',
     '''^ghp_Zx9kLmQ2rT7pQ3vB8nW4sY6uC0eH5jD1aF3g$''',
     '''^Zx9kLmQ2rT7pQ3vB8n$''',
     '''^\-\-\-\-\-BEGIN\ PRIVATE\ KEY\-\-\-\-\-\\nMIIB9xZ2\\n\-\-\-\-\-END\ PRIVATE\ KEY\-\-\-\-\-",\
