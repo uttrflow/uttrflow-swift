@@ -6,6 +6,19 @@ import UttrflowClipboard
 import UttrflowUX
 
 extension QuickPanelView {
+    /// Asks for the sheet field's focus until it holds, because a busy main thread can drop a request silently.
+    /// Stops at once if the search field took focus, and gives up after about three seconds.
+    func requestSheetFocus() async {
+        isSheetFocused = true
+        for _ in 0..<30 {
+            try? await Task.sleep(for: .milliseconds(100))
+            if isSheetFocused || isSearchFocused { return }
+            isSheetFocused = false
+            await Task.yield()
+            isSheetFocused = true
+        }
+    }
+
     /// The question on top of the list, dimming but not hiding the row it is about.
     @ViewBuilder
     func sheetOverlay(_ sheet: PanelSheetPresentation) -> some View {
@@ -91,7 +104,7 @@ extension QuickPanelView {
         .onAppear {
             isSearchFocused = false
             // On the next turn: a focus request made during `onAppear` is dropped silently.
-            Task { isSheetFocused = true }
+            Task { await requestSheetFocus() }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)

@@ -7,6 +7,11 @@ import UttrflowUX
 
 @testable import Uttrflow
 
+/// A borderless window refuses key status unless it says otherwise, as the real panel does.
+private final class KeyableWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
+}
+
 @MainActor
 @Suite(
     "Synthetic panel sheet and auxiliary controls",
@@ -21,13 +26,14 @@ struct PanelSheetInteractionTests {
     private func host<Content: View>(_ content: Content) async -> (NSWindow, NSHostingView<Content>) {
         NSApplication.shared.setActivationPolicy(.accessory)
         NSApplication.shared.finishLaunching()
-        let window = NSWindow(
+        let window = KeyableWindow(
             contentRect: NSRect(x: -4_000, y: -4_000, width: 420, height: 360),
             styleMask: .borderless, backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         let host = NSHostingView(rootView: content)
         window.contentView = host
         window.orderFrontRegardless()
+        window.makeKey()
         host.layoutSubtreeIfNeeded()
         await askAsAnAssistiveApp()
         return (window, host)
@@ -106,7 +112,7 @@ struct PanelSheetInteractionTests {
         let (window, _) = await host(panel { keys.append($0) })
         defer { window.close() }
         // The sheet focuses its field a turn after it appears.
-        try await eventually { window.firstResponder is NSText }
+        try await fieldFocused(in: window)
         // Positive control: a real edit of the focused field reaches the setter, so the negative checks below mean something.
         let editor = try #require(window.firstResponder as? NSText)
         editor.insertText("!")
