@@ -2183,7 +2183,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .closeAndInsertImage(let clip):
             let destination = panelTarget ?? InsertionDestination(applicationName: nil, bundleIdentifier: nil)
             closeQuickPanel()
-            insertImage(clip, targeting: destination)
+            insertImage(clip, targeting: quickPanel.caret(after: destination, focus: focus))
         case .say(let notice):
             // Stays open, or the sentence describes a clip the user cannot see.
             panel?.notice = notice
@@ -2285,11 +2285,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         var failure: TextInsertionError?
         do {
             if case .paste = placement {
-                try engine.insert(urls, targeting: destination)
+                try engine.insert(urls, targeting: quickPanel.caret(after: destination, focus: focus))
             } else {
                 try engine.copy(urls)
             }
-        } catch { failure = error }
+        } catch { failure = PanelFilePaste.afterRefusal(error, placement) { try engine.copy(urls) } }
         let landing = PanelFilePaste.landing(
             placement, failure: failure, copyFailed: Self.clipboardCopyFailedNotice)
         if let effect = landing.effect { perform(effect) }
@@ -2561,8 +2561,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 // Closed first: insertion declines outright while Uttrflow is frontmost.
                 closeQuickPanel()
                 insert(
-                    text, richText: richText, concealed: concealed, targeting: destination, used: used,
-                    forPanel: true)
+                    text, richText: richText, concealed: concealed,
+                    targeting: quickPanel.caret(after: destination, focus: focus), used: used, forPanel: true)
             case .ask(let reason):
                 let original = panel?.clips.first { $0.id == used }?.text
                 panel = panel?.askingBeforePaste(of: used, cleaned: original != text, reason: reason)
@@ -2616,7 +2616,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 // The image may already be on the clipboard if focus changes during the write.
                 Self.log.error(
                     "picture paste refused: \(failure.userMessage, privacy: .public)")
-                self?.reportPanelPaste(.pictureRefused)
+                let copied = await PanelPasteFloor.keep(after: failure) {
+                    await self?.putImageOnClipboard(clip) == .copied
+                }
+                self?.reportPanelPaste(copied ? .pictureRefused : .textCouldNotPaste)
             }
         }
     }
@@ -2691,10 +2694,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 )
                 if forPanel { self?.reportPanelPaste(.text(attempt)) }
             } catch {
-                // Every strategy refused, including the one that cannot.
                 let why = (error as? any UttrflowFailure)?.userMessage ?? SuggestionLog.failure(error)
                 Self.log.error("clip insertion failed: \(why, privacy: .public)")
-                self?.reportPanelPaste(forPanel ? .textCouldNotPaste : .textRefused)
+                let result = await PanelPasteFloor.result(after: error) {
+                    self?.putOnClipboard(text, richText: richText, concealed: concealed) == true
+                }
+                self?.reportPanelPaste(result)
             }
         }
     }
@@ -2702,14 +2707,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Says on the floating button, and aloud, what a panel action left on the clipboard.
     private func reportPanelPaste(_ result: PanelPasteResult) {
         guard let report = PanelPasteReport.after(result) else { return }
-        var spoken = AttributedString(report.spoken)
-        spoken.accessibilitySpeechAnnouncementPriority = .high
-        AccessibilityNotification.Announcement(spoken).post()
+        report.announce()
         // A dictation under way owns the button, and its own outcome is the newer news.
         guard case .idle = lastDictationState else { return }
-        pasteReport = DictationPresenter.dock(
-            notice: report.symbolName, primaryLine: report.primaryLine,
-            secondaryLine: report.secondaryLine, accessibilityLabel: report.spoken)
+        pasteReport = report.dock
+        if drawsWindows { dock.showForReport(at: settings.floatingButtonAnchor) }
         dock.update(with: dockPresentation(for: lastDictationState))
         pasteReportTask?.cancel()
         pasteReportTask = Task { [weak self] in
@@ -2717,6 +2719,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             guard !Task.isCancelled, let self else { return }
             self.pasteReport = nil
             self.dock.update(with: self.dockPresentation(for: self.lastDictationState))
+            self.showTheFloatingButtonIfWanted()
         }
     }
 
@@ -2743,7 +2746,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Through the one pasteboard, so the write is announced and stays on this Mac. See `Docs/insertion.md`.
     @discardableResult
     private func putOnClipboard(
-        _ text: String, richText: String? = nil, concealed: Bool = false, used: Clip.ID?
+        _ text: String, richText: String? = nil, concealed: Bool = false, used: Clip.ID? = nil
     ) -> Bool {
         // A secret goes up marked, so no other clipboard history records it in plain text.
         let result: PasteboardWriteResult
