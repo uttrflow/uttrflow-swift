@@ -11,6 +11,50 @@ Each released version is a git tag and a build at
 
 ## [Unreleased]
 
+## [26.1105.0] — 2026-11-05
+
+### Added
+- **Dictate a nested list.** "Sub bullet", "sub point" and "sub bullet point" write one level of
+  items indented under the item above (#3630).
+- **Lettered and roman item labels are written as labels on their own lines**: "item a", "sub
+  clause b" and "part i" (#4257, #8173).
+
+### Changed
+- **A kept clip now survives a relaunch even when it looks like a secret.** A named, tagged, filed
+  or pinned secret is saved sealed with the on-device key; an unkept secret is still not saved
+  (#8180, #4264, #2051).
+- **Ordinary web addresses and public values stop being masked as secrets.** Words inside an
+  address, the parameters `key`, `code` and `auth`, public keys, certificates, valid wallet
+  addresses and 40 or 64 digit hex digests stay readable. The cost: a bare 40 digit hex token of an
+  older format is no longer masked either (#8181, #3722).
+- **Pasting a hidden clip no longer asks first**, and its setting is gone. The question before
+  pasting into a terminal is unchanged (#8182).
+- **"Getting ready" is quieter.** The floating button no longer announces a background speech model
+  load; a download or a failure still shows there, and the menu bar and Home still say a load is
+  running. A model is released only at critical memory pressure and reloads by itself once memory
+  is calm. This does not eliminate the wait: a cold load can still take minutes (#8183).
+- **Pause length for sentence breaks comes from the quiet in the audio**, not from word times
+  (#3346).
+- **A counted series becomes a list only when it is plainly announced**, and a sentence that goes on
+  after the announcement stays prose (#3629).
+- **A paragraph break or list mark needs a reason.** One with no evidence, or one inside a sentence,
+  bracket, quotation, number or address, is taken out and every word kept (#4013).
+
+### Fixed
+- **Speaking while the speech model loads no longer loses your words.** The press records and the
+  words arrive when the load ends, in the application you were in; if you have moved on they are
+  copied instead of typed elsewhere (#8183).
+- **Dictation reaches more fields.** Paste is now the last resort after Accessibility and typing,
+  never in a secure field. A write the field accepts but cannot prove no longer warns. A field that
+  applies a write late can receive the words twice (#8168).
+- **Text from the panel is no longer lost when the target refuses it.** The words, picture or files
+  are copied and the report says what really happened; "Copied" is no longer shown when nothing
+  was (#8178).
+- **The panel follows the caret past another app's floating panel** (#8179).
+- **A sentence really said twice at a fast pace is no longer cut to one** (#8170).
+- **A full-screen editor inside a terminal no longer receives dictation as typed commands**, when
+  the terminal's title names it (#4136).
+
 ## [26.1013.0] — 2026-10-13
 
 ### Added
@@ -734,6 +778,7 @@ where its code became readable.
   disagree.
 
 [Unreleased]: https://github.com/uttrflow/uttrflow-swift/commits/main
+[26.1105.0]: https://github.com/uttrflow/releases/releases
 [26.1013.0]: https://github.com/uttrflow/releases/releases
 [26.0926.0]: https://github.com/uttrflow/uttrflow-swift/releases/tag/v26.0926.0
 [2026.9.14]: https://github.com/uttrflow/uttrflow-swift/releases/tag/v2026.9.14
