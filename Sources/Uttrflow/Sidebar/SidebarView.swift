@@ -89,11 +89,8 @@ struct SidebarView: View {
         HStack(spacing: 10) {
             UttrflowMarkView(height: 20)
                 .foregroundStyle(IslandPalette.ink)
-            Text(presentation.productName.lowercased())
-                .font(BrandFont.wordmark(size: 21, weight: .semibold))
-                .tracking(-0.4)
+            BrandWordmark(size: 21)
                 .foregroundStyle(IslandPalette.ink)
-                .fixedSize()
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.productName)

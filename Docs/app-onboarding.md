@@ -21,7 +21,7 @@ Low Power Mode or thermal pressure (`MotionBudget.demonstrationMoves`). The prob
 No animation pulses: the waveform, the sign-in arc and the typing field move, and all of them are
 gated by the same budget.
 
-The logo top-left is `UttrflowMarkView` on a dark tile beside the wordmark in EB Garamond; there is no
+The logo top-left is `UttrflowMarkView` on a dark tile beside `BrandWordmark`; there is no
 second logo asset. The card holds a picture on top, then the heading, round buttons, a hint and
 one dot per step.
 
