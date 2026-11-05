@@ -8,7 +8,9 @@ import Testing
 
 /// How far past each edge of `size` a view's drawing reaches, in points, when nothing clips it.
 @MainActor
-private func overhang(of view: some View, fitting size: CGSize, appearance: NSAppearance.Name) throws
+private func overhang(
+    of view: some View, fitting size: CGSize, appearance: NSAppearance.Name
+) throws
     -> NSEdgeInsets
 {
     let room: CGFloat = 80
@@ -38,7 +40,8 @@ private func overhang(of view: some View, fitting size: CGSize, appearance: NSAp
 struct FloatingGlassShadowTests {
     nonisolated static let appearances: [NSAppearance.Name] = [.aqua, .darkAqua]
 
-    @Test("the dock's glass and its shadow fit inside the margin the panel is sized to", arguments: appearances)
+    @Test(
+        "the dock's glass and its shadow fit inside the margin the panel is sized to", arguments: appearances)
     func dockShadowFits(appearance: NSAppearance.Name) throws {
         let capsule = CGSize(width: 220, height: DockSetupMetrics.capsuleHeight)
         let form = Color.clear

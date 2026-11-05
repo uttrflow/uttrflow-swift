@@ -15,8 +15,7 @@ extension View {
         return background(opaque ? Color.dockOpaqueGlass : Color.dockGlass, in: shape)
             .background(.ultraThinMaterial, in: shape)
             .overlay(shape.strokeBorder(Color.dockGlassEdge, lineWidth: 1))
-            // Clipped so the panel's window shadow follows the glass, not the material's rectangular backing.
-            // No SwiftUI shadow: the panel's edge would cut it into a box.
+            // No SwiftUI shadow, which the panel's edge cuts into a box; the window's shadow traces this clip.
             .clipShape(shape)
     }
 }
