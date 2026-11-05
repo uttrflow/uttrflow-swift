@@ -246,6 +246,8 @@ final class DockPanelController {
         panel.setFrame(
             DockPlacement.frame(for: anchor, panelSize: panelSize, in: visibleFrame),
             display: true)
+        // The window shadow is traced from the drawn content, and a new form has a new outline.
+        panel.invalidateShadow()
     }
 
     private var visibleFrame: CGRect {
@@ -270,8 +272,8 @@ final class DockPanelController {
         ]
         panel.isOpaque = false
         panel.backgroundColor = .clear
-        // AppKit's own shadow around the slab's shadow made the resting grip look boxed.
-        panel.hasShadow = false
+        // The window server draws this shadow outside the frame, so the panel's edge never cuts it off.
+        panel.hasShadow = true
         panel.isMovableByWindowBackground = false
         panel.isReleasedWhenClosed = false
         panel.contentView = hostingView

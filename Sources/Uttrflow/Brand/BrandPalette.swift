@@ -182,9 +182,6 @@ enum BrandPalette {
         /// The hairline round the floating button's glass.
         static let dockGlassEdge = BrandLayer(
             tone: BrandTone(dark: 0xFF_FFFF, light: 0x10_1316), darkOpacity: 0.14, lightOpacity: 0.1)
-        /// The floating button's shadow, lighter on a light desktop.
-        static let dockShadow = BrandLayer(
-            tone: BrandTone(dark: 0x00_0000, light: 0x10_1316), darkOpacity: 0.5, lightOpacity: 0.22)
         /// The listening meter: white on the dark glass, dictation teal on the light.
         static let dockMeter = BrandTone(dark: textStrong.dark, light: dictationAccent.light)
         /// The initials on the avatar's lilac-to-teal disc.

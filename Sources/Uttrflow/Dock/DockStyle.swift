@@ -15,10 +15,9 @@ extension View {
         return background(opaque ? Color.dockOpaqueGlass : Color.dockGlass, in: shape)
             .background(.ultraThinMaterial, in: shape)
             .overlay(shape.strokeBorder(Color.dockGlassEdge, lineWidth: 1))
-            // Clipped and flattened before the shadow, or the material's rectangular backing leaks a square halo.
+            // Clipped so the panel's window shadow follows the glass, not the material's rectangular backing.
+            // No SwiftUI shadow: the panel's edge would cut it into a box.
             .clipShape(shape)
-            .compositingGroup()
-            .shadow(color: .dockShadow, radius: 12, y: 7)
     }
 }
 
@@ -43,7 +42,6 @@ extension Color {
     static let dockOpaqueGlass = Color(nsColor: .orbit(BrandPalette.Redesign.dockGlass.tone))
     /// The hairline round the dock's glass.
     static let dockGlassEdge = Color(nsColor: .orbit(BrandPalette.Redesign.dockGlassEdge))
-    static let dockShadow = Color(nsColor: .orbit(BrandPalette.Redesign.dockShadow))
     /// The listening meter: white on the dark glass, dictation teal on the light.
     static let dockMeter = Color(nsColor: .orbit(BrandPalette.Redesign.dockMeter))
     static let dockSuccess = Color(rgb: BrandPalette.Semantic.success)
