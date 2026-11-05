@@ -156,6 +156,9 @@ final class DockPanelController {
     /// The panel's current frame, for placement checks.
     var frame: CGRect { panel.frame }
 
+    /// Whether the window server draws the button's shadow, which the glass leaves to it.
+    var castsWindowShadow: Bool { panel.hasShadow }
+
     /// Whether the button's view draws anything, which it does only while the panel is on screen.
     var drawsContent: Bool { model.isShown }
 
@@ -246,6 +249,8 @@ final class DockPanelController {
         panel.setFrame(
             DockPlacement.frame(for: anchor, panelSize: panelSize, in: visibleFrame),
             display: true)
+        // The window shadow is traced from the drawn content, and a new form has a new outline.
+        panel.invalidateShadow()
     }
 
     private var visibleFrame: CGRect {
@@ -270,8 +275,8 @@ final class DockPanelController {
         ]
         panel.isOpaque = false
         panel.backgroundColor = .clear
-        // AppKit's own shadow around the slab's shadow made the resting grip look boxed.
-        panel.hasShadow = false
+        // The window server draws this shadow outside the frame, so the panel's edge never cuts it off.
+        panel.hasShadow = true
         panel.isMovableByWindowBackground = false
         panel.isReleasedWhenClosed = false
         panel.contentView = hostingView

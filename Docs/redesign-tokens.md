@@ -38,7 +38,6 @@ hairlines, glass and secondary text.
 | `auroraStops` | `#7A3FD1` `#4B3FC0` `#1F8FB0` `#2FE0CF` | same |
 | `dockGlass` | `#100D1E` at 72% | `#FFFFFF` at 90% |
 | `dockGlassEdge` | white at 14% | `#101316` at 10% |
-| `dockShadow` | black at 50% | `#101316` at 22% |
 | `dockMeter` | `#FFFFFF` | `#128077` |
 | `avatarInk` | `#08131A` | same |
 | `avatarLilac` | `#C49BF5` | `#7A4FC4` |
