@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Proves the n-gram source check refuses an unlisted, changed or wrongly licensed source."""
 
+import http.client
 import io
 import os
 import tarfile
 import tempfile
 import unittest
+import urllib.error
 
 import ngram_sources
 
@@ -80,6 +82,35 @@ class NgramSourcesTests(unittest.TestCase):
         failures = ngram_sources.fetch([entry], folder, opener=lambda _: changed)
         self.assertIn("differs", failures[0])
         self.assertEqual(os.listdir(folder), [])
+
+    def test_fetch_reports_a_dropped_download_and_leaves_no_partial_file(self):
+        folder, archive, entry = self.cache()
+        os.remove(archive)
+
+        class Dropping:
+            def __init__(self):
+                self.calls = 0
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                return False
+
+            def read(self, _size):
+                self.calls += 1
+                if self.calls > 1:
+                    raise http.client.IncompleteRead(b"x")
+                return b"te"
+
+        def offline(_url):
+            raise urllib.error.URLError("offline")
+
+        for opener in (lambda _: Dropping(), offline):
+            failures = ngram_sources.fetch([entry], folder, opener=opener)
+            self.assertEqual(len(failures), 1)
+            self.assertIn(entry["archive"], failures[0])
+            self.assertEqual(os.listdir(folder), [])
 
     def lexicon(self, notice=b"Copyright notice"):
         folder = tempfile.mkdtemp()
