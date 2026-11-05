@@ -156,6 +156,9 @@ final class DockPanelController {
     /// The panel's current frame, for placement checks.
     var frame: CGRect { panel.frame }
 
+    /// Whether the window server draws the button's shadow, which the glass leaves to it.
+    var castsWindowShadow: Bool { panel.hasShadow }
+
     /// Whether the button's view draws anything, which it does only while the panel is on screen.
     var drawsContent: Bool { model.isShown }
 

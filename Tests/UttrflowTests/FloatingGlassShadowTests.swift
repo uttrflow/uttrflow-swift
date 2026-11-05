@@ -58,6 +58,11 @@ struct FloatingGlassShadowTests {
         #expect(reach.right <= 0)
     }
 
+    @Test("the dock panel draws the window shadow the glass leaves out")
+    func dockPanelCastsShadow() {
+        #expect(DockPanelController().castsWindowShadow)
+    }
+
     @Test("the menu bar popover's glass and its shadow fit inside its shadow margin", arguments: appearances)
     func menuBarShadowFits(appearance: NSAppearance.Name) throws {
         let card = CGSize(width: 300, height: 200)
