@@ -127,9 +127,10 @@ success colour.
 
   The bright `dockWarning` `#FF8D28` and `dockSuccess` `#34C759` measure 2.31:1 under white and
   about 2:1 on light glass, so the floating button never draws with them.
-- The panel's own `hasShadow` is off: AppKit draws a shadow around a transparent panel's opaque
-  content, and every form already carries the one the design asks for. Two shadows around a
-  nine-point grip make the resting button look boxed.
+- The shadow is the panel's own `hasShadow`, which the window server traces from the drawn glass
+  and draws outside the frame. The glass carries no SwiftUI shadow: the panel is sized to the form
+  plus `gripHitPadding`, and its edge cuts a wider shadow into a box. `FloatingGlassShadowTests`
+  checks that the glass draws nothing past that margin.
 
 ## What the menu bar shows for each dictation state
 
