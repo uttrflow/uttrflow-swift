@@ -42,6 +42,9 @@ WAKEUPS_ALLOWED = {
     ("Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift", "SuggestionTicking.activeSelectionInterval"): (
         "checks the caret only while a drawn offer can be accepted, and stops when the offer is withdrawn"
     ),
+    ("Sources/Uttrflow/ClipboardPause.swift", ".seconds(delay)"): (
+        "the clipboard pause's one sleep to its deadline, repeated only after a backward clock step and never at rest"
+    ),
     ("Sources/UttrflowPipeline/DictationController.swift", "start.advanced(by:elapsed)"): (
         "the recording cap's countdown, every ten seconds in a recording's last minute and never at rest"
     ),
