@@ -87,10 +87,9 @@ struct HomeHeroCard: View {
         let accents = LinearGradient(
             colors: [PagePalette.dictation, PagePalette.suggestion, PagePalette.clipboard],
             startPoint: .leading, endPoint: .trailing)
-        return Text("\(hero.lead) \(Text(hero.emphasis).foregroundStyle(accents))")
-            .font(BrandFont.wordmark(size: 40, weight: .heavy))
-            .tracking(-1.6)
-            .foregroundStyle(PagePalette.text)
+        let lead = Text(hero.lead + " ").font(BrandFont.headline(size: 40)).tracking(-1.2)
+        let emphasis = Text(hero.emphasis).font(BrandFont.headlineEmphasis(size: 44)).tracking(-0.66)
+        return Text("\(lead)\(emphasis.foregroundStyle(accents))").foregroundStyle(PagePalette.text)
             .lineLimit(2)
             .fixedSize(horizontal: false, vertical: true)
             .accessibilityAddTraits(.isHeader)

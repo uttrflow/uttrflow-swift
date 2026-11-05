@@ -66,7 +66,7 @@ struct HomePageContent: View {
                     .font(.system(size: 13))
                     .foregroundStyle(PagePalette.quiet)
                 Text(presentation.greeting)
-                    .font(BrandFont.wordmark(size: 30, weight: .semibold))
+                    .font(BrandFont.headline(size: 30))
                     .tracking(-0.9)
                     .foregroundStyle(PagePalette.text)
                     .accessibilityAddTraits(.isHeader)
