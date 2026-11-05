@@ -378,7 +378,7 @@ panel decrypts its in-memory copy as needed. Clips age out after the retention w
 Mac: there is no clipboard sync.
 
 - **Password managers' concealed mark is honoured.** Concealed text is treated as a secret
-  and is not written to clipboard history or saved clips. See
+  and follows the storage rule below. See
   [`Docs/clipboard-secrets.md`](Docs/clipboard-secrets.md) for what the marker and secret
   handling cover.
 - **Clipboard capture can be excluded per app or paused for an hour.** Settings keeps a
@@ -389,9 +389,12 @@ Mac: there is no clipboard sync.
   [`Docs/clipboard-secrets.md`](Docs/clipboard-secrets.md).
 
 Clips that look like secrets are masked in the panel until you ask to see them, at a
-fixed width that does not reveal how long the token is, and they get no tooltip. Secret
-text can appear in the running panel, but is not written to clipboard history or saved
-clips. See [`Docs/clipboard-secrets.md`](Docs/clipboard-secrets.md).
+fixed width that does not reveal how long the token is, and they get no tooltip. A secret
+nobody kept can appear in the running panel, but is
+not written to clipboard history or saved clips, so it is gone at the next launch. One you
+name, tag, file or pin is written to the saved-clips file, sealed with the device-only key,
+and stays masked. See
+[`Docs/clipboard-secrets.md`](Docs/clipboard-secrets.md).
 
 **Tab-to-complete reads the text in and around the field you are typing in**, such as the
 thread above a reply box, and hands it to a model that runs on this Mac. None of it is
