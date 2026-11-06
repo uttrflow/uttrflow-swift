@@ -11,6 +11,19 @@ Each released version is a git tag and a build at
 
 ## [Unreleased]
 
+## [26.1106.0] — 2026-11-06
+
+### Changed
+- **A new look for the name and the Home headline.** The sidebar and the onboarding logo read
+  UttrFlow, in Bricolage Grotesque with a heavy "Uttr" and a regular "Flow". The Home greeting
+  and the headline are set in Inter Tight, with "finished for you." in Instrument Serif Italic.
+  The mark, the hero card and its colours are unchanged (#8196).
+
+### Fixed
+- **No dark box behind the floating button or the menu bar popover.** Their shadows were cut off
+  by the window's edge into a rectangle. The floating button now uses the system window shadow,
+  and the popover has room for its whole shadow (#8194).
+
 ## [26.1105.0] — 2026-11-05
 
 ### Added
@@ -778,6 +791,7 @@ where its code became readable.
   disagree.
 
 [Unreleased]: https://github.com/uttrflow/uttrflow-swift/commits/main
+[26.1106.0]: https://github.com/uttrflow/releases/releases
 [26.1105.0]: https://github.com/uttrflow/releases/releases
 [26.1013.0]: https://github.com/uttrflow/releases/releases
 [26.0926.0]: https://github.com/uttrflow/uttrflow-swift/releases/tag/v26.0926.0
