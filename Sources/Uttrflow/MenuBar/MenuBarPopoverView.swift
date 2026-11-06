@@ -21,7 +21,7 @@ struct MenuBarPopoverView: View {
     /// The popover's width, from the design.
     static let width: CGFloat = 290
     /// Room round the glass for its shadow, which a borderless window would otherwise clip.
-    static let shadowMargin: CGFloat = 28
+    static let shadowMargin: CGFloat = 44
 
     var body: some View {
         if isShown { content }

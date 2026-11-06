@@ -5,23 +5,67 @@
       "licence": "OFL-1.1",
       "redistribution": true,
       "note": "licence file ships beside the font, as OFL-1.1 requires",
-      "sha256": "0985066662eb755ed3683ae5482a81a9195b49ce3f7e165cc2388b3dbece7dd7",
-      "path": "Sources/Uttrflow/Resources/Fonts/EBGaramond-OFL.txt",
+      "sha256": "4b5a7d8f37f5602621c8a8d7358a6a2e71317e6c231c661e15aef0275d3e07ba",
+      "path": "Sources/Uttrflow/Resources/Fonts/BricolageGrotesque-OFL.txt",
       "origin": "third-party",
-      "bytes": 4398,
-      "source": "https://github.com/octaviopardo/EBGaramond12",
-      "revision": "unrecorded"
+      "bytes": 4403,
+      "source": "https://github.com/google/fonts/tree/main/ofl/bricolagegrotesque",
+      "revision": "24ddc1f324cac5d9f5aedca126d298f56e3f1640"
     },
     {
       "licence": "OFL-1.1",
       "redistribution": true,
       "note": "licence file ships beside the font, as OFL-1.1 requires",
-      "sha256": "ef9512f92f6d579e5dc75af59a5a4b1b8b47d2eda89e00b954d44520e5369027",
-      "path": "Sources/Uttrflow/Resources/Fonts/EBGaramond-Variable.ttf",
+      "sha256": "413e7357809ddd12fd80a96a8a396de0e401638d4acd3cb3e37532f0472ac682",
+      "path": "Sources/Uttrflow/Resources/Fonts/BricolageGrotesque-Variable.ttf",
       "origin": "third-party",
-      "bytes": 851176,
-      "source": "https://github.com/octaviopardo/EBGaramond12",
-      "revision": "unrecorded"
+      "bytes": 408496,
+      "source": "https://github.com/google/fonts/tree/main/ofl/bricolagegrotesque",
+      "revision": "24ddc1f324cac5d9f5aedca126d298f56e3f1640"
+    },
+    {
+      "licence": "OFL-1.1",
+      "redistribution": true,
+      "note": "licence file ships beside the font, as OFL-1.1 requires",
+      "sha256": "08939b8bdf534afec24ae0ef5e03f948940cd9a8fe08e7fecbad040e62327385",
+      "path": "Sources/Uttrflow/Resources/Fonts/InstrumentSerif-Italic.ttf",
+      "origin": "third-party",
+      "bytes": 71592,
+      "source": "https://github.com/google/fonts/tree/main/ofl/instrumentserif",
+      "revision": "24ddc1f324cac5d9f5aedca126d298f56e3f1640"
+    },
+    {
+      "licence": "OFL-1.1",
+      "redistribution": true,
+      "note": "licence file ships beside the font, as OFL-1.1 requires",
+      "sha256": "129ed7618959716959f2941fdd5b49e0ad6e6c1d78726761786a00253d865521",
+      "path": "Sources/Uttrflow/Resources/Fonts/InstrumentSerif-OFL.txt",
+      "origin": "third-party",
+      "bytes": 4405,
+      "source": "https://github.com/google/fonts/tree/main/ofl/instrumentserif",
+      "revision": "24ddc1f324cac5d9f5aedca126d298f56e3f1640"
+    },
+    {
+      "licence": "OFL-1.1",
+      "redistribution": true,
+      "note": "licence file ships beside the font, as OFL-1.1 requires",
+      "sha256": "50240ab035cf1b6b3307940235481d515c4b6de3ab1fa843dbe59e7892cb9d58",
+      "path": "Sources/Uttrflow/Resources/Fonts/InterTight-OFL.txt",
+      "origin": "third-party",
+      "bytes": 4383,
+      "source": "https://github.com/google/fonts/tree/main/ofl/intertight",
+      "revision": "24ddc1f324cac5d9f5aedca126d298f56e3f1640"
+    },
+    {
+      "licence": "OFL-1.1",
+      "redistribution": true,
+      "note": "licence file ships beside the font, as OFL-1.1 requires",
+      "sha256": "b81b73dcb64df3c230cabade7df6c5773bf863233f24c9ee51087519f1f88b6f",
+      "path": "Sources/Uttrflow/Resources/Fonts/InterTight-Variable.ttf",
+      "origin": "third-party",
+      "bytes": 581588,
+      "source": "https://github.com/google/fonts/tree/main/ofl/intertight",
+      "revision": "24ddc1f324cac5d9f5aedca126d298f56e3f1640"
     },
     {
       "licence": "OFL-1.1",

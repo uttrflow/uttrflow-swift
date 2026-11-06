@@ -21,7 +21,7 @@ names. `make design-audit` runs every check below and is a prerequisite of `make
 | Concern | Canonical source | Reached through | Enforced by |
 |---|---|---|---|
 | Colour | `Sources/Uttrflow/Brand/BrandPalette.swift` | `Sources/Uttrflow/Main/RedesignColors.swift`, `OrbitPalette.swift`, `QuickPanelGlass.swift`, `MenuBarGlass.swift`, `Color` aliases | `design_source_audit.py`; palette and contrast tests in `Tests/UttrflowTests` |
-| Typeface | `Sources/Uttrflow/Brand/BrandFont.swift`: `display` (Outfit) and `wordmark` (EB Garamond); every other text is the system font | `BrandFont.display`, `BrandFont.wordmark`, `.font(.system…)` | `design_source_audit.py`; `BrandFontTests` |
+| Typeface | `Sources/Uttrflow/Brand/BrandFont.swift`: `display` (Outfit), `wordmark` (Bricolage Grotesque), `headline` (Inter Tight) and `headlineEmphasis` (Instrument Serif Italic); every other text is the system font | `BrandFont.display`, `BrandWordmark`, `BrandFont.headline`, `BrandFont.headlineEmphasis`, `.font(.system…)` | `design_source_audit.py`; `BrandFontTests` |
 | Spacing, radii, sizes | the surface's own metrics enum: `MainMetrics`, `PageMetrics`, `SidebarMetrics`, `SettingsMetrics`, `QuickPanelMetrics`, `DockMetrics`, `DockSetupMetrics`, `OnboardingMetrics`, `ClipboardDemonstrationMetrics` | the enum's members | review |
 | Control styles | `PageButtonStyle`, `MainPrimaryButtonStyle`, `MainSecondaryButtonStyle`, `HomeQuietButtonStyle`, `SettingsSwitchStyle`, `SettingsButtonStyle`, `OnboardingPressStyle` | `.buttonStyle`, `.toggleStyle` | review |
 | Motion | `Sources/Uttrflow/Motion/MotionBudget.swift` (Reduce Motion, Low Power Mode, thermal state) | `MotionBudget` | `MotionBudgetTests` |

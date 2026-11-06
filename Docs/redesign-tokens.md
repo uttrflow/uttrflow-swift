@@ -38,7 +38,6 @@ hairlines, glass and secondary text.
 | `auroraStops` | `#7A3FD1` `#4B3FC0` `#1F8FB0` `#2FE0CF` | same |
 | `dockGlass` | `#100D1E` at 72% | `#FFFFFF` at 90% |
 | `dockGlassEdge` | white at 14% | `#101316` at 10% |
-| `dockShadow` | black at 50% | `#101316` at 22% |
 | `dockMeter` | `#FFFFFF` | `#128077` |
 | `avatarInk` | `#08131A` | same |
 | `avatarLilac` | `#C49BF5` | `#7A4FC4` |
@@ -108,6 +107,8 @@ licence ship together in `Sources/Uttrflow/Resources/Fonts/` (`Outfit-Variable.t
 `Outfit-OFL.txt`), as the licence requires. `BrandFont` registers it for the process at launch and
 falls back to the system font when the file is missing or registration fails.
 
-The wordmark, the Home greeting and the Home hero headline use EB Garamond, also under the SIL Open
-Font License 1.1 (`EBGaramond-Variable.ttf`, `EBGaramond-OFL.txt`), through `BrandFont.wordmark`.
-No other text uses it; it falls back to the system serif.
+Three more families ship under the same licence, each beside its licence file, and each falls back
+to a system font. `BrandWordmark` sets the name in Bricolage Grotesque through `BrandFont.wordmark`.
+The Home greeting and the first half of the hero headline use Inter Tight through
+`BrandFont.headline`; the headline's second half uses Instrument Serif Italic through
+`BrandFont.headlineEmphasis`. No other text uses them.
