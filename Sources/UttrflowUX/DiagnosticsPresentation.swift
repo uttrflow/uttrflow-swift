@@ -398,7 +398,9 @@ public enum DiagnosticsPresenter {
         let rows = [
             DiagnosticsRow(
                 title: "Pieces needing more than one decode",
-                detail: "\(repeated) of \(decoding.count) pieces", state: .good),
+                detail:
+                    "\(repeated) of \(decoding.count) \(CountedNoun.of(decoding.count, "piece", "pieces"))",
+                state: .good),
             DiagnosticsRow(
                 title: "Empty-result retries",
                 detail: MainFormatting.count(retried, "retry", "retries"), state: .good),
@@ -418,7 +420,9 @@ public enum DiagnosticsPresenter {
         return [
             DiagnosticsRow(
                 title: "Segments kept from a hotter decode",
-                detail: "\(hotter) of \(segments.count) segments", state: .good),
+                detail:
+                    "\(hotter) of \(segments.count) \(CountedNoun.of(segments.count, "segment", "segments"))",
+                state: .good),
             DiagnosticsRow(
                 title: "Segment log-probability, p50 / lowest",
                 detail: value(scores[(scores.count - 1) / 2]) + " / " + value(scores[0]), state: .good),
@@ -446,7 +450,9 @@ public enum DiagnosticsPresenter {
                     + MainFormatting.secondsValue(tail, locale: locale), state: .good),
             DiagnosticsRow(
                 title: "Over the \(MainFormatting.secondsValue(DictationWait.target, locale: locale)) target",
-                detail: "\(over) of \(log.timed.count) dictations", state: .good),
+                detail:
+                    "\(over) of \(log.timed.count) \(CountedNoun.of(log.timed.count, "dictation", "dictations"))",
+                state: .good),
         ] + causes
     }
 
