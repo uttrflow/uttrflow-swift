@@ -8,7 +8,7 @@ why this file exists.
 commercially. That is the whole point of the licence.
 
 **Please do not** ship your fork under the name "Uttrflow", or with the Uttrflow mark
-(`Design/uttrflow.icns`, `Design/uttrflow.iconset/`, `Design/uttrflow-logo*.png`,
+(`Resources/AppIcon/uttrflow.icns`, `Resources/AppIcon/uttrflow.iconset/`, `Resources/AppIcon/uttrflow-logo*.png`,
 `Sources/Uttrflow/Resources/uttrflow-logo.png`, `Sources/Uttrflow/Resources/MenuBarIconTemplate*.png`)
 as its icon or its brand. Give it your own name and your own mark, so that nobody
 downloading it believes they are getting the thing served by `api.uttrflow.com`.
