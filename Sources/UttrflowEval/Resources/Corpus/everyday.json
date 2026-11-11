@@ -2109,5 +2109,37 @@
       "tonight"
     ],
     "addedFor": 8159
+  },
+  {
+    "id": "mark-shape-paren-closer-then-stop",
+    "note": "A stop said after a closing bracket stays there and is not taken back on a second run.",
+    "origin": "synthetic",
+    "addedFor": 4037,
+    "spoken": "(a).",
+    "expected": "(A).",
+    "mustEndWith": ")."
+  },
+  {
+    "id": "mark-shape-square-closer-then-stop",
+    "note": "A stop said after a closing square bracket stays there and is not taken back on a second run.",
+    "origin": "synthetic",
+    "addedFor": 4037,
+    "spoken": "[my].",
+    "expected": "[My].",
+    "mustEndWith": "]."
+  },
+  {
+    "id": "mark-shape-terminal-doubled-word-mark",
+    "note": "At a command line a doubled word with a mark on the last comes out on the first run as on the second.",
+    "origin": "synthetic",
+    "addedFor": 7327,
+    "spoken": "my my!",
+    "expected": "my",
+    "expectedExact": "my",
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal"
   }
 ]
