@@ -98,6 +98,34 @@ struct SecureFieldTests {
         #expect(!SecureField.namesASecret(name))
     }
 
+    @Test(
+        "A label where a longer word swallows a secret's name is not secure.",
+        arguments: [
+            "Passwordless sign in help", "passwordless", "PASSWORDLESS", "passwordlessLogin",
+            "passwordless_sign_in", "Go passwordless", "Passcodeless entry",
+        ])
+    func secretInsideALongerWordIsNotSecure(name: String) {
+        #expect(!SecureField.namesASecret(name))
+        #expect(
+            !SecureField.isDeclaredSecure(
+                role: "AXTextField", subrole: nil, identifier: nil, placeholder: nil,
+                description: nil, title: name))
+    }
+
+    @Test(
+        "A label that names a secret at a word boundary, or glues a field word to it, stays secure.",
+        arguments: [
+            "Password", "password", "PASSWORD", "Passwords", "password1", "passwordConfirm",
+            "passwordfield", "confirmpassword", "loginPassword", "txtPassword", "new-password",
+            "current-password", "Password (leave blank to go passwordless)",
+            "Passwordless sign in password", "passwordLess", "One-time code", "one-time-code",
+            "onetimecode", "cvv", "otp", "Passcode", "creditcardnumber", "Card number",
+            "card_number", "Social security number", "dateOfBirth",
+        ])
+    func secretAtABoundaryIsSecure(name: String) {
+        #expect(SecureField.namesASecret(name))
+    }
+
     @Test("A recovery field that names an email address or a phone number is not secure.")
     func recoveryContactIsNotSecure() {
         #expect(!SecureField.namesASecret("Recovery email"))
