@@ -165,5 +165,11 @@ struct IntegrityCorpusTests {
         #expect(
             IntegrityAudit.violations(in: draft, grants: [:])
                 == [IntegrityViolation(pass: .numberForms, kind: .unit, heard: "g")])
+        var rewritten = draft
+        rewritten.words[3].text = "greens"
+        rewritten.words[3].state = .replaced(by: .numberForms, from: "green")
+        #expect(
+            IntegrityAudit.violations(in: rewritten, grants: [:])
+                == [IntegrityViolation(pass: .numberForms, kind: .unit, heard: "g")])
     }
 }

@@ -79,13 +79,13 @@ enum IntegrityAudit {
         let before = live.last { $0 < index }
         let after = live.first { $0 > index }
         let key = { (place: Int?) in place.map { WordShape(draft.words[$0].text).key } ?? "" }
-        // A neighbour holds the letter only once a pass rewrote it, so an untouched "green" is not "g".
-        let joined = { (place: Int?) in
-            place.flatMap { WordShape(draft.words[$0].heard).key == key($0) ? nil : $0 }
+        // A neighbour holds the letter only once a rewrite put it there, so "green" or "greens" is not "g".
+        let gained = { (place: Int?, end: (String) -> Bool) in
+            place.map { end(key($0)) && !end(WordShape(draft.words[$0].heard).key) } ?? false
         }
         let stands =
-            key(word.isPresent ? index : nil).hasPrefix(letter) || key(joined(before)).hasSuffix(letter)
-            || key(joined(after)).hasPrefix(letter)
+            key(word.isPresent ? index : nil).hasPrefix(letter) || gained(before) { $0.hasSuffix(letter) }
+            || gained(after) { $0.hasPrefix(letter) }
         return stands ? nil : pass
     }
 
