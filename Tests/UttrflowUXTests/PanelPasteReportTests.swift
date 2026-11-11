@@ -46,10 +46,25 @@ struct PanelPasteReportTests {
 
     @Test("an explicit Copy of a secret confirms it without exposing its contents")
     func explicitHiddenCopy() throws {
-        let report = try #require(PanelPasteReport.after(.copied(.hiddenText)))
+        let report = try #require(PanelPasteReport.after(.copied(.hiddenText(clearsAfterSeconds: 0))))
         #expect(report.primaryLine == "Copied hidden clip — press ⌘V")
+        #expect(report.secondaryLine == nil)
         #expect(
             report.spoken == "Copied a hidden clip to the clipboard, not pasted. Press Command V to paste it."
+        )
+    }
+
+    @Test("an explicit Copy of a secret says when it leaves the clipboard")
+    func explicitHiddenCopyNamesTheDelay() throws {
+        let report = try #require(PanelPasteReport.after(.copied(.hiddenText(clearsAfterSeconds: 60))))
+        #expect(report.primaryLine == "Copied hidden clip — press ⌘V")
+        #expect(report.secondaryLine == "It leaves the clipboard in 60 seconds")
+        let soon = PanelPasteReport.after(.copied(.hiddenText(clearsAfterSeconds: 1)))
+        #expect(soon?.secondaryLine == "It leaves the clipboard in 1 second")
+        #expect(
+            report.spoken
+                == "Copied a hidden clip to the clipboard, not pasted. Press Command V to paste it. "
+                + "It leaves the clipboard in 60 seconds."
         )
     }
 

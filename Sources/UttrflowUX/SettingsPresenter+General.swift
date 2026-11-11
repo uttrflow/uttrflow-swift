@@ -167,9 +167,27 @@ extension SettingsPresenter {
                                 title: capabilities.confirmsMultilinePaste ? "Turn off" : "Turn on",
                                 change: .confirmMultilinePaste(isOn: !capabilities.confirmsMultilinePaste)),
                             icon: .symbol("terminal", .amber)),
+                        secretClearRow(settings),
                     ]),
             ],
             callout: nil)
+    }
+
+    /// How long a secret copied or pasted by Uttrflow stays on the clipboard. See `Docs/insertion.md`.
+    private static func secretClearRow(_ settings: Settings) -> SettingsRow {
+        SettingsRow(
+            id: "secretClipboardClearSeconds",
+            label: "Clear copied secrets",
+            explanation: "A secret copied or pasted by Uttrflow leaves the clipboard after this, "
+                + "unless something else was copied since.",
+            control: .menu(
+                options: [0, 10, 30, Settings.defaultSecretClipboardClearSeconds, 120].map { seconds in
+                    SettingsOption(
+                        id: String(seconds), title: seconds == 0 ? "Off" : "After \(seconds) s",
+                        change: .secretClipboardClear(seconds: seconds))
+                },
+                selectedID: String(settings.secretClipboardClearSeconds)),
+            icon: .symbol("key", .amber))
     }
 
     /// One place the floating button can park, as a pop-up option.

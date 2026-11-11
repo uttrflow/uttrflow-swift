@@ -23,8 +23,8 @@ public enum PanelPasteResult: Sendable, Equatable {
 public enum PanelCopyContent: Sendable, Equatable {
     /// Visible text.
     case text
-    /// A secret, written concealed so clipboard managers skip it.
-    case hiddenText
+    /// A secret, written concealed so clipboard managers skip it, then cleared after the seconds given.
+    case hiddenText(clearsAfterSeconds: Int)
     /// A picture.
     case picture
     /// The files of a file clip.
@@ -46,7 +46,7 @@ public struct PanelPasteReport: Sendable, Equatable {
     public static func after(_ result: PanelPasteResult) -> PanelPasteReport? {
         switch result {
         case .copied(.text), .copied(.picture), .copied(.files): copied
-        case .copied(.hiddenText): copiedHidden
+        case .copied(.hiddenText(let seconds)): copiedHidden(clearingAfter: seconds)
         case .text(let attempt) where attempt.method == .clipboard:
             copied
         case .text:
@@ -72,7 +72,12 @@ public struct PanelPasteReport: Sendable, Equatable {
         spoken: "Copied to the clipboard, not pasted. Press Command V to paste it.")
 
     /// A secret on the clipboard, confirmed without showing any of it.
-    private static let copiedHidden = PanelPasteReport(
-        symbolName: "doc.on.clipboard", primaryLine: "Copied hidden clip — press ⌘V", secondaryLine: nil,
-        spoken: "Copied a hidden clip to the clipboard, not pasted. Press Command V to paste it.")
+    private static func copiedHidden(clearingAfter seconds: Int) -> PanelPasteReport {
+        let clearing = SecretClearWording.sentence(afterSeconds: seconds)
+        return PanelPasteReport(
+            symbolName: "doc.on.clipboard", primaryLine: "Copied hidden clip — press ⌘V",
+            secondaryLine: clearing,
+            spoken: "Copied a hidden clip to the clipboard, not pasted. Press Command V to paste it."
+                + (clearing.map { " \($0)." } ?? ""))
+    }
 }
