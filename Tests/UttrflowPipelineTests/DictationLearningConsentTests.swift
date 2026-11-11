@@ -28,20 +28,30 @@ private struct OneAnswer: LearningConsent {
 
 private let words = "ship the draft on friday"
 
-private func lessons(given consent: any LearningConsent, isSecure: Bool = false) async -> [String] {
+private func lessons(
+    given consent: any LearningConsent, isSecure: Bool = false, window: String = "#engineering"
+) async -> [String] {
+    await dictate(given: consent, isSecure: isSecure, window: window).lessons
+}
+
+/// One dictation into a window with this title, returning what the dictionary was offered and the outcome.
+private func dictate(
+    given consent: any LearningConsent, isSecure: Bool = false, window: String
+) async -> (lessons: [String], outcome: DictationOutcome?) {
     let vocabulary = RememberingVocabulary()
     let pipeline = DictationPipeline(
         capture: FakeAudioCaptureEngine(),
         speech: FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: words))),
         cleaner: FakeTranscriptCleaner(),
-        context: FakeContextEngine(context: .fixture(isSecure: isSecure)),
+        context: FakeContextEngine(context: .fixture(documentName: window, isSecure: isSecure)),
         inserter: FakeTextInserter(.success(InsertionAttempt(.pasteboard))),
         vocabulary: vocabulary,
         consent: consent,
         clock: ManualClock())
     await pipeline.startRecording()
     await pipeline.finishRecording()
-    return vocabulary.offered
+    guard case .inserted(let outcome) = await pipeline.currentState else { return (vocabulary.offered, nil) }
+    return (vocabulary.offered, outcome)
 }
 
 @Suite("Dictation learns under the same per-application consent as typing capture")
@@ -64,6 +74,22 @@ struct DictationLearningConsentTests {
     @Test("a secure field teaches nothing even where the user allowed learning")
     func secureStaysExcluded() async {
         #expect(await lessons(given: OneAnswer(answer: .allowed), isSecure: true).isEmpty)
+    }
+
+    @Test(
+        "a window that names itself private teaches nothing even where the user allowed learning",
+        arguments: ["Example (Incognito)", "Example - InPrivate", "Example - Private Browsing"])
+    func privateWindowLearnsNothing(title: String) async {
+        let refused = await dictate(given: OneAnswer(answer: .allowed), window: title)
+        #expect(refused.lessons.isEmpty)
+        #expect(refused.outcome?.fromPrivateWindow == true)
+    }
+
+    @Test("an ordinary window of the same application is still learned from")
+    func ordinaryWindowLearns() async {
+        let ordinary = await dictate(given: OneAnswer(answer: .allowed), window: "Example - Browser")
+        #expect(ordinary.lessons.count == 1)
+        #expect(ordinary.outcome?.fromPrivateWindow == false)
     }
 
     @Test("the switch in Settings, turned off, stops learning even where the user allowed it")

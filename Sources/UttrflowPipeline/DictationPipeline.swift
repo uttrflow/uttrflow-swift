@@ -79,6 +79,8 @@ public actor DictationPipeline {
     var insertedIntoIdentifier: String?
     /// Whether the screen read found a field that hides what is typed, so nothing of this dictation is kept.
     var destinationIsSecure = false
+    /// Whether the screen read found a private-browsing window, so nothing of this dictation is learnt.
+    var destinationIsPrivate = false
 
     /// The kept audio of the dictation under way, deleted or left for a retry as it ends.
     var openRecording: UUID?

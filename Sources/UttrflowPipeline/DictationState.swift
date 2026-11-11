@@ -131,6 +131,8 @@ public struct DictationOutcome: Sendable, Equatable {
     public let arrival: InsertionArrival
     /// Whether the words went into a field that hides what is typed, so no history or clip keeps them.
     public let intoSecureField: Bool
+    /// Whether the screen read found a private-browsing window, so nothing is learnt from this dictation.
+    public let fromPrivateWindow: Bool
     /// Pieces of speech that decoded to no words twice and are missing from the text; zero when nothing is.
     public let missedPieces: Int
     /// Whether the input clipped past the point where accuracy falls, so the person is told to lower the volume.
@@ -155,8 +157,10 @@ public struct DictationOutcome: Sendable, Equatable {
         arrival: InsertionArrival = .notReported, intoSecureField: Bool = false, missedPieces: Int = 0,
         inputTooLoud: Bool = false, unavailableEngines: [CleaningRecord.UnavailableEngine] = [],
         doubtful: DoubtfulWordsOutcome = .notAvailable, slowCause: SlowDictationCause? = nil,
-        guardRefusals: [RefusalKind] = [], quality: OutcomeQuality? = nil, keptRecording: UUID? = nil
+        guardRefusals: [RefusalKind] = [], quality: OutcomeQuality? = nil, keptRecording: UUID? = nil,
+        fromPrivateWindow: Bool = false
     ) {
+        self.fromPrivateWindow = fromPrivateWindow
         self.text = text
         self.method = method
         self.cleanedBy = cleanedBy

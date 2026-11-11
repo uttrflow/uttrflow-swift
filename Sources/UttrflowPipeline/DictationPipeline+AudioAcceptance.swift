@@ -99,6 +99,7 @@ extension DictationPipeline {
         insertedInto = recordingDestination?.applicationName
         insertedIntoIdentifier = recordingDestination?.bundleIdentifier
         destinationIsSecure = false
+        destinationIsPrivate = false
         cleaningRecords = []
         droppedSpans = []
         openRecording = recording

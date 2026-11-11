@@ -53,6 +53,7 @@ extension DictationPipeline {
         insertedInto = read.applicationName
         insertedIntoIdentifier = read.bundleIdentifier
         destinationIsSecure = read.isSecure
+        destinationIsPrivate = read.isInPrivateWindow
         return read
     }
 
@@ -137,6 +138,7 @@ extension DictationPipeline {
             insertedInto = read.applicationName
             insertedIntoIdentifier = read.bundleIdentifier
             destinationIsSecure = read.isSecure
+            destinationIsPrivate = read.isInPrivateWindow
             let recordedDestination = early.context ?? dictationContext?.app ?? read
             recordingDestination = recordedDestination
             let fieldKind =

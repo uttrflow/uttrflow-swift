@@ -91,6 +91,7 @@ extension DictationPipeline {
         insertedInto = nil
         insertedIntoIdentifier = nil
         destinationIsSecure = false
+        destinationIsPrivate = false
         cleaningRecords = []
         droppedSpans = []
         transition(to: .recording)

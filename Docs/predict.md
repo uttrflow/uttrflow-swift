@@ -230,7 +230,7 @@ anything (`SwitchedLearningConsent`); it leaves typing capture to its own switch
 teaches nothing whatever the answer. One reset removes the file, so it forgets the answers for both features.
 
 Typing capture also refuses two cases the application's answer cannot see. A window whose title
-carries `(Incognito)`, `InPrivate` or `Private Browsing` (`FieldReading.isInPrivateWindow`) teaches
+carries `(Incognito)`, `InPrivate` or `Private Browsing` (`PrivateWindow.isNamed(by:)`) teaches
 nothing whatever the application's answer, and its page host is never written as a scope. Titles are
 the only sign of a private window the capture path reads, so a browser that does not put one in the
 title is not detected: the limit is the browser's, not a promise. The applications in

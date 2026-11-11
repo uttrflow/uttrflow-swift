@@ -147,6 +147,8 @@ extension DictationPipeline {
         // An application the user declined is learned nothing from, by counting or by the dictionary.
         let learnedFrom = landedIn(attempt)?.bundleIdentifier ?? appContext?.bundleIdentifier
         guard await consent.mayLearn(from: learnedFrom) else { return }
+        // A private-browsing window teaches nothing, whatever the application's answer.
+        guard !seen.isInPrivateWindow else { return }
         // A secret is not a word to learn or count, by the same gate that keeps it out of History.
         guard let kept = KeptWords.of(toWrite, intoSecureField: wasSecure) else { return }
         // Both run after the words are on screen, and neither can fail the dictation. §19.
@@ -214,7 +216,8 @@ extension DictationPipeline {
                         slowCause: slowCause, guardRefusals: guardRefusals,
                         quality: OutcomeQuality(
                             producedBy: cleanedBy, account: account, missedPieces: missedPieces),
-                        keptRecording: keptForFix ? recordingID : nil)))
+                        keptRecording: keptForFix ? recordingID : nil,
+                        fromPrivateWindow: destinationIsPrivate)))
             return attempt
         } catch {
             guard !wasCancelled(mine) else { return nil }
