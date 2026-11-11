@@ -24,34 +24,34 @@ public enum ConsentState: String, Sendable, Codable, Equatable, CaseIterable {
 
 /// The one question a dictation learner asks before it writes anything about an application.
 public protocol LearningConsent: Sendable {
-    /// What was said about this application, `.unknown` when the destination was not identified.
-    func state(of bundleIdentifier: String?) async -> ConsentState
+    /// What was said about this application, `.unknown` when the destination was not identified; synchronous, so a writer reads it in the step that writes.
+    func state(of bundleIdentifier: String?) -> ConsentState
 }
 
 extension LearningConsent {
     /// Whether dictation may learn from words that landed in this application.
-    public func mayLearn(from bundleIdentifier: String?) async -> Bool {
-        await state(of: bundleIdentifier).dictationMayLearn
+    public func mayLearn(from bundleIdentifier: String?) -> Bool {
+        state(of: bundleIdentifier).dictationMayLearn
     }
 }
 
 /// Per-application answers behind the one switch in Settings: while it is off, every application is declined.
 public struct SwitchedLearningConsent: LearningConsent {
     /// Whether the person lets dictation learn at all, read at each dictation so a change counts at once.
-    private let isOn: @Sendable () async -> Bool
+    private let isOn: @Sendable () -> Bool
     /// What was said about each application, consulted only while the switch is on.
     private let answers: any LearningConsent
 
     /// Answers that hold only while `isOn` says so.
-    public init(isOn: @escaping @Sendable () async -> Bool, answers: any LearningConsent) {
+    public init(isOn: @escaping @Sendable () -> Bool, answers: any LearningConsent) {
         self.isOn = isOn
         self.answers = answers
     }
 
     /// Declined everywhere while the switch is off, otherwise what was said about this application.
-    public func state(of bundleIdentifier: String?) async -> ConsentState {
-        guard await isOn() else { return .declined }
-        return await answers.state(of: bundleIdentifier)
+    public func state(of bundleIdentifier: String?) -> ConsentState {
+        guard isOn() else { return .declined }
+        return answers.state(of: bundleIdentifier)
     }
 }
 
@@ -61,5 +61,5 @@ public struct NothingAskedYet: LearningConsent {
     public init() {}
 
     /// Unknown, for every application.
-    public func state(of bundleIdentifier: String?) async -> ConsentState { .unknown }
+    public func state(of bundleIdentifier: String?) -> ConsentState { .unknown }
 }
