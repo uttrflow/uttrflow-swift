@@ -34,9 +34,8 @@ final class LearntEvidence {
         let previous = pending
         pending = Task { [consent] in
             await previous?.value
-            guard await consent.mayLearn(from: application) else { return }
             do {
-                try await ledger.append(rows, keeping: window)
+                try await ledger.append(rows, keeping: window, learntIn: application, consent: consent)
             } catch {
                 AppDelegate.log.error("evidence not saved: \(ErrorLog.failure(error), privacy: .public)")
             }

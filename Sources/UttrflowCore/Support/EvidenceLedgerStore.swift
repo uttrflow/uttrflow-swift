@@ -129,8 +129,12 @@ public actor EvidenceLedgerStore {
         return stored.filter { window.keeps($0.start) }
     }
 
-    /// Appends rows after the ones on disk, dropping expired rows, refusing when the disk cannot be read.
-    public func append(_ newRows: [EvidenceRow], keeping window: RetentionWindow) throws {
+    /// Appends rows after the ones on disk, dropping expired rows, refusing when the disk cannot be read; rows learnt in `application` are written only if `consent`, asked here and not by the caller, still allows it.
+    public func append(
+        _ newRows: [EvidenceRow], keeping window: RetentionWindow, learntIn application: String? = nil,
+        consent: (any LearningConsent)? = nil
+    ) async throws {
+        if let consent, !(await consent.mayLearn(from: application)) { return }
         let stored = try load()
         try persist(onDisk(stored + newRows, keeping: window), replacing: stored)
     }

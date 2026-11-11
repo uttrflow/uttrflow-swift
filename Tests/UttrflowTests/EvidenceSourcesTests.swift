@@ -109,35 +109,32 @@ struct EvidenceSourcesTests {
         #expect(await ledger.refusal() == .setAside)
     }
 
-    /// Consent that answers yes once and no from then on, as when the person withdraws it mid-sweep.
-    private actor WithdrawnAfterFirstAnswer: LearningConsent {
-        private var answered = 0
-        func state(of bundleIdentifier: String?) async -> ConsentState {
-            answered += 1
-            return answered == 1 ? .allowed : .declined
-        }
+    /// Consent the person can withdraw at any moment.
+    private actor Revocable: LearningConsent {
+        private var withdrawn = false
+        func withdraw() { withdrawn = true }
+        func state(of bundleIdentifier: String?) async -> ConsentState { withdrawn ? .declined : .allowed }
     }
 
-    @Test("consent withdrawn while the backfill reads its stores authorises no row")
-    func withdrawnConsentWritesNothing() async throws {
+    @Test("consent withdrawn after a learner's own check and before the ledger writes authorises no row")
+    func withdrawnBeforeTheWriteWritesNothing() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
         let ledger = EvidenceLedgerStore(
             file: EvidenceLedgerStore.defaultFile(in: root), encryptedStore: EncryptedStore(keys: Keys()))
-        let dictionary = PersonalDictionaryStore(file: PersonalDictionaryStore.defaultFile(in: root))
-        let records = [
-            DictationRecord(
-                text: "Deploy it today.", when: now.addingTimeInterval(-86_400), applicationName: "Notes",
-                applicationIdentifier: "com.example.notes")
-        ]
         let window = RetentionWindow(days: RetentionWindow.keepAlwaysDays, now: now)
+        let consent = Revocable()
+        let application = "com.example.notes"
+        let rows = [EvidenceRow(kind: .styleMessage, subject: "plain", day: today, provenance: .dictation)]
 
-        await EvidenceSources.backfill(
-            ledger, from: records, consent: WithdrawnAfterFirstAnswer(), dictionary: dictionary,
-            overrides: .none, keeping: window)
-
+        #expect(await consent.mayLearn(from: application))
+        await consent.withdraw()
+        try await ledger.append(rows, keeping: window, learntIn: application, consent: consent)
         #expect(await ledger.rows(keeping: window).isEmpty)
+
+        try await ledger.append(rows, keeping: window, learntIn: application, consent: Revocable())
+        #expect(await ledger.rows(keeping: window) == rows)
     }
 
     @Test("a sweep with nothing to backfill still deletes ledger rows past History's window")

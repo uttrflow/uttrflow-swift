@@ -59,22 +59,30 @@ enum EvidenceSources {
         _ records: [DictationRecord], entries: [DictionaryEntry], ledger: [EvidenceRow],
         overrides: DestinationOverrides
     ) -> [EvidenceRow] {
+        learnt(records, entries: entries, ledger: ledger, overrides: overrides).flatMap(\.rows)
+    }
+
+    /// The backfill's rows for each dictation, beside the application it landed in.
+    private static func learnt(
+        _ records: [DictationRecord], entries: [DictionaryEntry], ledger: [EvidenceRow],
+        overrides: DestinationOverrides
+    ) -> [(application: String?, rows: [EvidenceRow])] {
         guard !ledger.contains(where: { $0.provenance == .migration }) else { return [] }
         let firstLive = ledger.map(\.day).min() ?? Int.max
-        return records.reversed().flatMap { record -> [EvidenceRow] in
+        return records.reversed().compactMap { record -> (application: String?, rows: [EvidenceRow])? in
             let day = EvidenceRow.day(of: record.when)
-            guard day < firstLive else { return [] }
+            guard day < firstLive else { return nil }
             let app = AppContext(
                 applicationName: record.applicationName, bundleIdentifier: record.applicationIdentifier)
             let destination = DestinationClassifier.classify(app, overrides: overrides)
             let used = DictionaryAppearances.used(entries, applied: [], writtenIn: record.text)
-            return
-                (uses(of: used, day: day) + StyleSignals.rows(for: record.text, into: destination, day: day))
-                .map {
-                    EvidenceRow(
-                        kind: $0.kind, subject: $0.subject, weight: $0.weight, day: $0.day,
-                        provenance: .migration)
-                }
+            let signals = StyleSignals.rows(for: record.text, into: destination, day: day)
+            let rows = (uses(of: used, day: day) + signals).map {
+                EvidenceRow(
+                    kind: $0.kind, subject: $0.subject, weight: $0.weight, day: $0.day,
+                    provenance: .migration)
+            }
+            return (record.applicationIdentifier, rows)
         }
     }
 
@@ -86,31 +94,17 @@ enum EvidenceSources {
         guard let ledger else { return }
         // Read first, which also deletes expired rows, so a sweep with nothing to learn still expires them.
         let held = await ledger.rows(keeping: window)
-        guard !(await learnable(records, consent: consent)).isEmpty else { return }
-        let entries = await dictionary.allEntries()
-        // Asked again after the last read, so consent withdrawn meanwhile authorises nothing.
-        let rows = backfill(
-            await learnable(records, consent: consent), entries: entries, ledger: held, overrides: overrides)
-        if !rows.isEmpty { try? await ledger.append(rows, keeping: window) }
-    }
-
-    /// The records whose application `consent` lets dictation learn from, asking once per application.
-    private static func learnable(
-        _ records: [DictationRecord], consent: any LearningConsent
-    ) async -> [DictationRecord] {
-        var answers: [String?: Bool] = [:]
-        var kept: [DictationRecord] = []
-        for record in records {
-            let application = record.applicationIdentifier
-            let mayLearn: Bool
-            if let answer = answers[application] {
-                mayLearn = answer
-            } else {
-                mayLearn = await consent.mayLearn(from: application)
-                answers[application] = mayLearn
-            }
-            if mayLearn { kept.append(record) }
+        let batches = learnt(
+            records, entries: await dictionary.allEntries(), ledger: held, overrides: overrides)
+        var applications: [String?] = []
+        var learntIn: [String?: [EvidenceRow]] = [:]
+        for (application, rows) in batches where !rows.isEmpty {
+            if learntIn[application] == nil { applications.append(application) }
+            learntIn[application, default: []] += rows
         }
-        return kept
+        for application in applications {
+            try? await ledger.append(
+                learntIn[application] ?? [], keeping: window, learntIn: application, consent: consent)
+        }
     }
 }
