@@ -31,7 +31,8 @@ public enum SentenceBoundaryEvidence {
     }
 
     /// "finished the report. And sent it", "on Monday. Or on Tuesday": words after a conjunction that open on a verb share the subject before the stop, and words with no verb are no sentence; a conjunction before its own subject and verb opens one.
-    private static func continuesAcrossConjunction(_ previous: [WordShape], _ following: [WordShape]) -> Bool {
+    private static func continuesAcrossConjunction(_ previous: [WordShape], _ following: [WordShape]) -> Bool
+    {
         guard let first = following.first, following.count > 1 else { return false }
         let clauseEnd = following.firstIndex(where: \.endsSentence).map { $0 + 1 } ?? following.count
         let words = previous.map(\.core) + [first.key] + following.prefix(clauseEnd).dropFirst().map(\.core)
