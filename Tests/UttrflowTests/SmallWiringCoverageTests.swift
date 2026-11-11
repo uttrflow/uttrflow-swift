@@ -27,8 +27,10 @@ struct SmallWiringCoverageTests {
 
     @Test("a recorded edit command accepts the edits it knows and refuses other speech")
     func recordedEditCommandAcceptsOnlyEdits() async {
-        let command = RecordedEditCommand(ledger: InsertionLedger())
+        let command = RecordedEditCommand(ledger: InsertionLedger(), overrides: DestinationOverrides())
         #expect(command.accepts("delete that"))
+        #expect(command.accepts("Make that a list."))
+        #expect(command.accepts("all caps that"))
         #expect(command.accepts("undo that"))
         #expect(command.accepts("replace cat with dog"))
         #expect(command.accepts("replace first"))
@@ -39,6 +41,9 @@ struct SmallWiringCoverageTests {
         }
         await #expect(throws: TextInsertionError.self) {
             _ = try await command.run("replace first", on: AppContext.unknown)
+        }
+        await #expect(throws: TextInsertionError.self) {
+            _ = try await command.run("capitalise that", on: AppContext.unknown)
         }
     }
 }

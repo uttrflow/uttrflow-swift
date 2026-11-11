@@ -47,6 +47,8 @@ public struct SpokenCommand: DataTableRow, Equatable {
         case emoji
         /// A key press named by `text`, said under the editing key; it posts a key and never writes words.
         case key
+        /// A change of case or layout named by `text`, said under the editing key over the last insertion; it changes no word.
+        case reformat
     }
 
     /// How many of the following words a casing command covers.
@@ -92,7 +94,7 @@ public struct SpokenCommand: DataTableRow, Equatable {
 
     /// Whether the row is said only while the editing key is held, never in ordinary dictation.
     public var isSaidUnderEditingKey: Bool {
-        action == .replace || action == .lineMark || action == .spanMark
+        action == .replace || action == .lineMark || action == .spanMark || action == .reformat
     }
 
     /// Whether the command is enabled where the words are going.
@@ -172,6 +174,8 @@ public enum SpokenCommands {
     public static let leadIns = rows(.leadIn)
     /// Edits that replace words in the last insertion, said only under the editing key.
     public static let replacements = rows(.replace)
+    /// Changes of case or layout to the last insertion, said only under the editing key.
+    public static let reformats = rows(.reformat)
     /// Markdown structure said under the editing key: line marks, then span marks.
     public static let markdown = rows(.lineMark) + rows(.spanMark)
     /// Key presses said under the editing key, longest phrase first.
