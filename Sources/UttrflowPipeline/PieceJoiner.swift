@@ -89,9 +89,11 @@ enum PieceJoiner {
         grouping: DigitGrouping? = nil
     ) -> [String] {
         // An amount joined across a seam takes the person's grouping where given, else the place's.
-        let joined = recleaningMarksAcrossSeams(
-            joiningSpokenMarksAcrossSeams(
-                joiningAmountsAcrossSeams(pieces, heard: heard, grouping: grouping ?? formatter.digits)))
+        let joined = layingOutBulletsAcrossSeams(
+            recleaningMarksAcrossSeams(
+                joiningSpokenMarksAcrossSeams(
+                    joiningAmountsAcrossSeams(pieces, heard: heard, grouping: grouping ?? formatter.digits))),
+            under: formatter)
         // A piece tidied to nothing has no seam, so each seam is judged against the next piece with words.
         let worded = joined.indices.filter { !joined[$0].allSatisfy(\.isWhitespace) }
         let heard = heard.count == joined.count ? worded.map { heard[$0] } : []
@@ -257,6 +259,40 @@ enum PieceJoiner {
             joined[next] = tail
         }
         return joined
+    }
+
+    /// Lays out a bullet said inside a piece when the next piece opens on one, as a bullet said beside it in one piece is.
+    private static func layingOutBulletsAcrossSeams(
+        _ pieces: [String], under formatter: DestinationFormatter
+    ) -> [String] {
+        var joined = pieces
+        let worded = joined.indices.filter { !joined[$0].allSatisfy(\.isWhitespace) }
+        for (previous, next) in zip(worded, worded.dropFirst()) {
+            joined[previous] = bulletsLaidOut(joined[previous], before: joined[next], under: formatter)
+        }
+        return joined
+    }
+
+    /// The piece read by the layout pass with the next piece's opening bullet said after it, cut back to the piece's own words.
+    private static func bulletsLaidOut(
+        _ head: String, before next: String, under formatter: DestinationFormatter
+    ) -> String {
+        let opening = Draft(keepingLineBreaks: next)
+        let mark = opening.words.first?.text.drop(while: \.isNewline)
+        guard let mark, opening.words.count > 1, opening.words[0].isListMark,
+            let command = SpokenCommands.layout.first(where: {
+                $0.requiresLists && $0.text.drop(while: \.isNewline) == mark
+            })
+        else { return head }
+        let piece = Draft(keepingLineBreaks: head)
+        var spoken = piece
+        spoken.words += (command.words + [opening.words[1].text]).map { Draft.Word($0, evidence: .unknown) }
+        let read = LayoutWordsPass(layout: formatter.layout, readsWholeText: false).apply(spoken)
+        let own = Draft(words: Array(read.words.prefix(piece.words.count)))
+        let marks = { (draft: Draft) in draft.presentIndices.filter { draft.words[$0].isListMark }.count }
+        // Only a bullet the corroboration lays out is taken; any other reading leaves the piece as cleaned.
+        guard read.words[piece.words.count].isListMark, marks(own) > marks(piece) else { return head }
+        return own.text
     }
 
     /// The two pieces with a mark name at the seam written as its mark, when the spoken-punctuation pass changes only that name.
