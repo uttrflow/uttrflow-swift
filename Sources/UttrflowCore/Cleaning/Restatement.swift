@@ -331,6 +331,12 @@ public enum Restatement {
         var end = restart
         while end < live.count - 1, !endsSentence(end, in: live, of: draft) { end += 1 }
         let key = { (position: Int) in draft.shape(at: live[position]).key }
+        // With no sentence around the slot, a trigger whose last word determines the next ("strike that wicket") is a phrase, not a correction.
+        if start == trigger - 1, end == restart, !WordSlot.weekdays.contains(key(restart)),
+            LexicalClass.tags(ofWords: (start...end).map(key))[restart - 1 - start] == .determiner
+        {
+            return false
+        }
         return WordSlot.fits(
             replacing: key(trigger - 1), after: (start..<trigger - 1).map(key),
             with: (restart...end).map(key))
