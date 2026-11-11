@@ -25,6 +25,27 @@ struct PanelCacheTests {
         #expect(cache.searchMemo.searchScans == 1)
     }
 
+    @Test("a panel presented with a cache passed in works out everything in that cache")
+    func presentUsesThePassedCache() {
+        let code = Clip(
+            text: "func f() {\n\tlet x = 1\n        let y = 2\n}", kind: .code, copiedAt: PanelFixture.now)
+        let panel = PanelFixture.panel([code]).applying(.search("f")).state
+        let bound = PanelCache.current
+        let scans = bound.searchMemo.searchScans
+        let builds = bound.rowMemo.builds
+        let passed = PanelCache()
+
+        let rows = PanelPresenter.present(panel, using: passed).rows
+
+        #expect(rows.first?.actions.contains { $0.title == "Re-indent" } == true)
+        #expect(passed.searchMemo.searchScans == 1)
+        #expect(passed.rowMemo.builds == 1)
+        #expect(passed.reindentOffers.remembers(code.id))
+        #expect(bound.searchMemo.searchScans == scans)
+        #expect(bound.rowMemo.builds == builds)
+        #expect(!bound.reindentOffers.remembers(code.id))
+    }
+
     @Test("two panels presented in turn share the one cache bound to the task")
     func panelsShareTheBoundCache() {
         let first = PanelFixture.panel([PanelFixture.clip("alpha", minutesAgo: 1)])
