@@ -17,10 +17,10 @@ struct SuggestionTake {
     let insert: Insert
     let acceptances: AcceptanceQueue
     let capture: CaptureSession
+    /// Called with why a refused insertion did nothing, for the ghost slot to say.
+    let explainRefusal: @MainActor (String) -> Void
     /// Called when the insertion was refused for lost accessibility trust.
     let trustLost: () -> Void
-    /// Called with why a refused insertion did nothing, for the ghost slot to say.
-    let explainRefusal: (String) -> Void
 
     /// Puts the tail into the field and queues the taken line for capture, reporting uncertain writes.
     func take(

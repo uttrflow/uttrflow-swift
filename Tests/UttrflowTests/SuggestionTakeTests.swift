@@ -66,8 +66,8 @@ struct SuggestionTakeTests {
                     return .accessibility
                 },
                 acceptances: acceptances, capture: capture,
-                trustLost: { insertion.trustLosses += 1 },
-                explainRefusal: { insertion.explanations.append($0) })
+                explainRefusal: { insertion.explanations.append($0) },
+                trustLost: { insertion.trustLosses += 1 })
         }
 
         func remove() { try? FileManager.default.removeItem(at: container) }

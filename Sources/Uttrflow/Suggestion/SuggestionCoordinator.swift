@@ -63,11 +63,8 @@ final class SuggestionCoordinator {
         insert: { [acceptor] suggestion, typed, window throws(TextInsertionError) in
             try await acceptor.accept(suggestion, after: typed, expectedWindowNumber: window)
         },
-        acceptances: acceptances, capture: capture,
-        trustLost: { [weak self] in self?.activationMonitor?.recheckForLoss() },
-        explainRefusal: { [weak self] in self?.refusalNotice = $0 })
-    /// Why the accept in flight was refused, set by the take and drawn under the offer it kept.
-    private var refusalNotice: String?
+        acceptances: acceptances, capture: capture, explainRefusal: panel.restoreHidden(saying:),
+        trustLost: { [weak self] in self?.activationMonitor?.recheckForLoss() })
     let focusedFieldValueObserver: any FocusedFieldValueObserving
     /// Keeps background typing work responsive for the coordinator's lifetime.
     private let processActivity: any SuggestionProcessActivityManaging
@@ -1496,7 +1493,6 @@ final class SuggestionCoordinator {
             restTap()
         case .swallowed(let stroke):
             let typed = session.typed
-            let offered = (suggestion: session.suggestion, selection: session.selection)
             let reading = captureFeed.lastReading
             let action = session.route(stroke)
             Self.log.debug(
@@ -1521,11 +1517,6 @@ final class SuggestionCoordinator {
                     session.completeAcceptance(outcome)
                 }
                 isInserting = false
-                if let notice = refusalNotice {
-                    refusalNotice = nil
-                    keepRefused(
-                        offered.suggestion, typed: typed, selection: offered.selection, saying: notice)
-                }
                 // A field that is no longer the drawn line gets its key back, so Tab still does what Tab does there.
                 if let returnedKey { KeyStrokeReturn.post(returnedKey) }
                 noteActivity()
@@ -1542,16 +1533,6 @@ final class SuggestionCoordinator {
                 if let onTurnedOffEverywhere { onTurnedOffEverywhere() } else { stop() }
             }
         }
-    }
-
-    /// Draws the refused offer again with why it was refused under it, claiming no key, so the press that did nothing is explained.
-    private func keepRefused(
-        _ offered: Suggestion, typed: String, selection: SuggestionSelection, saying notice: String
-    ) {
-        panel.statusMessage = notice
-        panel.redraw(
-            offered.trimmed(after: typed, matching: closingPunctuationAfterCaret), typed: typed,
-            selection: selection)
     }
 
     /// How long the tap rests after macOS disabled it twice, past the window in which disables count against it.
