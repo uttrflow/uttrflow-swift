@@ -212,7 +212,7 @@ final class SuggestionCoordinator {
         workspaceCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
         scheduleSelectionChecks: @escaping SelectionCheckScheduling = SuggestionCoordinator.selectionTimer,
         panel: SuggestionPanelController = .shared,
-        editHeard: @escaping @Sendable (EditedSpan) async -> Void = { _ in }
+        editHeard: @escaping @Sendable (EditedSpan, String) async -> Void = { _, _ in }
     ) async throws {
         self.preferences = preferences
         self.processActivity = processActivity

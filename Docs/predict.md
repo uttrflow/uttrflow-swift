@@ -221,7 +221,8 @@ rewritten when a switch there moves. An application the loop has met is listed w
 has taught anything. Nothing reads a shell's history: the terminal learns only from what is typed in it.
 
 Dictation asks the same file before it learns (`LearningConsent` in `UttrflowCore`): the dictionary
-learner and the usage counts write nothing about an application the user declined. An application
+learner, the usage counts, the style counts and the heard-to-meant pairs from a re-dictation or a
+hand edit write nothing about an application the user declined. An application
 never asked about is learned from, because everything dictation learns stays on this Mac; that
 default is `ConsentState.dictationMayLearn` and lives nowhere else. **Learn from my dictation**,
 turned off on the Dictation tab of Settings, declines every application before dictation learns

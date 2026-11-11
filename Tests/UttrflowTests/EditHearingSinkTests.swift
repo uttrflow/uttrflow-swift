@@ -23,7 +23,7 @@ struct EditHearingSinkTests {
     func finishedValuesAndCorrectionsReachTheCorpus() async throws {
         let (store, folder) = try corpus()
         defer { try? FileManager.default.removeItem(at: folder) }
-        let sink = EditHearingSink(store: store, heard: { _ in })
+        let sink = EditHearingSink(store: store, heard: { _, _ in })
 
         try await sink.record("see you at noon", in: surface, after: nil, as: .typed, at: moment)
         #expect(try await store.recent(in: surface, limit: 5) == ["see you at noon"])
@@ -39,7 +39,7 @@ struct EditHearingSinkTests {
     func acceptanceCanBeRetracted() async throws {
         let (store, folder) = try corpus()
         defer { try? FileManager.default.removeItem(at: folder) }
-        let sink = EditHearingSink(store: store, heard: { _ in })
+        let sink = EditHearingSink(store: store, heard: { _, _ in })
 
         try await sink.record(
             "thanks for the update", in: surface, after: nil, as: .suggestion, at: moment)
@@ -53,17 +53,22 @@ struct EditHearingSinkTests {
         let (store, folder) = try corpus()
         defer { try? FileManager.default.removeItem(at: folder) }
         let heard = HeardEdits()
-        let sink = EditHearingSink(store: store, heard: { await heard.add($0) })
+        let sink = EditHearingSink(store: store, heard: { await heard.add($0, from: $1) })
 
         let edit = EditedSpan(position: 2, old: ["there"], new: ["their"])
         try await sink.recordEditedSpan(edit, in: surface)
 
         #expect(await heard.all == [edit])
+        #expect(await heard.applications == [surface.bundleIdentifier])
         #expect(try await store.recent(in: surface, limit: 5).isEmpty)
     }
 }
 
 private actor HeardEdits {
     private(set) var all: [EditedSpan] = []
-    func add(_ edit: EditedSpan) { all.append(edit) }
+    private(set) var applications: [String] = []
+    func add(_ edit: EditedSpan, from application: String) {
+        all.append(edit)
+        applications.append(application)
+    }
 }
