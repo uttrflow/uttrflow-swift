@@ -392,6 +392,8 @@ public enum SettingsChange: Sendable, Equatable {
     case handsFreeHold(milliseconds: Int)
     /// Seconds of quiet that end a recording no key is holding; 0 is off.
     case endOnSilence(seconds: Int)
+    /// Seconds a copied secret stays on the clipboard; 0 is off.
+    case secretClipboardClear(seconds: Int)
 
     /// Switch one clean-up step on or off; a step nobody offers is refused.
     case cleaningStep(PassID, isOn: Bool)

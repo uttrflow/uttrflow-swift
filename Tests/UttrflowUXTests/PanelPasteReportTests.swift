@@ -46,10 +46,38 @@ struct PanelPasteReportTests {
 
     @Test("an explicit Copy of a secret confirms it without exposing its contents")
     func explicitHiddenCopy() throws {
-        let report = try #require(PanelPasteReport.after(.copied(.hiddenText)))
+        let report = try #require(PanelPasteReport.after(.copied(.hiddenText(clearsAfterSeconds: 0))))
         #expect(report.primaryLine == "Copied hidden clip — press ⌘V")
+        #expect(report.secondaryLine == nil)
         #expect(
             report.spoken == "Copied a hidden clip to the clipboard, not pasted. Press Command V to paste it."
+        )
+    }
+
+    @Test("the panel's own notice for a copied secret says when it leaves the clipboard")
+    func panelNoticeNamesTheDelay() {
+        let plain = PanelInsertionObstacle.nothingFocused.copiedNotice
+        let blocked = PanelInsertionObstacle.accessibilityNotGranted.copiedNotice
+
+        #expect(
+            plain.namingSecretClear(afterSeconds: 30).message
+                == "Copied — press ⌘V where you want it. It leaves the clipboard in 30 seconds")
+        #expect(
+            blocked.namingSecretClear(afterSeconds: 1).message
+                == "\(blocked.message) It leaves the clipboard in 1 second.")
+        #expect(blocked.namingSecretClear(afterSeconds: 1).action == blocked.action)
+        #expect(plain.namingSecretClear(afterSeconds: 0) == plain)
+    }
+
+    @Test("an explicit Copy of a secret says when it leaves the clipboard")
+    func explicitHiddenCopyNamesTheDelay() throws {
+        let report = try #require(PanelPasteReport.after(.copied(.hiddenText(clearsAfterSeconds: 60))))
+        #expect(report.primaryLine == "Copied hidden clip — press ⌘V")
+        #expect(report.secondaryLine == "It leaves the clipboard in 60 seconds")
+        #expect(
+            report.spoken
+                == "Copied a hidden clip to the clipboard, not pasted. Press Command V to paste it. "
+                + "It leaves the clipboard in 60 seconds."
         )
     }
 

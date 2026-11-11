@@ -81,6 +81,9 @@ public enum SettingsEditor {
                 throw SettingsRejection(reason: "Choose a listed wait.")
             }
             updated.endOnSilenceSeconds = seconds
+        case .secretClipboardClear(let seconds):
+            guard seconds >= 0 else { throw SettingsRejection(reason: "Choose a listed delay.") }
+            updated.secretClipboardClearSeconds = seconds
         case .retention(let days):
             try applyRetention(days: days, to: &updated)
         case .clipboardRetention(let days):

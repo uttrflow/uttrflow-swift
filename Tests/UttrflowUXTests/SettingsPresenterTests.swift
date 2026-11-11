@@ -269,6 +269,25 @@ struct SettingsGeneralPaneTests {
         #expect(SettingsChange.confirmMultilinePaste(isOn: false).isRequestToAct)
     }
 
+    @Test("offers the delay before a copied secret is cleared, with off as a choice")
+    func secretClearDelayIsAChoice() throws {
+        let row = try #require(general().row("secretClipboardClearSeconds"))
+        let titles = ["Off", "After 10 s", "After 30 s", "After 60 s", "After 120 s"]
+        let options = zip([0, 10, 30, 60, 120], titles).map { seconds, title in
+            SettingsOption(id: String(seconds), title: title, change: .secretClipboardClear(seconds: seconds))
+        }
+        #expect(row.control == .menu(options: options, selectedID: "60"))
+
+        let off = try SettingsEditor.apply(.secretClipboardClear(seconds: 0), to: .default)
+        let half = try SettingsEditor.apply(.secretClipboardClear(seconds: 30), to: off)
+        #expect(off.secretClipboardClearSeconds == 0)
+        #expect(half.secretClipboardClearSeconds == 30)
+        #expect(throws: SettingsRejection.self) {
+            try SettingsEditor.apply(.secretClipboardClear(seconds: -1), to: .default)
+        }
+        #expect(!SettingsChange.secretClipboardClear(seconds: 0).isRequestToAct)
+    }
+
     @Test("shows the shortcut in force on keycaps")
     func showsTheShortcut() {
         var settings = Settings.default

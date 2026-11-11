@@ -367,14 +367,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private lazy var panelClipInserter: any TextInserting = TextInsertion.coordinator(
         pasteboard: announcingPasteboard, confirmsArrival: false, clipboardFallback: false)
 
-    /// The same for a secret clip, whose words reach the clipboard only with the concealed marker.
+    /// The same for a secret clip, whose words reach the clipboard only marked concealed, and leave it later.
     private lazy var secretInserter = TextInsertion.coordinator(
-        pasteboard: ConcealingPasteboard(announcingPasteboard))
+        pasteboard: ConcealingPasteboard(announcingPasteboard) { [weak self] generation in
+            Task { @MainActor in self?.scheduleSecretClear(writtenAt: generation) }
+        })
 
     /// The panel's concealed route follows the same no-confirmation rule as ordinary clips.
     private lazy var panelSecretInserter = TextInsertion.coordinator(
-        pasteboard: ConcealingPasteboard(announcingPasteboard), confirmsArrival: false,
-        clipboardFallback: false)
+        pasteboard: ConcealingPasteboard(announcingPasteboard) { [weak self] generation in
+            Task { @MainActor in self?.scheduleSecretClear(writtenAt: generation) }
+        },
+        confirmsArrival: false, clipboardFallback: false)
 
     /// The panel's state while it is open, held here so tests can inspect the notice it produces.
     private(set) var panel: PanelSnapshot?
@@ -2197,7 +2201,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             if copied { closeAfterReading() }
         case .copyConcealedAndSay(let text, let notice, let used):
             let copied = putOnClipboard(text, concealed: true, used: used)
-            panel?.notice = copied ? notice : Self.clipboardCopyFailedNotice
+            panel?.notice =
+                copied
+                ? notice.namingSecretClear(afterSeconds: settings.secretClipboardClearSeconds)
+                : Self.clipboardCopyFailedNotice
             if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
             if copied { closeAfterReading() }
         case .copyImageAndSay(let clip, let notice):
@@ -2231,7 +2238,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .closeAndCopyConcealed(let text, let used):
             if putOnClipboard(text, concealed: true, used: used) {
                 closeQuickPanel()
-                reportPanelPaste(.copied(.hiddenText))
+                let seconds = settings.secretClipboardClearSeconds
+                reportPanelPaste(.copied(.hiddenText(clearsAfterSeconds: seconds)))
             } else {
                 panel?.notice = Self.clipboardCopyFailedNotice
                 if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
@@ -2764,9 +2772,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Tells the user, on screen and through VoiceOver, that the words are on the clipboard, where the panel would have said so.
     private func sayCopiedForMainWindow(secret: Bool = false) {
         let seconds = settings.secretClipboardClearSeconds
-        let cleared = secret && seconds > 0 ? ". It leaves the clipboard in \(seconds) seconds" : ""
+        let clearing = secret ? SecretClearWording.sentence(afterSeconds: seconds) : nil
         let notice = MainNotice(
-            message: "Copied — click where you want it, then press ⌘V" + cleared,
+            message: (["Copied — click where you want it, then press ⌘V"] + [clearing].compactMap(\.self))
+                .joined(separator: ". "),
             symbolName: "doc.on.clipboard", tone: .neutral)
         actionNotice = notice
         announce(notice.message, urgently: false)
@@ -3137,7 +3146,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             if !putOnClipboard(recent.text, concealed: isSecret, used: nil) {
                 showClipboardCopyFailure()
             } else {
-                reportPanelPaste(.copied(isSecret ? .hiddenText : .text))
+                let seconds = settings.secretClipboardClearSeconds
+                reportPanelPaste(.copied(isSecret ? .hiddenText(clearsAfterSeconds: seconds) : .text))
             }
         case .insertClip(let id):
             guard let clip = menuClips.first(where: { $0.id == id }) else { return }
@@ -3161,7 +3171,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 if putOnClipboard(
                     clip.text, richText: clip.richText, concealed: clip.kind == .secret, used: clip.id)
                 {
-                    reportPanelPaste(.copied(clip.kind == .secret ? .hiddenText : .text))
+                    let seconds = settings.secretClipboardClearSeconds
+                    let content: PanelCopyContent =
+                        clip.kind == .secret ? .hiddenText(clearsAfterSeconds: seconds) : .text
+                    reportPanelPaste(.copied(content))
                 } else {
                     showClipboardCopyFailure()
                 }
