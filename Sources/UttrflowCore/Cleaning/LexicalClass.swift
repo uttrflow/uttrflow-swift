@@ -2,11 +2,18 @@ public import NaturalLanguage
 
 /// The one place a word's lexical class is read, so every seam decision agrees on what a word is.
 public enum LexicalClass {
+    /// A tagger over `text` read as English, so a short phrase is never tagged by another language's model.
+    private static func englishTagger(_ schemes: [NLTagScheme], over text: String) -> NLTagger {
+        let tagger = NLTagger(tagSchemes: schemes)
+        tagger.string = text
+        tagger.setLanguage(.english, range: text.startIndex..<text.endIndex)
+        return tagger
+    }
+
     /// The class the on-device tagger gives the word that starts at `position` in `text`.
     public static func tag(at position: String.Index, in text: String) -> NLTag? {
         guard position < text.endIndex else { return nil }
-        let tagger = NLTagger(tagSchemes: [.lexicalClass])
-        tagger.string = text
+        let tagger = englishTagger([.lexicalClass], over: text)
         return tagger.tag(at: position, unit: .word, scheme: .lexicalClass).0
     }
 
@@ -23,16 +30,14 @@ public enum LexicalClass {
         guard words.indices.contains(index) else { return nil }
         let text = words.joined(separator: " ")
         let offset = words[..<index].reduce(0) { $0 + $1.count + 1 }
-        let tagger = NLTagger(tagSchemes: [.lemma])
-        tagger.string = text
+        let tagger = englishTagger([.lemma], over: text)
         let start = text.index(text.startIndex, offsetBy: offset)
         return tagger.tag(at: start, unit: .word, scheme: .lemma).0?.rawValue
     }
 
     /// Whether the tagger reads `word` in `text` as the name of a person or a place: "Lee" after "Dr."; an organisation also names ordinary things.
     public static func isNamed(_ word: String, in text: String) -> Bool {
-        let tagger = NLTagger(tagSchemes: [.nameType])
-        tagger.string = text
+        let tagger = englishTagger([.nameType], over: text)
         var named = false
         let names: Set<NLTag> = [.personalName, .placeName]
         tagger.enumerateTags(
@@ -48,17 +53,13 @@ public enum LexicalClass {
 
     /// Whether the English model has a dictionary form for this one word: "inbox" yes, "pgvector" no. Not ordinary; see Docs/ordinary-words.md.
     public static func isKnownEnglishWord(_ word: String) -> Bool {
-        let tagger = NLTagger(tagSchemes: [.lemma])
-        tagger.string = word
-        tagger.setLanguage(.english, range: word.startIndex..<word.endIndex)
+        let tagger = englishTagger([.lemma], over: word)
         return tagger.tag(at: word.startIndex, unit: .word, scheme: .lemma).0 != nil
     }
 
     /// Whether the English model's dictionary form of this one word is capitalised, as "Delhi" for "delhi": a name.
     public static func isNameInDictionary(_ word: String) -> Bool {
-        let tagger = NLTagger(tagSchemes: [.lemma])
-        tagger.string = word
-        tagger.setLanguage(.english, range: word.startIndex..<word.endIndex)
+        let tagger = englishTagger([.lemma], over: word)
         let lemma = tagger.tag(at: word.startIndex, unit: .word, scheme: .lemma).0?.rawValue
         return lemma?.first?.isUppercase == true
     }
@@ -66,8 +67,7 @@ public enum LexicalClass {
     /// The class of every word in `words`, read as one sentence with one tagger.
     public static func tags(ofWords words: [String]) -> [NLTag?] {
         let text = words.joined(separator: " ")
-        let tagger = NLTagger(tagSchemes: [.lexicalClass])
-        tagger.string = text
+        let tagger = englishTagger([.lexicalClass], over: text)
         var position = text.startIndex
         return words.map { word in
             defer {
@@ -81,8 +81,7 @@ public enum LexicalClass {
 
     /// Every word of `text` with its class, in order, skipping whitespace and punctuation.
     public static func tags(in text: String) -> [(word: String, tag: NLTag)] {
-        let tagger = NLTagger(tagSchemes: [.lexicalClass])
-        tagger.string = text
+        let tagger = englishTagger([.lexicalClass], over: text)
         var result: [(word: String, tag: NLTag)] = []
         tagger.enumerateTags(
             in: text.startIndex..<text.endIndex, unit: .word, scheme: .lexicalClass,

@@ -338,6 +338,8 @@ public struct LayoutWordsPass: PieceCleaningPass {
         let previous = draft.shape(at: live[marker - 1])
         // A colon introduces what follows it, whatever class the word it closes.
         if previous.suffix.hasSuffix(":") { return true }
+        // One word alone before the marker is a heading, not a running clause: "reminders number one".
+        if marker == 1 || draft.shape(at: live[marker - 2]).endsSentence { return true }
         guard !["and", "or"].contains(previous.key) else { return false }
         if ["need", "are", "check"].contains(previous.key) { return true }
         let context = live[..<marker].map { draft.words[$0].text }.joined(separator: " ")
