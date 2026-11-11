@@ -57,8 +57,8 @@ enum IntegrityAudit {
         return key.count > 1 || unitLetters.contains(key) ? .unit : nil
     }
 
-    /// The unit symbols of one letter: grams, metres, litres, seconds, hours, volts, watts, thousands.
-    static let unitLetters: Set<String> = ["g", "m", "l", "s", "h", "v", "w", "k"]
+    /// The unit symbols of one letter, from the number cues.
+    static let unitLetters = NumberCues.words(for: .unitLetter)
 
     /// The pass that lost a unit letter; nil while it stands, joined on ("15k"), or a correction took it back.
     private static func lostLetter(
