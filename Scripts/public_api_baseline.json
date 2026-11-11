@@ -1182,6 +1182,7 @@
     "UttrflowCore enum PipelineStage": 1,
     "UttrflowCore enum PreferredSpelling": 1,
     "UttrflowCore enum PrivateFile": 1,
+    "UttrflowCore enum PrivateWindow": 1,
     "UttrflowCore enum ProcessAge": 1,
     "UttrflowCore enum Profile": 1,
     "UttrflowCore enum Provenance": 1,
@@ -1375,7 +1376,7 @@
     "UttrflowCore func isMostlyUntranscribedScript": 1,
     "UttrflowCore func isMultiplexer": 1,
     "UttrflowCore func isNameInDictionary": 1,
-    "UttrflowCore func isNamed": 3,
+    "UttrflowCore func isNamed": 4,
     "UttrflowCore func isNumber": 1,
     "UttrflowCore func isOffered": 1,
     "UttrflowCore func isOn": 1,
@@ -2311,6 +2312,7 @@
     "UttrflowCore var isGranted": 1,
     "UttrflowCore var isHashtag": 1,
     "UttrflowCore var isHolding": 1,
+    "UttrflowCore var isInPrivateWindow": 1,
     "UttrflowCore var isInferred": 1,
     "UttrflowCore var isKnown": 1,
     "UttrflowCore var isLabelledItemMark": 1,
@@ -4223,6 +4225,7 @@
     "UttrflowPipeline let entryID": 1,
     "UttrflowPipeline let evidence": 2,
     "UttrflowPipeline let expansion": 1,
+    "UttrflowPipeline let fromPrivateWindow": 1,
     "UttrflowPipeline let guardRefusals": 1,
     "UttrflowPipeline let heard": 2,
     "UttrflowPipeline let heardConfidence": 1,
@@ -6376,5 +6379,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 9073
+  "total": 9077
 }
