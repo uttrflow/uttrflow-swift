@@ -78,14 +78,28 @@ enum EvidenceSources {
         }
     }
 
-    /// Appends History's pre-ledger dictations to the ledger once, when there is one; a refused write is retried on the next sweep.
+    /// Appends History's pre-ledger dictations to the ledger once, when there is one, leaving out applications `consent` refuses; a refused write is retried on the next sweep.
     static func backfill(
-        _ ledger: EvidenceLedgerStore?, from records: [DictationRecord], dictionary: PersonalDictionaryStore,
-        overrides: DestinationOverrides, keeping window: RetentionWindow
+        _ ledger: EvidenceLedgerStore?, from records: [DictationRecord], consent: any LearningConsent,
+        dictionary: PersonalDictionaryStore, overrides: DestinationOverrides, keeping window: RetentionWindow
     ) async {
         guard let ledger else { return }
+        var answers: [String?: Bool] = [:]
+        var learnable: [DictationRecord] = []
+        for record in records {
+            let application = record.applicationIdentifier
+            let mayLearn: Bool
+            if let answer = answers[application] {
+                mayLearn = answer
+            } else {
+                mayLearn = await consent.mayLearn(from: application)
+                answers[application] = mayLearn
+            }
+            if mayLearn { learnable.append(record) }
+        }
+        guard !learnable.isEmpty else { return }
         let rows = backfill(
-            records, entries: await dictionary.allEntries(), ledger: await ledger.rows(keeping: window),
+            learnable, entries: await dictionary.allEntries(), ledger: await ledger.rows(keeping: window),
             overrides: overrides)
         if !rows.isEmpty { try? await ledger.append(rows, keeping: window) }
     }

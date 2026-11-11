@@ -174,6 +174,8 @@ row per dictionary entry `DictionaryAppearances.used` returns, after the diction
 same set. Undoing a correction writes one `revert` row for its entry. The retention sweep
 backfills History's dictations from days before the ledger's first row, as `use` and style rows
 with provenance `migration`, once: a ledger holding any `migration` row is not backfilled again.
+The backfill asks the same consent as every live write (`LearntEvidence.consent`): a dictation
+into a declined application adds no row, and with the learning switch off nothing is backfilled.
 No row carries a word of the text, and nothing leaves this Mac.
 
 ## Still open

@@ -9,7 +9,7 @@ import UttrflowSettings
 /// Writes rows learnt from an application, in order, unless the person declined it or turned learning off.
 @MainActor
 final class LearntEvidence {
-    /// The answer every dictation learner reads before it writes, the pipeline's included.
+    /// The answer every dictation learner reads before it writes, the pipeline's and History's backfill included.
     let consent: any LearningConsent
     /// The newest write, so each waits for the one before it.
     private(set) var pending: Task<Void, Never>?

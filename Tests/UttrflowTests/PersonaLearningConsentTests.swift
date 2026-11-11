@@ -5,6 +5,7 @@ import Foundation
 import Testing
 import UttrflowAI
 import UttrflowCore
+import UttrflowHistory
 import UttrflowPipeline
 import UttrflowPredict
 import UttrflowPredictCapture
@@ -24,8 +25,10 @@ private let asked = "com.example.notes"
 @MainActor
 @Suite("A declined application teaches the persona nothing", .timeLimit(.minutes(1)))
 struct PersonaLearningConsentTests {
-    /// An app over `root` with `declined` refused and the switch in Settings as `learns` says.
-    private func app(in root: URL, learns: Bool) throws -> (AppDelegate, EvidenceLedgerStore) {
+    /// An app over `root` with `declined` refused, the switch in Settings as `learns` says, and `history` in History.
+    private func app(
+        in root: URL, learns: Bool, history: [DictationRecord] = []
+    ) async throws -> (AppDelegate, EvidenceLedgerStore) {
         try CapturePreferencesFile(
             path: CapturePreferencesFile.defaultFile(in: root).path(percentEncoded: false)
         )
@@ -35,6 +38,9 @@ struct PersonaLearningConsentTests {
         settings.learnsFromDictation = learns
         store.save(settings)
         let keys = EncryptedStore(keys: Keys())
+        let past = DictationHistoryStore(
+            file: DictationHistoryStore.defaultFile(in: root), encryptedStore: keys)
+        for record in history { try await past.append(record, keeping: Retention(days: 30, now: Date())) }
         let app = AppDelegate(
             container: root, clipboardSource: InMemoryClipboardSource(), settingsStore: store,
             account: HeldSession(signedIn: true).layer, encryptedStore: keys)
@@ -54,7 +60,7 @@ struct PersonaLearningConsentTests {
     @Test("a dictation into a declined application writes no style row; one into an unasked application does")
     func declinedApplicationWritesNoRow() async throws {
         let sandbox = Sandbox()
-        let (app, ledger) = try app(in: sandbox.root, learns: true)
+        let (app, ledger) = try await app(in: sandbox.root, learns: true)
         let window = RetentionWindow(days: 365, now: Date())
 
         app.render(landed("meet me at the usual place", in: declined))
@@ -71,7 +77,7 @@ struct PersonaLearningConsentTests {
     @Test("with Learn from my dictation off, a dictation and an edit write no row anywhere")
     func switchedOffWritesNoRow() async throws {
         let sandbox = Sandbox()
-        let (app, ledger) = try app(in: sandbox.root, learns: false)
+        let (app, ledger) = try await app(in: sandbox.root, learns: false)
 
         app.render(landed("see you at noon.", in: asked))
         app.learnt.note(
@@ -87,7 +93,7 @@ struct PersonaLearningConsentTests {
     @Test("an edit in a declined application writes no pairing row; one in an unasked application does")
     func declinedEditWritesNoPair() async throws {
         let sandbox = Sandbox()
-        let (app, ledger) = try app(in: sandbox.root, learns: true)
+        let (app, ledger) = try await app(in: sandbox.root, learns: true)
         let rows = EvidenceSources.pair(
             kept: EditedSpan(position: 0, old: ["there"], new: ["their"]), day: EvidenceRow.day(of: Date()))
 
@@ -98,5 +104,30 @@ struct PersonaLearningConsentTests {
         app.learnt.note(rows, from: asked)
         await app.learnt.pending?.value
         #expect(await ledger.rows(keeping: RetentionWindow(days: 365, now: Date())).count == rows.count)
+    }
+
+    @Test("History's backfill learns nothing from a declined application, nor anything with the switch off")
+    func backfillHonoursConsent() async throws {
+        let before = Date().addingTimeInterval(-2 * 86_400)
+        let history = [
+            DictationRecord(
+                text: "meet me at the usual place", when: before, applicationName: "Notes",
+                applicationIdentifier: declined),
+            DictationRecord(
+                text: "see you at noon.", when: before, applicationName: "Notes",
+                applicationIdentifier: asked),
+        ]
+        for learns in [true, false] {
+            let sandbox = Sandbox()
+            let (app, ledger) = try await app(in: sandbox.root, learns: learns, history: history)
+
+            app.sweepExpired()
+            await app.sweeping?.value
+
+            let rows = await ledger.rows(keeping: RetentionWindow(days: 365, now: Date()))
+            #expect(rows.allSatisfy { $0.provenance == .migration })
+            #expect(rows.filter { $0.kind == .styleMessage }.map(\.weight).reduce(0, +) == (learns ? 1 : 0))
+            #expect(rows.filter { $0.kind == .styleWords }.map(\.weight).reduce(0, +) == (learns ? 4 : 0))
+        }
     }
 }

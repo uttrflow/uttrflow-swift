@@ -543,12 +543,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             dictationDays: settings.transcriptRetentionDays)
         let previous = sweeping
         let overrides = settings.destinations
+        let consent = learnt.consent
         sweeping = Task(priority: .utility) { [recordings, history, clipboard, evidence, dictionary] in
             await previous?.value
             _ = await recordings.waiting(now: now)
             let records = await history.records(keeping: retention)
             await EvidenceSources.backfill(
-                evidence, from: records, dictionary: dictionary, overrides: overrides,
+                evidence, from: records, consent: consent, dictionary: dictionary, overrides: overrides,
                 keeping: RetentionWindow(days: retention.days, now: now))
             _ = await clipboard.clips(keeping: clipboardRetention)
         }

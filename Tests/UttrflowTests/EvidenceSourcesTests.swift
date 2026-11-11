@@ -68,15 +68,18 @@ struct EvidenceSourcesTests {
         let window = RetentionWindow(days: RetentionWindow.keepAlwaysDays, now: now)
 
         await EvidenceSources.backfill(
-            ledger, from: records, dictionary: dictionary, overrides: .none, keeping: window)
+            ledger, from: records, consent: NothingAskedYet(), dictionary: dictionary,
+            overrides: .none, keeping: window)
         let first = await ledger.rows(keeping: window)
         await EvidenceSources.backfill(
-            ledger, from: records, dictionary: dictionary, overrides: .none, keeping: window)
+            ledger, from: records, consent: NothingAskedYet(), dictionary: dictionary,
+            overrides: .none, keeping: window)
 
         #expect(first.contains { $0.kind == .use && $0.provenance == .migration })
         #expect(await ledger.rows(keeping: window) == first)
         await EvidenceSources.backfill(
-            nil, from: records, dictionary: dictionary, overrides: .none, keeping: window)
+            nil, from: records, consent: NothingAskedYet(), dictionary: dictionary,
+            overrides: .none, keeping: window)
     }
 
     @Test("an unreadable ledger is kept aside, rebuilt from History by the sweep, and named")
@@ -98,7 +101,8 @@ struct EvidenceSourcesTests {
         let window = RetentionWindow(days: RetentionWindow.keepAlwaysDays, now: now)
 
         await EvidenceSources.backfill(
-            ledger, from: records, dictionary: dictionary, overrides: .none, keeping: window)
+            ledger, from: records, consent: NothingAskedYet(), dictionary: dictionary,
+            overrides: .none, keeping: window)
 
         let rebuilt = await ledger.rows(keeping: window)
         #expect(rebuilt.contains { $0.kind == .use && $0.provenance == .migration })
