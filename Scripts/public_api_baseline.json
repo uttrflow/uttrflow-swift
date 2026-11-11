@@ -1297,6 +1297,7 @@
     "UttrflowCore func choose": 1,
     "UttrflowCore func classes": 1,
     "UttrflowCore func classify": 3,
+    "UttrflowCore func cleaningSteps": 1,
     "UttrflowCore func closesItself": 1,
     "UttrflowCore func colloquialHundred": 1,
     "UttrflowCore func combined": 1,
@@ -1349,7 +1350,7 @@
     "UttrflowCore func hindiCardinal": 1,
     "UttrflowCore func hint": 1,
     "UttrflowCore func history": 1,
-    "UttrflowCore func holding": 1,
+    "UttrflowCore func holding": 2,
     "UttrflowCore func holds": 3,
     "UttrflowCore func homophones": 1,
     "UttrflowCore func host": 1,
@@ -1458,6 +1459,7 @@
     "UttrflowCore func productionLegacyMigrationMarkerURL": 1,
     "UttrflowCore func project": 2,
     "UttrflowCore func prune": 1,
+    "UttrflowCore func qualityPreset": 1,
     "UttrflowCore func quiet": 1,
     "UttrflowCore func quietRuns": 1,
     "UttrflowCore func race": 1,
@@ -4866,6 +4868,7 @@
     "UttrflowSettings var contextLevelOverrides": 1,
     "UttrflowSettings var destinations": 1,
     "UttrflowSettings var dictationEnabled": 1,
+    "UttrflowSettings var dictationOverrides": 1,
     "UttrflowSettings var endOnSilenceSeconds": 1,
     "UttrflowSettings var engines": 1,
     "UttrflowSettings var floatingButtonAnchor": 1,
@@ -6376,5 +6379,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 9073
+  "total": 9077
 }
