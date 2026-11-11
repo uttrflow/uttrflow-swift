@@ -56,21 +56,31 @@ struct ConcealingPasteboardTests {
         #expect(pasteboard.concealed == pasteboard.writes)
     }
 
-    @Test("each concealed write hands on its generation, and a refused one hands on nothing")
-    func writesAreHandedOn() {
-        let handed = Mutex<[Int?]>([])
-        let concealing = ConcealingPasteboard(FakePasteboard()) { generation in
-            handed.withLock { $0.append(generation) }
-        }
-        let refusing = ConcealingPasteboard(FakePasteboard(refusesWrites: true)) { _ in
-            Issue.record("a refused write was handed on")
-        }
+    @Test("a concealed write leaves the clipboard after the chosen delay")
+    func writeIsCleared() async throws {
+        let pasteboard = FakePasteboard()
+        let waits = Mutex<[Duration]>([])
+        let clear = ConcealedClipboardClear(sleep: { duration in waits.withLock { $0.append(duration) } })
+        let concealing = ConcealingPasteboard(pasteboard, clearingAfter: { 60 }, clear: clear)
 
-        let written = concealing.writeTransientText("sk-live-abcdef123456", richText: nil)
-        _ = refusing.writeTransientText("sk-live-abcdef123456", richText: nil)
+        #expect(concealing.writeConcealedText("sk-live-abcdef123456").didWrite)
 
-        #expect(written.didWrite)
-        #expect(handed.withLock { $0 } == [written.changeCount])
+        #expect(try await Self.cleared(pasteboard))
+        #expect(waits.withLock { $0 } == [.seconds(60)])
+    }
+
+    @Test("clearing off, or a refused write, schedules no clear")
+    func offOrRefusedSchedulesNothing() {
+        let never = ConcealedClipboardClear(sleep: { _ in Issue.record("a clear was scheduled") })
+        let pasteboard = FakePasteboard()
+        let off = ConcealingPasteboard(pasteboard, clearingAfter: { 0 }, clear: never)
+        let refusing = ConcealingPasteboard(
+            FakePasteboard(refusesWrites: true), clearingAfter: { 60 }, clear: never)
+
+        #expect(off.writeConcealedText("sk-live-abcdef123456").didWrite)
+        #expect(!refusing.writeConcealedText("sk-live-abcdef123456").didWrite)
+
+        #expect(pasteboard.text() == "sk-live-abcdef123456")
     }
 
     @Test("a pasted secret stays on the clipboard, since the paste route puts no earlier copy back")
@@ -90,23 +100,24 @@ struct ConcealingPasteboardTests {
     @Test("a secret pasted from the panel leaves the clipboard after the delay")
     func pastedSecretIsCleared() async throws {
         let pasteboard = FakePasteboard()
-        let written = Mutex<[Int?]>([])
-        let concealing = ConcealingPasteboard(pasteboard) { generation in
-            written.withLock { $0.append(generation) }
-        }
+        let (delay, elapse) = AsyncStream<Void>.makeStream()
+        let clear = ConcealedClipboardClear(sleep: { _ in for await _ in delay {} })
         let engine = PasteboardTextInsertionEngine(
-            focus: FakeFocus(field: FakeTextField()), pasteboard: concealing,
+            focus: FakeFocus(field: FakeTextField()),
+            pasteboard: ConcealingPasteboard(pasteboard, clearingAfter: { 60 }, clear: clear),
             keystrokes: FakeKeystrokeSender(), confirmsArrival: false, keepsWordsWhenRefused: false)
 
         _ = try await engine.insert("sk-live-abcdef123456")
-        let generations = written.withLock { $0 }
-        for generation in generations {
-            let clear = ConcealedClipboardClear(sleep: { _ in })
-            _ = await clear.schedule(on: pasteboard, writtenAt: generation, afterSeconds: 60)?.value
-        }
+        #expect(pasteboard.text() == "sk-live-abcdef123456")
+        elapse.finish()
 
-        #expect(generations.count == 1)
+        #expect(try await Self.cleared(pasteboard))
         #expect(pasteboard.concealed == ["sk-live-abcdef123456"])
-        #expect(pasteboard.text() == nil)
+    }
+
+    /// Whether the clear, which runs off the test's task, has emptied the clipboard within two seconds.
+    private static func cleared(_ pasteboard: FakePasteboard) async throws -> Bool {
+        for _ in 0..<200 where pasteboard.text() != nil { try await Task.sleep(for: .milliseconds(10)) }
+        return pasteboard.text() == nil
     }
 }

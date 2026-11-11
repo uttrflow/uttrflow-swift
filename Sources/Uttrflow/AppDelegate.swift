@@ -367,18 +367,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private lazy var panelClipInserter: any TextInserting = TextInsertion.coordinator(
         pasteboard: announcingPasteboard, confirmsArrival: false, clipboardFallback: false)
 
-    /// The same for a secret clip, whose words reach the clipboard only marked concealed, and leave it later.
-    private lazy var secretInserter = TextInsertion.coordinator(
-        pasteboard: ConcealingPasteboard(announcingPasteboard) { [weak self] generation in
-            Task { @MainActor in self?.scheduleSecretClear(writtenAt: generation) }
-        })
+    /// Every write of a known secret goes up concealed and leaves the clipboard after the chosen delay.
+    private lazy var secretPasteboard = ConcealingPasteboard(announcingPasteboard) { [settingsStore] in
+        settingsStore.load().secretClipboardClearSeconds
+    }
+
+    /// The same for a secret clip, whose words reach the clipboard only with the concealed marker.
+    private lazy var secretInserter = TextInsertion.coordinator(pasteboard: secretPasteboard)
 
     /// The panel's concealed route follows the same no-confirmation rule as ordinary clips.
     private lazy var panelSecretInserter = TextInsertion.coordinator(
-        pasteboard: ConcealingPasteboard(announcingPasteboard) { [weak self] generation in
-            Task { @MainActor in self?.scheduleSecretClear(writtenAt: generation) }
-        },
-        confirmsArrival: false, clipboardFallback: false)
+        pasteboard: secretPasteboard, confirmsArrival: false, clipboardFallback: false)
 
     /// The panel's state while it is open, held here so tests can inspect the notice it produces.
     private(set) var panel: PanelSnapshot?
@@ -2083,8 +2082,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         knownSnippets = await snippets.snippets()
         let result: PasteboardWriteResult
         if dictationText(text).isSecret {
-            result = announcingPasteboard.writeConcealedText(text)
-            if result.didWrite { scheduleSecretClear(writtenAt: result.changeCount) }
+            result = secretPasteboard.writeConcealedText(text)
         } else {
             result = announcingPasteboard.writeTransientText(text, richText: nil)
         }
@@ -2747,11 +2745,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // A secret goes up marked, so no other clipboard history records it in plain text.
         let result: PasteboardWriteResult
         guard !concealed else {
-            result = announcingPasteboard.writeConcealedText(text)
-            if result.didWrite {
-                markUsed(used)
-                scheduleSecretClear(writtenAt: result.changeCount)
-            }
+            result = secretPasteboard.writeConcealedText(text)
+            if result.didWrite { markUsed(used) }
             return result.didWrite
         }
         // E2, E3 — both flavours, so the receiving application takes the one it understands.
@@ -2760,19 +2755,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         return result.didWrite
     }
 
-    /// Takes a copied secret off the clipboard after the chosen delay, unless something newer was copied.
-    private func scheduleSecretClear(writtenAt changeCount: Int?) {
-        ConcealedClipboardClear().schedule(
-            on: announcingPasteboard, writtenAt: changeCount,
-            afterSeconds: settings.secretClipboardClearSeconds)
-    }
-
     /// Tells the user, on screen and through VoiceOver, that the words are on the clipboard, where the panel would have said so.
     private func sayCopiedForMainWindow(secret: Bool = false) {
-        let seconds = settings.secretClipboardClearSeconds
-        let cleared = secret ? SecretClearWording.sentence(afterSeconds: seconds).map { ". \($0)" } ?? "" : ""
+        let seconds = secret ? settings.secretClipboardClearSeconds : 0
+        let message = SecretClearNotice.appending(
+            to: "Copied — click where you want it, then press ⌘V", after: seconds)
         let notice = MainNotice(
-            message: "Copied — click where you want it, then press ⌘V" + cleared,
+            message: message,
             symbolName: "doc.on.clipboard", tone: .neutral)
         actionNotice = notice
         announce(notice.message, urgently: false)
@@ -3144,7 +3133,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 showClipboardCopyFailure()
             } else {
                 let seconds = settings.secretClipboardClearSeconds
-                reportPanelPaste(.copied(isSecret ? .hiddenText(clearsAfterSeconds: seconds) : .text))
+                let hidden = PanelCopyContent.hiddenText(clearsAfterSeconds: seconds)
+                reportPanelPaste(.copied(isSecret ? hidden : .text))
             }
         case .insertClip(let id):
             guard let clip = menuClips.first(where: { $0.id == id }) else { return }
