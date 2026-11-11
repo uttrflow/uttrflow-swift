@@ -82,7 +82,7 @@ extension CleaningPipeline {
                 cleanings.insert(
                     CodeEditorCommandsPass(
                         destination: destination, language: intent.language, markup: markup,
-                        evidence: notation, cutsStammers: steps.runs(.stammers)),
+                        evidence: notation, cutsStammers: steps.runs(.stammers), identifiers: identifiers),
                     at: markup?.slot == nil ? layoutPosition : punctuation ?? layoutPosition)
                 // After the spoken layout words, so a spoken "new line" is a break by then.
                 if destination == .sqlEditor,

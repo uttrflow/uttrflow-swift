@@ -12,11 +12,23 @@ struct ScreenIdentifierPass: PieceCleaningPass {
     /// Joining a run into one identifier writes a word the draft did not hold, so `addsNoWords` is not kept.
     static let laws: Set<PassLaw> = [.idempotent, .keepsDigits, .latinOnly]
 
+    /// Which runs may be bound.
+    enum Reading: Sendable, Equatable {
+        /// A run the recogniser scored low, to an identifier spelt or sounding like it.
+        case doubted
+        /// Any run of a statement, only to an identifier it spells, never past a word the recogniser ended with a pause mark.
+        case statement(pausedAfter: Set<Int>)
+    }
+
     /// The identifiers the screen shows; empty, the pass changes nothing.
     let vocabulary: ScreenVocabulary
 
-    init(vocabulary: ScreenVocabulary = .empty) {
+    /// Which runs may be bound.
+    let reading: Reading
+
+    init(vocabulary: ScreenVocabulary = .empty, reading: Reading = .doubted) {
         self.vocabulary = vocabulary
+        self.reading = reading
     }
 
     func apply(_ draft: Draft) -> Draft {
@@ -41,27 +53,33 @@ struct ScreenIdentifierPass: PieceCleaningPass {
         return draft
     }
 
-    /// The longest doubted run from `start`, unbroken by a mark, that binds to one identifier, and that identifier.
+    /// The longest admitted run from `start`, unbroken by a mark, that binds to one identifier, and that identifier.
     private func longestBinding(from start: Int, in said: [Int], of draft: Draft) -> (Int, String)? {
-        var doubted = 0
-        while doubted < PhoneticIndex.maximumWordsPerEntry, start + doubted < said.count,
-            Self.isDoubted(draft.words[said[start + doubted]])
+        var admitted = 0
+        while admitted < PhoneticIndex.maximumWordsPerEntry, start + admitted < said.count,
+            admits(draft.words[said[start + admitted]])
         {
-            doubted += 1
+            admitted += 1
+            if case .statement(let paused) = reading, paused.contains(said[start + admitted - 1]) { break }
         }
-        for length in stride(from: doubted, through: 1, by: -1) {
+        for length in stride(from: admitted, through: 1, by: -1) {
             let shapes = said[start..<(start + length)].map { draft.shape(at: $0) }
             guard shapes.dropLast().allSatisfy({ $0.suffix.isEmpty }),
                 shapes.dropFirst().allSatisfy({ $0.prefix.isEmpty }),
                 case .bound(let identifier) = IdentifierResolver.bind(
-                    spokenWords: shapes.map(\.core), vocabulary: vocabulary)
+                    spokenWords: shapes.map(\.core), vocabulary: vocabulary, soundsAlike: reading == .doubted)
             else { continue }
             return (length, identifier)
         }
         return nil
     }
 
-    /// Only a word the recogniser scored low: a surely heard word, a homophone among them, is never bound.
+    /// Any word of a statement; in prose only a word the recogniser scored low, so a surely heard homophone is never bound.
+    private func admits(_ word: Draft.Word) -> Bool {
+        reading != .doubted || Self.isDoubted(word)
+    }
+
+    /// A word the recogniser scored low.
     private static func isDoubted(_ word: Draft.Word) -> Bool {
         DoubtPolicy.reason(text: word.text, confidence: word.confidence, settled: word.settled) == .lowScore
     }

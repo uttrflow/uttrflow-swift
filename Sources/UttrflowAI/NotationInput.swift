@@ -5,10 +5,11 @@ enum NotationInput {
     /// The marks a recogniser writes at a pause; a mark said aloud is a word of its own and is not touched.
     private static let pauseMarks = WordShape.clauseMarks
 
-    /// The draft with each pause mark taken off its word and each capital that only opened a clause lowered.
-    static func settled(_ draft: Draft, by pass: PassID) -> Draft {
+    /// The draft with each pause mark taken off its word, each capital that only opened a clause lowered, and each run that spells an identifier on screen written as it.
+    static func settled(_ draft: Draft, by pass: PassID, identifiers: ScreenVocabulary = .empty) -> Draft {
         var draft = draft
         var opensClause = true
+        var paused: Set<Int> = []
         let live = draft.presentIndices
         for (position, index) in live.enumerated() {
             let text = draft.words[index].text
@@ -26,8 +27,10 @@ enum NotationInput {
             let written = shape.prefix + core + suffix
             if written != text { draft.replace(at: index, with: written, by: pass) }
             opensClause = !keepsColon && shape.suffix.contains(where: pauseMarks.contains)
+            if opensClause { paused.insert(index) }
         }
-        return draft
+        // The pause marks are gone by now, so the words they parted are kept apart by index.
+        return ScreenIdentifierPass(vocabulary: identifiers, reading: .statement(pausedAfter: paused)).apply(draft)
     }
 
     /// A host-qualified image path's colon before a literal version is notation rather than a clause pause.

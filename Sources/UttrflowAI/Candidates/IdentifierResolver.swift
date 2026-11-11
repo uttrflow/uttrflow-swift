@@ -51,12 +51,12 @@ enum IdentifierResolver {
         case none
     }
 
-    /// The identifier the spoken words name: one spelt alike wins, else one sounding alike; a tie or nothing binds none.
-    static func bind(spokenWords: [String], vocabulary: ScreenVocabulary) -> Binding {
+    /// The identifier the spoken words name: one spelt alike wins, else, where `soundsAlike`, one sounding alike; a tie or nothing binds none.
+    static func bind(spokenWords: [String], vocabulary: ScreenVocabulary, soundsAlike: Bool = true) -> Binding {
         guard !spokenWords.isEmpty, !vocabulary.identifiers.isEmpty else { return .none }
         let heard = ReadingKey(spokenWords.joined(separator: " "))
         let found = matches(for: heard, among: vocabulary.identifiers.map(ShownWord.init))
-        for tier in [found.spelled, found.sounded] where !tier.isEmpty {
+        for tier in [found.spelled, soundsAlike ? found.sounded : []] where !tier.isEmpty {
             return tier.count == 1 ? .bound(tier[0]) : .ambiguous(tier)
         }
         return .none
