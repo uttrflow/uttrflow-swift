@@ -202,8 +202,7 @@ public enum SentenceBoundaryEvidence {
     private static func splitsSubjectFromPredicate(
         _ previous: [WordShape], _ following: [WordShape]
     ) -> Bool {
-        let headStart = previous.dropLast().lastIndex(where: \.endsSentence).map { $0 + 1 } ?? 0
-        let head = previous[headStart...]
+        let head = lastSentence(of: previous)
         guard head.count > 1 else { return false }
         let tags = LexicalClass.tags(ofWords: (head + following).map(\.core))
         guard tags.count > head.count, tags[head.count] == .verb,
@@ -214,17 +213,25 @@ public enum SentenceBoundaryEvidence {
 
     /// "she. booked the room", "please. fix it", "he keeps. writing it": a lone subject pronoun or "please" is no sentence, so a verb after it, or an "-ing" verb after the pronoun's own verb, carries it on.
     private static func continuesLoneSubject(_ previous: [WordShape], _ following: [WordShape]) -> Bool {
-        let headStart = previous.dropLast().lastIndex(where: \.endsSentence).map { $0 + 1 } ?? 0
-        let head = Array(previous[headStart...])
+        let head = Array(lastSentence(of: previous))
         guard let opener = head.first, let first = following.first, head.count <= 2,
             QuestionShape.newSubjects.contains(opener.key) || (opener.key == "please" && head.count == 1)
         else { return false }
-        let tags = LexicalClass.tags(ofWords: (head + following.prefix(2)).map(\.core))
-        // A verb before its own subject opens a question: "yes, please. do you have it".
-        guard tags[head.count] == .verb,
-            following.count < 2 || !QuestionShape.subjects.contains(following[1].key)
-        else { return false }
-        return head.count == 1 || (tags[1] == .verb && first.key.hasSuffix("ing"))
+        let clauseEnd = following.firstIndex(where: \.endsSentence).map { $0 + 1 } ?? following.count
+        // Words that ask a question open a sentence of their own: "yes, please. do you have it".
+        guard !QuestionShape.asks(Array(following.prefix(clauseEnd))) else { return false }
+        let words = (head + following.prefix(2)).map(\.core)
+        let tags = LexicalClass.tags(ofWords: words)
+        guard tags[head.count] == .verb else { return false }
+        guard head.count == 2 else { return true }
+        // A participle, not a base form that ends in "ing" like "bring", completes the pronoun's verb.
+        return tags[1] == .verb && first.key.hasSuffix("ing")
+            && LexicalClass.lemma(ofWordAt: head.count, in: words)?.lowercased() != first.key
+    }
+
+    /// The words after the last stop in `previous`, its final word's own stop aside.
+    private static func lastSentence(of previous: [WordShape]) -> ArraySlice<WordShape> {
+        previous[(previous.dropLast().lastIndex(where: \.endsSentence).map { $0 + 1 } ?? 0)...]
     }
 
     /// "my pin is. 2244": a form of "be" straight after its noun subject leaves its complement to the next words.
