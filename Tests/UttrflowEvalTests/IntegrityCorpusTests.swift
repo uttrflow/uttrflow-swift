@@ -146,5 +146,24 @@ struct IntegrityCorpusTests {
         spelled.words[3].state = .removed(by: .spelledInitialism)
         #expect(IntegrityAudit.violations(in: number, grants: [:]).isEmpty)
         #expect(IntegrityAudit.violations(in: spelled, grants: [:]).isEmpty)
+        var missingNumber = number
+        missingNumber.words[1].text = "15"
+        #expect(
+            IntegrityAudit.violations(in: missingNumber, grants: [:])
+                == [IntegrityViolation(pass: .numberForms, kind: .unit, heard: "k")])
+        var missingSpelled = spelled
+        missingSpelled.words[2].text = "g"
+        #expect(
+            IntegrityAudit.violations(in: missingSpelled, grants: [:])
+                == [IntegrityViolation(pass: .spelledInitialism, kind: .unit, heard: "m")])
+    }
+
+    @Test("does not take an untouched word that starts with the letter for the unit")
+    func untouchedNeighbour() {
+        var draft = Draft(text: "take 5 g green tea")
+        draft.words[2].state = .removed(by: .numberForms)
+        #expect(
+            IntegrityAudit.violations(in: draft, grants: [:])
+                == [IntegrityViolation(pass: .numberForms, kind: .unit, heard: "g")])
     }
 }

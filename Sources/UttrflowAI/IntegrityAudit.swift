@@ -60,7 +60,7 @@ enum IntegrityAudit {
     /// The unit symbols of one letter, from the number cues.
     static let unitLetters = NumberCues.words(for: .unitLetter)
 
-    /// The pass that lost a unit letter; nil while it stands, joined on ("15k"), or a correction took it back.
+    /// The pass that lost a unit letter; nil while it stands, joined on ("15k"), or correction took it back.
     private static func lostLetter(
         at index: Int, in draft: Draft, grants: [PassID: RemovalGrant], unauthorised: Bool
     ) -> PassID? {
@@ -79,9 +79,13 @@ enum IntegrityAudit {
         let before = live.last { $0 < index }
         let after = live.first { $0 > index }
         let key = { (place: Int?) in place.map { WordShape(draft.words[$0].text).key } ?? "" }
+        // A neighbour holds the letter only once a pass rewrote it, so an untouched "green" is not "g".
+        let joined = { (place: Int?) in
+            place.flatMap { WordShape(draft.words[$0].heard).key == key($0) ? nil : $0 }
+        }
         let stands =
-            key(word.isPresent ? index : nil).hasPrefix(letter) || key(before).hasSuffix(letter)
-            || key(after).hasPrefix(letter)
+            key(word.isPresent ? index : nil).hasPrefix(letter) || key(joined(before)).hasSuffix(letter)
+            || key(joined(after)).hasPrefix(letter)
         return stands ? nil : pass
     }
 
