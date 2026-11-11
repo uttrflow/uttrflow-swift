@@ -116,7 +116,7 @@ struct EvidenceSourcesTests {
         let state: ConsentState
     }
 
-    /// Consent the person can withdraw at any moment, logging every answer in the order it was given.
+    /// Consent the person can withdraw at any moment, logging every answer in the order given.
     private final class Revocable: LearningConsent, Sendable {
         private let held = OSAllocatedUnfairLock(initialState: (withdrawn: false, answers: [Answer]()))
         var answers: [Answer] { held.withLock { $0.answers } }
