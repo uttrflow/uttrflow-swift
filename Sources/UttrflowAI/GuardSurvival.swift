@@ -159,13 +159,11 @@ extension MeaningPreservationGuard {
         _ kept: [GrammarToken], in rewritten: String
     ) -> (kept: Set<Int>, written: Set<String>) {
         // Only a notation that cannot hold a space joins words; prose keeps "every day" and "everyday" apart.
-        let pieces = rewritten.split(whereSeparator: \.isWhitespace).filter {
-            $0.contains(where: "@#/".contains)
-        }
+        let pieces = WordTokens.words(rewritten, .display).filter { $0.contains(where: "@#/".contains) }
         var covered: (kept: Set<Int>, written: Set<String>) = ([], [])
         var from = kept.startIndex
         for piece in pieces {
-            let notation = DoubtfulSpan.closedUp(String(piece))
+            let notation = DoubtfulSpan.closedUp(piece)
             guard notation.contains(where: \.isLetter) else { continue }
             for start in kept.indices where start >= from {
                 var joined = ""
@@ -182,7 +180,7 @@ extension MeaningPreservationGuard {
                 covered.kept.formUnion(start..<end)
                 // The rewrite's words read the notation apart at its marks, so each of them is the notation's.
                 covered.written.formUnion(
-                    grammarTokens(String(piece)).map { DoubtfulSpan.closedUp($0.matching) })
+                    grammarTokens(piece).map { DoubtfulSpan.closedUp($0.matching) })
                 from = end
                 break
             }
