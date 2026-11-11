@@ -22,7 +22,8 @@ public enum SentenceBoundaryEvidence {
         }
         if leadsIntoNext(previous, following) || opensWithAPhrase(previous, following)
             || completesFinalPhrase(previous, following) || completesSeamPreposition(previous, following)
-            || splitsSubjectFromPredicate(previous, following) || awaitsComplement(previous, following)
+            || splitsSubjectFromPredicate(previous, following) || continuesLoneSubject(previous, following)
+            || awaitsComplement(previous, following)
             || takesObject(previous, following) || continuesAcrossConjunction(previous, following)
         {
             return true
@@ -209,6 +210,21 @@ public enum SentenceBoundaryEvidence {
             tags[0] != .preposition, tags[head.count - 1] == .noun
         else { return false }
         return !tags.prefix(head.count).contains(.verb)
+    }
+
+    /// "she. booked the room", "please. fix it", "he keeps. writing it": a lone subject pronoun or "please" is no sentence, so a verb after it, or an "-ing" verb after the pronoun's own verb, carries it on.
+    private static func continuesLoneSubject(_ previous: [WordShape], _ following: [WordShape]) -> Bool {
+        let headStart = previous.dropLast().lastIndex(where: \.endsSentence).map { $0 + 1 } ?? 0
+        let head = Array(previous[headStart...])
+        guard let opener = head.first, let first = following.first, head.count <= 2,
+            QuestionShape.newSubjects.contains(opener.key) || (opener.key == "please" && head.count == 1)
+        else { return false }
+        let tags = LexicalClass.tags(ofWords: (head + following.prefix(2)).map(\.core))
+        // A verb before its own subject opens a question: "yes, please. do you have it".
+        guard tags[head.count] == .verb,
+            following.count < 2 || !QuestionShape.subjects.contains(following[1].key)
+        else { return false }
+        return head.count == 1 || (tags[1] == .verb && first.key.hasSuffix("ing"))
     }
 
     /// "my pin is. 2244": a form of "be" straight after its noun subject leaves its complement to the next words.
