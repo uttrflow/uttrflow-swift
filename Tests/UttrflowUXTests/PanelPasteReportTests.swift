@@ -60,13 +60,13 @@ struct PanelPasteReportTests {
         let blocked = PanelInsertionObstacle.accessibilityNotGranted.copiedNotice
 
         #expect(
-            plain.namingSecretClear(afterSeconds: 30).message
+            plain.namingSecretClear(after: 30).message
                 == "Copied — press ⌘V where you want it. It leaves the clipboard in 30 seconds")
         #expect(
-            blocked.namingSecretClear(afterSeconds: 1).message
+            blocked.namingSecretClear(after: 1).message
                 == "\(blocked.message) It leaves the clipboard in 1 second.")
-        #expect(blocked.namingSecretClear(afterSeconds: 1).action == blocked.action)
-        #expect(plain.namingSecretClear(afterSeconds: 0) == plain)
+        #expect(blocked.namingSecretClear(after: 1).action == blocked.action)
+        #expect(plain.namingSecretClear(after: 0) == plain)
     }
 
     @Test("an explicit Copy of a secret says when it leaves the clipboard")

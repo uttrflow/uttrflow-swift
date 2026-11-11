@@ -5278,6 +5278,7 @@
     "UttrflowUX enum PanelTabGlyph": 1,
     "UttrflowUX enum PersonaFact": 1,
     "UttrflowUX enum Phase": 1,
+    "UttrflowUX enum SecretClearWording": 1,
     "UttrflowUX enum SessionGate": 1,
     "UttrflowUX enum SettingsChange": 1,
     "UttrflowUX enum SettingsControl": 1,
@@ -5393,6 +5394,7 @@
     "UttrflowUX func mayStartManually": 1,
     "UttrflowUX func microphone": 1,
     "UttrflowUX func missing": 1,
+    "UttrflowUX func namingSecretClear": 1,
     "UttrflowUX func nextBoundary": 1,
     "UttrflowUX func normalised": 1,
     "UttrflowUX func note": 1,
@@ -5448,6 +5450,7 @@
     "UttrflowUX func search": 1,
     "UttrflowUX func seconds": 1,
     "UttrflowUX func selection": 1,
+    "UttrflowUX func sentence": 1,
     "UttrflowUX func setting": 1,
     "UttrflowUX func settle": 1,
     "UttrflowUX func settled": 1,
@@ -6376,5 +6379,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 9073
+  "total": 9076
 }

@@ -11,7 +11,7 @@ public enum SecretClearWording {
 
 extension PanelNotice {
     /// The same notice with the clearing sentence after it; unchanged when clearing is off.
-    public func namingSecretClear(afterSeconds seconds: Int) -> PanelNotice {
+    public func namingSecretClear(after seconds: Int) -> PanelNotice {
         guard let sentence = SecretClearWording.sentence(afterSeconds: seconds) else { return self }
         let joined = message.hasSuffix(".") ? "\(message) \(sentence)." : "\(message). \(sentence)"
         return PanelNotice(

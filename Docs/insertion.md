@@ -238,7 +238,7 @@ could insert an older clipboard item.
 The concealed marker only asks cooperating clipboard managers to look away. `ConcealedClipboardClear` therefore
 clears the clipboard `Settings.secretClipboardClearSeconds` after a concealed copy from the app (60 by default, 0 is
 off), through `discardContents(ifUnchangedSince:)`, so a later copy by the person is never cleared. General
-settings offers the delay as "Clear copied secrets": off, or 10, 30, 60 or 120 seconds.
+settings offers the delay as "Clear copied secrets": off, or 10, 30, 60 or 120 seconds (`SettingsPresenter`).
 
 The same clear follows every write a secret's insertion route makes. A text paste never puts the
 earlier clipboard back (only a picture paste does), so a pasted secret would otherwise stay on the

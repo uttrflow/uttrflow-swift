@@ -181,7 +181,7 @@ extension SettingsPresenter {
             explanation: "A secret copied or pasted by Uttrflow leaves the clipboard after this, "
                 + "unless something else was copied since.",
             control: .menu(
-                options: ([0] + Settings.secretClipboardClearChoices).map { seconds in
+                options: [0, 10, 30, Settings.defaultSecretClipboardClearSeconds, 120].map { seconds in
                     SettingsOption(
                         id: String(seconds), title: seconds == 0 ? "Off" : "After \(seconds) s",
                         change: .secretClipboardClear(seconds: seconds))

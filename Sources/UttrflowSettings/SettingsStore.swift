@@ -216,9 +216,6 @@ public struct Settings: Sendable, Equatable, Codable {
     /// A copied secret leaves the clipboard after this many seconds.
     public static let defaultSecretClipboardClearSeconds = 60
 
-    /// The clear delays Settings offers besides off, the default among them.
-    public static let secretClipboardClearChoices = [10, 30, defaultSecretClipboardClearSeconds, 120]
-
     /// Keeps a stored clear delay that is zero (off) or positive; a negative one falls back.
     static func secretClear(_ seconds: Int, default fallback: Int) -> Int {
         seconds >= 0 ? seconds : fallback
