@@ -84,8 +84,22 @@ enum EvidenceSources {
         dictionary: PersonalDictionaryStore, overrides: DestinationOverrides, keeping window: RetentionWindow
     ) async {
         guard let ledger else { return }
+        // Read first, which also deletes expired rows, so a sweep with nothing to learn still expires them.
+        let held = await ledger.rows(keeping: window)
+        guard !(await learnable(records, consent: consent)).isEmpty else { return }
+        let entries = await dictionary.allEntries()
+        // Asked again after the last read, so consent withdrawn meanwhile authorises nothing.
+        let rows = backfill(
+            await learnable(records, consent: consent), entries: entries, ledger: held, overrides: overrides)
+        if !rows.isEmpty { try? await ledger.append(rows, keeping: window) }
+    }
+
+    /// The records whose application `consent` lets dictation learn from, asking once per application.
+    private static func learnable(
+        _ records: [DictationRecord], consent: any LearningConsent
+    ) async -> [DictationRecord] {
         var answers: [String?: Bool] = [:]
-        var learnable: [DictationRecord] = []
+        var kept: [DictationRecord] = []
         for record in records {
             let application = record.applicationIdentifier
             let mayLearn: Bool
@@ -95,12 +109,8 @@ enum EvidenceSources {
                 mayLearn = await consent.mayLearn(from: application)
                 answers[application] = mayLearn
             }
-            if mayLearn { learnable.append(record) }
+            if mayLearn { kept.append(record) }
         }
-        guard !learnable.isEmpty else { return }
-        let rows = backfill(
-            learnable, entries: await dictionary.allEntries(), ledger: await ledger.rows(keeping: window),
-            overrides: overrides)
-        if !rows.isEmpty { try? await ledger.append(rows, keeping: window) }
+        return kept
     }
 }
