@@ -194,7 +194,7 @@ dev-mark-names-listed-in-a-sentence	The ternary operator uses question mark and 
 dev-migration-plan	Migration plan for the user table:\n1. Add the new column as nullable\n2. Backfill it in batches of 10,000 rows\n3. Make it not null once the backfill reports zero missing\n\nEach step ships in its own release.
 dev-onboarding-message	Welcome aboard. Your first task is in the tracker under the label good first task. The docs are at docs.example.com/start. If you get stuck write to dev-help@example.com.
 dev-path-at-sentence-start	/etc/hosts is read before DNS so the entry we added there wins. ~/.ssh/config holds the jump host and it needs mode 600.
-dev-pr-description-list	This pull request splits the upload handler into two stages:\n- Validate the file size and type before reading the body\n- Stream the body to disk in 64 KB chunks\n- Return four thirteen when the file is over 50 MB\n\nNo schema changes and no new dependencies.
+dev-pr-description-list	This pull request splits the upload handler into two stages:\n- Validate the file size and type before reading the body\n- Stream the body to disk in 64 KB chunks\n- Return 413 when the file is over 50 MB\n\nNo schema changes and no new dependencies.
 dev-readme-commands	To run the service locally install the dependencies with npm install and then start it with npm run dev. It listens on port 3000 by default. Run npm test before you open a pull request.
 dev-release-checklist	Before you release:\n1. Run make verify\n2. Tag the commit with --sign\n3. Push the tag with git push --tags
 dev-review-comment	Nit: this loop runs one query per row because the lookup sits inside the map call. Could we load all the accounts once before the loop? The rest looks good to me and the tests cover the empty list case.
@@ -1514,7 +1514,7 @@ trigger-phrase-heads-clauses-never-mind	She said never mind the delay and he sai
 trigger-phrase-heads-clauses-scratch-that-itch	Scratch that itch on your arm and scratch that itch on your leg.
 twenty-four-seven-idiom	It's a twenty four seven service.
 two-single-digits-kept	One or two.
-undecided-number-pair-kept-as-words	Return four thirteen when the body is too large.
+undecided-number-pair-kept-as-words	Return 413 when the body is too large.
 version-number	We're on Postgres 16.2 right now.
 wait-no-more-than-kept	You can wait no more than 10 minutes.
 wait-no-takes-back-the-day	Book the room for Friday.

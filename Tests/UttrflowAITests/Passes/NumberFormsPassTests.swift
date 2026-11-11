@@ -781,9 +781,11 @@ struct NumberFormsPassTests {
     }
 
     @Test(
-        "keeps both words of a pair that may be a time or one number, unless the second counts a noun",
+        "keeps both words of a pair that may be a time or one number, unless a cue or a counted noun decides it",
         arguments: [
-            ("return four thirteen when it fails", "return four thirteen when it fails"),
+            ("return four thirteen when it fails", "return 413 when it fails"),
+            ("the handler returns four thirteen", "the handler returns 413"),
+            ("return three fifteen minute slots", "return three 15 minute slots"),
             ("call me five thirty then", "call me five thirty then"),
             ("we have four thirteen year olds", "we have four 13 year olds"),
             ("take three fifteen minute breaks", "take three 15 minute breaks"),

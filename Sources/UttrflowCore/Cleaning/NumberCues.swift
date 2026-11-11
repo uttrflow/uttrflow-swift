@@ -28,6 +28,8 @@ public enum NumberCues {
         case unitLetter
         /// A word that heads a clause with a colon, as in "status: blocked", which a colon glued to it is never code for.
         case headingLabel
+        /// A verb after which a hundred said as its digit and tail is one status code, as in "returns five fifteen".
+        case statusLead
     }
 
     /// The cue words that say `cue`.

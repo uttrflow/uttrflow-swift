@@ -16,8 +16,6 @@ struct MeaningGuardRefusalRateTests {
         "restatement-slot-apart": 5084,
         "hinglish-correction-nahi-nahi": 5084,
         "sql-editor-totals": 5084,
-        "dev-pr-description-list": 6569,
-        "dev-env-setup": 6569,
         "probe-chained-corrections": 5084,
         "probe-topic-shifts": 5084,
     ]
