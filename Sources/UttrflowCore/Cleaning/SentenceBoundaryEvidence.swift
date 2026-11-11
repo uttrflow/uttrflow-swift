@@ -15,7 +15,6 @@ public enum SentenceBoundaryEvidence {
         if endsInNounLook(WordTokens.words(leading, .display).map { WordShape($0).key } + previousKeys) {
             return false
         }
-        let followingKeys = following.map(\.key)
         if text.last == ".", subordinators.contains(previous[0].key) { return true }
         if opensOnPostmodifier(following) || opensDependentFragment(following) || endsInOpenFragment(previous)
         {
@@ -24,19 +23,23 @@ public enum SentenceBoundaryEvidence {
         if leadsIntoNext(previous, following) || opensWithAPhrase(previous, following)
             || completesFinalPhrase(previous, following) || completesSeamPreposition(previous, following)
             || splitsSubjectFromPredicate(previous, following) || awaitsComplement(previous, following)
-            || takesObject(previous, following)
+            || takesObject(previous, following) || continuesAcrossConjunction(previous, following)
         {
             return true
         }
-        switch first.key {
-        case "because": return following.count > 1
-        case "and": return followingKeys.dropFirst().first == "sent"
-        case "but": return followingKeys.dropFirst().first == "my"
-        case "so": return followingKeys.dropFirst().first == "we"
-        case "or": return followingKeys.dropFirst().first == "on"
-        case "wants": return previousKeys.last == "manager"
-        default: return false
-        }
+        return first.key == "because" && following.count > 1
+    }
+
+    /// "finished the report. And sent it", "on Monday. Or on Tuesday": words after a conjunction that open on a verb share the subject before the stop, and words with no verb are no sentence; a conjunction before its own subject and verb opens one.
+    private static func continuesAcrossConjunction(_ previous: [WordShape], _ following: [WordShape]) -> Bool {
+        guard let first = following.first, following.count > 1 else { return false }
+        let clauseEnd = following.firstIndex(where: \.endsSentence).map { $0 + 1 } ?? following.count
+        let words = previous.map(\.core) + [first.key] + following.prefix(clauseEnd).dropFirst().map(\.core)
+        let tags = LexicalClass.tags(ofWords: words).dropFirst(previous.count)
+        guard tags.first == .conjunction else { return false }
+        let rest = tags.dropFirst()
+        guard !rest.contains(.otherWord) else { return false }
+        return rest.drop { $0 == .adverb }.first == .verb || !rest.contains(.verb)
     }
 
     /// "the shop he spoke of. Lunch is ready": whether a stop written after the clause's words ends it, its closing preposition's object standing before it, as a subject straight after a head noun or a question word shows.

@@ -801,3 +801,5 @@ dev-terminal-and-chain moved unchanged to Sources/UttrflowEval/Resources/Corpus/
 dev-terminal-and-chain-said-double moved unchanged to Sources/UttrflowEval/Resources/Corpus/technical.json, since the developer genre holds whole dictations of 20 or more words
 dev-terminal-or-chain moved unchanged to Sources/UttrflowEval/Resources/Corpus/technical.json, since the developer genre holds whole dictations of 20 or more words
 if-it-is-right-is-no-tag-question the spoken text carries its apostrophe, as a transcript does
+sub1 the spoken stop before a verb is kept as a fragment, as sub4 decides, since no evidence shows the sentence cannot end at "manager"
+but1 the spoken stop before "but" opening its own subject and verb is kept, since a sentence can end before it
