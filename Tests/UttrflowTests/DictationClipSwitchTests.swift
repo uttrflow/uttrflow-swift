@@ -5,11 +5,12 @@ import UttrflowClipboard
 import UttrflowPipeline
 import UttrflowSettings
 import Testing
+import UttrflowTestSupport
 
 @testable import Uttrflow
 
 @MainActor
-@Suite("Dictations and the Clipboard switch", .serialized)
+@Suite("Dictations and the Clipboard switch", .serialized, .timeLimit(.minutes(2)))
 struct DictationClipSwitchTests {
     private func app(clipboardOn: Bool, in sandbox: borrowing Sandbox) -> AppDelegate {
         let app = AppDelegate(
@@ -51,10 +52,7 @@ struct DictationClipSwitchTests {
         let dictation = try #require(app.lastTranscriptID)
         app.carryOut(.keepDictationAsClip(dictation))
         await app.intentWork?.value
-        for _ in 0..<50 {
-            if await keptClips(in: sandbox) == ["Sample words"] { return }
-            try await Task.sleep(for: .milliseconds(20))
-        }
+        try await eventually { await keptClips(in: sandbox) == ["Sample words"] }
 
         #expect(await keptClips(in: sandbox) == ["Sample words"])
     }
