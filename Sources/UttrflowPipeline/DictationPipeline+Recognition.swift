@@ -139,11 +139,7 @@ extension DictationPipeline {
         if !isReady {
             let wasLoading = isLoading
             let waited = UttrflowCore.stopwatch(from: clock)
-            let loaded = try await withStageTimeout(speechLoadLimit, clock: clock) { [speech] in
-                try await speech.prepare()
-                return true
-            }
-            guard loaded == true else { throw SpeechEngineError.recogniserTimedOut }
+            guard try await loadWithinLimit(speech) == nil else { throw SpeechEngineError.recogniserTimedOut }
             if wasLoading || waited() >= SpeechModelLoad.estimateAfter { waitedForLoad = true }
         }
         let heard = try await metrics.measuringInTime(
