@@ -1008,7 +1008,7 @@ struct PieceJoinerSeamTests {
         let whole = PieceJoiner.join(
             [piece("Room 400"), piece("And 20 chairs")], under: .standard(for: .document))
 
-        #expect(whole.cleaned.text == "Room 400. And 20 chairs")
+        #expect(whole.cleaned.text == "Room 400 and 20 chairs")
     }
 
     /// A single piece is already the whole message, so the joiner has no seam to end.

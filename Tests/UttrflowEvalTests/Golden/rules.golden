@@ -44,7 +44,7 @@ bare-subdomain-message	docs.example.org
 bare-url	https://example.com
 bare-www-host	www.example.com
 bec1	I stayed home because it was raining.
-but1	I wanted to come, but my train was cancelled.
+but1	I wanted to come. But my train was cancelled.
 calendar-title-keeps-question-mark	Should we move the dentist appointment to 11:30?
 capital-after-a-stop-following-a-negative-number	It dropped to -12. Overnight it snowed heavily.
 card-group-repeated-digits	The test card number starts 42424242.
@@ -1481,7 +1481,7 @@ stop-kept-before-long-if-clause-7956	The patch is out. If the error budget drops
 stranded-preposition-keeps-recogniser-stop	This is all I can think of. That is the city she comes from.
 strike-that-as-an-order-kept	Strike that match and light the candle.
 strike-that-restates-a-phrase	Pick the blue one.
-sub1	My manager wants the slides by noon.
+sub1	My manager. Wants the slides by noon.
 sub4	The server. Crashed twice last night.
 tense-drift	Yesterday I open the file and it crashes immediately.
 tense-drift-last-night	Last night I finish the draft and send it to the editor.

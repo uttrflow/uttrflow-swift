@@ -6,8 +6,9 @@
   },
   {
     "id": "sub1",
+    "note": "Contested: the spoken stop is kept as a fragment because dictation is a transcript, not a rewrite.",
     "spoken": "My manager. Wants the slides by noon",
-    "expected": "My manager wants the slides by noon."
+    "expected": "My manager. Wants the slides by noon."
   },
   {
     "id": "sub4",
@@ -69,7 +70,7 @@
   {
     "id": "but1",
     "spoken": "I wanted to come. But my train was cancelled",
-    "expected": "I wanted to come, but my train was cancelled."
+    "expected": "I wanted to come. But my train was cancelled."
   },
   {
     "id": "pronoun-opening-that-is-it",

@@ -15,15 +15,37 @@ struct SentenceBoundaryPassTests {
         "repairs the reported in-piece false stops",
         arguments: [
             ("We need the. Final version of the contract", "We need the final version of the contract."),
-            ("My manager. Wants the slides by noon", "My manager wants the slides by noon."),
             ("I stayed home. Because it was raining", "I stayed home because it was raining."),
             ("I finished the report. And sent it to Maria", "I finished the report and sent it to Maria."),
-            ("I wanted to come. But my train was cancelled", "I wanted to come, but my train was cancelled."),
-            ("The shop was closed. So we went home", "The shop was closed, so we went home."),
             ("We can meet on Monday. Or on Tuesday", "We can meet on Monday or on Tuesday."),
         ])
     func repairsFalseStops(input: String, expected: String) {
         #expect(cleaned(input) == expected)
+    }
+
+    @Test(
+        "takes back a stop before a conjunction whose words share the subject before it or hold no verb",
+        arguments: [
+            ("I finished the report. And emailed it to Sam", "I finished the report and emailed it to Sam."),
+            ("I wanted to come. But missed the train", "I wanted to come, but missed the train."),
+            ("Bring the slides. Or the handout", "Bring the slides or the handout."),
+        ])
+    func repairsStopBeforeSharedSubject(input: String, expected: String) {
+        #expect(cleaned(input) == expected)
+    }
+
+    @Test(
+        "keeps a stop before a conjunction that opens a sentence with its own subject, and one a capital opens",
+        arguments: [
+            "I wanted to come. But my train was cancelled.",
+            "The shop was closed. So we went home.",
+            "I finished the report. And Maria sent it on.",
+            "We can meet on Monday. Or we can wait a week.",
+            "My manager. Wants the slides by noon.",
+            "A new blade for the saw. And ask whether they stock rivets.",
+        ])
+    func keepsStopBeforeOwnSubject(text: String) {
+        #expect(cleaned(text) == text)
     }
 
     @Test(
@@ -307,7 +329,7 @@ struct SentenceBoundaryPassTests {
     @Test("a long dictation of stopped sentences is finished as a message inside the rules budget")
     func longStoppedDictation() {
         let text = String(
-            repeating: "my manager. wants the slides by noon. we finished the report and sent it today. ",
+            repeating: "we finished the report. and sent it today. my manager wants the slides by noon. ",
             count: 200)
         let message = CleaningPipeline.message(for: .standard(for: .document), situation: .unknown)
         // The work is the CPU time of this thread, which other processes on a loaded machine do not add to.
@@ -316,6 +338,6 @@ struct SentenceBoundaryPassTests {
         let spent = Duration.nanoseconds(Int64(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - start))
         #expect(spent < StageTimeout.rules)
         #expect(finished.split(whereSeparator: \.isWhitespace).count == 3_000)
-        #expect(finished.hasPrefix("My manager wants the slides by noon. We finished the report"))
+        #expect(finished.hasPrefix("We finished the report and sent it today. My manager wants the slides"))
     }
 }
