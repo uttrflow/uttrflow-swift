@@ -3,20 +3,15 @@ import UttrflowAI
 public import UttrflowCore
 
 extension DictationPipeline {
-    /// Runs the dictionary and the tidier over one recognised piece.
+    /// Runs the tidier over one recognised piece the dictionary has already corrected.
     func finish(
-        _ heard: Transcription, seeing appContext: AppContext,
-        correctionSeeing correctionContext: AppContext, finalPiece: Bool = false,
-        after preceding: Transcription? = nil,
-        recording metrics: any MetricsRecording, for mine: Int,
-        correcting corrector: (any WordCorrecting)? = nil
+        _ heard: Transcription, saying corrected: CorrectedTranscript, seeing appContext: AppContext,
+        finalPiece: Bool = false, after rolling: RollingContext?,
+        recording metrics: any MetricsRecording, for mine: Int
     ) async -> Piece {
-        // The dictionary before the tidier: a correction is argued from the sentence as heard.
-        let corrected = await correct(
-            heard, seeing: correctionContext, recording: metrics, correcting: corrector, for: mine)
         let cleaned = await tidy(
             heard, saying: corrected, seeing: appContext, finalPiece: finalPiece,
-            after: preceding, recording: metrics, for: mine)
+            after: rolling, recording: metrics, for: mine)
         return Piece(heard: heard, corrected: corrected, cleaned: cleaned)
     }
 
@@ -136,7 +131,7 @@ extension DictationPipeline {
     /// Tidies the transcript, falling back to exactly what was said. The only optional stage.
     func tidy(
         _ transcription: Transcription, saying corrected: CorrectedTranscript,
-        seeing appContext: AppContext, finalPiece: Bool = false, after preceding: Transcription? = nil,
+        seeing appContext: AppContext, finalPiece: Bool = false, after rolling: RollingContext? = nil,
         recording metrics: any MetricsRecording, for mine: Int?
     ) async -> TransformationResult {
         let text = corrected.text
@@ -148,7 +143,7 @@ extension DictationPipeline {
         let (situation, profile) = tidyingFrame(seeing: appContext)
         let request = TransformationRequest(
             transcription: transcription.saying(corrected), context: appContext,
-            profile: profile, situation: situation, scope: .piece, precedingPiece: preceding?.text)
+            profile: profile, situation: situation, scope: .piece, precedingPiece: rolling?.text)
         if finalPiece { await runningCleaner.reserveFinalPiece(situation) }
         // Not `.rules`: no pass ran over these words, and a record that says otherwise cannot be read.
         let untidied = TransformationResult(text: text, producedBy: .untidied)
@@ -210,14 +205,17 @@ extension DictationPipeline {
         // Ranked from the source a dictation ranks its words from, against this screen.
         let vocabulary = await speechWords(appContext)
         var pieces: [Piece] = []
+        var rolling: RollingContext?
         for (index, piece) in heard.enumerated() {
             // A dictation number never under way, so no piece's record joins a real dictation's account.
+            let corrected = await correct(
+                piece, seeing: appContext, recording: NoOpMetricsRecorder(), correcting: corrector,
+                for: generation + 1)
             pieces.append(
                 await finish(
-                    piece, seeing: appContext, correctionSeeing: appContext,
-                    finalPiece: index == heard.indices.last, after: heard[..<index].last,
-                    recording: NoOpMetricsRecorder(),
-                    for: generation + 1, correcting: corrector))
+                    piece, saying: corrected, seeing: appContext, finalPiece: index == heard.indices.last,
+                    after: rolling, recording: NoOpMetricsRecorder(), for: generation + 1))
+            rolling = RollingContext(after: corrected)
         }
         let joined = await join(
             RunningMessage(pieces), going: situation, seeing: appContext, vocabulary: vocabulary,
