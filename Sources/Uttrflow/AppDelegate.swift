@@ -1476,13 +1476,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             snippets: StoredSnippets(store: snippets),
             learner: StoreCounters(
                 dictionary: dictionary, snippets: snippets,
-                noteUses: { [weak self] used in
-                    await MainActor.run {
-                        guard let self, let evidence = self.evidence else { return }
-                        self.noteEvidence(
-                            EvidenceSources.uses(of: used, day: EvidenceRow.day(of: Date())), in: evidence)
-                    }
-                },
+                noteUses: { [weak self] used, application in await self?.noteUses(used, from: application) },
                 // Detached from the pipeline, so its wait for a hand edit never holds the next dictation.
                 watchEdits: { [dictionary] applied, inserted in
                     Task { await EditAwayWatch(dictionary: dictionary).watch(applied, inserted: inserted) }
@@ -2997,17 +2991,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         return ConfusionPairs.project(await evidence.rows(keeping: window))
     }
 
-    /// Appends rows to the ledger inside History's window, off the main actor; a refusal is logged, never shown.
-    private func noteEvidence(_ rows: [EvidenceRow], in evidence: EvidenceLedgerStore, now: Date = Date()) {
-        guard !rows.isEmpty else { return }
-        let window = RetentionWindow(days: settings.transcriptRetentionDays, now: now)
-        Task {
-            do {
-                try await evidence.append(rows, keeping: window)
-            } catch {
-                Self.log.error("evidence not saved: \(ErrorLog.failure(error), privacy: .public)")
-            }
-        }
+    /// Writes a `use` row for each dictionary entry a dictation into `application` used, behind the learning consent.
+    func noteUses(_ used: [UUID], from application: String?) async {
+        learnt.note(EvidenceSources.uses(of: used, day: EvidenceRow.day(of: Date())), from: application)
+        await learnt.pending?.value
     }
 
     /// Keeps one dictation, inserted or salvaged, and makes it what the last-transcript shortcuts act on.

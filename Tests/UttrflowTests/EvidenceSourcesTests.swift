@@ -264,10 +264,10 @@ struct EvidenceSourcesTests {
         let noted = Noted()
         let counters = StoreCounters(
             dictionary: dictionary, snippets: SnippetStore(file: root.appendingPathComponent("snippets.json"))
-        ) { await noted.add($0) }
+        ) { used, _ in await noted.add(used) }
 
-        try await counters.recordUse(ofEntries: [], writtenIn: "nothing known here")
-        try await counters.recordUse(ofEntries: [], writtenIn: "Deploy it on Kubernetes.")
+        try await counters.recordUse(ofEntries: [], writtenIn: "nothing known here", in: nil)
+        try await counters.recordUse(ofEntries: [], writtenIn: "Deploy it on Kubernetes.", in: nil)
         try await counters.recordUse(ofSnippets: [])
 
         #expect(await noted.ids == [[entry.id]])

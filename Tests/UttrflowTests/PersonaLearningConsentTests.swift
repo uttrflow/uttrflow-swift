@@ -106,6 +106,22 @@ struct PersonaLearningConsentTests {
         #expect(await ledger.rows(keeping: RetentionWindow(days: 365, now: Date())).count == rows.count)
     }
 
+    @Test("a dictionary use in a declined application writes no use row, nor any with the switch off")
+    func declinedUseWritesNoRow() async throws {
+        for learns in [true, false] {
+            let sandbox = Sandbox()
+            let (app, ledger) = try await app(in: sandbox.root, learns: learns)
+            let refused = UUID()
+            let counted = UUID()
+
+            await app.noteUses([refused], from: declined)
+            await app.noteUses([counted], from: asked)
+
+            let uses = await ledger.rows(keeping: RetentionWindow(days: 365, now: Date())).map(\.subject)
+            #expect(uses == (learns ? [counted.uuidString] : []))
+        }
+    }
+
     @Test("History's backfill learns nothing from a declined application, nor anything with the switch off")
     func backfillHonoursConsent() async throws {
         let before = Date().addingTimeInterval(-2 * 86_400)

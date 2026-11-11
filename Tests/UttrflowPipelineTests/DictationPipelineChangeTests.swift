@@ -96,7 +96,9 @@ private final class FakeLearner: DictationLearning, Sendable {
         self.refuses = refuses
     }
 
-    func recordUse(ofEntries ids: [UUID], writtenIn text: String) async throws(DictationChangeError) {
+    func recordUse(
+        ofEntries ids: [UUID], writtenIn text: String, in application: String?
+    ) async throws(DictationChangeError) {
         state.withLock {
             $0.entries.append(ids)
             $0.texts.append(text)
