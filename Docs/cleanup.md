@@ -484,8 +484,10 @@ the bundle identifier costs no permission at all.
   reads each heard numeral, negator and word of two letters or more after a number against its
   draft's record and names the pass that removed it beyond its grant, or swapped it for a
   different numeral, word or non-negator. A command that writes the word into a flag or symbol
-  ("dash dash no dash cache") is its spelling and passes; a single letter after a number is
-  left to `spelledInitialism`; a decimal the recogniser grouped by thousands ("2.5,000") may be
+  ("dash dash no dash cache") is its spelling and passes. A unit of one letter after a number
+  (`IntegrityAudit.unitLetters`: "5 g", "2 l") must stay written, alone or joined to the number
+  or the letter beside it ("15k", "mg"), unless a restart or a spoken correction took it back,
+  so "2.5 m" written "2.5M" passes as the magnitude rule's spelling; a decimal the recogniser grouped by thousands ("2.5,000") may be
   written as the whole number its scale makes of it ("2,500"). `IntegrityCorpusTests` runs it over the evaluation corpus, the
   transcription passages and 2,000 generated sentences, on the passes handed to a model and on
   the whole rules path.

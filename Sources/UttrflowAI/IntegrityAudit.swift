@@ -34,10 +34,13 @@ enum IntegrityAudit {
             defer { place += 1 }
             let key = WordShape(word.heard).key
             if let kind = protectedKind(of: key, afterNumber: afterNumber),
-                let pass = answerable(
-                    word, kind: kind, grants: grants,
-                    unauthorised: unauthorised.contains(index) && !written.contains(key),
-                    scaled: NumberFormsPass.sharedScaleDigits(at: place, heard: heard))
+                let pass = kind == .unit && key.count == 1
+                    ? lostLetter(
+                        at: index, in: draft, grants: grants, unauthorised: unauthorised.contains(index))
+                    : answerable(
+                        word, kind: kind, grants: grants,
+                        unauthorised: unauthorised.contains(index) && !written.contains(key),
+                        scaled: NumberFormsPass.sharedScaleDigits(at: place, heard: heard))
             {
                 found.append(IntegrityViolation(pass: pass, kind: kind, heard: word.heard))
             }
@@ -46,11 +49,40 @@ enum IntegrityAudit {
         return found
     }
 
-    /// What a heard word must keep: a numeral, a negator, or the word of two letters or more straight after a number.
+    /// What a heard word must keep: a numeral, a negator, or a unit straight after a number.
     private static func protectedKind(of key: String, afterNumber: Bool) -> IntegrityViolation.Kind? {
         if key.contains(where: \.isNumber) { return .number }
         if MeaningPreservationGuard.isNegation(key) { return .negator }
-        return afterNumber && key.count > 1 && key.allSatisfy(\.isLetter) ? .unit : nil
+        guard afterNumber, key.allSatisfy(\.isLetter) else { return nil }
+        return key.count > 1 || unitLetters.contains(key) ? .unit : nil
+    }
+
+    /// The unit symbols of one letter: grams, metres, litres, seconds, hours, volts, watts, thousands.
+    static let unitLetters: Set<String> = ["g", "m", "l", "s", "h", "v", "w", "k"]
+
+    /// The pass that lost a unit letter; nil while it stands, joined on ("15k"), or a correction took it back.
+    private static func lostLetter(
+        at index: Int, in draft: Draft, grants: [PassID: RemovalGrant], unauthorised: Bool
+    ) -> PassID? {
+        let word = draft.words[index]
+        let pass: PassID
+        switch word.state {
+        case .kept, .inserted: return nil
+        case .replaced(let by, _): pass = by
+        case .removed(let by):
+            let grant = grants[by] ?? .conversion
+            if !unauthorised, grant == .retraction || grant == .repetition { return nil }
+            pass = by
+        }
+        let letter = WordShape(word.heard).key
+        let live = draft.words.indices.filter { draft.words[$0].isPresent && !draft.words[$0].isLayoutMark }
+        let before = live.last { $0 < index }
+        let after = live.first { $0 > index }
+        let key = { (place: Int?) in place.map { WordShape(draft.words[$0].text).key } ?? "" }
+        let stands =
+            key(word.isPresent ? index : nil).hasPrefix(letter) || key(before).hasSuffix(letter)
+            || key(after).hasPrefix(letter)
+        return stands ? nil : pass
     }
 
     /// The pass that lost or changed the word without a licence, or nil when it stands or a grant allows it.
