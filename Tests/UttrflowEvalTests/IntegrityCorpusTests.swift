@@ -61,7 +61,7 @@ struct IntegrityCorpusTests {
 
         init(_ random: inout Seeded) {
             let (amount, digits) = random.pick(IntegrityCorpusTests.amounts)
-            unit = random.pick(["mg", "milligrams", "grams", "kg", "hours", "days", "ml"])
+            unit = random.pick(["mg", "milligrams", "grams", "kg", "hours", "days", "ml", "g", "l", "s", "h"])
             negator = random.pick(["", "not", "never", "no", "don't", "cannot", "nothing"])
             let lead = random.pick(["take", "give the patient", "I said", "the invoice is", "wait"])
             let tail = random.pick(["twice daily", "before food", "in total", ""])
@@ -117,5 +117,59 @@ struct IntegrityCorpusTests {
         #expect(
             IntegrityAudit.violations(in: draft, grants: [:])
                 == [IntegrityViolation(pass: .numberForms, kind: .number, heard: "15")])
+    }
+
+    @Test("names the pass that drops or changes a unit of one letter")
+    func namesLetterPass() {
+        var dropped = Draft(text: "take 5 g daily")
+        dropped.words[2].state = .removed(by: .fillers)
+        var swapped = Draft(text: "take 5 g daily")
+        swapped.words[2].text = "kg"
+        swapped.words[2].state = .replaced(by: .numberForms, from: "g")
+        #expect(
+            IntegrityAudit.violations(in: dropped, grants: [:])
+                == [IntegrityViolation(pass: .fillers, kind: .unit, heard: "g")])
+        #expect(
+            IntegrityAudit.violations(in: swapped, grants: [:])
+                == [IntegrityViolation(pass: .numberForms, kind: .unit, heard: "g")])
+    }
+
+    @Test("passes a unit letter joined to its number or to the letter after it")
+    func passesJoinedLetter() {
+        var number = Draft(text: "take 15 k daily")
+        number.words[1].text = "15k"
+        number.words[1].state = .replaced(by: .numberForms, from: "15")
+        number.words[2].state = .removed(by: .numberForms)
+        var spelled = Draft(text: "take 81 m g daily")
+        spelled.words[2].text = "mg"
+        spelled.words[2].state = .replaced(by: .spelledInitialism, from: "m")
+        spelled.words[3].state = .removed(by: .spelledInitialism)
+        #expect(IntegrityAudit.violations(in: number, grants: [:]).isEmpty)
+        #expect(IntegrityAudit.violations(in: spelled, grants: [:]).isEmpty)
+        var missingNumber = number
+        missingNumber.words[1].text = "15"
+        #expect(
+            IntegrityAudit.violations(in: missingNumber, grants: [:])
+                == [IntegrityViolation(pass: .numberForms, kind: .unit, heard: "k")])
+        var missingSpelled = spelled
+        missingSpelled.words[2].text = "g"
+        #expect(
+            IntegrityAudit.violations(in: missingSpelled, grants: [:])
+                == [IntegrityViolation(pass: .spelledInitialism, kind: .unit, heard: "m")])
+    }
+
+    @Test("does not take an untouched word that starts with the letter for the unit")
+    func untouchedNeighbour() {
+        var draft = Draft(text: "take 5 g green tea")
+        draft.words[2].state = .removed(by: .numberForms)
+        #expect(
+            IntegrityAudit.violations(in: draft, grants: [:])
+                == [IntegrityViolation(pass: .numberForms, kind: .unit, heard: "g")])
+        var rewritten = draft
+        rewritten.words[3].text = "greens"
+        rewritten.words[3].state = .replaced(by: .numberForms, from: "green")
+        #expect(
+            IntegrityAudit.violations(in: rewritten, grants: [:])
+                == [IntegrityViolation(pass: .numberForms, kind: .unit, heard: "g")])
     }
 }
