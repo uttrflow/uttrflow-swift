@@ -69,6 +69,16 @@ number the speaker said, so a number said once and written twice, or two numbers
 refused. Spoken numbers are read through `NumberWords.cardinal`, which composes scales, so
 "six hundred" written as 600 and "two million" as 2,000,000 are the same number.
 
+The reverse holds for a bare amount: a "10" the passes wrote may come back as "ten", because
+`changedQuantity` counts the number words the rewrite adds beyond the draft's own before it
+calls an amount dropped. An amount with a sign or symbol must keep it in digits, so "$10"
+written as "ten" is refused, and so is a "1" written as "a".
+
+A handle, tag or path cannot hold a space, so one may close up the words said for it: "tag us
+at corner bakes" as `@cornerbakes`, "example.org/clean up" as `example.org/cleanup`.
+`closedUpIntoNotation` needs the letters of two or more kept words in order, in a word holding
+`@`, `#` or `/`; prose keeps "every day" and "everyday" apart.
+
 ## Where a doubtful word stands
 
 A doubtful run is judged where it stands. `RewriteAlignment` pairs each run of the kept draft
