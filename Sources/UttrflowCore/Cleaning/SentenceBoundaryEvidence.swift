@@ -30,7 +30,7 @@ public enum SentenceBoundaryEvidence {
         return first.key == "because" && following.count > 1
     }
 
-    /// "finished the report. And sent it", "on Monday. Or on Tuesday": words after a conjunction that open on a verb share the subject before the stop, and words with no verb are no sentence; a conjunction before its own subject and verb opens one.
+    /// "checked the notes. And filed them", "on Monday. Or on Friday": words after a conjunction that open on an inflected verb share the subject before the stop, and words with no verb are no sentence; a conjunction before its own subject and verb, or before a bare verb giving an order ("And ask them"), opens one.
     private static func continuesAcrossConjunction(_ previous: [WordShape], _ following: [WordShape]) -> Bool
     {
         guard let first = following.first, following.count > 1 else { return false }
@@ -40,7 +40,10 @@ public enum SentenceBoundaryEvidence {
         guard tags.first == .conjunction else { return false }
         let rest = tags.dropFirst()
         guard !rest.contains(.otherWord) else { return false }
-        return rest.drop { $0 == .adverb }.first == .verb || !rest.contains(.verb)
+        guard let verb = rest.firstIndex(where: { $0 != .adverb }), rest[verb] == .verb else {
+            return !rest.contains(.verb)
+        }
+        return LexicalClass.lemma(ofWordAt: verb, in: words) != words[verb].lowercased()
     }
 
     /// "the shop he spoke of. Lunch is ready": whether a stop written after the clause's words ends it, its closing preposition's object standing before it, as a subject straight after a head noun or a question word shows.

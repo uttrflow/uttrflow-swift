@@ -42,6 +42,7 @@ struct SentenceBoundaryPassTests {
             "I finished the report. And Maria sent it on.",
             "We can meet on Monday. Or we can wait a week.",
             "My manager. Wants the slides by noon.",
+            "A new blade for the saw. And ask whether they stock rivets.",
         ])
     func keepsStopBeforeOwnSubject(text: String) {
         #expect(cleaned(text) == text)
