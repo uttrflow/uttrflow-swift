@@ -4,6 +4,7 @@ import UttrflowCore
 import UttrflowInput
 import UttrflowPredict
 import UttrflowPredictCapture
+import UttrflowUX
 
 /// Takes an accepted suggestion into the field, queues the taken line for capture, and says whether the accept key goes back.
 @MainActor
@@ -18,6 +19,8 @@ struct SuggestionTake {
     let capture: CaptureSession
     /// Called when the insertion was refused for lost accessibility trust.
     let trustLost: () -> Void
+    /// Called with why a refused insertion did nothing, for the ghost slot to say.
+    let explainRefusal: (String) -> Void
 
     /// Puts the tail into the field and queues the taken line for capture, reporting uncertain writes.
     func take(
@@ -36,6 +39,9 @@ struct SuggestionTake {
         } catch {
             // A refusal for lost trust withdraws suggestions and tells the menu bar, as the next activation would.
             if error == .accessibilityDenied { trustLost() }
+            if let message = SuggestionPresentation.refusedAcceptMessage(for: error) {
+                explainRefusal(message)
+            }
             let outcome = Self.acceptanceOutcome(for: error)
             if outcome == .refused {
                 Self.log.error("\(SuggestionLog.landedNowhere(error, typed: typed), privacy: .public)")

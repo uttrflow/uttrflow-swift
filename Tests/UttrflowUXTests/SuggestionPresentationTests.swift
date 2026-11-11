@@ -36,6 +36,34 @@ struct SuggestionPresentationTests {
         #expect(presentation.surfaceAccessibilityLabel == message)
     }
 
+    @Test("an accept refused for lost trust keeps the ghost and draws the fix in its slot")
+    func refusedAcceptKeepsGhostWithMessage() throws {
+        let message = try #require(SuggestionPresentation.refusedAcceptMessage(for: .accessibilityDenied))
+        let presentation = SuggestionPresentation(
+            .certain("git commit"), typed: "git c", statusMessage: message)
+
+        #expect(message == SuggestionRuntimeStatus.accessibilityDeniedMessage)
+        #expect(presentation.style == .ghost)
+        #expect(presentation.inline != nil)
+        #expect(presentation.notice == message)
+    }
+
+    @Test("an accept that may have written leaves the ghost slot without a message")
+    func uncertainAcceptHasNoMessage() {
+        for error: TextInsertionError in [.insertionTimedOut, .insertionUnconfirmed, .clipboardChanged] {
+            #expect(SuggestionPresentation.refusedAcceptMessage(for: error) == nil)
+        }
+    }
+
+    @Test("a status message with nothing drawn stays for VoiceOver and draws no notice")
+    func silentStatusDrawsNoNotice() {
+        let presentation = SuggestionPresentation(
+            .silent, statusMessage: SuggestionRuntimeStatus.accessibilityDeniedMessage)
+
+        #expect(presentation.style == .hidden)
+        #expect(presentation.notice == nil)
+    }
+
     @Test("A minimised suggestion is one dot and no text")
     func minimisedIsADot() {
         let presentation = SuggestionPresentation(.minimised)

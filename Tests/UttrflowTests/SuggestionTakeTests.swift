@@ -8,6 +8,7 @@ import UttrflowPredictCapture
 import UttrflowPredictStore
 
 @testable import Uttrflow
+@testable import UttrflowUX
 
 @MainActor
 @Suite("Taking an accepted suggestion into the field")
@@ -36,6 +37,7 @@ struct SuggestionTakeTests {
         var calls: [(suggestion: Suggestion, typed: String, window: UInt32)] = []
         var failure: TextInsertionError?
         var trustLosses = 0
+        var explanations: [String] = []
     }
 
     @MainActor
@@ -64,7 +66,8 @@ struct SuggestionTakeTests {
                     return .accessibility
                 },
                 acceptances: acceptances, capture: capture,
-                trustLost: { insertion.trustLosses += 1 })
+                trustLost: { insertion.trustLosses += 1 },
+                explainRefusal: { insertion.explanations.append($0) })
         }
 
         func remove() { try? FileManager.default.removeItem(at: container) }
@@ -126,6 +129,31 @@ struct SuggestionTakeTests {
         #expect(outcome == .refused)
         #expect(fixture.insertion.trustLosses == 1)
         #expect(await fixture.lines.texts.isEmpty)
+    }
+
+    @Test("a refusal for lost accessibility trust is explained for the ghost slot")
+    func lostTrustIsExplained() async throws {
+        let fixture = try await Fixture()
+        defer { fixture.remove() }
+        fixture.insertion.failure = .accessibilityDenied
+
+        let outcome = await fixture.take.take(
+            "git commit", after: "git c", in: Self.reading(window: 42), closingPunctuation: "")
+
+        #expect(outcome == .refused)
+        #expect(fixture.insertion.explanations == [SuggestionRuntimeStatus.accessibilityDeniedMessage])
+    }
+
+    @Test("an insertion that may have written is not explained as a refusal")
+    func uncertainWriteIsNotExplained() async throws {
+        let fixture = try await Fixture()
+        defer { fixture.remove() }
+        fixture.insertion.failure = .insertionUnconfirmed
+
+        _ = await fixture.take.take(
+            "git commit", after: "git c", in: Self.reading(window: 42), closingPunctuation: "")
+
+        #expect(fixture.insertion.explanations.isEmpty)
     }
 
     @Test("an unconfirmed write may have landed, so it is reported as uncertain and learns nothing")

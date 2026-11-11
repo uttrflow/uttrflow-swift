@@ -228,6 +228,14 @@ public struct SuggestionPresentation: Sendable, Equatable {
         return accessibilityLabel
     }
 
+    /// The status message drawn under a ghost, or nil when no ghost is drawn to carry it.
+    public var notice: String? { style == .ghost ? statusMessage : nil }
+
+    /// What the ghost slot says after an accept was refused, or nil when the refusal has no fix to name.
+    public static func refusedAcceptMessage(for error: TextInsertionError) -> String? {
+        error == .accessibilityDenied ? SuggestionRuntimeStatus.accessibilityDeniedMessage : nil
+    }
+
     /// What VoiceOver is told the dot that Escape leaves is.
     public static let dotLabel = "AI suggestion hidden."
 

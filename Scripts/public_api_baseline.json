@@ -5433,6 +5433,7 @@
     "UttrflowUX func recordVocabularyPrompt": 1,
     "UttrflowUX func recordWait": 1,
     "UttrflowUX func refresh": 1,
+    "UttrflowUX func refusedAcceptMessage": 1,
     "UttrflowUX func rejectShortcut": 1,
     "UttrflowUX func relayDecision": 1,
     "UttrflowUX func release": 2,
@@ -6288,7 +6289,7 @@
     "UttrflowUX var missingFiles": 1,
     "UttrflowUX var missingImages": 1,
     "UttrflowUX var moreLine": 1,
-    "UttrflowUX var notice": 3,
+    "UttrflowUX var notice": 4,
     "UttrflowUX var now": 1,
     "UttrflowUX var offersUndo": 1,
     "UttrflowUX var onChange": 1,
@@ -6376,5 +6377,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 9073
+  "total": 9075
 }
