@@ -28,7 +28,7 @@ struct SuggestionCaptureFeedTests {
             store = try PredictStore(
                 path: PredictStore.defaultFile(in: container).path(percentEncoded: false))
             let capture = CaptureSession(
-                sink: EditHearingSink(store: store, heard: { _ in }),
+                sink: EditHearingSink(store: store, heard: { _, _ in }),
                 preferencesFile: CapturePreferencesFile(
                     path: CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false)),
                 policy: .whereReturnSends)

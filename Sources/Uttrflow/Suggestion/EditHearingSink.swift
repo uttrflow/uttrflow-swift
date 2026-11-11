@@ -8,7 +8,8 @@ import struct Foundation.Date
 /// Sends finished values to the corpus and each edit of inserted words to `heard`, which learns heard-to-meant pairs.
 struct EditHearingSink: CaptureSink {
     let store: PredictStore
-    let heard: @Sendable (EditedSpan) async -> Void
+    /// Told each edit and the application that holds the field, so the learner can ask whether it may learn there.
+    let heard: @Sendable (EditedSpan, String) async -> Void
 
     func record(
         _ text: String, in surface: Surface, after previous: String?, as origin: LineOrigin, at moment: Date
@@ -29,6 +30,6 @@ struct EditHearingSink: CaptureSink {
     }
 
     func recordEditedSpan(_ edit: EditedSpan, in surface: Surface) async throws {
-        await heard(edit)
+        await heard(edit, surface.bundleIdentifier)
     }
 }

@@ -57,7 +57,7 @@ private final class ForgetFixture {
         store = try PredictStore(path: path)
         database = try Database(path: path)
         capture = CaptureSession(
-            sink: EditHearingSink(store: store, heard: { _ in }),
+            sink: EditHearingSink(store: store, heard: { _, _ in }),
             preferencesFile: CapturePreferencesFile(
                 path: CapturePreferencesFile.defaultFile(in: folder).path(percentEncoded: false)))
         verifier = Verifier(

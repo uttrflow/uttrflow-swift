@@ -59,6 +59,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     let recordings: RecordingStore
     /// What the app observed about how this user speaks, under History's retention. See `Docs/learned-state.md`.
     private let evidence: EvidenceLedgerStore?
+    /// The gate every learner passes before it writes. See `Docs/predict.md`.
+    let learnt: LearntEvidence
     /// The user's own words, shared by all three parts of a dictation that read them.
     let dictionary: PersonalDictionaryStore
     private let snippets: SnippetStore
@@ -302,6 +304,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         clipboard = ClipboardStore(
             file: ClipboardStore.defaultFile(in: container), encryptedStore: encryptedStore)
         self.evidence = evidence
+        learnt = LearntEvidence(ledger: evidence, settings: settingsStore, container: container)
         super.init()
         self.releaseModel.configure(
             stopModel: { [weak self] in self?.releaseTheModel() },
@@ -1074,12 +1077,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let onCaptureSkipped: @Sendable (CaptureSkipReason) async -> Void = { [weak self] reason in
             await self?.diagnostics.recordCaptureSkip(reason)
         }
-        let editHeard: @Sendable (EditedSpan) async -> Void = { [weak self] edit in
-            await MainActor.run {
-                guard let self, let evidence = self.evidence else { return }
-                self.noteEvidence(
-                    EvidenceSources.pair(kept: edit, day: EvidenceRow.day(of: Date())), in: evidence)
-            }
+        let editHeard: @Sendable (EditedSpan, String) async -> Void = { [weak self] edit, application in
+            await self?.learnt.note(
+                EvidenceSources.pair(kept: edit, day: EvidenceRow.day(of: Date())), from: application)
         }
         suggestionStartup = Task { [weak self] in
             do {
@@ -1503,11 +1503,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     filed: dictionary.allEntries(),
                     learnt: SpellingPreferences.project(personaEvidence?() ?? []))
             },
-            // The same answers typing capture keeps, so one refusal covers both, behind the switch in Settings.
-            consent: SwitchedLearningConsent(
-                isOn: { [settingsStore] in settingsStore.load().learnsFromDictation },
-                answers: CapturePreferencesFile(
-                    path: CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false))),
+            consent: learnt.consent,
             metrics: telemetry.map { MetricsFanOut([diagnostics, $0.recorder]) } ?? diagnostics,
             cleaningRecorder: diagnostics,
             destinationOverrides: settings.destinations,
@@ -2965,13 +2961,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Counts how the user writes in the destination the words went into; never the words themselves.
     private func noteStyle(_ outcome: UttrflowPipeline.DictationOutcome) {
-        guard let evidence, !outcome.intoSecureField, !outcome.isFromRecording else { return }
+        guard !outcome.intoSecureField, !outcome.isFromRecording else { return }
         let app = AppContext(
             applicationName: outcome.insertedInto, bundleIdentifier: outcome.insertedIntoIdentifier)
         let destination = DestinationClassifier.classify(app, overrides: settings.destinations)
-        let now = Date()
-        let rows = StyleSignals.rows(for: outcome.text, into: destination, day: EvidenceRow.day(of: now))
-        noteEvidence(rows, in: evidence, now: now)
+        let rows = StyleSignals.rows(for: outcome.text, into: destination, day: EvidenceRow.day(of: Date()))
+        learnt.note(rows, from: outcome.insertedIntoIdentifier)
     }
 
     /// Counts a re-dictation of the dictation before against the corrections it dropped; never the words themselves.
@@ -2979,8 +2974,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         of previous: DictationRecord?, by record: DictationRecord,
         _ outcome: UttrflowPipeline.DictationOutcome
     ) {
-        guard let evidence, let previous, !outcome.intoSecureField, !outcome.isFromRecording else { return }
-        noteEvidence(EvidenceSources.retried(previous, by: record), in: evidence)
+        guard let previous, !outcome.intoSecureField, !outcome.isFromRecording else { return }
+        learnt.note(EvidenceSources.retried(previous, by: record), from: record.applicationIdentifier)
     }
 
     /// Appends pairing rows before the refresh that follows reads them, so the Corrections page shows the veto at once.
