@@ -28,6 +28,10 @@ comments. [`microphone.md`](microphone.md) covers the hardware moving under the 
   2048-frame block. A microphone on any input reaches the recogniser without summing away an
   opposite-phase signal; when several inputs are active, the loudest channel wins and quieter
   simultaneous channels are not mixed.
+- `ChannelSelector` makes that choice. It builds one single-entry channel map per input channel
+  and its energy totals once, at `AudioResampler.init`; when the loudest channel changes, the tap
+  installs the prebuilt map for it and builds no array. `ChannelSelectorTests` checks the choice
+  and that the map handed over is the prebuilt one, the same storage and the same bridged array.
 - Slicing works off the raw buffer list rather than `floatChannelData`, so it is correct for
   interleaved and deinterleaved layouts alike: a buffer's byte size divided by its frame count
   is the bytes per frame in both.
