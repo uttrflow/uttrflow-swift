@@ -44,7 +44,26 @@ struct MultiPieceCorpusTests {
             pieces: ["the deployment timed out.", "we restarted it."],
             context: midSentence, destination: .document,
             expected: "the deployment timed out. We restarted it."),
+        MultiPieceCase(
+            id: "plain-bullet-inside-the-first-piece-is-laid-out-with-the-bullets-after-it",
+            pieces: ["the list is bullet point milk", "bullet point eggs", "bullet point bread"],
+            context: AppContext(), destination: .plain, expected: "The list is\n- Milk\n- Eggs\n- Bread"),
+        MultiPieceCase(
+            id: "plain-bullet-pieces-keep-the-stops-the-one-piece-form-keeps",
+            pieces: ["Agenda.", "Bullet point budget.", "Bullet point hiring.", "Bullet point roadmap."],
+            context: AppContext(), destination: .plain,
+            expected: "Agenda.\n- Budget.\n- Hiring.\n- Roadmap"),
     ]
+
+    @Test(
+        "a bullet list said with pauses is written as the same words said in one piece",
+        arguments: cases.filter { $0.destination == .plain })
+    func bulletListAsOnePiece(_ testCase: MultiPieceCase) async throws {
+        let whole = MultiPieceCase(
+            id: testCase.id, pieces: [testCase.pieces.joined(separator: " ")], context: testCase.context,
+            destination: testCase.destination, expected: testCase.expected)
+        #expect(try await dictate(testCase) == dictate(whole))
+    }
 
     @Test("each case comes out as the whole message it is", arguments: cases)
     func joinedMessage(_ testCase: MultiPieceCase) async throws {
