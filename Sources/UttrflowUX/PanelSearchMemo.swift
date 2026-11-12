@@ -47,9 +47,17 @@ final class PanelSearchMemo: Sendable {
         let answers = Memo<View, View, Listed>()
     }
 
+    /// Which clip list and locale a folding answer was worked out for.
+    private struct FoldingSource: Equatable, Sendable {
+        let revision: UUID
+        let locale: Locale
+    }
+
+    private enum Slot: Hashable, Sendable { case current }
+
     private let listed = Mutex(History())
     /// Length-changing folds can make a longer query match text that the shorter query did not.
-    private let foldingProfile = Mutex<(UUID, Locale, Bool)?>(nil)
+    private let foldingProfile = Memo<Slot, FoldingSource, Bool>(limit: 1)
     private let searches = Mutex(0)
 
     var searchScans: Int { searches.withLock { $0 } }
@@ -102,13 +110,10 @@ final class PanelSearchMemo: Sendable {
     private func hasLengthChangingFold(
         in clips: [Clip], revision: UUID, locale: Locale
     ) -> Bool {
-        foldingProfile.withLock { profile in
-            if let profile, profile.0 == revision, profile.1 == locale { return profile.2 }
-            let found = clips.contains { clip in
+        foldingProfile.value(for: .current, source: FoldingSource(revision: revision, locale: locale)) {
+            clips.contains { clip in
                 hasLengthChangingSearchFold(in: clip.text, locale: locale)
             }
-            profile = (revision, locale, found)
-            return found
         }
     }
 

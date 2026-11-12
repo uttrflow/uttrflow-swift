@@ -10,6 +10,7 @@ public struct SuggestionAnnouncer: Sendable, Equatable {
         let selected: String?
         let acceptKey: AcceptKey
         let replaced: Int
+        let notice: String?
     }
 
     /// The offer last read aloud, or nothing once the surface has gone.
@@ -19,15 +20,16 @@ public struct SuggestionAnnouncer: Sendable, Equatable {
 
     /// The text to announce for what is now on screen, or nothing when it was already announced or offers no text.
     public mutating func announcement(for presentation: SuggestionPresentation) -> String? {
-        let label = presentation.announcementLabel
-        guard presentation.style != .hidden, !label.isEmpty else {
+        let label = [presentation.announcementLabel, presentation.notice ?? ""].filter { !$0.isEmpty }
+            .joined(separator: " ")
+        guard presentation.style != .hidden, !presentation.announcementLabel.isEmpty else {
             spoken = nil
             return nil
         }
         let offer = Offer(
             candidates: presentation.rows.map(\.candidate),
             selected: presentation.inline?.candidate, acceptKey: presentation.acceptKey,
-            replaced: presentation.inline?.edit.replacedCount ?? 0)
+            replaced: presentation.inline?.edit.replacedCount ?? 0, notice: presentation.notice)
         guard offer != spoken else { return nil }
         spoken = offer
         return label

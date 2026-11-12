@@ -9,7 +9,21 @@ final class FormattingSheetMemo: Sendable {
         let formatted: String
         let title: String
         let confirmTitle: String
+
+        init(
+            original: String, formatted: String,
+            title: String = FormattingSheetMemo.title, confirmTitle: String = FormattingSheetMemo.confirmTitle
+        ) {
+            self.original = original
+            self.formatted = formatted
+            self.title = title
+            self.confirmTitle = confirmTitle
+        }
     }
+
+    /// The formatting sheet's own words, which a re-indent sheet replaces.
+    static let title = "Format this code?"
+    static let confirmTitle = "Keep it"
 
     private enum Slot: Hashable, Sendable { case sheet }
 
@@ -20,7 +34,7 @@ final class FormattingSheetMemo: Sendable {
     /// Returns the sheet for this pair, comparing the texts only when this pair has not been drawn before.
     func sheet(
         from original: String, to formatted: String,
-        title: String = "Format this code?", confirmTitle: String = "Keep it",
+        title: String = FormattingSheetMemo.title, confirmTitle: String = FormattingSheetMemo.confirmTitle,
         kind: PanelSheetPresentation.Kind = .formatting
     ) -> PanelSheetPresentation {
         drawn.value(
@@ -33,13 +47,16 @@ final class FormattingSheetMemo: Sendable {
         }
     }
 
+    /// Whether the formatting sheet for this pair is the one remembered.
+    func remembers(from original: String, to formatted: String) -> Bool {
+        drawn.cachedValue(for: .sheet, source: Source(original: original, formatted: formatted)) != nil
+    }
+
     /// Keeps a sheet drawn elsewhere, so presenting its pair does no comparison.
     func remember(_ prepared: PreparedFormattingSheet) {
         drawn.store(
             prepared.sheet, for: .sheet,
-            source: Source(
-                original: prepared.original, formatted: prepared.formatted,
-                title: "Format this code?", confirmTitle: "Keep it"))
+            source: Source(original: prepared.original, formatted: prepared.formatted))
     }
 
 }

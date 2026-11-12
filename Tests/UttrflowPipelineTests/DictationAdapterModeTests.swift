@@ -6,45 +6,31 @@ import Testing
 @testable import UttrflowPipeline
 @testable import UttrflowTestSupport
 
-/// A recogniser that hears the same words every time, so the app's mode is the only variable.
-private struct HeardSpeechEngine: SpeechEngine {
-    let kind = SpeechEngineKind.whisperKit
-    let heard: String
-
-    func prepare() async throws(SpeechEngineError) {}
-
-    func transcribe(
-        _ audio: AudioSamples, options: TranscriptionOptions
-    ) async throws(SpeechEngineError) -> Transcription {
-        Transcription(text: heard, audioDuration: audio.duration)
-    }
-}
-
 /// An app's formatting mode reaches the dictation path: "Work it out" writes notation, "Plain prose" does not.
 @Suite("Dictation: the per-app formatting mode", .bug(id: 3898))
 struct DictationAdapterModeTests {
-    private static let audio = AudioSamples.canonical(
-        (0..<24_000).map { 0.3 * Float(sin(Double($0) * 0.07)) })
     private static let xcode = DestinationRules.xcode
 
     private let editor = AppContext.fixture(
         applicationName: "Xcode", bundleIdentifier: DestinationRules.xcode,
         documentName: "Parser.swift", precedingText: "let value = ")
 
+    /// The same words heard in each of `dictations` takes, one window each, tidied by the rules alone.
+    private func scenario(
+        saying heard: String, dictations: Int = 1, overrides: DestinationOverrides,
+        in context: AppContext
+    ) -> Scenario {
+        Scenario(
+            pieces: Array(repeating: ScriptedPiece(heard), count: dictations), context: context,
+            cleaner: TransformerRouter(
+                engines: [RuleBasedTransformer()], preference: [.rules], rulesAlone: .shortReplies),
+            take: ScenarioDriver.oneWindow, destinationOverrides: overrides)
+    }
+
     private func inserted(
         saying heard: String, overrides: DestinationOverrides, in context: AppContext
     ) async -> String? {
-        let inserter = FakeTextInserter()
-        let router = TransformerRouter(
-            engines: [RuleBasedTransformer()], preference: [.rules], rulesAlone: .shortReplies)
-        let pipeline = DictationPipeline(
-            capture: FakeAudioCaptureEngine(stopOutcome: .success(Self.audio)),
-            speech: HeardSpeechEngine(heard: heard), cleaner: router,
-            context: FakeContextEngine(context: context), inserter: inserter,
-            speechWords: { _ in [] }, destinationOverrides: overrides)
-        await pipeline.startRecording()
-        await pipeline.finishRecording()
-        return inserter.received.last
+        await ScenarioDriver.run(scenario(saying: heard, overrides: overrides, in: context)).writes.last
     }
 
     @Test("work it out writes spoken symbols in code; plain prose leaves the words as said")
@@ -76,14 +62,10 @@ struct DictationAdapterModeTests {
     @Test("as typed applies to the next dictation only, shows while pending and can be taken back")
     func oneShotAsTyped() async {
         let spoken = "limit equals twelve"
-        let inserter = FakeTextInserter()
-        let router = TransformerRouter(
-            engines: [RuleBasedTransformer()], preference: [.rules], rulesAlone: .shortReplies)
-        let pipeline = DictationPipeline(
-            capture: FakeAudioCaptureEngine(stopOutcome: .success(Self.audio)),
-            speech: HeardSpeechEngine(heard: spoken), cleaner: router,
-            context: FakeContextEngine(context: editor), inserter: inserter,
-            speechWords: { _ in [] }, destinationOverrides: .none)
+        let session = await ScenarioDriver.session(
+            scenario(saying: spoken, dictations: 3, overrides: .none, in: editor))
+        let pipeline = session.pipeline
+        let inserter = session.inserter
         #expect(await pipeline.pendingFormat == nil)
         await pipeline.format(next: .prose)
         #expect(await pipeline.pendingFormat == .prose)

@@ -1,12 +1,13 @@
 import Synchronization
 import Testing
+import UttrflowTestSupport
 
 @testable import UttrflowCore
 @testable import UttrflowPermissions
 
 /// Drives the watcher over a gate whose answer the test flips.
 @MainActor
-@Suite("PermissionWatcher")
+@Suite("PermissionWatcher", .timeLimit(.minutes(1)))
 struct PermissionWatcherTests {
     private final class FlippingGate: PermissionGate {
         let current: Mutex<PermissionStatus>
@@ -48,11 +49,10 @@ struct PermissionWatcherTests {
         }
         watcher.start()
         watcher.start()
-        try await Task.sleep(for: .milliseconds(30))
+        // The first reading is the baseline; flipping the gate before it is taken would tell nobody.
+        try await eventually { watcher.status == .granted }
         gate.current.withLock { $0 = .denied }
-        for _ in 0..<200 where told.withLock({ $0.isEmpty }) {
-            try await Task.sleep(for: .milliseconds(5))
-        }
+        try await eventually { !told.withLock { $0.isEmpty } }
         watcher.stop()
         #expect(told.withLock { $0 } == [.denied])
     }

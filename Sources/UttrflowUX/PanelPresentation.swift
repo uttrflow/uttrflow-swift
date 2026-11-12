@@ -262,16 +262,21 @@ public enum PanelPresenter {
     static let mask = String(repeating: "•", count: 12)
 
     public static func present(_ snapshot: PanelSnapshot) -> PanelPresentation {
-        let results = snapshot.results
+        present(snapshot, using: PanelCache.current)
+    }
+
+    /// Presents the snapshot working out everything from `cache`, so what is drawn depends only on what is passed in.
+    static func present(_ snapshot: PanelSnapshot, using cache: PanelCache) -> PanelPresentation {
+        let results = snapshot.results(using: cache)
         let context = PanelRowMemo.Context(
             needle: snapshot.needle, locale: snapshot.locale, now: snapshot.now,
             imagesFolder: snapshot.imagesFolder, formattableLanguages: snapshot.formattableLanguages,
             revealed: snapshot.revealed, missingImages: snapshot.missingImages,
             missingFiles: snapshot.missingFiles)
-        let rows = PanelCache.current.rowMemo.rows(
+        let rows = cache.rowMemo.rows(
             listID: results.listID, results: results.rows, context: context
         ) { result in
-            row(for: result, in: snapshot, isSelected: false)
+            row(for: result, in: snapshot, isSelected: false, using: cache)
         }
         // An unread list is an unknown, not a nothing, so neither sentence below is said yet.
         let saysNothing = rows.isEmpty && !snapshot.isAwaitingList
@@ -291,8 +296,8 @@ public enum PanelPresenter {
             emptyState: saysNothing ? emptyState(for: snapshot) : nil,
             // A sheet has its own keys, so the list's line would be teaching the wrong ones.
             hint: hint(for: snapshot, isEmpty: rows.isEmpty),
-            sheet: sheet(for: snapshot),
-            groups: PanelCache.current.rowMemo.groups(for: results.listID, in: context) {
+            sheet: sheet(for: snapshot, using: cache),
+            groups: cache.rowMemo.groups(for: results.listID, in: context) {
                 groups(for: rows, omitted: results.omitted, isSearching: snapshot.isSearching)
             },
             emptyAction: saysNothing ? emptyAction(for: snapshot) : nil,
@@ -302,7 +307,7 @@ public enum PanelPresenter {
             announcements: announcements(for: snapshot),
             announcementIDs: announcementIDs(for: snapshot),
             rowHint: rowHint(for: snapshot.insertion), selectedIndex: results.selectedIndex,
-            rowCacheID: PanelCache.current.rowMemo.presentationID
+            rowCacheID: cache.rowMemo.presentationID
         )
     }
 
