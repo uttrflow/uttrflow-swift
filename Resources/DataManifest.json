@@ -431,10 +431,10 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "2a01b8c706dfadf55c2f4111a93fcc820768a08cc4cc7d567a7f50911b9e185b",
+      "sha256": "186e2940f4eee91b8623c1ffdfd39d7171de7ce98d538375f86c8ebe5f438f37",
       "path": "Sources/UttrflowCore/Resources/Tables/spoken-commands.json",
       "origin": "authored",
-      "bytes": 26791
+      "bytes": 27463
     },
     {
       "licence": "MIT",
@@ -485,11 +485,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "92336090b23f4a383e3d963a03bf2fad31c1a104f3b369ca151ea19048e61d20",
+      "sha256": "cfb1c8fbb7814c7d46c7aadfd18536fea073a3ecf4130b30c404b2841b110a6f",
       "path": "Sources/UttrflowEval/Resources/Corpus/contextual.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 116150,
+      "bytes": 119462,
       "licence": "MIT"
     },
     {

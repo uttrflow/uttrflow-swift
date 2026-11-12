@@ -14,7 +14,7 @@ struct SpokenCommandsTests {
         #expect(SpokenCommands.layout.count == 10)
         #expect(SpokenCommands.codeSymbols.count == 52)
         #expect(SpokenCommands.keywords.count == 29)
-        #expect(SpokenCommands.casings.count == 7)
+        #expect(SpokenCommands.casings.count == 12)
         #expect(
             SpokenCommands.openings.map(\.words) == [
                 ["open", "quote"], ["open", "single", "quote"], ["quote"], ["open", "paren"],

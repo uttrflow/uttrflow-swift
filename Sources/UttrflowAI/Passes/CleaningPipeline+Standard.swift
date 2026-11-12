@@ -95,7 +95,9 @@ extension CleaningPipeline {
             // A code editor's comments and a code editor set to plain prose take no casing: its rows are identifiers.
             if (destination != .codeEditor || inCode) && !(mode == .prose && destination == .codeEditor) {
                 cleanings.insert(
-                    SpokenCasingPass(destination: destination),
+                    SpokenCasingPass(
+                        destination: destination,
+                        naming: .infer(from: identifiers, language: intent.language)),
                     at: cleanings.firstIndex { $0.id == .layoutWords } ?? layoutPosition)
             }
         }

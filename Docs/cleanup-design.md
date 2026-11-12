@@ -175,7 +175,7 @@ destination — so `apply` sees only the draft. The passes, in the order they ru
 | `StammersPass` | the same function word twice | adjacency | piece |
 | `SelfCorrectionPass` | the half before a trigger phrase, a bare-hyphen cut-off | trigger between two candidates of the same shape | piece |
 | `SpokenPunctuationPass` | "comma", "full stop", "question mark", "open quote…close quote", a spoken email address → marks | the word stands at a seam, not "put a comma there" | piece |
-| `SpokenCasingPass` | casing rows of `spoken-commands.json`: an identifier style in code; "all caps" (next word) and "all caps on … all caps off" (span) in prose | the row's destinations; in prose, not after a determiner, a preposition or a naming verb, nor before a form of "be" | piece |
+| `SpokenCasingPass` | casing rows of `spoken-commands.json`: an identifier style in code, or a naming cue completed in the file's convention; "all caps" (next word) and "all caps on … all caps off" (span) in prose | the row's destinations; in prose, not after a determiner, a preposition or a naming verb, nor before a form of "be" | piece |
 | `CodeEditorCommandsPass` | spoken symbol commands | a code editor, outside a comment | piece |
 | `MarkdownContinuationPass` | "next item", "new item", "new heading" → the next list mark or heading mark of the Markdown already before the caret | a Markdown document, `MarkdownPosition`; the phrase opens a sentence, outside a fence | piece |
 | `LayoutWordsPass` | "new line", "new paragraph", "bullet point", "number one" → layout | same | piece |
