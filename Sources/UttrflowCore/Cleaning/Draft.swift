@@ -148,6 +148,11 @@ public struct Draft: Sendable, Equatable {
             && HindiWords.readsAsHindi(core, inSentence: sentenceCores(around: index))
     }
 
+    /// Whether the sentence that holds the word at `index` is Hindi: two Hindi function words English does not also use.
+    package func isHindiSentence(around index: Int) -> Bool {
+        RomanisedVariants.isHindi(words: sentenceCores(around: index))
+    }
+
     /// The words of the sentence that holds the word at `index`, between the stops on either side, read outward from it.
     private func sentenceCores(around index: Int) -> [String] {
         var cores = [shape(at: index).core]

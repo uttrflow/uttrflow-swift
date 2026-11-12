@@ -54,13 +54,21 @@ public struct LoanwordRestoration: Sendable {
 
     /// The draft with each word the romaniser spelt by sound written as the one English word it is, and every other word untouched.
     public func restoring(_ draft: Draft) -> Draft {
-        let words = draft.words.map { word in
-            guard word.origin == .devanagari, let english = restored(word.text) else { return word }
+        let words = draft.words.indices.map { index in
+            let word = draft.words[index]
+            guard word.origin == .devanagari, let english = restored(word.text),
+                !(Self.isEnglishVocabulary(english) && draft.isHindiSentence(around: index))
+            else { return word }
             var written = word
             written.text = english
             return written
         }
         return Draft(words: words)
+    }
+
+    /// Whether a restoration would write an ordinary English word rather than a name: in a Hindi sentence that is a translation, so फल stays "phal" and is never "file".
+    static func isEnglishVocabulary(_ english: String) -> Bool {
+        english.first?.isLowercase == true && GeneralVocabulary.isOrdinary(english)
     }
 
     /// Whether the romanised word shares a sound key of at least this many sounds with an English spelling.

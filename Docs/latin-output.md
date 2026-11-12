@@ -199,8 +199,11 @@ fail file) and 10 are not, each more than one phoneme from the English sound (th
 baink bank, kanpyutar computer, vidiyo video). The seam asks only the sound, never whether the
 rules' spelling is itself an ordinary word, because a word from Devanagari was never heard as
 English: "fail" from फ़ाइल is "file". The Hindi tables are its veto, and they list grammar words
-only, so with all 41 words as the person's words it restores 1 of the 122 probe Hindi words: फल
-"phal" becomes "file". Every
+only, so with all 41 words as the person's words it restores 1 of the 122 probe Hindi words when
+the word stands alone: फल "phal" becomes "file". Inside a sentence with two Hindi function words,
+`restoring` writes no ordinary lower-case English word for a Devanagari one, because there that
+is a translation: "mera phal kahan hai" keeps "phal", while a name such as "Orvanta" is still
+restored and "please open the फ़ाइल" is "file" (`HindiNounRestorationTests`). Every
 other path that romanises, such as `LatinScript.enforced` and the script guard, runs without the
 seam, so the table stays until the seam's sound match reaches all 41.
 
