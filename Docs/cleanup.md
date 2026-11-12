@@ -322,8 +322,8 @@ Hosts, paths and versions use `TechnicalToken` classification; ordinary paths, p
 and other pause marks keep their existing settling. A retained tag colon starts no clause
 and leaves a following version's capital `V` intact.
 
-The notation input also writes a run that spells an identifier the screen shows as that
-identifier, whatever case the recogniser gave it: "where customer ID equals 7" is
+In a query editor, the notation input also writes a run that spells an identifier the screen
+shows as that identifier, whatever case the recogniser gave it: "where customer ID equals 7" is
 `WHERE customer_id = 7` with `customer_id` on screen. Only a spelling binds, never a sound-alike,
 and never across a word the recogniser ended with a pause mark. `NotationRecogniserFormTests`
 writes every notation case of the corpus from its bare words and from a recogniser form (a capital
