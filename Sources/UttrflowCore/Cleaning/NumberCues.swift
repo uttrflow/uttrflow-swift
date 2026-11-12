@@ -18,6 +18,8 @@ public enum NumberCues {
         case `operator`
         /// A word after which a lone digit is a numeral, digit groups run together, and no separator is used.
         case designator
+        /// A product, platform or language name whose next number is its version or model, written in digits only straight after it.
+        case versionCarrier
         /// A singular noun for something on a timetable, after which an hour and minute is a time of day.
         case scheduled
         /// A label that a version's pre-release suffix names after "dash", as in "dash rc dot one".

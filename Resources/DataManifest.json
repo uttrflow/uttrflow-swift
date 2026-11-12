@@ -329,15 +329,6 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "74800f7a0d9a57d0b393b3cde69c39ee8c3a2133109caa528aca4618b6aa5916",
-      "path": "Sources/UttrflowCore/Resources/Tables/html-boolean-attributes.json",
-      "origin": "authored",
-      "bytes": 477
-    },
-    {
-      "licence": "MIT",
-      "redistribution": true,
-      "note": "read through DataTable; see Docs/data-tables.md",
       "sha256": "83ab047f409399f7b6a164c5dcd49de5561f0fcc798d4ca7414d8c4e1c101450",
       "path": "Sources/UttrflowCore/Resources/Tables/html-elements.json",
       "origin": "authored",
@@ -383,10 +374,10 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "27c580e80617c42245470b01a459bbe922fb631cd3dad5c1dfb8d5c2f3126427",
+      "sha256": "e664bc5f1fe0a587fd580ca0cbdae0e8be0e85f9e1d4ab90cbef1e871f1865be",
       "path": "Sources/UttrflowCore/Resources/Tables/number-cues.json",
       "origin": "authored",
-      "bytes": 5879
+      "bytes": 7209
     },
     {
       "licence": "MIT",
