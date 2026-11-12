@@ -19,7 +19,8 @@ extension SettingsPresenter {
                 SettingsGroup(
                     id: "retention",
                     title: "Your data",
-                    rows: [retentionRow(settings), clipboardRetentionRow(settings), clipboardLimitsRow]
+                    rows: [retentionRow(settings)] + historyKeepingRows(settings, capabilities)
+                        + [clipboardRetentionRow(settings), clipboardLimitsRow]
                         + storageRows(personalisation.storage, settings: settings)
                         + [
                             toggleRow(
