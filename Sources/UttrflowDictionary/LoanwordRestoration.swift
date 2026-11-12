@@ -39,8 +39,9 @@ public struct LoanwordRestoration: Sendable {
             // A shipped term is not the person's own word, so it needs a longer shared key: "baal" is not "bool".
             let fewestSounds = rank == 0 ? 2 : 3
             let matches = source.filter { key in
+                // The rules' spelling was never heard as English, so one that is an ordinary word is no collision: फ़ाइल is "fail" by sound, never the English "fail".
                 sounds.contains { sound in
-                    Self.isRespelling(sound, as: key.word)
+                    Self.soundsAlike(sound, key.word)
                         && Self.sharesKey(sound, key.sound, ofAtLeast: fewestSounds)
                 }
             }
@@ -85,8 +86,12 @@ public struct LoanwordRestoration: Sendable {
 
     /// Whether `spelt` is `spoken` written another way: a shared sound key of at least two sounds, within one phoneme, and not one ordinary word for another.
     public static func isRespelling(_ spoken: String, as spelt: String) -> Bool {
+        !ReadingRestraint.isOrdinaryCollision(spelt, heard: spoken) && soundsAlike(spoken, spelt)
+    }
+
+    /// Whether two spellings could be one word said aloud: no digit, a shared sound key of at least two sounds, and within one phoneme.
+    static func soundsAlike(_ spoken: String, _ spelt: String) -> Bool {
         guard !spoken.contains(where: \.isNumber), !spelt.contains(where: \.isNumber) else { return false }
-        guard !ReadingRestraint.isOrdinaryCollision(spelt, heard: spoken) else { return false }
         let heard = WordSound(of: spoken)
         let spelling = WordSound(of: spelt)
         // One sound says too little to call two words one.
