@@ -931,7 +931,7 @@ enum PieceJoiner {
     private static let subjectPause = Duration.milliseconds(1500)
 
     /// The multiple of the speaker's usual pause that a subject's pause must reach once there are enough pauses to know it.
-    private static let subjectPauseMultiple = 2.0
+    private static let subjectPauseMultiple = 1.5
 
     /// How many pauses it takes to know the speaker's usual one.
     private static let pausesToKnowUsual = 3
