@@ -128,8 +128,12 @@ public struct Settings: Sendable, Equatable, Codable {
 
     /// The preset this app is dictated under: its own override, else the one chosen for every app.
     func qualityPreset(forBundleIdentifier bundle: String?) -> QualityPreset {
-        let chosen = bundle.flatMap { destinations.preset(forBundleIdentifier: $0) } ?? qualityPreset
-        return QualityPreset.preset(chosen)
+        dictationOverrides.qualityPreset(forBundleIdentifier: bundle)
+    }
+
+    /// The per-app overrides a dictation runs under, holding the preset chosen for every app.
+    public var dictationOverrides: DestinationOverrides {
+        destinations.holding(everyApp: qualityPreset)
     }
 
     /// Takes the shipped default for anything the caller does not choose.
