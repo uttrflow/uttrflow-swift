@@ -329,6 +329,15 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "74800f7a0d9a57d0b393b3cde69c39ee8c3a2133109caa528aca4618b6aa5916",
+      "path": "Sources/UttrflowCore/Resources/Tables/html-boolean-attributes.json",
+      "origin": "authored",
+      "bytes": 477
+    },
+    {
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
       "sha256": "83ab047f409399f7b6a164c5dcd49de5561f0fcc798d4ca7414d8c4e1c101450",
       "path": "Sources/UttrflowCore/Resources/Tables/html-elements.json",
       "origin": "authored",
@@ -431,10 +440,10 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "186e2940f4eee91b8623c1ffdfd39d7171de7ce98d538375f86c8ebe5f438f37",
+      "sha256": "ca403fd1dc1245670781787634cf0a341606a6f781b76db1dc6848bdf8b62672",
       "path": "Sources/UttrflowCore/Resources/Tables/spoken-commands.json",
       "origin": "authored",
-      "bytes": 27463
+      "bytes": 28567
     },
     {
       "licence": "MIT",
@@ -521,11 +530,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "9727abbde9e1dae42a2c71fc210fe19719905f69c32c1511df77727f3994ec03",
+      "sha256": "4206ceae08c4ad702c25a5fcfc0efab8b6dcf82142d39654d41e99409b7bce07",
       "path": "Sources/UttrflowEval/Resources/Corpus/everyday.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 78225,
+      "bytes": 79226,
       "licence": "MIT"
     },
     {

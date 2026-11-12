@@ -42,7 +42,7 @@ public enum StageTimeout: Sendable {
     /// Insertion, generous because failing here loses the words from the target app.
     public static let insertion = Duration.seconds(15)
 
-    /// Loading the speech model: past the slowest compile on a busy Mac, 438 s. See `Docs/startup.md`.
+    /// When a speech model load is reported failed, past the slowest single-process compile, 438 s; the load runs on.
     public static let speechModelLoad = Duration.seconds(600)
 }
 

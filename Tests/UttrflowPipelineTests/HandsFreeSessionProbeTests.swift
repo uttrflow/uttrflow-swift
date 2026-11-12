@@ -6,15 +6,6 @@ import Testing
 @testable import UttrflowPipeline
 @testable import UttrflowTestSupport
 
-/// A ``HotkeyMonitoring`` that watches nothing; the probe hands gestures to the controller itself.
-private struct SilentMonitor: HotkeyMonitoring {
-    let events = AsyncStream<HotkeyEvent> { $0.finish() }
-
-    @MainActor func start(binding: HotkeyBinding) throws(HotkeyError) {}
-
-    func stop() {}
-}
-
 /// Every state the pipeline passes through, kept as it is published.
 private final class StateLog: Sendable {
     private let seen = Mutex<[DictationState]>([])
@@ -56,8 +47,8 @@ private actor HandsFreeProbe {
         controller = DictationController(
             dependencies: .init(
                 pipeline: pipeline,
-                monitor: SilentMonitor(),
-                commandMonitor: SilentMonitor()),
+                monitor: SilentHotkeyMonitor(endsAtOnce: true),
+                commandMonitor: SilentHotkeyMonitor(endsAtOnce: true)),
             clock: clock,
             options: .init(
                 activation: .holdToTalk

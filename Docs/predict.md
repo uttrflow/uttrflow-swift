@@ -104,9 +104,7 @@ remembered candidates and answers with one `Suggestion` — `.silent`, `.certain
 handed text, not a decision. Accepting tells the store, which counts the use at a discount.
 
 `PredictionStore` is a protocol in the pure module, so the engine is tested against candidates in
-an array rather than a database. Retrieval uses prefix and recent-line queries; succession rows
-are legacy storage, inspected only by storage and privacy tests through a test-support row type.
-The production candidate source records personal history or confirmed environment facts. The
+an array rather than a database. Retrieval uses prefix and recent-line queries. The production candidate source records personal history or confirmed environment facts. The
 three source-arbitration fixtures keep both learned lines and the environment case; the learned
 command has a new name and fingerprint, so saved reports from the retired source cannot be
 compared with it.
@@ -230,7 +228,7 @@ anything (`SwitchedLearningConsent`); it leaves typing capture to its own switch
 teaches nothing whatever the answer. One reset removes the file, so it forgets the answers for both features.
 
 Typing capture also refuses two cases the application's answer cannot see. A window whose title
-carries `(Incognito)`, `InPrivate` or `Private Browsing` (`FieldReading.isInPrivateWindow`) teaches
+carries `(Incognito)`, `InPrivate` or `Private Browsing` (`PrivateWindow.isNamed(by:)`) teaches
 nothing whatever the application's answer, and its page host is never written as a scope. Titles are
 the only sign of a private window the capture path reads, so a browser that does not put one in the
 title is not detected: the limit is the browser's, not a promise. The applications in
@@ -281,8 +279,8 @@ fails is retried by the next change's batch.
 Settings reaches the corpus through `PredictCorpus`, which opens it only for the question asked and
 never creates it, so forgetting works whether or not the loop is running.
 
-- **Forget what it learned here** deletes that application's surfaces and every entry and
-  succession in them. Other applications keep theirs.
+- **Forget what it learned here** deletes that application's surfaces and every entry in them.
+  Other applications keep theirs.
 - **Reset personalisation** (Settings → Privacy) deletes the dictionary, history, clipboard,
   snippets, learned completions and the applications they may learn from, recordings kept for a
   retry, every preference on that screen, every surface in the corpus and its consent file. The
@@ -607,13 +605,14 @@ the coordinator logs that reason, never one recomputed from outside.
 
 ## The store
 
-`Schema` holds one row per surface, one per entry and one per succession pair, and two indexes on
+`Schema` holds one row per surface and one per entry, and two indexes on
 `entry`, each for one query: `entry_prefix` on `(surface_id, text_lower)` for the prefix range scan
 run on every keystroke, over lowercased text so matching ignores case and keeps the index, and
 `entry_recent` on `(surface_id, last_used)` for the recent lines the model is shown. Lowercasing
 uses Swift's `lowercased()` on write and query alike, since SQLite's `lower` folds ASCII only.
-`Schema.version` is 8; an older file is migrated when opened and a file from a newer build is
-refused rather than written to.
+`Schema.version` is 9; an older file is migrated when opened and a file from a newer build is
+refused rather than written to. Version 9 drops the `succession` table older files hold: it
+recorded which line followed which, and nothing read it.
 
 | Limit | Constant | Value |
 |---|---|---|
@@ -634,7 +633,7 @@ one typed use, and longer with more uses. `PredictStore.expireStale(now:)` decid
 ([retention-clock.md](retention-clock.md)). Superseded and refused lines are kept, since they
 withhold a line.
 
-A write protects its new entry and succession pair from its own eviction. Later pressure removes
+A write protects its new entry from its own eviction. Later pressure removes
 fragments first, then entries with fewer acceptances, fewer uses and older `last_used` values;
 retired entries remain last.
 

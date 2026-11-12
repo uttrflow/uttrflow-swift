@@ -99,8 +99,8 @@ struct CommandScopeTests {
         Case(
             text: "Wait\u{2026} really?", word: " really?", clause: "Wait\u{2026} really?",
             sentence: "Wait\u{2026} really?"),
-        Case(text: "no stop here", word: " here", clause: "no stop here", sentence: "no stop here"),
-        Case(text: "Done. no stop here", word: " here", clause: " no stop here", sentence: " no stop here"),
+        Case(text: "no stop here", word: " here", clause: " stop here", sentence: "no stop here"),
+        Case(text: "Done. no stop here", word: " here", clause: " stop here", sentence: " no stop here"),
         Case(text: "word", word: "word", clause: "word", sentence: "word"),
         Case(
             text: "Trailing space. ", word: " space. ", clause: "Trailing space. ",

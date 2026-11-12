@@ -53,6 +53,7 @@ extension DictationPipeline {
         insertedInto = read.applicationName
         insertedIntoIdentifier = read.bundleIdentifier
         destinationIsSecure = read.isSecure
+        notePrivateWindow(in: read)
         return read
     }
 
@@ -137,6 +138,7 @@ extension DictationPipeline {
             insertedInto = read.applicationName
             insertedIntoIdentifier = read.bundleIdentifier
             destinationIsSecure = read.isSecure
+            notePrivateWindow(in: read)
             let recordedDestination = early.context ?? dictationContext?.app ?? read
             recordingDestination = recordedDestination
             let fieldKind =
@@ -144,8 +146,7 @@ extension DictationPipeline {
                 ?? SituationResolver.resolve(from: recordedDestination, overrides: runningOverrides)
                 .destination
             if let openRecording {
-                await recordings.setDestination(
-                    recordedDestination, fieldKind: fieldKind, for: openRecording)
+                await recordDestination(recordedDestination, fieldKind: fieldKind, for: openRecording)
             }
             return read
         case .copy:

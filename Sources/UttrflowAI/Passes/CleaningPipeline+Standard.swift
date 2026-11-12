@@ -9,7 +9,8 @@ extension CleaningPipeline {
         for formatter: DestinationFormatter, situation: Situation, steps: CleaningSteps = .default,
         pauses: PauseLength = .usual
     ) -> CleaningPipeline {
-        CleaningPipeline(
+        let steps = situation.cleaningSteps(steps)
+        return CleaningPipeline(
             passes: piece(
                 numbers: formatter.numbers, digits: situation.digits(for: formatter),
                 layout: formatter.layout,
@@ -42,6 +43,7 @@ extension CleaningPipeline {
         screen: Situation = .unknown, mode: AdapterMode = .auto, readsWholeText: Bool = true,
         namesFrom: Situation? = nil
     ) -> CleaningPipeline {
+        let steps = screen.cleaningSteps(steps)
         let identifiers = ScreenVocabulary(screen)
         let naming = NamingConvention.infer(
             from: namesFrom.map(ScreenVocabulary.init) ?? identifiers, language: intent.language)

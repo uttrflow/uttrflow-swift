@@ -178,7 +178,7 @@ struct SuggestionForgettingTests {
         #expect(await corpus.learnedSuggestions() == [notes.bundleIdentifier: 1])
     }
 
-    @Test("Forgetting through the running loop leaves no succession naming the forgotten line.")
+    @Test("Forgetting through the running loop does not write the forgotten line back.")
     @MainActor
     func runningLoopDoesNotWriteAForgottenLineBack() async throws {
         let container = Container()
@@ -197,7 +197,7 @@ struct SuggestionForgettingTests {
         _ = try await coordinator.capture.handle(.returnPressed(at: moment), in: reading)
 
         let store = try PredictStore(path: container.corpusPath)
-        #expect(try await store.legacySuccessors(for: surface, after: "forgotten line").isEmpty)
+        #expect(try await store.candidates(for: surface, matching: "forgotten").isEmpty)
         try await corpus.forgetEverySuggestion()
         #expect(await coordinator.capture.decisions() == CapturePreferences())
     }

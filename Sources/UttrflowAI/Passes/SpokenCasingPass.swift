@@ -187,14 +187,28 @@ public struct SpokenCasingPass: PieceCleaningPass {
             for index in cased.covered {
                 let shape = draft.shape(at: live[index])
                 let tail = index == cased.covered.upperBound - 1 ? shape.suffix + closingSuffix : shape.suffix
-                let upper = shape.prefix + shape.core.uppercased() + tail
-                draft.replace(at: live[index], with: upper, by: Self.id)
+                draft.replace(at: live[index], with: Self.shouted(shape, tail: tail), by: Self.id)
             }
             for offset in 0..<cased.named { draft.remove(at: live[position + offset], by: Self.id) }
             for index in cased.covered.upperBound..<(last + 1) { draft.remove(at: live[index], by: Self.id) }
             live.removeSubrange(cased.covered.upperBound..<(last + 1))
             live.removeSubrange(position..<(position + cased.named))
         }
+    }
+
+    /// The word in capitals, keeping its opening marks and ending in `tail`: the one upper-case rule.
+    static func shouted(_ shape: WordShape, tail: String) -> String {
+        shape.prefix + shape.core.uppercased() + tail
+    }
+
+    /// Every word of `draft` in capitals, its marks and layout kept, as "all caps that" asks of the last insertion.
+    static func shouting(_ draft: Draft) -> Draft {
+        var draft = draft
+        for index in draft.presentIndices where !draft.words[index].isLayoutMark {
+            let shape = draft.shape(at: index)
+            draft.replace(at: index, with: shouted(shape, tail: shape.suffix), by: id)
+        }
+        return draft
     }
 
     /// Writes one identifier in place of the command and the words it covers.

@@ -51,7 +51,8 @@ is notation until the speech spells a whole tag, an element, attributes said as 
 pass writes only what was said: it never closes a tag, adds an attribute or a unit, or changes the
 case of an element, and a quotation mark is written only where a quotation was spoken.
 `MarkupNotationTests` holds twenty HTML and twenty CSS cases to their exact text and the prose cases
-to their words. Not covered: entities, units, attribute selectors, and a tag said across two pieces.
+to their words. In a selector, `open bracket`, `equals` and `close bracket` write an attribute
+selector, as `input[type=text]`. Not covered: entities, units, and a tag said across two pieces.
 
 ## 0. Why the current seam cannot carry this
 

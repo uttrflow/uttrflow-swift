@@ -25,13 +25,13 @@ struct EditHearingSinkTests {
         defer { try? FileManager.default.removeItem(at: folder) }
         let sink = EditHearingSink(store: store, heard: { _, _ in })
 
-        try await sink.record("see you at noon", in: surface, after: nil, as: .typed, at: moment)
+        try await sink.record("see you at noon", in: surface, as: .typed, at: moment)
         #expect(try await store.recent(in: surface, limit: 5) == ["see you at noon"])
 
         try await sink.supersede(
             "see you at noon", with: "see you at one o'clock", in: surface)
         try await sink.record(
-            "see you at one o'clock", in: surface, after: nil, as: .finished, at: moment)
+            "see you at one o'clock", in: surface, as: .finished, at: moment)
         #expect(try await store.recent(in: surface, limit: 5).contains("see you at one o'clock"))
     }
 
@@ -42,7 +42,7 @@ struct EditHearingSinkTests {
         let sink = EditHearingSink(store: store, heard: { _, _ in })
 
         try await sink.record(
-            "thanks for the update", in: surface, after: nil, as: .suggestion, at: moment)
+            "thanks for the update", in: surface, as: .suggestion, at: moment)
         try await sink.recordAccepted("thanks for the update", in: surface)
         try await sink.retractAcceptance("thanks for the update", in: surface)
         #expect(try await store.recent(in: surface, limit: 5).count <= 1)

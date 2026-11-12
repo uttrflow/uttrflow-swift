@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UttrflowEval
 import UttrflowTestSupport
 
 @testable import UttrflowAI
@@ -147,6 +148,19 @@ struct IllegalMarkSequencePropertyTests {
                     )
                 }
             }
+        }
+    }
+
+    /// The shrunk failures this suite found, kept in the evaluation corpus under the issues that recorded them.
+    static let corpusFailures = EvaluationCorpus.all.filter { [4037, 7327].contains($0.addedFor) }
+
+    @Test("the shrunk failures kept in the corpus stay legal and idempotent in their destination")
+    func corpusFailuresHold() {
+        #expect(Self.corpusFailures.count == 3)
+        for testCase in Self.corpusFailures {
+            let words = testCase.spoken.split(separator: " ").map(String.init)
+            let found = Self.broken(words, in: testCase.destination)
+            #expect(found.isEmpty, "\(testCase.id) breaks \(found.map(\.rawValue).sorted())")
         }
     }
 

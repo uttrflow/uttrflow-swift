@@ -72,8 +72,9 @@ extension DictationPipeline {
         observers.updateGeneration(mine)
 
         let audio: AudioSamples
+        let kept: KeptRecording?
         do {
-            audio = try await recordings.audio(of: recording)
+            (audio, kept) = try await recordings.audio(of: recording)
         } catch {
             // A file that cannot be read cannot be retried, so it is not offered again.
             await recordings.discard(recording)
@@ -93,12 +94,14 @@ extension DictationPipeline {
         stopwatch = nil
         takeSettings(spendingFormat: false)
         spokenFor = audio.duration
-        let kept = (await recordings.waiting(now: Date())).first(where: { $0.id == recording })
         recordingDestination = kept?.destination.map(AppContext.init(identity:))
         recordingFieldKind = kept?.fieldKind
         insertedInto = recordingDestination?.applicationName
         insertedIntoIdentifier = recordingDestination?.bundleIdentifier
         destinationIsSecure = false
+        // The stored identity carries no title, so the private-window finding is restored from the recording.
+        destinationIsPrivate = kept?.fromPrivateWindow ?? false
+        recordedFacts = nil
         cleaningRecords = []
         droppedSpans = []
         openRecording = recording
@@ -124,7 +127,7 @@ extension DictationPipeline {
             let fieldKind =
                 dictationContext?.situation.destination
                 ?? SituationResolver.resolve(from: destination, overrides: runningOverrides).destination
-            await recordings.setDestination(destination, fieldKind: fieldKind, for: id)
+            await recordDestination(destination, fieldKind: fieldKind, for: id)
         }
     }
 }

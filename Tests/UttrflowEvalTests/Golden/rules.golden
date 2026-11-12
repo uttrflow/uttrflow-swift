@@ -620,6 +620,9 @@ lowercase-start-after-complete-sentence-she	He is here. She is not.
 lowercase-start-after-complete-sentence-that	The price is 5 dollars. That is cheap.
 lowercase-start-after-complete-sentence-vitals	The patient is stable. Vitals are normal.
 mark-name-after-written-mark-dropped	Hello, how are you?
+mark-shape-paren-closer-then-stop	(A).
+mark-shape-square-closer-then-stop	[My].
+mark-shape-terminal-doubled-word-mark	my
 markup-css-align	text-align: center;
 markup-css-before	a::before {
 markup-css-child	ul > li {

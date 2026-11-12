@@ -16,6 +16,11 @@ on:
   schedule:
     - cron: "0 7 * * 3"
 
+concurrency:
+  # A newer push supersedes a push's analysis; each trigger has its own group, so a scheduled run is kept.
+  group: scorecard-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+
 permissions: read-all
 
 jobs:

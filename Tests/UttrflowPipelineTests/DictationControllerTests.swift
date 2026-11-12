@@ -81,28 +81,6 @@ private final class SpyCue: RecordingCueing {
     var plays: [Play] { log.withLock { $0 } }
 }
 
-/// A ``TranscriptCleaning`` that always tidies to the same sentence.
-private final class ControllerCleaner: TranscriptCleaning {
-    func clean(
-        _ request: TransformationRequest
-    ) async throws(TransformationError) -> TransformationResult {
-        TransformationResult(text: controllerTidied, producedBy: .foundationModels)
-    }
-}
-
-/// A ``TextInserting`` that records every string it is handed.
-private final class ControllerInserter: TextInserting {
-    private let log = Mutex<[String]>([])
-
-    func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
-        log.withLock { $0.append(text) }
-        return InsertionAttempt(.accessibility)
-    }
-
-    /// Everything that reached the user's document, in order.
-    var received: [String] { log.withLock { $0 } }
-}
-
 // MARK: - Fixtures
 
 private let controllerSpoken = "um i'll be about twenty minutes late to the meeting"
@@ -127,7 +105,7 @@ private struct ControllerHarness {
     let cue: SpyCue
     let capture: FakeAudioCaptureEngine
     let speech: FakeSpeechEngine
-    let inserter: ControllerInserter
+    let inserter: FakeTextInserter
     let clock: ManualClock
 }
 
@@ -167,11 +145,11 @@ private func makeHarness(
     let capture = FakeAudioCaptureEngine(startOutcome: captureStart)
     let speech = FakeSpeechEngine(
         transcribeOutcome: .success(.fixture(text: controllerSpoken)))
-    let inserter = ControllerInserter()
+    let inserter = FakeTextInserter()
     let pipeline = DictationPipeline(
         capture: capture,
         speech: speech,
-        cleaner: ControllerCleaner(),
+        cleaner: FakeTranscriptCleaner(tidying: { _ in controllerTidied }, producedBy: .foundationModels),
         context: FakeContextEngine(context: .fixture()),
         inserter: inserter,
         // A clock of its own, so the stages cannot move the one the hold is measured on.
@@ -404,9 +382,10 @@ struct DictationControllerTests {
                 pipeline: DictationPipeline(
                     capture: FakeAudioCaptureEngine(),
                     speech: FakeSpeechEngine(),
-                    cleaner: ControllerCleaner(),
+                    cleaner: FakeTranscriptCleaner(
+                        tidying: { _ in controllerTidied }, producedBy: .foundationModels),
                     context: FakeContextEngine(context: .fixture()),
-                    inserter: ControllerInserter(),
+                    inserter: FakeTextInserter(),
                     clock: ManualClock()
                 ),
                 monitor: FakeHotkeyMonitor()),

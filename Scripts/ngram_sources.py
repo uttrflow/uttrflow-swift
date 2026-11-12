@@ -3,6 +3,7 @@
 
 import argparse
 import hashlib
+import http.client
 import json
 import os
 import re
@@ -121,9 +122,15 @@ def fetch(sources, cache, opener=urllib.request.urlopen, root=ROOT):
         if os.path.exists(target):
             continue
         partial = target + ".partial"
-        with opener(entry["url"]) as response, open(partial, "wb") as handle:
-            for block in iter(lambda: response.read(1 << 20), b""):
-                handle.write(block)
+        try:
+            with opener(entry["url"]) as response, open(partial, "wb") as handle:
+                for block in iter(lambda: response.read(1 << 20), b""):
+                    handle.write(block)
+        except (OSError, http.client.HTTPException) as error:
+            if os.path.exists(partial):
+                os.remove(partial)
+            failures.append(f"{entry['archive']}: download failed ({error})")
+            continue
         if digest(partial) != entry["sha256"]:
             os.remove(partial)
             failures.append(f"{entry['archive']}: downloaded archive differs from {MANIFEST}")

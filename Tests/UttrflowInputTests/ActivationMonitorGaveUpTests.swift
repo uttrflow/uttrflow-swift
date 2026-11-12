@@ -1,6 +1,7 @@
 // Tests that a source giving up its tap for good releases a held press and is rebuilt after resting. See issue #607.
 import Synchronization
 import Testing
+import UttrflowTestSupport
 
 @testable import UttrflowCore
 @testable import UttrflowInput
@@ -31,7 +32,7 @@ private final class SourceThatGivesUp: KeyboardEventSource, @unchecked Sendable 
 
 private let optionSpaceDown = KeyEvent(keyCode: 49, modifiers: [.option], phase: .down)
 
-@Suite("Activation monitor: the source giving up")
+@Suite("Activation monitor: the source giving up", .timeLimit(.minutes(1)))
 struct ActivationMonitorGaveUpTests {
     @Test("a hold in progress when the source gives up is released, so the microphone does not stay open")
     @MainActor
@@ -58,10 +59,8 @@ struct ActivationMonitorGaveUpTests {
         #expect(source.startCount.withLock { $0 } == 1)
 
         source.giveUp()
-        // The rebuild runs on a detached task; give the run loop a turn to complete it.
-        for _ in 0..<50 where source.startCount.withLock({ $0 }) < 2 {
-            try await Task.sleep(for: .milliseconds(20))
-        }
+        // The rebuild runs on a detached task; wait for it however long a busy run makes it take.
+        try await eventually { source.startCount.withLock { $0 } >= 2 }
         #expect(source.startCount.withLock { $0 } == 2)
     }
 
