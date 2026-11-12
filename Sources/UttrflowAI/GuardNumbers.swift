@@ -65,7 +65,7 @@ extension MeaningPreservationGuard {
     static func changedQuantity(original: String, rewritten: String) -> String? {
         let spoken = amounts(in: original)
         let written = amounts(in: rewritten)
-        guard !spoken.isEmpty, !written.isEmpty else { return nil }
+        guard !spoken.isEmpty else { return nil }
         // Pairs by digits, so a number turned from words into digits ("three" as 3) does not shift later pairs.
         var matched = Set<Int>()
         var cursor = spoken.startIndex
@@ -79,7 +79,29 @@ extension MeaningPreservationGuard {
             cursor = index + 1
         }
         guard written.count < spoken.count else { return nil }
-        return spoken.indices.first { !matched.contains($0) }.map { spoken[$0].written }
+        // A bare amount the rewrite writes as its word ("10" as "ten") is kept; one with a sign or symbol must keep it.
+        var worded = addedNumberWords(original: original, rewritten: rewritten)
+        for index in spoken.indices where !matched.contains(index) {
+            let quantity = spoken[index]
+            guard quantity.sign.isEmpty, quantity.symbol.isEmpty, worded[quantity.digits, default: 0] > 0
+            else { return quantity.written }
+            worded[quantity.digits, default: 0] -= 1
+        }
+        return nil
+    }
+
+    /// The values the rewrite states in words beyond those the draft already states in words, each as often as it is added.
+    private static func addedNumberWords(original: String, rewritten: String) -> [String: Int] {
+        func worded(_ text: String, reading table: [String: String]) -> [String: Int] {
+            var counts: [String: Int] = [:]
+            for value in numberSequence(in: text, reading: table) { counts[value, default: 0] += 1 }
+            for quantity in Quantities.read(in: text) { counts[quantity.digits, default: 0] -= 1 }
+            return counts
+        }
+        let said = worded(original, reading: quantityWords)
+        return worded(rewritten, reading: writtenQuantityWords).reduce(into: [:]) { added, entry in
+            added[entry.key] = entry.value - max(0, said[entry.key] ?? 0)
+        }
     }
 
     /// The quantities a text states, a currency or percent said as a word after the amount ("12 dollars") read as its symbol.
