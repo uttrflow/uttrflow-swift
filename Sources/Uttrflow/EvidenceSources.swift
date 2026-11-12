@@ -98,8 +98,6 @@ enum EvidenceSources {
         let batches = learnt(
             records, entries: await dictionary.allEntries(), ledger: held, overrides: overrides)
         // One write for every allowed application, so a failure leaves no migration row to block the next sweep.
-        let allowed = batches.filter { consent.mayLearn(from: $0.application) }.flatMap(\.rows)
-        guard !allowed.isEmpty else { return }
-        try? await ledger.append(allowed, keeping: window)
+        try? await ledger.append(batches, keeping: window, consent: consent)
     }
 }

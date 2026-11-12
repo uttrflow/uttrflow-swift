@@ -161,6 +161,38 @@ struct EvidenceSourcesTests {
         #expect(await ledger.rows(keeping: window) == rows)
     }
 
+    /// Consent that refuses one application and allows every other.
+    private struct Declining: LearningConsent {
+        let declined: String
+        func state(of bundleIdentifier: String?) -> ConsentState {
+            bundleIdentifier == declined ? .declined : .allowed
+        }
+    }
+
+    @Test("a backfill's batches are checked by the ledger at the write, one application at a time")
+    func backfillBatchesAreCheckedAtTheWrite() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let ledger = EvidenceLedgerStore(
+            file: EvidenceLedgerStore.defaultFile(in: root), encryptedStore: EncryptedStore(keys: Keys()))
+        let window = RetentionWindow(days: RetentionWindow.keepAlwaysDays, now: now)
+        let notes = [EvidenceRow(kind: .styleMessage, subject: "notes", day: today, provenance: .migration)]
+        let mail = [EvidenceRow(kind: .styleMessage, subject: "mail", day: today, provenance: .migration)]
+        let batches: [(application: String?, rows: [EvidenceRow])] = [
+            ("com.example.notes", notes), ("com.example.mail", mail),
+        ]
+
+        let consent = Revocable()
+        #expect(consent.mayLearn(from: "com.example.notes"))
+        consent.withdraw()
+        try await ledger.append(batches, keeping: window, consent: consent)
+        #expect(await ledger.rows(keeping: window).isEmpty)
+
+        try await ledger.append(batches, keeping: window, consent: Declining(declined: "com.example.mail"))
+        #expect(await ledger.rows(keeping: window) == notes)
+    }
+
     @Test(
         "a withdrawal raced against 100 writes lets no row land once a write has seen it",
         arguments: 0..<20)
