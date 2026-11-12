@@ -55,7 +55,7 @@ final class SuggestionCoordinator {
     let capture: CaptureSession
     private let panel: SuggestionPanelController
     private let interceptor = KeyInterceptor()
-    private let secureInput: SecureInputWatch
+    private let secureInput: SecureInputPause
     /// Whether secure keyboard entry is holding suggestions off, as this coordinator last saw it.
     var isSecureInputBlocking: Bool { secureInput.isBlocking }
     private let acceptor: SuggestionAcceptor
@@ -116,8 +116,6 @@ final class SuggestionCoordinator {
     private let workspaceCenter: NotificationCenter
     /// Whether a held mouse button can still move the focused window under a ghost.
     private var isPointerGestureActive = false
-    /// Polls secure keyboard entry while it pauses suggestions, since no key or field event arrives to end the pause.
-    private var secureInputRecheck: Timer?
     /// Whether field observation is active or kept alive by a visible ghost.
     private let ticking = SuggestionActivityClock()
     private lazy var swallowedKeys = SwallowedKeyHandling(tap: interceptor, rest: tapRest)
@@ -129,7 +127,7 @@ final class SuggestionCoordinator {
     /// Whether the current focused-selection poll is still awaiting its reader.
     var isSelectionReadInFlight: Bool { selectionPolling.isReadInFlight }
     var isTickerScheduled: Bool { ticking.isScheduled }
-    var isSecureInputRecheckScheduled: Bool { secureInputRecheck != nil }
+    var isSecureInputRecheckScheduled: Bool { secureInput.isRecheckScheduled }
     private var lastKeystroke = Date.distantPast
     private var lastFluentKeystroke = Date.distantPast
     /// The last observed key-down, used to distinguish typing from edits made without a key.
@@ -215,7 +213,7 @@ final class SuggestionCoordinator {
     ) async throws {
         self.preferences = preferences
         self.processActivity = processActivity
-        self.secureInput = secureInput
+        self.secureInput = SecureInputPause(watch: secureInput)
         self.generator = generating
         self.focusedSelectionReader = focusedSelectionReader
         self.focusedFieldReader = focusedFieldReader
@@ -405,48 +403,34 @@ final class SuggestionCoordinator {
 
     /// Withdraws suggestions while secure keyboard entry prevents reliable key capture.
     private func checkSecureInput() {
-        guard secureInput.check() else { return }
-        let now = secureInput.isBlocking ? "on" : "off"
-        Self.log.notice("suggestion secure keyboard entry \(now, privacy: .public)")
-        if secureInput.isBlocking {
-            onSecureInputChanged?(true)
-            // A rest ending now would bring the tap back into the secure entry it was withdrawn from.
-            tapRest.cancel()
-            withdraw()
-            focusedFieldValueObserver.stop()
-            interceptor.stop()
-            onSecureInputBlockingChanged?(true)
-            panel.announce(SecureInputWatch.suggestionNotice)
-            scheduleSecureInputRecheck()
-        } else {
-            stopSecureInputRecheck()
-            onSecureInputChanged?(false)
-            onSecureInputBlockingChanged?(false)
-            switch startInterceptor() {
-            case .success: onTapRestChanged?(.success(()))
-            case .failure(let error): onTapRestChanged?(.failure(error))
-            }
-        }
-    }
-
-    /// Rechecks secure keyboard entry on a timer, so the pause lifts in the same app without an activation.
-    private func scheduleSecureInputRecheck() {
-        guard secureInputRecheck == nil, !wakeState.isStopped else { return }
-        let timer = Timer.scheduledTimer(withTimeInterval: SuggestionTicking.interval, repeats: true) {
-            [weak self] _ in MainActor.assumeIsolated { self?.checkSecureInput() }
-        }
-        timer.tolerance = SuggestionTicking.tolerance
-        secureInputRecheck = timer
-    }
-
-    private func stopSecureInputRecheck() {
-        secureInputRecheck?.invalidate()
-        secureInputRecheck = nil
+        secureInput.check(
+            mayRecheck: !wakeState.isStopped,
+            effects: SecureInputPauseEffects(
+                paused: { [weak self] in
+                    guard let self else { return }
+                    onSecureInputChanged?(true)
+                    // A rest ending now would bring the tap back into the secure entry it was withdrawn from.
+                    tapRest.cancel()
+                    withdraw()
+                    focusedFieldValueObserver.stop()
+                    interceptor.stop()
+                    onSecureInputBlockingChanged?(true)
+                    panel.announce(SecureInputWatch.suggestionNotice)
+                },
+                resumed: { [weak self] in
+                    guard let self else { return }
+                    onSecureInputChanged?(false)
+                    onSecureInputBlockingChanged?(false)
+                    switch startInterceptor() {
+                    case .success: onTapRestChanged?(.success(()))
+                    case .failure(let error): onTapRestChanged?(.failure(error))
+                    }
+                }))
     }
 
     /// Takes the surface away, disarms the tap and stops watching.
     func stop() {
-        stopSecureInputRecheck()
+        secureInput.stopRechecking()
         processActivity.end()
         wakeState.stop()
         turns.abandon()

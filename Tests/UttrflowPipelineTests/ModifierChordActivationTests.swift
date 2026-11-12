@@ -92,17 +92,6 @@ private final class ChordCleaner: TranscriptCleaning {
     }
 }
 
-private final class ChordInserter: TextInserting {
-    private let log = Mutex<[String]>([])
-
-    func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
-        log.withLock { $0.append(text) }
-        return InsertionAttempt(.accessibility)
-    }
-
-    var received: [String] { log.withLock { $0 } }
-}
-
 private final class ChordCue: RecordingCueing {
     private let starts = Mutex(0)
     func playStart() { starts.withLock { $0 += 1 } }
@@ -119,7 +108,7 @@ private final class Rig {
     let controller: DictationController<ManualClock>
     let pipeline: DictationPipeline
     let capture: FakeAudioCaptureEngine
-    let inserter: ChordInserter
+    let inserter: FakeTextInserter
     let cue: ChordCue
     let clock: ManualClock
     let metrics: RecordingMetricsRecorder
@@ -130,7 +119,7 @@ private final class Rig {
 
     static func make(_ binding: HotkeyBinding, _ activation: HotkeyActivation) async throws -> Rig {
         let capture = FakeAudioCaptureEngine()
-        let inserter = ChordInserter()
+        let inserter = FakeTextInserter()
         let metrics = RecordingMetricsRecorder()
         let speech = FakeSpeechEngine(
             transcribeOutcome: .success(.fixture(text: "meet me at the corner")))
@@ -164,7 +153,7 @@ private final class Rig {
 
     private init(
         controller: DictationController<ManualClock>, pipeline: DictationPipeline,
-        capture: FakeAudioCaptureEngine, inserter: ChordInserter, cue: ChordCue,
+        capture: FakeAudioCaptureEngine, inserter: FakeTextInserter, cue: ChordCue,
         metrics: RecordingMetricsRecorder, speech: FakeSpeechEngine, clock: ManualClock,
         recogniser: HotkeyRecogniser
     ) {

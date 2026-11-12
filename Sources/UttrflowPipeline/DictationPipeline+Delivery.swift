@@ -146,11 +146,11 @@ extension DictationPipeline {
         }
         // An application the user declined is learned nothing from, by counting or by the dictionary.
         let learnedFrom = landedIn(attempt)?.bundleIdentifier ?? appContext?.bundleIdentifier
-        guard await consent.mayLearn(from: learnedFrom) else { return }
+        guard consent.mayLearn(from: learnedFrom) else { return }
         // A secret is not a word to learn or count, by the same gate that keeps it out of History.
         guard let kept = KeptWords.of(toWrite, intoSecureField: wasSecure) else { return }
         // Both run after the words are on screen, and neither can fail the dictation. §19.
-        await count(changes, writtenIn: kept)
+        await count(changes, writtenIn: kept, in: learnedFrom)
         // A destination reported by the inserter wins over a screen read made before the switch.
         if let landedID = landedIn(attempt)?.bundleIdentifier,
             let readID = appContext?.bundleIdentifier, landedID != readID
@@ -257,13 +257,13 @@ extension DictationPipeline {
     }
 
     /// Tells the stores what this dictation used, once the words are safely on screen.
-    private func count(_ changes: AppliedChanges, writtenIn text: String) async {
+    private func count(_ changes: AppliedChanges, writtenIn text: String, in application: String?) async {
         // Once per entry and in one batch: the store counts dictations an entry appeared in, not words, by any path.
         var counted: Set<UUID> = []
         let entries = (changes.corrections.map(\.entryID) + changes.entriesTaken)
             .filter { counted.insert($0).inserted }
         if !entries.isEmpty || !text.isEmpty {
-            try? await learner.recordUse(ofEntries: entries, writtenIn: text)
+            try? await learner.recordUse(ofEntries: entries, writtenIn: text, in: application)
         }
 
         guard !changes.snippets.isEmpty else { return }

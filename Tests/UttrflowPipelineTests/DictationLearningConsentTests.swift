@@ -23,7 +23,7 @@ private final class RememberingVocabulary: VocabularyLearning, Sendable {
 private struct OneAnswer: LearningConsent {
     let answer: ConsentState
 
-    func state(of bundleIdentifier: String?) async -> ConsentState { answer }
+    func state(of bundleIdentifier: String?) -> ConsentState { answer }
 }
 
 private let words = "ship the draft on friday"

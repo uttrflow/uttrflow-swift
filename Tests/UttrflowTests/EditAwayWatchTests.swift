@@ -107,7 +107,7 @@ struct EditAwayWatchTests {
             snippets: SnippetStore(file: root.appendingPathComponent("snippets.json")),
             watchEdits: { await seen.add($0, $1) })
 
-        try await counters.recordUse(ofEntries: [], writtenIn: "Uttrflow ships to Kubernets.")
+        try await counters.recordUse(ofEntries: [], writtenIn: "Uttrflow ships to Kubernets.", in: nil)
 
         let calls = await seen.calls
         #expect(

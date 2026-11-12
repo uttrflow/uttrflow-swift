@@ -88,7 +88,7 @@ public struct CapturePreferencesFile: LearningConsent {
     }
 
     /// What was said about one application, read fresh so a switch moved in Settings counts at once.
-    public func state(of bundleIdentifier: String?) async -> ConsentState {
+    public func state(of bundleIdentifier: String?) -> ConsentState {
         guard let bundleIdentifier else { return .unknown }
         return load().state(of: bundleIdentifier)
     }
