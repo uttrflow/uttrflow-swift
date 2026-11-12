@@ -51,6 +51,7 @@ extension DictationPipeline {
             let meant = waitedForLoad ? recordingDestination ?? appContext : appContext
             insertionContext = await insertionContextForWrite(matching: meant)
             guard !wasCancelled(mine) else { return }
+            notePrivateWindow(in: insertionContext)
             if waitedForLoad, insertionContext == .unknown {
                 delivery = .copy
                 insertedInto = nil
@@ -97,7 +98,7 @@ extension DictationPipeline {
         else { return }
         // Read before the next await, since the next dictation may start once these words are on screen.
         let wasSecure = destinationIsSecure
-        let wasPrivate = destinationIsPrivate || seen.isInPrivateWindow
+        let wasPrivate = destinationIsPrivate
         // A snippet's caret moves only in the field that took the words, verified there; otherwise it stays at the end.
         if delivery == .insert, let back = expanded.caretBack(inWritten: toWrite), back > 0 {
             _ = await inserter.placeCaret(back: back)

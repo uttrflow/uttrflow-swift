@@ -131,10 +131,12 @@ public actor RecordingStore: RecordingKeeper {
         destinations[id] = nil
     }
 
-    public func setDestination(_ destination: AppContext, fieldKind: Destination, for id: UUID) {
+    public func setDestination(
+        _ destination: AppContext, fieldKind: Destination, privateWindow: Bool, for id: UUID
+    ) {
         guard last?.id == id || FileManager.default.fileExists(atPath: url(of: id).path) else { return }
         let recorded = RecordedDestination(
-            app: destination.identity, fieldKind: fieldKind, fromPrivateWindow: destination.isInPrivateWindow)
+            app: destination.identity, fieldKind: fieldKind, fromPrivateWindow: privateWindow)
         destinations[id] = recorded
         if let data = try? PropertyListEncoder().encode(recorded) {
             try? PrivateFile.write(data, to: destinationURL(of: id))
@@ -267,9 +269,24 @@ public actor RecordingStore: RecordingKeeper {
         try? FileManager.default.removeItem(at: file)
     }
 
-    public func audio(of id: UUID) async throws(AudioCaptureError) -> AudioSamples {
+    public func audio(
+        of id: UUID
+    ) async throws(AudioCaptureError)
+        -> (audio: AudioSamples, recording: KeptRecording?)
+    {
         await settle(id)
-        return try readAudio(at: url(of: id), encryptedStore: encryptedStore)
+        let audio = try readAudio(at: url(of: id), encryptedStore: encryptedStore)
+        // Read by identifier, so a finished recording kept for a fix brings its facts as a waiting one does.
+        let recorded = destination(for: id)
+        let when = (try? url(of: id).resourceValues(forKeys: [.creationDateKey]).creationDate) ?? Date()
+        return (
+            audio,
+            recorded.map {
+                KeptRecording(
+                    id: id, when: when, duration: audio.duration, destination: $0.app,
+                    fieldKind: $0.fieldKind, fromPrivateWindow: $0.fromPrivateWindow)
+            }
+        )
     }
 
     /// Opens an encrypted stream or migrates a legacy WAV before returning plaintext samples.

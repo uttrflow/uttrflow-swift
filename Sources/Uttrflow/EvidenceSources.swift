@@ -87,7 +87,7 @@ enum EvidenceSources {
         }
     }
 
-    /// Appends History's pre-ledger dictations to the ledger once, when there is one, leaving out applications `consent` refuses; a refused write is retried on the next sweep.
+    /// Appends History's pre-ledger dictations to the ledger once, when there is one, leaving out applications `consent` refuses; a failed write leaves nothing, so the next sweep tries again.
     static func backfill(
         _ ledger: EvidenceLedgerStore?, from records: [DictationRecord], consent: any LearningConsent,
         dictionary: PersonalDictionaryStore, overrides: DestinationOverrides, keeping window: RetentionWindow
@@ -97,15 +97,9 @@ enum EvidenceSources {
         let held = await ledger.rows(keeping: window)
         let batches = learnt(
             records, entries: await dictionary.allEntries(), ledger: held, overrides: overrides)
-        var applications: [String?] = []
-        var learntIn: [String?: [EvidenceRow]] = [:]
-        for (application, rows) in batches where !rows.isEmpty {
-            if learntIn[application] == nil { applications.append(application) }
-            learntIn[application, default: []] += rows
-        }
-        for application in applications {
-            try? await ledger.append(
-                learntIn[application] ?? [], keeping: window, learntIn: application, consent: consent)
-        }
+        // One write for every allowed application, so a failure leaves no migration row to block the next sweep.
+        let allowed = batches.filter { consent.mayLearn(from: $0.application) }.flatMap(\.rows)
+        guard !allowed.isEmpty else { return }
+        try? await ledger.append(allowed, keeping: window)
     }
 }

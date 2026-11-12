@@ -30,7 +30,7 @@ struct AVAudioCaptureEngineRecordingTests {
 
         let recording = try #require(await store.current())
         #expect(audio.samples == [0.1, 0.2, 0.3])
-        let kept = try await store.audio(of: recording.id)
+        let kept = try await store.audio(of: recording.id).audio
         #expect(kept.samples.count == 3)
         #expect(zip(kept.samples, audio.samples).allSatisfy { abs($0 - $1) < 0.001 })
     }
@@ -66,7 +66,7 @@ struct AVAudioCaptureEngineRecordingTests {
         await #expect(throws: AudioCaptureError.self) { _ = try await engine.stop() }
 
         let recording = try #require(await store.current())
-        #expect(try await store.audio(of: recording.id).samples.count == 16_000)
+        #expect(try await store.audio(of: recording.id).audio.samples.count == 16_000)
         #expect(await store.waiting(now: Date()).count == 1)
     }
 

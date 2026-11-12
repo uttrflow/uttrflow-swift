@@ -20,6 +20,8 @@ public struct DictationFailure: Sendable, Equatable {
     public let speechEngineError: SpeechEngineError?
     /// The kept recording `.retryFromRecording` runs again, so the notice's button retries it directly.
     public let keptRecording: UUID?
+    /// Whether any read of the dictation saw a private-browsing window, so History never learns from its words.
+    package private(set) var fromPrivateWindow = false
 
     public init(
         message: String, cause: String? = nil, recovery: RecoveryAction?, severity: FailureSeverity,
@@ -82,7 +84,15 @@ public struct DictationFailure: Sendable, Equatable {
             message: Self.message(cause: cause, recovery: recovery) ?? message, cause: cause,
             recovery: recovery, severity: severity, transcript: transcript,
             intoSecureField: intoSecureField, speechEngineKind: speechEngineKind,
-            speechEngineError: speechEngineError, keptRecording: keptRecording)
+            speechEngineError: speechEngineError, keptRecording: keptRecording
+        ).markingPrivate(fromPrivateWindow)
+    }
+
+    /// The same failure, marked as from a private-browsing window when any read of the dictation saw one.
+    package func markingPrivate(_ isPrivate: Bool) -> DictationFailure {
+        var marked = self
+        marked.fromPrivateWindow = isPrivate
+        return marked
     }
 
     /// The sentence a recovery set after the error needs, or `nil` where the error's own sentence still holds.
@@ -107,7 +117,8 @@ public struct DictationFailure: Sendable, Equatable {
             recovery: cannotCopySecureTranscript ? nil : recovery,
             severity: severity, transcript: transcript,
             intoSecureField: secure, speechEngineKind: speechEngineKind,
-            speechEngineError: speechEngineError, keptRecording: keptRecording)
+            speechEngineError: speechEngineError, keptRecording: keptRecording
+        ).markingPrivate(fromPrivateWindow)
     }
 }
 

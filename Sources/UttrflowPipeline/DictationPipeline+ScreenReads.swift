@@ -53,7 +53,7 @@ extension DictationPipeline {
         insertedInto = read.applicationName
         insertedIntoIdentifier = read.bundleIdentifier
         destinationIsSecure = read.isSecure
-        destinationIsPrivate = read.isInPrivateWindow
+        notePrivateWindow(in: read)
         return read
     }
 
@@ -138,8 +138,7 @@ extension DictationPipeline {
             insertedInto = read.applicationName
             insertedIntoIdentifier = read.bundleIdentifier
             destinationIsSecure = read.isSecure
-            // A read that did not reach the window says nothing about it, so an earlier finding stands.
-            if read.unavailable == nil { destinationIsPrivate = read.isInPrivateWindow }
+            notePrivateWindow(in: read)
             let recordedDestination = early.context ?? dictationContext?.app ?? read
             recordingDestination = recordedDestination
             let fieldKind =
@@ -147,8 +146,7 @@ extension DictationPipeline {
                 ?? SituationResolver.resolve(from: recordedDestination, overrides: runningOverrides)
                 .destination
             if let openRecording {
-                await recordings.setDestination(
-                    recordedDestination, fieldKind: fieldKind, for: openRecording)
+                await recordDestination(recordedDestination, fieldKind: fieldKind, for: openRecording)
             }
             return read
         case .copy:

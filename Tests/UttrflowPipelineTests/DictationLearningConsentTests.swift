@@ -117,7 +117,7 @@ struct DictationLearningConsentTests {
         #expect(vocabulary.offered.isEmpty)
     }
 
-    @Test("a final read that timed out keeps the private window the early read found")
+    @Test("no later read, timed out or ordinary, clears the private window an earlier read found")
     func timedOutFinalReadKeepsPrivateWindow() async throws {
         let context = FakeContextEngine(context: .fixture(documentName: "Example - Private Browsing"))
         let pipeline = DictationPipeline(
@@ -137,8 +137,84 @@ struct DictationLearningConsentTests {
 
         await context.setContext(.fixture(documentName: "Example - Browser"))
         _ = await pipeline.contextFor(.insert)
-        #expect(await !pipeline.destinationIsPrivate)
+        #expect(await pipeline.destinationIsPrivate)
         await pipeline.cancel()
+    }
+
+    @Test("a finished recording kept for a fix brings its private-window finding to a retry")
+    func retriedFinishedPrivateRecordingLearnsNothing() async {
+        let vocabulary = RememberingVocabulary()
+        let kept = KeptRecording(
+            id: UUID(), when: Date(), duration: .seconds(1),
+            destination: AppContext.fixture().identity, fromPrivateWindow: true)
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(),
+            speech: FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: words))),
+            cleaner: FakeTranscriptCleaner(),
+            context: FakeContextEngine(context: .fixture()),
+            inserter: FakeTextInserter(.success(InsertionAttempt(.pasteboard))),
+            vocabulary: vocabulary,
+            consent: OneAnswer(answer: .allowed),
+            recordings: FakeRecordingKeeper(finished: [kept]),
+            clock: ManualClock())
+        #expect(await pipeline.retry(kept.id))
+        guard case .inserted(let outcome) = await pipeline.currentState else {
+            Issue.record("expected the retry to land")
+            return
+        }
+        #expect(outcome.fromPrivateWindow)
+        #expect(vocabulary.offered.isEmpty)
+    }
+
+    @Test(
+        "a switch to a private window of the same application before the write marks the dictation and its recording"
+    )
+    func insertionTimePrivateWindowCounts() async throws {
+        let vocabulary = RememberingVocabulary()
+        let recording = KeptRecording(id: UUID(), when: Date(), duration: .seconds(1))
+        let keeper = FakeRecordingKeeper(current: recording)
+        let context = FakeContextEngine(context: .fixture(documentName: "Example - Browser"))
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(),
+            speech: FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: words))),
+            cleaner: FakeTranscriptCleaner(),
+            context: context,
+            inserter: FakeTextInserter(.success(InsertionAttempt(.accessibility, arrival: .confirmed))),
+            vocabulary: vocabulary,
+            consent: OneAnswer(answer: .allowed),
+            recordings: keeper,
+            clock: ManualClock())
+        await pipeline.startRecording()
+        try await eventually { await pipeline.earlyReadsSettled == 1 }
+        await context.setContext(.fixture(documentName: "Example - Private Browsing"))
+        await pipeline.finishRecording()
+        guard case .inserted(let outcome) = await pipeline.currentState else {
+            Issue.record("expected the dictation to land")
+            return
+        }
+        #expect(outcome.fromPrivateWindow)
+        #expect(vocabulary.offered.isEmpty)
+        #expect(try await keeper.audio(of: recording.id).recording?.fromPrivateWindow == true)
+    }
+
+    @Test("a dictation that fails in a private window says so, so History never learns from it")
+    func failedPrivateDictationIsMarked() async {
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(),
+            speech: FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: words))),
+            cleaner: FakeTranscriptCleaner(),
+            context: FakeContextEngine(context: .fixture(documentName: "Example - Private Browsing")),
+            inserter: FakeTextInserter(.failure(.noFocusedTextField)),
+            clock: ManualClock())
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+        guard case .failed(let failure) = await pipeline.currentState else {
+            Issue.record("expected the dictation to fail")
+            return
+        }
+        #expect(failure.fromPrivateWindow)
+        #expect(failure.offering(.retry).fromPrivateWindow)
+        #expect(failure.markingSecure(false).fromPrivateWindow)
     }
 
     @Test("the switch in Settings, turned off, stops learning even where the user allowed it")

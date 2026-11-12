@@ -3746,7 +3746,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .playRecording(let id):
             guard playback.playing != id else { return playback.stop() }
             Task { [weak self] in
-                guard let self, let audio = try? await self.recordings.audio(of: id) else { return }
+                guard let self, let audio = try? await self.recordings.audio(of: id).audio else { return }
                 self.playback.play(WAVEncoder.encode(audio), id: id)
             }
 
