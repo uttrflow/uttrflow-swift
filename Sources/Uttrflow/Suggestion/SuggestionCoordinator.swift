@@ -754,27 +754,10 @@ final class SuggestionCoordinator {
 
     /// Reads the focused selection and withdraws an armed offer when it no longer matches.
     func pollFocusedSelection(generation: Int? = nil) async {
-        let generation = generation ?? selectionPolling.generation
-        guard generation == selectionPolling.generation, !selectionPolling.isReadInFlight,
-            armedOffer != nil, selectionPolling.guardrail != nil, !isInserting
-        else { return }
-        guard activityIsAllowed() else { return withdraw() }
-        selectionPolling.isReadInFlight = true
-        let read = await focusedSelectionReader()
-        guard generation == selectionPolling.generation else { return }
-        selectionPolling.isReadInFlight = false
-        let selection: FocusedFieldSelection
-        switch read {
-        case .timedOut:
-            return
-        case .unavailable:
-            return withdraw()
-        case .selection(let value):
-            selection = value
-        }
-        guard var selectionGuard = selectionPolling.guardrail else { return }
-        guard !selectionGuard.observe(selection) else { return withdraw() }
-        self.selectionPolling.guardrail = selectionGuard
+        let verdict = await selectionPolling.check(
+            generation: generation ?? selectionPolling.generation, isArmed: armedOffer != nil,
+            isInserting: isInserting, isAllowed: { activityIsAllowed() }, read: focusedSelectionReader)
+        if verdict == .withdraw { withdraw() }
     }
 
     /// Stops the selection poll and invalidates any result still waiting on Accessibility.

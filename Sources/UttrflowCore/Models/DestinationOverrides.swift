@@ -91,6 +91,8 @@ public struct DestinationOverrides: Sendable, Equatable, Codable {
     public private(set) var overrides: [DestinationOverride]
     /// A mode for one dictation that wins over every app's stored mode; never stored.
     private(set) var oneShotMode: AdapterMode?
+    /// The preset every app without one of its own is dictated under; never stored, since the settings hold it.
+    private(set) var everyAppPreset = QualityPreset.ID.standard
 
     private enum CodingKeys: String, CodingKey { case overrides }
 
@@ -120,6 +122,18 @@ public struct DestinationOverrides: Sendable, Equatable, Codable {
         var copy = self
         copy.oneShotMode = mode
         return copy
+    }
+
+    /// The same overrides with `preset` for every app that names none of its own; never stored.
+    public func holding(everyApp preset: QualityPreset.ID) -> DestinationOverrides {
+        var copy = self
+        copy.everyAppPreset = preset
+        return copy
+    }
+
+    /// The preset this app is dictated under: its own, else the one for every app.
+    public func qualityPreset(forBundleIdentifier bundle: String?) -> QualityPreset {
+        QualityPreset.preset(bundle.flatMap(preset(forBundleIdentifier:)) ?? everyAppPreset)
     }
 
     /// How this app's words are to be formatted: the one-shot choice if there is one, else the app's own.

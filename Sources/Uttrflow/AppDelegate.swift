@@ -1506,7 +1506,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             consent: learnt.consent,
             metrics: telemetry.map { MetricsFanOut([diagnostics, $0.recorder]) } ?? diagnostics,
             cleaningRecorder: diagnostics,
-            destinationOverrides: settings.destinations,
+            destinationOverrides: settings.dictationOverrides,
             recordings: recordings,
             // A retry runs with Uttrflow's own window in front, so its words can only be copied.
             clipboard: TextInsertionCoordinator(strategies: [
@@ -4411,12 +4411,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             applyWindowSharing()
         }
         // A freshly built cleaner, so the next dictation runs the choices just made.
-        if updated.cleaning != previous.cleaning || updated.destinations != previous.destinations
+        if updated.cleaning != previous.cleaning
+            || updated.dictationOverrides != previous.dictationOverrides
             || updated.engines != previous.engines
         {
             probeTransformers()
             let tidier = cleaner(for: updated)
-            let overrides = updated.destinations
+            let overrides = updated.dictationOverrides
             Task { [weak self] in
                 await self?.pipeline?.adopt(cleaner: tidier, destinationOverrides: overrides)
             }
