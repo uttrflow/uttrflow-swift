@@ -127,6 +127,7 @@ struct AdapterChoiceInputsTests {
         #expect(
             fields == [
                 "app", "insertion", "destination", "intent", "numberStyle", "adapterMode", "punctuation",
+                "preset",
             ])
     }
 
