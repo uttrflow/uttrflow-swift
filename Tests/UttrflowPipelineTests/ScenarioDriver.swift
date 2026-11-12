@@ -15,15 +15,21 @@ struct ScriptedPiece: Sendable {
     let pauseBefore: Double
     /// The language the recogniser says it heard the piece in.
     let language: LanguageCode
+    /// How long the piece's decode takes on the scenario's manual clock.
+    let decodeTime: Duration
+    /// The fallback decodes the recogniser reports for the piece.
+    let effort: DecodeEffort
 
     init(
         _ text: String, wordConfidence: Double = 1, pauseBefore: Double = 0.5,
-        language: LanguageCode = .english
+        language: LanguageCode = .english, decodeTime: Duration = .zero, effort: DecodeEffort = .none
     ) {
         self.text = text
         self.wordConfidence = wordConfidence
         self.pauseBefore = pauseBefore
         self.language = language
+        self.decodeTime = decodeTime
+        self.effort = effort
     }
 }
 
@@ -43,6 +49,14 @@ struct Scenario: Sendable {
     /// The piece whose decode waits until the test releases it, counted from the first decode the recogniser is asked for.
     var heldPiece: Int?
     var recordings: any RecordingKeeper = RecordingsNotKept()
+    /// The words the recogniser is biased towards, read from the screen.
+    var speechWords: @Sendable (AppContext) async -> [String] = { _ in [] }
+    /// The person's per-app destination and formatting choices.
+    var destinationOverrides: DestinationOverrides = .none
+    var cleaningRecorder: any CleaningRecording = NoOpCleaningRecorder()
+    var metrics: any MetricsRecording = NoOpMetricsRecorder()
+    /// The clock the pipeline times its stages on; each decode moves it on by the piece's decode time.
+    var clock: ManualClock?
     /// How often the pipeline looks for a finished piece while the key is held.
     var earlyPoll: Duration = .milliseconds(2)
 }
@@ -125,6 +139,9 @@ enum ScenarioDriver {
         return AudioSamples.canonical(samples)
     }
 
+    /// One window of speech, for a scenario whose pieces are every decode of the same recording.
+    static let oneWindow = take([ScriptedPiece("")])
+
     static func run(_ scenario: Scenario) async -> ScenarioRun {
         await session(scenario).run()
     }
@@ -139,14 +156,18 @@ enum ScenarioDriver {
         let take = scenario.take ?? take(scenario.pieces)
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(take))
         await capture.setCaptured(take)
-        let speech = ScriptedPieceRecogniser(scenario.pieces, holding: scenario.heldPiece)
+        let speech = ScriptedPieceRecogniser(
+            scenario.pieces, holding: scenario.heldPiece, clock: scenario.clock)
         let inserter = FakeTextInserter()
         let pipeline = DictationPipeline(
             capture: capture, speech: speech, cleaner: scenario.cleaner,
             context: FakeContextEngine(context: scenario.context), inserter: inserter,
-            corrector: scenario.corrector, snippets: scenario.snippets, spellings: scenario.spellings,
-            recordings: scenario.recordings, profile: scenario.profile, windowing: windows,
-            earlyPoll: scenario.earlyPoll)
+            speechWords: scenario.speechWords, corrector: scenario.corrector,
+            snippets: scenario.snippets, spellings: scenario.spellings, metrics: scenario.metrics,
+            cleaningRecorder: scenario.cleaningRecorder,
+            destinationOverrides: scenario.destinationOverrides, recordings: scenario.recordings,
+            clock: scenario.clock ?? ContinuousClock(), profile: scenario.profile,
+            windowing: windows, earlyPoll: scenario.earlyPoll)
         return ScenarioSession(
             pipeline: pipeline, speech: speech, inserter: inserter, context: scenario.context)
     }
@@ -175,15 +196,17 @@ actor ScriptedPieceRecogniser: SpeechEngine {
     let kind = SpeechEngineKind.whisperKit
     private let pieces: [ScriptedPiece]
     private let heldPiece: Int?
+    private let clock: ManualClock?
     private var held: CheckedContinuation<Void, Never>?
     private var released = false
     /// The language hint of every decode asked for, in the order asked.
     private(set) var hints: [LanguageCode?] = []
     private(set) var answered: [Transcription] = []
 
-    init(_ pieces: [ScriptedPiece], holding heldPiece: Int? = nil) {
+    init(_ pieces: [ScriptedPiece], holding heldPiece: Int? = nil, clock: ManualClock? = nil) {
         self.pieces = pieces
         self.heldPiece = heldPiece
+        self.clock = clock
     }
 
     /// Lets the held piece's decode answer.
@@ -203,16 +226,16 @@ actor ScriptedPieceRecogniser: SpeechEngine {
         guard index < pieces.count else { throw .nothingHeard }
         if index == heldPiece, !released { await withCheckedContinuation { held = $0 } }
         let piece = pieces[index]
+        clock?.advance(by: piece.decodeTime)
+        let speech = TranscriptionSegment(
+            text: piece.text, start: .zero, end: audio.duration,
+            words: piece.text.spokenWords.map {
+                TranscribedWord(text: String($0), confidence: piece.wordConfidence)
+            })
         let heard = Transcription(
             text: piece.text, detectedLanguage: DetectedLanguage(code: piece.language, confidence: 1),
-            segments: [
-                TranscriptionSegment(
-                    text: piece.text, start: .zero, end: audio.duration,
-                    words: piece.text.spokenWords.map {
-                        TranscribedWord(text: String($0), confidence: piece.wordConfidence)
-                    })
-            ],
-            audioDuration: audio.duration)
+            segments: piece.text.isEmpty ? [] : [speech], audioDuration: audio.duration,
+            effort: piece.effort)
         answered.append(heard)
         return heard
     }
@@ -234,6 +257,24 @@ struct ScriptedSentenceModel: CleanupModel {
     }
 }
 
+/// A dictionary holding one spelling for one heard word, wherever it is heard.
+struct OneEntryDictionary: WordCorrecting {
+    let heard: String
+    let wrote: String
+
+    func corrections(
+        for transcription: Transcription, seeing context: AppContext
+    ) async throws(DictationChangeError) -> [DictationCorrection] {
+        transcription.text.split(whereSeparator: \.isWhitespace).enumerated().compactMap {
+            $0.element.lowercased() == heard
+                ? DictationCorrection(
+                    heard: String($0.element), wrote: wrote, wordRange: $0.offset..<($0.offset + 1),
+                    entryID: UUID(), reason: .unknown("test"), heardConfidence: 0.2)
+                : nil
+        }
+    }
+}
+
 /// The snippets on file, matched by the shipping matcher.
 struct FiledSnippets: SnippetExpanding {
     let snippets: [Snippet]
@@ -246,4 +287,20 @@ struct FiledSnippets: SnippetExpanding {
                 SnippetUse(snippetID: $0.snippetID, matched: $0.matched, expansion: $0.expansion)
             }, caret: expansion.caret)
     }
+}
+
+/// A ``HotkeyMonitoring`` whose events never arrive: open until stopped, or ended from the start.
+final class SilentHotkeyMonitor: HotkeyMonitoring {
+    let events: AsyncStream<HotkeyEvent>
+    private let continuation: AsyncStream<HotkeyEvent>.Continuation
+
+    /// A monitor whose events stay open until `stop()`, or, with `endsAtOnce`, end before anyone listens.
+    init(endsAtOnce: Bool = false) {
+        (events, continuation) = AsyncStream.makeStream()
+        if endsAtOnce { continuation.finish() }
+    }
+
+    @MainActor func start(binding: HotkeyBinding) throws(HotkeyError) {}
+
+    func stop() { continuation.finish() }
 }

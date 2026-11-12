@@ -106,7 +106,9 @@ public struct PanelSheetPresentation: Sendable, Equatable {
 
 extension PanelPresenter {
     /// Draws whatever sheet is open, or nothing.
-    static func sheet(for snapshot: PanelSnapshot) -> PanelSheetPresentation? {
+    static func sheet(
+        for snapshot: PanelSnapshot, using cache: PanelCache = PanelCache.current
+    ) -> PanelSheetPresentation? {
         guard let sheet = snapshot.sheet else { return nil }
         let clip = sheet.clip.flatMap(snapshot.clip)
 
@@ -210,12 +212,12 @@ extension PanelPresenter {
         case .formatting(let id, let formatted):
             let original = snapshot.clip(id)?.text ?? ""
             return wordedForItsStep(
-                PanelCache.current.formattingSheets.sheet(from: original, to: formatted), in: snapshot)
+                cache.formattingSheets.sheet(from: original, to: formatted), in: snapshot)
 
         case .reindenting(let id, let formatted):
             let original = snapshot.clip(id)?.text ?? ""
             return wordedForItsStep(
-                PanelCache.current.formattingSheets.sheet(
+                cache.formattingSheets.sheet(
                     from: original, to: formatted, title: "Re-indent this code?",
                     confirmTitle: "Apply re-indent", kind: .reindenting),
                 in: snapshot)

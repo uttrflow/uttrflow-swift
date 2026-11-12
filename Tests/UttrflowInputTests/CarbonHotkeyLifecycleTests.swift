@@ -2,12 +2,13 @@ import Dispatch
 import Synchronization
 import UttrflowCore
 import Testing
+import UttrflowTestSupport
 
 @testable import UttrflowInput
 
 /// A shortcut is re-registered through the real monitor without ever colliding with itself. See `Docs/shortcuts.md`.
 @MainActor
-@Suite("Re-registering a shortcut", .serialized)
+@Suite("Re-registering a shortcut", .serialized, .timeLimit(.minutes(1)))
 struct CarbonHotkeyLifecycleTests {
     /// F13 and F15 with three modifiers: nothing on a stock Mac claims either.
     private let bound = HotkeyBinding(keyCode: 105, modifiers: [.control, .option, .shift])
@@ -36,9 +37,7 @@ struct CarbonHotkeyLifecycleTests {
         #expect(weakTimer != nil)
 
         monitor.deliver(.released, keyCode: UInt32(bound.keyCode))
-        for _ in 0..<100 where weakTimer != nil {
-            try await Task.sleep(for: .milliseconds(10))
-        }
+        try await eventually { weakTimer == nil }
 
         #expect(weakTimer == nil)
     }

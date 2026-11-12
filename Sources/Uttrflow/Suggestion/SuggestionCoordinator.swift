@@ -55,7 +55,7 @@ final class SuggestionCoordinator {
     let capture: CaptureSession
     private let panel: SuggestionPanelController
     private let interceptor = KeyInterceptor()
-    private let secureInput: SecureInputWatch
+    private let secureInput: SecureInputPause
     /// Whether secure keyboard entry is holding suggestions off, as this coordinator last saw it.
     var isSecureInputBlocking: Bool { secureInput.isBlocking }
     private let acceptor: SuggestionAcceptor
@@ -63,7 +63,7 @@ final class SuggestionCoordinator {
         insert: { [acceptor] suggestion, typed, window throws(TextInsertionError) in
             try await acceptor.accept(suggestion, after: typed, expectedWindowNumber: window)
         },
-        acceptances: acceptances, capture: capture,
+        acceptances: acceptances, capture: capture, surface: panel,
         trustLost: { [weak self] in self?.activationMonitor?.recheckForLoss() })
     let focusedFieldValueObserver: any FocusedFieldValueObserving
     /// Keeps background typing work responsive for the coordinator's lifetime.
@@ -116,11 +116,9 @@ final class SuggestionCoordinator {
     private let workspaceCenter: NotificationCenter
     /// Whether a held mouse button can still move the focused window under a ghost.
     private var isPointerGestureActive = false
-    /// Polls secure keyboard entry while it pauses suggestions, since no key or field event arrives to end the pause.
-    private var secureInputRecheck: Timer?
     /// Whether field observation is active or kept alive by a visible ghost.
     private let ticking = SuggestionActivityClock()
-    private var swallowed: Task<Void, Never>?
+    private lazy var swallowedKeys = SwallowedKeyHandling(tap: interceptor, rest: tapRest)
     /// Closing punctuation already present after the caret of the current offer.
     private var closingPunctuationAfterCaret = ""
     /// The line the accept key takes as last armed by a draw, so a later answer never inherits that claim.
@@ -129,7 +127,7 @@ final class SuggestionCoordinator {
     /// Whether the current focused-selection poll is still awaiting its reader.
     var isSelectionReadInFlight: Bool { selectionPolling.isReadInFlight }
     var isTickerScheduled: Bool { ticking.isScheduled }
-    var isSecureInputRecheckScheduled: Bool { secureInputRecheck != nil }
+    var isSecureInputRecheckScheduled: Bool { secureInput.isRecheckScheduled }
     private var lastKeystroke = Date.distantPast
     private var lastFluentKeystroke = Date.distantPast
     /// The last observed key-down, used to distinguish typing from edits made without a key.
@@ -147,8 +145,7 @@ final class SuggestionCoordinator {
     private var progress: (turn: Int, step: SuggestionTurnStep, application: String)?
     /// What this turn has already been told about the moment, so one line costs one walk.
     private let contextCache = SuggestionContextCache()
-    /// True while an accepted completion is being inserted, so the keys it posts wake no further turn.
-    private var isInserting = false
+    private var isInserting: Bool { swallowedKeys.isInserting }
     /// Holds the pending wake and stopped state, so stop discards work a turn had queued.
     private var wakeState: SuggestionWakeState {
         get { scheduling.state }
@@ -216,7 +213,7 @@ final class SuggestionCoordinator {
     ) async throws {
         self.preferences = preferences
         self.processActivity = processActivity
-        self.secureInput = secureInput
+        self.secureInput = SecureInputPause(watch: secureInput)
         self.generator = generating
         self.focusedSelectionReader = focusedSelectionReader
         self.focusedFieldReader = focusedFieldReader
@@ -394,7 +391,7 @@ final class SuggestionCoordinator {
             self?.interceptor.arm([])
             self?.armedOffer = nil
         }
-        watchSwallowedKeys()
+        swallowedKeys.watch(interceptor.events, effects: swallowedKeyEffects())
         if !activityIsWatched {
             watchForActivity()
             activityIsWatched = true
@@ -406,48 +403,34 @@ final class SuggestionCoordinator {
 
     /// Withdraws suggestions while secure keyboard entry prevents reliable key capture.
     private func checkSecureInput() {
-        guard secureInput.check() else { return }
-        let now = secureInput.isBlocking ? "on" : "off"
-        Self.log.notice("suggestion secure keyboard entry \(now, privacy: .public)")
-        if secureInput.isBlocking {
-            onSecureInputChanged?(true)
-            // A rest ending now would bring the tap back into the secure entry it was withdrawn from.
-            tapRest.cancel()
-            withdraw()
-            focusedFieldValueObserver.stop()
-            interceptor.stop()
-            onSecureInputBlockingChanged?(true)
-            panel.announce(SecureInputWatch.suggestionNotice)
-            scheduleSecureInputRecheck()
-        } else {
-            stopSecureInputRecheck()
-            onSecureInputChanged?(false)
-            onSecureInputBlockingChanged?(false)
-            switch startInterceptor() {
-            case .success: onTapRestChanged?(.success(()))
-            case .failure(let error): onTapRestChanged?(.failure(error))
-            }
-        }
-    }
-
-    /// Rechecks secure keyboard entry on a timer, so the pause lifts in the same app without an activation.
-    private func scheduleSecureInputRecheck() {
-        guard secureInputRecheck == nil, !wakeState.isStopped else { return }
-        let timer = Timer.scheduledTimer(withTimeInterval: SuggestionTicking.interval, repeats: true) {
-            [weak self] _ in MainActor.assumeIsolated { self?.checkSecureInput() }
-        }
-        timer.tolerance = SuggestionTicking.tolerance
-        secureInputRecheck = timer
-    }
-
-    private func stopSecureInputRecheck() {
-        secureInputRecheck?.invalidate()
-        secureInputRecheck = nil
+        secureInput.check(
+            mayRecheck: !wakeState.isStopped,
+            effects: SecureInputPauseEffects(
+                paused: { [weak self] in
+                    guard let self else { return }
+                    onSecureInputChanged?(true)
+                    // A rest ending now would bring the tap back into the secure entry it was withdrawn from.
+                    tapRest.cancel()
+                    withdraw()
+                    focusedFieldValueObserver.stop()
+                    interceptor.stop()
+                    onSecureInputBlockingChanged?(true)
+                    panel.announce(SecureInputWatch.suggestionNotice)
+                },
+                resumed: { [weak self] in
+                    guard let self else { return }
+                    onSecureInputChanged?(false)
+                    onSecureInputBlockingChanged?(false)
+                    switch startInterceptor() {
+                    case .success: onTapRestChanged?(.success(()))
+                    case .failure(let error): onTapRestChanged?(.failure(error))
+                    }
+                }))
     }
 
     /// Takes the surface away, disarms the tap and stops watching.
     func stop() {
-        stopSecureInputRecheck()
+        secureInput.stopRechecking()
         processActivity.end()
         wakeState.stop()
         turns.abandon()
@@ -459,8 +442,7 @@ final class SuggestionCoordinator {
         interceptor.arm([])
         interceptor.stop()
         panel.hide()
-        swallowed?.cancel()
-        swallowed = nil
+        swallowedKeys.stopWatching()
         generating.cancel()
         cancelPendingWake()
         scheduling.cancelRunning()
@@ -772,27 +754,10 @@ final class SuggestionCoordinator {
 
     /// Reads the focused selection and withdraws an armed offer when it no longer matches.
     func pollFocusedSelection(generation: Int? = nil) async {
-        let generation = generation ?? selectionPolling.generation
-        guard generation == selectionPolling.generation, !selectionPolling.isReadInFlight,
-            armedOffer != nil, selectionPolling.guardrail != nil, !isInserting
-        else { return }
-        guard activityIsAllowed() else { return withdraw() }
-        selectionPolling.isReadInFlight = true
-        let read = await focusedSelectionReader()
-        guard generation == selectionPolling.generation else { return }
-        selectionPolling.isReadInFlight = false
-        let selection: FocusedFieldSelection
-        switch read {
-        case .timedOut:
-            return
-        case .unavailable:
-            return withdraw()
-        case .selection(let value):
-            selection = value
-        }
-        guard var selectionGuard = selectionPolling.guardrail else { return }
-        guard !selectionGuard.observe(selection) else { return withdraw() }
-        self.selectionPolling.guardrail = selectionGuard
+        let verdict = await selectionPolling.check(
+            generation: generation ?? selectionPolling.generation, isArmed: armedOffer != nil,
+            isInserting: isInserting, isAllowed: { activityIsAllowed() }, read: focusedSelectionReader)
+        if verdict == .withdraw { withdraw() }
     }
 
     /// Stops the selection poll and invalidates any result still waiting on Accessibility.
@@ -999,13 +964,7 @@ final class SuggestionCoordinator {
 
     /// Reads the field, asks the corpus and draws the answer, all off the keystroke path; a turn left behind touches nothing.
     func turn(_ number: Int, because reason: SuggestionReason) async {
-        // Held rejection writes retry behind earlier corpus writes, so a slow store never delays the draw.
-        if rejectedSuggestionRecorder.claimQueuedRetry() {
-            let queued = acceptances.enqueue(
-                { [rejectedSuggestionRecorder] in await rejectedSuggestionRecorder.retry() },
-                estimatedBytes: rejectedSuggestionRecorder.queuedRetryReservationBytes())
-            if !queued { rejectedSuggestionRecorder.cancelQueuedRetry() }
-        }
+        rejectedSuggestionRecorder.queueRetry(on: acceptances)
         let front = frontmostBundleIdentifier() ?? "nil"
         progress = (number, .read, front)
         // Taken before the read, since a key pressed while a slow field is being read is one the read may have missed.
@@ -1059,19 +1018,12 @@ final class SuggestionCoordinator {
 
         let turn = session.turn(
             in: reading.surface, at: context(of: snapshot, at: started),
-            acceptKey: preferences.acceptKeys.key(
-                for: AppContext(
-                    applicationName: snapshot.applicationName,
-                    bundleIdentifier: snapshot.bundleIdentifier,
-                    documentName: snapshot.windowTitle)),
+            acceptKey: SuggestionRequest.acceptKey(in: snapshot, preferences: preferences),
             wordKey: preferences.wordAcceptKey(forBundleIdentifier: snapshot.bundleIdentifier),
             isQuiet: preferences.isQuiet, sawKeystrokes: keystrokesSeen)
         if let rejected = turn.rejected, let surface = reading.surface {
             entering(.reject, turn: number)
-            _ = acceptances.enqueue(
-                { [rejectedSuggestionRecorder] in
-                    await rejectedSuggestionRecorder.record(rejected, in: surface)
-                }, estimatedBytes: AcceptanceQueue.estimatedBytes(for: [rejected], surface: surface))
+            rejectedSuggestionRecorder.queue(rejected, in: surface, on: acceptances)
         }
 
         switch turn.step {
@@ -1407,8 +1359,10 @@ final class SuggestionCoordinator {
         interceptor.arm(update.armed)
         armedOffer = update.suggestion.accepting
         // Nothing is drawn off the caret's line, and what is not drawn claims no key.
-        guard let snapshot, snapshot.placement == .inlineGhost,
-            let caret = Self.caret(for: update.suggestion, in: snapshot)
+        guard let snapshot,
+            let ghost = SuggestionRequest.ghost(
+                update.suggestion, typed: session.typed, selection: session.selection, in: snapshot,
+                preferences: preferences)
         else {
             stopWatchingSelection()
             interceptor.arm([])
@@ -1417,22 +1371,7 @@ final class SuggestionCoordinator {
             return
         }
         closingPunctuationAfterCaret = snapshot.closingPunctuationAfterCaret
-        let visibleSuggestion = update.suggestion.trimmed(
-            after: session.typed, matching: closingPunctuationAfterCaret)
-        let shown = panel.show(
-            visibleSuggestion, typed: session.typed, placement: .inlineGhost,
-            direction: snapshot.writingDirection == .rightToLeft ? .rightToLeft : .leftToRight,
-            caret: caret, window: snapshot.window, field: snapshot.ghostField,
-            fieldPointSize: snapshot.pointSize,
-            selection: session.selection,
-            acceptKey: preferences.acceptKeys.key(
-                for: AppContext(
-                    applicationName: snapshot.applicationName,
-                    bundleIdentifier: snapshot.bundleIdentifier,
-                    documentName: snapshot.windowTitle)),
-            wordAcceptKey: preferences.wordAcceptKey(forBundleIdentifier: snapshot.bundleIdentifier),
-            fontFamily: snapshot.fontFamily, isBold: snapshot.isBold, isItalic: snapshot.isItalic,
-            textColor: snapshot.textColor)
+        let shown = panel.show(ghost)
         // An offer the panel could not show whole claims no key, so Tab never inserts what was not drawn.
         guard shown else {
             stopWatchingSelection()
@@ -1443,12 +1382,6 @@ final class SuggestionCoordinator {
         armSelectionMonitor(
             for: update.suggestion, at: snapshot.selection, identity: snapshot.focusedFieldIdentity)
         watchScrolls()
-    }
-
-    /// The caret a ghost for `suggestion` is drawn at, or nil when the field offers no inline place for one.
-    nonisolated static func caret(for suggestion: Suggestion, in snapshot: FocusedFieldSnapshot) -> CGRect? {
-        guard suggestion != .silent, snapshot.placement == .inlineGhost else { return nil }
-        return snapshot.caret
     }
 
     /// Draws what a move or a dismissal left where the ghost already stands, since no field was read for it and typing may have moved it.
@@ -1474,94 +1407,43 @@ final class SuggestionCoordinator {
 
     // MARK: Accepting
 
-    /// Every key the tap took, decided in the session and carried out here.
-    private func watchSwallowedKeys() {
-        swallowed?.cancel()
-        swallowed = Task { [weak self, interceptor] in
-            for await event in interceptor.events {
+    /// What a key the tap took does here, in the order `SwallowedKeyHandling` decides.
+    private func swallowedKeyEffects() -> SwallowedKeyEffects {
+        SwallowedKeyEffects(
+            route: { [weak self] stroke in
+                let typed = self?.session.typed ?? ""
+                let reading = self?.captureFeed.lastReading
+                let action = self?.session.route(stroke) ?? .giveBack(stroke)
+                return SwallowedKeyRoute(action: action, typed: typed, reading: reading)
+            },
+            withdraw: { [weak self] in
+                self?.stopWatchingSelection()
+                self?.panel.hide()
+                self?.generating.cancel()
+            },
+            take: { [weak self] text, route, recordsAcceptance in
+                guard let self else { return .refused }
+                let outcome = await takeInto.take(
+                    text, after: route.typed, in: route.reading,
+                    closingPunctuation: closingPunctuationAfterCaret, recordsAcceptance: recordsAcceptance)
+                session.completeAcceptance(outcome)
+                return outcome
+            },
+            requestFreshRead: { [weak self] in self?.wake(.tick) },
+            redraw: { [weak self] update in self?.redraw(update) },
+            noteActivity: { [weak self] in self?.noteActivity() },
+            isSessionEnabled: { [weak self] in self?.session.isEnabled ?? true },
+            turnOffEverywhere: { [weak self] in
                 guard let self else { return }
-                await handle(event)
-            }
-        }
-    }
-
-    /// One key the tap took, which is either the tap giving up or something the session decides.
-    private func handle(_ event: InterceptedEvent) async {
-        switch event {
-        case .stopped(let failure):
-            Self.log.error("the tap stopped: \(String(describing: failure), privacy: .public)")
-            restTap()
-        case .swallowed(let stroke):
-            let typed = session.typed
-            let reading = captureFeed.lastReading
-            let action = session.route(stroke)
-            Self.log.debug(
-                "SWALLOWED key=\(String(describing: stroke.key), privacy: .public) modifiers=\(stroke.modifiers.rawValue) decision=\(action.logName, privacy: .public)"
-            )
-            switch action {
-            case .accept(let text), .acceptWord(let text):
-                stopWatchingSelection()
-                panel.hide()
-                interceptor.arm([])
-                generating.cancel()
-                // Held across the insert so the keys it posts are ignored on both the tap and the monitor.
-                isInserting = true
-                let returnedKey = await SuggestionTake.acceptKeyToReturnIfTakeFails(stroke) {
-                    await takeInto.take(
-                        text, after: typed, in: reading,
-                        closingPunctuation: closingPunctuationAfterCaret,
-                        recordsAcceptance: action == .accept(text))
-                } requestFreshRead: {
-                    wake(.tick)
-                } completed: { outcome in
-                    session.completeAcceptance(outcome)
-                }
-                isInserting = false
-                // A field that is no longer the drawn line gets its key back, so Tab still does what Tab does there.
-                if let returnedKey { KeyStrokeReturn.post(returnedKey) }
-                noteActivity()
-            // The field-value observer wakes after the destination exposes its insertion; the activity ticker is the fallback.
-            case .redraw(let update): redraw(update)
-            case .giveBack(let refused, let drawn):
-                drawn.map(redraw)
-                KeyStrokeReturn.post(refused)
-            }
-            // The keys pressed since this one reach the application only now, after anything it inserted.
-            interceptor.releaseHeldKeys()
-            // ⌥⎋ turns the feature off everywhere; persist it so the switch agrees and a later enable rebuilds this.
-            if !session.isEnabled {
                 if let onTurnedOffEverywhere { onTurnedOffEverywhere() } else { stop() }
-            }
-        }
-    }
-
-    /// How long the tap rests after macOS disabled it twice, past the window in which disables count against it.
-    private static let tapRestSeconds = 90
-
-    /// Rests the tap and starts it again, since a disable is usually the system's doing and the feature need not die of it.
-    private func restTap() {
-        onTapRestChanged?(nil)
-        interceptor.arm([])
-        interceptor.stop()
-        panel.hide()
-        tapRest.schedule(
-            after: .seconds(Self.tapRestSeconds),
-            shouldRestart: { [weak self] in
+            },
+            hidePanel: { [weak self] in self?.panel.hide() },
+            mayRestartTap: { [weak self] in
                 guard let self else { return false }
                 return !wakeState.isStopped && !secureInput.isBlocking
             },
-            willRestart: { [weak self] in self?.onTapRestRestarting?() }
-        ) { [weak self] in
-            guard let self, !wakeState.isStopped, !secureInput.isBlocking else { return }
-            do {
-                try interceptor.start()
-                Self.log.error("the tap is back after resting \(Self.tapRestSeconds)s")
-                onTapRestChanged?(.success(()))
-            } catch {
-                Self.log.error("the tap could not restart: \(SuggestionLog.failure(error), privacy: .public)")
-                onTapRestChanged?(.failure(error))
-            }
-        }
+            tapRestChanged: { [weak self] state in self?.onTapRestChanged?(state) },
+            tapRestRestarting: { [weak self] in self?.onTapRestRestarting?() })
     }
 
     // MARK: Consent

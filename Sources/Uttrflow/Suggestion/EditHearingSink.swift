@@ -11,10 +11,8 @@ struct EditHearingSink: CaptureSink {
     /// Told each edit and the application that holds the field, so the learner can ask whether it may learn there.
     let heard: @Sendable (EditedSpan, String) async -> Void
 
-    func record(
-        _ text: String, in surface: Surface, after previous: String?, as origin: LineOrigin, at moment: Date
-    ) async throws {
-        try await store.record(text, in: surface, after: previous, as: origin, at: moment)
+    func record(_ text: String, in surface: Surface, as origin: LineOrigin, at moment: Date) async throws {
+        try await store.record(text, in: surface, as: origin, at: moment)
     }
 
     func supersede(_ text: String, with replacement: String, in surface: Surface) async throws {

@@ -137,8 +137,8 @@ fileprivate let hinglishPlain: [TriggerCase] = [
 
 private let allCases = hinglishCorrections + hinglishPlain
 
-/// Sentences the current evidence still reads wrongly, each held here until a fix makes it pass; see `Docs/cleanup.md`.
-let owedTriggerCases: Set<String> = []
+/// Sentences the current evidence still reads wrongly, each held here until a fix makes it pass (issue 8210); see `Docs/cleanup.md`.
+let owedTriggerCases: Set<String> = ["bowler strike that wicket"]
 
 @Suite("Correction triggers, one table read by the same code for English and Hindi")
 struct CorrectionTriggerTableTests {

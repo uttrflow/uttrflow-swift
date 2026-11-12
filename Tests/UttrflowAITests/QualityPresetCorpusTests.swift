@@ -36,4 +36,14 @@ struct QualityPresetCorpusTests {
         let draft = Draft(romanising: Transcription(text: example.spoken))
         #expect(RuleBasedTransformer.audited(pipeline, over: draft).draft.text == example.written)
     }
+
+    @Test("the preset chosen for every app reaches the rules through the situation", arguments: corpus)
+    func cleansUnderChosenPreset(example: Case) async throws {
+        let app = AppContext(bundleIdentifier: "com.example.unlisted")
+        let situation = SituationResolver.resolve(
+            from: app, overrides: DestinationOverrides.none.holding(everyApp: example.preset))
+        let request = TransformationRequest(
+            transcription: Transcription(text: example.spoken), context: app, situation: situation)
+        #expect(try await RuleBasedTransformer().transform(request).text == example.written)
+    }
 }

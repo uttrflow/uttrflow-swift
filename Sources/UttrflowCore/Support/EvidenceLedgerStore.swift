@@ -129,10 +129,24 @@ public actor EvidenceLedgerStore {
         return stored.filter { window.keeps($0.start) }
     }
 
-    /// Appends rows after the ones on disk, dropping expired rows, refusing when the disk cannot be read.
-    public func append(_ newRows: [EvidenceRow], keeping window: RetentionWindow) throws {
+    /// Appends rows after the ones on disk, dropping expired rows, refusing when the disk cannot be read; rows learnt in `application` are written only if `consent`, read here with no suspension before the write, allows it.
+    public func append(
+        _ newRows: [EvidenceRow], keeping window: RetentionWindow, learntIn application: String? = nil,
+        consent: (any LearningConsent)? = nil
+    ) throws {
+        if let consent, !consent.mayLearn(from: application) { return }
         let stored = try load()
         try persist(onDisk(stored + newRows, keeping: window), replacing: stored)
+    }
+
+    /// Appends every batch whose application `consent`, read here with no suspension before the write, allows, in one write.
+    package func append(
+        _ batches: [(application: String?, rows: [EvidenceRow])], keeping window: RetentionWindow,
+        consent: any LearningConsent
+    ) throws {
+        let allowed = batches.filter { consent.mayLearn(from: $0.application) }.flatMap(\.rows)
+        guard !allowed.isEmpty else { return }
+        try append(allowed, keeping: window)
     }
 
     /// Swaps every row of the given kinds for `newRows` in one write, so a failed write leaves the old rows whole.

@@ -66,9 +66,12 @@ public struct QualityPreset: Sendable, Equatable, Identifiable {
 
     /// The place's formatter with this preset's policies chosen in its stead, every other field untouched.
     public func applied(to formatter: DestinationFormatter) -> DestinationFormatter {
-        DestinationFormatter(
+        // A one-line field stays one line: a kept line break there would act as Return.
+        let isOneLine = formatter.layout.contains(.singleLine)
+        return DestinationFormatter(
             destination: formatter.destination, firstWord: firstWord ?? formatter.firstWord,
-            terminalStop: terminalStop ?? formatter.terminalStop, layout: layout ?? formatter.layout,
+            terminalStop: terminalStop ?? formatter.terminalStop,
+            layout: isOneLine ? formatter.layout : layout ?? formatter.layout,
             grammar: formatter.grammar, numbers: numbers ?? formatter.numbers, digits: formatter.digits,
             promptBlock: formatter.promptBlock, consequence: formatter.consequence)
     }

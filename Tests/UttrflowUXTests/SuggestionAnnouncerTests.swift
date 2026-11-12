@@ -36,6 +36,19 @@ struct SuggestionAnnouncerTests {
         #expect(coalescer.flushIfReady(at: .milliseconds(150)) == "stable")
     }
 
+    @Test("A refusal message under an offer already heard is announced with the offer")
+    func refusalMessageIsAnnounced() {
+        var announcer = SuggestionAnnouncer()
+        let message = SuggestionRuntimeStatus.accessibilityDeniedMessage
+        _ = announcer.announcement(for: SuggestionPresentation(.certain("git commit"), typed: "git c"))
+
+        let spoken = announcer.announcement(
+            for: SuggestionPresentation(.certain("git commit"), typed: "git c", statusMessage: message))
+
+        #expect(spoken?.hasSuffix(message) == true)
+        #expect(spoken?.hasPrefix("AI suggestion: git commit.") == true)
+    }
+
     @Test("Unchanged offers remain deduplicated and do not replace pending speech")
     func unchangedOffersStayDeduplicated() {
         var announcer = SuggestionAnnouncer()

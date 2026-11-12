@@ -117,6 +117,6 @@ extension CodeEditorCommandsPass {
     /// A word a tag, a selector or an attribute can hold on either side of a joining mark.
     private static func isToken(_ text: String) -> Bool {
         let core = text.trimmingCharacters(in: .punctuationCharacters)
-        return !core.isEmpty && core.allSatisfy { $0.isLetter || $0.isNumber || "_-.:/#=".contains($0) }
+        return !core.isEmpty && core.allSatisfy { $0.isLetter || $0.isNumber || "_-.:/#=[]".contains($0) }
     }
 }

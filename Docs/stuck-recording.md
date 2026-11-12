@@ -47,7 +47,7 @@ So every stage runs under `withStageTimeout`, with these limits:
 
 | Stage | Limit | On timeout |
 |---|---|---|
-| Loading the speech model | `StageTimeout.speechModelLoad`, 300 s | the load fails with `modelLoadFailed` and can be retried; see [startup.md](startup.md) |
+| Loading the speech model | `StageTimeout.speechModelLoad`, 600 s | the load is reported failed with `modelLoadFailed` and can be retried, and keeps running; a late finish makes the model ready; see [startup.md](startup.md) |
 | Stopping capture | `StageTimeout.captureStop`, 15 s | the dictation fails, and the pipeline returns to idle |
 | Transcription | `StageTimeout.transcription(of:)`: 120 s plus `StageTimeout.transcriptionPerAudioSecond`, 1 s, for each second of the piece | the dictation fails, and the pipeline returns to idle |
 | Reading the screen | `StageTimeout.screenRead`, 15 s | the dictation goes on with no context |

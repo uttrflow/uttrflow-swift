@@ -20,6 +20,10 @@ public struct DictationFailure: Sendable, Equatable {
     public let speechEngineError: SpeechEngineError?
     /// The kept recording `.retryFromRecording` runs again, so the notice's button retries it directly.
     public let keptRecording: UUID?
+    /// Whether any read of the dictation saw a private-browsing window, so History never learns from its words.
+    package private(set) var fromPrivateWindow = false
+    /// The application the words were meant for, so History can leave out an app the person excluded.
+    package private(set) var meantForApplication: String?
 
     public init(
         message: String, cause: String? = nil, recovery: RecoveryAction?, severity: FailureSeverity,
@@ -82,7 +86,27 @@ public struct DictationFailure: Sendable, Equatable {
             message: Self.message(cause: cause, recovery: recovery) ?? message, cause: cause,
             recovery: recovery, severity: severity, transcript: transcript,
             intoSecureField: intoSecureField, speechEngineKind: speechEngineKind,
-            speechEngineError: speechEngineError, keptRecording: keptRecording)
+            speechEngineError: speechEngineError, keptRecording: keptRecording
+        ).keepingMarks(of: self)
+    }
+
+    /// The same failure, marked as meant for the application with this bundle identifier.
+    package func markingDestination(_ bundleIdentifier: String?) -> DictationFailure {
+        var marked = self
+        marked.meantForApplication = bundleIdentifier
+        return marked
+    }
+
+    /// This failure carrying what `other` was marked with, so a rebuilt failure loses no mark.
+    private func keepingMarks(of other: DictationFailure) -> DictationFailure {
+        markingPrivate(other.fromPrivateWindow).markingDestination(other.meantForApplication)
+    }
+
+    /// The same failure, marked as from a private-browsing window when any read of the dictation saw one.
+    package func markingPrivate(_ isPrivate: Bool) -> DictationFailure {
+        var marked = self
+        marked.fromPrivateWindow = isPrivate
+        return marked
     }
 
     /// The sentence a recovery set after the error needs, or `nil` where the error's own sentence still holds.
@@ -107,7 +131,8 @@ public struct DictationFailure: Sendable, Equatable {
             recovery: cannotCopySecureTranscript ? nil : recovery,
             severity: severity, transcript: transcript,
             intoSecureField: secure, speechEngineKind: speechEngineKind,
-            speechEngineError: speechEngineError, keptRecording: keptRecording)
+            speechEngineError: speechEngineError, keptRecording: keptRecording
+        ).keepingMarks(of: self)
     }
 }
 
@@ -131,6 +156,8 @@ public struct DictationOutcome: Sendable, Equatable {
     public let arrival: InsertionArrival
     /// Whether the words went into a field that hides what is typed, so no history or clip keeps them.
     public let intoSecureField: Bool
+    /// Whether the screen read found a private-browsing window, so nothing is learnt from this dictation.
+    public let fromPrivateWindow: Bool
     /// Pieces of speech that decoded to no words twice and are missing from the text; zero when nothing is.
     public let missedPieces: Int
     /// Whether the input clipped past the point where accuracy falls, so the person is told to lower the volume.
@@ -155,8 +182,10 @@ public struct DictationOutcome: Sendable, Equatable {
         arrival: InsertionArrival = .notReported, intoSecureField: Bool = false, missedPieces: Int = 0,
         inputTooLoud: Bool = false, unavailableEngines: [CleaningRecord.UnavailableEngine] = [],
         doubtful: DoubtfulWordsOutcome = .notAvailable, slowCause: SlowDictationCause? = nil,
-        guardRefusals: [RefusalKind] = [], quality: OutcomeQuality? = nil, keptRecording: UUID? = nil
+        guardRefusals: [RefusalKind] = [], quality: OutcomeQuality? = nil, keptRecording: UUID? = nil,
+        fromPrivateWindow: Bool = false
     ) {
+        self.fromPrivateWindow = fromPrivateWindow
         self.text = text
         self.method = method
         self.cleanedBy = cleanedBy

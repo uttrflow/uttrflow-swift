@@ -109,6 +109,21 @@ straight after, "replace first" redoes that replace on the first match (`Replace
 `RecordedEditor.correct`): it rewrites the span the replace wrote, refuses when the newest edit was
 not that replace, and one "undo that" then puts the original dictation back.
 
+The `reformat` rows ("capitalise that", "all caps that", "make that a list", "make that one
+paragraph"), said whole under the command key, change the case or layout of the last dictation and
+never a word. `ReformatCommand` plans each through the passes dictation uses: sentence case is
+`FirstWordPass` with `.alwaysCapital`, capitals are `SpokenCasingPass`'s upper-case rule, a list is
+`LayoutWordsPass.listingSentences` (each sentence or line an item), and one paragraph is
+`LayoutWordsPass.joinOnOneLine`. `RecordedEditor.rewrite` writes the result over the same span, so
+"undo that" puts it back. The command refuses, writing nothing, when the result would add, drop or
+change a word (`ReformatCommand.keepsWords`, a `WordErrorRate` alignment of the word keys, case and
+marks aside), when it would change nothing, when a list is asked of one sentence, or when a list is
+asked where the destination lays out none (`LayoutPolicy.lists`). The command is the list evidence:
+no cue in the words is needed. `EvaluationCorpus.reformatCases`
+(`Sources/UttrflowEval/ReformatCorpus.swift`) holds 30 cases per command, and
+`Tests/UttrflowEvalTests/ReformatCorpusTests.swift` holds every one to its expected text with the word
+sequence unchanged.
+
 ## Key presses
 
 The `key` rows of `spoken-commands.json` ("press enter", "press tab", "press escape", "go to the

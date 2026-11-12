@@ -81,6 +81,21 @@ final class RejectedSuggestionRecorder {
         }
     }
 
+    /// Queues a rejection's write behind earlier corpus writes, so a slow store never delays a draw.
+    func queue(_ text: String, in surface: Surface, on writes: AcceptanceQueue) {
+        writes.enqueue(
+            { [self] in await record(text, in: surface) },
+            estimatedBytes: AcceptanceQueue.estimatedBytes(for: [text], surface: surface))
+    }
+
+    /// Queues one retry of the held writes behind earlier corpus writes, when any are held and none is queued.
+    func queueRetry(on writes: AcceptanceQueue) {
+        guard claimQueuedRetry() else { return }
+        let queued = writes.enqueue(
+            { [self] in await retry() }, estimatedBytes: queuedRetryReservationBytes())
+        if !queued { cancelQueuedRetry() }
+    }
+
     /// Admits one queued retry only when there is work to retry.
     func claimQueuedRetry() -> Bool {
         guard !unwritten.isEmpty, !retryIsQueued else { return false }

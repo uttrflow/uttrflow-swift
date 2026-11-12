@@ -112,8 +112,8 @@ Measured on an Apple M5 Pro, 48 GB, macOS 26.5.1, with
 `Docs/accuracy-history.json`, so the next release's report compares with it. The report gives the
 rate per language, stressor and cohort, never pooled, each with its case count, reference words and
 95% interval; a slice under 100 reference words, or of one case, prints as "too small to judge".
-It names the recogniser, the normalisation rules, a digest of the exact recordings, and its own
-limits. It ends with the user's-words accuracy on each fallback rung, copied from the generated
+It names the recogniser, the normalisation rules, a digest of the exact recordings, the cases
+scored on the romanised output rather than the recogniser's words, and its own limits. It ends with the user's-words accuracy on each fallback rung, copied from the generated
 [degraded-path matrix](degraded-path-matrix.md); the command fails if that page has no such table.
 `Scripts/release_notes.sh` links the report for the version it renders. The renderer is
 `AccuracyReport` in `Sources/UttrflowEval/AccuracyReport.swift`, which compares releases with the

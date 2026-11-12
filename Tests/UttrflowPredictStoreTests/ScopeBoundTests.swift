@@ -33,24 +33,19 @@ struct ScopeBoundTests {
         #expect(recent.first == "make target0")
     }
 
-    @Test("A field evicts its least recently used scopes and their entries and successions.")
+    @Test("A field evicts its least recently used scopes and their entries.")
     func evictsOldScopesAndTheirDependents() async throws {
         let corpus = Corpus()
         let store = try PredictStore(path: corpus.path)
         for index in 0...PredictStore.surfacesPerField {
             let scope = shell("/f\(index)")
             try await store.record(
-                "command \(index)", in: scope, after: "previous \(index)",
-                at: moment.addingTimeInterval(Double(index)))
+                "command \(index)", in: scope, at: moment.addingTimeInterval(Double(index)))
         }
         let counts = try Database(path: corpus.path).rows(
-            "SELECT (SELECT COUNT(*) FROM surface), (SELECT COUNT(*) FROM entry), (SELECT COUNT(*) FROM succession)",
-            { _ in }
-        ) { [$0.integer(0), $0.integer(1), $0.integer(2)] }
-        #expect(
-            counts == [
-                [PredictStore.surfacesPerField, PredictStore.surfacesPerField, PredictStore.surfacesPerField]
-            ])
+            "SELECT (SELECT COUNT(*) FROM surface), (SELECT COUNT(*) FROM entry)", { _ in }
+        ) { [$0.integer(0), $0.integer(1)] }
+        #expect(counts == [[PredictStore.surfacesPerField, PredictStore.surfacesPerField]])
         // A lookup also reads sibling folders, so which scopes survive is read from the table itself.
         let scopes = Set(
             try Database(path: corpus.path).rows("SELECT scope FROM surface", { _ in }) { $0.text(0) })

@@ -4,6 +4,16 @@ import UttrflowCore
 import UttrflowInput
 import UttrflowPredict
 import UttrflowPredictCapture
+import UttrflowUX
+
+/// The surface a refused accept's offer is drawn on, which can draw it again with the refusal's fix.
+@MainActor
+protocol RefusedOfferSurface: AnyObject {
+    /// The offer the accept took down, or nil once anything has hidden the surface again since.
+    func takenDownOffer() -> Suggestion?
+    /// Draws `offer` again with `notice` under it, claiming no key.
+    func putBack(_ offer: Suggestion, saying notice: String)
+}
 
 /// Takes an accepted suggestion into the field, queues the taken line for capture, and says whether the accept key goes back.
 @MainActor
@@ -16,6 +26,8 @@ struct SuggestionTake {
     let insert: Insert
     let acceptances: AcceptanceQueue
     let capture: CaptureSession
+    /// Where the refused offer was drawn, so a refusal with a fix draws it again with the fix under it.
+    let surface: any RefusedOfferSurface
     /// Called when the insertion was refused for lost accessibility trust.
     let trustLost: () -> Void
 
@@ -34,8 +46,12 @@ struct SuggestionTake {
         do throws(TextInsertionError) {
             via = try await insert(accepted, typed, windowNumber)?.rawValue ?? via
         } catch {
-            // A refusal for lost trust withdraws suggestions and tells the menu bar, as the next activation would.
-            if error == .accessibilityDenied { trustLost() }
+            // The offer is read before a trust withdrawal hides the surface again, which would forget it.
+            if let refusal = SuggestionRefusal(error) {
+                let offer = surface.takenDownOffer()
+                if refusal.withdrawsTrust { trustLost() }
+                if let offer { surface.putBack(offer, saying: refusal.message) }
+            }
             let outcome = Self.acceptanceOutcome(for: error)
             if outcome == .refused {
                 Self.log.error("\(SuggestionLog.landedNowhere(error, typed: typed), privacy: .public)")

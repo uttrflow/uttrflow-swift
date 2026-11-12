@@ -227,9 +227,9 @@ public struct DestinationFormatter: Sendable, Equatable {
                 promptBlock: "plain")
     }
 
-    /// The destination formatter with an app rule's terminal-stop exception, when that rule still applies.
+    /// The destination formatter under the app's preset, then the final stop and first letter the person fixed for the app.
     public static func standard(for situation: Situation) -> DestinationFormatter {
-        situation.punctuation.applied(to: destinationDefault(for: situation))
+        situation.punctuation.applied(to: situation.preset.applied(to: destinationDefault(for: situation)))
     }
 
     /// The formatter the destination, the field and the app's row give, before the person's own punctuation choice.

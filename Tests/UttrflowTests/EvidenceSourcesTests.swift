@@ -2,6 +2,7 @@
 
 import CryptoKit
 import Foundation
+import os
 import Testing
 import UttrflowAI
 import UttrflowCore
@@ -48,6 +49,16 @@ struct EvidenceSourcesTests {
         #expect(EvidenceSources.backfill([old], entries: [entry], ledger: rows, overrides: .none).isEmpty)
     }
 
+    @Test("History never backfills a dictation made in a private-browsing window")
+    func privateRecordIsNotBackfilled() {
+        let entry = DictionaryEntry(word: "Kubernetes", origin: .added, firstSeen: now)
+        let record = DictationRecord(
+            text: "Deploy it on Kubernetes.", when: now.addingTimeInterval(-3 * 86_400),
+            applicationName: "Browser", applicationIdentifier: "com.example.browser",
+            fromPrivateWindow: true)
+        #expect(EvidenceSources.backfill([record], entries: [entry], ledger: [], overrides: .none).isEmpty)
+    }
+
     private struct Keys: StoreKeyProviding {
         let value = SymmetricKey(size: .bits256)
         func key(createIfMissing: Bool) throws -> SymmetricKey { value }
@@ -68,15 +79,18 @@ struct EvidenceSourcesTests {
         let window = RetentionWindow(days: RetentionWindow.keepAlwaysDays, now: now)
 
         await EvidenceSources.backfill(
-            ledger, from: records, dictionary: dictionary, overrides: .none, keeping: window)
+            ledger, from: records, consent: NothingAskedYet(), dictionary: dictionary,
+            overrides: .none, keeping: window)
         let first = await ledger.rows(keeping: window)
         await EvidenceSources.backfill(
-            ledger, from: records, dictionary: dictionary, overrides: .none, keeping: window)
+            ledger, from: records, consent: NothingAskedYet(), dictionary: dictionary,
+            overrides: .none, keeping: window)
 
         #expect(first.contains { $0.kind == .use && $0.provenance == .migration })
         #expect(await ledger.rows(keeping: window) == first)
         await EvidenceSources.backfill(
-            nil, from: records, dictionary: dictionary, overrides: .none, keeping: window)
+            nil, from: records, consent: NothingAskedYet(), dictionary: dictionary,
+            overrides: .none, keeping: window)
     }
 
     @Test("an unreadable ledger is kept aside, rebuilt from History by the sweep, and named")
@@ -98,11 +112,138 @@ struct EvidenceSourcesTests {
         let window = RetentionWindow(days: RetentionWindow.keepAlwaysDays, now: now)
 
         await EvidenceSources.backfill(
-            ledger, from: records, dictionary: dictionary, overrides: .none, keeping: window)
+            ledger, from: records, consent: NothingAskedYet(), dictionary: dictionary,
+            overrides: .none, keeping: window)
 
         let rebuilt = await ledger.rows(keeping: window)
         #expect(rebuilt.contains { $0.kind == .use && $0.provenance == .migration })
         #expect(await ledger.refusal() == .setAside)
+    }
+
+    /// One answer `Revocable` gave, in the order it gave them.
+    private struct Answer: Sendable {
+        let application: String?
+        let state: ConsentState
+    }
+
+    /// Consent the person can withdraw at any moment, logging every answer in the order given.
+    private final class Revocable: LearningConsent, Sendable {
+        private let held = OSAllocatedUnfairLock(initialState: (withdrawn: false, answers: [Answer]()))
+        var answers: [Answer] { held.withLock { $0.answers } }
+        func withdraw() { held.withLock { $0.withdrawn = true } }
+        func state(of bundleIdentifier: String?) -> ConsentState {
+            held.withLock {
+                let state: ConsentState = $0.withdrawn ? .declined : .allowed
+                $0.answers.append(Answer(application: bundleIdentifier, state: state))
+                return state
+            }
+        }
+    }
+
+    @Test("consent withdrawn after a learner's own check and before the ledger writes authorises no row")
+    func withdrawnBeforeTheWriteWritesNothing() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let ledger = EvidenceLedgerStore(
+            file: EvidenceLedgerStore.defaultFile(in: root), encryptedStore: EncryptedStore(keys: Keys()))
+        let window = RetentionWindow(days: RetentionWindow.keepAlwaysDays, now: now)
+        let consent = Revocable()
+        let application = "com.example.notes"
+        let rows = [EvidenceRow(kind: .styleMessage, subject: "plain", day: today, provenance: .dictation)]
+
+        #expect(consent.mayLearn(from: application))
+        consent.withdraw()
+        try await ledger.append(rows, keeping: window, learntIn: application, consent: consent)
+        #expect(await ledger.rows(keeping: window).isEmpty)
+
+        try await ledger.append(rows, keeping: window, learntIn: application, consent: Revocable())
+        #expect(await ledger.rows(keeping: window) == rows)
+    }
+
+    /// Consent that refuses one application and allows every other.
+    private struct Declining: LearningConsent {
+        let declined: String
+        func state(of bundleIdentifier: String?) -> ConsentState {
+            bundleIdentifier == declined ? .declined : .allowed
+        }
+    }
+
+    @Test("a backfill's batches are checked by the ledger at the write, one application at a time")
+    func backfillBatchesAreCheckedAtTheWrite() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let ledger = EvidenceLedgerStore(
+            file: EvidenceLedgerStore.defaultFile(in: root), encryptedStore: EncryptedStore(keys: Keys()))
+        let window = RetentionWindow(days: RetentionWindow.keepAlwaysDays, now: now)
+        let notes = [EvidenceRow(kind: .styleMessage, subject: "notes", day: today, provenance: .migration)]
+        let mail = [EvidenceRow(kind: .styleMessage, subject: "mail", day: today, provenance: .migration)]
+        let batches: [(application: String?, rows: [EvidenceRow])] = [
+            ("com.example.notes", notes), ("com.example.mail", mail),
+        ]
+
+        let consent = Revocable()
+        #expect(consent.mayLearn(from: "com.example.notes"))
+        consent.withdraw()
+        try await ledger.append(batches, keeping: window, consent: consent)
+        #expect(await ledger.rows(keeping: window).isEmpty)
+
+        try await ledger.append(batches, keeping: window, consent: Declining(declined: "com.example.mail"))
+        #expect(await ledger.rows(keeping: window) == notes)
+    }
+
+    @Test(
+        "a withdrawal raced against 100 writes lets no row land once a write has seen it",
+        arguments: 0..<20)
+    func racedWithdrawalWritesNothingAfter(round: Int) async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let ledger = EvidenceLedgerStore(
+            file: EvidenceLedgerStore.defaultFile(in: root), encryptedStore: EncryptedStore(keys: Keys()))
+        let window = RetentionWindow(days: RetentionWindow.keepAlwaysDays, now: now)
+        let consent = Revocable()
+        let day = today
+
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            for index in 0..<100 {
+                if index == 50 { group.addTask { consent.withdraw() } }
+                group.addTask {
+                    let row = EvidenceRow(
+                        kind: .styleMessage, subject: "\(index)", day: day, provenance: .dictation)
+                    try await ledger.append([row], keeping: window, learntIn: "\(index)", consent: consent)
+                }
+            }
+            try await group.waitForAll()
+        }
+
+        let answers = consent.answers
+        let firstRefusal = answers.firstIndex { $0.state == .declined } ?? answers.endIndex
+        #expect(answers[firstRefusal...].allSatisfy { $0.state == .declined })
+        // Rows land in the order their answers were given, so none was written after a refusal was seen.
+        let allowed = answers[..<firstRefusal].map { $0.application ?? "" }
+        #expect(await ledger.rows(keeping: window).map(\.subject) == allowed)
+    }
+
+    @Test("a sweep with nothing to backfill still deletes ledger rows past History's window")
+    func sweepWithNothingLearnableExpiresRows() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let ledger = EvidenceLedgerStore(
+            file: EvidenceLedgerStore.defaultFile(in: root), encryptedStore: EncryptedStore(keys: Keys()))
+        let dictionary = PersonalDictionaryStore(file: PersonalDictionaryStore.defaultFile(in: root))
+        let always = RetentionWindow(days: RetentionWindow.keepAlwaysDays, now: now)
+        try await ledger.append(
+            [EvidenceRow(kind: .styleMessage, subject: "plain", day: today - 60, provenance: .dictation)],
+            keeping: always)
+
+        await EvidenceSources.backfill(
+            ledger, from: [], consent: NothingAskedYet(), dictionary: dictionary, overrides: .none,
+            keeping: RetentionWindow(days: 30, now: now))
+
+        #expect(await ledger.rows(keeping: always).isEmpty)
     }
 
     @Test("one undo through History vetoes that heard-to-meant pairing only, and blames its entry")
@@ -165,13 +306,36 @@ struct EvidenceSourcesTests {
         let noted = Noted()
         let counters = StoreCounters(
             dictionary: dictionary, snippets: SnippetStore(file: root.appendingPathComponent("snippets.json"))
-        ) { await noted.add($0) }
+        ) { used, _ in await noted.add(used) }
 
-        try await counters.recordUse(ofEntries: [], writtenIn: "nothing known here")
-        try await counters.recordUse(ofEntries: [], writtenIn: "Deploy it on Kubernetes.")
+        try await counters.recordUse(ofEntries: [], writtenIn: "nothing known here", in: nil)
+        try await counters.recordUse(ofEntries: [], writtenIn: "Deploy it on Kubernetes.", in: nil)
         try await counters.recordUse(ofSnippets: [])
 
         #expect(await noted.ids == [[entry.id]])
+    }
+
+    @Test("a re-dictation of a private-window dictation writes no retry row, either way round")
+    func privateRecordIsNotPairedOnRetry() {
+        let correction = RecordedCorrection(
+            heard: "nickel", wrote: "Nikhil", wordRange: 1..<2, entryID: UUID(),
+            reason: .saidClearlyElsewhere, heardConfidence: 0.3)
+        let first = { (isPrivate: Bool) in
+            DictationRecord(
+                text: "Ask Nikhil about the meeting.", when: self.now,
+                applicationIdentifier: "com.example.notes",
+                changes: RecordedChanges(corrections: [correction]), arrival: .confirmed,
+                heard: "ask nickel about the meeting", fromPrivateWindow: isPrivate)
+        }
+        let retry = { (isPrivate: Bool) in
+            DictationRecord(
+                text: "Ask Nikhel about the meeting.", when: self.now.addingTimeInterval(5),
+                applicationIdentifier: "com.example.notes", arrival: .confirmed,
+                heard: "ask Nikhel about the meeting", fromPrivateWindow: isPrivate)
+        }
+        #expect(!EvidenceSources.retried(first(false), by: retry(false)).isEmpty)
+        #expect(EvidenceSources.retried(first(true), by: retry(false)).isEmpty)
+        #expect(EvidenceSources.retried(first(false), by: retry(true)).isEmpty)
     }
 
     @Test(

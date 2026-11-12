@@ -105,7 +105,10 @@ dictations. No contraction rate is kept: acting on one would rewrite the user's 
 text whose two sides are spellings of one listed Hindi word (`thik` to `theek`), with the
 subject `heard>meant` in lower case; a pair that is not two spellings of one word, or an edit
 that changes the word count, writes nothing. The projection prefers `meant` once its rows fall
-on at least 3 separate days and outweigh edits the other way, so a lone edit is inert. Deleting
+on at least 3 separate days and outweigh edits the other way, so a lone edit is inert. The listed
+words allow fewer preferences at once than `ConfusionPairs.maximumNewPairsPerDay`, so a field
+rewritten in bulk teaches no more than the daily cap for pairs, and a test fails if the list
+outgrows it. Deleting
 the preference writes `spellingPreferenceCleared`, which hides every earlier row for the pair in
 both directions. `PreferredSpelling` applies the projection in the pipeline's join, right after the
 text is made Latin, as one whole-word step; a stored pair whose sides are not two spellings of one
@@ -174,6 +177,8 @@ row per dictionary entry `DictionaryAppearances.used` returns, after the diction
 same set. Undoing a correction writes one `revert` row for its entry. The retention sweep
 backfills History's dictations from days before the ledger's first row, as `use` and style rows
 with provenance `migration`, once: a ledger holding any `migration` row is not backfilled again.
+The backfill asks the same consent as every live write (`LearntEvidence.consent`): a dictation
+into a declined application adds no row, and with the learning switch off nothing is backfilled.
 No row carries a word of the text, and nothing leaves this Mac.
 
 ## Still open

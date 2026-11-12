@@ -12,8 +12,6 @@ struct UnwrittenCommit: Sendable {
     let surface: Surface
     /// The draft it retires, until that supersede has landed.
     var superseded: String?
-    /// The line it followed when it was finished.
-    let previous: String?
     /// When it was finished.
     let moment: Date
     /// Whether the ending finished the line or only an idle left it standing.
