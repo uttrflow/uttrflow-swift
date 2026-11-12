@@ -10,7 +10,9 @@ extension NumberFormsPass {
         guard position > 0, joined(position, shapes), versionCarriers.contains(keys[position - 1]) else {
             return false
         }
-        let end = position + count
+        var end = position + count
+        // The noun a run counts comes after the whole run: "python three twenty gram mice".
+        while joined(end, shapes), NumberWords.isNumber(keys[end]) { end += 1 }
         guard joined(end, shapes) else { return true }
         return !countsWhatFollows(after: end - 1, words: keys, tags: LexicalClass.tags(ofWords: keys))
     }

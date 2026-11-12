@@ -72,6 +72,19 @@ struct NumberCarrierTests {
         #expect(cleaned(input, by: NumberFormsPass()) == expected)
     }
 
+    @Test(
+        "a count stays apart from the number after it, the noun read after the whole run",
+        arguments: [
+            ("we feed python three twenty gram mice", "320"),
+            ("return three fifteen new records", "315"),
+        ]
+    )
+    func countBeforeAnotherNumber(input: String, joinedUp: String) {
+        let output = cleaned(input, by: NumberFormsPass())
+        #expect(!output.contains(joinedUp))
+        #expect(output.contains("three"))
+    }
+
     @Test("reads every carrier from the table, so adding one is a data change")
     func carriersAreData() {
         #expect(NumberCues.words(for: .versionCarrier).isSuperset(of: ["python", "ios", "windows", "gpt"]))
