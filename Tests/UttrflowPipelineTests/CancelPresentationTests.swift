@@ -7,14 +7,6 @@ import Testing
 @testable import UttrflowPipeline
 @testable import UttrflowTestSupport
 
-/// A monitor that never reports anything, so the test sends each command itself.
-private final class SilentMonitor: HotkeyMonitoring {
-    private let pair = AsyncStream<HotkeyEvent>.makeStream()
-    @MainActor func start(binding: HotkeyBinding) throws(HotkeyError) {}
-    func stop() {}
-    var events: AsyncStream<HotkeyEvent> { pair.stream }
-}
-
 /// Counts the discarded cue, the one sound this suite is about.
 private final class DiscardCueSpy: RecordingCueing {
     private let discards = Mutex(0)
@@ -51,7 +43,7 @@ private func makeRig(screen: AppContext = .fixture()) -> Rig {
         clock: clock, earlyPoll: .seconds(600))
     let cue = DiscardCueSpy()
     let controller = DictationController(
-        dependencies: .init(pipeline: pipeline, monitor: SilentMonitor(), cue: cue), clock: ManualClock())
+        dependencies: .init(pipeline: pipeline, monitor: SilentHotkeyMonitor(), cue: cue), clock: ManualClock())
     return Rig(
         pipeline: pipeline, controller: controller, capture: capture, speech: speech,
         recordings: recordings, recording: recording, cue: cue, clock: clock, audio: audio)
