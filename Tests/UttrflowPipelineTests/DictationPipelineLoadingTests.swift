@@ -8,55 +8,22 @@ import Synchronization
 
 // MARK: - Doubles
 
-/// Holds the model's load open until the test lets it finish.
-private actor LoadGate {
-    private var isOpen = false
-    private var wasReached = false
-    private var held: [CheckedContinuation<Void, Never>] = []
-    private var watchers: [CheckedContinuation<Void, Never>] = []
-
-    /// Called from the load: suspends there until the test opens the gate.
-    func pass() async {
-        wasReached = true
-        for watcher in watchers { watcher.resume() }
-        watchers.removeAll()
-        guard !isOpen else { return }
-        await withCheckedContinuation { held.append($0) }
-    }
-
-    /// Returns once the load is actually waiting at the gate.
-    func waitUntilReached() async {
-        guard !wasReached else { return }
-        await withCheckedContinuation { watchers.append($0) }
-    }
-
-    func open() {
-        isOpen = true
-        for continuation in held { continuation.resume() }
-        held.removeAll()
-    }
+/// A recogniser whose load holds until the test calls `finishHungLoads()`, then fails with `failure` if given.
+private func slowLoading(failing failure: SpeechEngineError? = nil) -> FakeSpeechEngine {
+    FakeSpeechEngine(
+        prepareOutcome: failure.map { .failure($0) } ?? .ok,
+        transcribeOutcome: .success(.fixture(text: "Loaded and listening.")), prepareHangs: true)
 }
 
-/// A recogniser whose load takes as long as the test says, and may fail at the end of it.
-private final class SlowLoadingSpeechEngine: SpeechEngine, Sendable {
-    let kind = SpeechEngineKind.whisperKit
-    private let gate: LoadGate
-    private let failure: SpeechEngineError?
+/// A recogniser whose load returns at once, failing with `failure` if given.
+private func loadedAtOnce(failing failure: SpeechEngineError? = nil) -> FakeSpeechEngine {
+    FakeSpeechEngine(prepareOutcome: failure.map { .failure($0) } ?? .ok)
+}
 
-    init(gate: LoadGate, failure: SpeechEngineError? = nil) {
-        self.gate = gate
-        self.failure = failure
-    }
-
-    func prepare() async throws(SpeechEngineError) {
-        await gate.pass()
-        if let failure { throw failure }
-    }
-
-    func transcribe(
-        _ audio: AudioSamples, options: TranscriptionOptions
-    ) async throws(SpeechEngineError) -> Transcription {
-        .fixture(text: "Loaded and listening.")
+extension FakeSpeechEngine {
+    /// Returns once the load has been asked for and is held.
+    fileprivate func waitUntilLoading() async {
+        while await prepareCalls.isEmpty { await Task.yield() }
     }
 }
 
@@ -105,22 +72,22 @@ extension DictationPipeline {
 struct DictationPipelineLoadingTests {
     @Test("records through the load and delivers the words once the model is ready")
     func attemptDuringLoadKeepsTheSpeech() async {
-        let gate = LoadGate()
+        let speech = slowLoading()
         let capture = FakeAudioCaptureEngine()
         let inserter = FakeTextInserter()
         let pipeline = DictationPipeline(
-            capture: capture, speech: SlowLoadingSpeechEngine(gate: gate), cleaner: FakeTranscriptCleaner(),
+            capture: capture, speech: speech, cleaner: FakeTranscriptCleaner(),
             context: FakeContextEngine(context: .fixture()), inserter: inserter,
             metrics: RecordingMetricsRecorder(), clock: ManualClock())
         let loading = Task { await pipeline.prepare() }
-        await gate.waitUntilReached()
+        await speech.waitUntilLoading()
 
         await pipeline.startRecording()
         #expect(await pipeline.currentState == .recording)
         #expect(await capture.calls.events == [.start])
 
         let finishing = Task { await pipeline.finishRecording() }
-        await gate.open()
+        await speech.finishHungLoads()
         await loading.value
         await finishing.value
         #expect(await pipeline.isReady)
@@ -129,23 +96,23 @@ struct DictationPipelineLoadingTests {
 
     @Test("words finished after a load, with the person now in another app, are copied and not typed there")
     func movedAwayDuringTheLoadCopies() async {
-        let gate = LoadGate()
+        let speech = slowLoading()
         let inserter = FakeTextInserter()
         let clipboard = FakeTextInserter()
         let context = FakeContextEngine(
             context: AppContext(applicationName: "Fixture Notes", bundleIdentifier: "com.example.notes"))
         let pipeline = DictationPipeline(
-            capture: FakeAudioCaptureEngine(), speech: SlowLoadingSpeechEngine(gate: gate),
+            capture: FakeAudioCaptureEngine(), speech: speech,
             cleaner: FakeTranscriptCleaner(), context: context, inserter: inserter,
             metrics: RecordingMetricsRecorder(), clipboard: clipboard, clock: ContinuousClock())
         let loading = Task { await pipeline.prepare() }
-        await gate.waitUntilReached()
+        await speech.waitUntilLoading()
         await pipeline.startRecording()
         await pipeline.waitForEarlyRead()
         await context.setContext(
             AppContext(applicationName: "Fixture Mail", bundleIdentifier: "com.example.mail"))
         let finishing = Task { await pipeline.finishRecording() }
-        await gate.open()
+        await speech.finishHungLoads()
         await loading.value
         await finishing.value
 
@@ -155,21 +122,21 @@ struct DictationPipelineLoadingTests {
 
     @Test("words finished after a load go to the field when the person stayed")
     func stayedDuringTheLoadInserts() async {
-        let gate = LoadGate()
+        let speech = slowLoading()
         let inserter = FakeTextInserter()
         let clipboard = FakeTextInserter()
         let context = FakeContextEngine(
             context: AppContext(applicationName: "Fixture Notes", bundleIdentifier: "com.example.notes"))
         let pipeline = DictationPipeline(
-            capture: FakeAudioCaptureEngine(), speech: SlowLoadingSpeechEngine(gate: gate),
+            capture: FakeAudioCaptureEngine(), speech: speech,
             cleaner: FakeTranscriptCleaner(), context: context, inserter: inserter,
             metrics: RecordingMetricsRecorder(), clipboard: clipboard, clock: ContinuousClock())
         let loading = Task { await pipeline.prepare() }
-        await gate.waitUntilReached()
+        await speech.waitUntilLoading()
         await pipeline.startRecording()
         await pipeline.waitForEarlyRead()
         let finishing = Task { await pipeline.finishRecording() }
-        await gate.open()
+        await speech.finishHungLoads()
         await loading.value
         await finishing.value
 
@@ -179,14 +146,14 @@ struct DictationPipelineLoadingTests {
 
     @Test("a load slower than the transcription limit does not time the dictation out")
     func slowLoadOutlastsTheTranscriptionLimit() async {
-        let gate = LoadGate()
+        let speech = slowLoading()
         let clock = ManualClock()
         let pipeline = DictationPipeline(
-            capture: FakeAudioCaptureEngine(), speech: SlowLoadingSpeechEngine(gate: gate),
+            capture: FakeAudioCaptureEngine(), speech: speech,
             cleaner: FakeTranscriptCleaner(), context: FakeContextEngine(context: .fixture()),
             inserter: FakeTextInserter(), metrics: RecordingMetricsRecorder(), clock: clock)
         let loading = Task { await pipeline.prepare() }
-        await gate.waitUntilReached()
+        await speech.waitUntilLoading()
         await pipeline.startRecording()
         let finishing = Task { await pipeline.finishRecording() }
 
@@ -199,7 +166,7 @@ struct DictationPipelineLoadingTests {
         if case .failed(let failure) = await pipeline.currentState {
             Issue.record("the dictation failed while the model was loading: \(failure)")
         }
-        await gate.open()
+        await speech.finishHungLoads()
         await loading.value
         await finishing.value
         #expect(await !pipeline.isLoading)
@@ -207,13 +174,13 @@ struct DictationPipelineLoadingTests {
 
     @Test("dictates as before once the load finishes")
     func loadFinishingRestoresDictation() async {
-        let gate = LoadGate()
+        let speech = slowLoading()
         let capture = FakeAudioCaptureEngine()
-        let pipeline = makePipeline(speech: SlowLoadingSpeechEngine(gate: gate), capture: capture)
+        let pipeline = makePipeline(speech: speech, capture: capture)
         let loading = Task { await pipeline.prepare() }
-        await gate.waitUntilReached()
+        await speech.waitUntilLoading()
 
-        await gate.open()
+        await speech.finishHungLoads()
         await loading.value
 
         #expect(await pipeline.currentState == .idle)
@@ -226,11 +193,9 @@ struct DictationPipelineLoadingTests {
 
     @Test("a load that fails is not left loading, and says so")
     func failedLoadIsNotLoading() async {
-        let gate = LoadGate()
-        await gate.open()
         let failure = SpeechEngineError.modelLoadFailed(description: "fixture")
         let pipeline = makePipeline(
-            speech: SlowLoadingSpeechEngine(gate: gate, failure: failure),
+            speech: loadedAtOnce(failing: failure),
             capture: FakeAudioCaptureEngine())
 
         await pipeline.prepare()
@@ -244,11 +209,9 @@ struct DictationPipelineLoadingTests {
 
     @Test("a preparation failure keeps its engine and typed cause")
     func failedLoadKeepsItsCause() async throws {
-        let gate = LoadGate()
-        await gate.open()
         let failure = SpeechEngineError.modelLoadFailed(description: "weights unreadable")
         let pipeline = makePipeline(
-            speech: SlowLoadingSpeechEngine(gate: gate, failure: failure),
+            speech: loadedAtOnce(failing: failure),
             capture: FakeAudioCaptureEngine())
 
         await pipeline.prepare()
@@ -270,10 +233,8 @@ struct DictationPipelineLoadingTests {
             (.modelLoadFailed(description: "fixture", outOfMemory: true), .outOfMemory),
         ])
     func failedLoadKeepsItsClass(failure: SpeechEngineError, expected: SpeechLoadFailureClass) async {
-        let gate = LoadGate()
-        await gate.open()
         let pipeline = makePipeline(
-            speech: SlowLoadingSpeechEngine(gate: gate, failure: failure),
+            speech: loadedAtOnce(failing: failure),
             capture: FakeAudioCaptureEngine())
 
         await pipeline.prepare()
@@ -283,10 +244,7 @@ struct DictationPipelineLoadingTests {
 
     @Test("a load that works clears the class an earlier failure left")
     func workingLoadClearsTheClass() async {
-        let gate = LoadGate()
-        await gate.open()
-        let pipeline = makePipeline(
-            speech: SlowLoadingSpeechEngine(gate: gate), capture: FakeAudioCaptureEngine())
+        let pipeline = makePipeline(speech: loadedAtOnce(), capture: FakeAudioCaptureEngine())
 
         await pipeline.prepare()
 
@@ -305,11 +263,11 @@ struct DictationPipelineLoadingTests {
 
     @Test("a modifier press during the load becomes the recording")
     func modifierPressDuringLoadIsAdopted() async {
-        let gate = LoadGate()
+        let speech = slowLoading()
         let capture = FakeAudioCaptureEngine()
-        let pipeline = makePipeline(speech: SlowLoadingSpeechEngine(gate: gate), capture: capture)
+        let pipeline = makePipeline(speech: speech, capture: capture)
         let loading = Task { await pipeline.prepare() }
-        await gate.waitUntilReached()
+        await speech.waitUntilLoading()
 
         await pipeline.beginModifierPress(measuring: { .zero })
         let adopted = await pipeline.adoptModifierPress()
@@ -317,7 +275,7 @@ struct DictationPipelineLoadingTests {
         #expect(adopted)
         #expect(await capture.calls.events == [.start])
         await pipeline.cancel()
-        await gate.open()
+        await speech.finishHungLoads()
         await loading.value
     }
 
