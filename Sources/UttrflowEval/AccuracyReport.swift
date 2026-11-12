@@ -59,11 +59,21 @@ public struct AccuracyReport: Sendable, Equatable {
         let date = ISO8601DateFormatter.string(
             from: baseline.recordedAt, timeZone: TimeZone(identifier: "UTC") ?? .current,
             formatOptions: [.withFullDate])
+        let romanised = scored.filter(\.scoresOutput).map(\.caseID)
+        let exception = romanised.isEmpty ? "" : "except the cases scored on output below, "
+        let outputLine =
+            romanised.isEmpty
+            ? []
+            : [
+                "- Scored on output: \(counted(romanised.count, "case")), \(romanised.joined(separator: ", ")), "
+                    + "counted on the romanised text the user receives rather than the recogniser's Devanagari"
+            ]
         return [
             "- Measured: \(baseline.label)",
             "- Recogniser: \(baseline.recogniser ?? "not recorded in this baseline")",
-            "- Clean-up engine: none; these are the recogniser's words before clean-up, "
+            "- Clean-up engine: none; \(exception)these are the recogniser's words before clean-up, "
                 + "which changes words on purpose and is measured separately",
+        ] + outputLine + [
             "- Recorded: \(date)",
             "- Normalisation: \(baseline.normalisation.map(\.rawValue).joined(separator: ", "))",
             "- Corpus digest: `\(corpusDigest)`",
