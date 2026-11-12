@@ -1403,11 +1403,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         Task { await pipeline?.speechWasReleased() }
     }
 
-    /// A cold reload finished, including one started lazily when the user began dictating.
+    /// A cold reload finished, including one started lazily and one that outlasted the load limit.
     private func speechModelWasLoaded() {
         Task { await pipeline?.speechWasLoaded() }
-        guard speechReadiness == .loading else { return }
+        switch speechReadiness {
+        case .loading, .loadFailed, .loadFailedAgain: break
+        case .ready, .downloading, .incomplete, .notInstalled: return
+        }
         speechReadiness = .ready
+        speechLoadFailure = nil
+        speechLoadFailedBefore = false
         speechLoadStarted = nil
         speechLoadTicker?.cancel()
         speechLoadTicker = nil

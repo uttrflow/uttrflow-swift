@@ -3,7 +3,7 @@ import UttrflowCore
 /// The tables the corpus lives in, and the one place their shape is written down.
 enum Schema {
     /// What this build expects on disk; an older file is migrated to it and a newer one is refused.
-    static let version = 8
+    static let version = 9
 
     /// Everything a fresh database needs, in the order it must be created.
     static let statements = [
@@ -46,15 +46,6 @@ enum Schema {
         """,
         // The lines most recently entered in a field are read newest first, which this index orders.
         "CREATE INDEX IF NOT EXISTS entry_recent ON entry (surface_id, last_used)",
-        """
-        CREATE TABLE IF NOT EXISTS succession (
-          surface_id INTEGER NOT NULL REFERENCES surface(id) ON DELETE CASCADE,
-          previous   TEXT NOT NULL,
-          next       TEXT NOT NULL,
-          count      INTEGER NOT NULL DEFAULT 1,
-          PRIMARY KEY (surface_id, previous, next)
-        )
-        """,
         // A forgotten line, kept only as its keyed digest so it stays forgotten without being kept.
         """
         CREATE TABLE IF NOT EXISTS forgotten (
@@ -97,6 +88,8 @@ enum Schema {
         }
         for statement in statements { try database.execute(statement) }
         if let current = found.first {
+            // Pairs of successive lines were stored but never read, so an older file loses them.
+            if current < 9 { try database.execute("DROP TABLE IF EXISTS succession") }
             if current < 2 { try migrateToLowercasedPrefix(database) }
             // Version 3 adds only `entry_recent`, which `statements` has already created above.
             if current < 4 {
@@ -212,33 +205,6 @@ enum Schema {
                 $0.bind(2, replacement)
             }
         }
-        let successions = try database.rows(
-            "SELECT surface_id, previous, next, count FROM succession", { _ in }
-        ) {
-            (
-                surface: Int64($0.integer(0)), previous: $0.text(1), next: $0.text(2),
-                count: Int64($0.integer(3))
-            )
-        }
-        for pair in successions where !Spelling.isCanonical(pair.previous) || !Spelling.isCanonical(pair.next)
-        {
-            try database.run("DELETE FROM succession WHERE surface_id = ? AND previous = ? AND next = ?") {
-                $0.bind(1, pair.surface)
-                $0.bind(2, pair.previous)
-                $0.bind(3, pair.next)
-            }
-            try database.run(
-                """
-                INSERT INTO succession (surface_id, previous, next, count) VALUES (?, ?, ?, ?)
-                ON CONFLICT (surface_id, previous, next) DO UPDATE SET count = count + excluded.count
-                """,
-                {
-                    $0.bind(1, pair.surface)
-                    $0.bind(2, Spelling.canonical(pair.previous))
-                    $0.bind(3, Spelling.canonical(pair.next))
-                    $0.bind(4, pair.count)
-                })
-        }
     }
 
     /// Folds surfaces that macOS named with different bundle-identifier casing into one application key.
@@ -266,7 +232,6 @@ enum Schema {
                 continue
             }
             try moveEntries(from: surface.id, to: target, database)
-            try moveSuccessions(from: surface.id, to: target, database)
             try database.run("DELETE FROM surface WHERE id = ?") { $0.bind(1, surface.id) }
         }
     }
@@ -335,28 +300,6 @@ enum Schema {
                     $0.bind(2, entry.id)
                 }
             }
-        }
-    }
-
-    /// Moves successor pairs to another surface, adding counts where the same pair already exists.
-    private static func moveSuccessions(
-        from source: Int64, to target: Int64, _ database: Database
-    ) throws(PredictStoreError) {
-        let pairs = try database.rows(
-            "SELECT previous, next, count FROM succession WHERE surface_id = ?", { $0.bind(1, source) }
-        ) { (previous: $0.text(0), next: $0.text(1), count: Int64($0.integer(2))) }
-        for pair in pairs {
-            try database.run(
-                """
-                INSERT INTO succession (surface_id, previous, next, count) VALUES (?, ?, ?, ?)
-                ON CONFLICT (surface_id, previous, next) DO UPDATE SET count = count + excluded.count
-                """,
-                {
-                    $0.bind(1, target)
-                    $0.bind(2, pair.previous)
-                    $0.bind(3, pair.next)
-                    $0.bind(4, pair.count)
-                })
         }
     }
 

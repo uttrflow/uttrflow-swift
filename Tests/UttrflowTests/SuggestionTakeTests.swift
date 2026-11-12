@@ -21,8 +21,7 @@ struct SuggestionTakeTests {
         private(set) var accepted: [String] = []
 
         func record(
-            _ text: String, in surface: Surface, after previous: String?, as origin: LineOrigin,
-            at moment: Date
+            _ text: String, in surface: Surface, as origin: LineOrigin, at moment: Date
         ) {
             texts.append(text)
         }
@@ -157,7 +156,8 @@ struct SuggestionTakeTests {
         #expect(outcome == .refused)
         #expect(fixture.insertion.trustLosses == 1)
         #expect(fixture.surface.putBacks.map(\.offer) == [.certain("git commit")])
-        #expect(fixture.surface.putBacks.map(\.notice) == [SuggestionRuntimeStatus.accessibilityDeniedMessage])
+        #expect(
+            fixture.surface.putBacks.map(\.notice) == [SuggestionRuntimeStatus.accessibilityDeniedMessage])
     }
 
     @Test("a refusal whose offer was withdrawn meanwhile puts nothing back")
