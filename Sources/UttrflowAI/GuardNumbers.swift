@@ -164,7 +164,7 @@ extension MeaningPreservationGuard {
         numberReadings(in: text, reading: table).map(\.value)
     }
 
-    /// Each number `numberSequence` reads, whether it was said in words, and whether it is a whole number rather than one word of a run.
+    /// Each number `numberSequence` reads, whether it is said in words, and whether it is a whole number rather than one word of a run.
     private static func numberReadings(
         in text: String, reading table: [String: String]
     ) -> [(value: String, worded: Bool, whole: Bool)] {

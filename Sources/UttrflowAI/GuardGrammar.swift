@@ -275,8 +275,7 @@ extension MeaningPreservationGuard {
             ?? hasRomanisedHindiContext(alignment.kept + alignment.rewritten + echo)
         let origins = (alignment.kept + echo).filter(\.isPlain)
         let originIndex = WordOccurrenceIndex(origins)
-        // A handle, tag or path closing up words said apart is written from them, as the survival check reads it;
-        // those words are used up, and each notation stands for them once.
+        // A handle, tag or path closing up words said apart uses them up and stands for them once.
         let closedUp = closedUpIntoNotation(alignment.kept, in: alignment.rewrittenText)
         var usedOrigins = closedUp.kept
         var notations = closedUp.written
