@@ -43,7 +43,8 @@ private func makeRig(screen: AppContext = .fixture()) -> Rig {
         clock: clock, earlyPoll: .seconds(600))
     let cue = DiscardCueSpy()
     let controller = DictationController(
-        dependencies: .init(pipeline: pipeline, monitor: SilentHotkeyMonitor(), cue: cue), clock: ManualClock())
+        dependencies: .init(pipeline: pipeline, monitor: SilentHotkeyMonitor(), cue: cue),
+        clock: ManualClock())
     return Rig(
         pipeline: pipeline, controller: controller, capture: capture, speech: speech,
         recordings: recordings, recording: recording, cue: cue, clock: clock, audio: audio)
