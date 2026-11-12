@@ -2,6 +2,9 @@
 import ApplicationServices
 import Foundation
 import UttrflowCore
+import os
+
+private let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "insertion")
 
 /// The Accessibility attributes a selection is read and written through; the real one wraps an `AXUIElement`.
 protocol SelectionAttributes: Sendable {
@@ -71,9 +74,18 @@ struct SelectionWriter<Field: SelectionAttributes>: ArrivalReportingField {
         do {
             try replaceSelection(with: text)
         } catch {
-            if error == .insertionUnconfirmed { throw error }
+            // A write that landed leaves a caret; a selection still held is the replaced words, highlighted.
+            if error == .insertionUnconfirmed, field.selectedRange().map({ $0.length == 0 }) ?? true {
+                throw error
+            }
             // A field that takes the selection and refuses the text keeps its caret, not a selection.
-            _ = try? select(caret)
+            do {
+                try select(caret)
+            } catch {
+                log.error(
+                    "Caret not restored after a failed write: \(ErrorLog.failure(error), privacy: .public)"
+                )
+            }
             throw error
         }
     }

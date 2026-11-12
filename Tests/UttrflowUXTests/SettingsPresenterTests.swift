@@ -914,6 +914,39 @@ struct SettingsPrivacyPaneTests {
         #expect(privacy(removed).row("contextApp-com.example.vault") == nil)
     }
 
+    @Test("keeps no dictation text, or none from an app, with a way to add the app and take it off again")
+    func choosesWhatHistoryKeeps() throws {
+        #expect(
+            privacy().groups.first { $0.id == "historyKeeping" }?.rows.map(\.id) == [
+                SettingsToggleField.keepsNoTranscripts.rawValue, "addHistoryExclusion",
+            ])
+        #expect(
+            privacy().row("addHistoryExclusion")?.control
+                == .action(title: "Add an app", change: .chooseApplicationToKeepNoHistory))
+        #expect(SettingsChange.chooseApplicationToKeepNoHistory.isRequestToAct)
+
+        let nothing = try SettingsEditor.apply(.toggle(.keepsNoTranscripts, isOn: true), to: .default)
+        #expect(nothing.keepsNoTranscripts)
+        #expect(
+            privacy(nothing).row(SettingsToggleField.keepsNoTranscripts.rawValue)?.control
+                == .toggle(field: .keepsNoTranscripts, isOn: true))
+
+        let app = "com.example.Records"
+        let left = try SettingsEditor.apply(.keepsHistory(application: app, isOn: false), to: .default)
+        #expect(left.historyExcludedApplications == [app])
+        let twice = try SettingsEditor.apply(
+            .keepsHistory(application: "com.example.records", isOn: false), to: left)
+        #expect(twice.historyExcludedApplications == ["com.example.records"])
+        let row = try #require(privacy(left).row("historyExcluded.com.example.records"))
+        #expect(row.control == .action(title: "Remove", change: .keepsHistory(application: app, isOn: true)))
+        let kept = try SettingsEditor.apply(.keepsHistory(application: app, isOn: true), to: left)
+        #expect(kept.historyExcludedApplications.isEmpty)
+        #expect(privacy(kept).row("historyExcluded.com.example.records") == nil)
+        #expect(throws: SettingsRejection.self) {
+            try SettingsEditor.apply(.keepsHistory(application: "", isOn: false), to: .default)
+        }
+    }
+
     @Test("refuses a context level for an application it cannot name")
     func refusesAnUnnamedApplication() {
         #expect(throws: SettingsRejection.self) {
