@@ -32,11 +32,14 @@ enum DictationRecordMapping {
                 cleanedBy: outcome.cleanedBy, arrival: RecordedArrival(outcome.arrival),
                 changeLedger: outcome.changes.changeLedger, slowCause: outcome.slowCause,
                 heard: outcome.heardToKeep, guardRefusals: outcome.guardRefusals,
-                notation: outcome.changes.notation, quality: outcome.quality)
+                notation: outcome.changes.notation, quality: outcome.quality,
+                fromPrivateWindow: outcome.fromPrivateWindow)
         case .failed(let failure):
             guard let text = failure.wordsToKeep, keeping.keeps(applicationIdentifier: nil)
             else { return nil }
-            return DictationRecord(id: id, text: text, when: when, arrival: .notInserted)
+            return DictationRecord(
+                id: id, text: text, when: when, arrival: .notInserted,
+                fromPrivateWindow: failure.fromPrivateWindow)
         case .idle, .recording, .transcribing, .tidying, .inserting, .executed, .discarded:
             return nil
         }

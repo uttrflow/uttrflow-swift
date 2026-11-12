@@ -12,11 +12,14 @@ public struct KeptRecording: Sendable, Equatable, Identifiable, Codable {
     public let destination: AppIdentity?
     /// The formatter destination seen during the original dictation, or `nil` for older recordings.
     public let fieldKind: Destination?
+    /// Whether the original dictation was in a private-browsing window, so a retry learns nothing either.
+    package let fromPrivateWindow: Bool
 
     public init(
         id: UUID, when: Date, duration: Duration, destination: AppIdentity? = nil,
-        fieldKind: Destination? = nil
+        fieldKind: Destination? = nil, fromPrivateWindow: Bool = false
     ) {
+        self.fromPrivateWindow = fromPrivateWindow
         self.id = id
         self.when = when
         self.duration = duration

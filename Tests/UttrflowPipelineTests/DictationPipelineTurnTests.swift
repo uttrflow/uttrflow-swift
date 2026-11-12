@@ -84,7 +84,9 @@ private actor SlowRecordingKeeper: RecordingKeeper {
         return recording
     }
 
-    func setDestination(_ destination: AppContext, fieldKind: Destination, for id: UUID) async {}
+    func setDestination(
+        _ destination: AppContext, fieldKind: Destination, privateWindow: Bool, for id: UUID
+    ) async {}
 
     func discard(_ id: UUID) {
         discarded.append(id)
@@ -92,10 +94,14 @@ private actor SlowRecordingKeeper: RecordingKeeper {
 
     func waiting(now: Date) -> [KeptRecording] { [] }
 
-    func audio(of id: UUID) async throws(AudioCaptureError) -> AudioSamples {
+    func audio(
+        of id: UUID
+    ) async throws(AudioCaptureError)
+        -> (audio: AudioSamples, recording: KeptRecording?)
+    {
         if slow == .read { await hold() }
         if readFails { throw .engineFailed(description: "the file is gone") }
-        return .silence(seconds: 1)
+        return (.silence(seconds: 1), recording)
     }
 
     private func hold() async {
