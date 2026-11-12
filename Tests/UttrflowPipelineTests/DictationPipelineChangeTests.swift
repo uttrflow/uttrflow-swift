@@ -86,6 +86,7 @@ private final class FakeLearner: DictationLearning, Sendable {
     private struct State: Sendable {
         var entries: [[UUID]] = []
         var texts: [String] = []
+        var applications: [String?] = []
         var snippets: [[UUID]] = []
     }
 
@@ -96,10 +97,13 @@ private final class FakeLearner: DictationLearning, Sendable {
         self.refuses = refuses
     }
 
-    func recordUse(ofEntries ids: [UUID], writtenIn text: String) async throws(DictationChangeError) {
+    func recordUse(
+        ofEntries ids: [UUID], writtenIn text: String, in application: String?
+    ) async throws(DictationChangeError) {
         state.withLock {
             $0.entries.append(ids)
             $0.texts.append(text)
+            $0.applications.append(application)
         }
         guard !refuses else { throw .storeRefused }
     }
@@ -111,6 +115,7 @@ private final class FakeLearner: DictationLearning, Sendable {
 
     var entries: [[UUID]] { state.withLock { $0.entries } }
     var texts: [String] { state.withLock { $0.texts } }
+    var applications: [String?] { state.withLock { $0.applications } }
     var snippets: [[UUID]] { state.withLock { $0.snippets } }
 }
 
@@ -723,6 +728,23 @@ struct DictationPipelineVocabularyTests {
         #expect(vocabulary.lessons.isEmpty)
         #expect(await pipeline.outcome?.insertedInto == "Public App")
         #expect(await pipeline.outcome?.insertedIntoIdentifier == "com.example.b")
+    }
+
+    @Test("Counts a dictation's uses against the application it landed in, not the one read before the switch")
+    func countsUsesWhereTheWordsLanded() async {
+        let learner = FakeLearner()
+        let landedInB = InsertionDestination(applicationName: "Public App", bundleIdentifier: "com.example.b")
+        let pipeline = makePipeline(
+            inserter: FakeTextInserter(.success(InsertionAttempt(.accessibility, destination: landedInB))),
+            corrector: FakeCorrector(proposing: [paymentSheet]),
+            learner: learner,
+            context: FakeContextEngine(
+                context: AppContext(applicationName: "Private App", bundleIdentifier: "com.example.a")))
+
+        await dictate(with: pipeline)
+
+        #expect(learner.entries == [[entry]])
+        #expect(learner.applications == ["com.example.b"])
     }
 
     /// The question this path asks is what the user *said*, before anything rewrote it.

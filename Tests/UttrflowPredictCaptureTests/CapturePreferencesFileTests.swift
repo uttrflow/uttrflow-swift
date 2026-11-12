@@ -53,10 +53,10 @@ struct CapturePreferencesFileTests {
             """, to: "capture.json")
         let file = CapturePreferencesFile(path: scratch.path("capture.json"))
 
-        #expect(await file.mayLearn(from: "com.Example.Terminal") == false)
-        #expect(await file.mayLearn(from: "com.example.browser"))
-        #expect(await file.mayLearn(from: "com.example.notes"))
-        #expect(await file.mayLearn(from: nil))
+        #expect(file.mayLearn(from: "com.Example.Terminal") == false)
+        #expect(file.mayLearn(from: "com.example.browser"))
+        #expect(file.mayLearn(from: "com.example.notes"))
+        #expect(file.mayLearn(from: nil))
     }
 
     @Test("A file that was never written reads back as nothing having been decided.")

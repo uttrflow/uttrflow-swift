@@ -59,34 +59,52 @@ enum EvidenceSources {
         _ records: [DictationRecord], entries: [DictionaryEntry], ledger: [EvidenceRow],
         overrides: DestinationOverrides
     ) -> [EvidenceRow] {
+        learnt(records, entries: entries, ledger: ledger, overrides: overrides).flatMap(\.rows)
+    }
+
+    /// The backfill's rows for each dictation, beside the application it landed in.
+    private static func learnt(
+        _ records: [DictationRecord], entries: [DictionaryEntry], ledger: [EvidenceRow],
+        overrides: DestinationOverrides
+    ) -> [(application: String?, rows: [EvidenceRow])] {
         guard !ledger.contains(where: { $0.provenance == .migration }) else { return [] }
         let firstLive = ledger.map(\.day).min() ?? Int.max
-        return records.reversed().flatMap { record -> [EvidenceRow] in
+        return records.reversed().compactMap { record -> (application: String?, rows: [EvidenceRow])? in
             let day = EvidenceRow.day(of: record.when)
-            guard day < firstLive else { return [] }
+            guard day < firstLive else { return nil }
             let app = AppContext(
                 applicationName: record.applicationName, bundleIdentifier: record.applicationIdentifier)
             let destination = DestinationClassifier.classify(app, overrides: overrides)
             let used = DictionaryAppearances.used(entries, applied: [], writtenIn: record.text)
-            return
-                (uses(of: used, day: day) + StyleSignals.rows(for: record.text, into: destination, day: day))
-                .map {
-                    EvidenceRow(
-                        kind: $0.kind, subject: $0.subject, weight: $0.weight, day: $0.day,
-                        provenance: .migration)
-                }
+            let signals = StyleSignals.rows(for: record.text, into: destination, day: day)
+            let rows = (uses(of: used, day: day) + signals).map {
+                EvidenceRow(
+                    kind: $0.kind, subject: $0.subject, weight: $0.weight, day: $0.day,
+                    provenance: .migration)
+            }
+            return (record.applicationIdentifier, rows)
         }
     }
 
-    /// Appends History's pre-ledger dictations to the ledger once, when there is one; a refused write is retried on the next sweep.
+    /// Appends History's pre-ledger dictations to the ledger once, when there is one, leaving out applications `consent` refuses; a refused write is retried on the next sweep.
     static func backfill(
-        _ ledger: EvidenceLedgerStore?, from records: [DictationRecord], dictionary: PersonalDictionaryStore,
-        overrides: DestinationOverrides, keeping window: RetentionWindow
+        _ ledger: EvidenceLedgerStore?, from records: [DictationRecord], consent: any LearningConsent,
+        dictionary: PersonalDictionaryStore, overrides: DestinationOverrides, keeping window: RetentionWindow
     ) async {
         guard let ledger else { return }
-        let rows = backfill(
-            records, entries: await dictionary.allEntries(), ledger: await ledger.rows(keeping: window),
-            overrides: overrides)
-        if !rows.isEmpty { try? await ledger.append(rows, keeping: window) }
+        // Read first, which also deletes expired rows, so a sweep with nothing to learn still expires them.
+        let held = await ledger.rows(keeping: window)
+        let batches = learnt(
+            records, entries: await dictionary.allEntries(), ledger: held, overrides: overrides)
+        var applications: [String?] = []
+        var learntIn: [String?: [EvidenceRow]] = [:]
+        for (application, rows) in batches where !rows.isEmpty {
+            if learntIn[application] == nil { applications.append(application) }
+            learntIn[application, default: []] += rows
+        }
+        for application in applications {
+            try? await ledger.append(
+                learntIn[application] ?? [], keeping: window, learntIn: application, consent: consent)
+        }
     }
 }
