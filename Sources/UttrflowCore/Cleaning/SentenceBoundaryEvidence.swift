@@ -224,9 +224,11 @@ public enum SentenceBoundaryEvidence {
         let tags = LexicalClass.tags(ofWords: words)
         guard tags[head.count] == .verb else { return false }
         guard head.count == 2 else { return true }
-        // A participle, not a base form that ends in "ing" like "bring", completes the pronoun's verb.
-        return tags[1] == .verb && first.key.hasSuffix("ing")
-            && LexicalClass.lemma(ofWordAt: head.count, in: words)?.lowercased() != first.key
+        // A participle, not a base form that ends in "ing" like "bring" or a word with no dictionary form, completes the pronoun's verb.
+        guard tags[1] == .verb, first.key.hasSuffix("ing"),
+            let lemma = LexicalClass.lemma(ofWordAt: head.count, in: words)
+        else { return false }
+        return lemma.lowercased() != first.key
     }
 
     /// The words after the last stop in `previous`, its final word's own stop aside.

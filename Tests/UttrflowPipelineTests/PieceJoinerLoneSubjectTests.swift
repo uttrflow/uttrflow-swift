@@ -51,6 +51,7 @@ struct PieceJoinerLoneSubjectTests {
         arguments: [
             (["please", "do you have it"], "Please. Do you have it?"),
             (["we sing", "bring the cake"], "We sing. Bring the cake."),
+            (["he keeps", "zorbing the yard"], "He keeps. Zorbing the yard."),
         ]
     )
     func keepsStopBeforeQuestionOrBaseVerb(pieces: [String], expected: String) async {
