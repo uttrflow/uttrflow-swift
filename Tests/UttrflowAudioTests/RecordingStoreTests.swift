@@ -90,7 +90,7 @@ struct RecordingStoreTests {
         writer.append(Array(repeating: 0.3, count: 1_600))
         let finished = await store.finish(writer)
 
-        let audio = try await store.audio(of: finished.id)
+        let audio = try await store.audio(of: finished.id).audio
         #expect(audio.samples.count == 1_600)
         #expect(abs((audio.samples.first ?? 0) - 0.3) < 0.001)
     }
@@ -107,7 +107,7 @@ struct RecordingStoreTests {
             AppContext(
                 applicationName: "Editor", bundleIdentifier: "com.example.editor",
                 documentName: "private.swift", precedingText: "secret"),
-            fieldKind: .codeEditor,
+            fieldKind: .codeEditor, privateWindow: false,
             for: recording.id)
 
         let reloaded = RecordingStore(directory: sandbox.directory)
@@ -118,6 +118,46 @@ struct RecordingStoreTests {
                 == AppIdentity(
                     applicationName: "Editor", bundleIdentifier: "com.example.editor"))
         #expect(restored.fieldKind == .codeEditor)
+    }
+
+    @Test("the private-window finding is kept beside the identity, whatever the recorded window's title")
+    func privateWindowSurvivesReload() async throws {
+        let sandbox = Sandbox()
+        let store = RecordingStore(directory: sandbox.directory)
+        let writer = try #require(await store.begin(at: now))
+        writer.append(Array(repeating: 0.3, count: 1_600))
+        let recording = await store.finish(writer)
+        await store.settle(recording.id)
+        await store.setDestination(
+            AppContext(
+                applicationName: "Browser", bundleIdentifier: "com.example.browser",
+                documentName: "Example - Browser"),
+            fieldKind: .plain, privateWindow: true, for: recording.id)
+
+        let restored = try #require(
+            await RecordingStore(directory: sandbox.directory).waiting(now: now).first)
+        #expect(restored.fromPrivateWindow)
+        #expect(
+            restored.destination
+                == AppIdentity(applicationName: "Browser", bundleIdentifier: "com.example.browser"))
+    }
+
+    @Test("a finished recording kept for a fix brings its private-window finding when its audio is read")
+    func finishedRecordingBringsItsFacts() async throws {
+        let sandbox = Sandbox()
+        let store = RecordingStore(directory: sandbox.directory)
+        let writer = try #require(await store.begin(at: now))
+        writer.append(Array(repeating: 0.3, count: 1_600))
+        let recording = await store.finish(writer)
+        await store.settle(recording.id)
+        await store.setDestination(
+            AppContext(applicationName: "Browser", bundleIdentifier: "com.example.browser"),
+            fieldKind: .plain, privateWindow: true, for: recording.id)
+        await store.settleFinished(recording.id, recorded: true)
+
+        #expect(await store.waiting(now: now).isEmpty)
+        let read = try await RecordingStore(directory: sandbox.directory).audio(of: recording.id)
+        #expect(read.recording?.fromPrivateWindow == true)
     }
 
     @Test("an app-only sidecar from before field kinds were recorded still loads")
@@ -188,7 +228,7 @@ struct RecordingStoreTests {
 
         #expect(await store.waiting(now: now).isEmpty)
         #expect(await store.keepsFinished(finished.id, now: now))
-        #expect(try await store.audio(of: finished.id).samples.count == 1_600)
+        #expect(try await store.audio(of: finished.id).audio.samples.count == 1_600)
         await store.discard(finished.id)
         #expect(await !store.keepsFinished(finished.id, now: now))
         #expect(try FileManager.default.contentsOfDirectory(atPath: sandbox.directory.path).isEmpty)
@@ -335,7 +375,7 @@ struct RecordingStoreTests {
 
         #expect(waiting.map(\.id) == [id])
         #expect(waiting.first?.duration == .seconds(1))
-        #expect(try await store.audio(of: id).samples.count == 16_000)
+        #expect(try await store.audio(of: id).audio.samples.count == 16_000)
     }
 
     @Test("deletes header-only and partial-frame crash files but keeps one-frame recordings")
@@ -359,7 +399,7 @@ struct RecordingStoreTests {
 
         #expect(waiting.map(\.id) == [oneFrameID])
         #expect(waiting.first?.duration == .seconds(1.0 / Double(AudioSamples.canonicalSampleRate)))
-        #expect(try await store.audio(of: oneFrameID).samples.count == 1)
+        #expect(try await store.audio(of: oneFrameID).audio.samples.count == 1)
         #expect(
             !FileManager.default.fileExists(
                 atPath: sandbox.directory.appending(path: "\(emptyID.uuidString).wav").path))

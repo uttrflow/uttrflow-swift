@@ -3,6 +3,8 @@
 import Foundation
 import UttrflowAI
 import UttrflowCore
+import UttrflowHistory
+import UttrflowPipeline
 import UttrflowPredictCapture
 import UttrflowSettings
 
@@ -41,4 +43,14 @@ final class LearntEvidence {
             }
         }
     }
+}
+
+extension UttrflowPipeline.DictationOutcome {
+    /// Whether this dictation may add style or retry rows: not a secure field, a private window or a recording.
+    var teachesEvidence: Bool { !intoSecureField && !fromPrivateWindow && !isFromRecording }
+}
+
+extension UttrflowHistory.DictationRecord {
+    /// Whether History may backfill evidence from it; secure fields and credentials never reach History at all.
+    var teachesEvidence: Bool { !fromPrivateWindow }
 }

@@ -26,10 +26,11 @@ enum EvidenceSources {
             + ConfusionPairs.vetoing(heard: reverted.heard, meant: reverted.wrote, day: day)
     }
 
-    /// The `pairRetried` rows when `retry` respeaks `previous` in the same application within `InsertionLedger.respeakWindow`.
+    /// The `pairRetried` rows when `retry` respeaks `previous` in the same application within `InsertionLedger.respeakWindow`; none from a private window.
     static func retried(_ previous: DictationRecord, by retry: DictationRecord) -> [EvidenceRow] {
         let elapsed = retry.when.timeIntervalSince(previous.when)
-        guard previous.arrival != .notInserted, retry.arrival != .notInserted,
+        guard previous.teachesEvidence, retry.teachesEvidence,
+            previous.arrival != .notInserted, retry.arrival != .notInserted,
             let app = previous.applicationIdentifier, app == retry.applicationIdentifier,
             elapsed >= 0, elapsed <= Double(InsertionLedger.respeakWindow.components.seconds)
         else { return [] }
@@ -71,7 +72,7 @@ enum EvidenceSources {
         let firstLive = ledger.map(\.day).min() ?? Int.max
         return records.reversed().compactMap { record -> (application: String?, rows: [EvidenceRow])? in
             let day = EvidenceRow.day(of: record.when)
-            guard day < firstLive else { return nil }
+            guard day < firstLive, record.teachesEvidence else { return nil }
             let app = AppContext(
                 applicationName: record.applicationName, bundleIdentifier: record.applicationIdentifier)
             let destination = DestinationClassifier.classify(app, overrides: overrides)
@@ -86,7 +87,7 @@ enum EvidenceSources {
         }
     }
 
-    /// Appends History's pre-ledger dictations to the ledger once, when there is one, leaving out applications `consent` refuses; a refused write is retried on the next sweep.
+    /// Appends History's pre-ledger dictations to the ledger once, when there is one, leaving out applications `consent` refuses; a failed write leaves nothing, so the next sweep tries again.
     static func backfill(
         _ ledger: EvidenceLedgerStore?, from records: [DictationRecord], consent: any LearningConsent,
         dictionary: PersonalDictionaryStore, overrides: DestinationOverrides, keeping window: RetentionWindow
@@ -96,15 +97,7 @@ enum EvidenceSources {
         let held = await ledger.rows(keeping: window)
         let batches = learnt(
             records, entries: await dictionary.allEntries(), ledger: held, overrides: overrides)
-        var applications: [String?] = []
-        var learntIn: [String?: [EvidenceRow]] = [:]
-        for (application, rows) in batches where !rows.isEmpty {
-            if learntIn[application] == nil { applications.append(application) }
-            learntIn[application, default: []] += rows
-        }
-        for application in applications {
-            try? await ledger.append(
-                learntIn[application] ?? [], keeping: window, learntIn: application, consent: consent)
-        }
+        // One write for every allowed application, so a failure leaves no migration row to block the next sweep.
+        try? await ledger.append(batches, keeping: window, consent: consent)
     }
 }
