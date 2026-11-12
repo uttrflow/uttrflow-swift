@@ -640,12 +640,17 @@ public struct NumberFormsPass: PieceCleaningPass {
         if let year = year(after: value, at: end, keys: keys, shapes: shapes) {
             return Phrase(text: year.text, count: item.count + year.count)
         }
-        // A status verb says a code, never a clock, even where the sentence ends on the pair.
-        guard !followsStatusLead(position, keys: keys, shapes: shapes),
-            let time = time(hour: value, at: end, keys: keys, shapes: shapes),
+        guard let time = time(hour: value, at: end, keys: keys, shapes: shapes),
             timeAcceptable(
                 position: position, minuteStart: end, minuteEnd: end + time.count, keys: keys, shapes: shapes)
         else { return nil }
+        // A status verb says a code, never a clock, even where the sentence ends on the pair, unless a meridiem follows.
+        let minuteEnd = end + time.count
+        if followsStatusLead(position, keys: keys, shapes: shapes),
+            !(joined(minuteEnd, shapes) && isMeridiem(at: minuteEnd, keys: keys, shapes: shapes))
+        {
+            return nil
+        }
         return Phrase(text: time.text, count: item.count + time.count)
     }
 

@@ -785,6 +785,8 @@ struct NumberFormsPassTests {
         arguments: [
             ("return four thirteen when it fails", "return 413 when it fails"),
             ("the handler returns four thirteen", "the handler returns 413"),
+            ("return five thirty pm", "return 5:30 pm"),
+            ("the train returns five thirty p m", "the train returns 5:30 p m"),
             ("return three fifteen minute slots", "return three 15 minute slots"),
             ("call me five thirty then", "call me five thirty then"),
             ("we have four thirteen year olds", "we have four 13 year olds"),
