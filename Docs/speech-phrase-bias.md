@@ -69,3 +69,11 @@ word match cannot score misses there; no arm inserts a bias word in any of them.
 It ships off (strength 0): with the prompt on, as shipped, no strength changes a word, and
 without the prompt it recovers 1 word where the prompt recovers 8. This is one speaker; a speaker
 or vocabulary where the prompt misses a begun word could still show a gain.
+
+## Which decodes carry the bias
+
+`DecodeBias` in `UttrflowCore` is the one rule, applied to the first decode's
+`TranscriptionOptions`. A capped decode's tail retry and the decoder's temperature fallback decode
+the same audio under `.same`, keeping the prompt and the words. A re-decode that exists because the
+biased decode produced no words, in `CappedDecodeRetry` and in the pipeline, runs under `.none`,
+which keeps only the language hint. `DecodeBiasTests` and `DictationDecodeBiasTests` hold the rule.
