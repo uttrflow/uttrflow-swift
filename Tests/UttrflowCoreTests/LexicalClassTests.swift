@@ -43,6 +43,8 @@ struct LexicalClassTests {
         #expect(LexicalClass.tag(ofWordAt: 0, in: ["kilos"]) == .noun)
         #expect(LexicalClass.lemma(ofWordAt: 0, in: ["kilos"]) == "kilo")
         #expect(LexicalClass.tags(in: "a ex").map(\.tag) == [.determiner, .noun])
+        #expect(LexicalClass.isNamed("Maria", in: "a Maria"))
+        #expect(LexicalClass.isNamed("Anil", in: "met Anil"))
     }
 
     @Test("knows an English word in any case and not an invented term")
