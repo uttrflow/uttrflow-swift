@@ -83,9 +83,16 @@ enum NotationEvidence {
             !outsideQuotation(Array(body)).contains(where: FunctionWords.holds), let first = body.first,
             let last = body.last, first != "equals", last != "equals"
         else { return false }
-        return body.contains("equals")
+        let attributes = outsideQuotation(Array(body))
+        return (body.contains("equals") || attributes.allSatisfy(booleanAttributes.contains))
             && !zip(body, body.dropFirst()).contains { $0 == "equals" && $1 == "equals" }
     }
+
+    /// The attributes a tag holds by name alone, with no value; a body of these spells a tag with no "equals".
+    private static let booleanAttributes: Set<String> = [
+        "async", "autofocus", "autoplay", "checked", "controls", "defer", "disabled", "hidden", "loop",
+        "multiple", "muted", "novalidate", "readonly", "required", "selected",
+    ]
 
     private static func closes(_ words: [String], at index: Int) -> Bool {
         let next = words.indices.contains(index + 1) ? words[index + 1] : nil
