@@ -146,15 +146,8 @@ enum PieceJoiner {
     static func unitRunsAcross(
         _ head: String, into tail: String, under formatter: DestinationFormatter, going situation: Situation
     ) -> Bool {
-        let (allHead, allTail) = (WordTokens.words(head, .display), WordTokens.words(tail, .display))
-        // An everyday mark name said in both pieces is said again in one sentence, which is the evidence it is a mark.
-        let namedInBoth = SpokenPunctuationPass.ordinaryNames.contains { name in
-            [allHead, allTail].allSatisfy {
-                $0.map { WordShape($0).key }.contains(name.joined(separator: " "))
-            }
-        }
-        let headWords = namedInBoth ? allHead[...] : unitWords(of: allHead)
-        let tailWords = namedInBoth ? allTail[...] : allTail.prefix(longestSpokenUnit)
+        let headWords = unitWords(of: WordTokens.words(head, .display))
+        let tailWords = WordTokens.words(tail, .display).prefix(longestSpokenUnit)
         guard !headWords.isEmpty, !tailWords.isEmpty else { return false }
         // A mark that ends a sentence closes the head, so no number, time or address runs on from it into the tail.
         if let closing = spokenMark(at: Array(headWords), fromStart: false), !closing.opening,
@@ -174,6 +167,7 @@ enum PieceJoiner {
             WordTokens.words(units.run(Draft(text: words.joined(separator: " "))).text, .display)
         }
         if letteredSeriesRunsAcross(head, into: tail, reading: series) { return true }
+        if markNameRunsAcross(head, into: tail, reading: read) { return true }
         let headRead = read(Array(headWords))
         let apart = headRead + read(Array(tailWords))
         let together = read(Array(headWords + tailWords))
@@ -182,6 +176,21 @@ enum PieceJoiner {
         let cued = NumberFormsPass.hasLabelCue(
             at: headRead.count - 1, keys: shapes.map(\.key), shapes: shapes)
         return cued || !gluesDigitGroups(together, from: apart, at: headRead.count)
+    }
+
+    /// Whether an everyday mark name the tail says once is read as the mark only with the head's sentence before it, where the head says it too: a name said again in one sentence is a mark.
+    private static func markNameRunsAcross(
+        _ head: String, into tail: String, reading read: ([String]) -> [String]
+    ) -> Bool {
+        let sentenceHead = Array(lastSentence(of: WordTokens.words(head, .display)))
+        let sentenceTail = Array(firstSentence(of: WordTokens.words(tail, .display)))
+        return SpokenPunctuationPass.ordinaryNames.contains { name in
+            let key = name.joined(separator: " ")
+            func said(_ words: [String]) -> Int { words.count { WordShape($0).key == key } }
+            guard said(sentenceHead) > 0, said(sentenceTail) == 1 else { return false }
+            return said(read(sentenceHead + sentenceTail)) < said(read(sentenceHead))
+                + said(read(sentenceTail))
+        }
     }
 
     /// Whether the head opens a lettered item series ("item a") that the tail goes on with, so the series is read from the whole head: a series is longer than the window a number is read in.
@@ -362,6 +371,24 @@ enum PieceJoiner {
             return lastSentenceEnd == prior.index(before: prior.endIndex)
         }
         return previous == "word" && ["the", "a", "this", "that"].contains(prior.dropLast().last ?? "")
+    }
+
+    /// The words after the last spoken stop that ends a sentence, or every word when none is said.
+    private static func lastSentence(of words: [String]) -> ArraySlice<String> {
+        let end = words.indices.last { endsSentence(Array(words[...$0])) }
+        return end.map { words[($0 + 1)...] } ?? words[...]
+    }
+
+    /// The words up to the first spoken stop that ends a sentence, or every word when none is said.
+    private static func firstSentence(of words: [String]) -> ArraySlice<String> {
+        let end = words.indices.first { endsSentence(Array(words[...$0])) }
+        return end.map { words[...$0] } ?? words[...]
+    }
+
+    /// Whether the words end with a spoken stop, question mark or exclamation mark.
+    private static func endsSentence(_ words: [String]) -> Bool {
+        guard let mark = spokenMark(at: words, fromStart: false) else { return false }
+        return !mark.opening && [".", "?", "!"].contains(mark.symbol)
     }
 
     /// Finds a spoken mark from the shared registry at the start or end of a piece.
