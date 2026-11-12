@@ -164,17 +164,7 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
                 numberEnd += 2
             }
         }
-        var nounHead = numberEnd + 1
-        if tags.indices.contains(nounHead), words[nounHead] == "of" { nounHead += 1 }
-        while tags.indices.contains(nounHead),
-            [.adjective, .adverb, .determiner].contains(tags[nounHead])
-        {
-            nounHead += 1
-        }
-        if tags.indices.contains(nounHead), tags[nounHead] == .noun {
-            return nil
-        }
-        return form
+        return NumberFormsPass.countsWhatFollows(after: numberEnd, words: words, tags: tags) ? nil : form
     }
 
     /// A language name takes its lexicon case when "and", "or" or a list comma joins it to a name this pass writes.

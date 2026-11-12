@@ -553,9 +553,10 @@ public struct NumberFormsPass: PieceCleaningPass {
         }
         // "the code and one with the price": a label word earlier in the clause does not make the pronoun a code digit.
         let inContext =
-            hasLabelCue(at: position, keys: keys, shapes: shapes)
-            && !(item.spoken && item.value == 1 && item.count == 1
-                && isDescribedOne(at: position, keys: keys))
+            (hasLabelCue(at: position, keys: keys, shapes: shapes)
+                && !(item.spoken && item.value == 1 && item.count == 1
+                    && isDescribedOne(at: position, keys: keys)))
+            || followsCarrier(at: position, count: item.count, keys: keys, shapes: shapes)
         if let measured = decimalAndPercent(item, at: position, keys: keys, shapes: shapes) {
             return measured
         }
