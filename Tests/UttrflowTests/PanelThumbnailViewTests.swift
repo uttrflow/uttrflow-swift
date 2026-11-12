@@ -4,11 +4,12 @@ import AppKit
 import Synchronization
 import SwiftUI
 import Testing
+import UttrflowTestSupport
 
 @testable import Uttrflow
 
 @MainActor
-@Suite("A picture clip's thumbnail")
+@Suite("A picture clip's thumbnail", .timeLimit(.minutes(1)))
 struct PanelThumbnailViewTests {
     @MainActor
     private final class RetryWait {
@@ -117,9 +118,7 @@ struct PanelThumbnailViewTests {
         #expect(state.calls == 1)
         state.restore()
         retry.release(after: retryAfter)
-        for _ in 0..<1_000 where thumbnails.cached(file) == nil {
-            try await Task.sleep(for: .milliseconds(1))
-        }
+        try await eventually { thumbnails.cached(file) != nil }
 
         #expect(state.calls == 2)
         #expect(thumbnails.cached(file) != nil)

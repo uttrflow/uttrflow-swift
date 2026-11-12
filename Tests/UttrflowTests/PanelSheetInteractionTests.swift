@@ -7,6 +7,21 @@ import UttrflowUX
 
 @testable import Uttrflow
 
+/// Records the text field it gives the caret to, because SwiftUI moves one field editor between every window's text fields.
+private final class CaretWindow: NSWindow {
+    let caretArrived = Signal()
+    private(set) var caretField: NSTextField?
+
+    override func makeFirstResponder(_ responder: NSResponder?) -> Bool {
+        let made = super.makeFirstResponder(responder)
+        if made, let field = responder as? NSTextField, firstResponder is NSText {
+            caretField = field
+            caretArrived.fire()
+        }
+        return made
+    }
+}
+
 @MainActor
 @Suite(
     "Synthetic panel sheet and auxiliary controls",
@@ -18,10 +33,10 @@ struct PanelSheetInteractionTests {
         return [root] + children.flatMap { elements(under: $0) }
     }
 
-    private func host<Content: View>(_ content: Content) async -> (NSWindow, NSHostingView<Content>) {
+    private func host<Content: View>(_ content: Content) async -> (CaretWindow, NSHostingView<Content>) {
         NSApplication.shared.setActivationPolicy(.accessory)
         NSApplication.shared.finishLaunching()
-        let window = NSWindow(
+        let window = CaretWindow(
             contentRect: NSRect(x: -4_000, y: -4_000, width: 420, height: 360),
             styleMask: .borderless, backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
@@ -50,12 +65,18 @@ struct PanelSheetInteractionTests {
         }
     }
 
-    /// Suspends until the sheet field holds focus, which the sheet takes on a later turn and echoes to its draft as it does.
-    private func fieldFocused(in window: NSWindow) async throws {
-        while !(window.firstResponder is NSText) {
-            if Task.isCancelled { throw CancellationError() }
-            try? await Task.sleep(for: .milliseconds(5))
-        }
+    /// Suspends until the sheet field takes the caret once, then takes it back from a field in another window holding the shared editor.
+    @discardableResult
+    private func sheetEditor(in window: CaretWindow) async throws -> NSText {
+        if window.caretField == nil { try await arrival(of: window.caretArrived.fired) }
+        let field = try #require(window.caretField)
+        if !(window.firstResponder is NSText) { #expect(window.makeFirstResponder(field)) }
+        return try #require(window.firstResponder as? NSText)
+    }
+
+    private func textField(under view: NSView) -> NSTextField? {
+        if let field = view as? NSTextField, field.isEditable { return field }
+        return view.subviews.lazy.compactMap { textField(under: $0) }.first
     }
 
     /// Suspends until the relayed value satisfies `condition`, since a press reports success before its action has run.
@@ -85,7 +106,7 @@ struct PanelSheetInteractionTests {
         defer { window.close() }
         let cancel = try await button("Cancel", under: view)
         let confirm = try await button("Synthetic confirm", under: view)
-        try await fieldFocused(in: window)
+        try await sheetEditor(in: window)
         keys.removeAll()
         #expect(cancel.accessibilityPerformPress?() == true)
         #expect(confirm.accessibilityPerformPress?() == true)
@@ -105,10 +126,8 @@ struct PanelSheetInteractionTests {
         var keys: [PanelKey] = []
         let (window, _) = await host(panel { keys.append($0) })
         defer { window.close() }
-        // The sheet focuses its field a turn after it appears.
-        try await eventually { window.firstResponder is NSText }
         // Positive control: a real edit of the focused field reaches the setter, so the negative checks below mean something.
-        let editor = try #require(window.firstResponder as? NSText)
+        let editor = try await sheetEditor(in: window)
         editor.insertText("!")
         #expect(window.makeFirstResponder(nil))
         #expect(keys.count == 1)
@@ -119,13 +138,27 @@ struct PanelSheetInteractionTests {
         #expect(keys.isEmpty)
     }
 
+    @Test("another window's text field takes the sheet's field editor, and the caret is still found")
+    func anotherWindowTakesTheFieldEditor() async throws {
+        let (window, _) = await host(panel { _ in })
+        defer { window.close() }
+        let editor = try await sheetEditor(in: window)
+        let (other, otherHost) = await host(TextField("Synthetic other", text: .constant("")))
+        defer { other.close() }
+        let field = try #require(textField(under: otherHost))
+        #expect(other.makeFirstResponder(field))
+        #expect(other.firstResponder === editor)
+        #expect(!(window.firstResponder is NSText))
+        #expect(try await sheetEditor(in: window) === editor)
+    }
+
     @Test("a disabled confirmation remains visible and refuses activation")
     func disabledConfirmation() async throws {
         var keys: [PanelKey] = []
         let (window, view) = await host(panel(enabled: false) { keys.append($0) })
         defer { window.close() }
         let confirm = try await button("Synthetic confirm", under: view)
-        try await fieldFocused(in: window)
+        try await sheetEditor(in: window)
         keys.removeAll()
         #expect(confirm.isAccessibilityEnabled?() == false)
         _ = confirm.accessibilityPerformPress?()

@@ -19,6 +19,9 @@ final class FoldedTexts: Sendable {
         }
     }
 
+    /// Whether this clip's folded text is remembered.
+    func remembers(_ id: Clip.ID) -> Bool { entries.remembers(id) }
+
     /// Drops folded text for clips outside the live clip list, so deleted clips cannot pile up.
     func prune(to liveIDs: Set<Clip.ID>) {
         entries.prune(to: liveIDs)
