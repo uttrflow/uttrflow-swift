@@ -81,15 +81,6 @@ private final class SpyCue: RecordingCueing {
     var plays: [Play] { log.withLock { $0 } }
 }
 
-/// A ``TranscriptCleaning`` that always tidies to the same sentence.
-private final class ControllerCleaner: TranscriptCleaning {
-    func clean(
-        _ request: TransformationRequest
-    ) async throws(TransformationError) -> TransformationResult {
-        TransformationResult(text: controllerTidied, producedBy: .foundationModels)
-    }
-}
-
 // MARK: - Fixtures
 
 private let controllerSpoken = "um i'll be about twenty minutes late to the meeting"
@@ -158,7 +149,7 @@ private func makeHarness(
     let pipeline = DictationPipeline(
         capture: capture,
         speech: speech,
-        cleaner: ControllerCleaner(),
+        cleaner: FakeTranscriptCleaner(tidying: { _ in controllerTidied }, producedBy: .foundationModels),
         context: FakeContextEngine(context: .fixture()),
         inserter: inserter,
         // A clock of its own, so the stages cannot move the one the hold is measured on.
@@ -391,7 +382,7 @@ struct DictationControllerTests {
                 pipeline: DictationPipeline(
                     capture: FakeAudioCaptureEngine(),
                     speech: FakeSpeechEngine(),
-                    cleaner: ControllerCleaner(),
+                    cleaner: FakeTranscriptCleaner(tidying: { _ in controllerTidied }, producedBy: .foundationModels),
                     context: FakeContextEngine(context: .fixture()),
                     inserter: FakeTextInserter(),
                     clock: ManualClock()

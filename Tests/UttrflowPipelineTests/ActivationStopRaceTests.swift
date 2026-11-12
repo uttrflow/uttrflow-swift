@@ -37,14 +37,6 @@ private final class SilentRaceMonitor: HotkeyMonitoring {
     var events: AsyncStream<HotkeyEvent> { pair.stream }
 }
 
-private final class RaceCleaner: TranscriptCleaning {
-    func clean(
-        _ request: TransformationRequest
-    ) async throws(TransformationError) -> TransformationResult {
-        TransformationResult(text: "Hello.", producedBy: .foundationModels)
-    }
-}
-
 /// Stops the monitor while ⌥Space down, sent on a thread of its own, is held past the lock.
 @MainActor
 private func stopDuringAPress() throws -> ActivationMonitor {
@@ -80,7 +72,7 @@ struct ActivationStopRaceTests {
         let pipeline = DictationPipeline(
             capture: FakeAudioCaptureEngine(),
             speech: FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: "hello"))),
-            cleaner: RaceCleaner(),
+            cleaner: FakeTranscriptCleaner(tidying: { _ in "Hello." }, producedBy: .foundationModels),
             context: FakeContextEngine(context: .fixture()),
             inserter: FakeTextInserter(),
             clock: ManualClock()
