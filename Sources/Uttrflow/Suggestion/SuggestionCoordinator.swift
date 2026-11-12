@@ -118,7 +118,7 @@ final class SuggestionCoordinator {
     private var isPointerGestureActive = false
     /// Whether field observation is active or kept alive by a visible ghost.
     private let ticking = SuggestionActivityClock()
-    private var swallowed: Task<Void, Never>?
+    private lazy var swallowedKeys = SwallowedKeyHandling(tap: interceptor, rest: tapRest)
     /// Closing punctuation already present after the caret of the current offer.
     private var closingPunctuationAfterCaret = ""
     /// The line the accept key takes as last armed by a draw, so a later answer never inherits that claim.
@@ -145,8 +145,7 @@ final class SuggestionCoordinator {
     private var progress: (turn: Int, step: SuggestionTurnStep, application: String)?
     /// What this turn has already been told about the moment, so one line costs one walk.
     private let contextCache = SuggestionContextCache()
-    /// True while an accepted completion is being inserted, so the keys it posts wake no further turn.
-    private var isInserting = false
+    private var isInserting: Bool { swallowedKeys.isInserting }
     /// Holds the pending wake and stopped state, so stop discards work a turn had queued.
     private var wakeState: SuggestionWakeState {
         get { scheduling.state }
@@ -392,7 +391,7 @@ final class SuggestionCoordinator {
             self?.interceptor.arm([])
             self?.armedOffer = nil
         }
-        watchSwallowedKeys()
+        swallowedKeys.watch(interceptor.events, effects: swallowedKeyEffects())
         if !activityIsWatched {
             watchForActivity()
             activityIsWatched = true
@@ -443,8 +442,7 @@ final class SuggestionCoordinator {
         interceptor.arm([])
         interceptor.stop()
         panel.hide()
-        swallowed?.cancel()
-        swallowed = nil
+        swallowedKeys.stopWatching()
         generating.cancel()
         cancelPendingWake()
         scheduling.cancelRunning()
@@ -1458,94 +1456,43 @@ final class SuggestionCoordinator {
 
     // MARK: Accepting
 
-    /// Every key the tap took, decided in the session and carried out here.
-    private func watchSwallowedKeys() {
-        swallowed?.cancel()
-        swallowed = Task { [weak self, interceptor] in
-            for await event in interceptor.events {
+    /// What a key the tap took does here, in the order `SwallowedKeyHandling` decides.
+    private func swallowedKeyEffects() -> SwallowedKeyEffects {
+        SwallowedKeyEffects(
+            route: { [weak self] stroke in
+                let typed = self?.session.typed ?? ""
+                let reading = self?.captureFeed.lastReading
+                let action = self?.session.route(stroke) ?? .giveBack(stroke)
+                return SwallowedKeyRoute(action: action, typed: typed, reading: reading)
+            },
+            withdraw: { [weak self] in
+                self?.stopWatchingSelection()
+                self?.panel.hide()
+                self?.generating.cancel()
+            },
+            take: { [weak self] text, route, recordsAcceptance in
+                guard let self else { return .refused }
+                let outcome = await takeInto.take(
+                    text, after: route.typed, in: route.reading,
+                    closingPunctuation: closingPunctuationAfterCaret, recordsAcceptance: recordsAcceptance)
+                session.completeAcceptance(outcome)
+                return outcome
+            },
+            requestFreshRead: { [weak self] in self?.wake(.tick) },
+            redraw: { [weak self] update in self?.redraw(update) },
+            noteActivity: { [weak self] in self?.noteActivity() },
+            isSessionEnabled: { [weak self] in self?.session.isEnabled ?? true },
+            turnOffEverywhere: { [weak self] in
                 guard let self else { return }
-                await handle(event)
-            }
-        }
-    }
-
-    /// One key the tap took, which is either the tap giving up or something the session decides.
-    private func handle(_ event: InterceptedEvent) async {
-        switch event {
-        case .stopped(let failure):
-            Self.log.error("the tap stopped: \(String(describing: failure), privacy: .public)")
-            restTap()
-        case .swallowed(let stroke):
-            let typed = session.typed
-            let reading = captureFeed.lastReading
-            let action = session.route(stroke)
-            Self.log.debug(
-                "SWALLOWED key=\(String(describing: stroke.key), privacy: .public) modifiers=\(stroke.modifiers.rawValue) decision=\(action.logName, privacy: .public)"
-            )
-            switch action {
-            case .accept(let text), .acceptWord(let text):
-                stopWatchingSelection()
-                panel.hide()
-                interceptor.arm([])
-                generating.cancel()
-                // Held across the insert so the keys it posts are ignored on both the tap and the monitor.
-                isInserting = true
-                let returnedKey = await SuggestionTake.acceptKeyToReturnIfTakeFails(stroke) {
-                    await takeInto.take(
-                        text, after: typed, in: reading,
-                        closingPunctuation: closingPunctuationAfterCaret,
-                        recordsAcceptance: action == .accept(text))
-                } requestFreshRead: {
-                    wake(.tick)
-                } completed: { outcome in
-                    session.completeAcceptance(outcome)
-                }
-                isInserting = false
-                // A field that is no longer the drawn line gets its key back, so Tab still does what Tab does there.
-                if let returnedKey { KeyStrokeReturn.post(returnedKey) }
-                noteActivity()
-            // The field-value observer wakes after the destination exposes its insertion; the activity ticker is the fallback.
-            case .redraw(let update): redraw(update)
-            case .giveBack(let refused, let drawn):
-                drawn.map(redraw)
-                KeyStrokeReturn.post(refused)
-            }
-            // The keys pressed since this one reach the application only now, after anything it inserted.
-            interceptor.releaseHeldKeys()
-            // ⌥⎋ turns the feature off everywhere; persist it so the switch agrees and a later enable rebuilds this.
-            if !session.isEnabled {
                 if let onTurnedOffEverywhere { onTurnedOffEverywhere() } else { stop() }
-            }
-        }
-    }
-
-    /// How long the tap rests after macOS disabled it twice, past the window in which disables count against it.
-    private static let tapRestSeconds = 90
-
-    /// Rests the tap and starts it again, since a disable is usually the system's doing and the feature need not die of it.
-    private func restTap() {
-        onTapRestChanged?(nil)
-        interceptor.arm([])
-        interceptor.stop()
-        panel.hide()
-        tapRest.schedule(
-            after: .seconds(Self.tapRestSeconds),
-            shouldRestart: { [weak self] in
+            },
+            hidePanel: { [weak self] in self?.panel.hide() },
+            mayRestartTap: { [weak self] in
                 guard let self else { return false }
                 return !wakeState.isStopped && !secureInput.isBlocking
             },
-            willRestart: { [weak self] in self?.onTapRestRestarting?() }
-        ) { [weak self] in
-            guard let self, !wakeState.isStopped, !secureInput.isBlocking else { return }
-            do {
-                try interceptor.start()
-                Self.log.error("the tap is back after resting \(Self.tapRestSeconds)s")
-                onTapRestChanged?(.success(()))
-            } catch {
-                Self.log.error("the tap could not restart: \(SuggestionLog.failure(error), privacy: .public)")
-                onTapRestChanged?(.failure(error))
-            }
-        }
+            tapRestChanged: { [weak self] state in self?.onTapRestChanged?(state) },
+            tapRestRestarting: { [weak self] in self?.onTapRestRestarting?() })
     }
 
     // MARK: Consent

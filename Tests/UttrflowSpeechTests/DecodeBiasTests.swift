@@ -4,11 +4,12 @@ import Testing
 @testable import UttrflowCore
 @testable import UttrflowSpeech
 
-/// Records the vocabulary, which is what the bias is built from, at each call.
+/// Records the vocabulary and the text before the caret that each call's bias and prompt are built from.
 private actor BiasRecordingBackend: TranscriptionBackend {
     let minimumDuration: Duration = .zero
     private var results: [RawTranscript]
     private(set) var seen: [[String]] = []
+    private(set) var preceding: [String?] = []
 
     init(_ results: [RawTranscript]) { self.results = results }
 
@@ -23,7 +24,15 @@ private actor BiasRecordingBackend: TranscriptionBackend {
     func transcribe(
         _ samples: [Float], languageHint: LanguageCode?, biasedTowards vocabulary: [String]
     ) async throws(SpeechEngineError) -> RawTranscript {
+        try await transcribe(samples, languageHint: languageHint, biasedTowards: vocabulary, after: nil)
+    }
+
+    func transcribe(
+        _ samples: [Float], languageHint: LanguageCode?, biasedTowards vocabulary: [String],
+        after precedingText: String?
+    ) async throws(SpeechEngineError) -> RawTranscript {
         seen.append(vocabulary)
+        preceding.append(precedingText)
         return results.removeFirst()
     }
 }
@@ -33,10 +42,11 @@ struct DecodeBiasTests {
     private let words = ["Uttrflow", "Zoltan"]
     private let samples = [Float](repeating: 0.1, count: 16_000)
 
-    @Test("same keeps the words and none drops them")
+    @Test("same keeps the prompt and the words, and none drops both but keeps the language")
     func rule() {
-        #expect(DecodeBias.same.vocabulary(of: words) == words)
-        #expect(DecodeBias.none.vocabulary(of: words).isEmpty)
+        let first = TranscriptionOptions(languageHint: .hindi, vocabulary: words, precedingText: "Hello.")
+        #expect(DecodeBias.same.options(first) == first)
+        #expect(DecodeBias.none.options(first) == TranscriptionOptions(languageHint: .hindi))
     }
 
     @Test("a miss is retried without the bias")
@@ -72,6 +82,7 @@ struct DecodeBiasTests {
         _ = try await CappedDecodeRetry.transcribeRecoveringEmptyPrompt(
             samples: samples, languageHint: nil, vocabulary: words, precedingText: "Hello", using: backend)
         #expect(await backend.seen == [words, []])
+        #expect(await backend.preceding == ["Hello", nil])
     }
 
     @Test("the biased words come from the prompt when it carries them, and from the vocabulary otherwise")

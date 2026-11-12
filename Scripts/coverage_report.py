@@ -192,8 +192,9 @@ EXCLUDED_FILES = {
         "wiring only: an event tap, a global key monitor and another app's focused field, "
         "none of which a headless test has; every rule it sequences is SuggestionSession, "
         "every field reading it maps goes through SuggestionMoment, what capture is told between reads "
-        "is SuggestionCaptureFeed, how an accepted suggestion is taken is SuggestionTake, when secure keyboard entry "
-        "pauses and lifts is SecureInputPause, and whether the model is asked, "
+        "is SuggestionCaptureFeed, how an accepted suggestion is taken is SuggestionTake, what a key the tap took "
+        "does and when a stopped tap rests is SwallowedKeyHandling, when secure keyboard entry pauses and lifts "
+        "is SecureInputPause, and whether the model is asked, "
         "reused, skipped, drawn fresh or asked for alternatives is ModelPass, all of which are tested"
     ),
     "Uttrflow/Suggestion/SuggestionPanelController.swift": (
@@ -269,10 +270,11 @@ OVERSIZED_EXCLUSIONS = {
         "the two rules it keeps are tested in SuggestionReadGateTests and SuggestionDebounceTests, "
         "its model-pass decisions in ModelPassTests, and what capture is told between reads is "
         "SuggestionCaptureFeed, tested in SuggestionCaptureFeedTests; how an accepted suggestion is "
-        "taken into the field is SuggestionTake, tested in SuggestionTakeTests; when secure keyboard entry "
-        "pauses suggestions and when a recheck lifts the pause is SecureInputPause, tested in "
-        "SecureInputPauseTests; still untested is the "
-        "tap key routing and tap rest"
+        "taken into the field is SuggestionTake, tested in SuggestionTakeTests; the order in which a key "
+        "the tap took is carried out, and the rest of a stopped tap, are SwallowedKeyHandling, tested in "
+        "SwallowedKeyHandlingTests; when secure keyboard entry pauses suggestions and when a recheck lifts "
+        "the pause is SecureInputPause, tested in SecureInputPauseTests; still untested is the closures that map those steps onto the session, "
+        "the panel and the field"
     ),
     "Uttrflow/Main/MainPieces.swift": (
         "views, metrics and colour mappings; the one rule among them is RowReveal, tested in RowRevealTests"
