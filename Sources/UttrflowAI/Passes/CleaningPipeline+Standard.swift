@@ -34,8 +34,7 @@ extension CleaningPipeline {
                 + message(for: formatter, situation: situation, steps: steps, vocabulary: vocabulary).passes)
     }
 
-    /// The passes right on any piece of a message; `screen` holds the identifiers a doubted run may be bound to.
-    /// `namesFrom` is the screen whose identifiers set the file's naming convention, `screen` when it is nil.
+    /// The passes right on any piece; `screen` binds doubted runs, `namesFrom` (else `screen`) sets the naming convention.
     public static func piece(
         numbers: NumberPolicy, digits: DigitGrouping, layout: LayoutPolicy = [.paragraphs, .lists],
         insertionPoint: InsertionPoint = .unknown, destination: Destination = .plain,
