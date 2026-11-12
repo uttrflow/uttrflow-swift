@@ -64,3 +64,21 @@ enum SuggestionActivationTrust: Equatable {
     case granted
     case denied
 }
+
+/// What an activation does to suggestions, given Accessibility trust and secure keyboard entry around it.
+enum SuggestionTrustResponse: Equatable {
+    /// Secure keyboard entry holds everything off, and its own lift restarts the tap.
+    case holdForSecureInput
+    /// Trust was taken away, so nothing is watched and the tap stops.
+    case stopWatching
+    /// The field is followed again, and the tap starts when trust was just granted outside a secure-entry lift.
+    case follow(startsTap: Bool)
+
+    static func to(
+        _ trust: SuggestionActivationTrust, wasSecureInputBlocking: Bool, isSecureInputBlocking: Bool
+    ) -> Self {
+        guard !isSecureInputBlocking else { return .holdForSecureInput }
+        guard trust != .denied else { return .stopWatching }
+        return .follow(startsTap: !wasSecureInputBlocking && trust == .granted)
+    }
+}
