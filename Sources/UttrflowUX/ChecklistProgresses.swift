@@ -18,6 +18,9 @@ final class ChecklistProgresses: Sendable {
         return entries.value(for: clip.id, source: html) { parse(html) }
     }
 
+    /// Whether this clip's checklist count is remembered.
+    func remembers(_ id: Clip.ID) -> Bool { entries.remembers(id) }
+
     /// Drops formatted content for clips no longer held by the panel snapshot.
     func prune(to clipIDs: Set<Clip.ID>) {
         entries.prune(to: clipIDs)
