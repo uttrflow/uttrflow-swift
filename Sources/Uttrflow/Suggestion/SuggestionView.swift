@@ -69,6 +69,7 @@ struct SuggestionView: View {
         VStack(alignment: presentation.direction == .rightToLeft ? .trailing : .leading, spacing: 0) {
             if let inline = presentation.inline { inlineLine(inline) }
             if presentation.isExpanded { list }
+            if let notice = presentation.notice { noticeLine(notice) }
         }
         .environment(\.layoutDirection, presentation.direction == .rightToLeft ? .rightToLeft : .leftToRight)
     }
@@ -100,6 +101,16 @@ struct SuggestionView: View {
             .truncationMode(.tail)
             .font(presentation.font(at: presentation.pointSize * 0.82))
             .foregroundStyle(ink(presentation.unselectedListOpacity))
+            .accessibilityHidden(true)
+    }
+
+    /// Why the ghost could not be taken, under it in the footer's dimmed style and wrapped rather than cut short.
+    private func noticeLine(_ notice: String) -> some View {
+        Text(verbatim: notice)
+            .fixedSize(horizontal: false, vertical: true)
+            .font(presentation.font(at: presentation.pointSize * 0.82))
+            .foregroundStyle(ink(presentation.unselectedListOpacity))
+            .padding(.top, presentation.pointSize * 0.35)
             .accessibilityHidden(true)
     }
 
