@@ -1372,8 +1372,10 @@ final class SuggestionCoordinator {
         interceptor.arm(update.armed)
         armedOffer = update.suggestion.accepting
         // Nothing is drawn off the caret's line, and what is not drawn claims no key.
-        guard let snapshot, snapshot.placement == .inlineGhost,
-            let caret = Self.caret(for: update.suggestion, in: snapshot)
+        guard let snapshot,
+            let ghost = SuggestionRequest.ghost(
+                update.suggestion, typed: session.typed, selection: session.selection, in: snapshot,
+                preferences: preferences)
         else {
             stopWatchingSelection()
             interceptor.arm([])
@@ -1382,22 +1384,7 @@ final class SuggestionCoordinator {
             return
         }
         closingPunctuationAfterCaret = snapshot.closingPunctuationAfterCaret
-        let visibleSuggestion = update.suggestion.trimmed(
-            after: session.typed, matching: closingPunctuationAfterCaret)
-        let shown = panel.show(
-            visibleSuggestion, typed: session.typed, placement: .inlineGhost,
-            direction: snapshot.writingDirection == .rightToLeft ? .rightToLeft : .leftToRight,
-            caret: caret, window: snapshot.window, field: snapshot.ghostField,
-            fieldPointSize: snapshot.pointSize,
-            selection: session.selection,
-            acceptKey: preferences.acceptKeys.key(
-                for: AppContext(
-                    applicationName: snapshot.applicationName,
-                    bundleIdentifier: snapshot.bundleIdentifier,
-                    documentName: snapshot.windowTitle)),
-            wordAcceptKey: preferences.wordAcceptKey(forBundleIdentifier: snapshot.bundleIdentifier),
-            fontFamily: snapshot.fontFamily, isBold: snapshot.isBold, isItalic: snapshot.isItalic,
-            textColor: snapshot.textColor)
+        let shown = panel.show(ghost)
         // An offer the panel could not show whole claims no key, so Tab never inserts what was not drawn.
         guard shown else {
             stopWatchingSelection()
@@ -1408,12 +1395,6 @@ final class SuggestionCoordinator {
         armSelectionMonitor(
             for: update.suggestion, at: snapshot.selection, identity: snapshot.focusedFieldIdentity)
         watchScrolls()
-    }
-
-    /// The caret a ghost for `suggestion` is drawn at, or nil when the field offers no inline place for one.
-    nonisolated static func caret(for suggestion: Suggestion, in snapshot: FocusedFieldSnapshot) -> CGRect? {
-        guard suggestion != .silent, snapshot.placement == .inlineGhost else { return nil }
-        return snapshot.caret
     }
 
     /// Draws what a move or a dismissal left where the ghost already stands, since no field was read for it and typing may have moved it.
