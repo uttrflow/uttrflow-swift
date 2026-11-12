@@ -82,8 +82,9 @@ extension DictationPipeline {
 
     /// Recognises one window of the audio, answering `nil` when nothing was said in it; speech with no words is decoded twice.
     func transcribe(
-        _ audio: AudioSamples, _ window: Range<Int>, biasedTowards words: [String], after rolling: RollingContext?,
-        recording metrics: any MetricsRecording, skippingAMiss skips: Bool, for mine: Int
+        _ audio: AudioSamples, _ window: Range<Int>, biasedTowards words: [String],
+        after rolling: RollingContext?, recording metrics: any MetricsRecording, skippingAMiss skips: Bool,
+        for mine: Int
     ) async throws -> Transcription? {
         let whole = window == audio.samples.indices
         // Reuse the full recording when this window already covers it.
