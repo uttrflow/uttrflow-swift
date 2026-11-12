@@ -195,6 +195,7 @@ EXCLUDED_FILES = {
         "is SuggestionCaptureFeed, how an accepted suggestion is taken is SuggestionTake, what a key the tap took "
         "does and when a stopped tap rests is SwallowedKeyHandling, when secure keyboard entry pauses and lifts "
         "is SecureInputPause, what a selection check means for the armed offer is SuggestionSelectionPolling, "
+        "the ghost asked of the panel for a field is SuggestionRequest.ghost, "
         "and whether the model is asked, "
         "reused, skipped, drawn fresh or asked for alternatives is ModelPass, all of which are tested"
     ),
@@ -276,6 +277,7 @@ OVERSIZED_EXCLUSIONS = {
         "SwallowedKeyHandlingTests; when secure keyboard entry pauses suggestions and when a recheck lifts "
         "the pause is SecureInputPause, tested in SecureInputPauseTests; whether a selection check keeps or "
         "withdraws the armed offer is SuggestionSelectionPolling, tested in SuggestionSelectionPollingTests; "
+        "the ghost asked of the panel for a field is SuggestionRequest.ghost, tested in SuggestionGhostRequestTests; "
         "still untested is the closures that map those steps onto the session, "
         "the panel and the field"
     ),

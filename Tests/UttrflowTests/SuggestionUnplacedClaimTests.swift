@@ -23,17 +23,17 @@ private let caret = CGRect(x: 200, y: 400, width: 1, height: 16)
 struct SuggestionUnplacedClaimTests {
     @Test("a field with a caret and an inline place gives the caret to draw at")
     func placedOfferHasACaret() {
-        #expect(SuggestionCoordinator.caret(for: .certain("Meet at noon"), in: field(caret: caret)) == caret)
+        #expect(SuggestionRequest.caret(for: .certain("Meet at noon"), in: field(caret: caret)) == caret)
     }
 
     @Test("a field that reports no caret has nowhere to draw, so the draw disarms")
     func nilCaretIsUnplaced() {
-        #expect(SuggestionCoordinator.caret(for: .certain("Meet at noon"), in: field(caret: nil)) == nil)
+        #expect(SuggestionRequest.caret(for: .certain("Meet at noon"), in: field(caret: nil)) == nil)
     }
 
     @Test("silence is never drawn, whatever the field offers")
     func silenceIsUnplaced() {
-        #expect(SuggestionCoordinator.caret(for: .silent, in: field(caret: caret)) == nil)
+        #expect(SuggestionRequest.caret(for: .silent, in: field(caret: caret)) == nil)
     }
 
     @Test("a caret off every screen is not drawn, so show answers false and the draw disarms")
