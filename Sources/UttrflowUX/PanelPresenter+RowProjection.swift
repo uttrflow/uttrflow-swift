@@ -6,7 +6,8 @@ extension PanelPresenter {
     // MARK: - A row
 
     static func row(
-        for result: PanelResult, in snapshot: PanelSnapshot, isSelected: Bool
+        for result: PanelResult, in snapshot: PanelSnapshot, isSelected: Bool,
+        using cache: PanelCache = PanelCache.current
     ) -> PanelRow {
         let clip = result.clip
         let isMasked = clip.kind == .secret && !snapshot.revealed.contains(clip.id)
@@ -39,7 +40,7 @@ extension PanelPresenter {
             isSelected: isSelected,
             matched: result.match,
             measurements: isMasked ? nil : measurements(of: clip, in: snapshot),
-            checklist: isMasked ? nil : checklistProgress(of: clip, in: snapshot),
+            checklist: isMasked ? nil : checklistProgress(of: clip, using: cache),
             imageFile: isGone
                 ? nil
                 : clip.image.flatMap { image in
@@ -53,7 +54,7 @@ extension PanelPresenter {
             isMonospaced: isMonospaced(clip.kind),
             containsDisplayHazards: ClipTextSafety.containsDisplayHazards(clip.text),
             linkHost: isMasked || clip.kind != .link ? nil : LinkHostDisplay.parse(clip.text),
-            actions: actions(for: clip, isMasked: isMasked, in: snapshot)
+            actions: actions(for: clip, isMasked: isMasked, in: snapshot, using: cache)
         )
     }
 
@@ -88,8 +89,8 @@ extension PanelPresenter {
     }
 
     /// How many checklist boxes are checked, without copying any note text into the row.
-    static func checklistProgress(of clip: Clip, in snapshot: PanelSnapshot) -> String? {
-        guard let progress = PanelCache.current.checklistProgresses.progress(of: clip) else { return nil }
+    static func checklistProgress(of clip: Clip, using cache: PanelCache) -> String? {
+        guard let progress = cache.checklistProgresses.progress(of: clip) else { return nil }
         return "\(progress.done) of \(progress.total)"
     }
 

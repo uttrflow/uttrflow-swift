@@ -78,16 +78,25 @@ extension PanelSnapshot {
     }
 
     /// What the panel is showing right now, found once for each list of clips, query and tab, so Return and an arrow key share the search.
-    public var results: PanelResults {
+    public var results: PanelResults { results(using: PanelCache.current) }
+
+    /// The rows listed, searched and remembered in `cache`.
+    func results(using cache: PanelCache) -> PanelResults {
         let view = PanelSearchMemo.View(self)
-        let (rows, omitted, listID, selectedIndex) = PanelCache.current.searchMemo.rows(
-            for: view, selecting: selection, scanning: matches(ruledIn:), ranking: ranked)
+        let (rows, omitted, listID, selectedIndex) = cache.searchMemo.rows(
+            for: view, selecting: selection,
+            scanning: { matches(ruledIn: $0, using: cache) }, ranking: ranked)
         return PanelResults(
             rows: rows, selectedIndex: selectedIndex, omitted: omitted, listID: listID)
     }
 
     /// Every clip this view admits, and why it is here; `ruledIn` names the clips a shorter query found, whose text alone still has to be searched, and `nil` searches every clip's.
     func matches(ruledIn: Set<Clip.ID>?) -> [PanelMatch] {
+        matches(ruledIn: ruledIn, using: PanelCache.current)
+    }
+
+    /// The matches, folding clip text through `cache`.
+    func matches(ruledIn: Set<Clip.ID>?, using cache: PanelCache) -> [PanelMatch] {
         let needle = self.needle
         let foldedNeedle = SearchFolding.folded(needle) ?? needle
         // A tab narrows what is browsed, never what is searched, so typing looks everywhere.
@@ -113,7 +122,8 @@ extension PanelSnapshot {
                 ? .alias
                 : field(
                     matchingFolded: foldedNeedle, in: clip,
-                    searchingText: (ruledIn?.contains(clip.id) ?? true) && !isMasked(clip))
+                    searchingText: (ruledIn?.contains(clip.id) ?? true) && !isMasked(clip),
+                    using: cache)
             guard let matched else { return nil }
             return PanelMatch(
                 position: position,
@@ -216,13 +226,14 @@ extension PanelSnapshot {
 
     /// The strongest part of a clip the query appears in: alias, tag, category, then content, the last searched only where an earlier query has not already ruled the clip out.
     func field(
-        matchingFolded needle: String, in clip: Clip, searchingText: Bool = true
+        matchingFolded needle: String, in clip: Clip, searchingText: Bool = true,
+        using cache: PanelCache
     ) -> PanelMatchField? {
         let fields: [(PanelMatchField, String?)] = [
             (.alias, clip.alias.map { SearchFolding.folded($0) ?? $0 }),
             (.tag, nil),
             (.category, clip.category.map { SearchFolding.folded($0) ?? $0 }),
-            (.content, searchingText ? PanelCache.current.foldedTexts.text(of: clip) : nil),
+            (.content, searchingText ? cache.foldedTexts.text(of: clip) : nil),
         ]
         // An alias is matched by its handle, so "/pg" and "pg pr" find "pgprod" while it is typed.
         let aliasNeedle = PanelAlias.handle(needle, locale: locale)
