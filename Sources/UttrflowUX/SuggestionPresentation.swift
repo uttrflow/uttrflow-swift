@@ -231,11 +231,6 @@ public struct SuggestionPresentation: Sendable, Equatable {
     /// The status message drawn under a ghost, or nil when no ghost is drawn to carry it.
     public var notice: String? { style == .ghost ? statusMessage : nil }
 
-    /// What the ghost slot says after an accept was refused, or nil when the refusal has no fix to name.
-    public static func refusedAcceptMessage(for error: TextInsertionError) -> String? {
-        error == .accessibilityDenied ? SuggestionRuntimeStatus.accessibilityDeniedMessage : nil
-    }
-
     /// What VoiceOver is told the dot that Escape leaves is.
     public static let dotLabel = "AI suggestion hidden."
 
@@ -305,4 +300,26 @@ extension AcceptKey {
         case .optionTab: "Option-Tab"
         }
     }
+}
+
+/// What a refused accept means for the suggestion surface, decided once from the insertion error.
+public enum SuggestionRefusal: Sendable, Equatable {
+    /// Accessibility trust is gone, so suggestions are withdrawn and the fix is shown.
+    case lostTrust
+
+    /// The refusal `error` stands for, or nil when it has no fix to show.
+    public init?(_ error: TextInsertionError) {
+        guard error == .accessibilityDenied else { return nil }
+        self = .lostTrust
+    }
+
+    /// What the ghost slot says under the offer the accept left.
+    public var message: String {
+        switch self {
+        case .lostTrust: SuggestionRuntimeStatus.accessibilityDeniedMessage
+        }
+    }
+
+    /// Whether the refusal means trust is gone, so suggestions are withdrawn as the next activation would.
+    public var withdrawsTrust: Bool { self == .lostTrust }
 }

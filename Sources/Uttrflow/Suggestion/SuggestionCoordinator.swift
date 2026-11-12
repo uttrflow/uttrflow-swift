@@ -63,7 +63,7 @@ final class SuggestionCoordinator {
         insert: { [acceptor] suggestion, typed, window throws(TextInsertionError) in
             try await acceptor.accept(suggestion, after: typed, expectedWindowNumber: window)
         },
-        acceptances: acceptances, capture: capture, explainRefusal: panel.restoreHidden(saying:),
+        acceptances: acceptances, capture: capture, surface: panel,
         trustLost: { [weak self] in self?.activationMonitor?.recheckForLoss() })
     let focusedFieldValueObserver: any FocusedFieldValueObserving
     /// Keeps background typing work responsive for the coordinator's lifetime.

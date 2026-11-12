@@ -42,17 +42,11 @@ struct SuggestionRequest: Equatable {
     }
 
     /// Takes the offer off the surface, keeping it so a refused accept can put it back.
-    mutating func takeDown() {
-        if suggestion != .silent { takenDown = suggestion }
+    @discardableResult
+    mutating func takeDown() -> Bool {
+        takenDown = suggestion == .silent ? nil : suggestion
         suggestion = .silent
-    }
-
-    /// Puts back the offer the last take-down removed, answering whether there was one.
-    mutating func putBack() -> Bool {
-        guard let takenDown else { return false }
-        suggestion = takenDown
-        self.takenDown = nil
-        return true
+        return takenDown != nil
     }
 
     /// Whether two caret reads are one place.

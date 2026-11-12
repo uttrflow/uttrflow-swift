@@ -38,11 +38,13 @@ struct SuggestionPresentationTests {
 
     @Test("an accept refused for lost trust keeps the ghost and draws the fix in its slot")
     func refusedAcceptKeepsGhostWithMessage() throws {
-        let message = try #require(SuggestionPresentation.refusedAcceptMessage(for: .accessibilityDenied))
+        let refusal = try #require(SuggestionRefusal(.accessibilityDenied))
+        let message = refusal.message
         let presentation = SuggestionPresentation(
             .certain("git commit"), typed: "git c", statusMessage: message)
 
         #expect(message == SuggestionRuntimeStatus.accessibilityDeniedMessage)
+        #expect(refusal.withdrawsTrust)
         #expect(presentation.style == .ghost)
         #expect(presentation.inline != nil)
         #expect(presentation.notice == message)
@@ -51,7 +53,7 @@ struct SuggestionPresentationTests {
     @Test("an accept that may have written leaves the ghost slot without a message")
     func uncertainAcceptHasNoMessage() {
         for error: TextInsertionError in [.insertionTimedOut, .insertionUnconfirmed, .clipboardChanged] {
-            #expect(SuggestionPresentation.refusedAcceptMessage(for: error) == nil)
+            #expect(SuggestionRefusal(error) == nil)
         }
     }
 

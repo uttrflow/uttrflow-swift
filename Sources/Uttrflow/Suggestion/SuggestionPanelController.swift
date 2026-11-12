@@ -91,7 +91,7 @@ final class SuggestionPanelController {
             acceptKey: acceptKey, wordAcceptKey: wordAcceptKey, fontFamily: fontFamily, isBold: isBold,
             isItalic: isItalic, textColor: textColor)
         // The same offer at the same caret is already on screen, so nothing is laid out, placed or fronted again.
-        if isActuallyShowing, next.draws(sameAs: request) { return true }
+        if isActuallyShowing, next.draws(sameAs: request), drawn.statusMessage == statusMessage { return true }
         request = next
         return render()
     }
@@ -107,7 +107,7 @@ final class SuggestionPanelController {
             request = next
             return render()
         }
-        if isActuallyShowing, next.draws(sameAs: request) { return true }
+        if isActuallyShowing, next.draws(sameAs: request), drawn.statusMessage == statusMessage { return true }
         request = next
         return render()
     }
@@ -137,15 +137,18 @@ final class SuggestionPanelController {
 
     func hide() {
         // Already hidden and already drawn hidden: redrawing would change nothing and costs a screen lookup per key.
-        if request.suggestion == .silent, !panel.isVisible, drawn.style == .hidden { return }
-        request.takeDown()
+        let wasOffered = request.takeDown()
+        if !wasOffered, !panel.isVisible, drawn.style == .hidden { return }
         render()
     }
 
-    /// Draws the offer the last hide took down again, with `notice` under it, so a refused accept is explained.
-    func restoreHidden(saying notice: String) {
-        guard request.putBack() else { return }
+    /// The offer the last hide took down, or nil once anything has hidden the surface again since.
+    func takenDownOffer() -> Suggestion? { request.takenDown }
+
+    /// Draws `offer` again at the caret the panel still follows, with `notice` under it.
+    func putBack(_ offer: Suggestion, saying notice: String) {
         statusMessage = notice
+        request.suggestion = offer
         render()
     }
 
@@ -432,3 +435,5 @@ final class SuggestionPanelController {
         panel.contentView = hostingView
     }
 }
+
+extension SuggestionPanelController: RefusedOfferSurface {}
