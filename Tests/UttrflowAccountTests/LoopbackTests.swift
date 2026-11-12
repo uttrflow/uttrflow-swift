@@ -358,11 +358,9 @@ struct LoopbackCancellationTests {
             await inner.close()
         }
 
-        /// Returns once `close()` has run, or after two seconds.
-        func waitUntilClosed() async {
-            for _ in 0..<200 where timesClosed == 0 {
-                try? await Task.sleep(for: .milliseconds(10))
-            }
+        /// Returns once `close()` has run; the suite's time limit ends a wait for a close that never comes.
+        func waitUntilClosed() async throws {
+            try await eventually { timesClosed > 0 }
         }
     }
 
@@ -418,7 +416,7 @@ struct LoopbackCancellationTests {
             return try await backend.completeSignIn(challenge)
         }
         #expect(await endedWithRefusal(signIn))
-        await listener.waitUntilClosed()
+        try await listener.waitUntilClosed()
         #expect(listener.timesClosed > 0)
     }
 
@@ -431,7 +429,7 @@ struct LoopbackCancellationTests {
         try await arrival(of: listener.waiting.fired)
         signIn.cancel()
         #expect(await endedWithRefusal(signIn))
-        await listener.waitUntilClosed()
+        try await listener.waitUntilClosed()
         #expect(listener.timesClosed > 0)
     }
 }

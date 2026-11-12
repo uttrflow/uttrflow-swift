@@ -1,12 +1,13 @@
 import Foundation
 import Testing
+import UttrflowTestSupport
 import UttrflowPredict
 import UttrflowPredictCapture
 
 @testable import Uttrflow
 
 @MainActor
-@Suite("Suggestion settings keep learning consent in sync", .serialized)
+@Suite("Suggestion settings keep learning consent in sync", .serialized, .timeLimit(.minutes(1)))
 struct SuggestionConsentTests {
     @Test("removing a left-alone application restores learning consent", .bug(id: 5741))
     func removingALeftAloneApplicationRestoresLearningConsent() async throws {
@@ -31,10 +32,7 @@ struct SuggestionConsentTests {
         #expect(after.state(of: bundleIdentifier) == .on)
 
         coordinator.follow(after)
-        for _ in 0..<100 {
-            if await coordinator.capture.decisions().state(of: bundleIdentifier) == .allowed { break }
-            try await Task.sleep(for: .milliseconds(10))
-        }
+        try await eventually { await coordinator.capture.decisions().state(of: bundleIdentifier) == .allowed }
 
         #expect(await coordinator.capture.decisions().state(of: bundleIdentifier) == .allowed)
         #expect(consentFile.load().state(of: bundleIdentifier) == .allowed)

@@ -26,7 +26,7 @@ private final class ReentrantSource: KeyboardEventSource {
     }
 }
 
-@Suite("Activation monitor: a stop reached again from inside itself")
+@Suite("Activation monitor: a stop reached again from inside itself", .timeLimit(.minutes(1)))
 struct ActivationMonitorReentrancyTests {
     @Test("a source's stop calling back into the monitor's stop does not recurse")
     @MainActor
@@ -51,7 +51,7 @@ struct ActivationMonitorReentrancyTests {
                 monitor.stop()
                 done.signal()
             }.start()
-            _ = done.wait(timeout: .now() + 5)
+            done.wait()
         }
 
         monitor.stop()
