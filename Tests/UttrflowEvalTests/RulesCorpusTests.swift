@@ -26,7 +26,7 @@ struct RulesCorpusTests {
 
     /// Probe and developer cases the rules still fail, a baseline that only shrinks: a passing case leaves it.
     static let knownFailures: Set<String> = [
-        "probe-ticket-and-units", "probe-backtick-identifiers", "probe-docker-run-flags",
+        "probe-ticket-and-units", "probe-backtick-identifiers",
         "probe-sql-join", "probe-regex-pattern", "probe-yaml-keys", "probe-todo-comment", "probe-log-call",
         "probe-version-bump", "probe-dockerfile-from", "probe-git-commands", "probe-stack-frame",
         "probe-protocol-names", "probe-bug-title",
@@ -117,7 +117,7 @@ struct RulesCorpusTests {
         // Grammar cases name a destination too, but repairs are the model's alone; the floor is below.
         let named = Set(
             EvaluationCorpus.all.filter { $0.destination != .plain && $0.category != .grammar }.map(\.id))
-        #expect(named.count == 565 + Self.knownFailures.count)
+        #expect(named.count == 566 + Self.knownFailures.count)
         #expect(
             named.subtracting(Self.modelOnly).subtracting(Self.knownFailures).isSubset(of: Self.rulesMustPass)
         )
