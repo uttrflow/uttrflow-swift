@@ -28,14 +28,10 @@ struct SecretSweepTests {
     ]
 
     private func taught(_ store: PredictStore) async throws {
-        var previous: String?
-        for line in Self.learned {
-            try await store.record(line, in: Self.shell, after: previous, at: Self.moment)
-            previous = line
-        }
+        for line in Self.learned { try await store.record(line, in: Self.shell, at: Self.moment) }
     }
 
-    @Test("A stored credential line and every succession naming it go; ordinary lines and their order stay")
+    @Test("A stored credential line goes; ordinary lines stay")
     func sweepsStoredCredentials() async throws {
         let scratch = Scratch()
         let store = try PredictStore(path: scratch.path("predict.sqlite"))
@@ -50,8 +46,6 @@ struct SecretSweepTests {
             Set(try await store.candidates(for: Self.shell, matching: "git").map(\.text)) == [
                 "git status", "git log",
             ])
-        #expect(try await store.legacySuccessors(for: Self.shell, after: "git status").isEmpty)
-        #expect(try await store.legacySuccessors(for: Self.shell, after: "ls -la").map(\.text) == ["git log"])
     }
 
     @Test("The sweep runs once per version of the rules, and again when the rules widen")
@@ -90,13 +84,12 @@ struct SecretSweepTests {
             try await store.sweep(
                 "looksLikeSecret", version: 1, removing: CaptureGate.looksLikeSecret) == 0)
         try await store.record("hello", in: Self.browser, at: Self.moment)
-        try await store.record("123456", in: Self.browser, after: "hello", at: Self.moment)
+        try await store.record("123456", in: Self.browser, at: Self.moment)
         try await store.record("123456", in: Self.terminal, at: Self.moment)
 
         #expect(try await CaptureGate.sweepSecrets(from: store) == 1)
         #expect(try await store.entryCount() == 2)
         #expect(try await store.candidates(for: Self.browser, matching: "123").isEmpty)
-        #expect(try await store.legacySuccessors(for: Self.browser, after: "hello").isEmpty)
         #expect(try await store.candidates(for: Self.terminal, matching: "123").map(\.text) == ["123456"])
         #expect(try await CaptureGate.sweepSecrets(from: store) == 0)
     }

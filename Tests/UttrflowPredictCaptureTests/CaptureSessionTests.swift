@@ -8,14 +8,12 @@ import UttrflowPredictStore
 
 /// A sink that remembers what it was told, so the session can be driven without a database.
 private actor Recorder: CaptureSink {
-    private(set) var recorded: [(text: String, surface: Surface, previous: String?)] = []
+    private(set) var recorded: [(text: String, surface: Surface)] = []
     private(set) var superseded: [(text: String, replacement: String)] = []
     private(set) var moments: [Date] = []
 
-    func record(
-        _ text: String, in surface: Surface, after previous: String?, as origin: LineOrigin, at moment: Date
-    ) {
-        recorded.append((text, surface, previous))
+    func record(_ text: String, in surface: Surface, as origin: LineOrigin, at moment: Date) {
+        recorded.append((text, surface))
         moments.append(moment)
     }
 
@@ -72,7 +70,7 @@ private actor FlakySink: CaptureSink {
     }
 
     func record(
-        _ text: String, in surface: Surface, after previous: String?, as origin: LineOrigin, at moment: Date
+        _ text: String, in surface: Surface, as origin: LineOrigin, at moment: Date
     ) async throws {
         if shouldSuspendNextRecord {
             shouldSuspendNextRecord = false
@@ -131,31 +129,6 @@ private actor FlakySink: CaptureSink {
 
 private enum FlakySinkError: Error { case transient }
 
-/// A sink whose first record waits until released, so a second write can arrive while it is suspended.
-private actor GatedSink: CaptureSink {
-    private(set) var recorded: [(text: String, previous: String?)] = []
-    private var gate: CheckedContinuation<Void, Never>?
-    private var isHolding = true
-
-    func record(
-        _ text: String, in surface: Surface, after previous: String?, as origin: LineOrigin, at moment: Date
-    ) async {
-        recorded.append((text, previous))
-        guard isHolding else { return }
-        isHolding = false
-        await withCheckedContinuation { gate = $0 }
-    }
-
-    func supersede(_ text: String, with replacement: String, in surface: Surface) {}
-
-    var isWaiting: Bool { gate != nil }
-
-    func release() {
-        gate?.resume()
-        gate = nil
-    }
-}
-
 /// A sink that fails its first record, holds the second until released, and then lets every write through.
 private actor RetryGateSink: CaptureSink {
     private(set) var recorded: [String] = []
@@ -163,7 +136,7 @@ private actor RetryGateSink: CaptureSink {
     private var gate: CheckedContinuation<Bool, Never>?
 
     func record(
-        _ text: String, in surface: Surface, after previous: String?, as origin: LineOrigin, at moment: Date
+        _ text: String, in surface: Surface, as origin: LineOrigin, at moment: Date
     ) async throws {
         calls += 1
         if calls == 1 { throw FlakySinkError.transient }
@@ -534,18 +507,6 @@ struct CaptureSessionTests {
         #expect(await recorder.texts == ["git checkout main", "git checkout main -q"])
     }
 
-    @Test("The value entered before is what the next one is recorded as following.")
-    func successionIsRecorded() async throws {
-        let scratch = Scratch()
-        let recorder = Recorder()
-        let session = try await session(scratch, recorder, allowing: ["com.example.terminal"])
-        _ = try await session.handle(.keystroke("git add -p", at: start), in: terminal)
-        _ = try await session.handle(.returnPressed(at: start), in: terminal)
-        _ = try await session.handle(.keystroke("git commit", at: start), in: terminal)
-        _ = try await session.handle(.returnPressed(at: start), in: terminal)
-        #expect(await recorder.recorded.map(\.previous) == [nil, "git add -p"])
-    }
-
     @Test("A value extended after it went idle replaces the half-written one rather than joining it.")
     func continuingSupersedes() async throws {
         let scratch = Scratch()
@@ -718,25 +679,7 @@ struct CaptureSessionForgettingTests {
 
 @Suite("Forgetting what was learned")
 struct CaptureSessionForgetLearnedTests {
-    @Test("A line recorded after its application is forgotten does not follow the forgotten one.")
-    func forgettingAnApplicationDropsItsLastLine() async throws {
-        let scratch = Scratch()
-        let recorder = Recorder()
-        let session = try await session(
-            scratch, recorder, allowing: ["com.example.terminal", "com.example.browser"])
-        _ = try await session.handle(.keystroke("secret line", at: start), in: terminal)
-        _ = try await session.handle(.returnPressed(at: start), in: terminal)
-        _ = try await session.handle(.keystroke("example.com", at: start), in: browser)
-        _ = try await session.handle(.returnPressed(at: start), in: browser)
-        await session.forgetLearned(from: "com.example.terminal")
-        _ = try await session.handle(.keystroke("next line", at: start), in: terminal)
-        _ = try await session.handle(.returnPressed(at: start), in: terminal)
-        _ = try await session.handle(.keystroke("example.org", at: start), in: browser)
-        _ = try await session.handle(.returnPressed(at: start), in: browser)
-        #expect(await recorder.recorded.map(\.previous) == [nil, nil, nil, "example.com"])
-    }
-
-    @Test("Forgetting everything drops every last line and every answer, in memory and on disk.")
+    @Test("Forgetting everything drops every answer, in memory and on disk.")
     func forgettingEverythingDropsLinesAndAnswers() async throws {
         let scratch = Scratch()
         let recorder = Recorder()
@@ -749,7 +692,7 @@ struct CaptureSessionForgetLearnedTests {
         try await session.record(.allowed, for: "com.example.terminal")
         _ = try await session.handle(.keystroke("next line", at: start), in: terminal)
         _ = try await session.handle(.returnPressed(at: start), in: terminal)
-        #expect(await recorder.recorded.map(\.previous) == [nil, nil])
+        #expect(await recorder.texts == ["secret line", "next line"])
     }
 }
 
@@ -957,20 +900,6 @@ struct CaptureSessionFieldIdentityTests {
         #expect(await recorder.texts.isEmpty)
         let finished = try await session.handle(.returnPressed(at: start.addingTimeInterval(2)), in: edited)
         #expect(finished == .recorded("buy milk"))
-    }
-
-    @Test("An acceptance arriving while a finished line is still being written follows that line.")
-    func acceptanceDuringWriteFollowsIt() async throws {
-        let scratch = Scratch()
-        let sink = GatedSink()
-        let session = try await session(scratch, sink, allowing: ["com.example.terminal"])
-        _ = try await session.handle(.keystroke("hello", at: start), in: terminal)
-        let typed = Task { try await session.handle(.returnPressed(at: start), in: terminal) }
-        while !(await sink.isWaiting) { await Task.yield() }
-        _ = try await session.accepted("world", in: terminal, at: start)
-        await sink.release()
-        _ = try await typed.value
-        #expect(await sink.recorded.map(\.previous) == [nil, "hello"])
     }
 }
 

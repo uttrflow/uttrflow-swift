@@ -71,8 +71,8 @@ struct FinishedLineTests {
         #expect(found.first { $0.text == "git push" }?.evidence?.count == 2)
     }
 
-    @Test("A file from the previous schema gains the finished mark, with every older line unfinished.")
-    func migratesThePreviousSchema() async throws {
+    @Test("A version seven file gains the finished mark, with every older line unfinished.")
+    func migratesVersionSeven() async throws {
         let corpus = Corpus()
         do {
             let store = try store(corpus)
@@ -80,7 +80,7 @@ struct FinishedLineTests {
         }
         let database = try Database(path: corpus.path)
         try database.execute("ALTER TABLE entry DROP COLUMN finished")
-        try database.run("UPDATE schema_version SET version = ?") { $0.bind(1, Int64(Schema.version - 1)) }
+        try database.run("UPDATE schema_version SET version = ?") { $0.bind(1, Int64(7)) }
 
         let store = try store(corpus)
         try await store.record("ls -la", in: terminal, as: .finished, at: moment)
