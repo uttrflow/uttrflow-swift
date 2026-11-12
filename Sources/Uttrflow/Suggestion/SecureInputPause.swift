@@ -15,7 +15,9 @@ struct SecureInputPauseEffects {
 final class SecureInputPause {
     /// Starts a check repeating at `interval` and returns what stops it, so a test decides when each recheck runs.
     typealias Scheduling =
-        @MainActor (_ interval: TimeInterval, _ check: @escaping @MainActor () -> Void) -> @MainActor () -> Void
+        @MainActor (
+            _ interval: TimeInterval, _ check: @escaping @MainActor () -> Void
+        ) -> @MainActor () -> Void
 
     private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "predict")
 
