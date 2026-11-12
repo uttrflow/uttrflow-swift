@@ -359,6 +359,7 @@ public enum SettingsToggleField: String, Sendable, Equatable, CaseIterable {
     case suggestionsEnabled
     case quietSuggestions
     case learnsFromDictation
+    case keepsNoTranscripts
 }
 
 /// Everything the user can ask for on this screen; only ``SettingsEditor`` decides what happens.
@@ -423,6 +424,9 @@ public enum SettingsChange: Sendable, Equatable {
     /// Pauses clipboard capture for one hour, or resumes it early.
     case pauseClipboardCapture(isOn: Bool)
 
+    /// Keeps one application's dictations in History again, or leaves them out from now on.
+    case keepsHistory(application: String, isOn: Bool)
+
     /// Turns the question before a multi-line clip is pasted into a terminal on or off.
     case confirmMultilinePaste(isOn: Bool)
 
@@ -437,6 +441,9 @@ public enum SettingsChange: Sendable, Equatable {
 
     /// Asks the user to pick an installed application to give a context level of its own.
     case chooseApplicationForContextLevel
+
+    /// Asks the user to pick an installed application whose dictations History leaves out.
+    case chooseApplicationToKeepNoHistory
 
     /// Fetches the suggestion model again after a failed attempt.
     case retrySuggestionModel
@@ -457,8 +464,8 @@ public enum SettingsChange: Sendable, Equatable {
     public var isRequestToAct: Bool {
         switch self {
         case .checkForUpdatesNow, .chooseApplicationToTurnOffSuggestions, .chooseApplicationForDestination,
-            .chooseApplicationForContextLevel, .retrySuggestionModel, .exportPersonalData,
-            .importPersonalData, .manageClipboardExclusions,
+            .chooseApplicationForContextLevel, .chooseApplicationToKeepNoHistory, .retrySuggestionModel,
+            .exportPersonalData, .importPersonalData, .manageClipboardExclusions,
             .pauseClipboardCapture, .confirmMultilinePaste, .openSystemSettings, .openPage:
             true
         default: false
