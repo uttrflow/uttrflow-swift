@@ -71,7 +71,7 @@ enum EvidenceSources {
         let firstLive = ledger.map(\.day).min() ?? Int.max
         return records.reversed().compactMap { record -> (application: String?, rows: [EvidenceRow])? in
             let day = EvidenceRow.day(of: record.when)
-            guard day < firstLive else { return nil }
+            guard day < firstLive, record.teachesEvidence else { return nil }
             let app = AppContext(
                 applicationName: record.applicationName, bundleIdentifier: record.applicationIdentifier)
             let destination = DestinationClassifier.classify(app, overrides: overrides)

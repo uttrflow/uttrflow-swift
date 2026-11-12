@@ -49,6 +49,20 @@ struct DictationRecordTests {
     }
 
     /// A literal of what an older build writes; re-encoding today's shape cannot fail like an upgrade does.
+    @Test("a record written before the private-window flag reads as not private, and a set flag round-trips")
+    func privateWindowFlagDecodes() throws {
+        let stored = """
+            [{"id":"6BA7B810-9DAD-11D1-80B4-00C04FD430C8","text":"Ship it.","when":721692800}]
+            """
+        let old = try JSONDecoder().decode([DictationRecord].self, from: Data(stored.utf8))
+        #expect(old.first?.fromPrivateWindow == false)
+
+        let record = DictationRecord(
+            text: "Ship it.", when: Date(timeIntervalSince1970: 0), fromPrivateWindow: true)
+        let read = try JSONDecoder().decode(DictationRecord.self, from: try JSONEncoder().encode(record))
+        #expect(read.fromPrivateWindow)
+    }
+
     @Test("a record written before changes were kept still decodes")
     func decodesTheShapeBeforeChanges() throws {
         let stored = """

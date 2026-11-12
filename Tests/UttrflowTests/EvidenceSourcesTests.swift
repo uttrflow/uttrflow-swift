@@ -49,6 +49,16 @@ struct EvidenceSourcesTests {
         #expect(EvidenceSources.backfill([old], entries: [entry], ledger: rows, overrides: .none).isEmpty)
     }
 
+    @Test("History never backfills a dictation made in a private-browsing window")
+    func privateRecordIsNotBackfilled() {
+        let entry = DictionaryEntry(word: "Kubernetes", origin: .added, firstSeen: now)
+        let record = DictationRecord(
+            text: "Deploy it on Kubernetes.", when: now.addingTimeInterval(-3 * 86_400),
+            applicationName: "Browser", applicationIdentifier: "com.example.browser",
+            fromPrivateWindow: true)
+        #expect(EvidenceSources.backfill([record], entries: [entry], ledger: [], overrides: .none).isEmpty)
+    }
+
     private struct Keys: StoreKeyProviding {
         let value = SymmetricKey(size: .bits256)
         func key(createIfMissing: Bool) throws -> SymmetricKey { value }
