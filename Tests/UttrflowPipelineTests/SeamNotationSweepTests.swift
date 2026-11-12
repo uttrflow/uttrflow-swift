@@ -43,6 +43,29 @@ struct SeamNotationSweepTests {
         }
     }
 
+    /// Invented markup, each said in the slot it is written in: a tag between tags, a rule in a style sheet.
+    static let markup = [
+        ("open div class equals hero close", "index.html", "<body>\n"),
+        ("open a href equals open quote about dot html close quote close", "index.html", "<p>"),
+        ("dot nav colon hover open brace", "site.css", ""),
+        ("color colon red semicolon", "site.css", ".card {\n  "),
+    ]
+
+    @Test("every single cut of a markup tag or rule matches the whole", arguments: markup)
+    func everyMarkupCut(sentence: String, documentName: String, before: String) async {
+        let screen = AppContext(
+            applicationName: "Visual Studio Code", bundleIdentifier: "com.microsoft.VSCode",
+            documentName: documentName, precedingText: before)
+        let words = sentence.split(separator: " ").map(String.init)
+        let whole = await written([sentence], seeing: screen)
+        #expect(whole != sentence, "the whole is read as markup: \(whole ?? "")")
+        for cut in 1..<words.count {
+            let pieces = [words[..<cut].joined(separator: " "), words[cut...].joined(separator: " ")]
+            let text = await written(pieces, seeing: screen)
+            #expect(text == whole, "cut \(pieces.joined(separator: " | ")) wrote \(text ?? "") not \(whole ?? "")")
+        }
+    }
+
     @Test("a 300-word dictation in pieces is joined within a stated cost")
     func threeHundredWordsCost() async {
         let sentence = "let camel case retry count equals forty two and then snake case max size plus one"
@@ -60,7 +83,7 @@ struct SeamNotationSweepTests {
         #expect(p95 < 5)
     }
 
-    private func written(_ pieces: [String]) async -> String? {
-        await pipeline.clean(pieces.map { Transcription(text: $0) }, seeing: code).text
+    private func written(_ pieces: [String], seeing screen: AppContext? = nil) async -> String? {
+        await pipeline.clean(pieces.map { Transcription(text: $0) }, seeing: screen ?? code).text
     }
 }
