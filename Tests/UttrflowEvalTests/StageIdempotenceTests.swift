@@ -22,6 +22,7 @@ struct StageIdempotenceTests {
 
     /// Cases a stage moves on a second run, as "stage/case id" with the issue that fixes each; only shrinks.
     static let knownFaults: [String: Int] = [
+        // Justified: #8274 and #8275 cases are the piece stage reading its own output as recogniser text.
         "chain/code-editor-line-break-preserved": 8274,
         "chain/code-editor-spoken-case-stops-at-comma": 8275,
         "chain/correction-after-new-paragraph": 8274,
@@ -102,6 +103,7 @@ struct StageIdempotenceTests {
         "chain/question-mark-new-line": 8274,
         "chain/question-mark-new-line-thanks": 8274,
         "chain/sentence-per-new-line": 8274,
+        // Justified: the terminal drops the speaker's comma, the only evidence against joining "u plus x".
         "chain/shell-chmod-marked-subject-not-joined": 8277,
         "chain/source-javascript-arrow-function": 8276,
         "chain/source-javascript-arrow-identity": 8276,
@@ -251,6 +253,7 @@ struct StageIdempotenceTests {
         "piece/question-mark-new-line": 8274,
         "piece/question-mark-new-line-thanks": 8274,
         "piece/sentence-per-new-line": 8274,
+        // Justified: the terminal drops the speaker's comma, the only evidence against joining "u plus x".
         "piece/shell-chmod-marked-subject-not-joined": 8277,
         "piece/source-javascript-arrow-function": 8276,
         "piece/source-javascript-arrow-identity": 8276,
