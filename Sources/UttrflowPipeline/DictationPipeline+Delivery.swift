@@ -55,6 +55,7 @@ extension DictationPipeline {
             if waitedForLoad, insertionContext == .unknown {
                 delivery = .copy
                 insertedInto = nil
+                meantForIdentifier = insertedIntoIdentifier
                 insertedIntoIdentifier = nil
             }
             output = recased(
@@ -211,6 +212,7 @@ extension DictationPipeline {
                         insertedInto: landedIn(attempt)?.applicationName ?? insertedInto,
                         insertedIntoIdentifier: landedIn(attempt)?.bundleIdentifier
                             ?? insertedIntoIdentifier,
+                        meantForApplication: meantForIdentifier,
                         spokenFor: spokenFor, changes: changes,
                         fromRecording: delivery == .copy, arrival: attempt.arrival,
                         intoSecureField: destinationIsSecure, missedPieces: missedPieces,
