@@ -61,7 +61,7 @@ Transcripts are the only thing there is a period for. Audio has no setting: it i
 moment it becomes text, and kept for a day only when it could not be, so the dictation can be
 retried (see [`recordings.md`](recordings.md)).
 
-Under the period, Privacy offers two ways to keep no text at all. "Keep no dictation text"
+Below that, Privacy's "Dictations left out of History" group offers two ways to keep no text at all. "Keep no dictation text"
 (`Settings.keepsNoTranscripts`) leaves every dictation out of History, and each app added with
 "Leave an app out of History" (`Settings.historyExcludedApplications`, through
 `SettingsChange.keepsHistory`) leaves out only its dictations. Both are read by `HistoryKeeping`

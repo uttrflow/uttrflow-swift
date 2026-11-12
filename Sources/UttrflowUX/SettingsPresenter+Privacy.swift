@@ -19,8 +19,7 @@ extension SettingsPresenter {
                 SettingsGroup(
                     id: "retention",
                     title: "Your data",
-                    rows: [retentionRow(settings)] + historyKeepingRows(settings, capabilities)
-                        + [clipboardRetentionRow(settings), clipboardLimitsRow]
+                    rows: [retentionRow(settings), clipboardRetentionRow(settings), clipboardLimitsRow]
                         + storageRows(personalisation.storage, settings: settings)
                         + [
                             toggleRow(
@@ -44,6 +43,9 @@ extension SettingsPresenter {
                                 settings, .everything
                             ).with(icon: .symbol("eye.slash", .neutral)),
                         ]),
+                SettingsGroup(
+                    id: "historyKeeping", title: "Dictations left out of History",
+                    rows: historyKeepingRows(settings, capabilities)),
                 SettingsGroup(id: "context", title: "Context", rows: contextRows(settings)),
                 SettingsGroup(
                     id: "network", title: "Network, last \(NetworkActivity.windowDays) days",

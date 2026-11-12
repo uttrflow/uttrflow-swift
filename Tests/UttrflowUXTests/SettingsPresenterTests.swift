@@ -917,8 +917,8 @@ struct SettingsPrivacyPaneTests {
     @Test("keeps no dictation text, or none from an app, with a way to add the app and take it off again")
     func choosesWhatHistoryKeeps() throws {
         #expect(
-            privacy().groups.first { $0.id == "retention" }?.rows.prefix(3).map(\.id) == [
-                "transcripts", SettingsToggleField.keepsNoTranscripts.rawValue, "addHistoryExclusion",
+            privacy().groups.first { $0.id == "historyKeeping" }?.rows.map(\.id) == [
+                SettingsToggleField.keepsNoTranscripts.rawValue, "addHistoryExclusion",
             ])
         #expect(
             privacy().row("addHistoryExclusion")?.control
