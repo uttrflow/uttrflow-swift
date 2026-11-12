@@ -12,7 +12,9 @@ enum PieceJoiner {
     ) -> SeamSnippetInput {
         guard pieces.count > 1 else { return SeamSnippetInput(text: text, removableStops: [], source: text) }
         let texts = pieces.map(\.cleaned.text)
-        let seamed = seamed(texts, heard: pieces.map(\.heard.text), under: formatter, grouping: grouping)
+        let seamed = seamed(
+            texts, heard: pieces.map(\.heard.text), tidiedBy: pieces.map(\.cleaned.producedBy),
+            under: formatter, grouping: grouping)
         var removableStops: [Int] = []
         var original = ""
         for index in pieces.indices {
@@ -78,15 +80,16 @@ enum PieceJoiner {
             cleaned: TransformationResult(
                 text: laidOut(
                     seamed(
-                        pieces.map(\.cleaned.text), heard: heardText, under: formatter, grouping: grouping),
+                        pieces.map(\.cleaned.text), heard: heardText,
+                        tidiedBy: pieces.map(\.cleaned.producedBy), under: formatter, grouping: grouping),
                     under: formatter, steps: steps, pauses: pauses),
                 producedBy: producedBy, entriesTaken: pieces.flatMap(\.cleaned.entriesTaken)))
     }
 
     /// Every piece but the last ended as a sentence the way the place ends one; the message's own stop is the cleaner's.
     static func seamed(
-        _ pieces: [String], heard: [String] = [], under formatter: DestinationFormatter,
-        grouping: DigitGrouping? = nil
+        _ pieces: [String], heard: [String] = [], tidiedBy tidiers: [TransformerKind] = [],
+        under formatter: DestinationFormatter, grouping: DigitGrouping? = nil
     ) -> [String] {
         // An amount joined across a seam takes the person's grouping where given, else the place's.
         let joined = recleaningMarksAcrossSeams(
@@ -95,10 +98,14 @@ enum PieceJoiner {
         // A piece tidied to nothing has no seam, so each seam is judged against the next piece with words.
         let worded = joined.indices.filter { !joined[$0].allSatisfy(\.isWhitespace) }
         let heard = heard.count == joined.count ? worded.map { heard[$0] } : []
+        // A stop the recogniser or a model wrote is a judgement the seam keeps; one the rules closed a piece with is not.
+        let judged = worded.indices.map { position in
+            (heard.indices.contains(position) && heardStopEnding(heard: heard[position]))
+                || (tidiers.count == joined.count && tidiers[worded[position]] != .rules)
+        }
         var seamed = joined
-        for (position, text) in seamedWorded(worded.map { joined[$0] }, heard: heard, under: formatter)
-            .enumerated()
-        {
+        let ended = seamedWorded(worded.map { joined[$0] }, heard: heard, judged: judged, under: formatter)
+        for (position, text) in ended.enumerated() {
             seamed[worded[position]] = text
         }
         return seamed
@@ -106,11 +113,11 @@ enum PieceJoiner {
 
     /// Seams pieces that all have words; each seam is judged once, and that verdict both ends the piece before it and opens the one after.
     private static func seamedWorded(
-        _ pieces: [String], heard: [String], under formatter: DestinationFormatter
+        _ pieces: [String], heard: [String], judged: [Bool], under formatter: DestinationFormatter
     ) -> [String] {
         let runsOn = pieces.indices.dropLast().map { index in
             opensEmailWithGreeting(pieces[index], at: index, under: formatter)
-                || sentenceRunsOn(pieces[index], into: pieces[index + 1])
+                || sentenceRunsOn(pieces[index], into: pieces[index + 1], stopWritten: judged[index])
                 || groupRunsAcross(
                     pieces[index], into: pieces[index + 1],
                     previousWasHeardEndingOnScale: heardScaleEnding(heard, at: index))
@@ -396,8 +403,8 @@ enum PieceJoiner {
     // MARK: The stop at a seam
 
     /// Whether the words across a seam show the sentence carried on, which is the one reason not to end it there.
-    static func sentenceRunsOn(_ text: String, into next: String) -> Bool {
-        SentenceBoundaryEvidence.sentenceRunsOn(text, into: next)
+    static func sentenceRunsOn(_ text: String, into next: String, stopWritten: Bool = false) -> Bool {
+        SentenceBoundaryEvidence.sentenceRunsOn(text, into: next, stopWritten: stopWritten)
             || trailingTriggerDiscardsWords(in: text, before: next)
             || namesMentionedMark(after: text, in: next)
     }
@@ -432,6 +439,11 @@ enum PieceJoiner {
         let words = [numeral, word]
         return LexicalClass.tag(ofWordAt: 1, in: words) == .noun
             && LexicalClass.lemma(ofWordAt: 1, in: words).map { $0.lowercased() != word } ?? false
+    }
+
+    /// Whether the recogniser ended a piece it heard with a stop of its own.
+    private static func heardStopEnding(heard: String) -> Bool {
+        heard.trimmingCharacters(in: .whitespacesAndNewlines).last == "."
     }
 
     /// Whether the recognizer heard the preceding piece end on a number scale word.
