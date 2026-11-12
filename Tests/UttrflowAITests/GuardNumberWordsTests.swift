@@ -33,6 +33,31 @@ struct GuardNumberWordsTests {
                 == .accepted)
     }
 
+    @Test("a sign stays with its amount when another amount is written as its word")
+    func signStaysWithItsAmount() {
+        #expect(
+            MeaningPreservationGuard.changedQuantity(
+                original: "set alpha to -5 and beta to 5", rewritten: "Set alpha to five and beta to -5.") == "-5")
+        #expect(
+            MeaningPreservationGuard.changedQuantity(
+                original: "set alpha to -5 and beta to 5", rewritten: "Set alpha to -5 and beta to five.") == nil)
+    }
+
+    @Test("a number said in words stands for one amount, not for each of its words")
+    func wordedNumberIsOneAmount() {
+        #expect(
+            MeaningPreservationGuard.changedQuantity(
+                original: "20 red boxes, 1 blue box and 21 green boxes",
+                rewritten: "twenty one red boxes, blue box and green boxes") != nil)
+        #expect(
+            MeaningPreservationGuard.changedQuantity(
+                original: "20 red boxes and 21 green boxes",
+                rewritten: "twenty red boxes and twenty one green boxes") == nil)
+        #expect(
+            MeaningPreservationGuard.changedQuantity(
+                original: "5 apples and five pears", rewritten: "apples and five pears") == "5")
+    }
+
     @Test("a spoken ordinal survives as the ordinal numeral, and a different day is still refused")
     func spokenOrdinalSurvivesAsItsNumeral() {
         let guardUnderTest = MeaningPreservationGuard()
