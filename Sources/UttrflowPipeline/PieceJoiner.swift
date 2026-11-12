@@ -145,7 +145,11 @@ enum PieceJoiner {
         _ head: String, into tail: String, under formatter: DestinationFormatter, going situation: Situation
     ) -> Bool {
         let headWords = unitWords(of: WordTokens.words(head, .display))
-        let tailWords = WordTokens.words(tail, .display).prefix(longestSpokenUnit)
+        // A tag in a markup document is read to its "close", which lies further on than any number does.
+        let inMarkup =
+            MarkupPosition.at(situation.insertion.precedingText, language: situation.intent.language) != nil
+        let tailWords = WordTokens.words(tail, .display).prefix(
+            inMarkup ? longestSpokenTag : longestSpokenUnit)
         guard !headWords.isEmpty, !tailWords.isEmpty else { return false }
         // A mark that ends a sentence closes the head, so no number, time or address runs on from it into the tail.
         if let closing = spokenMark(at: Array(headWords), fromStart: false), !closing.opening,
@@ -202,6 +206,9 @@ enum PieceJoiner {
 
     /// The most words either side of a cut that one spoken number, time or address is read from.
     static let longestSpokenUnit = 8
+
+    /// The most words after a cut that a spoken tag is read from: "open", a slash, the element, its attributes and "slash close".
+    static let longestSpokenTag = 19
 
     /// The most words before a cut that a spoken web address or path is read from, host and path together.
     static let longestSpokenAddress = 16

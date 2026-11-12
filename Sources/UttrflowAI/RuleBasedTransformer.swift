@@ -70,8 +70,9 @@ public struct RuleBasedTransformer: TextTransformationEngine {
         case .piece:
             .piece(
                 numbers: formatter.numbers, digits: request.situation.digits(for: formatter),
-                layout: formatter.layout, destination: formatter.destination,
-                intent: request.situation.intent, steps: steps, pauses: request.profile.pauses,
+                layout: formatter.layout, insertionPoint: request.situation.insertion,
+                destination: formatter.destination, intent: request.situation.intent, steps: steps,
+                pauses: request.profile.pauses,
                 screen: request.situation, mode: request.situation.adapterMode, readsWholeText: false)
         }
     }

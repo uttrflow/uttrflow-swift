@@ -55,7 +55,9 @@ struct SeamNotationSweepTests {
         ("color colon red semicolon", "site.css", ".card {\n  ", "color: red;"),
     ]
 
-    @Test("a markup tag or rule is written in a dictation, and every single cut of it matches", arguments: markup)
+    @Test(
+        "a markup tag or rule is written in a dictation, and every single cut of it matches",
+        arguments: markup)
     func everyMarkupCut(sentence: String, documentName: String, before: String, expected: String) async {
         let screen = AppContext(
             applicationName: "Visual Studio Code", bundleIdentifier: "com.microsoft.VSCode",
@@ -66,7 +68,9 @@ struct SeamNotationSweepTests {
         for cut in 1..<words.count {
             let pieces = [words[..<cut].joined(separator: " "), words[cut...].joined(separator: " ")]
             let text = await written(pieces, seeing: screen)
-            #expect(text == whole, "cut \(pieces.joined(separator: " | ")) wrote \(text ?? "") not \(whole ?? "")")
+            #expect(
+                text == whole, "cut \(pieces.joined(separator: " | ")) wrote \(text ?? "") not \(whole ?? "")"
+            )
         }
     }
 
