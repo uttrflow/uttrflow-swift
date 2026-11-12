@@ -14,6 +14,11 @@ coordination and file I/O; both use the same `isPersistable` predicate, false on
 keeps background scheduling, persistence validation and successful legacy-marker updates.
 `PictureVault` owns confined picture byte reads and writes, metadata creation and orphan-folder
 enumeration; the actor keeps index-trust checks and reference bookkeeping.
+`ClipIndexFiles` owns both index files as one unit: the first read and legacy upgrade, the cached
+snapshot, format checks before a write and each guarded write. The actor's extensions group its
+picture calls (`+Pictures`), single-clip and collection edits (`+Edits`), the write sequence
+(`+Writing`) and the background passes (`+Background`), whose task lifecycles are held by
+`ClipReclassificationTasks` and `LegacyPictureSealing`.
 
 | File | Holds |
 | --- | --- |
@@ -35,7 +40,7 @@ when this build rewrites an index.
 
 `ClipIndexValidation` validates each replaceable index's encoded envelope and payload before a
 cached write. `ClipboardIndexReader` owns the read sequence, unreadable-file refusals and
-unsupported-version bookkeeping, excluding indexes already marked unreplaceable. `ClipboardStore`
+unsupported-version bookkeeping, excluding indexes already marked unreplaceable. `ClipIndexFiles`
 asks the reader to inspect both indexes before each write through its local-file read adapter.
 
 A clip's `tags` field is written only when the clip has a tag. An untagged clip's record is the
@@ -47,7 +52,7 @@ These are local working memory, not backup material. The folder and every file w
 flag skip clipboard text, saved clips and copied pictures. JSON indexes and picture bytes are
 encrypted with the shared device-only Keychain key (`EncryptedStore`); picture file names remain
 visible. A plaintext file from an older build is sealed in place when it is read
-(`migrateLegacyImagesOnce` for pictures). The first list read schedules the picture pass in the
+(`LegacyPictureSealing` for pictures). The first list read schedules the picture pass in the
 background; it reads only the envelope header of each regular PNG and opens the full file only for
 an unsealed legacy picture that needs migration. This pass can also migrate pictures beside an
 unreadable index, so index recovery does not control whether old picture bytes are protected.
@@ -68,7 +73,8 @@ increment that version when detector changes alter stored classifications. When 
 is older, the first list is returned before the store classifies clips in
 utility-priority batches; a completed pass writes the new classifications and version together.
 `ClipReclassification` owns the batch transform, snapshot reconciliation and eviction-order/secrecy
-projection. The store owns the tasks, write refusals, version promotion and committed cache updates.
+projection. `ClipReclassificationTasks` holds the running passes; `ClipIndexFiles` writes a finished
+pass with its version promotion and commits it to the cache.
 `clips(keeping:)`, the read ⇧⌘V waits on, does no I/O after that first load except the
 best-effort rewrite when the retention window has dropped clips; it never scans the picture
 folder or reads a picture whole, and the first load schedules the bounded-header migration
@@ -126,7 +132,7 @@ first, while the saved file still holds the old copy, and only then rewrites the
 `ClipPersistencePlan` computes the intermediate saved list and compares its complete records
 independent of order. `ClipPersistence` executes the destination-before-source write sequence and
 updates each disk snapshot only after its write succeeds. Its injected write closure keeps format
-validation and physical writes inside `ClipboardStore`; a failure returns with earlier successful
+validation and physical writes inside `ClipIndexFiles`; a failure returns with earlier successful
 snapshots intact, so the actor can retain the live change and schedule its retry.
 
 A move refused between its two writes leaves the clip in both files. Reading keeps the saved
