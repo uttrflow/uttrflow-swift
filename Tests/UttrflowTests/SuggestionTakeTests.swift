@@ -157,7 +157,8 @@ struct SuggestionTakeTests {
         #expect(outcome == .refused)
         #expect(fixture.insertion.trustLosses == 1)
         #expect(fixture.surface.putBacks.map(\.offer) == [.certain("git commit")])
-        #expect(fixture.surface.putBacks.map(\.notice) == [SuggestionRuntimeStatus.accessibilityDeniedMessage])
+        #expect(
+            fixture.surface.putBacks.map(\.notice) == [SuggestionRuntimeStatus.accessibilityDeniedMessage])
     }
 
     @Test("a refusal whose offer was withdrawn meanwhile puts nothing back")

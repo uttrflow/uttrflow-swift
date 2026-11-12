@@ -129,7 +129,7 @@ and `TapDisableWindow` decides when to stop: two disables inside sixty seconds
 sleep and wake do not add up to a fault. A tap that has to be revived repeatedly is one
 that is costing the user keystrokes.
 
-Left off is not dead. `SuggestionCoordinator.restTap` disarms and stops the tap, rests it
+Left off is not dead. `SwallowedKeyHandling.restTap` disarms and stops the tap, rests it
 for `tapRestSeconds` (90 s) — past the window in which disables count against it — and starts it again, since
 a disable is usually the system's doing and the feature need not die of it. The log says
 when the tap stopped and when it is back.
