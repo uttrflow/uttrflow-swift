@@ -146,8 +146,15 @@ enum PieceJoiner {
     static func unitRunsAcross(
         _ head: String, into tail: String, under formatter: DestinationFormatter, going situation: Situation
     ) -> Bool {
-        let headWords = unitWords(of: WordTokens.words(head, .display))
-        let tailWords = WordTokens.words(tail, .display).prefix(longestSpokenUnit)
+        let (allHead, allTail) = (WordTokens.words(head, .display), WordTokens.words(tail, .display))
+        // An everyday mark name said in both pieces is said again in one sentence, which is the evidence it is a mark.
+        let namedInBoth = SpokenPunctuationPass.ordinaryNames.contains { name in
+            [allHead, allTail].allSatisfy {
+                $0.map { WordShape($0).key }.contains(name.joined(separator: " "))
+            }
+        }
+        let headWords = namedInBoth ? allHead[...] : unitWords(of: allHead)
+        let tailWords = namedInBoth ? allTail[...] : allTail.prefix(longestSpokenUnit)
         guard !headWords.isEmpty, !tailWords.isEmpty else { return false }
         // A mark that ends a sentence closes the head, so no number, time or address runs on from it into the tail.
         if let closing = spokenMark(at: Array(headWords), fromStart: false), !closing.opening,
