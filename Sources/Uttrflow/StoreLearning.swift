@@ -10,12 +10,14 @@ import UttrflowPipeline
 struct StoreCounters: DictationLearning {
     let dictionary: PersonalDictionaryStore
     let snippets: SnippetStore
-    /// Told the entries a landed dictation used, after the dictionary counted them, so the ledger sees the same set.
-    var noteUses: @Sendable ([UUID]) async -> Void = { _ in }
+    /// Told the entries a landed dictation used and where it landed, after the dictionary counted them, so the ledger sees the same set.
+    var noteUses: @Sendable ([UUID], String?) async -> Void = { _, _ in }
     /// Told the entries a landed dictation wrote and the text it inserted, for ``EditAwayWatch``.
     var watchEdits: @Sendable ([EditAway.Applied], String) async -> Void = { _, _ in }
 
-    func recordUse(ofEntries ids: [UUID], writtenIn text: String) async throws(DictationChangeError) {
+    func recordUse(
+        ofEntries ids: [UUID], writtenIn text: String, in application: String?
+    ) async throws(DictationChangeError) {
         let entries = await dictionary.allEntries()
         let used = DictionaryAppearances.used(entries, applied: ids, writtenIn: text)
         guard !used.isEmpty else { return }
@@ -27,7 +29,7 @@ struct StoreCounters: DictationLearning {
         } catch {
             throw .storeRefused
         }
-        await noteUses(used)
+        await noteUses(used, application)
         // Every applied entry is watched: only a word still in the field counts as accepted.
         await watchEdits(applied, text)
     }
