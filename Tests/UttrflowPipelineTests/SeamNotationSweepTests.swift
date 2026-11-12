@@ -43,22 +43,26 @@ struct SeamNotationSweepTests {
         }
     }
 
-    /// Invented markup, each said in the slot it is written in: a tag between tags, a rule in a style sheet.
+    /// Invented markup, each said in the slot it is written in, and what it is written as.
     static let markup = [
-        ("open div class equals hero close", "index.html", "<body>\n"),
-        ("open a href equals open quote about dot html close quote close", "index.html", "<p>"),
-        ("dot nav colon hover open brace", "site.css", ""),
-        ("color colon red semicolon", "site.css", ".card {\n  "),
+        ("open div class equals hero close", "index.html", "<body>\n", "<div class=hero>"),
+        (
+            "open a href equals open quote about dot html close quote close", "index.html", "<body>\n",
+            "<a href=\"about.html\">"
+        ),
+        ("open span class equals note close", "index.html", "<p>", "<span class=note>"),
+        ("dot nav colon hover open brace", "site.css", "", ".nav:hover {"),
+        ("color colon red semicolon", "site.css", ".card {\n  ", "color: red;"),
     ]
 
-    @Test("every single cut of a markup tag or rule matches the whole", arguments: markup)
-    func everyMarkupCut(sentence: String, documentName: String, before: String) async {
+    @Test("a markup tag or rule is written in a dictation, and every single cut of it matches", arguments: markup)
+    func everyMarkupCut(sentence: String, documentName: String, before: String, expected: String) async {
         let screen = AppContext(
             applicationName: "Visual Studio Code", bundleIdentifier: "com.microsoft.VSCode",
             documentName: documentName, precedingText: before)
         let words = sentence.split(separator: " ").map(String.init)
         let whole = await written([sentence], seeing: screen)
-        #expect(whole != sentence, "the whole is read as markup: \(whole ?? "")")
+        #expect(whole == expected)
         for cut in 1..<words.count {
             let pieces = [words[..<cut].joined(separator: " "), words[cut...].joined(separator: " ")]
             let text = await written(pieces, seeing: screen)
