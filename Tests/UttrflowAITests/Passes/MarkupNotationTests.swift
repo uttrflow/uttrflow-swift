@@ -137,4 +137,18 @@ struct MarkupNotationTests {
         #expect(SpokenCommands.markup.count >= 16)
         #expect(SpokenCommands.markup.allSatisfy { $0.slots != nil })
     }
+
+    @Test("writes an attribute selector in a rule's selector, and only there")
+    func attributeSelectors() {
+        #expect(
+            Self.written("input open bracket type equals text close bracket open brace", in: "site.css", after: "")
+                == "input[type=text] {")
+        #expect(Self.written("a open bracket href close bracket", in: "site.css", after: "") == "a[href]")
+        #expect(
+            Self.written("open bracket hidden close bracket open brace", in: "site.css", after: "")
+                == "[hidden] {")
+        #expect(
+            Self.written("input open bracket type equals text close bracket", in: "site.css", after: ".a {\n  ")
+                != "input[type=text]")
+    }
 }
