@@ -257,6 +257,19 @@ struct ScriptedSentenceModel: CleanupModel {
     }
 }
 
+/// The snippets on file, matched by the shipping matcher.
+struct FiledSnippets: SnippetExpanding {
+    let snippets: [Snippet]
+
+    func expand(_ text: String, in application: String?) async -> ExpandedTranscript {
+        let expansion = SnippetExpander(snippets: snippets, in: application).expand(text)
+        return ExpandedTranscript(
+            text: expansion.text,
+            snippets: expansion.applied.map {
+                SnippetUse(snippetID: $0.snippetID, matched: $0.matched, expansion: $0.expansion)
+            }, caret: expansion.caret)
+    }
+}
 
 /// A ``HotkeyMonitoring`` whose events never arrive: open until stopped, or ended from the start.
 final class SilentHotkeyMonitor: HotkeyMonitoring {
@@ -272,18 +285,4 @@ final class SilentHotkeyMonitor: HotkeyMonitoring {
     @MainActor func start(binding: HotkeyBinding) throws(HotkeyError) {}
 
     func stop() { continuation.finish() }
-}
-
-/// The snippets on file, matched by the shipping matcher.
-struct FiledSnippets: SnippetExpanding {
-    let snippets: [Snippet]
-
-    func expand(_ text: String, in application: String?) async -> ExpandedTranscript {
-        let expansion = SnippetExpander(snippets: snippets, in: application).expand(text)
-        return ExpandedTranscript(
-            text: expansion.text,
-            snippets: expansion.applied.map {
-                SnippetUse(snippetID: $0.snippetID, matched: $0.matched, expansion: $0.expansion)
-            }, caret: expansion.caret)
-    }
 }
