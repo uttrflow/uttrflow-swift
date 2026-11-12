@@ -278,6 +278,8 @@ OVERSIZED_EXCLUSIONS = {
         "the pause is SecureInputPause, tested in SecureInputPauseTests; whether a selection check keeps or "
         "withdraws the armed offer is SuggestionSelectionPolling, tested in SuggestionSelectionPollingTests; "
         "the ghost asked of the panel for a field is SuggestionRequest.ghost, tested in SuggestionGhostRequestTests; "
+        "how a rejection's write and its retry are queued is RejectedSuggestionRecorder, tested in "
+        "RejectedSuggestionRecorderTests; "
         "still untested is the closures that map those steps onto the session, "
         "the panel and the field"
     ),

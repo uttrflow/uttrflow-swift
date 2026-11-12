@@ -964,13 +964,7 @@ final class SuggestionCoordinator {
 
     /// Reads the field, asks the corpus and draws the answer, all off the keystroke path; a turn left behind touches nothing.
     func turn(_ number: Int, because reason: SuggestionReason) async {
-        // Held rejection writes retry behind earlier corpus writes, so a slow store never delays the draw.
-        if rejectedSuggestionRecorder.claimQueuedRetry() {
-            let queued = acceptances.enqueue(
-                { [rejectedSuggestionRecorder] in await rejectedSuggestionRecorder.retry() },
-                estimatedBytes: rejectedSuggestionRecorder.queuedRetryReservationBytes())
-            if !queued { rejectedSuggestionRecorder.cancelQueuedRetry() }
-        }
+        rejectedSuggestionRecorder.queueRetry(on: acceptances)
         let front = frontmostBundleIdentifier() ?? "nil"
         progress = (number, .read, front)
         // Taken before the read, since a key pressed while a slow field is being read is one the read may have missed.
@@ -1024,19 +1018,12 @@ final class SuggestionCoordinator {
 
         let turn = session.turn(
             in: reading.surface, at: context(of: snapshot, at: started),
-            acceptKey: preferences.acceptKeys.key(
-                for: AppContext(
-                    applicationName: snapshot.applicationName,
-                    bundleIdentifier: snapshot.bundleIdentifier,
-                    documentName: snapshot.windowTitle)),
+            acceptKey: SuggestionRequest.acceptKey(in: snapshot, preferences: preferences),
             wordKey: preferences.wordAcceptKey(forBundleIdentifier: snapshot.bundleIdentifier),
             isQuiet: preferences.isQuiet, sawKeystrokes: keystrokesSeen)
         if let rejected = turn.rejected, let surface = reading.surface {
             entering(.reject, turn: number)
-            _ = acceptances.enqueue(
-                { [rejectedSuggestionRecorder] in
-                    await rejectedSuggestionRecorder.record(rejected, in: surface)
-                }, estimatedBytes: AcceptanceQueue.estimatedBytes(for: [rejected], surface: surface))
+            rejectedSuggestionRecorder.queue(rejected, in: surface, on: acceptances)
         }
 
         switch turn.step {
