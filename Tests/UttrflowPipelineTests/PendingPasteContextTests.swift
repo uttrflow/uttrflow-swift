@@ -9,9 +9,13 @@ struct PendingPasteContextTests {
     @Test("An immediately returned stale caret is retried before the second dictation finishes")
     func staleCaretIsRetriedBeforeKeyUp() async throws {
         let context = PendingPasteContext()
-        let inserter = PendingPasteInserter()
+        let inserter = FakeTextInserter(.success(InsertionAttempt(.pasteboard, arrival: .unconfirmed)))
         let pipeline = DictationPipeline(
-            capture: FakeAudioCaptureEngine(), speech: PendingPasteSpeech(),
+            capture: FakeAudioCaptureEngine(),
+            speech: FakeSpeechEngine(
+                transcribing: .successes([
+                    .fixture(text: "we moved the review"), .fixture(text: "to the next slot"),
+                ])),
             cleaner: FakeTranscriptCleaner(producedBy: .foundationModels),
             context: context, inserter: inserter)
 
@@ -23,9 +27,9 @@ struct PendingPasteContextTests {
         try await eventually { await pipeline.earlyReadsSettled > settled }
 
         #expect(await context.readsAfterSecondKeyDown == 2)
-        #expect(await inserter.received == ["we moved the review"])
+        #expect(inserter.received == ["we moved the review"])
         await pipeline.finishRecording()
-        #expect(await inserter.received == ["we moved the review", " to the next slot"])
+        #expect(inserter.received == ["we moved the review", " to the next slot"])
     }
 }
 
@@ -39,27 +43,5 @@ private actor PendingPasteContext: ContextEngine {
         guard secondDictationBegan else { return .fixture(precedingText: "") }
         readsAfterSecondKeyDown += 1
         return .fixture(precedingText: readsAfterSecondKeyDown == 1 ? "" : "we moved the review")
-    }
-}
-
-private actor PendingPasteSpeech: SpeechEngine {
-    let kind = SpeechEngineKind.whisperKit
-    private var lines = ["we moved the review", "to the next slot"]
-
-    func prepare() async throws(SpeechEngineError) {}
-
-    func transcribe(
-        _ audio: AudioSamples, options: TranscriptionOptions
-    ) async throws(SpeechEngineError) -> Transcription {
-        Transcription(text: lines.removeFirst(), audioDuration: audio.duration)
-    }
-}
-
-private actor PendingPasteInserter: TextInserting {
-    private(set) var received: [String] = []
-
-    func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
-        received.append(text)
-        return InsertionAttempt(.pasteboard, arrival: .unconfirmed)
     }
 }
