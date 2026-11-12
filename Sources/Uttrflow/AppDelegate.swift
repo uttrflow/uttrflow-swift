@@ -2961,7 +2961,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Counts how the user writes in the destination the words went into; never the words themselves.
     private func noteStyle(_ outcome: UttrflowPipeline.DictationOutcome) {
-        guard !outcome.intoSecureField, !outcome.isFromRecording else { return }
+        guard outcome.teachesEvidence else { return }
         let app = AppContext(
             applicationName: outcome.insertedInto, bundleIdentifier: outcome.insertedIntoIdentifier)
         let destination = DestinationClassifier.classify(app, overrides: settings.destinations)
@@ -2974,7 +2974,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         of previous: DictationRecord?, by record: DictationRecord,
         _ outcome: UttrflowPipeline.DictationOutcome
     ) {
-        guard let previous, !outcome.intoSecureField, !outcome.isFromRecording else { return }
+        guard let previous, outcome.teachesEvidence else { return }
         learnt.note(EvidenceSources.retried(previous, by: record), from: record.applicationIdentifier)
     }
 
@@ -3209,7 +3209,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     var drawsWindows = true
 
     func makeMainWindow() -> MainWindowController {
-        let window = MainWindowController(content: mainContent(measurements: []))
+        let window = MainWindowController(content: mainSnapshot(measurements: []).presented())
         window.hidesFromCapture = settings.hidesWindowsFromCapture
         window.onIntent = { [weak self] intent in self?.carryOut(intent) }
         window.onSearch = { [weak self] query in
@@ -3254,7 +3254,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             return
         }
         mainWindowIsBehind = false
-        mainWindow.update(mainContent(measurements: lastMeasurements))
+        mainWindow.update(mainSnapshot(measurements: lastMeasurements).presented())
     }
 
     /// Re-presents only the editor pages when they are all a keystroke changed, and the whole window otherwise.
@@ -3402,15 +3402,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 mainWindowIsBehind = true
                 return
             }
+            let paints = mainWindow?.updates
+            let snapshot = mainSnapshot(measurements: measurements, suggestionCounts: suggestionCounts)
+            // Every page is built from the whole history, so off the main actor the dock and the shortcut share.
+            let content = await Task.detached(priority: .userInitiated) { snapshot.presented() }.value
+            guard reading == refreshGeneration else { return }
+            // A paint during the build came from this reading or a later one, and may have redrawn only some pages.
+            guard let mainWindow, mainWindow.updates == paints else { return redrawMainWindow() }
+            guard mainWindow.isOnScreen else {
+                mainWindowIsBehind = true
+                return
+            }
             mainWindowIsBehind = false
-            mainWindow?.update(
-                mainContent(measurements: measurements, suggestionCounts: suggestionCounts))
+            mainWindow.update(content)
         }
     }
 
-    private func mainContent(
+    private func mainSnapshot(
         measurements: [StageMeasurement], suggestionCounts: SuggestionCounts? = nil
-    ) -> MainContent {
+    ) -> MainContentSnapshot {
         let suggestionCounts =
             settings.suggestions.isEnabled
             ? suggestionCounts ?? mainWindow?.content.insights.suggestionCounts : nil
@@ -3487,8 +3497,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 qualityLayers: qualityLayers, learnedState: ledgerRefusal),
             suggestionModelBytesOnDisk: releaseModel.cachedBytesOnDisk,
             account: accountPage(at: now),
-            shortcutKeycaps: SettingsShortcut.keycaps(for: settings.shortcuts.first(for: .dictate))
-        ).presented()
+            shortcutKeycaps: SettingsShortcut.keycaps(for: settings.shortcuts.first(for: .dictate)))
     }
 
     /// The last reading of the words, ready for the Dictionary presenter.
@@ -3751,7 +3760,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .playRecording(let id):
             guard playback.playing != id else { return playback.stop() }
             Task { [weak self] in
-                guard let self, let audio = try? await self.recordings.audio(of: id) else { return }
+                guard let self, let audio = try? await self.recordings.audio(of: id).audio else { return }
                 self.playback.play(WAVEncoder.encode(audio), id: id)
             }
 

@@ -73,7 +73,8 @@ struct AccuracyReportTests {
     @Test("cases scored on the romanised output are named, not called the recogniser's words before clean-up")
     func namesOutputScoredCases() throws {
         let romanised = BaselineEntry(
-            caseID: "h", language: .hinglish, stresses: ["everyday"], cohortID: "synthesised-example", errors: 5,
+            caseID: "h", language: .hinglish, stresses: ["everyday"], cohortID: "synthesised-example",
+            errors: 5,
             referenceWordCount: 25, isUnscorable: false, recordingIdentity: "sha256:h", scoresOutput: true)
         let mixed = Self.baseline(Self.current.entries + [romanised], day: 20_010)
         let lines = AccuracyReport(version: "x", baseline: mixed, history: AccuracyHistory()).markdown
