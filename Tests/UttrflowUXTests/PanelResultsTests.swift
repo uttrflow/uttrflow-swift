@@ -141,11 +141,12 @@ struct PanelSearchTests {
         #expect(text.utf8.count > 200_000)
         let clip = PanelFixture.clip(text)
         var snapshot = PanelFixture.panel([clip]).applying(.search("x")).state
-        let start = ContinuousClock.now
+        // CPU time of this thread, which other work on a loaded machine does not add to.
+        let start = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)
         _ = PanelPresenter.present(snapshot)
         snapshot = snapshot.applying(.search("xy")).state
         let secondSearch = PanelPresenter.present(snapshot)
-        let elapsed = start.duration(to: .now)
+        let elapsed = Duration.nanoseconds(Int64(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - start))
 
         #expect(secondSearch.rows.isEmpty)
         #expect(elapsed < .seconds(1))

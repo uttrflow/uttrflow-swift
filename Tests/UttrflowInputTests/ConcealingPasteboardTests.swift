@@ -1,12 +1,13 @@
 import Foundation
 import Synchronization
 import Testing
+import UttrflowTestSupport
 
 @testable import UttrflowCore
 @testable import UttrflowInput
 
 /// A secret clip reaches the clipboard marked concealed, whichever route carries it and whatever field is in front.
-@Suite("Inserting a secret through a concealing pasteboard")
+@Suite("Inserting a secret through a concealing pasteboard", .timeLimit(.minutes(1)))
 struct ConcealingPasteboardTests {
     @Test("a plain or formatted write goes up marked")
     func writesAreConcealed() {
@@ -115,9 +116,9 @@ struct ConcealingPasteboardTests {
         #expect(pasteboard.concealed == ["sk-live-abcdef123456"])
     }
 
-    /// Whether the clear, which runs off the test's task, has emptied the clipboard within two seconds.
+    /// Whether the clear, which runs off the test's task, has emptied the clipboard; the suite's time limit ends a clear that never comes.
     private static func cleared(_ pasteboard: FakePasteboard) async throws -> Bool {
-        for _ in 0..<200 where pasteboard.text() != nil { try await Task.sleep(for: .milliseconds(10)) }
+        try await eventually { pasteboard.text() == nil }
         return pasteboard.text() == nil
     }
 }

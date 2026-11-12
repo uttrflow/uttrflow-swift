@@ -5310,6 +5310,7 @@
     "UttrflowUX enum Subject": 1,
     "UttrflowUX enum SuggestionApplicationChoices": 1,
     "UttrflowUX enum SuggestionModelReadiness": 1,
+    "UttrflowUX enum SuggestionRefusal": 1,
     "UttrflowUX enum SuggestionRuntimeStatus": 1,
     "UttrflowUX enum SuggestionWritingDirection": 1,
     "UttrflowUX enum UpdateFeed": 1,
@@ -5471,7 +5472,7 @@
     "UttrflowUX func with": 2,
     "UttrflowUX func words": 1,
     "UttrflowUX func writeFailed": 1,
-    "UttrflowUX init init": 162,
+    "UttrflowUX init init": 163,
     "UttrflowUX let acceptKey": 1,
     "UttrflowUX let accepted": 1,
     "UttrflowUX let access": 1,
@@ -6286,11 +6287,12 @@
     "UttrflowUX var locale": 1,
     "UttrflowUX var meetsADictation": 1,
     "UttrflowUX var menu": 1,
+    "UttrflowUX var message": 1,
     "UttrflowUX var microphones": 1,
     "UttrflowUX var missingFiles": 1,
     "UttrflowUX var missingImages": 1,
     "UttrflowUX var moreLine": 1,
-    "UttrflowUX var notice": 3,
+    "UttrflowUX var notice": 4,
     "UttrflowUX var now": 1,
     "UttrflowUX var offersUndo": 1,
     "UttrflowUX var onChange": 1,
@@ -6376,7 +6378,8 @@
     "UttrflowUX var warning": 1,
     "UttrflowUX var warnings": 1,
     "UttrflowUX var weeks": 1,
+    "UttrflowUX var withdrawsTrust": 1,
     "UttrflowUX var words": 2
   },
-  "total": 9076
+  "total": 9081
 }

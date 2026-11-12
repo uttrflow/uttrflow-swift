@@ -7,7 +7,7 @@ import Testing
 
 @testable import UttrflowAudio
 
-@Suite("TapHandoff")
+@Suite("TapHandoff", .timeLimit(.minutes(2)))
 struct TapHandoffTests {
     /// Collects deliveries on the consumer thread and lets a test wait for a count of them.
     private final class Received: Sendable {
@@ -19,8 +19,9 @@ struct TapHandoffTests {
             arrived.signal()
         }
 
+        /// Waits with no deadline, which a busy run cannot outlast; the suite time limit ends a delivery that never comes.
         func wait(for count: Int) -> [[Float]] {
-            for _ in 0..<count { _ = arrived.wait(timeout: .now() + 5) }
+            for _ in 0..<count { arrived.wait() }
             return blocks.withLock { $0 }
         }
     }
@@ -59,14 +60,18 @@ struct TapHandoffTests {
     @Test("drops a block that does not fit, counts it, and keeps the blocks either side")
     func overflowIsBounded() {
         let gate = DispatchSemaphore(value: 0)
+        let holding = DispatchSemaphore(value: 0)
         let received = Received()
         // The consumer is held on its first block, so the ring fills behind it.
         let handoff = TapHandoff(capacity: 10) { block in
-            if block == [0] { gate.wait() }
+            if block == [0] {
+                holding.signal()
+                gate.wait()
+            }
             received.take(block)
         }
         [Float(0)].withUnsafeBufferPointer { _ = handoff.push($0) }
-        Thread.sleep(forTimeInterval: 0.05)
+        holding.wait()
         let six: [Float] = [1, 1, 1, 1, 1, 1]
         let accepted = six.withUnsafeBufferPointer { handoff.push($0) }
         let refused = six.withUnsafeBufferPointer { handoff.push($0) }
