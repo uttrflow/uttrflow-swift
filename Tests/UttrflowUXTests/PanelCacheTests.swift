@@ -25,6 +25,70 @@ struct PanelCacheTests {
         #expect(cache.searchMemo.searchScans == 1)
     }
 
+    @Test("a panel presented with a cache passed in works out everything in that cache")
+    func presentUsesThePassedCache() {
+        let code = Clip(
+            text: "func f() {\n\tlet x = 1\n        let y = 2\n}", kind: .code, copiedAt: PanelFixture.now)
+        let panel = PanelFixture.panel([code]).applying(.search("f")).state
+        let bound = PanelCache.current
+        let scans = bound.searchMemo.searchScans
+        let builds = bound.rowMemo.builds
+        let passed = PanelCache()
+
+        let rows = PanelPresenter.present(panel, using: passed).rows
+
+        #expect(rows.first?.actions.contains { $0.title == "Re-indent" } == true)
+        #expect(passed.searchMemo.searchScans == 1)
+        #expect(passed.rowMemo.builds == 1)
+        #expect(passed.reindentOffers.remembers(code.id))
+        #expect(bound.searchMemo.searchScans == scans)
+        #expect(bound.rowMemo.builds == builds)
+        #expect(!bound.reindentOffers.remembers(code.id))
+    }
+
+    @Test("a search presented with a cache passed in folds clip text in that cache")
+    func searchFoldsInThePassedCache() {
+        let clip = PanelFixture.clip("needle in text", minutesAgo: 1)
+        let panel = PanelFixture.panel([clip]).applying(.search("text")).state
+        let bound = PanelCache.current
+        bound.foldedTexts.prune(to: [])
+        let passed = PanelCache()
+
+        _ = PanelPresenter.present(panel, using: passed)
+
+        #expect(passed.foldedTexts.remembers(clip.id))
+        #expect(!bound.foldedTexts.remembers(clip.id))
+    }
+
+    @Test("a note's checklist count is kept in the cache passed in")
+    func checklistCountsInThePassedCache() {
+        let note = Clip(
+            text: "Shopping list", kind: .text, copiedAt: PanelFixture.now,
+            richText: "<ul><li class=\"checked\">Milk</li><li class=\"unchecked\">Tea</li></ul>")
+        let panel = PanelFixture.panel([note])
+        let passed = PanelCache()
+
+        let rows = PanelPresenter.present(panel, using: passed).rows
+
+        #expect(rows.first?.checklist == "1 of 2")
+        #expect(passed.checklistProgresses.remembers(note.id))
+        #expect(!PanelCache.current.checklistProgresses.remembers(note.id))
+    }
+
+    @Test("a formatting sheet is drawn in the cache passed in")
+    func formattingSheetInThePassedCache() {
+        let code = Clip(
+            text: "func a(){\nlet x=1\n}", kind: .code, copiedAt: PanelFixture.now, language: .swift)
+        let formatted = "func a() {\n    let x = 1\n}"
+        var panel = PanelFixture.panel([code])
+        panel.sheet = .formatting(code.id, formatted: formatted)
+        let passed = PanelCache()
+
+        #expect(PanelPresenter.present(panel, using: passed).sheet != nil)
+        #expect(passed.formattingSheets.remembers(from: code.text, to: formatted))
+        #expect(!PanelCache.current.formattingSheets.remembers(from: code.text, to: formatted))
+    }
+
     @Test("two panels presented in turn share the one cache bound to the task")
     func panelsShareTheBoundCache() {
         let first = PanelFixture.panel([PanelFixture.clip("alpha", minutesAgo: 1)])

@@ -7,20 +7,6 @@ import UttrflowDictionary
 @testable import UttrflowPipeline
 @testable import UttrflowTestSupport
 
-/// A recogniser that hears the same words every time, so the tidier's account is the variable.
-private struct FixedSpeechEngine: SpeechEngine {
-    let kind = SpeechEngineKind.whisperKit
-    let heard: String
-
-    func prepare() async throws(SpeechEngineError) {}
-
-    func transcribe(
-        _ audio: AudioSamples, options: TranscriptionOptions
-    ) async throws(SpeechEngineError) -> Transcription {
-        Transcription(text: heard, audioDuration: audio.duration)
-    }
-}
-
 /// A tidier that reports whatever account it is told to, so the seam can be tested without a model.
 private struct AccountingCleaner: TranscriptCleaning {
     let record: CleaningRecord?
@@ -73,23 +59,19 @@ private final class WatchingCleaner: TranscriptCleaning, Sendable {
 
 @Suite("The pipeline hands on what the clean-up steps did")
 struct DictationCleaningRecordTests {
-    private static let audio = AudioSamples.canonical(
-        (0..<24_000).map { 0.3 * Float(sin(Double($0) * 0.07)) })
-
+    /// One take of the same words, so the tidier's account is the variable.
     private func pipeline(
         cleaner: any TranscriptCleaning,
         recorder: any CleaningRecording = NoOpCleaningRecorder(),
         overrides: DestinationOverrides = .none,
-        context: AppContext = .fixture()
-    ) -> DictationPipeline {
-        DictationPipeline(
-            capture: FakeAudioCaptureEngine(stopOutcome: .success(Self.audio)),
-            speech: FixedSpeechEngine(heard: "um we ship"),
-            cleaner: cleaner,
-            context: FakeContextEngine(context: context),
-            inserter: FakeTextInserter(),
-            cleaningRecorder: recorder,
-            destinationOverrides: overrides)
+        context: AppContext = .fixture(),
+        corrector: any WordCorrecting = NoTextChanges()
+    ) async -> DictationPipeline {
+        await ScenarioDriver.session(
+            Scenario(
+                pieces: [ScriptedPiece("um we ship")], context: context, cleaner: cleaner,
+                corrector: corrector, destinationOverrides: overrides, cleaningRecorder: recorder)
+        ).pipeline
     }
 
     private let account = CleaningRecord(
@@ -98,7 +80,7 @@ struct DictationCleaningRecordTests {
     @Test("a finished dictation reports what each step did, once")
     func reportsOnce() async {
         let recorder = CollectingCleaningRecorder()
-        let pipeline = pipeline(
+        let pipeline = await pipeline(
             cleaner: AccountingCleaner(record: account), recorder: recorder)
 
         await pipeline.startRecording()
@@ -117,14 +99,9 @@ struct DictationCleaningRecordTests {
                 word: "Zorvex", pronunciation: "sore vex", origin: .added, firstSeen: .distantPast)
         ])
         let recorder = CollectingCleaningRecorder()
-        let pipeline = DictationPipeline(
-            capture: FakeAudioCaptureEngine(stopOutcome: .success(Self.audio)),
-            speech: FixedSpeechEngine(heard: "um we ship"),
-            cleaner: AccountingCleaner(record: account),
-            context: FakeContextEngine(context: .fixture()),
-            inserter: FakeTextInserter(),
-            corrector: DictionaryCorrections { _ in index },
-            cleaningRecorder: recorder)
+        let pipeline = await pipeline(
+            cleaner: AccountingCleaner(record: account), recorder: recorder,
+            corrector: DictionaryCorrections { _ in index })
 
         await pipeline.startRecording()
         await pipeline.finishRecording()
@@ -135,7 +112,7 @@ struct DictationCleaningRecordTests {
     @Test("cleanup is reported as cleaning, not an undoable correction")
     func cleanupDoesNotBecomeCorrection() async throws {
         let recorder = CollectingCleaningRecorder()
-        let pipeline = pipeline(
+        let pipeline = await pipeline(
             cleaner: AccountingCleaner(record: account), recorder: recorder)
 
         await pipeline.startRecording()
@@ -154,7 +131,7 @@ struct DictationCleaningRecordTests {
     @Test("a tidier that keeps no account leaves the page with nothing to redraw")
     func noAccount() async {
         let recorder = CollectingCleaningRecorder()
-        let pipeline = pipeline(cleaner: AccountingCleaner(record: nil), recorder: recorder)
+        let pipeline = await pipeline(cleaner: AccountingCleaner(record: nil), recorder: recorder)
 
         await pipeline.startRecording()
         await pipeline.finishRecording()
@@ -166,7 +143,7 @@ struct DictationCleaningRecordTests {
     @Test("a tidier that refuses reports the tidying skipped rather than an empty account")
     func refusedTidying() async {
         let recorder = CollectingCleaningRecorder()
-        let pipeline = pipeline(cleaner: RefusingCleaner(), recorder: recorder)
+        let pipeline = await pipeline(cleaner: RefusingCleaner(), recorder: recorder)
 
         await pipeline.startRecording()
         await pipeline.finishRecording()
@@ -181,7 +158,7 @@ struct DictationCleaningRecordTests {
             applicationName: "Slack", bundleIdentifier: "com.tinyspeck.slackmacgap")
         let overrides = DestinationOverrides.none.setting(
             .document, for: "com.tinyspeck.slackmacgap", named: "Slack")
-        let pipeline = pipeline(cleaner: cleaner, overrides: overrides, context: slack)
+        let pipeline = await pipeline(cleaner: cleaner, overrides: overrides, context: slack)
 
         await pipeline.startRecording()
         await pipeline.finishRecording()
@@ -196,7 +173,7 @@ struct DictationCleaningRecordTests {
         let cleaner = WatchingCleaner()
         let slack = AppContext(
             applicationName: "Slack", bundleIdentifier: "com.tinyspeck.slackmacgap")
-        let pipeline = pipeline(cleaner: AccountingCleaner(record: nil), context: slack)
+        let pipeline = await pipeline(cleaner: AccountingCleaner(record: nil), context: slack)
 
         await pipeline.adopt(
             cleaner: cleaner,
@@ -213,7 +190,7 @@ struct DictationCleaningRecordTests {
         let cleaner = WatchingCleaner()
         let slack = AppContext(
             applicationName: "Slack", bundleIdentifier: "com.tinyspeck.slackmacgap")
-        let pipeline = pipeline(cleaner: cleaner, context: slack)
+        let pipeline = await pipeline(cleaner: cleaner, context: slack)
 
         await pipeline.startRecording()
         await pipeline.finishRecording()
