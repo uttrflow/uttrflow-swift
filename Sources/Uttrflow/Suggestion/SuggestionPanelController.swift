@@ -91,7 +91,9 @@ final class SuggestionPanelController {
             acceptKey: acceptKey, wordAcceptKey: wordAcceptKey, fontFamily: fontFamily, isBold: isBold,
             isItalic: isItalic, textColor: textColor)
         // The same offer at the same caret is already on screen, so nothing is laid out, placed or fronted again.
-        if isActuallyShowing, next.draws(sameAs: request), drawn.statusMessage == statusMessage { return true }
+        if isActuallyShowing, next.draws(sameAs: request), drawn.statusMessage == statusMessage {
+            return true
+        }
         request = next
         return render()
     }
@@ -107,7 +109,9 @@ final class SuggestionPanelController {
             request = next
             return render()
         }
-        if isActuallyShowing, next.draws(sameAs: request), drawn.statusMessage == statusMessage { return true }
+        if isActuallyShowing, next.draws(sameAs: request), drawn.statusMessage == statusMessage {
+            return true
+        }
         request = next
         return render()
     }
