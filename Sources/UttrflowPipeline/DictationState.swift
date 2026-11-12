@@ -22,6 +22,8 @@ public struct DictationFailure: Sendable, Equatable {
     public let keptRecording: UUID?
     /// Whether any read of the dictation saw a private-browsing window, so History never learns from its words.
     package private(set) var fromPrivateWindow = false
+    /// The application the words were meant for, so History can leave out an app the person excluded.
+    package private(set) var meantForApplication: String?
 
     public init(
         message: String, cause: String? = nil, recovery: RecoveryAction?, severity: FailureSeverity,
@@ -85,7 +87,19 @@ public struct DictationFailure: Sendable, Equatable {
             recovery: recovery, severity: severity, transcript: transcript,
             intoSecureField: intoSecureField, speechEngineKind: speechEngineKind,
             speechEngineError: speechEngineError, keptRecording: keptRecording
-        ).markingPrivate(fromPrivateWindow)
+        ).keepingMarks(of: self)
+    }
+
+    /// The same failure, marked as meant for the application with this bundle identifier.
+    package func markingDestination(_ bundleIdentifier: String?) -> DictationFailure {
+        var marked = self
+        marked.meantForApplication = bundleIdentifier
+        return marked
+    }
+
+    /// This failure carrying what `other` was marked with, so a rebuilt failure loses no mark.
+    private func keepingMarks(of other: DictationFailure) -> DictationFailure {
+        markingPrivate(other.fromPrivateWindow).markingDestination(other.meantForApplication)
     }
 
     /// The same failure, marked as from a private-browsing window when any read of the dictation saw one.
@@ -118,7 +132,7 @@ public struct DictationFailure: Sendable, Equatable {
             severity: severity, transcript: transcript,
             intoSecureField: secure, speechEngineKind: speechEngineKind,
             speechEngineError: speechEngineError, keptRecording: keptRecording
-        ).markingPrivate(fromPrivateWindow)
+        ).keepingMarks(of: self)
     }
 }
 
