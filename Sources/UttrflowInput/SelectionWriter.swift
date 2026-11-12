@@ -83,7 +83,7 @@ struct SelectionWriter<Field: SelectionAttributes>: ArrivalReportingField {
                 try select(caret)
             } catch {
                 log.error(
-                    "Caret not restored after a failed write: \(error.localizedDescription, privacy: .public)"
+                    "Caret not restored after a failed write: \(ErrorLog.failure(error), privacy: .public)"
                 )
             }
             throw error
