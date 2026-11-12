@@ -1516,8 +1516,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             ]),
             profile: settings.profile,
             commands: EditCommandRegistry([
-                RecordedEditCommand(ledger: ledger), KeyEditCommand(overrides: settings.destinations),
-                MarkdownEditCommand(),
+                RecordedEditCommand(ledger: ledger, overrides: settings.destinations),
+                KeyEditCommand(overrides: settings.destinations), MarkdownEditCommand(),
             ]),
             layers: qualityLayers
         )

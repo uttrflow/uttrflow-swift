@@ -14,14 +14,6 @@ private final class QuietMonitor: HotkeyMonitoring {
     var events: AsyncStream<HotkeyEvent> { pair.stream }
 }
 
-private final class PlainCleaner: TranscriptCleaning {
-    func clean(
-        _ request: TransformationRequest
-    ) async throws(TransformationError) -> TransformationResult {
-        TransformationResult(text: "Hello there.", producedBy: .foundationModels)
-    }
-}
-
 /// An inserter that holds every insertion until the test lets it through.
 private final class HeldInserter: TextInserting {
     private struct State {
@@ -72,7 +64,7 @@ private func makeRig() -> Rig {
     let pipeline = DictationPipeline(
         capture: capture,
         speech: FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: "hello there"))),
-        cleaner: PlainCleaner(),
+        cleaner: FakeTranscriptCleaner(tidying: { _ in "Hello there." }, producedBy: .foundationModels),
         context: FakeContextEngine(context: .fixture()),
         inserter: inserter,
         clock: ManualClock()

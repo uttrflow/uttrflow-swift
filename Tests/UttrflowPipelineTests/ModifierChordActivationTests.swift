@@ -84,14 +84,6 @@ private final class QuietMonitor: HotkeyMonitoring {
     var events: AsyncStream<HotkeyEvent> { pair.stream }
 }
 
-private final class ChordCleaner: TranscriptCleaning {
-    func clean(
-        _ request: TransformationRequest
-    ) async throws(TransformationError) -> TransformationResult {
-        TransformationResult(text: chordTidied, producedBy: .foundationModels)
-    }
-}
-
 private final class ChordCue: RecordingCueing {
     private let starts = Mutex(0)
     func playStart() { starts.withLock { $0 += 1 } }
@@ -126,7 +118,7 @@ private final class Rig {
         let pipeline = DictationPipeline(
             capture: capture,
             speech: speech,
-            cleaner: ChordCleaner(),
+            cleaner: FakeTranscriptCleaner(tidying: { _ in chordTidied }, producedBy: .foundationModels),
             context: FakeContextEngine(context: .fixture()),
             inserter: inserter,
             metrics: metrics,
