@@ -48,7 +48,7 @@ struct ReleasedStoreFixtureTests {
         .snippets: Opened(count: 2, sample: "sign off Thanks, and talk soon. 3 everywhere"),
         .clipboard: Opened(count: 2, sample: "Lunch moved to half past one. text 2 811700000.0"),
         .savedClips: Opened(count: 2, sample: "Agenda: wins, blockers, next steps. standup Work true 5"),
-        .predict: Opened(count: 2, sample: "git status 3 1 make test"),
+        .predict: Opened(count: 2, sample: "git status 3 1"),
         .predictConsent: Opened(count: 2, sample: "allowed declined"),
     ]
 
@@ -205,11 +205,9 @@ struct ReleasedStoreFixtureTests {
             let corpus = try PredictStore(path: file.path(percentEncoded: false), encryptedStore: store)
             let field = Surface(bundleIdentifier: "com.example.terminal", role: "AXTextArea")
             let first = try #require(try await corpus.candidates(for: field, matching: "git").first)
-            let next = try await corpus.legacySuccessors(for: field, after: first.text).first?.text ?? ""
             return Opened(
                 count: try await corpus.entryCount(),
-                sample: "\(first.text) \(first.evidence?.count ?? 0) \(first.evidence?.accepted ?? 0) \(next)"
-            )
+                sample: "\(first.text) \(first.evidence?.count ?? 0) \(first.evidence?.accepted ?? 0)")
         case .predictConsent:
             let consent = CapturePreferencesFile(path: file.path(percentEncoded: false)).load()
             return Opened(

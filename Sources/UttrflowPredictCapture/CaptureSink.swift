@@ -6,10 +6,8 @@ public import struct Foundation.Date
 
 /// Where finished values go, named as a protocol so the capture path can be tested without a database.
 public protocol CaptureSink: Sendable {
-    /// Records a value the user entered, what it followed, and how it reached the field.
-    func record(
-        _ text: String, in surface: Surface, after previous: String?, as origin: LineOrigin, at moment: Date
-    ) async throws
+    /// Records a value the user entered, and how it reached the field.
+    func record(_ text: String, in surface: Surface, as origin: LineOrigin, at moment: Date) async throws
 
     /// Marks an entry wrong and points at what replaces it, so it is never proposed again.
     func supersede(_ text: String, with replacement: String, in surface: Surface) async throws
