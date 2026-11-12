@@ -3,6 +3,7 @@
 import Foundation
 import UttrflowAI
 import UttrflowCore
+import UttrflowPipeline
 import UttrflowPredictCapture
 import UttrflowSettings
 
@@ -42,4 +43,9 @@ final class LearntEvidence {
             }
         }
     }
+}
+
+extension UttrflowPipeline.DictationOutcome {
+    /// Whether this dictation may add style or retry rows: not a secure field, a private window or a recording.
+    var teachesEvidence: Bool { !intoSecureField && !fromPrivateWindow && !isFromRecording }
 }

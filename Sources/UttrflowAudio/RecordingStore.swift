@@ -6,17 +6,22 @@ public import UttrflowCore
 private struct RecordedDestination: Sendable, Codable {
     let app: AppIdentity
     let fieldKind: Destination?
+    /// Whether the window was a private-browsing one; the title that showed it is never stored.
+    let fromPrivateWindow: Bool
 
-    init(app: AppIdentity, fieldKind: Destination?) {
+    init(app: AppIdentity, fieldKind: Destination?, fromPrivateWindow: Bool = false) {
         self.app = app
         self.fieldKind = fieldKind
+        self.fromPrivateWindow = fromPrivateWindow
     }
 
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         if let app = try container.decodeIfPresent(AppIdentity.self, forKey: .app) {
             self.init(
-                app: app, fieldKind: try container.decodeIfPresent(Destination.self, forKey: .fieldKind))
+                app: app, fieldKind: try container.decodeIfPresent(Destination.self, forKey: .fieldKind),
+                fromPrivateWindow: try container.decodeIfPresent(Bool.self, forKey: .fromPrivateWindow)
+                    ?? false)
         } else {
             // Before field kinds were saved, the sidecar itself was the app's name and bundle.
             self.init(app: try AppIdentity(from: decoder), fieldKind: nil)
@@ -24,7 +29,7 @@ private struct RecordedDestination: Sendable, Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case app, fieldKind
+        case app, fieldKind, fromPrivateWindow
     }
 }
 
@@ -128,7 +133,8 @@ public actor RecordingStore: RecordingKeeper {
 
     public func setDestination(_ destination: AppContext, fieldKind: Destination, for id: UUID) {
         guard last?.id == id || FileManager.default.fileExists(atPath: url(of: id).path) else { return }
-        let recorded = RecordedDestination(app: destination.identity, fieldKind: fieldKind)
+        let recorded = RecordedDestination(
+            app: destination.identity, fieldKind: fieldKind, fromPrivateWindow: destination.isInPrivateWindow)
         destinations[id] = recorded
         if let data = try? PropertyListEncoder().encode(recorded) {
             try? PrivateFile.write(data, to: destinationURL(of: id))
@@ -136,7 +142,8 @@ public actor RecordingStore: RecordingKeeper {
         if last?.id == id, let last {
             self.last = KeptRecording(
                 id: last.id, when: last.when, duration: last.duration,
-                destination: recorded.app, fieldKind: fieldKind)
+                destination: recorded.app, fieldKind: fieldKind,
+                fromPrivateWindow: recorded.fromPrivateWindow)
         }
     }
 
@@ -221,7 +228,8 @@ public actor RecordingStore: RecordingKeeper {
                     KeptRecording(
                         id: id, when: when, duration: RecordingWriter.duration(ofFrames: frames),
                         destination: destination(for: id)?.app,
-                        fieldKind: destination(for: id)?.fieldKind),
+                        fieldKind: destination(for: id)?.fieldKind,
+                        fromPrivateWindow: destination(for: id)?.fromPrivateWindow ?? false),
                     FileManager.default.fileExists(atPath: finishedURL(of: id).path),
                     values?.fileSize ?? 0
                 ))

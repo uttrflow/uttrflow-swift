@@ -92,6 +92,55 @@ struct DictationLearningConsentTests {
         #expect(ordinary.outcome?.fromPrivateWindow == false)
     }
 
+    @Test("a retried recording from a private window teaches nothing, though its identity has no title")
+    func retriedPrivateRecordingLearnsNothing() async {
+        let vocabulary = RememberingVocabulary()
+        let kept = KeptRecording(
+            id: UUID(), when: Date(), duration: .seconds(1),
+            destination: AppContext.fixture().identity, fromPrivateWindow: true)
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(),
+            speech: FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: words))),
+            cleaner: FakeTranscriptCleaner(),
+            context: FakeContextEngine(context: .fixture()),
+            inserter: FakeTextInserter(.success(InsertionAttempt(.pasteboard))),
+            vocabulary: vocabulary,
+            consent: OneAnswer(answer: .allowed),
+            recordings: FakeRecordingKeeper(waiting: [kept]),
+            clock: ManualClock())
+        #expect(await pipeline.retry(kept.id))
+        guard case .inserted(let outcome) = await pipeline.currentState else {
+            Issue.record("expected the retry to land")
+            return
+        }
+        #expect(outcome.fromPrivateWindow)
+        #expect(vocabulary.offered.isEmpty)
+    }
+
+    @Test("a final read that timed out keeps the private window the early read found")
+    func timedOutFinalReadKeepsPrivateWindow() async throws {
+        let context = FakeContextEngine(context: .fixture(documentName: "Example - Private Browsing"))
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(),
+            speech: FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: words))),
+            cleaner: FakeTranscriptCleaner(),
+            context: context,
+            inserter: FakeTextInserter(.success(InsertionAttempt(.pasteboard))),
+            clock: ManualClock())
+        await pipeline.startRecording()
+        try await eventually { await pipeline.earlyReadsSettled == 1 }
+        #expect(await pipeline.destinationIsPrivate)
+
+        await context.setContext(AppContext(bundleIdentifier: DestinationRules.slack, unavailable: .timedOut))
+        _ = await pipeline.contextFor(.insert)
+        #expect(await pipeline.destinationIsPrivate)
+
+        await context.setContext(.fixture(documentName: "Example - Browser"))
+        _ = await pipeline.contextFor(.insert)
+        #expect(await !pipeline.destinationIsPrivate)
+        await pipeline.cancel()
+    }
+
     @Test("the switch in Settings, turned off, stops learning even where the user allowed it")
     func switchOffLearnsNothing() async {
         let off = SwitchedLearningConsent(isOn: { false }, answers: OneAnswer(answer: .allowed))

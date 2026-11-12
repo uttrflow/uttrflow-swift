@@ -138,7 +138,8 @@ extension DictationPipeline {
             insertedInto = read.applicationName
             insertedIntoIdentifier = read.bundleIdentifier
             destinationIsSecure = read.isSecure
-            destinationIsPrivate = read.isInPrivateWindow
+            // A read that did not reach the window says nothing about it, so an earlier finding stands.
+            if read.unavailable == nil { destinationIsPrivate = read.isInPrivateWindow }
             let recordedDestination = early.context ?? dictationContext?.app ?? read
             recordingDestination = recordedDestination
             let fieldKind =

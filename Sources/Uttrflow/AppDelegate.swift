@@ -2961,7 +2961,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Counts how the user writes in the destination the words went into; never the words themselves.
     private func noteStyle(_ outcome: UttrflowPipeline.DictationOutcome) {
-        guard !outcome.intoSecureField, !outcome.fromPrivateWindow, !outcome.isFromRecording else { return }
+        guard outcome.teachesEvidence else { return }
         let app = AppContext(
             applicationName: outcome.insertedInto, bundleIdentifier: outcome.insertedIntoIdentifier)
         let destination = DestinationClassifier.classify(app, overrides: settings.destinations)
@@ -2974,8 +2974,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         of previous: DictationRecord?, by record: DictationRecord,
         _ outcome: UttrflowPipeline.DictationOutcome
     ) {
-        guard let previous, !outcome.intoSecureField, !outcome.fromPrivateWindow, !outcome.isFromRecording
-        else { return }
+        guard let previous, outcome.teachesEvidence else { return }
         learnt.note(EvidenceSources.retried(previous, by: record), from: record.applicationIdentifier)
     }
 

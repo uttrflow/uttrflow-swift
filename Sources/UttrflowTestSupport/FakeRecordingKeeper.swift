@@ -60,6 +60,7 @@ public actor FakeRecordingKeeper: RecordingKeeper {
     ) -> KeptRecording {
         KeptRecording(
             id: recording.id, when: recording.when, duration: recording.duration,
-            destination: destination.identity, fieldKind: fieldKind)
+            destination: destination.identity, fieldKind: fieldKind,
+            fromPrivateWindow: destination.isInPrivateWindow)
     }
 }

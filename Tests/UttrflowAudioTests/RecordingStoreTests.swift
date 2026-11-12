@@ -120,6 +120,28 @@ struct RecordingStoreTests {
         #expect(restored.fieldKind == .codeEditor)
     }
 
+    @Test("a recording from a private window keeps that finding across a reload, without the title")
+    func privateWindowSurvivesReload() async throws {
+        let sandbox = Sandbox()
+        let store = RecordingStore(directory: sandbox.directory)
+        let writer = try #require(await store.begin(at: now))
+        writer.append(Array(repeating: 0.3, count: 1_600))
+        let recording = await store.finish(writer)
+        await store.settle(recording.id)
+        await store.setDestination(
+            AppContext(
+                applicationName: "Browser", bundleIdentifier: "com.example.browser",
+                documentName: "Example - Private Browsing"),
+            fieldKind: .plain, for: recording.id)
+
+        let restored = try #require(
+            await RecordingStore(directory: sandbox.directory).waiting(now: now).first)
+        #expect(restored.fromPrivateWindow)
+        #expect(
+            restored.destination
+                == AppIdentity(applicationName: "Browser", bundleIdentifier: "com.example.browser"))
+    }
+
     @Test("an app-only sidecar from before field kinds were recorded still loads")
     func legacyDestinationSidecarLoads() async throws {
         let sandbox = Sandbox()

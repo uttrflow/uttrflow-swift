@@ -99,7 +99,8 @@ extension DictationPipeline {
         insertedInto = recordingDestination?.applicationName
         insertedIntoIdentifier = recordingDestination?.bundleIdentifier
         destinationIsSecure = false
-        destinationIsPrivate = false
+        // The stored identity carries no title, so the private-window finding is restored from the recording.
+        destinationIsPrivate = kept?.fromPrivateWindow ?? false
         cleaningRecords = []
         droppedSpans = []
         openRecording = recording

@@ -97,13 +97,14 @@ extension DictationPipeline {
         else { return }
         // Read before the next await, since the next dictation may start once these words are on screen.
         let wasSecure = destinationIsSecure
+        let wasPrivate = destinationIsPrivate || seen.isInPrivateWindow
         // A snippet's caret moves only in the field that took the words, verified there; otherwise it stays at the end.
         if delivery == .insert, let back = expanded.caretBack(inWritten: toWrite), back > 0 {
             _ = await inserter.placeCaret(back: back)
         }
         await learn(
             from: attempt, wrote: toWrite, changes: changes, heard: whole.heard.text,
-            read: appContext, seeing: seen, intoSecureField: wasSecure)
+            read: appContext, seeing: seen, intoSecureField: wasSecure, fromPrivateWindow: wasPrivate)
     }
 
     /// Re-cases tidied words whose caret or destination moved since they were cased; otherwise returns them as they are.
@@ -137,7 +138,8 @@ extension DictationPipeline {
     /// Counts and learns from words once they are known to be on screen, where the user allows it.
     private func learn(
         from attempt: InsertionAttempt, wrote toWrite: String, changes: AppliedChanges, heard: String,
-        read appContext: AppContext?, seeing seen: AppContext, intoSecureField wasSecure: Bool
+        read appContext: AppContext?, seeing seen: AppContext, intoSecureField wasSecure: Bool,
+        fromPrivateWindow wasPrivate: Bool
     ) async {
         // An unconfirmed paste is not proof the words reached the user, so nothing is learnt from it yet.
         guard attempt.arrival != .unconfirmed else {
@@ -148,7 +150,7 @@ extension DictationPipeline {
         let learnedFrom = landedIn(attempt)?.bundleIdentifier ?? appContext?.bundleIdentifier
         guard await consent.mayLearn(from: learnedFrom) else { return }
         // A private-browsing window teaches nothing, whatever the application's answer.
-        guard !seen.isInPrivateWindow else { return }
+        guard !wasPrivate else { return }
         // A secret is not a word to learn or count, by the same gate that keeps it out of History.
         guard let kept = KeptWords.of(toWrite, intoSecureField: wasSecure) else { return }
         // Both run after the words are on screen, and neither can fail the dictation. §19.
