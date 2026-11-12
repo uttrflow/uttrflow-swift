@@ -139,6 +139,16 @@ public actor EvidenceLedgerStore {
         try persist(onDisk(stored + newRows, keeping: window), replacing: stored)
     }
 
+    /// Appends every batch whose application `consent`, read here with no suspension before the write, allows, in one write.
+    package func append(
+        _ batches: [(application: String?, rows: [EvidenceRow])], keeping window: RetentionWindow,
+        consent: any LearningConsent
+    ) throws {
+        let allowed = batches.filter { consent.mayLearn(from: $0.application) }.flatMap(\.rows)
+        guard !allowed.isEmpty else { return }
+        try append(allowed, keeping: window)
+    }
+
     /// Swaps every row of the given kinds for `newRows` in one write, so a failed write leaves the old rows whole.
     func replace(
         kinds: Set<EvidenceRow.Kind>, with newRows: [EvidenceRow], keeping window: RetentionWindow

@@ -7,22 +7,13 @@ import Testing
 private let written =
     "Dear Asha, thanks for the notes. The draft is on the shared drive. I moved the review to"
 
-/// A tidier that hands the words back as heard.
-private struct UntouchedCleaner: TranscriptCleaning {
-    func clean(
-        _ request: TransformationRequest
-    ) async throws(TransformationError) -> TransformationResult {
-        TransformationResult(text: request.transcription.text, producedBy: .rules)
-    }
-}
-
 /// Dictates once into a field showing `context` and returns the options every decode was given.
 private func optionsDecoded(seeing context: AppContext) async -> [TranscriptionOptions] {
     let speech = FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: "Thursday")))
     let pipeline = DictationPipeline(
         capture: FakeAudioCaptureEngine(),
         speech: speech,
-        cleaner: UntouchedCleaner(),
+        cleaner: FakeTranscriptCleaner(),
         context: FakeContextEngine(context: context),
         inserter: FakeTextInserter(.success(InsertionAttempt(.pasteboard))),
         clock: ManualClock())

@@ -42,6 +42,24 @@ A mis-heard name reinforced three times is worse than one never learnt, so every
 and a word gets in only by defeating all of them. Every learnt word is thrown away by
 `PersonalDictionaryStore.removeLearned()`, which is the promise the feature is sold under.
 
+### Private-browsing windows
+
+A dictation into a window whose title names it private teaches nothing, whatever the
+application's answer: no sighting, no correction, no use count, and no style or retry row in the
+evidence ledger (`DictationOutcome.fromPrivateWindow`). `PrivateWindow.isNamed(by:)` in
+`UttrflowCore` is the one test; typing capture asks the same one (`Docs/predict.md`). The title
+is the only signal read, from the focused window's Accessibility title (`AppContext.documentName`),
+so a private window whose title carries no marker is learnt from like any other.
+
+Probe table, held as data in `PrivateWindow.titleMarkers`; matched anywhere in the title, ignoring
+case. A row moves to "seen" only when a live read of a private window shows the marker.
+
+| Title marker | Read from | Seen in a live private window |
+|---|---|---|
+| `(Incognito)` | focused window title | unverified |
+| `InPrivate` | focused window title | unverified |
+| `Private Browsing` | focused window title | unverified |
+
 ### Seen and said
 
 - A term must be both in the window or document title and spoken — judged by sound key **and by

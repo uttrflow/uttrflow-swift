@@ -83,7 +83,8 @@ enum NotationEvidence {
             !outsideQuotation(Array(body)).contains(where: FunctionWords.holds), let first = body.first,
             let last = body.last, first != "equals", last != "equals"
         else { return false }
-        return body.contains("equals")
+        let attributes = outsideQuotation(Array(body))
+        return (body.contains("equals") || attributes.allSatisfy(HTMLBooleanAttributes.names.contains))
             && !zip(body, body.dropFirst()).contains { $0 == "equals" && $1 == "equals" }
     }
 

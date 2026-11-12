@@ -257,6 +257,24 @@ struct ScriptedSentenceModel: CleanupModel {
     }
 }
 
+/// A dictionary holding one spelling for one heard word, wherever it is heard.
+struct OneEntryDictionary: WordCorrecting {
+    let heard: String
+    let wrote: String
+
+    func corrections(
+        for transcription: Transcription, seeing context: AppContext
+    ) async throws(DictationChangeError) -> [DictationCorrection] {
+        transcription.text.split(whereSeparator: \.isWhitespace).enumerated().compactMap {
+            $0.element.lowercased() == heard
+                ? DictationCorrection(
+                    heard: String($0.element), wrote: wrote, wordRange: $0.offset..<($0.offset + 1),
+                    entryID: UUID(), reason: .unknown("test"), heardConfidence: 0.2)
+                : nil
+        }
+    }
+}
+
 /// The snippets on file, matched by the shipping matcher.
 struct FiledSnippets: SnippetExpanding {
     let snippets: [Snippet]
@@ -269,4 +287,20 @@ struct FiledSnippets: SnippetExpanding {
                 SnippetUse(snippetID: $0.snippetID, matched: $0.matched, expansion: $0.expansion)
             }, caret: expansion.caret)
     }
+}
+
+/// A ``HotkeyMonitoring`` whose events never arrive: open until stopped, or ended from the start.
+final class SilentHotkeyMonitor: HotkeyMonitoring {
+    let events: AsyncStream<HotkeyEvent>
+    private let continuation: AsyncStream<HotkeyEvent>.Continuation
+
+    /// A monitor whose events stay open until `stop()`, or, with `endsAtOnce`, end before anyone listens.
+    init(endsAtOnce: Bool = false) {
+        (events, continuation) = AsyncStream.makeStream()
+        if endsAtOnce { continuation.finish() }
+    }
+
+    @MainActor func start(binding: HotkeyBinding) throws(HotkeyError) {}
+
+    func stop() { continuation.finish() }
 }

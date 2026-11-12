@@ -33,6 +33,20 @@ struct LexicalClassTests {
         #expect(tagged.first?.tag == .determiner)
     }
 
+    /// These phrases are guessed as Italian, Spanish or Portuguese, whose models a Mac may lack.
+    @Test("reads a short phrase as English whatever language it looks like")
+    func englishWhateverItLooksLike() {
+        #expect(
+            LexicalClass.tags(ofWords: ["reduce", "comma", "usage", "in", "prose"])
+                == [.verb, .noun, .noun, .preposition, .noun])
+        #expect(LexicalClass.tag(ofWordAt: 1, in: ["a", "status"]) == .noun)
+        #expect(LexicalClass.tag(ofWordAt: 0, in: ["kilos"]) == .noun)
+        #expect(LexicalClass.lemma(ofWordAt: 0, in: ["kilos"]) == "kilo")
+        #expect(LexicalClass.tags(in: "a ex").map(\.tag) == [.determiner, .noun])
+        #expect(LexicalClass.isNamed("Maria", in: "a Maria"))
+        #expect(LexicalClass.isNamed("Anil", in: "met Anil"))
+    }
+
     @Test("knows an English word in any case and not an invented term")
     func knownEnglishWord() {
         #expect(LexicalClass.isKnownEnglishWord("Inbox"))
