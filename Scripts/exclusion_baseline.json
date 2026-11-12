@@ -8,11 +8,11 @@
     "Uttrflow/Panel/QuickPanelController.swift": 439,
     "Uttrflow/Panel/QuickPanelView.swift": 464,
     "Uttrflow/Settings/SettingsPaneView.swift": 414,
-    "Uttrflow/Suggestion/SuggestionCoordinator.swift": 1527,
+    "Uttrflow/Suggestion/SuggestionCoordinator.swift": 1511,
     "Uttrflow/Suggestion/SuggestionPanelController.swift": 469,
     "UttrflowInput/SystemInput.swift": 784,
     "UttrflowLocalModel/MLXCandidateScorer.swift": 683,
     "UttrflowSpeech/WhisperKitBackend.swift": 444
   },
-  "total": 11858
+  "total": 11842
 }
