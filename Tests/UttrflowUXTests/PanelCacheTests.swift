@@ -25,6 +25,23 @@ struct PanelCacheTests {
         #expect(cache.searchMemo.searchScans == 1)
     }
 
+    @Test("a re-indent answer survives closing and reopening the panel on the same list")
+    func reindentSurvivesReopen() {
+        let code = Clip(
+            text: "func f() {\n\tlet x = 1\n        let y = 2\n}", kind: .code, copiedAt: PanelFixture.now)
+        let cache = PanelCache.current
+        let first = PanelPresenter.present(PanelFixture.opened([code]).applying(.search("f")).state)
+        #expect(first.rows.first?.actions.contains { $0.title == "Re-indent" } == true)
+        #expect(cache.reindentOffers.remembers(code.id))
+
+        // Opened the way the app opens it, so the list install that prunes the cache runs again.
+        let reopened = PanelFixture.opened([code]).applying(.search("f")).state
+        #expect(cache.reindentOffers.remembers(code.id))
+        let second = PanelPresenter.present(reopened)
+        #expect(second.rows.first?.actions.contains { $0.title == "Re-indent" } == true)
+        #expect(cache.reindentOffers.count == 1)
+    }
+
     @Test("a panel presented with a cache passed in works out everything in that cache")
     func presentUsesThePassedCache() {
         let code = Clip(
