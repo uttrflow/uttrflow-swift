@@ -2,8 +2,10 @@ import NaturalLanguage
 
 /// The lexical-class and phrase evidence that decides whether a stop fell inside a sentence.
 public enum SentenceBoundaryEvidence {
-    /// Whether the words on both sides show that the sentence carried on; `leading` is the sentence's words before `text`, read only to tell a noun "look".
-    public static func sentenceRunsOn(_ text: String, into next: String, after leading: String = "") -> Bool {
+    /// Whether the words on both sides show that the sentence carried on; `leading` is the sentence's words before `text`, read only to tell a noun "look", and `stopWritten` says the recogniser or a model, not the rules closing a piece, ended `text` with a stop, which a subject before its verb ("My manager. Wants") keeps.
+    public static func sentenceRunsOn(
+        _ text: String, into next: String, after leading: String = "", stopWritten: Bool = false
+    ) -> Bool {
         let previous = WordTokens.words(text, .display).map(WordShape.init)
         let following = WordTokens.words(next, .display).map(WordShape.init)
         guard !previous.isEmpty, let first = following.first else { return false }
@@ -22,22 +24,25 @@ public enum SentenceBoundaryEvidence {
         }
         if leadsIntoNext(previous, following) || opensWithAPhrase(previous, following)
             || completesFinalPhrase(previous, following) || completesSeamPreposition(previous, following)
-            || splitsSubjectFromPredicate(previous, following) || awaitsComplement(previous, following)
-            || takesObject(previous, following) || continuesAcrossConjunction(previous, following)
+            || (!stopWritten && splitsSubjectFromPredicate(previous, following))
+            || awaitsComplement(previous, following) || takesObject(previous, following)
+            || continuesAcrossConjunction(previous, following, stopWritten: stopWritten)
         {
             return true
         }
         return first.key == "because" && following.count > 1
     }
 
-    /// "checked the notes. And filed them", "on Monday. Or on Friday": words after a conjunction that open on an inflected verb share the subject before the stop, and words with no verb are no sentence; a conjunction before its own subject and verb, or before a bare verb giving an order ("And ask them"), opens one.
-    private static func continuesAcrossConjunction(_ previous: [WordShape], _ following: [WordShape]) -> Bool
-    {
+    /// "checked the notes. And filed them", "on Monday. Or on Friday": words after a conjunction that open on an inflected verb share the subject before a written stop, and words with no verb are no sentence; a conjunction before its own subject and verb, or before a bare verb giving an order ("And ask them"), opens one. Where no stop was written, a conjunction carries the speaker's sentence on.
+    private static func continuesAcrossConjunction(
+        _ previous: [WordShape], _ following: [WordShape], stopWritten: Bool
+    ) -> Bool {
         guard let first = following.first, following.count > 1 else { return false }
         let clauseEnd = following.firstIndex(where: \.endsSentence).map { $0 + 1 } ?? following.count
         let words = previous.map(\.core) + [first.key] + following.prefix(clauseEnd).dropFirst().map(\.core)
         let tags = LexicalClass.tags(ofWords: words).dropFirst(previous.count)
-        guard tags.first == .conjunction else { return false }
+        guard tags.first == .conjunction || FunctionWords.isCoordinator(first.key) else { return false }
+        guard stopWritten else { return true }
         let rest = tags.dropFirst()
         guard !rest.contains(.otherWord) else { return false }
         guard let verb = rest.firstIndex(where: { $0 != .adverb }), rest[verb] == .verb else {
