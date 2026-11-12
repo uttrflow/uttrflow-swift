@@ -96,4 +96,13 @@ import UttrflowPredict
                 .certain("Meet at noon"), typed: "Meet at", selection: .untouched,
                 in: Self.field("Meet at", caret: nil), preferences: preferences) == nil)
     }
+
+    @Test("the accept key is the one the person chose for the field's app")
+    func acceptKeyFollowsTheChoice() {
+        for chosen in AcceptKey.allCases {
+            let preferences = SuggestionPreferences(isEnabled: true, chosenAcceptKeys: [Self.bundle: chosen])
+            #expect(
+                SuggestionRequest.acceptKey(in: Self.field("Meet at"), preferences: preferences) == chosen)
+        }
+    }
 }
