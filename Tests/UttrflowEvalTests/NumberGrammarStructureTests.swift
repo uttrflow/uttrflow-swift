@@ -21,7 +21,8 @@ struct NumberGrammarStructureTests {
         ("give me a second", "Give me a second.", .staysWords),
         ("no one came", "No one came.", .staysWords),
         ("about a hundred users", "About a hundred users.", .staysWords),
-        ("we use python three", "We use Python three.", .staysWords),
+        ("we use python three", "We use Python 3.", .cardinal),
+        ("we feed python three small mice", "We feed python three small mice.", .staysWords),
         ("may fifth works", "May fifth works.", .staysWords),
         ("in twenty oh five", "In 2005.", .date),
         (
