@@ -803,3 +803,6 @@ dev-terminal-or-chain moved unchanged to Sources/UttrflowEval/Resources/Corpus/t
 if-it-is-right-is-no-tag-question the spoken text carries its apostrophe, as a transcript does
 sub1 the spoken stop before a verb is kept as a fragment, as sub4 decides, since no evidence shows the sentence cannot end at "manager"
 but1 the spoken stop before "but" opening its own subject and verb is kept, since a sentence can end before it
+undecided-number-pair-kept-as-words expects 413, since a status verb before the pair now reads it as one code (#6569)
+dev-bug-report-steps expects 2000, since .thousands groups only from 10,000 as Docs/cleanup.md decides (#6569)
+dev-env-setup expects 2 minutes, since minutes is a decided measure (#6569)
