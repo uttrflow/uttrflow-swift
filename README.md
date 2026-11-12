@@ -378,7 +378,9 @@ panel decrypts its in-memory copy as needed. Clips age out after the retention w
 Mac: there is no clipboard sync.
 
 - **Password managers' concealed mark is honoured.** Concealed text is treated as a secret
-  and follows the storage rule below. See
+  and follows the storage rule below. A clip you pinned, named, tagged or filed keeps
+  whether it is a secret when the same text is copied again, whichever way the new copy is
+  judged. See
   [`Docs/clipboard-secrets.md`](Docs/clipboard-secrets.md) for what the marker and secret
   handling cover.
 - **Clipboard capture can be excluded per app or paused for an hour.** Settings keeps a
