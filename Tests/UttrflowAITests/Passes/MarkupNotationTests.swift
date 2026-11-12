@@ -91,6 +91,19 @@ struct MarkupNotationTests {
                 == "open p close the door")
     }
 
+    @Test("writes an attribute said by name alone, with no value")
+    func booleanAttributes() {
+        let form = "<form>\n"
+        #expect(
+            Self.written("open input disabled close", in: "index.html", after: form) == "<input disabled>")
+        #expect(
+            Self.written("open input type equals checkbox checked close", in: "index.html", after: form)
+                == "<input type=checkbox checked>")
+        #expect(
+            Self.written("open input quickly close", in: "index.html", after: form)
+                == "open input quickly close")
+    }
+
     @Test("reads a word as markup only in the slot its row names")
     func slotsOfRows() {
         #expect(Self.written("close", in: "index.html", after: "<body>\n") == "close")
@@ -117,6 +130,11 @@ struct MarkupNotationTests {
         #expect(!spells("open div equals equals close"))
         #expect(!spells("open slash div class equals hero close"))
         #expect(!spells("open widget close"))
+        #expect(spells("open input disabled close"))
+        #expect(spells("open input type equals checkbox checked close"))
+        #expect(spells("open video controls muted close"))
+        #expect(!spells("open input fast close"))
+        #expect(!spells("open input disabled now close"))
     }
 
     @Test("rules out markup in a comment or a quoted value and says nothing about text")

@@ -382,7 +382,8 @@ struct DictationControllerTests {
                 pipeline: DictationPipeline(
                     capture: FakeAudioCaptureEngine(),
                     speech: FakeSpeechEngine(),
-                    cleaner: FakeTranscriptCleaner(tidying: { _ in controllerTidied }, producedBy: .foundationModels),
+                    cleaner: FakeTranscriptCleaner(
+                        tidying: { _ in controllerTidied }, producedBy: .foundationModels),
                     context: FakeContextEngine(context: .fixture()),
                     inserter: FakeTextInserter(),
                     clock: ManualClock()

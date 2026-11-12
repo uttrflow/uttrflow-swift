@@ -35,7 +35,8 @@ enum DictationRecordMapping {
                 notation: outcome.changes.notation, quality: outcome.quality,
                 fromPrivateWindow: outcome.fromPrivateWindow)
         case .failed(let failure):
-            guard let text = failure.wordsToKeep, keeping.keeps(applicationIdentifier: nil)
+            guard let text = failure.wordsToKeep,
+                keeping.keeps(applicationIdentifier: failure.meantForApplication)
             else { return nil }
             return DictationRecord(
                 id: id, text: text, when: when, arrival: .notInserted,

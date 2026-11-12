@@ -431,6 +431,7 @@ public actor DictationPipeline {
     /// Ends the dictation in failure, keeping the audio exactly when the words were lost. See `Docs/recordings.md`.
     func fail(_ failure: DictationFailure) async {
         var failure = failure.markingSecure(destinationIsSecure).markingPrivate(destinationIsPrivate)
+            .markingDestination(insertedIntoIdentifier)
         let wordsLost = failure.transcript == nil && failure.severity != .informational
         let recording = openRecording
         let kept = await settleRecording(wordsLost: wordsLost)
