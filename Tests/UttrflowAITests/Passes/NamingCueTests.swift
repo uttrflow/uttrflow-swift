@@ -61,6 +61,16 @@ struct NamingCueTests {
                 == "get_user_by_id")
     }
 
+    @Test("the passes before the model read the file's convention too, so both paths write one name")
+    func beforeModelFollowsTheFile() {
+        let app = AppContext(
+            applicationName: "Xcode", bundleIdentifier: "com.apple.dt.Xcode",
+            documentName: "Example.swift", precedingText: "let order_totals = fetch_invoices()\nlet x = ")
+        let situation = Situation(app: app, insertion: app.insertionPoint, destination: .codeEditor)
+        let pipeline = CleaningPipeline.beforeModel(for: .standard(for: .codeEditor), situation: situation)
+        #expect(pipeline.run(Draft(text: "function name get user by id")).text == "get_user_by_id")
+    }
+
     @Test("a casing command said with the request wins over the file's convention")
     func explicitStyleWins() {
         let camelFile = "let orderTotals = fetchInvoices()\nlet x = "
