@@ -85,11 +85,17 @@ final class SuggestionPanelController {
         isItalic: Bool = false,
         textColor: TextColor? = nil
     ) -> Bool {
-        let next = SuggestionRequest(
-            suggestion: suggestion, typed: typed, placement: placement, direction: direction, caret: caret,
-            window: window, field: field, fieldPointSize: fieldPointSize, selection: selection,
-            acceptKey: acceptKey, wordAcceptKey: wordAcceptKey, fontFamily: fontFamily, isBold: isBold,
-            isItalic: isItalic, textColor: textColor)
+        show(
+            SuggestionRequest(
+                suggestion: suggestion, typed: typed, placement: placement, direction: direction,
+                caret: caret,
+                window: window, field: field, fieldPointSize: fieldPointSize, selection: selection,
+                acceptKey: acceptKey, wordAcceptKey: wordAcceptKey, fontFamily: fontFamily, isBold: isBold,
+                isItalic: isItalic, textColor: textColor))
+    }
+
+    /// Draws `next`, answering whether it is on screen whole.
+    func show(_ next: SuggestionRequest) -> Bool {
         // The same offer at the same caret is already on screen, so nothing is laid out, placed or fronted again.
         if isActuallyShowing, next.draws(sameAs: request), drawn.statusMessage == statusMessage {
             return true

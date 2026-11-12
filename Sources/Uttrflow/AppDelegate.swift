@@ -543,12 +543,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             dictationDays: settings.transcriptRetentionDays)
         let previous = sweeping
         let overrides = settings.destinations
+        let consent = learnt.consent
         sweeping = Task(priority: .utility) { [recordings, history, clipboard, evidence, dictionary] in
             await previous?.value
             _ = await recordings.waiting(now: now)
             let records = await history.records(keeping: retention)
             await EvidenceSources.backfill(
-                evidence, from: records, dictionary: dictionary, overrides: overrides,
+                evidence, from: records, consent: consent, dictionary: dictionary, overrides: overrides,
                 keeping: RetentionWindow(days: retention.days, now: now))
             _ = await clipboard.clips(keeping: clipboardRetention)
         }
@@ -1480,13 +1481,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             snippets: StoredSnippets(store: snippets),
             learner: StoreCounters(
                 dictionary: dictionary, snippets: snippets,
-                noteUses: { [weak self] used in
-                    await MainActor.run {
-                        guard let self, let evidence = self.evidence else { return }
-                        self.noteEvidence(
-                            EvidenceSources.uses(of: used, day: EvidenceRow.day(of: Date())), in: evidence)
-                    }
-                },
+                noteUses: { [weak self] used, application in await self?.noteUses(used, from: application) },
                 // Detached from the pipeline, so its wait for a hand edit never holds the next dictation.
                 watchEdits: { [dictionary] applied, inserted in
                     Task { await EditAwayWatch(dictionary: dictionary).watch(applied, inserted: inserted) }
@@ -1511,7 +1506,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             consent: learnt.consent,
             metrics: telemetry.map { MetricsFanOut([diagnostics, $0.recorder]) } ?? diagnostics,
             cleaningRecorder: diagnostics,
-            destinationOverrides: settings.destinations,
+            destinationOverrides: settings.dictationOverrides,
             recordings: recordings,
             // A retry runs with Uttrflow's own window in front, so its words can only be copied.
             clipboard: TextInsertionCoordinator(strategies: [
@@ -3001,17 +2996,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         return ConfusionPairs.project(await evidence.rows(keeping: window))
     }
 
-    /// Appends rows to the ledger inside History's window, off the main actor; a refusal is logged, never shown.
-    private func noteEvidence(_ rows: [EvidenceRow], in evidence: EvidenceLedgerStore, now: Date = Date()) {
-        guard !rows.isEmpty else { return }
-        let window = RetentionWindow(days: settings.transcriptRetentionDays, now: now)
-        Task {
-            do {
-                try await evidence.append(rows, keeping: window)
-            } catch {
-                Self.log.error("evidence not saved: \(ErrorLog.failure(error), privacy: .public)")
-            }
-        }
+    /// Writes a `use` row for each dictionary entry a dictation into `application` used, behind the learning consent.
+    func noteUses(_ used: [UUID], from application: String?) async {
+        learnt.note(EvidenceSources.uses(of: used, day: EvidenceRow.day(of: Date())), from: application)
+        await learnt.pending?.value
     }
 
     /// Keeps one dictation, inserted or salvaged, and makes it what the last-transcript shortcuts act on.
@@ -4427,12 +4415,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             applyWindowSharing()
         }
         // A freshly built cleaner, so the next dictation runs the choices just made.
-        if updated.cleaning != previous.cleaning || updated.destinations != previous.destinations
+        if updated.cleaning != previous.cleaning
+            || updated.dictationOverrides != previous.dictationOverrides
             || updated.engines != previous.engines
         {
             probeTransformers()
             let tidier = cleaner(for: updated)
-            let overrides = updated.destinations
+            let overrides = updated.dictationOverrides
             Task { [weak self] in
                 await self?.pipeline?.adopt(cleaner: tidier, destinationOverrides: overrides)
             }

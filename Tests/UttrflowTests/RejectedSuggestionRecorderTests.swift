@@ -166,4 +166,42 @@ struct RejectedSuggestionRecorderTests {
         #expect(recorder.queuedRetryReservationBytes() == AcceptanceQueue.maximumWriteBytes)
         recorder.cancelQueuedRetry()
     }
+
+    @Test("A rejection queued behind earlier writes is written once the queue drains")
+    @MainActor
+    func queuedRejectionIsWritten() async {
+        let surface = Surface(bundleIdentifier: "com.example.editor", role: "AXTextArea")
+        let store = ThrowingRejectedStore(failuresBeforeSuccess: 0)
+        let recorder = RejectedSuggestionRecorder(store: store)
+        let writes = AcceptanceQueue()
+
+        recorder.queue("wrong completion", in: surface, on: writes)
+        await writes.drained()
+
+        #expect(await store.successes == 1)
+        #expect(!recorder.suppresses("wrong completion", in: surface))
+    }
+
+    @Test("A retry is queued only while a write is held, and only once until it runs")
+    @MainActor
+    func retryIsQueuedOnceWhileHeld() async {
+        let surface = Surface(bundleIdentifier: "com.example.editor", role: "AXTextArea")
+        let store = ThrowingRejectedStore(failuresBeforeSuccess: 1)
+        let recorder = RejectedSuggestionRecorder(store: store)
+        let writes = AcceptanceQueue()
+
+        recorder.queueRetry(on: writes)
+        await writes.drained()
+        #expect(await store.attempts == 0)
+
+        await recorder.record("wrong completion", in: surface)
+        recorder.queueRetry(on: writes)
+        recorder.queueRetry(on: writes)
+        await writes.drained()
+
+        #expect(await store.attempts == 2)
+        #expect(await store.successes == 1)
+        #expect(!recorder.suppresses("wrong completion", in: surface))
+        #expect(!recorder.claimQueuedRetry())
+    }
 }

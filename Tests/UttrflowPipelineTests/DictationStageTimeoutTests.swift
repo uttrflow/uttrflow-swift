@@ -72,18 +72,6 @@ private actor TimeoutCleaningRecorder: CleaningRecording {
     func record(_ record: CleaningRecord) async { records.append(record) }
 }
 
-/// A ``TextInserting`` that records what reached the screen.
-private final class TimeoutTestInserter: TextInserting, Sendable {
-    private let placed = Mutex<[String]>([])
-
-    func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
-        placed.withLock { $0.append(text) }
-        return InsertionAttempt(.accessibility)
-    }
-
-    var inserted: [String] { placed.withLock { $0 } }
-}
-
 /// A ``TranscriptCleaning`` that accepts the text and never answers.
 private struct NeverAnsweringCleaner: TranscriptCleaning {
     func clean(
@@ -254,7 +242,7 @@ struct DictationStageTimeoutTests {
             speech: NeverAnsweringSpeechEngine(),
             cleaner: TimeoutTestCleaner(),
             context: FakeContextEngine(),
-            inserter: TimeoutTestInserter(),
+            inserter: FakeTextInserter(),
             metrics: metrics,
             clock: clock)
 
@@ -278,7 +266,7 @@ struct DictationStageTimeoutTests {
     @Test("a long recording on a recogniser slower than real time is not cut off")
     func longRecordingOnASlowRecogniser() async {
         let clock = ManualClock()
-        let inserter = TimeoutTestInserter()
+        let inserter = FakeTextInserter()
         let speech = SlowerThanRealTimeSpeechEngine(clock: clock)
         let pipeline = DictationPipeline(
             capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 240))),
@@ -298,7 +286,7 @@ struct DictationStageTimeoutTests {
         }
         await settle(finishing)
 
-        #expect(inserter.inserted == ["Tidied."])
+        #expect(inserter.received == ["Tidied."])
     }
 
     @Test("a dictation can begin again after a stage timed out")
@@ -309,7 +297,7 @@ struct DictationStageTimeoutTests {
             speech: NeverAnsweringSpeechEngine(),
             cleaner: TimeoutTestCleaner(),
             context: FakeContextEngine(),
-            inserter: TimeoutTestInserter(),
+            inserter: FakeTextInserter(),
             clock: clock)
 
         await pipeline.startRecording()
@@ -325,7 +313,7 @@ struct DictationStageTimeoutTests {
     func tidyingThatNeverAnswers() async {
         let clock = ManualClock()
         let metrics = RecordingMetricsRecorder()
-        let inserter = TimeoutTestInserter()
+        let inserter = FakeTextInserter()
         let recorder = TimeoutCleaningRecorder()
         let pipeline = DictationPipeline(
             capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 2))),
@@ -344,7 +332,7 @@ struct DictationStageTimeoutTests {
         await settle(finishing)
 
         // Untidied but inserted: §19 says tidying's failure never costs the words.
-        #expect(inserter.inserted == ["what I said"])
+        #expect(inserter.received == ["what I said"])
         guard case .inserted(let outcome) = await pipeline.currentState else {
             Issue.record("expected the words to land, got \(await pipeline.currentState)")
             return
@@ -412,7 +400,7 @@ struct DictationStageTimeoutTests {
                 transcribeOutcome: .success(Transcription(text: "what I said"))),
             cleaner: TimeoutTestCleaner(),
             context: FakeContextEngine(),
-            inserter: TimeoutTestInserter(),
+            inserter: FakeTextInserter(),
             recordings: recordings,
             clipboard: NeverAnsweringClipboard(),
             clock: clock)
@@ -466,7 +454,7 @@ struct DictationStageTimeoutTests {
             speech: FakeSpeechEngine(),
             cleaner: TimeoutTestCleaner(),
             context: FakeContextEngine(),
-            inserter: TimeoutTestInserter(),
+            inserter: FakeTextInserter(),
             clock: clock)
 
         await pipeline.startRecording()
@@ -491,7 +479,7 @@ struct DictationStageTimeoutTests {
     func screenReadThatNeverAnswers() async {
         let clock = ManualClock()
         let context = NeverAnsweringContextEngine()
-        let inserter = TimeoutTestInserter()
+        let inserter = FakeTextInserter()
         let pipeline = DictationPipeline(
             capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 2))),
             speech: FakeSpeechEngine(
@@ -517,7 +505,7 @@ struct DictationStageTimeoutTests {
         }
         await settle(watching)
 
-        #expect(inserter.inserted == ["Tidied."])
+        #expect(inserter.received == ["Tidied."])
         guard case .inserted(let outcome) = await pipeline.currentState else {
             Issue.record("expected the dictation to insert, got \(await pipeline.currentState)")
             return
@@ -532,7 +520,7 @@ struct DictationStageTimeoutTests {
     func stuckScreenReadSpendsTheBudgetOnce() async {
         let clock = ManualClock()
         let context = NeverAnsweringContextEngine()
-        let inserter = TimeoutTestInserter()
+        let inserter = FakeTextInserter()
         let metrics = RecordingMetricsRecorder()
         let pipeline = DictationPipeline(
             capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 2))),
@@ -550,7 +538,7 @@ struct DictationStageTimeoutTests {
         // The test moves the clock once; a later read waiting on its own limit would hang until the time limit.
         await settle(Task { await pipeline.finishRecording() })
 
-        #expect(inserter.inserted == ["Tidied."])
+        #expect(inserter.received == ["Tidied."])
         #expect(await context.calls.count == 1)
         let spent = await metrics.screenReads.map(\.duration).reduce(.zero, +)
         #expect(spent <= StageTimeout.screenRead)
@@ -560,7 +548,7 @@ struct DictationStageTimeoutTests {
     func dictionaryLookupThatNeverAnswers() async {
         let clock = ManualClock()
         let corrector = NeverAnsweringCorrector()
-        let inserter = TimeoutTestInserter()
+        let inserter = FakeTextInserter()
         let recorder = TimeoutCleaningRecorder()
         let pipeline = DictationPipeline(
             capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 2))),
@@ -579,7 +567,7 @@ struct DictationStageTimeoutTests {
         await expire(StageTimeout.correction, at: .tidying, of: pipeline, on: clock)
         await settle(finishing)
 
-        #expect(inserter.inserted == ["Tidied."])
+        #expect(inserter.received == ["Tidied."])
         // The words are as before; only the account says the dictionary gave up.
         #expect(await recorder.records.map(\.skippedStages) == [[.init(.correction, .timeout)]])
         guard case .inserted = await pipeline.currentState else {
@@ -595,7 +583,7 @@ struct DictationStageTimeoutTests {
     func snippetExpansionThatNeverAnswers() async {
         let clock = ManualClock()
         let snippets = NeverAnsweringExpander()
-        let inserter = TimeoutTestInserter()
+        let inserter = FakeTextInserter()
         let recorder = TimeoutCleaningRecorder()
         let pipeline = DictationPipeline(
             capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 2))),
@@ -614,7 +602,7 @@ struct DictationStageTimeoutTests {
         await expire(StageTimeout.expansion, at: .tidying, of: pipeline, on: clock)
         await settle(finishing)
 
-        #expect(inserter.inserted == ["Tidied."])
+        #expect(inserter.received == ["Tidied."])
         #expect(await recorder.records.map(\.skippedStages) == [[.init(.expansion, .timeout)]])
         guard case .inserted = await pipeline.currentState else {
             Issue.record("expected the dictation to insert, got \(await pipeline.currentState)")

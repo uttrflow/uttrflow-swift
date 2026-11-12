@@ -69,7 +69,7 @@ struct PersonaSecureFieldTests {
             snippets: OneSnippet(id: snippet.id),
             learner: StoreCounters(
                 dictionary: dictionary, snippets: snippets,
-                noteUses: { used in told.withLock { $0 += used } }),
+                noteUses: { used, _ in told.withLock { $0 += used } }),
             clock: ManualClock())
 
         await pipeline.startRecording()
