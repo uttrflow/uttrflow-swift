@@ -39,8 +39,7 @@ struct NumberCarrierTests {
         ("room two", "room 2"),
     ]
 
-    @Test(
-        "writes the number a carrier names in digits, run together, under either policy", arguments: identifiers)
+    @Test("writes a carrier's number in digits, run together, under either policy", arguments: identifiers)
     func identifier(input: String, expected: String) {
         #expect(cleaned(input, by: NumberFormsPass()) == expected)
         #expect(cleaned(input, by: NumberFormsPass(policy: .always)) == expected)

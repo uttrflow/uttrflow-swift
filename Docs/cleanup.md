@@ -670,7 +670,7 @@ time, telephone or code digits, and plain words. Each known ambiguity, and what 
 | Ordinal against unit of time | "give me a second" | context: `second` is left out of `measures`; one-word ordinals stay words |
 | Pronoun "one" against numeral | "no one", "which one" | not settled: `.always` writes the digit |
 | "a hundred" against 100 | "about a hundred users" | context: `finishesAScale` keeps a scale it cannot read whole |
-| Product or version number against count | "python three" | context: the closed `contextWords` set |
+| Product or version number against count | "python three", "feed python three small mice" | context: a `versionCarrier` straight before the number, unless the number counts a noun after it (`countsWhatFollows`, shared with `AcronymCasingPass`) |
 | Month against verb | "may fifth" | context: `monthIsDated` needs a capital or a dating clause |
 | Spoken year shapes | "in twenty oh five" | context: `cuedYear` needs a year cue before it |
 | Spoken "dot" between numbers against the word | "one nine two dot one six eight dot one dot one", "two dot five" | context: `dottedNumber` needs three digit groups, or two after a word in `dottedCues` |
