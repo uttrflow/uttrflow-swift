@@ -74,11 +74,9 @@ enum SuggestionTrustResponse: Equatable {
     /// The field is followed again, and the tap starts when trust was just granted outside a secure-entry lift.
     case follow(startsTap: Bool)
 
-    static func to(
-        _ trust: SuggestionActivationTrust, wasSecureInputBlocking: Bool, isSecureInputBlocking: Bool
-    ) -> Self {
-        guard !isSecureInputBlocking else { return .holdForSecureInput }
+    static func to(_ trust: SuggestionActivationTrust, secureInput: SecureInputTransition) -> Self {
+        guard secureInput != .blocking else { return .holdForSecureInput }
         guard trust != .denied else { return .stopWatching }
-        return .follow(startsTap: !wasSecureInputBlocking && trust == .granted)
+        return .follow(startsTap: secureInput == .clear && trust == .granted)
     }
 }

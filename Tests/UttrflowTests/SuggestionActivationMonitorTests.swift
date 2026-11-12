@@ -65,39 +65,24 @@ struct SuggestionActivationMonitorTests {
 @Suite("What an activation does to suggestions")
 struct SuggestionTrustResponseTests {
     @Test(
-        "secure keyboard entry holds every activation, whatever the trust",
+        "secure keyboard entry on after the check holds every activation",
         arguments: [
             SuggestionActivationTrust.trusted, .granted, .denied,
         ])
     func secureInputHoldsEverything(trust: SuggestionActivationTrust) {
-        #expect(
-            SuggestionTrustResponse.to(trust, wasSecureInputBlocking: false, isSecureInputBlocking: true)
-                == .holdForSecureInput)
-        #expect(
-            SuggestionTrustResponse.to(trust, wasSecureInputBlocking: true, isSecureInputBlocking: true)
-                == .holdForSecureInput)
+        #expect(SuggestionTrustResponse.to(trust, secureInput: .blocking) == .holdForSecureInput)
     }
 
-    @Test("trust taken away stops watching, even as secure entry ends")
+    @Test("trust taken away stops watching, even as secure entry lifts")
     func deniedStopsWatching() {
-        #expect(
-            SuggestionTrustResponse.to(.denied, wasSecureInputBlocking: false, isSecureInputBlocking: false)
-                == .stopWatching)
-        #expect(
-            SuggestionTrustResponse.to(.denied, wasSecureInputBlocking: true, isSecureInputBlocking: false)
-                == .stopWatching)
+        #expect(SuggestionTrustResponse.to(.denied, secureInput: .clear) == .stopWatching)
+        #expect(SuggestionTrustResponse.to(.denied, secureInput: .lifted) == .stopWatching)
     }
 
     @Test("only trust just granted starts the tap, and not when secure entry's lift already started it")
     func grantedStartsTheTapOnce() {
-        #expect(
-            SuggestionTrustResponse.to(.granted, wasSecureInputBlocking: false, isSecureInputBlocking: false)
-                == .follow(startsTap: true))
-        #expect(
-            SuggestionTrustResponse.to(.granted, wasSecureInputBlocking: true, isSecureInputBlocking: false)
-                == .follow(startsTap: false))
-        #expect(
-            SuggestionTrustResponse.to(.trusted, wasSecureInputBlocking: false, isSecureInputBlocking: false)
-                == .follow(startsTap: false))
+        #expect(SuggestionTrustResponse.to(.granted, secureInput: .clear) == .follow(startsTap: true))
+        #expect(SuggestionTrustResponse.to(.granted, secureInput: .lifted) == .follow(startsTap: false))
+        #expect(SuggestionTrustResponse.to(.trusted, secureInput: .clear) == .follow(startsTap: false))
     }
 }

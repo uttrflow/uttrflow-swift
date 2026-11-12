@@ -113,4 +113,15 @@ import UttrflowInput
         #expect(recorder.steps.isEmpty)
         #expect(!pause.isRecheckScheduled)
     }
+
+    @Test("each check says how secure entry changed across it")
+    func checkReportsTheTransition() {
+        #expect(pause.check(mayRecheck: true, effects: effects) == .clear)
+        secure.set(true)
+        #expect(pause.check(mayRecheck: true, effects: effects) == .blocking)
+        #expect(pause.check(mayRecheck: true, effects: effects) == .blocking)
+        secure.set(false)
+        #expect(pause.check(mayRecheck: true, effects: effects) == .lifted)
+        #expect(pause.check(mayRecheck: true, effects: effects) == .clear)
+    }
 }

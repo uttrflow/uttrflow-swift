@@ -334,28 +334,31 @@ final class SuggestionCoordinator {
         activationMonitor = SuggestionActivationMonitor(notificationCenter: workspaceCenter) {
             [weak self] trust in
             guard let self else { return }
-            let wasSecureInputBlocking = secureInput.isBlocking
-            checkSecureInput()
-            switch SuggestionTrustResponse.to(
-                trust, wasSecureInputBlocking: wasSecureInputBlocking,
-                isSecureInputBlocking: secureInput.isBlocking)
-            {
-            case .holdForSecureInput:
+            let response = SuggestionTrustResponse.to(trust, secureInput: self.checkSecureInput())
+            guard response != .holdForSecureInput else { return }
+            guard response != .stopWatching else {
+                self.tapRest.cancel()
+                self.withdraw()
+                for monitor in self.monitors { NSEvent.removeMonitor(monitor) }
+                self.monitors = []
+                self.activityIsWatched = false
+                self.stopWatchingScrolls()
+                self.stopWatchingSelection()
+                self.focusedFieldValueObserver.stop()
+                self.interceptor.stop()
+                self.notifications.removeActivations(from: workspaceCenter)
+                self.notifications.removeSpaces(from: workspaceCenter)
+                self.removeScreenChangeObserver()
+                self.notifications.removeSessionEnd()
+                self.onTapRestChanged?(.failure(KeyInterceptorFailure.accessibilityDenied))
                 return
-            case .stopWatching:
-                tapRest.cancel()
-                withdraw()
-                stopWatching()
-                interceptor.stop()
-                onTapRestChanged?(.failure(KeyInterceptorFailure.accessibilityDenied))
-            case .follow(let startsTap):
-                refreshFocusedFieldObservation()
-                applicationChanged(front: frontmostBundleIdentifier())
-                guard startsTap else { return }
-                switch startInterceptor() {
-                case .success: onTapRestChanged?(.success(()))
-                case .failure(let error): onTapRestChanged?(.failure(error))
-                }
+            }
+            self.refreshFocusedFieldObservation()
+            self.applicationChanged(front: self.frontmostBundleIdentifier())
+            guard response == .follow(startsTap: true) else { return }
+            switch self.startInterceptor() {
+            case .success: self.onTapRestChanged?(.success(()))
+            case .failure(let error): self.onTapRestChanged?(.failure(error))
             }
         }
         activationMonitor?.start()
@@ -396,8 +399,9 @@ final class SuggestionCoordinator {
         return .success(())
     }
 
-    /// Withdraws suggestions while secure keyboard entry prevents reliable key capture.
-    private func checkSecureInput() {
+    /// Withdraws suggestions while secure keyboard entry prevents reliable key capture, saying how it changed.
+    @discardableResult
+    private func checkSecureInput() -> SecureInputTransition {
         secureInput.check(
             mayRecheck: !wakeState.isStopped,
             effects: SecureInputPauseEffects(
@@ -444,25 +448,20 @@ final class SuggestionCoordinator {
         captureFeed.discard()
         ticking.reset()
         isPointerGestureActive = false
-        activationMonitor?.stop()
-        activationMonitor = nil
-        stopWatching()
-        // A browser's full Accessibility tree stays on only while suggestions do.
-        FocusedFieldReader.releaseFullTrees()
-    }
-
-    /// Stops every monitor and observer that wakes the loop, so nothing more is read until `start`.
-    private func stopWatching() {
         for monitor in monitors { NSEvent.removeMonitor(monitor) }
         monitors = []
-        activityIsWatched = false
         stopWatchingScrolls()
+        activationMonitor?.stop()
+        activationMonitor = nil
+        activityIsWatched = false
         stopWatchingSelection()
-        focusedFieldValueObserver.stop()
         notifications.removeActivations(from: workspaceCenter)
-        notifications.removeSpaces(from: workspaceCenter)
         notifications.removeSessionEnd()
+        notifications.removeSpaces(from: workspaceCenter)
         removeScreenChangeObserver()
+        focusedFieldValueObserver.stop()
+        // A browser's full Accessibility tree stays on only while suggestions do.
+        FocusedFieldReader.releaseFullTrees()
     }
 
     /// Waits for an accepted line's corpus write and the typed fallback's posted replacement to finish.
