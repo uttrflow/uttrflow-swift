@@ -2,6 +2,7 @@
 
 import Foundation
 import Testing
+import UttrflowTestSupport
 import UttrflowAccount
 import UttrflowCore
 import UttrflowPipeline
@@ -10,7 +11,7 @@ import UttrflowPipeline
 
 /// Drives the app's telemetry with states a pipeline would send, and a sender that keeps reports.
 @MainActor
-@Suite("Usage telemetry in the app")
+@Suite("Usage telemetry in the app", .timeLimit(.minutes(1)))
 struct UsageTelemetryTests {
     /// A dictation that inserted `text` after speaking for `spoken`.
     private func inserted(_ text: String, spoken: Duration) -> DictationState {
@@ -201,7 +202,7 @@ struct UsageTelemetryTests {
             StageMeasurement(stage: .transcription, duration: .milliseconds(2000), succeeded: true))
 
         usage.start(every: .milliseconds(10))
-        for _ in 0..<200 where sender.reports.isEmpty { try await Task.sleep(for: .milliseconds(10)) }
+        try await eventually { !sender.reports.isEmpty }
         await usage.flushBeforeQuitting()
         #expect(sender.reports.count == 1)
         #expect(sender.reports[0].stages.first?.latencyP50Ms == 2000)
