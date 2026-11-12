@@ -49,10 +49,10 @@ DESCRIBED = {
     ("Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift", "String(describing: read?.placement)"): (
         "a SuggestionPlacement, a case with no payload"
     ),
-    ("Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift", "String(describing: failure)"): (
+    ("Sources/Uttrflow/Suggestion/SwallowedKeyHandling.swift", "String(describing: failure)"): (
         "a KeyInterceptorFailure, a case with no payload"
     ),
-    ("Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift", "String(describing: stroke.key)"): (
+    ("Sources/Uttrflow/Suggestion/SwallowedKeyHandling.swift", "String(describing: stroke.key)"): (
         "a KeyStroke.Key, a case with no payload"
     ),
     ("Sources/UttrflowCore/Support/ErrorLog.swift", "String(describing: error)"): (

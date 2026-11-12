@@ -84,10 +84,26 @@ recognition limit. When the words have waited for a load they go to the applicat
 if the person has moved to another one, they are copied and the outcome says so, never typed there.
 
 A load that never returns is a failed load too. `prepare()` waits at most
-`StageTimeout.speechModelLoad`, 600 seconds, past the slowest compile measured above, and then
-fails with `modelLoadFailed`. It stops waiting instead of cancelling and waiting for the cancel,
-because a blocked recogniser load does not answer a cancel. The abandoned load finishes whenever it
-can, and a load that finishes late is ignored.
+`StageTimeout.speechModelLoad`, 600 seconds, past the slowest single-process compile measured
+above, 438 s, and then fails with `modelLoadFailed` and **Try again**. Slower compiles exist: 527 to
+882 s were measured when several processes compiled the model at once under a load average of 100
+to 200. So the limit decides only when the person is told, never whether the compile goes on:
+
+- The load runs in a task of its own that the limit never cancels (`loadWithinLimit`), so no
+  compile progress is thrown away, whether or not the system compiler would keep a cancelled one.
+- A load that ends after the limit is adopted: the pipeline becomes ready, the timed-out class is
+  cleared, the failure the limit showed goes back to idle, and every surface returns to Ready.
+- **Try again** while that load still runs waits behind it, since the engine loads one at a time,
+  so it ends when the compile does instead of starting another.
+
+| Load takes | With the 600 s limit |
+| --- | --- |
+| 20 s | ready, nothing shown but loading |
+| 300 s | ready, nothing shown but loading |
+| 900 s | "The speech model didn’t load" from 600 s, then ready at 900 s |
+
+`DictationPipelineLoadLimitTests` holds that table on a virtual clock, with a recogniser whose
+compile is lost if its task is cancelled.
 
 ## A model let go under pressure
 
