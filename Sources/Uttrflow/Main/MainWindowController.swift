@@ -167,8 +167,12 @@ final class MainWindowController {
         defaults.set(model.isSidebarExpanded, forKey: Self.sidebarExpandedKey)
     }
 
+    /// How many times the pages were replaced, so a build that took a while can tell it was overtaken.
+    private(set) var updates = 0
+
     /// Replaces what the pages show. Cheap enough to call whenever anything changes.
     func update(_ content: MainContent) {
+        updates += 1
         model.content = content
     }
 
