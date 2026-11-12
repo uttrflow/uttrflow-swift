@@ -33,6 +33,15 @@ final class FormattingSheetMemo: Sendable {
         }
     }
 
+    /// Whether the formatting sheet for this pair is the one remembered.
+    func remembers(from original: String, to formatted: String) -> Bool {
+        drawn.cachedValue(
+            for: .sheet,
+            source: Source(
+                original: original, formatted: formatted, title: "Format this code?",
+                confirmTitle: "Keep it")) != nil
+    }
+
     /// Keeps a sheet drawn elsewhere, so presenting its pair does no comparison.
     func remember(_ prepared: PreparedFormattingSheet) {
         drawn.store(
