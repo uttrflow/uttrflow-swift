@@ -58,6 +58,26 @@ struct SpellingPreferencesTests {
         #expect(SpellingPreferences.project(rows) == ["thik": "theek"])
     }
 
+    /// A bulk rewrite of every listed respelling on three days prefers fewer spellings than one day's cap for new pairs.
+    @Test("The listed words bound preferences below the daily cap for pairs")
+    func listedWordsBoundPreferences() {
+        let pairs = listedPairs()
+        let rows = [1, 2, 3].flatMap { day in
+            pairs.flatMap { SpellingPreferences.rows(replacing: [$0.heard], with: [$0.meant], day: day) }
+        }
+        #expect(SpellingPreferences.project(rows).count == pairs.count)
+        #expect(pairs.count <= ConfusionPairs.maximumNewPairsPerDay)
+    }
+
+    /// Each other listed spelling of a word paired with the word's first spelling, so no two pairs oppose.
+    private func listedPairs() -> [(heard: String, meant: String)] {
+        GeneralVocabulary.commonHinglish.sorted().flatMap { meant in
+            let others = GeneralVocabulary.otherSpellings(of: meant)
+            guard others.allSatisfy({ $0 > meant }) else { return [(heard: String, meant: String)]() }
+            return others.map { (heard: $0, meant: meant) }
+        }
+    }
+
     /// Edits back the other way outweigh the preference rather than leave two spellings preferred.
     @Test("Edits in both directions keep the stronger one")
     func opposingEdits() {
