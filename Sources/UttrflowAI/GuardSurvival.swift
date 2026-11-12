@@ -154,15 +154,16 @@ extension MeaningPreservationGuard {
         return written.union(closedUpIntoNotation(kept, in: rewritten).kept)
     }
 
-    /// The kept words a handle, tag or path in the rewrite closes up, in order, and the notations that do: "corner bakes" as `@cornerbakes`, "clean up" ending `example.org/cleanup`.
+    /// The kept words a handle, tag or path in the rewrite closes up, in order and in place, and the words of each notation that does, once per notation: "corner bakes" as `@cornerbakes`, "clean up" ending `example.org/cleanup`.
     static func closedUpIntoNotation(
         _ kept: [GrammarToken], in rewritten: String
-    ) -> (kept: Set<Int>, written: Set<String>) {
-        // Only a notation that cannot hold a space joins words; prose keeps "every day" and "everyday" apart.
-        let pieces = WordTokens.words(rewritten, .display).filter { $0.contains(where: "@#/".contains) }
-        var covered: (kept: Set<Int>, written: Set<String>) = ([], [])
+    ) -> (kept: Set<Int>, written: [String]) {
+        let words = WordTokens.words(rewritten, .display)
+        let spellings = words.map(DoubtfulSpan.closedUp)
+        var covered: (kept: Set<Int>, written: [String]) = ([], [])
         var from = kept.startIndex
-        for piece in pieces {
+        // Only a notation that cannot hold a space joins words; prose keeps "every day" and "everyday" apart.
+        for (place, piece) in words.enumerated() where piece.contains(where: "@#/".contains) {
             let notation = DoubtfulSpan.closedUp(piece)
             guard notation.contains(where: \.isLetter) else { continue }
             for start in kept.indices where start >= from {
@@ -176,16 +177,28 @@ extension MeaningPreservationGuard {
                     end += 1
                     guard notation.hasPrefix(joined) else { break }
                 }
-                guard joined == notation, end - start > 1 else { continue }
+                guard joined == notation, end - start > 1,
+                    staysInPlace(start..<end, of: kept, at: place, among: spellings)
+                else { continue }
                 covered.kept.formUnion(start..<end)
                 // The rewrite's words read the notation apart at its marks, so each of them is the notation's.
-                covered.written.formUnion(
-                    grammarTokens(piece).map { DoubtfulSpan.closedUp($0.matching) })
+                covered.written += grammarTokens(piece).map { DoubtfulSpan.closedUp($0.matching) }
                 from = end
                 break
             }
         }
         return covered
+    }
+
+    /// Whether the words said either side of a closed-up run, where the rewrite keeps them, stay either side of its notation.
+    private static func staysInPlace(
+        _ run: Range<Int>, of kept: [GrammarToken], at place: Int, among spellings: [String]
+    ) -> Bool {
+        let before = run.lowerBound > 0 ? DoubtfulSpan.closedUp(kept[run.lowerBound - 1].matching) : ""
+        let after = run.upperBound < kept.count ? DoubtfulSpan.closedUp(kept[run.upperBound].matching) : ""
+        let keptBefore = before.isEmpty || !spellings.contains(before) || spellings[..<place].contains(before)
+        let keptAfter = after.isEmpty || !spellings.contains(after) || spellings[(place + 1)...].contains(after)
+        return keptBefore && keptAfter
     }
 
     /// The kept currency and percent words the rewrite writes as the symbol beside the same amount: "12 dollars" as `$12`, "8 percent" as `8%`.

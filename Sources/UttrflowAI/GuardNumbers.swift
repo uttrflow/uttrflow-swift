@@ -63,44 +63,52 @@ extension MeaningPreservationGuard {
 
     /// A number whose sign or symbol the rewrite dropped, changed or invented; the digits alone are `inventedNumber`'s job.
     static func changedQuantity(original: String, rewritten: String) -> String? {
-        let spoken = amounts(in: original)
-        let written = amounts(in: rewritten)
-        guard !spoken.isEmpty else { return nil }
-        // Pairs by digits, so a number turned from words into digits ("three" as 3) does not shift later pairs.
+        let spoken = statedAmounts(in: original, reading: quantityWords)
+        let written = statedAmounts(in: rewritten, reading: writtenQuantityWords)
+        let spokenDigits = spoken.filter { !$0.worded }.count
+        guard spokenDigits > 0 else { return nil }
+        // Pairs in order, a number in words as well as in digits, so a sign cannot move from one amount to another.
         var matched = Set<Int>()
         var cursor = spoken.startIndex
         for found in written {
-            guard let index = spoken[cursor...].firstIndex(where: { $0.digits == found.digits }) else {
-                continue
+            let index: Int?
+            if found.worded {
+                // A word ("10" as "ten") stands for a bare amount only, the speaker's own word first.
+                let bare = spoken.indices[cursor...].filter { index in
+                    let quantity = spoken[index].quantity
+                    return quantity.digits == found.quantity.digits && quantity.sign.isEmpty
+                        && quantity.symbol.isEmpty
+                }
+                index = bare.first { spoken[$0].worded } ?? bare.first
+            } else {
+                index = spoken.indices[cursor...].first { index in
+                    !spoken[index].worded && spoken[index].quantity.digits == found.quantity.digits
+                }
+                if let index, spoken[index].quantity.sign != found.quantity.sign
+                    || spoken[index].quantity.symbol != found.quantity.symbol
+                {
+                    return spoken[index].quantity.written
+                }
             }
-            let quantity = spoken[index]
-            if quantity.sign != found.sign || quantity.symbol != found.symbol { return quantity.written }
+            guard let index else { continue }
             matched.insert(index)
             cursor = index + 1
         }
-        guard written.count < spoken.count else { return nil }
-        // A bare amount the rewrite writes as its word ("10" as "ten") is kept; one with a sign or symbol must keep it.
-        var worded = addedNumberWords(original: original, rewritten: rewritten)
-        for index in spoken.indices where !matched.contains(index) {
-            let quantity = spoken[index]
-            guard quantity.sign.isEmpty, quantity.symbol.isEmpty, worded[quantity.digits, default: 0] > 0
-            else { return quantity.written }
-            worded[quantity.digits, default: 0] -= 1
-        }
-        return nil
+        guard written.filter({ !$0.worded }).count < spokenDigits else { return nil }
+        return spoken.indices.first { !matched.contains($0) && !spoken[$0].worded }.map { spoken[$0].quantity.written }
     }
 
-    /// The values the rewrite states in words beyond those the draft already states in words, each as often as it is added.
-    private static func addedNumberWords(original: String, rewritten: String) -> [String: Int] {
-        func worded(_ text: String, reading table: [String: String]) -> [String: Int] {
-            var counts: [String: Int] = [:]
-            for value in numberSequence(in: text, reading: table) { counts[value, default: 0] += 1 }
-            for quantity in Quantities.read(in: text) { counts[quantity.digits, default: 0] -= 1 }
-            return counts
-        }
-        let said = worded(original, reading: quantityWords)
-        return worded(rewritten, reading: writtenQuantityWords).reduce(into: [:]) { added, entry in
-            added[entry.key] = entry.value - max(0, said[entry.key] ?? 0)
+    /// The amounts a text states in order: those in digits with their sign and symbol, and each whole number in words once.
+    private static func statedAmounts(
+        in text: String, reading table: [String: String]
+    ) -> [(quantity: Quantity, worded: Bool)] {
+        var digits = amounts(in: text)[...]
+        return numberReadings(in: text, reading: table).compactMap { reading -> (quantity: Quantity, worded: Bool)? in
+            guard reading.worded else {
+                defer { digits = digits.dropFirst() }
+                return digits.first.map { ($0, false) }
+            }
+            return reading.whole ? (Quantity(digits: reading.value, sign: "", symbol: ""), true) : nil
         }
     }
 
@@ -149,6 +157,13 @@ extension MeaningPreservationGuard {
 
     /// The numbers a text states, in order and with repeats kept, each number word read through `table` and every run of them composed after it.
     static func numberSequence(in text: String, reading table: [String: String]) -> [String] {
+        numberReadings(in: text, reading: table).map(\.value)
+    }
+
+    /// Each number `numberSequence` reads, whether it was said in words, and whether it is a whole number rather than one word of a run.
+    private static func numberReadings(
+        in text: String, reading table: [String: String]
+    ) -> [(value: String, worded: Bool, whole: Bool)] {
         var pieces: [(text: String, isDigits: Bool)] = []
         var run = ""
         func flush() {
@@ -178,23 +193,23 @@ extension MeaningPreservationGuard {
         flush()
         // A run of digits stands between number words, so it ends a spoken number rather than joining it.
         let words = pieces.map { $0.isDigits ? "" : $0.text.lowercased() }
-        var found: [String] = []
+        var found: [(value: String, worded: Bool, whole: Bool)] = []
         var index = words.startIndex
         while index < words.endIndex {
             if pieces[index].isDigits {
-                found.append(pieces[index].text)
+                found.append((pieces[index].text, false, true))
                 index += 1
             } else if let decimal = spokenDecimalMagnitude(words, from: index, reading: table) {
-                found.append(decimal.text)
+                found.append((decimal.text, true, true))
                 index = decimal.end
             } else if let read = spokenNumber(words[index...]), read.count > 1 {
-                found += words[index..<(index + read.count)].compactMap { table[$0] }
+                found += words[index..<(index + read.count)].compactMap { table[$0] }.map { ($0, true, false) }
                 index += read.count
-                found.append(spokenMagnitude(String(read.value), words, &index))
+                found.append((spokenMagnitude(String(read.value), words, &index), true, true))
             } else {
                 let digits = table[words[index]]
                 index += 1
-                if let digits { found.append(spokenMagnitude(digits, words, &index)) }
+                if let digits { found.append((spokenMagnitude(digits, words, &index), true, true)) }
             }
         }
         return found
