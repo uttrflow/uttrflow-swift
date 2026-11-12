@@ -38,7 +38,7 @@ struct SentenceBoundaryPass: WholeTextCleaningPass {
             guard
                 SentenceBoundaryEvidence.sentenceRunsOn(
                     WordShape.withoutTrailingStop(draft.words[index].text), into: following,
-                    after: Self.wordsBeforeLast(position, in: live, of: draft)
+                    after: Self.wordsBeforeLast(position, in: live, of: draft), stopWritten: true
                 )
                     || SentenceBoundaryEvidence.modalAwaitsVerb(
                         Self.sentenceBefore(position, in: live, of: draft), into: following)

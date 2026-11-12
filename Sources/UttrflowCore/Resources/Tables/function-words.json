@@ -156,7 +156,7 @@
         { "id": "since", "roles": ["function"] },
         { "id": "slower", "roles": ["multiplierComparison"] },
         { "id": "smaller", "roles": ["multiplierComparison"] },
-        { "id": "so", "roles": ["function", "runOnSeamLower"] },
+        { "id": "so", "roles": ["function", "coordinator", "runOnSeamLower"] },
         { "id": "some", "roles": ["boundaryDeterminer"] },
         { "id": "speedup", "roles": ["multiplierComparison"] },
         { "id": "than", "roles": ["function", "leadsOn", "neverLast"] },
