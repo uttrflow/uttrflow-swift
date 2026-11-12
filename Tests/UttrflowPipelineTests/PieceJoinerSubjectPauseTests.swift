@@ -42,7 +42,9 @@ struct PieceJoinerSubjectPauseTests {
             pieces.map(\.text), under: .standard(for: destination), pauses: pieces.map { .seconds($0.pause) })
     }
 
-    @Test("breaks a paragraph at each subject's longer pause, and nowhere else", arguments: [Destination.document, .email])
+    @Test(
+        "breaks a paragraph at each subject's longer pause, and nowhere else",
+        arguments: [Destination.document, .email])
     func breaksAtSubjects(destination: Destination) {
         #expect(laid(Self.pieces, destination) == Self.expected)
     }

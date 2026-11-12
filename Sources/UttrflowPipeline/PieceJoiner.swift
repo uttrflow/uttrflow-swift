@@ -574,7 +574,7 @@ enum PieceJoiner {
         let counted = ordinalsBefore(openings, in: draft, starts: starts)
         for opening in openings.dropFirst() {
             guard paragraphs(formatter), !swallowed.contains(opening),
-                !items.contains(where: { $0.opening == opening })
+                !items.contains(where: { $0.opening == opening }), !insideBracket(before: opening, in: draft)
             else { continue }
             if let topic = topicEvidence(
                 draft, at: opening, starts: starts, afterPause: starts.contains(opening), counted: counted)
@@ -925,6 +925,16 @@ enum PieceJoiner {
                     }
             }
         return cued ? .topicCue : nil
+    }
+
+    /// Whether a bracket opened before the word is still open there, so no paragraph may break it.
+    private static func insideBracket(before word: Int, in draft: Draft) -> Bool {
+        let text = draft.presentIndices.filter { $0 < word }.map { draft.words[$0].text }.joined()
+        // A close with nothing open before it, as a piece that starts mid-bracket has, closes nothing.
+        let depth = text.reduce(0) { depth, character in
+            "([{".contains(character) ? depth + 1 : ")]}".contains(character) ? max(0, depth - 1) : depth
+        }
+        return depth > 0
     }
 
     /// The shortest pause that sets a new subject apart.
