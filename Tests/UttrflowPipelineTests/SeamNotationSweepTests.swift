@@ -51,6 +51,10 @@ struct SeamNotationSweepTests {
             "<a href=\"about.html\">"
         ),
         ("open span class equals note close", "index.html", "<p>", "<span class=note>"),
+        (
+            "open div class equals hero id equals main title equals welcome close", "index.html", "<body>\n",
+            "<div class=hero id=main title=welcome>"
+        ),
         ("dot nav colon hover open brace", "site.css", "", ".nav:hover {"),
         ("color colon red semicolon", "site.css", ".card {\n  ", "color: red;"),
     ]
