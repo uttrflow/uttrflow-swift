@@ -7,17 +7,6 @@ import Testing
 @testable import UttrflowPipeline
 @testable import UttrflowTestSupport
 
-/// A ``HotkeyMonitoring`` that never fires, so a test drives the controller directly.
-private final class StillMonitor: HotkeyMonitoring {
-    let events: AsyncStream<HotkeyEvent>
-    private let continuation: AsyncStream<HotkeyEvent>.Continuation
-
-    init() { (events, continuation) = AsyncStream.makeStream() }
-
-    @MainActor func start(binding: HotkeyBinding) throws(HotkeyError) {}
-    func stop() { continuation.finish() }
-}
-
 /// A phrase, then the quiet room around it.
 private func take(speaking seconds: Double, thenQuietFor quiet: Double) -> AudioSamples {
     let rate = Double(AudioSamples.canonicalSampleRate)
@@ -60,7 +49,7 @@ struct EndOnSilenceTests {
             controller = DictationController(
                 dependencies: .init(
                     pipeline: pipeline,
-                    monitor: StillMonitor()),
+                    monitor: SilentHotkeyMonitor()),
                 clock: clock,
                 options: .init(
                     activation: activation,

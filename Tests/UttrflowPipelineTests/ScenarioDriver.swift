@@ -288,3 +288,19 @@ struct FiledSnippets: SnippetExpanding {
             }, caret: expansion.caret)
     }
 }
+
+/// A ``HotkeyMonitoring`` whose events never arrive: open until stopped, or ended from the start.
+final class SilentHotkeyMonitor: HotkeyMonitoring {
+    let events: AsyncStream<HotkeyEvent>
+    private let continuation: AsyncStream<HotkeyEvent>.Continuation
+
+    /// A monitor whose events stay open until `stop()`, or, with `endsAtOnce`, end before anyone listens.
+    init(endsAtOnce: Bool = false) {
+        (events, continuation) = AsyncStream.makeStream()
+        if endsAtOnce { continuation.finish() }
+    }
+
+    @MainActor func start(binding: HotkeyBinding) throws(HotkeyError) {}
+
+    func stop() { continuation.finish() }
+}
