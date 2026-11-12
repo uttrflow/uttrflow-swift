@@ -6,15 +6,6 @@ import Testing
 @testable import UttrflowPipeline
 @testable import UttrflowTestSupport
 
-/// A monitor that is never worked, since the test hands gestures to the controller directly.
-private final class StillMonitor: HotkeyMonitoring {
-    let events = AsyncStream<HotkeyEvent> { $0.finish() }
-
-    func start(binding: HotkeyBinding) {}
-
-    func stop() {}
-}
-
 /// How long the main actor may go without turning during a dictation, over what the host's load alone costs.
 private let stallBudget = Duration.milliseconds(50)
 
@@ -35,7 +26,7 @@ private func longestGapDuringDictation(
     )
     let clock = ManualClock()
     let controller = DictationController(
-        dependencies: .init(pipeline: pipeline, monitor: StillMonitor()), clock: clock)
+        dependencies: .init(pipeline: pipeline, monitor: SilentHotkeyMonitor(endsAtOnce: true)), clock: clock)
     let settled = Signal()
     let states = await pipeline.states()
     let presenting = Task { @MainActor in
