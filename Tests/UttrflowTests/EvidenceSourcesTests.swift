@@ -283,6 +283,29 @@ struct EvidenceSourcesTests {
         #expect(await noted.ids == [[entry.id]])
     }
 
+    @Test("a re-dictation of a private-window dictation writes no retry row, either way round")
+    func privateRecordIsNotPairedOnRetry() {
+        let correction = RecordedCorrection(
+            heard: "nickel", wrote: "Nikhil", wordRange: 1..<2, entryID: UUID(),
+            reason: .saidClearlyElsewhere, heardConfidence: 0.3)
+        let first = { (isPrivate: Bool) in
+            DictationRecord(
+                text: "Ask Nikhil about the meeting.", when: self.now,
+                applicationIdentifier: "com.example.notes",
+                changes: RecordedChanges(corrections: [correction]), arrival: .confirmed,
+                heard: "ask nickel about the meeting", fromPrivateWindow: isPrivate)
+        }
+        let retry = { (isPrivate: Bool) in
+            DictationRecord(
+                text: "Ask Nikhel about the meeting.", when: self.now.addingTimeInterval(5),
+                applicationIdentifier: "com.example.notes", arrival: .confirmed,
+                heard: "ask Nikhel about the meeting", fromPrivateWindow: isPrivate)
+        }
+        #expect(!EvidenceSources.retried(first(false), by: retry(false)).isEmpty)
+        #expect(EvidenceSources.retried(first(true), by: retry(false)).isEmpty)
+        #expect(EvidenceSources.retried(first(false), by: retry(true)).isEmpty)
+    }
+
     @Test(
         "a re-dictation in the same app within the respeak window writes a retry row for a dropped correction"
     )

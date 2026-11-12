@@ -26,10 +26,11 @@ enum EvidenceSources {
             + ConfusionPairs.vetoing(heard: reverted.heard, meant: reverted.wrote, day: day)
     }
 
-    /// The `pairRetried` rows when `retry` respeaks `previous` in the same application within `InsertionLedger.respeakWindow`.
+    /// The `pairRetried` rows when `retry` respeaks `previous` in the same application within `InsertionLedger.respeakWindow`; none from a private window.
     static func retried(_ previous: DictationRecord, by retry: DictationRecord) -> [EvidenceRow] {
         let elapsed = retry.when.timeIntervalSince(previous.when)
-        guard previous.arrival != .notInserted, retry.arrival != .notInserted,
+        guard previous.teachesEvidence, retry.teachesEvidence,
+            previous.arrival != .notInserted, retry.arrival != .notInserted,
             let app = previous.applicationIdentifier, app == retry.applicationIdentifier,
             elapsed >= 0, elapsed <= Double(InsertionLedger.respeakWindow.components.seconds)
         else { return [] }
