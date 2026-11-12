@@ -30,8 +30,6 @@ public actor CaptureSession {
     private var focused: FieldReading?
     /// Where a value is watched for being finished.
     private var detector = CommitDetector()
-    /// The last value written in each surface, which is what the next one is recorded as following.
-    private var lastRecorded: [Surface: String] = [:]
     /// Finished values whose write failed, oldest first, retried before the next event.
     private var unwrittenCommits: [UnwrittenCommit] = []
     /// The most finished values held for a retry, beyond which the oldest is dropped.
@@ -123,10 +121,8 @@ public actor CaptureSession {
         await retryUnwrittenRetractions()
         await retryUnwrittenAcceptances()
         let superseded = isFocused(reading) ? detector.accepted(text) : nil
-        // Claimed before the await, so a write admitted while this one is suspended follows it.
         var acceptance = UnwrittenAcceptance(
-            text: text, surface: surface, previous: claimLast(text, in: surface), moment: moment,
-            superseded: superseded)
+            text: text, surface: surface, moment: moment, superseded: superseded)
         acceptance.heldID = claimHeldID()
         inFlightAcceptances[acceptance.heldID] = acceptance
         do {
@@ -234,8 +230,7 @@ public actor CaptureSession {
             // Recorded before the acceptance is counted, so a new line's first acceptance is not lost.
             if !remaining.lineRecorded {
                 try await sink.record(
-                    remaining.text, in: remaining.surface, after: remaining.previous, as: .suggestion,
-                    at: remaining.moment)
+                    remaining.text, in: remaining.surface, as: .suggestion, at: remaining.moment)
                 remaining.lineRecorded = true
             }
             if let superseded = remaining.superseded {
@@ -360,10 +355,9 @@ public actor CaptureSession {
         try preferencesFile.remove()
     }
 
-    /// Forgets what this session holds about one application, so its next line does not follow a forgotten one.
+    /// Forgets what this session holds about one application, so nothing of it is written after the forget.
     public func forgetLearned(from bundleIdentifier: String) {
         let application = Surface(bundleIdentifier: bundleIdentifier, role: "").bundleIdentifier
-        lastRecorded = lastRecorded.filter { $0.key.bundleIdentifier != application }
         unwrittenCommits.removeAll { $0.surface.bundleIdentifier == application }
         unwrittenAcceptances.removeAll { $0.surface.bundleIdentifier == application }
         unwrittenRetractions.removeAll { $0.surface.bundleIdentifier == application }
@@ -382,7 +376,6 @@ public actor CaptureSession {
 
     /// Forgets the lines this session holds in memory, keeping the answers until the corpus itself is gone.
     public func forgetLearnedLines() {
-        lastRecorded = [:]
         unwrittenCommits = []
         unwrittenAcceptances = []
         unwrittenRetractions = []
@@ -429,17 +422,14 @@ public actor CaptureSession {
             CaptureGate.refusal(toRecord: $0, from: reading, given: preferences) == nil ? $0 : nil
         }
         let unwritten = UnwrittenCommit(
-            text: commit.text, surface: surface, superseded: superseded,
-            previous: commit.text.isEmpty
-                ? retireLast(commit.supersedes, in: surface) : claimLast(commit.text, in: surface),
-            moment: moment, origin: commit.reason.origin)
+            text: commit.text, surface: surface, superseded: superseded, moment: moment,
+            origin: commit.reason.origin)
         do {
             try await write(unwritten)
         } catch let failure as CommitWriteFailure {
             if commit.reason == .wentIdle {
                 // The detector still holds an idle value, so the next tick re-emits it.
                 detector.forgetLastIdleCommit()
-                releaseLast(commit.text, in: surface, restoring: unwritten.previous)
             } else {
                 // A field's ending has already reset the detector, so only the held copy can bring it back.
                 hold(failure.remaining)
@@ -447,24 +437,6 @@ public actor CaptureSession {
             throw failure.underlying
         }
         return if commit.text.isEmpty { .nothing } else { .recorded(commit.text) }
-    }
-
-    /// Makes this value the surface's last line and answers with the one it follows.
-    private func claimLast(_ text: String, in surface: Surface) -> String? {
-        defer { lastRecorded[surface] = text }
-        return lastRecorded[surface]
-    }
-
-    /// Drops a retired draft as the surface's last line, so the next value does not follow a line that was deleted.
-    private func retireLast(_ text: String?, in surface: Surface) -> String? {
-        if lastRecorded[surface] == text { lastRecorded[surface] = nil }
-        return nil
-    }
-
-    /// Gives back a failed claim, unless a later write has already taken the surface's last line.
-    private func releaseLast(_ text: String, in surface: Surface, restoring previous: String?) {
-        guard lastRecorded[surface] == text else { return }
-        lastRecorded[surface] = previous
     }
 
     /// How many finished values are waiting for their write to be retried.
@@ -479,8 +451,7 @@ public actor CaptureSession {
                 remaining.superseded = nil
             }
             try await sink.record(
-                remaining.text, in: remaining.surface, after: remaining.previous, as: remaining.origin,
-                at: remaining.moment)
+                remaining.text, in: remaining.surface, as: remaining.origin, at: remaining.moment)
         } catch {
             throw CommitWriteFailure(remaining: remaining, underlying: error)
         }
@@ -520,8 +491,6 @@ struct UnwrittenAcceptance: Sendable {
     let text: String
     /// Where it was taken.
     let surface: Surface
-    /// The line it followed when it was taken.
-    let previous: String?
     /// When it was taken.
     let moment: Date
     /// The idle draft this accepted extension replaces, once that extension reaches the corpus.

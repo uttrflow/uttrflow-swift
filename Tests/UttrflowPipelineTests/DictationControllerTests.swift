@@ -90,19 +90,6 @@ private final class ControllerCleaner: TranscriptCleaning {
     }
 }
 
-/// A ``TextInserting`` that records every string it is handed.
-private final class ControllerInserter: TextInserting {
-    private let log = Mutex<[String]>([])
-
-    func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
-        log.withLock { $0.append(text) }
-        return InsertionAttempt(.accessibility)
-    }
-
-    /// Everything that reached the user's document, in order.
-    var received: [String] { log.withLock { $0 } }
-}
-
 // MARK: - Fixtures
 
 private let controllerSpoken = "um i'll be about twenty minutes late to the meeting"
@@ -127,7 +114,7 @@ private struct ControllerHarness {
     let cue: SpyCue
     let capture: FakeAudioCaptureEngine
     let speech: FakeSpeechEngine
-    let inserter: ControllerInserter
+    let inserter: FakeTextInserter
     let clock: ManualClock
 }
 
@@ -167,7 +154,7 @@ private func makeHarness(
     let capture = FakeAudioCaptureEngine(startOutcome: captureStart)
     let speech = FakeSpeechEngine(
         transcribeOutcome: .success(.fixture(text: controllerSpoken)))
-    let inserter = ControllerInserter()
+    let inserter = FakeTextInserter()
     let pipeline = DictationPipeline(
         capture: capture,
         speech: speech,
@@ -406,7 +393,7 @@ struct DictationControllerTests {
                     speech: FakeSpeechEngine(),
                     cleaner: ControllerCleaner(),
                     context: FakeContextEngine(context: .fixture()),
-                    inserter: ControllerInserter(),
+                    inserter: FakeTextInserter(),
                     clock: ManualClock()
                 ),
                 monitor: FakeHotkeyMonitor()),

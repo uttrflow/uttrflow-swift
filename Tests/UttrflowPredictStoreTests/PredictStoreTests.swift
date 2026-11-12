@@ -33,6 +33,22 @@ func store(_ corpus: borrowing Corpus) throws -> PredictStore {
     try PredictStore(path: corpus.path)
 }
 
+/// The table of successive lines that files before schema version nine hold.
+let legacySuccessionTable = """
+    CREATE TABLE succession (
+      surface_id INTEGER NOT NULL REFERENCES surface(id) ON DELETE CASCADE,
+      previous   TEXT NOT NULL,
+      next       TEXT NOT NULL,
+      count      INTEGER NOT NULL DEFAULT 1,
+      PRIMARY KEY (surface_id, previous, next)
+    )
+    """
+
+/// The tables a database holds, so a test can tell one was dropped.
+func tableNames(_ database: Database) throws(PredictStoreError) -> [String] {
+    try database.rows("SELECT name FROM sqlite_master WHERE type = 'table'", { _ in }) { $0.text(0) }
+}
+
 private func isExcludedFromBackup(_ url: URL) throws -> Bool {
     let values = try url.resourceValues(forKeys: [.isExcludedFromBackupKey])
     return values.isExcludedFromBackup == true
@@ -427,7 +443,6 @@ struct RecordingTests {
         let store = try store(corpus)
         let elsewhere = Surface(bundleIdentifier: "com.example.other", role: "AXTextField")
         #expect(try await store.candidates(for: elsewhere, matching: "git").isEmpty)
-        #expect(try await store.legacySuccessors(for: elsewhere, after: "x").isEmpty)
     }
 
     @Test("Two fields in one application keep their own memories.")
@@ -516,50 +531,6 @@ struct RecordingTests {
         let store = try store(corpus)
         try await store.recordAccepted("never typed", in: terminal)
         #expect(try await store.entryCount() == 0)
-    }
-}
-
-@Suite("What usually follows what")
-struct SuccessionTests {
-    @Test("A command that followed another is offered when that one has just run.")
-    func remembersOrder() async throws {
-        let corpus = Corpus()
-        let store = try store(corpus)
-        try await store.record("git add .", in: terminal, at: moment)
-        try await store.record("git commit -m", in: terminal, after: "git add .", at: moment)
-        let next = try await store.legacySuccessors(for: terminal, after: "git add .")
-        #expect(next.map(\.text) == ["git commit -m"])
-        #expect(next.first?.source == .succession)
-    }
-
-    @Test("The more often one follows another, the higher it comes.")
-    func ordersByHowOften() async throws {
-        let corpus = Corpus()
-        let store = try store(corpus)
-        try await store.record("git push", in: terminal, after: "git commit -m", at: moment)
-        for _ in 0..<4 {
-            try await store.record("make verify", in: terminal, after: "git commit -m", at: moment)
-        }
-        let next = try await store.legacySuccessors(for: terminal, after: "git commit -m")
-        #expect(next.first?.text == "make verify")
-    }
-
-    @Test("Nothing followed nothing, so an empty predecessor is not recorded.")
-    func emptyPredecessorIsIgnored() async throws {
-        let corpus = Corpus()
-        let store = try store(corpus)
-        try await store.record("git status", in: terminal, after: "", at: moment)
-        #expect(try await store.legacySuccessors(for: terminal, after: "").isEmpty)
-    }
-
-    @Test("A successor that has since been forgotten is not offered.")
-    func forgottenSuccessorIsDropped() async throws {
-        let corpus = Corpus()
-        let store = try store(corpus)
-        try await store.record("git add .", in: terminal, at: moment)
-        try await store.record("git commit -m", in: terminal, after: "git add .", at: moment)
-        try await store.forget("git commit -m", in: terminal)
-        #expect(try await store.legacySuccessors(for: terminal, after: "git add .").isEmpty)
     }
 }
 
@@ -892,23 +863,6 @@ struct RetentionTests {
         try await store.record("deploy prod", in: source, at: Date().addingTimeInterval(1))
         #expect(try await store.candidates(for: retired, matching: "dep").isEmpty)
     }
-
-    @Test("What follows what stops growing at the same cap, and keeps the pairs followed most.")
-    func successionsStayWithinTheCap() async throws {
-        let corpus = Corpus()
-        let store = try store(corpus)
-        for _ in 0..<5 { try await store.record("git push", in: terminal, after: "git commit", at: moment) }
-        for index in 0..<(PredictStore.entriesPerSurface + 100) {
-            try await store.record(
-                "filler \(index) end", in: terminal, after: "before \(index) end", at: moment)
-        }
-        let counts = try Database(path: corpus.path).rows(
-            "SELECT (SELECT COUNT(*) FROM entry), (SELECT COUNT(*) FROM succession)", { _ in }
-        ) { [$0.integer(0), $0.integer(1)] }
-        #expect(counts == [[PredictStore.entriesPerSurface, PredictStore.entriesPerSurface]])
-        #expect(
-            try await store.legacySuccessors(for: terminal, after: "git commit").map(\.text) == ["git push"])
-    }
 }
 
 @Suite("Writing all of a record or none of it")
@@ -936,10 +890,9 @@ struct TransactionTests {
     func successCommits() async throws {
         let corpus = Corpus()
         let store = try store(corpus)
-        try await store.record("git push", in: terminal, after: "git commit", at: moment)
+        try await store.record("git push", in: terminal, at: moment)
         let other = try Database(path: corpus.path)
         #expect(try other.rows("SELECT COUNT(*) FROM entry", { _ in }) { $0.integer(0) } == [1])
-        #expect(try other.rows("SELECT COUNT(*) FROM succession", { _ in }) { $0.integer(0) } == [1])
     }
 }
 
@@ -1049,6 +1002,7 @@ struct RecoveryTests {
                     $0.bind(7, moment.timeIntervalSince1970)
                 }
             }
+            try database.execute(legacySuccessionTable)
             for (surface, previous, next, count) in [
                 (Int64(1), "git commit", "git push", Int64(1)),
                 (2, "git commit", "git push", 2),
@@ -1071,8 +1025,7 @@ struct RecoveryTests {
         #expect(push?.accepted == 1)
         #expect(push?.rejected == 1)
         #expect(try await store.entryCount() == 2)
-        #expect(
-            try await store.legacySuccessors(for: terminal, after: "git commit").map(\.text) == ["git push"])
+        #expect(try !tableNames(Database(path: corpus.path)).contains("succession"))
         let rows = try Database(path: corpus.path).rows(
             "SELECT bundle_id, COUNT(*) FROM surface GROUP BY bundle_id", { _ in }
         ) { [$0.text(0), String($0.integer(1))] }
@@ -1081,6 +1034,47 @@ struct RecoveryTests {
             $0.integer(0)
         }
         #expect(version == [Schema.version])
+    }
+
+    @Test("A version eight file drops its successive-line pairs and keeps every line.")
+    func migratesAwayTheSuccessionTable() async throws {
+        let corpus = Corpus()
+        do {
+            let database = try Database(path: corpus.path)
+            try Schema.migrate(database)
+            try database.run("UPDATE schema_version SET version = ?") { $0.bind(1, Int64(8)) }
+            try database.execute(legacySuccessionTable)
+            try database.run("INSERT INTO surface (bundle_id, role) VALUES (?, ?)") {
+                $0.bind(1, "com.example.terminal")
+                $0.bind(2, "AXTextArea")
+            }
+            for text in ["git commit", "git push"] {
+                try database.run(
+                    "INSERT INTO entry (surface_id, text, text_lower, last_used) VALUES (1, ?, ?, ?)"
+                ) {
+                    $0.bind(1, text)
+                    $0.bind(2, text)
+                    $0.bind(3, moment.timeIntervalSince1970)
+                }
+            }
+            try database.execute(
+                "INSERT INTO succession (surface_id, previous, next) VALUES (1, 'git commit', 'git push')")
+        }
+
+        let store = try store(corpus)
+        let lines = try await store.candidates(for: terminal, matching: "git").map(\.text)
+        #expect(lines.sorted() == ["git commit", "git push"])
+        let database = try Database(path: corpus.path)
+        #expect(try !tableNames(database).contains("succession"))
+        #expect(try database.rows("SELECT version FROM schema_version", { _ in }) { $0.integer(0) } == [9])
+    }
+
+    @Test("A fresh file holds no table of successive lines.")
+    func freshFileHasNoSuccessionTable() throws {
+        let corpus = Corpus()
+        let database = try Database(path: corpus.path)
+        try Schema.migrate(database)
+        #expect(try !tableNames(database).contains("succession"))
     }
 
     @Test("A path that cannot be opened at all is reported rather than pretended about.")

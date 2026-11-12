@@ -45,12 +45,6 @@ private final class RaceCleaner: TranscriptCleaning {
     }
 }
 
-private final class RaceInserter: TextInserting {
-    func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
-        InsertionAttempt(.accessibility)
-    }
-}
-
 /// Stops the monitor while ⌥Space down, sent on a thread of its own, is held past the lock.
 @MainActor
 private func stopDuringAPress() throws -> ActivationMonitor {
@@ -88,7 +82,7 @@ struct ActivationStopRaceTests {
             speech: FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: "hello"))),
             cleaner: RaceCleaner(),
             context: FakeContextEngine(context: .fixture()),
-            inserter: RaceInserter(),
+            inserter: FakeTextInserter(),
             clock: ManualClock()
         )
         let controller = DictationController(

@@ -60,16 +60,6 @@ struct SpellingTests {
         #expect(try await store.entryCount() == 0)
     }
 
-    @Test("What followed a line is found whichever encoding the line arrives in.")
-    func successionAcrossEncodings() async throws {
-        let corpus = Corpus()
-        let store = try store(corpus)
-        try await store.record(precomposed, in: field, at: when)
-        try await store.record("see you there", in: field, after: decomposed, at: when)
-        let next = try await store.legacySuccessors(for: field, after: precomposed)
-        #expect(next.map(\.text) == ["see you there"])
-    }
-
     @Test(
         "A file from the build before has its lines rewritten in one encoding, and duplicates folded together."
     )
@@ -101,16 +91,9 @@ struct SpellingTests {
                     if let supersededBy { $0.bind(5, supersededBy) }
                 }
             }
-            for (previous, next, count) in [
-                (precomposed, "see you there", Int64(1)), (decomposed, "see you there", 2),
-                ("re\u{301}sume\u{301}", "sent", 1), ("sent", "done", 1),
-            ] {
-                let insert = "INSERT INTO succession (surface_id, previous, next, count) VALUES (1, ?, ?, ?)"
-                try old.run(insert) {
-                    $0.bind(1, previous)
-                    $0.bind(2, next)
-                    $0.bind(3, count)
-                }
+            try old.execute(legacySuccessionTable)
+            try old.run("INSERT INTO succession (surface_id, previous, next) VALUES (1, ?, 'sent')") {
+                $0.bind(1, decomposed)
             }
         }
 
@@ -123,13 +106,7 @@ struct SpellingTests {
         #expect(
             try storedBytes(corpus, "SELECT superseded_by FROM entry WHERE superseded_by IS NOT NULL")
                 == [Array(precomposed.utf8)])
-        let counts = try Database(path: corpus.path).rows(
-            "SELECT count FROM succession WHERE next = 'see you there'", { _ in }
-        ) { $0.integer(0) }
-        #expect(counts == [3])
-        #expect(
-            try storedBytes(corpus, "SELECT previous FROM succession WHERE next = 'sent'")
-                == [Array("r\u{E9}sum\u{E9}".utf8)])
+        #expect(try !tableNames(Database(path: corpus.path)).contains("succession"))
         let version = try Database(path: corpus.path).rows("SELECT version FROM schema_version", { _ in }) {
             $0.integer(0)
         }

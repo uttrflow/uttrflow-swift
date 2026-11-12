@@ -731,8 +731,7 @@ struct DictationPipelineVocabularyTests {
     }
 
     @Test(
-        "Counts a dictation's uses against the application it landed in, not the one read before the switch"
-    )
+        "Counts a dictation's uses against the application it landed in, not the one read before the switch")
     func countsUsesWhereTheWordsLanded() async {
         let learner = FakeLearner()
         let landedInB = InsertionDestination(applicationName: "Public App", bundleIdentifier: "com.example.b")
