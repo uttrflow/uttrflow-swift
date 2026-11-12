@@ -79,12 +79,10 @@ extension CleaningPipeline {
             if NotationEvidence.mayActivate(notation, in: destination, markup: markup) {
                 // Markup reads its colons, semicolons and dashes by slot, before punctuation takes them as marks.
                 let punctuation = cleanings.firstIndex { $0.id == .spokenPunctuation }
-                // Only a query opens notation on its own words; a code editor's caret activates it on any piece, prose too.
-                let statementIdentifiers = destination == .sqlEditor ? identifiers : .empty
                 cleanings.insert(
                     CodeEditorCommandsPass(
                         destination: destination, language: intent.language, markup: markup,
-                        evidence: notation, cutsStammers: steps.runs(.stammers), identifiers: statementIdentifiers),
+                        evidence: notation, cutsStammers: steps.runs(.stammers)),
                     at: markup?.slot == nil ? layoutPosition : punctuation ?? layoutPosition)
                 // After the spoken layout words, so a spoken "new line" is a break by then.
                 if destination == .sqlEditor,

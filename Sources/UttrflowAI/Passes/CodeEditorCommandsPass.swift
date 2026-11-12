@@ -4,8 +4,7 @@ import UttrflowCore
 /// Writes spoken symbol commands and statement keywords in code, a query or a command line, abstaining where words read as prose.
 struct CodeEditorCommandsPass: PieceCleaningPass {
     static let id: PassID = .codeEditorCommands
-    /// Writing a run as the identifier on screen it spells, "order total" as `orderTotal`, writes a word the draft did not hold, so `addsNoWords` is not kept.
-    static let laws: Set<PassLaw> = Set(PassLaw.allCases).subtracting([.addsNoWords])
+    static let laws: Set<PassLaw> = Set(PassLaw.allCases)
 
     /// Where the words go; a command line takes only the rows that name it, so its brackets stay marks.
     var destination: Destination = .codeEditor
@@ -22,9 +21,6 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
     /// Whether the stammer step is on, so a doubled word the pause marks hid is cut as a stammer once they come off.
     var cutsStammers = false
 
-    /// The identifiers the screen shows, which a statement's words are written as where they spell one.
-    var identifiers = ScreenVocabulary.empty
-
     func apply(_ draft: Draft) -> Draft {
         let words = draft.presentIndices.map { Self.bare(draft.words[$0].text) }
         let screen = NotationEvidence.applicability(
@@ -38,7 +34,7 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
             spellsTag
             ? Applicability(cues: [.markupTag]) : NotationEvidence.applicability(of: words, given: screen)
         guard evidence.activates(at: NotationEvidence.activationThreshold) else { return draft }
-        var draft = NotationInput.settled(draft, by: Self.id, identifiers: identifiers)
+        var draft = NotationInput.settled(draft, by: Self.id)
         // A second run reads the words without their pause marks, so the first must judge a stammer on them too.
         if cutsStammers { draft = StammersPass().apply(draft) }
         var slot = markup?.slot

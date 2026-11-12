@@ -29,16 +29,16 @@ struct SQLRecogniserFormTests {
     }
 
     private func written(
-        _ testCase: EvaluationCase, spoken: String, after preceding: String? = nil, shown: [String] = []
+        _ testCase: EvaluationCase, spoken: String, after preceding: String? = nil
     ) async throws -> String {
         let base = testCase.transformationRequest()
-        let context = (preceding.map { AppContext(precedingText: $0) } ?? base.context).adding(onScreenNames: shown)
+        let context = preceding.map { AppContext(precedingText: $0) } ?? base.context
         let situation =
-            preceding == nil && shown.isEmpty
-            ? base.situation
-            : Situation(
-                app: context, insertion: context.insertionPoint, destination: base.situation.destination,
-                numberStyle: base.situation.numberStyle, adapterMode: base.situation.adapterMode)
+            preceding.map { _ in
+                Situation(
+                    app: context, insertion: context.insertionPoint, destination: base.situation.destination,
+                    numberStyle: base.situation.numberStyle, adapterMode: base.situation.adapterMode)
+            } ?? base.situation
         let request = TransformationRequest(
             transcription: Transcription(
                 text: spoken, detectedLanguage: base.transcription.detectedLanguage, segments: []),
@@ -73,22 +73,5 @@ struct SQLRecogniserFormTests {
         let tokens = try await written(
             base, spoken: "Select * from users where created_at > 2026-01-01", after: preceding)
         #expect(tokens == "SELECT * FROM users WHERE created_at > 2026-01-01")
-    }
-
-    @Test("writes the words of a column the screen shows as that column, whatever the recogniser's case")
-    func bindsAShownColumn() async throws {
-        let base = try #require(Self.statements.first)
-        let spoken = "Select total from orders. Where customer ID equals 7."
-        let bound = try await written(base, spoken: spoken, shown: ["customer_id"])
-        #expect(bound == "SELECT total\nFROM orders\nWHERE customer_id = 7")
-        let unbound = try await written(base, spoken: spoken)
-        #expect(!unbound.contains("customer_id"))
-    }
-
-    @Test("keeps apart two words a recogniser's pause mark separates, though the screen shows them joined")
-    func pauseMarkBreaksABinding() async throws {
-        let base = try #require(Self.statements.first)
-        let output = try await written(base, spoken: "Select customer, ID from orders.", shown: ["customer_id"])
-        #expect(!output.contains("customer_id"))
     }
 }

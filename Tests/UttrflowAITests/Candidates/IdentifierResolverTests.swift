@@ -27,15 +27,6 @@ struct IdentifierResolverTests {
         #expect(bind("cash store", to: ["CacheStore"]) == .bound("CacheStore"))
     }
 
-    @Test("binds only a spelling where a sound-alike is not asked for")
-    func bindsOnlyASpelling() {
-        let shown = ScreenVocabulary(identifiers: ["CacheStore", "customer_id"])
-        #expect(IdentifierResolver.bind(spokenWords: ["cash", "store"], vocabulary: shown, soundsAlike: false) == .none)
-        #expect(
-            IdentifierResolver.bind(spokenWords: ["customer", "ID"], vocabulary: shown, soundsAlike: false)
-                == .bound("customer_id"))
-    }
-
     @Test("refuses when two identifiers on screen spell the run")
     func refusesATie() {
         #expect(
