@@ -49,6 +49,16 @@ struct EvidenceSourcesTests {
         #expect(EvidenceSources.backfill([old], entries: [entry], ledger: rows, overrides: .none).isEmpty)
     }
 
+    @Test("History never backfills a dictation made in a private-browsing window")
+    func privateRecordIsNotBackfilled() {
+        let entry = DictionaryEntry(word: "Kubernetes", origin: .added, firstSeen: now)
+        let record = DictationRecord(
+            text: "Deploy it on Kubernetes.", when: now.addingTimeInterval(-3 * 86_400),
+            applicationName: "Browser", applicationIdentifier: "com.example.browser",
+            fromPrivateWindow: true)
+        #expect(EvidenceSources.backfill([record], entries: [entry], ledger: [], overrides: .none).isEmpty)
+    }
+
     private struct Keys: StoreKeyProviding {
         let value = SymmetricKey(size: .bits256)
         func key(createIfMissing: Bool) throws -> SymmetricKey { value }
@@ -149,6 +159,38 @@ struct EvidenceSourcesTests {
 
         try await ledger.append(rows, keeping: window, learntIn: application, consent: Revocable())
         #expect(await ledger.rows(keeping: window) == rows)
+    }
+
+    /// Consent that refuses one application and allows every other.
+    private struct Declining: LearningConsent {
+        let declined: String
+        func state(of bundleIdentifier: String?) -> ConsentState {
+            bundleIdentifier == declined ? .declined : .allowed
+        }
+    }
+
+    @Test("a backfill's batches are checked by the ledger at the write, one application at a time")
+    func backfillBatchesAreCheckedAtTheWrite() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let ledger = EvidenceLedgerStore(
+            file: EvidenceLedgerStore.defaultFile(in: root), encryptedStore: EncryptedStore(keys: Keys()))
+        let window = RetentionWindow(days: RetentionWindow.keepAlwaysDays, now: now)
+        let notes = [EvidenceRow(kind: .styleMessage, subject: "notes", day: today, provenance: .migration)]
+        let mail = [EvidenceRow(kind: .styleMessage, subject: "mail", day: today, provenance: .migration)]
+        let batches: [(application: String?, rows: [EvidenceRow])] = [
+            ("com.example.notes", notes), ("com.example.mail", mail),
+        ]
+
+        let consent = Revocable()
+        #expect(consent.mayLearn(from: "com.example.notes"))
+        consent.withdraw()
+        try await ledger.append(batches, keeping: window, consent: consent)
+        #expect(await ledger.rows(keeping: window).isEmpty)
+
+        try await ledger.append(batches, keeping: window, consent: Declining(declined: "com.example.mail"))
+        #expect(await ledger.rows(keeping: window) == notes)
     }
 
     @Test(
@@ -271,6 +313,29 @@ struct EvidenceSourcesTests {
         try await counters.recordUse(ofSnippets: [])
 
         #expect(await noted.ids == [[entry.id]])
+    }
+
+    @Test("a re-dictation of a private-window dictation writes no retry row, either way round")
+    func privateRecordIsNotPairedOnRetry() {
+        let correction = RecordedCorrection(
+            heard: "nickel", wrote: "Nikhil", wordRange: 1..<2, entryID: UUID(),
+            reason: .saidClearlyElsewhere, heardConfidence: 0.3)
+        let first = { (isPrivate: Bool) in
+            DictationRecord(
+                text: "Ask Nikhil about the meeting.", when: self.now,
+                applicationIdentifier: "com.example.notes",
+                changes: RecordedChanges(corrections: [correction]), arrival: .confirmed,
+                heard: "ask nickel about the meeting", fromPrivateWindow: isPrivate)
+        }
+        let retry = { (isPrivate: Bool) in
+            DictationRecord(
+                text: "Ask Nikhel about the meeting.", when: self.now.addingTimeInterval(5),
+                applicationIdentifier: "com.example.notes", arrival: .confirmed,
+                heard: "ask Nikhel about the meeting", fromPrivateWindow: isPrivate)
+        }
+        #expect(!EvidenceSources.retried(first(false), by: retry(false)).isEmpty)
+        #expect(EvidenceSources.retried(first(true), by: retry(false)).isEmpty)
+        #expect(EvidenceSources.retried(first(false), by: retry(true)).isEmpty)
     }
 
     @Test(

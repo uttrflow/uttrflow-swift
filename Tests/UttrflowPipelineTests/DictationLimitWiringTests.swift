@@ -17,15 +17,6 @@ private final class SilentMonitor: HotkeyMonitoring {
     func stop() { continuation.finish() }
 }
 
-/// A ``TranscriptCleaning`` that answers at once.
-private struct QuietCleaner: TranscriptCleaning {
-    func clean(
-        _ request: TransformationRequest
-    ) async throws(TransformationError) -> TransformationResult {
-        TransformationResult(text: request.transcription.text, producedBy: .rules)
-    }
-}
-
 /// Holds recognition so another hands-free dictation can arrive while the first is transcribing.
 private final class GatedSpeechEngine: SpeechEngine {
     private struct State {
@@ -170,7 +161,7 @@ struct DictationLimitWiringTests {
                     capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 200))),
                     speech: FakeSpeechEngine(
                         transcribeOutcome: .success(Transcription(text: "a long dictation"))),
-                    cleaner: QuietCleaner(),
+                    cleaner: FakeTranscriptCleaner(),
                     context: FakeContextEngine(),
                     inserter: inserter,
                     // Its own clock, never moved: the cap's clock carries only the cap's sleepers.
@@ -195,7 +186,7 @@ struct DictationLimitWiringTests {
         DictationPipeline(
             capture: capture,
             speech: speech,
-            cleaner: QuietCleaner(),
+            cleaner: FakeTranscriptCleaner(),
             context: FakeContextEngine(),
             inserter: inserter,
             clock: ManualClock())
@@ -415,7 +406,7 @@ struct DictationLimitWiringTests {
             capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 200))),
             speech: FakeSpeechEngine(
                 transcribeOutcome: .success(Transcription(text: "a long dictation"))),
-            cleaner: QuietCleaner(),
+            cleaner: FakeTranscriptCleaner(),
             context: FakeContextEngine(context: .fixture()),
             inserter: inserter,
             vocabulary: learner,

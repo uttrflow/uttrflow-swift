@@ -5,15 +5,6 @@ import UttrflowCore
 @testable import UttrflowPipeline
 import UttrflowTestSupport
 
-/// A ``HotkeyMonitoring`` that watches nothing; the test hands gestures to the controller itself.
-private struct SilentMonitor: HotkeyMonitoring {
-    let events = AsyncStream<HotkeyEvent> { $0.finish() }
-
-    @MainActor func start(binding: HotkeyBinding) throws(HotkeyError) {}
-
-    func stop() {}
-}
-
 /// The ways a person can start and end one dictation. See Docs/pipeline-gestures.md.
 enum ActivationGesture: String, CaseIterable, Sendable {
     case hold
@@ -70,7 +61,8 @@ struct ActivationModeConsistencyTests {
         let clock = ManualClock()
         let controller = Controller(
             dependencies: .init(
-                pipeline: session.pipeline, monitor: SilentMonitor(), commandMonitor: SilentMonitor()),
+                pipeline: session.pipeline, monitor: SilentHotkeyMonitor(endsAtOnce: true),
+                commandMonitor: SilentHotkeyMonitor(endsAtOnce: true)),
             clock: clock,
             options: .init(activation: gesture == .toggle ? .pressToToggle : .holdToTalk))
         switch gesture {

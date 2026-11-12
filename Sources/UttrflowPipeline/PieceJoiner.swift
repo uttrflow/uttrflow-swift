@@ -92,9 +92,11 @@ enum PieceJoiner {
         under formatter: DestinationFormatter, grouping: DigitGrouping? = nil
     ) -> [String] {
         // An amount joined across a seam takes the person's grouping where given, else the place's.
-        let joined = recleaningMarksAcrossSeams(
-            joiningSpokenMarksAcrossSeams(
-                joiningAmountsAcrossSeams(pieces, heard: heard, grouping: grouping ?? formatter.digits)))
+        let joined = layingOutBulletsAcrossSeams(
+            recleaningMarksAcrossSeams(
+                joiningSpokenMarksAcrossSeams(
+                    joiningAmountsAcrossSeams(pieces, heard: heard, grouping: grouping ?? formatter.digits))),
+            under: formatter)
         // A piece tidied to nothing has no seam, so each seam is judged against the next piece with words.
         let worded = joined.indices.filter { !joined[$0].allSatisfy(\.isWhitespace) }
         let heard = heard.count == joined.count ? worded.map { heard[$0] } : []
@@ -264,6 +266,40 @@ enum PieceJoiner {
             joined[next] = tail
         }
         return joined
+    }
+
+    /// Lays out a bullet said inside a piece when the next piece opens on one, as a bullet said beside it in one piece is.
+    private static func layingOutBulletsAcrossSeams(
+        _ pieces: [String], under formatter: DestinationFormatter
+    ) -> [String] {
+        var joined = pieces
+        let worded = joined.indices.filter { !joined[$0].allSatisfy(\.isWhitespace) }
+        for (previous, next) in zip(worded, worded.dropFirst()) {
+            joined[previous] = bulletsLaidOut(joined[previous], before: joined[next], under: formatter)
+        }
+        return joined
+    }
+
+    /// The piece read by the layout pass with the next piece's opening bullet said after it, cut back to the piece's own words.
+    private static func bulletsLaidOut(
+        _ head: String, before next: String, under formatter: DestinationFormatter
+    ) -> String {
+        let opening = Draft(keepingLineBreaks: next)
+        let mark = opening.words.first?.text.drop(while: \.isNewline)
+        guard let mark, opening.words.count > 1, opening.words[0].isListMark,
+            let command = SpokenCommands.layout.first(where: {
+                $0.requiresLists && $0.text.drop(while: \.isNewline) == mark
+            })
+        else { return head }
+        let piece = Draft(keepingLineBreaks: head)
+        var spoken = piece
+        spoken.words += (command.words + [opening.words[1].text]).map { Draft.Word($0, evidence: .unknown) }
+        let read = LayoutWordsPass(layout: formatter.layout, readsWholeText: false).apply(spoken)
+        let own = Draft(words: Array(read.words.prefix(piece.words.count)))
+        let marks = { (draft: Draft) in draft.presentIndices.filter { draft.words[$0].isListMark }.count }
+        // Only a bullet the corroboration lays out is taken; any other reading leaves the piece as cleaned.
+        guard read.words[piece.words.count].isListMark, marks(own) > marks(piece) else { return head }
+        return own.text
     }
 
     /// The two pieces with a mark name at the seam written as its mark, when the spoken-punctuation pass changes only that name.
@@ -538,7 +574,7 @@ enum PieceJoiner {
         let counted = ordinalsBefore(openings, in: draft, starts: starts)
         for opening in openings.dropFirst() {
             guard paragraphs(formatter), !swallowed.contains(opening),
-                !items.contains(where: { $0.opening == opening })
+                !items.contains(where: { $0.opening == opening }), !insideBracket(before: opening, in: draft)
             else { continue }
             if let topic = topicEvidence(
                 draft, at: opening, starts: starts, afterPause: starts.contains(opening), counted: counted)
@@ -891,11 +927,21 @@ enum PieceJoiner {
         return cued ? .topicCue : nil
     }
 
+    /// Whether a bracket opened before the word is still open there, so no paragraph may break it.
+    private static func insideBracket(before word: Int, in draft: Draft) -> Bool {
+        let text = draft.presentIndices.filter { $0 < word }.map { draft.words[$0].text }.joined()
+        // A close with nothing open before it, as a piece that starts mid-bracket has, closes nothing.
+        let depth = text.reduce(0) { depth, character in
+            "([{".contains(character) ? depth + 1 : ")]}".contains(character) ? max(0, depth - 1) : depth
+        }
+        return depth > 0
+    }
+
     /// The shortest pause that sets a new subject apart.
     private static let subjectPause = Duration.milliseconds(1500)
 
     /// The multiple of the speaker's usual pause that a subject's pause must reach once there are enough pauses to know it.
-    private static let subjectPauseMultiple = 2.0
+    private static let subjectPauseMultiple = 1.5
 
     /// How many pauses it takes to know the speaker's usual one.
     private static let pausesToKnowUsual = 3

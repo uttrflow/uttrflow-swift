@@ -7,14 +7,6 @@ import Testing
 @testable import UttrflowPipeline
 @testable import UttrflowTestSupport
 
-/// A monitor that never reports anything, so the test submits each event itself.
-private final class QuietMonitor: HotkeyMonitoring {
-    private let pair = AsyncStream<HotkeyEvent>.makeStream()
-    @MainActor func start(binding: HotkeyBinding) throws(HotkeyError) {}
-    func stop() {}
-    var events: AsyncStream<HotkeyEvent> { pair.stream }
-}
-
 /// Holds every caller until the test opens it, and says whether one has arrived.
 private final class Gate: Sendable {
     private struct State {
@@ -127,7 +119,7 @@ private func makeRig(holding stage: HeldStage, cue: any RecordingCueing = Silent
     )
     let clock = ManualClock()
     let controller = DictationController(
-        dependencies: .init(pipeline: pipeline, monitor: QuietMonitor(), cue: cue), clock: clock)
+        dependencies: .init(pipeline: pipeline, monitor: SilentHotkeyMonitor(), cue: cue), clock: clock)
     return Rig(
         controller: controller, pipeline: pipeline, inserter: inserter, recordings: recordings,
         recording: recording, gate: gate, clock: clock)

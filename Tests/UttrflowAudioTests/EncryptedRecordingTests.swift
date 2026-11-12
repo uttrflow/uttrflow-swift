@@ -135,7 +135,7 @@ struct EncryptedRecordingTests {
         let listed = await store.waiting(now: now)
         #expect(listed.map(\.id) == [id])
         #expect(EncryptedRecordingFile.isEncrypted(file))
-        #expect(try await store.audio(of: id).samples.count == original.samples.count)
+        #expect(try await store.audio(of: id).audio.samples.count == original.samples.count)
     }
 }
 

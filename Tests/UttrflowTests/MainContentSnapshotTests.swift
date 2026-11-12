@@ -98,4 +98,15 @@ struct MainContentSnapshotTests {
         #expect(row.text.contains(secret) == (fixture == .revealed))
         #expect(content.diagnostics.storage.contains { $0.title == "Suggestion model" && $0.action != nil })
     }
+
+    @Test("the pages built off the main actor are the pages built on it", arguments: Fixture.allCases)
+    @MainActor
+    private func presentsTheSameOffTheMainActor(fixture: Fixture) async {
+        let input = snapshot(fixture)
+        let onMain = input.presented()
+
+        let offMain = await Task.detached { input.presented() }.value
+
+        #expect(offMain == onMain)
+    }
 }

@@ -1,0 +1,20 @@
+{
+    "schema": 1,
+    "rows": [
+        { "id": "async" },
+        { "id": "autofocus" },
+        { "id": "autoplay" },
+        { "id": "checked" },
+        { "id": "controls" },
+        { "id": "defer" },
+        { "id": "disabled" },
+        { "id": "hidden" },
+        { "id": "loop" },
+        { "id": "multiple" },
+        { "id": "muted" },
+        { "id": "novalidate" },
+        { "id": "readonly" },
+        { "id": "required" },
+        { "id": "selected" }
+    ]
+}

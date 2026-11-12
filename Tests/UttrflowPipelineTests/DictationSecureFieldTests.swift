@@ -185,6 +185,7 @@ struct DictationSecureFieldTests {
         }
         #expect(failure.intoSecureField == false)
         #expect(failure.wordsToKeep == passphrase)
+        #expect(failure.meantForApplication == AppContext.fixture().bundleIdentifier)
     }
 
     @Test("a secure field's audio is not kept for a retry when its words are lost")

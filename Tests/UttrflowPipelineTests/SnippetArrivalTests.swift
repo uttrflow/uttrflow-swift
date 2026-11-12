@@ -6,24 +6,6 @@ import Testing
 @testable import UttrflowPipeline
 @testable import UttrflowTestSupport
 
-/// A dictionary holding one spelling for one heard word, wherever it is heard.
-private struct OneEntryDictionary: WordCorrecting {
-    let heard: String
-    let wrote: String
-
-    func corrections(
-        for transcription: Transcription, seeing context: AppContext
-    ) async throws(DictationChangeError) -> [DictationCorrection] {
-        transcription.text.split(whereSeparator: \.isWhitespace).enumerated().compactMap {
-            $0.element.lowercased() == heard
-                ? DictationCorrection(
-                    heard: String($0.element), wrote: wrote, wordRange: $0.offset..<($0.offset + 1),
-                    entryID: UUID(), reason: .unknown("test"), heardConfidence: 0.2)
-                : nil
-        }
-    }
-}
-
 @Suite("Snippet triggers: how a phrase arrives at the matcher")
 struct SnippetArrivalTests {
     /// Invented triggers across numbers, spoken marks, fillers, contractions, a dictionary word and romanised Hindi.

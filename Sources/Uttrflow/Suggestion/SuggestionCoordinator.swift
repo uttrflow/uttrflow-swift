@@ -754,27 +754,10 @@ final class SuggestionCoordinator {
 
     /// Reads the focused selection and withdraws an armed offer when it no longer matches.
     func pollFocusedSelection(generation: Int? = nil) async {
-        let generation = generation ?? selectionPolling.generation
-        guard generation == selectionPolling.generation, !selectionPolling.isReadInFlight,
-            armedOffer != nil, selectionPolling.guardrail != nil, !isInserting
-        else { return }
-        guard activityIsAllowed() else { return withdraw() }
-        selectionPolling.isReadInFlight = true
-        let read = await focusedSelectionReader()
-        guard generation == selectionPolling.generation else { return }
-        selectionPolling.isReadInFlight = false
-        let selection: FocusedFieldSelection
-        switch read {
-        case .timedOut:
-            return
-        case .unavailable:
-            return withdraw()
-        case .selection(let value):
-            selection = value
-        }
-        guard var selectionGuard = selectionPolling.guardrail else { return }
-        guard !selectionGuard.observe(selection) else { return withdraw() }
-        self.selectionPolling.guardrail = selectionGuard
+        let verdict = await selectionPolling.check(
+            generation: generation ?? selectionPolling.generation, isArmed: armedOffer != nil,
+            isInserting: isInserting, isAllowed: { activityIsAllowed() }, read: focusedSelectionReader)
+        if verdict == .withdraw { withdraw() }
     }
 
     /// Stops the selection poll and invalidates any result still waiting on Accessibility.
@@ -981,13 +964,7 @@ final class SuggestionCoordinator {
 
     /// Reads the field, asks the corpus and draws the answer, all off the keystroke path; a turn left behind touches nothing.
     func turn(_ number: Int, because reason: SuggestionReason) async {
-        // Held rejection writes retry behind earlier corpus writes, so a slow store never delays the draw.
-        if rejectedSuggestionRecorder.claimQueuedRetry() {
-            let queued = acceptances.enqueue(
-                { [rejectedSuggestionRecorder] in await rejectedSuggestionRecorder.retry() },
-                estimatedBytes: rejectedSuggestionRecorder.queuedRetryReservationBytes())
-            if !queued { rejectedSuggestionRecorder.cancelQueuedRetry() }
-        }
+        rejectedSuggestionRecorder.queueRetry(on: acceptances)
         let front = frontmostBundleIdentifier() ?? "nil"
         progress = (number, .read, front)
         // Taken before the read, since a key pressed while a slow field is being read is one the read may have missed.
@@ -1041,19 +1018,12 @@ final class SuggestionCoordinator {
 
         let turn = session.turn(
             in: reading.surface, at: context(of: snapshot, at: started),
-            acceptKey: preferences.acceptKeys.key(
-                for: AppContext(
-                    applicationName: snapshot.applicationName,
-                    bundleIdentifier: snapshot.bundleIdentifier,
-                    documentName: snapshot.windowTitle)),
+            acceptKey: SuggestionRequest.acceptKey(in: snapshot, preferences: preferences),
             wordKey: preferences.wordAcceptKey(forBundleIdentifier: snapshot.bundleIdentifier),
             isQuiet: preferences.isQuiet, sawKeystrokes: keystrokesSeen)
         if let rejected = turn.rejected, let surface = reading.surface {
             entering(.reject, turn: number)
-            _ = acceptances.enqueue(
-                { [rejectedSuggestionRecorder] in
-                    await rejectedSuggestionRecorder.record(rejected, in: surface)
-                }, estimatedBytes: AcceptanceQueue.estimatedBytes(for: [rejected], surface: surface))
+            rejectedSuggestionRecorder.queue(rejected, in: surface, on: acceptances)
         }
 
         switch turn.step {
@@ -1389,8 +1359,10 @@ final class SuggestionCoordinator {
         interceptor.arm(update.armed)
         armedOffer = update.suggestion.accepting
         // Nothing is drawn off the caret's line, and what is not drawn claims no key.
-        guard let snapshot, snapshot.placement == .inlineGhost,
-            let caret = Self.caret(for: update.suggestion, in: snapshot)
+        guard let snapshot,
+            let ghost = SuggestionRequest.ghost(
+                update.suggestion, typed: session.typed, selection: session.selection, in: snapshot,
+                preferences: preferences)
         else {
             stopWatchingSelection()
             interceptor.arm([])
@@ -1399,22 +1371,7 @@ final class SuggestionCoordinator {
             return
         }
         closingPunctuationAfterCaret = snapshot.closingPunctuationAfterCaret
-        let visibleSuggestion = update.suggestion.trimmed(
-            after: session.typed, matching: closingPunctuationAfterCaret)
-        let shown = panel.show(
-            visibleSuggestion, typed: session.typed, placement: .inlineGhost,
-            direction: snapshot.writingDirection == .rightToLeft ? .rightToLeft : .leftToRight,
-            caret: caret, window: snapshot.window, field: snapshot.ghostField,
-            fieldPointSize: snapshot.pointSize,
-            selection: session.selection,
-            acceptKey: preferences.acceptKeys.key(
-                for: AppContext(
-                    applicationName: snapshot.applicationName,
-                    bundleIdentifier: snapshot.bundleIdentifier,
-                    documentName: snapshot.windowTitle)),
-            wordAcceptKey: preferences.wordAcceptKey(forBundleIdentifier: snapshot.bundleIdentifier),
-            fontFamily: snapshot.fontFamily, isBold: snapshot.isBold, isItalic: snapshot.isItalic,
-            textColor: snapshot.textColor)
+        let shown = panel.show(ghost)
         // An offer the panel could not show whole claims no key, so Tab never inserts what was not drawn.
         guard shown else {
             stopWatchingSelection()
@@ -1425,12 +1382,6 @@ final class SuggestionCoordinator {
         armSelectionMonitor(
             for: update.suggestion, at: snapshot.selection, identity: snapshot.focusedFieldIdentity)
         watchScrolls()
-    }
-
-    /// The caret a ghost for `suggestion` is drawn at, or nil when the field offers no inline place for one.
-    nonisolated static func caret(for suggestion: Suggestion, in snapshot: FocusedFieldSnapshot) -> CGRect? {
-        guard suggestion != .silent, snapshot.placement == .inlineGhost else { return nil }
-        return snapshot.caret
     }
 
     /// Draws what a move or a dismissal left where the ghost already stands, since no field was read for it and typing may have moved it.

@@ -194,7 +194,9 @@ EXCLUDED_FILES = {
         "every field reading it maps goes through SuggestionMoment, what capture is told between reads "
         "is SuggestionCaptureFeed, how an accepted suggestion is taken is SuggestionTake, what a key the tap took "
         "does and when a stopped tap rests is SwallowedKeyHandling, when secure keyboard entry pauses and lifts "
-        "is SecureInputPause, and whether the model is asked, "
+        "is SecureInputPause, what a selection check means for the armed offer is SuggestionSelectionPolling, "
+        "the ghost asked of the panel for a field is SuggestionRequest.ghost, "
+        "and whether the model is asked, "
         "reused, skipped, drawn fresh or asked for alternatives is ModelPass, all of which are tested"
     ),
     "Uttrflow/Suggestion/SuggestionPanelController.swift": (
@@ -273,7 +275,12 @@ OVERSIZED_EXCLUSIONS = {
         "taken into the field is SuggestionTake, tested in SuggestionTakeTests; the order in which a key "
         "the tap took is carried out, and the rest of a stopped tap, are SwallowedKeyHandling, tested in "
         "SwallowedKeyHandlingTests; when secure keyboard entry pauses suggestions and when a recheck lifts "
-        "the pause is SecureInputPause, tested in SecureInputPauseTests; still untested is the closures that map those steps onto the session, "
+        "the pause is SecureInputPause, tested in SecureInputPauseTests; whether a selection check keeps or "
+        "withdraws the armed offer is SuggestionSelectionPolling, tested in SuggestionSelectionPollingTests; "
+        "the ghost asked of the panel for a field is SuggestionRequest.ghost, tested in SuggestionGhostRequestTests; "
+        "how a rejection's write and its retry are queued is RejectedSuggestionRecorder, tested in "
+        "RejectedSuggestionRecorderTests; "
+        "still untested is the closures that map those steps onto the session, "
         "the panel and the field"
     ),
     "Uttrflow/Main/MainPieces.swift": (

@@ -10,6 +10,8 @@ public struct Situation: Sendable, Equatable {
     public let adapterMode: AdapterMode
     /// The final stop and first letter the person fixed for this app; nothing is fixed unless they chose.
     var punctuation = AppPunctuation.automatic
+    /// The quality preset this app is dictated under; standard unless the person chose another.
+    var preset = QualityPreset.standard
 
     public init(
         app: AppContext, insertion: InsertionPoint, destination: Destination,
@@ -26,6 +28,11 @@ public struct Situation: Sendable, Equatable {
     /// The grouping written here: none where the place parses its digits, otherwise the person's own.
     public func digits(for formatter: DestinationFormatter) -> DigitGrouping {
         formatter.digits == .none ? .none : numberStyle.grouping
+    }
+
+    /// The person's clean-up steps with this app's preset's steps also off.
+    public func cleaningSteps(_ chosen: CleaningSteps) -> CleaningSteps {
+        preset.applied(to: chosen)
     }
 
     /// The situation when the screen says nothing at all.
@@ -45,6 +52,7 @@ public enum SituationResolver {
             adapterMode: overrides.mode(for: app))
         situation.punctuation =
             app.bundleIdentifier.map(overrides.punctuation(forBundleIdentifier:)) ?? .automatic
+        situation.preset = overrides.qualityPreset(forBundleIdentifier: app.bundleIdentifier)
         return situation
     }
 

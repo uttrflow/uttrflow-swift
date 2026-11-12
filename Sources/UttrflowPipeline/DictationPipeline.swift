@@ -79,6 +79,10 @@ public actor DictationPipeline {
     var insertedIntoIdentifier: String?
     /// Whether the screen read found a field that hides what is typed, so nothing of this dictation is kept.
     var destinationIsSecure = false
+    /// Whether any read of this dictation found a private-browsing window, so nothing of it is learnt; no read clears it.
+    var destinationIsPrivate = false
+    /// What the kept recording was last told about its destination, so a later private finding can be added to it.
+    var recordedFacts: (destination: AppContext, fieldKind: Destination, id: UUID)?
 
     /// The kept audio of the dictation under way, deleted or left for a retry as it ends.
     var openRecording: UUID?
@@ -325,7 +329,7 @@ public actor DictationPipeline {
         }
         if let seen {
             let fieldKind = SituationResolver.resolve(from: seen, overrides: runningOverrides).destination
-            await recordings.setDestination(seen, fieldKind: fieldKind, for: kept.id)
+            await recordDestination(seen, fieldKind: fieldKind, for: kept.id)
         }
         restorable?.expiry.cancel()
         let expiry = Task { [clock] in
@@ -426,7 +430,8 @@ public actor DictationPipeline {
 
     /// Ends the dictation in failure, keeping the audio exactly when the words were lost. See `Docs/recordings.md`.
     func fail(_ failure: DictationFailure) async {
-        var failure = failure.markingSecure(destinationIsSecure)
+        var failure = failure.markingSecure(destinationIsSecure).markingPrivate(destinationIsPrivate)
+            .markingDestination(insertedIntoIdentifier)
         let wordsLost = failure.transcript == nil && failure.severity != .informational
         let recording = openRecording
         let kept = await settleRecording(wordsLost: wordsLost)
@@ -451,6 +456,7 @@ public actor DictationPipeline {
             await recordings.discard(openRecording)
             return false
         }
+        await keepPrivateWindowFinding(for: openRecording)
         return true
     }
 

@@ -240,7 +240,8 @@ extension DictationPipeline {
             seeing: appContext, recording: metrics, for: mine)
         let grouping = situation.digits(for: formatter)
         let joined = PieceJoiner.join(
-            pieces, under: formatter, grouping: grouping, steps: runningCleaner.cleaningSteps)
+            pieces, under: formatter, grouping: grouping,
+            steps: situation.cleaningSteps(runningCleaner.cleaningSteps))
         let correctedAtSeams = await correctAcrossSeams(
             pieces, in: joined, seeing: appContext, recording: metrics, correcting: corrector, for: mine)
         let whole = await finishMessage(
