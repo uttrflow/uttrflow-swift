@@ -1,6 +1,6 @@
 {
   "files": {
-    "Uttrflow/AppDelegate.swift": 4628,
+    "Uttrflow/AppDelegate.swift": 4637,
     "Uttrflow/Main/HomeHeroView.swift": 488,
     "Uttrflow/Main/MainPieces.swift": 646,
     "Uttrflow/MenuBar/MenuBarController.swift": 446,
@@ -14,5 +14,5 @@
     "UttrflowLocalModel/MLXCandidateScorer.swift": 683,
     "UttrflowSpeech/WhisperKitBackend.swift": 444
   },
-  "total": 11764
+  "total": 11773
 }
