@@ -15,7 +15,7 @@ similarity is word agreement and marks is comma and sentence-end agreement, each
 | proposal | 3 | 169 | 0 of 3 | 2 of 3 | 99% | 59% | yes |
 | apology | 3 | 169 | 0 of 3 | 3 of 3 | 98% | 48% | yes |
 | cover-letter | 3 | 191 | 0 of 3 | 3 of 3 | 100% | 45% | yes |
-| invitation | 3 | 176 | 0 of 3 | 3 of 3 | 98% | 72% | yes |
+| invitation | 3 | 176 | 0 of 3 | 3 of 3 | 99% | 72% | yes |
 | shopping-list | 3 | 149 | 1 of 3 | 3 of 3 | 99% | 81% | yes |
 | recipe | 3 | 173 | 0 of 3 | 3 of 3 | 98% | 48% | yes |
 | travel-plan | 3 | 176 | 0 of 3 | 3 of 3 | 98% | 61% | yes |
