@@ -101,7 +101,7 @@ public enum GeneralVocabulary {
     private static let known: Set<String> = RecogniserWords.all.union(commonHinglish)
 
     /// Romanised Hindi and Hinglish glue, so a bilingual user does not end up with a dictionary of `nahi`.
-    private static let commonHinglish: Set<String> = words(
+    static let commonHinglish: Set<String> = words(
         """
         nahi nahin haan han hum tum aap main mera meri tera teri hamara aapka unka uska
         iska kya kyu kyun kaise kaisa kaisi kab kahan kaun kitna kitne kitni woh yeh vo

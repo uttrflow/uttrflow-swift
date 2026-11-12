@@ -138,7 +138,8 @@ several pieces to do, its cost is close to the recognition alone rather than the
 together. Stage timings from the release pass are added up per stage into one measurement, so a
 dictation done in pieces still reports one figure for transcription and one for tidying.
 
-**A piece that holds speech but decodes to no words** is decoded once more without the vocabulary,
+**A piece that holds speech but decodes to no words** is decoded once more without the vocabulary
+or the text before the caret, by `DecodeBias.none`,
 since a short piece set off by pauses (a greeting, a sign-off) decodes blank now and then. If the
 second decode is blank too, the release pass leaves that piece out, inserts every other piece, and
 counts the gap in the outcome's `missedPieces`. Only when no piece has words, or the whole recording

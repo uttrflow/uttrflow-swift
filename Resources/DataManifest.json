@@ -329,6 +329,15 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "74800f7a0d9a57d0b393b3cde69c39ee8c3a2133109caa528aca4618b6aa5916",
+      "path": "Sources/UttrflowCore/Resources/Tables/html-boolean-attributes.json",
+      "origin": "authored",
+      "bytes": 477
+    },
+    {
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
       "sha256": "83ab047f409399f7b6a164c5dcd49de5561f0fcc798d4ca7414d8c4e1c101450",
       "path": "Sources/UttrflowCore/Resources/Tables/html-elements.json",
       "origin": "authored",
@@ -431,10 +440,10 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "2a01b8c706dfadf55c2f4111a93fcc820768a08cc4cc7d567a7f50911b9e185b",
+      "sha256": "b2631fa04d29c6df3c48b081e64d4fd731a8d1c97e58876a8add9d89c4f685d4",
       "path": "Sources/UttrflowCore/Resources/Tables/spoken-commands.json",
       "origin": "authored",
-      "bytes": 26791
+      "bytes": 27895
     },
     {
       "licence": "MIT",

@@ -56,7 +56,7 @@ public enum SecureField {
         let words = lower.split { !$0.isLetter && !$0.isNumber }.map(String.init)
         let wordSet = Set(words)
         let phrase = words.joined(separator: " ")
-        let compact = words.joined()
+        let pieces = text.split { !$0.isLetter && !$0.isNumber }
 
         let sensitiveCompacts = [
             "password", "passwd", "passcode", "currentpassword", "newpassword",
@@ -67,7 +67,8 @@ public enum SecureField {
             "recoverycode", "recoveryphrase", "socialsecurity", "socialsecuritynumber",
             "accountnumber", "routingnumber", "dateofbirth",
         ]
-        if sensitiveCompacts.contains(where: compact.contains) { return true }
+        let pieceLetters = pieces.map { Array($0) }
+        if sensitiveCompacts.contains(where: { spellsCompact($0, in: pieceLetters) }) { return true }
 
         let sensitivePhrases = [
             "one time code", "verification code", "auth code", "authentication code",
@@ -81,10 +82,49 @@ public enum SecureField {
 
         let codes = ["otp", "cvv", "cvc", "csc", "pin", "ssn"]
         if codes.contains(where: wordSet.contains) { return true }
-        let pieces = text.split { !$0.isLetter && !$0.isNumber }
         return pieces.contains { piece in
             codes.contains { gluesCode($0, into: piece) || gluesLowercaseCode($0, into: piece) }
         }
+    }
+
+    /// The ending that turns a secret's name into a word for doing without it, as `passwordless` does.
+    static let absenceSuffix = "less"
+
+    /// Whether a name's words spell a secret's compact form at least once without a longer word running on past it.
+    static func spellsCompact(_ secret: String, in pieces: [[Character]]) -> Bool {
+        var letters: [Character] = []
+        var origins: [(piece: Int, offset: Int)] = []
+        for (piece, word) in pieces.enumerated() {
+            for (offset, character) in word.enumerated() {
+                for lower in String(character).lowercased() {
+                    letters.append(lower)
+                    origins.append((piece, offset))
+                }
+            }
+        }
+        let target = Array(secret)
+        guard !target.isEmpty, letters.count >= target.count else { return false }
+        for start in 0...(letters.count - target.count)
+        where Array(letters[start..<(start + target.count)]) == target {
+            let end = start + target.count
+            guard end < letters.count, origins[end].piece == origins[end - 1].piece,
+                origins[end].offset != origins[end - 1].offset
+            else { return true }
+            let runOn = continuation(of: pieces[origins[end].piece], from: origins[end].offset)
+            if String(runOn).lowercased() != absenceSuffix { return true }
+        }
+        return false
+    }
+
+    /// The letters a word runs on with from `start`, up to its next digit, mark or lower-to-capital turn.
+    static func continuation(of word: [Character], from start: Int) -> ArraySlice<Character> {
+        var end = start
+        while end < word.count, word[end].isLetter,
+            !(word[end].isUppercase && word[end - 1].isLowercase)
+        {
+            end += 1
+        }
+        return word[start..<end]
     }
 
     /// Whether a lowercase word glues a short code to a whole field word; `mapping` and a postal `pincode` do not.

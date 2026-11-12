@@ -4,11 +4,12 @@ import Foundation
 import UttrflowCore
 import UttrflowInput
 import Testing
+import UttrflowTestSupport
 
 @testable import Uttrflow
 
 @MainActor
-@Suite("A dictation shortcut that could not be armed")
+@Suite("A dictation shortcut that could not be armed", .timeLimit(.minutes(1)))
 struct ShortcutArmingTests {
     /// Counts the redraws the arming asks for.
     private final class Redraws {
@@ -62,9 +63,7 @@ struct ShortcutArmingTests {
         #expect(attempts.count == 1)
 
         permission.granted = true
-        for _ in 0..<100 where arming.failure != nil {
-            try await Task.sleep(for: .milliseconds(5))
-        }
+        try await eventually { arming.failure == nil }
 
         #expect(attempts.count == 2)
         #expect(arming.failure == nil)

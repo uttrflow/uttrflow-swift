@@ -393,17 +393,14 @@ public actor PredictStore: PredictionStore {
 
     // MARK: - Writing
 
-    /// Records a value the user finished entering, and what it followed, as one transaction.
+    /// Records a value the user finished entering, as one transaction.
     public func record(
-        _ text: String, in surface: Surface, after previous: String? = nil,
-        as origin: LineOrigin = .typed, at moment: Date
+        _ text: String, in surface: Surface, as origin: LineOrigin = .typed, at moment: Date
     ) throws(PredictStoreError) {
         guard !text.isEmpty else { return }
         let moment = min(moment, Date())
         try database.transaction { () throws(PredictStoreError) in
-            try write(
-                Spelling.canonical(text), in: surface, after: previous.map(Spelling.canonical),
-                as: origin, at: moment)
+            try write(Spelling.canonical(text), in: surface, as: origin, at: moment)
         }
         try? compactIfNeeded()
     }
@@ -415,7 +412,7 @@ public actor PredictStore: PredictionStore {
 
     /// The steps of a record, which stand or fall together.
     private func write(
-        _ text: String, in surface: Surface, after previous: String?, as origin: LineOrigin, at moment: Date
+        _ text: String, in surface: Surface, as origin: LineOrigin, at moment: Date
     ) throws(PredictStoreError) {
         guard let id = try identifier(of: surface, creating: true) else { return }
         try database.run("UPDATE surface SET last_used = MAX(last_used, ?) WHERE id = ?") {
@@ -464,21 +461,7 @@ public actor PredictStore: PredictionStore {
         if !origin.isSelfSourced { try forgiveRefusals(of: text, in: surface) }
         // This whole value retires the shorter fragments it grew out of, so only it is ever proposed.
         try supersedeFragments(surfaceIdentifier: id, of: text)
-        if let previous, !previous.isEmpty {
-            try database.run(
-                """
-                INSERT INTO succession (surface_id, previous, next, count) VALUES (?, ?, ?, 1)
-                ON CONFLICT (surface_id, previous, next) DO UPDATE SET count = count + 1
-                """,
-                {
-                    $0.bind(1, id)
-                    $0.bind(2, previous)
-                    $0.bind(3, text)
-                })
-        }
-        try evictWeakest(
-            surfaceIdentifier: id, protecting: text,
-            succession: previous.map { (previous: $0, next: text) })
+        try evictWeakest(surfaceIdentifier: id, protecting: text)
         try evictOldestSurfaces(
             bundleIdentifier: surface.bundleIdentifier, role: surface.role, locator: surface.locator ?? "",
             keepingSurface: id)
@@ -555,7 +538,7 @@ public actor PredictStore: PredictionStore {
         leaveNothingBehind()
     }
 
-    /// Retires one entry in this scope, and every succession naming it, so other scopes cannot offer it here.
+    /// Retires one entry in this scope, so other scopes cannot offer it here.
     public func forget(_ text: String, in surface: Surface) throws(PredictStoreError) {
         guard let id = try identifier(of: surface, creating: false) else { return }
         let text = Spelling.canonical(text)
@@ -574,17 +557,12 @@ public actor PredictStore: PredictionStore {
                 $0.bind(1, id)
                 $0.bind(2, digest)
             }
-            try database.run("DELETE FROM succession WHERE surface_id = ? AND (previous = ? OR next = ?)") {
-                $0.bind(1, id)
-                $0.bind(2, text)
-                $0.bind(3, text)
-            }
         }
         try database.flush()
         leaveNothingBehind()
     }
 
-    /// Forgets every surface, and with it every entry and succession they hold.
+    /// Forgets every surface, and with it every entry they hold.
     public func forgetEverything() throws(PredictStoreError) {
         try database.execute("DELETE FROM surface")
         try database.flush()
@@ -628,24 +606,6 @@ public actor PredictStore: PredictionStore {
             where refuses(text, surface) || replacement.map({ refuses($0, surface) }) == true {
                 try database.run("DELETE FROM entry WHERE id = ?") { $0.bind(1, id) }
                 removed += 1
-            }
-            let successions = try database.rows(
-                """
-                SELECT succession.rowid, succession.previous, succession.next,
-                       surface.bundle_id, surface.role, surface.locator, surface.scope
-                FROM succession JOIN surface ON surface.id = succession.surface_id
-                """, { _ in }
-            ) {
-                (
-                    Int64($0.integer(0)), $0.text(1), $0.text(2),
-                    Surface(
-                        bundleIdentifier: $0.text(3), role: $0.text(4), locator: $0.text(5),
-                        scope: $0.text(6))
-                )
-            }
-            for (row, previous, next, surface) in successions
-            where refuses(previous, surface) || refuses(next, surface) {
-                try database.run("DELETE FROM succession WHERE rowid = ?") { $0.bind(1, row) }
             }
             try database.run(
                 "INSERT INTO sweep (name, version) VALUES (?, ?) ON CONFLICT (name) DO UPDATE SET version = excluded.version",

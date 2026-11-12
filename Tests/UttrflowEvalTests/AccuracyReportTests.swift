@@ -70,6 +70,26 @@ struct AccuracyReportTests {
         #expect(!judged.contains("too small"))
     }
 
+    @Test("cases scored on the romanised output are named, not called the recogniser's words before clean-up")
+    func namesOutputScoredCases() throws {
+        let romanised = BaselineEntry(
+            caseID: "h", language: .hinglish, stresses: ["everyday"], cohortID: "synthesised-example",
+            errors: 5,
+            referenceWordCount: 25, isUnscorable: false, recordingIdentity: "sha256:h", scoresOutput: true)
+        let mixed = Self.baseline(Self.current.entries + [romanised], day: 20_010)
+        let lines = AccuracyReport(version: "x", baseline: mixed, history: AccuracyHistory()).markdown
+            .split(separator: "\n")
+        let cleanUp = try #require(lines.first { $0.hasPrefix("- Clean-up engine:") })
+        #expect(cleanUp.contains("except the cases scored on output below"))
+        let output = try #require(lines.first { $0.hasPrefix("- Scored on output:") })
+        #expect(
+            output
+                == "- Scored on output: 1 case, h, counted on the romanised text the user receives "
+                + "rather than the recogniser's Devanagari")
+        #expect(!Self.report.markdown.contains("- Scored on output:"))
+        #expect(!Self.report.markdown.contains("except the cases scored on output"))
+    }
+
     @Test("rates are given per slice and never pooled into one headline")
     func neverPooled() {
         #expect(!Self.report.markdown.contains("| overall |"))

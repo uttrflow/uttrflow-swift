@@ -8,6 +8,7 @@ import UttrflowPredictCapture
 import UttrflowPredictStore
 
 @testable import Uttrflow
+@testable import UttrflowUX
 
 @MainActor
 @Suite("Taking an accepted suggestion into the field")
@@ -20,8 +21,7 @@ struct SuggestionTakeTests {
         private(set) var accepted: [String] = []
 
         func record(
-            _ text: String, in surface: Surface, after previous: String?, as origin: LineOrigin,
-            at moment: Date
+            _ text: String, in surface: Surface, as origin: LineOrigin, at moment: Date
         ) {
             texts.append(text)
         }
@@ -38,12 +38,23 @@ struct SuggestionTakeTests {
         var trustLosses = 0
     }
 
+    /// The surface a refused offer is put back on; a trust withdrawal hides it, which forgets the offer.
+    private final class OfferSurface: RefusedOfferSurface {
+        var held: Suggestion? = .certain("git commit")
+        var putBacks: [(offer: Suggestion, notice: String)] = []
+
+        func takenDownOffer() -> Suggestion? { held }
+
+        func putBack(_ offer: Suggestion, saying notice: String) { putBacks.append((offer, notice)) }
+    }
+
     @MainActor
     private struct Fixture {
         let container: URL
         let lines = Lines()
         let acceptances = AcceptanceQueue()
         let insertion = Insertion()
+        let surface = OfferSurface()
         let take: SuggestionTake
 
         init() async throws {
@@ -57,6 +68,7 @@ struct SuggestionTakeTests {
                 policy: .whereReturnSends)
             try await capture.record(.allowed, for: SuggestionTakeTests.application)
             let insertion = insertion
+            let surface = surface
             take = SuggestionTake(
                 insert: { suggestion, typed, window throws(TextInsertionError) in
                     insertion.calls.append((suggestion, typed, window))
@@ -64,7 +76,11 @@ struct SuggestionTakeTests {
                     return .accessibility
                 },
                 acceptances: acceptances, capture: capture,
-                trustLost: { insertion.trustLosses += 1 })
+                surface: surface,
+                trustLost: {
+                    insertion.trustLosses += 1
+                    surface.held = nil
+                })
         }
 
         func remove() { try? FileManager.default.removeItem(at: container) }
@@ -126,6 +142,48 @@ struct SuggestionTakeTests {
         #expect(outcome == .refused)
         #expect(fixture.insertion.trustLosses == 1)
         #expect(await fixture.lines.texts.isEmpty)
+    }
+
+    @Test("a refusal for lost trust puts the offer back with the fix, read before the withdrawal forgets it")
+    func lostTrustPutsOfferBack() async throws {
+        let fixture = try await Fixture()
+        defer { fixture.remove() }
+        fixture.insertion.failure = .accessibilityDenied
+
+        let outcome = await fixture.take.take(
+            "git commit", after: "git c", in: Self.reading(window: 42), closingPunctuation: "")
+
+        #expect(outcome == .refused)
+        #expect(fixture.insertion.trustLosses == 1)
+        #expect(fixture.surface.putBacks.map(\.offer) == [.certain("git commit")])
+        #expect(
+            fixture.surface.putBacks.map(\.notice) == [SuggestionRuntimeStatus.accessibilityDeniedMessage])
+    }
+
+    @Test("a refusal whose offer was withdrawn meanwhile puts nothing back")
+    func withdrawnOfferStaysDown() async throws {
+        let fixture = try await Fixture()
+        defer { fixture.remove() }
+        fixture.insertion.failure = .accessibilityDenied
+        fixture.surface.held = nil
+
+        _ = await fixture.take.take(
+            "git commit", after: "git c", in: Self.reading(window: 42), closingPunctuation: "")
+
+        #expect(fixture.insertion.trustLosses == 1)
+        #expect(fixture.surface.putBacks.isEmpty)
+    }
+
+    @Test("an insertion that may have written is not explained as a refusal")
+    func uncertainWriteIsNotExplained() async throws {
+        let fixture = try await Fixture()
+        defer { fixture.remove() }
+        fixture.insertion.failure = .insertionUnconfirmed
+
+        _ = await fixture.take.take(
+            "git commit", after: "git c", in: Self.reading(window: 42), closingPunctuation: "")
+
+        #expect(fixture.surface.putBacks.isEmpty)
     }
 
     @Test("an unconfirmed write may have landed, so it is reported as uncertain and learns nothing")

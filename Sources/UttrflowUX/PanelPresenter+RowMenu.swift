@@ -5,7 +5,7 @@ import UttrflowClipboard
 extension PanelPresenter {
     /// Insert first because it is what the row is for, then reveal, and pinning last.
     static func actions(
-        for clip: Clip, isMasked: Bool, in snapshot: PanelSnapshot
+        for clip: Clip, isMasked: Bool, in snapshot: PanelSnapshot, using cache: PanelCache
     )
         -> [PanelAction]
     {
@@ -58,7 +58,7 @@ extension PanelPresenter {
                     title: "Format", symbolName: "wand.and.stars", intent: .format(clip.id),
                     shortcut: PanelRowAction.format.chord))
         }
-        if PanelCache.current.reindentOffers.offers(clip) {
+        if cache.reindentOffers.offers(clip) {
             actions.append(
                 PanelAction(
                     title: "Re-indent", symbolName: "text.alignleft",

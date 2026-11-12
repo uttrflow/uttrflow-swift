@@ -3,11 +3,12 @@ import CoreML
 import Foundation
 import Synchronization
 import Testing
+import UttrflowTestSupport
 import WhisperKit
 
 @testable import UttrflowSpeech
 
-@Suite("The decode session")
+@Suite("The decode session", .timeLimit(.minutes(1)))
 struct DecodeSessionTests {
     static let special = DecoderPrefillTests.specialTokens
     /// Start of transcript, English, transcribe, no timestamps: the opening WhisperKit forces.
@@ -136,7 +137,10 @@ struct DecodeSessionTests {
     @Test("stops when the progress callback answers false past the prefill")
     func callbackStops() async throws {
         let reported = Mutex(0)
-        let decoder = ScriptedDecoder(script: [:], delay: .milliseconds(20))
+        // Each step waits until the callback has answered every step before it, however late a busy run schedules it.
+        let decoder = ScriptedDecoder(script: [:]) { step in
+            try await eventually { reported.withLock { $0 } >= step }
+        }
 
         let result = try await Self.decode(decoder) { progress in
             reported.withLock { $0 += 1 }
@@ -201,15 +205,19 @@ final class ScriptedDecoder: TextDecoding {
     var windowSize: Int? { 3 }
     var embedSize: Int? { 3 }
     private let script: [Int: Int]
-    private let delay: Duration
+    /// Runs before each step with the count of steps already taken, so a test can hold the decoder in step with its callback.
+    private let pace: (@Sendable (Int) async throws -> Void)?
     private let fault: Fault?
     /// The token leading an unscripted step, or `nil` for logits that favour no token.
     private let unscripted: Int?
     private(set) var fed: [Int] = []
 
-    init(script: [Int: Int], delay: Duration = .zero, fault: Fault? = nil, unscripted: Int? = 7) {
+    init(
+        script: [Int: Int], fault: Fault? = nil, unscripted: Int? = 7,
+        pace: (@Sendable (Int) async throws -> Void)? = nil
+    ) {
         self.script = script
-        self.delay = delay
+        self.pace = pace
         self.fault = fault
         self.unscripted = unscripted
     }
@@ -223,7 +231,7 @@ final class ScriptedDecoder: TextDecoding {
 
     func predictLogits(_ inputs: any TextDecoderInputType) async throws -> (any TextDecoderOutputType)? {
         guard let inputs = inputs as? TextDecoderMLMultiArrayInputType, fault != .noOutput else { return nil }
-        if delay > .zero { try await Task.sleep(for: delay) }
+        try await pace?(fed.count)
         fed.append(inputs.inputIds[0].intValue)
         let dominant = script[inputs.cacheLength[0].intValue] ?? unscripted
         let logits = try Self.array([1, 1, DecoderPrefillTests.vocabularySize], dominant: dominant)

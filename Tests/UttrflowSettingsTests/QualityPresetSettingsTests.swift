@@ -26,6 +26,14 @@ struct QualityPresetSettingsTests {
         #expect(settings.qualityPreset(forBundleIdentifier: nil) == .verbatim)
     }
 
+    @Test("a dictation runs under the preset chosen for every app, which is not stored with the apps")
+    func dictationOverridesHoldThePreset() throws {
+        let settings = Settings(qualityPreset: .code)
+        #expect(settings.dictationOverrides.qualityPreset(forBundleIdentifier: bundle) == .code)
+        #expect(settings.dictationOverrides.overrides == settings.destinations.overrides)
+        #expect(Settings.default.dictationOverrides == Settings.default.destinations)
+    }
+
     @Test("the choice survives a save, and a file written before presets reads as standard")
     func storedForm() throws {
         let saved = try JSONEncoder().encode(Settings(qualityPreset: .code))

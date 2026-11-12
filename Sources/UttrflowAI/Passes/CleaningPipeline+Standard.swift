@@ -9,7 +9,8 @@ extension CleaningPipeline {
         for formatter: DestinationFormatter, situation: Situation, steps: CleaningSteps = .default,
         pauses: PauseLength = .usual
     ) -> CleaningPipeline {
-        CleaningPipeline(
+        let steps = situation.cleaningSteps(steps)
+        return CleaningPipeline(
             passes: piece(
                 numbers: formatter.numbers, digits: situation.digits(for: formatter),
                 layout: formatter.layout,
@@ -40,6 +41,7 @@ extension CleaningPipeline {
         intent: WritingIntent = .unknown, steps: CleaningSteps = .default, pauses: PauseLength = .usual,
         screen: Situation = .unknown, mode: AdapterMode = .auto, readsWholeText: Bool = true
     ) -> CleaningPipeline {
+        let steps = screen.cleaningSteps(steps)
         let identifiers = ScreenVocabulary(screen)
         var cleanings: [any PieceCleaningPass] = [
             FillersPass(), RepeatedPhrasePass(), StammersPass(), SelfCorrectionPass(),
