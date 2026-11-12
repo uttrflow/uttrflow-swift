@@ -37,10 +37,12 @@ struct GuardNumberWordsTests {
     func signStaysWithItsAmount() {
         #expect(
             MeaningPreservationGuard.changedQuantity(
-                original: "set alpha to -5 and beta to 5", rewritten: "Set alpha to five and beta to -5.") == "-5")
+                original: "set alpha to -5 and beta to 5", rewritten: "Set alpha to five and beta to -5.")
+                == "-5")
         #expect(
             MeaningPreservationGuard.changedQuantity(
-                original: "set alpha to -5 and beta to 5", rewritten: "Set alpha to -5 and beta to five.") == nil)
+                original: "set alpha to -5 and beta to 5", rewritten: "Set alpha to -5 and beta to five.")
+                == nil)
     }
 
     @Test("a number said in words stands for one amount, not for each of its words")

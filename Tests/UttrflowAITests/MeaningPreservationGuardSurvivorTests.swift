@@ -167,10 +167,12 @@ struct MeaningPreservationGuardSurvivorTests {
         #expect(invented("tag corner bakes", "Tag @cornerbakes cornerbakes."))
         let kept = MeaningPreservationGuard.grammarTokens("please tag corner bakes this afternoon")
         #expect(
-            MeaningPreservationGuard.closedUpIntoNotation(kept, in: "@cornerbakes please tag this afternoon.").kept
+            MeaningPreservationGuard.closedUpIntoNotation(kept, in: "@cornerbakes please tag this afternoon.")
+                .kept
                 .isEmpty)
         #expect(
-            MeaningPreservationGuard.closedUpIntoNotation(kept, in: "Please tag @cornerbakes this afternoon.").kept
+            MeaningPreservationGuard.closedUpIntoNotation(kept, in: "Please tag @cornerbakes this afternoon.")
+                .kept
                 == [2, 3])
     }
 }

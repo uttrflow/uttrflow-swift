@@ -84,10 +84,11 @@ extension MeaningPreservationGuard {
                 index = spoken.indices[cursor...].first { index in
                     !spoken[index].worded && spoken[index].quantity.digits == found.quantity.digits
                 }
-                if let index, spoken[index].quantity.sign != found.quantity.sign
-                    || spoken[index].quantity.symbol != found.quantity.symbol
-                {
-                    return spoken[index].quantity.written
+                if let index {
+                    let quantity = spoken[index].quantity
+                    if quantity.sign != found.quantity.sign || quantity.symbol != found.quantity.symbol {
+                        return quantity.written
+                    }
                 }
             }
             guard let index else { continue }
@@ -95,7 +96,9 @@ extension MeaningPreservationGuard {
             cursor = index + 1
         }
         guard written.filter({ !$0.worded }).count < spokenDigits else { return nil }
-        return spoken.indices.first { !matched.contains($0) && !spoken[$0].worded }.map { spoken[$0].quantity.written }
+        return spoken.indices.first { !matched.contains($0) && !spoken[$0].worded }.map {
+            spoken[$0].quantity.written
+        }
     }
 
     /// The amounts a text states in order: those in digits with their sign and symbol, and each whole number in words once.
@@ -103,7 +106,8 @@ extension MeaningPreservationGuard {
         in text: String, reading table: [String: String]
     ) -> [(quantity: Quantity, worded: Bool)] {
         var digits = amounts(in: text)[...]
-        return numberReadings(in: text, reading: table).compactMap { reading -> (quantity: Quantity, worded: Bool)? in
+        return numberReadings(in: text, reading: table).compactMap {
+            reading -> (quantity: Quantity, worded: Bool)? in
             guard reading.worded else {
                 defer { digits = digits.dropFirst() }
                 return digits.first.map { ($0, false) }
@@ -203,7 +207,9 @@ extension MeaningPreservationGuard {
                 found.append((decimal.text, true, true))
                 index = decimal.end
             } else if let read = spokenNumber(words[index...]), read.count > 1 {
-                found += words[index..<(index + read.count)].compactMap { table[$0] }.map { ($0, true, false) }
+                found += words[index..<(index + read.count)].compactMap { table[$0] }.map {
+                    ($0, true, false)
+                }
                 index += read.count
                 found.append((spokenMagnitude(String(read.value), words, &index), true, true))
             } else {

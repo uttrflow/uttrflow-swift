@@ -197,7 +197,8 @@ extension MeaningPreservationGuard {
         let before = run.lowerBound > 0 ? DoubtfulSpan.closedUp(kept[run.lowerBound - 1].matching) : ""
         let after = run.upperBound < kept.count ? DoubtfulSpan.closedUp(kept[run.upperBound].matching) : ""
         let keptBefore = before.isEmpty || !spellings.contains(before) || spellings[..<place].contains(before)
-        let keptAfter = after.isEmpty || !spellings.contains(after) || spellings[(place + 1)...].contains(after)
+        let keptAfter =
+            after.isEmpty || !spellings.contains(after) || spellings[(place + 1)...].contains(after)
         return keptBefore && keptAfter
     }
 
