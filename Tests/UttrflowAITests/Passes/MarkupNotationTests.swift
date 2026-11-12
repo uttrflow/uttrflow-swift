@@ -94,11 +94,14 @@ struct MarkupNotationTests {
     @Test("writes an attribute said by name alone, with no value")
     func booleanAttributes() {
         let form = "<form>\n"
-        #expect(Self.written("open input disabled close", in: "index.html", after: form) == "<input disabled>")
+        #expect(
+            Self.written("open input disabled close", in: "index.html", after: form) == "<input disabled>")
         #expect(
             Self.written("open input type equals checkbox checked close", in: "index.html", after: form)
                 == "<input type=checkbox checked>")
-        #expect(Self.written("open input quickly close", in: "index.html", after: form) == "open input quickly close")
+        #expect(
+            Self.written("open input quickly close", in: "index.html", after: form)
+                == "open input quickly close")
     }
 
     @Test("reads a word as markup only in the slot its row names")

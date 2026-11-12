@@ -308,6 +308,7 @@ ALLOWED_TEXT_RESOURCES=(
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/field-kinds.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/function-words.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/hindi-words.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/html-boolean-attributes.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/html-elements.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/kinship-words.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/layout-series-words.json"
