@@ -62,7 +62,7 @@ public actor DictationPipeline {
     /// How long `prepare()` waits for the speech model before calling the load failed.
     let speechLoadLimit: Duration
     /// How many loads are running, since a switch can begin one before the last has ended.
-    private var loadsUnderWay = 0
+    var loadsUnderWay = 0
 
     /// Reads how long the microphone has been open, closing over the injected clock.
     var stopwatch: (() -> Duration)?
@@ -251,7 +251,7 @@ public actor DictationPipeline {
     /// Whether the recogniser has loaded and the next dictation will not wait for it.
     public internal(set) var isReady = false
     /// Why the last load ended without a model; cleared by a load that works.
-    public private(set) var lastLoadFailure: SpeechLoadFailureClass?
+    public internal(set) var lastLoadFailure: SpeechLoadFailureClass?
 
     /// Whether `prepare` is loading the recogniser right now; a dictation started now gets its words when it ends.
     public var isLoading: Bool { loadsUnderWay > 0 }
@@ -274,37 +274,6 @@ public actor DictationPipeline {
     /// The finished pieces' words while the key is held; absent at rest, after a cancel and for a secure field.
     public func wordsHeardSoFar() -> AsyncStream<String?> {
         heardObservers.makeStream(startingWith: heardSoFar)
-    }
-
-    /// Loads the speech model so the first dictation is not the slow one. See `Docs/startup.md`.
-    public func prepare() async {
-        loadsUnderWay += 1
-        defer { loadsUnderWay -= 1 }
-        let engine = speech
-        var timedOut = false
-        do {
-            // Stops waiting at the limit rather than awaiting a cancel, since a blocked load ignores one. See `Docs/startup.md`.
-            let loaded = try await withStageTimeout(speechLoadLimit, clock: clock) {
-                try await engine.prepare()
-                return true
-            }
-            guard loaded == true else {
-                timedOut = true
-                throw SpeechEngineError.modelLoadFailed(
-                    description: "the load did not finish within \(speechLoadLimit)")
-            }
-            isReady = true
-            lastLoadFailure = nil
-            // A retry that works clears the notice the failed attempt left behind.
-            if case .failed = state, !isBusy { transition(to: .idle) }
-        } catch {
-            isReady = false
-            lastLoadFailure = timedOut ? .timedOut : SpeechLoadFailureClass(error)
-            // Never over a dictation in progress: loading can run while the user speaks.
-            if !isBusy {
-                transition(to: .failed(DictationFailure(error, speechEngineKind: engine.kind)))
-            }
-        }
     }
 
     // MARK: The sequence
