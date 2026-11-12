@@ -89,15 +89,13 @@ extension DictationPipeline {
             whole
             ? audio
             : AudioSamples(samples: Array(audio.samples[window]), sampleRate: audio.sampleRate) ?? .empty
-        // The dictation's one read, so every piece is conditioned on the same caret. See `Docs/context-budget.md`.
-        let preceding = dictationContext?.situation.recognitionContext
         var heard = try await decode(
-            slice, whole: whole, biasedTowards: words, after: preceding, recording: metrics, generation: mine)
-        // The second decode goes without the prompt, which is the one input a retry can change.
+            slice, whole: whole, biasedTowards: words, under: .same, recording: metrics, generation: mine)
+        // The second decode goes without the prompt and its bias, which are the inputs a retry can change.
         if case .missed = heard {
             let retrying = UttrflowCore.stopwatch(from: clock)
             heard = try await decode(
-                slice, whole: whole, biasedTowards: [], after: nil, recording: metrics, generation: mine)
+                slice, whole: whole, biasedTowards: words, under: .none, recording: metrics, generation: mine)
             // The second decode is this piece's retry; what it already names, such as fallbacks, is left out.
             if case .words(let transcription) = heard {
                 let spent = retrying().inSeconds - transcription.effort.namedSeconds
@@ -125,7 +123,7 @@ extension DictationPipeline {
 
     /// One decode of a slice, telling words, silence and speech that produced no words apart.
     private func decode(
-        _ slice: AudioSamples, whole: Bool, biasedTowards words: [String], after preceding: String?,
+        _ slice: AudioSamples, whole: Bool, biasedTowards words: [String], under bias: DecodeBias,
         recording metrics: any MetricsRecording, generation mine: Int
     ) async throws -> Heard {
         // The default profile detects each piece; a Hindi-only profile pins each piece to Hindi. See `Docs/speech-engines.md`.
@@ -139,11 +137,7 @@ extension DictationPipeline {
         if !isReady {
             let wasLoading = isLoading
             let waited = UttrflowCore.stopwatch(from: clock)
-            let loaded = try await withStageTimeout(speechLoadLimit, clock: clock) { [speech] in
-                try await speech.prepare()
-                return true
-            }
-            guard loaded == true else { throw SpeechEngineError.recogniserTimedOut }
+            guard try await loadWithinLimit(speech) == nil else { throw SpeechEngineError.recogniserTimedOut }
             if wasLoading || waited() >= SpeechModelLoad.estimateAfter { waitedForLoad = true }
         }
         let heard = try await metrics.measuringInTime(
@@ -154,9 +148,9 @@ extension DictationPipeline {
                 do {
                     let transcription = try await speech.transcribe(
                         slice,
-                        options: TranscriptionOptions(
-                            languageHint: language, vocabulary: words,
-                            precedingText: preceding))
+                        options: bias.options(
+                            TranscriptionOptions(
+                                languageHint: language, vocabulary: words, precedingText: preceding)))
                     await metrics.recordVocabularyPrompt(transcription.vocabularyPrompt)
                     await metrics.recordConditioning(transcription.conditioning)
                     // A piece mostly in a script neither language is written in is a recognition failure, not words.

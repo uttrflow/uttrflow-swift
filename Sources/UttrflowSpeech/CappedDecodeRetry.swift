@@ -46,9 +46,13 @@ public enum CappedDecodeRetry {
                 conditioning: biased.conditioning)
         }
 
+        let unbiased = DecodeBias.none.options(
+            TranscriptionOptions(
+                languageHint: languageHint, vocabulary: vocabulary, precedingText: precedingText))
         let retried = try await transcribe(
-            samples: samples, sampleRate: sampleRate, languageHint: languageHint,
-            vocabulary: DecodeBias.none.vocabulary(of: vocabulary), using: backend, budget: &budget)
+            samples: samples, sampleRate: sampleRate, languageHint: unbiased.languageHint,
+            vocabulary: unbiased.vocabulary, precedingText: unbiased.precedingText,
+            using: backend, budget: &budget)
         return RawTranscript(
             text: retried.text,
             languageIdentifier: retried.languageIdentifier,
