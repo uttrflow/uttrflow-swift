@@ -475,6 +475,15 @@
       "licence": "MIT"
     },
     {
+      "note": "invented personas and the sentences they dictate, read through PersonaCorpus; every name is made up",
+      "sha256": "28369fd568c332d6e69fd21ecbfef9f658aa9dd1d459f00f91de09f440ad44c5",
+      "path": "Sources/UttrflowEval/Resources/Corpus/Personas/personas.json",
+      "origin": "authored",
+      "redistribution": true,
+      "bytes": 2479,
+      "licence": "MIT"
+    },
+    {
       "note": "evaluation cases read through CorpusFile",
       "sha256": "56a795529317f048e158ab3c81dc58eb74aba1f552e46a250879aa6c2d214e9e",
       "path": "Sources/UttrflowEval/Resources/Corpus/bareLiteral.json",
