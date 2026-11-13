@@ -133,6 +133,9 @@
         { "id": "summary", "cues": ["headingLabel"] },
         { "id": "reminder", "cues": ["headingLabel"] },
         { "id": "question", "cues": ["headingLabel"] },
-        { "id": "answer", "cues": ["headingLabel"] }
+        { "id": "answer", "cues": ["headingLabel"] },
+        { "id": "return", "cues": ["statusLead"] },
+        { "id": "returns", "cues": ["statusLead"] },
+        { "id": "returned", "cues": ["statusLead"] }
     ]
 }

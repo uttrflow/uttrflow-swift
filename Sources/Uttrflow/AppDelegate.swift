@@ -4020,9 +4020,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 ApplicationPicker.chooseInstalled { [weak self] app in
                     self?.settingsPage.apply(SettingsPresenter.addingContextLevelApp(app))
                 }
-            case .chooseApplicationToKeepNoHistory:
+            case .chooseApplicationToKeepNoHistory, .chooseApplicationToStopLearning:
                 ApplicationPicker.chooseInstalled { [weak self] app in
-                    self?.settingsPage.apply(.keepsHistory(application: app.bundleIdentifier, isOn: false))
+                    self?.settingsPage.apply(change.leavingOut(app.bundleIdentifier))
                 }
             case .manageClipboardExclusions: manageClipboardExclusions()
             case .exportPersonalData: exportPersonalData()

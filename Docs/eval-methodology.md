@@ -37,6 +37,16 @@ and the class that moved, never alone.
 
 ## The baseline gate
 
+Each adapter's cases are scored on their own. A case belongs to an adapter when it names one, or
+when it sits in a `<name>Notation` set (`CorpusFile.adapter(ofSet:)`: `markupNotation` holds the
+`markup` adapter's cases). `make bakeoff` prints one `per adapter` table under every candidate it
+measures: cases, exact-match hits, added words and broken shapes (`AdapterReport`). The rules'
+score is held to `Tests/UttrflowEvalTests/Golden/adapters.json` by `AdapterBaselineTests`, which
+fails when an adapter's exact hits fall or an added word or a broken shape appears, and when the
+adapters or their case counts no longer match the file; rerun it with `UTTRFLOW_UPDATE_GOLDEN=1`
+after adding cases. Now: `markup` 40 of 40 and `source` 90 of 90 exact. Parse validity and
+abstention precision and recall wait for a validator and an abstention set per adapter.
+
 Saved adapter comparisons require unique adapter names in both reports. Duplicate rows return an
 incomparable result before constructing the baseline lookup; label mismatch retains precedence.
 After label, row identity and denominator checks, both reports must have nonnegative raw counts
@@ -1316,3 +1326,42 @@ words inside a sentence in English and 100% in Hinglish, and 94.7% and 98.6% on 
 - The figures rest on 6 English passages and 6 Hinglish passages read by one voice each, so the
   intervals are wide, and a synthesiser pauses at every written stop. They show that repair is
   needed for commas; they do not rank the candidates for the bake-off.
+
+## A persona's words off, on and wrong (`persona-eval`)
+
+`uttrflow-eval persona-eval` has Samantha read nine invented sentences, three for each of three
+invented personas (`PersonaCorpus`: a developer, a clinician and a support agent, each with four
+invented names of tools, projects and people). Every clip is decoded three times with the shipping
+model under the English hint: with no persona words (`off`), with the words of the persona that
+dictated it (`on`, handed over as the recogniser's vocabulary), and with the next persona's words
+(`wrong`). `PersonaReport` sums word error rate and terms heard per persona and condition, then
+states the gain from the right words and the harm from the wrong ones, in points of word error
+rate. The command exits non-zero when the wrong words add more than `PersonaReport.harmLimit` (2
+points) for any persona, so a persona feature that hurts fails the run.
+
+WhisperKit `openai_whisper-large-v3-v20240930_turbo_632MB`, weights
+`0f63a7800b00dd0226abd051b906c246e1907482`, synthetic speech, nine clips:
+
+| Persona | Words | Clips | Terms heard | Word error rate |
+|---|---|---|---|---|
+| clinician | off | 3 | 0/6 | 20.7% |
+| clinician | on | 3 | 6/6 | 0.0% |
+| clinician | wrong | 3 | 1/6 | 17.2% |
+| developer | off | 3 | 1/6 | 17.9% |
+| developer | on | 3 | 6/6 | 0.0% |
+| developer | wrong | 3 | 1/6 | 17.9% |
+| support | off | 3 | 0/6 | 24.0% |
+| support | on | 3 | 6/6 | 0.0% |
+| support | wrong | 3 | 0/6 | 24.0% |
+
+| Persona | Gain from its own words | Harm from another's |
+|---|---|---|
+| clinician | +20.7 points | -3.4 points |
+| developer | +17.9 points | +0.0 points |
+| support | +24.0 points | +0.0 points |
+
+The right words recovered every term and removed every error; the wrong words did no harm on
+these sentences. Nine clips, one voice and invented names bound nothing: the intervals are wide,
+and the harm check passes because the words are far from every other persona's, not because
+conditioning cannot hurt. Not measured: Apple's engine, a persona built from the dictionary rather
+than handed over whole, context from the screen, and real speech.

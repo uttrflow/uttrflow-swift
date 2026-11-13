@@ -383,10 +383,10 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "e664bc5f1fe0a587fd580ca0cbdae0e8be0e85f9e1d4ab90cbef1e871f1865be",
+      "sha256": "93039f99eb42f04077701fbe66fcead0547a75fca521f2bbb52fca9a5cbaf11c",
       "path": "Sources/UttrflowCore/Resources/Tables/number-cues.json",
       "origin": "authored",
-      "bytes": 7209
+      "bytes": 7368
     },
     {
       "licence": "MIT",
@@ -475,6 +475,15 @@
       "licence": "MIT"
     },
     {
+      "note": "invented personas and the sentences they dictate, read through PersonaCorpus; every name is made up",
+      "sha256": "28369fd568c332d6e69fd21ecbfef9f658aa9dd1d459f00f91de09f440ad44c5",
+      "path": "Sources/UttrflowEval/Resources/Corpus/Personas/personas.json",
+      "origin": "authored",
+      "redistribution": true,
+      "bytes": 2479,
+      "licence": "MIT"
+    },
+    {
       "note": "evaluation cases read through CorpusFile",
       "sha256": "56a795529317f048e158ab3c81dc58eb74aba1f552e46a250879aa6c2d214e9e",
       "path": "Sources/UttrflowEval/Resources/Corpus/bareLiteral.json",
@@ -503,11 +512,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "3f87e644c43e31482a07773e49fb7a64f6df8d195a4c2221e26531be000fad4b",
+      "sha256": "202f8c242af557582c4ec18e62432d74df317e78d9946f668ca7cc338dae10e7",
       "path": "Sources/UttrflowEval/Resources/Corpus/developerGenre.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 23259,
+      "bytes": 23252,
       "licence": "MIT"
     },
     {
@@ -728,11 +737,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "11e8b46d01b4f5560816d02b2c8322fd02e53d2d94a159bea4fd0e75bdf5fafe",
+      "sha256": "1c7909ca0b14d89a13c975b4930c0bdd40f682b24702024d3efb0a1488545cfa",
       "path": "Sources/UttrflowEval/Resources/Corpus/technical.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 55680,
+      "bytes": 55660,
       "licence": "MIT"
     },
     {

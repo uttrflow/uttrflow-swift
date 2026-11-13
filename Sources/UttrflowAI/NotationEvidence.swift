@@ -1,7 +1,7 @@
-import UttrflowCore
+package import UttrflowCore
 
 /// The one rule for when spoken code symbols are written: the screen's cues, then the speech's, against one threshold.
-enum NotationEvidence {
+package enum NotationEvidence {
     /// The confidence notation needs; one screen cue reaches it and no speech cue alone does. See `Docs/adapters.md` §2.
     static let activationThreshold = 1.0
 
@@ -131,6 +131,33 @@ enum NotationEvidence {
             return screen
         }
         return Applicability(cues: [.queryStatement])
+    }
+
+    /// Whether the tail goes on with the statement the head opened: it holds notation and does not open a statement of its own, which alone it would be read as prose for lacking a keyword.
+    package static func continuesStatement(
+        head: String, tail: String, destination: Destination, situation: Situation
+    ) -> Bool {
+        guard destination == .sqlEditor else { return false }
+        let region = situation.intent.region
+        func spoken(_ text: String) -> [String] {
+            WordTokens.words(text, .display).map(CodeEditorCommandsPass.bare).filter { !$0.isEmpty }
+        }
+        let tailWords = spoken(tail)
+        guard let opening = tailWords.first, !statementOpeners.contains(opening),
+            tailWords.contains(where: { notationWords.contains($0) })
+                || splitsCommand(between: spoken(head).last, and: opening),
+            applicability(of: tailWords, given: Applicability(cues: [.queryStatement]))
+                .activates(at: activationThreshold)
+        else { return false }
+        return isQueryStatement(words: spoken(head), destination: destination, region: region)
+    }
+
+    /// Whether a notation command of several words is said as `last` at the end of one piece and `first` at the start of the next.
+    private static func splitsCommand(between last: String?, and first: String) -> Bool {
+        guard let last else { return false }
+        return SpokenCommands.codeSymbols.contains { command in
+            zip(command.words, command.words.dropFirst()).contains { $0 == last && $1 == first }
+        }
     }
 
     /// The words a dictated statement opens with; the rest of its keywords are rows of the notation table.

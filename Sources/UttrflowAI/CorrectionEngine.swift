@@ -430,8 +430,10 @@ struct UncertainSpan: Sendable, Equatable {
     }
 
     /// The same runs over a draft, reading the words as the passes left them and skipping what nobody said.
-    static func spans(in draft: Draft, apart: Set<Int> = []) -> [UncertainSpan] {
-        spans(in: saidWords(in: draft).map { ($0.text, $0.confidence, $0.settled) }, apart: apart)
+    static func spans(in draft: Draft, apart: Set<Int> = [], spelled: Set<Int> = []) -> [UncertainSpan] {
+        spans(
+            in: saidWords(in: draft).map { ($0.text, $0.confidence, $0.settled) }, apart: apart,
+            spelled: spelled)
     }
 
     /// The draft's words a run's range counts over: those still standing that the recogniser heard.
@@ -441,12 +443,13 @@ struct UncertainSpan: Sendable, Equatable {
 
     /// The runs themselves, over anything that can name a word and how sure the recogniser was of it; `apart` holds the words context doubts.
     static func spans(
-        in words: [(text: String, confidence: Double, settled: Bool)], apart: Set<Int> = []
+        in words: [(text: String, confidence: Double, settled: Bool)], apart: Set<Int> = [],
+        spelled: Set<Int> = []
     ) -> [UncertainSpan] {
         let doubts = words.indices.map { index in
             let word = words[index]
             return DoubtPolicy.reason(text: word.text, confidence: word.confidence, settled: word.settled)
-                ?? (apart.contains(index) ? .outOfContext : nil)
+                ?? (apart.contains(index) ? .outOfContext : spelled.contains(index) ? .spelledOnScreen : nil)
         }
         var spans: [UncertainSpan] = []
         for start in words.indices {
@@ -483,6 +486,8 @@ public enum DoubtReason: Int, Sendable, Comparable {
     case outOfContext
     /// Every word was heard surely, but one belongs to a homophone group whose partners sound the same.
     case homophoneClass
+    /// Several words were heard surely, but closed up they spell an identifier the screen shows.
+    case spelledOnScreen
 
     public static func < (lhs: Self, rhs: Self) -> Bool { lhs.rawValue < rhs.rawValue }
 }

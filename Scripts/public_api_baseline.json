@@ -1121,6 +1121,7 @@
     "UttrflowCore enum DictionaryStoreError": 1,
     "UttrflowCore enum DigitGrouping": 1,
     "UttrflowCore enum DockAnchor": 1,
+    "UttrflowCore enum DomainMix": 1,
     "UttrflowCore enum ErrorLog": 1,
     "UttrflowCore enum Evidence": 2,
     "UttrflowCore enum EvidenceLedgerError": 1,
@@ -1466,7 +1467,7 @@
     "UttrflowCore func preset": 2,
     "UttrflowCore func problems": 1,
     "UttrflowCore func productionLegacyMigrationMarkerURL": 1,
-    "UttrflowCore func project": 3,
+    "UttrflowCore func project": 4,
     "UttrflowCore func prune": 1,
     "UttrflowCore func qualityPreset": 1,
     "UttrflowCore func quiet": 1,
@@ -1819,7 +1820,7 @@
     "UttrflowCore let metric": 1,
     "UttrflowCore let milliseconds": 2,
     "UttrflowCore let minimumConfidence": 1,
-    "UttrflowCore let minimumWords": 1,
+    "UttrflowCore let minimumWords": 2,
     "UttrflowCore let minimumWordsWithoutConfidence": 1,
     "UttrflowCore let missedTargets": 1,
     "UttrflowCore let mode": 1,
@@ -4910,6 +4911,7 @@
     "UttrflowSettings var installsUpdatesAutomatically": 1,
     "UttrflowSettings var isEnabled": 1,
     "UttrflowSettings var keepsNoTranscripts": 1,
+    "UttrflowSettings var learningExcludedApplications": 1,
     "UttrflowSettings var learnsFromDictation": 1,
     "UttrflowSettings var microphoneUID": 1,
     "UttrflowSettings var minimisesWhileDictating": 1,
@@ -6410,5 +6412,5 @@
     "UttrflowUX var withdrawsTrust": 1,
     "UttrflowUX var words": 2
   },
-  "total": 9128
+  "total": 9132
 }

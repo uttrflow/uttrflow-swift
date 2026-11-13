@@ -498,10 +498,10 @@ struct SpokenAddress: Equatable {
         return topLevels.contains(top.lowercased())
     }
 
-    /// Whether `stem` can open a file name: any word but a determiner, and a small word only before an ending that follows a name ("out dot txt", not "to dot env").
+    /// Whether `stem` can open a file name: a word before an ending that follows a name ("out dot txt"), never before a hidden file's name, where the dot opens it ("open dot env").
     private static func canOpenFileName(_ stem: String, ending: String) -> Bool {
-        FunctionWords.isContent(stem)
-            || !FunctionWords.determiners.contains(stem) && !TechnicalToken.dotFileNames.contains(ending)
+        !TechnicalToken.dotFileNames.contains(ending)
+            && (FunctionWords.isContent(stem) || !FunctionWords.determiners.contains(stem))
     }
 
     /// Reads a file name: an ending no one says as a word is enough, an everyday-word ending needs a cue.
