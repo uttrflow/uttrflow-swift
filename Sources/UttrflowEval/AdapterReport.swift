@@ -1,9 +1,9 @@
 // Per-adapter counts over a scored corpus, and the stored run later runs are gated against.
-import Foundation
+package import Foundation
 import UttrflowCore
 
 /// What one adapter's cases scored: exact written form, added words and broken shape, kept as counts.
-struct AdapterReport: Sendable, Equatable, Codable {
+package struct AdapterReport: Sendable, Equatable, Codable {
     /// One adapter's counts, kept as counts so the rates can be recomputed exactly.
     struct Row: Sendable, Equatable, Codable {
         let adapter: String
@@ -42,7 +42,7 @@ struct AdapterReport: Sendable, Equatable, Codable {
     }
 
     /// Groups the scores of the cases that name an adapter; a case with no adapter, or no score, is left out.
-    init(label: String, recordedAt: Date = Date(), cases: [EvaluationCase], scores: [CaseScore]) {
+    package init(label: String, recordedAt: Date = Date(), cases: [EvaluationCase], scores: [CaseScore]) {
         let byID = Dictionary(scores.map { ($0.caseID, $0) }, uniquingKeysWith: { first, _ in first })
         var grouped: [String: [(EvaluationCase, CaseScore)]] = [:]
         for evaluated in cases {
@@ -101,7 +101,7 @@ struct AdapterReport: Sendable, Equatable, Codable {
     }
 
     /// The table `make bakeoff` prints, one line per adapter.
-    var table: String {
+    package var table: String {
         guard !rows.isEmpty else { return "no case names an adapter" }
         return rows.map { row in
             let rate = row.exactMatchRate.map { String(format: "%.1f%%", $0 * 100) } ?? "n/a"

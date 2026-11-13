@@ -37,6 +37,16 @@ and the class that moved, never alone.
 
 ## The baseline gate
 
+Each adapter's cases are scored on their own. A case belongs to an adapter when it names one, or
+when it sits in a `<name>Notation` set (`CorpusFile.adapter(ofSet:)`: `markupNotation` holds the
+`markup` adapter's cases). `make bakeoff` prints one `per adapter` table under every candidate it
+measures: cases, exact-match hits, added words and broken shapes (`AdapterReport`). The rules'
+score is held to `Tests/UttrflowEvalTests/Golden/adapters.json` by `AdapterBaselineTests`, which
+fails when an adapter's exact hits fall or an added word or a broken shape appears, and when the
+adapters or their case counts no longer match the file; rerun it with `UTTRFLOW_UPDATE_GOLDEN=1`
+after adding cases. Now: `markup` 40 of 40 and `source` 90 of 90 exact. Parse validity and
+abstention precision and recall wait for a validator and an abstention set per adapter.
+
 Saved adapter comparisons require unique adapter names in both reports. Duplicate rows return an
 incomparable result before constructing the baseline lookup; label mismatch retains precedence.
 After label, row identity and denominator checks, both reports must have nonnegative raw counts
