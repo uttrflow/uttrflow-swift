@@ -1280,6 +1280,7 @@
     "UttrflowCore func advice": 1,
     "UttrflowCore func after": 1,
     "UttrflowCore func append": 2,
+    "UttrflowCore func applicationUseSubject": 1,
     "UttrflowCore func applied": 3,
     "UttrflowCore func applies": 2,
     "UttrflowCore func asks": 1,
@@ -6396,5 +6397,5 @@
     "UttrflowUX var withdrawsTrust": 1,
     "UttrflowUX var words": 2
   },
-  "total": 9102
+  "total": 9103
 }

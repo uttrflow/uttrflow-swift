@@ -99,6 +99,13 @@ an unclosed tail), and, for a dictation of at most 12 words, `styleShortMessage`
 `meanSentenceLength` = words / sentences and `closingStopRate` = closing stops / short
 dictations. No contraction rate is kept: acting on one would rewrite the user's words.
 
+## Per-application use
+
+A dictation into an application also writes one `useInApp` row per dictionary entry it used,
+subject `<entry id>|<bundle identifier>`. `WorkingSet` adds `applicationWeight` (1.0) times the
+saturating recent use in the frontmost application, so the working set there prefers that
+application's words. Only the newest 5,000 such rows are read, which bounds the map. Bundle
+identifiers stay in the local ledger and are never reported.
 ## Language tally
 
 `LanguageSignals` writes one `language` row (+1) per inserted, non-secure dictation, with the
