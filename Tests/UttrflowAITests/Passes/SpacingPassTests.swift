@@ -48,6 +48,9 @@ struct SpacingPassTests {
         arguments: [
             ("deploy done.Next step", "deploy done. Next step"),
             ("yes,that works", "yes, that works"),
+            ("And...I want to go", "And... I want to go"),
+            ("Well…I think so", "Well… I think so"),
+            ("so...What now", "so... What now"),
             ("yes,no", "yes, no"),
             ("really?yes", "really? yes"),
             ("stop!Now", "stop! Now"),
@@ -91,7 +94,7 @@ struct SpacingPassTests {
             "Draft.pages", "Budget.numbers", "Incident.docx", "Retention.xlsx", "Node.js", "README.MD",
             "a.m.", "p.m.", "e.g.", "i.e.", "U.S.", "U.S.A.", "etc.", "Mr.Smith", "Dr.Jones", "St.Louis",
             "api:latest", "note:buy", "first;second", "so…", "Self.id", "draft.words", "com.apple.iCal",
-            "net.example.App",
+            "net.example.App", "main...feature", "so…", "wait...what", "The...the", "is...overdue.", "...",
             "agents.md", "home.ssh", "package.json",
             "out.txt", "in.txt", "up.sh", "about.md", "out.log", "in.sql", "up.cpp", "about.svg", "on.c",
             "out.h",

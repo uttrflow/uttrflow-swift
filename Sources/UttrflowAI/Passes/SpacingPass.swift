@@ -120,8 +120,22 @@ public struct SpacingPass: PieceCleaningPass {
         return (left + ":", right)
     }
 
+    /// "And...I" as "And..." and "I": an ellipsis glued before a capitalised word, which is a new start the recogniser capitalised. A lower-case word after it ("main...feature", "is...overdue") stays joined, as a range or a trailing-off is.
+    private static func gluedEllipsis(_ text: String) -> (String, String)? {
+        for mark in ["...", String(SentenceMarks.ellipsis)] {
+            let parts = text.components(separatedBy: mark)
+            guard parts.count == 2, !parts[0].isEmpty, let right = parts[1].first, right.isUppercase,
+                parts[0].allSatisfy(\.isLetter),
+                parts[1].allSatisfy({ $0.isLetter || "'\u{2019}".contains($0) })
+            else { continue }
+            return (parts[0] + mark, parts[1])
+        }
+        return nil
+    }
+
     /// "done.Next" as "done." and "Next", "the.env" as "the" and ".env": one mark between plain words, never a file, host or abbreviation.
     static func gluedHalves(_ text: String) -> (String, String)? {
+        if let halves = gluedEllipsis(text) { return halves }
         if text.filter({ $0 == ":" }).count == 1, TechnicalToken.classify(text) == nil,
             let colon = text.firstIndex(of: ":"),
             let halves = gluedLabel(String(text[..<colon]), String(text[text.index(after: colon)...]))
