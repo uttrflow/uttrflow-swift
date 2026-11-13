@@ -151,6 +151,18 @@ struct DictationRecordMappingTests {
                 for: .inserted(outcome), when: Date(), id: UUID(), keeping: .everything) != nil)
     }
 
+    @Test("a dictation copied instead of typed into a listed app writes no history record")
+    func copiedForListedAppWritesNoRecord() {
+        let outcome = DictationOutcome(
+            text: "Private note", method: .pasteboard, cleanedBy: .rules,
+            meantForApplication: "com.example.records", fromRecording: true)
+        let keeping = HistoryKeeping(excludedApplications: ["com.example.records"])
+
+        #expect(
+            DictationRecordMapping.record(
+                for: .inserted(outcome), when: Date(), id: UUID(), keeping: keeping) == nil)
+    }
+
     @Test("an inserted outcome keeps the words as heard only when they differ and may be kept")
     func keepsTheWordsAsHeard() throws {
         func heard(_ said: String, wrote: String, secure: Bool = false) -> String? {

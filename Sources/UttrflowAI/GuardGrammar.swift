@@ -275,7 +275,10 @@ extension MeaningPreservationGuard {
             ?? hasRomanisedHindiContext(alignment.kept + alignment.rewritten + echo)
         let origins = (alignment.kept + echo).filter(\.isPlain)
         let originIndex = WordOccurrenceIndex(origins)
-        var usedOrigins = Set<Int>()
+        // A handle, tag or path closing up words said apart uses them up and stands for them once.
+        let closedUp = closedUpIntoNotation(alignment.kept, in: alignment.rewrittenText)
+        var usedOrigins = closedUp.kept
+        var notations = closedUp.written
         // Each offered run's chosen reading and the words of it written so far: "I scream" covers two.
         var usedReadings: [Int: (candidate: String, parts: Set<Int>)] = [:]
         for index in alignment.rewritten.indices
@@ -284,6 +287,10 @@ extension MeaningPreservationGuard {
                 || FunctionWords.isMeaningBearing(alignment.rewritten[index].lookup))
         {
             let token = alignment.rewritten[index]
+            if let notation = notations.firstIndex(of: DoubtfulSpan.closedUp(token.matching)) {
+                notations.remove(at: notation)
+                continue
+            }
             if let origins = originIndex.matchingOrigins(
                 token, allowingRomanisedHindiSpellings: romanisedHindiContext,
                 allowingFormRepairs: allowingFormRepairs, excluding: usedOrigins)

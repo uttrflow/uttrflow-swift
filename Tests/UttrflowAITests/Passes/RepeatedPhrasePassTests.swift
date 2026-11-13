@@ -99,6 +99,18 @@ struct RepeatedPhrasePassTests {
         #expect(result.text == "Ask harris and harris and lee.")
     }
 
+    @Test(
+        "keeps written code whose operators sit between the same names",
+        arguments: [
+            "const same = (value) => value",
+            "const twice = value => value",
+            "if low <= mid && mid < high",
+        ]
+    )
+    func keepsWrittenOperators(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
     @Test("drops the first copy and keeps the second")
     func provenance() {
         let draft = sut.apply(Draft(text: "so I was I was thinking"))

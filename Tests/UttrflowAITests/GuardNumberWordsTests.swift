@@ -33,6 +33,33 @@ struct GuardNumberWordsTests {
                 == .accepted)
     }
 
+    @Test("a sign stays with its amount when another amount is written as its word")
+    func signStaysWithItsAmount() {
+        #expect(
+            MeaningPreservationGuard.changedQuantity(
+                original: "set alpha to -5 and beta to 5", rewritten: "Set alpha to five and beta to -5.")
+                == "-5")
+        #expect(
+            MeaningPreservationGuard.changedQuantity(
+                original: "set alpha to -5 and beta to 5", rewritten: "Set alpha to -5 and beta to five.")
+                == nil)
+    }
+
+    @Test("a number said in words stands for one amount, not for each of its words")
+    func wordedNumberIsOneAmount() {
+        #expect(
+            MeaningPreservationGuard.changedQuantity(
+                original: "20 red boxes, 1 blue box and 21 green boxes",
+                rewritten: "twenty one red boxes, blue box and green boxes") != nil)
+        #expect(
+            MeaningPreservationGuard.changedQuantity(
+                original: "20 red boxes and 21 green boxes",
+                rewritten: "twenty red boxes and twenty one green boxes") == nil)
+        #expect(
+            MeaningPreservationGuard.changedQuantity(
+                original: "5 apples and five pears", rewritten: "apples and five pears") == "5")
+    }
+
     @Test("a spoken ordinal survives as the ordinal numeral, and a different day is still refused")
     func spokenOrdinalSurvivesAsItsNumeral() {
         let guardUnderTest = MeaningPreservationGuard()
@@ -217,5 +244,47 @@ struct GuardNumberWordsTests {
     func valueAcrossUnitAndOrdinalSpellings(original: String, rewritten: String, accepted: Bool) {
         let verdict = MeaningPreservationGuard().verdict(original: original, rewritten: rewritten)
         #expect((verdict == .accepted) == accepted)
+    }
+
+    /// A bare amount the passes wrote in digits may stand as its word; a changed, dropped or symbolled one may not.
+    @Test(
+        "a bare amount written back as its word is the same amount",
+        arguments: [
+            (
+                "simmer for 10 minutes, add 200 grams and 1 litre",
+                "Simmer for ten minutes, add 200 grams and one litre.", true
+            ),
+            (
+                "the museum opens at 10 and tickets are 18 euros",
+                "The museum opens at ten and tickets are 18 euros.", true
+            ),
+            (
+                "one onion, 2 carrots and 1 litre of stock", "One onion, 2 carrots and one litre of stock.",
+                true
+            ),
+            (
+                "total 20 points ka hai aur deadline 15 tareekh hai",
+                "Total 20 points ka hai aur deadline pandrah tareekh hai.", true
+            ),
+            (
+                "simmer for 10 minutes, add 200 grams and 1 litre",
+                "Simmer for eleven minutes, add 200 grams and one litre.", false
+            ),
+            (
+                "simmer for 10 minutes, add 200 grams and 1 litre", "Simmer for ten minutes, add 200 grams.",
+                false
+            ),
+            (
+                "cook for about 10 minutes and add 1 litre of stock",
+                "Cook for about ten minutes and add stock.", false
+            ),
+            ("one onion and 1 litre of stock", "One onion and a litre of stock.", false),
+            ("it costs $10 and takes 2 days", "It costs ten and takes 2 days.", false),
+            ("it fell by 5% over 3 years", "It fell by five over 3 years.", false),
+        ]
+    )
+    func bareAmountAsItsWord(original: String, rewritten: String, accepted: Bool) {
+        let verdict = MeaningPreservationGuard().verdict(original: original, rewritten: rewritten)
+        #expect((verdict == .accepted) == accepted, "\(verdict)")
     }
 }

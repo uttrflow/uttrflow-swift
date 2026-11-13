@@ -36,11 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var settings = Settings()
 
     /// What history may keep, read from the saved choices at the moment a dictation ends.
-    private var historyKeeping: HistoryKeeping {
-        HistoryKeeping(
-            keepsNothing: settings.keepsNoTranscripts,
-            excludedApplications: Set(settings.historyExcludedApplications))
-    }
+    private var historyKeeping: HistoryKeeping { HistoryKeeping(settings) }
     /// The pipeline's recording cue, told when the sound setting changes.
     private var recordingSounds: RecordingSounds?
 
@@ -4018,6 +4014,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             case .chooseApplicationForContextLevel:
                 ApplicationPicker.chooseInstalled { [weak self] app in
                     self?.settingsPage.apply(SettingsPresenter.addingContextLevelApp(app))
+                }
+            case .chooseApplicationToKeepNoHistory:
+                ApplicationPicker.chooseInstalled { [weak self] app in
+                    self?.settingsPage.apply(.keepsHistory(application: app.bundleIdentifier, isOn: false))
                 }
             case .manageClipboardExclusions: manageClipboardExclusions()
             case .exportPersonalData: exportPersonalData()
