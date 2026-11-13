@@ -28,6 +28,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [audio-capture.md](audio-capture.md) | Capturing the microphone |
 | [silence.md](silence.md) | Silence, and why it has to be caught before the recogniser |
 | [speech-engines.md](speech-engines.md) | The speech engines, and what WhisperKit does when nobody is looking |
+| [hindi-token-cap.md](hindi-token-cap.md) | How often a Hindi piece reaches the decoder's token cap, by length |
 | [decoder-evidence.md](decoder-evidence.md) | What WhisperKit can say about a doubtful word |
 | [question-mark-owner.md](question-mark-owner.md) | The probe that decides whether the recogniser or the question-shape rules own "?" |
 | [recogniser-evidence.md](recogniser-evidence.md) | What each recogniser signal can and cannot say |
