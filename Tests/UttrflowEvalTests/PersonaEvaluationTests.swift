@@ -4,11 +4,11 @@ import Testing
 
 @Suite("Persona evaluation: the gain from a persona's words and the harm from another's")
 struct PersonaEvaluationTests {
-    private static let item = PersonaItem(
+    private static let item = PersonaDictation(
         persona: "developer", sentence: "ask Marlowen about Quorvex", terms: ["Marlowen", "Quorvex"])
 
     private static func row(
-        _ condition: PersonaCondition, _ transcript: String, _ item: PersonaItem = item
+        _ condition: PersonaCondition, _ transcript: String, _ item: PersonaDictation = item
     )
         -> PersonaRow
     {

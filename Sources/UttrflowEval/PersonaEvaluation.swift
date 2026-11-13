@@ -1,4 +1,5 @@
 // Dictation read with a persona's words off, on and wrong, to show the gain and the harm of conditioning on them.
+import Foundation
 package import UttrflowCore
 
 /// An invented persona: the names of tools, projects and people one person's dictation holds.
@@ -8,7 +9,7 @@ package struct Persona: Sendable, Equatable {
 }
 
 /// One invented sentence a persona dictates, holding some of its terms.
-package struct PersonaItem: Sendable, Equatable {
+package struct PersonaDictation: Sendable, Equatable {
     package let persona: String
     package let sentence: String
     package let terms: [String]
@@ -24,35 +25,35 @@ package enum PersonaCondition: String, CaseIterable, Sendable {
     case wrong
 }
 
-/// The corpus: three personas, each dictating the same number of sentences, and the words each condition hands over.
+/// The corpus, read from `Resources/Corpus/Personas/personas.json`: three personas, each dictating the same number of sentences.
 package enum PersonaCorpus {
-    package static let personas: [Persona] = [
-        Persona(id: "developer", terms: ["Brindlecove", "Quorvex", "Tessaly", "Marlowen"]),
-        Persona(id: "clinician", terms: ["Kelvarin", "Droswick", "Ilmara", "Pennoval"]),
-        Persona(id: "support", terms: ["Zenhollow", "Corvane", "Lyrissa", "Mekton"]),
-    ]
+    private struct Record: Decodable {
+        let kind: String
+        let persona: String
+        let sentence: String?
+        let terms: [String]
+    }
 
-    package static let items: [PersonaItem] = [
-        item(
-            "developer", "ask Marlowen to review the Brindlecove release before friday",
-            ["Marlowen", "Brindlecove"]),
-        item(
-            "developer", "the Quorvex build is failing again on the Tessaly branch", ["Quorvex", "Tessaly"]),
-        item("developer", "Tessaly needs a new reviewer for the Quorvex migration", ["Tessaly", "Quorvex"]),
-        item("clinician", "book Ilmara for the Kelvarin clinic on tuesday morning", ["Ilmara", "Kelvarin"]),
-        item(
-            "clinician", "the Droswick referral is waiting for a reply from Pennoval",
-            ["Droswick", "Pennoval"]),
-        item(
-            "clinician", "please send the Kelvarin notes to Droswick before the round",
-            ["Kelvarin", "Droswick"]),
-        item("support", "escalate the Zenhollow ticket to Lyrissa before noon", ["Zenhollow", "Lyrissa"]),
-        item("support", "Corvane reported the same Mekton outage again today", ["Corvane", "Mekton"]),
-        item("support", "tell Mekton that Zenhollow has been refunded in full", ["Mekton", "Zenhollow"]),
-    ]
+    private static let records: [Record] =
+        Bundle.module.path(forResource: "personas", ofType: "json", inDirectory: "Corpus/Personas")
+        .flatMap { FileManager.default.contents(atPath: $0) }
+        .flatMap { try? JSONDecoder().decode([Record].self, from: $0) } ?? []
+
+    package static var personas: [Persona] {
+        records.filter { $0.kind == "persona" }.map { Persona(id: $0.persona, terms: $0.terms) }
+    }
+
+    package static var items: [PersonaDictation] {
+        records.compactMap { record in
+            record.sentence.map {
+                PersonaDictation(persona: record.persona, sentence: $0, terms: record.terms)
+            }
+        }
+    }
 
     /// The words `condition` hands over for an item: its persona's, the next persona's, or none.
-    package static func vocabulary(for item: PersonaItem, under condition: PersonaCondition) -> [String] {
+    package static func vocabulary(for item: PersonaDictation, under condition: PersonaCondition) -> [String]
+    {
         guard let index = personas.firstIndex(where: { $0.id == item.persona }) else { return [] }
         switch condition {
         case .off: return []
@@ -60,19 +61,15 @@ package enum PersonaCorpus {
         case .wrong: return personas[(index + 1) % personas.count].terms
         }
     }
-
-    private static func item(_ persona: String, _ sentence: String, _ terms: [String]) -> PersonaItem {
-        PersonaItem(persona: persona, sentence: sentence, terms: terms)
-    }
 }
 
 /// One clip decoded under one condition.
 package struct PersonaRow: Sendable, Equatable {
-    package let item: PersonaItem
+    package let item: PersonaDictation
     package let condition: PersonaCondition
     package let transcript: String
 
-    package init(item: PersonaItem, condition: PersonaCondition, transcript: String) {
+    package init(item: PersonaDictation, condition: PersonaCondition, transcript: String) {
         self.item = item
         self.condition = condition
         self.transcript = transcript
