@@ -41,7 +41,7 @@ package struct TokenCapRow: Sendable, Equatable {
         self.effort = effort
     }
 
-    /// Whether the decode ran out of positions: the tail was decoded again, or no point to resume from was found; the probe sends no prompt, so no unprompted re-decode adds to the retry time.
+    /// Whether the tail was decoded again, after the token cap or a collapsed window, or no point to resume from was found; the probe sends no prompt, so the unprompted re-decode cannot add to the retry time.
     package var reachedCap: Bool { effort.retrySeconds > 0 || effort.capUnresolved }
 
     /// The words in the transcript over the words read: a count ratio, which says nothing about which words came back.
@@ -62,7 +62,7 @@ package struct TokenCapTable: Sendable {
     /// One line per length: pieces, pieces that reached the cap, pieces left unresolved, and the mean decode again time and word share.
     package var markdown: String {
         var lines = [
-            "| Piece length | Pieces | Reached the cap | Unresolved | Seconds decoding again | Words out per word read |",
+            "| Piece length | Pieces | Tail decoded again | Unresolved | Seconds decoding again | Words out per word read |",
             "|---|---|---|---|---|---|",
         ]
         var floor = 0.0
