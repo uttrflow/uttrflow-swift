@@ -205,6 +205,8 @@ struct CodeLanguageTests {
             "INSERT INTO clips (id, text) VALUES (gen_random_uuid(), 'hi');",
             "UPDATE clips SET pinned = true WHERE id = $1;",
             "SELECT name FROM users",
+            "SELECT *\nFROM users\nWHERE id = 1;",
+            "select id,\n       text\nfrom clips\norder by copied_at desc",
         ])
     func sql(_ text: String) {
         #expect(CodeLanguage.detect(text) == .sql)
@@ -217,6 +219,7 @@ struct CodeLanguageTests {
             "Select an item from the list below",
             "Please select the region from the dropdown and click Save.",
             "I'll select a few photos from the album later",
+            "Select an item\nfrom the list below",
         ])
     func sqlLookalikes(_ text: String) {
         #expect(CodeLanguage.detect(text) == nil)
