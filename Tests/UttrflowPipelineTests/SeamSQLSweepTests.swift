@@ -36,7 +36,23 @@ struct SeamSQLSweepTests {
         for cut in 1..<words.count {
             let pieces = [words[..<cut].joined(separator: " "), words[cut...].joined(separator: " ")]
             let text = await written(pieces)
-            #expect(text == whole, "cut \(pieces.joined(separator: " | ")) wrote \(text ?? "") not \(whole ?? "")")
+            #expect(
+                text == whole,
+                "cut \(pieces.joined(separator: " | ")) wrote \(String(reflecting: text)) not \(String(reflecting: whole))"
+            )
+        }
+    }
+
+    @Test("a sentence about a statement is written as no statement whichever way it is cut")
+    func proseIsNotJoinedIntoAStatement() async {
+        let sentence = "select statement is slow because the join equals a full scan"
+        let words = sentence.split(separator: " ").map(String.init)
+        for cut in 1..<words.count {
+            let pieces = [words[..<cut].joined(separator: " "), words[cut...].joined(separator: " ")]
+            let text = await written(pieces) ?? ""
+            #expect(
+                !text.contains("=") && !text.contains("SELECT"),
+                "cut \(pieces.joined(separator: " | ")) wrote \(text)")
         }
     }
 
