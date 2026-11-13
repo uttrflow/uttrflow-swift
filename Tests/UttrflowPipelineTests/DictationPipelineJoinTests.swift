@@ -15,6 +15,24 @@ private func reading(_ lines: [String]) -> FakeSpeechEngine {
     return FakeSpeechEngine(transcribing: .successes(heard, afterwards: .failure(.nothingHeard)))
 }
 
+/// A dictionary that writes one word the way the user spells it wherever the recogniser heard it.
+private struct Respelling: WordCorrecting {
+    let heard: String
+    let wrote: String
+
+    func corrections(
+        for transcription: Transcription, seeing context: AppContext
+    ) async throws(DictationChangeError) -> [DictationCorrection] {
+        let words = transcription.text.split(whereSeparator: \.isWhitespace).map(String.init)
+        guard let index = words.firstIndex(of: heard) else { return [] }
+        return [
+            DictationCorrection(
+                heard: heard, wrote: wrote, wordRange: index..<(index + 1), entryID: UUID(),
+                reason: .seenOnScreen, heardConfidence: 0.2)
+        ]
+    }
+}
+
 /// A tidier that finishes each piece the way the real one does — a capital at the front, a full stop at the end.
 private func finishing() -> FakeTranscriptCleaner {
     FakeTranscriptCleaner(
@@ -74,7 +92,7 @@ struct DictationPipelineJoinTests {
     private static let mail = AppContext.fixture(
         applicationName: "Mail", bundleIdentifier: "com.apple.mail", documentName: "Draft")
 
-    @Test("every piece after the first is tidied knowing the previous piece as heard")
+    @Test("every piece after the first is tidied knowing the previous piece as corrected")
     func tidierSeesThePreviousPiece() async {
         let lines = ["we waited for the build", "because the runner was slow", "and then it passed"]
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
@@ -136,6 +154,56 @@ struct DictationPipelineJoinTests {
         #expect(early == expected)
         #expect(release == expected)
         #expect(retry == expected)
+    }
+
+    /// What the recogniser and the tidier were each told came before every piece, for one recording run as `run` says.
+    private func rollingInputs(
+        _ lines: [String], run: (DictationPipeline) async -> Void, earlyPoll: Duration,
+        capture: FakeAudioCaptureEngine = FakeAudioCaptureEngine(),
+        recordings: FakeRecordingKeeper = FakeRecordingKeeper()
+    ) async -> (recogniser: [String?], tidier: [String: String?]) {
+        let speech = reading(lines)
+        let cleaner = finishing()
+        let pipeline = DictationPipeline(
+            capture: capture, speech: speech, cleaner: cleaner,
+            context: FakeContextEngine(context: Self.document), inserter: FakeTextInserter(),
+            corrector: Respelling(heard: "bild", wrote: "build"), recordings: recordings, windowing: quick,
+            earlyPoll: earlyPoll)
+        await run(pipeline)
+        let decoded = await speech.transcribeCalls.events.prefix(lines.count).map(\.options.precedingText)
+        let tidied = Dictionary(
+            cleaner.requests.filter { $0.scope == .piece }.map { ($0.transcription.text, $0.precedingPiece) },
+            uniquingKeysWith: { first, _ in first })
+        return (Array(decoded), tidied)
+    }
+
+    @Test(
+        "a piece is decoded and tidied after the previous piece as corrected, whether held, released or retried"
+    )
+    func rollingContextIsTheSameOnEveryPath() async {
+        let lines = ["we waited for the bild", "because the runner was slow", "and then it passed"]
+        let corrected = "we waited for the build"
+        let recogniser: [String?] = [nil, corrected, lines[1]]
+        let tidier: [String: String?] = [corrected: nil, lines[1]: corrected, lines[2]: lines[1]]
+        let held = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
+        await held.setCaptured(Take.threePieces)
+        let released = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
+        let recording = KeptRecording(id: UUID(), when: Date(), duration: .seconds(5))
+        let kept = FakeRecordingKeeper(waiting: [recording], audioOutcome: .success(Take.threePieces))
+        let dictate: (DictationPipeline) async -> Void = {
+            await $0.startRecording()
+            await $0.finishRecording()
+        }
+
+        let early = await rollingInputs(lines, run: dictate, earlyPoll: .milliseconds(2), capture: held)
+        let release = await rollingInputs(lines, run: dictate, earlyPoll: .seconds(3600), capture: released)
+        let retry = await rollingInputs(
+            lines, run: { await $0.retry(recording.id) }, earlyPoll: .seconds(3600), recordings: kept)
+
+        for path in [early, release, retry] {
+            #expect(path.recogniser == recogniser)
+            #expect(path.tidier == tidier)
+        }
     }
 
     @Test("the pieces cleaned outside a dictation read the same previous piece")
