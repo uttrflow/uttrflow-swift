@@ -44,6 +44,16 @@ takes a query as a search box does, as spoken with no stop, and a spoken web add
 the same address reading as in any field. A page's own field labelled "URL" stays an ordinary one-line field.
 Other browsers' labels are added as they are read from the real application.
 
+Spreadsheet formulas (AD.28) are written by `FormulaNotationPass`, which runs only in a spreadsheet cell
+whose text before the caret starts with `=`, or that is empty when the speech opens with "equals" or
+"formula"; in any other cell, and in prose mode, the words stay values. It reads a reference said as a
+column letter and a row number ("a one", "dollar a dollar one"), a range joined by "to" or "through", a
+function name before "open paren", comparison and arithmetic operators, "quote ... quote" strings, and a sheet
+name in quotes before "bang" or "exclamation". The argument separator is a comma or, where the system
+locale writes decimals with a comma, a semicolon, read when the pipeline is built. It writes only what
+was said: a bracket is never closed unspoken, an argument is never added, and nothing is evaluated.
+`FormulaNotationPassTests` holds its cases and the cells that must stay plain.
+
 Markup notation (AD.35) is `markup` rows of `spoken-commands.json`, each naming the slot of HTML or
 CSS it is read in. `MarkupPosition` (`Sources/UttrflowCore/Adapters/MarkupPosition.swift`) reads the
 slot from the text before the caret: text between tags, inside a tag, a selector, a property, a

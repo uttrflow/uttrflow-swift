@@ -440,6 +440,15 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "202c73af6191bb12d59db3d95bcaf2c031f26f6ab23e8f52934d36a973ae12ef",
+      "path": "Sources/UttrflowCore/Resources/Tables/formula-words.json",
+      "origin": "authored",
+      "bytes": 3581
+    },
+    {
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
       "sha256": "ca403fd1dc1245670781787634cf0a341606a6f781b76db1dc6848bdf8b62672",
       "path": "Sources/UttrflowCore/Resources/Tables/spoken-commands.json",
       "origin": "authored",

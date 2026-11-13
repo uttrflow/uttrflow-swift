@@ -535,6 +535,7 @@ public enum HistoryPresenter {
         .codeEditorCommands: "Typed a spoken symbol",
         .layoutWords: "Applied layout words",
         .markdownContinuation: "Continued the list",
+        .formulaNotation: "Wrote a spreadsheet formula",
         .numberForms: "Wrote numbers as numerals",
         .contractions: "Fixed contractions",
         .spacing: "Fixed spacing",

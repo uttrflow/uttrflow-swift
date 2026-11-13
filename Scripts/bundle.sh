@@ -306,6 +306,7 @@ ALLOWED_TEXT_RESOURCES=(
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/correction-triggers.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/credential-words.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/field-kinds.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/formula-words.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/function-words.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/hindi-words.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/html-boolean-attributes.json"

@@ -30,6 +30,8 @@ extension PassID {
     public static let spokenEmoji: PassID = "spokenEmoji"
     /// Spoken casing commands: an identifier style in code, capitals for a word or a span in prose.
     public static let spokenCasing: PassID = "spokenCasing"
+    /// A spoken spreadsheet formula, written as the formula.
+    package static let formulaNotation: PassID = "formulaNotation"
     /// Spoken symbol commands in code editors.
     public static let codeEditorCommands: PassID = "codeEditorCommands"
     /// "New line", "new paragraph", "bullet point", spoken as instructions.
