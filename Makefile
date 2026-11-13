@@ -295,6 +295,10 @@ assets: ## Rebuild the derived data assets from the pinned sources, then check t
 	@python3 Scripts/derive_lexicon.py --cache "$(ASSET_CACHE)"
 	@python3 Scripts/data_manifest.py
 
+.PHONY: verify-assets
+verify-assets: ## Rebuild the derived assets and check their digests when ASSET_CACHE is set, as CI sets it; otherwise say it was skipped.
+	@if [ -n "$(ASSET_CACHE)" ]; then $(MAKE) --no-print-directory assets; else echo "verify-assets: skipped, ASSET_CACHE is not set; see Docs/data-manifest.md"; fi
+
 .PHONY: reproduce-assets
 reproduce-assets: ## Rebuild every fitted asset from the recipe in TAG's manifest and compare digests; never tags. TAG=<tag>, optional ASSET_CACHE=folder.
 	@test -n "$(TAG)" || { echo "reproduce-assets: set TAG=<tag>; see Docs/data-manifest.md" >&2; exit 1; }
@@ -426,7 +430,7 @@ disclosure-history: ## Scan every commit on every ref. Run before a repo goes pu
 # nightly and files an issue when it fails.
 # The checks of `verify` that need no Swift build, so they run on a Linux runner. Pull requests run
 # only these; the whole of `verify` runs nightly, on manual dispatch and on the release tag.
-VERIFY_STATIC := accessibility-controls audio-audit closed-list-audit comment-audit context-reach-audit corpus-edit-audit data-manifest dependency-pin-test design-audit disclosure-audit docs-audit duplicate-table-audit e2e-predict-cleanup-test exclusion-audit flake-audit formatting-gap-ratchet-test hits-test hook-test issue-template-audit issue-template-test layering-audit log-audit match-audit mutation-probe-test pasteboard-audit pii-audit pre-push-lock-test provider-mark-test public-api-audit python-imports-audit range-test ratchet-test release-notes-test release-quality-test release-tag-test root-audit snapshot-fixture-audit store-permissions string-audit test-name-audit type-name-audit uitest-result-path word-split-audit eval-scope-test predict-scorecard-test quality-grid-scorecard-test dependabot-labels-test entitlement-gate-test update-feed-test
+VERIFY_STATIC := verify-assets accessibility-controls audio-audit closed-list-audit comment-audit context-reach-audit corpus-edit-audit data-manifest dependency-pin-test design-audit disclosure-audit docs-audit duplicate-table-audit e2e-predict-cleanup-test exclusion-audit flake-audit formatting-gap-ratchet-test hits-test hook-test issue-template-audit issue-template-test layering-audit log-audit match-audit mutation-probe-test pasteboard-audit pii-audit pre-push-lock-test provider-mark-test public-api-audit python-imports-audit range-test ratchet-test release-notes-test release-quality-test release-tag-test root-audit snapshot-fixture-audit store-permissions string-audit test-name-audit type-name-audit uitest-result-path word-split-audit eval-scope-test predict-scorecard-test quality-grid-scorecard-test dependabot-labels-test entitlement-gate-test update-feed-test
 .PHONY: verify-static
 verify-static: ## The checks of verify that need no Swift build: what a pull request runs. Needs Python only.
 	@VERIFY_INNER=1 $(MAKE) --no-print-directory -j$(VERIFY_JOBS) $(VERIFY_STATIC)
@@ -441,7 +445,7 @@ bench: ## Run the scale and timing checks: the energy budget, the scaling suites
 	@VERIFY_INNER=1 $(MAKE) --no-print-directory -j$(VERIFY_JOBS) bench
 else
 unexport VERIFY_INNER
-verify: formatting-gap-ratchet-test eval-scope-test quality-grid-scorecard-test predict-scorecard-test pii-audit snapshot-fixture-audit data-manifest audio-audit root-audit disclosure-audit issue-template-audit test-name-audit docs-audit design-audit comment-audit corpus-edit-audit match-audit closed-list-audit duplicate-table-audit word-split-audit accessibility-controls layering-audit public-api-audit string-audit type-name-audit python-imports-audit ratchet-test mutation-probe-test range-test hits-test hook-test pre-push-test pre-push-lock-test update-feed-test entitlement-gate-test issue-template-test dependabot-labels-test dependency-pin-test flake-audit uitest-arguments eval-arguments uitest-result-path developer-dir-test log-audit store-permissions pasteboard-audit context-reach-audit bundle-requirement-test bundle-test release-tag-test release-notes-test release-quality-test provider-mark-test release-order-test notarise-dmg-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test exclusion-audit size-budget lint build coverage offline-audit
+verify: formatting-gap-ratchet-test eval-scope-test quality-grid-scorecard-test predict-scorecard-test pii-audit snapshot-fixture-audit data-manifest verify-assets audio-audit root-audit disclosure-audit issue-template-audit test-name-audit docs-audit design-audit comment-audit corpus-edit-audit match-audit closed-list-audit duplicate-table-audit word-split-audit accessibility-controls layering-audit public-api-audit string-audit type-name-audit python-imports-audit ratchet-test mutation-probe-test range-test hits-test hook-test pre-push-test pre-push-lock-test update-feed-test entitlement-gate-test issue-template-test dependabot-labels-test dependency-pin-test flake-audit uitest-arguments eval-arguments uitest-result-path developer-dir-test log-audit store-permissions pasteboard-audit context-reach-audit bundle-requirement-test bundle-test release-tag-test release-notes-test release-quality-test provider-mark-test release-order-test notarise-dmg-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test exclusion-audit size-budget lint build coverage offline-audit
 eval: seam-audit eval-tests rules-scorecard quality-grid-scorecard
 bench: perf-budget offline-test soak-test bench-tests
 

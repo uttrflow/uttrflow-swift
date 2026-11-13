@@ -92,6 +92,33 @@ struct EncryptedPredictStoreTests {
         #expect(try await reopened.recent(in: terminal, limit: 5) == ["distinctive corpus phrase"])
     }
 
+    @Test("a learned line waits for its batch while forgetting writes at once", .bug(id: 3690))
+    func batchesLearnedWrites() async throws {
+        let corpus = Corpus()
+        let key = CorpusKeys(value: SymmetricKey(size: .bits256))
+        let file = URL(filePath: corpus.path)
+        let now = Date()
+        do {
+            let store = try PredictStore(path: corpus.path, encryptedStore: EncryptedStore(keys: key))
+            for line in 0..<PredictStore.entriesPerSurface {
+                try await store.record("filler line \(line) end", in: terminal, at: now)
+            }
+            try await store.flushLearnedChanges()
+            let sealed = try Data(contentsOf: file)
+            try await store.record("one more learned line", in: terminal, at: now)
+            try await store.recordAccepted("one more learned line", in: terminal)
+            #expect(try Data(contentsOf: file) == sealed)
+            try await store.flushLearnedChanges()
+            #expect(try Data(contentsOf: file) != sealed)
+            let learned = try Data(contentsOf: file)
+            try await store.forget("filler line 7 end", in: terminal)
+            #expect(try Data(contentsOf: file) != learned)
+        }
+        let reopened = try PredictStore(path: corpus.path, encryptedStore: EncryptedStore(keys: key))
+        #expect(try await reopened.candidates(for: terminal, matching: "one more").count == 1)
+        #expect(try await reopened.candidates(for: terminal, matching: "filler line 7 ").isEmpty)
+    }
+
     @Test("an encrypted corpus refuses a second open while its first store is live", .bug(id: 5267))
     func encryptedCorpusHasOneOpenWriter() throws {
         let corpus = Corpus()

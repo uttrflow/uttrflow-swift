@@ -1,0 +1,22 @@
+[
+  {
+    "id": "snippet-inside-sentence-2368",
+    "note": "A trigger said inside a sentence is replaced by its stored text in the tidied message.",
+    "addedFor": 2368,
+    "spoken": "please send the parcel to my office address before friday",
+    "expected": "Please send the parcel to 4 Invented Row, Sampletown before Friday.",
+    "mustKeep": ["Sampletown"],
+    "mustNotAdd": ["office"],
+    "snippets": {"my office address": "4 Invented Row, Sampletown"}
+  },
+  {
+    "id": "snippet-sign-off-2368",
+    "note": "A trigger said last is replaced by its stored lines, line breaks kept.",
+    "addedFor": 2368,
+    "spoken": "that is everything for today sign off block",
+    "expected": "That is everything for today. Best wishes,\nSam Example",
+    "mustKeep": ["wishes", "Example"],
+    "mustNotAdd": ["block"],
+    "snippets": {"sign off block": "Best wishes,\nSam Example"}
+  }
+]

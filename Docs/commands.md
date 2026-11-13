@@ -182,6 +182,9 @@ turbo, 216 takes.
 | inline code | 100% | none |
 | code block | 33.3% | nothing heard, "cold block" |
 
-No take ran a different command. The gate (`CommandAudioReport.passesGate`) is held at this run:
-recall at least 117 of 216, 0 misfires. Synthetic voices read cleanly, so a real speaker's recall
+No take ran a different command. A heading level the recogniser writes as a word that sounds like
+its number ("Heading to.", "Heading free.") is read as that level, which takes the same takes to
+67.1% (145 of 216). The gate (`CommandAudioReport.passesGate`) is held there: recall at least 145 of
+216, 0 misfires. The release target (`CommandAudioReport.recallTarget`) is 75% overall; Markdown
+commands ship once the floor reaches it. Synthetic voices read cleanly, so a real speaker's recall
 is lower than this, not higher; a recorded set replaces the table.

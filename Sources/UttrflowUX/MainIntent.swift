@@ -30,8 +30,8 @@ public enum MainIntent: Sendable, Equatable {
     case flagDictationAs(UUID, FlagReason)
     /// Open a masked, editable report of this dictation to copy or save; nothing is sent.
     case reportDictation(UUID)
-    /// Open the word editor with this spelling as "Say it like", so the right spelling is typed once.
-    case fixWord(String)
+    /// Open the word editor with this spelling from this dictation as "Say it like", so the right spelling is typed once.
+    case fixWord(String, from: UUID)
     /// Keep this dictation in clipboard history by choice.
     case keepDictationAsClip(UUID)
     /// Delete a dictation from history.

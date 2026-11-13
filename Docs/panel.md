@@ -54,7 +54,9 @@ the whole tag or its beginning: never from inside a tag, never across two tags, 
 space, and never when it is shorter than two characters, which would begin too many tags. The
 clip's text is still searched as before, so a word that only appears in the middle of a tag
 finds the clip by its text or not at all. Tag matches are listed after the names you gave and
-before collections and contents; a whole tag leads a tag the query only begins.
+before collections and contents; a whole tag leads a tag the query only begins. A query that
+starts with `#` lists tag matches first, before names, and still searches names, collections and
+text, so `#include` or `#ff88` keeps finding a clip by its text.
 
 Tags are edited in the same sheet as the name: words that start with `#` are tags, split at spaces or
 commas, and the rest is the name, so `pgprod #db #prod` names the clip and tags it. A tag is reduced
@@ -211,7 +213,9 @@ the undo offer being merely hidden costs nothing; the clip is not gone, only the
 says so.
 
 Outside a sheet, the undo offer wins while it is live, because it expires: `AppDelegate.undoWindow`
-is 8 seconds. Press **⌘Z** while the offer is visible to restore the deleted clip. Delete asks no
+is 8 seconds. Press **⌘Z** while the offer is visible to undo the most recent change: a delete
+restores the clip, and a text edit (⌘E) writes the clip's previous text back. There is one undo,
+and the later of a delete and an edit replaces the earlier. Delete asks no
 confirmation, and the undo is what pays for that, so the undo is **offered, not merely
 available**: an undo nobody is told about leaves the clip gone with neither a question
 beforehand nor a way back.

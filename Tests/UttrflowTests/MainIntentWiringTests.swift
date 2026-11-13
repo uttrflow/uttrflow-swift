@@ -5,11 +5,13 @@ import Foundation
 import Synchronization
 import UttrflowAI
 import UttrflowAccount
+import UttrflowAudio
 import UttrflowClipboard
 import UttrflowCore
 import UttrflowDictionary
 import UttrflowHistory
 import UttrflowInput
+import UttrflowPipeline
 import UttrflowPredict
 import UttrflowUX
 import Testing
@@ -79,6 +81,69 @@ struct MainIntentWiringTests {
 
         // Installed, the lookup would answer the bundle's own name, "Activity Monitor".
         #expect(SuggestionApplications.name(of: "com.apple.ActivityMonitor") == "ActivityMonitor")
+    }
+
+    @Test("saving a fix offers to retry the dictation's kept audio, and the history text is unchanged")
+    func fixOffersRetryWhenAudioIsKept() async throws {
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
+        app.drawsWindows = false
+        let writer = try #require(await app.recordings.begin(at: Date()))
+        writer.append(Array(repeating: 0.1, count: 1_600))
+        let recording = await app.recordings.finish(writer)
+        app.render(
+            .inserted(
+                DictationOutcome(
+                    text: "Ask Nickel", method: .accessibility, cleanedBy: .rules,
+                    keptRecording: recording.id)))
+
+        await app.finishedAudioWork?.value
+        app.carryOut(.fixWord("Nickel", from: recording.id))
+        app.carryOut(.saveWord(word: "Nikhil", pronunciation: "Nickel", applications: []))
+        await app.intentWork?.value
+
+        #expect(app.actionNotice?.action?.intent == .retryRecording(recording.id))
+        #expect(app.lastTranscript == "Ask Nickel")
+        let entry = try #require(
+            await PersonalDictionaryStore(file: PersonalDictionaryStore.defaultFile(in: sandbox.root))
+                .allEntries().first)
+        #expect(entry.word == "Nikhil")
+        #expect(entry.pronunciation == "Nickel")
+        #expect(entry.origin == .added)
+    }
+
+    @Test("saving a fix for a dictation with no kept audio offers no retry")
+    func fixOffersNoRetryWithoutAudio() async {
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
+        app.drawsWindows = false
+
+        app.carryOut(.fixWord("Nickel", from: UUID()))
+        app.carryOut(.saveWord(word: "Nikhil", pronunciation: "Nickel", applications: []))
+        await app.intentWork?.value
+
+        #expect(app.actionNotice?.action == nil)
+    }
+
+    @Test("forgetting a dictation deletes the audio it kept for a fix")
+    func forgettingADictationDeletesItsAudio() async throws {
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root, clipboardSource: InMemoryClipboardSource())
+        app.drawsWindows = false
+        let writer = try #require(await app.recordings.begin(at: Date()))
+        writer.append([0.1])
+        let recording = await app.recordings.finish(writer)
+        app.render(
+            .inserted(
+                DictationOutcome(
+                    text: "Ask Nickel", method: .accessibility, cleanedBy: .rules,
+                    keptRecording: recording.id)))
+        await app.finishedAudioWork?.value
+
+        app.carryOut(.forgetDictation(recording.id))
+        await app.intentWork?.value
+
+        #expect(await !app.recordings.keepsFinished(recording.id, now: Date()))
     }
 
     @Test("saving a word puts it in the dictionary")

@@ -49,7 +49,7 @@ struct PanelAnnouncementTests {
     func undoOffer() {
         #expect(Self.panel(canUndo: true).announcements == [PanelPresenter.undoAnnouncement])
         #expect(PanelPresenter.undoAnnouncement.contains("Command-Z"))
-        #expect(PanelPresenter.undoAnnouncement.contains("most recent deletion"))
+        #expect(PanelPresenter.undoAnnouncement == "Command-Z undoes your last change.")
     }
 
     @Test("a notice and the undo offer are both announced")

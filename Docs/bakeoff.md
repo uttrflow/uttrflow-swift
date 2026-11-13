@@ -33,6 +33,10 @@ run-on sentence fails it however many words survive.
 vocabulary the way the pipeline hands them to the message passes; a case about an entry's
 spelling holds it with `expectedExact`. `webDestination` cases are said into an invented page in a browser: web mail,
 web chat and a search field. Each case in both is named after the issue it guards.
+`snippet` cases (`snippet.json`, `EvaluationCorpus.snippet`) say a trigger of the user's snippets.
+They are no part of `all`, because a tidier alone never expands one: the bake-off scores them on
+the text `DictationPipeline` writes with the candidate as its tidier and the case's snippets
+stored, the same expansion stage a dictation runs, and reports them as their own category.
 `developerGenre` is one invented whole dictation per kind of text a developer writes (a stand-up,
 a commit message, a bug report with steps, a shell pipeline, a decision record and twenty more),
 20 to 120 words each, where flags, paths, numbers, lists and casing meet in one text. Each case's

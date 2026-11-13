@@ -44,7 +44,7 @@ extension DictationState {
 
 // MARK: - Tests
 
-/// The audio is kept exactly when the words were lost, and deleted the moment they land.
+/// The audio is kept when words were lost, or when they landed live so a fix can retry it, never for a secure field.
 @Suite("Dictation pipeline: the recording beside the buffer")
 struct DictationPipelineRecordingTests {
     private let recording = KeptRecording(id: UUID(), when: Date(), duration: .seconds(2))
@@ -71,14 +71,15 @@ struct DictationPipelineRecordingTests {
         return await pipeline.currentState
     }
 
-    @Test("a dictation whose words landed deletes its recording")
-    func successDiscards() async {
+    @Test("a dictation whose words landed keeps its recording for a fix and names it")
+    func successKeepsForFix() async {
         let recordings = FakeRecordingKeeper(current: recording)
         let state = await dictate(makePipeline(recordings: recordings))
 
         #expect(state.outcome != nil)
         #expect(state.outcome?.isFromRecording == false)
-        #expect(await recordings.discarded == [recording.id])
+        #expect(state.outcome?.keptRecording == recording.id)
+        #expect(await recordings.discarded.isEmpty)
     }
 
     @Test("a dictation the recogniser lost keeps its recording and points the user at it")
@@ -180,15 +181,15 @@ struct DictationPipelineRecordingTests {
         #expect(await recordings.discarded.isEmpty)
     }
 
-    @Test("cancelling after the key is released deletes the recording")
-    func cancelDiscards() async {
+    @Test("a cancel after the words landed leaves the recording kept for a fix")
+    func cancelAfterLandingKeepsForFix() async {
         let recordings = FakeRecordingKeeper(current: recording)
         let pipeline = makePipeline(recordings: recordings)
         await pipeline.startRecording()
         await pipeline.finishRecording()
         await pipeline.cancel()
 
-        #expect(await recordings.discarded == [recording.id])
+        #expect(await recordings.discarded.isEmpty)
     }
 
     // MARK: Retrying
@@ -254,6 +255,7 @@ struct DictationPipelineRecordingTests {
         #expect(outcome.text == said)
         #expect(outcome.method == .clipboard)
         #expect(outcome.isFromRecording)
+        #expect(outcome.keptRecording == nil, "a retry consumes the recording it read")
         #expect(outcome.spokenFor == audio.duration)
         #expect(outcome.insertedInto == nil)
         #expect(clipboard.received == [said])

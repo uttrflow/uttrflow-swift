@@ -112,8 +112,8 @@ extension SettingsPresenter {
 
     /// What happens to the audio, in the one wording every screen repeats. See `Docs/recordings.md`.
     public static let recordingsPromise =
-        "Audio is deleted the moment it becomes text, and kept on this Mac for a day only "
-        + "if some of it couldn’t be, so you can retry."
+        "Audio is kept on this Mac for a day so you can retry a dictation or a fixed word, then deleted; "
+        + "audio from a password field is deleted at once."
 
     /// How long the text of a dictation survives, offering only periods the store round-trips.
     private static func retentionRow(_ settings: Settings) -> SettingsRow {

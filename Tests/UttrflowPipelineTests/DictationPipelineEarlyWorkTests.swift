@@ -867,7 +867,7 @@ struct DictationPipelineEarlyWorkTests {
         #expect(inserter.received == ["W1 X. W4 X"])
     }
 
-    @Test("a dictation that missed a piece keeps its recording, and one that missed none deletes it")
+    @Test("a missed piece keeps the recording waiting; a dictation that missed none keeps it for a fix")
     func missedPieceKeepsTheRecording() async {
         for missed in [false, true] {
             let recording = KeptRecording(id: UUID(), when: Date(), duration: .seconds(3))
@@ -881,7 +881,8 @@ struct DictationPipelineEarlyWorkTests {
             await pipeline.finishRecording()
 
             #expect(await pipeline.currentState.outcome?.missedPieces == (missed ? 1 : 0))
-            #expect(await recordings.discarded == (missed ? [] : [recording.id]))
+            #expect(await recordings.discarded.isEmpty)
+            #expect(await pipeline.currentState.outcome?.keptRecording == (missed ? nil : recording.id))
         }
     }
 

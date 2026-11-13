@@ -145,6 +145,8 @@ public struct DictationOutcome: Sendable, Equatable {
     public let guardRefusals: [RefusalKind]
     /// How complete the result is; every surface reads this one value, never the engine behind it.
     public let quality: OutcomeQuality
+    /// The audio of a dictation whose words all landed, kept on this Mac for a day so a fixed word can be retried.
+    package let keptRecording: UUID?
 
     public init(
         text: String, method: TextInsertionMethod, cleanedBy: TransformerKind,
@@ -153,7 +155,7 @@ public struct DictationOutcome: Sendable, Equatable {
         arrival: InsertionArrival = .notReported, intoSecureField: Bool = false, missedPieces: Int = 0,
         inputTooLoud: Bool = false, unavailableEngines: [CleaningRecord.UnavailableEngine] = [],
         doubtful: DoubtfulWordsOutcome = .notAvailable, slowCause: SlowDictationCause? = nil,
-        guardRefusals: [RefusalKind] = [], quality: OutcomeQuality? = nil
+        guardRefusals: [RefusalKind] = [], quality: OutcomeQuality? = nil, keptRecording: UUID? = nil
     ) {
         self.text = text
         self.method = method
@@ -172,6 +174,7 @@ public struct DictationOutcome: Sendable, Equatable {
         self.slowCause = slowCause
         self.guardRefusals = guardRefusals
         self.quality = quality ?? (MissedSpeech.isMissing(missedPieces) ? .partial : .complete)
+        self.keptRecording = keptRecording
     }
 
     /// The words Uttrflow may keep or show, which is none for a secure field or a credential.

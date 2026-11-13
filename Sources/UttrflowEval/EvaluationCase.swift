@@ -39,6 +39,8 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         case homophone
         /// A short Hindi or Hinglish reply, an English loanword in Hindi, or romanised Hindi dictated as it is.
         case hinglishReply
+        /// A dictation that says a snippet's trigger, scored as the pipeline writes it with the snippet expanded.
+        case snippet
 
         /// Whether every reference here is only what `Docs/agents/product.md` lets the tidier make of a transcript.
         var isTranscriptOnly: Bool {
@@ -48,6 +50,8 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
                 true
             // These join spoken words into an identifier, romanise, take a spelling from the screen or repair a word.
             case .technical, .multilingual, .contextual, .grammar, .homophone, .hinglishReply: false
+            // The expansion is the user's stored text, which the speaker never said.
+            case .snippet: false
             }
         }
     }
@@ -108,6 +112,8 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
     public let pausedAfter: [Int]
     /// The user's dictionary words, handed to the engine as the request's vocabulary, as the pipeline hands them.
     public let dictionary: [String]
+    /// The user's snippets, each trigger to its expansion, which only the pipeline's expansion stage reads.
+    package let snippets: [String: String]
 
     public init(
         id: String,
@@ -132,6 +138,7 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         segment: Segment? = nil,
         pausedAfter: [Int] = [],
         dictionary: [String] = [],
+        snippets: [String: String] = [:],
         origin: Origin = .authored,
         addedFor: Int? = nil
     ) {
@@ -159,6 +166,7 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         self.segment = segment
         self.pausedAfter = pausedAfter
         self.dictionary = dictionary
+        self.snippets = snippets
     }
 
     /// Below the correction engine's threshold, which is the line a doubtful word has to fall under.

@@ -129,8 +129,13 @@ extension PanelSnapshot {
         let needle = self.needle
         // A clip whose whole text or whole tag is the query can never be narrowed to, so it leads its group.
         let whole = Set(matches.lazy.map(\.result).filter { isWhole(needle, in: $0) }.map(\.id))
-        let ordered = matches.sorted { Self.rank($0, whole: whole) < Self.rank($1, whole: whole) }
-            .map(\.result)
+        // A query starting with `#` asks for a tag first, yet still finds `#include` in the text.
+        let tagsFirst = needle.hasPrefix("#")
+        let ordered = matches.sorted {
+            Self.rank($0, whole: whole, tagsFirst: tagsFirst)
+                < Self.rank($1, whole: whole, tagsFirst: tagsFirst)
+        }
+        .map(\.result)
         return Self.capping(ordered) { row in
             // A collection named exactly is asked for whole; there is nothing more to type to narrow it.
             row.match == .category
@@ -167,10 +172,13 @@ extension PanelSnapshot {
             foldedNeedle, options: SearchFolding.comparisonOptions, locale: locale) == .orderedSame
     }
 
-    /// Match field, then exact alias or whole tag or text, then pinned, then arrival order, so groups are contiguous for ↓.
-    static func rank(_ entry: PanelMatch, whole: Set<Clip.ID>) -> (Int, Int, Int, Int) {
-        (
-            entry.result.match?.rawValue ?? 0,
+    /// Match field, tags leading when `tagsFirst`, then exact alias or whole tag or text, then pinned, then arrival order, so groups are contiguous for ↓.
+    static func rank(
+        _ entry: PanelMatch, whole: Set<Clip.ID>, tagsFirst: Bool = false
+    ) -> (Int, Int, Int, Int) {
+        let field = entry.result.match
+        return (
+            tagsFirst && field == .tag ? -1 : field?.rawValue ?? 0,
             entry.result.isExactAlias || whole.contains(entry.result.clip.id) ? 0 : 1,
             entry.result.clip.isPinned ? 0 : 1,
             entry.position
