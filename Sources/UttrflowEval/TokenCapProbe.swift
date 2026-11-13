@@ -41,11 +41,11 @@ package struct TokenCapRow: Sendable, Equatable {
         self.effort = effort
     }
 
-    /// Whether the decode ran out of positions: the tail was decoded again, or no point to resume from was found.
+    /// Whether the decode ran out of positions: the tail was decoded again, or no point to resume from was found; the probe sends no prompt, so no unprompted re-decode adds to the retry time.
     package var reachedCap: Bool { effort.retrySeconds > 0 || effort.capUnresolved }
 
-    /// The words of the transcript against the words read, so a piece that lost its end shows as under 1.
-    package var wordShare: Double { Double(transcriptWords) / Double(max(piece.words, 1)) }
+    /// The words in the transcript over the words read: a count ratio, which says nothing about which words came back.
+    package var wordRatio: Double { Double(transcriptWords) / Double(max(piece.words, 1)) }
 }
 
 /// The rows summed by how long the piece ran, as `Docs/hindi-token-cap.md` records them.
@@ -62,7 +62,7 @@ package struct TokenCapTable: Sendable {
     /// One line per length: pieces, pieces that reached the cap, pieces left unresolved, and the mean decode again time and word share.
     package var markdown: String {
         var lines = [
-            "| Piece length | Pieces | Reached the cap | Unresolved | Seconds decoding again | Words kept |",
+            "| Piece length | Pieces | Reached the cap | Unresolved | Seconds decoding again | Words out per word read |",
             "|---|---|---|---|---|---|",
         ]
         var floor = 0.0
@@ -75,7 +75,7 @@ package struct TokenCapTable: Sendable {
                 label, "\(group.count)", "\(group.count { $0.reachedCap })",
                 "\(group.count { $0.effort.capUnresolved })",
                 String(format: "%.1f", group.reduce(0) { $0 + $1.effort.retrySeconds } / count),
-                String(format: "%.0f%%", group.reduce(0) { $0 + $1.wordShare } / count * 100),
+                String(format: "%.0f%%", group.reduce(0) { $0 + $1.wordRatio } / count * 100),
             ]
             lines.append("| " + cells.joined(separator: " | ") + " |")
         }

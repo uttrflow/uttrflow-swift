@@ -11,14 +11,21 @@ struct TokenCapProbeTests {
         TokenCapRow(piece: piece, audioSeconds: seconds, transcriptWords: heard, effort: effort)
     }
 
-    @Test("pieces grow by one passage at a time, per language")
+    @Test("pieces join one more passage at a time, per language, and skip English")
     func growing() {
-        let pieces = TokenCapPiece.growing(from: TranscriptionCorpus.all)
-        let hindi = pieces.filter { $0.language == .hindi }
-        #expect(!hindi.isEmpty)
-        #expect(zip(hindi, hindi.dropFirst()).allSatisfy { $0.words < $1.words })
-        #expect(pieces.allSatisfy { $0.language != .english })
-        #expect(Set(pieces.map(\.id)).count == pieces.count)
+        func passage(
+            _ id: String, _ language: TranscriptionCase.Language, _ text: String?
+        ) -> TranscriptionCase {
+            TranscriptionCase(
+                id: id, language: language, stressor: .everyday, romanised: id, devanagari: text)
+        }
+        let pieces = TokenCapPiece.growing(
+            from: [
+                passage("e", .english, nil), passage("h1", .hindi, "क ख"), passage("h2", .hindi, "ग घ"),
+                passage("m1", .hinglish, "च छ"), passage("m2", .hinglish, "ज झ"),
+            ])
+        #expect(pieces.map(\.id) == ["hindi-1", "hindi-2", "hinglish-1", "hinglish-2"])
+        #expect(pieces.map(\.text) == ["क ख", "क ख ग घ", "च छ", "च छ ज झ"])
     }
 
     @Test("a decode again, or a cap with no resume point, is a piece that reached the cap")
@@ -28,10 +35,10 @@ struct TokenCapProbeTests {
         #expect(Self.row(seconds: 8, effort: DecodeEffort(capUnresolved: true)).reachedCap)
     }
 
-    @Test("a piece that lost its end shows as under a whole share of its words")
-    func wordShare() {
-        #expect(Self.row(seconds: 8, heard: 4).wordShare == 1)
-        #expect(Self.row(seconds: 8, heard: 2).wordShare == 0.5)
+    @Test("the ratio is the words out over the words read")
+    func wordRatio() {
+        #expect(Self.row(seconds: 8, heard: 4).wordRatio == 1)
+        #expect(Self.row(seconds: 8, heard: 2).wordRatio == 0.5)
     }
 
     @Test("the table groups the rows by how long the piece ran")

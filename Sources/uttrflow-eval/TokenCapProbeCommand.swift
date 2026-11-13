@@ -49,7 +49,11 @@ struct TokenCapProbeCommand: AsyncParsableCommand {
         var rows: [TokenCapRow] = []
         for (index, piece) in pieces.enumerated() {
             Terminal.show("\r  \(index + 1)/\(pieces.count)")
-            let clip = directory.appendingPathComponent("\(voice.filter(\.isLetter))-\(piece.id).wav")
+            let fingerprint = (voice + piece.text).utf8.reduce(0xcbf2_9ce4_8422_2325 as UInt64) {
+                ($0 ^ UInt64($1)) &* 0x100_0000_01b3
+            }
+            let clip = directory.appendingPathComponent(
+                "\(voice.filter(\.isLetter))-\(piece.id)-\(String(fingerprint, radix: 16)).wav")
             if !FileManager.default.fileExists(atPath: clip.path) {
                 guard SaySynthesizer().speak(piece.text, voice: voice, to: clip) else {
                     throw CleanExit.message("`say` could not read \(piece.id) in \(voice).")
