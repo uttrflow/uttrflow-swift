@@ -3,6 +3,14 @@
   "recordedAt" : "1970-01-01T00:00:00Z",
   "rows" : [
     {
+      "adapter" : "json",
+      "addedTokens" : 0,
+      "cases" : 10,
+      "exactCases" : 10,
+      "exactHits" : 10,
+      "shapeViolations" : 0
+    },
+    {
       "adapter" : "markup",
       "addedTokens" : 0,
       "cases" : 40,
