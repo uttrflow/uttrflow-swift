@@ -2997,7 +2997,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Writes a `use` row for each dictionary entry a dictation into `application` used, behind the learning consent.
     func noteUses(_ used: [UUID], from application: String?) async {
-        learnt.note(EvidenceSources.uses(of: used, day: EvidenceRow.day(of: Date())), from: application)
+        learnt.note(
+            EvidenceSources.uses(of: used, day: EvidenceRow.day(of: Date()), in: application),
+            from: application)
         await learnt.pending?.value
     }
 
