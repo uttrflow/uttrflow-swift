@@ -2,7 +2,7 @@
 import UttrflowCore
 
 extension EvaluationCorpus {
-    /// Kept out of `all`, and so out of the meaning-guard refusal gate, while that guard refuses 34 of their references.
+    /// Kept out of `all`, and so out of the meaning-guard refusal gate, while that guard refuses one of their references.
     public static let genres: [EvaluationCase] =
         correspondence + workWriting + everydayWriting + formalWriting + creativeWriting + mixedSpeech
 
