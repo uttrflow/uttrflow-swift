@@ -146,8 +146,12 @@ enum PieceJoiner {
     static func unitRunsAcross(
         _ head: String, into tail: String, under formatter: DestinationFormatter, going situation: Situation
     ) -> Bool {
-        let headWords = unitWords(of: WordTokens.words(head, .display))
-        let tailWords = WordTokens.words(tail, .display).prefix(longestSpokenUnit)
+        // A tag in a markup document is read from its "open" to its "close", further than any number reaches.
+        let inMarkup =
+            MarkupPosition.at(situation.insertion.precedingText, language: situation.intent.language) != nil
+        let headWords = unitWords(of: WordTokens.words(head, .display), inMarkup: inMarkup)
+        let tailWords = WordTokens.words(tail, .display).prefix(
+            inMarkup ? longestSpokenTag : longestSpokenUnit)
         guard !headWords.isEmpty, !tailWords.isEmpty else { return false }
         // A mark that ends a sentence closes the head, so no number, time or address runs on from it into the tail.
         let headSaid = Array(headWords)
@@ -218,11 +222,15 @@ enum PieceJoiner {
     /// The most words either side of a cut that one spoken number, time or address is read from.
     static let longestSpokenUnit = 8
 
+    /// The most words either side of a cut that a spoken tag is read from: "open", a slash, the element, its attributes and "slash close".
+    static let longestSpokenTag = 19
+
     /// The most words before a cut that a spoken web address or path is read from, host and path together.
     static let longestSpokenAddress = 16
 
     /// The words before a cut that a unit ending at it is read from: a web address or path reaches back past its host.
-    private static func unitWords(of words: [String]) -> ArraySlice<String> {
+    private static func unitWords(of words: [String], inMarkup: Bool = false) -> ArraySlice<String> {
+        if inMarkup { return words.suffix(longestSpokenTag) }
         let near = words.suffix(longestSpokenUnit)
         let inAddress = near.contains { ["dot", "slash"].contains(WordShape($0).key) }
         return inAddress ? words.suffix(longestSpokenAddress) : near
