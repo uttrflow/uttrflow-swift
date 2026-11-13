@@ -27,7 +27,7 @@ private let asked = "com.example.notes"
 struct PersonaLearningConsentTests {
     /// An app over `root` with `declined` refused, the switch in Settings as `learns` says, and `history` in History.
     private func app(
-        in root: URL, learns: Bool, history: [DictationRecord] = []
+        in root: URL, learns: Bool, history: [DictationRecord] = [], keeping: (Settings) -> Settings = { $0 }
     ) async throws -> (AppDelegate, EvidenceLedgerStore) {
         try CapturePreferencesFile(
             path: CapturePreferencesFile.defaultFile(in: root).path(percentEncoded: false)
@@ -36,7 +36,7 @@ struct PersonaLearningConsentTests {
         let store = UserDefaultsSettingsStore(store: ModelDownloadSettingsStore())
         var settings = store.load()
         settings.learnsFromDictation = learns
-        store.save(settings)
+        store.save(keeping(settings))
         let keys = EncryptedStore(keys: Keys())
         let past = DictationHistoryStore(
             file: DictationHistoryStore.defaultFile(in: root), encryptedStore: keys)
@@ -72,6 +72,42 @@ struct PersonaLearningConsentTests {
         let rows = await ledger.rows(keeping: window)
         #expect(rows.filter { $0.kind == .styleMessage }.map(\.weight).reduce(0, +) == 1)
         #expect(rows.filter { $0.kind == .styleWords }.map(\.weight).reduce(0, +) == 4)
+    }
+
+    @Test("an application History leaves out, or History keeping nothing, teaches the persona nothing")
+    func leftOutOfHistoryWritesNoRow() async throws {
+        let leftOut = "com.example.records"
+        let edit = EvidenceSources.pair(
+            kept: EditedSpan(position: 0, old: ["there"], new: ["their"]), day: EvidenceRow.day(of: Date()))
+        let window = RetentionWindow(days: 365, now: Date())
+
+        let sandbox = Sandbox()
+        let (listed, ledger) = try await app(in: sandbox.root, learns: true) { settings in
+            var settings = settings
+            settings.historyExcludedApplications = [leftOut.uppercased()]
+            return settings
+        }
+        listed.render(landed("meet me at the usual place", in: leftOut))
+        listed.learnt.note(edit, from: leftOut)
+        // The ordinary dictation is the marker that the ledger's writes have run.
+        listed.render(landed("see you at noon.", in: asked))
+        try await eventually { await !ledger.rows(keeping: window).isEmpty }
+        await listed.learnt.pending?.value
+        let rows = await ledger.rows(keeping: window)
+        #expect(rows.filter { $0.kind == .styleMessage }.map(\.weight).reduce(0, +) == 1)
+        #expect(rows.filter { $0.kind == .styleWords }.map(\.weight).reduce(0, +) == 4)
+        #expect(!rows.contains { row in edit.contains { $0.kind == row.kind } })
+
+        let nothingKept = Sandbox()
+        let (quiet, quietLedger) = try await app(in: nothingKept.root, learns: true) { settings in
+            var settings = settings
+            settings.keepsNoTranscripts = true
+            return settings
+        }
+        quiet.render(landed("see you at noon.", in: asked))
+        quiet.learnt.note(edit, from: asked)
+        await quiet.learnt.pending?.value
+        #expect(await quietLedger.rows(keeping: window).isEmpty)
     }
 
     @Test("with Learn from my dictation off, a dictation and an edit write no row anywhere")
