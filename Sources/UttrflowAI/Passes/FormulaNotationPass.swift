@@ -4,13 +4,17 @@ import UttrflowCore
 /// Writes a spoken spreadsheet formula as the formula: "a one to a ten" as `A1:A10`, function names in capitals, and operators and brackets as their marks.
 struct FormulaNotationPass: PieceCleaningPass {
     static let id: PassID = .formulaNotation
-    static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    // Writing a reference adds a digit and a name that were spoken as words, so only these two laws hold.
+    static let laws: Set<PassLaw> = [.idempotent, .latinOnly]
 
     /// Whether the cell's text before the caret already begins with `=`.
     var cellHoldsFormula = false
 
     /// Whether the cell is known to be empty, so a leading "equals" or "formula" opens a formula.
     var cellIsEmpty = false
+
+    /// Whether the caret stands inside a string literal the cell has opened and not closed.
+    var caretInString = false
 
     /// What separates the arguments of a function, which the system locale decides: a comma or a semicolon.
     var argumentSeparator = ","
@@ -23,11 +27,13 @@ struct FormulaNotationPass: PieceCleaningPass {
     func apply(_ draft: Draft) -> Draft {
         let live = draft.presentIndices
         guard let first = live.first else { return draft }
-        let spoken = live.map { Self.trimmed(draft.words[$0].text) }
+        let raw = live.map { draft.words[$0].text }
+        let spoken = raw.map(Self.trimmed)
         let keys = spoken.map { $0.lowercased() }
         let opens = cellIsEmpty && Self.openers.contains(keys[0])
         guard cellHoldsFormula || opens else { return draft }
-        let written = Writer(spoken: spoken, keys: keys, separator: argumentSeparator).run(opening: opens)
+        let written = Writer(spoken: spoken, raw: raw, keys: keys, separator: argumentSeparator)
+            .run(opening: opens, continuingString: caretInString && cellHoldsFormula)
         var draft = draft
         draft.replace(at: first, with: written, by: Self.id)
         for index in live.dropFirst() { draft.remove(at: index, by: Self.id) }
@@ -39,13 +45,17 @@ struct FormulaNotationPass: PieceCleaningPass {
 
     /// A word without the stop or comma the recogniser put after it.
     fileprivate static func trimmed(_ text: String) -> String {
-        text.trimmingCharacters(in: CharacterSet(charactersIn: ".,;:?!"))
+        let bare = text.trimmingCharacters(in: CharacterSet(charactersIn: ".,;:?!"))
+        // A word that is only a mark, such as a written separator, stays as it is.
+        return bare.isEmpty ? text : bare
     }
 }
 
 /// Reads the words of one piece left to right into the marks of a formula.
 private struct Writer {
     let spoken: [String]
+    /// The words as the recogniser wrote them, which a quoted string keeps whole.
+    let raw: [String]
     let keys: [String]
     let separator: String
 
@@ -59,10 +69,16 @@ private struct Writer {
     private static let brackets: Set<String> = ["paren", "parenthesis", "bracket"]
     private static let rangeWords: Set<String> = ["to", "through", "colon"]
 
-    func run(opening: Bool) -> String {
+    func run(opening: Bool, continuingString: Bool = false) -> String {
         var parts: [Part] = []
         var at = 0
-        if opening {
+        if continuingString {
+            // The caret is inside a string literal: its words stay as said until the speaker closes the quotation.
+            let close = keys.firstIndex(of: "quote")
+            let inner = raw[..<(close ?? raw.count)].joined(separator: " ")
+            parts.append(Part(text: close == nil ? inner : inner + "\"", isString: close != nil))
+            at = (close ?? keys.count - 1) + 1
+        } else if opening {
             parts.append(Part(text: "="))
             at = 1
         }
@@ -98,7 +114,7 @@ private struct Writer {
     private func next(_ at: Int, after _: Part?) -> (Part, Int) {
         let key = keys[at]
         if key == "quote", let close = keys[(at + 1)...].firstIndex(of: "quote") {
-            let inner = spoken[(at + 1)..<close].joined(separator: " ")
+            let inner = raw[(at + 1)..<close].joined(separator: " ")
             return (Part(text: "\"" + inner + "\"", isString: true), close - at + 1)
         }
         if key == "comma" || key == "semicolon" { return (Part(text: separator), 1) }
@@ -119,7 +135,7 @@ private struct Writer {
         if let (value, length) = NumberWords.cardinal(keys[at...]) {
             return (Part(text: String(value)), length)
         }
-        return (Part(text: spoken[at], isWord: true), 1)
+        return (Part(text: raw[at], isWord: true), 1)
     }
 
     private func matches(_ words: [String], at: Int) -> Bool {
@@ -135,11 +151,16 @@ private struct Writer {
             column = "$"
             position += 1
         }
-        guard position < keys.count, spoken[position].count == 1, let letter = spoken[position].first,
-            letter.isLetter
-        else { return nil }
-        column += spoken[position].uppercased()
-        position += 1
+        // A column is one to three letters said one at a time: "a a one" is AA1.
+        var letters = ""
+        while position < keys.count, letters.count < 3, spoken[position].count == 1,
+            spoken[position].first?.isLetter == true
+        {
+            letters += spoken[position].uppercased()
+            position += 1
+        }
+        guard !letters.isEmpty else { return nil }
+        column += letters
         if position < keys.count, keys[position] == "dollar" {
             row = "$"
             position += 1

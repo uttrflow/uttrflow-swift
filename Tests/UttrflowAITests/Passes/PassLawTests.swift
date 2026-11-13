@@ -17,7 +17,7 @@ private let everyPass: [any CleaningPass] = {
     let offByDefault: [any CleaningPass] = [
         CodeEditorCommandsPass(), SQLLayoutPass(), SpokenEmojiPass(destination: .plain),
         AtMentionPass(precedingText: nil), EmailStructurePass(), LetterNamesPass(),
-        MarkdownContinuationPass(position: .at("1. one")), FormulaNotationPass(),
+        MarkdownContinuationPass(position: .at("1. one")), FormulaNotationPass(cellHoldsFormula: true),
     ]
     return (pipelines.flatMap(\.passes) + offByDefault).filter { seen.insert($0.id).inserted }
 }()

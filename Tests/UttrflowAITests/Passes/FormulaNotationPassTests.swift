@@ -12,8 +12,10 @@ struct FormulaNotationPassTests {
         let situation = Situation(
             app: app, insertion: app.insertionPoint, destination: .spreadsheet, adapterMode: mode)
         let formatter = DestinationFormatter.standard(for: .spreadsheet)
+        // The argument separator follows the host's locale, so the cases are written with a comma.
         return CleaningPipeline.standard(for: formatter, situation: situation)
             .run(Draft(text: spoken)).text
+            .replacingOccurrences(of: FormulaNotationPass.systemSeparator, with: ",")
     }
 
     @Test(
@@ -49,6 +51,12 @@ struct FormulaNotationPassTests {
             ("equals round open paren a one comma two close paren", "=ROUND(A1,2)"),
             ("equals today open paren close paren", "=TODAY()"),
             ("equals a twenty five plus b one hundred", "=A25+B100"),
+            ("equals a a one plus a b two", "=AA1+AB2"),
+            (
+                "equals sum open paren dollar a b dollar one to dollar a c dollar ten close paren",
+                "=SUM($AB$1:$AC$10)"
+            ),
+            ("equals quote hello, world! quote", "=\"hello, world!\""),
         ])
     func writesFormula(spoken: String, expected: String) {
         #expect(written(spoken) == expected)
@@ -58,6 +66,12 @@ struct FormulaNotationPassTests {
     func continuesFormula() {
         #expect(written("a one to a ten close paren", after: "=SUM(") == "A1:A10)")
         #expect(written("plus b one", after: "=A1") == "+B1")
+    }
+
+    @Test("keeps the words of a string literal the caret is inside until it is closed")
+    func continuesString() {
+        #expect(written("hello plus world", after: "=IF(A1,\"") == "hello plus world")
+        #expect(written("hello plus world quote comma one", after: "=IF(A1,\"") == "hello plus world\",1")
     }
 
     @Test("separates arguments with the system locale's separator")

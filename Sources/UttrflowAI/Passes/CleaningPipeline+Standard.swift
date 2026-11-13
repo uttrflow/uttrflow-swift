@@ -93,6 +93,7 @@ extension CleaningPipeline {
                     cleanings.insert(
                         FormulaNotationPass(
                             cellHoldsFormula: cell.hasPrefix("="), cellIsEmpty: cell.isEmpty,
+                            caretInString: caretText.filter { $0 == "\"" }.count % 2 == 1,
                             argumentSeparator: FormulaNotationPass.systemSeparator),
                         at: punctuation)
                 }

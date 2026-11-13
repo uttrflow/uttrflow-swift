@@ -174,11 +174,11 @@ destination — so `apply` sees only the draft. The passes, in the order they ru
 | `RepeatedPhrasePass` | a 2–4 word run said twice in a row, a restarted incomplete clause | adjacency | piece |
 | `StammersPass` | the same function word twice | adjacency | piece |
 | `SelfCorrectionPass` | the half before a trigger phrase, a bare-hyphen cut-off | trigger between two candidates of the same shape | piece |
+| `FormulaNotationPass` | "a one to a ten" → `A1:A10`, function names in capitals, spoken operators, brackets and quoted strings → a formula | a spreadsheet cell that starts with `=`, or is empty and the speech opens with "equals" or "formula"; never in prose mode | piece |
 | `SpokenPunctuationPass` | "comma", "full stop", "question mark", "open quote…close quote", a spoken email address → marks | the word stands at a seam, not "put a comma there" | piece |
 | `SpokenCasingPass` | casing rows of `spoken-commands.json`: an identifier style in code, or a naming cue completed in the file's convention; "all caps" (next word) and "all caps on … all caps off" (span) in prose | the row's destinations; in prose, not after a determiner, a preposition or a naming verb, nor before a form of "be" | piece |
 | `CodeEditorCommandsPass` | spoken symbol commands | a code editor, outside a comment | piece |
 | `MarkdownContinuationPass` | "next item", "new item", "new heading" → the next list mark or heading mark of the Markdown already before the caret | a Markdown document, `MarkdownPosition`; the phrase opens a sentence, outside a fence | piece |
-| `FormulaNotationPass` | "a one to a ten" → `A1:A10`, function names in capitals, spoken operators, brackets and quoted strings → a formula | a spreadsheet cell that starts with `=`, or is empty and the speech opens with "equals" or "formula"; never in prose mode | piece |
 | `LayoutWordsPass` | "new line", "new paragraph", "bullet point", "number one" → layout | same | piece |
 | `NumberFormsPass` | fifteen → 15, sixteen point two → 16.2, two thirty pm → 2:30 pm | number-word grammar, `NumberPolicy`, `DigitGrouping` | piece |
 | `ContractionsPass` | dont → don't | word list | piece |
