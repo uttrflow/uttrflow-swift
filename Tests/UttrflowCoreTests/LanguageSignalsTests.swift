@@ -33,4 +33,14 @@ struct LanguageSignalsTests {
         #expect(LanguageSignals.rows(for: long, heardAs: DetectedLanguage(code: english), day: 1).isEmpty)
         #expect(LanguageSignals.rows(for: long, heardAs: nil, day: 1).isEmpty)
     }
+
+    @Test("a verdict with no confidence counts only from a long dictation")
+    func unreportedConfidenceNeedsLength() throws {
+        let english = try #require(LanguageCode("en"))
+        let engine = DetectedLanguage(code: english)
+        let longer = Array(repeating: long, count: 2).joined(separator: " ")
+        #expect(LanguageSignals.rows(for: long, heardAs: engine, day: 1).isEmpty)
+        #expect(
+            LanguageSignals.project(LanguageSignals.rows(for: longer, heardAs: engine, day: 1)) == ["en": 1])
+    }
 }

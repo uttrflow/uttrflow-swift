@@ -1820,6 +1820,7 @@
     "UttrflowCore let milliseconds": 2,
     "UttrflowCore let minimumConfidence": 1,
     "UttrflowCore let minimumWords": 1,
+    "UttrflowCore let minimumWordsWithoutConfidence": 1,
     "UttrflowCore let missedTargets": 1,
     "UttrflowCore let mode": 1,
     "UttrflowCore let modelAnswers": 1,
