@@ -947,6 +947,36 @@ struct SettingsPrivacyPaneTests {
         }
     }
 
+    @Test("an app can be named as never learnt from, shown on the dictation page, and removed again")
+    func learningExclusionRoundTrips() throws {
+        let app = "com.example.Journal"
+        let dictation = { (settings: Settings) in
+            SettingsPresenter.pane(for: .dictation, settings: settings, capabilities: .everything)
+        }
+        #expect(
+            dictation(.default).row("addLearningExclusion")?.control
+                == .action(title: "Add an app", change: .chooseApplicationToStopLearning))
+        #expect(SettingsChange.chooseApplicationToStopLearning.isRequestToAct)
+
+        let named = try SettingsEditor.apply(
+            .learnsInApplication(application: app, isOn: false), to: .default)
+        #expect(named.learningExcludedApplications == [app])
+        let twice = try SettingsEditor.apply(
+            .learnsInApplication(application: app.lowercased(), isOn: false), to: named)
+        #expect(twice.learningExcludedApplications == [app.lowercased()])
+        let row = try #require(dictation(named).row("learningExcluded.com.example.journal"))
+        #expect(
+            row.control
+                == .action(title: "Remove", change: .learnsInApplication(application: app, isOn: true)))
+
+        let cleared = try SettingsEditor.apply(.learnsInApplication(application: app, isOn: true), to: named)
+        #expect(cleared.learningExcludedApplications.isEmpty)
+        #expect(dictation(cleared).row("learningExcluded.com.example.journal") == nil)
+        #expect(throws: SettingsRejection.self) {
+            try SettingsEditor.apply(.learnsInApplication(application: "", isOn: false), to: .default)
+        }
+    }
+
     @Test("refuses a context level for an application it cannot name")
     func refusesAnUnnamedApplication() {
         #expect(throws: SettingsRejection.self) {

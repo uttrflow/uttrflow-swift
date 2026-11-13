@@ -110,6 +110,31 @@ struct PersonaLearningConsentTests {
         #expect(await quietLedger.rows(keeping: window).isEmpty)
     }
 
+    @Test("an application named in Settings as never learnt from writes no style row or edit pair")
+    func namedApplicationWritesNoRow() async throws {
+        let named = "com.example.Journal"
+        let edit = EvidenceSources.pair(
+            kept: EditedSpan(position: 0, old: ["there"], new: ["their"]), day: EvidenceRow.day(of: Date()))
+        let window = RetentionWindow(days: 365, now: Date())
+        let sandbox = Sandbox()
+        let (app, ledger) = try await app(in: sandbox.root, learns: true) { settings in
+            var settings = settings
+            settings.learningExcludedApplications = [named.lowercased()]
+            return settings
+        }
+
+        app.render(landed("meet me at the usual place", in: named))
+        app.learnt.note(edit, from: named)
+        // The ordinary dictation is the marker that the ledger's writes have run.
+        app.render(landed("see you at noon.", in: asked))
+        try await eventually { await !ledger.rows(keeping: window).isEmpty }
+        await app.learnt.pending?.value
+
+        let rows = await ledger.rows(keeping: window)
+        #expect(rows.filter { $0.kind == .styleMessage }.map(\.weight).reduce(0, +) == 1)
+        #expect(!rows.contains { row in edit.contains { $0.kind == row.kind } })
+    }
+
     @Test("with Learn from my dictation off, a dictation and an edit write no row anywhere")
     func switchedOffWritesNoRow() async throws {
         let sandbox = Sandbox()
@@ -154,7 +179,7 @@ struct PersonaLearningConsentTests {
             await app.noteUses([counted], from: asked)
 
             let uses = await ledger.rows(keeping: RetentionWindow(days: 365, now: Date())).map(\.subject)
-            #expect(uses == (learns ? [counted.uuidString] : []))
+            #expect(uses == (learns ? [counted.uuidString, "\(counted.uuidString)|\(asked)"] : []))
         }
     }
 
