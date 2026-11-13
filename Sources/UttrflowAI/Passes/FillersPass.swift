@@ -13,18 +13,19 @@ public struct FillersPass: PieceCleaningPass {
     ]
 
     /// Whether the word is a hesitation sound, held longer than its listed spelling included: "ummm", "errr", "hmmm".
-    static func isFiller(_ key: String) -> Bool {
-        if fillerWords.contains(key) { return true }
+    static func isFiller(_ key: String) -> Bool { fillerWords.contains(listedSpelling(of: key)) }
+
+    /// The listed spelling a held one stands for, shortest first ("uhhh" is "uh", "hmmm" is "hmm"), or the key itself.
+    static func listedSpelling(of key: String) -> String {
         // Only a letter said three or more times is held; "err" and a lone "m" stay words.
         let letters = Array(key)
         let held = letters.indices.dropFirst(2).contains {
             letters[$0] == letters[$0 - 1] && letters[$0] == letters[$0 - 2]
         }
-        return held && heldFillers.contains(singled(key))
+        guard held, !fillerWords.contains(key) else { return key }
+        let sound = singled(key)
+        return fillerWords.filter { singled($0) == sound }.min { ($0.count, $0) < ($1.count, $1) } ?? key
     }
-
-    /// Each listed filler with its repeated letters said once, the form a held spelling reduces to.
-    private static let heldFillers = Set(fillerWords.map(singled))
 
     /// The word with each run of one letter written once: "ummm" is "um".
     private static func singled(_ word: String) -> String {
@@ -83,7 +84,7 @@ public struct FillersPass: PieceCleaningPass {
                 previous = index
                 continue
             }
-            if live.count == 1, Self.standaloneReplies.contains(draft.shape(at: index).key) {
+            if live.count == 1, Self.standaloneReplies.contains(Self.listedSpelling(of: draft.shape(at: index).key)) {
                 previous = index
                 continue
             }
@@ -190,7 +191,7 @@ public struct FillersPass: PieceCleaningPass {
         guard first.prefix.isEmpty, first.suffix.isEmpty, second.prefix.isEmpty
         else { return nil }
         let written: String
-        switch (first.key, second.key) {
+        switch (listedSpelling(of: first.key), listedSpelling(of: second.key)) {
         case ("uh", "huh"): written = "uh-huh"
         case ("uh", "oh"): written = "uh-oh"
         case ("mm", "hmm"): written = "mm-hmm"

@@ -79,6 +79,8 @@ struct FillersPassTests {
             ("uh huh sounds good", "Uh-huh sounds good"),
             ("uh oh", "Uh-oh"),
             ("mm hmm", "Mm-hmm"),
+            ("mm hmmm", "Mm-hmm"),
+            ("uhhh oh", "Uh-oh"),
         ]
     )
     func joinsInterjections(input: String, expected: String) {
@@ -89,6 +91,7 @@ struct FillersPassTests {
     func keepsStandaloneReplies() {
         #expect(cleaned("hmm", by: sut) == "hmm")
         #expect(cleaned("mhm", by: sut) == "mhm")
+        #expect(cleaned("hmmm", by: sut) == "hmmm")
         #expect(cleaned("hello there hmm", by: sut) == "hello there")
         #expect(cleaned("hello there mhm", by: sut) == "hello there")
     }
