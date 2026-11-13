@@ -645,9 +645,10 @@ public struct NumberFormsPass: PieceCleaningPass {
             timeAcceptable(
                 position: position, minuteStart: end, minuteEnd: end + time.count, keys: keys, shapes: shapes)
         else { return nil }
-        // A status verb says a code, never a clock, even where the sentence ends on the pair, unless a meridiem follows.
+        // A status verb says a code where the pair reads as one, never a clock, unless a meridiem follows.
         let minuteEnd = end + time.count
         if followsStatusLead(position, keys: keys, shapes: shapes),
+            NumberWords.colloquialHundred(unbroken(from: position, keys: keys, shapes: shapes)) != nil,
             !(joined(minuteEnd, shapes) && isMeridiem(at: minuteEnd, keys: keys, shapes: shapes))
         {
             return nil
@@ -781,9 +782,10 @@ public struct NumberFormsPass: PieceCleaningPass {
         position > 0 && joined(position, shapes) && statusLeads.contains(keys[position - 1])
     }
 
-    /// Whether the word at `index` is a noun joined to the number before it, which that number counts.
+    /// Whether the number ending before `index` counts a noun joined after it, past "of" and any modifiers.
     private static func countsANoun(at index: Int, keys: [String], shapes: [WordShape]) -> Bool {
-        joined(index, shapes) && LexicalClass.tag(ofWordAt: index, in: keys) == .noun
+        joined(index, shapes)
+            && countsWhatFollows(after: index - 1, words: keys, tags: LexicalClass.tags(ofWords: keys))
     }
 
     /// Whether a colloquial hundred is one value: its tail cannot be a minute, a status verb leads it, or it is a ratio's first term.
@@ -794,8 +796,7 @@ public struct NumberFormsPass: PieceCleaningPass {
         let after = position + hundred.count
         // A status verb says a code, "returns five fifteen" as `515`, unless its tail counts a noun: "three 15 minute slots", "three 15 new records".
         if followsStatusLead(position, keys: keys, shapes: shapes),
-            !(joined(after, shapes)
-                && countsWhatFollows(after: after - 1, words: keys, tags: LexicalClass.tags(ofWords: keys)))
+            !countsANoun(at: after, keys: keys, shapes: shapes)
         {
             return true
         }

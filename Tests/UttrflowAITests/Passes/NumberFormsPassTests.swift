@@ -799,11 +799,17 @@ struct NumberFormsPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
-    @Test("a status-led pair keeps its count when a noun follows past modifiers")
-    func statusLedCountPastModifiers() {
-        let output = cleaned("return three fifteen new records", by: sut)
-        #expect(!output.contains("315"))
-        #expect(output.contains("three"))
+    @Test(
+        "a status-led pair keeps its count when a noun follows past modifiers, and a clock with no code reading",
+        arguments: [
+            ("return three fifteen new records", "return three 15 new records"),
+            ("return three fifteen minute slots", "return three 15 minute slots"),
+            ("the shop returns ten thirty", "the shop returns 10:30"),
+            ("it returns eleven fifteen", "it returns 11:15"),
+        ]
+    )
+    func statusLedCountsAndClocks(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
     }
 
     @Test(
