@@ -27,7 +27,14 @@ enum CorpusFile {
             let path = Bundle.module.path(forResource: name, ofType: "json", inDirectory: "Corpus"),
             let data = FileManager.default.contents(atPath: path)
         else { throw Failure(category: category, caseID: nil, reason: "no file") }
-        return try decode(data, as: category)
+        return try decode(data, as: category, adapter: set.flatMap(adapter(ofSet:)))
+    }
+
+    /// The adapter a notation set belongs to: `markupNotation` holds the cases of the `markup` adapter.
+    static func adapter(ofSet set: String) -> String? {
+        let suffix = "Notation"
+        guard set.hasSuffix(suffix), set.count > suffix.count else { return nil }
+        return String(set.dropLast(suffix.count))
     }
 
     /// Every bundled file's name without its extension, so each can be loaded and checked by name.
@@ -37,7 +44,9 @@ enum CorpusFile {
     }
 
     /// The cases in one file's bytes, refused whole if any case breaks the schema.
-    static func decode(_ data: Data, as category: EvaluationCase.Category) throws -> [EvaluationCase] {
+    static func decode(
+        _ data: Data, as category: EvaluationCase.Category, adapter setAdapter: String? = nil
+    ) throws -> [EvaluationCase] {
         let records: [Record]
         do {
             records = try JSONDecoder().decode([Record].self, from: data)
@@ -49,7 +58,7 @@ enum CorpusFile {
             guard seen.insert(record.id).inserted else {
                 throw Failure(category: category, caseID: record.id, reason: "duplicate id")
             }
-            return try record.evaluationCase(category: category)
+            return try record.evaluationCase(category: category, setAdapter: setAdapter)
         }
     }
 
@@ -113,7 +122,9 @@ enum CorpusFile {
             snippets = try values.decodeIfPresent([String: String].self, forKey: .snippets)
         }
 
-        func evaluationCase(category: EvaluationCase.Category) throws -> EvaluationCase {
+        func evaluationCase(
+            category: EvaluationCase.Category, setAdapter: String? = nil
+        ) throws -> EvaluationCase {
             func refuse(_ reason: String) -> Failure {
                 Failure(category: category, caseID: id, reason: reason)
             }
@@ -143,7 +154,7 @@ enum CorpusFile {
                 mustKeep: keep, context: context?.appContext ?? .unknown, mustNotAdd: mustNotAdd ?? [],
                 destination: destination ?? .plain, mustBeginWith: mustBeginWith, mustEndWith: mustEndWith,
                 minimumSentences: minimumSentences, expectedExact: expectedExact,
-                adapter: adapter.map { AdapterID(rawValue: $0) }, doubtful: doubtful ?? [],
+                adapter: (adapter ?? setAdapter).map { AdapterID(rawValue: $0) }, doubtful: doubtful ?? [],
                 classes: classes ?? [], codeMix: codeMix, pausedAfter: pausedAfter ?? [],
                 dictionary: dictionary ?? [], snippets: snippets ?? [:], origin: origin ?? .authored,
                 addedFor: addedFor)

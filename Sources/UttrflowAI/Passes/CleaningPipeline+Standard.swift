@@ -97,6 +97,12 @@ extension CleaningPipeline {
                 {
                     cleanings.insert(
                         SQLLayoutPass(layout: SQLLayout.at(insertionPoint.precedingText)), at: spoken + 1)
+                    // After the notation has written its comparisons, which decide whether a quotation is a value.
+                    cleanings.insert(
+                        SQLQuotingPass(
+                            style: SQLQuoting.identifierStyle(in: insertionPoint.precedingText),
+                            precedingWord: SQLQuoting.lastWord(of: insertionPoint.precedingText)),
+                        at: spoken + 2)
                 }
             }
             // A JSON file's code reads its pairs once the numbers are written, so a value's type is known.

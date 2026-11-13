@@ -16,6 +16,8 @@ public struct NumberFormsPass: PieceCleaningPass {
 
     /// Words after which a lone digit is a numeral, digit groups run together, and no separator is used.
     static let contextWords = NumberCues.words(for: .designator)
+    /// Verbs after which a hundred said as its digit and tail is one status code, "returns five fifteen" as `515`.
+    static let statusLeads = NumberCues.words(for: .statusLead)
     /// The spoken currency words, bar those read with the `measures` ("yen").
     static let currencies = Set(Quantities.currencyWords.keys).subtracting(measures)
     static let meridiems: Set<String> = ["am", "pm", "a.m", "p.m"]
@@ -643,6 +645,14 @@ public struct NumberFormsPass: PieceCleaningPass {
             timeAcceptable(
                 position: position, minuteStart: end, minuteEnd: end + time.count, keys: keys, shapes: shapes)
         else { return nil }
+        // A status verb says a code where the pair reads as one, never a clock, unless a meridiem follows.
+        let minuteEnd = end + time.count
+        if followsStatusLead(position, keys: keys, shapes: shapes),
+            NumberWords.colloquialHundred(unbroken(from: position, keys: keys, shapes: shapes)) != nil,
+            !(joined(minuteEnd, shapes) && isMeridiem(at: minuteEnd, keys: keys, shapes: shapes))
+        {
+            return nil
+        }
         return Phrase(text: time.text, count: item.count + time.count)
     }
 
@@ -764,17 +774,32 @@ public struct NumberFormsPass: PieceCleaningPass {
             return nil
         }
         // "two twenty dollar bills" is a count of what the tail modifies, so its tail is written on its own.
-        let after = position + hundred.count
-        let countsANoun = joined(after, shapes) && LexicalClass.tag(ofWordAt: after, in: keys) == .noun
-        return countsANoun ? nil : hundred.count
+        return countsANoun(at: position + hundred.count, keys: keys, shapes: shapes) ? nil : hundred.count
     }
 
-    /// Whether a colloquial hundred is one value: its tail cannot be a minute, or it is a ratio's first term.
+    /// Whether a status verb is said straight before the number at `position`.
+    private static func followsStatusLead(_ position: Int, keys: [String], shapes: [WordShape]) -> Bool {
+        position > 0 && joined(position, shapes) && statusLeads.contains(keys[position - 1])
+    }
+
+    /// Whether the number ending before `index` counts a noun joined after it, past "of" and any modifiers.
+    private static func countsANoun(at index: Int, keys: [String], shapes: [WordShape]) -> Bool {
+        joined(index, shapes)
+            && countsWhatFollows(after: index - 1, words: keys, tags: LexicalClass.tags(ofWords: keys))
+    }
+
+    /// Whether a colloquial hundred is one value: its tail cannot be a minute, a status verb leads it, or it is a ratio's first term.
     private static func readsAsOneQuantity(
         _ hundred: (value: Int, count: Int), at position: Int, keys: [String], shapes: [WordShape]
     ) -> Bool {
         if hundred.value % 100 >= 60 { return true }
         let after = position + hundred.count
+        // A status verb says a code, "returns five fifteen" as `515`, unless its tail counts a noun: "three 15 minute slots", "three 15 new records".
+        if followsStatusLead(position, keys: keys, shapes: shapes),
+            !countsANoun(at: after, keys: keys, shapes: shapes)
+        {
+            return true
+        }
         return joined(after, shapes) && keys[after] == "over" && joined(after + 1, shapes)
             && NumberWords.isNumber(keys[after + 1])
     }

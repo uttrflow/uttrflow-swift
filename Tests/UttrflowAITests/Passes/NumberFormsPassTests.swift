@@ -781,9 +781,13 @@ struct NumberFormsPassTests {
     }
 
     @Test(
-        "keeps both words of a pair that may be a time or one number, unless the second counts a noun",
+        "keeps both words of a pair that may be a time or one number, unless a cue or a counted noun decides it",
         arguments: [
-            ("return four thirteen when it fails", "return four thirteen when it fails"),
+            ("return four thirteen when it fails", "return 413 when it fails"),
+            ("the handler returns four thirteen", "the handler returns 413"),
+            ("return five thirty pm", "return 5:30 pm"),
+            ("the train returns five thirty p m", "the train returns 5:30 p m"),
+            ("return three fifteen minute slots", "return three 15 minute slots"),
             ("call me five thirty then", "call me five thirty then"),
             ("we have four thirteen year olds", "we have four 13 year olds"),
             ("take three fifteen minute breaks", "take three 15 minute breaks"),
@@ -792,6 +796,19 @@ struct NumberFormsPassTests {
         ]
     )
     func undecidedPairsKeepTheirWords(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "a status-led pair keeps its count when a noun follows past modifiers, and a clock with no code reading",
+        arguments: [
+            ("return three fifteen new records", "return three 15 new records"),
+            ("return three fifteen minute slots", "return three 15 minute slots"),
+            ("the shop returns ten thirty", "the shop returns 10:30"),
+            ("it returns eleven fifteen", "it returns 11:15"),
+        ]
+    )
+    func statusLedCountsAndClocks(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
     }
 
