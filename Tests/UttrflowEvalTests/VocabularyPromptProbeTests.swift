@@ -73,6 +73,13 @@ struct VocabularyPromptProbeTests {
         #expect(row.tabSeparated == "t\thi\tnone\tone\\ttwo\\nthree\\r")
     }
 
+    @Test("a literal backslash is written doubled, so it cannot be read as an escape")
+    func backslash() {
+        let row = VocabularyPromptRow(
+            item: Self.item, hint: "hi", condition: .none, transcript: "a\\nb\nc")
+        #expect(row.tabSeparated == "t\thi\tnone\ta\\\\nb\\nc")
+    }
+
     @Test("every corpus item names what its sentence says, in both scripts")
     func corpus() {
         #expect(!VocabularyPromptCorpus.items.isEmpty)

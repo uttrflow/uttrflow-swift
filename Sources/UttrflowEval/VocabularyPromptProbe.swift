@@ -75,10 +75,11 @@ package struct VocabularyPromptRow: Sendable, Equatable {
         TailCommit.wordErrorRate(hypothesis: transcript, reference: item.sentence)
     }
 
-    /// One line: id, hint, prompt and transcript, with a tab, carriage return or newline in the transcript written as `\t`, `\r` or `\n`.
+    /// One line: id, hint, prompt and transcript, with a backslash, tab, carriage return or newline in the transcript written as two backslashes, `\t`, `\r` or `\n`, so the line reads back to the transcript.
     package var tabSeparated: String {
-        let escaped = transcript.replacingOccurrences(of: "\t", with: "\\t")
-            .replacingOccurrences(of: "\r", with: "\\r").replacingOccurrences(of: "\n", with: "\\n")
+        let escaped = transcript.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\t", with: "\\t").replacingOccurrences(of: "\r", with: "\\r")
+            .replacingOccurrences(of: "\n", with: "\\n")
         return [item.id, hint, condition.rawValue, escaped].joined(separator: "\t")
     }
 
