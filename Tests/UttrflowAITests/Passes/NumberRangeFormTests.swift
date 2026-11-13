@@ -48,4 +48,11 @@ struct NumberRangeFormTests {
     func smallCounts(input: String, expected: String) {
         #expect(cleaned(input, by: NumberFormsPass()) == expected)
     }
+
+    @Test("a plural label that ends its sentence cues nothing in the next, across a sign")
+    func pluralLabelStopsAtTheSentenceEnd() {
+        let pass = NumberFormsPass()
+        #expect(cleaned("see the pages. negative two", by: pass) == cleaned("see the notes. negative two", by: pass))
+        #expect(cleaned("see the pages. two", by: pass) == cleaned("see the notes. two", by: pass))
+    }
 }
