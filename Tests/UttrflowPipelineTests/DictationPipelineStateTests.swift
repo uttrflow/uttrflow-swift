@@ -558,7 +558,7 @@ struct DictationPipelineStateTests {
         await pipeline.finishRecording()
 
         // Not `.idle`: returning quietly is indistinguishable from the app being broken.
-        let heardNothing = DictationState.failed(DictationFailure(SpeechEngineError.nothingHeard))
+        let heardNothing = DictationState.failed(DictationFailure(SpeechEngineError.nothingHeard).meant())
         #expect(await next(4, from: states) == [.idle, .recording, .transcribing, heardNothing])
         #expect(await pipeline.currentState == heardNothing)
         #expect(cleaner.requests.isEmpty)
@@ -644,7 +644,8 @@ struct DictationPipelineStateTests {
 
         #expect(
             await pipeline.currentState
-                == .failed(DictationFailure(SpeechEngineError.audioTooShort, speechEngineKind: .whisperKit)))
+                == .failed(
+                    DictationFailure(SpeechEngineError.audioTooShort, speechEngineKind: .whisperKit).meant()))
     }
 
     /// "um" tidies to nothing, and inserting nothing over a selection deletes it.
@@ -668,13 +669,13 @@ struct DictationPipelineStateTests {
         #expect(
             await next(5, from: states) == [
                 .idle, .recording, .transcribing, .tidying,
-                .failed(DictationFailure(SpeechEngineError.nothingHeard)),
+                .failed(DictationFailure(SpeechEngineError.nothingHeard).meant()),
             ],
             "a dictation with nothing in it says so, and is never an insertion")
         #expect(inserter.received.isEmpty, "an empty insertion would delete the user's selection")
         #expect(
             await pipeline.currentState
-                == .failed(DictationFailure(SpeechEngineError.nothingHeard)),
+                == .failed(DictationFailure(SpeechEngineError.nothingHeard).meant()),
             "the user must be told, softly, rather than left wondering")
     }
 
@@ -692,7 +693,7 @@ struct DictationPipelineStateTests {
         await pipeline.startRecording()
         await pipeline.finishRecording()
 
-        #expect(await pipeline.currentState == .failed(DictationFailure(expected)))
+        #expect(await pipeline.currentState == .failed(DictationFailure(expected).meant()))
     }
 
     /// The menu bar's Start Dictation can race the hotkey; only one may open the microphone.
