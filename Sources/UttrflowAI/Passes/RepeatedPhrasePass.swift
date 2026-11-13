@@ -52,6 +52,8 @@ public struct RepeatedPhrasePass: PieceCleaningPass {
             let first = said[0..<length]
             let second = said[length..<2 * length]
             let keys = first.map { draft.shape(at: $0).key }
+            // A written mark with no word in it, such as "=>" or "&&", is code, never a word said twice.
+            guard !keys.contains(where: \.isEmpty) else { continue }
             let sameWords = zip(first, second).allSatisfy {
                 draft.shape(at: $0).key == draft.shape(at: $1).key
             }
