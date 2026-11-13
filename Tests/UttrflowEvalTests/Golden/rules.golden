@@ -93,6 +93,12 @@ code-editor-comment-keeps-its-stop	The retry count resets after a failure.
 code-editor-identifier-from-screen	Call fetchInvoices before the sheet appears
 code-editor-large-number-ungrouped	let limit = 12000
 code-editor-line-break-preserved	Retry the request\nLog the failure
+code-editor-name-request-constant	MAX_RETRIES
+code-editor-name-request-file-convention	get_user_by_id
+code-editor-name-request-language-default	get_user_by_id
+code-editor-name-request-spoken-style-wins	get_user_by_id
+code-editor-name-request-type-role	UserProfile
+code-editor-name-request-variable	retryCount
 code-editor-numeral-no-stop	Bump the retry count to 20
 code-editor-one-line-commit	Fix crash when the cart is empty
 code-editor-one-line-intellij	Log the retry count
@@ -116,6 +122,7 @@ code-editor-spoken-case-stops-at-comma	userId, then explain it
 code-editor-spoken-empty-parentheses	()
 code-editor-spoken-equals	max retries = 5
 code-editor-spoken-snake-case	max_retries
+code-editor-unrequested-words-keep-spacing	get user by id
 code-token-caret-a4	A4 paper please.
 code-token-caret-b12	B12 in the morning.
 code-token-caret-h2	H2 in the outline.

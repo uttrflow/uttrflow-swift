@@ -22,6 +22,7 @@ struct StageIdempotenceTests {
 
     /// Cases a stage moves on a second run, as "stage/case id" with the issue that fixes each; only shrinks.
     static let knownFaults: [String: Int] = [
+        // Justified: #8274 and #8275 cases are the piece stage reading its own output as recogniser text.
         "chain/code-editor-line-break-preserved": 8274,
         "chain/code-editor-spoken-case-stops-at-comma": 8275,
         "chain/correction-after-new-paragraph": 8274,
@@ -102,10 +103,8 @@ struct StageIdempotenceTests {
         "chain/question-mark-new-line": 8274,
         "chain/question-mark-new-line-thanks": 8274,
         "chain/sentence-per-new-line": 8274,
+        // Justified: the terminal drops the speaker's comma, the only evidence against joining "u plus x".
         "chain/shell-chmod-marked-subject-not-joined": 8277,
-        "chain/source-javascript-arrow-function": 8276,
-        "chain/source-javascript-arrow-identity": 8276,
-        "chain/source-javascript-fat-arrow": 8276,
         "chain/source-python-arrow-float": 8275,
         "chain/source-python-arrow-fragment": 8275,
         "chain/source-python-arrow-list": 8275,
@@ -126,8 +125,6 @@ struct StageIdempotenceTests {
         "chain/source-python-not-equals-zero": 8275,
         "chain/source-python-triple-equals-not-python": 8275,
         "chain/source-swift-arrow-return": 8275,
-        "chain/source-swift-compare-chain": 8276,
-        "chain/source-typescript-compare-chain": 8276,
         "chain/sql-statement-alias": 8274,
         "chain/sql-statement-and": 8274,
         "chain/sql-statement-at-least": 8274,
@@ -251,10 +248,8 @@ struct StageIdempotenceTests {
         "piece/question-mark-new-line": 8274,
         "piece/question-mark-new-line-thanks": 8274,
         "piece/sentence-per-new-line": 8274,
+        // Justified: the terminal drops the speaker's comma, the only evidence against joining "u plus x".
         "piece/shell-chmod-marked-subject-not-joined": 8277,
-        "piece/source-javascript-arrow-function": 8276,
-        "piece/source-javascript-arrow-identity": 8276,
-        "piece/source-javascript-fat-arrow": 8276,
         "piece/source-python-arrow-float": 8275,
         "piece/source-python-arrow-fragment": 8275,
         "piece/source-python-arrow-list": 8275,
@@ -275,8 +270,6 @@ struct StageIdempotenceTests {
         "piece/source-python-not-equals-zero": 8275,
         "piece/source-python-triple-equals-not-python": 8275,
         "piece/source-swift-arrow-return": 8275,
-        "piece/source-swift-compare-chain": 8276,
-        "piece/source-typescript-compare-chain": 8276,
         "piece/sql-statement-alias": 8274,
         "piece/sql-statement-and": 8274,
         "piece/sql-statement-at-least": 8274,
