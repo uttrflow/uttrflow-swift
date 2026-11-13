@@ -131,7 +131,13 @@ enum CodeShapes {
     /// Recognises a whole call without treating spaced parenthetical prose as code.
     static func isOneLineInvocation(_ text: String) -> Bool {
         guard text.utf8.count <= statementLimit, !text.contains(where: \.isNewline) else { return false }
-        return text.wholeMatch(of: oneLineInvocation) != nil
+        guard text.wholeMatch(of: oneLineInvocation) != nil else { return false }
+        return !isCapitalisedWordInBrackets(text)
+    }
+
+    /// A capitalised name with a bare word in brackets, "Foo(bar)", which prose writes as often as a constructor.
+    private static func isCapitalisedWordInBrackets(_ text: String) -> Bool {
+        text.wholeMatch(of: #/\h*[A-Z]\w*\(\w+\)\h*;?\h*/#) != nil
     }
 
     /// Matches one SQL statement with its clause, read as a query rather than an instruction to select.
