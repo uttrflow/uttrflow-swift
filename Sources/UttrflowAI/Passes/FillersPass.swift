@@ -84,7 +84,9 @@ public struct FillersPass: PieceCleaningPass {
                 previous = index
                 continue
             }
-            if live.count == 1, Self.standaloneReplies.contains(Self.listedSpelling(of: draft.shape(at: index).key)) {
+            if live.count == 1,
+                Self.standaloneReplies.contains(Self.listedSpelling(of: draft.shape(at: index).key))
+            {
                 previous = index
                 continue
             }
