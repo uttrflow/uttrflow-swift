@@ -129,6 +129,9 @@ struct ClipKindDetectorTests {
             "oklab(0.7 0.1 -0.1)",
             "lch(50% 40 30)",
             "color(display-p3 1 0 0.6)",
+            "rgb(255,0,0);",
+            "hwb(120deg 10% 20% / 0.5)",
+            "oklch(0.7 0.2 20);",
         ])
     func colours(_ text: String) {
         #expect(ClipKindDetector.kind(of: text) == .colour)
@@ -141,6 +144,8 @@ struct ClipKindDetectorTests {
             "#ff00a", "#ff00aab", "#clipboard", "#hello", "0xFFFFFF", "#123456789",
             "#fff;", "#1234", "#123", "#fab", "#add", "#deadbeef", "#decade", "currentColor",
             "translate(10, 20)", "#ff0000 #00ff00", "#ff", "#fffffff", "#hashtag", "#include <stdio.h>",
+            "color(me impressed)", "rgb(hello world)", "lab(banana)", "rgb(1,2)", "oklch(0.7 0.2)",
+            "lab(50% 40 30);;",
         ])
     func notColours(_ text: String) {
         #expect(ClipKindDetector.kind(of: text) != .colour)

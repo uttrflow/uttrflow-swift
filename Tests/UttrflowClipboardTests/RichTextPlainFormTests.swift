@@ -537,7 +537,6 @@ struct RichTextPlainFormTests {
         arguments: [
             ("<p>AT&T</p>", "AT&T"),
             ("<p>&foo;</p>", "&foo;"),
-            ("<p>Fish &amp chips</p>", "Fish &amp chips"),
             ("<p>a &amp;; b</p>", "a &; b"),
             ("<p>&#xD800;</p>", "&#xD800;"),
             ("<p>&#zz;</p>", "&#zz;"),
@@ -550,6 +549,49 @@ struct RichTextPlainFormTests {
     @Test("drops a control character somebody encoded")
     func controlCharacters() {
         #expect(RichTextPlainForm.plainText(fromHTML: "<p>a&#0;b&#7;c</p>") == "abc")
+    }
+
+    /// HTML reads 128 to 159 through Windows-1252, so `&#128;` is the euro sign a browser shows, not a control.
+    @Test(
+        "reads a numeric reference from 128 to 159 as Windows-1252",
+        arguments: [
+            ("<p>price &#128;5</p>", "price \u{20AC}5"),
+            ("<p>a &#150; b</p>", "a \u{2013} b"),
+            ("<p>Brand&#153;</p>", "Brand\u{2122}"),
+            ("<p>&#x93;hi&#x94;</p>", "\u{201C}hi\u{201D}"),
+            ("<p>a&#129;b&#157;c</p>", "abc"),
+        ])
+    func windows1252References(_ html: String, _ expected: String) {
+        #expect(RichTextPlainForm.plainText(fromHTML: html) == expected)
+    }
+
+    /// The Latin-1, symbol and Greek names, with case kept where it tells two letters apart.
+    @Test(
+        "decodes the HTML names a browser decodes",
+        arguments: [
+            ("<p>&frac34; cup</p>", "\u{00BE} cup"),
+            ("<p>I &hearts; it</p>", "I \u{2665} it"),
+            ("<p>&alpha; and &Alpha;</p>", "\u{03B1} and \u{0391}"),
+            ("<p>na&iuml;ve &Eacute;cole</p>", "na\u{00EF}ve \u{00C9}cole"),
+            ("<p>x &le; y &ne; z</p>", "x \u{2264} y \u{2260} z"),
+            ("<p>&OElig;uvre &permil;</p>", "\u{0152}uvre \u{2030}"),
+        ])
+    func namedReferences(_ html: String, _ expected: String) {
+        #expect(RichTextPlainForm.plainText(fromHTML: html) == expected)
+    }
+
+    /// A browser decodes the Latin-1 names and `amp`, `lt`, `gt`, `quot` without their `;`, the longest name first.
+    @Test(
+        "decodes a legacy name written without its semicolon",
+        arguments: [
+            ("<p>&copy 2024</p>", "\u{00A9} 2024"),
+            ("<p>Fish &amp chips</p>", "Fish & chips"),
+            ("<p>&frac34cup</p>", "\u{00BE}cup"),
+            ("<p>&notit</p>", "\u{00AC}it"),
+            ("<p>&alpha</p>", "&alpha"),
+        ])
+    func legacyNamesWithoutSemicolon(_ html: String, _ expected: String) {
+        #expect(RichTextPlainForm.plainText(fromHTML: html) == expected)
     }
 
     @Test("decodes an entity in text that carries no tags")

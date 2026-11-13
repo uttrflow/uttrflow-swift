@@ -1382,6 +1382,10 @@ public struct NumberFormsPass: PieceCleaningPass {
         var cuePosition = position - 1
         if keys[cuePosition].count == 1, keys[cuePosition].allSatisfy(\.isLetter) { return false }
         if ["negative", "minus"].contains(keys[cuePosition]) { cuePosition -= 1 }
+        // A label in the plural names the numbers said straight after it, "pages four and seven".
+        if cuePosition >= 0, !shapes[cuePosition].endsSentence, isPluralLabel(keys[cuePosition]) {
+            return true
+        }
         while cuePosition >= 0 {
             if shapes[cuePosition].endsSentence { return false }
             let word = keys[cuePosition]
@@ -1395,6 +1399,11 @@ public struct NumberFormsPass: PieceCleaningPass {
             cuePosition -= 1
         }
         return false
+    }
+
+    /// Whether the word is a label word's plural, "pages" or "steps".
+    private static func isPluralLabel(_ word: String) -> Bool {
+        word.count > 2 && word.hasSuffix("s") && contextWords.contains(String(word.dropLast()))
     }
 
     /// Whether the digits step up or down by one each time, as a count-off or countdown does.

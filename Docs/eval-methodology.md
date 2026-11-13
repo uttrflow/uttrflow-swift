@@ -1277,28 +1277,6 @@ Direct sweep requests reject negative feature indices with the existing column e
 Not yet built: a constant's comment naming its record id, the `make verify` check that the record
 still matches the code, and sweeping by name from a layer registry.
 
-## Replaying the pair learner
-
-`AutoLearnReplay` feeds the default `PairLedger` a synthetic fortnight of edits and scores the
-dictionary it builds, so a learner is judged before it ships on. True fixes are the single-word
-substitutions between `spoken` and `expected` in the `homophone` corpus, each recurring on separate
-days except every third, which is seen once. Decoys are one-off typos, wording rewrites seen once
-or twice, and an autocorrection repeated in a burst on one day. The held-out set is the words of
-every other English case's reference. It reports precision, recall, pairs learnt from decoys and the
-false-override rate: the share of held-out words the learnt pairs would rewrite although the
-reference keeps them. The bounds are constants in `AutoLearnReplay`: false-learn at most 5%, 0
-decoy pairs, false overrides at most 1%.
-
-`uttrflow-eval autolearn-replay` prints the table and exits non-zero when a bound is missed. A
-decoy that recurs on separate days is learnt, since recurrence is the only rule the ledger applies.
-
-| Measure (default ledger) | Value |
-|---|---|
-| True-fix pairs / learnt | 6 / 4 |
-| Precision, recall | 100.0%, 66.7% |
-| Pairs learnt from decoys | 0 |
-| False overrides on held-out | 241 of 10532 (2.3%), from the common-word pair to/too |
-
 ## The recogniser's own marks and case (`raw-marks`)
 
 `uttrflow-eval raw-marks` speaks the English passages with Samantha and the Hinglish passages with
