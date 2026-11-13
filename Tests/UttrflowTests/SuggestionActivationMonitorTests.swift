@@ -61,3 +61,28 @@ struct SuggestionActivationMonitorTests {
         monitor.stop()
     }
 }
+
+@Suite("What an activation does to suggestions")
+struct SuggestionTrustResponseTests {
+    @Test(
+        "secure keyboard entry on after the check holds every activation",
+        arguments: [
+            SuggestionActivationTrust.trusted, .granted, .denied,
+        ])
+    func secureInputHoldsEverything(trust: SuggestionActivationTrust) {
+        #expect(SuggestionTrustResponse.to(trust, secureInput: .blocking) == .holdForSecureInput)
+    }
+
+    @Test("trust taken away stops watching, even as secure entry lifts")
+    func deniedStopsWatching() {
+        #expect(SuggestionTrustResponse.to(.denied, secureInput: .clear) == .stopWatching)
+        #expect(SuggestionTrustResponse.to(.denied, secureInput: .lifted) == .stopWatching)
+    }
+
+    @Test("only trust just granted starts the tap, and not when secure entry's lift already started it")
+    func grantedStartsTheTapOnce() {
+        #expect(SuggestionTrustResponse.to(.granted, secureInput: .clear) == .follow(startsTap: true))
+        #expect(SuggestionTrustResponse.to(.granted, secureInput: .lifted) == .follow(startsTap: false))
+        #expect(SuggestionTrustResponse.to(.trusted, secureInput: .clear) == .follow(startsTap: false))
+    }
+}

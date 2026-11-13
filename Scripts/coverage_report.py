@@ -279,7 +279,8 @@ OVERSIZED_EXCLUSIONS = {
         "withdraws the armed offer is SuggestionSelectionPolling, tested in SuggestionSelectionPollingTests; "
         "the ghost asked of the panel for a field is SuggestionRequest.ghost, tested in SuggestionGhostRequestTests; "
         "how a rejection's write and its retry are queued is RejectedSuggestionRecorder, tested in "
-        "RejectedSuggestionRecorderTests; "
+        "RejectedSuggestionRecorderTests; what an activation does under Accessibility trust and secure "
+        "entry is SuggestionTrustResponse, tested in SuggestionTrustResponseTests; "
         "still untested is the closures that map those steps onto the session, "
         "the panel and the field"
     ),
