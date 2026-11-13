@@ -248,4 +248,46 @@ struct OnScreenNamesRedactionTests {
             #expect(!text.contains("Meera"))
         }
     }
+
+    private func appRows(_ entry: DictionaryEntry, in application: String, count: Int) -> [EvidenceRow] {
+        let day = EvidenceRow.day(of: epoch)
+        return (0..<count).map { _ in
+            EvidenceRow(
+                kind: .useInApp, subject: EvidenceRow.applicationUseSubject(of: entry.id, in: application),
+                day: day, provenance: .dictation)
+        }
+    }
+
+    @Test("prefers the words kept in this application, and not another's")
+    func prefersThisApplicationsWords() {
+        let inXcode = word("Quillstack", from: .added, used: 3, daysAgo: 200)
+        let inMail = word("Zorbix", from: .added, used: 3, daysAgo: 200)
+        let evidence =
+            appRows(inXcode, in: "com.apple.dt.Xcode", count: 4)
+            + appRows(inMail, in: "com.apple.mail", count: 4)
+        let here = AppContext(applicationName: "Xcode", bundleIdentifier: "com.apple.dt.Xcode")
+        let there = AppContext(applicationName: "Mail", bundleIdentifier: "com.apple.mail")
+        #expect(
+            WorkingSet.words(from: [inMail, inXcode], now: epoch, favouring: here, evidence: evidence)
+                == ["Quillstack", "Zorbix"])
+        #expect(
+            WorkingSet.words(from: [inXcode, inMail], now: epoch, favouring: there, evidence: evidence)
+                == ["Zorbix", "Quillstack"])
+    }
+
+    @Test("reads no more attributed uses than the bound, newest first")
+    func attributionIsBounded() {
+        let entry = word("Quillstack", from: .added, used: 1, daysAgo: 0)
+        let today = EvidenceRow.day(of: epoch)
+        let subject = EvidenceRow.applicationUseSubject(of: entry.id, in: "app")
+        let old = (0..<PersonaProjection.maximumAttributedUses).map { _ in
+            EvidenceRow(kind: .useInApp, subject: subject, day: today - 400, provenance: .dictation)
+        }
+        let fresh = EvidenceRow(kind: .useInApp, subject: subject, day: today, provenance: .dictation)
+        let use = PersonaProjection.appUse(of: old + [fresh], in: "app", now: epoch)
+        // The newest row is kept and one of the oldest fell off the end.
+        let all = PersonaProjection.appUse(of: Array(old.dropLast()) + [fresh], in: "app", now: epoch)
+        #expect(use[entry.id] == all[entry.id])
+        #expect(PersonaProjection.appUse(of: old + [fresh], in: nil, now: epoch).isEmpty)
+    }
 }
