@@ -105,6 +105,12 @@ extension CleaningPipeline {
                         at: spoken + 2)
                 }
             }
+            // A JSON file's code reads its pairs once the numbers are written, so a value's type is known.
+            if destination == .codeEditor, intent.language == .json, intent.region == .code, mode != .prose,
+                let numbers = cleanings.firstIndex(where: { $0.id == .numberForms })
+            {
+                cleanings.insert(JSONValuesPass(), at: numbers + 1)
+            }
             // A code editor's comments and a code editor set to plain prose take no casing: its rows are identifiers.
             if (destination != .codeEditor || inCode) && !(mode == .prose && destination == .codeEditor) {
                 cleanings.insert(
