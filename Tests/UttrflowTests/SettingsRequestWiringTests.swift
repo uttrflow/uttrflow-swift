@@ -285,6 +285,8 @@ private func name(of change: SettingsChange) -> String {
     case .chooseApplicationForContextLevel: "chooseApplicationForContextLevel"
     case .chooseApplicationToKeepNoHistory: "chooseApplicationToKeepNoHistory"
     case .keepsHistory: "keepsHistory"
+    case .chooseApplicationToStopLearning: "chooseApplicationToStopLearning"
+    case .learnsInApplication: "learnsInApplication"
     case .retrySuggestionModel: "retrySuggestionModel"
     case .exportPersonalData: "exportPersonalData"
     case .importPersonalData: "importPersonalData"
@@ -294,7 +296,7 @@ private func name(of change: SettingsChange) -> String {
 }
 
 /// How many cases ``SettingsChange`` has, bumped deliberately when one is added.
-private let settingsChangeCaseCount = 33
+private let settingsChangeCaseCount = 35
 
 /// Applies a change, or answers the settings unchanged when the editor refused it.
 private func applying(_ change: SettingsChange, to settings: Settings) -> Settings {
@@ -380,6 +382,8 @@ private let samples: [Sample] = [
     Sample(.chooseApplicationForContextLevel),
     Sample(.chooseApplicationToKeepNoHistory),
     Sample(.keepsHistory(application: knownApp, isOn: false)),
+    Sample(.chooseApplicationToStopLearning),
+    Sample(.learnsInApplication(application: knownApp, isOn: false)),
     Sample(.retrySuggestionModel),
     Sample(.openPage(.corrections)),
 ]

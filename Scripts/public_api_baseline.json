@@ -4911,6 +4911,7 @@
     "UttrflowSettings var installsUpdatesAutomatically": 1,
     "UttrflowSettings var isEnabled": 1,
     "UttrflowSettings var keepsNoTranscripts": 1,
+    "UttrflowSettings var learningExcludedApplications": 1,
     "UttrflowSettings var learnsFromDictation": 1,
     "UttrflowSettings var microphoneUID": 1,
     "UttrflowSettings var minimisesWhileDictating": 1,
@@ -6411,5 +6412,5 @@
     "UttrflowUX var withdrawsTrust": 1,
     "UttrflowUX var words": 2
   },
-  "total": 9131
+  "total": 9132
 }

@@ -169,6 +169,16 @@ struct SettingsTests {
         #expect(restored.historyExcludedApplications == ["com.example.records"])
     }
 
+    /// A file written before the list names no app, and the list reads back as saved.
+    @Test func learningExclusionsDefaultToNoneAndSurviveASave() throws {
+        #expect(Settings.default.learningExcludedApplications.isEmpty)
+        let empty = try JSONDecoder().decode(Settings.self, from: Data("{}".utf8))
+        #expect(empty.learningExcludedApplications.isEmpty)
+        let saved = Settings(learningExcludedApplications: ["com.example.journal"])
+        let restored = try JSONDecoder().decode(Settings.self, from: JSONEncoder().encode(saved))
+        #expect(restored.learningExcludedApplications == ["com.example.journal"])
+    }
+
     /// Learning stays on for a file written before the switch, and off once somebody turns it off.
     @Test("learning from dictation is on by default and keeps the user's choice")
     func learningDefaultsOnAndSticks() throws {
