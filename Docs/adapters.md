@@ -230,6 +230,18 @@ output, and its check is the bake-off on every existing case, unchanged. Moving
 `CodeEditorCommandsPass` from its current place, just before `LayoutWordsPass`, into the
 notation slot is measured by the bake-off in the pull request that does it.
 
+### A statement cut by a pause
+
+In a query editor the statement keyword that switches notation on is read from the opening word
+of a piece, so a piece cut from the middle of a statement ("and total greater than twelve")
+would be read as prose. `NotationEvidence.continuesStatement` joins such a piece to the pieces
+before it, as a number said across a cut is joined, so the pipeline tidies them once as one piece.
+A piece continues a statement when the statement before it reads as one, the piece does not open a
+statement of its own, it holds a notation word or finishes a command the cut split ("greater" and
+"than"), and its words do not read as prose. `SeamSQLSweepTests` holds every single cut of four
+invented statements to the uncut result. Message-scope selection of every adapter, and the
+cut cases of the shell, source and JSON adapters, remain open.
+
 ## 4. The boundary: notation, never rewriting
 
 **An adapter converts notation and never adds words.** The output must be derivable from the

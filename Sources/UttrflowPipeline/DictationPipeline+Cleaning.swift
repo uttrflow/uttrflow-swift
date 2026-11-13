@@ -272,6 +272,11 @@ extension DictationPipeline {
             if let previous = groups.last?.last,
                 message.unitRunsAcross(previous.corrected.text, into: piece.corrected.text, going: situation)
                     || PieceJoiner.quotationRunsAcross(previous.cleaned.text, into: piece.cleaned.text)
+                    // A piece cut from the middle of a statement shows no keyword, so it is read with the statement.
+                    || NotationEvidence.continuesStatement(
+                        head: groups.last?.map(\.corrected.text).joined(separator: " ") ?? "",
+                        tail: piece.corrected.text, destination: formatter.destination,
+                        situation: situation)
             {
                 groups[groups.count - 1].append(piece)
             } else {
