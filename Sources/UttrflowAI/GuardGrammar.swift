@@ -174,7 +174,7 @@ extension MeaningPreservationGuard {
     /// Finds words a cleanup pass could remove or turn into punctuation in a changed run.
     private static func removableSpeechArtifacts(in alignment: RewriteAlignment) -> Set<Int> {
         let kept = alignment.kept
-        var removable = Set(kept.indices.filter { FillersPass.fillerWords.contains(kept[$0].matching) })
+        var removable = Set(kept.indices.filter { FillersPass.isFiller(kept[$0].matching) })
         let keptGaps = grammarTokenGaps(alignment.keptText)
         let rewrittenGaps = grammarTokenGaps(alignment.rewrittenText)
         guard keptGaps.count == kept.count + 1, rewrittenGaps.count == alignment.rewritten.count + 1

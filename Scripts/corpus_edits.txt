@@ -803,3 +803,4 @@ dev-terminal-or-chain moved unchanged to Sources/UttrflowEval/Resources/Corpus/t
 if-it-is-right-is-no-tag-question the spoken text carries its apostrophe, as a transcript does
 sub1 the spoken stop before a verb is kept as a fragment, as sub4 decides, since no evidence shows the sentence cannot end at "manager"
 but1 the spoken stop before "but" opening its own subject and verb is kept, since a sentence can end before it
+probe-docker-run-flags the spoken text says the dash in the image tag "node:20-alpine" it expects, as probe-dockerfile-from does (#7018)

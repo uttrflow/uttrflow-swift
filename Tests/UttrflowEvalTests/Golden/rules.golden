@@ -976,7 +976,7 @@ probe-contract-clauses	Clause 9.1 the supplier shall\n(a) deliver within 30 days
 probe-cover-letter	Dear Ms Alvarez,\n\nI am writing to apply for the senior analyst position advertised on your careers page.\n\nIn my current role I lead a team of six analysts and reduced reporting time by 30%.\n\nI would welcome the chance to discuss my application,\nYours sincerely,\nAsha Verma
 probe-decision-record	We decided to store sessions in Redis rather than Postgres because the read volume is high and the data is disposable the trade off is that a restart logs everyone out so we will enable append only persistence.
 probe-docker-build-no-cache	docker build --no-cache .
-probe-docker-run-flags	docker run --rm -p 8000:8000 -v ~/projects/app: /app node:20 alpine
+probe-docker-run-flags	docker run --rm -p 8000:8000 -v ~/projects/app: /app node:20-alpine
 probe-dockerfile-from	From node: 20 dash alpine as build
 probe-file-name-opening	config.yaml is missing the timeout key so the client falls back to 30 seconds.
 probe-flight-details	We fly on flight UA 472 from JFK to heathrow on Friday the third of October departing at 6:45 am from gate B12 and landing at 6:10 pm local time at terminal five.
