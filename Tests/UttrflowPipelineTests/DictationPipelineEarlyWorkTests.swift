@@ -961,7 +961,8 @@ struct DictationPipelineEarlyWorkTests {
             await pipeline.currentState
                 == .failed(
                     DictationFailure(
-                        SpeechEngineError.speechWithoutWords)))
+                        SpeechEngineError.speechWithoutWords
+                    ).meant()))
         #expect(inserter.received.isEmpty)
     }
 
@@ -989,7 +990,8 @@ struct DictationPipelineEarlyWorkTests {
         await pipeline.startRecording()
         await pipeline.finishRecording()
 
-        #expect(await pipeline.currentState == .failed(DictationFailure(SpeechEngineError.nothingHeard)))
+        #expect(
+            await pipeline.currentState == .failed(DictationFailure(SpeechEngineError.nothingHeard).meant()))
     }
 
     @Test("a blank transcript of non-speech remains nothing heard")
@@ -1003,7 +1005,8 @@ struct DictationPipelineEarlyWorkTests {
         await pipeline.startRecording()
         await pipeline.finishRecording()
 
-        #expect(await pipeline.currentState == .failed(DictationFailure(SpeechEngineError.nothingHeard)))
+        #expect(
+            await pipeline.currentState == .failed(DictationFailure(SpeechEngineError.nothingHeard).meant()))
     }
 
     @Test("speech that decodes to blank text remains a recognition miss")
@@ -1019,7 +1022,8 @@ struct DictationPipelineEarlyWorkTests {
             await pipeline.currentState
                 == .failed(
                     DictationFailure(
-                        SpeechEngineError.speechWithoutWords)))
+                        SpeechEngineError.speechWithoutWords
+                    ).meant()))
     }
 
     @Test("corrections keep pointing at their words after the pieces are joined")
@@ -1169,7 +1173,8 @@ struct DictationPipelineEarlyWorkTests {
         await pipeline.finishRecording()
 
         #expect(await speech.calls == 1)
-        #expect(await pipeline.currentState == .failed(DictationFailure(SpeechEngineError.nothingHeard)))
+        #expect(
+            await pipeline.currentState == .failed(DictationFailure(SpeechEngineError.nothingHeard).meant()))
     }
 
     /// The contract VocabularySource's own doc comment claims, which the engine used to break. See #180.
