@@ -1,5 +1,6 @@
 // The vocabulary prompt measured under each language hint on Hindi speech: which form keeps the decoder in Devanagari and hears the names.
 package import UttrflowCore
+import Foundation
 
 /// One invented Hindi sentence holding invented names, in both scripts.
 package struct VocabularyPromptItem: Sendable, Equatable {
@@ -72,6 +73,13 @@ package struct VocabularyPromptRow: Sendable, Equatable {
     /// The word errors against the Devanagari sentence.
     package var wordErrors: WordErrorRate {
         TailCommit.wordErrorRate(hypothesis: transcript, reference: item.sentence)
+    }
+
+    /// One line: id, hint, prompt and transcript, with a tab, carriage return or newline in the transcript written as `\t`, `\r` or `\n`.
+    package var tabSeparated: String {
+        let escaped = transcript.replacingOccurrences(of: "\t", with: "\\t")
+            .replacingOccurrences(of: "\r", with: "\\r").replacingOccurrences(of: "\n", with: "\\n")
+        return [item.id, hint, condition.rawValue, escaped].joined(separator: "\t")
     }
 
     private static let devanagari: ClosedRange<UInt32> = 0x0900...0x097F

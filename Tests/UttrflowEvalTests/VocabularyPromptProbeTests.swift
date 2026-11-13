@@ -46,14 +46,31 @@ struct VocabularyPromptProbeTests {
         #expect(row.namesHeard == 0)
     }
 
-    @Test("the table sums each hint and condition")
+    @Test("the table sums each hint and condition apart from the others")
     func table() {
+        func row(
+            _ hint: String, _ condition: VocabularyPromptCondition, _ transcript: String
+        ) -> VocabularyPromptRow {
+            VocabularyPromptRow(item: Self.item, hint: hint, condition: condition, transcript: transcript)
+        }
         let rows = [
-            VocabularyPromptRow(item: Self.item, hint: "hi", condition: .none, transcript: "कल वरीकेश से मिलना है"),
-            VocabularyPromptRow(item: Self.item, hint: "hi", condition: .none, transcript: "kal milna hai"),
+            row("hi", .none, "कल वरीकेश से मिलना है"), row("hi", .none, "kal milna hai"),
+            row("hi", .wordsOnly, "कल वरीकेश से मिलना है"), row("auto", .none, "I have to meet Varikesh"),
         ]
-        let markdown = VocabularyPromptTable(rows: rows).markdown
-        #expect(markdown.contains("| hi | none | 2 | 1 | 50.0% | 1/2 |"))
+        let lines = VocabularyPromptTable(rows: rows).markdown.split(separator: "\n").dropFirst(2)
+        #expect(
+            lines == [
+                "| auto | none | 1 | 1 | 0.0% | 1/1 | 100.0% |",
+                "| hi | none | 2 | 1 | 50.0% | 1/2 | 50.0% |",
+                "| hi | wordsOnly | 1 | 0 | 100.0% | 1/1 | 0.0% |",
+            ])
+    }
+
+    @Test("a tab or line break in a transcript stays inside its one record")
+    func tabSeparated() {
+        let row = VocabularyPromptRow(
+            item: Self.item, hint: "hi", condition: .none, transcript: "one\ttwo\nthree\r")
+        #expect(row.tabSeparated == "t\thi\tnone\tone\\ttwo\\nthree\\r")
     }
 
     @Test("every corpus item names what its sentence says, in both scripts")

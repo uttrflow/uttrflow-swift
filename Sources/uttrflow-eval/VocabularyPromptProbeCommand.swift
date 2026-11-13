@@ -77,9 +77,7 @@ struct VocabularyPromptProbeCommand: AsyncParsableCommand {
             }
         }
         Terminal.clearLine()
-        let lines = rows.map {
-            [$0.item.id, $0.hint, $0.condition.rawValue, $0.transcript].joined(separator: "\t")
-        }
+        let lines = rows.map(\.tabSeparated)
         try lines.joined(separator: "\n").write(
             to: URL(fileURLWithPath: rowsPath), atomically: true, encoding: .utf8)
         print(VocabularyPromptTable(rows: rows).markdown)

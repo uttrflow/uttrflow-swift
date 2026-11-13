@@ -27,7 +27,7 @@ since the measuring machine is a virtual one.
 
 ```bash
 uttrflow-dev models install
-uttrflow-eval vocabulary-prompt        # writes .uttrflow-eval/vocabulary-prompt-rows.tsv
+uttrflow-eval vocabulary-prompt        # rows go to the temporary directory; --rows-path moves them
 ```
 
 ## Result
