@@ -72,15 +72,10 @@ struct NumberCarrierTests {
         #expect(cleaned(input, by: NumberFormsPass()) == expected)
     }
 
-    @Test(
-        "a count stays apart from the number after it, the noun read after the whole run",
-        arguments: [
-            ("we feed python three twenty gram mice", "320"),
-        ]
-    )
-    func countBeforeAnotherNumber(input: String, joinedUp: String) {
-        let output = cleaned(input, by: NumberFormsPass())
-        #expect(!output.contains(joinedUp))
+    @Test("a count stays apart from the number after it, the noun read after the whole run")
+    func countBeforeAnotherNumber() {
+        let output = cleaned("we feed python three twenty gram mice", by: NumberFormsPass())
+        #expect(!output.contains("320"))
         #expect(output.contains("three"))
     }
 
