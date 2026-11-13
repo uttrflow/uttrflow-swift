@@ -92,6 +92,7 @@ extension DictationPipeline {
                 account: cleaningAccount(including: whole.cleaned.cleaning),
                 unavailableEngines: whole.cleaned.cleaning?.unavailableEngines ?? [],
                 guardRefusals: whole.cleaned.cleaning?.refusals.map(\.kind) ?? [],
+                spoken: whole.heard.detectedLanguage,
                 destination: InsertionDestination(
                     applicationName: appContext?.applicationName,
                     bundleIdentifier: appContext?.bundleIdentifier,
@@ -173,6 +174,7 @@ extension DictationPipeline {
         recording tally: StageTally, account: CleaningRecord,
         unavailableEngines: [CleaningRecord.UnavailableEngine],
         guardRefusals: [RefusalKind],
+        spoken: DetectedLanguage?,
         destination: InsertionDestination
     ) async -> InsertionAttempt? {
         let inserter = delivery == .copy ? clipboard : self.inserter
@@ -222,7 +224,7 @@ extension DictationPipeline {
                         quality: OutcomeQuality(
                             producedBy: cleanedBy, account: account, missedPieces: missedPieces),
                         keptRecording: keptForFix ? recordingID : nil,
-                        fromPrivateWindow: destinationIsPrivate)))
+                        fromPrivateWindow: destinationIsPrivate, spokenLanguage: spoken)))
             return attempt
         } catch {
             guard !wasCancelled(mine) else { return nil }

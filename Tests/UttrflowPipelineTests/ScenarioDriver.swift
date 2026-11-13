@@ -59,6 +59,9 @@ struct Scenario: Sendable {
     var clock: ManualClock?
     /// How often the pipeline looks for a finished piece while the key is held.
     var earlyPoll: Duration = .milliseconds(2)
+    /// What the field answers each insertion with, by default that it took the words.
+    var insertions = ScriptedSequence<InsertionAttempt, TextInsertionError>(
+        .success(InsertionAttempt(.accessibility)))
 }
 
 /// The cleaner stacks a scenario runs under.
@@ -158,7 +161,7 @@ enum ScenarioDriver {
         await capture.setCaptured(take)
         let speech = ScriptedPieceRecogniser(
             scenario.pieces, holding: scenario.heldPiece, clock: scenario.clock)
-        let inserter = FakeTextInserter()
+        let inserter = FakeTextInserter(answering: scenario.insertions)
         let pipeline = DictationPipeline(
             capture: capture, speech: speech, cleaner: scenario.cleaner,
             context: FakeContextEngine(context: scenario.context), inserter: inserter,

@@ -61,7 +61,7 @@ extension EvaluationCorpus {
         .init(
             id: "probe-docker-run-flags", category: .technical,
             spoken:
-                "docker run dash dash rm dash p eight thousand colon eight thousand dash v tilde slash projects slash app colon slash app node colon twenty alpine",
+                "docker run dash dash rm dash p eight thousand colon eight thousand dash v tilde slash projects slash app colon slash app node colon twenty dash alpine",
             expected: "docker run --rm -p 8000:8000 -v ~/projects/app:/app node:20-alpine",
             context: AppContext(applicationName: "Terminal", bundleIdentifier: "com.apple.Terminal"),
             destination: .terminal, mustBeginWith: "docker", mustEndWith: "node:20-alpine",
