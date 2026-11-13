@@ -16,6 +16,8 @@ public enum WorkingSet {
 
     /// What recent kept use in the evidence ledger is worth at most: one, like frequency.
     static let personaWeight = 1.0
+    /// How much an entry's recent uses in this application add, on the same saturating curve as the persona term.
+    static let applicationWeight = 1.0
 
     /// How long a manually added word keeps priority over older dictionary entries.
     static let newAdditionPriorityDays = 7.0
@@ -99,6 +101,7 @@ public enum WorkingSet {
         let wanted = soundsOnScreen(in: context)
         let persona = PersonaProjection.standing(of: evidence, now: now)
         let lastUse = PersonaProjection.lastUse(in: evidence)
+        let inApplication = PersonaProjection.appUse(of: evidence, in: context.bundleIdentifier, now: now)
         let eligible = entries.filter { entry in
             guard entry.isTrustworthy else {
                 excluded.append((entry, .retired))
@@ -120,7 +123,7 @@ public enum WorkingSet {
                     entry: entry, code: code,
                     value: value(
                         of: entry, sounding: code, now: now, wanted: wanted, persona: persona[entry.id] ?? 0,
-                        lastUseDay: lastUse[entry.id])
+                        lastUseDay: lastUse[entry.id], inApplication: inApplication[entry.id] ?? 0)
                 )
             }
             .sorted { first, second in
@@ -207,7 +210,7 @@ public enum WorkingSet {
     /// What one prompt slot spent on this entry is worth.
     static func value(
         of entry: DictionaryEntry, sounding code: WordSound, now: Date, wanted: Set<String>,
-        persona: Double = 0, lastUseDay: Int? = nil
+        persona: Double = 0, lastUseDay: Int? = nil, inApplication: Double = 0
     ) -> Double {
         let kept = Double(max(0, entry.netUses))
         let frequency = kept / (1 + kept)
@@ -222,5 +225,6 @@ public enum WorkingSet {
         let recentUse = max(0, persona)
         return frequency + recency + (onScreen ? affinityWeight : 0)
             + personaWeight * recentUse / (1 + recentUse)
+            + applicationWeight * max(0, inApplication) / (1 + max(0, inApplication))
     }
 }
