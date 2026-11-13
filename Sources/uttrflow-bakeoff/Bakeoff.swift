@@ -333,7 +333,14 @@ struct Bakeoff: AsyncParsableCommand {
                 })
         }
         for line in refusals.lines { print(line) }
+        printAdapters(of: report, label: description.name)
         return Measurement(description: description, report: report)
+    }
+
+    /// The per-adapter exact-match, added-word and shape counts of one candidate's run, under its name.
+    private func printAdapters(of report: EvaluationReport, label: String) {
+        let table = AdapterReport(label: label, cases: scored, scores: report.scores).table
+        print("  per adapter:\n" + table.split(separator: "\n").map { "    \($0)" }.joined(separator: "\n"))
     }
 
     /// Scores the rules floor on bare and recogniser-shaped input side by side, naming what only the shape breaks.
@@ -370,6 +377,7 @@ struct Bakeoff: AsyncParsableCommand {
             testCase in
             .produced(try await formatted(testCase, through: router) { try await router.transform($0).text })
         }
+        printAdapters(of: report, label: CandidateDescription.shipping.name)
         return Measurement(description: .shipping, report: report)
     }
 
@@ -417,6 +425,7 @@ struct Bakeoff: AsyncParsableCommand {
             }
         }
         FileHandle.standardError.write(Data("\r\u{1B}[2K".utf8))
+        printAdapters(of: report, label: description.name)
         return Measurement(description: description, report: report)
     }
 

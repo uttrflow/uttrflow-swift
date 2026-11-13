@@ -334,10 +334,9 @@ final class SuggestionCoordinator {
         activationMonitor = SuggestionActivationMonitor(notificationCenter: workspaceCenter) {
             [weak self] trust in
             guard let self else { return }
-            let wasSecureInputBlocking = self.secureInput.isBlocking
-            self.checkSecureInput()
-            guard !self.secureInput.isBlocking else { return }
-            guard trust != .denied else {
+            let response = SuggestionTrustResponse.to(trust, secureInput: self.checkSecureInput())
+            guard response != .holdForSecureInput else { return }
+            guard response != .stopWatching else {
                 self.tapRest.cancel()
                 self.withdraw()
                 for monitor in self.monitors { NSEvent.removeMonitor(monitor) }
@@ -356,8 +355,7 @@ final class SuggestionCoordinator {
             }
             self.refreshFocusedFieldObservation()
             self.applicationChanged(front: self.frontmostBundleIdentifier())
-            guard !wasSecureInputBlocking else { return }
-            guard trust == .granted else { return }
+            guard response == .follow(startsTap: true) else { return }
             switch self.startInterceptor() {
             case .success: self.onTapRestChanged?(.success(()))
             case .failure(let error): self.onTapRestChanged?(.failure(error))
@@ -401,8 +399,9 @@ final class SuggestionCoordinator {
         return .success(())
     }
 
-    /// Withdraws suggestions while secure keyboard entry prevents reliable key capture.
-    private func checkSecureInput() {
+    /// Withdraws suggestions while secure keyboard entry prevents reliable key capture, saying how it changed.
+    @discardableResult
+    private func checkSecureInput() -> SecureInputTransition {
         secureInput.check(
             mayRecheck: !wakeState.isStopped,
             effects: SecureInputPauseEffects(
