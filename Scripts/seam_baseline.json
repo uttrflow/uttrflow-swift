@@ -5169,7 +5169,6 @@
     "trigger-phrase-heads-clauses-scratch-that-itch@3",
     "trigger-phrase-heads-clauses-scratch-that-itch@4",
     "twenty-four-seven-idiom@5",
-    "undecided-number-pair-kept-as-words@1",
     "undecided-number-pair-kept-as-words@4",
     "undecided-number-pair-kept-as-words@8",
     "version-number@3",
@@ -5323,5 +5322,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5303
+  "total" : 5302
 }
