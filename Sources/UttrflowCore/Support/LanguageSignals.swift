@@ -4,15 +4,21 @@
 public enum LanguageSignals {
     /// A dictation of fewer words is not counted: detection on a short piece is too unreliable to teach from.
     public static let minimumWords = 8
-    /// A verdict below this confidence, or without one, is not counted.
+    /// A verdict below this confidence is not counted.
     public static let minimumConfidence = 0.8
+    /// A verdict with no confidence is counted only from this many words, where the language matrix measured no errors.
+    public static let minimumWordsWithoutConfidence = 15
 
     /// The row one dictation adds, or none when it is too short or the engine was not sure of the language.
     public static func rows(for text: String, heardAs language: DetectedLanguage?, day: Int) -> [EvidenceRow]
     {
-        guard let language, let confidence = language.confidence, confidence >= minimumConfidence,
-            WordShape.words(text).count >= minimumWords
-        else { return [] }
+        guard let language else { return [] }
+        let words = WordShape.words(text).count
+        if let confidence = language.confidence {
+            guard confidence >= minimumConfidence, words >= minimumWords else { return [] }
+        } else if words < minimumWordsWithoutConfidence {
+            return []
+        }
         return [
             EvidenceRow(kind: .language, subject: language.code.value, day: day, provenance: .dictation)
         ]
