@@ -26,7 +26,8 @@ public enum SentenceBoundaryEvidence {
             || completesFinalPhrase(previous, following) || completesSeamPreposition(previous, following)
             || (!stopWritten && splitsSubjectFromPredicate(previous, following))
             || (!stopWritten && continuesLoneSubject(previous, following))
-            || awaitsComplement(previous, following) || takesObject(previous, following)
+            || awaitsComplement(previous, following) || awaitsClauseVerb(previous, following)
+            || takesObject(previous, following)
             || continuesAcrossConjunction(previous, following, stopWritten: stopWritten)
         {
             return true
@@ -248,6 +249,18 @@ public enum SentenceBoundaryEvidence {
         guard LexicalClass.lemma(ofWordAt: previous.count - 1, in: words) == "be" else { return false }
         let tags = LexicalClass.tags(ofWords: words)
         return tags[previous.count - 2] == .noun
+    }
+
+    /// "call me when you. get there": a subordinate clause with a subject and no verb yet leaves its verb to the next words.
+    private static func awaitsClauseVerb(_ previous: [WordShape], _ following: [WordShape]) -> Bool {
+        guard let first = following.first else { return false }
+        let head = Array(lastSentence(of: previous))
+        guard let opener = head.lastIndex(where: { subordinators.contains($0.key) }),
+            (1...3).contains(head.count - opener - 1)
+        else { return false }
+        let tags = LexicalClass.tags(ofWords: (head + [first]).map(\.core))
+        let subject = tags[(opener + 1)..<head.count]
+        return tags[head.count] == .verb && !subject.contains(.verb)
     }
 
     /// "i can. finish it today": a modal straight after its pronoun subject leaves its verb to the next words.

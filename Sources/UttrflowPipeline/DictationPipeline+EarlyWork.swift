@@ -10,19 +10,19 @@ extension DictationPipeline {
         /// Still being tidied when the key came up; joined by the release pass instead of waited on at the hand-off.
         case tidying(Tidying)
 
-        /// A tidy under way and the words it tidies, which the next piece reads before the tidy ends.
+        /// A tidy under way and the context its words leave, which the next piece reads before the tidy ends.
         struct Tidying {
             let task: Task<Piece, Never>
-            let heard: Transcription
+            let rolling: RollingContext?
             let span: UUID
         }
 
-        /// The words recognised for this span, or `nil` for audio not yet recognised.
-        var heard: Transcription? {
+        /// What the piece after this span is decoded and tidied after, or `nil` for audio not yet recognised.
+        var rolling: RollingContext? {
             switch self {
-            case .done(let piece, _): piece.heard
+            case .done(let piece, _): RollingContext(after: piece.corrected)
             case .pending: nil
-            case .tidying(let tidying): tidying.heard
+            case .tidying(let tidying): tidying.rolling
             }
         }
     }
@@ -144,11 +144,13 @@ extension DictationPipeline {
             early.decodesInFlight += 1
             early.recognising = true
             defer { early.recognising = false }
+            // The nearest piece before with words, as the release pass reads it. See `Docs/early-transcription.md`.
+            let rolling = early.spans.last(where: { $0.rolling != nil })?.rolling
             let heard: Transcription?
             do {
                 heard = try await transcribe(
                     audio, lead..<cut, biasedTowards: await vocabulary(mine, seeing: seeing),
-                    recording: NoOpMetricsRecorder(), skippingAMiss: false, for: mine)
+                    after: rolling, recording: NoOpMetricsRecorder(), skippingAMiss: false, for: mine)
             } catch {
                 early.decodesInFlight -= 1
                 guard generation == mine, !wasCancelled(mine) else { return }
@@ -165,8 +167,9 @@ extension DictationPipeline {
             early.cut = end
             early.lastWindowStart = heard == nil ? nil : start
             if let heard {
-                // The piece before is read as heard, which every path has once it is recognised.
-                let preceding = early.spans.last?.heard
+                // Corrected before the next piece is recognised, since that piece is decoded after these words.
+                let corrected = await correct(
+                    heard, seeing: seeing, recording: NoOpMetricsRecorder(), for: mine)
                 let previousTidy = early.spans.reversed().compactMap { span in
                     if case .tidying(let tidying) = span { return tidying.task }
                     return nil
@@ -176,16 +179,17 @@ extension DictationPipeline {
                     if let previousTidy { _ = await previousTidy.value }
                     guard !Task.isCancelled else {
                         return Piece(
-                            heard: heard, corrected: .unchanged(heard.text),
-                            cleaned: TransformationResult(text: heard.text, producedBy: .untidied))
+                            heard: heard, corrected: corrected,
+                            cleaned: TransformationResult(text: corrected.text, producedBy: .untidied))
                     }
                     return await Self.$tidiedSpan.withValue(span) {
                         await self.finish(
-                            heard, seeing: seeing, correctionSeeing: seeing, after: preceding,
+                            heard, saying: corrected, seeing: seeing, after: rolling,
                             recording: NoOpMetricsRecorder(), for: mine)
                     }
                 }
-                early.tidyTask = Span.Tidying(task: tidy, heard: heard, span: span)
+                early.tidyTask = Span.Tidying(
+                    task: tidy, rolling: RollingContext(after: corrected), span: span)
                 // Warm for the next piece after this one finishes, without making key-up wait for warm-up.
                 Task {
                     let piece = await tidy.value

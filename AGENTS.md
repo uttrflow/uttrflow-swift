@@ -13,7 +13,7 @@ on-device. This file is for everyone who works on it, by hand or with an agent. 
 | You are... | Read |
 |---|---|
 | writing or changing code, tests or comments | [Docs/agents/code-quality.md](Docs/agents/code-quality.md) |
-| changing anything a person sees: SwiftUI or AppKit views, colours, typefaces, layout, appearance, animation, components, `Design/` | [Docs/agents/design.md](Docs/agents/design.md) |
+| changing anything a person sees: SwiftUI or AppKit views, colours, typefaces, layout, appearance, animation, components, `BrandPalette.swift`, `BrandFont.swift` | [Docs/agents/design.md](Docs/agents/design.md) |
 | changing what dictation, AI suggestions, the clipboard or the data stores do | [Docs/agents/product.md](Docs/agents/product.md) |
 | changing how accurately dictation recognises, corrects or formats words | [Docs/dictation-quality.md](Docs/dictation-quality.md) |
 | branching, committing or opening a pull request | [Docs/agents/workflow.md](Docs/agents/workflow.md) |
@@ -51,8 +51,8 @@ that points at this repository.
   and `uttrflow-bakeoff` tools. `Tests/` mirrors it.
 - `Docs/`: a page per subsystem, holding the measurements, platform traps and rejected approaches
   the code cannot say for itself.
-- `Scripts/`: audits, release and packaging. `Design/`: design canvases. `Resources/`: bundle
-  resources and `Uttrflow-Info.plist`.
+- `Scripts/`: audits, release and packaging. `Resources/`: bundle resources, `Uttrflow-Info.plist`
+  and the app icon (`Resources/AppIcon/`). The Swift views are the only picture of the app.
 
 ## Non-negotiables
 
