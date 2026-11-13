@@ -46,8 +46,14 @@ public struct SpokenCasingPass: PieceCleaningPass {
             }
         }
 
-        /// Whether the command names a joined style itself, which a naming cue said just before it takes.
-        var isIdentifierStyle: Bool { self == .camel || self == .snake || self == .kebab }
+        /// The joined style a casing command said right after a naming cue gives the name, all caps included.
+        var styleAfterCue: NameStyle? {
+            switch self {
+            case .camel, .snake, .kebab: nameStyle
+            case .upper: .screamingSnake
+            default: nil
+            }
+        }
 
         /// The kind of name a naming cue asks for, which picks the file's style for it.
         var role: NameRole? {
@@ -96,28 +102,51 @@ public struct SpokenCasingPass: PieceCleaningPass {
         var start = cueEnd
         let said = SpokenCommands.casings.lazy.compactMap { row -> (NameStyle, Int)? in
             guard row.isEnabled(in: self.destination), let spoken = Style(rawValue: row.text),
-                spoken.isIdentifierStyle, draft.spells(row.words, at: cueEnd, in: live)
+                let named = spoken.styleAfterCue, draft.spells(row.words, at: cueEnd, in: live)
             else { return nil }
-            return (spoken.nameStyle, row.words.count)
+            return (named, row.words.count)
         }.first
         start += said?.1 ?? 0
-        let end = Self.nameEnd(from: start, in: live, of: draft)
+        guard start < live.count else { return nil }
+        let first = draft.shape(at: live[start])
+        // An identifier the screen already bound is the name as written there.
+        if said == nil, Self.isBoundIdentifier(first.core) {
+            return Cased(
+                style: style, named: start - position, covered: start..<(start + 1), closing: 0,
+                written: first.prefix + first.core)
+        }
+        let end = nameEnd(from: start, in: live, of: draft)
         let words = (start..<end).map { draft.shape(at: live[$0]).core }
         guard let written = naming.name(words, role: role, explicit: said?.0) else { return nil }
-        return Cased(style: style, named: start - position, covered: start..<end, closing: 0, written: written)
+        return Cased(
+            style: style, named: start - position, covered: start..<end, closing: 0,
+            written: first.prefix + written)
     }
 
-    /// The end of the plain words from `start` that one name can hold: a mark, a symbol or the clause's end closes it.
-    private static func nameEnd(from start: Int, in live: [Int], of draft: Draft) -> Int {
+    /// Whether `core` is one written identifier joining words with `_` or `-`, as a screen-bound name is.
+    private static func isBoundIdentifier(_ core: String) -> Bool {
+        core.contains { $0 == "_" || $0 == "-" } && NameStyle(identifier: core) != nil
+    }
+
+    /// The end of the plain words one name holds: a mark, a symbol, a spoken command or the clause's end closes it.
+    private func nameEnd(from start: Int, in live: [Int], of draft: Draft) -> Int {
         var end = start
         while end < live.count {
+            if end > start, startsCommand(at: end, in: live, of: draft) { break }
             let shape = draft.shape(at: live[end])
             let plain = !shape.core.isEmpty && shape.core.allSatisfy { $0.isLetter || $0.isNumber }
-            if isSpokenClauseWord(shape) || !plain || (end > start && !shape.prefix.isEmpty) { break }
+            if Self.isSpokenClauseWord(shape) || !plain || (end > start && !shape.prefix.isEmpty) { break }
             end += 1
             if !shape.suffix.isEmpty || shape.endsClause { break }
         }
         return end
+    }
+
+    /// Whether a layout or casing command enabled here is spoken at `position`, which a name must leave for its pass.
+    private func startsCommand(at position: Int, in live: [Int], of draft: Draft) -> Bool {
+        (SpokenCommands.layout + SpokenCommands.casings).contains { row in
+            row.isEnabled(in: destination) && draft.spells(row.words, at: position, in: live)
+        }
     }
 
     /// The words a row covers from `start`, and the length of the closing phrase after them.

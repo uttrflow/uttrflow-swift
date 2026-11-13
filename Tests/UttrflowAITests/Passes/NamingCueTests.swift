@@ -71,6 +71,32 @@ struct NamingCueTests {
         #expect(pipeline.run(Draft(text: "function name get user by id")).text == "get_user_by_id")
     }
 
+    @Test("all caps said with the request writes the name in capitals joined by underscores")
+    func allCapsAfterTheCue() {
+        let camelFile = "let orderTotals = fetchInvoices()\nlet x = "
+        #expect(cleaned("name it all caps user id", in: "Example.swift", after: camelFile) == "USER_ID")
+    }
+
+    @Test("a layout command ends the name and keeps its own effect")
+    func layoutCommandEndsTheName() {
+        let camelFile = "let orderTotals = fetchInvoices()\nlet x = "
+        #expect(
+            cleaned("name it user id new line name it order id", in: "Example.swift", after: camelFile)
+                == "userId\norderId")
+    }
+
+    @Test("an opening mark before the name is kept")
+    func openingMarkIsKept() {
+        let camelFile = "let orderTotals = fetchInvoices()\nlet x = "
+        #expect(cleaned("name it (user id)", in: "Example.swift", after: camelFile) == "(userId)")
+    }
+
+    @Test("an identifier already bound from the screen after the cue is the name, and the cue goes")
+    func screenBoundIdentifierIsTheName() {
+        let snakeFile = "user = get_user_by_id(1)\nx = "
+        #expect(cleaned("function name get_user_by_id", in: "example.py", after: snakeFile) == "get_user_by_id")
+    }
+
     @Test("a casing command said with the request wins over the file's convention")
     func explicitStyleWins() {
         let camelFile = "let orderTotals = fetchInvoices()\nlet x = "
