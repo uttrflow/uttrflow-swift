@@ -1416,6 +1416,113 @@
     "mustEndWith": "max_retries"
   },
   {
+    "id": "code-editor-name-request-language-default",
+    "spoken": "name it get user by id",
+    "expected": "get_user_by_id",
+    "mustKeep": ["get_user_by_id"],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "example.py",
+      "precedingText": "x = "
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "get_user_by_id",
+    "mustEndWith": "get_user_by_id"
+  },
+  {
+    "id": "code-editor-name-request-file-convention",
+    "spoken": "function name get user by id",
+    "expected": "get_user_by_id",
+    "mustKeep": ["get_user_by_id"],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Example.swift",
+      "precedingText": "let order_totals = fetch_invoices()\nlet x = "
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "get_user_by_id",
+    "mustEndWith": "get_user_by_id"
+  },
+  {
+    "id": "code-editor-name-request-type-role",
+    "spoken": "type name user profile",
+    "expected": "UserProfile",
+    "mustKeep": ["UserProfile"],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "example.rs",
+      "precedingText": "let x: "
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "UserProfile",
+    "mustEndWith": "UserProfile"
+  },
+  {
+    "id": "code-editor-name-request-variable",
+    "spoken": "variable name retry count",
+    "expected": "retryCount",
+    "mustKeep": ["retryCount"],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "example.js",
+      "precedingText": "let "
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "retryCount",
+    "mustEndWith": "retryCount"
+  },
+  {
+    "id": "code-editor-name-request-constant",
+    "spoken": "constant name max retries",
+    "expected": "MAX_RETRIES",
+    "mustKeep": ["MAX_RETRIES"],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "example.py",
+      "precedingText": "x = 1\n"
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "MAX_RETRIES",
+    "mustEndWith": "MAX_RETRIES"
+  },
+  {
+    "id": "code-editor-name-request-spoken-style-wins",
+    "spoken": "name it snake case get user by id",
+    "expected": "get_user_by_id",
+    "mustKeep": ["get_user_by_id"],
+    "mustNotAdd": ["getUserById"],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Example.swift",
+      "precedingText": "let orderTotals = fetchInvoices()\nlet x = "
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "get_user_by_id",
+    "mustEndWith": "get_user_by_id"
+  },
+  {
+    "id": "code-editor-unrequested-words-keep-spacing",
+    "spoken": "get user by id",
+    "expected": "get user by id",
+    "mustKeep": ["get", "user", "by", "id"],
+    "mustNotAdd": ["getUserById"],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "example.py",
+      "precedingText": "order_totals = fetch_invoices()\nx = "
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "get",
+    "mustEndWith": "id"
+  },
+  {
     "id": "code-editor-spoken-empty-parentheses",
     "spoken": "open paren close paren",
     "expected": "()",

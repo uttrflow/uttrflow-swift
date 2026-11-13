@@ -150,5 +150,29 @@ struct MeaningPreservationGuardSurvivorTests {
         #expect(!accepts("we walk there every day", "We walk there everyday."))
         #expect(!accepts("tag us at corner bakes", "Tag us @cornerbikes."))
         #expect(!accepts("tag us at corner bakes today", "Tag us @bakes today."))
+        #expect(!accepts("tag corner bakes", "Tag @cornerbakes corner bakes."))
+        #expect(!accepts("tag corner bakes", "Tag @cornerbakes cornerbakes."))
+        #expect(!accepts("please tag corner bakes this afternoon", "@cornerbakes please tag this afternoon."))
+    }
+
+    /// A notation stands for the words it closes up once, uses them up, and only where they were said.
+    @Test("a notation uses up the words it closes up, once, in their place")
+    func notationUsesUpItsWordsInPlace() {
+        let invented = { (draft: String, rewritten: String) in
+            MeaningPreservationGuard.inventionVerdict(
+                RewriteAlignment(kept: draft, rewritten: rewritten), echo: [], allowing: []) != .accepted
+        }
+        #expect(!invented("tag corner bakes", "Tag @cornerbakes."))
+        #expect(invented("tag corner bakes", "Tag @cornerbakes corner bakes."))
+        #expect(invented("tag corner bakes", "Tag @cornerbakes cornerbakes."))
+        let kept = MeaningPreservationGuard.grammarTokens("please tag corner bakes this afternoon")
+        #expect(
+            MeaningPreservationGuard.closedUpIntoNotation(kept, in: "@cornerbakes please tag this afternoon.")
+                .kept
+                .isEmpty)
+        #expect(
+            MeaningPreservationGuard.closedUpIntoNotation(kept, in: "Please tag @cornerbakes this afternoon.")
+                .kept
+                == [2, 3])
     }
 }

@@ -8,9 +8,16 @@ public struct SpokenCasingPass: PieceCleaningPass {
 
     /// Where the words are going, which picks the table rows that apply.
     let destination: Destination
+    /// The style the file writes each kind of name in, which completes a naming cue said without a style.
+    let naming: NamingConvention
 
     public init(destination: Destination) {
+        self.init(destination: destination, naming: .infer(from: .empty, language: nil))
+    }
+
+    init(destination: Destination, naming: NamingConvention) {
         self.destination = destination
+        self.naming = naming
     }
 
     public func apply(_ draft: Draft) -> Draft {
@@ -28,6 +35,7 @@ public struct SpokenCasingPass: PieceCleaningPass {
 
     private enum Style: String {
         case camel, snake, kebab, upper, hashtag
+        case nameValue = "name.value", nameType = "name.type", nameConstant = "name.constant"
 
         /// The joined style a spoken identifier command writes; the other commands join no words.
         var nameStyle: NameStyle {
@@ -37,14 +45,34 @@ public struct SpokenCasingPass: PieceCleaningPass {
             default: .camel
             }
         }
+
+        /// The joined style a casing command said right after a naming cue gives the name, all caps included.
+        var styleAfterCue: NameStyle? {
+            switch self {
+            case .camel, .snake, .kebab: nameStyle
+            case .upper: .screamingSnake
+            default: nil
+            }
+        }
+
+        /// The kind of name a naming cue asks for, which picks the file's style for it.
+        var role: NameRole? {
+            switch self {
+            case .nameValue: .value
+            case .nameType: .type
+            case .nameConstant: .constant
+            default: nil
+            }
+        }
     }
 
-    /// One command found: the words it covers and how many trailing words close it.
+    /// One command found: the words it covers, how many trailing words close it, and a naming cue's finished name.
     private struct Cased {
         let style: Style
         let named: Int
         let covered: Range<Int>
         let closing: Int
+        var written: String?
     }
 
     private func casing(at position: Int, in live: [Int], of draft: Draft) -> Cased? {
@@ -56,12 +84,72 @@ public struct SpokenCasingPass: PieceCleaningPass {
             if MentionGuard.namesCasing(at: position, spanning: row.words.count, in: live, of: draft) {
                 return nil
             }
+            if let role = style.role {
+                return name(role, style: style, at: position, from: start, in: live, of: draft)
+            }
             guard let (covered, closing) = Self.reach(of: row, from: start, in: live, of: draft) else {
                 return nil
             }
             return Cased(style: style, named: row.words.count, covered: covered, closing: closing)
         }
         return nil
+    }
+
+    /// A naming cue: the plain words after it as one name, in a style said right after the cue, else the file's for `role`.
+    private func name(
+        _ role: NameRole, style: Style, at position: Int, from cueEnd: Int, in live: [Int], of draft: Draft
+    ) -> Cased? {
+        var start = cueEnd
+        let said = SpokenCommands.casings.lazy.compactMap { row -> (NameStyle, Int)? in
+            guard row.isEnabled(in: self.destination), let spoken = Style(rawValue: row.text),
+                let named = spoken.styleAfterCue, draft.spells(row.words, at: cueEnd, in: live)
+            else { return nil }
+            return (named, row.words.count)
+        }.first
+        start += said?.1 ?? 0
+        // A cue that ends its sentence asks for no name, so the next sentence keeps its words.
+        guard start < live.count, !draft.shape(at: live[start - 1]).endsSentence else { return nil }
+        let first = draft.shape(at: live[start])
+        // An identifier the screen already bound is the name as written there, unless a style was said.
+        if Self.isBoundIdentifier(first.core) {
+            let parts = WordTokens.words(first.core, .comparison).map { $0.lowercased() }
+            let written = said.flatMap { naming.name(parts, role: role, explicit: $0.0) } ?? first.core
+            return Cased(
+                style: style, named: start - position, covered: start..<(start + 1), closing: 0,
+                written: first.prefix + written)
+        }
+        let end = nameEnd(from: start, in: live, of: draft)
+        let words = (start..<end).map { draft.shape(at: live[$0]).core }
+        guard let written = naming.name(words, role: role, explicit: said?.0) else { return nil }
+        return Cased(
+            style: style, named: start - position, covered: start..<end, closing: 0,
+            written: first.prefix + written)
+    }
+
+    /// Whether `core` is one written identifier joining words with `_` or `-`, as a screen-bound name is.
+    private static func isBoundIdentifier(_ core: String) -> Bool {
+        core.contains { $0 == "_" || $0 == "-" } && NameStyle(identifier: core) != nil
+    }
+
+    /// The end of the plain words one name holds: a mark, a symbol, a spoken command or the clause's end closes it.
+    private func nameEnd(from start: Int, in live: [Int], of draft: Draft) -> Int {
+        var end = start
+        while end < live.count {
+            if end > start, startsCommand(at: end, in: live, of: draft) { break }
+            let shape = draft.shape(at: live[end])
+            let plain = !shape.core.isEmpty && shape.core.allSatisfy { $0.isLetter || $0.isNumber }
+            if Self.isSpokenClauseWord(shape) || !plain || (end > start && !shape.prefix.isEmpty) { break }
+            end += 1
+            if !shape.suffix.isEmpty || shape.endsClause { break }
+        }
+        return end
+    }
+
+    /// Whether a layout or casing command enabled here is spoken at `position`, which a name must leave for its pass.
+    private func startsCommand(at position: Int, in live: [Int], of draft: Draft) -> Bool {
+        (SpokenCommands.layout + SpokenCommands.casings).contains { row in
+            row.isEnabled(in: destination) && draft.spells(row.words, at: position, in: live)
+        }
     }
 
     /// The words a row covers from `start`, and the length of the closing phrase after them.
@@ -118,8 +206,8 @@ public struct SpokenCasingPass: PieceCleaningPass {
         let last = cased.covered.upperBound - 1 + cased.closing
         let suffix = draft.shape(at: live[last]).suffix
         switch cased.style {
-        case .camel, .snake, .kebab:
-            let joined = cased.style.nameStyle.write(values)
+        case .camel, .snake, .kebab, .nameValue, .nameType, .nameConstant:
+            let joined = cased.written ?? cased.style.nameStyle.write(values)
             write(joined + suffix, over: position..<(last + 1), in: live, to: &draft)
             live.removeSubrange((position + 1)..<(last + 1))
         case .hashtag:
