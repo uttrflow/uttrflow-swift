@@ -150,11 +150,8 @@ enum PieceJoiner {
         let tailWords = WordTokens.words(tail, .display).prefix(longestSpokenUnit)
         guard !headWords.isEmpty, !tailWords.isEmpty else { return false }
         // A mark that ends a sentence closes the head, so no number, time or address runs on from it into the tail.
-        if let closing = spokenMark(at: Array(headWords), fromStart: false), !closing.opening,
-            [".", "?", "!"].contains(closing.symbol)
-        {
-            return false
-        }
+        let headSaid = Array(headWords)
+        if endsSentence(headSaid, at: headSaid.count - 1) { return false }
         let pieceReaders = CleaningPipeline.piece(
             numbers: formatter.numbers, digits: situation.digits(for: formatter),
             insertionPoint: situation.insertion, destination: formatter.destination,
@@ -167,6 +164,7 @@ enum PieceJoiner {
             WordTokens.words(units.run(Draft(text: words.joined(separator: " "))).text, .display)
         }
         if letteredSeriesRunsAcross(head, into: tail, reading: series) { return true }
+        if markNameRunsAcross(head, into: tail, reading: read) { return true }
         let headRead = read(Array(headWords))
         let apart = headRead + read(Array(tailWords))
         let together = read(Array(headWords + tailWords))
@@ -175,6 +173,21 @@ enum PieceJoiner {
         let cued = NumberFormsPass.hasLabelCue(
             at: headRead.count - 1, keys: shapes.map(\.key), shapes: shapes)
         return cued || !gluesDigitGroups(together, from: apart, at: headRead.count)
+    }
+
+    /// Whether an everyday mark name the tail says once is read as the mark only with the head's sentence before it, where the head says it too: a name said again in one sentence is a mark.
+    private static func markNameRunsAcross(
+        _ head: String, into tail: String, reading read: ([String]) -> [String]
+    ) -> Bool {
+        let sentenceHead = Array(lastSentence(of: WordTokens.words(head, .display)))
+        let sentenceTail = Array(firstSentence(of: WordTokens.words(tail, .display)))
+        return SpokenPunctuationPass.ordinaryNames.contains { name in
+            let key = name.joined(separator: " ")
+            func said(_ words: [String]) -> Int { words.count { WordShape($0).key == key } }
+            guard said(sentenceHead) > 0, said(sentenceTail) == 1 else { return false }
+            return said(read(sentenceHead + sentenceTail)) < said(read(sentenceHead))
+                + said(read(sentenceTail))
+        }
     }
 
     /// Whether the head opens a lettered item series ("item a") that the tail goes on with, so the series is read from the whole head: a series is longer than the window a number is read in.
@@ -356,6 +369,29 @@ enum PieceJoiner {
         }
         return previous == "word" && ["the", "a", "this", "that"].contains(prior.dropLast().last ?? "")
     }
+
+    /// The words after the last spoken stop that ends a sentence, or every word when none is said.
+    private static func lastSentence(of words: [String]) -> ArraySlice<String> {
+        let end = words.indices.last { endsSentence(words, at: $0) }
+        return end.map { words[($0 + 1)...] } ?? words[...]
+    }
+
+    /// The words up to the first spoken stop that ends a sentence, or every word when none is said.
+    private static func firstSentence(of words: [String]) -> ArraySlice<String> {
+        let end = words.indices.first { endsSentence(words, at: $0) }
+        return end.map { words[...$0] } ?? words[...]
+    }
+
+    /// Whether the word at `end` closes a spoken stop, question mark or exclamation mark, read over the longest mark name.
+    private static func endsSentence(_ words: [String], at end: Int) -> Bool {
+        guard words.indices.contains(end) else { return false }
+        let window = Array(words[max(0, end - longestMarkName + 1)...end])
+        guard let mark = spokenMark(at: window, fromStart: false) else { return false }
+        return !mark.opening && [".", "?", "!"].contains(mark.symbol)
+    }
+
+    /// The most words a spoken mark's name is said in.
+    private static let longestMarkName = SpokenCommands.marks.map(\.words.count).max() ?? 1
 
     /// Finds a spoken mark from the shared registry at the start or end of a piece.
     private static func spokenMark(
