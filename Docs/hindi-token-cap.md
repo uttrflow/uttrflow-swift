@@ -25,7 +25,7 @@ uttrflow-eval token-cap
 WhisperKit `openai_whisper-large-v3-v20240930_turbo_632MB`, weights
 `0f63a7800b00dd0226abd051b906c246e1907482`, voice Lekha. Apple's speech engine: not measured.
 
-| Piece length | Pieces | Tail decoded again | Unresolved | Seconds decoding again | Words out per word read |
+| Piece length | Pieces | Tail decoded again or unresolved | Unresolved | Seconds decoding again | Words out per word read |
 |---|---|---|---|---|---|
 | under 10 s | 2 | 0 | 0 | 0.0 | 102% |
 | 10 to 20 s | 2 | 2 | 0 | 6.0 | 102% |
