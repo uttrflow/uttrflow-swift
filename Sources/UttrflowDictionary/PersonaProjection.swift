@@ -23,7 +23,8 @@ enum PersonaProjection {
                 // A restore marks every revert on or before its day as ignored, never subtracted away.
                 if let marker = restored[row.subject], row.day <= marker { continue }
                 sign = -1
-            case .restore, .sighting, .styleMessage, .styleWords, .styleSentences, .styleShortMessage,
+            case .restore, .sighting, .useInApp, .styleMessage, .styleWords, .styleSentences,
+                .styleShortMessage,
                 .styleClosingStop, .spellingPreference, .spellingPreferenceCleared, .pairConfirmed,
                 .pairVetoed, .pairAllowed, .pairRetried, .pairSighting, .pairLearnt, .calibration:
                 continue
@@ -33,6 +34,30 @@ enum PersonaProjection {
             standing[id, default: 0] += sign * Double(row.weight) * decay
         }
         return standing.filter { $0.value > 0 }
+    }
+
+    /// The most `useInApp` rows read, newest first, so the per-application map stays bounded however long the ledger grows.
+    static let maximumAttributedUses = 5_000
+
+    /// Recent uses per entry in `application` alone, on the `WorkingSet` recency curve; empty without an application.
+    static func appUse(of rows: [EvidenceRow], in application: String?, now: Date) -> [UUID: Double] {
+        guard let application else { return [:] }
+        let today = EvidenceRow.day(of: now)
+        let newest = rows.filter { $0.kind == .useInApp }.sorted { $0.day > $1.day }.prefix(
+            maximumAttributedUses)
+        var use: [UUID: Double] = [:]
+        for row in newest {
+            let parts = row.subject.split(separator: "|", maxSplits: 1)
+            guard parts.count == 2, parts[1] == application, let id = UUID(uuidString: String(parts[0]))
+            else {
+                continue
+            }
+            let age = Double(max(0, today - row.day))
+            use[id, default: 0] +=
+                Double(row.weight) * WorkingSet.recencyHalfLifeInDays
+                / (WorkingSet.recencyHalfLifeInDays + age)
+        }
+        return use
     }
 
     /// The day each entry last appeared: its newest `use` row, so an undo or a restore never moves it.
