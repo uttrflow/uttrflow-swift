@@ -141,18 +141,30 @@ enum ColourShape {
         #/(?i)(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^()]+\)/#
 
     static func matches(_ text: String) -> Bool {
-        ColourValue.parse(text) != nil || isPerceptual(text)
+        if ColourValue.parse(text) != nil || isPerceptual(text) { return true }
+        // A functional colour copied out of a declaration keeps its `;`; one is allowed, as CSS ends it.
+        guard text.hasSuffix(";"), text.contains("(") else { return false }
+        let declared = String(text.dropLast())
+        return ColourValue.parse(declared) != nil || isPerceptual(declared)
     }
 
-    /// These syntaxes remain colour clips without a misleading sRGB swatch.
+    /// These syntaxes stay colour clips, with no sRGB swatch, when their components are numbers.
     private static func isPerceptual(_ text: String) -> Bool {
-        guard text.wholeMatch(of: functional) != nil, let opening = text.firstIndex(of: "(") else {
-            return false
-        }
-        let name = text[..<opening].lowercased()
-        return name == "hwb" || name == "lab" || name == "lch" || name == "oklab"
-            || name == "oklch" || name == "color"
+        text.wholeMatch(of: perceptual) != nil
     }
+
+    /// Three number, percentage or angle components and an optional alpha; `color()` names its space first.
+    nonisolated(unsafe) private static let perceptual =
+        #/
+        (?i)
+        (?: (?: hwb | lab | lch | oklab | oklch ) \( | color \( \s* [a-z][\w-]* \s+ ) \s*
+        (?: [+-]? (?: \d+ \.? \d* | \. \d+ ) (?: e [+-]? \d+ )? (?: % | deg | rad | grad | turn )? | none )
+        (?: (?: \s* , \s* | \s+ )
+            (?: [+-]? (?: \d+ \.? \d* | \. \d+ ) (?: e [+-]? \d+ )?
+                (?: % | deg | rad | grad | turn )? | none ) ){2}
+        (?: \s* [\/,] \s* (?: [+-]? (?: \d+ \.? \d* | \. \d+ ) (?: e [+-]? \d+ )? %? | none ) )?
+        \s* \)
+        /#
 }
 
 /// Whether a copy is worth recording at all, shared by the watcher, the store and the panel's Edit.
