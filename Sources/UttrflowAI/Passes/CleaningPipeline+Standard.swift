@@ -67,15 +67,16 @@ extension CleaningPipeline {
         {
             cleanings.insert(ScreenIdentifierPass(vocabulary: identifiers), at: afterCorrection + 1)
         }
+        // A piece's layout waits for the message, but the slot its notation is written in is read from the caret.
+        let caretText = insertionPoint.precedingText ?? screen.insertion.precedingText
         let markup =
-            destination == .codeEditor
-            ? MarkupPosition.at(insertionPoint.precedingText, language: intent.language) : nil
+            destination == .codeEditor ? MarkupPosition.at(caretText, language: intent.language) : nil
         // Text between tags and a comment or quoted value are prose to the casing commands, whatever the region says.
         let inCode =
             destination == .codeEditor && intent.region.isCode && markup != .slot(.text) && markup != .quoted
         let notation = NotationEvidence.applicability(
             destination: destination, region: intent.region,
-            statement: SQLPosition.at(insertionPoint.precedingText), markup: markup, mode: mode)
+            statement: SQLPosition.at(caretText), markup: markup, mode: mode)
         if let layoutPosition = cleanings.firstIndex(where: { $0.id == .layoutWords }) {
             // Only a Markdown document names its lists and headings by what is already written.
             if CaretStructure.isMarkdown(documentName: screen.app.documentName) {
