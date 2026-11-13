@@ -2961,7 +2961,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let app = AppContext(
             applicationName: outcome.insertedInto, bundleIdentifier: outcome.insertedIntoIdentifier)
         let destination = DestinationClassifier.classify(app, overrides: settings.destinations)
-        let rows = StyleSignals.rows(for: outcome.text, into: destination, day: EvidenceRow.day(of: Date()))
+        let day = EvidenceRow.day(of: Date())
+        let rows =
+            StyleSignals.rows(for: outcome.text, into: destination, day: day)
+            + LanguageSignals.rows(for: outcome.text, heardAs: outcome.spokenLanguage, day: day)
         learnt.note(rows, from: outcome.insertedIntoIdentifier)
     }
 

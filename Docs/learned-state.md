@@ -106,6 +106,13 @@ subject `<entry id>|<bundle identifier>`. `WorkingSet` adds `applicationWeight` 
 saturating recent use in the frontmost application, so the working set there prefers that
 application's words. Only the newest 5,000 such rows are read, which bounds the map. Bundle
 identifiers stay in the local ledger and are never reported.
+## Language tally
+
+`LanguageSignals` writes one `language` row (+1) per inserted, non-secure dictation, with the
+detected language code as the subject and no word of the text. A dictation of fewer than 8 words,
+or whose verdict has no confidence or one below 0.8, writes nothing, because detection on a short
+piece is unreliable and a tally of wrong verdicts would teach the wrong language. The projection
+is a count per code.
 
 ## Spelling preferences
 

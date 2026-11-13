@@ -26,6 +26,8 @@ public struct EvidenceRow: Sendable, Equatable, Codable {
         case pairRetried
         /// Rows an earlier pair counter wrote; nothing writes them now, and they stay so an older ledger still reads.
         case pairSighting, pairLearnt
+        /// One dictation heard in a language, keyed by its code; see ``LanguageSignals``.
+        case language
         /// One measure from the person's guided read at setup, replaced as a set by the next reading; see ``CalibrationProfile``.
         case calibration
     }
