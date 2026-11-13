@@ -15,7 +15,8 @@ extension CleaningPipeline {
                 numbers: formatter.numbers, digits: situation.digits(for: formatter),
                 layout: formatter.layout,
                 insertionPoint: situation.insertion, destination: formatter.destination,
-                intent: situation.intent, steps: steps, pauses: pauses, mode: situation.adapterMode
+                intent: situation.intent, steps: steps, pauses: pauses, mode: situation.adapterMode,
+                namesFrom: situation
             ).passes + initialisms(steps: steps))
     }
 
@@ -34,15 +35,18 @@ extension CleaningPipeline {
                 + message(for: formatter, situation: situation, steps: steps, vocabulary: vocabulary).passes)
     }
 
-    /// The passes right on any piece of a message; `screen` holds the identifiers a doubted run may be bound to.
+    /// The passes right on any piece; `screen` binds doubted runs, `namesFrom` (else `screen`) sets the naming convention.
     public static func piece(
         numbers: NumberPolicy, digits: DigitGrouping, layout: LayoutPolicy = [.paragraphs, .lists],
         insertionPoint: InsertionPoint = .unknown, destination: Destination = .plain,
         intent: WritingIntent = .unknown, steps: CleaningSteps = .default, pauses: PauseLength = .usual,
-        screen: Situation = .unknown, mode: AdapterMode = .auto, readsWholeText: Bool = true
+        screen: Situation = .unknown, mode: AdapterMode = .auto, readsWholeText: Bool = true,
+        namesFrom: Situation? = nil
     ) -> CleaningPipeline {
         let steps = screen.cleaningSteps(steps)
         let identifiers = ScreenVocabulary(screen)
+        let naming = NamingConvention.infer(
+            from: namesFrom.map(ScreenVocabulary.init) ?? identifiers, language: intent.language)
         var cleanings: [any PieceCleaningPass] = [
             FillersPass(), RepeatedPhrasePass(), StammersPass(), SelfCorrectionPass(),
             // Spoken punctuation must mark a stop before LayoutWordsPass checks for a break after it.
@@ -97,7 +101,7 @@ extension CleaningPipeline {
             // A code editor's comments and a code editor set to plain prose take no casing: its rows are identifiers.
             if (destination != .codeEditor || inCode) && !(mode == .prose && destination == .codeEditor) {
                 cleanings.insert(
-                    SpokenCasingPass(destination: destination),
+                    SpokenCasingPass(destination: destination, naming: naming),
                     at: cleanings.firstIndex { $0.id == .layoutWords } ?? layoutPosition)
             }
         }
