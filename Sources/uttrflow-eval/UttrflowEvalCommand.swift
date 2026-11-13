@@ -12,7 +12,7 @@ struct UttrflowEvalCommand: AsyncParsableCommand {
             AnnouncementBleedProbe.self,
             RetryParityProbe.self, SynthesiseCorpus.self, NonSpeechProbe.self, HomophoneConfidenceProbe.self,
             AccentProbe.self, AccentCalibrationProbe.self, LanguageIdProbe.self, NormaliseText.self,
-            FitFromTable.self,
+            FitFromTable.self, VocabularyPromptProbeCommand.self,
             FallbackSweepProbe.self, ClosedPhraseMarksProbe.self, HarvestConfusions.self,
             SynthesiseHarvestClips.self,
             FinalPieceProbe.self, PronunciationKeyProbe.self, OmissionCoverageProbe.self, WordDoubtProbe.self,
