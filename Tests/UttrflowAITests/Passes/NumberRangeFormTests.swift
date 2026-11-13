@@ -51,6 +51,7 @@ struct NumberRangeFormTests {
 
     @Test("a plural label that ends its sentence cues nothing in the next, across a sign")
     func pluralLabelStopsAtTheSentenceEnd() {
-        #expect(cleaned("see the pages. negative two", by: NumberFormsPass()) == "see the pages. negative two")
+        let output = cleaned("see the pages. negative two", by: NumberFormsPass())
+        #expect(output == "see the pages. negative two")
     }
 }

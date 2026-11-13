@@ -1383,7 +1383,9 @@ public struct NumberFormsPass: PieceCleaningPass {
         if keys[cuePosition].count == 1, keys[cuePosition].allSatisfy(\.isLetter) { return false }
         if ["negative", "minus"].contains(keys[cuePosition]) { cuePosition -= 1 }
         // A label in the plural names the numbers said straight after it, "pages four and seven".
-        if cuePosition >= 0, !shapes[cuePosition].endsSentence, isPluralLabel(keys[cuePosition]) { return true }
+        if cuePosition >= 0, !shapes[cuePosition].endsSentence, isPluralLabel(keys[cuePosition]) {
+            return true
+        }
         while cuePosition >= 0 {
             if shapes[cuePosition].endsSentence { return false }
             let word = keys[cuePosition]
