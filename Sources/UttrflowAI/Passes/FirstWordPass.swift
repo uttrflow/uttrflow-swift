@@ -90,6 +90,13 @@ public struct FirstWordPass: WholeTextCleaningPass {
                 isFirst = false
                 continue
             }
+            if Self.isWritten(by: FormulaNotationPass.id, word) {
+                // A formula is written in capitals the cell reads, so no casing rule touches it.
+                startOfSentence = false
+                afterPause = false
+                isFirst = false
+                continue
+            }
             if lineOpening, WordShape(word.text).isBracketedEnumerator {
                 // A clause's enumerator keeps its case, and the words after it carry on the clause.
                 startOfSentence = false
