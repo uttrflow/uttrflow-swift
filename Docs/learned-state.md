@@ -110,7 +110,7 @@ identifiers stay in the local ledger and are never reported.
 
 `LanguageSignals` writes one `language` row (+1) per inserted, non-secure dictation, with the
 detected language code as the subject and no word of the text. A dictation of fewer than 8 words,
-or whose verdict has no confidence or one below 0.8, writes nothing, because detection on a short
+or whose verdict has a confidence below 0.8, writes nothing, and a verdict with no confidence (the speech engine reports none) counts only from 15 words, because detection on a short
 piece is unreliable and a tally of wrong verdicts would teach the wrong language. The projection
 is a count per code.
 
