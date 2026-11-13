@@ -69,9 +69,13 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
         if position > 0, Self.bare(draft.words[live[position - 1]].text) == NotationEvidence.nounMarker {
             return nil
         }
+        // A leading symbol after a number is a unit said in words: "five dollar bill" is not "5 $bill".
+        let afterNumber =
+            position > 0 && NumberWords.isNumber(Self.bare(draft.words[live[position - 1]].text))
         return Self.rows.first {
             ($0.destinations?.contains(destination) ?? (destination == .codeEditor))
                 && $0.isEnabled(for: language)
+                && !($0.placement == .leading && afterNumber)
                 && draft.spells($0.words, at: position, in: live, acrossSentences: true)
         }
     }
@@ -140,6 +144,16 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
             draft.replace(at: live[position - 1], with: "()" + suffix, by: Self.id)
             for offset in 0..<consumed { draft.remove(at: live[position + offset], by: Self.id) }
             return .joinedBefore
+        }
+        // A leading symbol goes on the name or bracket after it: "dollar home" is `$home`, "dollar (date)" is `$(date)`.
+        if command.placement == .leading, position + consumed < live.count {
+            let next = live[position + consumed]
+            let following = draft.words[next].text
+            if let first = following.first, first.isLetter || first.isNumber || "_([{".contains(first) {
+                draft.replace(at: next, with: text + following, by: Self.id)
+                for offset in 0..<consumed { draft.remove(at: live[position + offset], by: Self.id) }
+                return .joinedBefore
+            }
         }
         // An opening bracket already standing on the word stays: "(select" is "(SELECT".
         let prefix = draft.shape(at: live[position]).prefix
