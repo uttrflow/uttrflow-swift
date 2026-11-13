@@ -118,8 +118,18 @@ public enum SettingsEditor {
                 $0.lowercased() != application.lowercased()
             }
             updated.historyExcludedApplications = isOn ? others : others + [application]
+        case .learnsInApplication(let application, let isOn):
+            guard !application.isEmpty else {
+                throw SettingsRejection(
+                    reason: "Uttrflow could not tell which app that was, so it cannot remember this.")
+            }
+            let others = updated.learningExcludedApplications.filter {
+                $0.lowercased() != application.lowercased()
+            }
+            updated.learningExcludedApplications = isOn ? others : others + [application]
         case .checkForUpdatesNow, .chooseApplicationToTurnOffSuggestions, .chooseApplicationForDestination,
-            .chooseApplicationForContextLevel, .chooseApplicationToKeepNoHistory, .retrySuggestionModel,
+            .chooseApplicationForContextLevel, .chooseApplicationToKeepNoHistory,
+            .chooseApplicationToStopLearning, .retrySuggestionModel,
             .exportPersonalData, .importPersonalData, .manageClipboardExclusions,
             .pauseClipboardCapture, .confirmMultilinePaste, .openSystemSettings, .openPage:
             // Named rather than left to a `default`, which would swallow the next case added.

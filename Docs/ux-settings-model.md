@@ -67,6 +67,11 @@ Below that, Privacy's "Dictations left out of History" group offers two ways to 
 `SettingsChange.keepsHistory`) leaves out only its dictations. Both are read by `HistoryKeeping`
 when a dictation ends, so a change applies to the next one; the dictation is still typed.
 
+The Dictation tab's "What Uttrflow has picked up" group adds "Never learn from an app"
+(`Settings.learningExcludedApplications`, through `SettingsChange.learnsInApplication`). `LearntEvidence`
+reads it as one more refusal in the `LearningConsent` chain, so the dictionary, the style rows and the edit
+pairs all stop for that app, and the pipeline reads it before it counts or learns a word.
+
 ## Languages are listed, not derived
 
 `SettingsLanguage.offered` is written out rather than read from the speech profile, so a language

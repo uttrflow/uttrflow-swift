@@ -427,6 +427,9 @@ public enum SettingsChange: Sendable, Equatable {
     /// Keeps one application's dictations in History again, or leaves them out from now on.
     case keepsHistory(application: String, isOn: Bool)
 
+    /// Lets dictation learn from one application again, or stops it learning there from now on.
+    case learnsInApplication(application: String, isOn: Bool)
+
     /// Turns the question before a multi-line clip is pasted into a terminal on or off.
     case confirmMultilinePaste(isOn: Bool)
 
@@ -444,6 +447,9 @@ public enum SettingsChange: Sendable, Equatable {
 
     /// Asks the user to pick an installed application whose dictations History leaves out.
     case chooseApplicationToKeepNoHistory
+
+    /// Asks the user to pick an installed application dictation must never learn from.
+    case chooseApplicationToStopLearning
 
     /// Fetches the suggestion model again after a failed attempt.
     case retrySuggestionModel
@@ -464,7 +470,8 @@ public enum SettingsChange: Sendable, Equatable {
     public var isRequestToAct: Bool {
         switch self {
         case .checkForUpdatesNow, .chooseApplicationToTurnOffSuggestions, .chooseApplicationForDestination,
-            .chooseApplicationForContextLevel, .chooseApplicationToKeepNoHistory, .retrySuggestionModel,
+            .chooseApplicationForContextLevel, .chooseApplicationToKeepNoHistory,
+            .chooseApplicationToStopLearning, .retrySuggestionModel,
             .exportPersonalData, .importPersonalData, .manageClipboardExclusions,
             .pauseClipboardCapture, .confirmMultilinePaste, .openSystemSettings, .openPage:
             true

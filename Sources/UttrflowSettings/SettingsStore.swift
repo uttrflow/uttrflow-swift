@@ -105,6 +105,9 @@ public struct Settings: Sendable, Equatable, Codable {
     /// Bundle identifiers of apps whose dictations are inserted and then forgotten.
     public var historyExcludedApplications: [String]
 
+    /// Bundle identifiers of apps whose dictations never teach the dictionary or the persona.
+    public var learningExcludedApplications: [String]
+
     /// How many days an unkept clip survives; a clip with an alias, category or pin has no clock.
     public var clipboardRetentionDays: Int
 
@@ -167,6 +170,7 @@ public struct Settings: Sendable, Equatable, Codable {
         transcriptRetentionDays: Int = Settings.defaultTranscriptRetentionDays,
         keepsNoTranscripts: Bool = false,
         historyExcludedApplications: [String] = [],
+        learningExcludedApplications: [String] = [],
         clipboardRetentionDays: Int = Settings.defaultRetentionDays,
         hidesWindowsFromCapture: Bool = true,
         secretClipboardClearSeconds: Int = Settings.defaultSecretClipboardClearSeconds,
@@ -205,6 +209,7 @@ public struct Settings: Sendable, Equatable, Codable {
         self.transcriptRetentionDays = transcriptRetentionDays
         self.keepsNoTranscripts = keepsNoTranscripts
         self.historyExcludedApplications = historyExcludedApplications
+        self.learningExcludedApplications = learningExcludedApplications
         self.clipboardRetentionDays = clipboardRetentionDays
         self.hidesWindowsFromCapture = hidesWindowsFromCapture
         self.secretClipboardClearSeconds = secretClipboardClearSeconds
@@ -296,6 +301,7 @@ extension Settings {
         case transcriptRetentionDays
         case keepsNoTranscripts
         case historyExcludedApplications
+        case learningExcludedApplications
         case clipboardRetentionDays
         case hidesWindowsFromCapture
         case secretClipboardClearSeconds
@@ -382,6 +388,8 @@ extension Settings {
                 forKey: .keepsNoTranscripts, default: fallback.keepsNoTranscripts),
             historyExcludedApplications: container.value(
                 forKey: .historyExcludedApplications, default: fallback.historyExcludedApplications),
+            learningExcludedApplications: container.value(
+                forKey: .learningExcludedApplications, default: fallback.learningExcludedApplications),
             clipboardRetentionDays: Settings.retention(
                 container.value(
                     forKey: .clipboardRetentionDays, default: fallback.clipboardRetentionDays

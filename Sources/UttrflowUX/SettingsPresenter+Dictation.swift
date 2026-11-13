@@ -37,7 +37,8 @@ extension SettingsPresenter {
                             settings, capabilities
                         ).with(icon: .symbol("brain", .amber)),
                         learnedWordsRow(personalisation),
-                    ]),
+                    ] + settings.learningExcludedApplications.map(notLearningFromRow)
+                        + [addLearningExclusionRow]),
                 personalDataTransferGroup,
                 pages,
             ].compactMap(\.self) + availabilityGroups,
