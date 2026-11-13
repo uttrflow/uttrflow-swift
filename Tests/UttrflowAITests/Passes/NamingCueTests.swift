@@ -47,17 +47,22 @@ struct NamingCueTests {
             ("Example.java", "int orderTotals = fetchInvoices();\nint x = ", "getUserById"),
         ]
         for (file, preceding, expected) in cases {
-            #expect(cleaned("function name get user by id", in: file, after: preceding) == expected, "\(file)")
+            #expect(
+                cleaned("function name get user by id", in: file, after: preceding) == expected, "\(file)")
         }
     }
 
     @Test("a file that contradicts its language's default is followed")
     func contradicting() {
         #expect(
-            cleaned("variable name get user by id", in: "example.py", after: "orderTotals = fetchInvoices()\nx = ")
+            cleaned(
+                "variable name get user by id", in: "example.py", after: "orderTotals = fetchInvoices()\nx = "
+            )
                 == "getUserById")
         #expect(
-            cleaned("variable name get user by id", in: "Example.swift", after: "let order_totals = fetch_invoices()\nlet x = ")
+            cleaned(
+                "variable name get user by id", in: "Example.swift",
+                after: "let order_totals = fetch_invoices()\nlet x = ")
                 == "get_user_by_id")
     }
 
@@ -94,17 +99,23 @@ struct NamingCueTests {
     @Test("an identifier already bound from the screen after the cue is the name, and the cue goes")
     func screenBoundIdentifierIsTheName() {
         let snakeFile = "user = get_user_by_id(1)\nx = "
-        #expect(cleaned("function name get_user_by_id", in: "example.py", after: snakeFile) == "get_user_by_id")
+        #expect(
+            cleaned("function name get_user_by_id", in: "example.py", after: snakeFile) == "get_user_by_id")
     }
 
     @Test("a casing command said with the request wins over the file's convention")
     func explicitStyleWins() {
         let camelFile = "let orderTotals = fetchInvoices()\nlet x = "
-        #expect(cleaned("name it snake case get user by id", in: "Example.swift", after: camelFile) == "get_user_by_id")
-        #expect(cleaned("snake case get user by id", in: "Example.swift", after: camelFile) == "get_user_by_id")
+        #expect(
+            cleaned("name it snake case get user by id", in: "Example.swift", after: camelFile)
+                == "get_user_by_id")
+        #expect(
+            cleaned("snake case get user by id", in: "Example.swift", after: camelFile) == "get_user_by_id")
     }
 
-    @Test("without a request no word is renamed, and an unknown language with nothing on screen keeps the words")
+    @Test(
+        "without a request no word is renamed, and an unknown language with nothing on screen keeps the words"
+    )
     func noRenamesUnasked() {
         let camelFile = "let orderTotals = fetchInvoices()\nlet x = "
         #expect(cleaned("get user by id", in: "Example.swift", after: camelFile) == "get user by id")
@@ -125,6 +136,7 @@ struct NamingCueTests {
 
     @Test("in a comment the request is prose")
     func commentIsProse() {
-        #expect(cleaned("name it get user by id", in: "Example.swift", after: "// ") == "name it get user by id")
+        #expect(
+            cleaned("name it get user by id", in: "Example.swift", after: "// ") == "name it get user by id")
     }
 }
