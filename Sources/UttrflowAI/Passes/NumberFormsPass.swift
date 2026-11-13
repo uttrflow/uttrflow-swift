@@ -792,9 +792,10 @@ public struct NumberFormsPass: PieceCleaningPass {
     ) -> Bool {
         if hundred.value % 100 >= 60 { return true }
         let after = position + hundred.count
-        // A status verb says a code, "returns five fifteen" as `515`, unless its tail counts a noun: "three 15 minute slots".
+        // A status verb says a code, "returns five fifteen" as `515`, unless its tail counts a noun: "three 15 minute slots", "three 15 new records".
         if followsStatusLead(position, keys: keys, shapes: shapes),
-            !countsANoun(at: after, keys: keys, shapes: shapes)
+            !(joined(after, shapes)
+                && countsWhatFollows(after: after - 1, words: keys, tags: LexicalClass.tags(ofWords: keys)))
         {
             return true
         }

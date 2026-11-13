@@ -799,6 +799,13 @@ struct NumberFormsPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test("a status-led pair keeps its count when a noun follows past modifiers")
+    func statusLedCountPastModifiers() {
+        let output = cleaned("return three fifteen new records", by: sut)
+        #expect(!output.contains("315"))
+        #expect(output.contains("three"))
+    }
+
     @Test(
         "keeps a house number apart from an ordinal street name",
         arguments: [
