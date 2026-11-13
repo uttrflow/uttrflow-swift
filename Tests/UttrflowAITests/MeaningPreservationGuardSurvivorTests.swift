@@ -135,4 +135,20 @@ struct MeaningPreservationGuardSurvivorTests {
         #expect(!accepts("use o auth two for the browser", "Use Auth 2 for the browser."))
         #expect(!accepts("a service account for CICD jobs", "A service account for CD jobs."))
     }
+
+    /// A handle, tag or path cannot hold a space, so it closes up the words said for it; prose keeps them apart.
+    @Test("words closed up into a handle, tag or path survive, and no other join does")
+    func wordsClosedUpIntoNotation() {
+        let accepts = { (draft: String, rewritten: String) in
+            MeaningPreservationGuard().verdict(draft: Draft(text: draft), rewritten: rewritten) == .accepted
+        }
+        #expect(
+            accepts(
+                "the bakery on corner street opens. tag us at corner bakes so we can share",
+                "The bakery on Corner Street opens. Tag us @cornerbakes so we can share."))
+        #expect(accepts("sign up at example.org/clean up", "Sign up at example.org/cleanup."))
+        #expect(!accepts("we walk there every day", "We walk there everyday."))
+        #expect(!accepts("tag us at corner bakes", "Tag us @cornerbikes."))
+        #expect(!accepts("tag us at corner bakes today", "Tag us @bakes today."))
+    }
 }

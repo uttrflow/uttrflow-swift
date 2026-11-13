@@ -151,7 +151,41 @@ extension MeaningPreservationGuard {
                 written.insert(index)
             }
         }
-        return written
+        return written.union(closedUpIntoNotation(kept, in: rewritten).kept)
+    }
+
+    /// The kept words a handle, tag or path in the rewrite closes up, in order, and the notations that do: "corner bakes" as `@cornerbakes`, "clean up" ending `example.org/cleanup`.
+    static func closedUpIntoNotation(
+        _ kept: [GrammarToken], in rewritten: String
+    ) -> (kept: Set<Int>, written: Set<String>) {
+        // Only a notation that cannot hold a space joins words; prose keeps "every day" and "everyday" apart.
+        let pieces = WordTokens.words(rewritten, .display).filter { $0.contains(where: "@#/".contains) }
+        var covered: (kept: Set<Int>, written: Set<String>) = ([], [])
+        var from = kept.startIndex
+        for piece in pieces {
+            let notation = DoubtfulSpan.closedUp(piece)
+            guard notation.contains(where: \.isLetter) else { continue }
+            for start in kept.indices where start >= from {
+                var joined = ""
+                var end = start
+                // Words alone close up; digits either side of a slash are a reading such as 138/86, judged as numbers.
+                while end < kept.count, joined.count < notation.count,
+                    kept[end].matching.contains(where: \.isLetter)
+                {
+                    joined += DoubtfulSpan.closedUp(kept[end].matching)
+                    end += 1
+                    guard notation.hasPrefix(joined) else { break }
+                }
+                guard joined == notation, end - start > 1 else { continue }
+                covered.kept.formUnion(start..<end)
+                // The rewrite's words read the notation apart at its marks, so each of them is the notation's.
+                covered.written.formUnion(
+                    grammarTokens(piece).map { DoubtfulSpan.closedUp($0.matching) })
+                from = end
+                break
+            }
+        }
+        return covered
     }
 
     /// The kept currency and percent words the rewrite writes as the symbol beside the same amount: "12 dollars" as `$12`, "8 percent" as `8%`.
