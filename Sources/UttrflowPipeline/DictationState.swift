@@ -176,6 +176,8 @@ public struct DictationOutcome: Sendable, Equatable {
     public let quality: OutcomeQuality
     /// The audio of a dictation whose words all landed, kept on this Mac for a day so a fixed word can be retried.
     package let keptRecording: UUID?
+    /// The language the engine detected for the whole dictation, when it reported one.
+    public let spokenLanguage: DetectedLanguage?
 
     public init(
         text: String, method: TextInsertionMethod, cleanedBy: TransformerKind,
@@ -186,8 +188,9 @@ public struct DictationOutcome: Sendable, Equatable {
         inputTooLoud: Bool = false, unavailableEngines: [CleaningRecord.UnavailableEngine] = [],
         doubtful: DoubtfulWordsOutcome = .notAvailable, slowCause: SlowDictationCause? = nil,
         guardRefusals: [RefusalKind] = [], quality: OutcomeQuality? = nil, keptRecording: UUID? = nil,
-        fromPrivateWindow: Bool = false
+        fromPrivateWindow: Bool = false, spokenLanguage: DetectedLanguage? = nil
     ) {
+        self.spokenLanguage = spokenLanguage
         self.fromPrivateWindow = fromPrivateWindow
         self.text = text
         self.method = method

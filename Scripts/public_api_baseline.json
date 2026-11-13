@@ -1151,6 +1151,7 @@
     "UttrflowCore enum Kind": 5,
     "UttrflowCore enum KinshipWords": 1,
     "UttrflowCore enum Language": 1,
+    "UttrflowCore enum LanguageSignals": 1,
     "UttrflowCore enum LatinOnlyInstruction": 1,
     "UttrflowCore enum LatinScript": 1,
     "UttrflowCore enum Layer": 1,
@@ -1464,7 +1465,7 @@
     "UttrflowCore func preset": 2,
     "UttrflowCore func problems": 1,
     "UttrflowCore func productionLegacyMigrationMarkerURL": 1,
-    "UttrflowCore func project": 2,
+    "UttrflowCore func project": 3,
     "UttrflowCore func prune": 1,
     "UttrflowCore func qualityPreset": 1,
     "UttrflowCore func quiet": 1,
@@ -1507,7 +1508,7 @@
     "UttrflowCore func returnToDefault": 1,
     "UttrflowCore func revokeKey": 2,
     "UttrflowCore func romanised": 1,
-    "UttrflowCore func rows": 3,
+    "UttrflowCore func rows": 4,
     "UttrflowCore func rule": 1,
     "UttrflowCore func run": 1,
     "UttrflowCore func runs": 1,
@@ -1816,6 +1817,8 @@
     "UttrflowCore let method": 1,
     "UttrflowCore let metric": 1,
     "UttrflowCore let milliseconds": 2,
+    "UttrflowCore let minimumConfidence": 1,
+    "UttrflowCore let minimumWords": 1,
     "UttrflowCore let missedTargets": 1,
     "UttrflowCore let mode": 1,
     "UttrflowCore let modelAnswers": 1,
@@ -4277,6 +4280,7 @@
     "UttrflowPipeline let speechEngineError": 1,
     "UttrflowPipeline let speechEngineKind": 1,
     "UttrflowPipeline let spokenFor": 2,
+    "UttrflowPipeline let spokenLanguage": 1,
     "UttrflowPipeline let spokenWords": 1,
     "UttrflowPipeline let stageAfter": 1,
     "UttrflowPipeline let stillLoading": 1,
@@ -6392,5 +6396,5 @@
     "UttrflowUX var withdrawsTrust": 1,
     "UttrflowUX var words": 2
   },
-  "total": 9085
+  "total": 9102
 }
