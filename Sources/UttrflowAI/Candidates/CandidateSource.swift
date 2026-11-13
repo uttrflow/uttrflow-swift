@@ -129,7 +129,8 @@ public struct DoubtfulWords: Sendable {
         guard EvidencePolicy.unscored(draft, in: .doubtfulWords) == nil, !sources.isEmpty else { return [] }
         let said = UncertainSpan.saidWords(in: draft).map(\.text)
         let apart = await apartFromContext(in: draft, for: situation)
-        let runs = UncertainSpan.spans(in: draft, apart: apart).filter {
+        let spelled = screenSpelled(in: said, for: situation)
+        let runs = UncertainSpan.spans(in: draft, apart: apart, spelled: spelled).filter {
             !Self.isCoordinator($0) && !Self.isCount($0, in: said)
         }
         guard !runs.isEmpty else { return [] }
@@ -240,6 +241,19 @@ public struct DoubtfulWords: Sendable {
             if !held { apart.insert(index) }
         }
         return apart
+    }
+
+    /// The words of every run of two or more that, closed up, spell a word the screen shows; one word is never doubted for being shown.
+    private func screenSpelled(in said: [String], for situation: Situation) -> Set<Int> {
+        guard sources.contains(where: { $0 is ScreenCandidates }) else { return [] }
+        var found: Set<Int> = []
+        for shown in ScreenCandidates.words(on: situation) {
+            for run in DoubtfulSpan.runs(spelled: DoubtfulSpan.closedUp(shown), in: said) where run.count > 1
+            {
+                found.formUnion(run)
+            }
+        }
+        return found
     }
 
     /// Whether the guard, the one judge of a swap, accepts this reading written over the run alone. See Docs/cleanup.md.
