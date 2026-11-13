@@ -425,6 +425,7 @@ struct Bakeoff: AsyncParsableCommand {
             }
         }
         FileHandle.standardError.write(Data("\r\u{1B}[2K".utf8))
+        printAdapters(of: report, label: description.name)
         return Measurement(description: description, report: report)
     }
 
