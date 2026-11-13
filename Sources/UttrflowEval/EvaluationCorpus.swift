@@ -8,7 +8,7 @@ public enum EvaluationCorpus {
         + hostileCaretText + hostileReading + hostileDictatedLine + multilingual
         + contextual + codeToken + grammar + secondLanguage + oneLineField + bareLiteral + formatting
         + codeMixing + commandInput + segments + longInput + developerGenre + dictionary + webDestination
-        + homophone + hinglishReply + sourceNotation + markupNotation
+        + homophone + hinglishReply + sourceNotation + markupNotation + jsonNotation
 
     public static func cases(in category: EvaluationCase.Category) -> [EvaluationCase] {
         (all + snippet).filter { $0.category == category }
@@ -158,6 +158,7 @@ public enum EvaluationCorpus {
 
     /// Tags, attributes, selectors and declarations dictated into HTML and CSS, as each writes them.
     static let markupNotation: [EvaluationCase] = CorpusFile.cases(in: .technical, set: "markupNotation")
+    static let jsonNotation: [EvaluationCase] = CorpusFile.cases(in: .technical, set: "jsonNotation")
 
     /// Invented prose full of markup words, dictated into HTML text, a comment and a quoted value, which stays as spoken.
     package static let markupProse: [EvaluationCase] = CorpusFile.cases(in: .technical, set: "markupProse")
