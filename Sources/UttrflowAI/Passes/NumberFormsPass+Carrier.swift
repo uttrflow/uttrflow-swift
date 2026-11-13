@@ -18,12 +18,15 @@ extension NumberFormsPass {
     }
 
     /// The classes said between a number and the noun it counts.
-    private static let countModifiers: Set<NLTag> = [.adjective, .adverb, .determiner]
+    private static let countModifiers: Set<NLTag> = [.adjective, .adverb]
 
-    /// Whether the number ending at `end` counts a noun after it, past "of" and any modifiers: "three of the mice", "three small mice".
+    /// Whether the number ending at `end` counts a noun after it, past "of" and a determiner, then any modifiers: "three of the mice", "three small mice".
     static func countsWhatFollows(after end: Int, words: [String], tags: [NLTag?]) -> Bool {
         var head = end + 1
-        if tags.indices.contains(head), words[head] == "of" { head += 1 }
+        if tags.indices.contains(head), words[head] == "of" {
+            head += 1
+            if tags.indices.contains(head), tags[head] == .determiner { head += 1 }
+        }
         while tags.indices.contains(head), let tag = tags[head], countModifiers.contains(tag) { head += 1 }
         return tags.indices.contains(head) && tags[head] == .noun
     }

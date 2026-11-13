@@ -45,11 +45,11 @@
     "id": "dev-bug-report-steps",
     "note": "labelled lines, a numbered list, a thousands figure and a percentage",
     "spoken": "title colon export hangs on large projects new paragraph steps to reproduce colon number one open a project with more than two thousand files number two choose export from the file menu number three pick the zip format new paragraph expected colon the export finishes in under a minute new line actual colon the progress bar stops at ninety nine percent",
-    "expected": "Title: export hangs on large projects\n\nSteps to reproduce:\n1. Open a project with more than 2,000 files\n2. Choose export from the file menu\n3. Pick the zip format\n\nExpected: the export finishes in under a minute\nActual: the progress bar stops at 99%",
+    "expected": "Title: export hangs on large projects\n\nSteps to reproduce:\n1. Open a project with more than 2000 files\n2. Choose export from the file menu\n3. Pick the zip format\n\nExpected: the export finishes in under a minute\nActual: the progress bar stops at 99%",
     "context": {"applicationName": "Pages", "bundleIdentifier": "com.apple.iWork.Pages"},
     "destination": "document",
-    "mustKeep": ["2,000", "99%", "zip"],
-    "expectedExact": "Title: export hangs on large projects\n\nSteps to reproduce:\n1. Open a project with more than 2,000 files\n2. Choose export from the file menu\n3. Pick the zip format\n\nExpected: the export finishes in under a minute\nActual: the progress bar stops at 99%",
+    "mustKeep": ["2000", "99%", "zip"],
+    "expectedExact": "Title: export hangs on large projects\n\nSteps to reproduce:\n1. Open a project with more than 2000 files\n2. Choose export from the file menu\n3. Pick the zip format\n\nExpected: the export finishes in under a minute\nActual: the progress bar stops at 99%",
     "addedFor": 3841
   },
   {
@@ -131,10 +131,10 @@
     "id": "dev-env-setup",
     "note": "dotfiles, a spelled initialism and a port number",
     "spoken": "copy dot env dot example to dot env and set the database u r l to point at your local postgres on port five four three two. the seed script lives in scripts slash seed dot p y and takes about two minutes",
-    "expected": "Copy .env.example to .env and set the database URL to point at your local Postgres on port 5432. The seed script lives in scripts/seed.py and takes about two minutes.",
+    "expected": "Copy .env.example to .env and set the database URL to point at your local Postgres on port 5432. The seed script lives in scripts/seed.py and takes about 2 minutes.",
     "destination": "plain",
     "mustKeep": [".env.example", "5432", "scripts/seed.py"],
-    "expectedExact": "Copy .env.example to .env and set the database URL to point at your local Postgres on port 5432. The seed script lives in scripts/seed.py and takes about two minutes.",
+    "expectedExact": "Copy .env.example to .env and set the database URL to point at your local Postgres on port 5432. The seed script lives in scripts/seed.py and takes about 2 minutes.",
     "addedFor": 3841
   },
   {

@@ -137,8 +137,8 @@
   {
     "id": "undecided-number-pair-kept-as-words",
     "spoken": "return four thirteen when the body is too large",
-    "expected": "Return four thirteen when the body is too large.",
-    "mustKeep": ["four thirteen"]
+    "expected": "Return 413 when the body is too large.",
+    "mustKeep": ["413"]
   },
   {
     "id": "count-before-modified-noun-kept-apart",

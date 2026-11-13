@@ -669,7 +669,7 @@ time, telephone or code digits, and plain words. Each known ambiguity, and what 
 
 | Ambiguity | Example | Settled by |
 |---|---|---|
-| Clock time against a three-digit number | "two thirty" | order: `time` is tried before `colloquialHundred`, which `readsAsOneQuantity` then guards; a pair neither reads keeps both words ("return four thirteen when"), unless a noun follows that its second number counts ("three 15 minute breaks") |
+| Clock time against a three-digit number | "two thirty" | order: `time` is tried before `colloquialHundred`, which `readsAsOneQuantity` then guards; a status verb (`statusLead` in `number-cues.json`) reads the pair as one number ("return 413 when"); a pair nothing reads keeps both words ("call me five thirty then"), unless a noun follows that its second number counts ("three 15 minute breaks") |
 | Year against clock time | "nineteen thirty" | order: `year` is tried before `time` |
 | Cued clock against digit run | "an alarm for seven oh five" | order: `cuedClock` is tried before `spokenDigitRun` |
 | Digit run against one cardinal | "one two three four" | order: `spokenDigitRun` is tried before the cardinal |
