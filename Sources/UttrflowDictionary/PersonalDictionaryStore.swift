@@ -27,8 +27,6 @@ public actor PersonalDictionaryStore {
 
     /// Terms seen and said but not yet on enough days to keep, and the words deleted; read from disk on first use.
     private var ledger: SightingLedger?
-    /// Edited pairs not yet seen on enough days to keep; read from the evidence ledger on first use.
-    private var pairs: PairLedger?
     /// Where pending sightings outlive a quit; without it they are counted in memory only.
     private let sightings: SightingMemory?
 
@@ -64,7 +62,7 @@ public actor PersonalDictionaryStore {
             directoryHint: .notDirectory)
     }
 
-    /// Which heard-to-written pairs the user deleted, so a relaunch does not count them again.
+    /// Where an earlier build kept the edited pairs the user deleted, removed with everything else.
     private var pairRefusalRecord: URL {
         file.deletingLastPathComponent().appending(
             path: "\(file.deletingPathExtension().lastPathComponent).refused-pairs.json",
@@ -274,27 +272,12 @@ public actor PersonalDictionaryStore {
             for entry in gone { cancelled += tally.refuse(entry.word) }
             ledger = tally
             try recordRefusals(tally.refusals)
-            cancelled += try await refusePairs(of: gone)
         }
         // Read again after the last suspension, so a write made while this one waited is not overwritten.
         let kept = load().filter { !ids.contains($0.id) }
         try persist(kept)
         try await remember(cancelled)
         return kept
-    }
-
-    /// Refuses each heard form a deleted learnt entry says it like, so the pair is not counted up again.
-    private func refusePairs(of gone: [DictionaryEntry]) async throws(DictionaryStoreError) -> [EvidenceRow] {
-        let learnt = gone.filter { $0.origin == .learned && !$0.pronunciations.isEmpty }
-        guard !learnt.isEmpty else { return [] }
-        var tally = await pairLedger()
-        var cancelled: [EvidenceRow] = []
-        for entry in learnt {
-            for heard in entry.pronunciations { cancelled += tally.refuse(heard: heard, meant: entry.word) }
-        }
-        pairs = tally
-        do { try writeRecord(tally.refusals, to: pairRefusalRecord) } catch { throw .couldNotWrite }
-        return cancelled
     }
 
     /// Forgets every word, the user's own included; ``removeLearned()`` is almost always the one meant.
@@ -392,29 +375,6 @@ public actor PersonalDictionaryStore {
         return learnt.filter { entry in bounded.contains(where: { $0.id == entry.id }) }
     }
 
-    /// Counts one observed edit of `heard` into `wrote`; the pair becomes an entry that says it like `heard` on recurrence. See `Docs/app-dictionary.md`.
-    @discardableResult
-    func learnEdit(
-        heard: String, wrote: String, at moment: Date
-    ) async throws(DictionaryStoreError) -> [DictionaryEntry] {
-        guard let pair = LearnableWords.editedPair(heard: heard, wrote: wrote),
-            !(await sightingLedger()).isRefused(pair.meant)
-        else { return [] }
-        var tally = await pairLedger()
-        let counted = tally.record(heard: pair.heard, meant: pair.meant, on: EvidenceRow.day(of: moment))
-        pairs = tally
-        try await remember(counted.rows, at: moment)
-        let existing = load()
-        guard counted.learnt != nil,
-            !existing.contains(where: { $0.spellingKey == DictionaryEntry.spellingKey(for: pair.meant) })
-        else { return [] }
-        let entry = DictionaryEntry(
-            word: pair.meant, pronunciation: pair.heard, origin: .learned, firstSeen: moment
-        ).inLatinScript
-        let bounded = try persist(existing + [entry])
-        return bounded.contains(where: { $0.id == entry.id }) ? [entry] : []
-    }
-
     /// Notes that an entry was applied to a dictation, answering with it so a caller sees it retire.
     @discardableResult
     public func recordUse(of id: UUID) throws(DictionaryStoreError) -> DictionaryEntry? {
@@ -509,23 +469,6 @@ public actor PersonalDictionaryStore {
         return loaded
     }
 
-    /// The pair ledger, starting from the pair rows on disk the first time it is needed.
-    private func pairLedger() async -> PairLedger {
-        if let pairs { return pairs }
-        var rows: [EvidenceRow] = []
-        var digest: @Sendable (String) -> String? = { $0 }
-        if let sightings {
-            rows = await sightings.pairRows(at: Date())
-            digest = sightings.digest
-        }
-        // Another call may have loaded it while this one waited.
-        if let pairs { return pairs }
-        let refusals = readRecord([String].self, from: pairRefusalRecord).value ?? []
-        let loaded = PairLedger(refusing: refusals, remembering: rows, digest: digest)
-        pairs = loaded
-        return loaded
-    }
-
     /// Appends sighting rows to the evidence ledger; an unreadable ledger refuses rather than overwrite it.
     private func remember(_ rows: [EvidenceRow], at moment: Date = Date()) async throws(DictionaryStoreError)
     {
@@ -550,12 +493,8 @@ public actor PersonalDictionaryStore {
 
     /// Throws away pending counts and every refusal, in memory and on disk.
     private func forgetEverything() async throws(DictionaryStoreError) {
-        var pairTally = await pairLedger()
-        let pairsCancelled = pairTally.clearPending()
-        // Reloaded from the ledger and the record on next use, both emptied here.
-        pairs = nil
+        // An earlier build wrote refused edited pairs beside the dictionary; nothing reads them now.
         do { try removeRecord(at: pairRefusalRecord) } catch { throw .couldNotWrite }
-        try await remember(pairsCancelled)
         var tally = await sightingLedger()
         let cancelled = tally.forgetEverything()
         ledger = tally
