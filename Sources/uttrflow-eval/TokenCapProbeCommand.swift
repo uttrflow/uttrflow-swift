@@ -74,7 +74,7 @@ struct TokenCapProbeCommand: AsyncParsableCommand {
                 "\(row.piece.id)\t\(String(format: "%.1f", row.audioSeconds)) s\t\(row.piece.words) words\t"
                     + "\(row.transcriptWords) heard\truns \(row.effort.encoderRuns)\t"
                     + "again \(String(format: "%.1f", row.effort.retrySeconds)) s\t"
-                    + (row.effort.capUnresolved ? "unresolved" : row.reachedCap ? "cap" : "-"))
+                    + (row.effort.capUnresolved ? "unresolved" : row.reachedCap ? "again" : "-"))
         }
         print(TokenCapTable(rows: rows).markdown)
     }
