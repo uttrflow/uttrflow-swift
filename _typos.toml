@@ -61,6 +61,8 @@ extend-exclude = [
 ]
 
 [default.extend-words]
+# The HTML name for the currency sign, in `HTMLEntityNames.swift`.
+curren = "curren"
 bre = "bre"
 mak = "mak"
 pn = "pn"
