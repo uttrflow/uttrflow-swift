@@ -97,6 +97,12 @@ extension CleaningPipeline {
                 {
                     cleanings.insert(
                         SQLLayoutPass(layout: SQLLayout.at(insertionPoint.precedingText)), at: spoken + 1)
+                    // After the notation has written its comparisons, which decide whether a quotation is a value.
+                    cleanings.insert(
+                        SQLQuotingPass(
+                            style: SQLQuoting.identifierStyle(in: insertionPoint.precedingText),
+                            precedingWord: SQLQuoting.lastWord(of: insertionPoint.precedingText)),
+                        at: spoken + 2)
                 }
             }
             // A code editor's comments and a code editor set to plain prose take no casing: its rows are identifiers.
