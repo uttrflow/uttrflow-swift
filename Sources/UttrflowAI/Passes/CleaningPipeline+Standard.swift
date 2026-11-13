@@ -83,6 +83,20 @@ extension CleaningPipeline {
                 cleanings.insert(
                     MarkdownContinuationPass(position: .at(insertionPoint.precedingText)), at: layoutPosition)
             }
+            // A spreadsheet cell holding a formula, or empty and opened by "equals", reads references and operators.
+            if destination == .spreadsheet, mode != .prose, let caretText,
+                let punctuation = cleanings.firstIndex(where: { $0.id == .spokenPunctuation })
+            {
+                let cell = caretText.trimmingCharacters(in: .whitespacesAndNewlines)
+                // Any other cell holds words, so the pass would only ever abstain there.
+                if cell.hasPrefix("=") || cell.isEmpty {
+                    cleanings.insert(
+                        FormulaNotationPass(
+                            cellHoldsFormula: cell.hasPrefix("="), cellIsEmpty: cell.isEmpty,
+                            argumentSeparator: FormulaNotationPass.systemSeparator),
+                        at: punctuation)
+                }
+            }
             if NotationEvidence.mayActivate(notation, in: destination, markup: markup) {
                 // Markup reads its colons, semicolons and dashes by slot, before punctuation takes them as marks.
                 let punctuation = cleanings.firstIndex { $0.id == .spokenPunctuation }
