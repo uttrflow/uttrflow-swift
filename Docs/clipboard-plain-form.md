@@ -30,7 +30,12 @@ special outside a tag.
 Decoded in one pass that never re-reads its output, so `&amp;amp;` yields `&amp;` and stops.
 `&nbsp;` decodes to an ordinary space: a non-breaking space looks like a space, is not one, and
 breaks shell commands and compilers in ways that take minutes to see. Zero-width joiners and the
-soft hyphen decode to nothing. C0 controls other than tab and newline decode to nothing. An
+soft hyphen decode to nothing. C0 controls other than tab and newline decode to nothing. A
+numeric reference from 128 to 159 is read as Windows-1252, as HTML reads it, so `&#128;` is €;
+the five values that table leaves out are controls and decode to nothing. Names are the HTML 4
+set (Latin-1, special, symbol and Greek, `HTMLEntityNames.swift`), matched with their case, so
+`&Alpha;` is not `&alpha;`. The Latin-1 names and `amp`, `lt`, `gt` and `quot` also decode
+without their `;`, the longest name first, as a browser reads `&copy 2024` and `&notit`. An
 unrecognised name is left as written, so `AT&T` survives. The scan for `;` is bounded at twelve
 characters so a stray ampersand does not scan a large clip.
 

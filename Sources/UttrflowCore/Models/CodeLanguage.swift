@@ -123,9 +123,9 @@ extension CodeLanguage {
         return text.contains(sqlCorroboration) || !text.contains(englishArticle)
     }
 
-    /// A verb and an identifier-shaped object, the shape every SQL statement opens with.
+    /// A verb and an identifier-shaped object, the shape every SQL statement opens with, its clauses on any lines.
     nonisolated(unsafe) private static let sqlClause =
-        #/(?i)\bselect\b[^\n]{0,400}?\bfrom\s+[\w."`\[\]]+|\b(?:insert\s+into|update|delete\s+from|create\s+(?:table|index|view)|alter\s+table|drop\s+table|truncate\s+table)\s+[\w."`\[\]]+/#
+        #/(?i)\bselect\b[\s\S]{0,400}?\bfrom\s+[\w."`\[\]]+|\b(?:insert\s+into|update|delete\s+from|create\s+(?:table|index|view)|alter\s+table|drop\s+table|truncate\s+table)\s+[\w."`\[\]]+/#
 
     /// A second thing only a query does, which buys the statement past the article veto.
     nonisolated(unsafe) private static let sqlCorroboration =
@@ -312,7 +312,8 @@ private enum Signals {
 
     /// Scoring for SQL fragments — a `WHERE` clause, a column list — that are not whole statements.
     nonisolated(unsafe) static let sqlStrong: [Regex<Substring>] = [
-        #/(?i)\bselect\b[^\n]*\bfrom\b/#,
+        // `from` may open its own line, as formatted SQL puts it; the bound keeps the scan linear.
+        #/(?i)\bselect\b[\s\S]{0,400}?\bfrom\b/#,
         #/(?i)\b(?:insert\s+into|update\s+\w+\s+set|delete\s+from|create\s+(?:table|index|view)|alter\s+table|drop\s+table)\b/#,
         #/(?i)\b(?:inner\s+join|left\s+join|right\s+join|group\s+by|order\s+by|having|union\s+all)\b/#,
     ]
