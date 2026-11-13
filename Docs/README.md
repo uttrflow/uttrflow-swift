@@ -37,6 +37,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [unknown-confidence.md](unknown-confidence.md) | What each layer does when a word's confidence is unknown |
 | [decode-session.md](decode-session.md) | The decode loop the repository owns, and its parity with WhisperKit's |
 | [speech-vocabulary-prompt.md](speech-vocabulary-prompt.md) | Conditioning Whisper on the user's own words |
+| [vocabulary-prompt-hindi.md](vocabulary-prompt-hindi.md) | The vocabulary prompt measured on Hindi speech under each language hint |
 | [speech-phrase-bias.md](speech-phrase-bias.md) | Helping a begun dictionary word finish at decode time |
 | [speech-model-install.md](speech-model-install.md) | Installing a speech model, one component at a time |
 | [early-transcription.md](early-transcription.md) | Working ahead while the key is held |
