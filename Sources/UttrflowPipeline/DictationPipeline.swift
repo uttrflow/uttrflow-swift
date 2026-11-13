@@ -54,6 +54,10 @@ public actor DictationPipeline {
 
     /// Counts dictations, so a cancel can name the one it abandoned.
     var generation = 0
+    /// How long the optional stages after key-up may take together.
+    let tailAllowance: Duration
+    /// What the optional stages of the dictation that began at `generation` have used of `tailAllowance`, from key-up.
+    var tail: (generation: Int, spent: Duration)?
     private var cancelledGeneration: Int?
 
     /// Held across every await before the state shows a dictation's next step, so no second entry slips in.
@@ -168,6 +172,7 @@ public actor DictationPipeline {
         earlyPoll: Duration = .seconds(1),
         pollClock: any Clock<Duration> = ContinuousClock(),
         speechLoadLimit: Duration = StageTimeout.speechModelLoad,
+        tailAllowance: Duration = StageTimeout.tail,
         commands: EditCommandRegistry = EditCommandRegistry(),
         layers: QualityLayers = QualityLayers()
     ) {
@@ -195,6 +200,7 @@ public actor DictationPipeline {
         self.earlyPoll = earlyPoll
         self.pollClock = pollClock
         self.speechLoadLimit = speechLoadLimit
+        self.tailAllowance = tailAllowance
         self.commands = commands
     }
 
