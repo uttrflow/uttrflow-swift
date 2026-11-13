@@ -145,7 +145,7 @@ struct LoanwordTableReachabilityTests {
         ("प्रॉब्लम", "problem"), ("बॉक्स", "box"), ("कॉफ़ी", "coffee"), ("टाइम", "time"), ("मिनट", "minute"),
     ]
 
-    /// With every table word as a personal word, the seam reaches 24 of 41 from the rules' own spelling and restores none wrongly, so the table cannot shrink to it.
+    /// With every table word as a personal word, the seam reaches 31 of 41 from the rules' own spelling and restores one Hindi word, so the table cannot shrink to it yet.
     @Test func probe() {
         let restoration = LoanwordRestoration(personal: Self.entries.map(\.1))
         var reached: [String] = []
@@ -163,7 +163,25 @@ struct LoanwordTableReachabilityTests {
         }
         print("TABLE reached \(reached.count): \(reached)")
         print("TABLE missed \(missed.count): \(missed)")
-        #expect(reached.count == 24)
-        #expect(missed.count == 17)
+        let wrong = LoanwordRestorationProbeTests.hindiWords.compactMap { devanagari -> String? in
+            let romanised = Romaniser.romanised(devanagari).lowercased()
+            return restoration.restored(romanised).map { "\(romanised)->\($0)" }
+        }
+        print("TABLE hindi restored \(wrong.count): \(wrong)")
+        #expect(reached.count == 31)
+        #expect(missed.count == 10)
+        // फल "phal" is a Hindi noun, and the Hindi tables list grammar words only, so nothing vetoes it.
+        #expect(wrong == ["phal->file"])
+    }
+
+    /// A sound spelling the rules give that happens to be an ordinary word is still the loanword: फ़ाइल was never the English "fail", while "kal" stays Hindi.
+    @Test func ordinarySoundSpellingIsRestored() {
+        let restoration = LoanwordRestoration(personal: ["call", "file", "phone", "photo", "login"])
+        #expect(restoration.restored("fail") == "file")
+        #expect(restoration.restored("kol") == "call")
+        #expect(restoration.restored("fon") == "phone")
+        #expect(restoration.restored("foto") == "photo")
+        #expect(restoration.restored("login") == "login")
+        #expect(restoration.restored("kal") == nil)
     }
 }

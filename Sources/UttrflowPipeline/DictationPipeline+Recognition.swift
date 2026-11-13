@@ -18,11 +18,11 @@ extension DictationPipeline {
                 if case .pending = work[$0] { return true }
                 return false
             })
-            // The previous span's words as heard, the one context every path has. See `Docs/early-transcription.md`.
-            var precedingHeard: Transcription?
+            // What the next piece is decoded and tidied after, the same on every path. See `Docs/early-transcription.md`.
+            var rolling: RollingContext?
             for (spanIndex, span) in work.enumerated() {
                 let window: Range<Int>
-                if let heard = span.heard { precedingHeard = heard }
+                if let left = span.rolling { rolling = left }
                 switch span {
                 case .done(let piece, _):
                     // A finished piece waits for no tidy; the positions put it in its place.
@@ -43,7 +43,7 @@ extension DictationPipeline {
                 do {
                     heard = try await transcribe(
                         audio, window,
-                        biasedTowards: await vocabulary(mine, seeing: vocabularyContext),
+                        biasedTowards: await vocabulary(mine, seeing: vocabularyContext), after: rolling,
                         recording: tally, skippingAMiss: true, for: mine)
                 } catch {
                     tidying.cancelAll()
@@ -63,11 +63,13 @@ extension DictationPipeline {
                 if appContext == nil { appContext = await contextFor(delivery) }
                 let seeing = appContext ?? AppContext()
                 let finalPiece = spanIndex == finalPending
-                let preceding = precedingHeard
-                precedingHeard = heard
+                // Corrected before the next recognition, which is decoded after these words; the tidy runs beside it.
+                let corrected = await correct(heard, seeing: seeing, recording: tally, for: mine)
+                let preceding = rolling
+                rolling = RollingContext(after: corrected)
                 tidying.addTask {
                     let piece = await self.finish(
-                        heard, seeing: seeing, correctionSeeing: seeing,
+                        heard, saying: corrected, seeing: seeing,
                         finalPiece: finalPiece, after: preceding, recording: tally, for: mine)
                     return (spanIndex, piece)
                 }
@@ -81,7 +83,8 @@ extension DictationPipeline {
     /// Recognises one window of the audio, answering `nil` when nothing was said in it; speech with no words is decoded twice.
     func transcribe(
         _ audio: AudioSamples, _ window: Range<Int>, biasedTowards words: [String],
-        recording metrics: any MetricsRecording, skippingAMiss skips: Bool, for mine: Int
+        after rolling: RollingContext?, recording metrics: any MetricsRecording, skippingAMiss skips: Bool,
+        for mine: Int
     ) async throws -> Transcription? {
         let whole = window == audio.samples.indices
         // Reuse the full recording when this window already covers it.
@@ -90,12 +93,14 @@ extension DictationPipeline {
             ? audio
             : AudioSamples(samples: Array(audio.samples[window]), sampleRate: audio.sampleRate) ?? .empty
         var heard = try await decode(
-            slice, whole: whole, biasedTowards: words, under: .same, recording: metrics, generation: mine)
+            slice, whole: whole, biasedTowards: words, after: rolling, under: .same, recording: metrics,
+            generation: mine)
         // The second decode goes without the prompt and its bias, which are the inputs a retry can change.
         if case .missed = heard {
             let retrying = UttrflowCore.stopwatch(from: clock)
             heard = try await decode(
-                slice, whole: whole, biasedTowards: words, under: .none, recording: metrics, generation: mine)
+                slice, whole: whole, biasedTowards: words, after: rolling, under: .none, recording: metrics,
+                generation: mine)
             // The second decode is this piece's retry; what it already names, such as fallbacks, is left out.
             if case .words(let transcription) = heard {
                 let spent = retrying().inSeconds - transcription.effort.namedSeconds
@@ -123,14 +128,15 @@ extension DictationPipeline {
 
     /// One decode of a slice, telling words, silence and speech that produced no words apart.
     private func decode(
-        _ slice: AudioSamples, whole: Bool, biasedTowards words: [String], under bias: DecodeBias,
+        _ slice: AudioSamples, whole: Bool, biasedTowards words: [String], after rolling: RollingContext?,
+        under bias: DecodeBias,
         recording metrics: any MetricsRecording, generation mine: Int
     ) async throws -> Heard {
         // The default profile detects each piece; a Hindi-only profile pins each piece to Hindi. See `Docs/speech-engines.md`.
         let policy = dictationContext?.listening ?? ListeningLanguages(profile: runningProfile)
         let language = policy.hint(afterFirstPiece: nil)
-        // The dictation's one read, so every piece is conditioned on the same caret. See `Docs/context-budget.md`.
-        let preceding = dictationContext?.situation.recognitionContext
+        // The previous piece, else the dictation's one caret read. See `Docs/early-transcription.md`.
+        let preceding = rolling?.text ?? dictationContext?.situation.recognitionContext
         let speaks = VoiceActivity.speechRange(in: slice.samples, sampleRate: slice.sampleRate) != nil
         let speech = retrySpeech ?? speech
         // Waits for a load under its own limit, since a compile outlasts the recognition limit. See `Docs/startup.md`.

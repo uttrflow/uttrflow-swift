@@ -40,11 +40,16 @@ public enum RomanisedVariants {
 
     /// Whether a sentence holds two Hindi function words, in any listed spelling, that English does not also use.
     private static func isHindi(_ sentence: String) -> Bool {
-        let words = sentence.split(whereSeparator: { !$0.isLetter }).map { word in
+        isHindi(words: sentence.split(whereSeparator: { !$0.isLetter }).map(String.init))
+    }
+
+    /// The same question of a sentence already split into words.
+    package static func isHindi(words: [String]) -> Bool {
+        let spellings = words.map { word in
             let spelling = word.lowercased()
             return rewrites[spelling] ?? spelling
         }
-        return Set(words).intersection(hindiMarkers).count >= 2
+        return Set(spellings).intersection(hindiMarkers).count >= 2
     }
 
     private static let hindiMarkers = HindiWords.functionWords.subtracting(FunctionWords.english)

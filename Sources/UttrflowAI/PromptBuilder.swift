@@ -119,6 +119,7 @@ public struct PromptBuilder: Sendable, Equatable {
         case .lowScore: "(heard at \(hundredths(span.confidence)))"
         case .outOfContext: "(heard at \(hundredths(span.confidence)), unusual in this sentence)"
         case .homophoneClass: "(heard at \(hundredths(span.confidence)), sounds like another word)"
+        case .spelledOnScreen: "(heard at \(hundredths(span.confidence)), spelled so on screen)"
         }
     }
 

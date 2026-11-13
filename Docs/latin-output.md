@@ -194,8 +194,16 @@ when exactly one candidate qualifies. It never translates and never drops a word
 
 Whether the seam could replace the table's own English entries was measured by romanising
 those 41 words by the syllable rules alone and giving the seam their English spellings as the
-person's words (`LoanwordTableReachabilityTests`): 24 are reached (ophis office, miting meeting,
-skool school) and 17 are not (kol call, fon phone, fail file, foto photo, baink bank). Every
+person's words (`LoanwordTableReachabilityTests`): 31 are reached (ophis office, kol call,
+fail file) and 10 are not, each more than one phoneme from the English sound (thainks thanks,
+baink bank, kanpyutar computer, vidiyo video). The seam asks only the sound, never whether the
+rules' spelling is itself an ordinary word, because a word from Devanagari was never heard as
+English: "fail" from फ़ाइल is "file". The Hindi tables are its veto, and they list grammar words
+only, so with all 41 words as the person's words it restores 1 of the 122 probe Hindi words when
+the word stands alone: फल "phal" becomes "file". Inside a sentence with two Hindi function words,
+`restoring` writes no ordinary lower-case English word for a Devanagari one, because there that
+is a translation: "mera phal kahan hai" keeps "phal", while a name such as "Orvanta" is still
+restored and "please open the फ़ाइल" is "file" (`HindiNounRestorationTests`). Every
 other path that romanises, such as `LatinScript.enforced` and the script guard, runs without the
 seam, so the table stays until the seam's sound match reaches all 41.
 

@@ -1,0 +1,125 @@
+[
+  {
+    "id": "persona-developer",
+    "kind": "persona",
+    "persona": "developer",
+    "terms": [
+      "Brindlecove",
+      "Quorvex",
+      "Tessaly",
+      "Marlowen"
+    ]
+  },
+  {
+    "id": "persona-clinician",
+    "kind": "persona",
+    "persona": "clinician",
+    "terms": [
+      "Kelvarin",
+      "Droswick",
+      "Ilmara",
+      "Pennoval"
+    ]
+  },
+  {
+    "id": "persona-support",
+    "kind": "persona",
+    "persona": "support",
+    "terms": [
+      "Zenhollow",
+      "Corvane",
+      "Lyrissa",
+      "Mekton"
+    ]
+  },
+  {
+    "id": "developer-1",
+    "kind": "sentence",
+    "persona": "developer",
+    "sentence": "ask Marlowen to review the Brindlecove release before friday",
+    "terms": [
+      "Marlowen",
+      "Brindlecove"
+    ]
+  },
+  {
+    "id": "developer-2",
+    "kind": "sentence",
+    "persona": "developer",
+    "sentence": "the Quorvex build is failing again on the Tessaly branch",
+    "terms": [
+      "Quorvex",
+      "Tessaly"
+    ]
+  },
+  {
+    "id": "developer-3",
+    "kind": "sentence",
+    "persona": "developer",
+    "sentence": "Tessaly needs a new reviewer for the Quorvex migration",
+    "terms": [
+      "Tessaly",
+      "Quorvex"
+    ]
+  },
+  {
+    "id": "clinician-1",
+    "kind": "sentence",
+    "persona": "clinician",
+    "sentence": "book Ilmara for the Kelvarin clinic on tuesday morning",
+    "terms": [
+      "Ilmara",
+      "Kelvarin"
+    ]
+  },
+  {
+    "id": "clinician-2",
+    "kind": "sentence",
+    "persona": "clinician",
+    "sentence": "the Droswick referral is waiting for a reply from Pennoval",
+    "terms": [
+      "Droswick",
+      "Pennoval"
+    ]
+  },
+  {
+    "id": "clinician-3",
+    "kind": "sentence",
+    "persona": "clinician",
+    "sentence": "please send the Kelvarin notes to Droswick before the round",
+    "terms": [
+      "Kelvarin",
+      "Droswick"
+    ]
+  },
+  {
+    "id": "support-1",
+    "kind": "sentence",
+    "persona": "support",
+    "sentence": "escalate the Zenhollow ticket to Lyrissa before noon",
+    "terms": [
+      "Zenhollow",
+      "Lyrissa"
+    ]
+  },
+  {
+    "id": "support-2",
+    "kind": "sentence",
+    "persona": "support",
+    "sentence": "Corvane reported the same Mekton outage again today",
+    "terms": [
+      "Corvane",
+      "Mekton"
+    ]
+  },
+  {
+    "id": "support-3",
+    "kind": "sentence",
+    "persona": "support",
+    "sentence": "tell Mekton that Zenhollow has been refunded in full",
+    "terms": [
+      "Mekton",
+      "Zenhollow"
+    ]
+  }
+]

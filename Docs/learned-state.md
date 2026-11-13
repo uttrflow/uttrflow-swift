@@ -114,6 +114,12 @@ or whose verdict has a confidence below 0.8, writes nothing, and a verdict with 
 piece is unreliable and a tally of wrong verdicts would teach the wrong language. The projection
 is a count per code.
 
+## Domain mix
+
+`DomainMix` projects each destination's share of the dictated words from the `styleWords` rows, so it
+writes nothing of its own. Below 200 words in all it claims no mix. Each destination is classified by
+`DestinationClassifier`, so a misclassified application shows up in the mix as the wrong destination.
+
 ## Spelling preferences
 
 `SpellingPreferences` writes one `spellingPreference` row per word of an edit inside dictated

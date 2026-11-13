@@ -91,7 +91,7 @@
     },
     {
       "redistribution": true,
-      "producedBy": "identity kit export, see Design/ICON.md",
+      "producedBy": "identity kit export, see Resources/AppIcon/ICON.md",
       "note": "trademark terms in TRADEMARK.md",
       "sha256": "c90cad1d5da4ccff156dd82b56bc897ff8686b4ff22500f26e949d2239629d80",
       "path": "Sources/Uttrflow/Resources/MenuBarIconTemplate.png",
@@ -101,7 +101,7 @@
     },
     {
       "redistribution": true,
-      "producedBy": "identity kit export, see Design/ICON.md",
+      "producedBy": "identity kit export, see Resources/AppIcon/ICON.md",
       "note": "trademark terms in TRADEMARK.md",
       "sha256": "f210b6c9a90e21a035fb6c51e299af47e5d3e6a8acbb3e7298804a5ee2086160",
       "path": "Sources/Uttrflow/Resources/MenuBarIconTemplate@2x.png",
@@ -177,7 +177,7 @@
     },
     {
       "redistribution": true,
-      "producedBy": "identity kit export, see Design/ICON.md",
+      "producedBy": "identity kit export, see Resources/AppIcon/ICON.md",
       "note": "trademark terms in TRADEMARK.md",
       "sha256": "93df6644de5ed044e207a4a5c2d59c53991df67c8374a68649d5de79c147cbd0",
       "path": "Sources/Uttrflow/Resources/uttrflow-logo.png",
@@ -475,6 +475,15 @@
       "licence": "MIT"
     },
     {
+      "note": "invented personas and the sentences they dictate, read through PersonaCorpus; every name is made up",
+      "sha256": "28369fd568c332d6e69fd21ecbfef9f658aa9dd1d459f00f91de09f440ad44c5",
+      "path": "Sources/UttrflowEval/Resources/Corpus/Personas/personas.json",
+      "origin": "authored",
+      "redistribution": true,
+      "bytes": 2479,
+      "licence": "MIT"
+    },
+    {
       "note": "evaluation cases read through CorpusFile",
       "sha256": "56a795529317f048e158ab3c81dc58eb74aba1f552e46a250879aa6c2d214e9e",
       "path": "Sources/UttrflowEval/Resources/Corpus/bareLiteral.json",
@@ -697,6 +706,15 @@
       "origin": "authored",
       "redistribution": true,
       "bytes": 16265,
+      "licence": "MIT"
+    },
+    {
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "e16ebb8ebbfed59171c942b205718bacd4588ce87888bac405b0b65adf1aedf8",
+      "path": "Sources/UttrflowEval/Resources/Corpus/technical.jsonNotation.json",
+      "origin": "authored",
+      "redistribution": true,
+      "bytes": 4213,
       "licence": "MIT"
     },
     {
