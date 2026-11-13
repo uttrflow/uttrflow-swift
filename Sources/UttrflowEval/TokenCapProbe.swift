@@ -9,7 +9,7 @@ package struct TokenCapPiece: Sendable, Equatable {
     package let text: String
 
     /// How many words the voice reads.
-    package var words: Int { text.split(whereSeparator: \.isWhitespace).count }
+    package var words: Int { WordTokens.words(text, .display).count }
 
     /// For each language, the first passage, then the first two joined, and so on, so the pieces grow in length.
     package static func growing(from passages: [TranscriptionCase]) -> [TokenCapPiece] {

@@ -61,7 +61,7 @@ struct TokenCapProbeCommand: AsyncParsableCommand {
             rows.append(
                 TokenCapRow(
                     piece: piece, audioSeconds: audio.duration.inSeconds,
-                    transcriptWords: heard.text.split(whereSeparator: \.isWhitespace).count,
+                    transcriptWords: WordTokens.words(heard.text, .display).count,
                     effort: heard.effort))
         }
         Terminal.clearLine()
