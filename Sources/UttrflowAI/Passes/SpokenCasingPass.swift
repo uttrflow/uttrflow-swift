@@ -107,13 +107,16 @@ public struct SpokenCasingPass: PieceCleaningPass {
             return (named, row.words.count)
         }.first
         start += said?.1 ?? 0
-        guard start < live.count else { return nil }
+        // A cue that ends its sentence asks for no name, so the next sentence keeps its words.
+        guard start < live.count, !draft.shape(at: live[start - 1]).endsSentence else { return nil }
         let first = draft.shape(at: live[start])
-        // An identifier the screen already bound is the name as written there.
-        if said == nil, Self.isBoundIdentifier(first.core) {
+        // An identifier the screen already bound is the name as written there, unless a style was said.
+        if Self.isBoundIdentifier(first.core) {
+            let parts = WordTokens.words(first.core, .comparison).map { $0.lowercased() }
+            let written = said.flatMap { naming.name(parts, role: role, explicit: $0.0) } ?? first.core
             return Cased(
                 style: style, named: start - position, covered: start..<(start + 1), closing: 0,
-                written: first.prefix + first.core)
+                written: first.prefix + written)
         }
         let end = nameEnd(from: start, in: live, of: draft)
         let words = (start..<end).map { draft.shape(at: live[$0]).core }

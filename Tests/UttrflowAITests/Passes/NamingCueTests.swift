@@ -103,6 +103,21 @@ struct NamingCueTests {
             cleaned("function name get_user_by_id", in: "example.py", after: snakeFile) == "get_user_by_id")
     }
 
+    @Test("a style said with the cue rewrites an identifier bound from the screen in that style")
+    func explicitStyleRewritesABoundIdentifier() {
+        let snakeFile = "user = get_user_by_id(1)\nx = "
+        #expect(
+            cleaned("name it camel case get_user_by_id", in: "example.py", after: snakeFile) == "getUserById")
+    }
+
+    @Test("a cue that ends its sentence names nothing, so the next sentence keeps its words")
+    func cueEndingASentenceNamesNothing() {
+        let pass = SpokenCasingPass(
+            destination: .codeEditor, naming: .infer(from: .empty, language: .swift))
+        #expect(pass.apply(Draft(text: "name it. user id")).text == "name it. user id")
+        #expect(pass.apply(Draft(text: "name it user id")).text == "userId")
+    }
+
     @Test("a casing command said with the request wins over the file's convention")
     func explicitStyleWins() {
         let camelFile = "let orderTotals = fetchInvoices()\nlet x = "
