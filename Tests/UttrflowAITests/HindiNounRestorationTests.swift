@@ -29,8 +29,12 @@ struct HindiNounRestorationTests {
 
     @Test("restores the same personal word in an English sentence")
     func englishSentenceRestores() {
-        #expect(Self.restored("please open the फ़ाइल", personal: ["file"]) == ["please", "open", "the", "file"])
-        #expect(Self.restored("can you send the फ़ोटो", personal: ["photo"]) == ["can", "you", "send", "the", "photo"])
+        #expect(
+            Self.restored("please open the फ़ाइल", personal: ["file"]) == ["please", "open", "the", "file"])
+        #expect(
+            Self.restored("can you send the फ़ोटो", personal: ["photo"]) == [
+                "can", "you", "send", "the", "photo",
+            ])
     }
 
     @Test("restores a name in a Hindi sentence, which no Hindi word is")

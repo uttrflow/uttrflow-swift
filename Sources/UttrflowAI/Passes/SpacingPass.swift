@@ -125,7 +125,8 @@ public struct SpacingPass: PieceCleaningPass {
         for mark in ["...", String(SentenceMarks.ellipsis)] {
             let parts = text.components(separatedBy: mark)
             guard parts.count == 2, !parts[0].isEmpty, let right = parts[1].first, right.isUppercase,
-                parts[0].allSatisfy(\.isLetter), parts[1].allSatisfy({ $0.isLetter || "'\u{2019}".contains($0) })
+                parts[0].allSatisfy(\.isLetter),
+                parts[1].allSatisfy({ $0.isLetter || "'\u{2019}".contains($0) })
             else { continue }
             return (parts[0] + mark, parts[1])
         }
