@@ -180,6 +180,20 @@ struct SeamRecleaningTests {
         }
     }
 
+    @Test("a mark name said again in the next piece is read as the mark, as it is in one sentence")
+    func repeatedMarkNameAcrossCut() async {
+        let terminal = AppContext(applicationName: "Terminal", bundleIdentifier: "com.apple.Terminal")
+        let sentence = "run dash v tilde slash app colon slash app node colon twenty dash alpine"
+        let words = sentence.split(separator: " ").map(String.init)
+        let whole = await written([sentence], seeing: terminal)
+        #expect(whole?.hasSuffix("node:20-alpine") == true, "\(whole ?? "")")
+        for cut in 1..<words.count {
+            let pieces = [words[..<cut].joined(separator: " "), words[cut...].joined(separator: " ")]
+            let text = await written(pieces, seeing: terminal)
+            #expect(text == whole, "cut at \(cut): \(text ?? "")")
+        }
+    }
+
     @Test("a quotation is read whole at every cut inside it")
     func everyQuotationCut() async {
         let sentence = "the brief says open quote ship on friday close quote"
