@@ -25,8 +25,10 @@ final class LearntEvidence {
         // The same answers typing capture keeps, so one refusal covers both.
         consent = SwitchedLearningConsent(
             isOn: { settings.load().learnsFromDictation },
-            answers: CapturePreferencesFile(
-                path: CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false)))
+            answers: KeptOutOfHistory(
+                keeping: { HistoryKeeping(settings.load()) },
+                answers: CapturePreferencesFile(
+                    path: CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false))))
     }
 
     /// Appends `rows` learnt in `application` inside History's window, once consent says it may.
@@ -42,6 +44,29 @@ final class LearntEvidence {
                 AppDelegate.log.error("evidence not saved: \(ErrorLog.failure(error), privacy: .public)")
             }
         }
+    }
+}
+
+/// Declines an application whose dictations History leaves out, so nothing about it is learnt either.
+private struct KeptOutOfHistory: LearningConsent {
+    /// What History keeps, read at each question so a change in Settings counts at once.
+    let keeping: @Sendable () -> HistoryKeeping
+    /// What was said about each application History does keep.
+    let answers: any LearningConsent
+
+    /// Declined where History keeps nothing of this application, otherwise what was said about it.
+    func state(of bundleIdentifier: String?) -> ConsentState {
+        guard keeping().keeps(applicationIdentifier: bundleIdentifier) else { return .declined }
+        return answers.state(of: bundleIdentifier)
+    }
+}
+
+extension HistoryKeeping {
+    /// What History may keep, from the two saved choices.
+    init(_ settings: Settings) {
+        self.init(
+            keepsNothing: settings.keepsNoTranscripts,
+            excludedApplications: Set(settings.historyExcludedApplications))
     }
 }
 
