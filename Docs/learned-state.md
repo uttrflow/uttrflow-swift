@@ -99,6 +99,14 @@ an unclosed tail), and, for a dictation of at most 12 words, `styleShortMessage`
 `meanSentenceLength` = words / sentences and `closingStopRate` = closing stops / short
 dictations. No contraction rate is kept: acting on one would rewrite the user's words.
 
+## Language tally
+
+`LanguageSignals` writes one `language` row (+1) per inserted, non-secure dictation, with the
+detected language code as the subject and no word of the text. A dictation of fewer than 8 words,
+or whose verdict has no confidence or one below 0.8, writes nothing, because detection on a short
+piece is unreliable and a tally of wrong verdicts would teach the wrong language. The projection
+is a count per code.
+
 ## Spelling preferences
 
 `SpellingPreferences` writes one `spellingPreference` row per word of an edit inside dictated
