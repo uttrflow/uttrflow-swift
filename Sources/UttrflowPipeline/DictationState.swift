@@ -146,6 +146,8 @@ public struct DictationOutcome: Sendable, Equatable {
     public let insertedInto: String?
     /// That application's bundle identifier, the identity the interface looks the icon up by.
     public let insertedIntoIdentifier: String?
+    /// The application the words were meant for, which is where they went unless a copy replaced the insertion.
+    package let meantForApplication: String?
     /// How long the speaker talked; not a stage measurement, since it is the user's choice, not a cost.
     public let spokenFor: Duration?
     /// Dictionary corrections and snippet firings carried with the inserted dictation.
@@ -178,6 +180,7 @@ public struct DictationOutcome: Sendable, Equatable {
     public init(
         text: String, method: TextInsertionMethod, cleanedBy: TransformerKind,
         insertedInto: String? = nil, insertedIntoIdentifier: String? = nil,
+        meantForApplication: String? = nil,
         spokenFor: Duration? = nil, changes: AppliedChanges = .none, fromRecording: Bool = false,
         arrival: InsertionArrival = .notReported, intoSecureField: Bool = false, missedPieces: Int = 0,
         inputTooLoud: Bool = false, unavailableEngines: [CleaningRecord.UnavailableEngine] = [],
@@ -191,6 +194,7 @@ public struct DictationOutcome: Sendable, Equatable {
         self.cleanedBy = cleanedBy
         self.insertedInto = insertedInto
         self.insertedIntoIdentifier = insertedIntoIdentifier
+        self.meantForApplication = meantForApplication ?? insertedIntoIdentifier
         self.spokenFor = spokenFor
         self.changes = changes
         self.isFromRecording = fromRecording

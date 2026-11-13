@@ -27,7 +27,9 @@ residual risks here when it lands, and is held to the rules below.
    learned from, because everything learned stays on this Mac; that default is
    `ConsentState.dictationMayLearn` and `CapturePreferences` ([predict.md](predict.md)).
    **Learn from my dictation**, off in Settings, declines every application at once before the
-   learner runs (`SwitchedLearningConsent`).
+   learner runs (`SwitchedLearningConsent`). An application left out of History, or every
+   application while History keeps no dictation text, is declined the same way, so a dictation
+   History forgets teaches nothing either (`KeptOutOfHistory` in `LearntEvidence.swift`).
 
 ## Assets
 

@@ -38,6 +38,8 @@ final class FakeSelectionField: SelectionAttributes, Sendable {
         var answersAfter: Duration = .zero
         var clock: ManualClock?
         var ignoresText = false
+        /// Applies the text and still answers cannot-complete, as a write that lands after its timeout does.
+        var landsLate = false
         var defersText = false
         var deferredText: String?
         var movesCaretOnly = false
@@ -93,6 +95,13 @@ final class FakeSelectionField: SelectionAttributes, Sendable {
             state.clock?.advance(by: state.answersAfter)
             state.textWrites.append(text)
             guard !state.refusesText else { return .cannotComplete }
+            if state.landsLate {
+                let replaced = NSRange(location: state.location, length: state.length)
+                state.text = (state.text as NSString).replacingCharacters(in: replaced, with: text)
+                state.location += text.utf16.count
+                state.length = 0
+                return .cannotComplete
+            }
             guard !state.ignoresText else { return .success }
             if state.defersText {
                 state.deferredText = text
@@ -386,6 +395,41 @@ struct SelectionWriterTests {
         #expect(isRejection(error))
         #expect(field.text == "I want")
         #expect(field.selectionWrites == [2..<6, 6..<6])
+        #expect(field.selection == 6..<6)
+    }
+
+    @Test("puts the caret back when a write over the widened selection is unconfirmed and left it selected")
+    func unconfirmedWriteThatKeptTheSelectionRestoresTheCaret() {
+        let clock = ManualClock()
+        let field = FakeSelectionField("I want") {
+            $0.refusesText = true
+            $0.clock = clock
+            $0.answersAfter = SelectionWriter<FakeSelectionField>.messagingTimeout
+        }
+        let error = #expect(throws: TextInsertionError.self) {
+            try SelectionWriter(field: field, clock: ElapsedClock(clock))
+                .replaceSelection(replacing: "want", with: "need")
+        }
+        #expect(error == .insertionUnconfirmed)
+        #expect(field.selectionWrites == [2..<6, 6..<6])
+        #expect(field.selection == 6..<6, "the replaced words must not stay highlighted")
+    }
+
+    @Test("leaves the caret where an unconfirmed write that landed put it")
+    func unconfirmedWriteThatLandedKeepsItsCaret() {
+        let clock = ManualClock()
+        let field = FakeSelectionField("I want") {
+            $0.landsLate = true
+            $0.clock = clock
+            $0.answersAfter = SelectionWriter<FakeSelectionField>.messagingTimeout
+        }
+        let error = #expect(throws: TextInsertionError.self) {
+            try SelectionWriter(field: field, clock: ElapsedClock(clock))
+                .replaceSelection(replacing: "want", with: "need")
+        }
+        #expect(error == .insertionUnconfirmed)
+        #expect(field.text == "I need")
+        #expect(field.selectionWrites == [2..<6])
         #expect(field.selection == 6..<6)
     }
 

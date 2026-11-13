@@ -10,7 +10,7 @@ enum DictationRecordMapping {
         switch state {
         case .inserted(let outcome):
             guard let text = outcome.wordsToKeep,
-                keeping.keeps(applicationIdentifier: outcome.insertedIntoIdentifier)
+                keeping.keeps(applicationIdentifier: outcome.meantForApplication)
             else { return nil }
             return DictationRecord(
                 id: id, text: text, when: when, applicationName: outcome.insertedInto,
