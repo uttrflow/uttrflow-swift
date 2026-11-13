@@ -2,6 +2,7 @@
 
 public import struct Foundation.Date
 public import struct Foundation.URL
+public import struct Foundation.UUID
 public import class Foundation.FileManager
 public import struct Foundation.CocoaError
 public import struct Foundation.Data
@@ -13,6 +14,8 @@ public struct EvidenceRow: Sendable, Equatable, Codable {
     /// The closed set of observations; a new fact is a new case, never a new counter.
     public enum Kind: String, Sendable, Codable, CaseIterable {
         case use, revert, restore, sighting
+        /// A `use` seen in one application, subject `<entry id>|<bundle identifier>`; see `PersonaProjection.appUse`.
+        case useInApp
         /// Style counts, keyed by destination; see ``StyleSignals``.
         case styleMessage, styleWords, styleSentences, styleShortMessage, styleClosingStop
         /// A respelling between two spellings of one listed word, and the user's deletion of it; see `SpellingPreferences`.
@@ -52,6 +55,11 @@ public struct EvidenceRow: Sendable, Equatable, Codable {
         self.weight = weight
         self.day = day
         self.provenance = provenance
+    }
+
+    /// The subject of a `useInApp` row: the entry's id and the application's bundle identifier.
+    public static func applicationUseSubject(of entry: UUID, in application: String) -> String {
+        "\(entry.uuidString)|\(application)"
     }
 
     /// The day number a moment falls on, counted in whole days since 1970, so a row records no hour.

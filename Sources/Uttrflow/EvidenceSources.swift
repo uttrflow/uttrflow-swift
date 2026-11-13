@@ -11,8 +11,16 @@ import UttrflowPredictCapture
 /// Builds evidence rows from what already happened on this Mac; it reads no text into a row beyond ids, counts and heard-to-meant keys.
 enum EvidenceSources {
     /// One `use` row per dictionary entry a landed dictation used.
-    static func uses(of ids: [UUID], day: Int) -> [EvidenceRow] {
-        ids.map { EvidenceRow(kind: .use, subject: $0.uuidString, day: day, provenance: .dictation) }
+    static func uses(of ids: [UUID], day: Int, in application: String? = nil) -> [EvidenceRow] {
+        ids.flatMap { id -> [EvidenceRow] in
+            let use = EvidenceRow(kind: .use, subject: id.uuidString, day: day, provenance: .dictation)
+            guard let application else { return [use] }
+            let inApp = EvidenceRow(
+                kind: .useInApp, subject: EvidenceRow.applicationUseSubject(of: id, in: application),
+                day: day,
+                provenance: .dictation)
+            return [use, inApp]
+        }
     }
 
     /// One `revert` row for a correction the user undid.
@@ -78,7 +86,7 @@ enum EvidenceSources {
             let destination = DestinationClassifier.classify(app, overrides: overrides)
             let used = DictionaryAppearances.used(entries, applied: [], writtenIn: record.text)
             let signals = StyleSignals.rows(for: record.text, into: destination, day: day)
-            let rows = (uses(of: used, day: day) + signals).map {
+            let rows = (uses(of: used, day: day, in: record.applicationIdentifier) + signals).map {
                 EvidenceRow(
                     kind: $0.kind, subject: $0.subject, weight: $0.weight, day: $0.day,
                     provenance: .migration)
