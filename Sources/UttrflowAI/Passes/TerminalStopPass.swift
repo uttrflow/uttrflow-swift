@@ -53,7 +53,7 @@ public struct TerminalStopPass: WholeTextCleaningPass {
             destination.map {
                 NotationEvidence.isQueryStatement(words: words, destination: $0, region: region)
             } ?? false
-        switch isStatement ? TerminalStopPolicy.never : policy {
+        switch isStatement || opensHeading ? TerminalStopPolicy.never : policy {
         case .always:
             finished = finishedLast(word, in: draft)
         case .never:
@@ -65,6 +65,14 @@ public struct TerminalStopPass: WholeTextCleaningPass {
         }
         draft.replace(at: last, with: finished, by: Self.id)
         return draft
+    }
+
+    /// Whether the caret's line is a Markdown heading in a document, which names a section and takes no full stop: "## " then words. A question mark stays, as the stop alone is withheld.
+    private var opensHeading: Bool {
+        guard destination == .document, let preceding = insertionPoint.precedingText else { return false }
+        let line = CaretStructure.caretLine(of: preceding).drop { $0 == " " }
+        let marks = line.prefix { $0 == "#" }
+        return (1...6).contains(marks.count) && line.dropFirst(marks.count).first == " "
     }
 
     /// Separates an unmarked trailing request from the statement before it.
