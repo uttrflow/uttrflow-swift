@@ -269,7 +269,12 @@ public struct DestinationFormatter: Sendable, Equatable {
             }
         }
         let role = situation.app.accessibilityRole
-        if role == "AXSearchField" || rule(for: situation)?.field == .search { return .search }
+        // A browser's address bar takes a query as one is typed into a search box: as spoken, with no stop.
+        if role == "AXSearchField" || rule(for: situation)?.field == .search
+            || situation.intent.fieldRole == .addressBar
+        {
+            return .search
+        }
         if situation.app.isMultiline == false || role == "AXTextField" { return .oneLine }
         return .primary
     }
