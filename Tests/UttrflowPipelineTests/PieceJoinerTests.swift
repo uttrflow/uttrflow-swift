@@ -1069,3 +1069,31 @@ struct PieceJoinerSeamTests {
         #expect(kept.count == Self.sentencesAcrossNumbers.count)
     }
 }
+
+@Suite("PieceJoiner.laidOut with pieces that give it nothing to lay out")
+struct PieceJoinerDegenerateTests {
+    @Test(
+        "returns the words of the pieces that hold any, and nothing for none",
+        arguments: [
+            ([String](), ""),
+            ([""], ""),
+            (["  ", "hello there"], "hello there"),
+            (["hello there"], "hello there"),
+            (["Hello.", "  "], "Hello."),
+        ])
+    func degenerate(pieces: [String], expected: String) {
+        #expect(joined(pieces, .plain) == expected)
+    }
+
+    @Test(
+        "keeps a piece that ends on a bare \"number\" or \"point\" with the piece that follows it",
+        arguments: [
+            (["first thing is number", "two is next"], "first thing is number two is next"),
+            (["we agreed on item number"], "we agreed on item number"),
+            (["number", "two"], "number two"),
+            (["point", "five"], "point five"),
+        ])
+    func bareSequenceWord(pieces: [String], expected: String) {
+        #expect(joined(pieces, .plain) == expected)
+    }
+}
