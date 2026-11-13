@@ -139,7 +139,7 @@ together. Stage timings from the release pass are added up per stage into one me
 dictation done in pieces still reports one figure for transcription and one for tidying.
 
 **A piece that holds speech but decodes to no words** is decoded once more without the vocabulary
-or the text before the caret, by `DecodeBias.none`,
+or the lead-in text, by `DecodeBias.none`,
 since a short piece set off by pauses (a greeting, a sign-off) decodes blank now and then. If the
 second decode is blank too, the release pass leaves that piece out, inserts every other piece, and
 counts the gap in the outcome's `missedPieces`. Only when no piece has words, or the whole recording
@@ -158,11 +158,22 @@ the words of the pieces before them, and a correction that crosses a seam is pro
 the joined text. If any piece fell back to the rules, the whole dictation is reported as tidied by
 the rules, because "tidied by Apple's model" would be untrue of some of the words.
 
-The tidier is shown the last sentence of the previous piece, as heard, behind a "Said just
-before:" line. It is context only: the model copies none of it, and an answer that did adds words
-the meaning guard refuses. The words as heard are the one version of the previous piece every path
-has: a piece tidied while the key is held, one cut at key-up and one retried all read the same
-line. The model uses it for commas and capitals at the piece's start; it still places no stop, so
+**Rolling context.** Every piece after the first is decoded and tidied after one value, its rolling context: the
+previous piece's words as the dictionary corrected them and before the tidier touched them.
+`RollingContext(after:)` is the only producer. That version exists on every path as soon as a piece
+is recognised and corrected: a piece cut while the key is held, one cut at key-up and one retried
+all read the same text, whereas the tidied words of the piece before exist early but not at
+key-up, where the tidy runs beside the next recognition. So each path corrects a piece before it
+recognises the next, and only the tidy overlaps the next decode. The previous piece is the nearest
+earlier one with words; a piece the early loop could not decode is recognised at key-up, after the
+piece that followed it was already decoded, so that one piece can read an earlier context.
+
+The recogniser takes the rolling context as its lead-in (`TranscriptionOptions.precedingText`) in
+place of the text before the caret, which only the first piece reads; see
+[`speech-vocabulary-prompt.md`](speech-vocabulary-prompt.md#the-text-before-the-caret-comes-last).
+The tidier is shown its last sentence behind a "Said just before:" line. It is context only: the
+model copies none of it, and an answer that did adds words the meaning guard refuses.
+The model uses it for commas and capitals at the piece's start; it still places no stop, so
 a sentence that straddles a pause long enough to cut at is still decided at the seam. The joiner ends a piece at a seam as a sentence unless the words either side show
 the sentence carried on. That is the trade the pause lengths above are set to make rare, and it is
 why the early threshold is a sentence-length pause rather than any pause.
