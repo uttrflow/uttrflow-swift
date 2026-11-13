@@ -21,7 +21,7 @@ public enum DoubtPolicy {
     public static func reason(text: String, confidence: Double, settled: Bool = false) -> DoubtReason? {
         guard !settled else { return nil }
         if !isHeardSurely(confidence) { return .lowScore }
-        guard !FillersPass.fillerWords.contains(text.lowercased()) else { return nil }
+        guard !FillersPass.isFiller(text.lowercased()) else { return nil }
         return GeneralVocabulary.homophones(of: text).isEmpty ? nil : .homophoneClass
     }
 

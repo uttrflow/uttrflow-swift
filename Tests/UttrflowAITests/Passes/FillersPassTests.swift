@@ -24,6 +24,27 @@ struct FillersPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test(
+        "removes a filler held longer than its listed spelling",
+        arguments: [
+            ("ummm what time is it", "what time is it"),
+            ("uhhh give me a second", "give me a second"),
+            ("errr I don't remember", "I don't remember"),
+            ("hmmm interesting idea", "interesting idea"),
+            ("mmmm okay", "okay"),
+        ]
+    )
+    func removesHeldFillers(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "keeps a word that only looks like a held filler",
+        arguments: ["to err is human", "plan m works", "brrr it is cold"])
+    func keepsWordsNearHeldFillers(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
     @Test("removes fillers joined to neighboring words by an ellipsis")
     func removesEllipsisJoinedFillers() {
         #expect(

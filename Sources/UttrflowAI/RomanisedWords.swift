@@ -42,7 +42,7 @@ extension MeaningPreservationGuard {
     /// The words of a romanised text, a filler dropped, a number word keyed as its digits and the rest by sound.
     static func romanisedWords(_ text: String) -> [RomanisedWord] {
         WordShape.words(text).compactMap { word in
-            guard !FillersPass.fillerWords.contains(word) else { return nil }
+            guard !FillersPass.isFiller(word) else { return nil }
             if let digits = numberWords[word] { return RomanisedWord(word: digits, key: digits) }
             return RomanisedWord(
                 word: word, key: word.allSatisfy(\.isNumber) ? word : Romaniser.soundKey(word))
