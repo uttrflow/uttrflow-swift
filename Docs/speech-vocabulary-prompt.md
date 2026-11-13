@@ -56,14 +56,16 @@ here as well is what keeps the count being budgeted equal to the count that surv
 
 The sentence or two before the caret (`TranscriptionOptions.precedingText`, read once per
 dictation and `nil` in a secure field; see [`context-budget.md`](context-budget.md)) follows the
-vocabulary sentence, so the decoder continues from the user's own words. It keeps its last whole
+vocabulary sentence, so the decoder continues from the user's own words. That is the first piece's
+lead-in; every later piece of the dictation leads with the previous piece as corrected, its rolling
+context ([`early-transcription.md`](early-transcription.md#how-the-pieces-become-one-text)). It keeps its last whole
 words within `maximumLeadTokens`, and the vocabulary packs into what is left. A decode that comes
 back empty is retried with no prompt at all. The dictation bench's developer-vocabulary
 categories measure what a lead-in sentence is worth to recognition.
 
 ### What text is fit to lead the prompt
 
-`Situation.recognitionContext` is the only producer of that lead-in. It takes the sentence or two
+`Situation.recognitionContext` is the only producer of the caret lead-in. It takes the sentence or two
 `AppContext.recognitionContext` keeps and applies an eligibility rule, so a prompt carries prose
 or nothing:
 
