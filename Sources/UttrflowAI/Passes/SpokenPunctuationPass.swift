@@ -22,7 +22,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     ]
 
     /// Names that are everyday nouns too, so a mid-sentence one is a mark only on positive evidence. See `Docs/cleanup.md`.
-    static let ordinaryNames: Set<[String]> = [["comma"], ["colon"], ["dash"]]
+    package static let ordinaryNames: Set<[String]> = [["comma"], ["colon"], ["dash"]]
 
     /// Quotation names that are everyday words too: an opening is a mark only with its closing later in the sentence, a closing only inside an open quotation.
     static let partneredNames: Set<[String]> = [["quote"], ["unquote"]]
