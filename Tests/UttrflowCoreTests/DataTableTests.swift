@@ -167,6 +167,8 @@ struct DataTableTests {
         #expect(Restatement.table.source == .bundled)
         #expect(CredentialWords.table.source == .bundled)
         #expect(HTMLElements.table.source == .bundled)
+        #expect(HTMLBooleanAttributes.table.source == .bundled)
+        #expect(HTMLBooleanAttributes.names.count == 15)
         #expect(QuantityWords.table.source == .bundled)
         #expect(QuantityWords.quantities == ["dozen", "half", "percent", "quarter"])
         #expect(QuantityWords.numerals == ["first", "half", "percent", "second", "third"])

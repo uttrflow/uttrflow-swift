@@ -118,6 +118,12 @@ struct DictationPipelineLoadingTests {
 
         #expect(inserter.received.isEmpty, "never typed into the app the person moved to")
         #expect(clipboard.received.count == 1, "the words are kept on the clipboard")
+        guard case .inserted(let outcome) = await pipeline.currentState else {
+            Issue.record("the copy is an ended dictation")
+            return
+        }
+        #expect(outcome.insertedIntoIdentifier == nil)
+        #expect(outcome.meantForApplication == "com.example.notes", "History's list sees the app meant")
     }
 
     @Test("words finished after a load go to the field when the person stayed")

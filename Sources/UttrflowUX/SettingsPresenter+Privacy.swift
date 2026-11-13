@@ -43,6 +43,9 @@ extension SettingsPresenter {
                                 settings, .everything
                             ).with(icon: .symbol("eye.slash", .neutral)),
                         ]),
+                SettingsGroup(
+                    id: "historyKeeping", title: "Dictations left out of History",
+                    rows: historyKeepingRows(settings, capabilities)),
                 SettingsGroup(id: "context", title: "Context", rows: contextRows(settings)),
                 SettingsGroup(
                     id: "network", title: "Network, last \(NetworkActivity.windowDays) days",

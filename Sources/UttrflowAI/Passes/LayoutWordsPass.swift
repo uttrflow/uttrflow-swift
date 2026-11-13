@@ -114,6 +114,27 @@ public struct LayoutWordsPass: PieceCleaningPass {
         }
     }
 
+    /// Lays out each sentence and each line as a bulleted item, as "make that a list" asks; nil when there is only one.
+    static func listingSentences(_ draft: Draft) -> Draft? {
+        var draft = draft
+        var starts: [Int] = []
+        var opensItem = true
+        for index in draft.presentIndices {
+            if draft.words[index].isLayoutMark {
+                draft.remove(at: index, by: Self.id)
+                opensItem = true
+                continue
+            }
+            if opensItem { starts.append(index) }
+            opensItem = draft.shape(at: index).endsSentence
+        }
+        guard starts.count > 1 else { return nil }
+        for (offset, start) in starts.enumerated().reversed() {
+            draft.insert(offset == 0 ? Draft.bullet : "\n" + Draft.bullet, at: start, by: Self.id)
+        }
+        return draft
+    }
+
     /// Removes a comma or semicolon stranded before a list marker.
     func removeClauseMarkBeforeList(at position: Int, in live: [Int], from draft: inout Draft) {
         guard position > 0 else { return }
@@ -338,6 +359,8 @@ public struct LayoutWordsPass: PieceCleaningPass {
         let previous = draft.shape(at: live[marker - 1])
         // A colon introduces what follows it, whatever class the word it closes.
         if previous.suffix.hasSuffix(":") { return true }
+        // One word alone before the marker is a heading, not a running clause: "reminders number one".
+        if marker == 1 || draft.shape(at: live[marker - 2]).endsSentence { return true }
         guard !["and", "or"].contains(previous.key) else { return false }
         if ["need", "are", "check"].contains(previous.key) { return true }
         let context = live[..<marker].map { draft.words[$0].text }.joined(separator: " ")

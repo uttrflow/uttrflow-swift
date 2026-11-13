@@ -56,15 +56,6 @@ private final class SlowerThanRealTimeSpeechEngine: SpeechEngine, Sendable {
     }
 }
 
-/// A ``TranscriptCleaning`` that tidies, so a test can watch a different stage.
-private struct TimeoutTestCleaner: TranscriptCleaning {
-    func clean(
-        _ request: TransformationRequest
-    ) async throws(TransformationError) -> TransformationResult {
-        TransformationResult(text: "Tidied.", producedBy: .rules)
-    }
-}
-
 /// Keeps every account the pipeline hands on, so a stage that gave up can be seen in it.
 private actor TimeoutCleaningRecorder: CleaningRecording {
     private(set) var records: [CleaningRecord] = []
@@ -240,7 +231,7 @@ struct DictationStageTimeoutTests {
         let pipeline = DictationPipeline(
             capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 2))),
             speech: NeverAnsweringSpeechEngine(),
-            cleaner: TimeoutTestCleaner(),
+            cleaner: FakeTranscriptCleaner(tidying: { _ in "Tidied." }),
             context: FakeContextEngine(),
             inserter: FakeTextInserter(),
             metrics: metrics,
@@ -271,7 +262,7 @@ struct DictationStageTimeoutTests {
         let pipeline = DictationPipeline(
             capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 240))),
             speech: speech,
-            cleaner: TimeoutTestCleaner(),
+            cleaner: FakeTranscriptCleaner(tidying: { _ in "Tidied." }),
             context: FakeContextEngine(),
             inserter: inserter,
             clock: clock)
@@ -295,7 +286,7 @@ struct DictationStageTimeoutTests {
         let pipeline = DictationPipeline(
             capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 2))),
             speech: NeverAnsweringSpeechEngine(),
-            cleaner: TimeoutTestCleaner(),
+            cleaner: FakeTranscriptCleaner(tidying: { _ in "Tidied." }),
             context: FakeContextEngine(),
             inserter: FakeTextInserter(),
             clock: clock)
@@ -357,7 +348,7 @@ struct DictationStageTimeoutTests {
             capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 2))),
             speech: FakeSpeechEngine(
                 transcribeOutcome: .success(Transcription(text: "what I said"))),
-            cleaner: TimeoutTestCleaner(),
+            cleaner: FakeTranscriptCleaner(tidying: { _ in "Tidied." }),
             context: FakeContextEngine(),
             inserter: TextInsertionCoordinator(strategies: [
                 NeverAnsweringEngine(), ClipboardTextInsertionEngine(pasteboard: pasteboard),
@@ -398,7 +389,7 @@ struct DictationStageTimeoutTests {
             capture: FakeAudioCaptureEngine(),
             speech: FakeSpeechEngine(
                 transcribeOutcome: .success(Transcription(text: "what I said"))),
-            cleaner: TimeoutTestCleaner(),
+            cleaner: FakeTranscriptCleaner(tidying: { _ in "Tidied." }),
             context: FakeContextEngine(),
             inserter: FakeTextInserter(),
             recordings: recordings,
@@ -452,7 +443,7 @@ struct DictationStageTimeoutTests {
         let pipeline = DictationPipeline(
             capture: capture,
             speech: FakeSpeechEngine(),
-            cleaner: TimeoutTestCleaner(),
+            cleaner: FakeTranscriptCleaner(tidying: { _ in "Tidied." }),
             context: FakeContextEngine(),
             inserter: FakeTextInserter(),
             clock: clock)
@@ -484,7 +475,7 @@ struct DictationStageTimeoutTests {
             capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 2))),
             speech: FakeSpeechEngine(
                 transcribeOutcome: .success(Transcription(text: "what I said"))),
-            cleaner: TimeoutTestCleaner(),
+            cleaner: FakeTranscriptCleaner(tidying: { _ in "Tidied." }),
             context: context,
             inserter: inserter,
             clock: clock)
@@ -526,7 +517,7 @@ struct DictationStageTimeoutTests {
             capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 2))),
             speech: FakeSpeechEngine(
                 transcribeOutcome: .success(Transcription(text: "what I said"))),
-            cleaner: TimeoutTestCleaner(),
+            cleaner: FakeTranscriptCleaner(tidying: { _ in "Tidied." }),
             context: context,
             inserter: inserter,
             metrics: metrics,
@@ -554,7 +545,7 @@ struct DictationStageTimeoutTests {
             capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 2))),
             speech: FakeSpeechEngine(
                 transcribeOutcome: .success(Transcription(text: "what I said"))),
-            cleaner: TimeoutTestCleaner(),
+            cleaner: FakeTranscriptCleaner(tidying: { _ in "Tidied." }),
             context: FakeContextEngine(),
             inserter: inserter,
             corrector: corrector,
@@ -589,7 +580,7 @@ struct DictationStageTimeoutTests {
             capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 2))),
             speech: FakeSpeechEngine(
                 transcribeOutcome: .success(Transcription(text: "what I said"))),
-            cleaner: TimeoutTestCleaner(),
+            cleaner: FakeTranscriptCleaner(tidying: { _ in "Tidied." }),
             context: FakeContextEngine(),
             inserter: inserter,
             snippets: snippets,

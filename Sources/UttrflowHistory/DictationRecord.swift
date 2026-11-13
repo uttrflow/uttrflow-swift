@@ -38,6 +38,8 @@ public struct DictationRecord: Sendable, Equatable, Identifiable, Codable {
     public let notation: NotationUse?
     /// How complete the inserted text is, so a row can show a result tidied less than asked; `nil` is unrecorded.
     public let quality: OutcomeQuality?
+    /// Whether the words went into a private-browsing window, so nothing is learnt from them; `false` when unrecorded.
+    package let fromPrivateWindow: Bool
 
     /// Builds a record; every field after `text` and `when` defaults to unknown or unflagged.
     public init(
@@ -48,8 +50,9 @@ public struct DictationRecord: Sendable, Equatable, Identifiable, Codable {
         arrival: RecordedArrival? = nil, changeLedger: [ChangeLedgerEntry]? = nil,
         slowCause: SlowDictationCause? = nil, heard: String? = nil,
         guardRefusals: [RefusalKind]? = nil, notation: NotationUse? = nil,
-        quality: OutcomeQuality? = nil
+        quality: OutcomeQuality? = nil, fromPrivateWindow: Bool = false
     ) {
+        self.fromPrivateWindow = fromPrivateWindow
         self.id = id
         self.text = text
         self.when = when
@@ -99,6 +102,7 @@ public struct DictationRecord: Sendable, Equatable, Identifiable, Codable {
         notation = try? values.decodeIfPresent(NotationUse.self, forKey: .notation)
         // A rung a newer build adds reads as unrecorded, never a discarded file.
         quality = try? values.decodeIfPresent(OutcomeQuality.self, forKey: .quality)
+        fromPrivateWindow = try values.decodeIfPresent(Bool.self, forKey: .fromPrivateWindow) ?? false
     }
 
     /// Whether this is still within `days` of `now`; the one place "deleted after N days" is decided.

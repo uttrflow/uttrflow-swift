@@ -90,7 +90,10 @@ extension DictationPipeline {
         spokenFor = nil
         insertedInto = nil
         insertedIntoIdentifier = nil
+        meantForIdentifier = nil
         destinationIsSecure = false
+        destinationIsPrivate = false
+        recordedFacts = nil
         cleaningRecords = []
         droppedSpans = []
         transition(to: .recording)
