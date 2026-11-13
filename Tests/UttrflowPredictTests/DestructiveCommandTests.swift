@@ -172,7 +172,7 @@ struct DestructiveCommandTests {
         arguments: [
             "echo rm", "echo please rm this", "man rm", "which dd", "tldr shred", "type rm",
             "help rm", "info dd", "whatis rm", "apropos shred", "printf rm", "command -v rm",
-            "command -V dd",
+            "command -V dd", "command -v rm -rf build", "command -V shred -u notes.txt",
             "npm rm lodash", "pnpm remove lodash", "yarn remove lodash",
         ])
     func leavesHarmlessDestroyerNamesAlone(_ line: String) {
@@ -350,6 +350,11 @@ struct DestructiveCommandTests {
     func copyingDeviceStreamsIsDestructive(_ line: String) {
         #expect(
             DestructiveCommand.matches(line, failClosedOnUnresolved: true), "\(line) should be destructive")
+    }
+
+    @Test("A write to a device is recognised even on a line the shell reader cannot settle.")
+    func deviceWriteOnAnUnsettledLine() {
+        #expect(DestructiveCommand.matches("dd if=disk.img of=/dev/nvme0n1 'unclosed"))
     }
 
     @Test(
@@ -547,6 +552,7 @@ struct DestructiveCommandTests {
             "rsync -a --delete-excluded src/ backup/", "rsync -a --delete-before src/ backup/",
             "rsync -a --delete-during src/ backup/", "rsync -a --delete-delay src/ backup/",
             "rsync -a --del src/ backup/", "rsync -a --remove-source-files src/ backup/",
+            "rsync -a --remove-sent-files src/ backup/",
             "sudo rsync -av --delete ~/work/ /Volumes/backup/work/",
         ])
     func deletingRsyncIsDestructive(_ line: String) {
