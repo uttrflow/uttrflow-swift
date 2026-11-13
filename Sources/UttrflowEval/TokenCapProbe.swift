@@ -62,7 +62,7 @@ package struct TokenCapTable: Sendable {
     /// One line per length: pieces, pieces that reached the cap, pieces left unresolved, and the mean decode again time and word share.
     package var markdown: String {
         var lines = [
-            "| Piece length | Pieces | Tail decoded again | Unresolved | Seconds decoding again | Words out per word read |",
+            "| Piece length | Pieces | Tail decoded again or unresolved | Unresolved | Seconds decoding again | Words out per word read |",
             "|---|---|---|---|---|---|",
         ]
         var floor = 0.0
