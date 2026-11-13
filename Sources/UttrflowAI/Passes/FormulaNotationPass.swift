@@ -32,7 +32,11 @@ struct FormulaNotationPass: PieceCleaningPass {
         let keys = spoken.map { $0.lowercased() }
         let opens = cellIsEmpty && Self.openers.contains(keys[0])
         guard cellHoldsFormula || opens else { return draft }
-        let written = Writer(spoken: spoken, raw: raw, keys: keys, separator: argumentSeparator)
+        let writer = Writer(spoken: spoken, raw: raw, keys: keys, separator: argumentSeparator)
+        // A sentence said in a formula cell, "the town is divided by a river", holds no reference or bracket to write.
+        guard writer.holdsFormula(continuingString: caretInString && cellHoldsFormula) else { return draft }
+        let written =
+            writer
             .run(opening: opens, continuingString: caretInString && cellHoldsFormula)
         var draft = draft
         draft.replace(at: first, with: written, by: Self.id)
@@ -68,6 +72,16 @@ private struct Writer {
 
     private static let brackets: Set<String> = ["paren", "parenthesis", "bracket"]
     private static let rangeWords: Set<String> = ["to", "through", "colon"]
+
+    /// Whether the words name a cell, say a bracket or quote a string, which is what tells a formula from a sentence.
+    func holdsFormula(continuingString: Bool) -> Bool {
+        continuingString || keys.filter({ $0 == "quote" }).count >= 2
+            || keys.indices.contains { at in
+                cellReference(at) != nil
+                    || (["open", "close"].contains(keys[at]) && at + 1 < keys.count
+                        && Self.brackets.contains(keys[at + 1]))
+            }
+    }
 
     func run(opening: Bool, continuingString: Bool = false) -> String {
         var parts: [Part] = []

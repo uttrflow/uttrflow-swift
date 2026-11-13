@@ -62,6 +62,17 @@ struct FormulaNotationPassTests {
         #expect(written(spoken) == expected)
     }
 
+    @Test(
+        "leaves a sentence said in a formula cell as the words, since it names no cell or bracket",
+        arguments: [
+            "the town is divided by a river", "equals period of the year", "plus or minus a little",
+            "times change", "the cost went up and then down", "equals the total",
+        ])
+    func sentenceInFormulaCell(spoken: String) {
+        #expect(
+            written(spoken, after: "=SUM(B2:B9) ") == written(spoken, after: "=SUM(B2:B9) ", mode: .prose))
+    }
+
     @Test("continues a formula already in the cell without an opening word")
     func continuesFormula() {
         #expect(written("a one to a ten close paren", after: "=SUM(") == "A1:A10)")
