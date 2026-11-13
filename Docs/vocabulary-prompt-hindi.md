@@ -49,7 +49,7 @@ engine: not measured.
 
 - **Today's frame is the worst condition on Hindi speech.** With the names in Latin letters, half
   the clips leave Devanagari and the word error rate is two and a half times that of no prompt.
-  The clips that leave go three ways: romanised Hindi ("Saayank ji abhi ghar pard nahi hai"),
+  The clips that leave go three ways: romanised Hindi ("Saayank ji abhi ghar par nahin hain"),
   English ("Tolanshi has made food"), or the frame itself ("or the rest of what was said,").
 - **The same frame with Devanagari names is the best.** Every clip stays in Devanagari, every name
   is heard, and the word error rate falls from 29.4% with no prompt to 11.8%.
