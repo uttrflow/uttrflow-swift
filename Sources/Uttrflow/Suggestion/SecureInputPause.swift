@@ -12,7 +12,7 @@ struct SecureInputPauseEffects {
 
 /// How secure keyboard entry changed across one check.
 enum SecureInputTransition: Equatable {
-    /// On after the check, whatever it was before.
+    /// On after the check, on or off before it.
     case blocking
     /// On before the check and off after it, so the lift has already restarted the tap.
     case lifted
