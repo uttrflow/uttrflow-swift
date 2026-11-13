@@ -10,10 +10,12 @@ public enum DomainMix {
         var words: [Destination: Int] = [:]
         for row in rows where row.kind == .styleWords {
             guard let destination = Destination(rawValue: row.subject) else { continue }
-            words[destination, default: 0] += max(0, row.weight)
+            words[destination, default: 0] += row.weight
         }
-        let total = words.values.reduce(0, +)
+        // Signed, as `StyleSignals.project` sums them; a destination's total is clamped, never one row.
+        let kept = words.filter { $0.value > 0 }
+        let total = kept.values.reduce(0, +)
         guard total >= minimumWords else { return [:] }
-        return words.filter { $0.value > 0 }.mapValues { Double($0) / Double(total) }
+        return kept.mapValues { Double($0) / Double(total) }
     }
 }

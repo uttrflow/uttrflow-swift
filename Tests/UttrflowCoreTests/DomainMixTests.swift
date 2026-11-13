@@ -29,4 +29,18 @@ struct DomainMixTests {
     func abstainsWhenThin() {
         #expect(DomainMix.project(rows([(.codeEditor, 2, 10)])).isEmpty)
     }
+
+    @Test("subtracts a negative row from its destination's total, as the style projection does")
+    func sumsSignedRows() {
+        func row(_ destination: Destination, _ weight: Int) -> EvidenceRow {
+            EvidenceRow(
+                kind: .styleWords, subject: destination.rawValue, weight: weight, day: 1,
+                provenance: .dictation)
+        }
+        let mix = DomainMix.project([
+            row(.codeEditor, 300), row(.codeEditor, -200), row(.email, 100), row(.email, 100),
+        ])
+        #expect(abs((mix[.codeEditor] ?? 0) - 1.0 / 3) < 0.01)
+        #expect(abs((mix[.email] ?? 0) - 2.0 / 3) < 0.01)
+    }
 }
