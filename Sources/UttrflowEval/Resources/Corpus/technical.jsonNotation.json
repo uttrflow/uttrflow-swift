@@ -1,0 +1,142 @@
+[
+  {
+    "id": "json-number-value",
+    "spoken": "age colon thirty",
+    "expected": "\"age\": 30",
+    "expectedExact": "\"age\": 30",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "config.json",
+      "precedingText": "{\n  "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4215
+  },
+  {
+    "id": "json-null-value",
+    "spoken": "manager colon null",
+    "expected": "\"manager\": null",
+    "expectedExact": "\"manager\": null",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "config.json",
+      "precedingText": "{\n  "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4215
+  },
+  {
+    "id": "json-two-pairs",
+    "spoken": "name colon sam comma age colon thirty",
+    "expected": "\"name\": \"sam\", \"age\": 30",
+    "expectedExact": "\"name\": \"sam\", \"age\": 30",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "config.json",
+      "precedingText": "{\n  "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4215
+  },
+  {
+    "id": "json-pair-then-comma",
+    "spoken": "retries colon three comma",
+    "expected": "\"retries\": 3,",
+    "expectedExact": "\"retries\": 3,",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "config.json",
+      "precedingText": "{\n  "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4215
+  },
+  {
+    "id": "json-negative-number",
+    "spoken": "offset colon minus five",
+    "expected": "\"offset\": -5",
+    "expectedExact": "\"offset\": -5",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "config.json",
+      "precedingText": "{\n  "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4215
+  },
+  {
+    "id": "json-decimal-number",
+    "spoken": "price colon nine point nine nine",
+    "expected": "\"price\": 9.99",
+    "expectedExact": "\"price\": 9.99",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "config.json",
+      "precedingText": "{\n  "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4215
+  },
+  {
+    "id": "json-fraction-number",
+    "spoken": "ratio colon zero point five",
+    "expected": "\"ratio\": 0.5",
+    "expectedExact": "\"ratio\": 0.5",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "config.json",
+      "precedingText": "{\n  "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4215
+  },
+  {
+    "id": "json-string-array",
+    "spoken": "tags colon open bracket red comma blue close bracket",
+    "expected": "\"tags\": [\"red\", \"blue\"]",
+    "expectedExact": "\"tags\": [\"red\", \"blue\"]",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "config.json",
+      "precedingText": "{\n  "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4215
+  },
+  {
+    "id": "json-number-array",
+    "spoken": "ports colon open bracket eighty comma four four three close bracket",
+    "expected": "\"ports\": [80, 443]",
+    "expectedExact": "\"ports\": [80, 443]",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "config.json",
+      "precedingText": "{\n  "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4215
+  },
+  {
+    "id": "json-mixed-array",
+    "spoken": "flags colon open bracket true comma null comma seven close bracket",
+    "expected": "\"flags\": [true, null, 7]",
+    "expectedExact": "\"flags\": [true, null, 7]",
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "config.json",
+      "precedingText": "{\n  "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4215
+  }
+]

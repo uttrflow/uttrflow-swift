@@ -34,7 +34,7 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
             spellsTag
             ? Applicability(cues: [.markupTag]) : NotationEvidence.applicability(of: words, given: screen)
         guard evidence.activates(at: NotationEvidence.activationThreshold) else { return draft }
-        var draft = NotationInput.settled(draft, by: Self.id)
+        var draft = NotationInput.settled(draft, by: Self.id, keepingJSONMarks: language == .json)
         // A second run reads the words without their pause marks, so the first must judge a stammer on them too.
         if cutsStammers { draft = StammersPass().apply(draft) }
         var slot = markup?.slot

@@ -585,6 +585,16 @@ joined-q-and-a-few-kept	Invite q and a few others.
 joined-r-and-d	R&D owns the roadmap.
 joined-slash-and-burn-kept	They farm by slash and burn.
 joined-slash-key-kept	Press the slash key twice.
+json-decimal-number	"price": 9.99
+json-fraction-number	"ratio": 0.5
+json-mixed-array	"flags": [true, null, 7]
+json-negative-number	"offset": -5
+json-null-value	"manager": null
+json-number-array	"ports": [80, 443]
+json-number-value	"age": 30
+json-pair-then-comma	"retries": 3,
+json-string-array	"tags": ["red", "blue"]
+json-two-pairs	"name": "sam", "age": 30
 keeps-heard-capital-on-company-name	Visit Apple today.
 keeps-heard-capital-on-name-that-is-also-a-word	Open Slack and message Grace.
 keeps-heard-capitals-in-a-quoted-label	Use the "Save As" option.

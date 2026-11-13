@@ -2668,9 +2668,7 @@
     "lowercase-start-after-complete-sentence-vitals@5",
     "mark-name-after-written-mark-dropped@2",
     "markup-css-declare-and-close@4",
-    "markup-css-descendant@2",
     "markup-css-group@1",
-    "markup-html-anchor-quoted@3",
     "message-at-mention@2",
     "message-at-mention@3",
     "message-at-mention@4",
@@ -5203,7 +5201,6 @@
     "trigger-phrase-heads-clauses-scratch-that-itch@3",
     "trigger-phrase-heads-clauses-scratch-that-itch@4",
     "twenty-four-seven-idiom@5",
-    "undecided-number-pair-kept-as-words@1",
     "undecided-number-pair-kept-as-words@4",
     "undecided-number-pair-kept-as-words@6",
     "undecided-number-pair-kept-as-words@8",
@@ -5358,5 +5355,5 @@
     ],
     "system" : "Version 26.6.2 (Build 25G83)"
   },
-  "total" : 5338
+  "total" : 5335
 }
