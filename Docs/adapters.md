@@ -39,6 +39,11 @@ and quote balance check of section 5 is `AdapterValidator` returning `AdapterVer
 columns and references to existing source files describe current behavior; the “With the adapter”
 columns describe the planned design.
 
+A browser's address and search bar (AD.30) is the one-line field labelled "Address and search bar"; it
+takes a query as a search box does, as spoken with no stop, and a spoken web address is written as one by
+the same address reading as in any field. A page's own field labelled "URL" stays an ordinary one-line field.
+Other browsers' labels are added as they are read from the real application.
+
 Markup notation (AD.35) is `markup` rows of `spoken-commands.json`, each naming the slot of HTML or
 CSS it is read in. `MarkupPosition` (`Sources/UttrflowCore/Adapters/MarkupPosition.swift`) reads the
 slot from the text before the caret: text between tags, inside a tag, a selector, a property, a
