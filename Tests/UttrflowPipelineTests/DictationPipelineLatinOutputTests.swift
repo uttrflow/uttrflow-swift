@@ -94,7 +94,10 @@ struct DictationPipelineLatinOutputTests {
         scenario.take = ScenarioDriver.take(Array(scenario.pieces.prefix(1)))
         let run = await ScenarioDriver.run(scenario)
         #expect(run.writes.isEmpty)
-        #expect(run.state == .failed(DictationFailure(SpeechEngineError.speechWithoutWords)))
+        #expect(
+            run.state
+                == .failed(
+                    DictationFailure(SpeechEngineError.speechWithoutWords).meant(for: scenario.context)))
         #expect(run.heard.count == 2)
     }
 
