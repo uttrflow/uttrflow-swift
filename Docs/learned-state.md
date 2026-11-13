@@ -99,6 +99,21 @@ an unclosed tail), and, for a dictation of at most 12 words, `styleShortMessage`
 `meanSentenceLength` = words / sentences and `closingStopRate` = closing stops / short
 dictations. No contraction rate is kept: acting on one would rewrite the user's words.
 
+## Per-application use
+
+A dictation into an application also writes one `useInApp` row per dictionary entry it used,
+subject `<entry id>|<bundle identifier>`. `WorkingSet` adds `applicationWeight` (1.0) times the
+saturating recent use in the frontmost application, so the working set there prefers that
+application's words. Only the newest 5,000 such rows are read, which bounds the map. Bundle
+identifiers stay in the local ledger and are never reported.
+## Language tally
+
+`LanguageSignals` writes one `language` row (+1) per inserted, non-secure dictation, with the
+detected language code as the subject and no word of the text. A dictation of fewer than 8 words,
+or whose verdict has a confidence below 0.8, writes nothing, and a verdict with no confidence (the speech engine reports none) counts only from 15 words, because detection on a short
+piece is unreliable and a tally of wrong verdicts would teach the wrong language. The projection
+is a count per code.
+
 ## Spelling preferences
 
 `SpellingPreferences` writes one `spellingPreference` row per word of an edit inside dictated
@@ -132,7 +147,7 @@ separate days on each side: more undone days than kept is `vetoed`, so one undo 
 kept on at least 3 separate days and more than undone is `confirmed`; anything else is inert. At most
 `ConfusionPairs.maximumNewPairsPerDay` (10) new pairs start counting on one day, the first written;
 a pair past that starts on the next day with room, so a field rewritten in bulk teaches no more than
-the cap a day; `PairLedger` (Docs/app-dictionary.md) reads the same constant for pairs that become entries. A kept replacement that is not Latin script writes no row. A
+the cap a day. A kept replacement that is not Latin script writes no row. A
 pair is a feature to the correction gate, never a rewrite on its own. An undone row on the
 Corrections page whose pair is vetoed says so, with an Allow action that writes `pairAllowed`; the
 projection then ignores every `pairVetoed` row for the pair on or before that day. The rows are ordinary

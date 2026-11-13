@@ -33,7 +33,8 @@ The rest reads only the first `windowLength` characters.
 5. A SQL statement: no full stop at the end, and no English articles (`the`, `a`, `your`,
    `please`, `should`…) unless the statement corroborates itself (a trailing semicolon,
    `SELECT *`, a second clause keyword). "Select an item from the list below" satisfies every
-   clause-shape test you can write.
+   clause-shape test you can write. `FROM` may stand on a later line than `SELECT`, as formatted
+   SQL puts each clause on its own line; the two are read within 400 characters of each other.
 6. Scoring.
 
 ## Scoring

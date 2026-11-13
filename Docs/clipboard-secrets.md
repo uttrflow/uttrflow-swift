@@ -385,7 +385,10 @@ The classifier's own patterns are written so they cannot backtrack either: HTTP(
 `https?://[^\s/?#]\S*`, and an explicit scheme list handles other addresses. A clip whose first
 nonblank line is an address or Markdown link, a list of addresses, or an address followed by a title
 can be a link; prose that only contains an address stays text. A functional colour's arguments use
-`\([^()]*\)`, and a call uses `\w\(\S`. Every line-start rule in `CodeShapes` uses `^\h*`, which
+`\([^()]*\)`, and a call uses `\w\(\S`. A perceptual colour (`hwb`, `lab`, `lch`, `oklab`,
+`oklch`, `color()`) is a colour only with three number, percentage or angle components and an
+optional alpha, so `lab(banana)` and `color(me impressed)` stay text; a functional colour copied
+with the one `;` that ends its declaration is still a colour. Every line-start rule in `CodeShapes` uses `^\h*`, which
 cannot run through a block of blank lines the way `^\s*` would.
 
 ### Word boundaries

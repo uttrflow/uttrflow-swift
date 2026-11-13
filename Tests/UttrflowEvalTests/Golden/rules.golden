@@ -93,6 +93,12 @@ code-editor-comment-keeps-its-stop	The retry count resets after a failure.
 code-editor-identifier-from-screen	Call fetchInvoices before the sheet appears
 code-editor-large-number-ungrouped	let limit = 12000
 code-editor-line-break-preserved	Retry the request\nLog the failure
+code-editor-name-request-constant	MAX_RETRIES
+code-editor-name-request-file-convention	get_user_by_id
+code-editor-name-request-language-default	get_user_by_id
+code-editor-name-request-spoken-style-wins	get_user_by_id
+code-editor-name-request-type-role	UserProfile
+code-editor-name-request-variable	retryCount
 code-editor-numeral-no-stop	Bump the retry count to 20
 code-editor-one-line-commit	Fix crash when the cart is empty
 code-editor-one-line-intellij	Log the retry count
@@ -116,6 +122,7 @@ code-editor-spoken-case-stops-at-comma	userId, then explain it
 code-editor-spoken-empty-parentheses	()
 code-editor-spoken-equals	max retries = 5
 code-editor-spoken-snake-case	max_retries
+code-editor-unrequested-words-keep-spacing	get user by id
 code-token-caret-a4	A4 paper please.
 code-token-caret-b12	B12 in the morning.
 code-token-caret-h2	H2 in the outline.
@@ -578,6 +585,16 @@ joined-q-and-a-few-kept	Invite q and a few others.
 joined-r-and-d	R&D owns the roadmap.
 joined-slash-and-burn-kept	They farm by slash and burn.
 joined-slash-key-kept	Press the slash key twice.
+json-decimal-number	"price": 9.99
+json-fraction-number	"ratio": 0.5
+json-mixed-array	"flags": [true, null, 7]
+json-negative-number	"offset": -5
+json-null-value	"manager": null
+json-number-array	"ports": [80, 443]
+json-number-value	"age": 30
+json-pair-then-comma	"retries": 3,
+json-string-array	"tags": ["red", "blue"]
+json-two-pairs	"name": "sam", "age": 30
 keeps-heard-capital-on-company-name	Visit Apple today.
 keeps-heard-capital-on-name-that-is-also-a-word	Open Slack and message Grace.
 keeps-heard-capitals-in-a-quoted-label	Use the "Save As" option.
@@ -969,7 +986,7 @@ probe-contract-clauses	Clause 9.1 the supplier shall\n(a) deliver within 30 days
 probe-cover-letter	Dear Ms Alvarez,\n\nI am writing to apply for the senior analyst position advertised on your careers page.\n\nIn my current role I lead a team of six analysts and reduced reporting time by 30%.\n\nI would welcome the chance to discuss my application,\nYours sincerely,\nAsha Verma
 probe-decision-record	We decided to store sessions in Redis rather than Postgres because the read volume is high and the data is disposable the trade off is that a restart logs everyone out so we will enable append only persistence.
 probe-docker-build-no-cache	docker build --no-cache .
-probe-docker-run-flags	docker run --rm -p 8000:8000 -v ~/projects/app: /app node:20 alpine
+probe-docker-run-flags	docker run --rm -p 8000:8000 -v ~/projects/app: /app node:20-alpine
 probe-dockerfile-from	From node: 20 dash alpine as build
 probe-file-name-opening	config.yaml is missing the timeout key so the client falls back to 30 seconds.
 probe-flight-details	We fly on flight UA 472 from JFK to heathrow on Friday the third of October departing at 6:45 am from gate B12 and landing at 6:10 pm local time at terminal five.

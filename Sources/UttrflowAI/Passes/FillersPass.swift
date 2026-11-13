@@ -12,6 +12,26 @@ public struct FillersPass: PieceCleaningPass {
         "um", "umm", "uh", "uhh", "uhm", "er", "erm", "ah", "hmm", "mmm", "aah", "ahh", "mhm",
     ]
 
+    /// Whether the word is a hesitation sound, held longer than its listed spelling included: "ummm", "errr", "hmmm".
+    static func isFiller(_ key: String) -> Bool { fillerWords.contains(listedSpelling(of: key)) }
+
+    /// The listed spelling a held one stands for, shortest first ("uhhh" is "uh", "hmmm" is "hmm"), or the key itself.
+    static func listedSpelling(of key: String) -> String {
+        // Only a letter said three or more times is held; "err" and a lone "m" stay words.
+        let letters = Array(key)
+        let held = letters.indices.dropFirst(2).contains {
+            letters[$0] == letters[$0 - 1] && letters[$0] == letters[$0 - 2]
+        }
+        guard held, !fillerWords.contains(key) else { return key }
+        let sound = singled(key)
+        return fillerWords.filter { singled($0) == sound }.min { ($0.count, $0) < ($1.count, $1) } ?? key
+    }
+
+    /// The word with each run of one letter written once: "ummm" is "um".
+    private static func singled(_ word: String) -> String {
+        word.reduce(into: "") { if $0.last != $1 { $0.append($1) } }
+    }
+
     /// Words a sentence sets off with a comma of its own, which a removed filler beside them leaves in place.
     static let discourseWords: Set<String> = [
         "yes", "no", "yeah", "okay", "ok", "well", "thanks", "so", "now", "actually",
@@ -64,12 +84,14 @@ public struct FillersPass: PieceCleaningPass {
                 previous = index
                 continue
             }
-            if live.count == 1, Self.standaloneReplies.contains(draft.shape(at: index).key) {
+            if live.count == 1,
+                Self.standaloneReplies.contains(Self.listedSpelling(of: draft.shape(at: index).key))
+            {
                 previous = index
                 continue
             }
             // Only noun-capable filler spellings need protection when a determiner opens their noun phrase.
-            guard Self.fillerWords.contains(draft.shape(at: index).key),
+            guard Self.isFiller(draft.shape(at: index).key),
                 !MentionGuard.namesToken(at: position, in: live, of: draft),
                 !Self.nounLikeFillerWords.contains(draft.shape(at: index).key)
                     || position == 0
@@ -117,7 +139,7 @@ public struct FillersPass: PieceCleaningPass {
         guard parts.count > 1 else { return nil }
         let isFiller = parts.map { part in
             let shape = WordShape(part)
-            return shape.core.allSatisfy(\.isLetter) && fillerWords.contains(shape.key)
+            return shape.core.allSatisfy(\.isLetter) && Self.isFiller(shape.key)
         }
         guard isFiller.contains(true) else { return nil }
         var kept = ""
@@ -138,7 +160,7 @@ public struct FillersPass: PieceCleaningPass {
         let parts = shape.core.split(separator: "-", omittingEmptySubsequences: false).map(String.init)
         guard parts.count > 1, let word = parts.first, let last = word.lowercased().last,
             word.allSatisfy(\.isLetter), !echoSounds.contains(word.lowercased()),
-            !fillerWords.contains(word.lowercased())
+            !isFiller(word.lowercased())
         else { return nil }
         let isEcho = { (part: String) -> Bool in
             let lower = part.lowercased()
@@ -171,7 +193,7 @@ public struct FillersPass: PieceCleaningPass {
         guard first.prefix.isEmpty, first.suffix.isEmpty, second.prefix.isEmpty
         else { return nil }
         let written: String
-        switch (first.key, second.key) {
+        switch (listedSpelling(of: first.key), listedSpelling(of: second.key)) {
         case ("uh", "huh"): written = "uh-huh"
         case ("uh", "oh"): written = "uh-oh"
         case ("mm", "hmm"): written = "mm-hmm"

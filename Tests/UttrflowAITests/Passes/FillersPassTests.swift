@@ -24,6 +24,27 @@ struct FillersPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test(
+        "removes a filler held longer than its listed spelling",
+        arguments: [
+            ("ummm what time is it", "what time is it"),
+            ("uhhh give me a second", "give me a second"),
+            ("errr I don't remember", "I don't remember"),
+            ("hmmm interesting idea", "interesting idea"),
+            ("mmmm okay", "okay"),
+        ]
+    )
+    func removesHeldFillers(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "keeps a word that only looks like a held filler",
+        arguments: ["to err is human", "plan m works", "brrr it is cold"])
+    func keepsWordsNearHeldFillers(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
     @Test("removes fillers joined to neighboring words by an ellipsis")
     func removesEllipsisJoinedFillers() {
         #expect(
@@ -58,6 +79,8 @@ struct FillersPassTests {
             ("uh huh sounds good", "Uh-huh sounds good"),
             ("uh oh", "Uh-oh"),
             ("mm hmm", "Mm-hmm"),
+            ("mm hmmm", "Mm-hmm"),
+            ("uhhh oh", "Uh-oh"),
         ]
     )
     func joinsInterjections(input: String, expected: String) {
@@ -68,6 +91,7 @@ struct FillersPassTests {
     func keepsStandaloneReplies() {
         #expect(cleaned("hmm", by: sut) == "hmm")
         #expect(cleaned("mhm", by: sut) == "mhm")
+        #expect(cleaned("hmmm", by: sut) == "hmmm")
         #expect(cleaned("hello there hmm", by: sut) == "hello there")
         #expect(cleaned("hello there mhm", by: sut) == "hello there")
     }

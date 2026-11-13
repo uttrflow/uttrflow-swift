@@ -128,6 +128,8 @@ extension CaretStructure {
             return Markers(line: [], block: ("<!--", "-->"))
         case "css", "scss", "less":
             return Markers(line: [], block: ("/*", "*/"))
+        case "json":
+            return Markers(line: [], block: nil)
         default:
             return nil
         }

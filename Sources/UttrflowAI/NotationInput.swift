@@ -5,8 +5,8 @@ enum NotationInput {
     /// The marks a recogniser writes at a pause; a mark said aloud is a word of its own and is not touched.
     private static let pauseMarks = WordShape.clauseMarks
 
-    /// The draft with each pause mark taken off its word and each capital that only opened a clause lowered.
-    static func settled(_ draft: Draft, by pass: PassID) -> Draft {
+    /// The draft with each pause mark taken off its word, except JSON's separators, and each capital that only opened a clause lowered.
+    static func settled(_ draft: Draft, by pass: PassID, keepingJSONMarks: Bool = false) -> Draft {
         var draft = draft
         var opensClause = true
         let live = draft.presentIndices
@@ -22,7 +22,10 @@ enum NotationInput {
             var core = shape.core
             if opensClause, isTitleCase(core) { core = core.prefix(1).lowercased() + core.dropFirst() }
             let keepsColon = registryTagColon(at: position, in: live, of: draft)
-            let suffix = shape.suffix.filter { !pauseMarks.contains($0) || keepsColon && $0 == ":" }
+            let suffix = shape.suffix.filter {
+                !pauseMarks.contains($0) || keepsColon && $0 == ":"
+                    || keepingJSONMarks && ($0 == "," || $0 == ":")
+            }
             let written = shape.prefix + core + suffix
             if written != text { draft.replace(at: index, with: written, by: pass) }
             opensClause = !keepsColon && shape.suffix.contains(where: pauseMarks.contains)
