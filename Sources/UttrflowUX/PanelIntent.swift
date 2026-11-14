@@ -38,6 +38,10 @@ public enum PanelIntent: Sendable, Equatable {
     case openAccessibilitySettings
     /// I1, I2 — start dictating into the search field, or stop.
     case dictate
+    /// Switch clipboard capture back on from the panel that says it is off.
+    case turnOnCapture
+    /// End a clipboard capture pause from the panel that says it is paused.
+    case resumeCapture
     /// The bottom bar: which slice of the clipboard to browse.
     case scope(PanelScope)
     /// The bottom bar's way out of the panel, into Uttrflow's own settings.
@@ -64,7 +68,7 @@ public enum PanelIntent: Sendable, Equatable {
         // D5 — no key: running a formatter is another program, which only the app can do.
         case .scope(let scope): .scope(scope)
         case .format, .copy, .pin, .unpin, .markNotSecret, .markSecret, .undoDelete, .keepQuery,
-            .openAccessibilitySettings, .openSettings, .dictate:
+            .openAccessibilitySettings, .openSettings, .dictate, .turnOnCapture, .resumeCapture:
             nil
         }
     }
