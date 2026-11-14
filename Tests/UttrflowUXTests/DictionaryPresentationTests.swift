@@ -910,14 +910,3 @@ struct DictionarySelectionTests {
         #expect(DictionaryPresenter.selection([hidden.id], in: rows) == nil)
     }
 }
-
-@Suite("The dictionary editor's risk note")
-struct DictionaryRiskNoteTests {
-    @Test("a word that sounds like ordinary words is noted, and an unusual one is not")
-    func riskNote() {
-        let risky = DictionaryPresenter.riskNote(for: DictionaryDraft(word: "Cee", pronunciation: "see"))
-        #expect(risky?.hasPrefix("This may replace ordinary words") == true)
-        #expect(DictionaryPresenter.riskNote(for: DictionaryDraft(word: "Zyxel")) == nil)
-        #expect(DictionaryPresenter.riskNote(for: DictionaryDraft()) == nil)
-    }
-}

@@ -16,6 +16,13 @@ struct EntryRiskCheckTests {
         #expect(EntryRiskCheck.risk(of: entry("Ayr", sounding: ["air"])).isRisky)
     }
 
+    @Test("a word followed by punctuation still counts")
+    func punctuationIsIgnored() {
+        let sentences = ["I will see.", "Did you see!", "Nothing here", "Nor here"]
+        let risk = EntryRiskCheck.risk(of: entry("Cee", sounding: ["see"]), sentences: sentences)
+        #expect(risk.sentencesHit == 2)
+    }
+
     @Test("an unusual word is not flagged")
     func unusualWordNotFlagged() {
         #expect(!EntryRiskCheck.risk(of: entry("Zyxel")).isRisky)

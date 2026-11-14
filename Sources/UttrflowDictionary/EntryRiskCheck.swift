@@ -1,4 +1,5 @@
 // Whether a word added to the dictionary would be proposed in place of ordinary words, found before it can do harm.
+import Foundation
 
 /// What replaying the shipped sentences through the dictionary lookup says about one entry.
 public struct EntryRisk: Sendable, Equatable {
@@ -24,7 +25,9 @@ public enum EntryRiskCheck {
     ) -> EntryRisk {
         let index = PhoneticIndex(entries: [entry])
         let hit = sentences.filter { sentence in
-            sentence.split(separator: " ").map { String($0).lowercased() }.contains { word in
+            sentence.split(whereSeparator: \.isWhitespace).map {
+                $0.trimmingCharacters(in: .punctuationCharacters).lowercased()
+            }.contains { word in
                 GeneralVocabulary.isOrdinary(word) && !index.candidates(soundingLike: word).isEmpty
             }
         }

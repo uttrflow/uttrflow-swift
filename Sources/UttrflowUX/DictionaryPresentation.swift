@@ -927,19 +927,6 @@ public enum DictionaryPresenter {
         readings(of: draft, word: draft.word).first { !$0.refusesSaving }?.note(for: draft.word)
     }
 
-    /// Says so when the typed word would be proposed for ordinary words in the shipped sample sentences; saving stays allowed.
-    static func riskNote(for draft: DictionaryDraft) -> String? {
-        let word = draft.word.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !word.isEmpty else { return nil }
-        let entry = DictionaryEntry(
-            word: word, pronunciations: DictionaryEntry.pronunciations(inField: draft.pronunciation),
-            origin: .added, firstSeen: Date(timeIntervalSince1970: 0))
-        let risk = EntryRiskCheck.risk(of: entry)
-        guard risk.isRisky else { return nil }
-        return "This may replace ordinary words: it sounds like them in \(risk.sentencesHit) of "
-            + "\(risk.sentencesChecked) sample sentences. You can still add it."
-    }
-
     /// How the index will read each pronunciation in the field, in the order typed.
     private static func readings(of draft: DictionaryDraft, word: String) -> [PronunciationReading] {
         DictionaryEntry.pronunciations(inField: draft.pronunciation).compactMap {
