@@ -26,7 +26,8 @@ struct DiagnosticsReportRedactionTests {
             ])
         return DiagnosticsSnapshot(
             vocabularyPrompt: [secrets[5], secrets[6], secrets[7]], cleaning: cleaning,
-            tidyTally: tally(), lastCleanedBy: .rules)
+            tidyTally: tally(), lastCleanedBy: .rules
+        ).tracing(["piece 1    \(secrets[0])", "result     \(secrets[2])"])
     }
 
     /// A tally whose one skip carries free text that must never be copied out.

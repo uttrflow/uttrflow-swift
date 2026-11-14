@@ -5,6 +5,8 @@ public import UttrflowHistory
 public struct DiagnosticsSnapshot: Sendable, Equatable {
     /// Which engines are configured, in preference order.
     public let engines: EngineConfiguration
+    /// The last dictation's trace lines while the developer switch is on; never part of the copied report.
+    package var trace: [String] = []
     /// The recogniser the pipeline transcribes with, which trails the setting until a switch has been taken up.
     public let speechInUse: SpeechEngineKind?
     /// What each clean-up engine answered when last asked whether it can run here; absent means never asked.
@@ -89,7 +91,8 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         machine: String? = nil,
         arrivals: [RecordedArrival?] = [],
         qualityLayers: QualityLayers = QualityLayers(),
-        learnedState: EvidenceLedgerError? = nil
+        learnedState: EvidenceLedgerError? = nil,
+        trace: [String] = []
     ) {
         self.engines = engines
         self.speechInUse = speechInUse
@@ -119,5 +122,15 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         self.arrivals = arrivals
         self.qualityLayers = qualityLayers
         self.learnedState = learnedState
+        self.trace = trace
+    }
+}
+
+extension DiagnosticsSnapshot {
+    /// This snapshot with the last dictation's trace lines, which the copied report never reads.
+    package func tracing(_ lines: [String]) -> DiagnosticsSnapshot {
+        var snapshot = self
+        snapshot.trace = lines
+        return snapshot
     }
 }

@@ -27,6 +27,7 @@ struct DiagnosticsExportContractTests {
         "cleaning.refusals.engine": .appName,
         "cleaning.changes.step.rawValue": .appName,
         "vocabularyPrompt": .neverPrinted,
+        "trace": .neverPrinted,
         "cleaning.changes.removed": .neverPrinted,
         "cleaning.changes.replaced.from": .neverPrinted,
         "cleaning.changes.replaced.to": .neverPrinted,
@@ -43,7 +44,8 @@ struct DiagnosticsExportContractTests {
         return DiagnosticsSnapshot(
             vocabularyPrompt: base.vocabularyPrompt, speechModelLoads: [load],
             cleaning: base.cleaning, lastCleanedBy: base.lastCleanedBy,
-            version: AppVersion(short: "1.0", build: "1"), machine: "macOS 26.0, example chip, 16 GB")
+            version: AppVersion(short: "1.0", build: "1"), machine: "macOS 26.0, example chip, 16 GB"
+        ).tracing(base.trace)
     }
 
     /// The dotted field path of every `String` reachable from `value`, with collection positions left out.

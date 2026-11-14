@@ -35,6 +35,7 @@ refusal. The page on screen may quote words; the copy never does.
 | `qualityLayers` | nothing: shown on the page only |
 | `learnedState` | a line under On disk when the learned-state file is set aside: newer than this build, unreadable, or kept aside and rebuilt from History |
 | `vocabularyPrompt` | nothing: dictionary words are absent |
+| `trace` | nothing: the last dictation's trace is shown on the page only, while `DictationTrace` is on ([dictation-trace.md](dictation-trace.md#in-the-app)) |
 
 `cleaning` holds the dictated words a step removed or rewrote and the free-text reason a model
 answer was refused. The report counts the former and prints only the `RefusalKind` summary of the

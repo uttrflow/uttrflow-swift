@@ -286,6 +286,14 @@ public protocol CleaningRecording: Sendable {
     func record(_ record: CleaningRecord) async
 }
 
+/// Keeps the last dictation's trace while its developer switch is on. See `Docs/dictation-trace.md`.
+package protocol DictationTraceRecording: Sendable {
+    /// Whether a trace is wanted now, so none is built while the switch is off.
+    var tracesDictations: Bool { get }
+    /// Keeps `lines` in place of the last dictation's.
+    func recordTrace(_ lines: [String])
+}
+
 /// A recorder that discards everything, for callers with no page to draw.
 public struct NoOpCleaningRecorder: CleaningRecording {
     public init() {}

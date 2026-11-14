@@ -196,6 +196,8 @@ public struct DiagnosticsPresentation: Sendable, Equatable {
     public let engines: [DiagnosticsRow]
     /// What each clean-up step did to the last dictation, and which steps are switched off.
     public let cleanUp: [DiagnosticsRow]
+    /// The last dictation's trace, one line per fact; empty unless the developer switch is on.
+    package var trace: [String] = []
     /// The exact dictionary words included in the latest recogniser prompt.
     public let vocabularyPrompt: DiagnosticsRow
     /// One row per quality layer, saying whether it runs and whether that is its default.
@@ -278,7 +280,7 @@ public enum DiagnosticsPresenter {
         let storage =
             storageRows(for: snapshot, locale: locale) + learnedStateRows(for: snapshot.learnedState)
 
-        return DiagnosticsPresentation(
+        var page = DiagnosticsPresentation(
             summary: summary(
                 engines: engines, permissions: permissions, availability: availability,
                 storage: storage),
@@ -311,6 +313,8 @@ public enum DiagnosticsPresenter {
             footnote: footnote,
             copyAction: MainAction(
                 title: "Copy Diagnostics", intent: .copy(report(for: snapshot, locale: locale))))
+        page.trace = snapshot.trace
+        return page
     }
 
     /// Names only the fixed detector reasons, never the line that was skipped.

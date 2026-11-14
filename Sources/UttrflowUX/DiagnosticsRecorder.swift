@@ -1,8 +1,14 @@
 // Keeps the stage timings the diagnostics page reports, in memory and bounded.
 public import UttrflowCore
+import Foundation
+import Synchronization
 
 /// Keeps the stage timings the diagnostics page reports, in memory only, so nothing is written to disk.
-public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording, TidyOutcomeRecording {
+public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording, TidyOutcomeRecording,
+    DictationTraceRecording
+{
+    /// The local defaults key that turns the dictation trace on (`-DictationTrace YES`); off when unset.
+    package static let traceKey = "DictationTrace"
     /// Six stages at a hundred dictations, computed from ``PipelineStage`` so a new stage cannot shorten it.
     public static let defaultCapacity = PipelineStage.allCases.count * 100
 
@@ -13,10 +19,39 @@ public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording, TidyOutco
     /// Closed skip reasons only; no captured line reaches the diagnostics recorder.
     private var captureSkips: [CaptureSkipReason: Int] = [:]
 
+    /// Whether the developer switch is on, read each time so turning it off takes effect at once.
+    private let traceSwitch: @Sendable () -> Bool
+    /// The last dictation's trace lines, in memory only; read without a hop so the page can draw them.
+    private let heldTrace = Mutex<[String]>([])
+
     /// Keeps up to `capacity` measurements; a nonsense capacity keeps none.
     public init(capacity: Int = DiagnosticsRecorder.defaultCapacity) {
+        self.init(capacity: capacity) { UserDefaults.standard.bool(forKey: DiagnosticsRecorder.traceKey) }
+    }
+
+    /// As above, with the trace switch read from `traceSwitch` instead of the local defaults.
+    package init(
+        capacity: Int = DiagnosticsRecorder.defaultCapacity, traceSwitch: @escaping @Sendable () -> Bool
+    ) {
         // Clamped rather than trusted: a negative capacity would trap in `removeFirst`.
         self.capacity = max(0, capacity)
+        self.traceSwitch = traceSwitch
+    }
+
+    /// Whether the developer switch is on now.
+    package nonisolated var tracesDictations: Bool { traceSwitch() }
+
+    /// Keeps the last dictation's trace, only while the switch is on.
+    package nonisolated func recordTrace(_ lines: [String]) {
+        heldTrace.withLock { $0 = tracesDictations ? lines : [] }
+    }
+
+    /// The last dictation's trace, or none while the switch is off, which also drops what is held.
+    package nonisolated var trace: [String] {
+        heldTrace.withLock { held in
+            if !tracesDictations { held = [] }
+            return held
+        }
     }
 
     /// Keeps a measurement, dropping the oldest once full.
@@ -139,5 +174,6 @@ public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording, TidyOutco
         readRungs = ContextReadTally()
         lastCleaning = nil
         vocabularyPrompt = []
+        heldTrace.withLock { $0 = [] }
     }
 }

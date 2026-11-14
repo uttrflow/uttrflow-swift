@@ -79,6 +79,7 @@ extension DictationPipeline {
                 toWrite, cleanedBy: whole.cleaned.producedBy, changes: changes,
                 doubtful: DoubtfulWordsOutcome.locating(whole.heard.saying(whole.corrected), in: toWrite),
                 delivery: delivery, generation: mine, recording: tally,
+                trace: { PieceTrace(pieces: message.pieces, joined: joined, text: output).lines },
                 account: cleaningAccount(including: whole.cleaned.cleaning),
                 unavailableEngines: whole.cleaned.cleaning?.unavailableEngines ?? [],
                 guardRefusals: whole.cleaned.cleaning?.refusals.map(\.kind) ?? [],
@@ -156,7 +157,7 @@ extension DictationPipeline {
     private func insert(
         _ text: String, cleanedBy: TransformerKind, changes: AppliedChanges,
         doubtful: DoubtfulWordsOutcome = .notAvailable, delivery: Delivery, generation mine: Int,
-        recording tally: StageTally, account: CleaningRecord,
+        recording tally: StageTally, trace: () -> [String], account: CleaningRecord,
         unavailableEngines: [CleaningRecord.UnavailableEngine],
         guardRefusals: [RefusalKind],
         destination: InsertionDestination
@@ -185,6 +186,12 @@ extension DictationPipeline {
             }
             // A field found secure at the write counts from here on, before anything is learnt from it.
             if attempt.intoSecureField { destinationIsSecure = true }
+            // A secure field's words are kept nowhere, the trace included.
+            if !destinationIsSecure, let tracer = cleaningRecorder as? any DictationTraceRecording,
+                tracer.tracesDictations
+            {
+                tracer.recordTrace(trace())
+            }
             let slowCause = await timeWait(recorded: tally)
             await settleRecording(wordsLost: MissedSpeech.isMissing(missedPieces))
             transition(

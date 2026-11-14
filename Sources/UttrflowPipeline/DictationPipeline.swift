@@ -26,7 +26,7 @@ public actor DictationPipeline {
     /// Which quality layers run; a layer that is off leaves its stage's input as it came.
     let layers: QualityLayers
     /// Where the account of what the clean-up steps did to each dictation goes.
-    private let cleaningRecorder: any CleaningRecording
+    let cleaningRecorder: any CleaningRecording
     /// The apps the user has told Uttrflow to treat as somewhere other than the table says.
     private var destinationOverrides: DestinationOverrides
     /// The tidier, overrides and languages this dictation began with, so a change made while speaking lands on the next one.

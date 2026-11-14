@@ -66,12 +66,21 @@ Nowhere but the terminal. The command writes no log line and no file; redirectin
 the only way the text reaches the disk, and that is the person's choice. `make log-audit` and
 `make offline-audit` hold the rest of the app to the same promise.
 
+## In the app
+
+The same piece-and-join lines are shown under "Last dictation" in Settings > Diagnostics while
+the local defaults key `DictationTrace` is on (`defaults write <bundle id> DictationTrace -bool
+YES`, or `-DictationTrace YES` for one launch). There is no visible switch, and it is off when
+unset. The app holds only the last dictation's lines, in memory: none for a secure field, never
+logged or written, never in "Copy diagnostics", and dropped when the key is turned off or a reset
+forgets the last dictation. `DiagnosticsTraceTests`, `DiagnosticsRecorderTraceTests` and
+`DictationTraceOutcomeTests` check this.
+
 ## What it does not show yet
 
 - **A refused model's raw answer.** `model said` is the answer that was kept; a refused answer
   reaches the trace as its reason only. `uttrflow-dev clean --explain` asks the model
   separately and prints every guard check's verdict on its answer
   ([ai-model-output.md](ai-model-output.md#the-checks-are-one-ordered-list)).
-- **An in-app view.** The trace is a developer command; there is no switch for it in the app.
 - **The personal dictionary.** Doubtful runs are read with the standard sources only, so a
   reading the user's own dictionary would offer is not listed.

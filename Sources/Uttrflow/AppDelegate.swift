@@ -3493,7 +3493,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 lastCleanedBy: lastCleanedBy,
                 suggestionModel: suggestionModel, version: .ofThisBuild,
                 machine: MachineDescription.current, arrivals: entries.map(\.arrival),
-                qualityLayers: qualityLayers, learnedState: ledgerRefusal),
+                qualityLayers: qualityLayers, learnedState: ledgerRefusal, trace: diagnostics.trace),
             suggestionModelBytesOnDisk: releaseModel.cachedBytesOnDisk,
             account: accountPage(at: now),
             shortcutKeycaps: SettingsShortcut.keycaps(for: settings.shortcuts.first(for: .dictate))

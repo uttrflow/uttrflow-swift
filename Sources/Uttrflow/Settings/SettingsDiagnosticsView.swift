@@ -74,6 +74,9 @@ struct SettingsDiagnosticsView: View {
                             fact(row, icon: index == 0 ? .symbol("waveform.path.ecg", .suggestion) : nil)
                                 .overlay(alignment: .top) { if index > 0 { rule } }
                         }
+                        if !presentation.trace.isEmpty {
+                            trace.overlay(alignment: .top) { rule }
+                        }
                         copyRow.overlay(alignment: .top) { rule }
                     }
                 }
@@ -128,6 +131,21 @@ struct SettingsDiagnosticsView: View {
     private func fact(_ row: DiagnosticsRow, icon: SettingsIcon?) -> some View {
         SettingsDiagnosticsFact(
             row: row, icon: icon, isSystemValue: presentation.system.contains(row), onIntent: onIntent)
+    }
+
+    /// The last dictation's trace, shown only while the developer switch is on.
+    private var trace: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(Array(presentation.trace.enumerated()), id: \.offset) { _, line in
+                Text(line)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(PagePalette.quiet)
+                    .textSelection(.enabled)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
     }
 
     private var copyRow: some View {
