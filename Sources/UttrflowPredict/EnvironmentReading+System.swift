@@ -24,9 +24,6 @@ public struct SystemEnvironmentReader: EnvironmentReading, AliasExpansionReading
         "/Applications/Xcode.app/Contents/Developer/usr/bin/git",
     ]
 
-    /// Where programs are looked for beyond the `PATH` this process was launched with, which an app's is not the shell's.
-    static let extraSearchPaths = ["/opt/homebrew/bin", "/usr/local/bin"]
-
     /// The shell configuration read for aliases, relative to the user's home directory.
     static let aliasFiles = [".zshrc", ".zshenv", ".bashrc", ".bash_profile", ".aliases"]
 
@@ -147,7 +144,9 @@ public struct SystemEnvironmentReader: EnvironmentReading, AliasExpansionReading
     /// Every program on the search path, up to `executableLimit` across every directory combined.
     private func executables() -> [String] {
         var found: [String] = []
-        directories: for directory in Self.searchPaths() {
+        directories: for directory in EnvironmentSearchRules.searchPaths(
+            path: ProcessInfo.processInfo.environment["PATH"])
+        {
             guard found.count < Self.executableLimit else { break }
             for name in visible(in: directory) {
                 guard found.count < Self.executableLimit else { break directories }
@@ -156,14 +155,6 @@ public struct SystemEnvironmentReader: EnvironmentReading, AliasExpansionReading
             }
         }
         return found
-    }
-
-    /// The directories programs are looked for in: the launch `PATH`, then where Homebrew and installers put them.
-    static func searchPaths() -> [String] {
-        let launched = (ProcessInfo.processInfo.environment["PATH"] ?? "").split(separator: ":").map(
-            String.init)
-        var seen: Set<String> = []
-        return (launched + extraSearchPaths).filter { seen.insert($0).inserted }
     }
 
     /// The visible entries of one directory, empty when it cannot be read.
@@ -196,16 +187,6 @@ public struct SystemEnvironmentReader: EnvironmentReading, AliasExpansionReading
         names.lazy.compactMap { files.contents(ofFile: "\(directory)/\($0)", limit: Self.fileLimit) }.first
     }
 
-    /// How a program is asked to list its verbs, which is `--help` for most and a listing command for the few that keep one.
-    static func listingArguments(for program: String) -> [String] {
-        switch program {
-        case "cargo": ["--list"]
-        case "brew": ["commands", "--quiet"]
-        case "npm": ["help"]
-        default: ["--help"]
-        }
-    }
-
     /// Fewer names than this is a help page without a command list, which is no answer rather than a short one.
     static let fewestListedVerbs = 3
 
@@ -220,7 +201,8 @@ public struct SystemEnvironmentReader: EnvironmentReading, AliasExpansionReading
         guard
             let tool = CommandLookup.program(named: program, in: programDirectories, outside: directory),
             let output = await run(
-                tool, arguments: Self.listingArguments(for: program), within: Self.helpTimeoutInSeconds,
+                tool, arguments: EnvironmentSearchRules.listingArguments(for: program),
+                within: Self.helpTimeoutInSeconds,
                 searchPath: CommandLookup.runnableDirectories(programDirectories, outside: directory))
         else { return nil }
         let names = HelpCommands.names(in: output)
