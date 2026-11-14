@@ -130,7 +130,7 @@ public struct FirstWordPass: WholeTextCleaningPass {
                 // A line opens as the text does: under `.asSpoken` that is the case it was heard in.
                 let spokenBefore = draft.words[..<index].filter { !$0.heard.isEmpty }.count
                 cased = keepingPinnedCase(
-                    Self.matchingHeardCase(cased, heard: Array(heardWords.dropFirst(spokenBefore))))
+                    Self.spokenCase(cased, heard: Array(heardWords.dropFirst(spokenBefore))))
             } else if startOfSentence {
                 cased = keepingPinnedCase(WordShape.capitalised(cased))
             } else if policy == .fromInsertionPoint,
@@ -226,7 +226,7 @@ public struct FirstWordPass: WholeTextCleaningPass {
         case .alwaysCapital:
             return WordShape.capitalised(word)
         case .asSpoken:
-            return Self.matchingHeardCase(word, heard: heard)
+            return Self.spokenCase(word, heard: heard)
         case .fromInsertionPoint:
             guard state == .midSentence, !holdsCapital(word, in: text) else {
                 return WordShape.capitalised(word)
@@ -525,6 +525,13 @@ public struct FirstWordPass: WholeTextCleaningPass {
         let letters = core.filter(\.isLetter)
         if core.contains(where: \.isNumber) && letters.contains(where: \.isUppercase) { return true }
         return (letters.count >= 2 && letters.allSatisfy(\.isUppercase)) || WordShape.keepsWrittenCase(core)
+    }
+
+    /// The case the word was heard in, except that the pronoun "I" and its contractions keep their capital.
+    static func spokenCase(_ word: String, heard: [String]) -> String {
+        let shape = WordShape(word)
+        let isPronoun = shape.key == "i" || shape.key.hasPrefix("i'") || shape.key.hasPrefix("i\u{2019}")
+        return isPronoun && pronounCapitalised(word) == word ? word : matchingHeardCase(word, heard: heard)
     }
 
     /// Copies the case the word was heard in from where it stands, skipping fillers; a changed word is left alone.
