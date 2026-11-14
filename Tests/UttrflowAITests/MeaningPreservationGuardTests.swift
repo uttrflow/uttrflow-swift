@@ -1415,6 +1415,26 @@ struct GrammarGuardTests {
         }
     }
 
+    @Test("an empty reading is never written, and a digit closes the word before it")
+    func emptyReadingAndDigitEdges() {
+        #expect(!MeaningPreservationGuard.isWritten("", in: "anything"))
+        let edges = MeaningPreservationGuard.closedUpEdges("mp3 file")
+        #expect(edges.ends.contains(2), "a word ends between \"mp\" and \"3\"")
+        #expect(edges.begins.contains(0))
+    }
+
+    @Test("judges a stand-alone dash or ellipsis between two sentences as the same text without it")
+    func lonePunctuationTokenIsNotAWord() {
+        for mark in ["-", "...", "\u{2014}"] {
+            let with = sut.verdict(
+                original: "we shipped it. \(mark) the build held",
+                rewritten: "We shipped it. \(mark) The build held.")
+            let without = sut.verdict(
+                original: "we shipped it. the build held", rewritten: "We shipped it. The build held.")
+            #expect(with.isAccepted == without.isAccepted, "\(mark)")
+        }
+    }
+
     @Test("refuses a heard run that is only part of a longer word")
     func refusesAReadingInsideALongerWord() {
         for line in ["the repayment sheet", "the payments heeded", "the paymentsheetrow"] {
