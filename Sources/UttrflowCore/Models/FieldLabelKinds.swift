@@ -35,6 +35,22 @@ enum FieldLabelKinds {
         return strong.isEmpty && weak.count == 1 ? weak.first : nil
     }
 
+    /// Whether the label names a sensitive value anywhere in it, checked apart from the one-kind rule so a label that also names another kind is still kept private.
+    static func namesASecret(_ label: String) -> Bool {
+        let words = label.lowercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map(
+            String.init)
+        var index = 0
+        while index < words.count {
+            guard let (row, length) = longestPhrase(in: words, at: index) else {
+                index += 1
+                continue
+            }
+            if row.kind == .sensitive { return true }
+            index += length
+        }
+        return false
+    }
+
     /// The longest phrase in the table that starts at `index`, with the number of words it covers.
     private static func longestPhrase(in words: [String], at index: Int) -> (Row, Int)? {
         for length in stride(from: min(longestPhraseLength, words.count - index), through: 1, by: -1) {
