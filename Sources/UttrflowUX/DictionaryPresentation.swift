@@ -260,6 +260,8 @@ public struct DictionaryEditor: Sendable, Equatable {
     public let pronunciationHint: String
     /// What the index will do with the pronunciation as typed; absent when it keys as an ordinary sounded phrase.
     public let pronunciationNote: String?
+    /// Why this word may be written in place of ordinary words, with the choice still the person's; absent when it would not.
+    public let riskNote: String?
     /// "New".
     public let badge: MainPill
     /// Why this cannot be saved yet, in words. Absent when it can.
@@ -294,6 +296,7 @@ public struct DictionaryEditor: Sendable, Equatable {
         pronunciationLabel: String,
         pronunciationHint: String,
         pronunciationNote: String?,
+        riskNote: String? = nil,
         badge: MainPill,
         problem: String?,
         replace: MainAction? = nil,
@@ -317,6 +320,7 @@ public struct DictionaryEditor: Sendable, Equatable {
         self.pronunciationLabel = pronunciationLabel
         self.pronunciationHint = pronunciationHint
         self.pronunciationNote = pronunciationNote
+        self.riskNote = riskNote
         self.badge = badge
         self.problem = problem
         self.replace = replace
@@ -825,6 +829,7 @@ public enum DictionaryPresenter {
             pronunciationLabel: "Say it like",
             pronunciationHint: pronunciationHint(for: draft),
             pronunciationNote: pronunciationNote(for: draft),
+            riskNote: riskNote(for: draft),
             badge: MainPill(text: draft.editing == nil ? "New" : "Editing"),
             problem: problem(with: draft, in: snapshot),
             replace: draft.editing != nil
