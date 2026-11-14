@@ -126,12 +126,14 @@ struct ReportBreakdownTests {
             score("c", reference: ["one"], heard: ["एक"], answeredIn: .devanagari),
             score("d", reference: [], heard: [], failure: .audioUnreadable("no file")),
             score("e", reference: ["one"], heard: [], failure: .recognisedNothing),
+            score("f", reference: ["one"], heard: ["ایک"], answeredIn: .arabic),
         ])
         let signatures = Set(subject.findings.map(\.signature))
         #expect(signatures.contains(.dropped("two")))
         #expect(signatures.contains(.inserted("extra")))
         #expect(signatures.contains(.lostRequiredTerm("two")))
         #expect(signatures.contains(.answeredInDevanagari))
+        #expect(signatures.contains(.answeredInArabic))
         #expect(signatures.contains(.failed(.audioUnreadable)))
         #expect(signatures.contains(.failed(.recognisedNothing)))
     }
@@ -140,7 +142,8 @@ struct ReportBreakdownTests {
     func findingsExplainThemselves() {
         let all: [Finding.Signature] = [
             .misheard("priya", heard: "preeya"), .dropped("the"), .inserted("um"),
-            .lostRequiredTerm("PostgreSQL"), .answeredInDevanagari, .failed(.engineFailed),
+            .lostRequiredTerm("PostgreSQL"), .answeredInDevanagari, .answeredInArabic,
+            .failed(.engineFailed),
         ]
         for signature in all { #expect(signature.description.count > 5) }
         #expect(Finding.Signature.misheard("a", heard: "b").description == "\"a\" heard as \"b\"")
