@@ -9,6 +9,8 @@ struct FieldRoleTests {
             ("AXTextField", false, "Cc:", .recipient),
             ("AXTextField", false, "Subject", .subject),
             ("AXTextField", false, "URL", .singleLine),
+            ("AXTextField", false, "Address and search bar", .addressBar),
+            ("AXTextArea", true, "Address and search bar", .message),
             ("AXTextField", false, "Search mail", .singleLine),
             ("AXSearchField", false, "Subject", .search),
             ("AXTextArea", true, "Message body", .message),
