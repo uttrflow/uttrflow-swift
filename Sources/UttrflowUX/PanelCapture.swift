@@ -11,6 +11,16 @@ public enum PanelCapture: Sendable, Equatable {
     case paused(until: Date)
 }
 
+extension PanelCapture {
+    /// What to say from the setting and the pause; preferences that cannot be read hold capture paused with no end, which reads as off.
+    public static func decided(isEnabled: Bool, isPaused: Bool, pausedUntil: Date?) -> PanelCapture {
+        guard isEnabled else { return .off }
+        guard isPaused else { return .on }
+        guard let pausedUntil else { return .off }
+        return .paused(until: pausedUntil)
+    }
+}
+
 extension PanelPresenter {
     /// The one nothing that is about capture rather than the list, or `nil` when copies are being kept.
     static func captureEmptyState(for snapshot: PanelSnapshot) -> MainEmptyState? {

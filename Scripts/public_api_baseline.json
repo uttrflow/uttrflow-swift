@@ -5396,7 +5396,7 @@
     "UttrflowUX func current": 1,
     "UttrflowUX func date": 1,
     "UttrflowUX func day": 1,
-    "UttrflowUX func decided": 1,
+    "UttrflowUX func decided": 2,
     "UttrflowUX func decision": 1,
     "UttrflowUX func defaultOrigin": 1,
     "UttrflowUX func descriptor": 1,
@@ -6446,5 +6446,5 @@
     "UttrflowUX var withdrawsTrust": 1,
     "UttrflowUX var words": 2
   },
-  "total": 9175
+  "total": 9176
 }

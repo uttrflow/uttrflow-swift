@@ -2124,17 +2124,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Whether copies are being kept, said in the panel so an empty list is not mistaken for a broken one.
     private func panelCapture() -> PanelCapture {
-        guard settings.clipboardEnabled else { return .off }
-        guard isClipboardPaused else { return .on }
-        // Unreadable preferences hold capture paused with no end, which reads as off rather than as a countdown.
-        guard let until = clipboardPause.until else { return .off }
-        return .paused(until: until)
-    }
-
-    /// Redraws the open panel after capture was switched from it.
-    private func refreshPanelCapture() {
-        panel?.capture = panelCapture()
-        if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
+        .decided(
+            isEnabled: settings.clipboardEnabled, isPaused: isClipboardPaused,
+            pausedUntil: clipboardPause.until)
     }
 
     /// B3–B5 — whether Return will place a clip or only copy it, asked while there is still somewhere to say so.
@@ -2508,12 +2500,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             // Closed first: Settings activates the app, and the panel would belong to nothing.
             closeQuickPanel()
             show(.settings(.general))
-        case .turnOnCapture:
-            settingsPage.apply(.toggle(.clipboardEnabled, isOn: true))
-            refreshPanelCapture()
-        case .resumeCapture:
-            setClipboardPaused(false)
-            refreshPanelCapture()
+        case .turnOnCapture, .resumeCapture:
+            if intent == .turnOnCapture { settingsPage.apply(.toggle(.clipboardEnabled, isOn: true)) }
+            if intent == .resumeCapture { setClipboardPaused(false) }
+            panel?.capture = panelCapture()
+            if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
         case .insert, .insertCleaned, .reveal, .alias, .move, .edit, .delete, .renameCategory,
             .deleteCategory, .reindent, .makeNote, .scope:
             // Answered above, by `intent.key`.

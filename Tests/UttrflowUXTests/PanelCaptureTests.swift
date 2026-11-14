@@ -68,4 +68,16 @@ struct PanelCaptureTests {
             PanelPresenter.present(snapshot).notice?.announcementID
                 == PanelPresenter.present(snapshot).notice?.announcementID)
     }
+
+    @Test("the setting and the pause decide the state, and an endless pause reads as off")
+    func decidedFromTheSettings() {
+        let until = PanelFixture.now
+        #expect(PanelCapture.decided(isEnabled: false, isPaused: false, pausedUntil: nil) == .off)
+        #expect(PanelCapture.decided(isEnabled: false, isPaused: true, pausedUntil: until) == .off)
+        #expect(PanelCapture.decided(isEnabled: true, isPaused: false, pausedUntil: nil) == .on)
+        #expect(
+            PanelCapture.decided(isEnabled: true, isPaused: true, pausedUntil: until) == .paused(until: until)
+        )
+        #expect(PanelCapture.decided(isEnabled: true, isPaused: true, pausedUntil: nil) == .off)
+    }
 }
