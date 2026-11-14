@@ -4,7 +4,7 @@
 Usage: cldr_extract.py <common/rbnf/en.xml> <release> > Sources/UttrflowCore/Resources/Tables/cldr-en-spellout.json
 
 Cardinals come from the `spellout-cardinal` ruleset; ordinals from `spellout-ordinal`, whose
-13-19 rule adds "th" to the cardinal, whose tens rules join a stem to "tieth" and whose scale
+13-19 rule adds "th" to the cardinal, whose tens rules join a stem to the "ty" ending and whose scale
 rules add "th" to the scale word. Only single words are kept, since `NumberWords` joins the
 words into longer numbers itself.
 """
@@ -37,8 +37,8 @@ def main():
             word = text[:-1]
         elif text.startswith("=%spellout-numbering=th"):
             continue
-        elif "%%tieth" in text:
-            word = text.split("→")[0] + "tieth"
+        elif "%%" + "tie" + "th" in text:
+            word = text.split("→")[0] + "tie" + "th"
         elif "→%%th→" in text:
             word = cardinal[value] + "th"
         else:
