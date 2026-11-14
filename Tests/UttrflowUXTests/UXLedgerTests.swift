@@ -143,10 +143,11 @@ struct UXLedgerTests {
         ledger.record(.started, at: midnight.addingTimeInterval(10), calendar: cal)
         #expect(ledger.days.first?.retries == 1)
         #expect(ledger.figures.abandonment == 0)
+        ledger.record(.ended(.failed), at: midnight.addingTimeInterval(20), calendar: cal)
         ledger.record(
-            .started, at: midnight.addingTimeInterval(86_400 * Double(UXLedger.daysKept)), calendar: cal)
-        #expect(ledger.figures.abandonment == 0)
-        #expect(ledger.days.allSatisfy { $0.retries == 0 })
+            .started, at: midnight.addingTimeInterval(86_400 * Double(UXLedger.daysKept - 1)), calendar: cal)
+        #expect(ledger.days.first?.retries == 0)
+        #expect(ledger.figures.abandonment == 0.5)
     }
 
     @Test("a ledger reopened after a long idle drops its stale days on load")
