@@ -215,7 +215,8 @@ extension DictationPipeline {
                 await finish(
                     piece, saying: corrected, seeing: appContext, finalPiece: index == heard.indices.last,
                     after: rolling, recording: NoOpMetricsRecorder(), for: generation + 1))
-            rolling = RollingContext(after: corrected)
+            let carried = RollingContext.carried(after: corrected, heard: piece, following: rolling)
+            rolling = carried.after(rolling)
         }
         let joined = await join(
             RunningMessage(pieces), going: situation, seeing: appContext, vocabulary: vocabulary,
