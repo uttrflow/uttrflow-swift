@@ -18,9 +18,6 @@ public enum StageTimeout: Sendable {
     /// The whole tidying stage, as a backstop; each engine on the route has its own allowance inside it.
     public static let transformation = Duration.seconds(30)
 
-    /// Everything optional after key-up together (correction, tidying, the message pass, snippets): the slowest of their limits, so the stages share it rather than add up.
-    public static let tail = transformation
-
     /// The router's whole route, every engine and the floor, kept inside the stage so the floor always answers.
     public static let route = Duration.seconds(28)
 

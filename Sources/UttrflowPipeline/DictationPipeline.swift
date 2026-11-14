@@ -172,7 +172,7 @@ public actor DictationPipeline {
         earlyPoll: Duration = .seconds(1),
         pollClock: any Clock<Duration> = ContinuousClock(),
         speechLoadLimit: Duration = StageTimeout.speechModelLoad,
-        tailAllowance: Duration = StageTimeout.tail,
+        tailAllowance: Duration? = nil,
         commands: EditCommandRegistry = EditCommandRegistry(),
         layers: QualityLayers = QualityLayers()
     ) {
@@ -200,7 +200,7 @@ public actor DictationPipeline {
         self.earlyPoll = earlyPoll
         self.pollClock = pollClock
         self.speechLoadLimit = speechLoadLimit
-        self.tailAllowance = tailAllowance
+        self.tailAllowance = tailAllowance ?? StageTimeout.tail
         self.commands = commands
     }
 
@@ -485,4 +485,9 @@ public actor DictationPipeline {
         state = next
         observers.send(next, generation: generation)
     }
+}
+
+extension StageTimeout {
+    /// Everything optional after key-up together (correction, tidying, the message pass, snippets): the slowest of their limits, so the stages share it rather than add up.
+    static let tail = transformation
 }
