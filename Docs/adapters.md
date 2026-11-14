@@ -55,8 +55,7 @@ was said: a bracket is never closed unspoken, an argument is never added, and no
 `FormulaNotationPassTests` holds its cases and the cells that must stay plain.
 
 Shell notation (AD.16) in a terminal also writes what a command line takes beyond flags and pipes: `dollar` before a
-name or bracket is a leading `$` ("dollar home" is `$home`, "dollar open paren date close paren" is `$(date)`,
-"dollar open brace home close brace" is `${home}`), `single quote` opens and closes a single-quoted argument,
+name or bracket is a leading `$` ("dollar home" is `$home`, "dollar open paren date close paren" is `$(date)`), `single quote` opens and closes a single-quoted argument,
 and `backslash` is a leading `\`. A leading
 symbol right after a number is a unit said in words, so "five dollar bill" stays words. The case of a variable's
 name is as it was said; the adapter never adds `sudo`, a flag or an operator the speaker did not say. POSIX forms
