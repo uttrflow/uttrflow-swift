@@ -91,11 +91,14 @@ public struct AppContext: Sendable, Equatable {
         self.selectedText = selectedText
         self.precedingText = precedingText
         self.followingText = followingText
+        let label = fieldLabel.flatMap(Self.fieldLabel)
+        // A field labelled as a card number or a code is kept as private as one the system calls secure.
+        let isSecure = isSecure || label.flatMap(FieldLabelKinds.kind(of:)) == .sensitive
         self.isSecure = isSecure
         self.accessibilityRole = accessibilityRole
         self.accessibilitySubrole = accessibilitySubrole
         self.isMultiline = isMultiline
-        self.fieldLabel = isSecure ? nil : fieldLabel.flatMap(Self.fieldLabel)
+        self.fieldLabel = isSecure ? nil : label
         self.field = field
         self.readRung = readRung
         self.unavailable = unavailable

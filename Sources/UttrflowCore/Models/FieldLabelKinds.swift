@@ -50,7 +50,7 @@ enum FieldLabelKinds {
 
     /// The kinds a label may name; any other role in the table is ignored.
     static let labelKinds: Set<FieldRole> = [
-        .name, .address, .number, .date, .email, .phone, .postalCode, .webAddress, .title,
+        .name, .address, .number, .date, .email, .phone, .postalCode, .webAddress, .title, .sensitive,
     ]
 
     private static let phrases: [String: Row] = Dictionary(
