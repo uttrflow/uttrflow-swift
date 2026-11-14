@@ -15,7 +15,7 @@ struct Bakeoff: AsyncParsableCommand {
         subcommands: [
             Footprint.self, Profile.self, Complete.self, Score.self, MidWord.self, GPUMemory.self,
             ReloadLeaks.self,
-            SpeechShape.self, Marks.self, HomophoneRepair.self, TidyGate.self,
+            SpeechShape.self, Marks.self, HomophoneRepair.self, TidyGate.self, PromptCost.self,
         ]
     )
 
@@ -72,12 +72,6 @@ struct Bakeoff: AsyncParsableCommand {
     )
     var ablate = false
 
-    @Flag(
-        name: .long,
-        help: "Print each prompt rule line and example with its token cost; no model loads."
-    )
-    var ablatePrompt = false
-
     @Option(name: .long, help: "With --ablate: where the recorded corpus and its kept decodes live.")
     var corpusPath = TranscriptionCorpusStore.defaultDirectoryName
 
@@ -128,10 +122,6 @@ struct Bakeoff: AsyncParsableCommand {
     }
 
     func run() async throws {
-        if ablatePrompt {
-            print(PromptBuilder.standard.ablationCostTable())
-            return
-        }
         if ablate {
             let rules = TransformerRouter(
                 engines: [RuleBasedTransformer()], preference: [.rules], rulesAlone: .shortReplies)

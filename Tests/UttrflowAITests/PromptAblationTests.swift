@@ -21,6 +21,24 @@ struct PromptAblationTests {
         #expect(elements.count > examples.count)
     }
 
+    @Test("a small prompt lists exactly its rule lines and examples, in order")
+    func listsExactElements() {
+        let example = WorkedExample(spoken: "one", cleaned: "One.")
+        let small = PromptBuilder(
+            contract: "First rule\n\nSecond rule", contractExamples: [example],
+            blocks: ["x": PromptBlock(id: "x", rules: "Heading\n- a\n- b", examples: [example])])
+        #expect(
+            small.elements == [
+                .contractRule(0), .contractRule(1), .contractExample(0),
+                .blockRule("x", 0), .blockRule("x", 1), .blockRule("x", 2), .blockExample("x", 0),
+            ])
+        #expect(small.leavingOut(.contractRule(1)).contract == "First rule\n")
+        #expect(small.leavingOut(.blockRule("x", 1)).blocks["x"]?.rules == "Heading\n- b")
+        #expect(
+            small.tokenCost(of: .contractExample(0))
+                == FoundationModelRequestBudget.estimatedTokens(in: example.rendered))
+    }
+
     @Test("leaving out an example removes only that example")
     func removesOneExample() throws {
         let removed = builder.leavingOut(.contractExample(0))

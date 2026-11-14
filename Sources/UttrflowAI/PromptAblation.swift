@@ -45,17 +45,16 @@ extension PromptBuilder {
         }
     }
 
-    /// The estimated tokens the element adds to the instructions, counted as the model reads them.
+    /// The estimated tokens the element adds to the instructions, counted from its own text.
     package func tokenCost(of element: PromptElement) -> Int {
         let text: String
         switch element {
         case .contractRule(let line): text = Self.ruleLines(contract)[line]
         case .blockRule(let id, let line): text = Self.ruleLines(blocks[id]?.rules ?? "")[line]
         case .contractExample(let index):
-            text = ModelPrompt(rules: "", examples: [contractExamples[index]]).instructions
+            text = contractExamples[index].rendered
         case .blockExample(let id, let index):
-            let example = blocks[id]?.examples[index]
-            text = ModelPrompt(rules: "", examples: [example].compactMap { $0 }).instructions
+            text = blocks[id]?.examples[index].rendered ?? ""
         }
         return FoundationModelRequestBudget.estimatedTokens(in: text)
     }
