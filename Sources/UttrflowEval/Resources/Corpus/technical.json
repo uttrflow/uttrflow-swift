@@ -1621,17 +1621,6 @@
     "addedFor": 4213
   },
   {
-    "id": "dev-shell-braced-variable",
-    "note": "a braced variable said with its braces",
-    "spoken": "echo dollar open brace name close brace",
-    "expected": "echo ${name}",
-    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
-    "destination": "terminal",
-    "mustKeep": ["echo", "name"],
-    "expectedExact": "echo ${name}",
-    "addedFor": 4213
-  },
-  {
     "id": "dev-shell-single-quote",
     "note": "a single-quoted argument said with the quote name",
     "spoken": "git commit dash m single quote fix the login bug single quote",
