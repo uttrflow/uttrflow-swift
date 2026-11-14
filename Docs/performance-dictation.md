@@ -155,7 +155,8 @@ replies of one to four words, passages of 5 s to 2 min (with a 0.9 s breath ever
 from 30 s up, and one 60 s passage without), numbers, email addresses on `example.com`, code
 identifiers, invented proper nouns with and without a vocabulary, Hinglish read in the Latin
 alphabet, spoken punctuation, self-corrections, the `TranscriptionCorpus` passages, Hindi replies
-(`hi-reply`), mixed-language clips (`code-switch`), and ten clips again with brown noise at 20 and
+(`hi-reply`), Hindi amounts in lakh and crore (`hi-lakh`), Hindi self-corrections (`hi-selfcorrection`),
+Hindi fillers (`hi-fillers`), mixed-language clips (`code-switch`), and ten clips again with brown noise at 20 and
 10 dB SNR, 24 dB quieter and 12 dB hotter (clipping). No recording of a person is involved.
 
 **Developer speech** (`devspeech`) is invented sentences with commands, flags, file names,
@@ -402,7 +403,9 @@ comparable. `Tests/UttrflowEvalTests/Golden/normalisation.tsv` pins both entry p
 stored run through `uttrflow-eval compare`, the rule `make accuracy-gate` judges with; add
 `--save-baseline` to store the run, or `--fail-on-regression` to exit non-zero on a worse slice.
 
-`--categories hi-reply` selects the Hindi replies, whose jobs use the `hi` Languages profile.
+`--categories hi-reply` selects the Hindi replies, whose jobs use the `hi` Languages profile; so do
+`hi-lakh`, `hi-selfcorrection` (the reference keeps only what was corrected to) and `hi-fillers` (the
+reference keeps the fillers, since Hindi filler removal is not a contract), each read by `Lekha`.
 `--categories code-switch` selects an English passage followed by a Hindi one and a Hindi sentence
 followed by an English one, each after a 1.5-second pause; their jobs use both `en,hi` and `hi,en`
 profiles so each piece detects its own language, and both romanised and Devanagari Hindi forms are

@@ -73,6 +73,34 @@ HINDI_REPLIES = [
     ("चलो ठीक है, कल मिलते हैं।", "Chalo thik hai, kal milte hain."),
 ]
 
+# Invented Hindi shapes a Hindi speaker hits that replies and passages do not hold. Each row is the Devanagari said,
+# its romanised form, then the Devanagari and romanised text the product should leave: amounts and fillers are kept as
+# said (Hindi filler removal is not a contract), a spoken correction keeps only what was corrected to.
+HINDI_AMOUNTS = [
+    ("पचास लाख रुपये।", "Pachaas lakh rupaye."),
+    ("दो करोड़ पचास लाख।", "Do karod pachaas lakh."),
+    ("डेढ़ लाख।", "Dedh lakh."),
+    ("तीन लाख बीस हज़ार।", "Teen lakh bees hazaar."),
+    ("साढ़े सात लाख।", "Saadhe saat lakh."),
+    ("एक करोड़ रुपये।", "Ek karod rupaye."),
+]
+HINDI_CORRECTIONS = [
+    ("चार बजे है, नहीं नहीं, पाँच बजे है।", "Chaar baje hai, nahi nahi, paanch baje hai.",
+     "पाँच बजे है।", "Paanch baje hai."),
+    ("मंगलवार को, नहीं बुधवार को मिलते हैं।", "Mangalvaar ko, nahi budhvaar ko milte hain.",
+     "बुधवार को मिलते हैं।", "Budhvaar ko milte hain."),
+    ("दो लाख, मतलब तीन लाख देना है।", "Do lakh, matlab teen lakh dena hai.",
+     "तीन लाख देना है।", "Teen lakh dena hai."),
+    ("वह गाँव गया, नहीं नहीं, शहर गया।", "Woh gaon gaya, nahi nahi, shehar gaya.",
+     "वह शहर गया।", "Woh shehar gaya."),
+]
+HINDI_FILLERS = [
+    ("मतलब, हाँ, अच्छा, मैं कहना चाहता हूँ कि काम हो गया।",
+     "Matlab, haan, accha, main kehna chahta hoon ki kaam ho gaya."),
+    ("वो, मतलब, कल आया था।", "Woh, matlab, kal aaya tha."),
+    ("अच्छा अच्छा, ठीक है, फिर बात करते हैं।", "Accha accha, thik hai, phir baat karte hain."),
+]
+
 NUMBERS = [
     "The invoice comes to 4,250 dollars and 75 cents, due on the 12th of March.",
     ("Our conversion rate went from 3.5 percent to 4.2 percent in 6 weeks.",
@@ -394,6 +422,12 @@ def clips():
         add(f"hi-reply{i}-lekha", "hi-reply", "hindi", "Lekha", said, written,
             spoken=written, devanagari=said)
         out[-1]["languages"] = ["hi"]
+    for name, rows in (("hi-lakh", HINDI_AMOUNTS), ("hi-selfcorrection", HINDI_CORRECTIONS),
+                       ("hi-fillers", HINDI_FILLERS)):
+        for i, row in enumerate(rows):
+            said, spoken, kept, written = row if len(row) == 4 else (*row, *row)
+            add(f"{name}{i}-lekha", name, "hindi", "Lekha", said, written, spoken=spoken, devanagari=kept)
+            out[-1]["languages"] = ["hi"]
     for seconds in (5, 15, 30, 60, 120):
         for k, voice in enumerate(ENGLISH):
             said, written = passage(seconds, 7 * k + seconds, paused=seconds >= 30)
