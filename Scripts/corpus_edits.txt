@@ -807,3 +807,4 @@ undecided-number-pair-kept-as-words expects 413, since a status verb before the 
 dev-bug-report-steps expects 2000, since .thousands groups only from 10,000 as Docs/cleanup.md decides (#6569)
 dev-env-setup expects 2 minutes, since minutes is a decided measure (#6569)
 probe-docker-run-flags the spoken text says the dash in the image tag "node:20-alpine" it expects, as probe-dockerfile-from does (#7018)
+dev-shell-braced-variable removed: the closing brace could not join across a piece cut (#8325)
