@@ -185,6 +185,7 @@ private func makePipeline(
 private func dictate(with pipeline: DictationPipeline) async {
     await pipeline.startRecording()
     await pipeline.finishRecording()
+    await pipeline.settlePostInsertion()
 }
 
 private actor LatePasteContext: ContextEngine {
@@ -949,5 +950,61 @@ private actor CaretMovesBeforeWriting: ContextEngine {
     func currentContext() async -> AppContext {
         reads += 1
         return reads == 1 ? read : write
+    }
+}
+
+/// A vocabulary store that does not answer until the test lets it, as a slow disk would.
+private final class HeldVocabulary: VocabularyLearning, Sendable {
+    private let release = AsyncStream<Void>.makeStream()
+    private let learned = Mutex(0)
+
+    var count: Int { learned.withLock { $0 } }
+
+    func open() { release.continuation.yield() }
+
+    func learn(
+        heard: String, wrote: String, seeing context: AppContext
+    ) async throws(DictationChangeError) {
+        for await _ in release.stream { break }
+        learned.withLock { $0 += 1 }
+    }
+}
+
+@Suite("Work after the words land stays off the dictation's own path")
+struct PostInsertionLaneTests {
+    @Test("a slow learner does not hold the dictation, and still learns once released")
+    func slowLearnerDoesNotHoldTheDictation() async {
+        let vocabulary = HeldVocabulary()
+        let pipeline = makePipeline(vocabulary: vocabulary)
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        guard case .inserted = await pipeline.currentState else {
+            Issue.record("the dictation did not finish while the learner was held")
+            return
+        }
+        #expect(vocabulary.count == 0)
+
+        vocabulary.open()
+        await pipeline.settlePostInsertion()
+        #expect(vocabulary.count == 1)
+    }
+
+    @Test("a second dictation starts while the first one's learning is still held")
+    func nextDictationStartsWhileHeld() async {
+        let vocabulary = HeldVocabulary()
+        let pipeline = makePipeline(vocabulary: vocabulary)
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+        #expect(vocabulary.count == 0)
+
+        vocabulary.open()
+        vocabulary.open()
+        await pipeline.settlePostInsertion()
+        #expect(vocabulary.count == 2)
     }
 }

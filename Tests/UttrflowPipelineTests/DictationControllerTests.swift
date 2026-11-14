@@ -90,7 +90,8 @@ private let controllerOutcome = DictationOutcome(
     text: controllerTidied, method: .accessibility, cleanedBy: .foundationModels,
     insertedInto: "Slack", insertedIntoIdentifier: "com.tinyspeck.slackmacgap",
     spokenFor: .zero,
-    changes: AppliedChanges(spokenWords: 10, heard: controllerSpoken))
+    changes: AppliedChanges(spokenWords: 10, heard: controllerSpoken),
+    spokenLanguage: DetectedLanguage(code: .english, confidence: 0.95))
 
 /// A binding that is nobody's default, so a test can tell it from one the controller supplies.
 private let controllerBinding = HotkeyBinding(keyCode: 40, modifiers: [.control, .shift])

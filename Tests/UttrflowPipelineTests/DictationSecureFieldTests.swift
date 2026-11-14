@@ -71,6 +71,7 @@ private func makePipeline(
 private func dictate(with pipeline: DictationPipeline) async -> DictationState {
     await pipeline.startRecording()
     await pipeline.finishRecording()
+    await pipeline.settlePostInsertion()
     return await pipeline.currentState
 }
 
