@@ -170,7 +170,7 @@ public struct TransformerRouter: TranscriptCleaning {
     /// The engines to try for `request`: the rules alone for a request they finish, otherwise the whole route.
     private func candidates(for request: TransformationRequest) -> [any TextTransformationEngine] {
         let ordered = orderedEngines
-        guard rulesAlone.covers(request), let rules = ordered.first(where: { $0.kind == .rules }) else {
+        guard rulesAlone.covers(request, steps: cleaningSteps), let rules = ordered.first(where: { $0.kind == .rules }) else {
             return ordered
         }
         return [rules]
