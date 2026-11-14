@@ -372,15 +372,7 @@ extension DictationPipeline {
     }
 }
 
-extension DictationPipeline {
-    /// Notes in the dictation's account that a stage passed its words on unchanged; outside a dictation, nothing.
-    func skipped(
-        _ stage: CleaningRecord.SkippedStage.Stage, _ reason: CleaningRecord.SkippedStage.Reason,
-        for mine: Int?
-    ) {
-        if let mine { keep(.skipped(stage, reason), for: mine) }
-    }
-}
+extension DictationPipeline {}
 
 /// What the joined pieces of one dictation became, before anything is inserted.
 struct JoinedDictation: Sendable {

@@ -31,4 +31,12 @@ extension DictationPipeline {
         if let mine, tail?.generation == mine { tail?.spent += took }
         return try outcome.get()
     }
+
+    /// Notes in the dictation's account that a stage passed its words on unchanged; outside a dictation, nothing.
+    func skipped(
+        _ stage: CleaningRecord.SkippedStage.Stage, _ reason: CleaningRecord.SkippedStage.Reason,
+        for mine: Int?
+    ) {
+        if let mine { keep(.skipped(stage, reason), for: mine) }
+    }
 }
