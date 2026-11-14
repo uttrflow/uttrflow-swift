@@ -121,13 +121,12 @@ shows up as an unexpected pass and the list must shrink with it. Measured by tha
 | independent vowel, conjunct, final halant, nukta, digit | 40 | 0 | |
 | anusvara before velar, palatal, retroflex, dental, sibilant | 15 | 0 | |
 | anusvara before a labial | 6 | 6 | मुंबई munbai, नंबर nanbar, संपर्क sanpark |
-| chandrabindu | 6 | 2 | माँ man |
-| visarga after an unwritten vowel | 4 | 3 | अतः ath, नमः namh |
+| chandrabindu | 6 | 0 | |
+| visarga after an unwritten vowel | 4 | 0 | |
 | unwritten vowel | 15 | 1 | हँसना hansana |
 
 Each wrong row is a class, not a word: anusvara is always "n" though it is said "m" before
-प फ ब भ म; a nasal "aa" that is the whole word is shortened as if it ended a longer word; a
-visarga after the unwritten vowel drops the vowel it follows; and the unwritten-vowel rule
+प फ ब भ म; and the unwritten-vowel rule
 drops the vowel after a nasal syllable that people drop in हँसना. The months जनवरी and
 फ़रवरी, whose dropped vowel is the one the right-to-left scan keeps, and चाय "chai" are in
 `commonSpellings`.

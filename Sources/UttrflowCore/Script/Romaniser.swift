@@ -175,7 +175,7 @@ public enum Romaniser {
     static func dropSilentVowels(_ syllables: inout [Syllable]) {
         let count = syllables.count
         // A cluster ending in "y", "r" or "v" keeps it, except nasalised "aa" before final "v"; "mitra" and "karya" keep it.
-        if count > 1, syllables[count - 1].isInherent,
+        if count > 1, syllables[count - 1].isInherent, !syllables[count - 1].hasVisarga,
             let last = syllables[count - 1].consonants.last,
             syllables[count - 1].consonants.count == 1
                 || !["य", "र"].contains(last.base)
@@ -242,7 +242,8 @@ public enum Romaniser {
             }
             if syllable.isNasal {
                 let beforeNasalConsonant = next?.consonants.first.map { [na, ma].contains($0.base) } ?? false
-                if !beforeNasalConsonant { spelled += vowel == "e" && isLast ? "in" : "n" }
+                let isWholeWord = isFirst && isLast && vowel == "aa"
+                if !beforeNasalConsonant && !isWholeWord { spelled += vowel == "e" && isLast ? "in" : "n" }
             }
             if syllable.hasVisarga { spelled += "h" }
             written += spelled
@@ -255,7 +256,8 @@ public enum Romaniser {
         _ syllable: Syllable, isFirst: Bool, isLast: Bool, isClosed: Bool, next: Syllable?
     ) -> String {
         if syllable.isIndependent { return "aa" }
-        if syllable.isNasal { return isLast ? "a" : "aa" }
+        // A word that is only this syllable keeps its length: "maa", where the last syllable of "kahan" is short.
+        if syllable.isNasal { return isLast && !isFirst ? "a" : "aa" }
         if isLast || (next.map { $0.consonants.isEmpty } ?? false) { return "a" }
         // Before a cluster that ends in "y" it is typed single: "karya", "manya".
         if let last = next?.consonants.last, next?.consonants.count ?? 0 > 1, last.base == ya { return "a" }
