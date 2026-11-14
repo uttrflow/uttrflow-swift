@@ -1,4 +1,5 @@
 // Tests each normalisation rule for what it folds away and what it must not.
+import Foundation
 import Testing
 
 @testable import UttrflowEval
@@ -135,6 +136,22 @@ struct ScriptTests {
         #expect(Script.of("मैं meeting में हूँ") == .devanagari)
         #expect(Script.of("") == .latin)
         #expect(Script.of("42 8080") == .latin)
+    }
+
+    @Test("calls text with Arabic-script letters an Arabic answer, and lets Devanagari win")
+    func arabicDetection() {
+        #expect(Script.of("نمستے") == .arabic)
+        #expect(Script.of("meeting میں ہے") == .arabic)
+        #expect(Script.of("मैं میں") == .devanagari)
+        #expect(Script.of("meeting 42") == .latin)
+    }
+
+    @Test("decodes the scripts stored before Arabic was added")
+    func storedScriptsStillDecode() throws {
+        let decoder = JSONDecoder()
+        #expect(try decoder.decode(Script.self, from: Data(#""latin""#.utf8)) == .latin)
+        #expect(try decoder.decode(Script.self, from: Data(#""devanagari""#.utf8)) == .devanagari)
+        #expect(try decoder.decode(Script.self, from: Data(#""arabic""#.utf8)) == .arabic)
     }
 
     /// ICU romanises letter by letter, which is why every score through it is an upper bound.

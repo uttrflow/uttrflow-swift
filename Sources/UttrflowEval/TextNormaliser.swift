@@ -2,13 +2,16 @@
 private import Foundation
 import UttrflowCore
 
-/// Whether any Devanagari is present, the only script distinction the product turns on.
+/// The script a transcript is written in: Devanagari wins when any is present, then Arabic script, otherwise Latin.
 public enum Script: String, Sendable, Equatable, CaseIterable, Codable {
     case latin
     case devanagari
+    /// Hindi speech written in Urdu script, a known recogniser failure.
+    case arabic
 
     public static func of(_ text: String) -> Script {
-        Romaniser.containsDevanagari(text) ? .devanagari : .latin
+        if Romaniser.containsDevanagari(text) { return .devanagari }
+        return text.unicodeScalars.contains { (0x0600...0x06FF).contains($0.value) } ? .arabic : .latin
     }
 }
 

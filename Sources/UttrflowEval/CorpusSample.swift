@@ -72,7 +72,7 @@ public struct CorpusSample: Sendable, Equatable, Codable, Identifiable {
             id: slug,
             language: spokenLanguage,
             stressor: CorpusStress.stressor(for: stresses),
-            romanised: script == .latin ? referenceText : "",
+            romanised: script == .devanagari ? "" : referenceText,
             devanagari: script == .devanagari ? referenceText : nil,
             stresses: stresses
         )
