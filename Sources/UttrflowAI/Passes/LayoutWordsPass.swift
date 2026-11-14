@@ -9,6 +9,8 @@ public struct LayoutWordsPass: PieceCleaningPass {
 
     let layout: LayoutPolicy
     private let insertionState: InsertionPoint.SentenceState
+    /// The line breaks the text before the caret already ends with, so a break said at the head owes only what is missing.
+    private let breaksBeforeCaret: Int
     /// Whether the text is the whole message; a piece may open after a cut, where the break it opens with is still owed.
     private let readsWholeText: Bool
 
@@ -22,6 +24,8 @@ public struct LayoutWordsPass: PieceCleaningPass {
         self.layout = layout
         self.readsWholeText = readsWholeText
         self.insertionState = insertionPoint.sentenceState
+        self.breaksBeforeCaret =
+            insertionPoint.precedingText.map { $0.reversed().prefix { $0.isNewline }.count } ?? 0
     }
 
     public func apply(_ draft: Draft) -> Draft {
@@ -214,7 +218,9 @@ public struct LayoutWordsPass: PieceCleaningPass {
         case .startOfText:
             return (found.length, "", found.isList)
         case .startOfSentence, .midSentence:
-            return found
+            // A paragraph said on a line the caret already opened after a blank line adds no second blank line.
+            let owed = max(0, found.mark.count - breaksBeforeCaret)
+            return (found.length, String(repeating: "\n", count: owed), found.isList)
         case .unknown:
             // A break said again later shows the first was dictated layout, not a mention.
             return corroboratedByLaterBreak ? (found.length, "", found.isList) : nil
