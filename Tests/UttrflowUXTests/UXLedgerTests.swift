@@ -91,12 +91,14 @@ struct UXLedgerTests {
         #expect(store.load() == nil)
     }
 
+    /// The declared type of each stored property of `value`, read by reflection.
+    private func names(_ value: Any) -> [String] {
+        Mirror(reflecting: value).children.map { String(describing: type(of: $0.value)) }
+    }
+
     /// The declared type of every stored property of the ledger and of each of its days.
     private func storedTypes(of ledger: UXLedger) -> [String] {
-        func names(_ value: Any) -> [String] {
-            Mirror(reflecting: value).children.map { String(describing: type(of: $0.value)) }
-        }
-        return names(ledger) + (ledger.days + [UXDay(number: 0)]).flatMap(names)
+        names(ledger) + (ledger.days + [UXDay(number: 0)]).flatMap { names($0) }
     }
 
     /// Types in `types` that are not on the explicit list of what the ledger may hold.
@@ -114,9 +116,18 @@ struct UXLedgerTests {
         #expect(unlisted(storedTypes(of: UXLedger(installedOn: start))) == [])
     }
 
-    @Test("the privacy check refuses an empty container of a text-bearing type")
+    private struct TextPayload { var note = "" }
+
+    private struct EmptyTextHolders {
+        var items: [TextPayload] = []
+        var maybe: TextPayload?
+    }
+
+    @Test("the privacy check refuses an empty container and a nil optional of a text-bearing type")
     func noTextCheckRefusesUnknownContainers() {
-        #expect(unlisted(["Array<TextPayload>", "Optional<String>", "String"]).count == 3)
+        let reflected = names(EmptyTextHolders())
+        #expect(reflected.count == 2)
+        #expect(unlisted(reflected).count == 2)
     }
 
     @Test("a day number follows local midnight in a zone away from UTC")
