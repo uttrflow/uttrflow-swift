@@ -15,6 +15,6 @@ from the destination's primary field, and then needs 8 cases; any other is liste
 | terminal | 45 | 0, none shipped | 8 | 0, none shipped | 0, none shipped |
 | messaging | 81 | 8 | 8 | 0, none shipped | 0, none shipped |
 | email | 17 | 8 | 8 | 8 | 8 |
-| plain | 910 | 10 | 9 | 0, none shipped | 0, none shipped |
+| plain | 912 | 10 | 9 | 0, none shipped | 0, none shipped |
 
 Cells under the floor: none.

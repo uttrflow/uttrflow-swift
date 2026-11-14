@@ -897,6 +897,7 @@ no-make-that-between-amounts	I need five loaves.
 no-ordinary-determiner-reason	She gave no reason.
 no-ordinary-determiner-thanks	He said no thanks to the offer.
 no-punctuation	The build passed everything looks good ship it.
+no-sorry-named-not-said	Tell him no sorry is not good enough.
 notes-name-said-twice	Marcy said the printer quote came in under budget so I told marcy to go ahead.
 notes-name-spelling	Thanks marcy I'll pick up the printer quote this afternoon.
 notes-prose-at-after-email-stays	My email is sam at the office.
@@ -1544,6 +1545,7 @@ undecided-number-pair-kept-as-words	Return 413 when the body is too large.
 version-number	We're on Postgres 16.2 right now.
 wait-no-more-than-kept	You can wait no more than 10 minutes.
 wait-no-takes-back-the-day	Book the room for Friday.
+wait-sorry-named-not-said	I said wait sorry was the wrong thing to say.
 web-chat-message-2280	Sounds good I will join the call in 5 minutes
 web-mail-compose-2280	Hi sam thanks for the update I will review the draft tomorrow.
 web-search-field-2280	cheap flights to lisbon in may
