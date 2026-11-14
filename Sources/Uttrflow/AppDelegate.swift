@@ -2505,7 +2505,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             if intent == .resumeCapture { setClipboardPaused(false) }
             panel?.capture = panelCapture()
             if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
-        case .insert, .insertCleaned, .reveal, .alias, .move, .edit, .delete, .renameCategory,
+        case .insert, .insertCleaned, .reveal, .conceal, .alias, .move, .edit, .delete, .renameCategory,
             .deleteCategory, .reindent, .makeNote, .scope:
             // Answered above, by `intent.key`.
             break

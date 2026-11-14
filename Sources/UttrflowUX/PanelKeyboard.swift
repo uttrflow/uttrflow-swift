@@ -29,6 +29,8 @@ public enum PanelKey: Sendable, Equatable {
     case chooseCleaned(Clip.ID)
     /// Show what a masked clip actually says.
     case reveal(Clip.ID)
+    /// Cover a revealed secret again.
+    case conceal(Clip.ID)
     /// Name a clip, or rename it.
     case alias(Clip.ID)
     /// Open the clip's text for editing.
@@ -162,6 +164,7 @@ extension PanelSnapshot {
         case .choose(let id): choosing(id)
         case .chooseCleaned(let id): choosingCleaned(id)
         case .reveal(let id): PanelResponse(state: revealing(id), outcome: .open)
+        case .conceal(let id): PanelResponse(state: concealing(id), outcome: .open)
         case .alias(let id): opening(.aliasing(id, draft: aliasDraft(for: id)))
         case .move(let id): opening(.moving(id, draft: ""))
         case .edit(let id): editing(id)
@@ -325,6 +328,13 @@ extension PanelSnapshot {
     func revealing(_ id: Clip.ID) -> PanelSnapshot {
         var next = self
         next.revealed.insert(id)
+        return next
+    }
+
+    /// Masking a revealed secret again, as quick as asking to see it.
+    func concealing(_ id: Clip.ID) -> PanelSnapshot {
+        var next = self
+        next.revealed.remove(id)
         return next
     }
 }

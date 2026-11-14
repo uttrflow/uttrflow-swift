@@ -57,7 +57,7 @@ package enum PanelShortcutCatalog {
 extension PanelRowAction {
     var helpTitle: String {
         switch self {
-        case .reveal: String(localized: "Reveal secret", comment: "Quick panel row action.")
+        case .reveal: String(localized: "Reveal or hide secret", comment: "Quick panel row action.")
         case .copy: String(localized: "Copy clip", comment: "Quick panel row action.")
         case .pin: String(localized: "Pin or unpin clip", comment: "Quick panel row action.")
         case .alias: String(localized: "Name or rename clip", comment: "Quick panel row action.")

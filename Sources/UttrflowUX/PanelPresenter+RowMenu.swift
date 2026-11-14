@@ -24,6 +24,12 @@ extension PanelPresenter {
                     title: "Reveal", symbolName: "eye", intent: .reveal(clip.id),
                     shortcut: PanelRowAction.reveal.chord))
         }
+        if clip.kind == .secret, !isMasked {
+            actions.append(
+                PanelAction(
+                    title: "Hide", symbolName: "eye.slash", intent: .conceal(clip.id),
+                    shortcut: PanelRowAction.reveal.chord))
+        }
         actions.append(
             PanelAction(
                 title: "Copy", symbolName: "doc.on.doc", intent: .copy(clip.id),
