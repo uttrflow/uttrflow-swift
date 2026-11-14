@@ -10,7 +10,8 @@ import Testing
 @Suite("A pause before a conjunction, or after a written stop, writes what one piece does")
 struct ConjunctionSeamTests {
     private let pipeline: DictationPipeline = {
-        let router = TransformerRouter(engines: [RuleBasedTransformer()], preference: [.rules])
+        let router = TransformerRouter(
+            engines: [RuleBasedTransformer()], preference: [.rules], clock: ManualClock())
         return DictationPipeline(
             capture: FakeAudioCaptureEngine(), speech: FakeSpeechEngine(), cleaner: router,
             context: FakeContextEngine(), inserter: FakeTextInserter(),

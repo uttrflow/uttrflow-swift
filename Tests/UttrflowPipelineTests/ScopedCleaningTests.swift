@@ -35,7 +35,8 @@ private struct ScopedSnippets: SnippetExpanding {
 struct ScopedCleaningTests {
     private func pipeline(noting asked: AskedApplications) -> DictationPipeline {
         let router = TransformerRouter(
-            engines: [RuleBasedTransformer()], preference: [.rules], rulesAlone: .shortReplies)
+            engines: [RuleBasedTransformer()], preference: [.rules], clock: ManualClock(),
+            rulesAlone: .shortReplies)
         return DictationPipeline(
             capture: FakeAudioCaptureEngine(), speech: FakeSpeechEngine(), cleaner: router,
             context: FakeContextEngine(), inserter: FakeTextInserter(), speechWords: { _ in [] },

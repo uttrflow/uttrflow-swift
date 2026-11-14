@@ -18,7 +18,8 @@ struct CleanedDictationTests {
     ) -> DictationPipeline {
         let index = PhoneticIndex(entries: entries)
         let router = TransformerRouter(
-            engines: [RuleBasedTransformer()], preference: [.rules], rulesAlone: .shortReplies)
+            engines: [RuleBasedTransformer()], preference: [.rules], clock: ManualClock(),
+            rulesAlone: .shortReplies)
         return DictationPipeline(
             capture: FakeAudioCaptureEngine(), speech: FakeSpeechEngine(), cleaner: router,
             context: FakeContextEngine(), inserter: FakeTextInserter(), speechWords: speechWords,

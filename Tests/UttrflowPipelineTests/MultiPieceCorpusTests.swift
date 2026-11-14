@@ -1,5 +1,6 @@
 import Testing
 import UttrflowCore
+import UttrflowTestSupport
 
 @testable import UttrflowAI
 @testable import UttrflowPipeline
@@ -17,7 +18,8 @@ struct MultiPieceCase: Sendable, CustomTestStringConvertible {
 
 @Suite("Multi-piece corpus: whole-message decisions are made once, of the joined text")
 struct MultiPieceCorpusTests {
-    private let router = TransformerRouter(engines: [RuleBasedTransformer()], preference: [.rules])
+    private let router = TransformerRouter(
+        engines: [RuleBasedTransformer()], preference: [.rules], clock: ManualClock())
 
     private static let chat = AppContext.fixture(
         applicationName: "Messages", bundleIdentifier: "com.apple.MobileSMS")
