@@ -140,6 +140,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [app-onboarding.md](app-onboarding.md) | Onboarding window: sizes and the provider marks |
 | [ux-onboarding.md](ux-onboarding.md) | Onboarding: the rules the flow is built on |
 | [ux-figures.md](ux-figures.md) | The figures on Dictation, Insights and Diagnostics |
+| [ux-measurement.md](ux-measurement.md) | The local counters about how dictation goes |
 | [ux-settings-model.md](ux-settings-model.md) | The settings screen's model |
 | [app-settings-controls.md](app-settings-controls.md) | Settings controls |
 | [app-updates.md](app-updates.md) | Updates: why the app holds Sparkle's install handle |

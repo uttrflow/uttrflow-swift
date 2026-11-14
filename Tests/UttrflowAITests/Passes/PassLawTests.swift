@@ -17,7 +17,7 @@ private let everyPass: [any CleaningPass] = {
     let offByDefault: [any CleaningPass] = [
         CodeEditorCommandsPass(), SQLLayoutPass(), SpokenEmojiPass(destination: .plain),
         AtMentionPass(precedingText: nil), EmailStructurePass(), LetterNamesPass(),
-        MarkdownContinuationPass(position: .at("1. one")),
+        MarkdownContinuationPass(position: .at("1. one")), FormulaNotationPass(cellHoldsFormula: true),
     ]
     return (pipelines.flatMap(\.passes) + offByDefault).filter { seen.insert($0.id).inserted }
 }()
@@ -110,7 +110,7 @@ private func shrunk(_ words: [String], failing: ([String]) -> Bool) -> [String] 
 struct PassLawTests {
     @Test("the suite covers every pass the shipped pipelines run")
     func coversEveryPass() {
-        #expect(everyPass.count == 28)
+        #expect(everyPass.count == 29)
     }
 
     @Test("each stated law holds on generated dictation", arguments: PassLaw.allCases)

@@ -23,7 +23,9 @@ struct NotationAlignment: Sendable {
     /// The rows that write a mark in place of its spoken name: prose punctuation, code symbols and flags.
     static let notationRows = SpokenCommands.all.filter { row in
         switch row.action {
-        case .mark, .codeSymbol, .flag: true
+        // A shell variable's leading `$` and `\` are written by gluing to the name after them, so a currency word is not read as one.
+        case .codeSymbol: row.placement != .leading
+        case .mark, .flag: true
         case .layout, .casing, .keyword, .markup, .leadIn, .replace, .lineMark, .spanMark, .emoji, .key,
             .reformat:
             false

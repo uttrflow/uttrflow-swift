@@ -25,8 +25,11 @@ extension CodeShapes {
     /// Markdown syntax that identifies the whole clip: a heading, a table, or a closed fence.
     static func isMarkdown(_ text: String) -> Bool {
         let lines = text.split(whereSeparator: \.isNewline)
-        if lines.contains(where: { $0.wholeMatch(of: markdownHeading) != nil }) { return true }
-        if zip(lines, lines.dropFirst()).contains(where: { isMarkdownTableHeader($0.0, followedBy: $0.1) }) {
+        if lines.contains(where: isMarkdownHeading) { return true }
+        // A header and its rule alone are two lines of notes; a table has a row under them.
+        if zip(lines, zip(lines.dropFirst(), lines.dropFirst(2))).contains(where: {
+            isMarkdownTableHeader($0.0, followedBy: $0.1.0) && $0.1.1.contains("|")
+        }) {
             return true
         }
         guard let first = lines.first, let last = lines.last else { return false }
@@ -39,6 +42,14 @@ extension CodeShapes {
         header.contains("|") && separator.contains("|")
             && separator.filter { $0 == "-" }.count >= 3
             && separator.allSatisfy { "|:- \t".contains($0) }
+    }
+
+    /// The most words a heading has; a longer line after a hash is a sentence that starts with a number sign.
+    static let longestHeading = 8
+
+    static func isMarkdownHeading(_ line: Substring) -> Bool {
+        line.wholeMatch(of: markdownHeading) != nil
+            && line.split(whereSeparator: \.isWhitespace).count - 1 <= longestHeading
     }
 
     nonisolated(unsafe) static let markdownHeading = #/^\h{0,3}#{1,6}\h+\S.*$/#
@@ -173,7 +184,7 @@ extension CodeShapes {
         (scalar >= "A" && scalar <= "Z") || (scalar >= "a" && scalar <= "z") || scalar == "-"
     }
 
-    nonisolated(unsafe) static let goShortDeclaration = #/^\h*[A-Za-z_]\w*\h*:=\h*\S.*$/#
+    nonisolated(unsafe) static let goShortDeclaration = #/^\h*[a-z_]\w*\h*:=\h*\S.*$/#
         .anchorsMatchLineEndings()
 
     nonisolated(unsafe) static let deferredCall = #/^\h*defer\h+[\w.$]+\([^\n)]*\)\h*$/#
@@ -188,7 +199,7 @@ extension CodeShapes {
         .anchorsMatchLineEndings()
 
     nonisolated(unsafe) static let moduleExportsAssignment =
-        #/^\h*module\.exports(?:\.[\w$]+)?\h*=/#
+        #/^\h*module\.exports(?:\.[\w$]+)?\h*=(?!\h*-?\d+\h*;?\h*$)/#
         .anchorsMatchLineEndings()
 
     // MARK: - The signals
