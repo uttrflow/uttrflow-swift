@@ -79,14 +79,14 @@ struct SnippetExpanderTests {
                 makeSnippet(trigger: "brb", expansion: "be right back"),
                 makeSnippet(trigger: "ok", expansion: "Okay, sounds good."),
                 makeSnippet(trigger: "idk", expansion: "123 ready\nnext line"),
-                makeSnippet(trigger: "dollar", expansion: "$12 ready"),
+                makeSnippet(trigger: "price", expansion: "$12 ready"),
             ], in: nil)
 
         #expect(expander.expand("Brb.").text == "Be right back.")
         #expect(expander.expand("Before. Brb.").text == "Before. Be right back.")
         #expect(expander.expand("Ok.").text == "Okay, sounds good.")
         #expect(expander.expand("Idk.").text == "123 ready\nnext line.")
-        #expect(expander.expand("Dollar.").text == "$12 ready.")
+        #expect(expander.expand("Price.").text == "$12 ready.")
     }
 
     @Test(
