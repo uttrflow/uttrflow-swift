@@ -21,7 +21,7 @@ extension PromptBuilder {
         return found
     }
 
-    /// This prompt with exactly `element` removed and everything else as it was.
+    /// This prompt without `element`, every other part unchanged.
     package func leavingOut(_ element: PromptElement) -> PromptBuilder {
         switch element {
         case .contractRule(let line):
@@ -54,7 +54,8 @@ extension PromptBuilder {
         case .contractExample(let index):
             text = ModelPrompt(rules: "", examples: [contractExamples[index]]).instructions
         case .blockExample(let id, let index):
-            text = ModelPrompt(rules: "", examples: [blocks[id]?.examples[index]].compactMap { $0 }).instructions
+            let example = blocks[id]?.examples[index]
+            text = ModelPrompt(rules: "", examples: [example].compactMap { $0 }).instructions
         }
         return FoundationModelRequestBudget.estimatedTokens(in: text)
     }
@@ -84,7 +85,8 @@ extension PromptBuilder {
     package func ablationCostTable() -> String {
         let rows = elements.map { ($0, tokenCost(of: $0)) }.sorted { $0.1 > $1.1 }
         let lines = rows.map { "\(String($0.1).padding(toLength: 6, withPad: " ", startingAt: 0))\($0.0)" }
-        return (["tokens element"] + lines + ["\(rows.reduce(0) { $0 + $1.1 }) tokens over \(rows.count) elements"])
+        let total = rows.reduce(0) { $0 + $1.1 }
+        return (["tokens element"] + lines + ["\(total) tokens over \(rows.count) elements"])
             .joined(separator: "\n")
     }
 }

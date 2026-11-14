@@ -74,7 +74,7 @@ struct Bakeoff: AsyncParsableCommand {
 
     @Flag(
         name: .long,
-        help: "Print every rule line and worked example of the shipping prompt with the tokens it costs; loads no model."
+        help: "Print each prompt rule line and example with its token cost; no model loads."
     )
     var ablatePrompt = false
 
