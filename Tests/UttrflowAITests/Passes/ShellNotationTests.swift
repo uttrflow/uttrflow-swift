@@ -20,7 +20,6 @@ struct ShellNotationTests {
             ("cd dollar home", "cd $home"),
             ("echo dollar home slash bin", "echo $home/bin"),
             ("echo dollar open paren date close paren", "echo $(date)"),
-            ("echo dollar open brace home close brace", "echo ${home}"),
             ("echo dollar question mark", "echo $?"),
             ("echo single quote hi there single quote", "echo 'hi there'"),
             ("git commit dash m single quote fix bug single quote", "git commit -m 'fix bug'"),

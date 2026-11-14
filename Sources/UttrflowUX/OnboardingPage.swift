@@ -291,9 +291,6 @@ public enum OnboardingIntent: Sendable, Equatable {
     /// Choose whether usage statistics are shared.
     case setUsageStatistics(Bool)
 
-    /// Choose whether copies are kept, on the clipboard page.
-    case setClipboardEnabled(Bool)
-
     /// Close onboarding. Only ever offered on the last page.
     case finish
 }

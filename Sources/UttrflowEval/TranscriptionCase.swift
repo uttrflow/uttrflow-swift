@@ -88,6 +88,7 @@ public struct TranscriptionCase: Sendable, Equatable, Codable, Identifiable {
         switch script {
         case .devanagari: devanagari
         case .latin: romanised.isEmpty ? nil : romanised
+        case .arabic: nil
         }
     }
 

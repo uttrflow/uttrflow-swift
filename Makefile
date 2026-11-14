@@ -256,10 +256,10 @@ offline-test: ## Prove the offline audit still refuses every way of reaching the
 	@python3 Scripts/offline_audit_test.py
 
 # Every design check, each self-test first; Docs/agents/design.md says what each enforces. Runs them all, then fails if any failed.
-DESIGN_AUDITS := design_source_audit design_contrast_audit
+DESIGN_AUDITS := design_source_audit design_contrast_audit screen_approval_audit
 
 .PHONY: design-audit
-design-audit: ## Prove colours, typefaces and contrast follow Docs/agents/design.md, and no generated canvas is back. Needs no build.
+design-audit: ## Prove colours, typefaces and contrast follow Docs/agents/design.md, every listed screen has an approved page, and no generated canvas is back. Needs no build.
 	@failed=""; \
 	for audit in $(DESIGN_AUDITS); do \
 		printf '\n== %s\n' "$$audit"; \

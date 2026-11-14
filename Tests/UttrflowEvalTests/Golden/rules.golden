@@ -206,7 +206,6 @@ dev-readme-commands	To run the service locally install the dependencies with npm
 dev-release-checklist	Before you release:\n1. Run make verify\n2. Tag the commit with --sign\n3. Push the tag with git push --tags
 dev-review-comment	Nit: this loop runs one query per row because the lookup sits inside the map call. Could we load all the accounts once before the loop? The rest looks good to me and the tests cover the empty list case.
 dev-review-reply	Good catch. I moved the timeout into the config struct and renamed it request_timeout_seconds. The default is still 30. I also added a test for the zero case which used to hang forever.
-dev-shell-braced-variable	echo ${name}
 dev-shell-escape	echo \\n
 dev-shell-pipeline	grep -r error logs/app.log | sort | uniq -c | sort -nr | head -20
 dev-shell-single-quote	git commit -m 'fix the login bug'

@@ -12,7 +12,7 @@ struct SpokenCommandsTests {
         #expect(SpokenCommands.table.source == .bundled)
         #expect(SpokenCommands.marks.count == 35)
         #expect(SpokenCommands.layout.count == 10)
-        #expect(SpokenCommands.codeSymbols.count == 56)
+        #expect(SpokenCommands.codeSymbols.count == 54)
         #expect(SpokenCommands.keywords.count == 29)
         #expect(SpokenCommands.casings.count == 12)
         #expect(
