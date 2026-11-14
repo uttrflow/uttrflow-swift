@@ -153,6 +153,24 @@ struct GuardNumberWordsTests {
         #expect((verdict == .accepted) == accepted)
     }
 
+    /// Grouping is how a place writes digits, so a pass that regroups a recogniser's numeral keeps its value.
+    @Test(
+        "the guard reads one value across digit groupings and refuses a changed one",
+        arguments: [
+            ("we shipped 12,000 units", "We shipped 12000 units.", true),
+            ("we shipped 10000 units", "We shipped 10,000 units.", true),
+            ("we shipped 150000 units", "We shipped 1,50,000 units.", true),
+            ("we shipped 1,50,000 units", "We shipped 150000 units.", true),
+            ("we shipped 12,000 units", "We shipped 12,001 units.", false),
+            ("we shipped 150000 units", "We shipped 1,50,001 units.", false),
+            ("we shipped 10000 units", "We shipped 1,000 units.", false),
+        ]
+    )
+    func groupingIsNotPartOfTheValue(original: String, rewritten: String, accepted: Bool) {
+        let verdict = MeaningPreservationGuard().verdict(original: original, rewritten: rewritten)
+        #expect((verdict == .accepted) == accepted)
+    }
+
     /// A magnitude is part of the amount, so "50K", "50 thousand" and "50,000" are one value and a changed magnitude is not.
     @Test(
         "the guard compares an amount's value across magnitude spellings",
