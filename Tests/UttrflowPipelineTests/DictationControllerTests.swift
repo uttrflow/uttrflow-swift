@@ -649,6 +649,38 @@ struct DictationControllerTests {
         #expect(harness.inserter.received.isEmpty)
     }
 
+    /// A chord that begins with the same modifier must not cancel a dictation that is running hands-free.
+    @Test("a withdrawn press while hands-free leaves the dictation listening")
+    func aWithdrawnPressDoesNotCancelHandsFree() async {
+        let harness = makeHarness()
+        await tap(harness)
+        harness.clock.advance(by: .milliseconds(120))
+        await tap(harness)
+        #expect(await harness.pipeline.currentState.isListening)
+
+        await harness.controller.handle(.pressed)
+        await harness.controller.handle(.cancelled)
+
+        #expect(await harness.pipeline.currentState.isListening, "hands-free survives a withdrawn press")
+        #expect(harness.inserter.received.isEmpty)
+    }
+
+    /// Leaning on the key must not finish a dictation that is running hands-free.
+    @Test("a long hold released while hands-free leaves the dictation listening")
+    func aLongHoldWhileHandsFreeDoesNotFinish() async {
+        let harness = makeHarness()
+        await tap(harness)
+        harness.clock.advance(by: .milliseconds(120))
+        await tap(harness)
+
+        await harness.controller.handle(.pressed)
+        harness.clock.advance(by: .seconds(3))
+        await harness.controller.handle(.released)
+
+        #expect(await harness.pipeline.currentState.isListening, "only two taps stop hands-free")
+        #expect(harness.inserter.received.isEmpty)
+    }
+
     /// An accidental tap must not tell the user their speech was too short.
     @Test("cancels without a word when the shortcut is only tapped by accident")
     func aHoldShorterThanTheMinimumIsASlip() async {

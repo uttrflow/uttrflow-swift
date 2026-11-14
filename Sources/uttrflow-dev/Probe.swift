@@ -9,7 +9,7 @@ private import UttrflowEval
 struct Probe: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "probe",
-        abstract: "Measure what tab-to-complete can rely on, before any of it is built.",
+        abstract: "Measure what AI suggestions (tab-to-complete) can rely on in the field in front of you.",
         subcommands: [
             ProbeSurface.self, ProbeSnapshot.self, ProbeRetrieval.self, ProbeTap.self, ProbeIME.self,
             ProbeModifiers.self,

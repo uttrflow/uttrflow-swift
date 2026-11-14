@@ -15,6 +15,16 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 2. [Putting the words on screen, and the traps in doing it](insertion.md) — where macOS fights back.
 3. [Dictating with no network](offline.md) — the promise the architecture exists to keep.
 
+## Names
+
+Two features go by more than one name. This is the map from what people read in the app to what
+the code and these pages call it.
+
+| In the app | Modules and folders | Types and pages | Log category |
+|---|---|---|---|
+| AI suggestions (the switch is "Finish what I am typing"; also tab-to-complete, predict, completion) | `UttrflowPredict`, `UttrflowPredictStore`, `UttrflowPredictCapture`, `Sources/Uttrflow/Suggestion` | `Suggestion*` in the app, `PredictionStore` and `PredictStore`; pages `predict*.md` | `predict` |
+| Tidying up (also clean-up, cleaning, the transformer) | `UttrflowCore/Cleaning`, `UttrflowAI` | `TextTransformers`, `TransformerRouter`, `CleanupModel`, `SettingsTidyingLevel` stored as `transformerPreference`; pages `cleanup.md`, `cleanup-design.md`, `core-engine-kinds.md` | `Clean-up steps` in Diagnostics |
+
 ## From a held key to words
 
 | Page | What it covers |
