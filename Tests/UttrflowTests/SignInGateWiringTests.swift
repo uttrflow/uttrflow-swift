@@ -181,11 +181,7 @@ struct SignedInGateTests {
         let (app, _) = app(signedIn: true, in: sandbox, record: record)
 
         #expect(app.isSignedIn)
-        #expect(!app.surfaces.watchesTheClipboard, "a fresh install records nothing before the choice")
-        record.recordClipboardAnswered()
-        #expect(
-            app.surfaces
-                == SessionSurfaces(isSignedIn: true, clipboardChoiceIsMade: true, settings: Settings()))
+        #expect(app.surfaces == SessionSurfaces(isSignedIn: true, settings: Settings()))
         #expect(app.surfaces.watchesTheClipboard)
         #expect(app.surfaces.listensForDictation)
         #expect(app.surfaces.claimedShortcuts.contains(.clipboard))

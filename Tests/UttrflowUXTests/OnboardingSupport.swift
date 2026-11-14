@@ -57,12 +57,10 @@ final class InMemoryKeyValueStore: KeyValueStore {
 /// The onboarding record, with the launch it survived scripted rather than stored.
 final class FakeRecordStore: OnboardingRecordStore {
     private let finished: Mutex<Bool>
-    private let answeredClipboard: Mutex<Bool>
 
-    /// Starts finished or not, and past the clipboard page or not.
-    init(hasFinished: Bool = false, hasAnsweredClipboard: Bool = true) {
+    /// Starts finished or not.
+    init(hasFinished: Bool = false) {
         finished = Mutex(hasFinished)
-        answeredClipboard = Mutex(hasAnsweredClipboard)
     }
 
     /// Whether onboarding has been completed.
@@ -71,14 +69,6 @@ final class FakeRecordStore: OnboardingRecordStore {
     /// Marks onboarding complete.
     func recordFinished() {
         finished.withLock { $0 = true }
-    }
-
-    /// Whether the clipboard page has been answered.
-    var hasAnsweredClipboard: Bool { answeredClipboard.withLock { $0 } }
-
-    /// Marks the clipboard page answered.
-    func recordClipboardAnswered() {
-        answeredClipboard.withLock { $0 = true }
     }
 }
 
@@ -366,7 +356,7 @@ final class Harness {
     /// What the flow finished with, once it has.
     private(set) var finishedWith: OnboardingReadiness?
 
-    /// Signed in, installed and past the clipboard page by default, so a test about a permission is about that.
+    /// Signed in and installed by default, so a test about a permission is about that.
     init(
         microphone: PermissionStatus = .notDetermined,
         microphoneAfterAsking: PermissionStatus? = .granted,
@@ -375,7 +365,6 @@ final class Harness {
         installer: any OnboardingModelInstaller = InstantInstaller(isInstalled: true),
         settings: Settings = .default,
         hasFinished: Bool = false,
-        hasAnsweredClipboard: Bool = true,
         signedIn: Bool = true,
         entitlementExpiring: Date = .distantFuture,
         profiles: InMemoryProfileCache? = nil,
@@ -391,7 +380,7 @@ final class Harness {
             kind: .accessibility, status: accessibility,
             statusAfterRequest: accessibilityAfterAsking)
         self.installer = installer
-        self.record = FakeRecordStore(hasFinished: hasFinished, hasAnsweredClipboard: hasAnsweredClipboard)
+        self.record = FakeRecordStore(hasFinished: hasFinished)
         self.settingsStore = UserDefaultsSettingsStore(store: InMemoryKeyValueStore())
         self.settingsStore.save(settings)
         self.authentication = authentication
