@@ -82,3 +82,11 @@ struct PostInsertionLaneTests {
         #expect(vocabulary.count == 2)
     }
 }
+
+extension DictationPipeline {
+    /// Ends the recording and waits for the learning and counting its insertion queued.
+    func finishRecordingAndSettle() async {
+        await finishRecording()
+        await settlePostInsertion()
+    }
+}

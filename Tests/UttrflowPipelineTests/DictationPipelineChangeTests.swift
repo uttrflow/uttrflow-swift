@@ -184,8 +184,7 @@ private func makePipeline(
 /// One whole dictation, start to finish.
 private func dictate(with pipeline: DictationPipeline) async {
     await pipeline.startRecording()
-    await pipeline.finishRecording()
-    await pipeline.settlePostInsertion()
+    await pipeline.finishRecordingAndSettle()
 }
 
 private actor LatePasteContext: ContextEngine {
