@@ -5803,5 +5803,433 @@
     "classes": ["abstention"],
     "origin": "synthetic",
     "addedFor": 4213
+  },
+  {
+    "id": "abstain-source-colon-equals-code",
+    "spoken": "the label on the slide read colon equals for some reason",
+    "expected": "The label on the slide read colon equals for some reason.",
+    "mustKeep": [
+      "colon",
+      "equals"
+    ],
+    "mustNotAdd": [
+      "(",
+      ")",
+      "->",
+      ";",
+      "=",
+      ">",
+      ">>",
+      "[",
+      "]",
+      "_",
+      "{",
+      "|",
+      "}",
+      "&",
+      ":"
+    ],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    "
+    },
+    "destination": "codeEditor",
+    "classes": [
+      "abstention"
+    ],
+    "origin": "synthetic",
+    "addedFor": 4223
+  },
+  {
+    "id": "abstain-source-colon-equals-comment",
+    "spoken": "the label on the slide read colon equals for some reason",
+    "expected": "The label on the slide read colon equals for some reason.",
+    "mustKeep": [
+      "colon",
+      "equals"
+    ],
+    "mustNotAdd": [
+      "(",
+      ")",
+      "->",
+      ";",
+      "=",
+      ">",
+      ">>",
+      "[",
+      "]",
+      "_",
+      "{",
+      "|",
+      "}",
+      "&",
+      ":"
+    ],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "total = 0  # "
+    },
+    "destination": "codeEditor",
+    "classes": [
+      "abstention"
+    ],
+    "origin": "synthetic",
+    "addedFor": 4223
+  },
+  {
+    "id": "abstain-source-colon-equals-string",
+    "spoken": "the label on the slide read colon equals for some reason",
+    "expected": "The label on the slide read colon equals for some reason.",
+    "mustKeep": [
+      "colon",
+      "equals"
+    ],
+    "mustNotAdd": [
+      "(",
+      ")",
+      "->",
+      ";",
+      "=",
+      ">",
+      ">>",
+      "[",
+      "]",
+      "_",
+      "{",
+      "|",
+      "}",
+      "&",
+      ":"
+    ],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "message = \""
+    },
+    "destination": "codeEditor",
+    "classes": [
+      "abstention"
+    ],
+    "origin": "synthetic",
+    "addedFor": 4223
+  },
+  {
+    "id": "abstain-source-colon-equals-docstring",
+    "spoken": "the label on the slide read colon equals for some reason",
+    "expected": "The label on the slide read colon equals for some reason.",
+    "mustKeep": [
+      "colon",
+      "equals"
+    ],
+    "mustNotAdd": [
+      "(",
+      ")",
+      "->",
+      ";",
+      "=",
+      ">",
+      ">>",
+      "[",
+      "]",
+      "_",
+      "{",
+      "|",
+      "}",
+      "&",
+      ":"
+    ],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": [
+      "abstention"
+    ],
+    "origin": "synthetic",
+    "addedFor": 4223
+  },
+  {
+    "id": "abstain-source-pipe-pipe-code",
+    "spoken": "the plumber said pipe pipe pipe and left",
+    "expected": "The plumber said pipe pipe pipe and left.",
+    "mustKeep": [
+      "pipe"
+    ],
+    "mustNotAdd": [
+      "(",
+      ")",
+      "->",
+      ";",
+      "=",
+      ">",
+      ">>",
+      "[",
+      "]",
+      "_",
+      "{",
+      "|",
+      "}",
+      "&",
+      ":"
+    ],
+    "context": {
+      "documentName": "notes.go",
+      "precedingText": "total := 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": [
+      "abstention"
+    ],
+    "origin": "synthetic",
+    "addedFor": 4223
+  },
+  {
+    "id": "abstain-source-pipe-pipe-comment",
+    "spoken": "the plumber said pipe pipe pipe and left",
+    "expected": "The plumber said pipe pipe pipe and left.",
+    "mustKeep": [
+      "pipe"
+    ],
+    "mustNotAdd": [
+      "(",
+      ")",
+      "->",
+      ";",
+      "=",
+      ">",
+      ">>",
+      "[",
+      "]",
+      "_",
+      "{",
+      "|",
+      "}",
+      "&",
+      ":"
+    ],
+    "context": {
+      "documentName": "notes.go",
+      "precedingText": "total := 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": [
+      "abstention"
+    ],
+    "origin": "synthetic",
+    "addedFor": 4223
+  },
+  {
+    "id": "abstain-source-pipe-pipe-string",
+    "spoken": "the plumber said pipe pipe pipe and left",
+    "expected": "The plumber said pipe pipe pipe and left.",
+    "mustKeep": [
+      "pipe"
+    ],
+    "mustNotAdd": [
+      "(",
+      ")",
+      "->",
+      ";",
+      "=",
+      ">",
+      ">>",
+      "[",
+      "]",
+      "_",
+      "{",
+      "|",
+      "}",
+      "&",
+      ":"
+    ],
+    "context": {
+      "documentName": "notes.go",
+      "precedingText": "message := \""
+    },
+    "destination": "codeEditor",
+    "classes": [
+      "abstention"
+    ],
+    "origin": "synthetic",
+    "addedFor": 4223
+  },
+  {
+    "id": "abstain-source-pipe-pipe-docstring",
+    "spoken": "the plumber said pipe pipe pipe and left",
+    "expected": "The plumber said pipe pipe pipe and left.",
+    "mustKeep": [
+      "pipe"
+    ],
+    "mustNotAdd": [
+      "(",
+      ")",
+      "->",
+      ";",
+      "=",
+      ">",
+      ">>",
+      "[",
+      "]",
+      "_",
+      "{",
+      "|",
+      "}",
+      "&",
+      ":"
+    ],
+    "context": {
+      "documentName": "notes.go",
+      "precedingText": "/** "
+    },
+    "destination": "codeEditor",
+    "classes": [
+      "abstention"
+    ],
+    "origin": "synthetic",
+    "addedFor": 4223
+  },
+  {
+    "id": "abstain-source-double-pipe-code",
+    "spoken": "the sign read double pipe in red letters",
+    "expected": "The sign read double pipe in red letters.",
+    "mustKeep": [
+      "pipe",
+      "double"
+    ],
+    "mustNotAdd": [
+      "(",
+      ")",
+      "->",
+      ";",
+      "=",
+      ">",
+      ">>",
+      "[",
+      "]",
+      "_",
+      "{",
+      "|",
+      "}",
+      "&",
+      ":"
+    ],
+    "context": {
+      "documentName": "notes.java",
+      "precedingText": "int total = 0;\n"
+    },
+    "destination": "codeEditor",
+    "classes": [
+      "abstention"
+    ],
+    "origin": "synthetic",
+    "addedFor": 4223
+  },
+  {
+    "id": "abstain-source-double-pipe-comment",
+    "spoken": "the sign read double pipe in red letters",
+    "expected": "The sign read double pipe in red letters.",
+    "mustKeep": [
+      "pipe",
+      "double"
+    ],
+    "mustNotAdd": [
+      "(",
+      ")",
+      "->",
+      ";",
+      "=",
+      ">",
+      ">>",
+      "[",
+      "]",
+      "_",
+      "{",
+      "|",
+      "}",
+      "&",
+      ":"
+    ],
+    "context": {
+      "documentName": "notes.java",
+      "precedingText": "int total = 0; // "
+    },
+    "destination": "codeEditor",
+    "classes": [
+      "abstention"
+    ],
+    "origin": "synthetic",
+    "addedFor": 4223
+  },
+  {
+    "id": "abstain-source-double-pipe-string",
+    "spoken": "the sign read double pipe in red letters",
+    "expected": "The sign read double pipe in red letters.",
+    "mustKeep": [
+      "pipe",
+      "double"
+    ],
+    "mustNotAdd": [
+      "(",
+      ")",
+      "->",
+      ";",
+      "=",
+      ">",
+      ">>",
+      "[",
+      "]",
+      "_",
+      "{",
+      "|",
+      "}",
+      "&",
+      ":"
+    ],
+    "context": {
+      "documentName": "notes.java",
+      "precedingText": "String message = \""
+    },
+    "destination": "codeEditor",
+    "classes": [
+      "abstention"
+    ],
+    "origin": "synthetic",
+    "addedFor": 4223
+  },
+  {
+    "id": "abstain-source-double-pipe-docstring",
+    "spoken": "the sign read double pipe in red letters",
+    "expected": "The sign read double pipe in red letters.",
+    "mustKeep": [
+      "pipe",
+      "double"
+    ],
+    "mustNotAdd": [
+      "(",
+      ")",
+      "->",
+      ";",
+      "=",
+      ">",
+      ">>",
+      "[",
+      "]",
+      "_",
+      "{",
+      "|",
+      "}",
+      "&",
+      ":"
+    ],
+    "context": {
+      "documentName": "notes.java",
+      "precedingText": "/** "
+    },
+    "destination": "codeEditor",
+    "classes": [
+      "abstention"
+    ],
+    "origin": "synthetic",
+    "addedFor": 4223
   }
 ]

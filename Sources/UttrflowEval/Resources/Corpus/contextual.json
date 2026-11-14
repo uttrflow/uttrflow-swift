@@ -3862,5 +3862,50 @@
     "mustBeginWith": "Out",
     "mustEndWith": "week",
     "addedFor": 4309
+  },
+  {
+    "id": "code-editor-go-short-declaration",
+    "spoken": "count colon equals one",
+    "expected": "count := 1",
+    "mustKeep": [],
+    "mustNotAdd": [],
+    "context": {
+      "applicationName": "Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "main.go",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "mustEndWith": "1"
+  },
+  {
+    "id": "code-editor-rust-pipe-pipe",
+    "spoken": "ready pipe pipe done",
+    "expected": "ready || done",
+    "mustKeep": [],
+    "mustNotAdd": [],
+    "context": {
+      "applicationName": "Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "lib.rs",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "mustEndWith": "done"
+  },
+  {
+    "id": "code-editor-java-double-pipe",
+    "spoken": "ready double pipe done",
+    "expected": "ready || done",
+    "mustKeep": [],
+    "mustNotAdd": [],
+    "context": {
+      "applicationName": "Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "Main.java",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "mustEndWith": "done"
   }
 ]

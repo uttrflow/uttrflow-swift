@@ -90,7 +90,9 @@ code-editor-command-keeps-case-ls	ls -l
 code-editor-command-keeps-case-npm	npm run build
 code-editor-comment-gets-a-stop	The comment explains why the cache clears.
 code-editor-comment-keeps-its-stop	The retry count resets after a failure.
+code-editor-go-short-declaration	count := 1
 code-editor-identifier-from-screen	Call fetchInvoices before the sheet appears
+code-editor-java-double-pipe	ready || done
 code-editor-large-number-ungrouped	let limit = 12000
 code-editor-line-break-preserved	Retry the request\nLog the failure
 code-editor-name-request-constant	MAX_RETRIES
@@ -109,6 +111,7 @@ code-editor-one-line-timeout	Bump the timeout to 30 seconds
 code-editor-one-line-xcode	Add offline sync for drafts
 code-editor-one-line-zed	Rename the config loader
 code-editor-prose-at-stays	The cache is cold at startup.
+code-editor-rust-pipe-pipe	ready || done
 code-editor-search-cursor	retry policy
 code-editor-search-intellij	invoice generator
 code-editor-search-nova	navigation bar

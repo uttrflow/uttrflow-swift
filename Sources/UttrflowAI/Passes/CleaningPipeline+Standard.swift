@@ -52,7 +52,7 @@ extension CleaningPipeline {
             // Spoken punctuation must mark a stop before LayoutWordsPass checks for a break after it.
             SpokenPunctuationPass(
                 destination: destination, fieldRole: intent.fieldRole, region: intent.region, pauses: pauses,
-                mode: mode),
+                mode: mode, language: intent.language),
             SpokenEmojiPass(destination: destination),
             LayoutWordsPass(
                 layout: layout, insertionPoint: insertionPoint, readsWholeText: readsWholeText),
@@ -157,7 +157,8 @@ extension CleaningPipeline {
         CleaningPipeline(piece: [
             SpokenPunctuationPass(
                 destination: situation.destination, fieldRole: situation.intent.fieldRole,
-                region: situation.intent.region, mode: situation.adapterMode),
+                region: situation.intent.region, mode: situation.adapterMode,
+                language: situation.intent.language),
             CaretEchoPass(
                 state: sentenceState(in: situation), precedingText: situation.insertion.precedingText,
                 spokenText: heard),
