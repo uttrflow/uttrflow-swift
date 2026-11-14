@@ -27,6 +27,7 @@ struct SeamSQLSweepTests {
         "select name from users where age greater than thirty and city equals quote lyon unquote",
         "insert into items values open paren one comma quote pen unquote close paren",
         "update orders set status equals quote shipped unquote where id equals seven",
+        "select id from places where city equals quote the hague unquote",
     ]
 
     @Test("every single cut of a statement matches the whole", arguments: statements)

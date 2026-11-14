@@ -143,13 +143,23 @@ package enum NotationEvidence {
             WordTokens.words(text, .display).map(CodeEditorCommandsPass.bare).filter { !$0.isEmpty }
         }
         let tailWords = spoken(tail)
+        let headWords = spoken(head)
+        // A quoted value is the speaker's own words, so only what stands outside it is read for prose.
+        let judged = quotesAValue(tailWords, after: headWords) ? outsideQuotation(tailWords) : tailWords
         guard let opening = tailWords.first, !statementOpeners.contains(opening),
             tailWords.contains(where: { notationWords.contains($0) })
-                || splitsCommand(between: spoken(head).last, and: opening),
-            applicability(of: tailWords, given: Applicability(cues: [.queryStatement]))
-                .activates(at: activationThreshold)
+                || splitsCommand(between: headWords.last, and: opening)
+                || quotesAValue(tailWords, after: headWords),
+            judged.isEmpty
+                || applicability(of: judged, given: Applicability(cues: [.queryStatement]))
+                    .activates(at: activationThreshold)
         else { return false }
-        return isQueryStatement(words: spoken(head), destination: destination, region: region)
+        return isQueryStatement(words: headWords, destination: destination, region: region)
+    }
+
+    /// Whether the tail is a spoken quotation, "quote" to "unquote", that follows a comparison the head ended on: a value, written in single quotes only with the comparison before it.
+    private static func quotesAValue(_ tail: [String], after head: [String]) -> Bool {
+        tail.first == "quote" && tail.contains("unquote") && SQLQuoting.endsComparison(head)
     }
 
     /// Whether a notation command of several words is said as `last` at the end of one piece and `first` at the start of the next.
