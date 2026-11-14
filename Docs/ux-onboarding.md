@@ -8,10 +8,11 @@ needs to keep. The window's sizes and the provider marks are in
 [`app-onboarding.md`](app-onboarding.md); how a session is kept is in
 [`account-session.md`](account-session.md).
 
-## Six pages, each answered before it is left
+## Five pages, each answered before it is left
 
-`OnboardingStep`: sign in, clipboard, microphone, Accessibility, speech-model setup, ready. What
-Uttrflow is for is said on the sign-in page itself; there is no separate welcome page.
+`OnboardingStep`: sign in, microphone, Accessibility, speech-model setup, ready, the steps of
+`Design/released/onboarding.html`. What Uttrflow is for is said on the sign-in page itself; there
+is no separate welcome page.
 
 - Nothing is remembered about the system. A permission is read from its gate at the moment it
   matters, never carried forward from the click that asked for it.
@@ -24,14 +25,8 @@ Uttrflow is for is said on the sign-in page itself; there is no separate welcome
   manifest (`OnboardingModelInstaller.downloadBytes`, or "Size not known" without one), and joins a
   download unasked only when one is already running. While it runs, the hint counts megabytes
   received of the total; it shows no rate or time left.
-- The clipboard page follows sign-in, because the choice must come before any copy is recorded. It says
-  how long copies are kept (the stored `clipboardRetentionDays`) and offers Keep and Turn off,
-  which save `clipboardEnabled` at once, beside Continue. Keeping is the default, so the setting
-  cannot say whether the page was answered: Continue writes that to `OnboardingRecordStore`, and
-  the page is passed over from then on.
-  Copies are not recorded until then: `SessionSurfaces` holds the clipboard off until the page is
-  answered or onboarding had finished before the page existed (`hasChosenClipboard`), so an
-  install that chose Turn off never recorded a copy and a saved preference is kept as it was.
+- Onboarding asks nothing about the clipboard. Copies are recorded from sign-in while
+  `clipboardEnabled` is on (`SessionSurfaces`), and its switch in Settings › General turns it off.
 - The one exception is a device policy (`.restricted`): granting is not on offer at all, so
   Continue is the only answer left, and the last page says what it cost.
 - A granted permission and a finished download stay on screen to say so, and the user presses
