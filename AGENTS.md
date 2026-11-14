@@ -63,6 +63,7 @@ Each links to its one home, where the limit and the check live.
 3. [The user's data stays on this Mac.](Docs/agents/product.md#across-every-feature)
 4. [Fix the root cause, with one implementation per capability.](Docs/agents/code-quality.md#fixing-a-defect)
 5. [A kept clip survives relaunch and is removed only by deleting it, its collection or the dictation it copies, or by a reset.](Docs/agents/product.md#clipboard-and-its-panel)
+6. [Nothing is shown that `Design/released/` does not show: a new screen is approved in `Design/next/` first.](Docs/agents/design.md#principles)
 6. [A URL without a credential is never masked.](Docs/agents/product.md#clipboard-and-its-panel)
 7. [Choosing a clip never asks for confirmation, except several lines pasted into a terminal while that setting is on.](Docs/agents/product.md#clipboard-and-its-panel)
 
@@ -76,6 +77,7 @@ Each gate fails its command. Thresholds and the full list are in
 | Multi-line comment blocks never rise per file | `make comment-audit` |
 | 0 changed or removed evaluation cases not named in `Scripts/corpus_edits.txt` | `make corpus-edit-audit` |
 | Colours, typefaces, canvases and contrast follow `Docs/agents/design.md` | `make design-audit` |
+| 0 onboarding steps, Settings tabs or pages without an approved page in `Design/released/` | `make design-audit` |
 | Coverage at least 95% per module | `make coverage` |
 | 0 force unwraps, `try!`, implicitly unwrapped optionals | `make lint` |
 | 0 compiler warnings | `make build` |
