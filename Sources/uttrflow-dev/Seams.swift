@@ -23,6 +23,16 @@ struct Seams: AsyncParsableCommand {
     @Option(name: .long, help: "Write the differing cuts to this baseline, refusing a cut it does not list.")
     var update: String?
 
+    @Option(
+        name: .long,
+        help: "With --check, also tolerate the cuts this reviewed ledger names (`<case id>@<cuts> <reason>`).")
+    var ledger: String?
+
+    @Option(
+        name: .long,
+        help: "With --ledger, append each differing cut neither list names, with this reason, then check.")
+    var addToLedger: String?
+
     @Flag(name: .long, help: "With --update, record cuts that came to differ because main moved underneath.")
     var afterMerge = false
 
@@ -78,8 +88,10 @@ struct Seams: AsyncParsableCommand {
         let keys = differing.map(\.key).sorted()
         if let update { try record(keys, to: URL(fileURLWithPath: update)) }
         if let check {
+            let named = try SeamLedger.read(ledger.map { URL(fileURLWithPath: $0) }, adding: addToLedger,
+                for: differing.map(\.key), baseline: URL(fileURLWithPath: check))
             try compare(
-                differing, with: URL(fileURLWithPath: check), among: Set(cases.map(\.id)))
+                differing, with: URL(fileURLWithPath: check), among: Set(cases.map(\.id)), ledger: named)
         }
     }
 
@@ -230,7 +242,9 @@ struct Seams: AsyncParsableCommand {
         try baseline.recording(keys).write(to: url)
     }
 
-    private func compare(_ differing: [SeamDifference], with url: URL, among ids: Set<String>) throws {
+    private func compare(
+        _ differing: [SeamDifference], with url: URL, among ids: Set<String>, ledger: SeamLedger
+    ) throws {
         let keys = differing.map(\.key)
         let baseline = try SeamBaseline.read(from: url)
         // A cut's key is its case id, "@", then its boundaries; a sampled run checks only its own cases.
@@ -238,7 +252,11 @@ struct Seams: AsyncParsableCommand {
             baseline.cuts.filter { key in
                 key.lastIndex(of: "@").map { ids.contains(String(key[..<$0])) } ?? false
             })
-        let unlisted = Set(baseline.risen(among: keys))
+        let unlisted = Set(ledger.unnamed(among: keys, baseline: baseline))
+        let unused = ledger.cuts.subtracting(keys).filter { key in
+            key.lastIndex(of: "@").map { ids.contains(String(key[..<$0])) } ?? false
+        }.count
+        if unused > 0 { print("  \(unused) ledger cuts now match; delete their lines") }
         let risen = differing.filter { unlisted.contains($0.key) }
         let fallen = recorded.subtracting(keys).count
         if fallen > 0 {
@@ -272,6 +290,27 @@ struct SeamDifference: Sendable {
         let bare = { (text: String) in text.filter { $0.isLetter || $0.isNumber || $0.isWhitespace } }
         guard bare(whole).lowercased() == bare(joined).lowercased() else { return .words }
         return whole.lowercased() == joined.lowercased() ? .letterCase : .punctuation
+    }
+}
+
+extension SeamLedger {
+    /// The ledger at `url`, after appending `reason` lines for the cuts that neither it nor the baseline names.
+    static func read(_ url: URL?, adding reason: String?, for keys: [String], baseline: URL) throws -> SeamLedger {
+        guard let url else {
+            guard reason == nil else { throw ValidationError("--add-to-ledger needs --ledger") }
+            return SeamLedger(entries: [])
+        }
+        let exists = FileManager.default.fileExists(atPath: url.path)
+        var ledger = exists ? try SeamLedger(parsing: String(contentsOf: url, encoding: .utf8)) : SeamLedger(entries: [])
+        if let reason {
+            guard !reason.allSatisfy(\.isWhitespace) else { throw ValidationError("--add-to-ledger needs a reason") }
+            let added = ledger.unnamed(among: keys, baseline: try SeamBaseline.read(from: baseline))
+            let text = (exists ? try String(contentsOf: url, encoding: .utf8) : "") + SeamLedger.lines(for: added, reason: reason)
+            try text.write(to: url, atomically: true, encoding: .utf8)
+            ledger = try SeamLedger(parsing: text)
+            print("  added \(added.count) cuts to the ledger; review them in the diff")
+        }
+        return ledger
     }
 }
 

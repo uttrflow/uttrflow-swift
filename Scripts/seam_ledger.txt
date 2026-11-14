@@ -1,0 +1,1 @@
+# Seam cuts that new corpus cases make differ: <case id>@<cut> <reason>. One line per cut; a cut that matches again is deleted.
