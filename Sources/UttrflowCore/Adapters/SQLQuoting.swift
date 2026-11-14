@@ -10,6 +10,14 @@ package enum SQLQuoting {
         "=", "<>", "!=", "<", ">", "<=", ">=", "like", "ilike",
     ]
 
+    /// Whether the spoken words end on a phrase the formula table writes as a comparison mark, so a quotation said next is a value.
+    package static func endsComparison(_ spoken: [String]) -> Bool {
+        FormulaWords.operators.contains { found in
+            valueIntroducers.contains(found.mark)
+                && spoken.suffix(found.words.count).elementsEqual(found.words)
+        }
+    }
+
     /// Whether a quotation spoken right after `key` is a value; any other word leaves it undecided.
     package static func isValuePosition(after key: String?) -> Bool {
         guard let key else { return false }

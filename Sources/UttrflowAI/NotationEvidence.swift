@@ -145,11 +145,17 @@ package enum NotationEvidence {
         let tailWords = spoken(tail)
         guard let opening = tailWords.first, !statementOpeners.contains(opening),
             tailWords.contains(where: { notationWords.contains($0) })
-                || splitsCommand(between: spoken(head).last, and: opening),
+                || splitsCommand(between: spoken(head).last, and: opening)
+                || quotesAValue(tailWords, after: spoken(head)),
             applicability(of: tailWords, given: Applicability(cues: [.queryStatement]))
                 .activates(at: activationThreshold)
         else { return false }
         return isQueryStatement(words: spoken(head), destination: destination, region: region)
+    }
+
+    /// Whether the tail is a spoken quotation, "quote" to "unquote", that follows a comparison the head ended on: a value, written in single quotes only with the comparison before it.
+    private static func quotesAValue(_ tail: [String], after head: [String]) -> Bool {
+        tail.first == "quote" && tail.contains("unquote") && SQLQuoting.endsComparison(head)
     }
 
     /// Whether a notation command of several words is said as `last` at the end of one piece and `first` at the start of the next.
