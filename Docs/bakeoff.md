@@ -291,4 +291,5 @@ make bakeoff ARGS="--baselines-only"                   # rules, Apple and the sh
 make bakeoff ARGS="--baselines-only --ignore-context"  # the same with context withheld
 make bakeoff ARGS="--summarise"                        # print stored results without running
 make bakeoff ARGS="footprint"                          # memory of the speech and local models
+make bakeoff ARGS="--ablate-prompt"                    # tokens each prompt rule line and example costs; no model
 ```

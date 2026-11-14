@@ -72,6 +72,12 @@ struct Bakeoff: AsyncParsableCommand {
     )
     var ablate = false
 
+    @Flag(
+        name: .long,
+        help: "Print every rule line and worked example of the shipping prompt with the tokens it costs; loads no model."
+    )
+    var ablatePrompt = false
+
     @Option(name: .long, help: "With --ablate: where the recorded corpus and its kept decodes live.")
     var corpusPath = TranscriptionCorpusStore.defaultDirectoryName
 
@@ -122,6 +128,10 @@ struct Bakeoff: AsyncParsableCommand {
     }
 
     func run() async throws {
+        if ablatePrompt {
+            print(PromptBuilder.standard.ablationCostTable())
+            return
+        }
         if ablate {
             let rules = TransformerRouter(
                 engines: [RuleBasedTransformer()], preference: [.rules], rulesAlone: .shortReplies)
