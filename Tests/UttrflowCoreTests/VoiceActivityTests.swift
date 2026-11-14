@@ -106,6 +106,22 @@ struct VoiceActivityTests {
         #expect(VoiceActivity.speechRange(in: Signal.speech(3), sampleRate: Signal.rate) != nil)
     }
 
+    @Test("keeps the whole recording when it is loud but holds no run long enough to be a word")
+    func keepsClippedBurstsWhole() {
+        var audio: [Float] = []
+        for _ in 0..<12 {
+            audio += Signal.speech(0.04)
+            audio += Signal.silence(0.3)
+        }
+        let range = VoiceActivity.speechRange(in: audio, sampleRate: Signal.rate)
+        #expect(range == 0..<audio.count)
+    }
+
+    @Test("the percentile of no loudness is zero")
+    func percentileOfNothing() {
+        #expect(VoiceActivity.percentile([], 0.5) == 0)
+    }
+
     @Test("hears nothing in an empty recording")
     func rejectsEmpty() {
         #expect(VoiceActivity.speechRange(in: [], sampleRate: Signal.rate) == nil)
