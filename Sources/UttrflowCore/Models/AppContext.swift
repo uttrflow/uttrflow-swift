@@ -85,7 +85,7 @@ public struct AppContext: Sendable, Equatable {
     ) {
         let label = fieldLabel.flatMap(Self.fieldLabel)
         // A field labelled as a card number or a code is kept as private as one the system calls secure.
-        let namesASecret = label.flatMap(FieldLabelKinds.kind(of:)) == .sensitive
+        let namesASecret = label.map(FieldLabelKinds.namesASecret) == true
         let isSecure = isSecure || namesASecret
         self.applicationName = applicationName
         self.bundleIdentifier = bundleIdentifier
