@@ -1,14 +1,17 @@
 # Design: where each visual decision lives
 
-The shipped Swift UI is the design. This page says which file holds each decision, what the gate
-checks, and what a reviewer checks by hand. It holds no values: the values are in the files it
+`Design/released/` is the design: every screen, step, tab, section and dialog the app shows has its
+page there, and `Design/README.md` says how a page is approved. This page says which Swift file
+holds each decision, what the gate checks, and what a reviewer checks by hand. It holds no values: the values are in the files it
 names. `make design-audit` runs every check below and is a prerequisite of `make verify`.
 
 ## Principles
 
-1. **Production wins.** The Swift views are the only picture of the app: 0 generated canvases
-   are kept beside them. A mockup or doc that disagrees with the Swift code is wrong, and is
-   fixed to match the code, never the reverse in the same change.
+1. **Approved before built.** A new screen, onboarding step, Settings tab, page section or dialog
+   is drawn first as a page in `Design/next/`; its merge is the owner's approval, and only then
+   does Swift draw it. A change with Swift for a screen that has no page in `Design/released/` or
+   `Design/next/` is refused. Where a released page and the Swift code disagree, the page is right.
+   0 generated canvases (`Design/*.dc.html`, `Design/_gen_*.py`) are kept.
 2. **One home per decision.** A colour, typeface or metric is declared once and named everywhere
    else; two views drawing the same thing point at the same member.
 3. **Native first.** A macOS control, system font, SF Symbol or system material is used as the
@@ -26,6 +29,7 @@ names. `make design-audit` runs every check below and is a prerequisite of `make
 | Control styles | `PageButtonStyle`, `MainPrimaryButtonStyle`, `MainSecondaryButtonStyle`, `HomeQuietButtonStyle`, `SettingsSwitchStyle`, `SettingsButtonStyle`, `OnboardingPressStyle` | `.buttonStyle`, `.toggleStyle` | review |
 | Motion | `Sources/Uttrflow/Motion/MotionBudget.swift` (Reduce Motion, Low Power Mode, thermal state) | `MotionBudget` | `MotionBudgetTests` |
 | Mark and icon | `Sources/Uttrflow/Brand/UttrflowMark.swift`, `UttrflowMarkView.swift`; `Resources/AppIcon/ICON.md` for the app icon | SF Symbols for every other glyph | review |
+| Which screens exist | `Design/released/` pages | `OnboardingStep`, `SettingsTab`, `MainTab`, `SidebarPresenter.order` | `screen_approval_audit.py` |
 | Sidebar, chrome, page captions | `SidebarPresenter.order`, `MainWindowView.swift`, each page's presenter in `Sources/UttrflowUX` | the views | review |
 | Token reference | `BrandPalette.Redesign` | `Docs/redesign-tokens.md` quotes it | `design_source_audit.py` |
 
@@ -43,6 +47,7 @@ A doc that quotes a value loses to the file it quotes. How colours resolve per a
 | Text roles clear 4.5:1 and marks 3:1 on the shared `BrandPalette` surfaces, light and dark | `python3 Scripts/design_contrast_audit.py` | exits 0 |
 | Every value in the `Docs/redesign-tokens.md` colour table equals its `BrandPalette.Redesign` role | `python3 Scripts/design_source_audit.py` | exits 0 |
 | Production text tones clear 4.5:1 and marks 3:1 on their surfaces, in both appearances and Increase Contrast | `swift test --filter Contrast` | passes |
+| Every onboarding step, Settings tab, sidebar row and page in Swift has its page in `Design/released/`, in the same order | `python3 Scripts/screen_approval_audit.py` | exits 0 |
 | `make verify` runs `make design-audit` | `make docs-audit` | exits 0 |
 
 Every audit has a `--self-test` that passes a valid fixture, fails a prohibited one, passes an
@@ -80,4 +85,6 @@ The reviewer counts, in the diff:
 - 0 new metrics, style or component types duplicating one listed under Authority;
 - 0 literal spacing, radius or size values repeated in two views of one surface instead of a
   metrics member;
-- 0 visible changes without before and after screenshots.
+- 0 visible changes without before and after screenshots;
+- 0 new screens, steps, tabs, page sections or dialogs whose page is not in `Design/released/` or
+  `Design/next/`; a reviewer opens the page beside the screenshots and compares them.

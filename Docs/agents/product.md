@@ -124,7 +124,7 @@ on ignores it. Pieces and measurements: `Docs/predict.md`, `Docs/predict-precisi
 |---|---|---|
 | Colours | one source, `BrandPalette`; a new colour is a new token there, never an inline literal | `Docs/redesign-tokens.md` |
 | Contrast | every text and surface pair meets the audited ratio | `Scripts/design_contrast_audit.py` |
-| Design source | the SwiftUI and AppKit views, `BrandPalette.swift` and `BrandFont.swift`; 0 generated canvases (`Design/*.dc.html`, `Design/_gen_*.py`) | `Scripts/design_source_audit.py` |
+| Design source | `Design/released/` for which screens exist and how they look, `Design/next/` for approved changes not yet built; `BrandPalette.swift` and `BrandFont.swift` for values; 0 generated canvases | `Scripts/screen_approval_audit.py`, `Scripts/design_source_audit.py` |
 | Appearance | a visible change is shown in light and dark, and a change updates both | review |
 
 ## Applications

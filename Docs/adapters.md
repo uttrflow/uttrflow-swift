@@ -54,6 +54,20 @@ locale writes decimals with a comma, a semicolon, read when the pipeline is buil
 was said: a bracket is never closed unspoken, an argument is never added, and nothing is evaluated.
 `FormulaNotationPassTests` holds its cases and the cells that must stay plain.
 
+A commit message (AD.27) is written by the existing destination rules rather than an adapter of its own: in a
+`COMMIT_EDITMSG` document the subject takes no full stop and is never shortened, a blank line is written only
+on a spoken "new paragraph", and a paragraph said on a line that already follows a blank line adds no second
+one (`LayoutWordsPass` owes only the breaks missing before the caret); after `git commit -m "` the words go in
+as said with no line break. `CommitMessageTests` holds the cases and the sentences about committing that stay
+sentences. Selecting by a source-control panel's field label is not built.
+
+Shell notation (AD.16) in a terminal also writes what a command line takes beyond flags and pipes: `dollar` before a
+name or bracket is a leading `$` ("dollar home" is `$home`, "dollar open paren date close paren" is `$(date)`), `single quote` opens and closes a single-quoted argument,
+and `backslash` is a leading `\`. A leading
+symbol right after a number is a unit said in words, so "five dollar bill" stays words. The case of a variable's
+name is as it was said; the adapter never adds `sudo`, a flag or an operator the speaker did not say. POSIX forms
+only: dialect detection for other shells waits on the prompt reader. `ShellNotationTests` holds the cases.
+
 Markup notation (AD.35) is `markup` rows of `spoken-commands.json`, each naming the slot of HTML or
 CSS it is read in. `MarkupPosition` (`Sources/UttrflowCore/Adapters/MarkupPosition.swift`) reads the
 slot from the text before the caret: text between tags, inside a tag, a selector, a property, a

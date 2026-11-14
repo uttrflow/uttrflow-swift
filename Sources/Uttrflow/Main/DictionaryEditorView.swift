@@ -61,6 +61,11 @@ struct DictionaryEditorView: View {
                         .font(.system(size: 11.5))
                         .foregroundStyle(PagePalette.text)
                 }
+                if let risk = editor.riskNote {
+                    Text(risk)
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(PagePalette.text)
+                }
             }
             if let tryIt = editor.tryIt {
                 HStack(alignment: .center, spacing: 10) {

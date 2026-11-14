@@ -22,7 +22,7 @@ A refused answer falls back to the rules' text, as the router does.
 | code-and-markdown | both | 17 | 9 | 5: `probe-sql-join`, `probe-regex-pattern`, `probe-yaml-keys`, `probe-todo-comment`, `probe-dockerfile-from` | 0 | 0 |
 | hinglish | model | 6 | 4 | 2: `fmt-hinglish-number`, `probe-hinglish-status` | 0 | 0 |
 | text-after-caret | rules | 30 | 30 | 0 | 0 | 3 |
-| abstention | model | 357 | 357 | 0 | 0 | 0 |
+| abstention | model | 369 | 369 | 0 | 0 | 0 |
 
 ## Model-only classes
 

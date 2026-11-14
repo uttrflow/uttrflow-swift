@@ -58,6 +58,15 @@ struct TranscriptionScorerTests {
         #expect(score.lost.isEmpty)
     }
 
+    /// Urdu script has no reference of its own, so it is counted as a script problem rather than a Latin transcript.
+    @Test("records an Arabic-script transcript as answered in Arabic script")
+    func arabicAnswer() {
+        let score = TranscriptionScorer.score("نمستے", against: hindi)
+        #expect(score.answeredIn == .arabic)
+        #expect(score.scoredAgainst == .latin)
+        #expect(score.isUpperBound)
+    }
+
     @Test("scores the same passage romanised against the romanised reading")
     func romanisedAnswer() {
         let score = TranscriptionScorer.score(hindi.romanised, against: hindi)

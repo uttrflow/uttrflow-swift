@@ -31,6 +31,8 @@ public struct Finding: Sendable, Equatable, Identifiable {
         case lostRequiredTerm(String)
         /// The recogniser answers in Devanagari, which the product cannot ship as it stands.
         case answeredInDevanagari
+        /// The recogniser answers in Arabic script, which the product cannot ship either.
+        case answeredInArabic
         /// The passage produced no transcript.
         case failed(TranscriptionFailure.Kind)
 
@@ -41,6 +43,7 @@ public struct Finding: Sendable, Equatable, Identifiable {
             case .inserted(let word): "\"\(word)\" invented"
             case .lostRequiredTerm(let term): "required term \"\(term)\" lost"
             case .answeredInDevanagari: "answered in Devanagari"
+            case .answeredInArabic: "answered in Arabic script"
             case .failed(let kind): "failed: \(kind.rawValue)"
             }
         }
@@ -120,6 +123,7 @@ extension TranscriptionReport {
             }
             for term in score.lost { note(.lostRequiredTerm(term), in: score.caseID) }
             if score.answeredIn == .devanagari { note(.answeredInDevanagari, in: score.caseID) }
+            if score.answeredIn == .arabic { note(.answeredInArabic, in: score.caseID) }
             if let failure = score.failure { note(.failed(failure.kind), in: score.caseID) }
         }
 

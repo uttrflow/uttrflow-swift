@@ -5611,5 +5611,197 @@
     "classes": ["abstention"],
     "origin": "synthetic",
     "addedFor": 7941
+  },
+  {
+    "id": "abstain-shell-dollar-rate-code",
+    "spoken": "the dollar rate rose against the pound",
+    "expected": "The dollar rate rose against the pound.",
+    "mustKeep": ["dollar", "rate", "rose", "pound"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4213
+  },
+  {
+    "id": "abstain-shell-dollar-rate-comment",
+    "spoken": "the dollar rate rose against the pound",
+    "expected": "The dollar rate rose against the pound.",
+    "mustKeep": ["dollar", "rate", "rose", "pound"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ make build # "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4213
+  },
+  {
+    "id": "abstain-shell-dollar-rate-string",
+    "spoken": "the dollar rate rose against the pound",
+    "expected": "The dollar rate rose against the pound.",
+    "mustKeep": ["dollar", "rate", "rose", "pound"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ echo \""
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4213
+  },
+  {
+    "id": "abstain-shell-dollar-brace-poster-code",
+    "spoken": "he read out dollar open brace from the old poster",
+    "expected": "He read out dollar open brace from the old poster.",
+    "mustKeep": ["read", "dollar", "open", "brace", "poster"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4213
+  },
+  {
+    "id": "abstain-shell-dollar-brace-poster-comment",
+    "spoken": "he read out dollar open brace from the old poster",
+    "expected": "He read out dollar open brace from the old poster.",
+    "mustKeep": ["read", "dollar", "open", "brace", "poster"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ make build # "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4213
+  },
+  {
+    "id": "abstain-shell-dollar-brace-poster-string",
+    "spoken": "he read out dollar open brace from the old poster",
+    "expected": "He read out dollar open brace from the old poster.",
+    "mustKeep": ["read", "dollar", "open", "brace", "poster"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ echo \""
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4213
+  },
+  {
+    "id": "abstain-shell-close-brace-fittings-code",
+    "spoken": "the dentist will close brace fittings at noon",
+    "expected": "The dentist will close brace fittings at noon.",
+    "mustKeep": ["dentist", "close", "brace", "fittings", "noon"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4213
+  },
+  {
+    "id": "abstain-shell-close-brace-fittings-comment",
+    "spoken": "the dentist will close brace fittings at noon",
+    "expected": "The dentist will close brace fittings at noon.",
+    "mustKeep": ["dentist", "close", "brace", "fittings", "noon"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ make build # "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4213
+  },
+  {
+    "id": "abstain-shell-close-brace-fittings-string",
+    "spoken": "the dentist will close brace fittings at noon",
+    "expected": "The dentist will close brace fittings at noon.",
+    "mustKeep": ["dentist", "close", "brace", "fittings", "noon"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ echo \""
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4213
+  },
+  {
+    "id": "abstain-shell-backslash-key-code",
+    "spoken": "the keyboard backslash key sticks",
+    "expected": "The keyboard backslash key sticks.",
+    "mustKeep": ["keyboard", "backslash", "key", "sticks"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4213
+  },
+  {
+    "id": "abstain-shell-backslash-key-comment",
+    "spoken": "the keyboard backslash key sticks",
+    "expected": "The keyboard backslash key sticks.",
+    "mustKeep": ["keyboard", "backslash", "key", "sticks"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ make build # "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4213
+  },
+  {
+    "id": "abstain-shell-backslash-key-string",
+    "spoken": "the keyboard backslash key sticks",
+    "expected": "The keyboard backslash key sticks.",
+    "mustKeep": ["keyboard", "backslash", "key", "sticks"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ echo \""
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4213
   }
 ]
