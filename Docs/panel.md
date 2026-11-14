@@ -199,6 +199,10 @@ A refresh keeps a selection or open sheet only while its referenced clip or coll
 list. A vanished sheet closes with a notice. Reveals belong to the current clip list, so a deleted
 and later restored secret is masked again.
 
+## Capture off or paused
+
+The panel opens from the menu bar while capture is off or paused, so an empty list there must not read as a new install. `PanelSnapshot.capture` (`on`, `off`, `paused(until:)`) is set by the app when the panel opens. An empty list says "Clipboard history is off" or "Clipboard history is paused", with the minutes left rounded up, and one button: Turn on, or Resume. A list with clips shows the same sentence as the notice line, and a notice the app set takes its place. Preferences that cannot be read hold capture paused with no end, which the panel reads as off.
+
 ## The line under the list
 
 Precedence: the sheet's keys, then the undo offer, then the empty state's reason, then the

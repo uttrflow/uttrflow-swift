@@ -301,7 +301,7 @@ public enum PanelPresenter {
                 groups(for: rows, omitted: results.omitted, isSearching: snapshot.isSearching)
             },
             emptyAction: saysNothing ? emptyAction(for: snapshot) : nil,
-            notice: snapshot.notice,
+            notice: snapshot.notice ?? (rows.isEmpty ? nil : captureBanner(for: snapshot)),
             microphone: microphone(for: snapshot.dictation),
             scope: scope(for: snapshot),
             announcements: announcements(for: snapshot),
