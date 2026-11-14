@@ -68,11 +68,10 @@ public struct NumberFormsPass: PieceCleaningPass {
         "avenue", "street", "road", "drive", "lane", "boulevard", "court", "place", "way",
     ]
 
-    /// The plural denominators a numerator stands before, which read as one fraction and not as a count.
-    static let fractionDenominators: Set<String> = [
-        "thirds", "fourths", "quarters", "fifths", "sixths", "sevenths", "eighths", "ninths", "tenths",
-        "sixteenths",
-    ]
+    /// Whether `key` is a plural denominator, "thirds" or "quarters": an ordinal past "second" with an "s".
+    static func isFractionDenominator(_ key: String) -> Bool {
+        key == "quarters" || key.hasSuffix("s") && (NumberWords.ordinals[String(key.dropLast())] ?? 0) > 2
+    }
 
     /// One rendered number and how many words it replaces.
     struct Phrase: Equatable {
@@ -705,7 +704,7 @@ public struct NumberFormsPass: PieceCleaningPass {
         guard item.spoken, let value = item.value else { return nil }
         let end = position + item.count
         // "two thirds": the numerator of a fraction is not a count of things.
-        if !inContext, joined(end, shapes), fractionDenominators.contains(keys[end]) { return nil }
+        if !inContext, joined(end, shapes), isFractionDenominator(keys[end]) { return nil }
         // "four thirteen": a pair that may be a time or a code is left whole rather than half written.
         if !inContext, item.count == 1, undecidedHundred(at: position, keys: keys, shapes: shapes) != nil {
             return nil
@@ -1590,8 +1589,7 @@ public struct NumberFormsPass: PieceCleaningPass {
         }
     }
 
-    /// Keeps fixed spoken idioms intact so their number words are not partially rewritten.
-    /// An idiom may open on a word before the number, so the count returned is of the words from `position` on.
+    /// Keeps a fixed idiom whole, which may open before the number: the count is of its words from `position` on.
     private static func unchangedIdiomCount(at position: Int, keys: [String], shapes: [WordShape]) -> Int? {
         for idiom in idioms {
             for offset in 0..<idiom.count {
