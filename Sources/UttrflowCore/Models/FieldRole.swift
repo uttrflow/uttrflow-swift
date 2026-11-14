@@ -43,6 +43,9 @@ public enum FieldRole: String, Sendable, Equatable, CaseIterable, Codable {
         (.search, ["search", "search mail"]),
     ]
 
+    /// The label a browser gives its one-line address and search bar; a page's own field labelled "URL" stays a one-line field.
+    static let addressBarLabels: Set<String> = ["address and search bar"]
+
     /// The role a field's structure declares first, then an exact known label for a one-line field or an unknown structure.
     public init(accessibilityRole: String?, isMultiline: Bool?, label: String?, subrole: String? = nil) {
         if accessibilityRole == SecureField.secureRole || subrole == SecureField.secureRole {
@@ -55,7 +58,11 @@ public enum FieldRole: String, Sendable, Equatable, CaseIterable, Codable {
         } else {
             let phrase = (label ?? "").lowercased()
                 .split(whereSeparator: { !$0.isLetter && !$0.isNumber }).joined(separator: " ")
-            if let named = Self.labelWords.first(where: { $0.phrases.contains(phrase) }) {
+            if Self.addressBarLabels.contains(phrase),
+                isMultiline == false || accessibilityRole == "AXTextField"
+            {
+                self = .addressBar
+            } else if let named = Self.labelWords.first(where: { $0.phrases.contains(phrase) }) {
                 if isMultiline == false || accessibilityRole == "AXTextField" {
                     self = named.role == .recipient || named.role == .subject ? named.role : .singleLine
                 } else {
