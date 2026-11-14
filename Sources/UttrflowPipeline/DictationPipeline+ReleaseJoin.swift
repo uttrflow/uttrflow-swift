@@ -14,6 +14,8 @@ extension DictationPipeline {
             await metrics.recordCaptureQuality(quality)
         }
         show(heard: nil)
+        // A retried copy re-recognises its whole recording, which no tail budget was sized for.
+        tail = delivery == .copy ? nil : (mine, .zero)
 
         let handed = await takeOver(for: audio, delivery: delivery, generation: mine)
         let tally = StageTally()
