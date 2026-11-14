@@ -25,7 +25,8 @@ struct SnippetArrivalTests {
         Scenario(
             pieces: [ScriptedPiece(phrase)], context: .unknown,
             cleaner: TransformerRouter(
-                engines: [RuleBasedTransformer()], preference: [.rules], rulesAlone: .shortReplies),
+                engines: [RuleBasedTransformer()], preference: [.rules], clock: ManualClock(),
+                rulesAlone: .shortReplies),
             corrector: Self.dictionary, snippets: FiledSnippets(snippets: snippets))
     }
 

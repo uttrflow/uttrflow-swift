@@ -42,7 +42,7 @@ struct DictationPipelineLatinOutputTests {
         let entry = DictionaryEntry(word: "theek", origin: .added, firstSeen: Date(timeIntervalSince1970: 0))
         let rules = TransformerRouter(
             engines: [RuleBasedTransformer()], preference: [.foundationModels, .rules],
-            rulesAlone: .shortReplies)
+            clock: ManualClock(), rulesAlone: .shortReplies)
         for cleaner: any TranscriptCleaning in [FakeTranscriptCleaner(producedBy: .foundationModels), rules] {
             var scenario = self.scenario("हाँ ठीक है।", cleaner: cleaner)
             scenario.spellings = { SpellingPreferences.preferred(filed: [entry], learnt: ["theek": "thik"]) }
@@ -79,7 +79,7 @@ struct DictationPipelineLatinOutputTests {
     func rulesFloorRomanises() async {
         let router = TransformerRouter(
             engines: [RuleBasedTransformer()], preference: [.foundationModels, .rules],
-            rulesAlone: .shortReplies)
+            clock: ManualClock(), rulesAlone: .shortReplies)
         let inserted = await dictate("मैं अभी आता हूँ", cleaner: router)
         #expect(inserted.count == 1)
         #expect(inserted.first?.hasPrefix("Main abhi aata hoon") == true, "\(inserted)")

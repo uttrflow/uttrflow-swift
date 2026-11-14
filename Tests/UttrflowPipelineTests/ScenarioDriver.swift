@@ -67,7 +67,8 @@ struct Scenario: Sendable {
 /// The cleaner stacks a scenario runs under.
 enum ScenarioCleaners {
     /// The shipping floor: the deterministic passes, with no model in front of them.
-    static let rules = TransformerRouter(engines: [RuleBasedTransformer()], preference: [.rules])
+    static let rules = TransformerRouter(
+        engines: [RuleBasedTransformer()], preference: [.rules], clock: ManualClock())
 
     /// The shipping model engine over a model scripted to answer each piece, with the floor beneath it.
     static func model(_ answers: [String: String]) -> TransformerRouter {
@@ -77,7 +78,8 @@ enum ScenarioCleaners {
                     kind: .foundationModels, model: ScriptedSentenceModel(answers: answers)),
                 RuleBasedTransformer(),
             ],
-            preference: [.foundationModels, .rules])
+            preference: [.foundationModels, .rules],
+            clock: ManualClock())
     }
 }
 

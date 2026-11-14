@@ -18,7 +18,8 @@ struct SeamCut: Sendable, CustomTestStringConvertible {
 @Suite("A unit said across a pause is read as the one unit it is")
 struct SeamRecleaningTests {
     private let pipeline: DictationPipeline = {
-        let router = TransformerRouter(engines: [RuleBasedTransformer()], preference: [.rules])
+        let router = TransformerRouter(
+            engines: [RuleBasedTransformer()], preference: [.rules], clock: ManualClock())
         return DictationPipeline(
             capture: FakeAudioCaptureEngine(), speech: FakeSpeechEngine(), cleaner: router,
             context: FakeContextEngine(), inserter: FakeTextInserter(),

@@ -34,7 +34,8 @@ struct WarmingTests {
         let floor = FakeTextTransformationEngine(kind: .rules)
         let unused = FakeTextTransformationEngine(kind: .cloud)
         let router = TransformerRouter(
-            engines: [first, floor, unused], preference: [.foundationModels, .rules])
+            engines: [first, floor, unused], preference: [.foundationModels, .rules],
+            clock: ManualClock())
         let situation = Situation(app: .fixture(), insertion: .unknown, destination: .messaging)
 
         await router.warm(for: situation)

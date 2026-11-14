@@ -1,4 +1,5 @@
 import Testing
+import UttrflowTestSupport
 
 @testable import UttrflowAI
 @testable import UttrflowCore
@@ -71,7 +72,8 @@ struct DictationExplanationTests {
     func tracesTheRules() async throws {
         let explanation = try await DictationExplanation.tracing(
             TransformationRequest(transcription: Transcription(text: "um we ship fifteen builds")),
-            through: TransformerRouter(engines: [RuleBasedTransformer()], preference: [.rules]))
+            through: TransformerRouter(
+                engines: [RuleBasedTransformer()], preference: [.rules], clock: ManualClock()))
         #expect(explanation.spoken == "we ship 15 builds")
         #expect(explanation.doubtful.isEmpty)
         #expect(explanation.result.producedBy == .rules)
