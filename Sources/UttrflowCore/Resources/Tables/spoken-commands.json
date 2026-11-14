@@ -83,7 +83,6 @@
         {"id": "code.arrow-function", "words": ["arrow"], "action": "codeSymbol", "text": "=>", "destinations": ["codeEditor"], "languages": ["javascript", "typescript"]},
         {"id": "code.dot", "words": ["dot"], "action": "codeSymbol", "text": ".", "placement": "joining", "destinations": ["codeEditor"]},
         {"id": "code.underscore", "words": ["underscore"], "action": "codeSymbol", "text": "_", "destinations": ["codeEditor"]},
-        {"id": "code.short-declaration", "words": ["colon", "equals"], "action": "codeSymbol", "text": ":=", "destinations": ["codeEditor"], "languages": ["go", "python"]},
         {"id": "code.or-or", "words": ["pipe", "pipe"], "action": "codeSymbol", "text": "||", "destinations": ["codeEditor"], "languages": ["swift", "javascript", "typescript", "go", "rust", "java"]},
         {"id": "code.or-or-said", "words": ["double", "pipe"], "action": "codeSymbol", "text": "||", "destinations": ["codeEditor"], "languages": ["swift", "javascript", "typescript", "go", "rust", "java"]},
         {"id": "code.colon", "words": ["colon"], "action": "codeSymbol", "text": ":", "destinations": ["codeEditor"]},

@@ -22,7 +22,6 @@ struct SourceLanguageNotationTests {
             ("ready logical or done", "Main.java", "ready || done"),
             ("ready pipe pipe done", "lib.rs", "ready || done"),
             ("ready double pipe done", "app.ts", "ready || done"),
-            ("count colon equals one", "main.go", "count := 1"),
         ])
     func writesNotation(spoken: String, file: String, expected: String) {
         #expect(written(spoken, in: file) == expected)

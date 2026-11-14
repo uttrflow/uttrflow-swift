@@ -7,8 +7,6 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     public static let laws: Set<PassLaw> = [.idempotent, .latinOnly]
     public static let orderIndependentWith: Set<PassID> = [.caretEcho]
     private let destination: Destination
-    /// The language of the caret's file, which decides the code symbols a mark yields to.
-    private let language: CodeLanguage?
     /// Where the caret stands, which decides whether a query editor holds a statement.
     private let region: CaretStructure.Region
     /// Whether the screen alone makes every spoken dash an option marker: a place options are typed, outside a comment.
@@ -42,10 +40,9 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     public init(
         destination: Destination = .plain, fieldRole: FieldRole = .unknown,
         region: CaretStructure.Region = .unrecognised, pauses: PauseLength = .usual,
-        mode: AdapterMode = .auto, language: CodeLanguage? = nil
+        mode: AdapterMode = .auto
     ) {
         self.destination = destination
-        self.language = language
         self.region = region
         self.sentencePause = PauseStopPass.sentencePause(for: pauses)
         // The flag rows name where options are typed; the one notation rule rules out a comment or prose body there.
@@ -55,21 +52,6 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             && screen != .ruledOut(by: .caretInProse) && screen != .ruledOut(by: .proseByChoice)
         self.expected = SpokenAddress.Expectation()
             .union(fieldRole == .recipient ? .addresses : []).union(destination == .terminal ? .paths : [])
-    }
-
-    /// Whether a code symbol of more words than `mark` covers this word, which the code commands pass writes whole: "colon equals" is `:=`.
-    private func isInLongerCodePhrase(
-        than mark: SpokenCommand, at position: Int, in live: [Int], of draft: Draft
-    ) -> Bool {
-        guard destination == .codeEditor else { return false }
-        return SpokenCommands.codeSymbols.contains { row in
-            guard row.words.count > mark.words.count, row.isEnabled(in: destination),
-                row.isEnabled(for: language)
-            else { return false }
-            return (max(0, position - row.words.count + 1)...position).contains {
-                draft.spells(row.words, at: $0, in: live)
-            }
-        }
     }
 
     public func apply(_ draft: Draft) -> Draft {
@@ -138,7 +120,6 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             }
             let said = SpokenCommands.marks.first {
                 $0.isEnabled(in: destination) && draft.spells($0.words, at: position, in: live)
-                    && !isInLongerCodePhrase(than: $0, at: position, in: live, of: draft)
             }
             guard
                 let said,
