@@ -156,6 +156,11 @@ pre-push-lock-test: ## Prove the verify-worktree lock recovers from a missing or
 update-feed-test: ## Prove the release scripts parse update-feed URLs by host, not prefix.
 	@python3 Scripts/update_feed_gate_test.py
 
+.PHONY: bench-test
+bench-test: ## Prove the dictation bench regressions stay fixed. Needs uttrflow-eval.
+	@python3 Scripts/dictation_bench_test.py
+	@python3 Scripts/dictation_bench_noise_test.py
+
 .PHONY: entitlement-gate-test
 entitlement-gate-test: ## Prove the release gates read entitlement Boolean values, not just key names.
 	@python3 Scripts/entitlement_gate_test.py
@@ -444,7 +449,7 @@ else
 unexport VERIFY_INNER
 verify: formatting-gap-ratchet-test eval-scope-test quality-grid-scorecard-test predict-scorecard-test pii-audit snapshot-fixture-audit data-manifest verify-assets audio-audit root-audit disclosure-audit issue-template-audit test-name-audit docs-audit design-audit comment-audit corpus-edit-audit match-audit closed-list-audit duplicate-table-audit word-split-audit accessibility-controls layering-audit public-api-audit string-audit type-name-audit python-imports-audit ratchet-test mutation-probe-test range-test hits-test hook-test pre-push-test pre-push-lock-test update-feed-test entitlement-gate-test issue-template-test dependabot-labels-test dependency-pin-test flake-audit uitest-arguments eval-arguments uitest-result-path developer-dir-test log-audit store-permissions pasteboard-audit context-reach-audit bundle-requirement-test bundle-test release-tag-test release-notes-test release-quality-test provider-mark-test release-order-test notarise-dmg-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test exclusion-audit size-budget lint build coverage offline-audit
 eval: seam-audit eval-tests rules-scorecard quality-grid-scorecard
-bench: perf-budget offline-test soak-test bench-tests
+bench: perf-budget offline-test soak-test bench-tests bench-test
 
 # Inside a lane every Swift step shares one coverage-instrumented build: `build` compiles the
 # tests too, the test runs skip building, and the tools run from that build.
@@ -452,7 +457,7 @@ VERIFY_SWIFT_FLAGS := --build-tests --enable-code-coverage
 COVERAGE_ARGS = --skip-build --skip '$(EVAL_SUITES)|$(BENCH_SUITES)'
 UTTRFLOW_DEV = .build/debug/uttrflow-dev
 SHELL := Scripts/verify_shell.sh
-coverage seam-audit offline-audit eval-arguments eval-tests rules-scorecard quality-grid-scorecard bench-tests: build
+coverage seam-audit offline-audit eval-arguments eval-tests rules-scorecard quality-grid-scorecard bench-tests bench-test: build
 seam-audit eval-arguments rules-scorecard bench-tests: export LLVM_PROFILE_FILE := $(CURDIR)/.build/verify-profraw/%p.profraw
 endif
 
