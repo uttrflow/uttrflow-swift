@@ -5289,6 +5289,7 @@
     "UttrflowUX enum OnboardingTrial": 1,
     "UttrflowUX enum OnboardingWave": 1,
     "UttrflowUX enum PanelAlias": 1,
+    "UttrflowUX enum PanelCapture": 1,
     "UttrflowUX enum PanelCaret": 1,
     "UttrflowUX enum PanelChange": 1,
     "UttrflowUX enum PanelComposition": 1,
@@ -5395,7 +5396,7 @@
     "UttrflowUX func current": 1,
     "UttrflowUX func date": 1,
     "UttrflowUX func day": 1,
-    "UttrflowUX func decided": 1,
+    "UttrflowUX func decided": 2,
     "UttrflowUX func decision": 1,
     "UttrflowUX func defaultOrigin": 1,
     "UttrflowUX func descriptor": 1,
@@ -5470,7 +5471,6 @@
     "UttrflowUX func record": 7,
     "UttrflowUX func recordBacklog": 1,
     "UttrflowUX func recordCaptureQuality": 1,
-    "UttrflowUX func recordClipboardAnswered": 1,
     "UttrflowUX func recordConditioning": 1,
     "UttrflowUX func recordContextRead": 1,
     "UttrflowUX func recordDecoding": 1,
@@ -6252,6 +6252,7 @@
     "UttrflowUX var canTidyBeyondTheFloor": 1,
     "UttrflowUX var canUndoDelete": 1,
     "UttrflowUX var capabilities": 1,
+    "UttrflowUX var capture": 1,
     "UttrflowUX var captureQualities": 1,
     "UttrflowUX var categories": 1,
     "UttrflowUX var category": 2,
@@ -6298,8 +6299,6 @@
     "UttrflowUX var globeKeyAction": 1,
     "UttrflowUX var glyph": 2,
     "UttrflowUX var groups": 1,
-    "UttrflowUX var hasAnsweredClipboard": 1,
-    "UttrflowUX var hasChosenClipboard": 1,
     "UttrflowUX var hasFinished": 1,
     "UttrflowUX var hasSettled": 1,
     "UttrflowUX var hasSomethingToPress": 1,
@@ -6358,7 +6357,6 @@
     "UttrflowUX var now": 1,
     "UttrflowUX var offersUndo": 1,
     "UttrflowUX var onChange": 1,
-    "UttrflowUX var onClipboardAnswered": 1,
     "UttrflowUX var onEnd": 1,
     "UttrflowUX var onFinish": 1,
     "UttrflowUX var onProgress": 1,
@@ -6448,5 +6446,5 @@
     "UttrflowUX var withdrawsTrust": 1,
     "UttrflowUX var words": 2
   },
-  "total": 9177
+  "total": 9176
 }

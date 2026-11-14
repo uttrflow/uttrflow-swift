@@ -8,6 +8,7 @@ extension PanelPresenter {
 
         // The only nothing that is about the clipboard rather than the narrowing.
         if snapshot.clips.isEmpty {
+            if let capture = captureEmptyState(for: snapshot) { return capture }
             return MainEmptyState(
                 symbolName: "doc.on.clipboard",
                 title: "Nothing copied yet",
