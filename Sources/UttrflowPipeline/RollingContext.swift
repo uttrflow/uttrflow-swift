@@ -57,13 +57,8 @@ struct RollingContext: Sendable, Equatable {
 
     /// Whether `text` holds `echoWords` words in a row that `earlier` also holds, by their letters alone.
     private static func sharesRun(_ text: String, with earlier: String) -> Bool {
-        func words(_ text: String) -> [String] {
-            text.split(whereSeparator: \.isWhitespace).map {
-                $0.lowercased().filter { $0.isLetter || $0.isNumber }
-            }.filter { !$0.isEmpty }
-        }
-        let now = words(text)
-        let before = words(earlier)
+        let now = WordTokens.words(text.lowercased(), .comparison)
+        let before = WordTokens.words(earlier.lowercased(), .comparison)
         guard now.count >= echoWords, before.count >= echoWords else { return false }
         var runs: Set<[String]> = []
         for start in 0...(before.count - echoWords) { runs.insert(Array(before[start..<start + echoWords])) }
