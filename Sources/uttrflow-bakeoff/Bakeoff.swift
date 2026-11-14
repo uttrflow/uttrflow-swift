@@ -15,7 +15,7 @@ struct Bakeoff: AsyncParsableCommand {
         subcommands: [
             Footprint.self, Profile.self, Complete.self, Score.self, MidWord.self, GPUMemory.self,
             ReloadLeaks.self,
-            SpeechShape.self, Marks.self, HomophoneRepair.self, TidyGate.self,
+            SpeechShape.self, Marks.self, HomophoneRepair.self, TidyGate.self, PromptCost.self,
         ]
     )
 
