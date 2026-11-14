@@ -75,6 +75,9 @@ private struct NeverAnsweringCleaner: TranscriptCleaning {
 
 /// A ``TranscriptCleaning`` that tidies at once and never finishes the message.
 private struct NeverFinishingCleaner: TranscriptCleaning {
+    /// Set once the message pass has begun, so a test advances the clock only when no tidy timer is left armed.
+    let finishing = FinishEntered()
+
     func clean(
         _ request: TransformationRequest
     ) async throws(TransformationError) -> TransformationResult {
@@ -82,9 +85,17 @@ private struct NeverFinishingCleaner: TranscriptCleaning {
     }
 
     func finishMessage(_ text: String, for request: TransformationRequest) async -> String {
+        finishing.mark()
         await suspendUntilCancelled()
         return text
     }
+}
+
+/// Whether the message pass has been entered.
+private final class FinishEntered: Sendable {
+    private let entered = Mutex(false)
+    var isSet: Bool { entered.withLock { $0 } }
+    func mark() { entered.withLock { $0 = true } }
 }
 
 /// The first insertion strategy never returns, so the clipboard fallback cannot start.
@@ -671,17 +682,19 @@ struct DictationStageTimeoutTests {
 
     @Test("a message pass that never answers no longer holds the dictation")
     func messagePassThatNeverAnswers() async {
+        let cleaner = NeverFinishingCleaner()
         let clock = ManualClock()
         let recorder = TimeoutCleaningRecorder()
         let inserter = FakeTextInserter()
         let pipeline = DictationPipeline(
             capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 2))),
             speech: FakeSpeechEngine(transcribeOutcome: .success(Transcription(text: "what I said"))),
-            cleaner: NeverFinishingCleaner(), context: FakeContextEngine(), inserter: inserter,
+            cleaner: cleaner, context: FakeContextEngine(), inserter: inserter,
             cleaningRecorder: recorder, clock: clock)
 
         await pipeline.startRecording()
         let finishing = Task { await pipeline.finishRecording() }
+        while !Task.isCancelled, !cleaner.finishing.isSet { await Task.yield() }
         await expire(StageTimeout.tail, at: .tidying, of: pipeline, on: clock)
         await settle(finishing)
 

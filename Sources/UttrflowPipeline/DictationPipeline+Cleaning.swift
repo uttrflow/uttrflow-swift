@@ -25,7 +25,7 @@ extension DictationPipeline {
         let correcting: [QualityLayer] = [.evidenceCapture, .candidateGeneration, .scoring, .overrideGate]
         guard correcting.allSatisfy(layers.isOn) else { return .unchanged(transcription.text) }
         let corrector = chosen ?? runningCorrector
-        let allowed = tailLimit(StageTimeout.correction, for: mine) ?? (StageTimeout.rules, true)
+        let allowed = localTailLimit(StageTimeout.correction, for: mine)
         do {
             let timed =
                 try await metrics.measuringInTime(.correction, clock: clock, generation: mine) {
@@ -350,7 +350,7 @@ extension DictationPipeline {
         _ text: String, matching seamInput: SeamSnippetInput, laidOut layout: LayoutPolicy,
         in application: String?, for mine: Int? = nil
     ) async -> ExpandedTranscript {
-        let allowed = tailLimit(StageTimeout.expansion, for: mine) ?? (StageTimeout.rules, true)
+        let allowed = localTailLimit(StageTimeout.expansion, for: mine)
         do {
             let timed = try await metrics.measuringInTime(.expansion, clock: clock, generation: mine) {
                 try await withinTail(allowed, for: mine) { [snippets] in
@@ -373,27 +373,6 @@ extension DictationPipeline {
 }
 
 extension DictationPipeline {
-    /// How long `stage` may take for the dictation that began at `mine`: its own limit, cut to what the tail has left, and nil when none is left. The dictionary and snippets, which only rearrange words in hand, are then given `StageTimeout.rules` instead.
-    func tailLimit(_ stage: Duration, for mine: Int?) -> (limit: Duration, budgeted: Bool)? {
-        guard let mine, let tail, tail.generation == mine else { return (stage, false) }
-        let left = max(.zero, tailAllowance - tail.spent)
-        guard left > .zero else { return nil }
-        return left < stage ? (left, true) : (stage, false)
-    }
-
-    /// Runs `work` against `allowed`, answering nil when the limit wins, and charges the time it took to the dictation's tail.
-    func withinTail<Success: Sendable>(
-        _ allowed: (limit: Duration, budgeted: Bool), for mine: Int?,
-        _ work: @escaping @Sendable () async throws -> Success
-    ) async throws -> Success? {
-        var answer: Success?
-        let took = try await clock.measure {
-            answer = try await withStageTimeout(allowed.limit, clock: clock, work)
-        }
-        if let mine, tail?.generation == mine { tail?.spent += took }
-        return answer
-    }
-
     /// Notes in the dictation's account that a stage passed its words on unchanged; outside a dictation, nothing.
     func skipped(
         _ stage: CleaningRecord.SkippedStage.Stage, _ reason: CleaningRecord.SkippedStage.Reason,
