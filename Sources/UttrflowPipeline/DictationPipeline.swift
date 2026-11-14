@@ -108,6 +108,8 @@ public actor DictationPipeline {
 
     /// What the early loop holds while the key is down, handed to the release pass in one step.
     var early = EarlyWork()
+    /// The last learning and counting queued behind a dictation's insertion; the next queues after it.
+    var postInsertion: Task<Void, Never>?
     /// What reading the screen has cost the dictation under way, and its latest reading.
     var screenReads = DictationScreenReads()
     /// How many early screen reads have come back and been kept or dropped, so a test can wait for the last one.

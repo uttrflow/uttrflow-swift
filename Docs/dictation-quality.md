@@ -22,6 +22,10 @@ The budgets are the values of `StageTimeout`, listed per stage in [pipeline.md](
 end-to-end limit is `tail-latency`, set in [performance.md](performance.md). A layer that cannot
 meet its budget is cancelled and the fallback answers; no layer extends another's budget.
 
+### Where a layer runs relative to key-up
+
+Each layer also declares a `phase` (`perPiece`, `finalPiece`, `wholeText`), a `costClass` (fixed, per word of the piece, per word of the dictation), whether it is incremental, and the `degradedResult` the dictation gets when it misses its budget. The last piece's words exist only after recognition ends, so a layer that scores them runs after key-up, which is why the rule is not "scoring never runs after release". A layer in the tail must have a degraded result, and a whole-text or per-word-of-the-dictation layer is not allowed there unless incremental. `QualityLayerPlacementTests` fails any layer that breaks this.
+
 ## Turning a layer on and off
 
 Each switchable layer is a case of `QualityLayer` in

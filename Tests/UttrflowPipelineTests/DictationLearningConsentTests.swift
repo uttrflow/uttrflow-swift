@@ -49,7 +49,7 @@ private func dictate(
         consent: consent,
         clock: ManualClock())
     await pipeline.startRecording()
-    await pipeline.finishRecording()
+    await pipeline.finishRecordingAndSettle()
     guard case .inserted(let outcome) = await pipeline.currentState else { return (vocabulary.offered, nil) }
     return (vocabulary.offered, outcome)
 }
@@ -187,7 +187,7 @@ struct DictationLearningConsentTests {
         await pipeline.startRecording()
         try await eventually { await pipeline.earlyReadsSettled == 1 }
         await context.setContext(.fixture(documentName: "Example - Private Browsing"))
-        await pipeline.finishRecording()
+        await pipeline.finishRecordingAndSettle()
         guard case .inserted(let outcome) = await pipeline.currentState else {
             Issue.record("expected the dictation to land")
             return
@@ -207,7 +207,7 @@ struct DictationLearningConsentTests {
             inserter: FakeTextInserter(.failure(.noFocusedTextField)),
             clock: ManualClock())
         await pipeline.startRecording()
-        await pipeline.finishRecording()
+        await pipeline.finishRecordingAndSettle()
         guard case .failed(let failure) = await pipeline.currentState else {
             Issue.record("expected the dictation to fail")
             return
