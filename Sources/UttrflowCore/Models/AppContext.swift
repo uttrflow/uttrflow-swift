@@ -83,17 +83,18 @@ public struct AppContext: Sendable, Equatable {
         readRung: ContextReadRung? = nil,
         unavailable: ContextUnavailableReason? = nil
     ) {
+        let label = fieldLabel.flatMap(Self.fieldLabel)
+        // A field labelled as a card number or a code is kept as private as one the system calls secure.
+        let namesASecret = label.flatMap(FieldLabelKinds.kind(of:)) == .sensitive
+        let isSecure = isSecure || namesASecret
         self.applicationName = applicationName
         self.bundleIdentifier = bundleIdentifier
         self.processIdentifier = processIdentifier
         self.documentName = documentName
         self.pageHost = pageAddress.flatMap(Self.host)
-        self.selectedText = selectedText
-        self.precedingText = precedingText
-        self.followingText = followingText
-        let label = fieldLabel.flatMap(Self.fieldLabel)
-        // A field labelled as a card number or a code is kept as private as one the system calls secure.
-        let isSecure = isSecure || label.flatMap(FieldLabelKinds.kind(of:)) == .sensitive
+        self.selectedText = namesASecret ? nil : selectedText
+        self.precedingText = namesASecret ? nil : precedingText
+        self.followingText = namesASecret ? nil : followingText
         self.isSecure = isSecure
         self.accessibilityRole = accessibilityRole
         self.accessibilitySubrole = accessibilitySubrole

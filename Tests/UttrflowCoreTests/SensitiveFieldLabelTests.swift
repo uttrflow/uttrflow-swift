@@ -35,6 +35,19 @@ struct SensitiveFieldLabelTests {
         #expect(context.fieldLabel == label)
     }
 
+    @Test("a sensitive label carries none of the field's text")
+    func carriesNoText() {
+        let context = AppContext(
+            selectedText: "4111", precedingText: "my card is ", followingText: " exp",
+            fieldLabel: "Card number")
+        #expect(context.isSecure)
+        #expect(context.selectedText == nil)
+        #expect(context.precedingText == nil)
+        #expect(context.followingText == nil)
+        let ordinary = AppContext(selectedText: "x", precedingText: "a", fieldLabel: "Notes")
+        #expect(ordinary.selectedText == "x" && ordinary.precedingText == "a")
+    }
+
     @Test("a field the system calls secure stays secure whatever its label says")
     func systemSecureStands() {
         #expect(AppContext(isSecure: true, fieldLabel: "Notes").isSecure)
