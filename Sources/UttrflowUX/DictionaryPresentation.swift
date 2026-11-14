@@ -260,6 +260,8 @@ public struct DictionaryEditor: Sendable, Equatable {
     public let pronunciationHint: String
     /// What the index will do with the pronunciation as typed; absent when it keys as an ordinary sounded phrase.
     public let pronunciationNote: String?
+    /// Why this word may be written in place of ordinary words, with the choice still the person's; absent when it would not.
+    public let riskNote: String?
     /// "New".
     public let badge: MainPill
     /// Why this cannot be saved yet, in words. Absent when it can.
@@ -294,6 +296,7 @@ public struct DictionaryEditor: Sendable, Equatable {
         pronunciationLabel: String,
         pronunciationHint: String,
         pronunciationNote: String?,
+        riskNote: String? = nil,
         badge: MainPill,
         problem: String?,
         replace: MainAction? = nil,
@@ -317,6 +320,7 @@ public struct DictionaryEditor: Sendable, Equatable {
         self.pronunciationLabel = pronunciationLabel
         self.pronunciationHint = pronunciationHint
         self.pronunciationNote = pronunciationNote
+        self.riskNote = riskNote
         self.badge = badge
         self.problem = problem
         self.replace = replace
@@ -825,6 +829,7 @@ public enum DictionaryPresenter {
             pronunciationLabel: "Say it like",
             pronunciationHint: pronunciationHint(for: draft),
             pronunciationNote: pronunciationNote(for: draft),
+            riskNote: riskNote(for: draft),
             badge: MainPill(text: draft.editing == nil ? "New" : "Editing"),
             problem: problem(with: draft, in: snapshot),
             replace: draft.editing != nil
@@ -920,6 +925,19 @@ public enum DictionaryPresenter {
     /// What the pronunciation will do once saved, when that is not what a reader would assume; a refusal shows as the problem instead.
     static func pronunciationNote(for draft: DictionaryDraft) -> String? {
         readings(of: draft, word: draft.word).first { !$0.refusesSaving }?.note(for: draft.word)
+    }
+
+    /// Says so when the typed word would be proposed for ordinary words in the shipped sample sentences; saving stays allowed.
+    static func riskNote(for draft: DictionaryDraft) -> String? {
+        let word = draft.word.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !word.isEmpty else { return nil }
+        let entry = DictionaryEntry(
+            word: word, pronunciations: DictionaryEntry.pronunciations(inField: draft.pronunciation),
+            origin: .added, firstSeen: Date(timeIntervalSince1970: 0))
+        let risk = EntryRiskCheck.risk(of: entry)
+        guard risk.isRisky else { return nil }
+        return "This may replace ordinary words: it sounds like them in \(risk.sentencesHit) of "
+            + "\(risk.sentencesChecked) sample sentences. You can still add it."
     }
 
     /// How the index will read each pronunciation in the field, in the order typed.
