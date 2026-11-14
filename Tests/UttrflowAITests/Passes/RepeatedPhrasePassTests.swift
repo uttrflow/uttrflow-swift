@@ -23,6 +23,26 @@ struct RepeatedPhrasePassTests {
     }
 
     @Test(
+        "collapses a discourse tag said three times in a row to one",
+        arguments: [
+            ("so you know, you know, you know it was fine", "so you know, it was fine"),
+            ("it works i mean i mean i mean it works", "it works i mean it works"),
+            ("you know you know you know", "you know"),
+        ]
+    )
+    func collapsesRepeatedTag(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "keeps a discourse tag said once or twice",
+        arguments: ["it was, you know, fine", "you know, you know it was fine", "i mean it, i mean it"]
+    )
+    func keepsTag(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    @Test(
         "leaves single words, and a repeat with punctuation inside it",
         arguments: [
             "very very good",
