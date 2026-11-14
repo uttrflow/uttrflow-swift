@@ -58,7 +58,6 @@
         {"id": "shell.assign", "words": ["equals"], "action": "codeSymbol", "text": "=", "placement": "joining", "destinations": ["terminal"]},
         {"id": "shell.home", "words": ["tilde"], "action": "codeSymbol", "text": "~", "destinations": ["terminal"]},
         {"id": "shell.glob", "words": ["star"], "action": "codeSymbol", "text": "*", "destinations": ["terminal"]},
-        {"id": "shell.stdin", "words": ["less", "than"], "action": "codeSymbol", "text": "<", "destinations": ["terminal"]},
         {"id": "shell.variable-braced", "words": ["dollar", "open", "brace"], "action": "codeSymbol", "text": "${", "placement": "leading", "destinations": ["terminal"]},
         {"id": "shell.brace-close", "words": ["close", "brace"], "action": "codeSymbol", "text": "}", "placement": "closing", "destinations": ["terminal"]},
         {"id": "shell.variable", "words": ["dollar"], "action": "codeSymbol", "text": "$", "placement": "leading", "destinations": ["terminal"]},

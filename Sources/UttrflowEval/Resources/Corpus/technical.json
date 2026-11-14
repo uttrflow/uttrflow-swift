@@ -1643,17 +1643,6 @@
     "addedFor": 4213
   },
   {
-    "id": "dev-shell-stdin",
-    "note": "a redirected input and a redirected output",
-    "spoken": "sort less than in dot txt greater than out dot txt",
-    "expected": "sort < in.txt > out.txt",
-    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
-    "destination": "terminal",
-    "mustKeep": ["sort", "in.txt", "out.txt"],
-    "expectedExact": "sort < in.txt > out.txt",
-    "addedFor": 4213
-  },
-  {
     "id": "dev-shell-escape",
     "note": "an escape said by name before a letter",
     "spoken": "echo backslash n",

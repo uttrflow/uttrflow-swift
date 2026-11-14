@@ -57,7 +57,7 @@ was said: a bracket is never closed unspoken, an argument is never added, and no
 Shell notation (AD.16) in a terminal also writes what a command line takes beyond flags and pipes: `dollar` before a
 name or bracket is a leading `$` ("dollar home" is `$home`, "dollar open paren date close paren" is `$(date)`,
 "dollar open brace home close brace" is `${home}`), `single quote` opens and closes a single-quoted argument,
-`less than` is a redirected input, and `backslash` is a leading `\`. A leading
+and `backslash` is a leading `\`. A leading
 symbol right after a number is a unit said in words, so "five dollar bill" stays words. The case of a variable's
 name is as it was said; the adapter never adds `sudo`, a flag or an operator the speaker did not say. POSIX forms
 only: dialect detection for other shells waits on the prompt reader. `ShellNotationTests` holds the cases.

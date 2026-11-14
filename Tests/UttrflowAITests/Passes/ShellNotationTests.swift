@@ -28,7 +28,6 @@ struct ShellNotationTests {
             ("grep quote hello world quote notes dot txt", "grep \"hello world\" notes.txt"),
             ("make build ampersand ampersand make test", "make build && make test"),
             ("ls dash la ampersand ampersand pwd", "ls -la && pwd"),
-            ("cat less than in dot txt", "cat < in.txt"),
             ("echo hello greater than out dot txt", "echo hello > out.txt"),
             ("echo backslash n", "echo \\n"),
             ("cd tilde slash projects", "cd ~/projects"),
