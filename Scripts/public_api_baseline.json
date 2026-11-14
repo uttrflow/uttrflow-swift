@@ -5455,6 +5455,7 @@
     "UttrflowUX func present": 4,
     "UttrflowUX func presentation": 1,
     "UttrflowUX func propose": 1,
+    "UttrflowUX func prune": 1,
     "UttrflowUX func quietDuration": 1,
     "UttrflowUX func receive": 2,
     "UttrflowUX func record": 7,
@@ -6437,5 +6438,5 @@
     "UttrflowUX var withdrawsTrust": 1,
     "UttrflowUX var words": 2
   },
-  "total": 9166
+  "total": 9167
 }

@@ -65,29 +65,36 @@ public struct UXLedger: Codable, Sendable, Equatable {
     public private(set) var days: [UXDay] = []
     /// When the latest cancelled or failed dictation ended, until a start or a success settles it.
     private var lastUnsuccessful: Date?
+    /// The day number that dictation ended on, so a retry is counted on that day and prunes with it.
+    private var lastUnsuccessfulDay: Int?
 
     public init(installedOn: Date) { self.installedOn = installedOn }
 
     /// Counts `event` against the day `date` falls in, then drops days older than the kept window.
     public mutating func record(_ event: UXEvent, at date: Date, calendar: Calendar = .current) {
         let number = Self.dayNumber(date, calendar: calendar)
+        if case .started = event, let ended = lastUnsuccessful, let endedDay = lastUnsuccessfulDay,
+            date.timeIntervalSince(ended) <= Self.retryWindow,
+            let index = days.firstIndex(where: { $0.number == endedDay })
+        {
+            days[index].retries += 1
+        }
         var day = days.first { $0.number == number } ?? UXDay(number: number)
         switch event {
         case .started:
             day.started += 1
             if firstPress == nil { firstPress = date }
-            if let ended = lastUnsuccessful, date.timeIntervalSince(ended) <= Self.retryWindow {
-                day.retries += 1
-            }
-            lastUnsuccessful = nil
+            clearUnsuccessful()
         case .ended(let outcome):
             day.outcomes[outcome, default: 0] += 1
             switch outcome {
             case .inserted:
                 if firstInsert == nil { firstInsert = date }
-                lastUnsuccessful = nil
-            case .copied: lastUnsuccessful = nil
-            case .cancelled, .failed: lastUnsuccessful = date
+                clearUnsuccessful()
+            case .copied: clearUnsuccessful()
+            case .cancelled, .failed:
+                lastUnsuccessful = date
+                lastUnsuccessfulDay = number
             }
         case .undone:
             day.undos += 1
@@ -99,7 +106,18 @@ public struct UXLedger: Codable, Sendable, Equatable {
         days.removeAll { $0.number == number }
         days.append(day)
         days.sort { $0.number < $1.number }
+        prune(asOf: date, calendar: calendar)
+    }
+
+    /// Drops days older than the kept window as of `date`, so a ledger reopened after a long idle shows only live days.
+    public mutating func prune(asOf date: Date, calendar: Calendar = .current) {
+        let number = Self.dayNumber(date, calendar: calendar)
         days.removeAll { $0.number <= number - Self.daysKept }
+    }
+
+    private mutating func clearUnsuccessful() {
+        lastUnsuccessful = nil
+        lastUnsuccessfulDay = nil
     }
 
     /// The figures over the kept days. See `Docs/ux-measurement.md` for each definition.
@@ -118,7 +136,8 @@ public struct UXLedger: Codable, Sendable, Equatable {
     }
 
     private static func dayNumber(_ date: Date, calendar: Calendar) -> Int {
-        calendar.dateComponents([.day], from: Date(timeIntervalSinceReferenceDate: 0), to: date).day ?? 0
+        let origin = calendar.startOfDay(for: Date(timeIntervalSinceReferenceDate: 0))
+        return calendar.dateComponents([.day], from: origin, to: calendar.startOfDay(for: date)).day ?? 0
     }
 }
 
@@ -139,9 +158,15 @@ public struct UXLedgerStore: Sendable {
 
     public init(url: URL) { self.url = url }
 
-    /// The saved ledger, or nil when none is saved or it cannot be read.
-    public func load() -> UXLedger? {
-        (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(UXLedger.self, from: $0) }
+    /// The saved ledger with days past the kept window dropped as of `date`, or nil when none is saved or it cannot be read.
+    public func load(asOf date: Date = Date(), calendar: Calendar = .current) -> UXLedger? {
+        guard
+            var ledger = (try? Data(contentsOf: url)).flatMap({
+                try? JSONDecoder().decode(UXLedger.self, from: $0)
+            })
+        else { return nil }
+        ledger.prune(asOf: date, calendar: calendar)
+        return ledger
     }
 
     public func save(_ ledger: UXLedger) throws {

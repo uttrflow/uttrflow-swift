@@ -1,8 +1,9 @@
 # Local counters about how dictation goes
 
-`UXLedger` (`Sources/UttrflowUX/UXLedger.swift`) is a small on-device ledger kept in the app's own
-folder, owner-only, and never sent anywhere. It holds integers, dates and closed enumerations, never
-text, and covers a rolling thirty days. Reset removes it.
+`UXLedger` (`Sources/UttrflowUX/UXLedger.swift`) is a small on-device ledger that holds integers,
+dates and closed enumerations, never text, over a rolling thirty days. `UXLedgerStore` saves it to a
+caller-supplied file, owner-only, and `UXLedgerStore.reset()` deletes that file; nothing here touches
+the network. The app does not yet create a store or offer Reset.
 
 ## What it records
 
