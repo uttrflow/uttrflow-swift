@@ -171,7 +171,7 @@ role, and address behavior comes from the typed text or the person's recent addr
 A label also names what a one-line field asks for. `WritingIntent` reads the carried label against
 `field-kinds.json` ([data-tables.md](data-tables.md)) only when the structure says one-line or nothing,
 and turns `singleLine` or `unknown` into `name`, `address`, `number`, `date`, `email`, `phone`,
-`postalCode`, `webAddress` or `title`. Each word position takes its longest phrase, so "Email
+`postalCode`, `webAddress` or `title`. Separately, `AppContext` reads a label against the same table when it is built: a `sensitive` label (a card number, a security or one-time code, an account, routing or identity number, a recovery key) makes `AppContext.isSecure` true, so the field is carried and kept as a secure field is: no text, no label, no names, no history. Each word position takes its longest phrase, so "Email
 address" is an email; a weak word yields to a strong kind, so "Name of the street" is an address. A
 label naming two strong kinds, or two kinds joined by "or" or "and", and an unlabelled field, keep
 the structural role: free text is never a guess. The kind is derived per dictation and never stored,

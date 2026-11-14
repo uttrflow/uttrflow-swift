@@ -300,11 +300,11 @@
     },
     {
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "d4cc15da911ff34bb9cbbb358ae0749b0cde376480ed0d10ea1c0b9baa1af206",
+      "sha256": "0d839c35bbd3ea89f3b3e0a8af867a1403dd4d9bbbd0d284fc7c84542acdf873",
       "path": "Sources/UttrflowCore/Resources/Tables/field-kinds.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 6924,
+      "bytes": 8755,
       "licence": "MIT"
     },
     {

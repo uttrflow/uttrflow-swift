@@ -248,14 +248,18 @@ public struct DestinationFormatter: Sendable, Equatable {
         let isSearch = kind == .search
         let isSingleLine = kind == .oneLine || isSearch
         guard ruleStop != nil || isSingleLine else { return base }
+        // A name or an address is a value written as said, and a number field takes numerals, not words.
+        let role = situation.intent.fieldRole
+        let keepsWords = isSingleLine && (role == .name || role == .address)
         return DestinationFormatter(
             destination: base.destination,
-            firstWord: isSearch ? .asSpoken : base.firstWord,
+            firstWord: isSearch || keepsWords ? .asSpoken : base.firstWord,
             terminalStop: isSearch
                 ? .never
                 : (ruleStop ?? (isSingleLine ? base.terminalStop.inOneLineField : base.terminalStop)),
             layout: isSingleLine ? .singleLine : base.layout,
-            grammar: base.grammar, numbers: base.numbers, digits: base.digits,
+            grammar: base.grammar, numbers: isSingleLine && role == .number ? .always : base.numbers,
+            digits: base.digits,
             promptBlock: base.promptBlock, consequence: isSearch ? .navigates : base.consequence)
     }
 
