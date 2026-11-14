@@ -2110,6 +2110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         guard quickPanel.opens == opened, panel != nil else { return }
         panel?.insertion = placement
         panel?.dictation = dictation
+        panel?.capture = panelCapture()
         panel?.imagesFolder = folder
         // A4 — said on the way in, not after Return, when there is nowhere left to say it.
         if case .clipboardOnly(let obstacle) = placement, obstacle == .accessibilityNotGranted {
@@ -2119,6 +2120,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
         // The list comes by the one path a copy arriving also takes, so neither can undo the other.
         await refreshPanelIfOpen()
+    }
+
+    /// Whether copies are being kept, said in the panel so an empty list is not mistaken for a broken one.
+    private func panelCapture() -> PanelCapture {
+        .decided(
+            isEnabled: settings.clipboardEnabled, isPaused: isClipboardPaused,
+            pausedUntil: clipboardPause.until)
     }
 
     /// B3–B5 — whether Return will place a clip or only copy it, asked while there is still somewhere to say so.
@@ -2492,6 +2500,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             // Closed first: Settings activates the app, and the panel would belong to nothing.
             closeQuickPanel()
             show(.settings(.general))
+        case .turnOnCapture, .resumeCapture:
+            if intent == .turnOnCapture { settingsPage.apply(.toggle(.clipboardEnabled, isOn: true)) }
+            if intent == .resumeCapture { setClipboardPaused(false) }
+            panel?.capture = panelCapture()
+            if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
         case .insert, .insertCleaned, .reveal, .alias, .move, .edit, .delete, .renameCategory,
             .deleteCategory, .reindent, .makeNote, .scope:
             // Answered above, by `intent.key`.

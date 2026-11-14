@@ -87,6 +87,7 @@ extension PanelPresenter {
 
     /// The one thing worth doing about a search that found nothing: keep what was typed as a clip.
     static func emptyAction(for snapshot: PanelSnapshot) -> PanelAction? {
+        if snapshot.clips.isEmpty, let action = captureAction(for: snapshot) { return action }
         let query = snapshot.needle
         guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
             !snapshot.hasWholeTextMatch

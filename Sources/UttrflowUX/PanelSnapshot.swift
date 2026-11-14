@@ -144,6 +144,9 @@ public struct PanelSnapshot: Sendable, Equatable {
     /// What the panel says about the last thing it did; set by the app and cleared when the panel next opens.
     public var notice: PanelNotice?
 
+    /// Whether copies are being kept; set by the app, which owns the setting and the pause.
+    public var capture: PanelCapture = .on
+
     /// What the panel's microphone is doing; set by the app, which owns the pipeline.
     public var dictation: PanelDictation = .ready
 
