@@ -47,13 +47,26 @@ struct ShellNotationTests {
     @Test(
         "leaves a sentence with a word of the same name as a symbol as the words",
         arguments: [
-            "five dollar bill", "i paid ten dollar for lunch", "it costs five dollar",
-            "the single quote key", "backslash is a slash", "tom and jerry went home",
-            "we need a ten dollar budget", "two dollar coins", "the dollar rate",
-            "use the backslash key to escape", "a dollar for the meter", "twenty dollar notes",
+            ("five dollar bill", "5 dollar bill"),
+            ("i paid ten dollar for lunch", "i paid 10 dollar for lunch"),
+            ("it costs five dollar", "it costs 5 dollar"),
+            ("the single quote key", "the single quote key"),
+            ("backslash is a slash", "backslash is a slash"),
+            ("tom and jerry went home", "tom and jerry went home"),
+            ("we need a ten dollar budget", "we need a 10 dollar budget"),
+            ("two dollar coins", "2 dollar coins"),
+            ("the dollar rate", "the dollar rate"),
+            ("use the backslash key to escape", "use the backslash key to escape"),
+            ("a dollar for the meter", "a dollar for the meter"),
+            ("twenty dollar notes", "20 dollar notes"),
         ])
-    func keepsProse(spoken: String) {
-        let out = written(spoken)
-        #expect(!out.contains("$") && !out.contains("\\") && !out.contains("'"))
+    func keepsProse(spoken: String, expected: String) {
+        #expect(written(spoken) == expected)
+    }
+
+    @Test("keeps a digit numeral before a leading symbol's name as words, and a bracket on the command")
+    func digitsAndBrackets() {
+        #expect(written("echo 5 dollar bill") == "echo 5 dollar bill")
+        #expect(written("echo open paren dollar home close paren") == "echo ($home)")
     }
 }

@@ -71,7 +71,10 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
         }
         // A leading symbol after a number is a unit said in words: "five dollar bill" is not "5 $bill".
         let afterNumber =
-            position > 0 && NumberWords.isNumber(Self.bare(draft.words[live[position - 1]].text))
+            position > 0
+            && NumberWords.isNumber(
+                draft.words[live[position - 1]].text.trimmingCharacters(in: .punctuationCharacters)
+                    .lowercased())
         return Self.rows.first {
             ($0.destinations?.contains(destination) ?? (destination == .codeEditor))
                 && $0.isEnabled(for: language)
@@ -150,7 +153,9 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
             let next = live[position + consumed]
             let following = draft.words[next].text
             if let first = following.first, first.isLetter || first.isNumber || "_([{".contains(first) {
-                draft.replace(at: next, with: text + following, by: Self.id)
+                // The command's own opening bracket stays: "(dollar home)" is `($home)`.
+                let prefix = draft.shape(at: live[position]).prefix
+                draft.replace(at: next, with: prefix + text + following, by: Self.id)
                 for offset in 0..<consumed { draft.remove(at: live[position + offset], by: Self.id) }
                 return .joinedBefore
             }
