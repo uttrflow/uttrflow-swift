@@ -2141,5 +2141,72 @@
       "bundleIdentifier": "com.apple.Terminal"
     },
     "destination": "terminal"
+  },
+  {
+    "id": "no-sorry-opens-an-apology-kept",
+    "note": "\"no sorry\" opens the sentence with nothing before it to take back, so the words stay.",
+    "origin": "synthetic",
+    "addedFor": 1124,
+    "spoken": "no sorry i can't come tonight",
+    "expected": "No sorry I can't come tonight.",
+    "mustKeep": ["no", "sorry", "tonight"]
+  },
+  {
+    "id": "wait-sorry-opens-an-apology-kept",
+    "note": "\"wait sorry\" opens the sentence with nothing before it to take back, so the words stay.",
+    "origin": "synthetic",
+    "addedFor": 1124,
+    "spoken": "wait sorry i can't hear you",
+    "expected": "Wait sorry I can't hear you.",
+    "mustKeep": ["wait", "sorry", "hear"]
+  },
+  {
+    "id": "correction-with-a-unit",
+    "note": "A unit after both numbers: the first amount and its unit are taken back, the second stays.",
+    "origin": "synthetic",
+    "addedFor": 573,
+    "spoken": "we need twelve boxes i mean fifteen boxes",
+    "expected": "We need 15 boxes.",
+    "mustKeep": ["15", "boxes"],
+    "mustNotAdd": ["12"]
+  },
+  {
+    "id": "correction-as-its-own-sentence",
+    "note": "The recogniser writes the trigger as a sentence of its own, between two amounts.",
+    "origin": "synthetic",
+    "addedFor": 573,
+    "spoken": "The total is $40. No wait. $50.",
+    "expected": "The total is $50.",
+    "mustKeep": ["$50"],
+    "mustNotAdd": ["40", "$$"]
+  },
+  {
+    "id": "no-opening-a-sentence-kept",
+    "note": "\"No\" answers the speaker before; nothing is taken back.",
+    "origin": "synthetic",
+    "addedFor": 573,
+    "spoken": "No. We shipped it yesterday.",
+    "expected": "No. We shipped it yesterday.",
+    "mustKeep": ["No", "shipped", "yesterday"]
+  },
+  {
+    "id": "at-stays-a-word-before-a-site",
+    "note": "\"at\" before a site name is a word, not an address; the spoken dot becomes a dot.",
+    "origin": "synthetic",
+    "addedFor": 572,
+    "spoken": "look at example dot com for the details",
+    "expected": "Look at example.com for the details.",
+    "mustKeep": ["at", "details"],
+    "mustNotAdd": ["@"]
+  },
+  {
+    "id": "at-stays-a-word-before-a-time",
+    "note": "\"at\" before a place and a time is a word.",
+    "origin": "synthetic",
+    "addedFor": 572,
+    "spoken": "we met at the office at five",
+    "expected": "We met at the office at five.",
+    "mustKeep": ["at", "office", "five"],
+    "mustNotAdd": ["@"]
   }
 ]

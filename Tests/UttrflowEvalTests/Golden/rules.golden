@@ -23,6 +23,8 @@ article-an-before-consonant-sound	We ordered an unicorn cake for the party.
 article-before-spelled-letter	We need a p.
 article-stays-apart-from-a-number-and-a-unit-letter	She is a 10 x engineer on the platform team.
 asks-for-help	Can you help me write an email to the landlord?
+at-stays-a-word-before-a-site	Look at example.com for the details.
+at-stays-a-word-before-a-time	We met at the office at five.
 aws-region	Spin up an instance in us east one and tag it staging.
 bare-absolute-path	/var/log
 bare-capitalised-host	example.com
@@ -168,10 +170,12 @@ coordinated-list-kept	I said no to the offer no to the meeting.
 coordination-kept-not-restatement	Coffee with milk with sugar please.
 correction-after-new-paragraph	Thanks for the update.\n\nMeet at five.
 correction-as-a-noun-kept	The correction was small.
+correction-as-its-own-sentence	The total is $50.
 correction-between-amounts	The total is $50.
 correction-between-amounts-spoken	The budget is 12k.
 correction-between-commas	Send the file to Sam before lunch.
 correction-between-percentages	The fee is 50%.
+correction-with-a-unit	We need 15 boxes.
 count-before-modified-noun-kept-apart	Take three 15 minute breaks.
 dash-cam-as-words	We checked dash cam footage from the night.
 dash-drills-as-words	Our team runs dash drills before every match.
@@ -353,6 +357,7 @@ email-two-paragraphs	Thanks for your note.\n\nI've attached the revised quote fo
 emphatic-double-kept	The plan is very very late and much much worse than last week.
 ends-on-copula-of-embedded-question	I know what it is.
 ends-on-copula-of-embedded-question-where	Show me where we are.
+english-lakh-thousand	150,000 rupees.
 everyday-which-phrase-keeps-its-inversion	Which team did you join last spring?
 exit-code-said-in-two-halves-is-not-a-clock-time	The script exited with code 127 after the migration step.
 extension-is-digits-kept	My extension is 445.
@@ -480,6 +485,7 @@ full-stop-new-paragraph	The build is green.\n\nThanks everyone.
 function-name	Call get_user with the id and check the response.
 greeting-address-keeps-recogniser-stop	Hi all. Quick reminder that the office is closed on Monday.
 greeting-kept	Hey sarah just checking in on the design review.
+hindi-danda-ending	Meri flight 15 agast ko subah 9 baje hai.
 hindi-translation-refused	Meeting 4 baje hai, nahi nahi, 5 baje hai.
 hindi-worked-example-refused	Matlab main kal aayega, haan, accha to phir milte hain.
 hinglish-apology-kept	Main late hoon sorry main abhi aata hoon.
@@ -498,12 +504,14 @@ hinglish-devanagari-loanwords-time-match-error	Kal ka match dekha kya, time pe o
 hinglish-digit-before-crore	Ye flat 3 crore rupaye ka hai.
 hinglish-digit-before-hazaar	Mujhe 5 hazaar rupaye chahiye.
 hinglish-false-start	Yaar wo wo bug bahut weird hai mujhe samajh nahi aa raha.
+hinglish-fillers-kept	Matlab main kal aaunga haan accha to phir milte hain.
 hinglish-galat-bola-kept	Usne mujhe galat bola.
 hinglish-galat-bola-restatement-kept	Tumne pehle galat bola aur ab sahi bol rahe ho.
 hinglish-interjections-not-letters	Are o bhai sun.
 hinglish-jay-jay-not-letters	Jay jay ho.
 hinglish-kaunsa-question	Kaunsa option better hai?
 hinglish-kya-hua-question	Kya hua?
+hinglish-lakh	Flat ki keemat 5,000,000 rupaye hai.
 hinglish-late	Main meeting ke liye 20 minute late ho jaunga.
 hinglish-loanword-cancel-2376	Kal ki meeting cancel ho gayi hai.
 hinglish-loanword-office-2376	Aaj main office der se pahunchunga.
@@ -516,6 +524,7 @@ hinglish-paused-nahi-kept	Do log nahi, sab log aayenge.
 hinglish-question	Kya tum aaj ka PR review kar sakte ho?
 hinglish-question-after-verb	Report bhej di kya?
 hinglish-question-word-after-subject	Meeting kab hai?
+hinglish-reduplication-kept	Dheere dheere chalo aur jaldi jaldi khana mat khao.
 hinglish-reply-devanagari-2371	Thik hai.
 hinglish-reply-haan-2371	Haan.
 hinglish-reply-theek-hai-2371	Theek hai.
@@ -894,9 +903,11 @@ no-determiner-repeat-spare-key	He found a spare key in the drawer and the landlo
 no-make-it-as-making-kept	There was no make it or break it moment for us.
 no-make-that-as-making-kept	There was no make that cake moment for us.
 no-make-that-between-amounts	I need five loaves.
+no-opening-a-sentence-kept	No. We shipped it yesterday.
 no-ordinary-determiner-reason	She gave no reason.
 no-ordinary-determiner-thanks	He said no thanks to the offer.
 no-punctuation	The build passed everything looks good ship it.
+no-sorry-opens-an-apology-kept	No sorry I can't come tonight.
 notes-name-said-twice	Marcy said the printer quote came in under budget so I told marcy to go ahead.
 notes-name-spelling	Thanks marcy I'll pick up the printer quote this afternoon.
 notes-prose-at-after-email-stays	My email is sam at the office.
@@ -1544,6 +1555,7 @@ undecided-number-pair-kept-as-words	Return 413 when the body is too large.
 version-number	We're on Postgres 16.2 right now.
 wait-no-more-than-kept	You can wait no more than 10 minutes.
 wait-no-takes-back-the-day	Book the room for Friday.
+wait-sorry-opens-an-apology-kept	Wait sorry I can't hear you.
 web-chat-message-2280	Sounds good I will join the call in 5 minutes
 web-mail-compose-2280	Hi sam thanks for the update I will review the draft tomorrow.
 web-search-field-2280	cheap flights to lisbon in may
