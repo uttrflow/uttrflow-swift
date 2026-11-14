@@ -25,10 +25,11 @@ extension DictationPipeline {
         let correcting: [QualityLayer] = [.evidenceCapture, .candidateGeneration, .scoring, .overrideGate]
         guard correcting.allSatisfy(layers.isOn) else { return .unchanged(transcription.text) }
         let corrector = chosen ?? runningCorrector
+        let allowed = localTailLimit(StageTimeout.correction, for: mine)
         do {
             let timed =
                 try await metrics.measuringInTime(.correction, clock: clock, generation: mine) {
-                    try await withStageTimeout(StageTimeout.correction, clock: clock) { [corrector] in
+                    try await withinTail(allowed, for: mine) { [corrector] in
                         if let seams {
                             try await corrector.weighAcrossSeams(transcription, at: seams, seeing: appContext)
                         } else {
@@ -37,7 +38,7 @@ extension DictationPipeline {
                     }
                 }
             guard let weighed = timed else {
-                skipped(.correction, .timeout, for: mine)
+                skipped(.correction, allowed.budgeted ? .budget : .timeout, for: mine)
                 return .unchanged(transcription.text)
             }
             // The commonest answer, and not worth rebuilding a string to arrive at itself.
@@ -148,12 +149,16 @@ extension DictationPipeline {
         // Not `.rules`: no pass ran over these words, and a record that says otherwise cannot be read.
         let untidied = TransformationResult(text: text, producedBy: .untidied)
         guard layers.isOn(.formatting) else { return untidied }
+        guard let allowed = tailLimit(StageTimeout.transformation, for: mine) else {
+            skipped(.tidy, .budget, for: mine)
+            return untidied
+        }
 
         let coldStart = ColdStartMeter()
         do {
             let tidied = try await metrics.measuringInTime(.transformation, clock: clock, generation: mine) {
                 try await ColdStartMeter.$current.withValue(coldStart) {
-                    try await withStageTimeout(StageTimeout.transformation, clock: clock) {
+                    try await withinTail(allowed, for: mine) {
                         [cleaner = runningCleaner] in
                         try await cleaner.clean(request)
                     }
@@ -162,7 +167,7 @@ extension DictationPipeline {
             if coldStart.total > .zero { await metrics.recordTidyColdStart(coldStart.total) }
             // A language model that never answers costs the tidying, never the words.
             guard let tidied else {
-                skipped(.tidy, .timeout, for: mine)
+                skipped(.tidy, allowed.budgeted ? .budget : .timeout, for: mine)
                 return untidied
             }
             // A cancelled dictation's record is not merged into the one now under way.
@@ -176,14 +181,31 @@ extension DictationPipeline {
 
     /// Asks the cleaner for the message's own passes once over the joined pieces; untidied words stay as they were.
     func finishMessage(
-        _ joined: Piece, going situation: Situation, seeing appContext: AppContext, vocabulary: [String]
+        _ joined: Piece, going situation: Situation, seeing appContext: AppContext, vocabulary: [String],
+        for mine: Int? = nil
     ) async -> Piece {
         guard joined.cleaned.producedBy != .untidied else { return joined }
+        guard let allowed = tailLimit(StageTimeout.transformation, for: mine) else {
+            skipped(.finish, .budget, for: mine)
+            return joined
+        }
         let request = TransformationRequest(
             transcription: joined.heard.saying(joined.corrected), context: appContext,
             profile: runningProfile,
             situation: situation, vocabulary: vocabulary)
-        let finished = await runningCleaner.finishMessage(joined.cleaned.text, for: request)
+        let cleaner = runningCleaner
+        let text = joined.cleaned.text
+        // Past the limit the pieces stay as they were tidied; the message pass only joins what they already say.
+        guard
+            let finished = try? await withinTail(
+                allowed, for: mine,
+                {
+                    await cleaner.finishMessage(text, for: request)
+                })
+        else {
+            skipped(.finish, allowed.budgeted ? .budget : .timeout, for: mine)
+            return joined
+        }
         return Piece(
             heard: joined.heard, corrected: joined.corrected,
             cleaned: TransformationResult(
@@ -243,7 +265,7 @@ extension DictationPipeline {
         let correctedAtSeams = await correctAcrossSeams(
             pieces, in: joined, seeing: appContext, recording: metrics, correcting: corrector, for: mine)
         let whole = await finishMessage(
-            correctedAtSeams, going: situation, seeing: appContext, vocabulary: vocabulary)
+            correctedAtSeams, going: situation, seeing: appContext, vocabulary: vocabulary, for: mine)
         // Dictation writes Latin letters only, including snippet expansions. See `Docs/latin-output.md`.
         let enforcement = LatinScript.enforcement(of: whole.cleaned.text)
         let written = PreferredSpelling.applied(
@@ -328,14 +350,15 @@ extension DictationPipeline {
         _ text: String, matching seamInput: SeamSnippetInput, laidOut layout: LayoutPolicy,
         in application: String?, for mine: Int? = nil
     ) async -> ExpandedTranscript {
+        let allowed = localTailLimit(StageTimeout.expansion, for: mine)
         do {
             let timed = try await metrics.measuringInTime(.expansion, clock: clock, generation: mine) {
-                try await withStageTimeout(StageTimeout.expansion, clock: clock) { [snippets] in
+                try await withinTail(allowed, for: mine) { [snippets] in
                     try await snippets.expand(seamInput.removingSeamStops(), in: application)
                 }
             }
             guard let expanded = timed else {
-                skipped(.expansion, .timeout, for: mine)
+                skipped(.expansion, allowed.budgeted ? .budget : .timeout, for: mine)
                 return .unchanged(text)
             }
             guard !expanded.text.isBlank else { return .unchanged(text) }
@@ -349,15 +372,7 @@ extension DictationPipeline {
     }
 }
 
-extension DictationPipeline {
-    /// Notes in the dictation's account that a stage passed its words on unchanged; outside a dictation, nothing.
-    func skipped(
-        _ stage: CleaningRecord.SkippedStage.Stage, _ reason: CleaningRecord.SkippedStage.Reason,
-        for mine: Int?
-    ) {
-        if let mine { keep(.skipped(stage, reason), for: mine) }
-    }
-}
+extension DictationPipeline {}
 
 /// What the joined pieces of one dictation became, before anything is inserted.
 struct JoinedDictation: Sendable {

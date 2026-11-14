@@ -106,12 +106,12 @@ public struct CleaningRecord: Sendable, Equatable {
     public struct SkippedStage: Sendable, Equatable {
         /// The stages that fall back to the words they were given rather than fail the dictation.
         public enum Stage: String, Sendable, Equatable, CaseIterable {
-            case correction, tidy, expansion
+            case correction, tidy, finish, expansion
         }
 
-        /// Why the stage gave up: it ran past its limit, or it threw.
+        /// Why the stage gave up: it ran past its limit, it ran out of the dictation's remaining time, or it threw.
         public enum Reason: String, Sendable, Equatable, CaseIterable {
-            case timeout, error
+            case timeout, budget, error
         }
 
         public let stage: Stage
