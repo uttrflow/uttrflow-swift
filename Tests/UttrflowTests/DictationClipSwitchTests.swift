@@ -16,7 +16,7 @@ struct DictationClipSwitchTests {
         let app = AppDelegate(
             container: sandbox.root,
             clipboardSource: InMemoryClipboardSource(),
-            onboardingRecordStore: isolatedOnboardingRecord(clipboardAnswered: true),
+            onboardingRecordStore: isolatedOnboardingRecord(),
             account: HeldSession(signedIn: true).layer)
         app.drawsWindows = false
         app.settingsChanged(to: Settings(clipboardEnabled: clipboardOn))

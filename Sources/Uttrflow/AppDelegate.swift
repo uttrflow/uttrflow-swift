@@ -822,9 +822,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// What runs in the background now, decided from the session and the settings together.
     var surfaces: SessionSurfaces {
-        SessionSurfaces(
-            isSignedIn: isSignedIn, clipboardChoiceIsMade: onboardingRecordStore.hasChosenClipboard,
-            settings: settings)
+        SessionSurfaces(isSignedIn: isSignedIn, settings: settings)
     }
 
     /// The session the surfaces were last opened or closed for, so a repeat changes nothing.
@@ -949,8 +947,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             if behavior == .developmentLaunch { onboarding?.closeIfNotRequired() }
         }
         onboarding.onSettingsChange = { [weak self] in self?.settingsChanged(to: $0) }
-        // A Keep changes no setting, so the answer itself is what starts recording.
-        onboarding.onClipboardAnswered = { [weak self] in self?.followTheClipboardSwitch() }
         onboarding.onFinish = { [weak self] _ in
             guard let self else { return }
             // Re-read, because the microphone check writes the language list through the same store.

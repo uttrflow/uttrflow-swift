@@ -14,9 +14,7 @@ final class MemoryDefaults: KeyValueStore, SessionStorage, @unchecked Sendable {
     func set(_ data: Data?, forKey key: String) { values[key] = data }
 }
 
-/// A record with nothing answered, or with the clipboard page answered, in a store of its own.
-func isolatedOnboardingRecord(clipboardAnswered: Bool = false) -> UserDefaultsOnboardingRecordStore {
-    let record = UserDefaultsOnboardingRecordStore(store: MemoryDefaults())
-    if clipboardAnswered { record.recordClipboardAnswered() }
-    return record
+/// A record with nothing answered, in a store of its own.
+func isolatedOnboardingRecord() -> UserDefaultsOnboardingRecordStore {
+    UserDefaultsOnboardingRecordStore(store: MemoryDefaults())
 }
