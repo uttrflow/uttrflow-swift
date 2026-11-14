@@ -29,6 +29,13 @@ public struct RepeatedPhrasePass: PieceCleaningPass {
                 live.removeSubrange(position..<position + length)
                 continue
             }
+            if let length = Self.repeatedTagLength(at: position, in: live, of: draft) {
+                for index in live[position + length..<position + length * 3] {
+                    draft.remove(at: index, by: Self.id, carryingMarks: true)
+                }
+                live.removeSubrange(position + length..<position + length * 3)
+                continue
+            }
             guard let length = repeatLength(at: position, in: live, skipping: stammered, of: draft) else {
                 position += 1
                 continue
@@ -62,6 +69,19 @@ public struct RepeatedPhrasePass: PieceCleaningPass {
             if sameWords, unbroken, !Self.isDeliberate(keys) {
                 return live[position...].prefix { $0 < second[second.startIndex] }.count
             }
+        }
+        return nil
+    }
+
+    /// Closing tags a speaker leans on; said once one is kept, and said three times in a row the copies are a stammer.
+    private static let tags = [["you", "know"], ["i", "mean"], ["you", "see"], ["or", "something"]]
+
+    /// The tag's length when `position` opens the same tag three times running, commas between the copies allowed.
+    private static func repeatedTagLength(at position: Int, in live: [Int], of draft: Draft) -> Int? {
+        for tag in tags where position + tag.count * 3 <= live.count {
+            let keys = live[position..<position + tag.count * 3].map { draft.shape(at: $0).key }
+            let thrice = keys.indices.allSatisfy { keys[$0] == tag[$0 % tag.count] }
+            if thrice { return tag.count }
         }
         return nil
     }
