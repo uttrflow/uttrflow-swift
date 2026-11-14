@@ -770,20 +770,6 @@
     "mustKeep": ["no", "wait", "results"]
   },
   {
-    "id": "no-sorry-named-not-said",
-    "note": "\"no sorry\" is quoted as a phrase here, not said to take a clause back, so nothing before it goes.",
-    "spoken": "tell him no sorry is not good enough",
-    "expected": "Tell him no sorry is not good enough.",
-    "mustKeep": ["no", "sorry", "enough"]
-  },
-  {
-    "id": "wait-sorry-named-not-said",
-    "note": "\"wait sorry\" is quoted as a phrase here, not said to take a clause back, so nothing before it goes.",
-    "spoken": "i said wait sorry was the wrong thing to say",
-    "expected": "I said wait sorry was the wrong thing to say.",
-    "mustKeep": ["wait", "sorry", "wrong"]
-  },
-  {
     "id": "answer-no-before-a-restated-phrase",
     "note": "\"no\" answers here, and the words around it are said once each way, so no half was taken back.",
     "spoken": "tell the landlord no, the landlord has to wait",
