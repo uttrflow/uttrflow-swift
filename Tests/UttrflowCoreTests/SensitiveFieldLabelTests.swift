@@ -35,6 +35,19 @@ struct SensitiveFieldLabelTests {
         #expect(context.fieldLabel == label)
     }
 
+    @Test(
+        "a sensitive label stays private when the label also names another kind",
+        arguments: ["Card number and email", "Name / Card number", "Phone or security code", "Date, CVV"])
+    func mixedKinds(label: String) {
+        #expect(AppContext(selectedText: "x", fieldLabel: label).isSecure)
+    }
+
+    @Test("two strong kinds leave the kind unnamed, yet a sensitive one among them still counts")
+    func twoStrongKinds() {
+        #expect(FieldLabelKinds.kind(of: "Card number and email") == nil)
+        #expect(FieldLabelKinds.namesASecret("Card number and email"))
+    }
+
     @Test("a sensitive label carries none of the field's text")
     func carriesNoText() {
         let context = AppContext(

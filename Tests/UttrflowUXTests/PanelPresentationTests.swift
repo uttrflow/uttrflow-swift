@@ -302,9 +302,15 @@ struct PanelMaskTests {
         let shownTitles: [String] = shown.actions.map(\.title)
         let maskedTitles: [String] = masked.actions.map(\.title)
         let shownWithoutEdit: [String] = shownTitles.filter { $0 != "Edit" }
-        let maskedWithoutReveal: [String] = maskedTitles.filter { $0 != "Reveal" }
-        #expect(shownWithoutEdit == maskedWithoutReveal)
+        // Hide takes the place Reveal had, so the rest of the list does not move.
+        let maskedWithHide: [String] = maskedTitles.map { $0 == "Reveal" ? "Hide" : $0 }
+        #expect(shownWithoutEdit == maskedWithHide)
         #expect(shownTitles.contains("Edit"))
+        #expect(!shownTitles.contains("Reveal"))
+        #expect(!maskedTitles.contains("Hide"))
+        // An ordinary clip offers neither.
+        let plain = PanelFixture.page([PanelFixture.clip("plain")]).rows[0].actions.map(\.title)
+        #expect(!plain.contains("Reveal") && !plain.contains("Hide"))
     }
 
     @Test("a secret offers to stop being one, and any other text clip offers to become one")
