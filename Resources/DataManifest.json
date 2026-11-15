@@ -548,11 +548,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "4206ceae08c4ad702c25a5fcfc0efab8b6dcf82142d39654d41e99409b7bce07",
+      "sha256": "17c5a8e987f820ffde78d93cc52de50f3c7e486c1c1209bebcf3b5e7d11a0535",
       "path": "Sources/UttrflowEval/Resources/Corpus/everyday.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 79226,
+      "bytes": 81308,
       "licence": "MIT"
     },
     {
@@ -602,11 +602,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "2a5eba2f1938b1e35c72a39faf499048ed2998e669d58c3ab7452495b9a6fcd9",
+      "sha256": "2527c7602b6c00bcbc7f9f906d8480e8bcc8208c9a8e5853d42652100ed15283",
       "path": "Sources/UttrflowEval/Resources/Corpus/multilingual.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 13269,
+      "bytes": 15118,
       "licence": "MIT"
     },
     {
@@ -676,10 +676,10 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "79b96021861e65813d8110789dfbdc065ec65f38768bfaccf8637befbce67791",
+      "sha256": "af1180515623e574926036dfc52ef15f3877db5c2533f3338974e3951250a76d",
       "path": "Sources/UttrflowEval/Resources/Corpus/oneLineField.json",
       "origin": "authored",
-      "bytes": 2388
+      "bytes": 10736
     },
     {
       "note": "evaluation cases read through CorpusFile",
@@ -817,6 +817,18 @@
       "optional": true,
       "sha256": "6258f9e98daf1aed69712e0fa1c3924d00f8a4fd2a86ed1ae9c6320b69ca1788",
       "bytes": 7107
+    },
+    {
+      "licence": "Unicode-3.0",
+      "redistribution": true,
+      "note": "English spell-out words derived from the pinned release; the licence text ships with the app's acknowledgements when the hand tables are replaced",
+      "sha256": "3342dccd119946e806960f2fdc681a22ccaaf301d25234544080f1b656089677",
+      "path": "Sources/UttrflowCore/Resources/Tables/cldr-en-spellout.json",
+      "origin": "third-party",
+      "bytes": 5680,
+      "source": "https://github.com/unicode-org/cldr/blob/release-46/common/rbnf/en.xml",
+      "revision": "release-46",
+      "producedBy": "Scripts/cldr_extract.py"
     }
   ]
 }
