@@ -123,6 +123,7 @@ class BenchTests(unittest.TestCase):
     def test_a_score_reports_normalised_and_exact_final_rates(self):
         out = self.run_bench("score", self.write_run("BENCH " + json.dumps(result_event("known", text="hello world"))))
         self.assertIn("final exact WER", out.stdout)
+        self.assertIn("clips written exactly", out.stdout)
         self.assertIn("| reply | 1 | 0.0% | 0.0% | 100.0% |", out.stdout)
 
     def test_every_hindi_shape_category_has_clips_spoken_by_the_hindi_voice_with_both_scripts(self):
