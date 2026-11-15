@@ -73,6 +73,13 @@ runs it after `build`. It fails when a cut differs that the baseline does not li
 lowers the baseline; it refuses a cut the baseline does not list unless `--after-merge` says the
 cut came to differ with `main`. The baseline covers two-piece cuts only.
 
+A new plain-prose corpus case can make a cut differ without the baseline ever having listed it. Such
+a cut goes in `Scripts/seam_ledger.txt` instead, one line each, `<case id>@<cuts> <reason>`, named in
+the pull request that adds the case: `uttrflow-dev seams --check Scripts/seam_baseline.json --ledger
+Scripts/seam_ledger.txt --add-to-ledger "<reason>"` appends the cuts neither list names. The audit
+still fails on a cut in neither list, a line with no reason is refused, and a ledger cut that
+comes to match is reported so its line is deleted.
+
 ### Cuts that depend on the macOS release
 
 The stop that `SentenceBoundaryEvidence.sentenceRunsOn` writes at a seam reads the word classes

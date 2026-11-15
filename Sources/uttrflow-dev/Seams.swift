@@ -23,6 +23,17 @@ struct Seams: AsyncParsableCommand {
     @Option(name: .long, help: "Write the differing cuts to this baseline, refusing a cut it does not list.")
     var update: String?
 
+    @Option(
+        name: .long,
+        help: "With --check, also tolerate the cuts this reviewed ledger names (`<case id>@<cuts> <reason>`)."
+    )
+    var ledger: String?
+
+    @Option(
+        name: .long,
+        help: "With --ledger, append each differing cut neither list names, with this reason, then check.")
+    var addToLedger: String?
+
     @Flag(name: .long, help: "With --update, record cuts that came to differ because main moved underneath.")
     var afterMerge = false
 
@@ -48,6 +59,9 @@ struct Seams: AsyncParsableCommand {
     var attribute = false
 
     func run() async throws {
+        if check == nil, ledger != nil || addToLedger != nil {
+            throw ValidationError("--ledger and --add-to-ledger work with --check")
+        }
         let steps = try Self.steps(without: without)
         // The pipeline is an actor, so each case gets its own and the cases run side by side.
         let three = three
@@ -78,9 +92,24 @@ struct Seams: AsyncParsableCommand {
         let keys = differing.map(\.key).sorted()
         if let update { try record(keys, to: URL(fileURLWithPath: update)) }
         if let check {
+            let named = try SeamLedger.read(
+                ledger.map { URL(fileURLWithPath: $0) }, adding: addToLedger,
+                for: differing.map(\.key), baseline: URL(fileURLWithPath: check))
             try compare(
-                differing, with: URL(fileURLWithPath: check), among: Set(cases.map(\.id)))
+                differing, with: URL(fileURLWithPath: check), among: Set(cases.map(\.id)), ledger: named,
+                evaluated: Self.evaluatedKeys(of: cases, three: three))
         }
+    }
+
+    /// The key of every cut this run makes of these cases.
+    static func evaluatedKeys(of cases: [EvaluationCase], three: Bool) -> Set<String> {
+        Set(
+            cases.flatMap { testCase in
+                let words = testCase.spoken.split(whereSeparator: \.isWhitespace).count
+                return cuts(of: words, three: three).map {
+                    SeamDifference.key(id: testCase.id, boundaries: $0)
+                }
+            })
     }
 
     /// Every cut of one case, and those whose joined pieces differ from the whole.
@@ -230,7 +259,10 @@ struct Seams: AsyncParsableCommand {
         try baseline.recording(keys).write(to: url)
     }
 
-    private func compare(_ differing: [SeamDifference], with url: URL, among ids: Set<String>) throws {
+    private func compare(
+        _ differing: [SeamDifference], with url: URL, among ids: Set<String>, ledger: SeamLedger,
+        evaluated: Set<String>
+    ) throws {
         let keys = differing.map(\.key)
         let baseline = try SeamBaseline.read(from: url)
         // A cut's key is its case id, "@", then its boundaries; a sampled run checks only its own cases.
@@ -238,7 +270,11 @@ struct Seams: AsyncParsableCommand {
             baseline.cuts.filter { key in
                 key.lastIndex(of: "@").map { ids.contains(String(key[..<$0])) } ?? false
             })
-        let unlisted = Set(baseline.risen(among: keys))
+        let unlisted = Set(ledger.unnamed(among: keys, baseline: baseline))
+        // Only a cut this run evaluated can be said to match.
+        let unused = ledger.cuts.subtracting(keys).intersection(evaluated).sorted()
+        if !unused.isEmpty { print("  \(unused.count) ledger cuts now match; delete their lines") }
+        for key in unused { print("    \(key)") }
         let risen = differing.filter { unlisted.contains($0.key) }
         let fallen = recorded.subtracting(keys).count
         if fallen > 0 {
@@ -266,12 +302,45 @@ struct SeamDifference: Sendable {
     let whole: String
     let joined: String
 
-    var key: String { "\(id)@\(boundaries.map(String.init).joined(separator: ","))" }
+    var key: String { Self.key(id: id, boundaries: boundaries) }
+
+    /// The identity of one cut: the case id, "@", then its word boundaries, as the baseline and the ledger write it.
+    static func key(id: String, boundaries: [Int]) -> String {
+        "\(id)@\(boundaries.map(String.init).joined(separator: ","))"
+    }
 
     var kind: Kind {
         let bare = { (text: String) in text.filter { $0.isLetter || $0.isNumber || $0.isWhitespace } }
         guard bare(whole).lowercased() == bare(joined).lowercased() else { return .words }
         return whole.lowercased() == joined.lowercased() ? .letterCase : .punctuation
+    }
+}
+
+extension SeamLedger {
+    /// The ledger at `url`, after appending `reason` lines for the cuts that neither it nor the baseline names.
+    static func read(
+        _ url: URL?, adding reason: String?, for keys: [String], baseline: URL
+    ) throws -> SeamLedger {
+        guard let url else {
+            guard reason == nil else { throw ValidationError("--add-to-ledger needs --ledger") }
+            return SeamLedger(entries: [])
+        }
+        let exists = FileManager.default.fileExists(atPath: url.path)
+        let existing = exists ? try String(contentsOf: url, encoding: .utf8) : ""
+        var ledger = try SeamLedger(parsing: existing)
+        if let reason {
+            guard !reason.allSatisfy(\.isWhitespace), !reason.contains(where: \.isNewline) else {
+                throw ValidationError("--add-to-ledger needs a reason on one line")
+            }
+            let added = ledger.unnamed(among: keys, baseline: try SeamBaseline.read(from: baseline))
+            let separator = existing.isEmpty || existing.hasSuffix("\n") ? "" : "\n"
+            let text = existing + separator + SeamLedger.lines(for: added, reason: reason)
+            // The whole candidate is read before it replaces the file, so a bad line is never written.
+            ledger = try SeamLedger(parsing: text)
+            try text.write(to: url, atomically: true, encoding: .utf8)
+            print("  added \(added.count) cuts to the ledger; review them in the diff")
+        }
+        return ledger
     }
 }
 
