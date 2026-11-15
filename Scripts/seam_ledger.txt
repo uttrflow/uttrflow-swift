@@ -56,7 +56,6 @@ wait-sorry-opens-an-apology-kept@2 the piece joiner writes a stop or capital at 
 wait-sorry-opens-an-apology-kept@3 the piece joiner writes a stop or capital at this cut, as it does at the cuts the baseline lists
 wait-sorry-opens-an-apology-kept@4 the piece joiner writes a stop or capital at this cut, as it does at the cuts the baseline lists
 wait-sorry-opens-an-apology-kept@5 the piece joiner writes a stop or capital at this cut, as it does at the cuts the baseline lists
-dotted-amount-before-currency-kept@6 the piece joiner writes a stop or capital, or leaves a currency word behind, at this cut; amounts written with a symbol (#4027)
 quantity-after-has-beside-a-label-word@12 the piece joiner writes a stop or capital, or leaves a currency word behind, at this cut; amounts written with a symbol (#4027)
 quantity-after-has-beside-a-label-word@4 the piece joiner writes a stop or capital, or leaves a currency word behind, at this cut; amounts written with a symbol (#4027)
 quantity-after-has-beside-a-label-word@5 the piece joiner writes a stop or capital, or leaves a currency word behind, at this cut; amounts written with a symbol (#4027)

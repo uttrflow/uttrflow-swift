@@ -90,62 +90,6 @@ public struct NumberFormsPass: PieceCleaningPass {
         self.currencySymbols = currencySymbols
     }
 
-    /// The coordinators that join the two ends of a range of amounts.
-    private static let rangeJoiners = coordinators.subtracting(["by", "versus", "vs"])
-
-    /// Words that name a currency and something else, so they keep their word: a pound also weighs.
-    private static let alsoMeasures: Set<String> = ["pound", "pounds"]
-
-    /// The symbol written before an amount of this currency word, if it names one currency only.
-    private static func symbol(forCurrencyWord word: String) -> String? {
-        alsoMeasures.contains(word) ? nil : Quantities.currencyWords[word]
-    }
-
-    /// Writes "5 dollars" as "$5": the numeral takes the symbol and the currency word goes.
-    static func writeSymbols(in draft: inout Draft) {
-        let present = draft.presentIndices
-        for index in present {
-            // A major amount and its minor part are written as one word, "2.50 dollars".
-            let shape = draft.shape(at: index)
-            let parts = shape.core.split(separator: " ").map(String.init)
-            if parts.count == 2, let symbol = symbol(forCurrencyWord: parts[1].lowercased()),
-                isNumeral(parts[0])
-            {
-                draft.replace(at: index, with: shape.prefix + symbol + parts[0] + shape.suffix, by: id)
-            }
-        }
-        for (amount, unit) in zip(draft.presentIndices, draft.presentIndices.dropFirst()) {
-            let number = draft.shape(at: amount)
-            let word = draft.shape(at: unit)
-            let figure = number.core.split(separator: " ").first.map(String.init) ?? number.core
-            guard draft.words[amount].isPresent, draft.words[unit].isPresent,
-                let symbol = symbol(forCurrencyWord: word.key), number.suffix.isEmpty, word.prefix.isEmpty,
-                isNumeral(figure)
-            else { continue }
-            draft.replace(at: amount, with: number.prefix + symbol + number.core + word.suffix, by: id)
-            draft.remove(at: unit, by: id)
-            // "between 500 and 600 dollars" names both amounts in the currency.
-            let before = draft.presentIndices.filter { $0 < amount }.suffix(2)
-            if before.count == 2, let first = before.first, let joiner = before.last,
-                rangeJoiners.contains(draft.shape(at: joiner).key)
-            {
-                let earlier = draft.shape(at: first)
-                if earlier.suffix.isEmpty, isNumeral(earlier.core) {
-                    draft.replace(at: first, with: earlier.prefix + symbol + earlier.core, by: id)
-                }
-            }
-        }
-    }
-
-    /// Whether the text is digits with optional grouping commas and one decimal part.
-    private static func isNumeral(_ text: String) -> Bool {
-        guard let first = text.first, first.isASCII, first.isNumber else { return false }
-        let parts = text.split(separator: ".", omittingEmptySubsequences: false)
-        return parts.count <= 2
-            && parts.allSatisfy { $0.allSatisfy { $0.isASCII && ($0.isNumber || $0 == ",") } }
-            && parts.last?.last != ","
-    }
-
     public func apply(_ draft: Draft) -> Draft {
         var draft = draft
         let present = draft.presentIndices
@@ -468,15 +412,6 @@ public struct NumberFormsPass: PieceCleaningPass {
         return cardinal(at: position, keys: keys, shapes: shapes, policy: policy, digits: digits)
     }
 
-    /// "a hundred and fifty" is one number, 150; a hundred with no tail stays a word.
-    private static func aHundredAndTail(at position: Int, keys: [String], shapes: [WordShape]) -> Phrase? {
-        guard position + 3 < keys.count, keys[position] == "a", keys[position + 1] == "hundred",
-            keys[position + 2] == "and", (position + 1...position + 3).allSatisfy({ joined($0, shapes) }),
-            let tail = NumberWords.cardinal(keys[(position + 3)...]), tail.value < 100
-        else { return nil }
-        return Phrase(text: String(100 + tail.value), count: 3 + tail.count)
-    }
-
     /// A major amount, its currency word and a smaller number, "two dollars fifty", written "2.50 dollars".
     private static func minorAmount(
         at position: Int, keys: [String], shapes: [WordShape], digits: DigitGrouping
@@ -786,15 +721,6 @@ public struct NumberFormsPass: PieceCleaningPass {
         return Phrase(
             text: NumberWords.render(value, grouping: inContext ? .none : digits, isAmount: isAmount),
             count: item.count)
-    }
-
-    /// "five million" as "5 million": a coefficient under 1000 and one scale word keep the magnitude word.
-    private static func magnitudeForm(at position: Int, end: Int, keys: [String]) -> String? {
-        guard end - position >= 2, ["million", "billion", "trillion"].contains(keys[end - 1]),
-            let coefficient = NumberWords.cardinal(keys[position..<(end - 1)]),
-            coefficient.count == end - 1 - position, coefficient.value < 1000
-        else { return nil }
-        return "\(coefficient.value) \(keys[end - 1])"
     }
 
     /// Whether the number is a term of "N out of M", an amount against its whole.

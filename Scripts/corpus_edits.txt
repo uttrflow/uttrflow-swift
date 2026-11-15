@@ -819,3 +819,4 @@ quantity-after-has-beside-a-label-word the reference writes an amount before a c
 range-of-two-hundreds-between the reference writes an amount before a currency word as its symbol, and a coefficient under a thousand with its magnitude word (#4027, #4026)
 range-shares-hundred the reference writes an amount before a currency word as its symbol, and a coefficient under a thousand with its magnitude word (#4027, #4026)
 genre-travel-plan-city-weekend the ticket price is in dollars, which is written with its symbol, since a genre reference is ASCII only (#4027)
+english-lakh-thousand the reference writes the amount before a currency word as its symbol (#4027)

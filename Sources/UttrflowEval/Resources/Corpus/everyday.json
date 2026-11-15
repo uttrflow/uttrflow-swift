@@ -1197,7 +1197,7 @@
   {
     "id": "dotted-amount-before-currency-kept",
     "note": "Recogniser-formatted input: a currency word after the number makes it an amount, not a time; only the exact form tells the two apart.",
-    "spoken": "the bus tickets sell at $3.50 each",
+    "spoken": "the bus tickets sell at 3.50 dollars each",
     "expected": "The bus tickets sell at $3.50 each.",
     "expectedExact": "The bus tickets sell at $3.50 each.",
     "mustKeep": ["$3.50", "tickets"]
@@ -1913,7 +1913,7 @@
     "note": "The one scale said after a range belongs to both ends.",
     "spoken": "we sold five or six hundred copies",
     "expected": "We sold 500 or 600 copies.",
-    "mustKeep": ["$500", "$600"],
+    "mustKeep": ["500", "600"],
     "addedFor": 7936
   },
   {
