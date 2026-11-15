@@ -12,6 +12,8 @@ public enum DictionaryStoreError: UttrflowFailure {
     case entryHasTooManyWords(maximum: Int)
     /// The spelling is longer than the recogniser prompt can ever hold, so it would be listed but never offered.
     case entryIsTooLong(maximum: Int)
+    /// Nothing in the spelling can be heard, so no dictation could ever bring the word up.
+    case wordHasNoSound
 
     /// A plain sentence per case.
     public var userMessage: String {
@@ -24,6 +26,7 @@ public enum DictionaryStoreError: UttrflowFailure {
             "The spelling and pronunciation can each have at most \(maximum) words."
         case .entryIsTooLong(let maximum):
             "The spelling can have at most \(maximum) characters."
+        case .wordHasNoSound: "Add what it sounds like, so the word can be found when you say it."
         }
     }
 
@@ -34,7 +37,7 @@ public enum DictionaryStoreError: UttrflowFailure {
     public var severity: FailureSeverity {
         switch self {
         case .couldNotWrite, .couldNotReadSeedRecord: .degraded
-        case .wordIsEmpty, .wordAlreadyKnown, .entryHasTooManyWords, .entryIsTooLong: .informational
+        case .wordIsEmpty, .wordAlreadyKnown, .entryHasTooManyWords, .entryIsTooLong, .wordHasNoSound: .informational
         }
     }
 }

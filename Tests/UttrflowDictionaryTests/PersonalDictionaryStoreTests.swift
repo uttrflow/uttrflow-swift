@@ -256,6 +256,18 @@ struct PersonalDictionaryStoreTests {
         #expect(await store.allEntries().isEmpty)
     }
 
+    @Test("refuses a spelling of only symbols unless a pronunciation gives it a sound")
+    func addingWordWithNoSound() async throws {
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
+        await #expect(throws: DictionaryStoreError.wordHasNoSound) {
+            try await store.add(word: "++", pronunciation: "", at: epoch)
+        }
+        #expect(await store.allEntries().isEmpty)
+        try await store.add(word: "++", pronunciation: "plus plus", at: epoch)
+        #expect(await store.allEntries().count == 1)
+    }
+
     @Test("refuses a one-word spelling too long for the recogniser prompt and writes nothing")
     func addingOverlongWord() async throws {
         let sandbox = Sandbox()
@@ -666,13 +678,14 @@ struct DictionaryStoreErrorTests {
             DictionaryStoreError.everyCase
                 == [
                     .couldNotWrite, .couldNotReadSeedRecord, .wordIsEmpty, .wordAlreadyKnown,
-                    .entryHasTooManyWords(maximum: 3), .entryIsTooLong(maximum: 80),
+                    .entryHasTooManyWords(maximum: 3), .entryIsTooLong(maximum: 80), .wordHasNoSound,
                 ])
         #expect(DictionaryStoreError.firstCase.caseAfter == .couldNotReadSeedRecord)
         #expect(
             DictionaryStoreError.wordAlreadyKnown.caseAfter
                 == .entryHasTooManyWords(maximum: 3))
-        #expect(DictionaryStoreError.entryIsTooLong(maximum: 80).caseAfter == nil)
+        #expect(DictionaryStoreError.entryIsTooLong(maximum: 80).caseAfter == .wordHasNoSound)
+        #expect(DictionaryStoreError.wordHasNoSound.caseAfter == nil)
     }
 }
 
