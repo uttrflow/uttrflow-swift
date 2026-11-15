@@ -92,6 +92,7 @@ the code and these pages call it.
 | [adding-a-destination.md](adding-a-destination.md) | Adding a destination, step by step |
 | [adding-a-corpus-case.md](adding-a-corpus-case.md) | Adding a clean-up corpus case: the schema, the checks, and scoring it alone |
 | [data-tables.md](data-tables.md) | Word tables as data: the one loader, its checks and its fallback |
+| [number-word-coverage.md](number-word-coverage.md) | The pinned CLDR spell-out extract and what the hand number tables miss against it |
 | [learned-parameters.md](learned-parameters.md) | Fitted-parameter files: the one reader and writer, and the refusals that keep a layer dark |
 | [lexicon.md](lexicon.md) | Adding a technical term: the entry, what is rejected, the check |
 | [data-manifest.md](data-manifest.md) | Origin, licence and digest of every bundled resource file, and the check |

@@ -1,0 +1,351 @@
+{
+  "schema": 1,
+  "provenance": {
+    "source": "Unicode CLDR common/rbnf/en.xml",
+    "release": "release-46",
+    "licence": "Unicode-3.0",
+    "producedBy": "Scripts/cldr_extract.py"
+  },
+  "rows": [
+    {
+      "id": "zero",
+      "value": 0,
+      "kind": "cardinal"
+    },
+    {
+      "id": "one",
+      "value": 1,
+      "kind": "cardinal"
+    },
+    {
+      "id": "two",
+      "value": 2,
+      "kind": "cardinal"
+    },
+    {
+      "id": "three",
+      "value": 3,
+      "kind": "cardinal"
+    },
+    {
+      "id": "four",
+      "value": 4,
+      "kind": "cardinal"
+    },
+    {
+      "id": "five",
+      "value": 5,
+      "kind": "cardinal"
+    },
+    {
+      "id": "six",
+      "value": 6,
+      "kind": "cardinal"
+    },
+    {
+      "id": "seven",
+      "value": 7,
+      "kind": "cardinal"
+    },
+    {
+      "id": "eight",
+      "value": 8,
+      "kind": "cardinal"
+    },
+    {
+      "id": "nine",
+      "value": 9,
+      "kind": "cardinal"
+    },
+    {
+      "id": "ten",
+      "value": 10,
+      "kind": "cardinal"
+    },
+    {
+      "id": "eleven",
+      "value": 11,
+      "kind": "cardinal"
+    },
+    {
+      "id": "twelve",
+      "value": 12,
+      "kind": "cardinal"
+    },
+    {
+      "id": "thirteen",
+      "value": 13,
+      "kind": "cardinal"
+    },
+    {
+      "id": "fourteen",
+      "value": 14,
+      "kind": "cardinal"
+    },
+    {
+      "id": "fifteen",
+      "value": 15,
+      "kind": "cardinal"
+    },
+    {
+      "id": "sixteen",
+      "value": 16,
+      "kind": "cardinal"
+    },
+    {
+      "id": "seventeen",
+      "value": 17,
+      "kind": "cardinal"
+    },
+    {
+      "id": "eighteen",
+      "value": 18,
+      "kind": "cardinal"
+    },
+    {
+      "id": "nineteen",
+      "value": 19,
+      "kind": "cardinal"
+    },
+    {
+      "id": "twenty",
+      "value": 20,
+      "kind": "cardinal"
+    },
+    {
+      "id": "thirty",
+      "value": 30,
+      "kind": "cardinal"
+    },
+    {
+      "id": "forty",
+      "value": 40,
+      "kind": "cardinal"
+    },
+    {
+      "id": "fifty",
+      "value": 50,
+      "kind": "cardinal"
+    },
+    {
+      "id": "sixty",
+      "value": 60,
+      "kind": "cardinal"
+    },
+    {
+      "id": "seventy",
+      "value": 70,
+      "kind": "cardinal"
+    },
+    {
+      "id": "eighty",
+      "value": 80,
+      "kind": "cardinal"
+    },
+    {
+      "id": "ninety",
+      "value": 90,
+      "kind": "cardinal"
+    },
+    {
+      "id": "hundred",
+      "value": 100,
+      "kind": "cardinal"
+    },
+    {
+      "id": "thousand",
+      "value": 1000,
+      "kind": "cardinal"
+    },
+    {
+      "id": "million",
+      "value": 1000000,
+      "kind": "cardinal"
+    },
+    {
+      "id": "billion",
+      "value": 1000000000,
+      "kind": "cardinal"
+    },
+    {
+      "id": "trillion",
+      "value": 1000000000000,
+      "kind": "cardinal"
+    },
+    {
+      "id": "quadrillion",
+      "value": 1000000000000000,
+      "kind": "cardinal"
+    },
+    {
+      "id": "zeroth",
+      "value": 0,
+      "kind": "ordinal"
+    },
+    {
+      "id": "first",
+      "value": 1,
+      "kind": "ordinal"
+    },
+    {
+      "id": "second",
+      "value": 2,
+      "kind": "ordinal"
+    },
+    {
+      "id": "third",
+      "value": 3,
+      "kind": "ordinal"
+    },
+    {
+      "id": "fourth",
+      "value": 4,
+      "kind": "ordinal"
+    },
+    {
+      "id": "fifth",
+      "value": 5,
+      "kind": "ordinal"
+    },
+    {
+      "id": "sixth",
+      "value": 6,
+      "kind": "ordinal"
+    },
+    {
+      "id": "seventh",
+      "value": 7,
+      "kind": "ordinal"
+    },
+    {
+      "id": "eighth",
+      "value": 8,
+      "kind": "ordinal"
+    },
+    {
+      "id": "ninth",
+      "value": 9,
+      "kind": "ordinal"
+    },
+    {
+      "id": "tenth",
+      "value": 10,
+      "kind": "ordinal"
+    },
+    {
+      "id": "eleventh",
+      "value": 11,
+      "kind": "ordinal"
+    },
+    {
+      "id": "twelfth",
+      "value": 12,
+      "kind": "ordinal"
+    },
+    {
+      "id": "thirteenth",
+      "value": 13,
+      "kind": "ordinal"
+    },
+    {
+      "id": "fourteenth",
+      "value": 14,
+      "kind": "ordinal"
+    },
+    {
+      "id": "fifteenth",
+      "value": 15,
+      "kind": "ordinal"
+    },
+    {
+      "id": "sixteenth",
+      "value": 16,
+      "kind": "ordinal"
+    },
+    {
+      "id": "seventeenth",
+      "value": 17,
+      "kind": "ordinal"
+    },
+    {
+      "id": "eighteenth",
+      "value": 18,
+      "kind": "ordinal"
+    },
+    {
+      "id": "nineteenth",
+      "value": 19,
+      "kind": "ordinal"
+    },
+    {
+      "id": "twentieth",
+      "value": 20,
+      "kind": "ordinal"
+    },
+    {
+      "id": "thirtieth",
+      "value": 30,
+      "kind": "ordinal"
+    },
+    {
+      "id": "fortieth",
+      "value": 40,
+      "kind": "ordinal"
+    },
+    {
+      "id": "fiftieth",
+      "value": 50,
+      "kind": "ordinal"
+    },
+    {
+      "id": "sixtieth",
+      "value": 60,
+      "kind": "ordinal"
+    },
+    {
+      "id": "seventieth",
+      "value": 70,
+      "kind": "ordinal"
+    },
+    {
+      "id": "eightieth",
+      "value": 80,
+      "kind": "ordinal"
+    },
+    {
+      "id": "ninetieth",
+      "value": 90,
+      "kind": "ordinal"
+    },
+    {
+      "id": "hundredth",
+      "value": 100,
+      "kind": "ordinal"
+    },
+    {
+      "id": "thousandth",
+      "value": 1000,
+      "kind": "ordinal"
+    },
+    {
+      "id": "millionth",
+      "value": 1000000,
+      "kind": "ordinal"
+    },
+    {
+      "id": "billionth",
+      "value": 1000000000,
+      "kind": "ordinal"
+    },
+    {
+      "id": "trillionth",
+      "value": 1000000000000,
+      "kind": "ordinal"
+    },
+    {
+      "id": "quadrillionth",
+      "value": 1000000000000000,
+      "kind": "ordinal"
+    }
+  ]
+}
