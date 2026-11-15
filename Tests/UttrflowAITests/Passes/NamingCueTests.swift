@@ -137,6 +137,17 @@ struct NamingCueTests {
         #expect(cleaned("name it get user by id", in: "notes.txt", after: "x = ") == "name it get user by id")
     }
 
+    @Test("in a snake-case file a sentence with a name's words and no request keeps every word")
+    func sentenceWithoutARequestIsNotRenamed() {
+        let snakeFile = "user = get_user_by_id(1)\norder_totals = fetch_invoices()\nx = "
+        for spoken in [
+            "get user by id", "we should get user by id before the call",
+            "then get user by id and fetch invoices",
+        ] {
+            #expect(cleaned(spoken, in: "example.py", after: snakeFile) == spoken, "\(spoken)")
+        }
+    }
+
     @Test("the name ends at the clause: a spoken comma and the words after it are left alone")
     func endsAtClause() {
         #expect(
