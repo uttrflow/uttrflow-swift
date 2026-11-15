@@ -858,7 +858,7 @@ mix-hi-verb-start-check	Check karo ki server chal raha hai.
 mix-hi-verb-start-share	Share karo woh file group mein.
 mix-hi-verb-start-wait	Wait karo main bas aa raha hoon.
 money	The taxi cost $5.
-money-billion	We raised $2,000,000,000.
+money-billion	We raised $2 billion.
 name-opening-is-the-one-statement	Maria is the one who called.
 name-opening-is-the-owner-statement	Ravi is the owner of the account.
 negated-option-cache-code-editor	docker build --no-cache
@@ -1048,7 +1048,7 @@ prose-keeps-spoken-parentheses	Open paren close paren.
 prose-keeps-spoken-snake-case	Snake case max retries.
 prose-number-word-kept	One of them failed the build.
 prose-spoken-parentheses-as-marks	The budget (draft two) is due Friday.
-quantity-after-has-beside-a-label-word	The model has 70,000,000,000 parameters and the table has 2,000,000 rows.
+quantity-after-has-beside-a-label-word	The model has 70 billion parameters and the table has 2 million rows.
 question-after-a-spoken-dash-ends-in-a-question-mark	Wait —, is it?
 question-mark-new-line	Is it ready?\nYes.
 question-mark-new-line-thanks	What do you think?\nThanks.

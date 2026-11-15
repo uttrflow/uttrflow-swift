@@ -723,8 +723,8 @@
   {
     "id": "quantity-after-has-beside-a-label-word",
     "spoken": "the model has seventy billion parameters and the table has two million rows",
-    "expected": "The model has 70,000,000,000 parameters and the table has 2,000,000 rows.",
-    "mustKeep": ["70,000,000,000", "2,000,000"]
+    "expected": "The model has 70 billion parameters and the table has 2 million rows.",
+    "mustKeep": ["70 billion", "2 million"]
   },
   {
     "id": "trigger-as-its-own-sentence",
@@ -1226,8 +1226,8 @@
   {
     "id": "money-billion",
     "spoken": "we raised two billion dollars",
-    "expected": "We raised $2,000,000,000.",
-    "mustKeep": ["raised", "$2,000,000,000"]
+    "expected": "We raised $2 billion.",
+    "mustKeep": ["raised", "$2 billion"]
   },
   {
     "id": "dates",

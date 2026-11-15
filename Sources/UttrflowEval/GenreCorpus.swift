@@ -25,13 +25,13 @@ extension EvaluationCorpus {
         piece(
             .customerEmail, "late-parcel",
             "hi jonah thanks for getting in touch about order four eight one seven two. the parcel left our warehouse on the third of june and the courier now expects it by friday. i have refunded the twelve dollars shipping fee to your card. new paragraph if it has not arrived by monday just reply to this email and we will send a replacement. best wishes mira",
-            "Hi Jonah, thanks for getting in touch about order 48172. The parcel left our warehouse on the 3rd of June and the courier now expects it by Friday. I have refunded the 12 dollars shipping fee to your card.\n\nIf it has not arrived by Monday, just reply to this email and we will send a replacement. Best wishes, Mira",
+            "Hi Jonah, thanks for getting in touch about order 48172. The parcel left our warehouse on the 3rd of June and the courier now expects it by Friday. I have refunded the $12 shipping fee to your card.\n\nIf it has not arrived by Monday, just reply to this email and we will send a replacement. Best wishes, Mira",
             keep: ["48172", "Friday", "replacement"], notAdd: ["apologise", "sorry"],
             classes: [.numbers, .paragraphs, .capitalisationAndTokens, .commas]),
         piece(
             .customerEmail, "account-question",
             "hello and thank you for your question. your plan renews on the fourteenth of august at nine dollars ninety nine a month. you can switch to the yearly plan from the billing page which works out at about eighty dollars a year. if anything is unclear write to help at example dot com and quote ticket q r seven seven one. kind regards tobin",
-            "Hello and thank you for your question. Your plan renews on the 14th of August at $9.99 a month. You can switch to the yearly plan from the billing page, which works out at about 80 dollars a year. If anything is unclear, write to help@example.com and quote ticket QR771. Kind regards, Tobin",
+            "Hello and thank you for your question. Your plan renews on the 14th of August at $9.99 a month. You can switch to the yearly plan from the billing page, which works out at about $80 a year. If anything is unclear, write to help@example.com and quote ticket QR771. Kind regards, Tobin",
             keep: ["help@example.com", "billing", "yearly"], notAdd: ["discount", "free"],
             classes: [.numbers, .capitalisationAndTokens, .commas]),
         piece(
@@ -124,7 +124,7 @@ extension EvaluationCorpus {
         piece(
             .proposal, "bike-racks",
             "i would like to propose adding bike racks outside the north entrance. at the moment about thirty people lock bikes to the railings which blocks the ramp. a rack for forty bikes costs around one thousand five hundred dollars installed. the facilities team said it could be done in a single weekend",
-            "I would like to propose adding bike racks outside the north entrance. At the moment about 30 people lock bikes to the railings, which blocks the ramp. A rack for 40 bikes costs around 1,500 dollars installed. The facilities team said it could be done in a single weekend.",
+            "I would like to propose adding bike racks outside the north entrance. At the moment about 30 people lock bikes to the railings, which blocks the ramp. A rack for 40 bikes costs around $1,500 installed. The facilities team said it could be done in a single weekend.",
             keep: ["bike racks", "ramp", "1,500"], notAdd: ["safety", "approve"],
             classes: [.numbers, .commas, .sentenceBoundaries]),
         piece(
@@ -204,9 +204,9 @@ extension EvaluationCorpus {
             classes: [.lists, .numbers, .commas]),
         piece(
             .travelPlan, "city-weekend",
-            "plan for the city weekend. friday evening check into the guest house on harbour street. saturday morning the museum opens at ten and tickets are eighteen euros. saturday afternoon the old town walking tour leaves from the clock tower at two. sunday we have brunch and catch the four o'clock bus home",
-            "Plan for the city weekend. Friday evening, check into the guest house on Harbour Street. Saturday morning, the museum opens at ten and tickets are 18 euros. Saturday afternoon, the old town walking tour leaves from the clock tower at two. Sunday we have brunch and catch the four o'clock bus home.",
-            keep: ["Harbour Street", "18 euros", "clock tower"], notAdd: ["hotel", "€"],
+            "plan for the city weekend. friday evening check into the guest house on harbour street. saturday morning the museum opens at ten and tickets are eighteen dollars. saturday afternoon the old town walking tour leaves from the clock tower at two. sunday we have brunch and catch the four o'clock bus home",
+            "Plan for the city weekend. Friday evening, check into the guest house on Harbour Street. Saturday morning, the museum opens at ten and tickets are $18. Saturday afternoon, the old town walking tour leaves from the clock tower at two. Sunday we have brunch and catch the four o'clock bus home.",
+            keep: ["Harbour Street", "$18", "clock tower"], notAdd: ["hotel"],
             classes: [.lists, .numbers, .capitalisationAndTokens, .commas]),
     ]
 

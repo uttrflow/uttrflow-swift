@@ -56,7 +56,8 @@ extension CleaningPipeline {
             SpokenEmojiPass(destination: destination),
             LayoutWordsPass(
                 layout: layout, insertionPoint: insertionPoint, readsWholeText: readsWholeText),
-            SpelledNamePass(destination: destination), NumberFormsPass(
+            SpelledNamePass(destination: destination),
+            NumberFormsPass(
                 policy: numbers, digits: digits,
                 currencySymbols: [.document, .email, .messaging, .plain].contains(destination)),
             ContractionsPass(), SpacingPass(),
