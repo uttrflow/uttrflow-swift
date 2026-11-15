@@ -1641,5 +1641,20 @@
     "mustKeep": ["echo"],
     "expectedExact": "echo \\n",
     "addedFor": 4213
+  },
+  {
+    "id": "sql-count-star-source",
+    "spoken": "select count of star from orders",
+    "expected": "SELECT COUNT(*)\nFROM orders",
+    "mustKeep": ["COUNT(*)"],
+    "mustNotAdd": [";"],
+    "context": {
+      "applicationName": "TablePlus",
+      "bundleIdentifier": "com.tinyapp.TablePlus",
+      "documentName": "shop.sql"
+    },
+    "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
+    "addedFor": 4207
   }
 ]
