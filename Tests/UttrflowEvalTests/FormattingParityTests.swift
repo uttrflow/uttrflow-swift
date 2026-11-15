@@ -84,6 +84,22 @@ struct FormattingParityTests {
             "now closed: \(Self.knownGaps.subtracting(open).sorted())")
     }
 
+    /// Plain text keeps its words as spoken, so the model path no longer lays these out either.
+    static let failOnBothPaths: Set<String> = [
+        "fmt-list-numbered-spoken", "fmt-list-first-second-third", "fmt-correction-actually",
+    ]
+
+    @Test("keeps the cases neither path passes in view, so a lost finish cannot hide")
+    func failOnBothPathsStayVisible() async throws {
+        let outputs = await Self.outputs.value
+        for id in Self.failOnBothPaths.sorted() {
+            let testCase = try #require(Self.tagged.first { $0.id == id })
+            let output = try #require(outputs[id])
+            #expect(!Scorer.score(output.rules, against: testCase).passed, "\(id) rules")
+            #expect(!Scorer.score(output.model ?? "", against: testCase).passed, "\(id) model")
+        }
+    }
+
     @Test("never lets the finishing passes break a case the rules pass on their own")
     func modelPathKeepsWhatTheRulesGetRight() async {
         for row in await Self.parity().rows {

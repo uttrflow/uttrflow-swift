@@ -258,7 +258,8 @@ public struct DestinationFormatter: Sendable, Equatable {
                 ? .never
                 : (ruleStop ?? (isSingleLine ? base.terminalStop.inOneLineField : base.terminalStop)),
             layout: isSingleLine ? .singleLine : base.layout,
-            grammar: base.grammar, numbers: isSingleLine && role == .number ? .always : base.numbers,
+            grammar: isSingleLine ? .asSpoken : base.grammar,
+            numbers: isSingleLine && role == .number ? .always : base.numbers,
             digits: base.digits,
             promptBlock: base.promptBlock, consequence: isSearch ? .navigates : base.consequence)
     }
@@ -300,7 +301,7 @@ public struct DestinationFormatter: Sendable, Equatable {
         }
         return DestinationFormatter(
             destination: base.destination, firstWord: firstWord, terminalStop: .never,
-            layout: .singleLine, grammar: base.grammar, numbers: base.numbers, digits: base.digits,
+            layout: .singleLine, grammar: .asSpoken, numbers: base.numbers, digits: base.digits,
             promptBlock: base.promptBlock, consequence: base.consequence)
     }
 

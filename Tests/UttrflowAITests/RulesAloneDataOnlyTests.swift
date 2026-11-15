@@ -40,6 +40,15 @@ struct RulesAloneDataOnlyTests {
         #expect(!RulesAlone.shortReplies.covers(request(text)), "\(text)")
     }
 
+    @Test("a document that repairs grammar still asks the model about a slip next to a numeral")
+    func documentKeepsTheModel() {
+        let app = AppContext(documentName: "Notes")
+        let document = TransformationRequest(
+            transcription: Transcription(text: "she have fifteen cats"), context: app,
+            situation: Situation(app: app, insertion: app.insertionPoint, destination: .document))
+        #expect(!RulesAlone.shortReplies.covers(document))
+    }
+
     @Test("a long request never skips the model when routing is off")
     func neverStaysOff() {
         #expect(!RulesAlone.never.covers(request("nine eight seven six five four three two one zero")))

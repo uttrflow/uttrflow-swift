@@ -27,7 +27,10 @@ public struct RulesAlone: Sendable, Equatable {
         if EvidencePolicy.unscored(draft, in: .rulesAlone) == nil, !UncertainSpan.spans(in: draft).isEmpty {
             return false
         }
-        return count <= mostWords || proseWordsLeft(after: request, steps: steps) <= mostWords
+        if count <= mostWords { return true }
+        // A place that repairs grammar asks the model, which the rules cannot stand in for.
+        guard DestinationFormatter.standard(for: request.situation).grammar == .asSpoken else { return false }
+        return proseWordsLeft(after: request, steps: steps) <= mostWords
     }
 
     /// The words the rules left as the speaker said them, since a digit run or a spelled code replaces its words.

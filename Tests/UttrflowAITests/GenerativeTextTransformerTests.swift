@@ -12,6 +12,14 @@ struct GenerativeTextTransformerTests {
         TransformationRequest(transcription: .fixture(text: text, language: language))
     }
 
+    /// A request into a document, where a repair may change a form or add a word.
+    private func documentRequest(_ text: String) -> TransformationRequest {
+        let app = AppContext(documentName: "Notes")
+        return TransformationRequest(
+            transcription: .fixture(text: text, language: .english), context: app,
+            situation: Situation(app: app, insertion: app.insertionPoint, destination: .document))
+    }
+
     @Test("reports the engine it stands for", arguments: [TransformerKind.foundationModels, .cloud])
     func kind(kind: TransformerKind) {
         let sut = GenerativeTextTransformer(kind: kind, model: FakeCleanupModel())
@@ -132,7 +140,7 @@ struct GenerativeTextTransformerTests {
         let model = FakeCleanupModel { _ in modelOutput }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
-        #expect(try await sut.transform(request("hello there")).text == expected)
+        #expect(try await sut.transform(documentRequest("hello there")).text == expected)
     }
 
     /// The passes run first, so the model never sees the fillers and discarded halves it might rewrite.
@@ -524,11 +532,7 @@ struct GenerativeTextTransformerTests {
         let model = FakeCleanupModel { _ in "I did tell Mary not to call John." }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
-        let app = AppContext(documentName: "Notes")
-        let document = TransformationRequest(
-            transcription: .fixture(text: "I did not tell Mary to call John", language: .english),
-            context: app,
-            situation: Situation(app: app, insertion: app.insertionPoint, destination: .document))
+        let document = documentRequest("I did not tell Mary to call John")
 
         do {
             _ = try await sut.transform(document)
@@ -567,11 +571,7 @@ struct GenerativeTextTransformerTests {
         let model = FakeCleanupModel { _ in "I didn't tell Mary to call John." }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
-        let app = AppContext(documentName: "Notes")
-        let document = TransformationRequest(
-            transcription: .fixture(text: "I did not tell Mary to call John", language: .english),
-            context: app,
-            situation: Situation(app: app, insertion: app.insertionPoint, destination: .document))
+        let document = documentRequest("I did not tell Mary to call John")
         let result = try await sut.transform(document)
         #expect(result.text == "I didn't tell Mary to call John.")
         #expect(result.producedBy == .foundationModels)
