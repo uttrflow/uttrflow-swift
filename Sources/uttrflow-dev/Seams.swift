@@ -96,8 +96,20 @@ struct Seams: AsyncParsableCommand {
                 ledger.map { URL(fileURLWithPath: $0) }, adding: addToLedger,
                 for: differing.map(\.key), baseline: URL(fileURLWithPath: check))
             try compare(
-                differing, with: URL(fileURLWithPath: check), among: Set(cases.map(\.id)), ledger: named)
+                differing, with: URL(fileURLWithPath: check), among: Set(cases.map(\.id)), ledger: named,
+                evaluated: Self.evaluatedKeys(of: cases, three: three))
         }
+    }
+
+    /// The key of every cut this run makes of these cases.
+    static func evaluatedKeys(of cases: [EvaluationCase], three: Bool) -> Set<String> {
+        Set(
+            cases.flatMap { testCase in
+                let words = testCase.spoken.split(whereSeparator: \.isWhitespace).count
+                return cuts(of: words, three: three).map {
+                    "\(testCase.id)@\($0.map(String.init).joined(separator: ","))"
+                }
+            })
     }
 
     /// Every cut of one case, and those whose joined pieces differ from the whole.
@@ -248,7 +260,8 @@ struct Seams: AsyncParsableCommand {
     }
 
     private func compare(
-        _ differing: [SeamDifference], with url: URL, among ids: Set<String>, ledger: SeamLedger
+        _ differing: [SeamDifference], with url: URL, among ids: Set<String>, ledger: SeamLedger,
+        evaluated: Set<String>
     ) throws {
         let keys = differing.map(\.key)
         let baseline = try SeamBaseline.read(from: url)
@@ -258,12 +271,8 @@ struct Seams: AsyncParsableCommand {
                 key.lastIndex(of: "@").map { ids.contains(String(key[..<$0])) } ?? false
             })
         let unlisted = Set(ledger.unnamed(among: keys, baseline: baseline))
-        // Only a cut this run evaluated can be said to match: two pieces, and three with --three.
-        let unused = ledger.cuts.subtracting(keys).filter { key in
-            guard let at = key.lastIndex(of: "@"), ids.contains(String(key[..<at])) else { return false }
-            let boundaries = key[key.index(after: at)...].split(separator: ",").count
-            return boundaries == 1 || (three && boundaries == 2)
-        }.sorted()
+        // Only a cut this run evaluated can be said to match.
+        let unused = ledger.cuts.subtracting(keys).intersection(evaluated).sorted()
         if !unused.isEmpty { print("  \(unused.count) ledger cuts now match; delete their lines") }
         for key in unused { print("    \(key)") }
         let risen = differing.filter { unlisted.contains($0.key) }
