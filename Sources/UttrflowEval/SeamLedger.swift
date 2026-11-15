@@ -25,7 +25,7 @@ package struct SeamLedger: Equatable, Sendable {
         for (index, line) in text.split(separator: "\n", omittingEmptySubsequences: false).enumerated()
         where !line.hasPrefix("#") && !line.allSatisfy(\.isWhitespace) {
             let parts = line.split(separator: " ", maxSplits: 1).map(String.init)
-            guard let cut = parts.first, cut.contains("@"), !cut.hasSuffix("@"), !cut.hasPrefix("@") else {
+            guard let cut = parts.first, Self.isCut(cut) else {
                 throw Failure.notACut(line: index + 1)
             }
             guard parts.count == 2, !parts[1].allSatisfy(\.isWhitespace) else {
@@ -35,6 +35,14 @@ package struct SeamLedger: Equatable, Sendable {
             entries.append(Entry(cut: cut, reason: parts[1]))
         }
         self.entries = entries
+    }
+
+    /// Whether the key is a case id, one "@", then comma-separated word boundaries, as `SeamDifference.key` writes it.
+    private static func isCut(_ key: String) -> Bool {
+        let halves = key.split(separator: "@", omittingEmptySubsequences: false)
+        guard halves.count == 2, !halves[0].isEmpty else { return false }
+        let boundaries = halves[1].split(separator: ",", omittingEmptySubsequences: false)
+        return boundaries.allSatisfy { !$0.isEmpty && $0.allSatisfy(\.isASCII) && $0.allSatisfy(\.isNumber) }
     }
 
     /// The keys that neither the baseline nor this ledger names.

@@ -59,6 +59,9 @@ struct Seams: AsyncParsableCommand {
     var attribute = false
 
     func run() async throws {
+        if check == nil, ledger != nil || addToLedger != nil {
+            throw ValidationError("--ledger and --add-to-ledger work with --check")
+        }
         let steps = try Self.steps(without: without)
         // The pipeline is an actor, so each case gets its own and the cases run side by side.
         let three = three
@@ -257,9 +260,9 @@ struct Seams: AsyncParsableCommand {
         let unlisted = Set(ledger.unnamed(among: keys, baseline: baseline))
         let unused = ledger.cuts.subtracting(keys).filter { key in
             key.lastIndex(of: "@").map { ids.contains(String(key[..<$0])) } ?? false
-        }.count
-        if unused > 0 { print("  \(unused) ledger cuts now match; delete their lines") }
-        for key in ledger.cuts.subtracting(keys).sorted() { print("    \(key)") }
+        }.sorted()
+        if !unused.isEmpty { print("  \(unused.count) ledger cuts now match; delete their lines") }
+        for key in unused { print("    \(key)") }
         let risen = differing.filter { unlisted.contains($0.key) }
         let fallen = recorded.subtracting(keys).count
         if fallen > 0 {
@@ -309,13 +312,15 @@ extension SeamLedger {
         let existing = exists ? try String(contentsOf: url, encoding: .utf8) : ""
         var ledger = try SeamLedger(parsing: existing)
         if let reason {
-            guard !reason.allSatisfy(\.isWhitespace) else {
-                throw ValidationError("--add-to-ledger needs a reason")
+            guard !reason.allSatisfy(\.isWhitespace), !reason.contains(where: \.isNewline) else {
+                throw ValidationError("--add-to-ledger needs a reason on one line")
             }
             let added = ledger.unnamed(among: keys, baseline: try SeamBaseline.read(from: baseline))
-            let text = existing + SeamLedger.lines(for: added, reason: reason)
-            try text.write(to: url, atomically: true, encoding: .utf8)
+            let separator = existing.isEmpty || existing.hasSuffix("\n") ? "" : "\n"
+            let text = existing + separator + SeamLedger.lines(for: added, reason: reason)
+            // The whole candidate is read before it replaces the file, so a bad line is never written.
             ledger = try SeamLedger(parsing: text)
+            try text.write(to: url, atomically: true, encoding: .utf8)
             print("  added \(added.count) cuts to the ledger; review them in the diff")
         }
         return ledger

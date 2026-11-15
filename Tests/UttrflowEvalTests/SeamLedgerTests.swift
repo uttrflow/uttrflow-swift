@@ -29,6 +29,9 @@ struct SeamLedgerTests {
         #expect(throws: SeamLedger.Failure.noReason(line: 2)) { try SeamLedger(parsing: "a@1 ok\nb@2   \n") }
         #expect(throws: SeamLedger.Failure.notACut(line: 1)) { try SeamLedger(parsing: "beta why\n") }
         #expect(throws: SeamLedger.Failure.notACut(line: 1)) { try SeamLedger(parsing: "@2 why\n") }
+        #expect(throws: SeamLedger.Failure.notACut(line: 1)) { try SeamLedger(parsing: "beta@two why\n") }
+        #expect(throws: SeamLedger.Failure.notACut(line: 1)) { try SeamLedger(parsing: "beta@2@3 why\n") }
+        #expect(throws: SeamLedger.Failure.notACut(line: 1)) { try SeamLedger(parsing: "beta@2, why\n") }
         let twice = "a@1 x\na@1 y\n"
         #expect(throws: SeamLedger.Failure.listedTwice(cut: "a@1")) { try SeamLedger(parsing: twice) }
     }
@@ -36,7 +39,11 @@ struct SeamLedgerTests {
     @Test("appended lines name each cut with the reason and read back")
     func linesRoundTrip() throws {
         let text = SeamLedger.lines(for: ["a@1", "a@2,3"], reason: "the stop the joiner writes")
-        #expect(try SeamLedger(parsing: text).cuts == ["a@1", "a@2,3"])
+        let reason = "the stop the joiner writes"
+        #expect(
+            try SeamLedger(parsing: text).entries == [
+                SeamLedger.Entry(cut: "a@1", reason: reason), SeamLedger.Entry(cut: "a@2,3", reason: reason),
+            ])
     }
 
     @Test("the committed ledger parses and names no cut the baseline already lists")
