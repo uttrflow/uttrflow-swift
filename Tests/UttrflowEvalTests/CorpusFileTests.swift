@@ -25,7 +25,7 @@ struct CorpusFileTests {
 
     @Test func theBundledOneLineFieldFileLoadsEveryCase() throws {
         let cases = try CorpusFile.load(.oneLineField)
-        #expect(cases.count == 10)
+        #expect(cases.count == 29)
         #expect(EvaluationCorpus.cases(in: .oneLineField) == cases)
         let context = try #require(cases.first?.context)
         #expect(context.accessibilityRole == "AXTextField")
