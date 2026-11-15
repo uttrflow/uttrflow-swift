@@ -80,11 +80,20 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
                 && $0.isEnabled(for: language)
                 && !($0.placement == .leading && afterNumber)
                 && draft.spells($0.words, at: position, in: live, acrossSentences: true)
+                && Self.hasLater($0, after: position, in: live, of: draft)
         }
     }
 
     /// The code symbol rows, then the statement keywords, so a symbol phrase opening on a keyword is tried first.
     private static let rows = SpokenCommands.codeSymbols + SpokenCommands.keywords
+
+    /// Whether every word the row waits on is said somewhere after the row's own phrase.
+    private static func hasLater(
+        _ row: SpokenCommand, after position: Int, in live: [Int], of draft: Draft
+    ) -> Bool {
+        let rest = live[min(position + row.words.count, live.count)...].map { bare(draft.words[$0].text) }
+        return row.needsLater.allSatisfy(rest.contains)
+    }
 
     static func bare(_ text: String) -> String {
         text.lowercased().trimmingCharacters(in: .letters.inverted)

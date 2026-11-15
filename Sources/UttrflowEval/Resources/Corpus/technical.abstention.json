@@ -6087,5 +6087,50 @@
     ],
     "origin": "synthetic",
     "addedFor": 4223
+  },
+  {
+    "id": "abstain-sql-count-star-ratings-code",
+    "spoken": "the count of star ratings is low",
+    "expected": "The count of star ratings is low.",
+    "mustKeep": ["count", "star", "ratings", "low"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4207
+  },
+  {
+    "id": "abstain-sql-count-star-ratings-comment",
+    "spoken": "the count of star ratings is low",
+    "expected": "The count of star ratings is low.",
+    "mustKeep": ["count", "star", "ratings", "low"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4207
+  },
+  {
+    "id": "abstain-sql-count-star-ratings-string",
+    "spoken": "the count of star ratings is low",
+    "expected": "The count of star ratings is low.",
+    "mustKeep": ["count", "star", "ratings", "low"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4207
   }
 ]

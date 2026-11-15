@@ -61,6 +61,14 @@ one (`LayoutWordsPass` owes only the breaks missing before the caret); after `gi
 as said with no line break. `CommitMessageTests` holds the cases and the sentences about committing that stay
 sentences. Selecting by a source-control panel's field label is not built.
 
+Speech that describes a statement instead of dictating it (AD.10, OW.3) is left as spoken. A sentence that
+names a table as "this table", a column as a condition ("if there is this column"), or a clause that is not a keyword
+("filter by date") is prose, and so is a sentence that merely holds a notation word ("the select statement is slow"): the
+adapter writes only what was said as notation and abstains on the rest. `SQLDescriptiveSpeechTests` holds those
+sentences. One row is a bounded exception to the no-rewrite rule: "count of star" is written `COUNT(*)`, but only
+when "from" is said later, so a count with a source table is a call and a bare "count of star" stays words. A row
+names such a word in `needsLater`, and `CodeEditorCommandsPass` reads it.
+
 Shell notation (AD.16) in a terminal also writes what a command line takes beyond flags and pipes: `dollar` before a
 name or bracket is a leading `$` ("dollar home" is `$home`, "dollar open paren date close paren" is `$(date)`), `single quote` opens and closes a single-quoted argument,
 and `backslash` is a leading `\`. A leading

@@ -88,6 +88,7 @@
         {"id": "code.colon", "words": ["colon"], "action": "codeSymbol", "text": ":", "destinations": ["codeEditor"]},
         {"id": "code.semicolon", "words": ["semicolon"], "action": "codeSymbol", "text": ";", "destinations": ["codeEditor"]},
         {"id": "code.comma", "words": ["comma"], "action": "codeSymbol", "text": ",", "destinations": ["codeEditor"]},
+        {"id": "sql.count-star", "words": ["count", "of", "star"], "action": "codeSymbol", "text": "COUNT(*)", "destinations": ["sqlEditor"], "needsLater": ["from"]},
         {"id": "sql.select-star", "words": ["select", "star"], "action": "codeSymbol", "text": "SELECT *", "destinations": ["sqlEditor"]},
         {"id": "sql.select-everything", "words": ["select", "everything"], "action": "codeSymbol", "text": "SELECT *", "destinations": ["sqlEditor"]},
         {"id": "sql.dot", "words": ["dot"], "action": "codeSymbol", "text": ".", "placement": "joining", "destinations": ["sqlEditor"]},
