@@ -9,6 +9,9 @@ the highlight, the mask over a secret and the words under the list cannot tell t
 stories about the same moment. Window, focus and AppKit traps are in
 [`app-quick-panel.md`](app-quick-panel.md).
 
+The list is fed by polling the system clipboard (`PasteboardWatcher`): every 500 ms when idle, every
+100 ms for four seconds after a copy the person made.
+
 ## Row cache contexts
 
 `PanelSearchMemo` stores derived search lists through `Memo` and owns their ordered recent keys.

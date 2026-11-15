@@ -435,7 +435,7 @@ let package = Package(
         ),
         .testTarget(
             name: "UttrflowHistoryTests",
-            dependencies: ["UttrflowCore", "UttrflowHistory", "UttrflowTestSupport"],
+            dependencies: ["UttrflowCore", "UttrflowHistory"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
