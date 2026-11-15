@@ -114,11 +114,15 @@ class BenchTests(unittest.TestCase):
 
     def test_exact_scoring_counts_case_marks_and_symbols_that_normalised_scoring_hides(self):
         for written, heard in (("git checkout -b", "git checkout-b"), ("cargo build --release", "cargo build - release"),
-                               ("call useState here", "call use state here"),
                                ("git push origin main", "Git push origin main."),
                                ("send it to the team", "send it to The team")):
             self.assertEqual(bench.errors([written], heard)[0], 0, heard)
             self.assertGreater(bench.errors([written], heard, words=bench.exact_words)[0], 0, heard)
+
+    def test_a_split_compound_is_an_error_under_both_scorings(self):
+        # The normaliser folds case, apostrophes, punctuation and numerals; it never joins or splits words.
+        self.assertGreater(bench.errors(["call useState here"], "call use state here")[0], 0)
+        self.assertGreater(bench.errors(["call useState here"], "call use state here", words=bench.exact_words)[0], 0)
 
     def test_a_score_reports_normalised_and_exact_final_rates(self):
         out = self.run_bench("score", self.write_run("BENCH " + json.dumps(result_event("known", text="hello world"))))
