@@ -55,7 +55,7 @@ comment-report: ## List the multi-line comments left, worst file first.
 
 .PHONY: seam-audit
 seam-audit: ## Prove no corpus cut gained a difference between cleaning its pieces and cleaning the whole.
-	$(UTTRFLOW_DEV) seams --check Scripts/seam_baseline.json
+	$(UTTRFLOW_DEV) seams --check Scripts/seam_baseline.json --ledger Scripts/seam_ledger.txt
 
 .PHONY: corpus-edit-audit
 corpus-edit-audit: ## Refuse a changed or removed evaluation case that Scripts/corpus_edits.txt does not name. Needs no build.

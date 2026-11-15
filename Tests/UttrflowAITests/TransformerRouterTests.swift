@@ -78,8 +78,12 @@ struct TransformerRouterTests {
         let router = TransformerRouter(
             engines: [generative, RuleBasedTransformer()], preference: [.foundationModels, .rules],
             clock: ManualClock())
+        // A document, where a repair may add a word, so the moved negation is what the guard names.
+        let app = AppContext(documentName: "Notes")
         let spoken = TransformationRequest(
-            transcription: .fixture(text: "I did not tell Mary to call John", language: .english))
+            transcription: .fixture(text: "I did not tell Mary to call John", language: .english),
+            context: app,
+            situation: Situation(app: app, insertion: app.insertionPoint, destination: .document))
 
         let result = try await router.transform(spoken)
 

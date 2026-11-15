@@ -7,10 +7,10 @@ import Testing
 import UttrflowAI
 import UttrflowCore
 import UttrflowDictionary
-import UttrflowPipeline
 import UttrflowTestSupport
 
 @testable import Uttrflow
+@testable import UttrflowPipeline
 
 /// Proposes one scripted correction, so a dictation applies a real dictionary entry.
 private struct OneCorrection: WordCorrecting {
@@ -78,6 +78,8 @@ struct PersonaSecureFieldTests {
             Issue.record("expected an insertion, got \(await pipeline.currentState)")
             return ([], nil, nil)
         }
+        // Counting runs on the lane queued after the insertion, so it is awaited before it is read.
+        await pipeline.settlePostInsertion()
         return (
             told.withLock { $0 }, await dictionary.allEntries().first { $0.id == entry.id },
             await snippets.snippets().first { $0.id == snippet.id }
