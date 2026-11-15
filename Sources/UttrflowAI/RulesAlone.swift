@@ -13,12 +13,10 @@ public struct RulesAlone: Sendable, Equatable {
     /// Every request goes down the whole route.
     public static let never = RulesAlone(mostWords: 0)
 
-    /// What ships: replies of up to three words, where the model was measured to change nothing, and requests
-    /// the rules reduce to that many prose words.
+    /// What ships: replies of up to three words, and requests the rules reduce to that many prose words.
     public static let shortReplies = RulesAlone(mostWords: 3)
 
-    /// Whether the rules alone finish `request`: a few words, or a longer request whose words the rules have
-    /// consumed down to a few, all ASCII, none of them doubted by the recogniser.
+    /// Whether the rules alone finish `request`: few words, or few left after the rules, all ASCII, none doubted.
     func covers(_ request: TransformationRequest, steps: CleaningSteps = .default) -> Bool {
         let text = request.transcription.text
         let count = WordTokens.tokens(text, .display).count
@@ -32,8 +30,7 @@ public struct RulesAlone: Sendable, Equatable {
         return count <= mostWords || proseWordsLeft(after: request, steps: steps) <= mostWords
     }
 
-    /// The words still in the rules' text as the speaker said them: a digit run, an address or a spelled code
-    /// replaces its spoken words, so what is left is the prose the model could only add a capital or a stop to.
+    /// The words the rules left as the speaker said them, since a digit run or a spelled code replaces its words.
     private func proseWordsLeft(after request: TransformationRequest, steps: CleaningSteps) -> Int {
         let pipeline = RuleBasedTransformer.pipeline(for: request, steps: steps)
         let finished = pipeline.run(Draft(transcription: request.transcription))
