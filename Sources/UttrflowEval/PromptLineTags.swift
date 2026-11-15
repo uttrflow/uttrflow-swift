@@ -94,7 +94,6 @@ public enum PromptLineTags {
 
         PromptLineTag("plain", "- an exclamation mark only", .formats([.sentenceBoundaries])),
         PromptLineTag("plain", "- keep every line break", .formats([.paragraphs])),
-        PromptLineTag("plain", "- fix a grammar slip", .repairsWords([.capitalisationAndTokens])),
-        PromptLineTag("plain", "- change a word's form", .keepsWords),
+        PromptLineTag("plain", "- write a lowercase name or acronym", .repairsWords([.capitalisationAndTokens])),
     ]
 }

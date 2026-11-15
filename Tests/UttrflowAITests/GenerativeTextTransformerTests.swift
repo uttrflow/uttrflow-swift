@@ -76,7 +76,7 @@ struct GenerativeTextTransformerTests {
     /// A grammar slip is such a draft too, so a place that repairs grammar asks the model rather than ship it as spoken.
     @Test(
         "asks the model about a settled draft where the destination repairs grammar",
-        arguments: [Destination.plain, .document, .email])
+        arguments: [Destination.document, .email])
     func asksModelWhereGrammarIsRepaired(destination: Destination) async throws {
         let model = FakeCleanupModel { _ in "An hour ago." }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
@@ -524,8 +524,14 @@ struct GenerativeTextTransformerTests {
         let model = FakeCleanupModel { _ in "I did tell Mary not to call John." }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
+        let app = AppContext(documentName: "Notes")
+        let document = TransformationRequest(
+            transcription: .fixture(text: "I did not tell Mary to call John", language: .english),
+            context: app,
+            situation: Situation(app: app, insertion: app.insertionPoint, destination: .document))
+
         do {
-            _ = try await sut.transform(request("I did not tell Mary to call John"))
+            _ = try await sut.transform(document)
             Issue.record("expected the moved negation to be refused")
         } catch {
             guard case .outputRejected(_, let kind) = error else {
@@ -561,7 +567,12 @@ struct GenerativeTextTransformerTests {
         let model = FakeCleanupModel { _ in "I didn't tell Mary to call John." }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
-        let result = try await sut.transform(request("I did not tell Mary to call John"))
+        let app = AppContext(documentName: "Notes")
+        let document = TransformationRequest(
+            transcription: .fixture(text: "I did not tell Mary to call John", language: .english),
+            context: app,
+            situation: Situation(app: app, insertion: app.insertionPoint, destination: .document))
+        let result = try await sut.transform(document)
         #expect(result.text == "I didn't tell Mary to call John.")
         #expect(result.producedBy == .foundationModels)
     }
