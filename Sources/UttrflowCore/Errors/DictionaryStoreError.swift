@@ -37,7 +37,8 @@ public enum DictionaryStoreError: UttrflowFailure {
     public var severity: FailureSeverity {
         switch self {
         case .couldNotWrite, .couldNotReadSeedRecord: .degraded
-        case .wordIsEmpty, .wordAlreadyKnown, .entryHasTooManyWords, .entryIsTooLong, .wordHasNoSound: .informational
+        case .wordIsEmpty, .wordAlreadyKnown, .entryHasTooManyWords, .entryIsTooLong, .wordHasNoSound:
+            .informational
         }
     }
 }
