@@ -125,6 +125,20 @@ class BenchTests(unittest.TestCase):
         self.assertIn("final exact WER", out.stdout)
         self.assertIn("| reply | 1 | 0.0% | 0.0% | 100.0% |", out.stdout)
 
+    def test_every_hindi_shape_category_has_clips_spoken_by_the_hindi_voice_with_both_scripts(self):
+        made = bench.clips()
+        for category in ("hi-reply", "hi-lakh", "hi-selfcorrection", "hi-fillers"):
+            mine = [c for c in made if c["category"] == category]
+            self.assertTrue(mine, category)
+            for c in mine:
+                self.assertEqual((c["voice"], c["languages"]), ("Lekha", ["hi"]), c["id"])
+                self.assertTrue(c["devanagari"] and c["written"].isascii(), c["id"])
+
+    def test_a_spoken_hindi_correction_keeps_only_what_it_was_corrected_to(self):
+        for c in (c for c in bench.clips() if c["category"] == "hi-selfcorrection"):
+            self.assertNotEqual(c["devanagari"], c["say"], c["id"])
+            self.assertNotEqual(c["written"], c["spoken"], c["id"])
+
     def test_every_developer_vocabulary_category_has_paired_bare_and_context_clips(self):
         made = [c for c in bench.clips() if c["category"].startswith("devvocab-")]
         for kind in bench.DEVVOCAB:

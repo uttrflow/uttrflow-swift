@@ -817,6 +817,18 @@
       "optional": true,
       "sha256": "6258f9e98daf1aed69712e0fa1c3924d00f8a4fd2a86ed1ae9c6320b69ca1788",
       "bytes": 7107
+    },
+    {
+      "licence": "Unicode-3.0",
+      "redistribution": true,
+      "note": "English spell-out words derived from the pinned release; the licence text ships with the app's acknowledgements when the hand tables are replaced",
+      "sha256": "3342dccd119946e806960f2fdc681a22ccaaf301d25234544080f1b656089677",
+      "path": "Sources/UttrflowCore/Resources/Tables/cldr-en-spellout.json",
+      "origin": "third-party",
+      "bytes": 5680,
+      "source": "https://github.com/unicode-org/cldr/blob/release-46/common/rbnf/en.xml",
+      "revision": "release-46",
+      "producedBy": "Scripts/cldr_extract.py"
     }
   ]
 }
