@@ -24,7 +24,7 @@ struct NumberFormsPassAmountTests {
         ]
     )
     func currencySymbols(input: String, expected: String) {
-        let sut = NumberFormsPass(currencySymbols: true)
+        let sut = AmountFormsPass()
         #expect(cleaned(input, by: sut) == expected)
     }
 
@@ -44,7 +44,7 @@ struct NumberFormsPassAmountTests {
         ]
     )
     func hundredWithATail(input: String, expected: String) {
-        let sut = NumberFormsPass(currencySymbols: true)
+        let sut = AmountFormsPass()
         #expect(cleaned(input, by: sut) == expected)
     }
 
@@ -61,7 +61,7 @@ struct NumberFormsPassAmountTests {
         ]
     )
     func magnitudeForms(input: String, expected: String) {
-        let sut = NumberFormsPass(currencySymbols: true)
+        let sut = AmountFormsPass()
         #expect(cleaned(input, by: sut) == expected)
     }
 

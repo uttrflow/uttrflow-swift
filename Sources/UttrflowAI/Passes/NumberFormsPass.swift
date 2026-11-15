@@ -14,9 +14,6 @@ public struct NumberFormsPass: PieceCleaningPass {
     /// How this place writes a numeral's digits; somewhere machine-read wants no separators in them.
     let digits: DigitGrouping
 
-    /// Whether an amount before a currency word is written with the symbol, "5 dollars" as "$5".
-    let currencySymbols: Bool
-
     /// Words after which a lone digit is a numeral, digit groups run together, and no separator is used.
     static let contextWords = NumberCues.words(for: .designator)
     /// Verbs after which a hundred said as its digit and tail is one status code, "returns five fifteen" as `515`.
@@ -82,12 +79,9 @@ public struct NumberFormsPass: PieceCleaningPass {
         let spoken: Bool
     }
 
-    public init(
-        policy: NumberPolicy = .fromTen, digits: DigitGrouping = .thousands, currencySymbols: Bool = false
-    ) {
+    public init(policy: NumberPolicy = .fromTen, digits: DigitGrouping = .thousands) {
         self.policy = policy
         self.digits = digits
-        self.currencySymbols = currencySymbols
     }
 
     public func apply(_ draft: Draft) -> Draft {
@@ -150,7 +144,6 @@ public struct NumberFormsPass: PieceCleaningPass {
             Self.write(text, over: position...last, of: live, in: &draft)
             position += phrase.count
         }
-        if currencySymbols { Self.writeSymbols(in: &draft) }
         return draft
     }
 
