@@ -11,7 +11,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     private let region: CaretStructure.Region
     /// Whether the screen alone makes every spoken dash an option marker: a place options are typed, outside a comment.
     private let isCommandLine: Bool
-    /// What the field holds without a word announcing it: addresses in a recipient field, paths at a command line.
+    /// What the field holds without a word announcing it: addresses in a recipient or Email field, paths at a command line.
     private let expected: SpokenAddress.Expectation
     /// The silence that ends a sentence for the person speaking; a full stop's name set apart by it on both sides is the mark.
     private let sentencePause: Duration
@@ -51,7 +51,8 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             SpokenCommands.flags.contains { $0.isEnabled(in: destination) }
             && screen != .ruledOut(by: .caretInProse) && screen != .ruledOut(by: .proseByChoice)
         self.expected = SpokenAddress.Expectation()
-            .union(fieldRole == .recipient ? .addresses : []).union(destination == .terminal ? .paths : [])
+            .union(fieldRole == .recipient || fieldRole == .email ? .addresses : [])
+            .union(destination == .terminal ? .paths : [])
     }
 
     public func apply(_ draft: Draft) -> Draft {
