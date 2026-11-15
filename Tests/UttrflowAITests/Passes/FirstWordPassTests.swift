@@ -17,6 +17,21 @@ struct FirstWordPassTests {
         cleaned(text, by: FirstWordPass(policy: .asSpoken, heard: heard))
     }
 
+    /// The pronoun is capital wherever it stands, so the as-spoken policy does not lower it at the start.
+    @Test(
+        "keeps the pronoun I and its contractions capital when the first word is as spoken",
+        arguments: [
+            ("i think we should ship it", "I think we should ship it"),
+            ("i'm ready", "I'm ready"),
+            ("i'll check it tomorrow", "I'll check it tomorrow"),
+            ("okay i will check it", "okay I will check it"),
+            ("iphone sales rose", "iphone sales rose"),
+        ]
+    )
+    func keepsThePronounCapitalAsSpoken(input: String, expected: String) {
+        #expect(asSpoken(input, heard: input) == expected)
+    }
+
     /// An ellipsis is a pause inside the sentence, so the word after it keeps the case it was heard in.
     @Test(
         "leaves the word after an ellipsis as it was heard",

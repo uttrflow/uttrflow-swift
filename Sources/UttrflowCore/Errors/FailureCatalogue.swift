@@ -97,7 +97,8 @@ extension DictionaryStoreError: CataloguedFailure {
         case .wordIsEmpty: .wordAlreadyKnown
         case .wordAlreadyKnown: .entryHasTooManyWords(maximum: 3)
         case .entryHasTooManyWords: .entryIsTooLong(maximum: 80)
-        case .entryIsTooLong: nil
+        case .entryIsTooLong: .wordHasNoSound
+        case .wordHasNoSound: nil
         }
     }
 }
