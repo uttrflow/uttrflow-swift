@@ -874,3 +874,26 @@ struct DiagnosticsLearnedStateTests {
         #expect(!usable.storage.contains { $0.title == "Learned state" })
     }
 }
+
+@Suite("Counts of one in the Diagnostics counters")
+struct DiagnosticsSingularTests {
+    @Test("one decoded piece is a piece")
+    func piecesSingular() {
+        let rows = DiagnosticsPresenter.decodingRows(
+            for: [.none], segments: [], locale: DiagnosticsFixture.locale)
+        let row = rows.first { $0.title == "Pieces needing more than one decode" }
+        #expect(row?.detail == "0 of 1 piece")
+    }
+
+    @Test("one segment is a segment")
+    func segmentsSingular() {
+        let segments = [
+            SegmentReliability(
+                temperature: 0, averageLogProbability: -0.4, noSpeechProbability: 0.1,
+                compressionRatio: 1.2)
+        ]
+        let rows = DiagnosticsPresenter.segmentRows(for: segments, locale: DiagnosticsFixture.locale)
+        let row = rows.first { $0.title == "Segments kept from a hotter decode" }
+        #expect(row?.detail == "0 of 1 segment")
+    }
+}

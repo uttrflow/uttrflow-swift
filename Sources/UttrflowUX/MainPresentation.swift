@@ -299,7 +299,7 @@ public enum MainFormatting {
 
     /// A count and the thing it counts, singular or plural; English-only.
     public static func count(_ number: Int, _ singular: String, _ plural: String) -> String {
-        "\(number) \(number == 1 ? singular : plural)"
+        CountedNoun.count(number, singular, plural)
     }
 
     /// A large count short enough to read at a glance — 964, 12.4K, 1.2M — rounded down, never up.
