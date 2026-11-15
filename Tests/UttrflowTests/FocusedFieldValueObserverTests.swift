@@ -9,22 +9,71 @@ import UttrflowPredict
 
 @testable import Uttrflow
 
-/// Waits on a signal; a positive wait has no deadline, and the suite time limit ends one that never comes.
-private func wait(
-    for semaphore: DispatchSemaphore, until deadline: DispatchTime
-) async -> DispatchTimeoutResult {
-    await withCheckedContinuation { continuation in
-        DispatchQueue.global(qos: .utility).async {
-            continuation.resume(returning: semaphore.wait(timeout: deadline))
+/// A counting signal that is raised from any thread and awaited without parking one; the suite time limit ends a wait that never ends.
+private final class Signal: Sendable {
+    private struct State {
+        var count = 0
+        var nextID = 0
+        var waiters: [(id: Int, continuation: CheckedContinuation<Bool, Never>)] = []
+    }
+
+    private let state = Mutex(State())
+
+    func signal() {
+        let waiter = state.withLock { state -> CheckedContinuation<Bool, Never>? in
+            guard !state.waiters.isEmpty else {
+                state.count += 1
+                return nil
+            }
+            return state.waiters.removeFirst().continuation
         }
+        waiter?.resume(returning: true)
+    }
+
+    /// Whether the signal was raised before the deadline; a positive wait has no deadline.
+    func wait(until deadline: DispatchTime) async -> DispatchTimeoutResult {
+        let id = state.withLock { state -> Int in
+            state.nextID += 1
+            return state.nextID
+        }
+        let raised = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
+            let taken = state.withLock { state -> Bool in
+                guard state.count == 0 else {
+                    state.count -= 1
+                    return true
+                }
+                if deadline > .now() { state.waiters.append((id, continuation)) }
+                return false
+            }
+            if taken {
+                continuation.resume(returning: true)
+            } else if deadline <= .now() {
+                continuation.resume(returning: false)
+            } else if deadline != .distantFuture {
+                let nanoseconds = deadline.uptimeNanoseconds &- DispatchTime.now().uptimeNanoseconds
+                Task {
+                    try? await Task.sleep(for: .nanoseconds(nanoseconds))
+                    let expired = state.withLock { state -> CheckedContinuation<Bool, Never>? in
+                        guard let index = state.waiters.firstIndex(where: { $0.id == id }) else { return nil }
+                        return state.waiters.remove(at: index).continuation
+                    }
+                    expired?.resume(returning: false)
+                }
+            }
+        }
+        return raised ? .success : .timedOut
     }
 }
 
-/// Releases a blocked worker after ten seconds, so a failing test cannot hang the run; built off the main actor to run on a global queue.
-private func releaseWatchdog(for worker: BlockingFocusedFieldAXWorker) -> DispatchWorkItem {
-    DispatchWorkItem {
-        guard worker.watchdogArmed.wait(timeout: .now() + .seconds(10)) == .success else { return }
-        if worker.cancelWatchdog.wait(timeout: .now() + .seconds(10)) == .timedOut {
+private func wait(for signal: Signal, until deadline: DispatchTime) async -> DispatchTimeoutResult {
+    await signal.wait(until: deadline)
+}
+
+/// Releases a blocked worker after ten seconds, so a failing test cannot hang the run.
+private func releaseWatchdog(for worker: BlockingFocusedFieldAXWorker) -> Task<Void, Never> {
+    Task {
+        guard await worker.watchdogArmed.wait(until: .now() + .seconds(10)) == .success else { return }
+        if await worker.cancelWatchdog.wait(until: .now() + .seconds(10)) == .timedOut {
             worker.release.signal()
         }
     }
@@ -55,15 +104,15 @@ private final class FakeFocusedFieldValueObserver: FocusedFieldValueObserving {
 
 /// Blocks one chosen queued AX operation so the caller's return can be observed; NSLock guards its tallies.
 private final class BlockingFocusedFieldAXWorker: FocusedFieldAXWorking, @unchecked Sendable {
-    let entered = DispatchSemaphore(value: 0)
-    let observed = DispatchSemaphore(value: 0)
+    let entered = Signal()
+    let observed = Signal()
     let release = DispatchSemaphore(value: 0)
-    let finishedBlocking = DispatchSemaphore(value: 0)
-    let watchdogArmed = DispatchSemaphore(value: 0)
-    let cancelWatchdog = DispatchSemaphore(value: 0)
-    let cancelled = DispatchSemaphore(value: 0)
-    let completed = DispatchSemaphore(value: 0)
-    let stopped = DispatchSemaphore(value: 0)
+    let finishedBlocking = Signal()
+    let watchdogArmed = Signal()
+    let cancelWatchdog = Signal()
+    let cancelled = Signal()
+    let completed = Signal()
+    let stopped = Signal()
     private let lock = NSLock()
     private let blockingObservation: Int
     private var observationCount = 0
@@ -122,7 +171,6 @@ struct FocusedFieldValueObserverTests {
         #expect(await wait(for: worker.completed, until: .distantFuture) == .success)
 
         let watchdog = releaseWatchdog(for: worker)
-        DispatchQueue.global(qos: .utility).async(execute: watchdog)
 
         observer.refresh(for: target)
         #expect(await wait(for: worker.entered, until: .distantFuture) == .success)
@@ -159,7 +207,6 @@ struct FocusedFieldValueObserverTests {
         #expect(await wait(for: worker.completed, until: .distantFuture) == .success)
 
         let watchdog = releaseWatchdog(for: worker)
-        DispatchQueue.global(qos: .utility).async(execute: watchdog)
         coordinator.refreshFocusedFieldObservation()
         #expect(await wait(for: worker.entered, until: .distantFuture) == .success)
 
