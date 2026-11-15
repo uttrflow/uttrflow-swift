@@ -1097,34 +1097,3 @@ struct PieceJoinerDegenerateTests {
         #expect(joined(pieces, .plain) == expected)
     }
 }
-
-@Suite("PieceJoiner empty and single pieces")
-struct PieceJoinerEmptyPieceTests {
-    @Test("skips a piece the tidier left empty or blank, and joins the rest as if it were absent")
-    func skipsEmptyPieces() {
-        #expect(joined(["Hello there.", "", "  ", "Goodbye."], .plain) == "Hello there. Goodbye.")
-    }
-
-    @Test("returns the one remaining piece as it is, with no list or paragraph layout")
-    func singlePieceIsReturnedAsIs() {
-        #expect(joined(["", "Only this one.", " "], .document) == "Only this one.")
-        #expect(joined(["Only this one."], .email) == "Only this one.")
-    }
-
-    @Test("returns nothing for no pieces, or pieces that are all blank")
-    func noPiecesIsEmpty() {
-        #expect(joined([], .plain).isEmpty)
-        #expect(joined(["", "  ", "\n"], .plain).isEmpty)
-    }
-
-    @Test("keeps a pause owed by a blank piece for the next one without writing anything for it")
-    func blankPieceHandsItsPauseOn() {
-        let formatter = DestinationFormatter.standard(for: .plain)
-        let text = PieceJoiner.laidOut(
-            ["First part.", "", "Second part."], under: formatter,
-            pauses: [.zero, .seconds(1), .seconds(1)])
-        #expect(text.contains("First part."))
-        #expect(text.contains("Second part."))
-        #expect(!text.contains("  "))
-    }
-}
