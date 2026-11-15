@@ -745,13 +745,14 @@ def score(args):
         groups = defaultdict(list)
         for s in scored:
             if keep(s): groups[key(s)].append(s)
-        print(f"\n{title}\n\n| | clips | raw WER | final WER | final exact WER |\n|---|---|---|---|---|")
+        print(f"\n{title}\n\n| | clips | raw WER | final WER | final exact WER | clips written exactly |\n|---|---|---|---|---|---|")
         for k in sorted(groups):
             g = groups[k]
             raw = sum(s["raw"][0] for s in g) / max(1, sum(s["raw"][1] for s in g))
             out = sum(s["out"][0] for s in g) / max(1, sum(s["out"][1] for s in g))
             exact = sum(s["exact"][0] for s in g) / max(1, sum(s["exact"][1] for s in g))
-            print(f"| {k} | {len(g)} | {100 * raw:.1f}% | {100 * out:.1f}% | {100 * exact:.1f}% |")
+            written = sum(1 for s in g if s["exact"][0] == 0)
+            print(f"| {k} | {len(g)} | {100 * raw:.1f}% | {100 * out:.1f}% | {100 * exact:.1f}% | {100 * written / len(g):.0f}% |")
 
     harmed = []
     for cleaner in sorted({s["r"]["cleaner"] for s in scored}):
