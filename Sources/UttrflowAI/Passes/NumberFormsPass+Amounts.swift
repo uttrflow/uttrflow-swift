@@ -92,4 +92,13 @@ extension NumberFormsPass {
         else { return nil }
         return "\(coefficient.value) \(keys[end - 1])"
     }
+
+    /// "half a million" as "0.5 million": the magnitude word stays, as it does for "two point five million".
+    static func halfAMagnitude(at position: Int, keys: [String], shapes: [WordShape]) -> Phrase? {
+        guard position + 2 < keys.count, keys[position] == "half", keys[position + 1] == "a",
+            ["million", "billion", "trillion"].contains(keys[position + 2]),
+            (position + 1...position + 2).allSatisfy({ joined($0, shapes) })
+        else { return nil }
+        return Phrase(text: "0.5 \(keys[position + 2])", count: 3)
+    }
 }

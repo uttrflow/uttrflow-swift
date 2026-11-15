@@ -58,6 +58,9 @@ struct NumberFormsPassAmountTests {
             ("we raised five million dollars", "we raised $5 million"),
             ("a million users", "a million users"),
             ("five million to six million dollars", "$5 million to $6 million"),
+            ("half a million users", "0.5 million users"),
+            ("we raised half a million dollars", "we raised $0.5 million"),
+            ("half a dozen users", "half a dozen users"),
         ]
     )
     func magnitudeForms(input: String, expected: String) {

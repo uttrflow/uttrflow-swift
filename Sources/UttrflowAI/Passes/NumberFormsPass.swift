@@ -381,6 +381,9 @@ public struct NumberFormsPass: PieceCleaningPass {
             return range
         }
         if let hundred = aHundredAndTail(at: position, keys: keys, shapes: shapes) { return hundred }
+        if digits != .none, let half = halfAMagnitude(at: position, keys: keys, shapes: shapes) {
+            return half
+        }
         let fixedShapes: [(Int, [String], [WordShape]) -> Phrase?] = [
             score, readingOver, zoneOffset, signedDigitRun, numericDate, cuedYear, cuedClock,
             colonClock, twentyFourHourClock, dottedNumber, spokenDigitRun, leadingDecimal, decade,
