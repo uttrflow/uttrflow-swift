@@ -12,21 +12,21 @@ below the floor fails the test.
 
 | Off | Cases | Passed | Invented | Deleted | Lost | Broke shape | Below floor |
 |---|---|---|---|---|---|---|---|
-| none (default) | 1612 | 1512 | 39 | 9 | 14 | 67 | 0 |
-| recogniser-bias | 1612 | 1508 | 39 | 9 | 14 | 71 | 0 |
-| evidence-capture | 1612 | 1510 | 39 | 9 | 14 | 69 | 0 |
-| candidate-generation | 1612 | 1510 | 39 | 9 | 14 | 69 | 0 |
-| scoring | 1612 | 1510 | 39 | 9 | 14 | 69 | 0 |
-| override-gate | 1612 | 1510 | 39 | 9 | 14 | 69 | 0 |
-| formatting | 1612 | 683 | 177 | 10 | 305 | 781 | 0 |
-| recogniser-bias + evidence-capture | 1612 | 1506 | 39 | 9 | 14 | 73 | 0 |
-| evidence-capture + candidate-generation | 1612 | 1510 | 39 | 9 | 14 | 69 | 0 |
-| evidence-capture + scoring | 1612 | 1510 | 39 | 9 | 14 | 69 | 0 |
-| candidate-generation + scoring | 1612 | 1510 | 39 | 9 | 14 | 69 | 0 |
-| candidate-generation + override-gate | 1612 | 1510 | 39 | 9 | 14 | 69 | 0 |
-| scoring + override-gate | 1612 | 1510 | 39 | 9 | 14 | 69 | 0 |
-| recogniser-bias + formatting | 1612 | 683 | 177 | 10 | 305 | 781 | 0 |
-| override-gate + formatting | 1612 | 683 | 177 | 10 | 305 | 781 | 0 |
+| none (default) | 1612 | 1511 | 39 | 10 | 14 | 67 | 0 |
+| recogniser-bias | 1612 | 1507 | 39 | 10 | 14 | 71 | 0 |
+| evidence-capture | 1612 | 1509 | 39 | 10 | 14 | 69 | 0 |
+| candidate-generation | 1612 | 1509 | 39 | 10 | 14 | 69 | 0 |
+| scoring | 1612 | 1509 | 39 | 10 | 14 | 69 | 0 |
+| override-gate | 1612 | 1509 | 39 | 10 | 14 | 69 | 0 |
+| formatting | 1612 | 682 | 177 | 5 | 305 | 781 | 0 |
+| recogniser-bias + evidence-capture | 1612 | 1505 | 39 | 10 | 14 | 73 | 0 |
+| evidence-capture + candidate-generation | 1612 | 1509 | 39 | 10 | 14 | 69 | 0 |
+| evidence-capture + scoring | 1612 | 1509 | 39 | 10 | 14 | 69 | 0 |
+| candidate-generation + scoring | 1612 | 1509 | 39 | 10 | 14 | 69 | 0 |
+| candidate-generation + override-gate | 1612 | 1509 | 39 | 10 | 14 | 69 | 0 |
+| scoring + override-gate | 1612 | 1509 | 39 | 10 | 14 | 69 | 0 |
+| recogniser-bias + formatting | 1612 | 682 | 177 | 5 | 305 | 781 | 0 |
+| override-gate + formatting | 1612 | 682 | 177 | 5 | 305 | 781 | 0 |
 
 ## Each layer's marginal contribution
 
@@ -39,15 +39,15 @@ Each degraded path paired against the default set over the same cases, as the ch
 | candidate-generation | +0.12 | [0.00, +0.31] | +0.25 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
 | scoring | +0.12 | [0.00, +0.31] | +0.25 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
 | override-gate | +0.12 | [0.00, +0.31] | +0.25 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
-| formatting | +51.43 | [+48.88, +53.72] | +3.50 | +3.34 | [+2.87, +3.87] | +0.72 | 3 (+0.19) | keep |
+| formatting | +51.43 | [+48.95, +53.78] | +3.49 | +3.30 | [+2.83, +3.81] | +0.70 | 3 (+0.19) | keep |
 | recogniser-bias + evidence-capture | +0.37 | [+0.12, +0.68] | +0.42 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | keep |
 | evidence-capture + candidate-generation | +0.12 | [0.00, +0.31] | +0.25 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
 | evidence-capture + scoring | +0.12 | [0.00, +0.31] | +0.25 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
 | candidate-generation + scoring | +0.12 | [0.00, +0.31] | +0.25 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
 | candidate-generation + override-gate | +0.12 | [0.00, +0.31] | +0.25 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
 | scoring + override-gate | +0.12 | [0.00, +0.31] | +0.25 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
-| recogniser-bias + formatting | +51.43 | [+48.88, +53.72] | +3.50 | +3.34 | [+2.87, +3.87] | +0.72 | 3 (+0.19) | keep |
-| override-gate + formatting | +51.43 | [+48.88, +53.72] | +3.50 | +3.34 | [+2.87, +3.87] | +0.72 | 3 (+0.19) | keep |
+| recogniser-bias + formatting | +51.43 | [+48.95, +53.78] | +3.49 | +3.30 | [+2.83, +3.81] | +0.70 | 3 (+0.19) | keep |
+| override-gate + formatting | +51.43 | [+48.95, +53.78] | +3.49 | +3.30 | [+2.83, +3.81] | +0.70 | 3 (+0.19) | keep |
 
 ## The user's own words on each fallback rung
 

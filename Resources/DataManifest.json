@@ -494,11 +494,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "56a795529317f048e158ab3c81dc58eb74aba1f552e46a250879aa6c2d214e9e",
+      "sha256": "89df058854baddcabc878b2839c7799ff6f7413da578c231bf18442cec79cf5e",
       "path": "Sources/UttrflowEval/Resources/Corpus/bareLiteral.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 5546,
+      "bytes": 5532,
       "licence": "MIT"
     },
     {
@@ -548,11 +548,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "17c5a8e987f820ffde78d93cc52de50f3c7e486c1c1209bebcf3b5e7d11a0535",
+      "sha256": "61a56edb40be1eb8add279025492704f0db544a65b07aa4a4fcad92b40545cff",
       "path": "Sources/UttrflowEval/Resources/Corpus/everyday.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 81308,
+      "bytes": 81215,
       "licence": "MIT"
     },
     {
