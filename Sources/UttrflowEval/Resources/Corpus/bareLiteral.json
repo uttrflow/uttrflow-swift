@@ -197,9 +197,9 @@
   {
     "id": "literal-prose-five-dollars",
     "spoken": "five dollars",
-    "expected": "5 dollars.",
+    "expected": "$5.",
     "destination": "document",
-    "expectedExact": "5 dollars.",
+    "expectedExact": "$5.",
     "addedFor": 4066
   },
   {

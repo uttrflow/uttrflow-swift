@@ -14,6 +14,9 @@ public struct NumberFormsPass: PieceCleaningPass {
     /// How this place writes a numeral's digits; somewhere machine-read wants no separators in them.
     let digits: DigitGrouping
 
+    /// Whether an amount before a currency word is written with the symbol, "5 dollars" as "$5".
+    let currencySymbols: Bool
+
     /// Words after which a lone digit is a numeral, digit groups run together, and no separator is used.
     static let contextWords = NumberCues.words(for: .designator)
     /// Verbs after which a hundred said as its digit and tail is one status code, "returns five fifteen" as `515`.
@@ -79,9 +82,59 @@ public struct NumberFormsPass: PieceCleaningPass {
         let spoken: Bool
     }
 
-    public init(policy: NumberPolicy = .fromTen, digits: DigitGrouping = .thousands) {
+    public init(
+        policy: NumberPolicy = .fromTen, digits: DigitGrouping = .thousands, currencySymbols: Bool = false
+    ) {
         self.policy = policy
         self.digits = digits
+        self.currencySymbols = currencySymbols
+    }
+
+    /// The symbol written before an amount for each currency word that names only one currency ("pound" also weighs).
+    static let symbolBeforeAmount: [String: String] = [
+        "dollar": "$", "dollars": "$", "euro": "\u{20AC}", "euros": "\u{20AC}", "rupee": "\u{20B9}",
+        "rupees": "\u{20B9}", "yen": "\u{00A5}",
+    ]
+
+    /// Writes "5 dollars" as "$5": the numeral takes the symbol and the currency word goes.
+    static func writeSymbols(in draft: inout Draft) {
+        let present = draft.presentIndices
+        for index in present {
+            // A major amount and its minor part are written as one word, "2.50 dollars".
+            let shape = draft.shape(at: index)
+            let parts = shape.core.split(separator: " ").map(String.init)
+            if parts.count == 2, let symbol = symbolBeforeAmount[parts[1].lowercased()], isNumeral(parts[0]) {
+                draft.replace(at: index, with: shape.prefix + symbol + parts[0] + shape.suffix, by: id)
+            }
+        }
+        for (amount, unit) in zip(draft.presentIndices, draft.presentIndices.dropFirst()) {
+            let number = draft.shape(at: amount)
+            let word = draft.shape(at: unit)
+            guard draft.words[amount].isPresent, draft.words[unit].isPresent,
+                let symbol = symbolBeforeAmount[word.key], number.suffix.isEmpty, word.prefix.isEmpty,
+                isNumeral(number.core)
+            else { continue }
+            draft.replace(at: amount, with: number.prefix + symbol + number.core + word.suffix, by: id)
+            draft.remove(at: unit, by: id)
+            // "between 500 and 600 dollars" names both amounts in the currency.
+            let before = draft.presentIndices.filter { $0 < amount }.suffix(2)
+            if before.count == 2, let first = before.first, let joiner = before.last,
+                ["and", "to", "or", "through"].contains(draft.shape(at: joiner).key)
+            {
+                let earlier = draft.shape(at: first)
+                if earlier.suffix.isEmpty, isNumeral(earlier.core) {
+                    draft.replace(at: first, with: earlier.prefix + symbol + earlier.core, by: id)
+                }
+            }
+        }
+    }
+
+    /// Whether the text is digits with optional grouping commas and one decimal part.
+    private static func isNumeral(_ text: String) -> Bool {
+        guard let first = text.first, first.isASCII, first.isNumber else { return false }
+        let parts = text.split(separator: ".", omittingEmptySubsequences: false)
+        return parts.count <= 2 && parts.allSatisfy { $0.allSatisfy { $0.isASCII && ($0.isNumber || $0 == ",") } }
+            && parts.last?.last != ","
     }
 
     public func apply(_ draft: Draft) -> Draft {
@@ -144,6 +197,7 @@ public struct NumberFormsPass: PieceCleaningPass {
             Self.write(text, over: position...last, of: live, in: &draft)
             position += phrase.count
         }
+        if currencySymbols { Self.writeSymbols(in: &draft) }
         return draft
     }
 

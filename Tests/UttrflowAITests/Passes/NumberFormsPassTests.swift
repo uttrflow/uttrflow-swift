@@ -8,6 +8,32 @@ struct NumberFormsPassTests {
     private let sut = NumberFormsPass()
 
     @Test(
+        "writes an amount before a currency word as the symbol and the numeral",
+        arguments: [
+            ("it cost five dollars", "it cost $5"),
+            ("it cost one dollar", "it cost $1"),
+            ("pay fifty rupees today", "pay ₹50 today"),
+            ("two dollars fifty", "$2.50"),
+            ("nine thousand rupees, please", "₹9,000, please"),
+            ("ten euros", "€10"),
+            ("give me five pounds of flour", "give me 5 pounds of flour"),
+            ("it cost five dollars.", "it cost $5."),
+            ("a dollar short", "a dollar short"),
+            ("between five hundred and six hundred dollars", "between $500 and $600"),
+            ("ten to twenty euros", "€10 to €20"),
+        ]
+    )
+    func currencySymbols(input: String, expected: String) {
+        let sut = NumberFormsPass(currencySymbols: true)
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test("leaves the currency word as a word where symbols are not asked for")
+    func currencyWordKept() {
+        #expect(cleaned("it cost five dollars", by: sut) == "it cost 5 dollars")
+    }
+
+    @Test(
         "writes a numeric date said with slash, stroke or dash in the spoken order, padded as spoken",
         arguments: [
             ("oh three slash oh four slash twenty twenty five", "03/04/2025"),
