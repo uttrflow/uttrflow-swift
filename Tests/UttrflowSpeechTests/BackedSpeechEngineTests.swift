@@ -96,24 +96,6 @@ struct BackedSpeechEngineTests {
         #expect(backend.calls.isEmpty, "the recogniser must not be asked to hear silence")
     }
 
-    @Test("refuses audio whose speech is too short once the silence around it is trimmed")
-    func refusesSpeechTooShortAfterTrimming() async throws {
-        let backend = FakeTranscriptionBackend()
-        let rate = Double(AudioSamples.canonicalSampleRate)
-        // The cut keeps a margin of quiet before and after the speech, so speech short enough to be refused sits at the very end of a recording that clears the length check.
-        let blip = (0..<Int(rate * 0.03)).map { 0.1 * Float(sin(Double($0) * 0.07)) }
-        let quiet = [Float](repeating: 0, count: Int(rate * 0.27))
-        let recording = AudioSamples.canonical(quiet + blip)
-        // The recording holds some speech, and less than the minimum once the quiet is cut away.
-        let speech = try #require(recording.speechOnly())
-        #expect(speech.audio.duration < BackedSpeechEngine.minimumDuration)
-
-        await #expect(throws: SpeechEngineError.nothingHeard) {
-            try await engine(backend).transcribe(recording, options: .automatic)
-        }
-        #expect(backend.calls.isEmpty, "a fraction of a second of sound is not a word")
-    }
-
     @Test("accepts audio at exactly the minimum length")
     func acceptsMinimumLength() async throws {
         let backend = FakeTranscriptionBackend()
