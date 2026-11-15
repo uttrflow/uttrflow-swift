@@ -65,6 +65,19 @@ public enum QualityLayer: String, Sendable, CaseIterable {
     /// Whether a whole-text layer updates from the pieces already seen rather than rereading the text.
     package var isIncremental: Bool { false }
 
+    /// The limit on the layer's work that makes its output a function of its input; the wall-clock `stageBudget` is only the backstop.
+    package var workBound: String {
+        switch self {
+        case .recogniserBias: "at most 111 prompt tokens, 48 for the words and 48 for the lead"
+        case .personaVocabulary: "the words are ranked inside the recogniser prompt's token limit"
+        case .evidenceCapture: "at most 512 words read from the screen"
+        case .candidateGeneration: "at most the changed-span limit of spans and 3 candidates per span"
+        case .scoring: "scores only the candidates the generator kept: 3 per span"
+        case .overrideGate: "judges only the spans the generator proposed"
+        case .formatting: "one rules pass per word; only the model's tidy is time-bound, and it falls back to them"
+        }
+    }
+
     /// What the dictation gets when the layer misses its budget; nil for a layer that has no degraded result.
     package var degradedResult: String? {
         switch self {
