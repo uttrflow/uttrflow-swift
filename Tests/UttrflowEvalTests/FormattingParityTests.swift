@@ -84,7 +84,7 @@ struct FormattingParityTests {
             "now closed: \(Self.knownGaps.subtracting(open).sorted())")
     }
 
-    /// Plain text keeps its words as spoken, so the model path no longer lays these out either.
+    /// Plain text keeps its words as spoken, so the model path does not lay these out either.
     static let failOnBothPaths: Set<String> = [
         "fmt-list-numbered-spoken", "fmt-list-first-second-third", "fmt-correction-actually",
     ]
