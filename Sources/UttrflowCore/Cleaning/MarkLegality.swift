@@ -58,7 +58,7 @@ public enum MarkLegality {
     }
 
     /// Whether a stop the recogniser wrote after `token` stands: "is" ends "Yes, it is." and a stopped "for" ends a relative clause.
-    public static func keepsWrittenStop(after token: String) -> Bool {
+    package static func keepsWrittenStop(after token: String) -> Bool {
         let shape = WordShape(token)
         return shape.suffix.contains(".") && FunctionWords.closesWhenStopped(shape.core)
     }
