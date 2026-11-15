@@ -104,8 +104,8 @@
     "note": "A one-line field labelled Email takes the value its label asks for; a sentence said into a name field stays a sentence.",
     "origin": "synthetic",
     "addedFor": 4254,
-    "spoken": "ops dash team at example dot org",
-    "expected": "ops-team@example.org",
+    "spoken": "rohan dot iyer at example dot org",
+    "expected": "rohan.iyer@example.org",
     "context": {
       "accessibilityRole": "AXTextField",
       "isMultiline": false,
@@ -130,8 +130,8 @@
     "note": "A one-line field labelled Email takes the value its label asks for; a sentence said into a name field stays a sentence.",
     "origin": "synthetic",
     "addedFor": 4254,
-    "spoken": "info at example dot com",
-    "expected": "info@example.com",
+    "spoken": "meena dot nair at example dot com",
+    "expected": "meena.nair@example.com",
     "context": {
       "accessibilityRole": "AXTextField",
       "isMultiline": false,

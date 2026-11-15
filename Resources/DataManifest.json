@@ -676,10 +676,10 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "1546ede5bc50dabdb2c7729fa5f6a7513a583832253563248158337989bfab54",
+      "sha256": "af1180515623e574926036dfc52ef15f3877db5c2533f3338974e3951250a76d",
       "path": "Sources/UttrflowEval/Resources/Corpus/oneLineField.json",
       "origin": "authored",
-      "bytes": 10717
+      "bytes": 10736
     },
     {
       "note": "evaluation cases read through CorpusFile",
