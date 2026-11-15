@@ -19,6 +19,24 @@ struct NamingCueTests {
         return pipeline.run(Draft(text: spoken)).text
     }
 
+    /// The same pipeline over words the recogniser scored below the certainty threshold, as a dictation hands them.
+    private func cleanedScored(_ spoken: String, in file: String, after preceding: String) -> String {
+        let app = AppContext(
+            applicationName: "Xcode", bundleIdentifier: "com.apple.dt.Xcode",
+            documentName: file, precedingText: preceding)
+        let situation = Situation(app: app, insertion: app.insertionPoint, destination: .codeEditor)
+        let formatter = DestinationFormatter.standard(for: .codeEditor)
+        let pipeline = CleaningPipeline.piece(
+            numbers: formatter.numbers, digits: situation.digits(for: formatter),
+            insertionPoint: situation.insertion, destination: .codeEditor, intent: situation.intent,
+            screen: situation)
+        let words = spoken.split(separator: " ").map {
+            TranscribedWord(text: String($0), confidence: DoubtPolicy.certaintyThreshold / 2)
+        }
+        let segment = TranscriptionSegment(text: spoken, start: .zero, end: .seconds(2), words: words)
+        return pipeline.run(Draft(transcription: Transcription(text: spoken, segments: [segment]))).text
+    }
+
     @Test("an empty file takes its language's default for each role, in six languages")
     func absentInSixLanguages() {
         let cases: [(String, String, String, String)] = [
@@ -135,6 +153,22 @@ struct NamingCueTests {
         let camelFile = "let orderTotals = fetchInvoices()\nlet x = "
         #expect(cleaned("get user by id", in: "Example.swift", after: camelFile) == "get user by id")
         #expect(cleaned("name it get user by id", in: "notes.txt", after: "x = ") == "name it get user by id")
+    }
+
+    @Test("in a snake-case file a sentence with a name's words and no request keeps every word")
+    func sentenceWithoutARequestIsNotRenamed() {
+        let snakeFile = "user = get_user_by_id(1)\norder_totals = fetch_invoices()\nx = "
+        for spoken in [
+            "get user by id", "we should get user by id before the call",
+            "then get user by id and fetch invoices",
+        ] {
+            #expect(cleaned(spoken, in: "example.py", after: snakeFile) == spoken, "\(spoken)")
+            // A doubted two-word run the screen shows as one identifier is bound by `ScreenIdentifierPass`, not renamed.
+            if !spoken.contains("fetch") {
+                let scored = cleanedScored(spoken, in: "example.py", after: snakeFile)
+                #expect(scored == spoken, "scored \(spoken)")
+            }
+        }
     }
 
     @Test("the name ends at the clause: a spoken comma and the words after it are left alone")

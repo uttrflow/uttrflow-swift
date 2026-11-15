@@ -83,6 +83,21 @@ The eval command exits with failure when those inputs cannot be read or contain 
    the command from [measure-a-change.md](measure-a-change.md). A metric marked "not measured" in
    [accuracy-targets.md](accuracy-targets.md) is reported as not measured, never as zero.
 
+## How a data asset reaches the user
+
+A lexicon, an n-gram table or a vocabulary pack is vendored data: it is checked into the tree under
+`Sources/*/Resources/`, listed in `Resources/DataManifest.json` with its source, revision, licence,
+`sha256` and size ([data-manifest.md](data-manifest.md)), and shipped inside the app. That puts it
+under notarisation and the update signature, makes it work offline, and adds no network code. A new
+version of an asset is a new release.
+
+A separate download is chosen only for an asset whose bundled size exceeds its memory and disk
+budget, and it then reuses the speech-model downloader's pinned-digest path
+([speech-model-install.md](speech-model-install.md)); it never gets a second downloader. The
+network promise in [offline.md](offline.md) holds until an asset is moved to that path and the page
+says so. `make data-manifest` fails on a data file with no manifest entry or a digest that no
+longer matches.
+
 ## Adding a pass
 
 A new cleaning is a new pass, not a new branch in the pipeline.
