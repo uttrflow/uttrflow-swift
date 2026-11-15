@@ -258,8 +258,11 @@ struct Seams: AsyncParsableCommand {
                 key.lastIndex(of: "@").map { ids.contains(String(key[..<$0])) } ?? false
             })
         let unlisted = Set(ledger.unnamed(among: keys, baseline: baseline))
+        // Only a cut this run evaluated can be said to match: two pieces, and three with --three.
         let unused = ledger.cuts.subtracting(keys).filter { key in
-            key.lastIndex(of: "@").map { ids.contains(String(key[..<$0])) } ?? false
+            guard let at = key.lastIndex(of: "@"), ids.contains(String(key[..<at])) else { return false }
+            let boundaries = key[key.index(after: at)...].split(separator: ",").count
+            return boundaries == 1 || (three && boundaries == 2)
         }.sorted()
         if !unused.isEmpty { print("  \(unused.count) ledger cuts now match; delete their lines") }
         for key in unused { print("    \(key)") }
