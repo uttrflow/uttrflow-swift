@@ -380,6 +380,7 @@ public struct NumberFormsPass: PieceCleaningPass {
         if let range = sharedScaleRange(at: position, keys: keys, shapes: shapes, digits: digits) {
             return range
         }
+        if let hundred = aHundredAndTail(at: position, keys: keys, shapes: shapes) { return hundred }
         let fixedShapes: [(Int, [String], [WordShape]) -> Phrase?] = [
             score, readingOver, zoneOffset, signedDigitRun, numericDate, cuedYear, cuedClock,
             colonClock, twentyFourHourClock, dottedNumber, spokenDigitRun, leadingDecimal, decade,
@@ -706,6 +707,9 @@ public struct NumberFormsPass: PieceCleaningPass {
         let isAmount =
             beforeWord || completesAmount(at: position, keys: keys, shapes: shapes)
             || isRatioTerm(at: position, end: end, keys: keys, shapes: shapes)
+        if !inContext, digits != .none, let magnitude = magnitudeForm(at: position, end: end, keys: keys) {
+            return Phrase(text: magnitude, count: item.count)
+        }
         // The destination says whether digits are grouped; a context word still runs its own together.
         return Phrase(
             text: NumberWords.render(value, grouping: inContext ? .none : digits, isAmount: isAmount),

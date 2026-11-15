@@ -20,7 +20,7 @@ struct StopBeforeLowercaseTests {
             ("We shipped it. eBay is next", "We shipped it. eBay is next."),
             ("Please send it today. i will check tomorrow", "Please send it today. I will check tomorrow."),
             ("The patient is stable. vitals are normal", "The patient is stable. Vitals are normal."),
-            ("The price is five dollars. that is cheap", "The price is 5 dollars. That is cheap."),
+            ("The price is five dollars. that is cheap", "The price is $5. That is cheap."),
             ("He is here. she is not", "He is here. She is not."),
             ("Yes. no. maybe", "Yes. No. Maybe."),
             ("Dr. Smith is here", "Dr. Smith is here."),

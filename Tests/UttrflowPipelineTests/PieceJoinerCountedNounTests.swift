@@ -20,7 +20,7 @@ struct PieceJoinerCountedNounTests {
     @Test(
         "keeps a number and the noun it counts in one phrase",
         arguments: [
-            (["it costs twelve", "dollars"], "It costs 12 dollars."),
+            (["it costs twelve", "dollars"], "It costs $12."),
             (["it is thirty", "degrees"], "It is 30 degrees."),
             (["it weighs fifty", "kilos"], "It weighs 50 kilos."),
             (["it costs twelve dollars and fifty", "cents"], "It costs 12 dollars and 50 cents."),

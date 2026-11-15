@@ -402,7 +402,7 @@ extension EvaluationCorpus {
         .init(
             id: "fmt-number-money", category: .everyday,
             spoken: "the ticket costs forty dollars",
-            expected: "The ticket costs 40 dollars.",
+            expected: "The ticket costs $40.",
             mustKeep: ["ticket", "40"], classes: [.numbers], semiotic: .money
         ),
         .init(

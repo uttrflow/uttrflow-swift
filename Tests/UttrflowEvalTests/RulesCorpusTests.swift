@@ -257,7 +257,7 @@ struct RulesCorpusTests {
             ("two-single-digits-kept", "One or two."),
             ("hyphenated-bedroom-count-kept", "Two three-bedroom flats."),
             ("percentage", "Conversion dropped by 5% after the redesign."),
-            ("money", "The taxi cost 5 dollars."),
+            ("money", "The taxi cost $5."),
             ("actually-between-numbers", "Let's get coffee at three."),
             ("number-correction-with-unit", "We need 15 boxes."),
             ("period-as-a-word", "The trial period ended last week."),

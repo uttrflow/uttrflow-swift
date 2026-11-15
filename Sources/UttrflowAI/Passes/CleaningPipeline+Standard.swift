@@ -47,6 +47,11 @@ extension CleaningPipeline {
         let identifiers = ScreenVocabulary(screen)
         let naming = NamingConvention.infer(
             from: namesFrom.map(ScreenVocabulary.init) ?? identifiers, language: intent.language)
+        // Prose writes an amount with its dollar sign; code, SQL, a cell and a terminal keep the word.
+        let numberPass: any PieceCleaningPass =
+            [.document, .email, .messaging, .plain].contains(destination)
+            ? AmountFormsPass(policy: numbers, digits: digits)
+            : NumberFormsPass(policy: numbers, digits: digits)
         var cleanings: [any PieceCleaningPass] = [
             FillersPass(), RepeatedPhrasePass(), StammersPass(), SelfCorrectionPass(),
             // Spoken punctuation must mark a stop before LayoutWordsPass checks for a break after it.
@@ -56,7 +61,8 @@ extension CleaningPipeline {
             SpokenEmojiPass(destination: destination),
             LayoutWordsPass(
                 layout: layout, insertionPoint: insertionPoint, readsWholeText: readsWholeText),
-            SpelledNamePass(destination: destination), NumberFormsPass(policy: numbers, digits: digits),
+            SpelledNamePass(destination: destination),
+            numberPass,
             ContractionsPass(), SpacingPass(),
             // Last, so a pause inside a number or a removed filler is read on the words left standing.
             PauseStopPass(destination: destination, pauses: pauses),
