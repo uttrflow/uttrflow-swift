@@ -28,6 +28,25 @@ struct NumberFormsPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test(
+        "reads a hundred and a tail as one number and keeps a bare hundred or million a word",
+        arguments: [
+            ("a hundred and fifty users", "150 users"),
+            ("about a hundred and fifty users", "about 150 users"),
+            ("roughly a hundred and fifteen", "roughly 115"),
+            ("it cost a hundred and twenty dollars", "it cost $120"),
+            ("a hundred users", "a hundred users"),
+            ("a million users", "a million users"),
+            ("hundreds of people", "hundreds of people"),
+            ("thousands of users", "thousands of users"),
+            ("a couple of hundred users", "a couple of hundred users"),
+        ]
+    )
+    func hundredWithATail(input: String, expected: String) {
+        let sut = NumberFormsPass(currencySymbols: true)
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test("leaves the currency word as a word where symbols are not asked for")
     func currencyWordKept() {
         #expect(cleaned("it cost five dollars", by: sut) == "it cost 5 dollars")
@@ -344,10 +363,7 @@ struct NumberFormsPassTests {
     /// Writing only the tail of a phrase the parser could not read whole says a number the speaker did not.
     @Test(
         "leaves a scale phrase whole rather than writing the part after its and",
-        arguments: [
-            "about a hundred and fifty users", "a thousand and twenty of them",
-            "roughly a hundred and fifteen",
-        ]
+        arguments: ["a thousand and twenty of them"]
     )
     func leavesAnUnparsedScaleWhole(input: String) {
         #expect(cleaned(input, by: sut) == input)

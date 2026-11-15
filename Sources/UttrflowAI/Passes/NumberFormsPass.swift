@@ -434,6 +434,7 @@ public struct NumberFormsPass: PieceCleaningPass {
         if let range = sharedScaleRange(at: position, keys: keys, shapes: shapes, digits: digits) {
             return range
         }
+        if let hundred = aHundredAndTail(at: position, keys: keys, shapes: shapes) { return hundred }
         let fixedShapes: [(Int, [String], [WordShape]) -> Phrase?] = [
             score, readingOver, zoneOffset, signedDigitRun, numericDate, cuedYear, cuedClock,
             colonClock, twentyFourHourClock, dottedNumber, spokenDigitRun, leadingDecimal, decade,
@@ -456,6 +457,15 @@ public struct NumberFormsPass: PieceCleaningPass {
             return ordinalReading(ordinal, at: position, keys: keys, shapes: shapes, policy: policy)
         }
         return cardinal(at: position, keys: keys, shapes: shapes, policy: policy, digits: digits)
+    }
+
+    /// "a hundred and fifty" is one number, 150; a hundred with no tail stays a word.
+    private static func aHundredAndTail(at position: Int, keys: [String], shapes: [WordShape]) -> Phrase? {
+        guard position + 3 < keys.count, keys[position] == "a", keys[position + 1] == "hundred",
+            keys[position + 2] == "and", (position + 1...position + 3).allSatisfy({ joined($0, shapes) }),
+            let tail = NumberWords.cardinal(keys[(position + 3)...]), tail.value < 100
+        else { return nil }
+        return Phrase(text: String(100 + tail.value), count: 3 + tail.count)
     }
 
     /// A major amount, its currency word and a smaller number, "two dollars fifty", written "2.50 dollars".
