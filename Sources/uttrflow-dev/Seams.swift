@@ -259,6 +259,7 @@ struct Seams: AsyncParsableCommand {
             key.lastIndex(of: "@").map { ids.contains(String(key[..<$0])) } ?? false
         }.count
         if unused > 0 { print("  \(unused) ledger cuts now match; delete their lines") }
+        for key in ledger.cuts.subtracting(keys).sorted() { print("    \(key)") }
         let risen = differing.filter { unlisted.contains($0.key) }
         let fallen = recorded.subtracting(keys).count
         if fallen > 0 {

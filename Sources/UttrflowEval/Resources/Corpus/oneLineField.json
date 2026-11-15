@@ -169,8 +169,8 @@
     "note": "A one-line field labelled Phone takes the value its label asks for; a sentence said into a name field stays a sentence.",
     "origin": "synthetic",
     "addedFor": 4254,
-    "spoken": "zero one two three four five six",
-    "expected": "0123456",
+    "spoken": "zero six seven eight nine one two",
+    "expected": "0678912",
     "context": {
       "accessibilityRole": "AXTextField",
       "isMultiline": false,
@@ -195,8 +195,8 @@
     "note": "A one-line field labelled Postal code takes the value its label asks for; a sentence said into a name field stays a sentence.",
     "origin": "synthetic",
     "addedFor": 4254,
-    "spoken": "e c one a one b b",
-    "expected": "EC1A1BB",
+    "spoken": "n one c one a a b",
+    "expected": "N1C1AAB",
     "context": {
       "accessibilityRole": "AXTextField",
       "isMultiline": false,

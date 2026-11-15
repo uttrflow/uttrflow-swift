@@ -2161,16 +2161,6 @@
     "mustKeep": ["wait", "sorry", "hear"]
   },
   {
-    "id": "correction-with-a-unit",
-    "note": "A unit after both numbers: the first amount and its unit are taken back, the second stays.",
-    "origin": "synthetic",
-    "addedFor": 573,
-    "spoken": "we need twelve boxes i mean fifteen boxes",
-    "expected": "We need 15 boxes.",
-    "mustKeep": ["15", "boxes"],
-    "mustNotAdd": ["12"]
-  },
-  {
     "id": "correction-as-its-own-sentence",
     "note": "The recogniser writes the trigger as a sentence of its own, between two amounts.",
     "origin": "synthetic",

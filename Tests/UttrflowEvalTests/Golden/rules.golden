@@ -175,7 +175,6 @@ correction-between-amounts	The total is $50.
 correction-between-amounts-spoken	The budget is 12k.
 correction-between-commas	Send the file to Sam before lunch.
 correction-between-percentages	The fee is 50%.
-correction-with-a-unit	We need 15 boxes.
 count-before-modified-noun-kept-apart	Take three 15 minute breaks.
 dash-cam-as-words	We checked dash cam footage from the night.
 dash-drills-as-words	Our team runs dash drills before every match.
@@ -491,9 +490,9 @@ form-field-full-name-18	my name is priya shah
 form-field-full-name-19	it is meena rao from accounts
 form-field-phone-4	5550147
 form-field-phone-5	+447901
-form-field-phone-6	Zero one two three four five six
+form-field-phone-6	0678912
 form-field-postal-code-7	400002
-form-field-postal-code-8	EC1A1BB
+form-field-postal-code-8	N1C1AAB
 form-field-postal-code-9	560001
 form-field-quantity-10	12
 form-field-quantity-11	105

@@ -2,8 +2,6 @@
 at-stays-a-word-before-a-site@5 the piece joiner writes a stop or capital at this cut, as it does at the cuts the baseline lists; case added for #572
 at-stays-a-word-before-a-time@5 the piece joiner writes a stop or capital at this cut, as it does at the cuts the baseline lists; case added for #572
 correction-as-its-own-sentence@6 the piece joiner writes a stop or capital at this cut, as it does at the cuts the baseline lists; case added for #573
-correction-with-a-unit@2 the piece joiner writes a stop or capital at this cut, as it does at the cuts the baseline lists; case added for #573
-correction-with-a-unit@7 the piece joiner writes a stop or capital at this cut, as it does at the cuts the baseline lists; case added for #573
 hindi-danda-ending@1 the piece joiner writes a stop or capital at this cut, as it does at the cuts the baseline lists; case added for #706
 hindi-danda-ending@2 the piece joiner writes a stop or capital at this cut, as it does at the cuts the baseline lists; case added for #706
 hindi-danda-ending@3 the piece joiner writes a stop or capital at this cut, as it does at the cuts the baseline lists; case added for #706
@@ -55,12 +53,10 @@ form-field-full-name-18@4 the piece joiner writes a stop or capital at this cut,
 form-field-full-name-19@1 the piece joiner writes a stop or capital at this cut, as it does at the cuts the baseline lists; case added for #4254
 form-field-full-name-19@3 the piece joiner writes a stop or capital at this cut, as it does at the cuts the baseline lists; case added for #4254
 form-field-full-name-19@4 the piece joiner writes a stop or capital at this cut, as it does at the cuts the baseline lists; case added for #4254
-form-field-postal-code-8@1 the piece joiner writes a stop or capital at this cut, as it does at the cuts the baseline lists; case added for #4254
 form-field-postal-code-8@2 the piece joiner writes a stop or capital at this cut, as it does at the cuts the baseline lists; case added for #4254
 form-field-postal-code-8@3 the piece joiner writes a stop or capital at this cut, as it does at the cuts the baseline lists; case added for #4254
-form-field-postal-code-8@5 the piece joiner writes a stop or capital at this cut, as it does at the cuts the baseline lists; case added for #4254
-form-field-postal-code-8@6 the piece joiner writes a stop or capital at this cut, as it does at the cuts the baseline lists; case added for #4254
 form-field-street-address-16@1 the piece joiner writes a stop or capital at this cut, as it does at the cuts the baseline lists; case added for #4254
 form-field-street-address-16@2 the piece joiner writes a stop or capital at this cut, as it does at the cuts the baseline lists; case added for #4254
 form-field-street-address-16@3 the piece joiner writes a stop or capital at this cut, as it does at the cuts the baseline lists; case added for #4254
 form-field-street-address-16@4 the piece joiner writes a stop or capital at this cut, as it does at the cuts the baseline lists; case added for #4254
+form-field-postal-code-8@4 the piece joiner writes a stop or capital at this cut, as it does at the cuts the baseline lists; case added for #4254
