@@ -37,7 +37,11 @@ public struct PhoneticIndex: Sendable, Equatable {
     /// Why a whole entry cannot be kept: its spelling against each pronunciation in turn, or `nil` when all fit.
     public static func refusal(for entry: DictionaryEntry) -> DictionaryStoreError? {
         let sounds: [String?] = entry.pronunciations.isEmpty ? [nil] : entry.pronunciations
-        return sounds.lazy.compactMap { refusal(word: entry.word, pronunciation: $0) }.first
+        if let refused = sounds.lazy.compactMap({ refusal(word: entry.word, pronunciation: $0) }).first {
+            return refused
+        }
+        let heard = entry.readings.contains { !PronunciationCoder.keys(for: $0).isEmpty }
+        return heard ? nil : .wordHasNoSound
     }
 
     /// The words separated by whitespace, which is how recogniser utterances are split.
