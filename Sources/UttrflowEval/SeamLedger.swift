@@ -1,9 +1,6 @@
 // The reviewed list of seam cuts a new corpus case is allowed to make differ, each with its reason.
 
-/// Cuts that differ and were named in a pull request, one line each: `<case id>@<boundaries> <reason>`.
-///
-/// The baseline only goes down. A new plain-prose case can still make a cut differ, so the ledger
-/// lets the change name that cut and say why; a cut that is in neither list still fails the audit.
+/// Cuts a pull request named as differing, one line each, `<case id>@<boundaries> <reason>`; a cut in no list still fails.
 package struct SeamLedger: Equatable, Sendable {
     package struct Entry: Equatable, Sendable {
         package let cut: String

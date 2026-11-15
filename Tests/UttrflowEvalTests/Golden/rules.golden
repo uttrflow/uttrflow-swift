@@ -480,6 +480,25 @@ fmt-token-url-path-stopped	The URL is https://example.com/docs.
 fmt-token-web-address	The page is at docs.example.com/setup.
 fmt-token-web-deep-path-stopped	The site is example.org/docs/intro.
 fmt-token-web-path-stopped	Visit example.com/pricing.
+form-field-address-line-1-17	21 sample road
+form-field-email-1	Ops dash team at example.org
+form-field-email-2	sam.lee@example.net
+form-field-email-3	Info at example.com
+form-field-first-name-15	rohan
+form-field-full-name-13	priya shah
+form-field-full-name-14	Meena Rao
+form-field-full-name-18	my name is priya shah
+form-field-full-name-19	it is meena rao from accounts
+form-field-phone-4	5550147
+form-field-phone-5	+447901
+form-field-phone-6	Zero one two three four five six
+form-field-postal-code-7	400002
+form-field-postal-code-8	EC1A1BB
+form-field-postal-code-9	560001
+form-field-quantity-10	12
+form-field-quantity-11	105
+form-field-quantity-12	3
+form-field-street-address-16	seven example lane flat nine
 four-digit-number-ungrouped-in-prose	The repo has more than 2000 files.
 full-stop-new-paragraph	The build is green.\n\nThanks everyone.
 function-name	Call get_user with the id and check the response.

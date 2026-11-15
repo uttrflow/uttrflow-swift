@@ -98,5 +98,257 @@
       "isMultiline": false
     },
     "mustEndWith": "."
+  },
+  {
+    "id": "form-field-email-1",
+    "note": "A one-line field labelled Email takes the value its label asks for; a sentence said into a name field stays a sentence.",
+    "origin": "synthetic",
+    "addedFor": 4254,
+    "spoken": "ops dash team at example dot org",
+    "expected": "ops-team@example.org",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "Email"
+    }
+  },
+  {
+    "id": "form-field-email-2",
+    "note": "A one-line field labelled Email takes the value its label asks for; a sentence said into a name field stays a sentence.",
+    "origin": "synthetic",
+    "addedFor": 4254,
+    "spoken": "sam dot lee at example dot net",
+    "expected": "sam.lee@example.net",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "Email"
+    }
+  },
+  {
+    "id": "form-field-email-3",
+    "note": "A one-line field labelled Email takes the value its label asks for; a sentence said into a name field stays a sentence.",
+    "origin": "synthetic",
+    "addedFor": 4254,
+    "spoken": "info at example dot com",
+    "expected": "info@example.com",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "Email"
+    }
+  },
+  {
+    "id": "form-field-phone-4",
+    "note": "A one-line field labelled Phone takes the value its label asks for; a sentence said into a name field stays a sentence.",
+    "origin": "synthetic",
+    "addedFor": 4254,
+    "spoken": "five five five zero one four seven",
+    "expected": "5550147",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "Phone"
+    }
+  },
+  {
+    "id": "form-field-phone-5",
+    "note": "A one-line field labelled Phone takes the value its label asks for; a sentence said into a name field stays a sentence.",
+    "origin": "synthetic",
+    "addedFor": 4254,
+    "spoken": "plus four four seven nine zero one",
+    "expected": "+447901",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "Phone"
+    }
+  },
+  {
+    "id": "form-field-phone-6",
+    "note": "A one-line field labelled Phone takes the value its label asks for; a sentence said into a name field stays a sentence.",
+    "origin": "synthetic",
+    "addedFor": 4254,
+    "spoken": "zero one two three four five six",
+    "expected": "0123456",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "Phone"
+    }
+  },
+  {
+    "id": "form-field-postal-code-7",
+    "note": "A one-line field labelled Postal code takes the value its label asks for; a sentence said into a name field stays a sentence.",
+    "origin": "synthetic",
+    "addedFor": 4254,
+    "spoken": "four zero zero zero zero two",
+    "expected": "400002",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "Postal code"
+    }
+  },
+  {
+    "id": "form-field-postal-code-8",
+    "note": "A one-line field labelled Postal code takes the value its label asks for; a sentence said into a name field stays a sentence.",
+    "origin": "synthetic",
+    "addedFor": 4254,
+    "spoken": "e c one a one b b",
+    "expected": "EC1A1BB",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "Postal code"
+    }
+  },
+  {
+    "id": "form-field-postal-code-9",
+    "note": "A one-line field labelled Postal code takes the value its label asks for; a sentence said into a name field stays a sentence.",
+    "origin": "synthetic",
+    "addedFor": 4254,
+    "spoken": "five six zero zero zero one",
+    "expected": "560001",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "Postal code"
+    }
+  },
+  {
+    "id": "form-field-quantity-10",
+    "note": "A one-line field labelled Quantity takes the value its label asks for; a sentence said into a name field stays a sentence.",
+    "origin": "synthetic",
+    "addedFor": 4254,
+    "spoken": "twelve",
+    "expected": "12",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "Quantity"
+    }
+  },
+  {
+    "id": "form-field-quantity-11",
+    "note": "A one-line field labelled Quantity takes the value its label asks for; a sentence said into a name field stays a sentence.",
+    "origin": "synthetic",
+    "addedFor": 4254,
+    "spoken": "one hundred and five",
+    "expected": "105",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "Quantity"
+    }
+  },
+  {
+    "id": "form-field-quantity-12",
+    "note": "A one-line field labelled Quantity takes the value its label asks for; a sentence said into a name field stays a sentence.",
+    "origin": "synthetic",
+    "addedFor": 4254,
+    "spoken": "three",
+    "expected": "3",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "Quantity"
+    }
+  },
+  {
+    "id": "form-field-full-name-13",
+    "note": "A one-line field labelled Full name takes the value its label asks for; a sentence said into a name field stays a sentence.",
+    "origin": "synthetic",
+    "addedFor": 4254,
+    "spoken": "priya shah",
+    "expected": "priya shah",
+    "expectedExact": "priya shah",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "Full name"
+    }
+  },
+  {
+    "id": "form-field-full-name-14",
+    "note": "A one-line field labelled Full name takes the value its label asks for; a sentence said into a name field stays a sentence.",
+    "origin": "synthetic",
+    "addedFor": 4254,
+    "spoken": "Meena Rao",
+    "expected": "Meena Rao",
+    "expectedExact": "Meena Rao",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "Full name"
+    }
+  },
+  {
+    "id": "form-field-first-name-15",
+    "note": "A one-line field labelled First name takes the value its label asks for; a sentence said into a name field stays a sentence.",
+    "origin": "synthetic",
+    "addedFor": 4254,
+    "spoken": "rohan",
+    "expected": "rohan",
+    "expectedExact": "rohan",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "First name"
+    }
+  },
+  {
+    "id": "form-field-street-address-16",
+    "note": "A one-line field labelled Street address takes the value its label asks for; a sentence said into a name field stays a sentence.",
+    "origin": "synthetic",
+    "addedFor": 4254,
+    "spoken": "seven example lane flat nine",
+    "expected": "7 example lane flat nine",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "Street address"
+    }
+  },
+  {
+    "id": "form-field-address-line-1-17",
+    "note": "A one-line field labelled Address line 1 takes the value its label asks for; a sentence said into a name field stays a sentence.",
+    "origin": "synthetic",
+    "addedFor": 4254,
+    "spoken": "twenty one sample road",
+    "expected": "21 sample road",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "Address line 1"
+    }
+  },
+  {
+    "id": "form-field-full-name-18",
+    "note": "A one-line field labelled Full name takes the value its label asks for; a sentence said into a name field stays a sentence.",
+    "origin": "synthetic",
+    "addedFor": 4254,
+    "spoken": "my name is priya shah",
+    "expected": "my name is priya shah",
+    "expectedExact": "my name is priya shah",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "Full name"
+    }
+  },
+  {
+    "id": "form-field-full-name-19",
+    "note": "A one-line field labelled Full name takes the value its label asks for; a sentence said into a name field stays a sentence.",
+    "origin": "synthetic",
+    "addedFor": 4254,
+    "spoken": "it is meena rao from accounts",
+    "expected": "it is meena rao from accounts",
+    "expectedExact": "it is meena rao from accounts",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "Full name"
+    }
   }
 ]

@@ -2187,6 +2187,7 @@
     "addedFor": 573,
     "spoken": "No. We shipped it yesterday.",
     "expected": "No. We shipped it yesterday.",
+    "expectedExact": "No. We shipped it yesterday.",
     "mustKeep": ["No", "shipped", "yesterday"]
   },
   {

@@ -13,7 +13,8 @@ struct SeamLedgerTests {
     @Test("a cut the ledger names is tolerated and one nobody names still fails")
     func namedCutsAreTolerated() throws {
         let ledger = try SeamLedger(parsing: "beta@2 a name the joiner capitalises\n")
-        #expect(ledger.unnamed(among: ["alpha@1", "beta@2", "gamma@3"], baseline: Self.baseline) == ["gamma@3"])
+        let keys = ["alpha@1", "beta@2", "gamma@3"]
+        #expect(ledger.unnamed(among: keys, baseline: Self.baseline) == ["gamma@3"])
     }
 
     @Test("comments and blank lines are ignored")
@@ -28,7 +29,8 @@ struct SeamLedgerTests {
         #expect(throws: SeamLedger.Failure.noReason(line: 2)) { try SeamLedger(parsing: "a@1 ok\nb@2   \n") }
         #expect(throws: SeamLedger.Failure.notACut(line: 1)) { try SeamLedger(parsing: "beta why\n") }
         #expect(throws: SeamLedger.Failure.notACut(line: 1)) { try SeamLedger(parsing: "@2 why\n") }
-        #expect(throws: SeamLedger.Failure.listedTwice(cut: "a@1")) { try SeamLedger(parsing: "a@1 x\na@1 y\n") }
+        let twice = "a@1 x\na@1 y\n"
+        #expect(throws: SeamLedger.Failure.listedTwice(cut: "a@1")) { try SeamLedger(parsing: twice) }
     }
 
     @Test("appended lines name each cut with the reason and read back")
@@ -39,7 +41,8 @@ struct SeamLedgerTests {
 
     @Test("the committed ledger parses and names no cut the baseline already lists")
     func committedLedgerIsWellFormed() throws {
-        let text = try String(contentsOf: Self.root.appending(path: "Scripts/seam_ledger.txt"), encoding: .utf8)
+        let url = Self.root.appending(path: "Scripts/seam_ledger.txt")
+        let text = try String(contentsOf: url, encoding: .utf8)
         let ledger = try SeamLedger(parsing: text)
         let data = try Data(contentsOf: Self.root.appending(path: "Scripts/seam_baseline.json"))
         let baseline = try JSONDecoder().decode(SeamBaseline.self, from: data)

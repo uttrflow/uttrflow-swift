@@ -25,7 +25,8 @@ struct Seams: AsyncParsableCommand {
 
     @Option(
         name: .long,
-        help: "With --check, also tolerate the cuts this reviewed ledger names (`<case id>@<cuts> <reason>`).")
+        help: "With --check, also tolerate the cuts this reviewed ledger names (`<case id>@<cuts> <reason>`)."
+    )
     var ledger: String?
 
     @Option(
@@ -88,7 +89,8 @@ struct Seams: AsyncParsableCommand {
         let keys = differing.map(\.key).sorted()
         if let update { try record(keys, to: URL(fileURLWithPath: update)) }
         if let check {
-            let named = try SeamLedger.read(ledger.map { URL(fileURLWithPath: $0) }, adding: addToLedger,
+            let named = try SeamLedger.read(
+                ledger.map { URL(fileURLWithPath: $0) }, adding: addToLedger,
                 for: differing.map(\.key), baseline: URL(fileURLWithPath: check))
             try compare(
                 differing, with: URL(fileURLWithPath: check), among: Set(cases.map(\.id)), ledger: named)
@@ -295,17 +297,22 @@ struct SeamDifference: Sendable {
 
 extension SeamLedger {
     /// The ledger at `url`, after appending `reason` lines for the cuts that neither it nor the baseline names.
-    static func read(_ url: URL?, adding reason: String?, for keys: [String], baseline: URL) throws -> SeamLedger {
+    static func read(
+        _ url: URL?, adding reason: String?, for keys: [String], baseline: URL
+    ) throws -> SeamLedger {
         guard let url else {
             guard reason == nil else { throw ValidationError("--add-to-ledger needs --ledger") }
             return SeamLedger(entries: [])
         }
         let exists = FileManager.default.fileExists(atPath: url.path)
-        var ledger = exists ? try SeamLedger(parsing: String(contentsOf: url, encoding: .utf8)) : SeamLedger(entries: [])
+        let existing = exists ? try String(contentsOf: url, encoding: .utf8) : ""
+        var ledger = try SeamLedger(parsing: existing)
         if let reason {
-            guard !reason.allSatisfy(\.isWhitespace) else { throw ValidationError("--add-to-ledger needs a reason") }
+            guard !reason.allSatisfy(\.isWhitespace) else {
+                throw ValidationError("--add-to-ledger needs a reason")
+            }
             let added = ledger.unnamed(among: keys, baseline: try SeamBaseline.read(from: baseline))
-            let text = (exists ? try String(contentsOf: url, encoding: .utf8) : "") + SeamLedger.lines(for: added, reason: reason)
+            let text = existing + SeamLedger.lines(for: added, reason: reason)
             try text.write(to: url, atomically: true, encoding: .utf8)
             ledger = try SeamLedger(parsing: text)
             print("  added \(added.count) cuts to the ledger; review them in the diff")
