@@ -8,9 +8,12 @@ extension NumberFormsPass {
     /// Words that name a currency and something else, so they keep their word: a pound also weighs.
     static let alsoMeasures: Set<String> = ["pound", "pounds"]
 
-    /// The symbol written before an amount of this currency word, if it names one currency only.
+    /// The symbol written before an amount of this currency word, if it names one currency only and the symbol is ASCII, since the output is Latin script only.
     static func symbol(forCurrencyWord word: String) -> String? {
-        alsoMeasures.contains(word) ? nil : Quantities.currencyWords[word]
+        guard !alsoMeasures.contains(word), let symbol = Quantities.currencyWords[word],
+            symbol.allSatisfy(\.isASCII)
+        else { return nil }
+        return symbol
     }
 
     /// Writes "5 dollars" as "$5": the numeral takes the symbol and the currency word goes.

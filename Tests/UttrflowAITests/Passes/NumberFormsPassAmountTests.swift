@@ -12,15 +12,15 @@ struct NumberFormsPassAmountTests {
         arguments: [
             ("it cost five dollars", "it cost $5"),
             ("it cost one dollar", "it cost $1"),
-            ("pay fifty rupees today", "pay ₹50 today"),
+            ("pay fifty rupees today", "pay 50 rupees today"),
             ("two dollars fifty", "$2.50"),
-            ("nine thousand rupees, please", "₹9,000, please"),
-            ("ten euros", "€10"),
+            ("nine thousand rupees, please", "9,000 rupees, please"),
+            ("ten euros", "10 euros"),
             ("give me five pounds of flour", "give me 5 pounds of flour"),
             ("it cost five dollars.", "it cost $5."),
             ("a dollar short", "a dollar short"),
             ("between five hundred and six hundred dollars", "between $500 and $600"),
-            ("ten to twenty euros", "€10 to €20"),
+            ("ten to twenty euros", "10 to 20 euros"),
         ]
     )
     func currencySymbols(input: String, expected: String) {

@@ -204,9 +204,9 @@ extension EvaluationCorpus {
             classes: [.lists, .numbers, .commas]),
         piece(
             .travelPlan, "city-weekend",
-            "plan for the city weekend. friday evening check into the guest house on harbour street. saturday morning the museum opens at ten and tickets are eighteen dollars. saturday afternoon the old town walking tour leaves from the clock tower at two. sunday we have brunch and catch the four o'clock bus home",
-            "Plan for the city weekend. Friday evening, check into the guest house on Harbour Street. Saturday morning, the museum opens at ten and tickets are $18. Saturday afternoon, the old town walking tour leaves from the clock tower at two. Sunday we have brunch and catch the four o'clock bus home.",
-            keep: ["Harbour Street", "$18", "clock tower"], notAdd: ["hotel"],
+            "plan for the city weekend. friday evening check into the guest house on harbour street. saturday morning the museum opens at ten and tickets are eighteen euros. saturday afternoon the old town walking tour leaves from the clock tower at two. sunday we have brunch and catch the four o'clock bus home",
+            "Plan for the city weekend. Friday evening, check into the guest house on Harbour Street. Saturday morning, the museum opens at ten and tickets are 18 euros. Saturday afternoon, the old town walking tour leaves from the clock tower at two. Sunday we have brunch and catch the four o'clock bus home.",
+            keep: ["Harbour Street", "18 euros", "clock tower"], notAdd: ["hotel", "€"],
             classes: [.lists, .numbers, .capitalisationAndTokens, .commas]),
     ]
 

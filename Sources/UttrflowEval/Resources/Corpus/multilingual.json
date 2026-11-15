@@ -347,7 +347,7 @@
     "origin": "synthetic",
     "addedFor": 706,
     "spoken": "one lakh fifty thousand rupees",
-    "expected": "₹150,000.",
+    "expected": "150,000 rupees.",
     "mustNotAdd": ["One lakh 50,000"]
   },
   {
