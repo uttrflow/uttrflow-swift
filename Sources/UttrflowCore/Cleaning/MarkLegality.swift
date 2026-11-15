@@ -57,6 +57,12 @@ public enum MarkLegality {
         table[state]?[mark] ?? .unknown
     }
 
+    /// Whether a stop the recogniser wrote after `token` stands: "is" ends "Yes, it is." and a stopped "for" ends a relative clause.
+    public static func keepsWrittenStop(after token: String) -> Bool {
+        let shape = WordShape(token)
+        return shape.suffix.contains(".") && FunctionWords.closesWhenStopped(shape.core)
+    }
+
     /// Whether `words` read as a closed sentence: illegal when the last word leaves it open, legal when it can end and a verb was said.
     public static func sentenceCompleteness(_ words: [String]) -> Verdict {
         guard let last = words.last else { return .unknown }
