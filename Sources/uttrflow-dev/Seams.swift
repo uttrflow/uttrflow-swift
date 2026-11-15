@@ -107,7 +107,7 @@ struct Seams: AsyncParsableCommand {
             cases.flatMap { testCase in
                 let words = testCase.spoken.split(whereSeparator: \.isWhitespace).count
                 return cuts(of: words, three: three).map {
-                    "\(testCase.id)@\($0.map(String.init).joined(separator: ","))"
+                    SeamDifference.key(id: testCase.id, boundaries: $0)
                 }
             })
     }
@@ -302,7 +302,12 @@ struct SeamDifference: Sendable {
     let whole: String
     let joined: String
 
-    var key: String { "\(id)@\(boundaries.map(String.init).joined(separator: ","))" }
+    var key: String { Self.key(id: id, boundaries: boundaries) }
+
+    /// The identity of one cut: the case id, "@", then its word boundaries, as the baseline and the ledger write it.
+    static func key(id: String, boundaries: [Int]) -> String {
+        "\(id)@\(boundaries.map(String.init).joined(separator: ","))"
+    }
 
     var kind: Kind {
         let bare = { (text: String) in text.filter { $0.isLetter || $0.isNumber || $0.isWhitespace } }
