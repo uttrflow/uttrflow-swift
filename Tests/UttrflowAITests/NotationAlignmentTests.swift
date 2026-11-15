@@ -13,7 +13,8 @@ struct NotationAlignmentTests {
 
     @Test("every notation row written as its mark, apart or joined, leaves nothing unexplained")
     func everyRowAligns() {
-        for row in NotationAlignment.notationRows {
+        // A row that waits on a later word is judged with its source table in `SQLDescriptiveSpeechTests`.
+        for row in NotationAlignment.notationRows where row.needsLater.isEmpty {
             let spoken = "alpha " + row.words.joined(separator: " ") + " beta"
             for written in ["alpha \(row.text) beta", "alpha\(row.text)beta"] {
                 #expect(unsourced(spoken, written).isEmpty, "\(row.id): \(spoken) -> \(written)")
