@@ -67,12 +67,13 @@ public struct RuleBasedTransformer: TextTransformationEngine {
             .standard(
                 for: formatter, situation: request.situation, steps: steps, vocabulary: request.vocabulary,
                 pauses: request.profile.pauses)
-        case .piece:
+        case .piece, .notated:
             .piece(
                 numbers: formatter.numbers, digits: request.situation.digits(for: formatter),
                 layout: formatter.layout, destination: formatter.destination,
                 intent: request.situation.intent, steps: steps, pauses: request.profile.pauses,
-                screen: request.situation, mode: request.situation.adapterMode, readsWholeText: false)
+                screen: request.situation, mode: request.situation.adapterMode, readsWholeText: false,
+                writesNotation: request.scope.writesNotation)
         }
     }
 }

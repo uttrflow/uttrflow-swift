@@ -1383,7 +1383,6 @@
     "UttrflowCore func isMeaningBearing": 1,
     "UttrflowCore func isMissing": 1,
     "UttrflowCore func isMostlyUntranscribedScript": 1,
-    "UttrflowCore func isMultiplexer": 1,
     "UttrflowCore func isNameInDictionary": 1,
     "UttrflowCore func isNamed": 4,
     "UttrflowCore func isNumber": 1,
@@ -2442,8 +2441,10 @@
     "UttrflowCore var value": 1,
     "UttrflowCore var vocabulary": 1,
     "UttrflowCore var vocabularyCount": 1,
+    "UttrflowCore var waitsForMessage": 1,
     "UttrflowCore var weight": 1,
     "UttrflowCore var words": 1,
+    "UttrflowCore var writesNotation": 1,
     "UttrflowDiagnostics class CrashReporter": 1,
     "UttrflowDiagnostics func close": 1,
     "UttrflowDiagnostics func configure": 1,
@@ -6446,5 +6447,5 @@
     "UttrflowUX var withdrawsTrust": 1,
     "UttrflowUX var words": 2
   },
-  "total": 9176
+  "total": 9177
 }

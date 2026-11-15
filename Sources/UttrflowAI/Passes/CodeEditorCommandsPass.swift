@@ -22,18 +22,10 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
     var cutsStammers = false
 
     func apply(_ draft: Draft) -> Draft {
-        let words = draft.presentIndices.map { Self.bare(draft.words[$0].text) }
-        let screen = NotationEvidence.applicability(
-            destination: destination, opening: words.first, given: evidence)
-        // A spelled tag is evidence enough: its element may be a small word such as "a", and words outside a tag stay text.
-        let spellsTag =
-            markup == .slot(.text) && screen == .noEvidence
-            && NotationEvidence.spellsTag(
-                in: draft.presentIndices.map { Self.markupKey(draft.words[$0].text) })
-        let evidence =
-            spellsTag
-            ? Applicability(cues: [.markupTag]) : NotationEvidence.applicability(of: words, given: screen)
-        guard evidence.activates(at: NotationEvidence.activationThreshold) else { return draft }
+        let read = NotationEvidence.read(
+            spoken: draft.presentIndices.map { draft.words[$0].text }, destination: destination,
+            markup: markup, given: evidence)
+        guard read.activates(at: NotationEvidence.activationThreshold) else { return draft }
         var draft = NotationInput.settled(draft, by: Self.id, keepingJSONMarks: language == .json)
         // A second run reads the words without their pause marks, so the first must judge a stammer on them too.
         if cutsStammers { draft = StammersPass().apply(draft) }
