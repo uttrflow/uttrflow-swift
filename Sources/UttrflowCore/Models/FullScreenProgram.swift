@@ -15,9 +15,6 @@ public enum FullScreenProgram {
         "zsh", "bash", "fish", "sh", "dash", "ksh", "tcsh", "csh", "nu", "pwsh", "xonsh", "elvish", "login",
     ]
 
-    /// Multiplexers whose visible panes do not have separate Accessibility fields.
-    static let multiplexers: Set<String> = ["tmux", "screen"]
-
     /// Words that run the program after them, so `sudo vim` is read as `vim`.
     static let launchers: Set<String> = ["sudo", "doas", "env", "nice", "nohup", "exec", "command", "time"]
 
@@ -31,14 +28,6 @@ public enum FullScreenProgram {
         // A shell in the title is the foreground process, so a listed word beside it is a directory, host or tab name.
         if leading.contains(where: { shells.contains(String($0.drop { $0 == "-" })) }) { return false }
         return leading.contains(where: programs.contains)
-    }
-
-    /// Whether the title's foreground program is a multiplexer hiding each pane's working directory.
-    public static func isMultiplexer(inWindowTitle title: String?) -> Bool {
-        guard let title else { return false }
-        let leading = leadingWords(of: title)
-        if leading.contains(where: { shells.contains(String($0.drop { $0 == "-" })) }) { return false }
-        return leading.contains(where: multiplexers.contains)
     }
 
     /// The word each part of a title leads with, read past launchers and their flags, lowercased.
