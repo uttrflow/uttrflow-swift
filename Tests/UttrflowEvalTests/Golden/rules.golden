@@ -1463,6 +1463,7 @@ spreadsheet-search-travel	travel reimbursement
 spreadsheet-search-unpaid	unpaid invoices
 spreadsheet-search-utilities	utilities
 spreadsheet-two-word-label	shipping cost
+sql-count-star-source	SELECT COUNT(*)\nFROM orders
 sql-editor-comment-sentence	This view replaces the old weekly summary.
 sql-editor-filler-dropped	The index speeds up lookups by customer.
 sql-editor-identifier-from-screen	The orderTotals view is stale after midnight.

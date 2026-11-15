@@ -83,6 +83,8 @@ public struct SpokenCommand: DataTableRow, Equatable {
     package let slots: Set<MarkupSlot>?
     /// The slot the caret is in once the row is written; nil when the row leaves it in place.
     package let enters: MarkupSlot?
+    /// A word the speech must say later for the row to be notation, so "count of star" is a count only before a "from".
+    package let needsLater: [String]
     /// Whether a quotation spoken right after the row is written as its quoted value: `class equals quote hero unquote` is `class="hero"`.
     package let bindsQuote: Bool
     /// Where an opening name said again inside the quotation it opened closes it, as a typed quote does; nowhere when the row does not say.
@@ -135,6 +137,7 @@ public struct SpokenCommand: DataTableRow, Equatable {
         slots = try container.decodeIfPresent(Set<MarkupSlot>.self, forKey: .slots)
         enters = try container.decodeIfPresent(MarkupSlot.self, forKey: .then)
         bindsQuote = try container.decodeIfPresent(Bool.self, forKey: .bindsQuote) ?? false
+        needsLater = try container.decodeIfPresent([String].self, forKey: .needsLater) ?? []
         closesItselfIn = try container.decodeIfPresent(Set<Destination>.self, forKey: .closesItself) ?? []
         reach = try container.decodeIfPresent(Reach.self, forKey: .reach) ?? .clause
         until = try container.decodeIfPresent([String].self, forKey: .until) ?? []
@@ -142,7 +145,7 @@ public struct SpokenCommand: DataTableRow, Equatable {
 
     private enum Key: String, CodingKey {
         case id, words, action, text, placement, requiresLists, destinations, languages, slots, bindsQuote,
-            closesItself,
+            needsLater, closesItself,
             reach, until
         case then
     }
