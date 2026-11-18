@@ -58,7 +58,7 @@ let package = Package(
         // dictation, and there is no accuracy baseline to answer whether a bump made the
         // words better or worse — see Docs/measuring-accuracy.md. Until there is one, the
         // version moves when somebody decides to move it.
-        .package(url: "https://github.com/argmaxinc/argmax-oss-swift.git", exact: "1.1.0"),
+        .package(url: "https://github.com/argmaxinc/argmax-oss-swift.git", exact: "1.1.1"),
         .package(url: "https://github.com/ml-explore/mlx-swift-lm", exact: "3.31.4"),
         .package(url: "https://github.com/huggingface/swift-transformers", exact: "1.3.4"),
         .package(url: "https://github.com/huggingface/swift-huggingface", exact: "0.13.0"),
