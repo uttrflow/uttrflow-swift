@@ -29,14 +29,13 @@ extension NumberFormsPass {
                 draft.replace(at: index, with: shape.prefix + symbol + parts[0] + shape.suffix, by: id)
             }
         }
-        for (amount, unit) in zip(draft.presentIndices, draft.presentIndices.dropFirst()) {
-            let number = draft.shape(at: amount)
+        for unit in draft.presentIndices {
             let word = draft.shape(at: unit)
-            guard draft.words[amount].isPresent, draft.words[unit].isPresent,
-                let symbol = symbol(forCurrencyWord: word.key), number.suffix.isEmpty, word.prefix.isEmpty,
-                isNumeral(figure(of: number.core))
+            guard draft.words[unit].isPresent, let symbol = symbol(forCurrencyWord: word.key),
+                word.prefix.isEmpty, let amount = amountIndex(before: unit, in: draft),
+                !hasMinorPart(after: unit, in: draft)
             else { continue }
-            guard !hasMinorPart(after: unit, in: draft) else { continue }
+            let number = draft.shape(at: amount)
             draft.replace(at: amount, with: number.prefix + symbol + number.core + word.suffix, by: id)
             draft.remove(at: unit, by: id)
             // "between 500 and 600 dollars" names both amounts in the currency.
@@ -45,12 +44,24 @@ extension NumberFormsPass {
                 rangeJoiners.contains(draft.shape(at: joiner).key)
             {
                 let earlier = draft.shape(at: first)
-                if earlier.suffix.isEmpty, isNumeral(figure(of: earlier.core)) {
+                if earlier.suffix.isEmpty, !earlier.prefix.contains(symbol),
+                    isNumeral(figure(of: earlier.core))
+                {
                     draft.replace(at: first, with: earlier.prefix + symbol + earlier.core, by: id)
                 }
             }
         }
     }
+
+    /// The numeral a currency word names: the word before it, when that is a numeral.
+    static func amountIndex(before unit: Int, in draft: Draft) -> Int? {
+        guard let last = draft.presentIndices.last(where: { $0 < unit }) else { return nil }
+        let word = draft.shape(at: last)
+        return word.suffix.isEmpty && isNumeral(figure(of: word.core)) ? last : nil
+    }
+
+    /// The scale words that stay beside a numeral.
+    static let magnitudes: Set<String> = ["million", "billion", "trillion"]
 
     /// Whether a smaller part of the amount follows the currency word, "and fifty cents", which "$12" would orphan.
     static func hasMinorPart(after unit: Int, in draft: Draft) -> Bool {
@@ -79,7 +90,8 @@ extension NumberFormsPass {
         guard position + 3 < keys.count, keys[position] == "a", keys[position + 1] == "hundred",
             keys[position + 2] == "and", (position + 1...position + 3).allSatisfy({ joined($0, shapes) }),
             let tail = NumberWords.cardinal(unbroken(from: position + 3, keys: keys, shapes: shapes)),
-            tail.value < 100
+            tail.value < 100,
+            !(position + 3 + tail.count < keys.count && keys[position + 3 + tail.count] == "point")
         else { return nil }
         return Phrase(text: String(100 + tail.value), count: 3 + tail.count)
     }
