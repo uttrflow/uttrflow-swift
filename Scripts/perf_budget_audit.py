@@ -1000,7 +1000,16 @@ def quality_layers(tree):
     """The raw value of every `QualityLayer` case, as the registry declares them."""
     text = tree.read("Sources/UttrflowCore/Support/QualityLayer.swift")
     start = text.find("enum QualityLayer")
-    body = text[start : matching(text, text.find("{", start))] if start >= 0 else ""
+    if start < 0:
+        return []
+    opening = text.find("{", start)
+    body = text[opening + 1 : matching(text, opening)]
+    # Nested types declare cases of their own, so only the enum's top level is read.
+    nested = body.find("{")
+    while nested >= 0:
+        close = matching(body, nested)
+        body = body[:nested] + body[close + 1 :]
+        nested = body.find("{")
     return [raw or name for name, raw in LAYER_CASE.findall(body)]
 
 
