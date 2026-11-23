@@ -83,6 +83,19 @@ struct BackedSpeechEngineTests {
         #expect(backend.loadCount == 0, "and must not be loaded for audio we will not use")
     }
 
+    /// A long recording of nothing is not a short one, so it passes the length check and is refused on what is in it.
+    @Test("refuses audio that is only silence, however long", arguments: [0.5, 2.0])
+    func refusesSilence(seconds: Double) async {
+        let backend = FakeTranscriptionBackend()
+        let silence = AudioSamples.canonical(
+            [Float](repeating: 0, count: Int(Double(AudioSamples.canonicalSampleRate) * seconds)))
+
+        await #expect(throws: SpeechEngineError.nothingHeard) {
+            try await engine(backend).transcribe(silence, options: .automatic)
+        }
+        #expect(backend.calls.isEmpty, "the recogniser must not be asked to hear silence")
+    }
+
     @Test("accepts audio at exactly the minimum length")
     func acceptsMinimumLength() async throws {
         let backend = FakeTranscriptionBackend()
