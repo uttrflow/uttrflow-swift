@@ -24,6 +24,8 @@ struct NumberFormsPassAmountTests {
             ("between five hundred and six hundred dollars", "between $500 and $600"),
             ("ten to twenty euros", "10 to 20 euros"),
             ("one of five dollars", "one of $5"),
+            ("call one of five dollars", "call one of $5"),
+            ("one of five to ten dollars", "one of $5 to $10"),
         ]
     )
     func currencySymbols(input: String, expected: String) {

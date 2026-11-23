@@ -44,9 +44,7 @@ extension NumberFormsPass {
                 rangeJoiners.contains(draft.shape(at: joiner).key)
             {
                 let earlier = draft.shape(at: first)
-                if earlier.suffix.isEmpty, !earlier.prefix.contains(symbol),
-                    isNumeral(figure(of: earlier.core))
-                {
+                if !earlier.prefix.contains(symbol), isAmount(core: earlier.core, suffix: earlier.suffix) {
                     draft.replace(at: first, with: earlier.prefix + symbol + earlier.core, by: id)
                 }
             }
@@ -57,10 +55,12 @@ extension NumberFormsPass {
     static func amountIndex(before unit: Int, in draft: Draft) -> Int? {
         guard let last = draft.presentIndices.last(where: { $0 < unit }) else { return nil }
         let word = draft.shape(at: last)
-        guard word.suffix.isEmpty, isNumeral(figure(of: word.core)),
-            !word.core.split(separator: " ").contains("of")
-        else { return nil }
-        return last
+        return isAmount(core: word.core, suffix: word.suffix) ? last : nil
+    }
+
+    /// Whether a draft word is a bare numeral, not one that belongs to an "of" phrase such as "2 of 5".
+    static func isAmount(core: String, suffix: String) -> Bool {
+        suffix.isEmpty && isNumeral(figure(of: core)) && !core.split(separator: " ").contains("of")
     }
 
     /// The scale words that stay beside a numeral.
