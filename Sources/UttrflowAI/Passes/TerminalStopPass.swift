@@ -255,8 +255,7 @@ public struct TerminalStopPass: WholeTextCleaningPass {
 
     /// A word that leaves its clause open, such as a trailing "and", keeps no stop, except a copula the recogniser stopped; an abbreviation keeps its own dot.
     private static func leftOpen(_ word: String) -> String {
-        let shape = WordShape(word)
-        if shape.suffix.contains("."), FunctionWords.closesWhenStopped(shape.core) { return word }
+        if MarkLegality.keepsWrittenStop(after: word) { return word }
         return MarkLegality.state(of: word) == .leadsOn ? WordShape.withoutTrailingStop(word) : word
     }
 
