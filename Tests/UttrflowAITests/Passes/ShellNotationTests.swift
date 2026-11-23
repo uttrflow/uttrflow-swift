@@ -47,7 +47,7 @@ struct ShellNotationTests {
         "leaves a sentence with a word of the same name as a symbol as the words",
         arguments: [
             ("five dollar bill", "5 dollar bill"),
-            ("i paid ten dollar for lunch", "i paid 10 dollar for lunch"),
+            ("i paid ten dollar for lunch", "I paid 10 dollar for lunch"),
             ("it costs five dollar", "it costs 5 dollar"),
             ("the single quote key", "the single quote key"),
             ("backslash is a slash", "backslash is a slash"),
