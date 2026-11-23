@@ -173,7 +173,8 @@ public enum CorrectionsPresenter {
             footnote: rows.isEmpty
                 ? nil
                 : """
-                Undo teaches Uttrflow. Undo a word more often than you keep it and it stops \
+                Undo fixes the saved transcript and teaches Uttrflow; text already in another \
+                app is not changed. Undo a word more often than you keep it and it stops \
                 being applied — the word retires itself in your Dictionary.
                 """)
     }
