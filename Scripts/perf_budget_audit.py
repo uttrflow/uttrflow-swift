@@ -97,6 +97,7 @@ WAKEUPS_BOUND_BY = {
     ("Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift", "interval"): (
         "SuggestionTicking.interval", "SuggestionTicking.ghostInterval", "SuggestionTicking.activeSelectionInterval",
     ),
+    ("Sources/Uttrflow/Suggestion/SecureInputPause.swift", "interval"): ("SuggestionTicking.interval",),
 }
 
 # Known breaches of the budget, each open under the issue that fixes it; a listed breach that is gone fails as stale.
