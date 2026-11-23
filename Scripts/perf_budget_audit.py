@@ -841,7 +841,7 @@ def check_suggestion_path(tree, findings, report):
         findings.fail("suggestions", coordinator_path, line_of(coordinator, monitor.start()) if monitor else 1, "the key callback contains an allocation-heavy operation", (coordinator_path, "callback-allocation"))
     elif key_handler and monitor:
         report.append("  ✓ key callback has no allocation-heavy collection or string work")
-    same_draw_guards = re.findall(r"if isActuallyShowing, next\.draws\(sameAs: request\) \{ return true \}", panel)
+    same_draw_guards = re.findall(r"if isActuallyShowing, next\.draws\(sameAs: request\), drawn\.statusMessage == statusMessage \{\s*return true\s*\}", panel)
     if len(same_draw_guards) < 2:
         findings.fail("suggestions", panel_path, 1, "identical visible suggestions are rendered again", (panel_path, "duplicate-draw"))
     else:
@@ -1320,8 +1320,8 @@ INJECTIONS = (
     ),
     (
         "Sources/Uttrflow/Suggestion/SuggestionPanelController.swift",
-        "if isActuallyShowing, next.draws(sameAs: request) { return true }",
-        "if isActuallyShowing, next.draws(sameAs: request) { return false }",
+        "if isActuallyShowing, next.draws(sameAs: request), drawn.statusMessage == statusMessage {\n            return true",
+        "if isActuallyShowing, next.draws(sameAs: request), drawn.statusMessage == statusMessage {\n            return false",
         "suggestions", "identical visible suggestions are rendered again",
     ),
 )
