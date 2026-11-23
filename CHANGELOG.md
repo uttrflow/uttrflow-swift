@@ -11,6 +11,61 @@ Each released version is a git tag and a build at
 
 ## [Unreleased]
 
+## [26.1115.0] — 2026-11-15
+
+### Added
+- **Choose which dictations History keeps**, and leave an app's dictations out of History and of
+  learning (#4269, #8246, #8258, #8272).
+- **Name apps dictation never learns from**, and learning is skipped in private-browsing windows
+  (#8313, #8204).
+- **Dictate under a quality preset** chosen for every app or for one app (#4277, #8222).
+- **Reformat the last dictation by voice** without changing a word (#8227).
+- **Clear a pasted secret** from the clipboard after a delay you set in Settings.
+- **Flag a dictionary entry that sounds like ordinary words** before it can change your dictation
+  (#8329).
+- **Say in the panel when clipboard capture is off or paused** (#8343).
+- **Spoken spreadsheet formulas, JSON values, attribute selectors and markup** are written as such
+  in the places that take them (#4208, #8299, #8262, #8268).
+- **A command line's variables, substitutions, single quotes and escapes, and `||` and `&&`, are
+  written as said** (#4213, #8353).
+- **SQL**: "count of star" before a table becomes `COUNT(*)`, a spoken quotation takes the
+  statement's quotes, and a piece cut from the middle of a statement is read with it (#4201, #4219,
+  #4192).
+- **A statement's words are written as the identifier on screen they spell** (#4203, #3565).
+- **A spoken name request is written in the file's own naming convention** (#4214).
+- **Commit messages, browser address bars and Markdown headings** are written as their field
+  expects (#4249, #4248, #4253).
+
+### Changed
+- **Grammar is repaired only in documents and mail**, never in chat, code, terminals or one-line
+  fields; data-only requests are finished by the rules (#4453).
+- **Quality layers declare where they run**, the optional clean-up stages share one deadline after
+  the key is released, and learning runs off the dictation's path (#3980, #4015, #4151).
+- **Each piece is decoded and tidied after the previous piece as corrected**, on every path
+  (#4162, #4163).
+- **A field labelled as a card number or a one-time code is treated as a secure field** (#8347).
+- **Names and addresses are kept as spoken**, and a number field gets numerals (#4254).
+- **Onboarding shows its five approved steps**, without the clipboard page (#8337).
+- **The hardware floor is stated in one place** (#3943).
+- **A speech model load that outlasts its limit is kept and adopted when it ends** (#8208).
+- **Numbers**: "return four thirteen" is 413, "python three" is python 3, "pages four and seven"
+  follow their plural label, and a hundred said after a status verb is one code (#8224, #8281,
+  #8287).
+
+### Fixed
+- **A correct address is no longer refused in a field labelled Email** when its mailbox is a plain
+  word (#8365).
+- **The pronoun I stays capital as spoken** (#2343).
+- **Recogniser stops are judged by who wrote them**, so pieces join as the whole text does: a stop
+  before a lowercase word or a conjunction is kept or dropped for the right reason (#3412, #3470).
+- **Fillers held longer than their listed spelling, a discourse tag said three times, and a mark
+  name said again past a pause** are read correctly (#2274, #3611, #8271).
+- **An ellipsis glued before a capitalised word is spaced**, and the space before a hidden file's
+  leading dot is kept (#3608, #4458).
+- **The caret is put back** when a write over a widened selection is unconfirmed (#5016).
+- **A Hindi noun in a Hindi sentence is no longer restored to an English word** (#8234).
+- **Transcripts in Arabic script count as answered in Arabic script** (#495).
+
 ## [26.1106.0] — 2026-11-06
 
 ### Changed
@@ -791,6 +846,7 @@ where its code became readable.
   disagree.
 
 [Unreleased]: https://github.com/uttrflow/uttrflow-swift/commits/main
+[26.1115.0]: https://github.com/uttrflow/releases/releases
 [26.1106.0]: https://github.com/uttrflow/releases/releases
 [26.1105.0]: https://github.com/uttrflow/releases/releases
 [26.1013.0]: https://github.com/uttrflow/releases/releases

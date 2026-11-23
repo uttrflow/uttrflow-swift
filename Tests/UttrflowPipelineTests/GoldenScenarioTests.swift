@@ -88,7 +88,7 @@ enum GoldenScenarios {
     static let sqlRows: [GoldenRow] = [
         GoldenRow(
             "G1.1", "a minute of SQL speech in a database client is the formatted statement said",
-            knownIssue: "#4212",
+            knownIssue: "#4207",
             scenario(
                 sql(),
                 [
@@ -103,7 +103,7 @@ enum GoldenScenarios {
         ),
         GoldenRow(
             "G1.2", "SQL speech with the editor unreadable keeps keywords and invents no identifier",
-            knownIssue: "#4212",
+            knownIssue: "#4207",
             scenario(
                 AppContext(
                     applicationName: "TablePlus", bundleIdentifier: DestinationRules.tablePlus,
@@ -116,7 +116,7 @@ enum GoldenScenarios {
             writes: "SELECT *\nFROM orders\nJOIN customers ON orders.customer_id = customers.id"),
         GoldenRow(
             "G1.3", "a clause said mid-statement continues it in upper-case keywords without a stop",
-            knownIssue: "#4212",
+            knownIssue: "#4207",
             said(
                 sql(before: "SELECT *\nFROM orders\n"),
                 "Where status equals quote paid quote and total greater than 12,000."),
@@ -128,7 +128,7 @@ enum GoldenScenarios {
             writes: "The nightly backup finished before the migration started."),
         GoldenRow("G1.5", "the same prose is written under every persona", check: Self.personaProse),
         GoldenRow(
-            "G1.6", "a statement cut at a pause is the statement said in one piece", knownIssue: "#4212",
+            "G1.6", "a statement cut at a pause is the statement said in one piece", knownIssue: "#4207",
             scenario(
                 sql(),
                 [
@@ -262,7 +262,7 @@ enum GoldenScenarios {
             said(chat, "meet at six thirty and it costs three pounds fifty"),
             writes: "Meet at 6:30 and it costs £3.50"),
         GoldenRow(
-            "G5.4", "a comparison in SQL is a bare symbol and number", knownIssue: "#4212",
+            "G5.4", "a comparison in SQL is a bare symbol and number", knownIssue: "#8389",
             said(sql(before: "SELECT * FROM orders\n"), "where total is greater than twelve thousand"),
             writes: "WHERE total > 12000"),
         GoldenRow(
