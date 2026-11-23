@@ -139,7 +139,8 @@ package enum NotationEvidence {
         let intent = situation.intent
         let mode = situation.adapterMode
         let caretText = situation.insertion.precedingText
-        let spoken = WordTokens.words(text, .display)
+        // A hesitation before the first word is not the opener, so it is read past here as `FillersPass` will drop it.
+        let spoken = Array(WordTokens.words(text, .display).drop { FillersPass.isFiller($0.lowercased()) })
         if destination == .spreadsheet {
             guard mode != .prose, let cell = caretText?.trimmingCharacters(in: .whitespacesAndNewlines),
                 cell.hasPrefix("=") || cell.isEmpty

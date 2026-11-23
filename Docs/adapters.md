@@ -295,11 +295,11 @@ reads.
 
 **The model's per-piece answer.** For a dictation that abstains, each piece keeps the answer the
 on-device model gave it while the key was held. For a dictation that is written as notation, the
-pieces' answers are not used: the whole text is tidied once, by the same router, where the rules
-settle the text before a model is asked, so notation is never put to a model that could rewrite it.
-A piece of a dictation that is later written as notation can have been put to the model before the
-choice was made, and that call is wasted. The wasted cost is not measured: a VM has no Apple model
-and its timings are not product numbers, so a 60 s figure waits for a run on a real Mac.
+pieces' answers are not used: the whole text is tidied once, by the same router. When the rules
+cover the text, no model is asked; otherwise the engines run in the configured preference, so a model
+can be asked about notation before the rules floor is reached, and its answer still passes the meaning
+guard and the adapter's validator. A piece of a dictation later written as notation can have been put
+to the model before the choice was made, and that call is wasted.
 Neither shape is built twice.
 
 A command or value cut across pieces in a dictation that is written as notation is read whole.

@@ -166,7 +166,9 @@ struct AdapterDecisionOnceTests {
     }
 
     private func written(_ pieces: [String], _ screen: AppContext) async -> String? {
-        await pipeline.clean(pieces.map { Transcription(text: $0) }, seeing: screen).text
+        let text = await pipeline.clean(pieces.map { Transcription(text: $0) }, seeing: screen).text
+        #expect(text != nil, "no text written for \(pieces.joined(separator: " | "))")
+        return text
     }
 }
 
