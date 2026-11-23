@@ -25,6 +25,8 @@ struct NumberFormsPassAmountTests {
             ("ten to twenty euros", "10 to 20 euros"),
             ("one of five dollars", "one of $5"),
             ("call one of five dollars", "call one of $5"),
+            ("code two of five dollars", "code 2 of 5 dollars"),
+            ("code two of five to ten dollars", "code 2 of 5 to $10"),
             ("one of five to ten dollars", "one of $5 to $10"),
         ]
     )
