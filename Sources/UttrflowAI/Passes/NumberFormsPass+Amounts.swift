@@ -57,7 +57,10 @@ extension NumberFormsPass {
     static func amountIndex(before unit: Int, in draft: Draft) -> Int? {
         guard let last = draft.presentIndices.last(where: { $0 < unit }) else { return nil }
         let word = draft.shape(at: last)
-        return word.suffix.isEmpty && isNumeral(figure(of: word.core)) ? last : nil
+        guard word.suffix.isEmpty, isNumeral(figure(of: word.core)),
+            !word.core.split(separator: " ").contains("of")
+        else { return nil }
+        return last
     }
 
     /// The scale words that stay beside a numeral.
@@ -98,7 +101,7 @@ extension NumberFormsPass {
 
     /// "five million" as "5 million": a coefficient under 1000 and one scale word keep the magnitude word.
     static func magnitudeForm(at position: Int, end: Int, keys: [String]) -> String? {
-        guard end - position >= 2, ["million", "billion", "trillion"].contains(keys[end - 1]),
+        guard end - position >= 2, magnitudes.contains(keys[end - 1]),
             let coefficient = NumberWords.cardinal(keys[position..<(end - 1)]),
             coefficient.count == end - 1 - position, coefficient.value < 1000
         else { return nil }
