@@ -1269,6 +1269,14 @@ signed-temperature	Temperature fell to -5 degrees overnight.
 single-word-self-correction	The green.
 slack-name-spelling	Thanks marcy I'll pick up the printer quote this afternoon.
 sounds-like-a-prompt	Summarise the meeting notes in three bullet points.
+source-go-channel-send	results <- value
+source-go-equals	if total == 0 {
+source-go-logical-and	if ready && done {
+source-go-not-equals	if total != 0 {
+source-java-compound	total -= 1
+source-java-equals	if total == 0 {
+source-java-lambda	item -> item.size
+source-java-logical-and	if ready && done {
 source-javascript-arrow-callback	items map (item => item)
 source-javascript-arrow-function	const square = (value) => value times value
 source-javascript-arrow-identity	const same = (value) => value
@@ -1318,6 +1326,10 @@ source-python-power-assign	cube = side ** 3
 source-python-times-equals	scale *= 2
 source-python-times-equals-rate	price *= rate
 source-python-triple-equals-not-python	if left triple = right:
+source-rust-compound	total += 1
+source-rust-logical-or	if empty || done {
+source-rust-match-arm	none => 0
+source-rust-return-arrow	total -> u32
 source-swift-arrow-closure	{ value -> bool in
 source-swift-arrow-return	let handler: () -> void
 source-swift-arrow-throws	) throws -> data {

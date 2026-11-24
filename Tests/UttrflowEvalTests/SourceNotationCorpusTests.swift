@@ -8,14 +8,17 @@ import UttrflowCore
 @Suite("The source notation corpus")
 struct SourceNotationCorpusTests {
     /// The languages the corpus covers, each the second part of its case ids.
-    static let languages = ["swift", "python", "javascript", "typescript"]
+    static let languages = ["swift", "python", "javascript", "typescript", "go", "rust", "java"]
 
-    @Test("holds thirty cases for each language family")
+    @Test("holds thirty cases for each of the first three language families and four for each of the others")
     func coversEachLanguage() {
         let ids = EvaluationCorpus.sourceNotation.map(\.id)
         #expect(ids.count { $0.hasPrefix("source-swift-") } == 30)
         #expect(ids.count { $0.hasPrefix("source-python-") } == 30)
         #expect(ids.count { $0.hasPrefix("source-javascript-") || $0.hasPrefix("source-typescript-") } == 30)
+        #expect(ids.count { $0.hasPrefix("source-go-") } == 4)
+        #expect(ids.count { $0.hasPrefix("source-rust-") } == 4)
+        #expect(ids.count { $0.hasPrefix("source-java-") } == 4)
         #expect(Set(ids.map { $0.split(separator: "-")[1] }) == Set(Self.languages.map { Substring($0) }))
     }
 
