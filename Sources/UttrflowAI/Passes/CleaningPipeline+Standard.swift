@@ -126,6 +126,12 @@ extension CleaningPipeline {
                         at: spoken + 2)
                 }
             }
+            // A query's date is read once the number pass has written it, so one reader serves prose and statements.
+            if destination == .sqlEditor, mode != .prose,
+                let numbers = cleanings.firstIndex(where: { $0.id == .numberForms })
+            {
+                cleanings.insert(SQLDateLiteralPass(), at: numbers + 1)
+            }
             // A JSON file's code reads its pairs once the numbers are written, so a value's type is known.
             if destination == .codeEditor, intent.language == .json, intent.region == .code, mode != .prose,
                 let numbers = cleanings.firstIndex(where: { $0.id == .numberForms })
