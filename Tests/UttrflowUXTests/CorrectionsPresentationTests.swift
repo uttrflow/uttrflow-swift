@@ -181,6 +181,7 @@ struct CorrectionsPageTests {
     func footnote() {
         let page = HistoryFixture.corrections([HistoryFixture.correction()])
         #expect(page.footnote?.contains("more often than you keep it") == true)
+        #expect(page.footnote?.contains("text already in another app is not changed") == true)
     }
 }
 

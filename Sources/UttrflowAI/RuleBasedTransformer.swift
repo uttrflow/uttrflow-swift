@@ -6,7 +6,7 @@ public struct RuleBasedTransformer: TextTransformationEngine {
     /// Always `.rules`.
     public let kind: TransformerKind = .rules
 
-    /// Three orders of magnitude more than it needs: this engine only rearranges words already in hand.
+    /// About ten times what a 3,000-word transcript needs in a release build (0.2 s): this engine only rearranges words already in hand.
     public let budget: Duration = StageTimeout.rules
 
     private let pipeline: CleaningPipeline?
