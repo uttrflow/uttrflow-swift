@@ -93,10 +93,21 @@ extension NumberFormsPass {
         guard position + 3 < keys.count, keys[position] == "a", keys[position + 1] == "hundred",
             keys[position + 2] == "and", (position + 1...position + 3).allSatisfy({ joined($0, shapes) }),
             let tail = NumberWords.cardinal(unbroken(from: position + 3, keys: keys, shapes: shapes)),
-            tail.value < 100,
-            !(position + 3 + tail.count < keys.count && keys[position + 3 + tail.count] == "point")
+            tail.value < 100
         else { return nil }
-        return Phrase(text: String(100 + tail.value), count: 3 + tail.count)
+        let next = position + 3 + tail.count
+        guard next >= keys.count || NumberWords.ordinals[keys[next]] == nil else { return nil }
+        let whole = 3 + tail.count
+        if next < keys.count, keys[next] == "point" {
+            guard let group = digitGroup(at: next + 1, keys: keys, shapes: shapes) else { return nil }
+            let end = next + 1 + group.count
+            let text = "\(100 + tail.value).\(group.text)"
+            guard let percent = percentWords(at: end, keys: keys, shapes: shapes) else {
+                return Phrase(text: text, count: whole + 1 + group.count)
+            }
+            return Phrase(text: text + "%", count: whole + 1 + group.count + percent)
+        }
+        return Phrase(text: String(100 + tail.value), count: whole)
     }
 
     /// "five million" as "5 million": a coefficient under 1000 and one scale word keep the magnitude word.

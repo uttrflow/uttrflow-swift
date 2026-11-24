@@ -1073,7 +1073,7 @@ public struct NumberFormsPass: PieceCleaningPass {
     }
 
     /// The number of words of a spoken "percent" or "per cent" at `index`, if one is there.
-    private static func percentWords(at index: Int, keys: [String], shapes: [WordShape]) -> Int? {
+    static func percentWords(at index: Int, keys: [String], shapes: [WordShape]) -> Int? {
         guard joined(index, shapes) else { return nil }
         if keys[index] == "percent" { return 1 }
         return keys[index] == "per" && joined(index + 1, shapes) && keys[index + 1] == "cent" ? 2 : nil
@@ -1266,7 +1266,7 @@ public struct NumberFormsPass: PieceCleaningPass {
     }
 
     /// The digits after "point": single digits run together, or one number from ten up.
-    private static func digitGroup(at start: Int, keys: [String], shapes: [WordShape]) -> Phrase? {
+    static func digitGroup(at start: Int, keys: [String], shapes: [WordShape]) -> Phrase? {
         var text = ""
         var end = start
         while joined(end, shapes), let digit = singleDigit(keys[end]) {

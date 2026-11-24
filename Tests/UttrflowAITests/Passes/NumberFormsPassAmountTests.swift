@@ -64,7 +64,8 @@ struct NumberFormsPassAmountTests {
             ("two hundred and fifty million", "250 million"),
             ("we raised five million dollars", "we raised $5 million"),
             ("a million users", "a million users"),
-            ("a hundred and fifty point five percent", "a hundred and fifty 0.5%"),
+            ("a hundred and fifty point five percent", "150.5%"),
+            ("a hundred and twenty first floor", "a hundred and twenty first floor"),
             ("five million to six million dollars", "$5 million to $6 million"),
         ]
     )
