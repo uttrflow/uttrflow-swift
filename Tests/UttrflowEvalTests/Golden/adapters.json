@@ -21,9 +21,9 @@
     {
       "adapter" : "source",
       "addedTokens" : 0,
-      "cases" : 90,
-      "exactCases" : 90,
-      "exactHits" : 90,
+      "cases" : 102,
+      "exactCases" : 102,
+      "exactHits" : 102,
       "shapeViolations" : 0
     }
   ]
