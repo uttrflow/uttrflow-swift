@@ -692,11 +692,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "75f936989eb29332d9cbfb28d701b293518debc24c0d106567a32808b689f8dc",
+      "sha256": "770987ef2c464866205d3b48d551dfd5456c1bb31c274a01afd638dde716b3d8",
       "path": "Sources/UttrflowEval/Resources/Corpus/technical.abstention.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 223959,
+      "bytes": 230350,
       "licence": "MIT"
     },
     {
@@ -746,11 +746,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "6547900c2b9003b4c006af9358e926c166513067f9db19ec7cf4c6dedf896f78",
+      "sha256": "43582fe85bd7e5362a51e56439e91f06775053f34fc04fffb1de0253dc77a0c9",
       "path": "Sources/UttrflowEval/Resources/Corpus/technical.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 57755,
+      "bytes": 60473,
       "licence": "MIT"
     },
     {
