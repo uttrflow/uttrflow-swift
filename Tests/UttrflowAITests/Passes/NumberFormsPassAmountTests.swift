@@ -22,6 +22,7 @@ struct NumberFormsPassAmountTests {
             ("two point five million dollars", "2.5 million dollars"),
             ("it cost five dollars and six dollars", "it cost $5 and $6"),
             ("between five hundred and six hundred dollars", "between $500 and $600"),
+            ("between five and six dollars fifty", "between $5 and $6.50"),
             ("ten to twenty euros", "10 to 20 euros"),
             ("one of five dollars", "one of $5"),
             ("call one of five dollars", "call one of $5"),
@@ -65,6 +66,7 @@ struct NumberFormsPassAmountTests {
             ("we raised five million dollars", "we raised $5 million"),
             ("a million users", "a million users"),
             ("a hundred and fifty point five percent", "150.5%"),
+            ("a hundred and fifty. point five percent", "150. 0.5%"),
             ("a hundred and twenty first floor", "a hundred and twenty first floor"),
             ("five million to six million dollars", "$5 million to $6 million"),
         ]

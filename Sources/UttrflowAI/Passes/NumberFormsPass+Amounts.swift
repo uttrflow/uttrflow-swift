@@ -27,6 +27,7 @@ extension NumberFormsPass {
                 isNumeral(parts[0])
             {
                 draft.replace(at: index, with: shape.prefix + symbol + parts[0] + shape.suffix, by: id)
+                symboliseRangeStart(before: index, symbol: symbol, in: &draft)
             }
         }
         for unit in draft.presentIndices {
@@ -38,15 +39,19 @@ extension NumberFormsPass {
             let number = draft.shape(at: amount)
             draft.replace(at: amount, with: number.prefix + symbol + number.core + word.suffix, by: id)
             draft.remove(at: unit, by: id)
-            // "between 500 and 600 dollars" names both amounts in the currency.
-            let before = draft.presentIndices.filter { $0 < amount }.suffix(2)
-            if before.count == 2, let first = before.first, let joiner = before.last,
-                rangeJoiners.contains(draft.shape(at: joiner).key)
-            {
-                let earlier = draft.shape(at: first)
-                if !earlier.prefix.contains(symbol), isAmount(core: earlier.core, suffix: earlier.suffix) {
-                    draft.replace(at: first, with: earlier.prefix + symbol + earlier.core, by: id)
-                }
+            symboliseRangeStart(before: amount, symbol: symbol, in: &draft)
+        }
+    }
+
+    /// "between 500 and 600 dollars" names both amounts in the currency: the first end takes the symbol too.
+    static func symboliseRangeStart(before amount: Int, symbol: String, in draft: inout Draft) {
+        let before = draft.presentIndices.filter { $0 < amount }.suffix(2)
+        if before.count == 2, let first = before.first, let joiner = before.last,
+            rangeJoiners.contains(draft.shape(at: joiner).key)
+        {
+            let earlier = draft.shape(at: first)
+            if !earlier.prefix.contains(symbol), isAmount(core: earlier.core, suffix: earlier.suffix) {
+                draft.replace(at: first, with: earlier.prefix + symbol + earlier.core, by: id)
             }
         }
     }
@@ -98,7 +103,7 @@ extension NumberFormsPass {
         let next = position + 3 + tail.count
         guard next >= keys.count || NumberWords.ordinals[keys[next]] == nil else { return nil }
         let whole = 3 + tail.count
-        if next < keys.count, keys[next] == "point" {
+        if next < keys.count, keys[next] == "point", joined(next, shapes) {
             guard let group = digitGroup(at: next + 1, keys: keys, shapes: shapes) else { return nil }
             let end = next + 1 + group.count
             let text = "\(100 + tail.value).\(group.text)"
