@@ -1258,5 +1258,173 @@
     },
     "destination": "codeEditor",
     "addedFor": 4204
+  },
+  {
+    "id": "source-go-equals",
+    "spoken": "if total double equals zero open brace",
+    "expected": "if total == 0 {",
+    "expectedExact": "if total == 0 {",
+    "context": {
+      "applicationName": "GoLand",
+      "bundleIdentifier": "com.jetbrains.goland",
+      "documentName": "Totals.go",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4223
+  },
+  {
+    "id": "source-go-not-equals",
+    "spoken": "if total not equals zero open brace",
+    "expected": "if total != 0 {",
+    "expectedExact": "if total != 0 {",
+    "context": {
+      "applicationName": "GoLand",
+      "bundleIdentifier": "com.jetbrains.goland",
+      "documentName": "Totals.go",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4223
+  },
+  {
+    "id": "source-go-logical-and",
+    "spoken": "if ready logical and done open brace",
+    "expected": "if ready && done {",
+    "expectedExact": "if ready && done {",
+    "context": {
+      "applicationName": "GoLand",
+      "bundleIdentifier": "com.jetbrains.goland",
+      "documentName": "Totals.go",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4223
+  },
+  {
+    "id": "source-go-channel-send",
+    "spoken": "results left arrow value",
+    "expected": "results <- value",
+    "expectedExact": "results <- value",
+    "context": {
+      "applicationName": "GoLand",
+      "bundleIdentifier": "com.jetbrains.goland",
+      "documentName": "Totals.go",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4223
+  },
+  {
+    "id": "source-rust-return-arrow",
+    "spoken": "total arrow u32",
+    "expected": "total -> u32",
+    "expectedExact": "total -> u32",
+    "context": {
+      "applicationName": "Zed",
+      "bundleIdentifier": "dev.zed.Zed",
+      "documentName": "totals.rs",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4223
+  },
+  {
+    "id": "source-rust-match-arm",
+    "spoken": "none fat arrow zero",
+    "expected": "none => 0",
+    "expectedExact": "none => 0",
+    "context": {
+      "applicationName": "Zed",
+      "bundleIdentifier": "dev.zed.Zed",
+      "documentName": "totals.rs",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4223
+  },
+  {
+    "id": "source-rust-logical-or",
+    "spoken": "if empty logical or done open brace",
+    "expected": "if empty || done {",
+    "expectedExact": "if empty || done {",
+    "context": {
+      "applicationName": "Zed",
+      "bundleIdentifier": "dev.zed.Zed",
+      "documentName": "totals.rs",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4223
+  },
+  {
+    "id": "source-rust-compound",
+    "spoken": "total plus equals one",
+    "expected": "total += 1",
+    "expectedExact": "total += 1",
+    "context": {
+      "applicationName": "Zed",
+      "bundleIdentifier": "dev.zed.Zed",
+      "documentName": "totals.rs",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4223
+  },
+  {
+    "id": "source-java-equals",
+    "spoken": "if total double equals zero open brace",
+    "expected": "if total == 0 {",
+    "expectedExact": "if total == 0 {",
+    "context": {
+      "applicationName": "IntelliJ IDEA",
+      "bundleIdentifier": "com.jetbrains.intellij",
+      "documentName": "Totals.java",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4223
+  },
+  {
+    "id": "source-java-lambda",
+    "spoken": "item arrow item dot size",
+    "expected": "item -> item.size",
+    "expectedExact": "item -> item.size",
+    "context": {
+      "applicationName": "IntelliJ IDEA",
+      "bundleIdentifier": "com.jetbrains.intellij",
+      "documentName": "Totals.java",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4223
+  },
+  {
+    "id": "source-java-logical-and",
+    "spoken": "if ready logical and done open brace",
+    "expected": "if ready && done {",
+    "expectedExact": "if ready && done {",
+    "context": {
+      "applicationName": "IntelliJ IDEA",
+      "bundleIdentifier": "com.jetbrains.intellij",
+      "documentName": "Totals.java",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4223
+  },
+  {
+    "id": "source-java-compound",
+    "spoken": "total minus equals one",
+    "expected": "total -= 1",
+    "expectedExact": "total -= 1",
+    "context": {
+      "applicationName": "IntelliJ IDEA",
+      "bundleIdentifier": "com.jetbrains.intellij",
+      "documentName": "Totals.java",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "addedFor": 4223
   }
 ]
