@@ -89,12 +89,6 @@ struct StageIdempotenceTests {
         "chain/question-mark-new-line": 8274,
         "chain/question-mark-new-line-thanks": 8274,
         "chain/sentence-per-new-line": 8274,
-        "chain/sql-statement-is-at-least": 8274,
-        "chain/sql-statement-is-at-most": 8274,
-        "chain/sql-statement-is-greater": 8274,
-        "chain/sql-statement-is-greater-or-equal": 8274,
-        "chain/sql-statement-is-less": 8274,
-        "chain/sql-statement-is-less-or-equal": 8274,
         // Justified: the terminal drops the speaker's comma, the only evidence against joining "u plus x".
         "piece/code-editor-line-break-preserved": 8274,
         "piece/correction-after-new-paragraph": 8274,
@@ -163,12 +157,6 @@ struct StageIdempotenceTests {
         "piece/question-mark-new-line": 8274,
         "piece/question-mark-new-line-thanks": 8274,
         "piece/sentence-per-new-line": 8274,
-        "piece/sql-statement-is-at-least": 8274,
-        "piece/sql-statement-is-at-most": 8274,
-        "piece/sql-statement-is-greater": 8274,
-        "piece/sql-statement-is-greater-or-equal": 8274,
-        "piece/sql-statement-is-less": 8274,
-        "piece/sql-statement-is-less-or-equal": 8274,
             // Justified: the terminal drops the speaker's comma, the only evidence against joining "u plus x".
     ]
 
