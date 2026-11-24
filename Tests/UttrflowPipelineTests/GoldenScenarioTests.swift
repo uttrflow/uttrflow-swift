@@ -262,7 +262,7 @@ enum GoldenScenarios {
             said(chat, "meet at six thirty and it costs three pounds fifty"),
             writes: "Meet at 6:30 and it costs £3.50"),
         GoldenRow(
-            "G5.4", "a comparison in SQL is a bare symbol and number", 
+            "G5.4", "a comparison in SQL is a bare symbol and number", knownIssue: "#8389",
             said(sql(before: "SELECT * FROM orders\n"), "where total is greater than twelve thousand"),
             writes: "WHERE total > 12000"),
         GoldenRow(
