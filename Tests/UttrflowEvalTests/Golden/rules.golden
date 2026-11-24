@@ -1512,6 +1512,12 @@ sql-statement-in-words	SELECT title\nFROM books\nWHERE genre IN (poetry, drama)
 sql-statement-inner-join	SELECT loans.due\nFROM loans\n  INNER JOIN members ON loans.member = members.id
 sql-statement-insert-columns	INSERT INTO tags (name) VALUES (drama)
 sql-statement-insert-values	INSERT INTO books VALUES (7, poetry)
+sql-statement-is-at-least	SELECT id\nFROM orders\nWHERE total >= 100
+sql-statement-is-at-most	SELECT id\nFROM orders\nWHERE total <= 100
+sql-statement-is-greater	SELECT id\nFROM orders\nWHERE total > 100
+sql-statement-is-greater-or-equal	SELECT id\nFROM orders\nWHERE total >= 100
+sql-statement-is-less	SELECT id\nFROM orders\nWHERE total < 100
+sql-statement-is-less-or-equal	SELECT id\nFROM orders\nWHERE total <= 100
 sql-statement-is-not-null	SELECT name\nFROM customers\nWHERE email IS NOT NULL
 sql-statement-is-null	SELECT name\nFROM customers\nWHERE email IS NULL
 sql-statement-join	SELECT books.title, authors.name\nFROM books\n  JOIN authors ON books.author = authors.id

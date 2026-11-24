@@ -1656,5 +1656,77 @@
     "destination": "sqlEditor",
     "mustBeginWith": "SELECT",
     "addedFor": 4207
+  },
+  {
+    "id": "sql-statement-is-greater-or-equal",
+    "spoken": "select id from orders where total is greater than or equal to one hundred",
+    "expected": "SELECT id\nFROM orders\nWHERE total >= 100",
+    "expectedExact": "SELECT id\nFROM orders\nWHERE total >= 100",
+    "mustKeep": [">=", "100"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
+    "addedFor": 8389
+  },
+  {
+    "id": "sql-statement-is-less-or-equal",
+    "spoken": "select id from orders where total is less than or equal to one hundred",
+    "expected": "SELECT id\nFROM orders\nWHERE total <= 100",
+    "expectedExact": "SELECT id\nFROM orders\nWHERE total <= 100",
+    "mustKeep": ["<=", "100"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
+    "addedFor": 8389
+  },
+  {
+    "id": "sql-statement-is-greater",
+    "spoken": "select id from orders where total is greater than one hundred",
+    "expected": "SELECT id\nFROM orders\nWHERE total > 100",
+    "expectedExact": "SELECT id\nFROM orders\nWHERE total > 100",
+    "mustKeep": [">", "100"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
+    "addedFor": 8389
+  },
+  {
+    "id": "sql-statement-is-less",
+    "spoken": "select id from orders where total is less than one hundred",
+    "expected": "SELECT id\nFROM orders\nWHERE total < 100",
+    "expectedExact": "SELECT id\nFROM orders\nWHERE total < 100",
+    "mustKeep": ["<", "100"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
+    "addedFor": 8389
+  },
+  {
+    "id": "sql-statement-is-at-least",
+    "spoken": "select id from orders where total is at least one hundred",
+    "expected": "SELECT id\nFROM orders\nWHERE total >= 100",
+    "expectedExact": "SELECT id\nFROM orders\nWHERE total >= 100",
+    "mustKeep": [">=", "100"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
+    "addedFor": 8389
+  },
+  {
+    "id": "sql-statement-is-at-most",
+    "spoken": "select id from orders where total is at most one hundred",
+    "expected": "SELECT id\nFROM orders\nWHERE total <= 100",
+    "expectedExact": "SELECT id\nFROM orders\nWHERE total <= 100",
+    "mustKeep": ["<=", "100"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
+    "addedFor": 8389
   }
 ]

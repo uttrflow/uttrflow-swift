@@ -6132,5 +6132,185 @@
     "classes": ["abstention"],
     "origin": "synthetic",
     "addedFor": 4207
+  },
+  {
+    "id": "abstain-sql-is-score-at-least-code",
+    "spoken": "the score is at least the target",
+    "expected": "The score is at least the target.",
+    "mustKeep": ["score", "least", "target"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 8389
+  },
+  {
+    "id": "abstain-sql-is-score-at-least-comment",
+    "spoken": "the score is at least the target",
+    "expected": "The score is at least the target.",
+    "mustKeep": ["score", "least", "target"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 8389
+  },
+  {
+    "id": "abstain-sql-is-score-at-least-string",
+    "spoken": "the score is at least the target",
+    "expected": "The score is at least the target.",
+    "mustKeep": ["score", "least", "target"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 8389
+  },
+  {
+    "id": "abstain-sql-is-spend-at-most-code",
+    "spoken": "the spend is at most the budget",
+    "expected": "The spend is at most the budget.",
+    "mustKeep": ["spend", "most", "budget"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 8389
+  },
+  {
+    "id": "abstain-sql-is-spend-at-most-comment",
+    "spoken": "the spend is at most the budget",
+    "expected": "The spend is at most the budget.",
+    "mustKeep": ["spend", "most", "budget"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 8389
+  },
+  {
+    "id": "abstain-sql-is-spend-at-most-string",
+    "spoken": "the spend is at most the budget",
+    "expected": "The spend is at most the budget.",
+    "mustKeep": ["spend", "most", "budget"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 8389
+  },
+  {
+    "id": "abstain-sql-is-score-or-equal-code",
+    "spoken": "the score is greater than or equal to the target",
+    "expected": "The score is greater than or equal to the target.",
+    "mustKeep": ["score", "greater", "equal", "target"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 8389
+  },
+  {
+    "id": "abstain-sql-is-score-or-equal-comment",
+    "spoken": "the score is greater than or equal to the target",
+    "expected": "The score is greater than or equal to the target.",
+    "mustKeep": ["score", "greater", "equal", "target"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 8389
+  },
+  {
+    "id": "abstain-sql-is-score-or-equal-string",
+    "spoken": "the score is greater than or equal to the target",
+    "expected": "The score is greater than or equal to the target.",
+    "mustKeep": ["score", "greater", "equal", "target"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 8389
+  },
+  {
+    "id": "abstain-sql-is-spend-or-equal-code",
+    "spoken": "the spend is less than or equal to the budget",
+    "expected": "The spend is less than or equal to the budget.",
+    "mustKeep": ["spend", "less", "equal", "budget"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 8389
+  },
+  {
+    "id": "abstain-sql-is-spend-or-equal-comment",
+    "spoken": "the spend is less than or equal to the budget",
+    "expected": "The spend is less than or equal to the budget.",
+    "mustKeep": ["spend", "less", "equal", "budget"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 8389
+  },
+  {
+    "id": "abstain-sql-is-spend-or-equal-string",
+    "spoken": "the spend is less than or equal to the budget",
+    "expected": "The spend is less than or equal to the budget.",
+    "mustKeep": ["spend", "less", "equal", "budget"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 8389
   }
 ]

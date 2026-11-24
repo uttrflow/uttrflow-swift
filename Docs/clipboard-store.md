@@ -25,7 +25,7 @@ picture calls (`+Pictures`), single-clip and collection edits (`+Edits`), the wr
 | `clipboard.v1.json` | the history: every clip nobody named, tagged, filed or pinned |
 | `saved.v1.json` | the clips the user named, tagged, filed or pinned; its path is derived from the history's |
 | `Images/` | picture bytes, beside the history file |
-| `<name>.unreadable-<seconds since 1970>` | a file that could not be read, set aside |
+| `<name>.unreadable-<seconds since 1970>` | a file that could not be read, set aside; when that name is taken, `-1`, `-2` and so on are appended |
 | `<name>.quarantine-<seconds>-<index>-<id>.json` | the exact raw JSON for one clip this build could not decode |
 
 Each index payload is a versioned object, `{"version":2,"clips":[...]}`. The released bare
