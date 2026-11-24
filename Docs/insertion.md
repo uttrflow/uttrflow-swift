@@ -187,8 +187,9 @@ on the clipboard so a refused or late paste still leaves them to ⌘V by hand. (
 put the clipboard back 250 ms after the key; that behaviour is gone.) Only a picture paste
 restores, and only while the clipboard still holds the picture.
 
-What the person can do: the clipboard panel keeps what they copied before, so the earlier
-item is one pick away. Anything that clears the clipboard afterwards, such as the secret clear
+What the person can do: the clipboard panel keeps what they copied before, provided the
+watcher saw it: it polls, so a copy replaced by another write before the next poll is never
+recorded. When it was kept, the earlier item is one pick away. Anything that clears the clipboard afterwards, such as the secret clear
 below, acts only if nothing newer was copied.
 
 ## The paste that is posted and never confirmed
