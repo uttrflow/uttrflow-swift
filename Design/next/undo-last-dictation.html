@@ -1,0 +1,67 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Undo last dictation</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+:root{--pg:#F2F1EC;--ink:#101316;--mute:#5C6866;--line:#DEDCD4;--f:"Outfit",-apple-system,system-ui,sans-serif;--sys:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,Menlo,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--pg:#08090C;--ink:#F4F4F6;--mute:#8B90A0;--line:#1E212A}}
+*{box-sizing:border-box}
+body{background:var(--pg);color:var(--ink);font-family:var(--sys);padding-block:28px 48px;padding-inline:16px}
+.shell{max-width:1260px;margin:0 auto}
+h1{font:600 24px var(--f);letter-spacing:-.02em;margin:0 0 4px}
+h2{font:600 18px var(--f);letter-spacing:-.01em;margin:34px 0 4px}
+.lede{color:var(--mute);font-size:13px;margin:0 0 18px;max-width:84ch;line-height:1.5}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(380px,100%),1fr));gap:20px;align-items:start}
+figure{margin:0;display:grid;gap:10px}
+figcaption{font-size:13px;color:var(--mute);line-height:1.45}figcaption b{color:var(--ink);font:600 14px var(--f);display:block}
+.desk{position:relative;height:430px;border-radius:14px;overflow:hidden;background:radial-gradient(90% 70% at 30% 20%,#3E368A,transparent 70%),radial-gradient(80% 70% at 90% 90%,#128077,transparent 70%),#0B0C10}
+.mb{height:26px;display:flex;align-items:center;justify-content:flex-end;gap:16px;padding:0 14px;background:rgba(20,20,26,.55);backdrop-filter:blur(20px);font:500 12.5px var(--sys);color:#fff}
+.mb .on{display:grid;place-items:center;width:26px;height:20px;border-radius:5px;background:rgba(255,255,255,.22)}
+.pop{position:absolute;top:32px;right:max(8px,min(40px,calc(100% - 298px)));color:#fff;max-width:calc(100% - 16px)}
+.pop .glass{max-width:100%}
+.glass{border-radius:18px;background:rgba(16,13,30,.62);backdrop-filter:blur(30px) saturate(1.5);box-shadow:inset 0 0 0 1px rgba(255,255,255,.13),inset 0 1px 0 rgba(255,255,255,.18),0 24px 50px -16px rgba(0,0,0,.7)}
+.gl{background:rgba(16,13,30,.62);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),inset 0 1px 0 rgba(255,255,255,.18),0 14px 30px -10px rgba(0,0,0,.7)}
+kbd{font:500 11px var(--sys);padding:2px 6px;border-radius:5px;background:rgba(255,255,255,.14)}
+.tag{display:inline-block;font:600 10.5px var(--sys);letter-spacing:.06em;padding:2px 8px;border-radius:999px;margin-right:6px;vertical-align:1px}
+.cur{background:#DEDCD4;color:#101316}.new{background:#128077;color:#fff}
+.dock{position:relative;height:210px;border-radius:14px;overflow:hidden;background:radial-gradient(90% 70% at 20% 10%,#3E368A,transparent 70%),#0B0C10;display:grid;place-items:center;color:#fff}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+<div class="shell">
+<h1>Undo the last dictation</h1>
+<p class="lede">Proposal for #4206, not built. Today the only way to take back a dictation that landed in the wrong field is to find that app and use its own undo. Three places get one undo action: the menu bar, a shortcut, the dock disc. It removes the text Uttrflow just typed and nothing else; if the field has changed since, it says so and does nothing. Each figure is labelled <span class="tag cur">CURRENT</span> (the shipped page) or <span class="tag new">PROPOSED</span>.</p>
+<h2>1 · Menu bar</h2>
+<div class="grid" id="g"></div>
+<h2>2 · Dock disc after an insertion</h2>
+<div class="grid" id="d"></div>
+<h2>3 · Shortcut</h2>
+<p class="lede" style="margin:0">A fifth action beside dictate, clipboard, paste last and copy last: <kbd style="background:rgba(127,127,127,.2)">⌃⌥Z</kbd> is the proposed default (the owner picks the keys; it is rebindable in Settings → Shortcuts like the others). It does nothing when there is no dictation less than a few minutes old, and shows the same “Couldn’t undo” note as the menu if the field changed.</p>
+</div>
+<script>
+const sv=(p,s=16,c='currentColor',w=1.8)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const I={mic:s=>sv('<rect x="8.5" y="3" width="7" height="12" rx="3.5"/><path d="M5 11a7 7 0 0014 0M12 18v3"/>',s),copy:s=>sv('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/>',s),clip:s=>sv('<rect x="7" y="4" width="10" height="4" rx="1"/><path d="M8 6H6.5A1.5 1.5 0 005 7.5v12A1.5 1.5 0 006.5 21h11a1.5 1.5 0 001.5-1.5v-12A1.5 1.5 0 0017.5 6H16"/>',s),gear:s=>sv('<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/>',s),grid:s=>sv('<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>',s),undo:s=>sv('<path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 010 10h-3"/>',s),ok:s=>sv('<path d="m5 13 4 4L19 7"/>',s)};
+const mark=(s=14,c='#fff')=>`<svg width="${s*.8611}" height="${s}" viewBox="19 14 62 72"><path d="M26 37 L26 55 A24 24 0 0 0 74 55 L74 21" fill="none" stroke="${c}" stroke-width="14" stroke-linecap="round"/></svg>`;
+const bar=`<div class="mb"><span class="on">${mark(13)}</span><span>Tue 24 Nov 10:42</span></div>`;
+const L=t=>`<div style="font:600 10.5px var(--sys);letter-spacing:.06em;color:rgba(255,255,255,.45);padding:0 8px 4px">${t}</div>`;
+const HR=`<div style="height:1px;background:rgba(255,255,255,.1);margin:10px 0 8px"></div>`;
+const row=(t,right='')=>`<div style="display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:8px;font-size:13px;color:rgba(255,255,255,.85)"><span style="color:rgba(255,255,255,.45)">${I.copy(13)}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t}</span>${right}</div>`;
+const R4=()=>`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">${[[I.mic(20),'Talk',1],[I.clip(20),'Clipboard'],[I.gear(20),'Settings'],[I.grid(20),'Home']].map(([i,l,p])=>`<div style="display:grid;justify-items:center;gap:6px"><span style="width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:${p?'#fff':'rgba(255,255,255,.1)'};color:${p?'#0B0C10':'#fff'};box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)">${i}</span><em style="font:500 10.5px var(--sys);font-style:normal;color:rgba(255,255,255,.7)">${l}</em></div>`).join('')}</div>`;
+const hint=`<div style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:#0B0C10;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)">${mark(15)}</span><div style="font-size:12.5px;color:rgba(255,255,255,.7)">hold <kbd>⌃⌥</kbd> to talk</div></div>`;
+const CL=['https://uttrflow.com/download','Invoice #4821 – due 30 Sep','git checkout -b feat/menu-bar'];
+const LAST='Hi Priya, can we move the design review to Thursday at 10 so the team has one more day with the new onboarding screens?';
+const panel=(mid)=>`<div class="glass" style="width:290px;padding:14px;position:relative;overflow:hidden"><div style="position:absolute;left:-40px;right:-40px;top:-90px;height:200px;background:conic-gradient(from 210deg at 50% 60%,#7A3FD1,#4B3FC0,#1F8FB0,#2FE0CF,#7A3FD1);filter:blur(40px);opacity:.55"></div><div style="position:relative">${hint}<div style="margin-top:14px">${R4()}</div>${HR}${mid}${HR}${L('CLIPBOARD')}${CL.map(c=>row(c)).join('')}</div></div>`;
+const pill=(t,ic,st='')=>`<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.12);font:600 11px var(--sys);white-space:nowrap;${st}">${ic}${t}</span>`;
+const M=[
+ {t:'cur',n:'Current',d:'Last dictation row: the words, and a copy glyph. No way back.',h:panel(L('LAST DICTATION')+row(LAST))},
+ {t:'new',n:'Option A · Undo on the row',d:'The row gets an Undo pill beside the words. One click removes what was typed. Recommended: fewest changes, nothing new to learn.',h:panel(L('LAST DICTATION')+row(LAST,pill('Undo',I.undo(12))))},
+ {t:'new',n:'Option B · Undo as its own menu line',d:'A line under the row with the shortcut shown. After an undo the row reads “Undone” for a few seconds, then returns to the words.',h:panel(L('LAST DICTATION')+row(LAST)+`<div style="display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:8px;font-size:13px;color:#fff;background:rgba(255,255,255,.08)"><span>${I.undo(13)}</span><span style="flex:1">Undo last dictation</span><kbd>⌃⌥Z</kbd></div>`)},
+ {t:'new',n:'After an undo (both options)',d:'The text is gone from the field; the words stay here so Insert or Copy still works. If the field changed since, nothing is removed and the line says why.',h:panel(L('LAST DICTATION')+row(LAST,pill('Undone',I.ok(12),'color:#5FE0D3'))+`<div style="padding:2px 8px 0 30px;font-size:11.5px;color:rgba(255,255,255,.5)">Not in the field any more. Still here to copy.</div>`)}
+];
+g.innerHTML=M.map(o=>`<figure><div class="desk">${bar}<div class="pop">${o.h}</div></div><figcaption><b><span class="tag ${o.t}">${o.t==='cur'?'CURRENT':'PROPOSED'}</span>${o.n}</b>${o.d}</figcaption></figure>`).join('');
+const disc=(inner,extra='')=>`<div class="gl" style="width:26px;height:26px;border-radius:50%;display:grid;place-items:center;color:#5FE0D3;${extra}">${inner}</div>`;
+const D=[
+ {t:'cur',n:'Current',d:'The 26-point disc after a successful insertion: a tick, no control.',h:disc(I.ok(14))},
+ {t:'new',n:'Proposed · Undo while it is fresh',d:'For a few seconds after typing, the disc grows into a capsule with Undo. It then settles back to the disc. The capsule is also reachable by Voice Control as “Undo dictation”.',h:`<div class="gl" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 6px 0 9px;border-radius:15px;font-size:12.5px"><span style="color:#5FE0D3">${I.ok(14)}</span>Typed${pill('Undo',I.undo(12),'margin-left:2px')}</div>`}
+];
+d.innerHTML=D.map(o=>`<figure><div class="dock">${o.h}</div><figcaption><b><span class="tag ${o.t}">${o.t==='cur'?'CURRENT':'PROPOSED'}</span>${o.n}</b>${o.d}</figcaption></figure>`).join('');
+</script>
