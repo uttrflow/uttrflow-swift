@@ -10,7 +10,7 @@ struct MenuBarKeyboard: Equatable {
     let learnedStart: Int
     /// The place of the first round button.
     let buttonsStart: Int
-    /// The place of the last dictation's row.
+    /// The place of the last dictation's row; its Undo, when offered, is the next place.
     let lastDictationPlace: Int
     /// The place of the first clipboard row.
     let clipsStart: Int
@@ -25,7 +25,10 @@ struct MenuBarKeyboard: Equatable {
         buttonsStart = commands.count
         commands += presentation.buttons.map(\.command)
         lastDictationPlace = commands.count
-        if let last = presentation.lastDictation { commands.append(last.insert) }
+        if let last = presentation.lastDictation {
+            commands.append(last.insert)
+            if let undo = last.undo?.command { commands.append(undo) }
+        }
         clipsStart = commands.count
         commands += presentation.clips.map(\.insert)
         self.commands = commands
