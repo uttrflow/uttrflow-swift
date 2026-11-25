@@ -1383,7 +1383,6 @@
     "UttrflowCore func isMeaningBearing": 1,
     "UttrflowCore func isMissing": 1,
     "UttrflowCore func isMostlyUntranscribedScript": 1,
-    "UttrflowCore func isMultiplexer": 1,
     "UttrflowCore func isNameInDictionary": 1,
     "UttrflowCore func isNamed": 4,
     "UttrflowCore func isNumber": 1,
@@ -4245,6 +4244,7 @@
     "UttrflowPipeline init init": 32,
     "UttrflowPipeline let accessibilityLabel": 1,
     "UttrflowPipeline let action": 1,
+    "UttrflowPipeline let armed": 1,
     "UttrflowPipeline let arrival": 1,
     "UttrflowPipeline let boundaries": 1,
     "UttrflowPipeline let caret": 1,
@@ -4369,6 +4369,7 @@
     "UttrflowPipeline var handsFreeEnabled": 1,
     "UttrflowPipeline var hasEnded": 1,
     "UttrflowPipeline var heardToKeep": 1,
+    "UttrflowPipeline var isArmed": 1,
     "UttrflowPipeline var isBusy": 1,
     "UttrflowPipeline var isEmpty": 1,
     "UttrflowPipeline var isHandsFreeEnabled": 1,
@@ -4381,6 +4382,7 @@
     "UttrflowPipeline var minimumHold": 2,
     "UttrflowPipeline var modifierSettle": 1,
     "UttrflowPipeline var onAdvice": 1,
+    "UttrflowPipeline var onArmed": 1,
     "UttrflowPipeline var onNearMissTap": 1,
     "UttrflowPipeline var onOneLine": 1,
     "UttrflowPipeline var onSilenceCountdown": 1,
@@ -6446,5 +6448,5 @@
     "UttrflowUX var withdrawsTrust": 1,
     "UttrflowUX var words": 2
   },
-  "total": 9176
+  "total": 9178
 }

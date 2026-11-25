@@ -27,6 +27,7 @@ struct LevelMeterView: View {
                     phase: phase, towardsLeading: towardsLeading)
             }
         }
+        .opacity(model.presentation.isArmed ? DockMetrics.armedMeterOpacity : 1)
         .frame(width: DockMetrics.meterWidth, height: DockMetrics.meterHeight)
         .clipShape(.rect)
         .mask {

@@ -58,6 +58,8 @@ extension DockMetrics {
     static let meterArrivalInterval: TimeInterval = 0.05
     /// How strongly a quiet bar is drawn; opacity carries the loud threshold. See Docs/app-dock.md.
     static let meterQuietOpacity: CGFloat = 0.62
+    /// How dim the meter's flat bars are before the microphone opens; with `meterQuietOpacity` they land near a third.
+    static let armedMeterOpacity: CGFloat = 0.56
     /// The inserted disc's return arrow, and its stroke on the arrow's 24-unit grid.
     static let returnGlyphSize: CGFloat = 13
     static let returnGlyphLine: CGFloat = 1.8

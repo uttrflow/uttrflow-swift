@@ -1542,6 +1542,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 },
                 onStopGestureChange: { [weak self] gesture in
                     Task { @MainActor in self?.recordingStopGestureChanged(to: gesture) }
+                },
+                onArmed: { [weak self] armed in
+                    Task { @MainActor in self?.dock.setArmed(armed) }
                 }
             )
         )

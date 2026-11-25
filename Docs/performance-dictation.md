@@ -60,7 +60,9 @@ them:
 The first sample arrives about 100 ms after `start()` returns, one hardware block. For a modifier
 shortcut `keyDownToAudio` starts at key-down and is read when the press is adopted after
 `modifierSettle`, so it records the settle rather than the first sample; for any other shortcut it
-is not recorded. Neither has a latency budget; the stages that do are in
+is not recorded. The listening look at key-down is shown before the open is awaited, so its
+cost is one main-actor hop, not the open; the development VM has no microphone, so a measured
+key-down-to-drawn p95 is not part of these figures. Neither has a latency budget; the stages that do are in
 [`performance.md`](performance.md#latency-budget-per-stage).
 
 **Dictionary correction** is held to work, not time: `CorrectionEngineTests` checks that a

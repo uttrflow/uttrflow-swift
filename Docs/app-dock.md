@@ -76,6 +76,20 @@ fourth line, and the whole notice is on the pointer as a tooltip.
   own 20 Hz arrivals so it adds no timer of its own. Once the cap is near the countdown takes its
   place, because the time left matters more than the time spent.
 
+### Armed: the meter before the microphone opens
+
+- From key-down the button draws the meter's capsule with flat bars and `0:00`, dimmed by
+  `armedMeterOpacity` on top of `meterQuietOpacity`, so the press is answered while the
+  microphone is still opening. The bars come alive in place; nothing jumps.
+- It is `DockPresentation.armed`, a look `DockPanelController.setArmed` holds while the button
+  rests, not a `DictationState`: any other state replaces it, so a recording or a failed open
+  needs no signal of its own and the failure is reported once, as a notice.
+- The controller sends `onArmed(false)` only when the press ends with no recording: a release
+  inside the settle window, Escape, or a start that did not listen. The start sound stays tied to
+  the first sample, so a cancelled press is silent.
+- VoiceOver says "Getting ready". The dimming is a still opacity, so Reduce Motion changes nothing.
+- The released page is `Design/released/listening-at-key-down.html`.
+
 ### The loud threshold is carried by opacity
 
 The meter is one colour, `dockMeter`: white on the dark glass and dictation teal `#128077` on the
