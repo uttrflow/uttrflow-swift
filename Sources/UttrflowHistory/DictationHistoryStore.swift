@@ -115,6 +115,18 @@ public actor DictationHistoryStore {
         return flagged
     }
 
+    /// Marks one dictation as taken back out of its field by Undo; answers whether one matched.
+    @discardableResult
+    public func markUndone(
+        _ id: UUID, keeping retention: Retention
+    ) throws(HistoryStoreError) -> Bool {
+        var records = load()
+        guard let index = records.firstIndex(where: { $0.id == id }) else { return false }
+        records[index].isUndone = true
+        try persist(keptOnDisk(records, keeping: retention))
+        return true
+    }
+
     /// Flags one dictation with what was wrong, `nil` keeping it unlabelled; answers whether it was found.
     @discardableResult
     public func flag(

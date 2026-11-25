@@ -1,0 +1,51 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Recently learnt</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+:root{--pg:#F2F1EC;--ink:#101316;--mute:#5C6866;--line:#DEDCD4;--f:"Outfit",-apple-system,system-ui,sans-serif;--sys:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--pg:#08090C;--ink:#F4F4F6;--mute:#8B90A0;--line:#1E212A}}
+*{box-sizing:border-box}
+body{background:var(--pg);color:var(--ink);font-family:var(--sys);padding-block:28px 48px;padding-inline:16px}
+.shell{max-width:1260px;margin:0 auto}
+h1{font:600 24px var(--f);letter-spacing:-.02em;margin:0 0 4px}
+.lede{color:var(--mute);font-size:13px;margin:0 0 18px;max-width:84ch;line-height:1.5}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(560px,100%),1fr));gap:22px;align-items:start}
+figure{margin:0;display:grid;gap:10px}
+figcaption{font-size:13px;color:var(--mute);line-height:1.45}figcaption b{color:var(--ink);font:600 14px var(--f);display:block}
+.tag{display:inline-block;font:600 10.5px var(--sys);letter-spacing:.06em;padding:2px 8px;border-radius:999px;margin-right:6px;vertical-align:1px}
+.cur{background:#DEDCD4;color:#101316}.new{background:#128077;color:#fff}
+@media (max-width:620px){.win{grid-template-columns:1fr!important}.side{display:none!important}}
+.win{position:relative;border-radius:12px;overflow:hidden;background:#101218;color:#EDEEF2;box-shadow:0 0 0 1px rgba(255,255,255,.08);display:grid;grid-template-columns:150px 1fr;min-height:420px}
+.side{background:#0B0C10;border-right:1px solid rgba(255,255,255,.07);padding:14px 10px;font-size:12.5px;color:rgba(255,255,255,.55);display:grid;align-content:start;gap:2px}
+.side span{padding:6px 9px;border-radius:7px}.side .on{background:rgba(255,255,255,.09);color:#fff}
+.main{padding:18px 20px 60px;position:relative;min-width:0}
+.main h3{font:600 17px var(--f);margin:0 0 3px}.main p{margin:0 0 12px;font-size:12px;color:rgba(255,255,255,.5)}
+.sec{font:600 10.5px var(--sys);letter-spacing:.06em;color:rgba(255,255,255,.4);margin:14px 0 6px}
+.r{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;min-width:0;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.04);margin-bottom:5px;font-size:12.5px}
+.r b{font-weight:600}.r i{font-style:normal;color:rgba(255,255,255,.5)}.r .sp{flex:1 1 0;min-width:0}.r b,.r i{overflow-wrap:anywhere}
+.chip{font:600 10px var(--sys);padding:2px 7px;border-radius:999px;background:rgba(196,155,245,.18);color:#C49BF5}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.1);font:600 11px var(--sys);color:#fff}
+.toast{position:absolute;right:16px;bottom:16px;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:12px;background:rgba(30,26,50,.95);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),0 14px 30px -10px rgba(0,0,0,.7);font-size:12.5px}
+.toast .btn{background:rgba(95,224,211,.16);color:#5FE0D3}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+<div class="shell">
+<h1>Recently learnt words</h1>
+<p class="lede">Proposal for #4471, not built. Uttrflow already learns spellings from corrections you make; today the only trace is the word appearing in the Dictionary, with no record of when or why, and no quick way to take back a wrong guess. Each figure is labelled <span class="tag cur">CURRENT</span> (the shipped Dictionary page) or <span class="tag new">PROPOSED</span>. The words shown are invented examples.</p>
+<div class="grid" id="g"></div>
+</div>
+<script>
+const side=`<div class="side"><span>Home</span><span>Clipboard</span><span class="on">Dictionary</span><span>Snippets</span><span>Settings</span></div>`;
+const row=(w,sp,extra='')=>`<div class="r"><b>${w}</b><i>${sp}</i><span class="chip">Learned</span><span class="sp"></span>${extra}</div>`;
+const undo=`<span class="btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 010 10h-3"/></svg>Undo</span>`;
+const recent=(n)=>`<div class="sec">RECENTLY LEARNT</div>`+[['Priya','heard “pree-ya”, wrote “Pria”','Notes · today 10:12'],['Kubernetes','heard “koo-ber-net-ees”, wrote “cuber nettys”','Terminal · today 09:40'],['Anjali','heard “un-jaa-lee”, wrote “Angeli”','Mail · yesterday']].slice(0,n).map(([w,h,a])=>`<div class="r"><div><b>${w}</b><br><i>${h}</i></div><span class="sp"></span><i>${a}</i>${undo}</div>`).join('');
+const dict=`<div class="sec">ALL WORDS</div>${row('Priya','pree-ya')}${row('Kubernetes','koo-ber-net-ees')}${row('Anjali','un-jaa-lee')}${row('Thursday','')}`;
+const win=(body,toast='')=>`<div class="win">${side}<div class="main"><h3>Dictionary</h3><p>Words Uttrflow spells your way.</p>${body}${toast}</div></div>`;
+const O=[
+ {t:'cur',n:'Current',d:'Learnt words are mixed in with everything else. No when, no where, no way back short of finding and deleting the word.',h:win(dict)},
+ {t:'new',n:'Option A · A “Recently learnt” list',d:'A short list above the words: what was heard, what was written, where, and an Undo that removes the word and puts back what was typed. Nothing interrupts you. Recommended.',h:win(recent(3)+dict)},
+ {t:'new',n:'Option B · The list plus one quiet notice',d:'As A, and when a word is learnt a small notice appears for a few seconds: “Learnt Priya · Undo”. At most one notice per few minutes, never during dictation, off in Settings. Notice wording is final copy for the owner to edit.',h:win(recent(3)+dict,`<div class="toast"><span style="color:#5FE0D3">●</span>Learnt <b>Priya</b>${undo}</div>`)}
+];
+g.innerHTML=O.map(o=>`<figure>${o.h}<figcaption><b><span class="tag ${o.t}">${o.t==='cur'?'CURRENT':'PROPOSED'}</span>${o.n}</b>${o.d}</figcaption></figure>`).join('');
+</script>

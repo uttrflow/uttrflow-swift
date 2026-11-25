@@ -6312,5 +6312,65 @@
     "classes": ["abstention"],
     "origin": "synthetic",
     "addedFor": 8389
+  },
+  {
+    "id": "abstain-source-left-arrow-key-code",
+    "spoken": "press the left arrow key to close the menu",
+    "expected": "Press the left arrow key to close the menu.",
+    "mustKeep": ["press", "left", "arrow", "key", "close", "menu"],
+    "mustNotAdd": ["(", ")", "->", "<-", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.go",
+      "precedingText": "x := 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4223
+  },
+  {
+    "id": "abstain-source-left-arrow-key-comment",
+    "spoken": "press the left arrow key to close the menu",
+    "expected": "Press the left arrow key to close the menu.",
+    "mustKeep": ["press", "left", "arrow", "key", "close", "menu"],
+    "mustNotAdd": ["(", ")", "->", "<-", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.go",
+      "precedingText": "x := 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4223
+  },
+  {
+    "id": "abstain-source-left-arrow-key-string",
+    "spoken": "press the left arrow key to close the menu",
+    "expected": "Press the left arrow key to close the menu.",
+    "mustKeep": ["press", "left", "arrow", "key", "close", "menu"],
+    "mustNotAdd": ["(", ")", "->", "<-", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.go",
+      "precedingText": "message := \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4223
+  },
+  {
+    "id": "abstain-source-left-arrow-key-docstring",
+    "spoken": "press the left arrow key to close the menu",
+    "expected": "Press the left arrow key to close the menu.",
+    "mustKeep": ["press", "left", "arrow", "key", "close", "menu"],
+    "mustNotAdd": ["(", ")", "->", "<-", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4223
   }
 ]

@@ -38,6 +38,8 @@ private func reach(of intent: MenuBarIntent) -> Reach {
     case .setFeature: .savesSwitch
     case .changeSettings: .savesSettings
     case .startDictation, .stopDictation, .openClipboard, .checkForUpdates, .quit: .system
+    // Reaches the focused field through Accessibility and says so aloud, so no headless test drives it.
+    case .undoLastDictation: .system
     }
 }
 
@@ -52,6 +54,7 @@ private func name(of intent: MenuBarIntent) -> String {
     case .insertClip: "insertClip"
     case .copyClip: "copyClip"
     case .undoLearnedWord: "undoLearnedWord"
+    case .undoLastDictation: "undoLastDictation"
     case .open: "open"
     case .openClipboard: "openClipboard"
     case .setFeature: "setFeature"
@@ -62,7 +65,7 @@ private func name(of intent: MenuBarIntent) -> String {
 }
 
 /// How many cases ``MenuBarIntent`` has, bumped deliberately when one is added.
-private let menuBarIntentCaseCount = 14
+private let menuBarIntentCaseCount = 15
 
 /// Every surface a menu item can name.
 private let everyDestination: [UttrflowUX.AppLocation] =
@@ -72,7 +75,7 @@ private let everyDestination: [UttrflowUX.AppLocation] =
 private let samples: [MenuBarIntent] =
     [
         .startDictation, .stopDictation, .openClipboard, .setFeature(.dictation, isOn: false),
-        .changeSettings([.pauseSuggestions(isOn: false)]), .checkForUpdates, .quit,
+        .changeSettings([.pauseSuggestions(isOn: false)]), .checkForUpdates, .quit, .undoLastDictation,
     ]
     + everyDestination.map { .open($0) }
     + [

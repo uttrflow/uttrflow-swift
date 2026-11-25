@@ -419,11 +419,12 @@ public enum HistoryPresenter {
     }
 
     /// Only an arrival that may have missed the field is labelled; a delivered row stays quiet.
-    static func arrivalLabel(for arrival: RecordedArrival?) -> String? {
+    static func arrivalLabel(for arrival: RecordedArrival?, isUndone: Bool = false) -> String? {
+        guard !isUndone else { return "Undone" }
         switch arrival {
-        case .notInserted: "Not inserted"
-        case .unconfirmed: "Unconfirmed"
-        case .confirmed, .notReported, nil: nil
+        case .notInserted: return "Not inserted"
+        case .unconfirmed: return "Unconfirmed"
+        case .confirmed, .notReported, nil: return nil
         }
     }
 
@@ -445,7 +446,7 @@ public enum HistoryPresenter {
             // Only a change is worth a tag; "as dictated" is what every quiet row already says.
             tag: tone == .changed ? tag : nil,
             isFlagged: entry.isFlagged,
-            arrival: arrivalLabel(for: entry.arrival),
+            arrival: arrivalLabel(for: entry.arrival, isUndone: entry.isUndone),
             quality: entry.quality?.presentation?.line,
             actions: [
                 MainAction(title: "Copy", symbolName: "doc.on.doc", intent: .copy(entry.text)),
