@@ -133,9 +133,7 @@ extension CleaningPipeline {
                 cleanings.insert(JSONValuesPass(), at: numbers + 1)
             }
             // A code editor's comments and a code editor set to plain prose take no casing: its rows are identifiers.
-            if (destination != .codeEditor || (inCode && writesNotation))
-                && !(mode == .prose && destination == .codeEditor)
-            {
+            if (destination != .codeEditor || inCode) && !(mode == .prose && destination == .codeEditor) {
                 cleanings.insert(
                     SpokenCasingPass(destination: destination, naming: naming),
                     at: cleanings.firstIndex { $0.id == .layoutWords } ?? layoutPosition)

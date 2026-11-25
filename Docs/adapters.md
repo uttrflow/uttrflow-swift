@@ -278,8 +278,9 @@ that writes notation reads its evidence through the same `NotationEvidence.read`
 reading of cues.
 
 - A piece (`CleaningScope.piece`) is tidied with the adapter-neutral passes only: fillers,
-  repeats, stammers, self-correction, spoken punctuation, numbers and spacing. It never writes
-  notation, so no piece holds a capital, a stop or a symbol that the message would take back.
+  repeats, stammers, self-correction, spoken punctuation, pause stops, numbers and spacing, and
+  outside plain-prose code editors spoken casing. It never writes adapter notation, so no piece
+  holds notation that the message would take back.
 - At the join, `rejoiningUnits` makes the choice. When the evidence reaches the threshold the
   whole joined text is tidied once as `CleaningScope.notated`, which is a piece's passes with the
   adapter's notation, and the message's own passes follow. The piece-by-piece results are dropped.
