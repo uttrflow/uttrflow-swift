@@ -1,5 +1,5 @@
 {
-  "originHash" : "b9dbc3d6e6a6dc9caa0560dde294a3eb41e6c92d3435fd2c11bf7deeaf29a602",
+  "originHash" : "96546734956f810e7a53ab2b3bfc5c595dd3d50486d7c04a0dc5006ed9b72f67",
   "pins" : [
     {
       "identity" : "argmax-oss-swift",
@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/getsentry/sentry-cocoa",
       "state" : {
-        "revision" : "aa91bcf6bd6f383dbc49f38bf785d1d775c4f751",
-        "version" : "9.34.0"
+        "revision" : "485e0622e00d60d71eb6b519822188e2eb7c29e3",
+        "version" : "9.35.0"
       }
     },
     {
