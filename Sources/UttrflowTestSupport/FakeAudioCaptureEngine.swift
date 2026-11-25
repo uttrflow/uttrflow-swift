@@ -16,6 +16,8 @@ public actor FakeAudioCaptureEngine: AudioCaptureEngine {
     private var startOutcome: ScriptedOutcome<Void, AudioCaptureError>
     private var stopOutcome: ScriptedOutcome<AudioSamples, AudioCaptureError>
     private var captured: AudioSamples = .empty
+    private var holdsStart = false
+    private var startGate: CheckedContinuation<Void, Never>?
     /// How many times the audio so far was asked for, kept apart from the lifecycle log.
     public private(set) var snapshotCount = 0
 
@@ -27,10 +29,20 @@ public actor FakeAudioCaptureEngine: AudioCaptureEngine {
         self.stopOutcome = stopOutcome
     }
 
+    /// Makes the next ``start()`` wait, like a microphone that is slow to open, until ``releaseStart()``.
+    public func holdStart() { holdsStart = true }
+
+    public func releaseStart() {
+        holdsStart = false
+        startGate?.resume()
+        startGate = nil
+    }
+
     public var state: AudioCaptureState { currentState }
 
     public func start() async throws(AudioCaptureError) {
         await calls.append(.start)
+        if holdsStart { await withCheckedContinuation { startGate = $0 } }
         guard currentState == .idle else { throw .alreadyRecording }
         try startOutcome.resolve()
         currentState = .recording

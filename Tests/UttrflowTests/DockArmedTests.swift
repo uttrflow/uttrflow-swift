@@ -35,6 +35,7 @@ struct DockArmedTests {
 
         dock.show(.armed, now: now)
 
+        #expect(dock.bars.levels.count > 0)
         #expect(dock.bars.levels.allSatisfy { $0 == 0 })
 
         #expect(dock.recordingStartedAt == nil)

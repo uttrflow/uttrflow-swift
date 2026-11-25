@@ -1523,6 +1523,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         )
         self.pipeline = pipeline
 
+        let (armedSignals, armedSink) = AsyncStream<Bool>.makeStream()
+        Task { @MainActor [weak self] in for await armed in armedSignals { self?.dock.setArmed(armed) } }
         controller = DictationController(
             dependencies: .init(
                 pipeline: pipeline, monitor: ActivationMonitor(),
@@ -1551,9 +1553,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 onStopGestureChange: { [weak self] gesture in
                     Task { @MainActor in self?.recordingStopGestureChanged(to: gesture) }
                 },
-                onArmed: { [weak self] armed in
-                    Task { @MainActor in self?.dock.setArmed(armed) }
-                }
+                onArmed: { armedSink.yield($0) }
             )
         )
         DictationIntentBridge.run = { [weak self] command in

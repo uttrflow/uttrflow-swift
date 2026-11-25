@@ -173,7 +173,7 @@ final class DockPanelController {
 
     /// Shows the listening shell from key-down while the button rests; false takes it off.
     func setArmed(_ armed: Bool) {
-        guard armed != isArmed, !armed || latest == Self.resting else { return }
+        guard armed != isArmed, !armed || !(latest.isRecording || latest.showsProgress) else { return }
         isArmed = armed
         draw(armed ? .armed : latest)
     }

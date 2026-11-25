@@ -5101,6 +5101,7 @@
     "UttrflowTestSupport func finishHungLoads": 1,
     "UttrflowTestSupport func fire": 1,
     "UttrflowTestSupport func fixture": 3,
+    "UttrflowTestSupport func holdStart": 1,
     "UttrflowTestSupport func idleGap": 1,
     "UttrflowTestSupport func insert": 1,
     "UttrflowTestSupport func measurements": 1,
@@ -5121,6 +5122,7 @@
     "UttrflowTestSupport func recordTidyColdStart": 1,
     "UttrflowTestSupport func recordWait": 1,
     "UttrflowTestSupport func recorded": 1,
+    "UttrflowTestSupport func releaseStart": 1,
     "UttrflowTestSupport func request": 1,
     "UttrflowTestSupport func resolve": 1,
     "UttrflowTestSupport func roomTone": 1,
@@ -6457,5 +6459,5 @@
     "UttrflowUX var withdrawsTrust": 1,
     "UttrflowUX var words": 2
   },
-  "total": 9190
+  "total": 9192
 }

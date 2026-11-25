@@ -15,6 +15,11 @@ private final class ArmedSpy: Sendable {
     var signals: [Bool] { log.withLock { $0 } }
 }
 
+/// Waits until the capture engine has been asked to start, which is while the microphone is still opening.
+private func untilStartRequested(_ capture: FakeAudioCaptureEngine) async {
+    for _ in 0..<10_000 where await capture.calls.events.isEmpty { await Task.yield() }
+}
+
 private let modifierBinding = HotkeyBinding(keyCode: 58, modifiers: [.option, .command, .control])
 
 @Suite("The listening look at key-down")
@@ -23,10 +28,15 @@ struct DictationControllerArmedTests {
     func keyDownArms() async throws {
         let spy = ArmedSpy()
         let harness = makeHarness(onArmed: { spy.record($0) })
+        await harness.capture.holdStart()
         try await harness.controller.start(binding: modifierBinding)
 
-        await harness.controller.handle(.pressed)
+        let press = Task { await harness.controller.handle(.pressed) }
+        await untilStartRequested(harness.capture)
 
+        #expect(spy.signals == [true])
+        await harness.capture.releaseStart()
+        await press.value
         #expect(spy.signals == [true])
         #expect(await harness.capture.calls.events == [.start])
         await harness.controller.stop()
@@ -62,9 +72,14 @@ struct DictationControllerArmedTests {
     func controlStartArmsOnly() async {
         let spy = ArmedSpy()
         let harness = makeHarness(onArmed: { spy.record($0) })
+        await harness.capture.holdStart()
 
-        await harness.controller.toggleFromControl()
+        let toggle = Task { await harness.controller.toggleFromControl() }
+        await untilStartRequested(harness.capture)
 
+        #expect(spy.signals == [true])
+        await harness.capture.releaseStart()
+        await toggle.value
         #expect(spy.signals == [true])
         #expect(harness.cue.plays == [.start])
         await harness.controller.handle(.escapePressed)

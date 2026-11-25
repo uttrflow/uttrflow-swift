@@ -81,8 +81,9 @@ fourth line, and the whole notice is on the pointer as a tooltip.
 - From key-down the button draws the meter's capsule with flat bars and `0:00`, dimmed by
   `armedMeterOpacity` on top of `meterQuietOpacity`, so the press is answered while the
   microphone is still opening. The bars come alive in place; nothing jumps.
-- It is `DockPresentation.armed`, a look `DockPanelController.setArmed` holds while the button
-  rests, not a `DictationState`: any other state replaces it, so a recording or a failed open
+- It is `DockPresentation.armed`, a look `DockPanelController.setArmed` draws over a resting or
+  finished button but never over a recording or processing one, and a cancel restores what was
+  there; it is not a `DictationState`: any other state replaces it, so a recording or a failed open
   needs no signal of its own and the failure is reported once, as a notice.
 - The controller sends `onArmed(false)` only when the press ends with no recording: a release
   inside the settle window, Escape, or a start that did not listen. The start sound stays tied to
