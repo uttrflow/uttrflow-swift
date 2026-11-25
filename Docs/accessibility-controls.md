@@ -36,14 +36,15 @@ leave a stale pass behind.
 ## Table
 
 <!-- accessibility-controls:begin -->
-120 controls; 0 walked; 0 with no accessible name found in the source.
+122 controls; 0 walked; 0 with no accessible name found in the source.
 
 | Screen | Control | Kind | Accessible name from | Keyboard and Voice Control |
 |---|---|---|---|---|
 | App | `Sources/Uttrflow/AppDelegate.swift#NSPopUpButton#1` | NSPopUpButton | accessibilityLabel | unchecked |
 | App menu | `Sources/Uttrflow/MainMenu.swift#NSMenuItem#1` | NSMenuItem | expression | unchecked |
-| Dock | `Sources/Uttrflow/Dock/DockNotices.swift#Button#1` | Button | expression | unchecked |
-| Dock | `Sources/Uttrflow/Dock/DockNotices.swift#Button#2` | Button | label view | unchecked |
+| Dock | `Sources/Uttrflow/Dock/DockNotices.swift#Button#1` | Button | accessibilityLabel | unchecked |
+| Dock | `Sources/Uttrflow/Dock/DockNotices.swift#Button#2` | Button | expression | unchecked |
+| Dock | `Sources/Uttrflow/Dock/DockNotices.swift#Button#3` | Button | label view | unchecked |
 | Dock | `Sources/Uttrflow/Dock/DockSetupView.swift#Button#1` | Button | label view | unchecked |
 | Dock | `Sources/Uttrflow/Dock/DockView.swift#Button#1` | Button | expression | unchecked |
 | Main window | `Sources/Uttrflow/Main/AccountPageView.swift#Link#1` | Link | expression | unchecked |
@@ -111,6 +112,7 @@ leave a stale pass behind.
 | Menu bar | `Sources/Uttrflow/MenuBar/MenuBarPopoverView.swift#Button#4` | Button | expression | unchecked |
 | Menu bar | `Sources/Uttrflow/MenuBar/MenuBarPopoverView.swift#Button#5` | Button | expression | unchecked |
 | Menu bar | `Sources/Uttrflow/MenuBar/MenuBarPopoverView.swift#Button#6` | Button | accessibilityLabel | unchecked |
+| Menu bar | `Sources/Uttrflow/MenuBar/MenuBarPopoverView.swift#Button#7` | Button | accessibilityLabel | unchecked |
 | Onboarding | `Sources/Uttrflow/Onboarding/OnboardingCelebration.swift#Button#1` | Button | label view | unchecked |
 | Onboarding | `Sources/Uttrflow/Onboarding/OnboardingPieces.swift#Button#1` | Button | label view | unchecked |
 | Onboarding | `Sources/Uttrflow/Onboarding/OnboardingView.swift#Link#1` | Link | expression | unchecked |

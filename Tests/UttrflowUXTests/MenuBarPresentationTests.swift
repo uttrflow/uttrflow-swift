@@ -728,6 +728,35 @@ struct MenuBarEnablementTests {
         #expect(shown.command(.insertRecent(id: UUID())) == nil)
     }
 
+    /// The pill is on the newest row only while Undo can act; afterwards the row says what happened.
+    @Test("offers Undo on the last dictation, then reports Undone or the refusal with the note")
+    func lastDictationUndo() {
+        func row(_ undo: RecentUndo) -> MenuBarRow? {
+            let recent = MenuBarRecent(
+                title: twoRecents[0].title, fullText: twoRecents[0].fullText, undo: undo)
+            return MenuBarPresenter.present(MenuBarState(recents: [recent])).lastDictation
+        }
+        #expect(row(.none)?.undo == nil)
+        let offered = row(.available)?.undo?.command
+        #expect(offered?.title == "Undo")
+        #expect(offered?.intent == .undoLastDictation)
+        #expect(row(.undone)?.undo?.outcomeLabel == "Undone")
+        #expect(row(.undone)?.undo?.command == nil)
+        #expect(row(.refused)?.undo?.note == MenuBarUndo.stillHereToCopy)
+        #expect(MenuBarUndo.stillHereToCopy == "Not in the field any more. Still here to copy.")
+    }
+
+    /// Undo is the user's own click, so a dictation in flight keeps it greyed like Paste.
+    @Test("greys Undo while a dictation is in flight")
+    func undoIsDisabledWhileBusy() {
+        let recent = MenuBarRecent(
+            title: twoRecents[0].title, fullText: twoRecents[0].fullText, undo: .available)
+        let busy = MenuBarPresenter.present(MenuBarState(activity: .working, recents: [recent]))
+        #expect(busy.command(.undoLastDictation)?.isEnabled == false)
+        let idle = MenuBarPresenter.present(MenuBarState(recents: [recent]))
+        #expect(idle.command(.undoLastDictation)?.isEnabled == true)
+    }
+
     /// Reaching for an old dictation mid-insertion would race the one already on its way.
     @Test("will not paste a row in the middle of a dictation")
     func rowsAreDisabledWhileBusy() {

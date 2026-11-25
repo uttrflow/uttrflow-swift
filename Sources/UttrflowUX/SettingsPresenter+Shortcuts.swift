@@ -28,6 +28,7 @@ extension SettingsPresenter {
         case .clipboard: .symbol("list.clipboard", .suggestion)
         case .pasteLastTranscript: .symbol("text.insert", .info)
         case .copyLastTranscript: .symbol("doc.on.doc", .mint)
+        case .undoLastDictation: .symbol("arrow.uturn.backward", .info)
         case .editCommand: .symbol("wand.and.stars", .dictation)
         }
     }

@@ -33,7 +33,7 @@ anchor on a display that exists.
 | Hovered | orb 30, hint 30 high | `orbSize`, `hintHeight` | The orb keeps the grip's side so it stays under the pointer. A hint saying why the shortcut cannot be heard wraps within 240 (`unheardWidth`). |
 | Listening | 32 high | `listeningHeight` | The meter and a running clock on tinted glass, the clock on the anchored edge; no mark. |
 | Working | 40-point orb | `workingOrbSize` | Three bars rising and settling in turn, for as long as there is work left. |
-| Inserted | 26-point disc | `badgeSize` | A teal return arrow inside the ring; a success needs no words, the text is already in the document. |
+| Inserted | 30 high capsule | `typedCapsuleHeight` | The teal return arrow, "Typed" and an **Undo** that takes the words back out of the field while the form lingers (2 seconds); its label for Voice Control is "Undo dictation". `badgeSize` still sizes the arrow. |
 | Nothing heard, too short | at least 28 high, words up to 200 wide | `clipboardHeight`, `quietTextMaxWidth` | The struck level with its sentence, readable at rest, wrapping to two lines; a too-short hold says to hold longer. |
 | Copied, not typed | 28 high | `clipboardHeight` | ⌘V and "Copied, not typed" at rest, kept up as long as a failure; under the pointer, a 200-wide pill (`blockedWidth`) saying "Typing is blocked — paste it" with **Fix**. |
 | Microphone off | pill | `DockSetupMetrics.warningRadius` | The warning disc, "Microphone is off" and a trailing **Fix**; the full sentence under the pointer. |

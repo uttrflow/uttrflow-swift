@@ -12,7 +12,7 @@ extension DockView {
     func notice(_ presentation: DockPresentation, primaryLine: String) -> some View {
         switch presentation.symbolName {
         case "checkmark":
-            badgeForm { InsertedMark() }
+            typedNotice()
         case "waveform.slash":
             quietNotice(DockWording.restingWords(for: presentation) ?? primaryLine)
         case "doc.on.clipboard":
@@ -42,6 +42,41 @@ extension DockView {
         .frame(minHeight: DockMetrics.clipboardHeight)
         .glass(
             cornerRadius: DockMetrics.clipboardHeight / 2,
+            opaque: noticeAppearance.usesOpaqueGlass
+        )
+        .padding(DockMetrics.gripHitPadding)
+    }
+
+    /// Typed: the mark and "Typed" with an Undo that takes the words back out, while the inserted form lingers.
+    func typedNotice() -> some View {
+        HStack(spacing: 8) {
+            InsertedMark()
+                .frame(width: DockMetrics.badgeSize - 8, height: DockMetrics.badgeSize - 8)
+            Text(String(localized: "Typed", comment: "Dock note after the words were inserted"))
+                .font(.system(size: DockMetrics.footnoteSize + 1))
+                .opacity(noticeAppearance.textOpacity(normal: 0.72))
+                .fixedSize()
+            Button {
+                onUndo()
+            } label: {
+                Label(
+                    String(localized: "Undo", comment: "Dock button that takes the dictation back out"),
+                    systemImage: "arrow.uturn.backward"
+                )
+                .font(.system(size: DockMetrics.footnoteSize + 1, weight: .medium))
+                .padding(.horizontal, 8)
+                .frame(height: DockMetrics.typedCapsuleHeight - 8)
+                .background(Color.white.opacity(0.12), in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(
+                String(localized: "Undo dictation", comment: "Spoken label of the dock Undo button"))
+        }
+        .padding(.leading, 9)
+        .padding(.trailing, 4)
+        .frame(height: DockMetrics.typedCapsuleHeight)
+        .glass(
+            cornerRadius: DockMetrics.typedCapsuleHeight / 2,
             opaque: noticeAppearance.usesOpaqueGlass
         )
         .padding(DockMetrics.gripHitPadding)
