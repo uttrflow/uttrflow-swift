@@ -39,6 +39,9 @@ public struct HotkeyBinding: Sendable, Equatable, Codable {
     /// ⌃⌘C, the one shortcut whose whole job is to write the clipboard.
     public static let controlCommandC = HotkeyBinding(keyCode: 8, modifiers: [.control, .command])
 
+    /// ⌃⌥Z, which takes back the last dictation; Z is undo, and ⌃⌥ is the pair dictation already owns.
+    public static let controlOptionZ = HotkeyBinding(keyCode: 6, modifiers: [.control, .option])
+
     /// Hold Fn to dictate; a held binding, watched through flag changes rather than registered as a hot key.
     public static let functionHold = HotkeyBinding(keyCode: functionKeyCode, modifiers: [])
 

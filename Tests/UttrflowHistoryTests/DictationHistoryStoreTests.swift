@@ -549,6 +549,18 @@ struct DictationHistoryStoreTests {
         #expect(await store.records(keeping: week).first?.isFlagged == false)
     }
 
+    @Test("marking one dictation undone reaches the disk and spares the others")
+    func markingUndone() async throws {
+        let sandbox = Sandbox()
+        try sandbox.seed([spoken("Right, the drafting is done."), spoken("From before.")])
+        let store = DictationHistoryStore(file: sandbox.file)
+        let ids = await store.records(keeping: week).map(\.id)
+
+        #expect(try await store.markUndone(ids[0], keeping: week))
+        #expect(sandbox.onDisk()?.map(\.isUndone) == [true, false])
+        #expect(try await store.markUndone(UUID(), keeping: week) == false)
+    }
+
     @Test("a flag with a reason reaches the disk, and unflagging forgets the reason")
     func flaggingWithAReason() async throws {
         let sandbox = Sandbox()

@@ -55,6 +55,8 @@ final class DockPanelController {
     var onToggle: (() -> Void)?
     /// The button offered alongside a failure was clicked.
     var onRecoveryAction: ((RecoveryAction) -> Void)?
+    /// Undo on the inserted form was clicked.
+    var onUndoDictation: (() -> Void)?
     var onAttentionChange: ((Bool) -> Void)?
 
     /// Where the microphone's level is pulled from on the main actor, keeping redraws off the audio thread.
@@ -106,6 +108,7 @@ final class DockPanelController {
             onPressEnded: { [weak self] in self?.onPressEnded?() },
             onToggle: { [weak self] in self?.onToggle?() },
             onRecovery: { [weak self] action in self?.onRecoveryAction?(action) },
+            onUndo: { [weak self] in self?.onUndoDictation?() },
             onAttentionChange: { [weak self] _ in
                 guard let self else { return }
                 self.onAttentionChange?(self.model.isEngaged)

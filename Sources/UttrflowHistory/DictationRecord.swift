@@ -38,6 +38,8 @@ public struct DictationRecord: Sendable, Equatable, Identifiable, Codable {
     public let notation: NotationUse?
     /// How complete the inserted text is, so a row can show a result tidied less than asked; `nil` is unrecorded.
     public let quality: OutcomeQuality?
+    /// Whether Undo took the words back out of the field; they stay here to copy. `false` when unrecorded.
+    public var isUndone: Bool
     /// Whether the words went into a private-browsing window, so nothing is learnt from them; `false` when unrecorded.
     package let fromPrivateWindow: Bool
 
@@ -50,8 +52,9 @@ public struct DictationRecord: Sendable, Equatable, Identifiable, Codable {
         arrival: RecordedArrival? = nil, changeLedger: [ChangeLedgerEntry]? = nil,
         slowCause: SlowDictationCause? = nil, heard: String? = nil,
         guardRefusals: [RefusalKind]? = nil, notation: NotationUse? = nil,
-        quality: OutcomeQuality? = nil, fromPrivateWindow: Bool = false
+        quality: OutcomeQuality? = nil, fromPrivateWindow: Bool = false, isUndone: Bool = false
     ) {
+        self.isUndone = isUndone
         self.fromPrivateWindow = fromPrivateWindow
         self.id = id
         self.text = text
@@ -103,6 +106,7 @@ public struct DictationRecord: Sendable, Equatable, Identifiable, Codable {
         // A rung a newer build adds reads as unrecorded, never a discarded file.
         quality = try? values.decodeIfPresent(OutcomeQuality.self, forKey: .quality)
         fromPrivateWindow = try values.decodeIfPresent(Bool.self, forKey: .fromPrivateWindow) ?? false
+        isUndone = try values.decodeIfPresent(Bool.self, forKey: .isUndone) ?? false
     }
 
     /// Whether this is still within `days` of `now`; the one place "deleted after N days" is decided.

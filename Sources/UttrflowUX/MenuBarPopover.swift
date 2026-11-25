@@ -84,13 +84,57 @@ public struct MenuBarRow: Sendable, Equatable {
     public let tooltip: String?
     public let insert: MenuBarCommand
     public let copy: MenuBarCommand
+    /// The row's Undo, only on the last dictation and only while it can still be taken back.
+    public let undo: MenuBarUndo?
 
-    public init(title: String, tooltip: String?, insert: MenuBarCommand, copy: MenuBarCommand) {
+    public init(
+        title: String,
+        tooltip: String?,
+        insert: MenuBarCommand,
+        copy: MenuBarCommand,
+        undo: MenuBarUndo? = nil
+    ) {
         self.title = title
         self.tooltip = tooltip
         self.insert = insert
         self.copy = copy
+        self.undo = undo
     }
+}
+
+/// What the last dictation's row shows beside its words.
+public enum MenuBarUndo: Sendable, Equatable {
+    /// The Undo pill.
+    case offered(MenuBarCommand)
+    /// "Undone", with the note that the words are still here to copy.
+    case undone
+    /// "Couldn't undo", with the same note, since the words were copied instead.
+    case refused
+
+    /// The Undo command while it is offered.
+    public var command: MenuBarCommand? {
+        if case .offered(let command) = self { command } else { nil }
+    }
+
+    /// Said under the row when the field lacks the dictation.
+    public var note: String? {
+        switch self {
+        case .offered: nil
+        case .undone, .refused: MenuBarUndo.stillHereToCopy
+        }
+    }
+
+    /// The pill's words once Undo has run or been refused.
+    public var outcomeLabel: String? {
+        switch self {
+        case .offered: nil
+        case .undone: "Undone"
+        case .refused: "Couldn\u{2019}t undo"
+        }
+    }
+
+    /// What the page promises under an undone dictation.
+    public static let stillHereToCopy = "Not in the field any more. Still here to copy."
 }
 
 /// A word the dictionary just learned, where it came from, and the Undo that removes and refuses it.
@@ -297,10 +341,23 @@ extension MenuBarPresenter {
     /// The newest dictation, absent rather than empty, since a greyed row says nothing.
     static func lastDictation(for state: MenuBarState) -> MenuBarRow? {
         guard let recent = state.recents.first else { return nil }
-        return row(
+        let row = row(
             title: recent.title, tooltip: recent.isSecret ? nil : recent.fullText,
             insert: .insertRecent(id: recent.id),
             copy: .copyRecent(id: recent.id), in: state)
+        let undo: MenuBarUndo? =
+            switch recent.undo {
+            case .none: nil
+            case .available:
+                .offered(
+                    MenuBarCommand(
+                        title: "Undo", intent: .undoLastDictation, isEnabled: !isBusy(state.activity),
+                        tooltip: "Take this dictation back out of the field"))
+            case .undone: .undone
+            case .refused: .refused
+            }
+        return MenuBarRow(
+            title: row.title, tooltip: row.tooltip, insert: row.insert, copy: row.copy, undo: undo)
     }
 
     /// The newest clips while the clipboard is on, a secret masked and a picture named by its size.
