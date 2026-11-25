@@ -36,7 +36,7 @@ leave a stale pass behind.
 ## Table
 
 <!-- accessibility-controls:begin -->
-121 controls; 0 walked; 0 with no accessible name found in the source.
+122 controls; 0 walked; 0 with no accessible name found in the source.
 
 | Screen | Control | Kind | Accessible name from | Keyboard and Voice Control |
 |---|---|---|---|---|
@@ -60,6 +60,7 @@ leave a stale pass behind.
 | Main window | `Sources/Uttrflow/Main/DictionaryPageView.swift#Button#2` | Button | accessibilityLabel | unchecked |
 | Main window | `Sources/Uttrflow/Main/DictionaryPageView.swift#Button#3` | Button | expression | unchecked |
 | Main window | `Sources/Uttrflow/Main/DictionaryPageView.swift#Button#4` | Button | label view | unchecked |
+| Main window | `Sources/Uttrflow/Main/DictionaryRecentlyLearntView.swift#Button#1` | Button | accessibilityLabel | unchecked |
 | Main window | `Sources/Uttrflow/Main/DictionarySelectionBar.swift#Button#1` | Button | expression | unchecked |
 | Main window | `Sources/Uttrflow/Main/DictionarySelectionBar.swift#Button#2` | Button | expression | unchecked |
 | Main window | `Sources/Uttrflow/Main/HistoryPageView.swift#Button#1` | Button | expression | unchecked |
