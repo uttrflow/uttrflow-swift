@@ -32,7 +32,7 @@ figcaption{font-size:13px;color:var(--mute);line-height:1.45}figcaption b{color:
 </style>
 <div class="shell">
 <h1>Recently learnt words</h1>
-<p class="lede">Proposal for #4471, not built. Uttrflow already learns spellings from corrections you make; today the only trace is the word appearing in the Dictionary, with no record of when or why, and no quick way to take back a wrong guess. Each figure is labelled <span class="tag cur">CURRENT</span> (the shipped Dictionary page) or <span class="tag new">PROPOSED</span>. The words shown are invented examples.</p>
+<p class="lede">Built. Uttrflow already learns spellings from corrections you make; today the only trace is the word appearing in the Dictionary, with no record of when or why, and no quick way to take back a wrong guess. Each figure is labelled <span class="tag cur">CURRENT</span> (the Dictionary page before the list) or <span class="tag new">SHIPPED</span>. The words shown are invented examples.</p>
 <div class="grid" id="g"></div>
 </div>
 <script>
@@ -44,8 +44,7 @@ const dict=`<div class="sec">ALL WORDS</div>${row('Priya','pree-ya')}${row('Kube
 const win=(body,toast='')=>`<div class="win">${side}<div class="main"><h3>Dictionary</h3><p>Words Uttrflow spells your way.</p>${body}${toast}</div></div>`;
 const O=[
  {t:'cur',n:'Current',d:'Learnt words are mixed in with everything else. No when, no where, no way back short of finding and deleting the word.',h:win(dict)},
- {t:'new',n:'Option A · A “Recently learnt” list',d:'A short list above the words: what was heard, what was written, where, and an Undo that removes the word and puts back what was typed. Nothing interrupts you. Recommended.',h:win(recent(3)+dict)},
- {t:'new',n:'Option B · The list plus one quiet notice',d:'As A, and when a word is learnt a small notice appears for a few seconds: “Learnt Priya · Undo”. At most one notice per few minutes, never during dictation, off in Settings. Notice wording is final copy for the owner to edit.',h:win(recent(3)+dict,`<div class="toast"><span style="color:#5FE0D3">●</span>Learnt <b>Priya</b>${undo}</div>`)}
+ {t:'new',n:'Option A · A “Recently learnt” list',d:'A short list above the words: what was heard, what was written, where, and an Undo that removes the word and keeps it from being learnt again. Nothing interrupts you.',h:win(recent(3)+dict)}
 ];
-g.innerHTML=O.map(o=>`<figure>${o.h}<figcaption><b><span class="tag ${o.t}">${o.t==='cur'?'CURRENT':'PROPOSED'}</span>${o.n}</b>${o.d}</figcaption></figure>`).join('');
+g.innerHTML=O.map(o=>`<figure>${o.h}<figcaption><b><span class="tag ${o.t}">${o.t==='cur'?'CURRENT':'SHIPPED'}</span>${o.n}</b>${o.d}</figcaption></figure>`).join('');
 </script>

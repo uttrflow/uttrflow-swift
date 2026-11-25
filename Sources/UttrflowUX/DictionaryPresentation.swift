@@ -356,14 +356,17 @@ public struct DictionarySnapshot: Sendable, Equatable {
     public let recency: WordRecency
     /// The try under way or last finished, and whose it is.
     public let trial: DictionaryTrial?
+    /// The words learnt lately, newest first, as the app is holding them for Undo.
+    public let learnt: [LearnedWord]
 
     /// Builds a snapshot; everything but the clock defaults to empty.
     public init(
         entries: [DictionaryEntry] = [], draft: DictionaryDraft? = nil, refusal: String? = nil,
         query: String = "", filter: String = "", sort: String = "", corrections: [Correction] = [],
         now: Date, packed: [String]? = nil, refused: [String] = [], trial: DictionaryTrial? = nil,
-        recency: WordRecency = .none
+        recency: WordRecency = .none, learnt: [LearnedWord] = []
     ) {
+        self.learnt = learnt
         self.recency = recency
         self.trial = trial
         self.packed = packed
@@ -452,6 +455,8 @@ public struct DictionaryPresentation: Sendable, Equatable {
     public let footnote: String?
     /// The words Uttrflow will not learn, each with Allow again; absent when none is refused.
     public let notLearning: DictionaryNotLearning?
+    /// The words learnt lately, each with Undo; absent when none is, and while a search is under way.
+    public let recentlyLearnt: DictionaryRecentlyLearnt?
 
     /// Builds the page from its parts.
     public init(
@@ -463,8 +468,10 @@ public struct DictionaryPresentation: Sendable, Equatable {
         editor: DictionaryEditor?,
         emptyState: MainEmptyState?,
         footnote: String?,
-        notLearning: DictionaryNotLearning? = nil
+        notLearning: DictionaryNotLearning? = nil,
+        recentlyLearnt: DictionaryRecentlyLearnt? = nil
     ) {
+        self.recentlyLearnt = recentlyLearnt
         self.chrome = chrome
         self.fixesLabel = fixesLabel
         self.fixes = fixes
@@ -503,6 +510,42 @@ public struct DictionarySelection: Sendable, Equatable {
         self.clear = clear
         self.restore = restore
         self.delete = delete
+    }
+}
+
+/// The short list above the words of what was learnt lately, so a wrong guess can be taken back.
+public struct DictionaryRecentlyLearnt: Sendable, Equatable {
+    /// "Recently learnt".
+    public let title: String
+    /// One word and its Undo, newest first.
+    public let rows: [DictionaryLearntRow]
+
+    /// Builds the list from its parts.
+    public init(title: String, rows: [DictionaryLearntRow]) {
+        self.title = title
+        self.rows = rows
+    }
+}
+
+/// One word learnt lately: what it replaces, where and when, and the Undo that removes and refuses it.
+public struct DictionaryLearntRow: Sendable, Equatable, Identifiable {
+    /// The dictionary entry's identifier.
+    public let id: UUID
+    public let word: String
+    /// `heard “x”, wrote “Word”` for a correction, or where a word read off the screen came from.
+    public let detail: String
+    /// "Notes · today 10:12": the app, when it is known, and when.
+    public let place: String
+    /// Removes the word and refuses its spelling, as deleting it from the table does.
+    public let undo: MainAction
+
+    /// Builds a row from its parts.
+    public init(id: UUID, word: String, detail: String, place: String, undo: MainAction) {
+        self.id = id
+        self.word = word
+        self.detail = detail
+        self.place = place
+        self.undo = undo
     }
 }
 
@@ -596,7 +639,33 @@ public enum DictionaryPresenter {
             editor: editor,
             emptyState: rows.isEmpty && editor == nil ? emptyState(for: snapshot, filter: filter) : nil,
             footnote: rows.isEmpty ? nil : footnote(for: listed),
-            notLearning: notLearning(snapshot.refused))
+            notLearning: notLearning(snapshot.refused),
+            recentlyLearnt: recentlyLearnt(in: snapshot, calendar: calendar, locale: locale))
+    }
+
+    /// The words learnt lately that are still in the dictionary; a search shows only matches, so the list hides.
+    static func recentlyLearnt(
+        in snapshot: DictionarySnapshot, calendar: Calendar, locale: Locale
+    ) -> DictionaryRecentlyLearnt? {
+        guard snapshot.query.trimmingCharacters(in: .whitespaces).isEmpty, snapshot.draft == nil else {
+            return nil
+        }
+        let present = Set(snapshot.entries.map(\.id))
+        let rows = snapshot.learnt.filter { present.contains($0.id) }.map { word in
+            let when = MainFormatting.day(
+                word.learnedAt, now: snapshot.now, calendar: calendar, locale: locale)
+            let time =
+                calendar.isDate(word.learnedAt, inSameDayAs: snapshot.now)
+                ? " " + MainFormatting.time(word.learnedAt, locale: locale) : ""
+            let place = [word.application, when + time].compactMap { $0 }.joined(separator: " · ")
+            let detail =
+                word.heard.map { "heard “\($0)”, wrote “\(word.word)”" } ?? "Read off the screen and said"
+            return DictionaryLearntRow(
+                id: word.id, word: word.word, detail: detail, place: place,
+                undo: MainAction(
+                    title: "Undo", symbolName: "arrow.uturn.backward", intent: .forgetWords([word.id])))
+        }
+        return rows.isEmpty ? nil : DictionaryRecentlyLearnt(title: "Recently learnt", rows: rows)
     }
 
     /// The refused spellings with Allow again on each, or nothing when no word is refused.

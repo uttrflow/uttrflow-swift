@@ -129,6 +129,18 @@ the store writes them down and a relaunch still refuses them; at most 512 are ke
 (`maximumRefused`), the oldest lapsing first. Removing learnt words clears the pending tally
 and keeps the refusals; removing everything clears both (`Docs/app-dictionary-store.md`).
 
+### Recently learnt
+
+`RecentlyLearned` holds every word learnt in the last 24 hours in memory, newest first, and the
+Dictionary page lists them above the table: the word, what the correction replaced (`heard “x”,
+wrote “Word”`) or "Read off the screen and said" for an observed word, the app and the time, and
+an Undo. A word read off the screen has no recognised spelling to set beside it, so no pair is
+invented for it. The list is never written down, so it is gone at quit; the words stay in the
+dictionary. Undo is `MainIntent.forgetWords`, the table's delete and the menu bar's Undo on one
+path: it removes the entry and refuses the spelling, so the word is not learnt again. The list
+hides while a search is under way and when a listed word has since been deleted. Nothing is
+asked and nothing interrupts; ignoring the list changes nothing.
+
 ### Edited pairs
 
 An edit of a dictated word is counted once, as a heard-to-meant pair in `ConfusionPairs`

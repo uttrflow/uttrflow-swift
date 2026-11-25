@@ -11,12 +11,21 @@ public struct LearnedWord: Sendable, Equatable, Identifiable {
     /// Read off the screen and said aloud, rather than taken from a correction.
     public let isFromScreen: Bool
     public let learnedAt: Date
+    /// The text a correction replaces, when the word came from one; `nil` for a word read off the screen.
+    public let heard: String?
+    /// The app the dictation goes into, when it is known.
+    public let application: String?
 
-    public init(id: UUID, word: String, isFromScreen: Bool, learnedAt: Date) {
+    public init(
+        id: UUID, word: String, isFromScreen: Bool, learnedAt: Date, heard: String? = nil,
+        application: String? = nil
+    ) {
         self.id = id
         self.word = word
         self.isFromScreen = isFromScreen
         self.learnedAt = learnedAt
+        self.heard = heard
+        self.application = application
     }
 
     /// Where the word came from, in the words the popover row and VoiceOver both use.
@@ -34,13 +43,21 @@ public struct RecentlyLearned: Sendable, Equatable {
 
     /// Adds what one dictation taught, every inferred entry and not only the first, and answers with those.
     @discardableResult
-    public mutating func record(_ entries: [DictionaryEntry], at moment: Date) -> [LearnedWord] {
+    public mutating func record(
+        _ entries: [DictionaryEntry], at moment: Date, heard: String? = nil, application: String? = nil
+    ) -> [LearnedWord] {
+        let trimmed = heard?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let heard = trimmed?.isEmpty == false ? trimmed : nil
         let learnt = entries.compactMap { entry -> LearnedWord? in
             switch entry.origin {
             case .learned:
-                LearnedWord(id: entry.id, word: entry.word, isFromScreen: false, learnedAt: moment)
+                LearnedWord(
+                    id: entry.id, word: entry.word, isFromScreen: false, learnedAt: moment, heard: heard,
+                    application: application)
             case .observed:
-                LearnedWord(id: entry.id, word: entry.word, isFromScreen: true, learnedAt: moment)
+                LearnedWord(
+                    id: entry.id, word: entry.word, isFromScreen: true, learnedAt: moment,
+                    application: application)
             case .added, .shipped:
                 nil
             }

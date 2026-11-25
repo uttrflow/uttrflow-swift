@@ -1480,8 +1480,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 }),
             vocabulary: LearnedVocabulary(
                 dictionary: dictionary,
-                didLearn: { [weak self] entries in
-                    await MainActor.run { self?.noteLearned(entries) }
+                didLearn: { [weak self] entries, context in
+                    await MainActor.run { self?.noteLearned(entries, seeing: context) }
                 },
                 // Lines from apps typing capture may read, behind the same consent gate as the pipeline.
                 typedLines: { [weak self] context in
@@ -2937,11 +2937,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Offers every word one dictation taught in the popover and names the first through VoiceOver.
-    func noteLearned(_ entries: [DictionaryEntry]) {
-        let learnt = recentlyLearned.record(entries, at: Date())
+    func noteLearned(_ entries: [DictionaryEntry], seeing context: AppContext = AppContext()) {
+        let learnt = recentlyLearned.record(
+            entries, at: Date(), heard: context.selectedText, application: context.applicationName)
         guard let line = RecentlyLearned.announcement(for: learnt) else { return }
         announce(line, urgently: false)
         refreshMenuBar()
+        // The Dictionary page lists the new word, so it reads the store again.
+        refreshMainWindow()
     }
 
     /// Speaks a line through VoiceOver once the microphone is closed, so a recording never hears it.
@@ -3517,7 +3520,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             query: query(for: .dictionary), filter: scope(for: .dictionary),
             sort: sorts[.dictionary] ?? "", corrections: corrections, now: now,
             packed: lastVocabularyPrompt.isEmpty ? nil : lastVocabularyPrompt,
-            refused: knownRefusals, trial: wordTrial, recency: knownRecency)
+            refused: knownRefusals, trial: wordTrial, recency: knownRecency,
+            learnt: recentlyLearned.current(at: now))
     }
 
     /// The last reading of the snippets, ready for the Snippets presenter.
@@ -3819,6 +3823,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .saveWord(let word, let pronunciation, let applications):
             saveWord(word, pronunciation: pronunciation, applications: applications)
         case .forgetWords(let ids):
+            // The same Undo as the menu bar's: the page's list and the popover stay in step.
+            for id in ids { recentlyLearned.forget(id) }
+            refreshMenuBar()
             act { try await self.dictionary.remove(ids) }
         case .restoreWords(let ids):
             act { try await self.dictionary.restore(ids) }
