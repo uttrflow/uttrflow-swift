@@ -2,10 +2,10 @@
 <title>Uttrflow Onboarding Directions</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400..800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;800&family=Instrument+Serif:ital@1&family=Inter+Tight:wght@600&display=swap">
 <style>
 /* Logo wordmark, greeting and hero headline only. */
-:root{--hf:"EB Garamond",Garamond,Georgia,serif}
+:root{--wf:"Bricolage Grotesque",sans-serif;--hf:"Inter Tight",sans-serif;--he:"Instrument Serif",Georgia,serif}
 :root{--pg:#F2F1EC;--pgInk:#101316;--pgMute:#5C6866;--pgLine:#DEDCD4;--pgCard:#FFFFFF;
 --signal:#29C0B4;--bright:#5FE0D3;--deep:#128077;--purple:#61399F;--indigo:#3E368A;--tealblue:#2A5B72;--lilac:#C49BF5;--onfill:#04332F;--warn:#FF8D28;--crit:#FF6B6E;--ok:#34C759;
 --f:"Outfit",-apple-system,system-ui,sans-serif;--sys:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,Menlo,monospace}
@@ -212,7 +212,7 @@ function extra(st,w=300){
  if(st.badge)return `<span class="chip" style="color:${acc(st.mood)}">${I[st.badge[0]](13,'currentColor')}${st.badge[1]}</span>`;
  return '';}
 function aur(st){const m=MOOD[st.mood];return `<div class="aur" style="background:${m.g};opacity:${m.o};${m.pulse?'animation:spin 40s linear infinite,breathe 3s ease-in-out infinite':''}"></div><div class="veil"></div><div class="grain"></div><div class="lights"><i></i><i></i><i></i></div>`}
-function wordmark(c='#fff'){return `<div style="display:flex;align-items:center;gap:8px">${I.mark(18,c)}<span style="font:600 14px var(--hf,var(--f));letter-spacing:-.025em;color:${c}">uttrflow</span></div>`}
+function wordmark(c='#fff'){return `<div style="display:flex;align-items:center;gap:8px">${I.mark(18,c)}<span style="display:inline-flex;gap:.02em;font-family:var(--wf);font-size:14px;letter-spacing:-.035em;color:${c}"><span style="font-weight:800">Uttr</span><span style="font-weight:400">Flow</span></span></div>`}
 function dots(si,style='bar'){const a='#fff';if(style==='bar')return `<div style="display:flex;gap:5px">${S.map((_,j)=>`<i style="flex:1;height:4px;border-radius:2px;background:${j<=si?a:'rgba(255,255,255,.2)'}"></i>`).join('')}</div>`;
  return `<div style="display:flex;gap:8px">${S.map((x,j)=>`<span style="width:30px;height:30px;border-radius:50%;display:grid;place-items:center;${j<si?'background:rgba(95,224,211,.9);color:#04332F':j===si?'background:#fff;color:#0B0C10':'background:rgba(255,255,255,.08);color:rgba(255,255,255,.5)'}">${j<si?I.check(14,'currentColor'):I[x.ic](14,'currentColor')}</span>`).join('')}</div>`}
 /* Float's step row: icon per step, joined by a line */
