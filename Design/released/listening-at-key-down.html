@@ -25,7 +25,7 @@ figcaption{font-size:13px;color:var(--mute);line-height:1.45}figcaption b{color:
 </style>
 <div class="shell">
 <h1>Listening state at key-down</h1>
-<p class="lede">Proposal for #3942, not built. Today the floating button shows nothing from the moment the dictation key goes down until the microphone has opened, so the first words can be spoken to no visible response. Each figure is labelled <span class="tag cur">CURRENT</span> (the shipped floating button) or <span class="tag new">PROPOSED</span>. Time marks are sequence only: how long the microphone takes to open has not been measured, so no duration is claimed here.</p>
+<p class="lede">From the moment the dictation key goes down the floating button shows the listening meter, dimmed and flat, until the microphone has opened; the start sound still waits for the first sample. Each figure is labelled <span class="tag cur">CURRENT</span> (the shipped floating button) or <span class="tag new">PROPOSED</span>. Time marks are sequence only: how long the microphone takes to open has not been measured, so no duration is claimed here.</p>
 <div class="grid" id="g"></div>
 </div>
 <script>
@@ -35,10 +35,8 @@ const bars=(flat)=>`<div class="bars" style="opacity:${flat?.35:1}">${hs.map(h=>
 const meter=(flat)=>`<div class="gl" style="height:32px;padding:0 12px;border-radius:16px">${bars(flat)}<span style="font:500 11px var(--mono);color:rgba(255,255,255,.6)">${flat?'0:00':'0:04'}</span></div>`;
 const idle=`<div class="gl" style="width:26px;height:26px;border-radius:50%;justify-content:center;opacity:.6">${mark(12,'rgba(255,255,255,.7)')}</div>`;
 const S=[
- {t:'cur',n:'Current · key goes down',c:'0 — key down',d:'Nothing changes. The resting orb stays as it was until the mic is open.',h:idle},
- {t:'cur',n:'Current · mic is open',c:'1 — mic open',d:'The meter appears and the first level shows. Anything said before this had no feedback.',h:meter(false)},
- {t:'new',n:'Option A · Starting orb at key-down',c:'0 — key down',d:'At once the orb brightens and shows three pulsing dots (“starting”). It becomes the meter when the mic opens. Smallest change.',h:`<div class="gl" style="width:36px;height:36px;gap:3px;justify-content:center;border-radius:50%"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>`},
- {t:'new',n:'Option B · Meter shell at key-down',c:'0 — key down',d:'At once the same capsule as the live meter, with flat dimmed bars and 0:00. When the mic opens the bars come alive in place, so nothing jumps. Recommended: one shape, no extra state to learn.',h:meter(true)}
+ {t:'new',n:'Key goes down',c:'0 — key down',d:'At once the same capsule as the live meter, with flat dimmed bars and 0:00. It is cleared if the press is cancelled or the microphone fails to open.',h:meter(true)},
+ {t:'new',n:'Microphone is open',c:'1 — mic open',d:'The bars come alive in place, so nothing jumps, and the clock starts.',h:meter(false)}
 ];
-g.innerHTML=S.map(o=>`<figure><div class="stage"><span class="t">${o.c}</span>${o.h}</div><figcaption><b><span class="tag ${o.t}">${o.t==='cur'?'CURRENT':'PROPOSED'}</span>${o.n}</b>${o.d}</figcaption></figure>`).join('');
+g.innerHTML=S.map(o=>`<figure><div class="stage"><span class="t">${o.c}</span>${o.h}</div><figcaption><b><span class="tag ${o.t}">${o.t==='cur'?'CURRENT':'SHIPPED'}</span>${o.n}</b>${o.d}</figcaption></figure>`).join('');
 </script>

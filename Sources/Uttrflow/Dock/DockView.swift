@@ -69,6 +69,11 @@ final class DockViewModel {
         } else {
             recordingStartedAt = nil
             level = 0
+            // Flat bars, not the last take's: the meter comes alive in place once the microphone opens.
+            if presentation.isArmed {
+                bars.clear()
+                silence = InputSilence()
+            }
         }
         self.presentation = presentation
     }
