@@ -72,6 +72,12 @@ public struct RecentlyLearned: Sendable, Equatable {
         words.removeAll { $0.id == id }
     }
 
+    /// Puts words back after their Undo failed, newest first, so their rows return.
+    public mutating func restore(_ restored: [LearnedWord]) {
+        let ids = Set(restored.map(\.id))
+        words = (restored + words.filter { !ids.contains($0.id) }).sorted { $0.learnedAt > $1.learnedAt }
+    }
+
     /// The words still within ``holdingPeriod`` of `moment`, newest first.
     public func current(at moment: Date) -> [LearnedWord] {
         words.filter { moment.timeIntervalSince($0.learnedAt) < Self.holdingPeriod }

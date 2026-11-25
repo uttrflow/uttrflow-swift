@@ -137,7 +137,7 @@ wrote “Word”`) or "Read off the screen and said" for an observed word, the a
 an Undo. A word read off the screen has no recognised spelling to set beside it, so no pair is
 invented for it. The list is never written down, so it is gone at quit; the words stay in the
 dictionary. Undo is `MainIntent.forgetWords`, the table's delete and the menu bar's Undo on one
-path: it removes the entry and refuses the spelling, so the word is not learnt again. The list
+path: it removes the entry and refuses the spelling, so the word is not learnt again, until 512 later refusals push this one out of the bounded refused list. A failed removal puts the row back, and an edited word's row shows its current spelling. The list
 hides while a search is under way and when a listed word has since been deleted. Nothing is
 asked and nothing interrupts; ignoring the list changes nothing.
 

@@ -110,6 +110,34 @@ struct RecentlyLearnedTests {
         #expect(section.rows.first?.undo.intent == .forgetWords([corrected.id]))
     }
 
+    @Test("an edited word's row shows the spelling Undo will remove")
+    func pageShowsTheEditedSpelling() throws {
+        var learned = RecentlyLearned()
+        let entry = DictionaryEntry(word: "Priya", origin: .learned, firstSeen: now)
+        learned.record([entry], at: now, heard: "pree-ya")
+        let edited = DictionaryEntry(id: entry.id, word: "Priyanka", origin: .learned, firstSeen: now)
+
+        let page = DictionaryPresenter.page(
+            for: DictionarySnapshot(entries: [edited], now: now, learnt: learned.current(at: now)),
+            calendar: Calendar(identifier: .gregorian), locale: Locale(identifier: "en_US"))
+
+        #expect(page.recentlyLearnt?.rows.map(\.word) == ["Priyanka"])
+    }
+
+    @Test("words put back after a failed Undo return newest first")
+    func restoreBringsRowsBack() {
+        var learned = RecentlyLearned()
+        let older = DictionaryEntry(word: "Priya", origin: .learned, firstSeen: now)
+        let newer = DictionaryEntry(word: "Grafana", origin: .learned, firstSeen: now)
+        learned.record([older], at: now)
+        let kept = learned.record([newer], at: now.addingTimeInterval(60))
+        learned.forget(newer.id)
+
+        learned.restore(kept)
+
+        #expect(learned.current(at: now.addingTimeInterval(60)).map(\.word) == ["Grafana", "Priya"])
+    }
+
     @Test("a word no longer in the dictionary, a search, or nothing learnt leaves the list out")
     func pageOmitsTheListWhenThereIsNothingToUndo() {
         var learned = RecentlyLearned()

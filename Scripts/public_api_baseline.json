@@ -5488,6 +5488,7 @@
     "UttrflowUX func request": 1,
     "UttrflowUX func reset": 2,
     "UttrflowUX func resized": 1,
+    "UttrflowUX func restore": 1,
     "UttrflowUX func restoreNotice": 1,
     "UttrflowUX func result": 2,
     "UttrflowUX func route": 1,
@@ -6450,5 +6451,5 @@
     "UttrflowUX var withdrawsTrust": 1,
     "UttrflowUX var words": 2
   },
-  "total": 9190
+  "total": 9191
 }

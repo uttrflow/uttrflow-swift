@@ -3167,10 +3167,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 }
             }
         case .undoLearnedWord(let id):
-            recentlyLearned.forget(id)
-            refreshMenuBar()
-            // The Dictionary page's delete, so an undone word is refused rather than relearned.
-            act { try await self.dictionary.remove(id) }
+            undoLearnt([id])
         case .open(let destination):
             show(destination)
         case .openClipboard:
@@ -3823,10 +3820,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .saveWord(let word, let pronunciation, let applications):
             saveWord(word, pronunciation: pronunciation, applications: applications)
         case .forgetWords(let ids):
-            // The same Undo as the menu bar's: the page's list and the popover stay in step.
-            for id in ids { recentlyLearned.forget(id) }
-            refreshMenuBar()
-            act { try await self.dictionary.remove(ids) }
+            undoLearnt(ids)
         case .restoreWords(let ids):
             act { try await self.dictionary.restore(ids) }
         case .replaceWord(let id, let word, let pronunciation, let applications):
@@ -4197,6 +4191,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 self?.report(error)
             }
             self?.refreshMainWindow()
+        }
+    }
+
+    /// The one Undo for learnt words, the menu bar's and the page's: the dictionary's delete refuses the spelling; a failed delete brings the row back.
+    private func undoLearnt(_ ids: Set<UUID>) {
+        let undone = recentlyLearned.current(at: Date()).filter { ids.contains($0.id) }
+        for id in ids { recentlyLearned.forget(id) }
+        refreshMenuBar()
+        act {
+            do {
+                try await self.dictionary.remove(ids)
+            } catch {
+                let present = Set(await self.dictionary.allEntries().map(\.id))
+                self.recentlyLearned.restore(undone.filter { present.contains($0.id) })
+                self.refreshMenuBar()
+                throw error
+            }
         }
     }
 
