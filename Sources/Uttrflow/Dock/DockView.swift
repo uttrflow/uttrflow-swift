@@ -98,6 +98,8 @@ struct DockView: View {
     /// Starts or finishes a dictation in one go, for a caller that cannot hold the button down.
     var onToggle: () -> Void = {}
     var onRecovery: (RecoveryAction) -> Void = { _ in }
+    /// Undo on the inserted form, which takes the dictation back out of the field.
+    var onUndo: () -> Void = {}
     var onAttentionChange: (Bool) -> Void = { _ in }
     /// The size the current form wants; the panel is resized to match, so a grip claims no more screen.
     var onDesiredSize: (CGSize) -> Void = { _ in }

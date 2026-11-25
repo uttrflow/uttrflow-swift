@@ -84,6 +84,19 @@ struct DictationRecordTests {
         #expect(decoded.first?.applicationIdentifier == nil)
     }
 
+    @Test("a record without the Undone marker reads as not undone, and the marker survives a round trip")
+    func undoneMarker() throws {
+        let stored = """
+            [{"id":"6BA7B810-9DAD-11D1-80B4-00C04FD430C8","text":"Ship it.","when":721692800}]
+            """
+        let decoded = try JSONDecoder().decode([DictationRecord].self, from: Data(stored.utf8))
+        #expect(decoded.first?.isUndone == false)
+
+        let record = DictationRecord(text: "Ship it.", when: Date(timeIntervalSince1970: 0), isUndone: true)
+        let read = try JSONDecoder().decode(DictationRecord.self, from: try JSONEncoder().encode(record))
+        #expect(read.isUndone)
+    }
+
     /// The identifier is the identity the icon is found by, so it must survive a round trip.
     @Test("keeps the application's identifier across a round trip")
     func keepsTheApplicationIdentifier() throws {

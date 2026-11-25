@@ -47,6 +47,11 @@ public enum ShortcutRegistry {
             explanation: "Puts the last thing you dictated on the clipboard.",
             delivery: .claimed),
         ShortcutDescriptor(
+            action: .undoLastDictation,
+            label: "Undo last dictation",
+            explanation: "Takes the last dictation back out of the field if it still holds what was typed.",
+            delivery: .claimed),
+        ShortcutDescriptor(
             action: .editCommand,
             label: "Edit command",
             explanation: "Hold and say an edit for the selected text. Nothing you say is typed.",

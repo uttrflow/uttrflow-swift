@@ -29,7 +29,7 @@ kbd{font:500 11px var(--sys);padding:2px 6px;border-radius:5px;background:rgba(2
 </style>
 <div class="shell">
 <h1>Undo the last dictation</h1>
-<p class="lede">Proposal for #4206, not built. Today the only way to take back a dictation that landed in the wrong field is to find that app and use its own undo. Three places get one undo action: the menu bar, a shortcut, the dock disc. It removes the text Uttrflow just typed and nothing else; if the field has changed since, it says so and does nothing. Each figure is labelled <span class="tag cur">CURRENT</span> (the shipped page) or <span class="tag new">PROPOSED</span>.</p>
+<p class="lede">Shipped for #4206. Today the only way to take back a dictation that landed in the wrong field is to find that app and use its own undo. Three places get one undo action: the menu bar, a shortcut, the dock disc. It removes the text Uttrflow just typed and nothing else; if the field has changed since, it says so and does nothing. Each figure is labelled <span class="tag cur">CURRENT</span> (the shipped page) or <span class="tag new">PROPOSED</span>.</p>
 <h2>1 · Menu bar</h2>
 <div class="grid" id="g"></div>
 <h2>2 · Dock disc after an insertion</h2>
@@ -54,7 +54,6 @@ const pill=(t,ic,st='')=>`<span style="display:inline-flex;align-items:center;ga
 const M=[
  {t:'cur',n:'Current',d:'Last dictation row: the words, and a copy glyph. No way back.',h:panel(L('LAST DICTATION')+row(LAST))},
  {t:'new',n:'Option A · Undo on the row',d:'The row gets an Undo pill beside the words. One click removes what was typed. Recommended: fewest changes, nothing new to learn.',h:panel(L('LAST DICTATION')+row(LAST,pill('Undo',I.undo(12))))},
- {t:'new',n:'Option B · Undo as its own menu line',d:'A line under the row with the shortcut shown. After an undo the row reads “Undone” for a few seconds, then returns to the words.',h:panel(L('LAST DICTATION')+row(LAST)+`<div style="display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:8px;font-size:13px;color:#fff;background:rgba(255,255,255,.08)"><span>${I.undo(13)}</span><span style="flex:1">Undo last dictation</span><kbd>⌃⌥Z</kbd></div>`)},
  {t:'new',n:'After an undo (both options)',d:'The text is gone from the field; the words stay here so Insert or Copy still works. If the field changed since, nothing is removed and the line says why.',h:panel(L('LAST DICTATION')+row(LAST,pill('Undone',I.ok(12),'color:#5FE0D3'))+`<div style="padding:2px 8px 0 30px;font-size:11.5px;color:rgba(255,255,255,.5)">Not in the field any more. Still here to copy.</div>`)}
 ];
 g.innerHTML=M.map(o=>`<figure><div class="desk">${bar}<div class="pop">${o.h}</div></div><figcaption><b><span class="tag ${o.t}">${o.t==='cur'?'CURRENT':'PROPOSED'}</span>${o.n}</b>${o.d}</figcaption></figure>`).join('');

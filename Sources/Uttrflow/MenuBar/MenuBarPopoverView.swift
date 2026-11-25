@@ -46,8 +46,14 @@ struct MenuBarPopoverView: View {
             if let last = presentation.lastDictation {
                 MenuBarRule()
                 MenuBarSectionLabel(text: "LAST DICTATION")
-                MenuBarRowView(row: last, onCommand: onCommand, isFocused: shows(keyboard.lastDictationPlace))
-                    .menuBarKey($focus, keyboard.lastDictationPlace)
+                MenuBarLastDictationView(
+                    row: last, onCommand: onCommand, isFocused: shows(keyboard.lastDictationPlace),
+                    undoIsFocused: shows(keyboard.lastDictationPlace + 1)
+                )
+                .menuBarKey($focus, keyboard.lastDictationPlace)
+                if last.undo?.command != nil {
+                    Color.clear.frame(height: 0).menuBarKey($focus, keyboard.lastDictationPlace + 1)
+                }
             }
             if !presentation.clips.isEmpty {
                 MenuBarRule()
@@ -376,6 +382,57 @@ private struct MenuBarRowView: View {
         }
         .accessibilityLabel(row.title)
         .accessibilityHint("Pastes at the cursor. Option-click copies it.")
+    }
+}
+
+/// The last dictation with its Undo pill, or what happened to it and the note that the words are still here to copy.
+private struct MenuBarLastDictationView: View {
+    let row: MenuBarRow
+    let onCommand: (MenuBarIntent) -> Void
+    let isFocused: Bool
+    let undoIsFocused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 6) {
+                MenuBarRowView(row: row, onCommand: onCommand, isFocused: isFocused)
+                if let undo = row.undo { pill(undo) }
+            }
+            if let note = row.undo?.note {
+                Text(note)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(MenuBarColour.quiet)
+                    .padding(.leading, 30)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func pill(_ undo: MenuBarUndo) -> some View {
+        if let command = undo.command {
+            Button {
+                onCommand(command.intent)
+            } label: {
+                Label(command.title, systemImage: "arrow.uturn.backward")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(MenuBarColour.row)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 3)
+                    .background(MenuBarColour.hover, in: Capsule())
+                    .menuBarFocusRing(Capsule(), isShown: undoIsFocused)
+            }
+            .buttonStyle(.plain)
+            .disabled(!command.isEnabled)
+            .help(command.tooltip ?? "")
+            .accessibilityLabel(
+                String(localized: "Undo last dictation", comment: "Spoken label of the menu bar Undo button"))
+        } else if let label = undo.outcomeLabel {
+            Label(label, systemImage: undo == .undone ? "checkmark" : "exclamationmark.circle")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(undo == .undone ? MenuBarColour.dictation : MenuBarColour.quiet)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 3)
+        }
     }
 }
 

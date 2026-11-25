@@ -23,6 +23,8 @@ enum DockMetrics {
     /// The disc an insertion is drawn in.
     static let badgeSize: CGFloat = 26
     static let clipboardHeight: CGFloat = 28
+    /// The capsule an insertion grows into while Undo is on offer; radius is half of it.
+    static let typedCapsuleHeight: CGFloat = 30
     /// The widest a quiet outcome's words run before they wrap to a second line.
     static let quietTextMaxWidth: CGFloat = 200
     /// The width of the one wide form, and of no other.
