@@ -73,4 +73,91 @@ struct RecentlyLearnedTests {
 
         #expect(rows.first?.undo.isEnabled == false)
     }
+
+    @Test("a corrected word keeps what it replaced and where; a word from the screen has no pair")
+    func keepsThePair() {
+        var learned = RecentlyLearned()
+        let corrected = DictionaryEntry(word: "Priya", origin: .learned, firstSeen: now)
+        let seen = DictionaryEntry(word: "Grafana", origin: .observed, firstSeen: now)
+
+        learned.record([corrected, seen], at: now, heard: "pree-ya", application: "Notes")
+
+        #expect(learned.words.map(\.heard) == ["pree-ya", nil])
+        #expect(learned.words.map(\.application) == ["Notes", "Notes"])
+    }
+
+    @Test("the Dictionary page lists each learnt word with an Undo that forgets it")
+    func pageListsLearntWords() throws {
+        var learned = RecentlyLearned()
+        let corrected = DictionaryEntry(word: "Priya", origin: .learned, firstSeen: now)
+        let seen = DictionaryEntry(word: "Grafana", origin: .observed, firstSeen: now)
+        learned.record([corrected, seen], at: now, heard: "pree-ya", application: "Notes")
+        let calendar = Calendar(identifier: .gregorian)
+
+        let page = DictionaryPresenter.page(
+            for: DictionarySnapshot(
+                entries: [corrected, seen], now: now.addingTimeInterval(600),
+                learnt: learned.current(at: now)),
+            calendar: calendar, locale: Locale(identifier: "en_US"))
+
+        let section = try #require(page.recentlyLearnt)
+        #expect(section.title == "Recently learnt")
+        #expect(section.rows.map(\.word) == ["Priya", "Grafana"])
+        #expect(section.rows.first?.detail == "heard “pree-ya”, wrote “Priya”")
+        #expect(section.rows.last?.detail == "Read off the screen and said")
+        #expect(section.rows.first?.place.hasPrefix("Notes · Today ") == true)
+        #expect(section.rows.first?.undo.title == "Undo")
+        #expect(section.rows.first?.undo.intent == .forgetWords([corrected.id]))
+    }
+
+    @Test("an edited word's row shows the spelling Undo will remove")
+    func pageShowsTheEditedSpelling() throws {
+        var learned = RecentlyLearned()
+        let entry = DictionaryEntry(word: "Priya", origin: .learned, firstSeen: now)
+        learned.record([entry], at: now, heard: "pree-ya")
+        let edited = DictionaryEntry(id: entry.id, word: "Priyanka", origin: .learned, firstSeen: now)
+
+        let page = DictionaryPresenter.page(
+            for: DictionarySnapshot(entries: [edited], now: now, learnt: learned.current(at: now)),
+            calendar: Calendar(identifier: .gregorian), locale: Locale(identifier: "en_US"))
+
+        #expect(page.recentlyLearnt?.rows.map(\.word) == ["Priyanka"])
+    }
+
+    @Test("words put back after a failed Undo return newest first")
+    func restoreBringsRowsBack() {
+        var learned = RecentlyLearned()
+        let older = DictionaryEntry(word: "Priya", origin: .learned, firstSeen: now)
+        let newer = DictionaryEntry(word: "Grafana", origin: .learned, firstSeen: now)
+        learned.record([older], at: now)
+        let kept = learned.record([newer], at: now.addingTimeInterval(60))
+        learned.forget(newer.id)
+
+        learned.restore(kept)
+
+        #expect(learned.current(at: now.addingTimeInterval(60)).map(\.word) == ["Grafana", "Priya"])
+    }
+
+    @Test("a word no longer in the dictionary, a search, or nothing learnt leaves the list out")
+    func pageOmitsTheListWhenThereIsNothingToUndo() {
+        var learned = RecentlyLearned()
+        let entry = DictionaryEntry(word: "Priya", origin: .learned, firstSeen: now)
+        learned.record([entry], at: now)
+        let calendar = Calendar(identifier: .gregorian)
+        let locale = Locale(identifier: "en_US")
+
+        let gone = DictionaryPresenter.page(
+            for: DictionarySnapshot(now: now, learnt: learned.current(at: now)), calendar: calendar,
+            locale: locale)
+        let searching = DictionaryPresenter.page(
+            for: DictionarySnapshot(
+                entries: [entry], query: "pri", now: now, learnt: learned.current(at: now)),
+            calendar: calendar, locale: locale)
+        let none = DictionaryPresenter.page(
+            for: DictionarySnapshot(entries: [entry], now: now), calendar: calendar, locale: locale)
+
+        #expect(gone.recentlyLearnt == nil)
+        #expect(searching.recentlyLearnt == nil)
+        #expect(none.recentlyLearnt == nil)
+    }
 }
