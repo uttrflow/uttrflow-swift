@@ -15,11 +15,6 @@ private final class ArmedSpy: Sendable {
     var signals: [Bool] { log.withLock { $0 } }
 }
 
-/// Waits until the capture engine has been asked to start, which is while the microphone is still opening.
-private func untilStartRequested(_ capture: FakeAudioCaptureEngine) async {
-    for _ in 0..<10_000 where await capture.calls.events.isEmpty { await Task.yield() }
-}
-
 private let modifierBinding = HotkeyBinding(keyCode: 58, modifiers: [.option, .command, .control])
 
 @Suite("The listening look at key-down")
@@ -32,7 +27,7 @@ struct DictationControllerArmedTests {
         try await harness.controller.start(binding: modifierBinding)
 
         let press = Task { await harness.controller.handle(.pressed) }
-        await untilStartRequested(harness.capture)
+        await harness.capture.untilStartRequested()
 
         #expect(spy.signals == [true])
         await harness.capture.releaseStart()
@@ -75,7 +70,7 @@ struct DictationControllerArmedTests {
         await harness.capture.holdStart()
 
         let toggle = Task { await harness.controller.toggleFromControl() }
-        await untilStartRequested(harness.capture)
+        await harness.capture.untilStartRequested()
 
         #expect(spy.signals == [true])
         await harness.capture.releaseStart()
