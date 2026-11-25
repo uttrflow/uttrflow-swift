@@ -19,6 +19,8 @@ public struct DockPresentation: Sendable, Equatable {
     public let accessibilityLabel: String
     /// The speech model's setup, drawn in its own form while the button rests; absent once it can transcribe.
     public var setup: DockModelSetup? = nil
+    /// Whether this is the listening shell drawn at key-down, before the microphone has opened. See `armed`.
+    public var isArmed = false
 }
 
 extension DockPresentation {
@@ -41,6 +43,12 @@ extension DockPresentation {
             showsWaveform: true, showsProgress: false, isRecording: true, action: nil,
             accessibilityLabel: label)
     }
+
+    /// The listening shell held from key-down until the microphone opens; a look, not a pipeline state.
+    public static let armed = DockPresentation(
+        symbolName: "mic.fill", primaryLine: nil, secondaryLine: nil,
+        showsWaveform: true, showsProgress: false, isRecording: false, action: nil,
+        accessibilityLabel: "Getting ready to listen.", isArmed: true)
 
     /// The working orb, while the words are transcribed, tidied and inserted.
     static func working(_ primaryLine: String, _ secondaryLine: String?, label: String) -> DockPresentation {

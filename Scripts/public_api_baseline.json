@@ -4247,6 +4247,7 @@
     "UttrflowPipeline init init": 32,
     "UttrflowPipeline let accessibilityLabel": 1,
     "UttrflowPipeline let action": 1,
+    "UttrflowPipeline let armed": 1,
     "UttrflowPipeline let arrival": 1,
     "UttrflowPipeline let boundaries": 1,
     "UttrflowPipeline let caret": 1,
@@ -4371,6 +4372,7 @@
     "UttrflowPipeline var handsFreeEnabled": 1,
     "UttrflowPipeline var hasEnded": 1,
     "UttrflowPipeline var heardToKeep": 1,
+    "UttrflowPipeline var isArmed": 1,
     "UttrflowPipeline var isBusy": 1,
     "UttrflowPipeline var isEmpty": 1,
     "UttrflowPipeline var isHandsFreeEnabled": 1,
@@ -4383,6 +4385,7 @@
     "UttrflowPipeline var minimumHold": 2,
     "UttrflowPipeline var modifierSettle": 1,
     "UttrflowPipeline var onAdvice": 1,
+    "UttrflowPipeline var onArmed": 1,
     "UttrflowPipeline var onNearMissTap": 1,
     "UttrflowPipeline var onOneLine": 1,
     "UttrflowPipeline var onSilenceCountdown": 1,
@@ -5098,6 +5101,7 @@
     "UttrflowTestSupport func finishHungLoads": 1,
     "UttrflowTestSupport func fire": 1,
     "UttrflowTestSupport func fixture": 3,
+    "UttrflowTestSupport func holdStart": 1,
     "UttrflowTestSupport func idleGap": 1,
     "UttrflowTestSupport func insert": 1,
     "UttrflowTestSupport func measurements": 1,
@@ -5118,6 +5122,7 @@
     "UttrflowTestSupport func recordTidyColdStart": 1,
     "UttrflowTestSupport func recordWait": 1,
     "UttrflowTestSupport func recorded": 1,
+    "UttrflowTestSupport func releaseStart": 1,
     "UttrflowTestSupport func request": 1,
     "UttrflowTestSupport func resolve": 1,
     "UttrflowTestSupport func roomTone": 1,
@@ -5145,6 +5150,7 @@
     "UttrflowTestSupport func transcribe": 1,
     "UttrflowTestSupport func transform": 1,
     "UttrflowTestSupport func unescape": 1,
+    "UttrflowTestSupport func untilStartRequested": 1,
     "UttrflowTestSupport func waitUntilSomethingIsWaiting": 1,
     "UttrflowTestSupport func waiting": 1,
     "UttrflowTestSupport func warm": 2,
@@ -6460,5 +6466,5 @@
     "UttrflowUX var withdrawsTrust": 1,
     "UttrflowUX var words": 2
   },
-  "total": 9203
+  "total": 9209
 }
