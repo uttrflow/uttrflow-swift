@@ -356,14 +356,17 @@ public struct DictionarySnapshot: Sendable, Equatable {
     public let recency: WordRecency
     /// The try under way or last finished, and whose it is.
     public let trial: DictionaryTrial?
+    /// The words learnt lately, newest first, as the app is holding them for Undo.
+    public let learnt: [LearnedWord]
 
     /// Builds a snapshot; everything but the clock defaults to empty.
     public init(
         entries: [DictionaryEntry] = [], draft: DictionaryDraft? = nil, refusal: String? = nil,
         query: String = "", filter: String = "", sort: String = "", corrections: [Correction] = [],
         now: Date, packed: [String]? = nil, refused: [String] = [], trial: DictionaryTrial? = nil,
-        recency: WordRecency = .none
+        recency: WordRecency = .none, learnt: [LearnedWord] = []
     ) {
+        self.learnt = learnt
         self.recency = recency
         self.trial = trial
         self.packed = packed
@@ -376,59 +379,6 @@ public struct DictionarySnapshot: Sendable, Equatable {
         self.sort = sort
         self.corrections = corrections
         self.now = now
-    }
-}
-
-/// One spoken try of a word: whose it is and how far it got.
-public struct DictionaryTrial: Sendable, Equatable {
-    /// The word a try is of.
-    public enum Subject: Sendable, Equatable {
-        /// What is typed in the open editor.
-        case draft
-        /// How the open editor's word is said, heard to fill its "Say it like".
-        case draftPronunciation
-        /// A saved word.
-        case word(UUID)
-    }
-
-    /// How far a try got.
-    public enum Phase: Sendable, Equatable {
-        /// Recording the word being said.
-        case listening
-        /// Decoding the clip.
-        case checking
-        /// The probe's one line, and the heard words a miss offers as "Say it like".
-        case result(line: String, offer: String?)
-        /// Why the try could not run, in words.
-        case failed(String)
-    }
-
-    /// Whose try this is.
-    public let subject: Subject
-    /// How far it got.
-    public let phase: Phase
-
-    /// Builds a try from its parts.
-    public init(subject: Subject, phase: Phase) {
-        self.subject = subject
-        self.phase = phase
-    }
-}
-
-/// A try's result row: one line, whether it is still going, and the "Say it like" a miss offers.
-public struct DictionaryTrialLine: Sendable, Equatable {
-    /// What the row says.
-    public let text: String
-    /// Whether the try is still listening or checking.
-    public let isBusy: Bool
-    /// Fills "Say it like" with what was heard; present only on a miss.
-    public let offer: MainAction?
-
-    /// Builds the row from its parts.
-    public init(text: String, isBusy: Bool, offer: MainAction?) {
-        self.text = text
-        self.isBusy = isBusy
-        self.offer = offer
     }
 }
 
@@ -452,6 +402,8 @@ public struct DictionaryPresentation: Sendable, Equatable {
     public let footnote: String?
     /// The words Uttrflow will not learn, each with Allow again; absent when none is refused.
     public let notLearning: DictionaryNotLearning?
+    /// The words learnt lately, each with Undo; absent when none is, and while a search is under way.
+    public let recentlyLearnt: DictionaryRecentlyLearnt?
 
     /// Builds the page from its parts.
     public init(
@@ -463,8 +415,10 @@ public struct DictionaryPresentation: Sendable, Equatable {
         editor: DictionaryEditor?,
         emptyState: MainEmptyState?,
         footnote: String?,
-        notLearning: DictionaryNotLearning? = nil
+        notLearning: DictionaryNotLearning? = nil,
+        recentlyLearnt: DictionaryRecentlyLearnt? = nil
     ) {
+        self.recentlyLearnt = recentlyLearnt
         self.chrome = chrome
         self.fixesLabel = fixesLabel
         self.fixes = fixes
@@ -596,7 +550,8 @@ public enum DictionaryPresenter {
             editor: editor,
             emptyState: rows.isEmpty && editor == nil ? emptyState(for: snapshot, filter: filter) : nil,
             footnote: rows.isEmpty ? nil : footnote(for: listed),
-            notLearning: notLearning(snapshot.refused))
+            notLearning: notLearning(snapshot.refused),
+            recentlyLearnt: recentlyLearnt(in: snapshot, calendar: calendar, locale: locale))
     }
 
     /// The refused spellings with Allow again on each, or nothing when no word is refused.
