@@ -26,6 +26,7 @@ picture calls (`+Pictures`), single-clip and collection edits (`+Edits`), the wr
 | `saved.v1.json` | the clips the user named, tagged, filed or pinned; its path is derived from the history's |
 | `Images/` | picture bytes, beside the history file |
 | `<name>.unreadable-<seconds since 1970>` | a file that could not be read, set aside; when that name is taken, `-1`, `-2` and so on are appended |
+| `<name>.unreadable-<seconds since 1970>-N` | a timestamp collision; when the folder listing succeeds and the bare timestamped name exists with no numeric suffix, the first collision is named `-1`. If numeric suffixes already exist, the next suffix starts beyond the largest existing numeric suffix. Occupied candidates are skipped. If listing fails, the fallback starts at the bare name, checks each candidate for occupancy, skips occupied ones, and does not determine the largest existing suffix |
 | `<name>.quarantine-<seconds>-<index>-<id>.json` | the exact raw JSON for one clip this build could not decode |
 
 Each index payload is a versioned object, `{"version":2,"clips":[...]}`. The released bare
