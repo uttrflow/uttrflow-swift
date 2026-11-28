@@ -14,7 +14,7 @@ agreement-each-of-have	Each of the boxes have a label on the lid.
 agreement-he-dont	He don't know about the meeting yet.
 agreement-here-is-two	Here is two options for the launch.
 agreement-there-is	There is three of them waiting outside.
-amount-split-by-pause-2320	The total came to 420 dollars.
+amount-split-by-pause-2320	The total came to $420.
 and1	I finished the report and sent it to Maria.
 answer-no-before-a-restated-phrase	Tell the landlord no, the landlord has to wait.
 article-a-apple	There was a apple left in the bowl.
@@ -297,7 +297,7 @@ document-spoken-colon-before-a-numbered-list	Before you deploy:\n1. Run the test
 document-spoken-colon-before-a-plural-noun	Decision: we keep sessions in memory.\n\nConsequences: logins need memory to be up so we add a health check.
 document-spoken-email-after-is	My email is sam@example.com.
 door-code-repeated-digits	The door code is 4747.
-dotted-amount-before-currency-kept	The bus tickets sell at 3.50 dollars each.
+dotted-amount-before-currency-kept	The bus tickets sell at $3.50 each.
 dotted-clock-after-before	Please send the draft before 4:30 on Friday.
 dotted-clock-after-until	The pharmacy stays open until 9:45 tonight.
 dotted-rate-before-percent-kept	The loan is fixed at 6.25% for five years.
@@ -448,7 +448,7 @@ fmt-list-sub-bullet-chat	We need fruit sub bullet apples
 fmt-list-sub-bullet-under-numbered	1. Fruit\n   - Apples\n2. Milk
 fmt-list-sub-point-and-sub-bullet-point	- Fruit\n  - Apples\n  - Pears\n- Milk
 fmt-number-count	We need 12 chairs.
-fmt-number-money	The ticket costs 40 dollars.
+fmt-number-money	The ticket costs $40.
 fmt-number-one-as-pronoun	This one is better.
 fmt-number-percent	Sales grew by 15%.
 fmt-number-repeated-port-at-end	Set the port to 8080.
@@ -643,7 +643,7 @@ letter-a-answer-choice-keeps-case	Ask the question, then answer A, B, or C.
 letter-a-label-keeps-its-comma-and-case	Part A, part B, and part C are due Monday.
 literal-prose-email-sentence	Write to sam@example.com.
 literal-prose-five	Five.
-literal-prose-five-dollars	5 dollars.
+literal-prose-five-dollars	$5.
 literal-prose-host-is-down	example.com is down.
 literal-prose-number-sentence	Call 415 555 0100 tomorrow.
 literal-prose-path-sentence	The page is example.com/docs
@@ -660,7 +660,7 @@ lowercase-start-after-answer-stops	Yes. No. Maybe.
 lowercase-start-after-complete-sentence-ebay	We shipped it. eBay is next.
 lowercase-start-after-complete-sentence-pronoun	Please send it today. I will check tomorrow.
 lowercase-start-after-complete-sentence-she	He is here. She is not.
-lowercase-start-after-complete-sentence-that	The price is 5 dollars. That is cheap.
+lowercase-start-after-complete-sentence-that	The price is $5. That is cheap.
 lowercase-start-after-complete-sentence-vitals	The patient is stable. Vitals are normal.
 mark-name-after-written-mark-dropped	Hello, how are you?
 mark-shape-paren-closer-then-stop	(A).
@@ -884,8 +884,8 @@ mix-hi-verb-start-call	Call karna mujhe shaam ko.
 mix-hi-verb-start-check	Check karo ki server chal raha hai.
 mix-hi-verb-start-share	Share karo woh file group mein.
 mix-hi-verb-start-wait	Wait karo main bas aa raha hoon.
-money	The taxi cost 5 dollars.
-money-billion	We raised 2,000,000,000 dollars.
+money	The taxi cost $5.
+money-billion	We raised $2 billion.
 name-opening-is-the-one-statement	Maria is the one who called.
 name-opening-is-the-owner-statement	Ravi is the owner of the account.
 negated-option-cache-code-editor	docker build --no-cache
@@ -1034,7 +1034,7 @@ probe-laugh-then-question	Ha ha that is the best excuse I have heard all week I 
 probe-log-call	Log dot info ("user percent s logged in from percent s", user id, ip)
 probe-meeting-notes	Meeting notes: product sync\nAction item: priya to send the revised budget by Friday the 10th of October\nAction item: omar to book the review room for the fourteenth\nDecision: we ship the beta on the twentieth and hold the announcement until the docs are ready
 probe-meeting-time-zones	Team retro on Tuesday the 14th of October at 10:30 am Pacific time which is 1:30 pm eastern join at meet.example.com/retro-team-123 and bring your notes.
-probe-option-pricing	Option a is a fixed fee of 12,500 dollars with delivery in four weeks while option b is 18,000 dollars with delivery in two weeks and includes training for up to 10 staff.
+probe-option-pricing	Option a is a fixed fee of $12,500 with delivery in four weeks while option b is $18,000 with delivery in two weeks and includes training for up to 10 staff.
 probe-phone-and-address	Call me on 4155550132 or come to flat 12B maple road springfield pin code 400001 after 6 pm
 probe-protocol-names	We should keep the public API as rest with JSON but use gRPC between internal services OAuth2 for the browser and a service account for CICD jobs the k8s cluster stays in one region.
 probe-quote-unquote	She called it "the final version" but it still had three open comments and one missing chart so we are not ready
@@ -1077,7 +1077,7 @@ prose-keeps-spoken-parentheses	Open paren close paren.
 prose-keeps-spoken-snake-case	Snake case max retries.
 prose-number-word-kept	One of them failed the build.
 prose-spoken-parentheses-as-marks	The budget (draft two) is due Friday.
-quantity-after-has-beside-a-label-word	The model has 70,000,000,000 parameters and the table has 2,000,000 rows.
+quantity-after-has-beside-a-label-word	The model has 70 billion parameters and the table has 2 million rows.
 question-after-a-spoken-dash-ends-in-a-question-mark	Wait —, is it?
 question-mark-new-line	Is it ready?\nYes.
 question-mark-new-line-thanks	What do you think?\nThanks.
@@ -1101,7 +1101,7 @@ quote-unquote-ends-on-recogniser-stop	She said, "I will be there by noon."
 quoted-whole-utterance	"We ship on Friday."
 quoted-words-mid-sentence	He said "we ship on Friday" and left.
 range-keeps-its-own-scales	We expect 200 to 300 people.
-range-of-two-hundreds-between	The fee is between 500 and 600 dollars.
+range-of-two-hundreds-between	The fee is between $500 and $600.
 range-of-two-hundreds-from	From 200 and 300 people came.
 range-shares-hundred	We sold 500 or 600 copies.
 range-shares-thousand	The crowd was 2000 to 3000 people.

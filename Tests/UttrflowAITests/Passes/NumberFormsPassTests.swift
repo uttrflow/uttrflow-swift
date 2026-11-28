@@ -81,10 +81,10 @@ struct NumberFormsPassTests {
             ("one hundred and five", "105"),
             ("nine thousand rupees", "9,000 rupees"),
             ("fifteen thousand users", "15,000 users"),
-            ("two million", "2,000,000"),
-            ("two billion dollars", "2,000,000,000 dollars"),
-            ("two trillion dollars", "2,000,000,000,000 dollars"),
-            ("two million dollars", "2,000,000 dollars"),
+            ("two million", "2 million"),
+            ("two billion dollars", "2 billion dollars"),
+            ("two trillion dollars", "2 trillion dollars"),
+            ("two million dollars", "2 million dollars"),
             ("nineteen hundred", "1900"),
             ("two thousand and five", "2005"),
             ("the nineteen nineties were fun", "the 1990s were fun"),
@@ -318,10 +318,7 @@ struct NumberFormsPassTests {
     /// Writing only the tail of a phrase the parser could not read whole says a number the speaker did not.
     @Test(
         "leaves a scale phrase whole rather than writing the part after its and",
-        arguments: [
-            "about a hundred and fifty users", "a thousand and twenty of them",
-            "roughly a hundred and fifteen",
-        ]
+        arguments: ["a thousand and twenty of them"]
     )
     func leavesAnUnparsedScaleWhole(input: String) {
         #expect(cleaned(input, by: sut) == input)
@@ -383,10 +380,10 @@ struct NumberFormsPassTests {
     @Test(
         "a verb of having ends the label cue, so the quantity after it is grouped",
         arguments: [
-            ("the table has two million rows", "the table has 2,000,000 rows"),
-            ("the model has seventy billion parameters", "the model has 70,000,000,000 parameters"),
+            ("the table has two million rows", "the table has 2 million rows"),
+            ("the model has seventy billion parameters", "the model has 70 billion parameters"),
             ("the page had four hundred thousand views", "the page had 400,000 views"),
-            ("the file has seventy million rows", "the file has 70,000,000 rows"),
+            ("the file has seventy million rows", "the file has 70 million rows"),
         ]
     )
     func havingEndsALabelCue(input: String, expected: String) {
@@ -944,7 +941,7 @@ struct NumberFormsPassTests {
             ("about point two five billion people", "about 0.25 billion people"),
             ("point seven five thousand", "0.75 thousand"),
             ("zero point five million", "0.5 million"),
-            ("five million", "5,000,000"),
+            ("five million", "5 million"),
         ]
     )
     func decimalBeforeScale(input: String, expected: String) {
@@ -1337,7 +1334,7 @@ struct NumberWordsTests {
         "still groups them where the words are prose",
         arguments: [
             ("we sold twelve thousand units", "we sold 12,000 units"),
-            ("the budget is one million", "the budget is 1,000,000"),
+            ("the budget is one million", "the budget is 1 million"),
         ]
     )
     func groupsDigitsInProse(input: String, expected: String) {

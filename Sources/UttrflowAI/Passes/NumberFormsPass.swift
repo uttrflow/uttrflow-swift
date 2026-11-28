@@ -380,6 +380,7 @@ public struct NumberFormsPass: PieceCleaningPass {
         if let range = sharedScaleRange(at: position, keys: keys, shapes: shapes, digits: digits) {
             return range
         }
+        if let hundred = aHundredAndTail(at: position, keys: keys, shapes: shapes) { return hundred }
         let fixedShapes: [(Int, [String], [WordShape]) -> Phrase?] = [
             score, readingOver, zoneOffset, signedDigitRun, numericDate, cuedYear, cuedClock,
             colonClock, twentyFourHourClock, dottedNumber, spokenDigitRun, leadingDecimal, decade,
@@ -706,6 +707,9 @@ public struct NumberFormsPass: PieceCleaningPass {
         let isAmount =
             beforeWord || completesAmount(at: position, keys: keys, shapes: shapes)
             || isRatioTerm(at: position, end: end, keys: keys, shapes: shapes)
+        if !inContext, digits != .none, let magnitude = magnitudeForm(at: position, end: end, keys: keys) {
+            return Phrase(text: magnitude, count: item.count)
+        }
         // The destination says whether digits are grouped; a context word still runs its own together.
         return Phrase(
             text: NumberWords.render(value, grouping: inContext ? .none : digits, isAmount: isAmount),
@@ -1069,7 +1073,7 @@ public struct NumberFormsPass: PieceCleaningPass {
     }
 
     /// The number of words of a spoken "percent" or "per cent" at `index`, if one is there.
-    private static func percentWords(at index: Int, keys: [String], shapes: [WordShape]) -> Int? {
+    static func percentWords(at index: Int, keys: [String], shapes: [WordShape]) -> Int? {
         guard joined(index, shapes) else { return nil }
         if keys[index] == "percent" { return 1 }
         return keys[index] == "per" && joined(index + 1, shapes) && keys[index + 1] == "cent" ? 2 : nil
@@ -1262,7 +1266,7 @@ public struct NumberFormsPass: PieceCleaningPass {
     }
 
     /// The digits after "point": single digits run together, or one number from ten up.
-    private static func digitGroup(at start: Int, keys: [String], shapes: [WordShape]) -> Phrase? {
+    static func digitGroup(at start: Int, keys: [String], shapes: [WordShape]) -> Phrase? {
         var text = ""
         var end = start
         while joined(end, shapes), let digit = singleDigit(keys[end]) {

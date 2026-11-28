@@ -18,15 +18,15 @@ below the floor fails the test.
 | candidate-generation | 1631 | 1529 | 39 | 9 | 14 | 69 | 0 |
 | scoring | 1631 | 1529 | 39 | 9 | 14 | 69 | 0 |
 | override-gate | 1631 | 1529 | 39 | 9 | 14 | 69 | 0 |
-| formatting | 1631 | 683 | 177 | 10 | 317 | 806 | 0 |
+| formatting | 1631 | 682 | 177 | 5 | 317 | 806 | 0 |
 | recogniser-bias + evidence-capture | 1631 | 1525 | 39 | 9 | 14 | 73 | 0 |
 | evidence-capture + candidate-generation | 1631 | 1529 | 39 | 9 | 14 | 69 | 0 |
 | evidence-capture + scoring | 1631 | 1529 | 39 | 9 | 14 | 69 | 0 |
 | candidate-generation + scoring | 1631 | 1529 | 39 | 9 | 14 | 69 | 0 |
 | candidate-generation + override-gate | 1631 | 1529 | 39 | 9 | 14 | 69 | 0 |
 | scoring + override-gate | 1631 | 1529 | 39 | 9 | 14 | 69 | 0 |
-| recogniser-bias + formatting | 1631 | 683 | 177 | 10 | 317 | 806 | 0 |
-| override-gate + formatting | 1631 | 683 | 177 | 10 | 317 | 806 | 0 |
+| recogniser-bias + formatting | 1631 | 682 | 177 | 5 | 317 | 806 | 0 |
+| override-gate + formatting | 1631 | 682 | 177 | 5 | 317 | 806 | 0 |
 
 ## Each layer's marginal contribution
 
@@ -39,15 +39,15 @@ Each degraded path paired against the default set over the same cases, as the ch
 | candidate-generation | +0.12 | [0.00, +0.31] | +0.24 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
 | scoring | +0.12 | [0.00, +0.31] | +0.24 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
 | override-gate | +0.12 | [0.00, +0.31] | +0.24 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
-| formatting | +51.99 | [+49.54, +54.45] | +3.58 | +3.41 | [+2.92, +3.93] | +0.73 | 3 (+0.18) | keep |
+| formatting | +52.05 | [+49.60, +54.51] | +3.58 | +3.38 | [+2.88, +3.89] | +0.72 | 3 (+0.18) | keep |
 | recogniser-bias + evidence-capture | +0.37 | [+0.12, +0.67] | +0.43 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | keep |
 | evidence-capture + candidate-generation | +0.12 | [0.00, +0.31] | +0.24 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
 | evidence-capture + scoring | +0.12 | [0.00, +0.31] | +0.24 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
 | candidate-generation + scoring | +0.12 | [0.00, +0.31] | +0.24 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
 | candidate-generation + override-gate | +0.12 | [0.00, +0.31] | +0.24 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
 | scoring + override-gate | +0.12 | [0.00, +0.31] | +0.24 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
-| recogniser-bias + formatting | +51.99 | [+49.54, +54.45] | +3.58 | +3.41 | [+2.92, +3.93] | +0.73 | 3 (+0.18) | keep |
-| override-gate + formatting | +51.99 | [+49.54, +54.45] | +3.58 | +3.41 | [+2.92, +3.93] | +0.73 | 3 (+0.18) | keep |
+| recogniser-bias + formatting | +52.05 | [+49.60, +54.51] | +3.58 | +3.38 | [+2.88, +3.89] | +0.72 | 3 (+0.18) | keep |
+| override-gate + formatting | +52.05 | [+49.60, +54.51] | +3.58 | +3.38 | [+2.88, +3.89] | +0.72 | 3 (+0.18) | keep |
 
 ## The user's own words on each fallback rung
 

@@ -37,7 +37,7 @@
   {
     "id": "lowercase-start-after-complete-sentence-that",
     "spoken": "The price is five dollars. that is cheap",
-    "expected": "The price is 5 dollars. That is cheap.",
+    "expected": "The price is $5. That is cheap.",
     "mustKeep": ["price", "cheap"]
   },
   {
@@ -723,8 +723,8 @@
   {
     "id": "quantity-after-has-beside-a-label-word",
     "spoken": "the model has seventy billion parameters and the table has two million rows",
-    "expected": "The model has 70,000,000,000 parameters and the table has 2,000,000 rows.",
-    "mustKeep": ["70,000,000,000", "2,000,000"]
+    "expected": "The model has 70 billion parameters and the table has 2 million rows.",
+    "mustKeep": ["70 billion", "2 million"]
   },
   {
     "id": "trigger-as-its-own-sentence",
@@ -1198,9 +1198,9 @@
     "id": "dotted-amount-before-currency-kept",
     "note": "Recogniser-formatted input: a currency word after the number makes it an amount, not a time; only the exact form tells the two apart.",
     "spoken": "the bus tickets sell at 3.50 dollars each",
-    "expected": "The bus tickets sell at 3.50 dollars each.",
-    "expectedExact": "The bus tickets sell at 3.50 dollars each.",
-    "mustKeep": ["3.50", "tickets"]
+    "expected": "The bus tickets sell at $3.50 each.",
+    "expectedExact": "The bus tickets sell at $3.50 each.",
+    "mustKeep": ["$3.50", "tickets"]
   },
   {
     "id": "dotted-rate-before-percent-kept",
@@ -1220,14 +1220,14 @@
   {
     "id": "money",
     "spoken": "the taxi cost five dollars",
-    "expected": "The taxi cost 5 dollars.",
-    "mustKeep": ["taxi", "5", "dollars"]
+    "expected": "The taxi cost $5.",
+    "mustKeep": ["taxi", "$5"]
   },
   {
     "id": "money-billion",
     "spoken": "we raised two billion dollars",
-    "expected": "We raised 2,000,000,000 dollars.",
-    "mustKeep": ["raised", "2,000,000,000", "dollars"]
+    "expected": "We raised $2 billion.",
+    "mustKeep": ["raised", "$2 billion"]
   },
   {
     "id": "dates",
@@ -1382,8 +1382,8 @@
     "id": "amount-split-by-pause-2320",
     "note": "An amount read out with a pause inside it is one amount, not two numbers with a stop between them.",
     "spoken": "the total came to four hundred and twenty dollars",
-    "expected": "The total came to 420 dollars.",
-    "mustKeep": ["420 dollars"],
+    "expected": "The total came to $420.",
+    "mustKeep": ["$420"],
     "mustNotAdd": ["400", "20 dollars"],
     "pausedAfter": [3, 5],
     "addedFor": 2320
@@ -1773,8 +1773,8 @@
     "id": "range-of-two-hundreds-between",
     "note": "The and between two hundreds joins two numbers, so neither is read as 506.",
     "spoken": "the fee is between five hundred and six hundred dollars",
-    "expected": "The fee is between 500 and 600 dollars.",
-    "mustKeep": ["500", "600"],
+    "expected": "The fee is between $500 and $600.",
+    "mustKeep": ["$500", "$600"],
     "addedFor": 7937
   },
   {
