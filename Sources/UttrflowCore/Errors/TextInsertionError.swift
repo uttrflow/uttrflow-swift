@@ -51,7 +51,7 @@ public enum TextInsertionError: UttrflowFailure {
         case .insertionNeedsCopy:
             "The text couldn't be inserted. Your clipboard is unchanged."
         case .insertionInterrupted(let typed, let total):
-            "Typing stopped after \(typed) of \(total) characters. Your dictation is saved under Recent in the menu bar."
+            "Typing stopped after \(typed) of \(total) \(CountedNoun.of(total, "character", "characters")). Your dictation is saved under Recent in the menu bar."
         }
     }
 
