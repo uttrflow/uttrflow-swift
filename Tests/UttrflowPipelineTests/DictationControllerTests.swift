@@ -9,7 +9,7 @@ import Testing
 // MARK: - Doubles
 
 /// A ``HotkeyMonitoring`` that records its starts and stops, can refuse, and takes pushed gestures.
-private final class FakeHotkeyMonitor: HotkeyMonitoring {
+final class FakeHotkeyMonitor: HotkeyMonitoring {
     private struct State: Sendable {
         var startOutcome: ScriptedOutcome<Void, HotkeyError>
         var bindings: [HotkeyBinding] = []
@@ -52,7 +52,7 @@ private final class FakeHotkeyMonitor: HotkeyMonitoring {
 }
 
 /// A ``RecordingCueing`` that records the sounds it is asked to play, in order.
-private final class SpyCue: RecordingCueing {
+final class SpyCue: RecordingCueing {
     enum Play: Sendable, Equatable {
         case start
         case stop
@@ -90,7 +90,8 @@ private let controllerOutcome = DictationOutcome(
     text: controllerTidied, method: .accessibility, cleanedBy: .foundationModels,
     insertedInto: "Slack", insertedIntoIdentifier: "com.tinyspeck.slackmacgap",
     spokenFor: .zero,
-    changes: AppliedChanges(spokenWords: 10, heard: controllerSpoken))
+    changes: AppliedChanges(spokenWords: 10, heard: controllerSpoken),
+    spokenLanguage: DetectedLanguage(code: .english, confidence: 0.95))
 
 /// A binding that is nobody's default, so a test can tell it from one the controller supplies.
 private let controllerBinding = HotkeyBinding(keyCode: 40, modifiers: [.control, .shift])
@@ -98,7 +99,7 @@ private let controllerBinding = HotkeyBinding(keyCode: 40, modifiers: [.control,
 // MARK: - Harness
 
 /// Everything one controller was built from, so a test can look at any of it.
-private struct ControllerHarness {
+struct ControllerHarness {
     let controller: DictationController<ManualClock>
     let pipeline: DictationPipeline
     let monitor: FakeHotkeyMonitor
@@ -110,7 +111,7 @@ private struct ControllerHarness {
 }
 
 /// Counts the near-miss taps the controller reports.
-private final class NearMissSpy: Sendable {
+final class NearMissSpy: Sendable {
     private let log = Mutex(0)
 
     func record() { log.withLock { $0 += 1 } }
@@ -119,7 +120,7 @@ private final class NearMissSpy: Sendable {
 }
 
 /// Records every ``StopGesture`` the controller reports, so a test can watch a live transition.
-private final class StopGestureSpy: Sendable {
+final class StopGestureSpy: Sendable {
     private let log = Mutex<[StopGesture]>([])
 
     /// The closure handed to ``DictationController/init``, so a test can wire it in.
@@ -131,7 +132,7 @@ private final class StopGestureSpy: Sendable {
     var recorded: [StopGesture] { log.withLock { $0 } }
 }
 
-private func makeHarness(
+func makeHarness(
     activation: HotkeyActivation = .holdToTalk,
     handsFreeEnabled: Bool = true,
     doubleTapWindow: Duration = .milliseconds(450),
@@ -140,7 +141,8 @@ private func makeHarness(
     nearMisses: NearMissSpy = NearMissSpy(),
     captureStart: ScriptedOutcome<Void, AudioCaptureError> = .ok,
     monitorStart: ScriptedOutcome<Void, HotkeyError> = .ok,
-    gestureSpy: StopGestureSpy = StopGestureSpy()
+    gestureSpy: StopGestureSpy = StopGestureSpy(),
+    onArmed: @escaping @Sendable (Bool) -> Void = { _ in }
 ) -> ControllerHarness {
     let capture = FakeAudioCaptureEngine(startOutcome: captureStart)
     let speech = FakeSpeechEngine(
@@ -174,7 +176,8 @@ private func makeHarness(
             ),
             observers: .init(
                 onNearMissTap: { nearMisses.record() },
-                onStopGestureChange: { gesture in gestureSpy.record(gesture) }
+                onStopGestureChange: { gesture in gestureSpy.record(gesture) },
+                onArmed: onArmed
             )
         ),
         pipeline: pipeline,
@@ -645,6 +648,38 @@ struct DictationControllerTests {
         await tap(harness)
 
         #expect(await harness.pipeline.currentState.isListening, "it takes two taps to stop")
+        #expect(harness.inserter.received.isEmpty)
+    }
+
+    /// A chord that begins with the same modifier must not cancel a dictation that is running hands-free.
+    @Test("a withdrawn press while hands-free leaves the dictation listening")
+    func aWithdrawnPressDoesNotCancelHandsFree() async {
+        let harness = makeHarness()
+        await tap(harness)
+        harness.clock.advance(by: .milliseconds(120))
+        await tap(harness)
+        #expect(await harness.pipeline.currentState.isListening)
+
+        await harness.controller.handle(.pressed)
+        await harness.controller.handle(.cancelled)
+
+        #expect(await harness.pipeline.currentState.isListening, "hands-free survives a withdrawn press")
+        #expect(harness.inserter.received.isEmpty)
+    }
+
+    /// Leaning on the key must not finish a dictation that is running hands-free.
+    @Test("a long hold released while hands-free leaves the dictation listening")
+    func aLongHoldWhileHandsFreeDoesNotFinish() async {
+        let harness = makeHarness()
+        await tap(harness)
+        harness.clock.advance(by: .milliseconds(120))
+        await tap(harness)
+
+        await harness.controller.handle(.pressed)
+        harness.clock.advance(by: .seconds(3))
+        await harness.controller.handle(.released)
+
+        #expect(await harness.pipeline.currentState.isListening, "only two taps stop hands-free")
         #expect(harness.inserter.received.isEmpty)
     }
 

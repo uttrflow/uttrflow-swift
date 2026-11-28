@@ -1015,7 +1015,7 @@ struct LearnedVocabularyTests {
         let store = PersonalDictionaryStore(
             file: PersonalDictionaryStore.defaultFile(in: sandbox.root))
         let recorder = Recorder()
-        let vocabulary = LearnedVocabulary(dictionary: store) { entries in
+        let vocabulary = LearnedVocabulary(dictionary: store) { entries, _ in
             await recorder.record(entries)
         }
 

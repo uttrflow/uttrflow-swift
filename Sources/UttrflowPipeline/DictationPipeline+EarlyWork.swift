@@ -13,16 +13,17 @@ extension DictationPipeline {
         /// A tidy under way and the context its words leave, which the next piece reads before the tidy ends.
         struct Tidying {
             let task: Task<Piece, Never>
-            let rolling: RollingContext?
+            let carried: RollingContext.Carried
             let span: UUID
         }
 
         /// What the piece after this span is decoded and tidied after, or `nil` for audio not yet recognised.
-        var rolling: RollingContext? {
+        func carried(following previous: RollingContext?) -> RollingContext.Carried? {
             switch self {
-            case .done(let piece, _): RollingContext(after: piece.corrected)
+            case .done(let piece, _):
+                RollingContext.carried(after: piece.corrected, heard: piece.heard, following: previous)
             case .pending: nil
-            case .tidying(let tidying): tidying.rolling
+            case .tidying(let tidying): tidying.carried
             }
         }
     }
@@ -145,7 +146,9 @@ extension DictationPipeline {
             early.recognising = true
             defer { early.recognising = false }
             // The nearest piece before with words, as the release pass reads it. See `Docs/early-transcription.md`.
-            let rolling = early.spans.last(where: { $0.rolling != nil })?.rolling
+            let rolling = early.spans.reduce(RollingContext?.none) { previous, span in
+                span.carried(following: previous)?.after(previous) ?? previous
+            }
             let heard: Transcription?
             do {
                 heard = try await transcribe(
@@ -188,8 +191,8 @@ extension DictationPipeline {
                             recording: NoOpMetricsRecorder(), for: mine)
                     }
                 }
-                early.tidyTask = Span.Tidying(
-                    task: tidy, rolling: RollingContext(after: corrected), span: span)
+                let carried = RollingContext.carried(after: corrected, heard: heard, following: rolling)
+                early.tidyTask = Span.Tidying(task: tidy, carried: carried, span: span)
                 // Warm for the next piece after this one finishes, without making key-up wait for warm-up.
                 Task {
                     let piece = await tidy.value

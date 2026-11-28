@@ -34,6 +34,8 @@ public enum FieldRole: String, Sendable, Equatable, CaseIterable, Codable {
     case webAddress
     /// A one-line field whose label asks for a title or heading.
     case title
+    /// A one-line field whose label asks for a card number, a security or one-time code, an account or identity number or a recovery key.
+    case sensitive
 
     /// Exact labels that name each role. Labels are supplied by the field and may contain arbitrary page text.
     static let labelWords: [(role: FieldRole, phrases: Set<String>)] = [

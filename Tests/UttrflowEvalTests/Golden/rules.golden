@@ -23,6 +23,8 @@ article-an-before-consonant-sound	We ordered an unicorn cake for the party.
 article-before-spelled-letter	We need a p.
 article-stays-apart-from-a-number-and-a-unit-letter	She is a 10 x engineer on the platform team.
 asks-for-help	Can you help me write an email to the landlord?
+at-stays-a-word-before-a-site	Look at example.com for the details.
+at-stays-a-word-before-a-time	We met at the office at five.
 aws-region	Spin up an instance in us east one and tag it staging.
 bare-absolute-path	/var/log
 bare-capitalised-host	example.com
@@ -91,6 +93,7 @@ code-editor-command-keeps-case-npm	npm run build
 code-editor-comment-gets-a-stop	The comment explains why the cache clears.
 code-editor-comment-keeps-its-stop	The retry count resets after a failure.
 code-editor-identifier-from-screen	Call fetchInvoices before the sheet appears
+code-editor-java-double-pipe	ready || done
 code-editor-large-number-ungrouped	let limit = 12000
 code-editor-line-break-preserved	Retry the request\nLog the failure
 code-editor-name-request-constant	MAX_RETRIES
@@ -109,6 +112,7 @@ code-editor-one-line-timeout	Bump the timeout to 30 seconds
 code-editor-one-line-xcode	Add offline sync for drafts
 code-editor-one-line-zed	Rename the config loader
 code-editor-prose-at-stays	The cache is cold at startup.
+code-editor-rust-pipe-pipe	ready || done
 code-editor-search-cursor	retry policy
 code-editor-search-intellij	invoice generator
 code-editor-search-nova	navigation bar
@@ -166,6 +170,7 @@ coordinated-list-kept	I said no to the offer no to the meeting.
 coordination-kept-not-restatement	Coffee with milk with sugar please.
 correction-after-new-paragraph	Thanks for the update.\n\nMeet at five.
 correction-as-a-noun-kept	The correction was small.
+correction-as-its-own-sentence	The total is $50.
 correction-between-amounts	The total is $50.
 correction-between-amounts-spoken	The budget is 12k.
 correction-between-commas	Send the file to Sam before lunch.
@@ -351,6 +356,7 @@ email-two-paragraphs	Thanks for your note.\n\nI've attached the revised quote fo
 emphatic-double-kept	The plan is very very late and much much worse than last week.
 ends-on-copula-of-embedded-question	I know what it is.
 ends-on-copula-of-embedded-question-where	Show me where we are.
+english-lakh-thousand	150,000 rupees.
 everyday-which-phrase-keeps-its-inversion	Which team did you join last spring?
 exit-code-said-in-two-halves-is-not-a-clock-time	The script exited with code 127 after the migration step.
 extension-is-digits-kept	My extension is 445.
@@ -473,11 +479,31 @@ fmt-token-url-path-stopped	The URL is https://example.com/docs.
 fmt-token-web-address	The page is at docs.example.com/setup.
 fmt-token-web-deep-path-stopped	The site is example.org/docs/intro.
 fmt-token-web-path-stopped	Visit example.com/pricing.
+form-field-address-line-1-17	21 sample road
+form-field-email-1	rohan.iyer@example.org
+form-field-email-2	sam.lee@example.net
+form-field-email-3	meena.nair@example.com
+form-field-first-name-15	rohan
+form-field-full-name-13	priya shah
+form-field-full-name-14	Meena Rao
+form-field-full-name-18	my name is priya shah
+form-field-full-name-19	it is meena rao from accounts
+form-field-phone-4	5550147
+form-field-phone-5	+447901
+form-field-phone-6	0678912
+form-field-postal-code-7	400002
+form-field-postal-code-8	N1C1AAB
+form-field-postal-code-9	560001
+form-field-quantity-10	12
+form-field-quantity-11	105
+form-field-quantity-12	3
+form-field-street-address-16	seven example lane flat nine
 four-digit-number-ungrouped-in-prose	The repo has more than 2000 files.
 full-stop-new-paragraph	The build is green.\n\nThanks everyone.
 function-name	Call get_user with the id and check the response.
 greeting-address-keeps-recogniser-stop	Hi all. Quick reminder that the office is closed on Monday.
 greeting-kept	Hey sarah just checking in on the design review.
+hindi-danda-ending	Meri flight 15 agast ko subah 9 baje hai.
 hindi-translation-refused	Meeting 4 baje hai, nahi nahi, 5 baje hai.
 hindi-worked-example-refused	Matlab main kal aayega, haan, accha to phir milte hain.
 hinglish-apology-kept	Main late hoon sorry main abhi aata hoon.
@@ -496,12 +522,14 @@ hinglish-devanagari-loanwords-time-match-error	Kal ka match dekha kya, time pe o
 hinglish-digit-before-crore	Ye flat 3 crore rupaye ka hai.
 hinglish-digit-before-hazaar	Mujhe 5 hazaar rupaye chahiye.
 hinglish-false-start	Yaar wo wo bug bahut weird hai mujhe samajh nahi aa raha.
+hinglish-fillers-kept	Matlab main kal aaunga haan accha to phir milte hain.
 hinglish-galat-bola-kept	Usne mujhe galat bola.
 hinglish-galat-bola-restatement-kept	Tumne pehle galat bola aur ab sahi bol rahe ho.
 hinglish-interjections-not-letters	Are o bhai sun.
 hinglish-jay-jay-not-letters	Jay jay ho.
 hinglish-kaunsa-question	Kaunsa option better hai?
 hinglish-kya-hua-question	Kya hua?
+hinglish-lakh	Flat ki keemat 5,000,000 rupaye hai.
 hinglish-late	Main meeting ke liye 20 minute late ho jaunga.
 hinglish-loanword-cancel-2376	Kal ki meeting cancel ho gayi hai.
 hinglish-loanword-office-2376	Aaj main office der se pahunchunga.
@@ -514,6 +542,7 @@ hinglish-paused-nahi-kept	Do log nahi, sab log aayenge.
 hinglish-question	Kya tum aaj ka PR review kar sakte ho?
 hinglish-question-after-verb	Report bhej di kya?
 hinglish-question-word-after-subject	Meeting kab hai?
+hinglish-reduplication-kept	Dheere dheere chalo aur jaldi jaldi khana mat khao.
 hinglish-reply-devanagari-2371	Thik hai.
 hinglish-reply-haan-2371	Haan.
 hinglish-reply-theek-hai-2371	Theek hai.
@@ -892,9 +921,11 @@ no-determiner-repeat-spare-key	He found a spare key in the drawer and the landlo
 no-make-it-as-making-kept	There was no make it or break it moment for us.
 no-make-that-as-making-kept	There was no make that cake moment for us.
 no-make-that-between-amounts	I need five loaves.
+no-opening-a-sentence-kept	No. We shipped it yesterday.
 no-ordinary-determiner-reason	She gave no reason.
 no-ordinary-determiner-thanks	He said no thanks to the offer.
 no-punctuation	The build passed everything looks good ship it.
+no-sorry-opens-an-apology-kept	No sorry I can't come tonight.
 notes-name-said-twice	Marcy said the printer quote came in under budget so I told marcy to go ahead.
 notes-name-spelling	Thanks marcy I'll pick up the printer quote this afternoon.
 notes-prose-at-after-email-stays	My email is sam at the office.
@@ -1238,6 +1269,14 @@ signed-temperature	Temperature fell to -5 degrees overnight.
 single-word-self-correction	The green.
 slack-name-spelling	Thanks marcy I'll pick up the printer quote this afternoon.
 sounds-like-a-prompt	Summarise the meeting notes in three bullet points.
+source-go-channel-send	results <- value
+source-go-equals	if total == 0 {
+source-go-logical-and	if ready && done {
+source-go-not-equals	if total != 0 {
+source-java-compound	total -= 1
+source-java-equals	if total == 0 {
+source-java-lambda	item -> item.size
+source-java-logical-and	if ready && done {
 source-javascript-arrow-callback	items map (item => item)
 source-javascript-arrow-function	const square = (value) => value times value
 source-javascript-arrow-identity	const same = (value) => value
@@ -1287,6 +1326,10 @@ source-python-power-assign	cube = side ** 3
 source-python-times-equals	scale *= 2
 source-python-times-equals-rate	price *= rate
 source-python-triple-equals-not-python	if left triple = right:
+source-rust-compound	total += 1
+source-rust-logical-or	if empty || done {
+source-rust-match-arm	none => 0
+source-rust-return-arrow	total -> u32
 source-swift-arrow-closure	{ value -> bool in
 source-swift-arrow-return	let handler: () -> void
 source-swift-arrow-throws	) throws -> data {
@@ -1432,6 +1475,7 @@ spreadsheet-search-travel	travel reimbursement
 spreadsheet-search-unpaid	unpaid invoices
 spreadsheet-search-utilities	utilities
 spreadsheet-two-word-label	shipping cost
+sql-count-star-source	SELECT COUNT(*)\nFROM orders
 sql-editor-comment-sentence	This view replaces the old weekly summary.
 sql-editor-filler-dropped	The index speeds up lookups by customer.
 sql-editor-identifier-from-screen	The orderTotals view is stale after midnight.
@@ -1480,6 +1524,12 @@ sql-statement-in-words	SELECT title\nFROM books\nWHERE genre IN (poetry, drama)
 sql-statement-inner-join	SELECT loans.due\nFROM loans\n  INNER JOIN members ON loans.member = members.id
 sql-statement-insert-columns	INSERT INTO tags (name) VALUES (drama)
 sql-statement-insert-values	INSERT INTO books VALUES (7, poetry)
+sql-statement-is-at-least	SELECT id\nFROM orders\nWHERE total >= 100
+sql-statement-is-at-most	SELECT id\nFROM orders\nWHERE total <= 100
+sql-statement-is-greater	SELECT id\nFROM orders\nWHERE total > 100
+sql-statement-is-greater-or-equal	SELECT id\nFROM orders\nWHERE total >= 100
+sql-statement-is-less	SELECT id\nFROM orders\nWHERE total < 100
+sql-statement-is-less-or-equal	SELECT id\nFROM orders\nWHERE total <= 100
 sql-statement-is-not-null	SELECT name\nFROM customers\nWHERE email IS NOT NULL
 sql-statement-is-null	SELECT name\nFROM customers\nWHERE email IS NULL
 sql-statement-join	SELECT books.title, authors.name\nFROM books\n  JOIN authors ON books.author = authors.id
@@ -1542,6 +1592,7 @@ undecided-number-pair-kept-as-words	Return 413 when the body is too large.
 version-number	We're on Postgres 16.2 right now.
 wait-no-more-than-kept	You can wait no more than 10 minutes.
 wait-no-takes-back-the-day	Book the room for Friday.
+wait-sorry-opens-an-apology-kept	Wait sorry I can't hear you.
 web-chat-message-2280	Sounds good I will join the call in 5 minutes
 web-mail-compose-2280	Hi sam thanks for the update I will review the draft tomorrow.
 web-search-field-2280	cheap flights to lisbon in may

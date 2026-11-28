@@ -206,6 +206,36 @@ struct DictationPipelineJoinTests {
         }
     }
 
+    @Test(
+        "a piece that repeats a long run of the context before it is not passed forward, on every path",
+        .bug(id: 4163)
+    )
+    func echoedPieceIsNotConditioningForTheNext() async {
+        let echoed = "we waited for the build to finish before the release"
+        let lines = [echoed, echoed + " again", "and then it passed"]
+        // The second piece repeats the first's words, so the third is decoded after the caret read alone.
+        let recogniser: [String?] = [nil, echoed, nil]
+        let held = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
+        await held.setCaptured(Take.threePieces)
+        let released = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
+        let recording = KeptRecording(id: UUID(), when: Date(), duration: .seconds(5))
+        let kept = FakeRecordingKeeper(waiting: [recording], audioOutcome: .success(Take.threePieces))
+        let dictate: (DictationPipeline) async -> Void = {
+            await $0.startRecording()
+            await $0.finishRecording()
+        }
+
+        let early = await rollingInputs(lines, run: dictate, earlyPoll: .milliseconds(2), capture: held)
+        let release = await rollingInputs(lines, run: dictate, earlyPoll: .seconds(3600), capture: released)
+        let retry = await rollingInputs(
+            lines, run: { await $0.retry(recording.id) }, earlyPoll: .seconds(3600), recordings: kept)
+
+        for path in [early, release, retry] {
+            #expect(path.recogniser == recogniser)
+            #expect(path.tidier[lines[2]] == .some(nil))
+        }
+    }
+
     @Test("the pieces cleaned outside a dictation read the same previous piece")
     func cleanedPiecesSeeThePreviousPiece() async {
         let cleaner = finishing()

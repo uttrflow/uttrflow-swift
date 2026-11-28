@@ -12,17 +12,17 @@ A refused answer falls back to the rules' text, as the router does.
 | commas | both | 10 | 7 | 1: `probe-hinglish-status` | 0 | 0 |
 | questions | both | 9 | 7 | 1: `probe-hinglish-status` | 0 | 1 |
 | quotes-and-brackets | rules | 13 | 8 | 1: `probe-regex-pattern` | 0 | 0 |
-| ellipses | rules | 5 | 4 | 0 | 0 | 1 |
+| ellipses | rules | 5 | 4 | 0 | 0 | 0 |
 | capitalisation-and-tokens | both | 99 | 85 | 6: `probe-sql-join`, `probe-regex-pattern`, `probe-yaml-keys`, `probe-todo-comment`, `probe-dockerfile-from`, `probe-apology-message` | 0 | 1 |
-| numbers | rules | 43 | 27 | 8: `fmt-list-count-not-list`, `fmt-correction-actually`, `fmt-hinglish-number`, `probe-sql-join`, `probe-yaml-keys`, `probe-dockerfile-from`, `probe-protocol-names`, `probe-apology-message` | 0 | 2 |
-| lists | both | 18 | 14 | 4: `fmt-list-numbered-spoken`, `fmt-list-first-second-third`, `fmt-list-count-not-list`, `probe-yaml-keys` | 0 | 0 |
-| paragraphs | rules | 13 | 10 | 0 | 0 | 1 |
-| corrections | rules | 7 | 6 | 1: `fmt-correction-actually` | 0 | 1 |
+| numbers | rules | 43 | 27 | 7: `fmt-list-count-not-list`, `fmt-hinglish-number`, `probe-sql-join`, `probe-yaml-keys`, `probe-dockerfile-from`, `probe-protocol-names`, `probe-apology-message` | 0 | 2 |
+| lists | both | 18 | 14 | 2: `fmt-list-count-not-list`, `probe-yaml-keys` | 0 | 0 |
+| paragraphs | rules | 13 | 10 | 0 | 0 | 0 |
+| corrections | rules | 7 | 6 | 0 | 0 | 1 |
 | per-destination | both | 73 | 52 | 8: `probe-sql-join`, `probe-regex-pattern`, `probe-yaml-keys`, `probe-todo-comment`, `probe-dockerfile-from`, `probe-protocol-names`, `probe-apology-message`, `probe-hinglish-status` | 0 | 2 |
 | code-and-markdown | both | 17 | 9 | 5: `probe-sql-join`, `probe-regex-pattern`, `probe-yaml-keys`, `probe-todo-comment`, `probe-dockerfile-from` | 0 | 0 |
 | hinglish | model | 6 | 4 | 2: `fmt-hinglish-number`, `probe-hinglish-status` | 0 | 0 |
-| text-after-caret | rules | 30 | 30 | 0 | 0 | 3 |
-| abstention | model | 369 | 369 | 0 | 0 | 0 |
+| text-after-caret | rules | 30 | 30 | 0 | 0 | 0 |
+| abstention | model | 396 | 396 | 0 | 0 | 0 |
 
 ## Model-only classes
 

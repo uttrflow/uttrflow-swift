@@ -10,7 +10,8 @@ import Testing
 @Suite("A spoken SQL statement cut by a pause reads as it does said whole")
 struct SeamSQLSweepTests {
     private let pipeline: DictationPipeline = {
-        let router = TransformerRouter(engines: [RuleBasedTransformer()], preference: [.rules])
+        let router = TransformerRouter(
+            engines: [RuleBasedTransformer()], preference: [.rules], clock: ManualClock())
         return DictationPipeline(
             capture: FakeAudioCaptureEngine(), speech: FakeSpeechEngine(), cleaner: router,
             context: FakeContextEngine(), inserter: FakeTextInserter(),
@@ -26,6 +27,7 @@ struct SeamSQLSweepTests {
         "select name from users where age greater than thirty and city equals quote lyon unquote",
         "insert into items values open paren one comma quote pen unquote close paren",
         "update orders set status equals quote shipped unquote where id equals seven",
+        "select id from places where city equals quote the hague unquote",
     ]
 
     @Test("every single cut of a statement matches the whole", arguments: statements)

@@ -104,13 +104,30 @@ public struct MenuBarRecent: Sendable, Equatable {
     public let fullText: String
     /// Whether the text is a secret and its tooltip must be omitted.
     public let isSecret: Bool
+    /// Whether this dictation can be taken back out of its field, was, or could not be.
+    public let undo: RecentUndo
 
-    public init(id: UUID = UUID(), title: String, fullText: String, isSecret: Bool = false) {
+    public init(
+        id: UUID = UUID(), title: String, fullText: String, isSecret: Bool = false, undo: RecentUndo = .none
+    ) {
         self.id = id
         self.title = title
         self.fullText = fullText
         self.isSecret = isSecret
+        self.undo = undo
     }
+}
+
+/// Where a recent dictation stands with Undo; decided by the app, which alone knows how fresh it is and what the field holds.
+public enum RecentUndo: Sendable, Equatable {
+    /// Too old, never typed into a field, or already dealt with; the row offers nothing.
+    case none
+    /// Typed a moment ago and still the newest, so the row offers Undo.
+    case available
+    /// Taken back out of the field; the words are still here to copy.
+    case undone
+    /// The field had changed: nothing is written and the words are copied.
+    case refused
 }
 
 /// How far along an update is, so an app that replaces itself does not read as a crash.
@@ -257,6 +274,8 @@ public enum MenuBarIntent: Sendable, Equatable {
     case copyClip(id: UUID)
     /// Removes and refuses a learned word, named by its entry so a redraw cannot change which.
     case undoLearnedWord(id: UUID)
+    /// Takes the newest dictation back out of its field; the same action as the shortcut and the dock's Undo.
+    case undoLastDictation
     case open(AppLocation)
     /// Opens the clipboard panel, which is otherwise reachable only by a shortcut nothing mentions.
     case openClipboard
@@ -451,7 +470,7 @@ public struct MenuBarPresentation: Sendable, Equatable {
             if case .status(let status) = header, let command = status.action { [command] } else { [] }
         let rows =
             ([lastDictation].compactMap(\.self) + clips).flatMap { [$0.insert, $0.copy] }
-            + learned.map(\.undo)
+            + [lastDictation?.undo?.command].compactMap(\.self) + learned.map(\.undo)
         let menu = items.compactMap { if case .command(let command) = $0 { command } else { nil } }
         return action + buttons.map(\.command) + rows + menu
     }

@@ -83,6 +83,18 @@ field's selection; where no edit is planned, or the field is secure, it refuses 
 `Tests/UttrflowTests/MarkdownEditCommandTests.swift` pins the write and each refusal.
 `Tests/UttrflowAITests/MarkdownCommandTests.swift` pins each rule and the negative class.
 
+## Undo last dictation
+
+The menu bar's Undo pill, the dock's Undo and the claimed shortcut (`ShortcutAction.undoLastDictation`,
+⌃⌥Z) are one action: `RecordedEditor.undoLastDictation()`. It takes the newest `InsertionRecord` out of the
+field through the same verified write as "delete that" (`Docs/insertion.md`), with no spoken confirmation
+for a multi-line dictation, since the click or key press is the confirmation. It acts only while the field
+still holds exactly the inserted text; otherwise it writes nothing, copies the words, and the menu row says
+"Not in the field any more. Still here to copy." The row then reads "Undone", and History marks the
+dictation (`DictationRecord.isUndone`). Undo is offered for `AppDelegate.undoOfferWindow` (120 seconds) after a
+dictation reached the field. It does not restore a selection the dictation replaced: the ledger keeps no
+replaced text. `Tests/UttrflowInputTests/UndoLastDictationTests.swift` pins it, with zero writes when refused.
+
 ## Edits on the last dictation
 
 "delete that", "select that" and "undo that", said whole under the command key, are read by

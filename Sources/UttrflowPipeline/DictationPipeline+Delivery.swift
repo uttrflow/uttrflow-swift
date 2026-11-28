@@ -105,9 +105,31 @@ extension DictationPipeline {
         if delivery == .insert, let back = expanded.caretBack(inWritten: toWrite), back > 0 {
             _ = await inserter.placeCaret(back: back)
         }
-        await learn(
-            from: attempt, wrote: toWrite, changes: changes, heard: whole.heard.text,
-            read: appContext, seeing: seen, intoSecureField: wasSecure, fromPrivateWindow: wasPrivate)
+        // An unconfirmed paste is not proof the words reached the user, so nothing is learnt from it yet.
+        guard attempt.arrival != .unconfirmed else {
+            early.pendingInsertion = toWrite
+            return
+        }
+        let heard = whole.heard.text
+        afterInsertion {
+            await $0.learn(
+                from: attempt, wrote: toWrite, changes: changes, heard: heard,
+                read: appContext, seeing: seen, intoSecureField: wasSecure, fromPrivateWindow: wasPrivate)
+        }
+    }
+
+    /// Queues `work` on the one lane that runs after a dictation's words are in, behind any earlier work, off the dictation's own path.
+    private func afterInsertion(_ work: @escaping @Sendable (isolated DictationPipeline) async -> Void) {
+        let earlier = postInsertion
+        postInsertion = Task(priority: .utility) { [self] in
+            await earlier?.value
+            await work(self)
+        }
+    }
+
+    /// Waits for the learning and counting queued by every dictation so far.
+    func settlePostInsertion() async {
+        await postInsertion?.value
     }
 
     /// Re-cases tidied words whose caret or destination moved since they were cased; otherwise returns them as they are.
@@ -144,11 +166,6 @@ extension DictationPipeline {
         read appContext: AppContext?, seeing seen: AppContext, intoSecureField wasSecure: Bool,
         fromPrivateWindow wasPrivate: Bool
     ) async {
-        // An unconfirmed paste is not proof the words reached the user, so nothing is learnt from it yet.
-        guard attempt.arrival != .unconfirmed else {
-            early.pendingInsertion = toWrite
-            return
-        }
         // An application the user declined is learned nothing from, by counting or by the dictionary.
         let learnedFrom = landedIn(attempt)?.bundleIdentifier ?? appContext?.bundleIdentifier
         guard consent.mayLearn(from: learnedFrom) else { return }

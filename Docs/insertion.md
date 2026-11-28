@@ -177,6 +177,21 @@ application, and every posted event uses it (`postTaggedKeyPair`). A combined-se
 posted to `.cgAnnotatedSessionEventTap` creates a valid event the target never sees, and
 `CGEvent.post` returns no status, so nothing reports the failure.
 
+## The paste route never restores the earlier clipboard
+
+A text paste borrows the clipboard: it writes the words, posts ⌘V and leaves the words there.
+The earlier contents are not put back, deliberately. Posting a paste proves nothing about
+arrival, so any fixed delay can restore the old contents before a slow target has read the
+clipboard, and the target then pastes the old text in place of the dictation. The words stay
+on the clipboard so a refused or late paste still leaves them to ⌘V by hand. (An earlier build
+put the clipboard back 250 ms after the key; that behaviour is gone.) Only a picture paste
+restores, and only while the clipboard still holds the picture.
+
+What the person can do: the clipboard panel keeps what they copied before, provided the
+watcher saw it: it polls, so a copy replaced by another write before the next poll is never
+recorded. When it was kept, the earlier item is one pick away. Anything that clears the clipboard afterwards, such as the secret clear
+below, acts only if nothing newer was copied.
+
 ## The paste that is posted and never confirmed
 
 Posting ⌘V proves nothing about arrival, so on the routes that check, `PasteConfirmation` reads

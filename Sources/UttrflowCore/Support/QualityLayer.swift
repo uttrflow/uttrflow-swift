@@ -28,6 +28,76 @@ public enum QualityLayer: String, Sendable, CaseIterable {
         }
     }
 
+    /// Where a layer's work falls relative to the key being released.
+    package enum Phase: Sendable, Equatable {
+        /// Runs on a piece while the key is held, so it never adds to the tail.
+        case perPiece
+        /// Runs on the last piece, whose words do not exist until recognition ends after the key goes up.
+        case finalPiece
+        /// Reads the whole dictation's text.
+        case wholeText
+    }
+
+    /// What a layer's cost grows with.
+    package enum CostClass: Sendable, Equatable {
+        case fixed
+        case perWordOfPiece
+        case perWordOfDictation
+    }
+
+    /// Where the layer runs.
+    package var phase: Phase {
+        switch self {
+        case .personaVocabulary: .perPiece
+        case .recogniserBias, .evidenceCapture, .candidateGeneration, .scoring, .overrideGate, .formatting:
+            .finalPiece
+        }
+    }
+
+    /// What the layer's cost grows with.
+    package var costClass: CostClass {
+        switch self {
+        case .recogniserBias, .personaVocabulary: .fixed
+        case .evidenceCapture, .candidateGeneration, .scoring, .overrideGate, .formatting: .perWordOfPiece
+        }
+    }
+
+    /// Whether a whole-text layer updates from the pieces already seen rather than rereading the text.
+    package var isIncremental: Bool { false }
+
+    /// The limit on the layer's work that makes its output a function of its input; `stageBudget` is the backstop.
+    package var workBound: String {
+        switch self {
+        case .recogniserBias: "at most 111 prompt tokens, 48 for the words and 48 for the lead"
+        case .personaVocabulary: "the words are ranked inside the recogniser prompt's token limit"
+        case .evidenceCapture: "at most 512 words read from the screen"
+        case .candidateGeneration: "at most the changed-span limit of spans and 3 candidates per span"
+        case .scoring: "scores only the candidates the generator kept: 3 per span"
+        case .overrideGate: "judges only the spans the generator proposed"
+        case .formatting: "one rules pass per word; only the model tidy is time-bound"
+        }
+    }
+
+    /// What the dictation gets when the layer misses its budget; nil for a layer that has no degraded result.
+    package var degradedResult: String? {
+        switch self {
+        case .recogniserBias: "The recogniser decodes without the user's words."
+        case .personaVocabulary: "The user's words keep their dictionary order."
+        case .evidenceCapture, .candidateGeneration, .scoring, .overrideGate: "The words stay as heard."
+        case .formatting: "The rules write the punctuation, case and layout."
+        }
+    }
+
+    /// Why a layer with these declarations may not run in the tail, or nil when it may.
+    package static func tailViolation(
+        phase: Phase, costClass: CostClass, isIncremental: Bool, degradedResult: String?
+    ) -> String? {
+        if phase == .wholeText && !isIncremental { return "reads the whole text and is not incremental" }
+        if costClass == .perWordOfDictation && !isIncremental { return "grows with the whole dictation" }
+        if phase != .perPiece && (degradedResult ?? "").isEmpty { return "has no degraded result" }
+        return nil
+    }
+
     /// The layers whose output this one reads, so switching either off changes what this one is given.
     public var inputs: [QualityLayer] {
         switch self {

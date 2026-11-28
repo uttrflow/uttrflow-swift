@@ -86,6 +86,35 @@ public struct RecordedEditor: Sendable {
         }
     }
 
+    /// Takes the last dictation out of the field in front, writing nothing unless the field holds exactly what was typed.
+    public func undoLastDictation() async throws(TextInsertionError) -> String {
+        let focus = focus
+        let ledger = ledger
+        let history = history
+        return try await AccessibilityThread.run { () throws(TextInsertionError) in
+            let focused = focus.focusedFieldIdentity()
+            let secure = focus.focusedFieldIsSecure()
+            guard let field = focus.focusedTextField() as? any RecordedSpanEditing else {
+                throw .insertionRejected(description: "the field cannot edit by range")
+            }
+            return try Self.undoDictation(
+                on: field, ledger: ledger, history: history, focused: focused, isSecure: secure)
+        }
+    }
+
+    /// Removes the last dictation from `field` and returns its text; split out so it runs against a fake field in tests.
+    static func undoDictation(
+        on field: any RecordedSpanEditing, ledger: InsertionLedger, history: EditHistory,
+        focused: FieldIdentity?, isSecure: Bool
+    ) throws(TextInsertionError) -> String {
+        guard let record = CommandScope.default.span(in: ledger.records(in: focused)) else {
+            throw .insertionRejected(description: "there is no dictation here to edit")
+        }
+        let target = EditTarget(record: record, focused: focused, isSecure: isSecure)
+        try write("", over: target, in: field, ledger: ledger, history: history)
+        return record.text
+    }
+
     /// Writes the text of `plan`'s answer over the last dictation and returns it; a declined plan throws, writing nothing.
     public func rewrite<Planned: Sendable>(
         _ plan: @escaping @Sendable (String) -> Planned?,

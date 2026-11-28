@@ -3,6 +3,7 @@ import Foundation
 import Testing
 import UttrflowAI
 import UttrflowCore
+import UttrflowTestSupport
 
 @testable import UttrflowEval
 
@@ -13,7 +14,8 @@ struct LayerAblationTests {
         promptDigest: "sha256:p", optionsDigest: "sha256:o")
 
     private static let rules = TransformerRouter(
-        engines: [RuleBasedTransformer()], preference: [.rules], rulesAlone: .shortReplies)
+        engines: [RuleBasedTransformer()], preference: [.rules], clock: ManualClock(),
+        rulesAlone: .shortReplies)
 
     private func directory() -> URL {
         FileManager.default.temporaryDirectory.appending(path: "layer-ablation-\(UUID().uuidString)")

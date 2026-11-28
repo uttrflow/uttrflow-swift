@@ -55,6 +55,8 @@ final class DockPanelController {
     var onToggle: (() -> Void)?
     /// The button offered alongside a failure was clicked.
     var onRecoveryAction: ((RecoveryAction) -> Void)?
+    /// Undo on the inserted form was clicked.
+    var onUndoDictation: (() -> Void)?
     var onAttentionChange: ((Bool) -> Void)?
 
     /// Where the microphone's level is pulled from on the main actor, keeping redraws off the audio thread.
@@ -63,6 +65,9 @@ final class DockPanelController {
     /// Called once a recording's input has stayed below the floor long enough to tell the person.
     var onInputSilent: () -> Void = {}
     private var appearanceObserver: (any NSObjectProtocol)?
+    private var latest = DockPanelController.resting
+    private var isArmed = false
+    private static let resting = DictationPresenter.dock(for: .idle)
 
     private let panel: DockPanel
     private let hostingView: DockHostingView<DockView>
@@ -106,6 +111,7 @@ final class DockPanelController {
             onPressEnded: { [weak self] in self?.onPressEnded?() },
             onToggle: { [weak self] in self?.onToggle?() },
             onRecovery: { [weak self] action in self?.onRecoveryAction?(action) },
+            onUndo: { [weak self] in self?.onUndoDictation?() },
             onAttentionChange: { [weak self] _ in
                 guard let self else { return }
                 self.onAttentionChange?(self.model.isEngaged)
@@ -165,8 +171,21 @@ final class DockPanelController {
     /// Whether the microphone's level is being read for the meter.
     var isMetering: Bool { levelTimer != nil }
 
+    /// Shows the listening shell from key-down while the button rests; false takes it off.
+    func setArmed(_ armed: Bool) {
+        guard armed != isArmed, !armed || !(latest.isRecording || latest.showsProgress) else { return }
+        isArmed = armed
+        draw(armed ? .armed : latest)
+    }
+
     /// The only way the button's appearance ever changes.
     func update(with presentation: DockPresentation) {
+        latest = presentation
+        isArmed = isArmed && presentation == Self.resting
+        draw(isArmed ? .armed : presentation)
+    }
+
+    private func draw(_ presentation: DockPresentation) {
         model.show(presentation)
         // Started and stopped where the state is known, so a meter cannot outlive its recording.
         if presentation.isRecording, model.isShown { startMetering() } else { stopMetering() }

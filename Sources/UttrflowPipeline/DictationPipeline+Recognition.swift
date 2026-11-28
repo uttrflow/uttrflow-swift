@@ -22,7 +22,7 @@ extension DictationPipeline {
             var rolling: RollingContext?
             for (spanIndex, span) in work.enumerated() {
                 let window: Range<Int>
-                if let left = span.rolling { rolling = left }
+                if let carried = span.carried(following: rolling) { rolling = carried.after(rolling) }
                 switch span {
                 case .done(let piece, _):
                     // A finished piece waits for no tidy; the positions put it in its place.
@@ -66,7 +66,8 @@ extension DictationPipeline {
                 // Corrected before the next recognition, which is decoded after these words; the tidy runs beside it.
                 let corrected = await correct(heard, seeing: seeing, recording: tally, for: mine)
                 let preceding = rolling
-                rolling = RollingContext(after: corrected)
+                let carried = RollingContext.carried(after: corrected, heard: heard, following: preceding)
+                rolling = carried.after(preceding)
                 tidying.addTask {
                     let piece = await self.finish(
                         heard, saying: corrected, seeing: seeing,

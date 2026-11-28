@@ -73,7 +73,7 @@ let package = Package(
         // without anything in this repository changing.
         .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.7.2"),
         // Opt-in crash and hang reports. Confined to UttrflowDiagnostics; see Docs/crash-reporting.md.
-        .package(url: "https://github.com/getsentry/sentry-cocoa", exact: "9.33.0"),
+        .package(url: "https://github.com/getsentry/sentry-cocoa", exact: "9.34.0"),
     ],
     targets: [
         // Platform-free domain layer: protocols, models, errors. Imports nothing but the stdlib.
@@ -105,8 +105,8 @@ let package = Package(
             swiftSettings: sharedSwiftSettings
         ),
 
-        // An open-weight model on the Mac's GPU, for the languages Apple's does not
-        // cover. MLX needs Metal shaders that SwiftPM's command line cannot build, so
+        // The AI suggestion model on the Mac's GPU, and the open-weight clean-up models
+        // the bake-off measures; no build ships one for clean-up. MLX needs Metal shaders that SwiftPM's command line cannot build, so
         // `swift build`/`swift test` never reach this target — but the `Uttrflow` app
         // target and `uttrflow-bakeoff` both depend on it and are built with
         // `xcodebuild`, which can. See `Docs/packaging.md`.
@@ -435,7 +435,7 @@ let package = Package(
         ),
         .testTarget(
             name: "UttrflowHistoryTests",
-            dependencies: ["UttrflowCore", "UttrflowHistory", "UttrflowTestSupport"],
+            dependencies: ["UttrflowCore", "UttrflowHistory"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(

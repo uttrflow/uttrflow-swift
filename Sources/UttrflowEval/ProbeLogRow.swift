@@ -1,5 +1,6 @@
 // One row of `Docs/probe-log.md`: where, when and on which build a probe's number was measured.
 public import Foundation
+import UttrflowCore
 
 /// A class of host a budget is stated against, spelled the same in every row and in the hosts note.
 public enum HostClass: String, Sendable, CaseIterable {
@@ -8,7 +9,7 @@ public enum HostClass: String, Sendable, CaseIterable {
     case quiet = "quiet"
 
     /// The memory of the smallest Mac the budgets are written for.
-    public static let minimumSpecBytes: Int64 = 8 * 1_073_741_824
+    public static let minimumSpecBytes: Int64 = HardwareFloor.minimumMemoryBytes
 
     /// The chip-name words that mark a tier above the base chip of a generation.
     public static let chipTiers: Set<String> = ["Pro", "Max", "Ultra"]

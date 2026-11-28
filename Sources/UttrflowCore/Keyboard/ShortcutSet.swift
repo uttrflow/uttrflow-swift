@@ -19,6 +19,7 @@ public struct ShortcutSet: Sendable, Equatable {
         .clipboard: [.shiftCommandV],
         .pasteLastTranscript: [.controlCommandV],
         .copyLastTranscript: [.controlCommandC],
+        .undoLastDictation: [.controlOptionZ],
         .editCommand: [.controlShiftHold],
     ])
 

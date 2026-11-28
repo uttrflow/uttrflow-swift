@@ -23,6 +23,8 @@ enum DockMetrics {
     /// The disc an insertion is drawn in.
     static let badgeSize: CGFloat = 26
     static let clipboardHeight: CGFloat = 28
+    /// The capsule an insertion grows into while Undo is on offer; radius is half of it.
+    static let typedCapsuleHeight: CGFloat = 30
     /// The widest a quiet outcome's words run before they wrap to a second line.
     static let quietTextMaxWidth: CGFloat = 200
     /// The width of the one wide form, and of no other.
@@ -58,6 +60,8 @@ extension DockMetrics {
     static let meterArrivalInterval: TimeInterval = 0.05
     /// How strongly a quiet bar is drawn; opacity carries the loud threshold. See Docs/app-dock.md.
     static let meterQuietOpacity: CGFloat = 0.62
+    /// How dim the meter's flat bars are before the microphone opens; with `meterQuietOpacity` they land near a third.
+    static let armedMeterOpacity: CGFloat = 0.56
     /// The inserted disc's return arrow, and its stroke on the arrow's 24-unit grid.
     static let returnGlyphSize: CGFloat = 13
     static let returnGlyphLine: CGFloat = 1.8

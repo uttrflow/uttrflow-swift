@@ -10,6 +10,7 @@ enum DockWording {
     /// What the button is doing, in the value slot where a screen reader expects state rather than a name.
     static func spokenValue(for presentation: DockPresentation) -> String {
         if presentation.isRecording { return "Listening" }
+        if presentation.isArmed { return "Getting ready" }
         if presentation.showsProgress { return "Working" }
         return ""
     }

@@ -37,6 +37,10 @@ struct DictionaryPageView: View {
                         )
                         .padding(.bottom, 18)
                     }
+                    if let learnt = presentation.recentlyLearnt {
+                        DictionaryRecentlyLearntView(section: learnt, onIntent: onIntent)
+                            .padding(.bottom, 18)
+                    }
                     if !presentation.filters.isEmpty {
                         filters.padding(.bottom, 14)
                     }

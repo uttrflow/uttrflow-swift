@@ -41,7 +41,8 @@ struct ModelEchoRejectionTests {
         let generative = GenerativeTextTransformer(kind: .foundationModels, model: model)
         let router = TransformerRouter(
             engines: [generative, RuleBasedTransformer()],
-            preference: [.foundationModels, .rules])
+            preference: [.foundationModels, .rules],
+            clock: ManualClock())
 
         let result = try await router.transform(request("hello there"))
 
@@ -56,7 +57,8 @@ struct ModelEchoRejectionTests {
         let generative = GenerativeTextTransformer(kind: .foundationModels, model: model)
         let router = TransformerRouter(
             engines: [generative, RuleBasedTransformer()],
-            preference: [.foundationModels, .rules])
+            preference: [.foundationModels, .rules],
+            clock: ManualClock())
 
         let result = try await router.transform(request("review sprint goals before planning"))
 

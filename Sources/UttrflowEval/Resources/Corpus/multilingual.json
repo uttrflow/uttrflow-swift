@@ -320,5 +320,55 @@
     "expected": "Mera naam Naveen hai aur Priya Rohan aur Meena ke saath Delhi ja rahi hai.",
     "mustKeep": ["Naveen", "Priya", "Rohan", "Meena", "Delhi"],
     "mustNotAdd": ["naveen", "priya", "rohan", "meena", "deli"]
+  },
+  {
+    "id": "hinglish-fillers-kept",
+    "note": "matlab, haan and accha are words the person said, not fillers.",
+    "origin": "synthetic",
+    "addedFor": 706,
+    "language": "hi",
+    "spoken": "matlab main kal aaunga haan accha to phir milte hain",
+    "expected": "Matlab main kal aaunga haan accha to phir milte hain.",
+    "mustKeep": ["matlab", "haan", "accha", "kal", "milte"]
+  },
+  {
+    "id": "hinglish-lakh",
+    "note": "A Hindi number before lakh is written in the default grouping, as one amount.",
+    "origin": "synthetic",
+    "addedFor": 706,
+    "language": "hi",
+    "spoken": "flat ki keemat pachaas lakh rupaye hai",
+    "expected": "Flat ki keemat 5,000,000 rupaye hai.",
+    "mustKeep": ["5,000,000"]
+  },
+  {
+    "id": "english-lakh-thousand",
+    "note": "A lakh and a thousand said together are one amount in the default grouping, never a mixed number.",
+    "origin": "synthetic",
+    "addedFor": 706,
+    "spoken": "one lakh fifty thousand rupees",
+    "expected": "150,000 rupees.",
+    "mustNotAdd": ["One lakh 50,000"]
+  },
+  {
+    "id": "hindi-danda-ending",
+    "note": "A sentence ending in a danda gets no second stop.",
+    "origin": "synthetic",
+    "addedFor": 706,
+    "language": "hi",
+    "spoken": "मेरी फ्लाइट 15 अगस्त को सुबह 9 बजे है।",
+    "expected": "Meri flight 15 agast ko subah 9 baje hai.",
+    "mustKeep": ["15", "9"],
+    "mustNotAdd": ["।."]
+  },
+  {
+    "id": "hinglish-reduplication-kept",
+    "note": "A reduplicated word is said on purpose, so both copies stay.",
+    "origin": "synthetic",
+    "addedFor": 706,
+    "language": "hi",
+    "spoken": "dheere dheere chalo aur jaldi jaldi khana mat khao",
+    "expected": "Dheere dheere chalo aur jaldi jaldi khana mat khao.",
+    "mustKeep": ["dheere dheere", "jaldi jaldi"]
   }
 ]

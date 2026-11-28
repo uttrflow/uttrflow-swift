@@ -22,6 +22,10 @@ The budgets are the values of `StageTimeout`, listed per stage in [pipeline.md](
 end-to-end limit is `tail-latency`, set in [performance.md](performance.md). A layer that cannot
 meet its budget is cancelled and the fallback answers; no layer extends another's budget.
 
+### Where a layer runs relative to key-up
+
+Each layer also declares a `phase` (`perPiece`, `finalPiece`, `wholeText`), a `costClass` (fixed, per word of the piece, per word of the dictation), whether it is incremental, and the `degradedResult` the dictation gets when it misses its budget. The last piece's words exist only after recognition ends, so a layer that scores them runs after key-up, which is why the rule is not "scoring never runs after release". A layer in the tail must have a degraded result, and a whole-text or per-word-of-the-dictation layer is not allowed there unless incremental. `QualityLayerPlacementTests` fails any layer that breaks this.
+
 ## Turning a layer on and off
 
 Each switchable layer is a case of `QualityLayer` in
@@ -78,6 +82,21 @@ The eval command exits with failure when those inputs cannot be read or contain 
 4. **Each layer is measured by its own metric.** A change reports that metric before and after with
    the command from [measure-a-change.md](measure-a-change.md). A metric marked "not measured" in
    [accuracy-targets.md](accuracy-targets.md) is reported as not measured, never as zero.
+
+## How a data asset reaches the user
+
+A lexicon, an n-gram table or a vocabulary pack is vendored data: it is checked into the tree under
+`Sources/*/Resources/`, listed in `Resources/DataManifest.json` with its source, revision, licence,
+`sha256` and size ([data-manifest.md](data-manifest.md)), and shipped inside the app. That puts it
+under notarisation and the update signature, makes it work offline, and adds no network code. A new
+version of an asset is a new release.
+
+A separate download is chosen only for an asset whose bundled size exceeds its memory and disk
+budget, and it then reuses the speech-model downloader's pinned-digest path
+([speech-model-install.md](speech-model-install.md)); it never gets a second downloader. The
+network promise in [offline.md](offline.md) holds until an asset is moved to that path and the page
+says so. `make data-manifest` fails on a data file with no manifest entry or a digest that no
+longer matches.
 
 ## Adding a pass
 

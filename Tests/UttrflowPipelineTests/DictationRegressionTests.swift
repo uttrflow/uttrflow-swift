@@ -217,7 +217,8 @@ private let regressionOutcome = DictationOutcome(
     text: regressionTidied, method: .accessibility, cleanedBy: .foundationModels,
     insertedInto: "Slack", insertedIntoIdentifier: "com.tinyspeck.slackmacgap",
     spokenFor: .zero,
-    changes: AppliedChanges(spokenWords: 10, heard: regressionSpoken))
+    changes: AppliedChanges(spokenWords: 10, heard: regressionSpoken),
+    spokenLanguage: DetectedLanguage(code: .english, confidence: 0.95))
 
 // MARK: - Harnesses
 
@@ -373,6 +374,57 @@ struct DictationRegressionTests {
         #expect(
             await harness.capture.calls == [.start, .stop],
             "the release must be handled after the press, never instead of it")
+    }
+
+    // MARK: Sequences across the whole route
+
+    /// Two short dictations in a row through the real controller and pipeline: each lands once, in order.
+    @Test("two dictations in a row each reach the document once, in order")
+    func twoDictationsInARow() async throws {
+        let harness = makeGestureHarness()
+        let states = await harness.pipeline.states()
+
+        harness.controller.submit(.pressed)
+        harness.controller.submit(.released)
+        let first = await endOfDictation(states)
+        #expect(first == .inserted(regressionOutcome))
+
+        harness.controller.submit(.pressed)
+        harness.controller.submit(.released)
+        let second = await endOfDictation(states)
+        #expect(second == .inserted(regressionOutcome))
+
+        #expect(harness.inserter.received == [regressionTidied, regressionTidied])
+        #expect(await harness.capture.calls == [.start, .stop, .start, .stop])
+        #expect(await harness.pipeline.currentState.isListening == false)
+    }
+
+    /// A dictation whose insertion fails leaves the route ready: the next press records and fails or lands on its own.
+    @Test("a failed insertion does not stop the next dictation from recording")
+    func failedInsertionThenADictation() async throws {
+        let capture = RegressionCapture()
+        let inserter = RegressionInserter(failure: .noFocusedTextField)
+        let pipeline = makeRegressionPipeline(capture: capture, inserter: inserter)
+        let controller = DictationController(
+            dependencies: .init(pipeline: pipeline, monitor: RegressionMonitor()),
+            clock: SteppingClock(), options: .init(activation: .holdToTalk))
+        let states = await pipeline.states()
+
+        controller.submit(.pressed)
+        controller.submit(.released)
+        guard case .failed = await endOfDictation(states) else {
+            Issue.record("the first insertion should have failed")
+            return
+        }
+
+        controller.submit(.pressed)
+        controller.submit(.released)
+        guard case .failed = await endOfDictation(states) else {
+            Issue.record("the second dictation should have been recorded and tried")
+            return
+        }
+        #expect(await capture.calls == [.start, .stop, .start, .stop], "the second press must record")
+        #expect(await pipeline.currentState.isListening == false)
     }
 
     // MARK: A cancel that arrives after the recording stopped

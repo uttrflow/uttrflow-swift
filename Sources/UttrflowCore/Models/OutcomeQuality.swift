@@ -67,7 +67,7 @@ public enum OutcomeQuality: Sendable, Equatable, Codable {
             self = .partial
             return
         }
-        let tidyTimedOut = account.skippedStages.contains { $0.stage == .tidy && $0.reason == .timeout }
+        let tidyTimedOut = account.skippedStages.contains { $0.stage == .tidy && $0.reason != .error }
         let engineTimedOut = account.engineFailures.contains { $0.failureClass == .timedOut }
         let tidyFailed =
             account.skippedStages.contains { $0.stage == .tidy && $0.reason == .error }

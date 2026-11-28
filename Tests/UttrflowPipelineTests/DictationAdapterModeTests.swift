@@ -23,7 +23,8 @@ struct DictationAdapterModeTests {
         Scenario(
             pieces: Array(repeating: ScriptedPiece(heard), count: dictations), context: context,
             cleaner: TransformerRouter(
-                engines: [RuleBasedTransformer()], preference: [.rules], rulesAlone: .shortReplies),
+                engines: [RuleBasedTransformer()], preference: [.rules], clock: ManualClock(),
+                rulesAlone: .shortReplies),
             take: ScenarioDriver.oneWindow, destinationOverrides: overrides)
     }
 

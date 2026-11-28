@@ -340,6 +340,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var lastTranscriptGeneration = 0
     /// The newest history write, awaited before the last transcript is checked against history.
     private var historyWrite: Task<Void, Never>?
+    /// Takes the newest dictation back out of its field through the verified edit path; set once the pipeline is built.
+    private var undoEditor: RecordedEditor?
+    /// How Undo went for a recent dictation, which its menu row shows; memory only, like the menu's own list.
+    private var undoOutcomes: [UUID: RecentUndo] = [:]
+    /// How long after a dictation its Undo is still offered.
+    static let undoOfferWindow: TimeInterval = 120
     /// Asked when the panel opens whether a paste can be placed, held so the answer costs one call.
     private let accessibility = AccessibilityPermissionGate()
     private let microphone = MicrophonePermissionGate()
@@ -1459,6 +1465,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
         // Where each dictation landed, so "delete that" under the command key can find it. See `Docs/commands.md`.
         let ledger = InsertionLedger()
+        let editHistory = EditHistory()
+        undoEditor = RecordedEditor(ledger: ledger, history: editHistory, focus: AXAccessibilityFocus())
         let pipeline = DictationPipeline(
             capture: microphone,
             speech: speech,
@@ -1480,8 +1488,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 }),
             vocabulary: LearnedVocabulary(
                 dictionary: dictionary,
-                didLearn: { [weak self] entries in
-                    await MainActor.run { self?.noteLearned(entries) }
+                didLearn: { [weak self] entries, context in
+                    await MainActor.run { self?.noteLearned(entries, seeing: context) }
                 },
                 // Lines from apps typing capture may read, behind the same consent gate as the pipeline.
                 typedLines: { [weak self] context in
@@ -1508,13 +1516,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             ]),
             profile: settings.profile,
             commands: EditCommandRegistry([
-                RecordedEditCommand(ledger: ledger, overrides: settings.destinations),
+                RecordedEditCommand(ledger: ledger, overrides: settings.destinations, history: editHistory),
                 KeyEditCommand(overrides: settings.destinations), MarkdownEditCommand(),
             ]),
             layers: qualityLayers
         )
         self.pipeline = pipeline
 
+        let (armedSignals, armedSink) = AsyncStream<Bool>.makeStream()
+        Task { @MainActor [weak self] in for await armed in armedSignals { self?.dock.setArmed(armed) } }
         controller = DictationController(
             dependencies: .init(
                 pipeline: pipeline, monitor: ActivationMonitor(),
@@ -1542,7 +1552,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 },
                 onStopGestureChange: { [weak self] gesture in
                     Task { @MainActor in self?.recordingStopGestureChanged(to: gesture) }
-                }
+                },
+                onArmed: { armedSink.yield($0) }
             )
         )
         DictationIntentBridge.run = { [weak self] command in
@@ -1610,6 +1621,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // A toggle, not a press and a release: VoiceOver activates the button and has nothing to hold.
         dock.onToggle = { [weak self] in self?.toggleDictation() }
         dock.onRecoveryAction = { [weak self] action in self?.perform(action) }
+        dock.onUndoDictation = { [weak self] in
+            Task { [weak self] in await self?.undoLastDictation() }
+        }
         dock.onAttentionChange = { [weak self] isAttended in
             self?.dockAttentionChanged(to: isAttended)
         }
@@ -2031,7 +2045,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // Watched through the tap rather than registered, so they never arrive here.
         case .dictate, .editCommand:
             break
+        case .undoLastDictation:
+            await undoLastDictation()
         }
+    }
+
+    /// The one Undo behind the menu row, the dock and the shortcut; a changed field is left alone and the words copied.
+    func undoLastDictation() async {
+        guard let record = recents.entries.first, let editor = undoEditor else {
+            sayNoLastTranscript(to: "undo")
+            return
+        }
+        do {
+            _ = try await editor.undoLastDictation()
+            undoOutcomes[record.id] = .undone
+            let days = settings.transcriptRetentionDays
+            _ = try? await history.markUndone(record.id, keeping: Retention(days: days, now: Date()))
+            let message = "Undone."
+            actionNotice = MainNotice(message: message, symbolName: "arrow.uturn.backward", tone: .neutral)
+            announce(message, urgently: false)
+        } catch {
+            undoOutcomes[record.id] = .refused
+            Self.log.notice("undo last dictation refused: \(ErrorLog.failure(error), privacy: .public)")
+            await copyLastTranscript()
+            let message = MenuBarUndo.stillHereToCopy
+            actionNotice = MainNotice(message: message, symbolName: "info.circle", tone: .neutral)
+            announce(message, urgently: false)
+        }
+        refreshMenuBar()
+    }
+
+    /// Where the newest dictation stands with Undo: offered while fresh and delivered, then what happened.
+    private func undoState(of record: DictationRecord) -> RecentUndo {
+        if let outcome = undoOutcomes[record.id] { return outcome }
+        let delivered = record.arrival == .confirmed || record.arrival == .notReported
+        let fresh = Date().timeIntervalSince(record.when) < Self.undoOfferWindow
+        return delivered && fresh && !record.isUndone ? .available : (record.isUndone ? .undone : .none)
     }
 
     /// Puts the last dictation back at the caret by the route a dictation takes, never the clipboard.
@@ -2505,7 +2554,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             if intent == .resumeCapture { setClipboardPaused(false) }
             panel?.capture = panelCapture()
             if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
-        case .insert, .insertCleaned, .reveal, .alias, .move, .edit, .delete, .renameCategory,
+        case .insert, .insertCleaned, .reveal, .conceal, .alias, .move, .edit, .delete, .renameCategory,
             .deleteCategory, .reindent, .makeNote, .scope:
             // Answered above, by `intent.key`.
             break
@@ -2937,11 +2986,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Offers every word one dictation taught in the popover and names the first through VoiceOver.
-    func noteLearned(_ entries: [DictionaryEntry]) {
-        let learnt = recentlyLearned.record(entries, at: Date())
+    func noteLearned(_ entries: [DictionaryEntry], seeing context: AppContext = AppContext()) {
+        let learnt = recentlyLearned.record(
+            entries, at: Date(), heard: context.selectedText, application: context.applicationName)
         guard let line = RecentlyLearned.announcement(for: learnt) else { return }
         announce(line, urgently: false)
         refreshMenuBar()
+        // The Dictionary page lists the new word, so it reads the store again.
+        refreshMainWindow()
     }
 
     /// Speaks a line through VoiceOver once the microphone is closed, so a recording never hears it.
@@ -3065,12 +3117,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             speechLoadElapsed: speechLoadStarted.map { $0.duration(to: .now) } ?? .zero,
             recordingAdvice: recordingAdvice,
             stopGesture: recordingStopGesture,
-            recents: recents.previews(secretPhrases: knownSnippets.secretPhrases).map {
+            recents: recents.previews(secretPhrases: knownSnippets.secretPhrases).enumerated().map {
+                place, preview in
                 MenuBarRecent(
-                    id: $0.id,
-                    title: $0.title,
-                    fullText: $0.isSecret ? $0.title : $0.dictation.text,
-                    isSecret: $0.isSecret)
+                    id: preview.id,
+                    title: preview.title,
+                    fullText: preview.isSecret ? preview.title : preview.dictation.text,
+                    isSecret: preview.isSecret,
+                    undo: place == 0 ? undoState(of: preview.dictation) : .none)
             },
             clips: menuClips,
             learned: recentlyLearned.current(at: Date()),
@@ -3163,11 +3217,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     showClipboardCopyFailure()
                 }
             }
+        case .undoLastDictation:
+            Task { [weak self] in await self?.undoLastDictation() }
         case .undoLearnedWord(let id):
-            recentlyLearned.forget(id)
-            refreshMenuBar()
-            // The Dictionary page's delete, so an undone word is refused rather than relearned.
-            act { try await self.dictionary.remove(id) }
+            undoLearnt([id])
         case .open(let destination):
             show(destination)
         case .openClipboard:
@@ -3517,7 +3570,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             query: query(for: .dictionary), filter: scope(for: .dictionary),
             sort: sorts[.dictionary] ?? "", corrections: corrections, now: now,
             packed: lastVocabularyPrompt.isEmpty ? nil : lastVocabularyPrompt,
-            refused: knownRefusals, trial: wordTrial, recency: knownRecency)
+            refused: knownRefusals, trial: wordTrial, recency: knownRecency,
+            learnt: recentlyLearned.current(at: now))
     }
 
     /// The last reading of the snippets, ready for the Snippets presenter.
@@ -3819,7 +3873,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .saveWord(let word, let pronunciation, let applications):
             saveWord(word, pronunciation: pronunciation, applications: applications)
         case .forgetWords(let ids):
-            act { try await self.dictionary.remove(ids) }
+            undoLearnt(ids)
         case .restoreWords(let ids):
             act { try await self.dictionary.restore(ids) }
         case .replaceWord(let id, let word, let pronunciation, let applications):
@@ -4190,6 +4244,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 self?.report(error)
             }
             self?.refreshMainWindow()
+        }
+    }
+
+    /// The one Undo for learnt words, the menu bar's and the page's: the dictionary's delete refuses the spelling; a failed delete brings the row back.
+    private func undoLearnt(_ ids: Set<UUID>) {
+        let undone = recentlyLearned.current(at: Date()).filter { ids.contains($0.id) }
+        for id in ids { recentlyLearned.forget(id) }
+        refreshMenuBar()
+        act {
+            do {
+                try await self.dictionary.remove(ids)
+            } catch {
+                let present = Set(await self.dictionary.allEntries().map(\.id))
+                self.recentlyLearned.restore(undone.filter { present.contains($0.id) })
+                self.refreshMenuBar()
+                throw error
+            }
         }
     }
 

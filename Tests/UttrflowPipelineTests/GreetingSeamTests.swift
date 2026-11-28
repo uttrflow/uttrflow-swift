@@ -13,7 +13,8 @@ struct GreetingSeamTests {
     private func pipeline() -> DictationPipeline {
         DictationPipeline(
             capture: FakeAudioCaptureEngine(), speech: FakeSpeechEngine(),
-            cleaner: TransformerRouter(engines: [RuleBasedTransformer()], preference: [.rules]),
+            cleaner: TransformerRouter(
+                engines: [RuleBasedTransformer()], preference: [.rules], clock: ManualClock()),
             context: FakeContextEngine(), inserter: FakeTextInserter(),
             corrector: DictionaryCorrections { _ in PhoneticIndex(entries: []) })
     }

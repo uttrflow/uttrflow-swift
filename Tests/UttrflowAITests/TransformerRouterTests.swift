@@ -78,8 +78,12 @@ struct TransformerRouterTests {
         let router = TransformerRouter(
             engines: [generative, RuleBasedTransformer()], preference: [.foundationModels, .rules],
             clock: ManualClock())
+        // A document, where a repair may add a word, so the moved negation is what the guard names.
+        let app = AppContext(documentName: "Notes")
         let spoken = TransformationRequest(
-            transcription: .fixture(text: "I did not tell Mary to call John", language: .english))
+            transcription: .fixture(text: "I did not tell Mary to call John", language: .english),
+            context: app,
+            situation: Situation(app: app, insertion: app.insertionPoint, destination: .document))
 
         let result = try await router.transform(spoken)
 
@@ -230,7 +234,7 @@ struct TransformerRouterTests {
 
     @Test("reports the same when it was given nothing to try")
     func noEngines() async {
-        let router = TransformerRouter(engines: [], preference: [.rules])
+        let router = TransformerRouter(engines: [], preference: [.rules], clock: ManualClock())
 
         #expect(router.route.isEmpty)
         await #expect(throws: TransformationError.noCapableTransformer) {
@@ -327,7 +331,8 @@ struct TransformerRouterTests {
     func fromConfiguration() {
         let router = TransformerRouter(
             engines: [StubTransformer(kind: .foundationModels), StubTransformer(kind: .rules)],
-            configuration: .default
+            configuration: .default,
+            clock: ManualClock()
         )
         #expect(router.route == [.foundationModels, .rules])
     }

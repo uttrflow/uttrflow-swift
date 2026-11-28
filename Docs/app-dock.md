@@ -33,7 +33,7 @@ anchor on a display that exists.
 | Hovered | orb 30, hint 30 high | `orbSize`, `hintHeight` | The orb keeps the grip's side so it stays under the pointer. A hint saying why the shortcut cannot be heard wraps within 240 (`unheardWidth`). |
 | Listening | 32 high | `listeningHeight` | The meter and a running clock on tinted glass, the clock on the anchored edge; no mark. |
 | Working | 40-point orb | `workingOrbSize` | Three bars rising and settling in turn, for as long as there is work left. |
-| Inserted | 26-point disc | `badgeSize` | A teal return arrow inside the ring; a success needs no words, the text is already in the document. |
+| Inserted | 30 high capsule | `typedCapsuleHeight` | The teal return arrow, "Typed" and an **Undo** that takes the words back out of the field while the form lingers (2 seconds); its label for Voice Control is "Undo dictation". `badgeSize` still sizes the arrow. |
 | Nothing heard, too short | at least 28 high, words up to 200 wide | `clipboardHeight`, `quietTextMaxWidth` | The struck level with its sentence, readable at rest, wrapping to two lines; a too-short hold says to hold longer. |
 | Copied, not typed | 28 high | `clipboardHeight` | ⌘V and "Copied, not typed" at rest, kept up as long as a failure; under the pointer, a 200-wide pill (`blockedWidth`) saying "Typing is blocked — paste it" with **Fix**. |
 | Microphone off | pill | `DockSetupMetrics.warningRadius` | The warning disc, "Microphone is off" and a trailing **Fix**; the full sentence under the pointer. |
@@ -75,6 +75,21 @@ fourth line, and the whole notice is on the pointer as a tooltip.
 - The clock beside it reads the time since the key went down as `0:04`, advanced by the meter's
   own 20 Hz arrivals so it adds no timer of its own. Once the cap is near the countdown takes its
   place, because the time left matters more than the time spent.
+
+### Armed: the meter before the microphone opens
+
+- From key-down the button draws the meter's capsule with flat bars and `0:00`, dimmed by
+  `armedMeterOpacity` on top of `meterQuietOpacity`, so the press is answered while the
+  microphone is still opening. The bars come alive in place; nothing jumps.
+- It is `DockPresentation.armed`, a look `DockPanelController.setArmed` draws over a resting or
+  finished button but never over a recording or processing one, and a cancel restores what was
+  there; it is not a `DictationState`: any other state replaces it, so a recording or a failed open
+  needs no signal of its own and the failure is reported once, as a notice.
+- The controller sends `onArmed(false)` only when the press ends with no recording: a release
+  inside the settle window, Escape, or a start that did not listen. The start sound stays tied to
+  the first sample, so a cancelled press is silent.
+- VoiceOver says "Getting ready". The dimming is a still opacity, so Reduce Motion changes nothing.
+- The released page is `Design/released/listening-at-key-down.html`.
 
 ### The loud threshold is carried by opacity
 

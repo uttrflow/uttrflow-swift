@@ -172,6 +172,10 @@ dictates. The load is not required — the engine loads on demand if nobody prep
 at launch trades that memory for a first dictation 4–9 seconds faster. The model is released only
 under memory pressure (below).
 
+## The hardware floor
+
+`HardwareFloor` (`UttrflowCore`) decides from `hw.optional.arm64` and the physical memory whether a Mac is supported, slow or unsupported. Without Apple silicon the Mac is unsupported, because the speech path is built for the Neural Engine and the suggestion path for MLX. With Apple silicon and under 8 GB, the memory of the smallest Mac the budgets are written for, dictation works and the Mac is slow. The 8 GB figure is `HostClass.minimumSpecBytes`, the same constant. Neither the first-launch screen for an unsupported Mac nor a measured latency row for a slow one exists yet, so no latency is promised below the floor.
+
 ## The memory budget
 
 Uttrflow runs all day on Macs with far less memory than the one above, so what it holds is

@@ -93,7 +93,8 @@ struct CleaningScopeTests {
 
     @Test("the router's message stage asks the short-message rule once, of the joined text")
     func routerFinishesTheMessage() async {
-        let router = TransformerRouter(engines: [RuleBasedTransformer()], preference: [.rules])
+        let router = TransformerRouter(
+            engines: [RuleBasedTransformer()], preference: [.rules], clock: ManualClock())
         let chat = request("", scope: .message)
 
         let short = await router.finishMessage("on my way. be there soon.", for: chat)
@@ -105,7 +106,8 @@ struct CleaningScopeTests {
 
     @Test("the message stage leaves a terminal without a stop and a document with one")
     func routerFollowsEachPlace() async {
-        let router = TransformerRouter(engines: [RuleBasedTransformer()], preference: [.rules])
+        let router = TransformerRouter(
+            engines: [RuleBasedTransformer()], preference: [.rules], clock: ManualClock())
         let terminal = request(
             "", seeing: .fixture(applicationName: "Terminal", bundleIdentifier: "com.apple.Terminal"),
             scope: .message)

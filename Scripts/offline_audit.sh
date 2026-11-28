@@ -221,6 +221,7 @@ URL_READERS=(
     'Sources/UttrflowSpeech/SpeechModelStore.swift'
     'Sources/UttrflowTestSupport/GoldenFile.swift'
     'Sources/UttrflowUX/AliasUnicodeRules.swift'
+    'Sources/UttrflowUX/UXLedger.swift'
     'Sources/UttrflowEval/AccuracyBaseline.swift'
     'Sources/UttrflowEval/AccuracyReport.swift'
     'Sources/UttrflowEval/CorpusCache.swift'

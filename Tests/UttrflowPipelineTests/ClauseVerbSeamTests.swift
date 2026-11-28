@@ -10,7 +10,8 @@ import Testing
 @Suite("A pause after a subordinate clause's subject, before its verb, writes what one piece does")
 struct ClauseVerbSeamTests {
     private let pipeline: DictationPipeline = {
-        let router = TransformerRouter(engines: [RuleBasedTransformer()], preference: [.rules])
+        let router = TransformerRouter(
+            engines: [RuleBasedTransformer()], preference: [.rules], clock: ManualClock())
         return DictationPipeline(
             capture: FakeAudioCaptureEngine(), speech: FakeSpeechEngine(), cleaner: router,
             context: FakeContextEngine(), inserter: FakeTextInserter(),

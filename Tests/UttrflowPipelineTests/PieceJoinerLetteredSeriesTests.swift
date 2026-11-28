@@ -14,7 +14,8 @@ struct PieceJoinerLetteredSeriesTests {
 
     private func written(_ pieces: [String]) async -> String? {
         let router = TransformerRouter(
-            engines: [RuleBasedTransformer()], preference: [.rules], rulesAlone: .shortReplies)
+            engines: [RuleBasedTransformer()], preference: [.rules], clock: ManualClock(),
+            rulesAlone: .shortReplies)
         let pipeline = DictationPipeline(
             capture: FakeAudioCaptureEngine(), speech: FakeSpeechEngine(), cleaner: router,
             context: FakeContextEngine(), inserter: FakeTextInserter())

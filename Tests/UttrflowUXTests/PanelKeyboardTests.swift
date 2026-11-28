@@ -327,6 +327,29 @@ struct PanelRevealTests {
         #expect(panel.revealed == [secret.id])
     }
 
+    @Test("concealing masks a revealed secret again, and only that one")
+    func concealing() {
+        let secret = PanelFixture.clip("sk-live-1234", kind: .secret)
+        let other = PanelFixture.clip("sk-live-9999", kind: .secret, minutesAgo: 1)
+        var panel = PanelFixture.panel([secret, other])
+        panel = panel.applying(.reveal(secret.id)).state.applying(.reveal(other.id)).state
+        #expect(panel.revealed == [secret.id, other.id])
+
+        panel = panel.applying(.conceal(secret.id)).state
+
+        #expect(panel.revealed == [other.id])
+        #expect(PanelPresenter.present(panel).rows.first { $0.id == secret.id }?.isMasked == true)
+    }
+
+    @Test("Hide on a revealed secret is the conceal key, as Reveal is the reveal key")
+    func hideIsTheConcealKey() {
+        let secret = PanelFixture.clip("sk-live-1234", kind: .secret)
+        let page = PanelFixture.page([secret], revealed: [secret.id])
+        let hide = page.rows[0].actions.first { $0.title == "Hide" }
+        #expect(hide?.intent == .conceal(secret.id))
+        #expect(hide?.intent.key == .conceal(secret.id))
+    }
+
     /// Arrowing over a secret must not unmask it; the panel is opened in meetings.
     @Test("arrowing onto a secret does not reveal it")
     func arrowingDoesNotReveal() {

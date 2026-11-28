@@ -6,7 +6,8 @@ import Testing
 @testable import Uttrflow
 
 @MainActor
-@Suite("Thumbnail requests across decode completion", .timeLimit(.minutes(1)))
+// Serialised: each repetition parks a decoder thread until released, so 50 at once starve every suite beside it.
+@Suite("Thumbnail requests across decode completion", .serialized, .timeLimit(.minutes(1)))
 struct PanelThumbnailRequestTests {
     @Test(
         "Preparing and reading across a suspended decode asks once at the thumbnail size", arguments: 0..<50)

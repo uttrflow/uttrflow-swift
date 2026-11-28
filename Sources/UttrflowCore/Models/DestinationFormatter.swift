@@ -96,7 +96,7 @@ public enum NumberPolicy: Sendable, Equatable {
     case fromTen
 }
 
-/// How much grammar a place wants repaired.
+/// How much grammar a place wants repaired: only mail and documents repair, never chat, code, a terminal, a one-line field or plain text.
 public enum GrammarPolicy: Sendable, Equatable {
     /// A slip speech left behind is fixed, changing only the form of a word the speaker said.
     case repair
@@ -186,7 +186,7 @@ public struct DestinationFormatter: Sendable, Equatable {
             promptBlock: "email"),
         .plain: DestinationFormatter(
             destination: .plain, firstWord: .fromInsertionPoint, terminalStop: .always,
-            layout: [.paragraphs, .lists], grammar: .repair, numbers: .fromTen, promptBlock: "plain"),
+            layout: [.paragraphs, .lists], grammar: .asSpoken, numbers: .fromTen, promptBlock: "plain"),
     ]
 
     /// Whether a line opening with a program typed at a prompt keeps its heard case: source, never a comment's prose.
@@ -223,7 +223,7 @@ public struct DestinationFormatter: Sendable, Equatable {
         registry[destination]
             ?? DestinationFormatter(
                 destination: .plain, firstWord: .fromInsertionPoint, terminalStop: .always,
-                layout: .paragraphs, grammar: .repair, numbers: .fromTen,
+                layout: .paragraphs, grammar: .asSpoken, numbers: .fromTen,
                 promptBlock: "plain")
     }
 
@@ -248,14 +248,19 @@ public struct DestinationFormatter: Sendable, Equatable {
         let isSearch = kind == .search
         let isSingleLine = kind == .oneLine || isSearch
         guard ruleStop != nil || isSingleLine else { return base }
+        // A name or an address is a value written as said, and a number field takes numerals, not words.
+        let role = situation.intent.fieldRole
+        let keepsWords = isSingleLine && (role == .name || role == .address)
         return DestinationFormatter(
             destination: base.destination,
-            firstWord: isSearch ? .asSpoken : base.firstWord,
+            firstWord: isSearch || keepsWords ? .asSpoken : base.firstWord,
             terminalStop: isSearch
                 ? .never
                 : (ruleStop ?? (isSingleLine ? base.terminalStop.inOneLineField : base.terminalStop)),
             layout: isSingleLine ? .singleLine : base.layout,
-            grammar: base.grammar, numbers: base.numbers, digits: base.digits,
+            grammar: isSingleLine ? .asSpoken : base.grammar,
+            numbers: isSingleLine && role == .number ? .always : base.numbers,
+            digits: base.digits,
             promptBlock: base.promptBlock, consequence: isSearch ? .navigates : base.consequence)
     }
 
@@ -296,7 +301,7 @@ public struct DestinationFormatter: Sendable, Equatable {
         }
         return DestinationFormatter(
             destination: base.destination, firstWord: firstWord, terminalStop: .never,
-            layout: .singleLine, grammar: base.grammar, numbers: base.numbers, digits: base.digits,
+            layout: .singleLine, grammar: .asSpoken, numbers: base.numbers, digits: base.digits,
             promptBlock: base.promptBlock, consequence: base.consequence)
     }
 

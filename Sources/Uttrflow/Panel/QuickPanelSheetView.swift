@@ -106,7 +106,7 @@ extension QuickPanelView {
     /// What the formatter wants to change, signed as well as coloured for colour-blind readers.
     private func diffView(_ lines: [TextDiff.Line]) -> some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 1) {
+            LazyVStack(alignment: .leading, spacing: 1) {
                 ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
                     HStack(spacing: 6) {
                         Text(sign(for: line.kind))

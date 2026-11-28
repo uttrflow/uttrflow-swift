@@ -143,6 +143,8 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         public var onNearMissTap: @Sendable () -> Void
         /// Told when the gesture that ends a recording changes, so the dock can say so even mid-recording.
         public var onStopGestureChange: @Sendable (StopGesture) -> Void
+        /// Told `true` at key-down and `false` when the press ends without a recording; a start or failure arrives as a state.
+        public var onArmed: @Sendable (Bool) -> Void
 
         public init(
             onAdvice: @escaping @Sendable (DictationAdvice) -> Void = { _ in },
@@ -150,7 +152,8 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
             onSilenceCountdown: @escaping @Sendable (Int?) -> Void = { _ in },
             onSilenceWarning: @escaping @Sendable (Int) -> Void = { _ in },
             onNearMissTap: @escaping @Sendable () -> Void = {},
-            onStopGestureChange: @escaping @Sendable (StopGesture) -> Void = { _ in }
+            onStopGestureChange: @escaping @Sendable (StopGesture) -> Void = { _ in },
+            onArmed: @escaping @Sendable (Bool) -> Void = { _ in }
         ) {
             self.onAdvice = onAdvice
             self.onWarning = onWarning
@@ -158,6 +161,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
             self.onSilenceWarning = onSilenceWarning
             self.onNearMissTap = onNearMissTap
             self.onStopGestureChange = onStopGestureChange
+            self.onArmed = onArmed
         }
     }
 
@@ -520,6 +524,8 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         let pressedAt = clock.now
         unsettledPress = (id, pressedAt)
         let elapsed = UttrflowCore.stopwatch(from: clock)
+        // Before the open is awaited: the open is the wait this look covers.
+        if !(await pipeline.isBusy) { observers.onArmed(true) }
         await pipeline.beginModifierPress(measuring: elapsed)
         let deadline = pressedAt.advanced(by: Self.modifierSettle)
         settleTask = Task { [clock, gestureSink] in
@@ -550,11 +556,11 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
             return
         case (_, .cancelled):
             forgetUnsettledPress()
-            await pipeline.cancelModifierPress()
+            await cancelEarlyPress()
         case (.holdToTalk, .released):
             forgetUnsettledPress()
             if unsettled.at.duration(to: clock.now) < holdLength {
-                await pipeline.cancelModifierPress()
+                await cancelEarlyPress()
                 await endTapThatNeverOpened()
             } else {
                 await press(at: unsettled.at, modifierCaptureIsOpen: true)
@@ -566,6 +572,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
 
         case (_, .escapePressed):
             forgetUnsettledPress()
+            observers.onArmed(false)
             await cancelListening()
         }
     }
@@ -574,6 +581,12 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     private func abandonUnsettledPress() async {
         guard unsettledPress != nil else { return }
         forgetUnsettledPress()
+        await cancelEarlyPress()
+    }
+
+    /// Closes the microphone a modifier press opened on key-down, and takes the listening look off the button.
+    private func cancelEarlyPress() async {
+        observers.onArmed(false)
         await pipeline.cancelModifierPress()
     }
 
@@ -689,11 +702,13 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         resetControlStartedRecording()
         // Said aloud with the discarded cue, not dropped: no recording is open here, so no stop is owed.
         guard !(await pipeline.isBusy) else {
-            await pipeline.cancelModifierPress()
+            await cancelEarlyPress()
             cue.playDiscarded()
             return
         }
         await pipeline.route(next: route)
+        // Shown before the open, which a modifier press already began at key-down.
+        if !adoptingModifierCapture { observers.onArmed(true) }
         if adoptingModifierCapture {
             await pipeline.adoptModifierPress()
         } else {
@@ -708,6 +723,10 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
             }
             cue.playStart()
             watchTheLimit()
+        } else if case .failed = await pipeline.currentState {
+            // The failure reaches the interface as a state, which also ends the armed look.
+        } else {
+            observers.onArmed(false)
         }
     }
 

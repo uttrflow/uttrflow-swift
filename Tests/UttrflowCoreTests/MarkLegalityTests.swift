@@ -30,6 +30,16 @@ struct MarkLegalityTests {
         #expect(MarkLegality.state(of: token) == .closer)
     }
 
+    @Test("a stop the recogniser wrote stands after a copula or stranded preposition only")
+    func writtenStop() {
+        for token in ["is.", "are.", "for.", "At."] {
+            #expect(MarkLegality.keepsWrittenStop(after: token), "\(token)")
+        }
+        for token in ["is", "the.", "and.", "done.", "3.5"] {
+            #expect(!MarkLegality.keepsWrittenStop(after: token), "\(token)")
+        }
+    }
+
     @Test("each token is read into the state its row is keyed on")
     func states() {
         #expect(MarkLegality.state(of: "the") == .leadsOn)

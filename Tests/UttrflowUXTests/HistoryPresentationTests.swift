@@ -218,6 +218,7 @@ struct HistoryPresentationTests {
             ).arrival
         }
         #expect(labels == ["Not inserted", "Unconfirmed", nil, nil, nil])
+        #expect(HistoryPresenter.arrivalLabel(for: .confirmed, isUndone: true) == "Undone")
     }
     @Test(
         "a row tidied less than asked says so in the shared words; a complete or unrecorded row stays quiet")

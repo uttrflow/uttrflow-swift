@@ -15,6 +15,16 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 2. [Putting the words on screen, and the traps in doing it](insertion.md) — where macOS fights back.
 3. [Dictating with no network](offline.md) — the promise the architecture exists to keep.
 
+## Names
+
+Two features go by more than one name. This is the map from what people read in the app to what
+the code and these pages call it.
+
+| In the app | Modules and folders | Types and pages | Log category |
+|---|---|---|---|
+| AI suggestions (the switch is "Finish what I am typing"; also tab-to-complete, predict, completion) | `UttrflowPredict`, `UttrflowPredictStore`, `UttrflowPredictCapture`, `Sources/Uttrflow/Suggestion` | `Suggestion*` in the app, `PredictionStore` and `PredictStore`; pages `predict*.md` | `predict` |
+| Tidying up (also clean-up, cleaning, the transformer) | `UttrflowCore/Cleaning`, `UttrflowAI` | `TextTransformers`, `TransformerRouter`, `CleanupModel`, `SettingsTidyingLevel` stored as `transformerPreference`; pages `cleanup.md`, `cleanup-design.md`, `core-engine-kinds.md` | `Clean-up steps` in Diagnostics |
+
 ## From a held key to words
 
 | Page | What it covers |
@@ -82,6 +92,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [adding-a-destination.md](adding-a-destination.md) | Adding a destination, step by step |
 | [adding-a-corpus-case.md](adding-a-corpus-case.md) | Adding a clean-up corpus case: the schema, the checks, and scoring it alone |
 | [data-tables.md](data-tables.md) | Word tables as data: the one loader, its checks and its fallback |
+| [number-word-coverage.md](number-word-coverage.md) | The pinned CLDR spell-out extract and what the hand number tables miss against it |
 | [learned-parameters.md](learned-parameters.md) | Fitted-parameter files: the one reader and writer, and the refusals that keep a layer dark |
 | [lexicon.md](lexicon.md) | Adding a technical term: the entry, what is rejected, the check |
 | [data-manifest.md](data-manifest.md) | Origin, licence and digest of every bundled resource file, and the check |

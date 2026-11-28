@@ -160,7 +160,9 @@ the rules, because "tidied by Apple's model" would be untrue of some of the word
 
 **Rolling context.** Every piece after the first is decoded and tidied after one value, its rolling context: the
 previous piece's words as the dictionary corrected them and before the tidier touched them.
-`RollingContext(after:)` is the only producer. That version exists on every path as soon as a piece
+`RollingContext.carried(after:heard:following:)` is the only producer, and it withholds a piece that cannot
+condition the next one: a segment the decoder scored as a repetition loop or as no speech, or a piece that
+repeats six words in a row of the context it was decoded after. The next piece then reads the caret alone. That version exists on every path as soon as a piece
 is recognised and corrected: a piece cut while the key is held, one cut at key-up and one retried
 all read the same text, whereas the tidied words of the piece before exist early but not at
 key-up, where the tidy runs beside the next recognition. So each path corrects a piece before it

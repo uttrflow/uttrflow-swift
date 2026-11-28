@@ -145,6 +145,11 @@ The eight shipped values (`DestinationFormatter.registry`):
 | email | from caret | always | paragraphs, lists | repair | numerals ≥10 | 12,000 |
 | plain | from caret | always | paragraphs, lists | repair | numerals ≥10 | 12,000 |
 
+A one-line field whose label names a kind overrides two of these: a name or an address takes its first word as
+spoken, and a number field takes always-numerals, so "five" in a quantity field is `5`. An email, a phone number, a
+postal code, a date and a web address are written as values by the passes that read their spoken shape. A sentence
+said into a name field is also written as spoken; routing it to the free-text rules is not built.
+
 Everything a formatter decides is a policy value with two to four cases, so a change is a
 value change and a test change, never a new branch. Whether the caret sits in a code comment
 is read by `CaretStructure.region`, which is what switches the code editor's stop to `.always`.

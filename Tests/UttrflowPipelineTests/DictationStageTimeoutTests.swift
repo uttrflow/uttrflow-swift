@@ -73,6 +73,31 @@ private struct NeverAnsweringCleaner: TranscriptCleaning {
     }
 }
 
+/// A ``TranscriptCleaning`` that tidies at once and never finishes the message.
+private struct NeverFinishingCleaner: TranscriptCleaning {
+    /// Set once the message pass has begun, so a test advances the clock only when no tidy timer is left armed.
+    let finishing = FinishEntered()
+
+    func clean(
+        _ request: TransformationRequest
+    ) async throws(TransformationError) -> TransformationResult {
+        TransformationResult(text: "Tidied.", producedBy: .rules)
+    }
+
+    func finishMessage(_ text: String, for request: TransformationRequest) async -> String {
+        finishing.mark()
+        await suspendUntilCancelled()
+        return text
+    }
+}
+
+/// Whether the message pass has been entered.
+private final class FinishEntered: Sendable {
+    private let entered = Mutex(false)
+    var isSet: Bool { entered.withLock { $0 } }
+    func mark() { entered.withLock { $0 = true } }
+}
+
 /// The first insertion strategy never returns, so the clipboard fallback cannot start.
 private struct NeverAnsweringEngine: TextInsertionEngine {
     let method: TextInsertionMethod = .accessibility
@@ -602,6 +627,79 @@ struct DictationStageTimeoutTests {
 
         await pipeline.startRecording()
         #expect(await pipeline.currentState == .recording)
+    }
+
+    @Test("a stage that takes part of the tail leaves the next one only what is left")
+    func tailDrawnDown() async {
+        let clock = ManualClock()
+        let corrector = NeverAnsweringCorrector()
+        let recorder = TimeoutCleaningRecorder()
+        let inserter = FakeTextInserter()
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 2))),
+            speech: FakeSpeechEngine(transcribeOutcome: .success(Transcription(text: "what I said"))),
+            cleaner: NeverAnsweringCleaner(), context: FakeContextEngine(), inserter: inserter,
+            corrector: corrector, cleaningRecorder: recorder, clock: clock)
+
+        await pipeline.startRecording()
+        let finishing = Task { await pipeline.finishRecording() }
+        await waitForCall(corrector.calls)
+        await expire(StageTimeout.correction, at: .tidying, of: pipeline, on: clock)
+        // The tidier had its own 30 s, but half the tail is gone, so it is cut at what remains.
+        await expire(StageTimeout.tail - StageTimeout.correction, at: .tidying, of: pipeline, on: clock)
+        await settle(finishing)
+
+        #expect(inserter.received == ["what I said"])
+        let skipped = await recorder.records.flatMap(\.skippedStages)
+        #expect(skipped.contains(.init(.correction, .timeout)))
+        #expect(skipped.contains(.init(.tidy, .budget)))
+    }
+
+    @Test("a tail spent by the tidier leaves the snippets only the two seconds a rearrangement needs")
+    func tailSpentBeforeSnippets() async {
+        let clock = ManualClock()
+        let snippets = NeverAnsweringExpander()
+        let recorder = TimeoutCleaningRecorder()
+        let inserter = FakeTextInserter()
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 2))),
+            speech: FakeSpeechEngine(transcribeOutcome: .success(Transcription(text: "what I said"))),
+            cleaner: NeverAnsweringCleaner(), context: FakeContextEngine(), inserter: inserter,
+            snippets: snippets, cleaningRecorder: recorder, clock: clock)
+
+        await pipeline.startRecording()
+        let finishing = Task { await pipeline.finishRecording() }
+        await expire(StageTimeout.transformation, at: .tidying, of: pipeline, on: clock)
+        await waitForCall(snippets.calls)
+        await expire(StageTimeout.rules, at: .tidying, of: pipeline, on: clock)
+        await settle(finishing)
+
+        #expect(inserter.received == ["what I said"])
+        let skipped = await recorder.records.flatMap(\.skippedStages)
+        #expect(skipped.contains(.init(.tidy, .timeout)))
+        #expect(skipped.contains(.init(.expansion, .budget)))
+    }
+
+    @Test("a message pass that never answers no longer holds the dictation")
+    func messagePassThatNeverAnswers() async {
+        let cleaner = NeverFinishingCleaner()
+        let clock = ManualClock()
+        let recorder = TimeoutCleaningRecorder()
+        let inserter = FakeTextInserter()
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 2))),
+            speech: FakeSpeechEngine(transcribeOutcome: .success(Transcription(text: "what I said"))),
+            cleaner: cleaner, context: FakeContextEngine(), inserter: inserter,
+            cleaningRecorder: recorder, clock: clock)
+
+        await pipeline.startRecording()
+        let finishing = Task { await pipeline.finishRecording() }
+        while !Task.isCancelled, !cleaner.finishing.isSet { await Task.yield() }
+        await expire(StageTimeout.tail, at: .tidying, of: pipeline, on: clock)
+        await settle(finishing)
+
+        #expect(inserter.received == ["Tidied."])
+        #expect(await recorder.records.flatMap(\.skippedStages) == [.init(.finish, .timeout)])
     }
 }
 

@@ -54,6 +54,22 @@ struct RecordingStoreTests {
         #expect(await store.waiting(now: now).count == 2)
     }
 
+    @Test("a recording begun while another is still open abandons the first and becomes the open one")
+    func beginAbandonsTheOpenRecording() async throws {
+        let sandbox = Sandbox()
+        let store = RecordingStore(directory: sandbox.directory)
+        let first = try #require(await store.begin(at: now))
+        first.append([0.1])
+
+        let second = try #require(await store.begin(at: now))
+        second.append([0.2])
+
+        #expect(!FileManager.default.fileExists(atPath: first.url.path), "the unfinished file is gone")
+        let finished = await store.finish(second)
+        #expect(await store.current() == finished)
+        #expect(await store.waiting(now: now) == [finished])
+    }
+
     @Test("discarding deletes the file and forgets it")
     func discardDeletes() async throws {
         let sandbox = Sandbox()

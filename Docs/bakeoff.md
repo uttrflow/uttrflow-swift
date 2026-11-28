@@ -10,8 +10,8 @@ and the scorer is `Scorer` (`Sources/UttrflowEval/Scorer.swift`). Why each row a
 
 ## The corpus
 
-**The corpus is 1,386 cases in sixteen categories** — `everyday` 294, `contextual` 259, `grammar` 34,
-`technical` 352, `multilingual` 182, `notARequest` 107, `oneLineField` 10, `secondLanguage` 40,
+**The corpus is 1,437 cases in sixteen categories** — `everyday` 300, `contextual` 261, `grammar` 34,
+`technical` 371, `multilingual` 187, `notARequest` 107, `oneLineField` 29, `secondLanguage` 40,
 `bareLiteral` 27, `commandInput` 8, `longInput` 4, `developerGenre` 25, `dictionary` 22,
 `webDestination` 3, `homophone` 12, `hinglishReply` 7 — and everything in it is
 synthesised or written by hand. `Scripts/docs_audit.sh` checks this sentence against the files `all` reads and
@@ -291,4 +291,5 @@ make bakeoff ARGS="--baselines-only"                   # rules, Apple and the sh
 make bakeoff ARGS="--baselines-only --ignore-context"  # the same with context withheld
 make bakeoff ARGS="--summarise"                        # print stored results without running
 make bakeoff ARGS="footprint"                          # memory of the speech and local models
+make bakeoff ARGS="prompt-cost"                        # tokens each prompt rule line and example costs; no model
 ```

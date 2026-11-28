@@ -12,6 +12,8 @@ public enum PanelIntent: Sendable, Equatable {
     case pin(Clip.ID)
     case unpin(Clip.ID)
     case reveal(Clip.ID)
+    /// Mask a revealed secret again.
+    case conceal(Clip.ID)
     /// Unmask a clip wrongly taken for a secret, and stop masking its text.
     case markNotSecret(Clip.ID)
     /// Mask a clip the detector missed, and keep it off the disk.
@@ -57,6 +59,7 @@ public enum PanelIntent: Sendable, Equatable {
         case .insert(let id): .choose(id)
         case .insertCleaned(let id): .chooseCleaned(id)
         case .reveal(let id): .reveal(id)
+        case .conceal(let id): .conceal(id)
         case .alias(let id): .alias(id)
         case .move(let id): .move(id)
         case .edit(let id): .edit(id)
