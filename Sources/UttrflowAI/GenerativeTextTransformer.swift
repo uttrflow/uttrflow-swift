@@ -174,7 +174,7 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
     ) -> (finishing: CleaningPipeline, polished: Draft) {
         let spoken = prepared.draft.text
         let finishing =
-            request.scope == .piece
+            request.scope.waitsForMessage
             ? CleaningPipeline.afterModelPiece(
                 digits: request.situation.digits(for: prepared.formatter), situation: request.situation,
                 heard: request.transcription.text, spoken: spoken)
@@ -259,7 +259,7 @@ struct ModelDraft {
         formatter = DestinationFormatter.standard(for: request.situation)
         pipeline = CleaningPipeline.beforeModel(
             for: formatter, situation: request.situation, steps: steps,
-            pauses: request.profile.pauses)
+            pauses: request.profile.pauses, writesNotation: request.scope.writesNotation)
         draft = pipeline.run(Draft(transcription: request.transcription))
         // The sources answer in milliseconds and run beside each other, so the readings cost the call nothing.
         readings = await doubtful.spans(in: draft, for: request.situation)

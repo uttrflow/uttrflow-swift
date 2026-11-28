@@ -2442,8 +2442,10 @@
     "UttrflowCore var value": 1,
     "UttrflowCore var vocabulary": 1,
     "UttrflowCore var vocabularyCount": 1,
+    "UttrflowCore var waitsForMessage": 1,
     "UttrflowCore var weight": 1,
     "UttrflowCore var words": 1,
+    "UttrflowCore var writesNotation": 1,
     "UttrflowDiagnostics class CrashReporter": 1,
     "UttrflowDiagnostics func close": 1,
     "UttrflowDiagnostics func configure": 1,
@@ -6466,5 +6468,5 @@
     "UttrflowUX var withdrawsTrust": 1,
     "UttrflowUX var words": 2
   },
-  "total": 9209
+  "total": 9211
 }

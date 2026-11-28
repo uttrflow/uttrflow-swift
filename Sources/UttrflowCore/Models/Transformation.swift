@@ -47,8 +47,16 @@ public struct TransformationRequest: Sendable, Equatable {
 public enum CleaningScope: Sendable, Equatable {
     /// The whole message: every pass runs, the first word and the final stop included.
     case message
-    /// One piece of a longer message: the first word and the final stop wait for the joined whole.
+    /// One piece of a longer message: the first word and the final stop wait for the joined whole, and no adapter's notation is written, since the choice reads the whole dictation.
     case piece
+    /// The joined words of a whole dictation that read as an adapter's notation: the piece's passes with that notation, while the first word and the final stop wait for the joined whole.
+    case notated
+
+    /// Whether the first word and the final stop wait for the message's own passes.
+    public var waitsForMessage: Bool { self != .message }
+
+    /// Whether an adapter's notation conversions run: only on words that are the whole dictation.
+    public var writesNotation: Bool { self != .piece }
 }
 
 /// Cleaned-up text, tagged with what produced it.

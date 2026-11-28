@@ -267,17 +267,46 @@ output, and its check is the bake-off on every existing case, unchanged. Moving
 `CodeEditorCommandsPass` from its current place, just before `LayoutWordsPass`, into the
 notation slot is measured by the bake-off in the pull request that does it.
 
-### A statement cut by a pause
+### One decision per dictation
 
-In a query editor the statement keyword that switches notation on is read from the opening word
-of a piece, so a piece cut from the middle of a statement ("and total greater than twelve")
-would be read as prose. `NotationEvidence.continuesStatement` joins such a piece to the pieces
-before it, as a number said across a cut is joined, so the pipeline tidies them once as one piece.
-A piece continues a statement when the statement before it reads as one, the piece does not open a
-statement of its own, it holds a notation word or finishes a command the cut split ("greater" and
-"than"), and its words do not read as prose. `SeamSQLSweepTests` holds every single cut of four
-invented statements to the uncut result. Message-scope selection of every adapter, and the
-cut cases of the shell, source and JSON adapters, remain open.
+A recording is cut into pieces at pauses, so a spoken statement is several pieces and the words
+that show it is notation can sit in any one of them: a clause keyword in the first, a comparison
+word in a middle one, a quoted value in the last. The adapter is therefore chosen **once per
+dictation**, from two inputs only: the caret situation read at key-down, and the corrected text
+of every piece joined. `NotationEvidence.writesNotation(in:situation:)` is that choice; the pass
+that writes notation reads its evidence through the same `NotationEvidence.read`, so there is one
+reading of cues.
+
+- A piece (`CleaningScope.piece`) is tidied with the adapter-neutral passes only: fillers,
+  repeats, stammers, self-correction, spoken punctuation, pause stops, numbers and spacing, and
+  spoken casing, which a code editor takes only in code (not in a comment, between tags or in a
+  quoted value) and not when set to plain prose. It never writes adapter notation, so no piece
+  holds notation that the message would take back.
+- At the join, `rejoiningUnits` makes the choice. When the evidence reaches the threshold the
+  whole joined text is tidied once as `CleaningScope.notated`, which is a piece's passes with the
+  adapter's notation, and the message's own passes follow. The piece-by-piece results are dropped.
+- When the evidence is weak, or a prose cue rules it out, the choice abstains and the pieces
+  stay as they were tidied, which is prose.
+
+The output therefore depends on the joined words and not on where the speech was cut.
+`AdapterDecisionOnceTests` holds 12 invented structured dictations (SQL, shell, source, JSON) and
+6 invented sentences that hold a notation word to 200 random cuts each, and the keyword said
+only in the first, a middle or the last piece. The seam readers (`PieceJoiner.unitRunsAcross`)
+read numbers, times, addresses and quotations only; notation is no longer one of the units a seam
+reads.
+
+**The model's per-piece answer.** For a dictation that abstains, each piece keeps the answer the
+on-device model gave it while the key was held. For a dictation that is written as notation, the
+pieces' answers are not used: the whole text is tidied once, by the same router. When the rules
+cover the text, no model is asked; otherwise the engines run in the configured preference, so a model
+can be asked about notation before the rules floor is reached, and its answer still passes the meaning
+guard and the adapter's validator. A piece of a dictation later written as notation can have been put
+to the model before the choice was made, and that call is wasted.
+Neither shape is built twice.
+
+A command or value cut across pieces in a dictation that is written as notation is read whole.
+What stays open is the dictionary's corrections across a seam in such a dictation: the whole
+text is one piece, so a correction whose words straddle a cut is not offered.
 
 ## 4. The boundary: notation, never rewriting
 

@@ -159,7 +159,7 @@ enum PieceJoiner {
         let pieceReaders = CleaningPipeline.piece(
             numbers: formatter.numbers, digits: situation.digits(for: formatter),
             insertionPoint: situation.insertion, destination: formatter.destination,
-            intent: situation.intent, mode: situation.adapterMode
+            intent: situation.intent, mode: situation.adapterMode, writesNotation: false
         ).passes
         let units = CleaningPipeline(passes: pieceReaders.filter { unitReaders.contains($0.id) })
         let series = CleaningPipeline(passes: pieceReaders.filter { $0.id == .layoutWords })
@@ -238,8 +238,7 @@ enum PieceJoiner {
 
     /// The destination's piece passes that read several words as one unit, the ones a cut can split.
     private static let unitReaders: Set<PassID> = [
-        .spokenPunctuation, .numberForms, .codeEditorCommands, .spokenCasing,
-        .markdownContinuation, .formulaNotation,
+        .spokenPunctuation, .numberForms, .spokenCasing, .markdownContinuation,
     ]
 
     /// Attaches standalone spoken marks to adjacent words across piece boundaries.

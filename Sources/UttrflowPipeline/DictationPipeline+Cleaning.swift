@@ -133,7 +133,7 @@ extension DictationPipeline {
     func tidy(
         _ transcription: Transcription, saying corrected: CorrectedTranscript,
         seeing appContext: AppContext, finalPiece: Bool = false, after rolling: RollingContext? = nil,
-        recording metrics: any MetricsRecording, for mine: Int?
+        as scope: CleaningScope = .piece, recording metrics: any MetricsRecording, for mine: Int?
     ) async -> TransformationResult {
         let text = corrected.text
         // Kept before the tidy can return early, so the account says the decode had no persona help.
@@ -144,7 +144,7 @@ extension DictationPipeline {
         let (situation, profile) = tidyingFrame(seeing: appContext)
         let request = TransformationRequest(
             transcription: transcription.saying(corrected), context: appContext,
-            profile: profile, situation: situation, scope: .piece, precedingPiece: rolling?.text)
+            profile: profile, situation: situation, scope: scope, precedingPiece: rolling?.text)
         if finalPiece { await runningCleaner.reserveFinalPiece(situation) }
         // Not `.rules`: no pass ran over these words, and a record that says otherwise cannot be read.
         let untidied = TransformationResult(text: text, producedBy: .untidied)
@@ -282,43 +282,6 @@ extension DictationPipeline {
             rejoined: pieces, laid: joined, acrossSeams: correctedAtSeams,
             whole: whole, formatter: formatter, expanded: expanded,
             scriptConversions: ScriptConversions(enforcement))
-    }
-
-    /// Pieces cut inside a spoken number, time, address or quotation, tidied again as one piece so the unit is read whole.
-    func rejoiningUnits(
-        _ pieces: [Piece], using message: RunningMessage, under formatter: DestinationFormatter,
-        going situation: Situation, seeing appContext: AppContext,
-        recording metrics: any MetricsRecording, for mine: Int?
-    ) async -> [Piece] {
-        var groups: [[Piece]] = []
-        for piece in pieces {
-            if let previous = groups.last?.last,
-                message.unitRunsAcross(previous.corrected.text, into: piece.corrected.text, going: situation)
-                    || PieceJoiner.quotationRunsAcross(previous.cleaned.text, into: piece.cleaned.text)
-                    // A piece cut from the middle of a statement shows no keyword, so it is read with the statement.
-                    || NotationEvidence.continuesStatement(
-                        head: groups.last?.map(\.corrected.text).joined(separator: " ") ?? "",
-                        tail: piece.corrected.text, destination: formatter.destination,
-                        situation: situation)
-            {
-                groups[groups.count - 1].append(piece)
-            } else {
-                groups.append([piece])
-            }
-        }
-        guard groups.count < pieces.count else { return pieces }
-        var rejoined: [Piece] = []
-        for group in groups {
-            guard group.count > 1 else {
-                rejoined += group
-                continue
-            }
-            let whole = PieceJoiner.join(group, under: formatter)
-            let cleaned = await tidy(
-                whole.heard, saying: whole.corrected, seeing: appContext, recording: metrics, for: mine)
-            rejoined.append(Piece(heard: whole.heard, corrected: whole.corrected, cleaned: cleaned))
-        }
-        return rejoined
     }
 
     /// What a phrase said on its own reaches the snippet matcher as: the dictionary, then the rules, no model.

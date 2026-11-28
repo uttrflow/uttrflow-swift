@@ -45,7 +45,7 @@ struct FormulaNotationPass: PieceCleaningPass {
     }
 
     /// The word that opens a formula in an empty cell.
-    private static let openers: Set<String> = ["equals", "formula"]
+    static let openers: Set<String> = ["equals", "formula"]
 
     /// A word without the stop or comma the recogniser put after it.
     fileprivate static func trimmed(_ text: String) -> String {

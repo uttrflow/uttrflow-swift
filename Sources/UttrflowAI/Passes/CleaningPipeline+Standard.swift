@@ -7,7 +7,7 @@ extension CleaningPipeline {
     /// The piece's passes and the spelled letters joined, so a model is handed "API" rather than "a p i".
     public static func beforeModel(
         for formatter: DestinationFormatter, situation: Situation, steps: CleaningSteps = .default,
-        pauses: PauseLength = .usual
+        pauses: PauseLength = .usual, writesNotation: Bool = true
     ) -> CleaningPipeline {
         let steps = situation.cleaningSteps(steps)
         return CleaningPipeline(
@@ -16,7 +16,7 @@ extension CleaningPipeline {
                 layout: formatter.layout,
                 insertionPoint: situation.insertion, destination: formatter.destination,
                 intent: situation.intent, steps: steps, pauses: pauses, mode: situation.adapterMode,
-                namesFrom: situation
+                writesNotation: writesNotation, namesFrom: situation
             ).passes + initialisms(steps: steps))
     }
 
@@ -35,13 +35,13 @@ extension CleaningPipeline {
                 + message(for: formatter, situation: situation, steps: steps, vocabulary: vocabulary).passes)
     }
 
-    /// The passes right on any piece; `screen` binds doubted runs, `namesFrom` (else `screen`) sets the naming convention.
+    /// The passes right on any piece; `screen` binds doubted runs, `namesFrom` (else `screen`) sets the naming convention, and a piece of a dictation not yet whole is `writesNotation: false`.
     public static func piece(
         numbers: NumberPolicy, digits: DigitGrouping, layout: LayoutPolicy = [.paragraphs, .lists],
         insertionPoint: InsertionPoint = .unknown, destination: Destination = .plain,
         intent: WritingIntent = .unknown, steps: CleaningSteps = .default, pauses: PauseLength = .usual,
         screen: Situation = .unknown, mode: AdapterMode = .auto, readsWholeText: Bool = true,
-        namesFrom: Situation? = nil
+        writesNotation: Bool = true, namesFrom: Situation? = nil
     ) -> CleaningPipeline {
         let steps = screen.cleaningSteps(steps)
         let identifiers = ScreenVocabulary(screen)
@@ -84,7 +84,7 @@ extension CleaningPipeline {
                     MarkdownContinuationPass(position: .at(insertionPoint.precedingText)), at: layoutPosition)
             }
             // A spreadsheet cell holding a formula, or empty and opened by "equals", reads references and operators.
-            if destination == .spreadsheet, mode != .prose, let caretText,
+            if destination == .spreadsheet, mode != .prose, writesNotation, let caretText,
                 let punctuation = cleanings.firstIndex(where: { $0.id == .spokenPunctuation })
             {
                 let cell = caretText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -98,7 +98,7 @@ extension CleaningPipeline {
                         at: punctuation)
                 }
             }
-            if NotationEvidence.mayActivate(notation, in: destination, markup: markup) {
+            if writesNotation, NotationEvidence.mayActivate(notation, in: destination, markup: markup) {
                 // Markup reads its colons, semicolons and dashes by slot, before punctuation takes them as marks.
                 let punctuation = cleanings.firstIndex { $0.id == .spokenPunctuation }
                 cleanings.insert(
@@ -127,8 +127,8 @@ extension CleaningPipeline {
                 cleanings.insert(SQLDateLiteralPass(), at: numbers + 1)
             }
             // A JSON file's code reads its pairs once the numbers are written, so a value's type is known.
-            if destination == .codeEditor, intent.language == .json, intent.region == .code, mode != .prose,
-                let numbers = cleanings.firstIndex(where: { $0.id == .numberForms })
+            if writesNotation, destination == .codeEditor, intent.language == .json, intent.region == .code,
+                mode != .prose, let numbers = cleanings.firstIndex(where: { $0.id == .numberForms })
             {
                 cleanings.insert(JSONValuesPass(), at: numbers + 1)
             }

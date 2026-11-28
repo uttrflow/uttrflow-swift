@@ -133,41 +133,45 @@ package enum NotationEvidence {
         return Applicability(cues: [.queryStatement])
     }
 
-    /// Whether the tail goes on with the statement the head opened: it holds notation and does not open a statement of its own, which alone it would be read as prose for lacking a keyword.
-    package static func continuesStatement(
-        head: String, tail: String, destination: Destination, situation: Situation
-    ) -> Bool {
-        guard destination == .sqlEditor else { return false }
-        let region = situation.intent.region
-        func spoken(_ text: String) -> [String] {
-            WordTokens.words(text, .display).map(CodeEditorCommandsPass.bare).filter { !$0.isEmpty }
+    /// Whether the words of a whole dictation are written as an adapter's notation: chosen once, from the caret's situation and every corrected word, and abstaining to prose where the evidence is weak. See `Docs/adapters.md` §3.
+    package static func writesNotation(in text: String, situation: Situation) -> Bool {
+        let destination = DestinationFormatter.standard(for: situation).destination
+        let intent = situation.intent
+        let mode = situation.adapterMode
+        let caretText = situation.insertion.precedingText
+        // A hesitation before the first word is not the opener, so it is read past here as `FillersPass` will drop it.
+        let spoken = Array(WordTokens.words(text, .display).drop { FillersPass.isFiller($0.lowercased()) })
+        if destination == .spreadsheet {
+            guard mode != .prose, let cell = caretText?.trimmingCharacters(in: .whitespacesAndNewlines),
+                cell.hasPrefix("=") || cell.isEmpty
+            else { return false }
+            return cell.hasPrefix("=")
+                || spoken.first.map { FormulaNotationPass.openers.contains($0.lowercased()) } ?? false
         }
-        let tailWords = spoken(tail)
-        let headWords = spoken(head)
+        let markup =
+            destination == .codeEditor ? MarkupPosition.at(caretText, language: intent.language) : nil
+        let screen = applicability(
+            destination: destination, region: intent.region, statement: SQLPosition.at(caretText),
+            markup: markup, mode: mode)
+        guard mayActivate(screen, in: destination, markup: markup) else { return false }
+        return read(
+            spoken: spoken, destination: destination, markup: markup, given: screen
+        ).activates(at: activationThreshold)
+    }
+
+    /// The evidence over `spoken`, the screen's with the speech's cues added; a pass reads it over a piece's words, the choice over a whole dictation's, and both read it here.
+    static func read(
+        spoken: [String], destination: Destination, markup: MarkupPosition?, given evidence: Applicability
+    ) -> Applicability {
+        let words = spoken.map(CodeEditorCommandsPass.bare)
+        let screen = applicability(destination: destination, opening: words.first, given: evidence)
+        // A spelled tag is evidence enough: its element may be a small word such as "a", and words outside a tag stay text.
+        let spellsTag =
+            markup == .slot(.text) && screen == .noEvidence
+            && spellsTag(in: spoken.map(CodeEditorCommandsPass.markupKey))
         // A quoted value is the speaker's own words, so only what stands outside it is read for prose.
-        let judged = quotesAValue(tailWords, after: headWords) ? outsideQuotation(tailWords) : tailWords
-        guard let opening = tailWords.first, !statementOpeners.contains(opening),
-            tailWords.contains(where: { notationWords.contains($0) })
-                || splitsCommand(between: headWords.last, and: opening)
-                || quotesAValue(tailWords, after: headWords),
-            judged.isEmpty
-                || applicability(of: judged, given: Applicability(cues: [.queryStatement]))
-                    .activates(at: activationThreshold)
-        else { return false }
-        return isQueryStatement(words: headWords, destination: destination, region: region)
-    }
-
-    /// Whether the tail is a spoken quotation, "quote" to "unquote", that follows a comparison the head ended on: a value, written in single quotes only with the comparison before it.
-    private static func quotesAValue(_ tail: [String], after head: [String]) -> Bool {
-        tail.first == "quote" && tail.contains("unquote") && SQLQuoting.endsComparison(head)
-    }
-
-    /// Whether a notation command of several words is said as `last` at the end of one piece and `first` at the start of the next.
-    private static func splitsCommand(between last: String?, and first: String) -> Bool {
-        guard let last else { return false }
-        return SpokenCommands.codeSymbols.contains { command in
-            zip(command.words, command.words.dropFirst()).contains { $0 == last && $1 == first }
-        }
+        return spellsTag
+            ? Applicability(cues: [.markupTag]) : applicability(of: outsideQuotation(words), given: screen)
     }
 
     /// The words a dictated statement opens with; the rest of its keywords are rows of the notation table.
